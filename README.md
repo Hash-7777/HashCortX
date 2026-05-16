@@ -28,3 +28,18 @@ npm run tauri build
 ```
 
 ---
+
+
+<img width="1199" height="868" alt="Screenshot 2026-05-16 at 5 35 02 AM" src="https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28" />
+
+
+<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 43 04 AM" src="https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2" />
+
+
+<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 44 27 AM" src="https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a" />
+
+
+<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 44 41 AM" src="https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121" />
+
+
+<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 42 25 AM" src="https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75" />
