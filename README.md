@@ -11,6 +11,10 @@ Supports 10+ AI providers out of the box — Anthropic Claude, OpenAI GPT, Googl
 Zero telemetry. Zero accounts. Zero subscriptions. Clone, build, and own it completely.
 ---
 
+Run in the folder
+```bash
+npm install 
+```
 ## Dev Start
 
 ```bash
