@@ -1,0 +1,32 @@
+  :root {
+    color-scheme: dark;
+    --bg-0: #06070a;
+    --bg-1: #080a0f;
+    --bg-2: #0d1117;
+    --panel: rgba(18, 22, 31, 0.62);
+    --panel-solid: rgba(16, 19, 28, 0.92);
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --text: #ece7dc;
+    --text-dim: #a39d91;
+    --muted: #6b6558;
+    --gold: #c9a96e;
+    --gold-2: #dfc38e;
+    --gold-deep: #8b6d2c;
+    --emerald: #4ade80;
+    --rose: #f87171;
+    --shadow-lg: 0 26px 70px rgba(0,0,0,0.42), 0 10px 28px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.05);
+    --shadow-sm: 0 10px 28px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.035);
+    --radius: 14px;
+    --radius-lg: 20px;
+    --glass-bg: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+    --glass-edge: inset 0 1px 0 rgba(255,255,255,0.08);
+    --glass-blur: blur(18px) saturate(145%);
+
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+    --comfort: "Nunito", "Avenir Next", "Segoe UI Rounded", "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --serif: "Cormorant Garamond", "Playfair Display", ui-serif, Georgia, "Times New Roman", serif;
+    --script: "Snell Roundhand", "Zapfino", "Apple Chancery", "Segoe Script", "Lucida Handwriting", cursive;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  }
+

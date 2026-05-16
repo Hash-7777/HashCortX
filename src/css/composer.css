@@ -1,0 +1,283 @@
+  /* ========= Composer ========= */
+  .composer-wrap {
+    padding: 8px 3% 16px;
+    background: transparent;
+    overflow: visible;
+  }
+
+  /* Suggested-prompt chips that appear inside the composer once chat starts.
+     Clips horizontally inside its own scroll but must not be clipped by parent. */
+  .composer-chips {
+    display: none;
+    gap: 6px;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    overflow-y: visible;
+    scrollbar-width: none;
+    padding: 3px 2px 4px;
+    scroll-snap-type: x proximity;
+  }
+  .composer-chips::-webkit-scrollbar { display: none; }
+  .app.has-chat .composer-chips { display: flex; }
+  .composer-chips button {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 30px; padding: 0 11px;
+    font-size: 11.5px; letter-spacing: .02em;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    scroll-snap-align: start;
+    transition: color .15s, border-color .15s, background .15s, transform .15s;
+  }
+  .composer-chips button:hover {
+    color: var(--text);
+    border-color: rgba(34,211,238,0.45);
+    background: rgba(34,211,238,0.06);
+    transform: translateY(-1px);
+  }
+  .composer-chips button:active { transform: translateY(0); }
+  .composer-chips button.accent {
+    color: var(--gold);
+    border-color: rgba(34,211,238,0.32);
+    background: rgba(34,211,238,0.06);
+  }
+  .composer-chips button.accent:hover {
+    color: #f3dfb2;
+    border-color: rgba(34,211,238,0.55);
+    background: rgba(34,211,238,0.1);
+  }
+  @media (max-width: 900px) {
+    .composer-chips { margin-bottom: 6px; }
+    .composer-chips button { height: 28px; font-size: 11px; padding: 0 10px; }
+  }
+
+  /* ================= Router chip (auto-backend picker) ================= */
+  .router-bar {
+    position: relative;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 6px 6px;
+    margin-top: -2px;
+  }
+  .router-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 9px;
+    border-radius: 999px;
+    background: rgba(20,22,30,0.6);
+    border: 1px solid rgba(34,211,238,0.22);
+    color: var(--text-dim);
+    font: 500 10.5px/1 'Inter', system-ui, sans-serif;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: border-color .15s, background .15s, color .15s, transform .1s;
+    user-select: none;
+  }
+  .router-chip:hover {
+    border-color: rgba(34,211,238,0.45);
+    color: var(--text);
+    background: rgba(20,22,30,0.78);
+  }
+  .router-chip:active { transform: scale(0.97); }
+  .router-chip.cloud { border-color: rgba(120,180,250,0.4); color: #a8c8f0; }
+  .router-chip.cloud:hover { border-color: rgba(120,180,250,0.7); }
+  .router-chip.search { border-color: rgba(160,220,140,0.4); color: #b4dba0; }
+  .router-chip.search:hover { border-color: rgba(160,220,140,0.7); }
+  .router-chip.locked { border-color: rgba(160,220,140,0.5); color: #80a8c8; }
+  .router-chip .router-icon { font-size: 11px; opacity: 0.8; }
+  .router-chip .router-arrow { font-size: 8px; opacity: 0.55; margin-left: 2px; }
+  .router-menu {
+    position: absolute; right: 6px; bottom: 28px; top: auto;
+    z-index: 30;
+    min-width: 260px;
+    max-height: min(360px, calc(100vh - 120px));
+    overflow-y: auto;
+    background: rgba(14,16,22,0.96);
+    border: 1px solid rgba(34,211,238,0.22);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 -8px 36px rgba(0,0,0,0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34,211,238,0.22) transparent;
+    animation: routerIn .14s ease-out;
+  }
+  .router-menu.open { display: block; }
+  @keyframes routerIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .router-menu button {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; text-align: left;
+    background: none; border: none; color: var(--text-dim);
+    padding: 8px 10px; border-radius: 8px;
+    font: 500 12px/1.3 'Inter', system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .router-menu button:hover { background: rgba(34,211,238,0.1); color: var(--text); }
+  .router-menu button.active { color: var(--gold); background: rgba(34,211,238,0.08); }
+  .router-menu button .menu-sub { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; font-weight: 400; }
+  .router-menu .menu-divider { height: 1px; background: rgba(34,211,238,0.15); margin: 4px 6px; }
+
+  .compare-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 8px;
+  }
+  .compare-bar.visible { display: flex; }
+  .compare-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(34,211,238,0.28);
+    background: rgba(34,211,238,0.07);
+    color: #a0d8f0;
+    font-size: 10.5px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .compare-bar select {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 30px;
+    padding: 0 28px 0 10px;
+    border-radius: 9px;
+    border: 1px solid var(--line-strong);
+    background: rgba(0,0,0,0.28);
+    color: var(--text);
+    font: 500 11.5px/1 var(--mono);
+  }
+  .compare-close {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+  }
+  .compare-close svg { width: 13px; height: 13px; }
+
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(320px, 1fr));
+    gap: 12px;
+    min-width: min(860px, 100%);
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(34,211,238,0.24) transparent;
+  }
+  .compare-grid::-webkit-scrollbar { height: 8px; }
+  .compare-grid::-webkit-scrollbar-thumb {
+    background: rgba(34,211,238,0.22);
+    border-radius: 999px;
+  }
+  .compare-pane {
+    min-width: 0;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid rgba(34,211,238,0.15);
+    background:
+      linear-gradient(180deg, rgba(34,211,238,0.065), transparent 28%),
+      rgba(0,0,0,0.18);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .compare-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0;
+    padding: 9px 11px;
+    border-bottom: 1px solid rgba(34,211,238,0.12);
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--gold);
+  }
+  .compare-model {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .compare-status {
+    flex: 0 0 auto;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+  }
+  .compare-body {
+    min-height: 90px;
+    white-space: normal;
+    padding: 12px;
+    overflow-x: auto;
+  }
+  .msg.compare-msg {
+    width: min(1120px, 100%);
+    max-width: 100%;
+  }
+  .msg.compare-msg .avatar { display: none; }
+  .msg.compare-msg .bubble {
+    max-width: 100%;
+    width: 100%;
+  }
+  .app.split-mode .msg.compare-msg .bubble {
+    background: transparent;
+    border-color: rgba(34,211,238,0.18);
+    box-shadow: none;
+    padding: 10px 10px 34px;
+  }
+
+  .slash-palette {
+    position: fixed;
+    z-index: 90;
+    width: min(380px, calc(100vw - 24px));
+    max-height: 310px;
+    display: none;
+    padding: 6px;
+    border-radius: 12px;
+    border: 1px solid rgba(34,211,238,0.22);
+    background: rgba(12,15,20,0.96);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(18px) saturate(145%);
+    -webkit-backdrop-filter: blur(18px) saturate(145%);
+    overflow-y: auto;
+  }
+  .slash-palette.open { display: block; }
+  .slash-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    text-align: left;
+  }
+  .slash-item.active,
+  .slash-item:hover {
+    background: rgba(34,211,238,0.10);
+  }
+  .slash-name {
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .slash-desc {
+    color: var(--muted);
+    font-size: 11px;
+  }
+

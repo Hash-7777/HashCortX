@@ -1,0 +1,93 @@
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--sans);
+    color: var(--text);
+    background: var(--bg-0);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: 0.01em;
+  }
+  /* Ambient background — layered radial gradients + deep vignette */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: -2;
+    background:
+      radial-gradient(1200px 800px at 18% -8%,  rgba(201,169,110,0.13), transparent 60%),
+      radial-gradient(1000px 700px at 88% 105%,  rgba(201,169,110,0.08), transparent 56%),
+      radial-gradient(900px  600px at 75% 10%,  rgba(201,169,110,0.04), transparent 55%),
+      radial-gradient(1600px 1200px at 50% 50%, transparent 35%, rgba(0,0,0,0.60) 100%),
+      linear-gradient(180deg, #06070a 0%, #090a0f 60%, #0a0b11 100%);
+    background-size: auto, auto, auto, auto, auto;
+    background-repeat: no-repeat;
+  }
+  /* PCB traces — idle drift + glow-on-send.
+     Uses a real DOM layer with GPU-accelerated `transform` translation
+     instead of CSS background-position, so the drift stays buttery on
+     50 Hz and low-refresh displays. */
+  .pcb-traces {
+    position: fixed; z-index: 0; pointer-events: none;
+    /* Oversize the layer so we can translate by one tile (800px) and
+       still cover the viewport on both axes. */
+    top: -800px; left: -800px;
+    width: calc(100vw + 1600px);
+    height: calc(100vh + 1600px);
+    opacity: 0.17;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='800' height='800' viewBox='0 0 800 800'><g fill='none' stroke='%23c9a96e' stroke-width='0.9' stroke-linecap='round' stroke-linejoin='round'><path d='M0 100 L160 100 L180 80 L320 80 L340 100 L480 100 L500 120 L640 120 L660 100 L800 100'/><path d='M0 700 L140 700 L160 680 L300 680 L320 700 L500 700 L520 720 L660 720 L680 700 L800 700'/><path d='M100 0 L100 140 L80 160 L80 340 L100 360 L100 660 L120 680 L100 800'/><path d='M700 0 L700 140 L720 160 L720 340 L700 360 L700 660 L680 680 L700 800'/><path d='M400 0 L400 60 L420 80 L420 260'/><path d='M400 800 L400 740 L380 720 L380 540'/><path d='M280 200 L280 300'/><path d='M520 200 L520 300'/><path d='M280 500 L280 600'/><path d='M520 500 L520 600'/><path d='M0 400 L140 400 L160 420 L240 420'/><path d='M560 420 L640 420 L660 400 L800 400'/><path d='M140 300 L220 300'/><path d='M580 500 L660 500'/></g><g fill='%23c9a96e'><circle cx='100' cy='100' r='2.8'/><circle cx='180' cy='80' r='2.8'/><circle cx='340' cy='100' r='2.8'/><circle cx='500' cy='120' r='2.8'/><circle cx='700' cy='100' r='2.8'/><circle cx='320' cy='700' r='2.8'/><circle cx='500' cy='700' r='2.8'/><circle cx='700' cy='720' r='2.8'/><circle cx='100' cy='700' r='2.8'/><circle cx='140' cy='400' r='2.5'/><circle cx='660' cy='400' r='2.5'/><circle cx='280' cy='300' r='2.5'/><circle cx='520' cy='300' r='2.5'/><circle cx='280' cy='500' r='2.5'/><circle cx='520' cy='500' r='2.5'/><circle cx='420' cy='260' r='2.5'/><circle cx='380' cy='540' r='2.5'/><circle cx='220' cy='300' r='2'/><circle cx='580' cy='500' r='2'/></g><g stroke='%23c9a96e' fill='rgba(34,211,238,0.035)' stroke-width='0.9'><rect x='300' y='320' width='200' height='160' rx='6'/></g><g stroke='%23c9a96e' stroke-width='0.9'><line x1='320' y1='320' x2='320' y2='306'/><line x1='340' y1='320' x2='340' y2='306'/><line x1='360' y1='320' x2='360' y2='306'/><line x1='380' y1='320' x2='380' y2='306'/><line x1='420' y1='320' x2='420' y2='306'/><line x1='440' y1='320' x2='440' y2='306'/><line x1='460' y1='320' x2='460' y2='306'/><line x1='480' y1='320' x2='480' y2='306'/><line x1='320' y1='480' x2='320' y2='494'/><line x1='340' y1='480' x2='340' y2='494'/><line x1='360' y1='480' x2='360' y2='494'/><line x1='380' y1='480' x2='380' y2='494'/><line x1='420' y1='480' x2='420' y2='494'/><line x1='440' y1='480' x2='440' y2='494'/><line x1='460' y1='480' x2='460' y2='494'/><line x1='480' y1='480' x2='480' y2='494'/><line x1='300' y1='340' x2='286' y2='340'/><line x1='300' y1='360' x2='286' y2='360'/><line x1='300' y1='380' x2='286' y2='380'/><line x1='300' y1='400' x2='286' y2='400'/><line x1='300' y1='420' x2='286' y2='420'/><line x1='300' y1='440' x2='286' y2='440'/><line x1='300' y1='460' x2='286' y2='460'/><line x1='500' y1='340' x2='514' y2='340'/><line x1='500' y1='360' x2='514' y2='360'/><line x1='500' y1='380' x2='514' y2='380'/><line x1='500' y1='400' x2='514' y2='400'/><line x1='500' y1='420' x2='514' y2='420'/><line x1='500' y1='440' x2='514' y2='440'/><line x1='500' y1='460' x2='514' y2='460'/></g><g stroke='%23c9a96e' stroke-width='0.7' fill='none'><circle cx='315' cy='335' r='3'/></g><text x='358' y='412' fill='%23c9a96e' font-family='Georgia, serif' font-size='26' font-style='italic' stroke='none' opacity='0.7'>Hash</text><g fill='none' stroke='%23c9a96e' stroke-width='0.8'><rect x='180' y='220' width='36' height='12' rx='1.5'/><rect x='584' y='220' width='36' height='12' rx='1.5'/><rect x='180' y='568' width='36' height='12' rx='1.5'/><rect x='584' y='568' width='36' height='12' rx='1.5'/><rect x='60' y='240' width='12' height='32' rx='1.5'/><rect x='728' y='520' width='12' height='32' rx='1.5'/></g><g fill='none' stroke='%23c9a96e' stroke-width='0.8'></g><g fill='%23c9a96e' opacity='0.75'><circle cx='120' cy='140' r='1.4'/><circle cx='680' cy='140' r='1.4'/><circle cx='120' cy='660' r='1.4'/><circle cx='680' cy='660' r='1.4'/><circle cx='400' cy='400' r='1.2'/></g></svg>");
+    background-size: 800px 800px;
+    background-repeat: repeat;
+    transform: translate3d(0, 0, 0);
+    animation: traces-drift 240s linear infinite;
+    transition: opacity 1.2s ease, filter 1.2s ease;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+  @keyframes traces-drift {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-800px, -800px, 0); }
+  }
+  /* Moving spotlight — subtle wandering light while idle.
+     Uses `transform` so it's GPU-composited instead of repainting. */
+  .circuit-spot {
+    position: fixed; z-index: 0; pointer-events: none;
+    top: 0; left: 0; width: 60vmax; height: 60vmax;
+    margin-left: -30vmax; margin-top: -30vmax;
+    background: radial-gradient(closest-side,
+      rgba(201,169,110,0.20) 0%,
+      rgba(201,169,110,0.08) 40%,
+      transparent 75%);
+    mix-blend-mode: screen;
+    opacity: 0.55;
+    transition: opacity 1.2s ease;
+    animation: spot-wander 34s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+  }
+  @keyframes spot-wander {
+    0%   { transform: translate3d(15vw,  25vh, 0); }
+    25%  { transform: translate3d(75vw,  30vh, 0); }
+    50%  { transform: translate3d(85vw,  70vh, 0); }
+    75%  { transform: translate3d(25vw,  80vh, 0); }
+    100% { transform: translate3d(50vw,  45vh, 0); }
+  }
+
+  /* Pulse when a prompt is sent — traces brighten, spotlight flares */
+  body.pulse-traces .pcb-traces {
+    opacity: 0.42;
+    filter: brightness(1.9) drop-shadow(0 0 8px rgba(201,169,110,0.55));
+    transition: opacity 0.25s ease, filter 0.25s ease;
+  }
+  body.pulse-traces .circuit-spot {
+    opacity: 1;
+    transition: opacity 0.25s ease;
+  }
+
+  .app {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+  }
+  aside { flex: 0 0 300px; width: 300px; transition: flex-basis .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1), padding .28s, border .28s; }
+  .app.collapsed aside { flex-basis: 0; width: 0; }
+

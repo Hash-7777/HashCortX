@@ -1,0 +1,2247 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="referrer" content="no-referrer"/>
+  <title>HashCortx</title>
+  <style id="critical-launch-bg">
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      background: #06070a;
+      color: #dfffe9;
+    }
+  </style>
+
+  <!-- ── Import map: resolves bare 'three' specifier used by OrbitControls/TransformControls ── -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+    }
+  }
+  </script>
+
+  <!-- ── Vendor libs (all local — no CDN, no CSP issues) ─── -->
+  <script src="/js/vendor/marked.min.js"></script>
+  <script src="/js/vendor/highlight.min.js"></script>
+  <script src="/js/vendor/jspdf.umd.min.js"></script>
+  <script src="/js/vendor/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = "/js/vendor/pdf.worker.min.js";
+    }
+  </script>
+  <script src="/js/vendor/mermaid.min.js"></script>
+  <script src="/js/vendor/purify.min.js"></script>
+
+  <!-- ── App CSS (Hash_UI design system, HashCortx green) ── -->
+  <link rel="stylesheet" href="/css/vars.css"/>
+  <link rel="stylesheet" href="/css/base.css"/>
+  <link rel="stylesheet" href="/css/sidebar.css"/>
+  <link rel="stylesheet" href="/css/tabs.css"/>
+  <link rel="stylesheet" href="/css/main.css"/>
+  <link rel="stylesheet" href="/css/composer.css"/>
+  <link rel="stylesheet" href="/css/modes.css"/>
+  <link rel="stylesheet" href="/css/modals.css"/>
+  <link rel="stylesheet" href="/css/finance-mode.css"/>
+  <link rel="stylesheet" href="/css/sandbox.css"/>
+  <link rel="stylesheet" href="/css/agent-maker.css"/>
+  <link rel="stylesheet" href="/css/system-maker.css"/>
+  <link rel="stylesheet" href="/css/forge-mode.css"/>
+  <link rel="stylesheet" href="/css/virtual-os.css"/>
+  <link rel="stylesheet" href="/css/coder-mode.css"/>
+  <link rel="stylesheet" href="/js/vendor/highlight-github-dark.min.css"/>
+
+  <!-- ── HashCortx brand + intro overrides (loaded last) ── -->
+  <link rel="stylesheet" href="/styles.css"/>
+
+</head>
+<body>
+
+  <!-- PCB traces + wandering spotlight — same animated background as Hash_UI -->
+  <div class="pcb-traces" aria-hidden="true"></div>
+  <div class="circuit-spot" aria-hidden="true"></div>
+
+  <!-- ============================================================
+       PERSISTENT TOOLBAR — always on top (z-index 99999).
+       Acts as the window drag handle AND the iOS-style nav bar.
+       The whole bar is data-tauri-drag-region; the center content
+       sets -webkit-app-region:no-drag so it stays readable without
+       accidentally starting a drag.
+       ============================================================ -->
+  <div class="hc-toolbar" data-tauri-drag-region>
+
+    <!-- Left zone: macOS traffic-light buttons sit here automatically.
+         data-tauri-drag-region makes this empty strip a drag handle. -->
+    <div class="hc-toolbar-left" data-tauri-drag-region></div>
+
+    <!-- Center: logo mark + app name.
+         Also a drag region — decorative content only, no interactive buttons here. -->
+    <!-- data-tauri-drag-region must be on EVERY child — WebKit never inherits it -->
+    <div class="hc-toolbar-center" data-tauri-drag-region>
+      <img src="/assets/logo-mark.png"
+           class="hc-toolbar-logo"
+           alt="HashCortx"
+           draggable="false"
+           data-tauri-drag-region/>
+      <span class="hc-toolbar-name" data-tauri-drag-region>HashCortx</span>
+      <span class="hc-toolbar-badge" data-tauri-drag-region>v2.0</span>
+    </div>
+
+    <!-- Right zone: window/app actions -->
+    <div class="hc-toolbar-right" data-tauri-drag-region>
+      <button class="hc-toolbar-btn hc-safe-exit-mode" id="hcSafeExitModeBtn" type="button" title="Exit current mode" aria-label="Exit current mode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+      </button>
+      <button class="hc-toolbar-btn" id="hcReloadAppBtn" type="button" title="Reload app" aria-label="Reload app">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+          <path d="M21 3v6h-6"/>
+        </svg>
+      </button>
+    </div>
+
+  </div><!-- /.hc-toolbar -->
+
+  <!-- ============================================================
+       INTRO SCREEN — 1:1 replica of Hash_UI intro, green theme.
+       Uses EXACT same class/ID names as Hash_UI so modals.css
+       handles all styling. Only differences: green palette,
+       full logo PNG instead of "H" monogram, no title text.
+       ============================================================ -->
+  <div id="intro-screen">
+    <div class="stage" id="intro-stage">
+
+      <div class="grid-bg"></div>
+      <div class="circuits" id="intro-circuits"></div>
+      <div class="vignette"></div>
+
+      <div class="bracket tl"></div>
+      <div class="bracket tr"></div>
+      <div class="bracket bl"></div>
+      <div class="bracket br"></div>
+
+      <!-- Boot lines — top left -->
+      <div class="boot-lines">
+        <div class="row"><span class="dim">&gt;</span><span class="ok">[ ok ]</span> runtime · hashcortx-core.rs</div>
+        <div class="row"><span class="dim">&gt;</span><span class="gold" id="intro-stat-ollama">[ • ]</span> <span id="intro-txt-ollama">model routing · initializing</span></div>
+        <div class="row"><span class="dim">&gt;</span><span class="gold" id="intro-stat-drone">[ • ]</span> <span id="intro-txt-drone">interface core · waiting</span></div>
+        <div class="row"><span class="dim">&gt;</span><span class="gold" id="intro-stat-agents">[ • ]</span> <span id="intro-txt-agents">agents · waiting for runtime</span></div>
+        <div class="row"><span class="dim">&gt;</span><span class="ok">[ ok ]</span> csp · hardened</div>
+        <div class="row"><span class="dim">&gt;</span><span class="gold" id="intro-stat-warm">[ • ]</span> <span id="intro-txt-warm">warming HashCortx…</span></div>
+        <div class="row"><span class="dim">&gt;</span><span class="ok">[ ✓ ]</span> ready · awaiting operator</div>
+        <div class="cta">press enter or click to begin</div>
+      </div>
+
+      <!-- Bottom decoration -->
+      <div class="timestamp" id="intro-timestamp">— · —</div>
+      <div class="patch-badge">HashCortx v2.0 · Batch 2.0 · May 2026</div>
+      <div class="perfection-quote">Massive UI · Isolated Intelligence · Agentic</div>
+      <div class="signature">Designed By DR Seif Hashish</div>
+      <div class="status-badge initializing" id="intro-badge">
+        <span class="dot" id="intro-dot"></span>
+        <span id="intro-badge-text">Initializing...</span>
+      </div>
+      <div class="intro-loading-bar" id="intro-loading-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <span id="intro-loading-fill"></span>
+      </div>
+
+      <!-- Central emblem -->
+      <div class="emblem-stage">
+        <div class="ring r4"></div>
+        <div class="ring r3"></div>
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ticks" id="intro-ticks"></div>
+
+        <!-- 3 drone orbits (green stroke) -->
+        <div class="drone-orbit intro-drone-a" style="width:100%;height:100%;animation:ispin 42s linear infinite;animation-delay:0s;">
+          <div class="drone"><svg viewBox="0 0 40 40"><g stroke="#39ff81" stroke-width="1.2" fill="none"><line x1="9" y1="9" x2="31" y2="31"/><line x1="31" y1="9" x2="9" y2="31"/><circle cx="9" cy="9" r="3" fill="#39ff81"/><circle cx="31" cy="9" r="3" fill="#39ff81"/><circle cx="9" cy="31" r="3" fill="#39ff81"/><circle cx="31" cy="31" r="3" fill="#39ff81"/><rect x="16" y="16" width="8" height="8" rx="1" fill="rgba(4,7,4,0.97)"/><circle cx="20" cy="20" r="1.2" class="drone-glow"/></g></svg></div>
+        </div>
+        <div class="drone-orbit intro-drone-b" style="width:100%;height:100%;animation:ispin 42s linear infinite;animation-delay:-14s;">
+          <div class="drone"><svg viewBox="0 0 40 40"><g stroke="#39ff81" stroke-width="1.2" fill="none"><line x1="9" y1="9" x2="31" y2="31"/><line x1="31" y1="9" x2="9" y2="31"/><circle cx="9" cy="9" r="3" fill="#39ff81"/><circle cx="31" cy="9" r="3" fill="#39ff81"/><circle cx="9" cy="31" r="3" fill="#39ff81"/><circle cx="31" cy="31" r="3" fill="#39ff81"/><rect x="16" y="16" width="8" height="8" rx="1" fill="rgba(4,7,4,0.97)"/><circle cx="20" cy="20" r="1.2" class="drone-glow"/></g></svg></div>
+        </div>
+        <div class="drone-orbit intro-drone-c" style="width:100%;height:100%;animation:ispin 42s linear infinite;animation-delay:-28s;">
+          <div class="drone"><svg viewBox="0 0 40 40"><g stroke="#39ff81" stroke-width="1.2" fill="none"><line x1="9" y1="9" x2="31" y2="31"/><line x1="31" y1="9" x2="9" y2="31"/><circle cx="9" cy="9" r="3" fill="#39ff81"/><circle cx="31" cy="9" r="3" fill="#39ff81"/><circle cx="9" cy="31" r="3" fill="#39ff81"/><circle cx="31" cy="31" r="3" fill="#39ff81"/><rect x="16" y="16" width="8" height="8" rx="1" fill="rgba(4,7,4,0.97)"/><circle cx="20" cy="20" r="1.2" class="drone-glow"/></g></svg></div>
+        </div>
+
+        <div class="security-rings"></div>
+        <div class="security-rings r2"></div>
+        <div class="security-rings r3"></div>
+        <div id="intro-sonar" style="position:absolute;inset:0;pointer-events:none;"></div>
+
+        <!-- Full logo PNG (mark + HashCortx name) — replaces the "H" monogram -->
+        <div class="logo-wrap">
+          <div class="logo-glow"></div>
+          <img class="hc-logo-full"
+               src="/assets/logo-full.png"
+               alt="HashCortx"
+               draggable="false"/>
+        </div>
+      </div><!-- /.emblem-stage -->
+
+      <!-- Spark particles -->
+      <div class="particles">
+        <span class="spark s1"></span><span class="spark s2"></span>
+        <span class="spark s3"></span><span class="spark s4"></span>
+        <span class="spark s5"></span><span class="spark s6"></span>
+        <span class="spark s7"></span>
+      </div>
+
+    </div><!-- /.stage -->
+  </div><!-- /#intro-screen -->
+
+
+  <!-- ============================================================
+       MAIN APP SHELL — hidden during intro, shown after dismiss.
+       Full Hash_UI port: 9 modes (Chats, Agents, Code, Split,
+       3D Forge, Workflow, Sandbox, ERP, Agent-Swarm, Virtual OS).
+       ============================================================ -->
+  <div id="mainApp" style="visibility:hidden;pointer-events:none;">
+    <div class="app" id="app">
+      <aside>
+        <div class="brand">
+          <img src="/assets/logo-mark.png" class="brand-logo-img" draggable="false" alt="HashCortx"/>
+          <div class="name">
+            <div class="title">HashCortx</div>
+            <div class="sub" aria-label="Massive UI Isolated Intellegence Agentic">
+              <span>Massive UI</span>
+              <span>Isolated Intellegence</span>
+              <span>Agentic</span>
+            </div>
+          </div>
+          <span class="brand-drone"><svg viewBox="-10 -10 220 140" width="78" height="47" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="dg-brand" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#b0ffe0"/>
+                  <stop offset="0.4" stop-color="#6fffaa"/>
+                  <stop offset="0.8" stop-color="#39ff81"/>
+                  <stop offset="1" stop-color="#1a7a40"/>
+                </linearGradient>
+                <radialGradient id="dr-brand" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="rgba(57,255,129,0.60)"/>
+                  <stop offset="0.6" stop-color="rgba(57,255,129,0.28)"/>
+                  <stop offset="1" stop-color="rgba(57,255,129,0)"/>
+                </radialGradient>
+                <filter id="flt-brand" x="-60%" y="-60%" width="220%" height="220%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/>
+                  <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+              </defs>
+              <!-- Arms -->
+              <line x1="40" y1="40" x2="160" y2="80" stroke="url(#dg-brand)" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+              <line x1="160" y1="40" x2="40" y2="80" stroke="url(#dg-brand)" stroke-width="3.5" stroke-linecap="round" opacity="0.9"/>
+              <!-- Rotor halos -->
+              <circle cx="40" cy="40" r="24" fill="url(#dr-brand)"/>
+              <circle cx="160" cy="40" r="24" fill="url(#dr-brand)"/>
+              <circle cx="40" cy="80" r="24" fill="url(#dr-brand)"/>
+              <circle cx="160" cy="80" r="24" fill="url(#dr-brand)"/>
+              <!-- Rotor guard rings -->
+              <circle cx="40" cy="40" r="19" fill="none" stroke="url(#dg-brand)" stroke-width="1" opacity="0.55"/>
+              <circle cx="160" cy="40" r="19" fill="none" stroke="url(#dg-brand)" stroke-width="1" opacity="0.55"/>
+              <circle cx="40" cy="80" r="19" fill="none" stroke="url(#dg-brand)" stroke-width="1" opacity="0.55"/>
+              <circle cx="160" cy="80" r="19" fill="none" stroke="url(#dg-brand)" stroke-width="1" opacity="0.55"/>
+              <!-- Spinning blades with glow -->
+              <g><ellipse cx="40" cy="40" rx="15" ry="2.2" fill="url(#dg-brand)"/><ellipse cx="40" cy="40" rx="2.2" ry="15" fill="url(#dg-brand)"/><circle cx="40" cy="40" r="2.8" fill="#b0ffe0"/><animateTransform attributeName="transform" type="rotate" from="0 40 40" to="360 40 40" dur="0.92s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="40" rx="15" ry="2.2" fill="url(#dg-brand)"/><ellipse cx="160" cy="40" rx="2.2" ry="15" fill="url(#dg-brand)"/><circle cx="160" cy="40" r="2.8" fill="#b0ffe0"/><animateTransform attributeName="transform" type="rotate" from="0 160 40" to="-360 160 40" dur="0.86s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="40" cy="80" rx="15" ry="2.2" fill="url(#dg-brand)"/><ellipse cx="40" cy="80" rx="2.2" ry="15" fill="url(#dg-brand)"/><circle cx="40" cy="80" r="2.8" fill="#b0ffe0"/><animateTransform attributeName="transform" type="rotate" from="0 40 80" to="-360 40 80" dur="0.98s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="80" rx="15" ry="2.2" fill="url(#dg-brand)"/><ellipse cx="160" cy="80" rx="2.2" ry="15" fill="url(#dg-brand)"/><circle cx="160" cy="80" r="2.8" fill="#b0ffe0"/><animateTransform attributeName="transform" type="rotate" from="0 160 80" to="360 160 80" dur="0.88s" repeatCount="indefinite"/></g>
+              <!-- Body -->
+              <rect x="72" y="46" width="56" height="28" rx="8" fill="rgba(6,8,16,0.97)" stroke="url(#dg-brand)" stroke-width="1.8"/>
+              <!-- Screen panel -->
+              <rect x="78" y="52" width="16" height="10" rx="2.5" fill="rgba(57,255,129,0.12)" stroke="url(#dg-brand)" stroke-width="0.9"/>
+              <rect x="81" y="55" width="9" height="6" rx="1.5" fill="rgba(57,255,129,0.38)"/>
+              <!-- Camera lens -->
+              <circle cx="118" cy="60" r="5" fill="rgba(57,255,129,0.10)" stroke="url(#dg-brand)" stroke-width="1"/>
+              <circle cx="118" cy="60" r="3" fill="rgba(57,255,129,0.30)" stroke="url(#dg-brand)" stroke-width="0.7"/>
+              <circle cx="118" cy="60" r="1.4" fill="#6fffaa"/>
+              <!-- Landing gear -->
+              <line x1="80" y1="74" x2="74" y2="96" stroke="url(#dg-brand)" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+              <line x1="120" y1="74" x2="126" y2="96" stroke="url(#dg-brand)" stroke-width="1.8" stroke-linecap="round" opacity="0.8"/>
+              <line x1="74" y1="96" x2="126" y2="96" stroke="url(#dg-brand)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+              <!-- Status LED -->
+              <circle cx="100" cy="60" r="1.8" fill="#6fffaa"><animate attributeName="opacity" values="0.15;1;0.15" dur="1.6s" repeatCount="indefinite"/></circle>
+              <circle cx="100" cy="60" r="3.5" fill="rgba(255,230,100,0.22)"><animate attributeName="opacity" values="0;0.6;0" dur="1.6s" repeatCount="indefinite"/></circle>
+            </svg></span>
+        </div>
+    
+        <div class="tabs">
+          <button class="tab active" data-tab="chats" id="tabChats">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+            Chats
+          </button>
+          <button class="tab" data-tab="agents" id="tabAgents">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z"/></svg>
+            Agents
+          </button>
+          <button class="tab" data-tab="code" id="tabCode" title="HashCortX Coder — god agent that codes, edits, and tells you what changed">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Coder
+          </button>
+          <button class="tab" data-tab="split" id="tabSplit" title="Split view — compare two models side by side">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="8" height="14" rx="2"/><rect x="13" y="5" width="8" height="14" rx="2"/></svg>
+            Split
+          </button>
+          <button class="tab" data-tab="forge" id="tabForge" title="3D Forge — architecture-first 3D agent swarm planning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v12l8 4 8-4V6l-8-4Z"/><path d="M12 22V10"/><path d="m4 6 8 4 8-4"/><path d="m7.5 8.2 9-4.4"/><circle cx="12" cy="10" r="2"/></svg>
+            3D Forge
+          </button>
+          <button class="tab" data-tab="finance" id="tabFinance" title="Finance AI — full-screen financial analysis studio">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            Finance
+          </button>
+          <button class="tab" data-tab="sandbox" id="tabSandbox" title="HashCortx Sandbox — swarm security scanner for malware, trojans &amp; injections">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+            Sandbox
+          </button>
+          <button class="tab" data-tab="systems" id="tabSystems" title="ERP — create interactive business app prototypes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M3 9h18"/><path d="M12 13h5"/><path d="M12 17h3"/></svg>
+            ERP
+          </button>
+          <button class="tab" data-tab="agent-maker" id="tabAgentMaker" title="HashCortx Swarm — design, build and run multi-agent swarms">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="8" cy="19" r="2"/><circle cx="16" cy="19" r="2"/><path d="M12 7v3"/><path d="M7 12h2"/><path d="M15 12h2"/><path d="M9.5 17.5l2-2"/><path d="M14.5 17.5l-2-2"/></svg>
+            Agent Swarm
+          </button>
+          <button class="tab" data-tab="virtual-os" id="tabVirtualOS" title="HashCortx Virtual OS — virtual project desktop and AI file builder">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h4"/><path d="M7 11h7"/><path d="M16.5 8.5h.01"/></svg>
+            Virtual OS
+          </button>
+        </div>
+    
+        <div class="side-model-row" id="sideModelWrap">
+          <select id="model"></select>
+          <button class="icon side-model-refresh" id="refresh" title="Reload models">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><polyline points="21 4 21 10 15 10"/></svg>
+          </button>
+        </div>
+        <div class="memory-row" id="memoryRow">
+          <!-- brain icon -->
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9.5 2a4.5 4.5 0 0 1 4.5 4.5v1a4.5 4.5 0 0 1-4.5 4.5A4.5 4.5 0 0 1 5 7.5V6.5A4.5 4.5 0 0 1 9.5 2z"/><path d="M14.5 2a4.5 4.5 0 0 1 4.5 4.5v1a4.5 4.5 0 0 1-4.5 4.5"/><path d="M9.5 12a4.5 4.5 0 0 0-4.5 4.5v1a4.5 4.5 0 0 0 9 0v-1A4.5 4.5 0 0 0 9.5 12z"/><path d="M14.5 12a4.5 4.5 0 0 1 4.5 4.5v1a4.5 4.5 0 0 1-4.5 4.5"/>
+          </svg>
+          <span class="mem-label">Memory</span>
+          <input type="range" id="historyDepthSide" min="0" max="40" step="2" value="20" />
+          <span class="mem-val" id="historyValSide">20</span>
+        </div>
+        <div class="search-wrap" id="searchWrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input class="search" id="searchInput" type="text" placeholder="Search chats" />
+          <button class="new-chat" id="newChatBtn" title="New chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </div>
+    
+        <div class="section-label" id="listLabel">Recent</div>
+        <div class="chats" id="chatsList"></div>
+    
+        <!-- Agents tab header — separate new-chat button so users can start a chat
+             without leaving the Agents panel (the chat search row is hidden here). -->
+        <div class="agents-header" id="agentsHeader" style="display:none">
+          <span class="agents-header-label">Agents</span>
+          <button class="new-chat" id="agentsNewChatBtn" title="New chat">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+        </div>
+        <!-- Agents tab scrollable list (KB card + agents) -->
+        <div class="agents" id="agentsList" style="display:none"></div>
+    
+        <div class="side-footer">
+          <div class="footer-row">
+            <div class="status">
+              <span class="dot" id="statusDot"></span>
+              <span id="statusText">Connecting…</span>
+            </div>
+            <button class="terminate-btn" id="terminateSession" title="Terminate session — unload model from Local PC RAM">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3a8 8 0 0 0-8 8c0 3.1 1.7 5.8 4.2 7.2V20a1 1 0 0 0 1 1h5.6a1 1 0 0 0 1-1v-1.8C18.3 16.8 20 14.1 20 11a8 8 0 0 0-8-8z"/>
+                <line x1="9" y1="17" x2="9" y2="21"/>
+                <line x1="15" y1="17" x2="15" y2="21"/>
+                <circle cx="9" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+                <circle cx="15" cy="11" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
+            <button class="settings-btn" id="openSettings" title="Settings">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+            </button>
+          </div>
+          <div class="designed-by">Designed by HashCortx</div>
+        </div>
+      </aside>
+    
+      <main>
+        <!-- Chat + composer column -->
+        <div class="hc-chat-col">
+        <div class="drone-bg" aria-hidden="true">
+          <div class="drone-a">
+            <svg viewBox="0 0 200 120" width="190" height="114" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="dg-a" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#6fffaa"/>
+                  <stop offset="0.5" stop-color="#39ff81"/>
+                  <stop offset="1" stop-color="#1a7a40"/>
+                </linearGradient>
+                <radialGradient id="dr-a" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="rgba(57,255,129,0.45)"/>
+                  <stop offset="1" stop-color="rgba(57,255,129,0)"/>
+                </radialGradient>
+              </defs>
+              <line x1="40" y1="40" x2="160" y2="80" stroke="url(#dg-a)" stroke-width="3" stroke-linecap="round"/>
+              <line x1="160" y1="40" x2="40" y2="80" stroke="url(#dg-a)" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="40" cy="40" r="22" fill="url(#dr-a)"/><circle cx="160" cy="40" r="22" fill="url(#dr-a)"/><circle cx="40" cy="80" r="22" fill="url(#dr-a)"/><circle cx="160" cy="80" r="22" fill="url(#dr-a)"/>
+              <g><ellipse cx="40" cy="40" rx="16" ry="2" fill="url(#dg-a)" opacity="0.85"/><ellipse cx="40" cy="40" rx="2" ry="16" fill="url(#dg-a)" opacity="0.85"/><circle cx="40" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 40" to="360 40 40" dur="0.82s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="40" rx="16" ry="2" fill="url(#dg-a)" opacity="0.85"/><ellipse cx="160" cy="40" rx="2" ry="16" fill="url(#dg-a)" opacity="0.85"/><circle cx="160" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 40" to="-360 160 40" dur="0.76s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="40" cy="80" rx="16" ry="2" fill="url(#dg-a)" opacity="0.85"/><ellipse cx="40" cy="80" rx="2" ry="16" fill="url(#dg-a)" opacity="0.85"/><circle cx="40" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 80" to="-360 40 80" dur="0.88s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="80" rx="16" ry="2" fill="url(#dg-a)" opacity="0.85"/><ellipse cx="160" cy="80" rx="2" ry="16" fill="url(#dg-a)" opacity="0.85"/><circle cx="160" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 80" to="360 160 80" dur="0.72s" repeatCount="indefinite"/></g>
+              <rect x="72" y="46" width="56" height="28" rx="8" fill="rgba(8,10,18,0.95)" stroke="url(#dg-a)" stroke-width="1.6"/>
+              <rect x="78" y="52" width="16" height="10" rx="2" fill="url(#dg-a)" opacity="0.85"/>
+              <circle cx="118" cy="60" r="3" fill="#6fffaa"/><circle cx="118" cy="60" r="1.2" fill="#0a0a0a"/>
+              <line x1="80" y1="74" x2="74" y2="96" stroke="url(#dg-a)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="120" y1="74" x2="126" y2="96" stroke="url(#dg-a)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="74" y1="96" x2="126" y2="96" stroke="url(#dg-a)" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="100" cy="60" r="1.8" fill="#6fffaa"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.4s" repeatCount="indefinite"/></circle>
+            </svg>
+          </div>
+          <div class="drone-b">
+            <svg viewBox="0 0 200 120" width="150" height="90" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="dg-b" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#6fffaa"/>
+                  <stop offset="0.5" stop-color="#39ff81"/>
+                  <stop offset="1" stop-color="#1a7a40"/>
+                </linearGradient>
+                <radialGradient id="dr-b" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="rgba(57,255,129,0.40)"/>
+                  <stop offset="1" stop-color="rgba(57,255,129,0)"/>
+                </radialGradient>
+              </defs>
+              <line x1="40" y1="40" x2="160" y2="80" stroke="url(#dg-b)" stroke-width="3" stroke-linecap="round"/>
+              <line x1="160" y1="40" x2="40" y2="80" stroke="url(#dg-b)" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="40" cy="40" r="22" fill="url(#dr-b)"/><circle cx="160" cy="40" r="22" fill="url(#dr-b)"/><circle cx="40" cy="80" r="22" fill="url(#dr-b)"/><circle cx="160" cy="80" r="22" fill="url(#dr-b)"/>
+              <g><ellipse cx="40" cy="40" rx="16" ry="2" fill="url(#dg-b)" opacity="0.85"/><ellipse cx="40" cy="40" rx="2" ry="16" fill="url(#dg-b)" opacity="0.85"/><circle cx="40" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 40" to="-360 40 40" dur="0.78s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="40" rx="16" ry="2" fill="url(#dg-b)" opacity="0.85"/><ellipse cx="160" cy="40" rx="2" ry="16" fill="url(#dg-b)" opacity="0.85"/><circle cx="160" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 40" to="360 160 40" dur="0.86s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="40" cy="80" rx="16" ry="2" fill="url(#dg-b)" opacity="0.85"/><ellipse cx="40" cy="80" rx="2" ry="16" fill="url(#dg-b)" opacity="0.85"/><circle cx="40" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 80" to="360 40 80" dur="0.92s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="80" rx="16" ry="2" fill="url(#dg-b)" opacity="0.85"/><ellipse cx="160" cy="80" rx="2" ry="16" fill="url(#dg-b)" opacity="0.85"/><circle cx="160" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 80" to="-360 160 80" dur="0.80s" repeatCount="indefinite"/></g>
+              <rect x="72" y="46" width="56" height="28" rx="8" fill="rgba(8,10,18,0.95)" stroke="url(#dg-b)" stroke-width="1.6"/>
+              <rect x="78" y="52" width="16" height="10" rx="2" fill="url(#dg-b)" opacity="0.85"/>
+              <circle cx="118" cy="60" r="3" fill="#6fffaa"/><circle cx="118" cy="60" r="1.2" fill="#0a0a0a"/>
+              <line x1="80" y1="74" x2="74" y2="96" stroke="url(#dg-b)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="120" y1="74" x2="126" y2="96" stroke="url(#dg-b)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="74" y1="96" x2="126" y2="96" stroke="url(#dg-b)" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="100" cy="60" r="1.8" fill="#6fffaa"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.9s" begin="0.6s" repeatCount="indefinite"/></circle>
+            </svg>
+          </div>
+          <div class="drone-c">
+            <svg viewBox="0 0 200 120" width="115" height="69" overflow="visible" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="dg-c" x1="0" x2="1" y1="0" y2="1">
+                  <stop offset="0" stop-color="#6fffaa"/>
+                  <stop offset="0.5" stop-color="#39ff81"/>
+                  <stop offset="1" stop-color="#1a7a40"/>
+                </linearGradient>
+                <radialGradient id="dr-c" cx="0.5" cy="0.5" r="0.5">
+                  <stop offset="0" stop-color="rgba(57,255,129,0.35)"/>
+                  <stop offset="1" stop-color="rgba(57,255,129,0)"/>
+                </radialGradient>
+              </defs>
+              <line x1="40" y1="40" x2="160" y2="80" stroke="url(#dg-c)" stroke-width="3" stroke-linecap="round"/>
+              <line x1="160" y1="40" x2="40" y2="80" stroke="url(#dg-c)" stroke-width="3" stroke-linecap="round"/>
+              <circle cx="40" cy="40" r="22" fill="url(#dr-c)"/><circle cx="160" cy="40" r="22" fill="url(#dr-c)"/><circle cx="40" cy="80" r="22" fill="url(#dr-c)"/><circle cx="160" cy="80" r="22" fill="url(#dr-c)"/>
+              <g><ellipse cx="40" cy="40" rx="16" ry="2" fill="url(#dg-c)" opacity="0.85"/><ellipse cx="40" cy="40" rx="2" ry="16" fill="url(#dg-c)" opacity="0.85"/><circle cx="40" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 40" to="360 40 40" dur="0.74s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="40" rx="16" ry="2" fill="url(#dg-c)" opacity="0.85"/><ellipse cx="160" cy="40" rx="2" ry="16" fill="url(#dg-c)" opacity="0.85"/><circle cx="160" cy="40" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 40" to="-360 160 40" dur="0.84s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="40" cy="80" rx="16" ry="2" fill="url(#dg-c)" opacity="0.85"/><ellipse cx="40" cy="80" rx="2" ry="16" fill="url(#dg-c)" opacity="0.85"/><circle cx="40" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 40 80" to="-360 40 80" dur="0.80s" repeatCount="indefinite"/></g>
+              <g><ellipse cx="160" cy="80" rx="16" ry="2" fill="url(#dg-c)" opacity="0.85"/><ellipse cx="160" cy="80" rx="2" ry="16" fill="url(#dg-c)" opacity="0.85"/><circle cx="160" cy="80" r="3" fill="#6fffaa"/><animateTransform attributeName="transform" type="rotate" from="0 160 80" to="360 160 80" dur="0.90s" repeatCount="indefinite"/></g>
+              <rect x="72" y="46" width="56" height="28" rx="8" fill="rgba(8,10,18,0.95)" stroke="url(#dg-c)" stroke-width="1.6"/>
+              <rect x="78" y="52" width="16" height="10" rx="2" fill="url(#dg-c)" opacity="0.85"/>
+              <circle cx="118" cy="60" r="3" fill="#6fffaa"/><circle cx="118" cy="60" r="1.2" fill="#0a0a0a"/>
+              <line x1="80" y1="74" x2="74" y2="96" stroke="url(#dg-c)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="120" y1="74" x2="126" y2="96" stroke="url(#dg-c)" stroke-width="1.6" stroke-linecap="round"/>
+              <line x1="74" y1="96" x2="126" y2="96" stroke="url(#dg-c)" stroke-width="1.8" stroke-linecap="round"/>
+              <circle cx="100" cy="60" r="1.8" fill="#6fffaa"><animate attributeName="opacity" values="0.2;1;0.2" dur="2.2s" begin="1.1s" repeatCount="indefinite"/></circle>
+            </svg>
+          </div>
+        </div>
+        <header class="topbar">
+          <button class="toggle-side" id="toggleSide" type="button" title="Hide sidebar" aria-label="Toggle sidebar" aria-expanded="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div class="crumbs">
+            <div class="title" id="activeTitle">New Conversation</div>
+            <div class="sub" id="activeSub">—</div>
+            <div class="badge-row">
+              <span id="cloudBadge" class="topbar-badge cloud"><span class="badge-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg></span>CLOUD</span>
+              <span id="ragBlockedBadge" class="topbar-badge rag-off" title="Your personal knowledge base is blocked from this model for privacy"><span class="badge-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg></span>RAG OFF</span>
+              <span id="codeModeBadge" class="code-mode-badge" style="display:none">CODING MODE</span>
+              <span id="forgeModeBadge" class="forge-mode-badge" style="display:none">3D FORGE</span>
+              <div id="activeAgentChip" style="display:none"></div>
+              <span class="hc-active-file" id="hcActiveFile" title=""></span>
+            </div>
+          </div>
+          <div class="topbar-project-wrap" id="sideProjectWrap" title="Projects keep chats, files, agents, memory and knowledge scoped to one workspace">
+            <select id="projectSelect" aria-label="Active project"></select>
+            <button class="topbar-project-action" id="projectRenameBtn" title="Rename project">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button class="topbar-project-action topbar-project-delete" id="projectDeleteBtn" title="Delete project">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+            </button>
+            <button class="topbar-project-new" id="projectNewBtn" title="New project">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+            </button>
+          </div>
+          <label id="sidePrivacyRow" class="topbar-privacy" title="Blocks cloud routing and prompts confirmation before sending to any external API">
+            <input type="checkbox" id="privacyLocalSide" />
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            <span class="topbar-privacy-text">Local</span>
+          </label>
+          <div class="actions">
+            <button class="ping-btn tps-btn" id="tpsBtn" title="Tokens per second — last response generation speed">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <span id="tpsVal">— t/s</span>
+            </button>
+            <div class="export-wrap">
+              <button class="ping-btn" id="exportBtn" title="Export conversation">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Export</span>
+              </button>
+              <div class="export-menu" id="exportMenu" role="menu" aria-hidden="true">
+                <button type="button" data-export="markdown">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h14v16H5z"/><path d="M8 9h8"/><path d="M8 13h8"/><path d="M8 17h5"/></svg>
+                  Markdown
+                </button>
+                <button type="button" data-export="json">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4 4 12l4 8"/><path d="m16 4 4 8-4 8"/><line x1="12" y1="5" x2="10" y2="19"/></svg>
+                  JSON
+                </button>
+                <button type="button" data-export="pdf">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
+                  PDF
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </header>
+    
+        <div class="messages" id="messages"></div>
+    
+        <div id="errorSlot"></div>
+    
+        <div class="composer-wrap">
+          <div class="composer-chips" id="composerChips" role="toolbar" aria-label="Suggested prompts">
+            <button data-preset="hashAi" title="Prime HashCortx system rules"><svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M8 1.5l1.6 4.9L15 8l-5.4 1.6L8 14.5l-1.6-4.9L1 8l5.4-1.6z"/></svg> HashCortx</button>
+            <button data-preset="fullstack" title="Pro 2026 full-stack website brief">Full Stack</button>
+            <button data-preset="mobile" title="Pro 2026 mobile app brief">Mobile App</button>
+            <button data-preset="freeRam" class="accent" title="Unload every model on Local PC to free RAM and enable speed mode"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM</button>
+          </div>
+
+          <div class="compare-bar" id="compareBar">
+            <span class="compare-pill">Compare</span>
+            <select id="compareModel" title="Second model for side-by-side comparison"></select>
+            <button type="button" class="compare-close" id="compareClose" title="Exit compare mode">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="composer">
+            <div class="reply-banner" id="replyBanner" role="status" aria-live="polite">
+              <span class="reply-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+              </span>
+              <div class="reply-body">
+                <div class="reply-label">Replying to <span id="replyLabelRole">AI</span></div>
+                <div class="reply-preview" id="replyPreview"></div>
+              </div>
+              <button type="button" class="reply-close" id="replyClose" title="Cancel reply">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="reply-banner edit-banner" id="editBanner" role="status" aria-live="polite">
+              <span class="reply-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              </span>
+              <div class="reply-body">
+                <div class="reply-label">Editing earlier message</div>
+                <div class="reply-preview" id="editPreview"></div>
+              </div>
+              <button type="button" class="reply-close" id="editClose" title="Cancel edit">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div class="pending" id="pending"></div>
+            <textarea id="input" placeholder="Compose a message…  ⏎ send · ⇧⏎ newline"></textarea>
+            <div class="toolbar">
+              <button class="icon" id="attachImg" title="Attach image">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+              </button>
+              <button class="icon" id="attachFile" title="Attach text file">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              </button>
+    <input type="file" id="imgFile" accept="image/*" multiple hidden />
+              <input type="file" id="txtFile" multiple hidden />
+              <!-- Injection toggle — SVG syringe, red slash = OFF, gold tint = ON -->
+              <button class="inject-btn banned" id="injectToggle" title="Injection OFF — click to enable RAG &amp; web context">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M14 4 20 10"/>
+                  <path d="m18 2 4 4"/>
+                  <path d="m11 7 6 6"/>
+                  <path d="M7 11 3 15"/>
+                  <path d="m9 9 6 6-5.5 5.5a2.1 2.1 0 0 1-3 0l-3-3a2.1 2.1 0 0 1 0-3Z"/>
+                  <path d="M6 18 3 21"/>
+                </svg>
+              </button>
+              <button class="preview-btn" id="previewBtn" title="Preview full message sent to model">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a39d91" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex-shrink:0">
+                  <ellipse cx="12" cy="12" rx="10" ry="6"/>
+                  <circle cx="12" cy="12" r="3" fill="#a39d91" stroke="none"/>
+                </svg>
+              </button>
+              <div class="context-window" id="contextWindow" title="Estimated prompt context usage">
+                <span id="contextText">Context 0%</span>
+                <span class="meter" aria-hidden="true"><span class="fill" id="contextFill"></span></span>
+              </div>
+              <button class="primary send" id="send">Send</button>
+            </div>
+          </div>
+          <div class="slash-palette" id="slashPalette" role="menu" aria-hidden="true"></div>
+        </div>
+        </div><!-- /.hc-chat-col -->
+
+
+      </main>
+    <div id="finance-wrap"></div>
+    <div id="sandbox-wrap">
+      <div class="sbx-header">
+        <div class="sbx-header-left">
+          <span class="sbx-logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+          </span>
+          <span class="sbx-title">SANDBOX SCANNER</span>
+          <span class="sbx-sub">// malware · trojans · injections · exfiltration</span>
+        </div>
+        <div class="sbx-header-right">
+          <button id="sbxStopBtn" class="sbx-stop-btn" style="display:none">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="10" height="10"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+            STOP SCAN
+          </button>
+          <button class="sbx-back-btn" id="sbxBackBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><polyline points="15 18 9 12 15 6"/></svg>
+            EXIT
+          </button>
+        </div>
+      </div>
+      <div class="sbx-body">
+        <div class="sbx-input-col">
+          <div class="sbx-section-label">// PASTE CODE OR FILE CONTENTS</div>
+          <textarea id="sbxCodeInput" class="sbx-code-input" placeholder="Paste code, scripts, config files, or any application contents you want scanned for malware, trojans, backdoors, keyloggers, injections, and suspicious behavior…"></textarea>
+          <div class="sbx-model-row">
+            <div class="sbx-section-label" style="margin:0">// BOSS LLM</div>
+            <select id="sbxModelSelect" class="sbx-model-select">
+              <option value="">— loading models —</option>
+            </select>
+          </div>
+          <div class="sbx-model-row" style="gap:6px">
+            <div class="sbx-section-label" style="margin:0;white-space:nowrap">// SWARM</div>
+            <button id="sbxSwarmConfigBtn" class="sbx-swarm-config-btn" title="Configure swarm agents">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+              <span id="sbxSwarmLabel">4 AGENTS</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="9" height="9" id="sbxSwarmChevron"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <!-- Swarm config popup panel -->
+          <div id="sbxSwarmPanel" class="sbx-swarm-panel" style="display:none">
+            <div class="sbx-swarm-panel-header">
+              <span class="sbx-section-label" style="margin:0">// SWARM AGENTS</span>
+              <div class="sbx-swarm-controls">
+                <button id="sbxRemoveAgent" class="sbx-swarm-ctrl-btn" title="Remove last agent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <span id="sbxAgentCountLabel" class="sbx-agent-count">4 agents</span>
+                <button id="sbxAddAgent" class="sbx-swarm-ctrl-btn" title="Add agent">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <button id="sbxSwarmPanelClose" class="sbx-swarm-ctrl-btn" title="Close">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" width="10" height="10"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="sbxAgentSlots" class="sbx-agent-slots"></div>
+          </div>
+          <div class="sbx-actions">
+            <button id="sbxScanBtn" class="sbx-scan-btn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              RUN SECURITY SCAN
+            </button>
+          </div>
+          <div class="sbx-section-label" style="margin-top:12px">// LIVE SCAN LOG</div>
+          <div id="sbxLog" class="sbx-log">
+            <div class="sbx-log-idle">Awaiting input… paste code above and hit RUN.</div>
+          </div>
+        </div>
+        <div class="sbx-history-col">
+          <div class="sbx-history-header">
+            <div class="sbx-section-label">// SCAN HISTORY</div>
+            <div id="sbxVerdictBadge" class="sbx-verdict-badge" style="display:none"></div>
+          </div>
+          <div id="sbxHistory" class="sbx-history">
+            <div class="sbx-history-empty">No scans yet. Paste code and hit RUN SECURITY SCAN.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+    
+    
+    <div class="terminal-alert-overlay" id="terminalAlertOverlay" aria-hidden="true">
+      <div class="terminal-alert" role="dialog" aria-modal="true" aria-labelledby="terminalAlertTitle">
+        <div class="terminal-alert-head">
+          <div class="terminal-alert-mark">!</div>
+          <div class="terminal-alert-title" id="terminalAlertTitle">System Alert</div>
+        </div>
+        <div class="terminal-alert-body" id="terminalAlertBody"></div>
+        <div class="terminal-alert-actions">
+          <button type="button" class="terminal-alert-cancel" id="terminalAlertCancel">Cancel</button>
+          <button type="button" class="terminal-alert-ok" id="terminalAlertOk">OK</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Message preview modal -->
+    <div id="previewModal">
+      <div class="preview-box">
+        <div class="preview-box-header">
+          <h3>Full message payload</h3>
+          <span id="previewMeta"></span>
+          <button class="preview-copy-btn" id="previewCopy">Copy JSON</button>
+          <button class="preview-close" id="previewClose">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="preview-body" id="previewBody"></div>
+      </div>
+    </div>
+    
+    <!-- Prompt templates modal -->
+    <div class="modal-overlay" id="templateOverlay">
+      <div class="modal" role="dialog" aria-labelledby="templateTitle" aria-modal="true">
+        <div class="modal-header">
+          <h2 id="templateTitle">Prompt Templates</h2>
+          <button class="close-btn" id="templateClose" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="template-layout">
+            <div class="template-list" id="templateList"></div>
+            <div class="template-editor">
+              <input class="control" id="templateName" placeholder="Template name" />
+              <textarea class="control" id="templateBody" placeholder="Use {{variables}} inside the prompt body."></textarea>
+              <div class="template-actions">
+                <button type="button" id="templateNew">New</button>
+                <button type="button" id="templateDelete" class="ghost">Delete</button>
+                <button type="button" id="templateSave" class="primary">Save</button>
+                <button type="button" id="templateUse">Use Template</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Settings modal -->
+    <div class="modal-overlay" id="settingsOverlay">
+      <div class="modal settings-modal" role="dialog" aria-labelledby="settingsTitle" aria-modal="true">
+        <div class="modal-header">
+          <h2 id="settingsTitle">Settings</h2>
+          <button class="close-btn" id="closeSettings" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-tabs">
+          <button class="modal-tab active" id="stab-settings">Settings</button>
+          <button class="modal-tab" id="stab-apis">APIs</button>
+          <button class="modal-tab" id="stab-memory">Memory</button>
+          <button class="modal-tab" id="stab-about">About</button>
+        </div>
+    
+        <!-- Settings pane (General) -->
+        <div class="modal-body settings-pane" id="settingsPane">
+          <div class="field">
+            <label>Ollama endpoints <span style="color:var(--muted);font-weight:400">— your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
+            <div style="display:flex;gap:8px;align-items:stretch">
+              <select class="control" id="hostPreset" style="flex:0 0 170px"></select>
+              <input class="control" id="host" value="http://127.0.0.1:11434" spellcheck="false" placeholder="http://127.0.0.1:11434 or http://&lt;LAN-ip&gt;:11434" style="flex:1" />
+            </div>
+            <div style="display:flex;gap:6px;margin-top:8px;align-items:stretch">
+              <input class="control" id="hostLabel" placeholder="Label (e.g. My Mac, Home PC, Office workstation)" spellcheck="false" style="flex:1;font-size:12px" />
+              <button class="ghost" type="button" id="saveHostBtn" title="Save the current URL as a preset" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 12px">+ Save</button>
+              <button class="ghost" type="button" id="deleteHostBtn" title="Delete the selected custom preset" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 12px;display:none;color:var(--rose);border-color:rgba(217,138,133,0.35)">Delete</button>
+            </div>
+          </div>
+    
+          <div class="field">
+            <label>System prompt</label>
+            <textarea class="control" id="system" rows="3" placeholder="You are a helpful assistant."></textarea>
+          </div>
+    
+          <div class="field">
+            <div class="range-row">
+              <label>Temperature</label>
+              <span class="val" id="tempVal">0.7</span>
+            </div>
+            <input type="range" id="temp" min="0" max="2" step="0.1" value="0.7" />
+          </div>
+    
+          <div class="divider"></div>
+    
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+              <input type="checkbox" id="privacyLocal" style="width:16px;height:16px;accent-color:#80c8a0;cursor:pointer" />
+              <span><b>Privacy: Local only</b> <span style="color:var(--muted);font-weight:400">— prompts confirmation before sending any chat to a cloud model</span></span>
+            </label>
+          </div>
+
+          <div class="divider"></div>
+          <div class="field">
+            <div class="range-row">
+              <label>Memory depth <span style="color:var(--muted);font-weight:400">— turns of conversation sent to the model</span></label>
+              <span class="val" id="historyVal">20</span>
+            </div>
+            <input type="range" id="historyDepth" min="0" max="40" step="2" value="20" />
+            <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin-top:6px">
+              <span title="No memory — model sees only the current message" style="display:inline-flex;align-items:center;opacity:0.7">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/></svg>
+              </span>
+              <span title="Full memory — last 40 turns sent to the model" style="display:inline-flex;align-items:center;opacity:0.85;color:var(--gold)">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/><path d="M3 7c0 1.1 2.2 2 5 2s5-.9 5-2"/><path d="M3 10c0 1.1 2.2 2 5 2s5-.9 5-2"/></svg>
+              </span>
+            </div>
+          </div>
+    
+        </div><!-- end #settingsPane -->
+
+        <!-- APIs pane -->
+        <div class="modal-body settings-pane" id="apisPane" style="display:none" hidden>
+          <div class="field">
+            <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);font-weight:600;display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="12" height="9" rx="2"/><path d="M8 2v3"/><circle cx="8" cy="10" r="1.5"/></svg>
+              LLM Providers
+            </label>
+          </div>
+          <div class="field">
+            <label for="groqKey">Groq API key <span style="color:var(--muted);font-weight:400">— free at <b>console.groq.com</b></span></label>
+            <input class="control" id="groqKey" type="password" placeholder="gsk_…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="geminiKey">Google AI Studio key <span style="color:var(--muted);font-weight:400">— free at <b>aistudio.google.com</b></span></label>
+            <input class="control" id="geminiKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="openaiKey">OpenAI API key <span style="color:var(--muted);font-weight:400">— <b>platform.openai.com</b> · GPT-4o, o3-mini</span></label>
+            <input class="control" id="openaiKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="anthropicKey">Anthropic API key <span style="color:var(--muted);font-weight:400">— <b>console.anthropic.com</b> · Claude Sonnet, Claude Opus</span></label>
+            <input class="control" id="anthropicKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="moonshotKey">Moonshot (Kimi) API key <span style="color:var(--muted);font-weight:400">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context</span></label>
+            <input class="control" id="moonshotKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="deepseekKey">DeepSeek API key <span style="color:var(--muted);font-weight:400">— <b>platform.deepseek.com</b> · V3, R1</span></label>
+            <input class="control" id="deepseekKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="mistralKey">Mistral AI API key <span style="color:var(--muted);font-weight:400">— <b>console.mistral.ai</b> · Large, Codestral</span></label>
+            <input class="control" id="mistralKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="cerebrasKey">Cerebras API key <span style="color:var(--muted);font-weight:400">— free at <b>cloud.cerebras.ai</b></span></label>
+            <input class="control" id="cerebrasKey" type="password" placeholder="csk-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="sambaKey">SambaNova API key <span style="color:var(--muted);font-weight:400">— free at <b>cloud.sambanova.ai</b></span></label>
+            <input class="control" id="sambaKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="openRouterKey">OpenRouter key <span style="color:var(--muted);font-weight:400">— free models at <b>openrouter.ai</b></span></label>
+            <input class="control" id="openRouterKey" type="password" placeholder="sk-or-v1-…" spellcheck="false" autocomplete="off" />
+          </div>
+    
+          <div class="divider"></div>
+    
+          <div class="field">
+            <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);font-weight:600;display:flex;align-items:center;gap:7px">
+              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="m14 14-3.2-3.2"/></svg>
+              Search & Tools
+            </label>
+          </div>
+          <div class="field">
+            <label>Google Search API key (optional)</label>
+            <input class="control" id="googleKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>Google Custom Search engine ID (cx)</label>
+            <input class="control" id="googleCx" placeholder="0123abc:xyz…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>Tavily API key <span style="color:var(--muted);font-weight:400">— better web search built for LLMs (free 1000/mo at tavily.com)</span></label>
+            <input class="control" id="tavilyKey" type="password" placeholder="tvly-…" spellcheck="false" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label>NVIDIA NIM API key <span style="color:var(--muted);font-weight:400">— free big models at build.nvidia.com</span></label>
+            <input class="control" id="nvidiaKey" type="password" placeholder="nvapi-…" spellcheck="false" autocomplete="off" />
+          </div>
+    
+        </div><!-- end #apisPane -->
+    
+        <!-- About pane (hidden by default) -->
+        <div id="aboutPane" style="display:none" class="modal-body settings-pane about-pane" hidden>
+          <img src="/assets/logo-mark.png" class="about-logo-img" alt="HashCortx" draggable="false"/>
+          <div class="about-name">Seif Hashish</div>
+          <div class="about-role">Application Creator and Developer</div>
+          <div class="about-divider"></div>
+          <div class="about-desc">
+            Massive UI · Isolated Intelligence · Agentic
+          </div>
+          <div class="about-badge">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l3 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
+            HashCortx · v2.0 · May 2026
+          </div>
+          <div style="margin-top:10px">
+            <button class="hc-audit-btn" id="hcAuditBtn" title="View the HashCortX Coder permission audit log">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
+              View Audit Log
+            </button>
+          </div>
+        </div>
+    
+        <!-- Memory pane (hidden by default) -->
+        <div id="memoryPane" style="display:none" class="modal-body settings-pane" hidden>
+          <div class="field">
+            <label style="display:flex;align-items:center;gap:8px">
+              <span>Long-term memory</span>
+              <span id="memCountBadge" style="color:var(--muted);font-weight:400">0 facts</span>
+            </label>
+            <div style="font-size:11.5px;color:var(--text-dim);margin:-4px 0 8px;line-height:1.5">
+              Stored only in your browser. Used silently as background context for every chat — local and cloud models alike. Edit, export, or wipe at any time.
+            </div>
+            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+              <input class="control" id="memSearchInput" placeholder="Search facts…" spellcheck="false" style="flex:1;min-width:140px" />
+              <button class="ghost" type="button" id="memMapBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px;display:inline-flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 13px;display:block"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/><line x1="6.4" y1="6.4" x2="10.3" y2="10.3"/><line x1="17.6" y1="6.4" x2="13.7" y2="10.3"/><line x1="6.4" y1="17.6" x2="10.3" y2="13.7"/><line x1="17.6" y1="17.6" x2="13.7" y2="13.7"/></svg>Map</button>
+              <button class="ghost" type="button" id="memAddBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">+ Add</button>
+              <button class="ghost" type="button" id="memExportBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">Export</button>
+              <button class="ghost" type="button" id="memImportBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">Import</button>
+              <button class="ghost" type="button" id="memClearBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px;color:var(--rose);border-color:rgba(217,138,133,0.35)">Clear all</button>
+              <input type="file" id="memImportFile" accept="application/json,.json" style="display:none" />
+            </div>
+            <div id="memList" class="mem-list"></div>
+          </div>
+        </div>
+    
+        <div class="modal-footer">
+          <button class="ghost" id="closeSettingsFooter">Close</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Memory map overlay -->
+    <div class="modal-overlay" id="memMapOverlay" style="z-index:100005">
+      <div class="modal mem-map-modal" role="dialog" aria-labelledby="memMapTitle" aria-modal="true">
+        <div class="modal-header">
+          <h2 class="modal-title" id="memMapTitle">Memory map</h2>
+          <button class="close-btn" id="memMapClose" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body mem-map-body">
+          <div id="memMapHint">Drag to move · scroll to zoom · double-click a fact to edit</div>
+          <div id="memMapTools">
+            <button type="button" id="memMapZoomIn"  title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            <button type="button" id="memMapZoomOut" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            <button type="button" id="memMapFit"     title="Fit view" aria-label="Fit view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
+            <button type="button" id="memMapReset"   title="Reset positions" aria-label="Reset positions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><polyline points="3 21 3 16 8 16"/></svg></button>
+          </div>
+          <div id="memMapDetail"><span style="color:var(--text-dim)">Hover or click a node...</span></div>
+          <svg id="memMapSvg" width="100%" height="100%" style="display:block;width:100%;height:100%" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <radialGradient id="mmCenterHalo" cx="50%" cy="50%" r="50%">
+                <stop offset="0%"  stop-color="rgba(57,255,129,0.55)"/>
+                <stop offset="60%" stop-color="rgba(57,255,129,0.15)"/>
+                <stop offset="100%" stop-color="rgba(57,255,129,0)"/>
+              </radialGradient>
+              <radialGradient id="mmCenterCore" cx="35%" cy="30%" r="80%">
+                <stop offset="0%"  stop-color="#b0ffe0"/>
+                <stop offset="55%" stop-color="#39ff81"/>
+                <stop offset="100%" stop-color="#1a7a40"/>
+              </radialGradient>
+              <pattern id="mmGridPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path class="mm-grid" d="M 40 0 L 0 0 0 40"/>
+              </pattern>
+              <filter id="mmGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <rect id="mmGridBg" x="-4000" y="-4000" width="8000" height="8000" fill="url(#mmGridPattern)"/>
+            <g id="mmWorld"></g>
+          </svg>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Agent editor modal -->
+    <div class="modal-overlay" id="agentOverlay">
+      <div class="modal" role="dialog" aria-labelledby="agentTitle" aria-modal="true">
+        <div class="modal-header">
+          <h2 id="agentTitle">New agent</h2>
+          <button class="close-btn" id="closeAgent" title="Close">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="field">
+            <label>Icon</label>
+            <div class="icon-picker" id="iconPicker"></div>
+          </div>
+    
+          <div class="field">
+            <label>Name</label>
+            <input class="control" id="agentName" placeholder="e.g. Researcher" />
+          </div>
+    
+          <div class="field">
+            <label>Short description</label>
+            <input class="control" id="agentDesc" placeholder="What does this agent do?" />
+          </div>
+    
+          <div class="field">
+            <label>System prompt</label>
+            <textarea class="control" id="agentSystem" rows="8" placeholder="You are a helpful assistant that..."></textarea>
+          </div>
+    
+          <div class="field">
+            <label>Tools (give the model real-world powers)</label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolWiki" />
+              <div>
+                <div class="tool-name"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg> Wikipedia research</div>
+                <div class="tool-desc">Before each reply, search Wikipedia for your question and inject the top 3 articles as context. Works right now, no API key, CORS-friendly.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolWebSearch" />
+              <div>
+                <div class="tool-name"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c-2 2.5-2.5 4-2.5 6s.5 3.5 2.5 6M8 2c2 2.5 2.5 4 2.5 6s-.5 3.5-2.5 6"/></svg> Google Web Search</div>
+                <div class="tool-desc">Live web results via Google Custom Search. Requires an API key + Search Engine ID in Settings. Falls back to Wikipedia if missing.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolFetchUrl" />
+              <div>
+                <div class="tool-name"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><path d="M5.5 10.5a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24L6.5 5.5"/><path d="M10.5 5.5a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l1-1"/></svg> Fetch URL content</div>
+                <div class="tool-desc">If your message contains a URL, fetch the page and pass its text as context.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolPubmed" />
+              <div>
+                <div class="tool-name"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-1px"><rect x="2" y="2" width="5" height="12" rx="0.5"/><rect x="9" y="3" width="5" height="11" rx="0.5"/></svg> PubMed / Europe PMC (medical papers)</div>
+                <div class="tool-desc">Before each reply, search Europe PMC (which indexes PubMed + preprints + life-sciences journals) for your question and inject the top 5 abstracts as context with PMIDs and DOIs. CORS-friendly, no API key needed.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolMemory" />
+              <div>
+                <div class="tool-name"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><circle cx="5" cy="5" r="1.5"/><circle cx="11" cy="5" r="1.5"/><circle cx="8" cy="11" r="1.5"/><path d="M5 6.5v2.5c0 .8.7 1.5 1.5 1.5H8M11 6.5v2.5c0 .8-.7 1.5-1.5 1.5H8"/></svg> Persistent memory (remember + recall)</div>
+                <div class="tool-desc">Real cross-session memory. The agent can call <code>remember_fact</code> to save things and <code>recall_facts</code> to look them up. Stored in your browser only. Works on every model — falls back to context injection on models that don't support tool-calling.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolDatetime" />
+              <div>
+                <div class="tool-name">🕒 Current date/time</div>
+                <div class="tool-desc">Lets the agent ask for the real current date, time, and timezone. Resolved locally — no network call.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolCalc" />
+              <div>
+                <div class="tool-name">🧮 Calculator</div>
+                <div class="tool-desc">Sandboxed math evaluator (numbers + - * / % ** parentheses, sin/cos/log/sqrt). Stops the model from hallucinating arithmetic.</div>
+              </div>
+            </label>
+            <label class="tool-option">
+              <input type="checkbox" id="toolPython" />
+              <div>
+                <div class="tool-name">🐍 Code interpreter (Python sandbox)</div>
+                <div class="tool-desc">Real Python via Pyodide (WebAssembly) with <code>python-docx</code>, <code>openpyxl</code>, <code>reportlab</code>, pandas, numpy, matplotlib. The agent can generate <b>Word, Excel and PDF</b> files — anything the model writes to <code>/output/</code> auto-downloads to your computer. First call loads ~10 MB and takes a few seconds; subsequent calls are instant.</div>
+              </div>
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="ghost" id="deleteAgentBtn" style="margin-right:auto;display:none;color:var(--rose)">Delete</button>
+          <button class="ghost" id="cancelAgentBtn">Cancel</button>
+          <button class="primary" id="saveAgentBtn">Save</button>
+        </div>
+      </div>
+    </div>
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       FORGE MODE — 3D model forge
+       Shown when body.forge-studio-mode is active
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="forge-mode-wrap">
+
+    <!-- Header bar -->
+    <div class="frg-header">
+
+      <!-- Left: logo + project info -->
+      <div class="frg-header-left">
+        <img src="/assets/logo-mark.png" class="frg-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+        <div>
+          <div class="frg-title">Forge Studio</div>
+          <span class="frg-sub" id="frgPlanName">No project loaded</span>
+        </div>
+      </div>
+
+      <!-- Center: prompt + generate -->
+      <div class="frg-prompt-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="frgPrompt" type="text" placeholder="Describe a 3D model… e.g. 'a sleek futuristic chair'" autocomplete="off" />
+        <button class="frg-btn primary" id="frgGodBtn">Generate</button>
+      </div>
+
+      <!-- Gen controls: style / detail / output — display:contents so they slot into header grid -->
+      <div class="frg-gen-controls">
+        <label>
+          <span>Style</span>
+          <select id="frgStyle">
+            <option value="realistic">Realistic</option>
+            <option value="stylized">Stylized</option>
+            <option value="low-poly">Low-Poly</option>
+            <option value="wireframe">Wireframe</option>
+            <option value="cartoon">Cartoon</option>
+          </select>
+        </label>
+        <label>
+          <span>Detail</span>
+          <select id="frgDetail">
+            <option value="low">Low</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label>
+          <span>Export as</span>
+          <select id="frgOutputTarget">
+            <option value="glb">GLB</option>
+            <option value="gltf">GLTF</option>
+            <option value="stl">STL</option>
+            <option value="obj">OBJ</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Right: status + action buttons -->
+      <div class="frg-header-right">
+        <span class="frg-status" id="frgStatus">Idle</span>
+        <span id="frgParticleCount" style="font-family:var(--mono);font-size:9px;color:rgba(223,251,245,0.42);letter-spacing:.08em;"></span>
+        <button class="frg-btn" id="frgMockBtn">Mock</button>
+        <button class="frg-btn" id="frgAutoRouteBtn">Auto</button>
+        <button class="frg-btn" id="frgSaveProjectBtn">Save</button>
+        <button class="frg-btn" id="frgNewProjectBtn">New</button>
+        <button class="frg-icon-btn" id="frgResetViewBtn" title="Reset camera">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
+        </button>
+        <button class="frg-btn" id="frgBackBtn">&#8592; Back</button>
+      </div>
+
+    </div><!-- /.frg-header -->
+
+    <!-- Body: 3D viewport + side panel -->
+    <div class="frg-body">
+
+      <!-- 3D canvas viewport -->
+      <div class="frg-viewport">
+        <div id="frgCanvasMount"></div>
+
+        <!-- HUD: node count badge -->
+        <div class="frg-viewport-hud">
+          <span id="frgNodeCount">0 nodes</span>
+        </div>
+
+        <!-- CAD toolbar (top-right of viewport) -->
+        <div class="frg-cad-toolbar" id="frgCadToolbar">
+          <button class="frg-cad-btn" data-frg-tool="selectObject" title="Select the whole object">Whole object</button>
+          <span class="frg-cad-sep"></span>
+          <button class="frg-cad-btn active" data-frg-tool="translate" title="Move selected part (W)">Move</button>
+          <button class="frg-cad-btn" data-frg-tool="rotate" title="Rotate selected part (R)">Rotate</button>
+          <button class="frg-cad-btn" data-frg-tool="scale" title="Resize selected part (S)">Resize</button>
+          <span class="frg-cad-sep"></span>
+          <button class="frg-cad-btn" data-frg-tool="snap" title="Toggle snapping">Snap</button>
+          <button class="frg-cad-btn" data-frg-tool="duplicate" title="Duplicate selected part (D)">Duplicate</button>
+          <button class="frg-cad-btn" data-frg-tool="floor" title="Align selected part to floor">To floor</button>
+          <span class="frg-cad-sep"></span>
+          <button class="frg-cad-btn" data-frg-tool="focus" title="Focus camera on selected part">Focus</button>
+          <button class="frg-cad-btn" data-frg-tool="camUp" title="Pan camera up">Cam up</button>
+          <button class="frg-cad-btn" data-frg-tool="camDown" title="Pan camera down">Cam down</button>
+          <span class="frg-cad-sep"></span>
+          <button class="frg-cad-btn" data-frg-tool="import" title="Import a GLB or GLTF mesh asset">Import</button>
+          <span class="frg-export-wrap">
+            <button class="frg-cad-btn" data-frg-tool="exportMenu" title="Export model">Export</button>
+            <span class="frg-export-menu" id="frgExportMenu">
+              <button data-frg-export-kind="glb">GLB</button>
+              <button data-frg-export-kind="obj">OBJ</button>
+              <button data-frg-export-kind="stl">STL</button>
+            </span>
+          </span>
+          <button class="frg-cad-btn danger" data-frg-tool="delete" title="Delete selected part">Delete</button>
+          <input id="frgAssetImport" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
+        </div>
+
+        <!-- Keyboard hint -->
+        <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove</div>
+      </div><!-- /.frg-viewport -->
+
+      <!-- Right side panel -->
+      <div class="frg-panel">
+
+        <!-- Agents -->
+        <div class="frg-panel-section">
+          <div class="frg-panel-label">Agents</div>
+          <div class="frg-agent-list" id="frgAgents">
+            <!-- Populated by JS: renderAgents() -->
+          </div>
+        </div>
+
+        <!-- Pipeline stage indicators -->
+        <div class="frg-panel-section">
+          <div class="frg-panel-label">Pipeline</div>
+          <div class="frg-stage-list">
+            <div class="frg-stage" data-frg-stage="input">
+              <b>Input</b><span>prompt ready</span>
+            </div>
+            <div class="frg-stage" data-frg-stage="generate">
+              <b>Generate</b><span>waiting</span>
+            </div>
+            <div class="frg-stage" data-frg-stage="refine">
+              <b>Refine</b><span>waiting</span>
+            </div>
+            <div class="frg-stage" data-frg-stage="export">
+              <b>Export</b><span>waiting</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Projects -->
+        <div class="frg-panel-section">
+          <div class="frg-panel-label-row">
+            <span class="frg-panel-label" style="margin-bottom:0">Projects</span>
+          </div>
+          <div class="frg-project-list" id="frgProjectsList">
+            <!-- Populated by JS: renderForgeProjects() -->
+          </div>
+        </div>
+
+        <!-- Plan / nodes list -->
+        <div class="frg-panel-section grow">
+          <div class="frg-panel-label">Plan</div>
+          <div class="frg-plan-list" id="frgPlanList">
+            <!-- Populated by JS: updatePlanList() -->
+          </div>
+        </div>
+
+        <!-- Selection inspector card -->
+        <div class="frg-panel-section">
+          <div class="frg-panel-label">Selection</div>
+          <div class="frg-selection-card" id="frgSelectionCard">
+            <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
+          </div>
+        </div>
+
+      </div><!-- /.frg-panel -->
+
+    </div><!-- /.frg-body -->
+
+    <!-- Trace console (bottom collapsible drawer) -->
+    <div class="frg-trace-console collapsed" id="frgTraceConsole">
+      <div class="frg-trace-header" id="frgTraceToggle">
+        <span class="frg-trace-dot" id="frgTraceDot"></span>
+        <span class="frg-trace-label">Trace</span>
+        <span class="frg-trace-summary" id="frgTraceSummary">No run yet</span>
+        <div class="frg-trace-actions">
+          <button class="frg-trace-btn" id="frgTraceClearBtn">Clear</button>
+        </div>
+        <svg class="frg-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+      <div class="frg-trace-entries" id="frgTraceEntries"></div>
+    </div>
+
+  </div><!-- /#forge-mode-wrap -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       AGENT SWARM MAKER — DAG-based swarm architect studio
+       Shown when body.agent-maker-mode is active
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="agent-maker-wrap">
+
+    <!-- Header bar -->
+    <div class="amk-header">
+
+      <div class="amk-header-left">
+        <img src="/assets/logo-full.png" class="amk-logo mode-logo-img" draggable="false" alt="HashCortx" style="height:38px;"/>
+      </div>
+
+      <div class="amk-header-center">
+        <div class="amk-task-input-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <input id="amkTaskInput" type="text" placeholder="Describe the swarm task… e.g. 'Research and write a market analysis'" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="amk-header-right">
+        <span class="amk-run-status" id="amkRunStatus">Idle</span>
+        <button class="amk-btn primary" id="amkRunBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          <span class="btn-label">Run Swarm</span>
+        </button>
+        <button class="amk-btn danger" id="amkStopBtn">Stop</button>
+        <button class="amk-btn" id="amkGodBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="btn-label">God Agent</span>
+        </button>
+        <button class="amk-back-btn" id="amkBackBtn">&#8592; Back</button>
+      </div>
+
+    </div><!-- /.amk-header -->
+
+    <div class="amk-body">
+
+      <!-- LEFT: Blueprint list -->
+      <div class="amk-blueprints-panel">
+        <div class="amk-panel-header">
+          <span class="amk-panel-title">Blueprints</span>
+          <button class="amk-icon-btn" id="amkNewBlueprintBtn" title="New Blueprint">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+        </div>
+        <div class="amk-blueprints-list" id="amkBlueprintsList">
+          <!-- Populated by JS: renderBlueprintList() -->
+        </div>
+      </div>
+
+      <!-- CENTER: DAG canvas -->
+      <div class="amk-canvas-panel">
+
+        <div class="amk-canvas-toolbar">
+          <select class="amk-topology-select" id="amkTopologySelect">
+            <option value="pipeline">Pipeline</option>
+            <option value="fan-out">Fan-Out</option>
+            <option value="fan-in">Fan-In</option>
+            <option value="broadcast">Broadcast</option>
+            <option value="custom">Custom</option>
+          </select>
+          <select class="amk-topology-select" id="amkAggregationSelect">
+            <option value="sequential">Sequential</option>
+            <option value="parallel">Parallel</option>
+            <option value="vote">Vote</option>
+          </select>
+          <div class="amk-canvas-sep"></div>
+          <button class="amk-btn" id="amkAddAgentToCanvasBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="btn-label">Add Agent</span>
+          </button>
+          <button class="amk-btn" id="amkAutoLayoutBtn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="btn-label">Auto Layout</span>
+          </button>
+          <button class="amk-btn" id="amkViewChatBtn">Output</button>
+          <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
+          <div class="amk-canvas-sep"></div>
+          <div class="amk-zoom-ctrl">
+            <button class="amk-zoom-btn" id="amkZoomOutBtn" title="Zoom out">&#8722;</button>
+            <span class="amk-zoom-val" id="amkZoomVal">100%</span>
+            <button class="amk-zoom-btn" id="amkZoomInBtn" title="Zoom in">+</button>
+            <button class="amk-zoom-btn" id="amkZoomResetBtn" title="Reset zoom" style="font-size:11px;">&#8962;</button>
+          </div>
+          <span class="amk-canvas-hint">Scroll to zoom &middot; Drag background to pan &middot; Shift+click node to connect</span>
+        </div>
+
+        <!-- SVG DAG canvas -->
+        <svg id="amkDagSvg" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="amk-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="rgba(59,130,246,0.6)"/>
+            </marker>
+          </defs>
+          <g id="amkDagContent">
+            <g id="amkDagEdges"></g>
+            <g id="amkDagNodes"></g>
+          </g>
+        </svg>
+
+        <!-- Empty state -->
+        <div class="amk-empty-dag" id="amkEmptyDag">
+          <img src="/assets/logo-full.png" class="amk-empty-logo" draggable="false" alt="HashCortx" style="height:140px;opacity:0.55;margin-bottom:24px;filter:drop-shadow(0 0 18px rgba(59,130,246,0.25));"/>
+          <span class="empty-title">No agents yet</span>
+          <span class="empty-sub">Create a blueprint and add agents to design your swarm topology.</span>
+        </div>
+
+        <!-- Progress bar strip -->
+        <div class="amk-progress-bar" id="amkProgressBar">
+          <div class="amk-progress-fill" id="amkProgressFill" style="width:0%"></div>
+        </div>
+
+      </div><!-- /.amk-canvas-panel -->
+
+      <!-- RIGHT: Inspector panel -->
+      <div class="amk-inspector-panel">
+        <div class="amk-panel-header">
+          <span class="amk-panel-title">Inspector</span>
+          <span class="amk-active-name" id="amkInspectorTitle">—</span>
+        </div>
+        <div class="amk-inspector-body" id="amkInspectorBody">
+          <div class="amk-inspector-empty">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p>Click an agent node to inspect and edit its properties.</p>
+          </div>
+        </div>
+        <div class="amk-inspector-footer" id="amkInspectorFooter">
+          <button class="amk-btn primary" id="amkSaveAgentBtn" style="display:none;">Save Agent</button>
+          <button class="amk-btn danger" id="amkDeleteAgentBtn" style="display:none;">Remove</button>
+        </div>
+      </div>
+
+    </div><!-- /.amk-body -->
+
+    <!-- Trace console (bottom collapsible drawer) -->
+    <div class="amk-trace-console collapsed" id="amkTraceConsole">
+      <div class="amk-trace-header" id="amkTraceToggle">
+        <span class="amk-trace-dot" id="amkTraceDot"></span>
+        <span class="amk-trace-label">Trace</span>
+        <span class="amk-trace-summary" id="amkTraceSummary">No run yet</span>
+        <div class="amk-trace-actions">
+          <button class="amk-trace-btn" id="amkTraceClearBtn">Clear</button>
+        </div>
+        <svg class="amk-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+      <div class="amk-trace-entries" id="amkTraceEntries"></div>
+    </div>
+
+    <!-- God Agent modal -->
+    <div class="amk-god-modal" id="amkGodModal">
+      <div class="amk-god-modal-inner">
+        <div class="amk-god-header">
+          <div class="amk-god-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div>
+            <div class="amk-god-title">God Agent &#8212; Auto-Design Swarm</div>
+            <div class="amk-god-sub">Describe your goal and the AI will design the entire swarm.</div>
+          </div>
+        </div>
+        <textarea class="amk-god-textarea" id="amkGodTextarea" placeholder="e.g. Build a research pipeline that gathers data, analyzes trends, and writes a report&#8230;"></textarea>
+        <div class="amk-god-examples">
+          <button class="amk-god-example" data-example="Research and summarize the latest AI news into a structured report">AI news report</button>
+          <button class="amk-god-example" data-example="Analyze competitor products and draft a positioning strategy">Competitor analysis</button>
+          <button class="amk-god-example" data-example="Generate a multi-section blog post with research, outline, and drafting">Blog post pipeline</button>
+        </div>
+        <div class="amk-god-model-row">
+          <span class="amk-god-model-label">Model</span>
+          <select class="amk-god-model-select" id="amkGodModelSelect"></select>
+        </div>
+        <div class="amk-god-status">
+          <div class="amk-god-spinner" id="amkGodSpinner"></div>
+          <span id="amkGodStatusText"></span>
+        </div>
+        <div class="amk-god-footer">
+          <button class="amk-btn" id="amkGodCancelBtn">Cancel</button>
+          <button class="amk-btn primary" id="amkGodGenerateBtn">Generate Swarm</button>
+        </div>
+      </div>
+    </div><!-- /.amk-god-modal -->
+
+    <!-- Themed dialog (alert / confirm / prompt) — shared by swarm maker + system maker -->
+    <div class="amk-dialog" id="amkDialog">
+      <div class="amk-dialog-inner">
+        <div class="amk-dialog-msg" id="amkDialogMsg"></div>
+        <input class="amk-dialog-input" id="amkDialogInput" type="text" style="display:none;" />
+        <div class="amk-dialog-actions">
+          <button class="amk-btn" id="amkDialogCancel" style="display:none;">Cancel</button>
+          <button class="amk-btn primary" id="amkDialogOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat/output peek side panel -->
+    <div class="amk-chat-peek" id="amkChatPeek">
+      <div class="amk-chat-peek-header">
+        <span class="amk-chat-peek-title">Swarm Output</span>
+        <div class="amk-peek-header-actions">
+          <button class="amk-peek-hbtn" id="amkPeekCopyBtn">Copy</button>
+          <button class="amk-peek-hbtn" id="amkPeekExportBtn">Export .md</button>
+          <button class="amk-peek-hbtn close-btn" id="amkChatPeekClose">&#215;</button>
+        </div>
+      </div>
+      <div class="amk-chat-peek-body" id="amkChatPeekBody">
+        <div class="amk-peek-empty"><p>Run a swarm to see output here.</p></div>
+      </div>
+    </div>
+
+  </div><!-- /#agent-maker-wrap -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       SYSTEM MAKER — Interactive business app prototype builder
+       Shown when body.system-maker-mode is active
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="system-maker-wrap">
+
+    <!-- Header bar -->
+    <div class="sys-header">
+
+      <div class="sys-header-left">
+        <img src="/assets/logo-mark.png" class="sys-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+        <div>
+          <div class="sys-title">System Maker</div>
+          <div class="sys-sub">Business App Builder</div>
+        </div>
+      </div>
+
+      <div class="sys-header-center">
+        <div class="sys-prompt-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input id="sysPromptInput" type="text" placeholder="Describe a business app&#8230; e.g. 'restaurant order management system'" autocomplete="off" />
+        </div>
+        <input type="text" id="sysHeaderAppSearch" placeholder="Search records&#8230;" style="height:36px;border:1px solid var(--sys-line);border-radius:7px;background:rgba(15,23,42,.72);color:#e5edf5;font:12px var(--sans);padding:0 10px;outline:0;min-width:140px;display:none;" />
+      </div>
+
+      <div class="sys-header-right">
+        <span class="sys-run-status" id="sysRunStatus">Idle</span>
+        <select class="sys-model-select" id="sysModelSelect"></select>
+        <button class="sys-btn primary" id="sysCreateBtn">Generate</button>
+        <button class="sys-btn" id="sysNewBtn">New</button>
+        <button class="sys-btn" id="sysResetDataBtn">Reset Data</button>
+        <button class="sys-btn" id="sysBackBtn">&#8592; Back</button>
+      </div>
+
+    </div><!-- /.sys-header -->
+
+    <!-- Body: library | preview shell | inspector -->
+    <div class="sys-body">
+
+      <!-- LEFT: System library -->
+      <div class="sys-library" id="sysLibraryPanel">
+        <div class="sys-panel-header">
+          <span>Systems</span>
+          <button class="sys-icon-btn" id="sysCloseLibraryBtn" title="Hide library">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="sys-system-list" id="sysSystemList">
+          <!-- Populated by JS: renderSystemList() -->
+        </div>
+        <div class="sys-panel-header sys-history-head">
+          <span>History</span>
+        </div>
+        <div class="sys-version-list" id="sysVersionList">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- CENTER: Preview shell -->
+      <div class="sys-preview-shell" id="sysPreviewShell" style="position:relative;">
+
+        <div class="sys-preview-toolbar">
+          <div class="sys-toolbar-left">
+            <button class="sys-btn sys-panel-toggle-btn" id="sysToggleLibraryBtn">&#9776; Library</button>
+            <div>
+              <div class="sys-preview-name" id="sysPreviewName">No system loaded</div>
+              <div class="sys-preview-desc" id="sysPreviewDesc">Generate or select a system from the library.</div>
+            </div>
+          </div>
+          <div class="sys-preview-actions">
+            <div class="sys-preview-export-wrap">
+              <button class="sys-btn sys-export-trigger" id="sysPreviewExportMenuBtn" aria-haspopup="menu" aria-expanded="false">Export &#9660;</button>
+              <div id="sysPreviewExportMenu" class="sys-preview-export-menu" role="menu" aria-hidden="true" hidden>
+                <button class="sys-preview-export-item" data-preview-export="json" role="menuitem">JSON</button>
+                <button class="sys-preview-export-item" data-preview-export="csv" role="menuitem">CSV</button>
+              </div>
+            </div>
+            <button class="sys-btn" id="sysPreviewImportBtn">Import JSON</button>
+            <button class="sys-btn sys-panel-toggle-btn" id="sysToggleInspectorBtn">Inspector</button>
+            <button class="sys-icon-btn" id="sysCloseInspectorBtn" style="display:none;" title="Close inspector">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Live app host (JS renders generated app HTML here) -->
+        <div class="sys-app-host" id="sysAppHost">
+          <div class="sys-empty">
+            <div>
+              <h2>System Maker</h2>
+              <p>Describe a business app and click <b>Generate</b> &#8212; or pick an existing system from the library.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drop zone for JSON import drag-and-drop -->
+        <div id="sysDropZone" style="display:none;position:absolute;inset:0;background:rgba(56,189,248,.08);border:3px dashed rgba(56,189,248,.55);border-radius:12px;z-index:50;align-items:center;justify-content:center;pointer-events:none;">
+          <span style="font-size:18px;color:var(--sys-accent);font-weight:800;">Drop JSON here to import</span>
+        </div>
+
+      </div><!-- /.sys-preview-shell -->
+
+      <!-- RIGHT: Data editor / inspector -->
+      <div class="sys-inspector" id="sysInspectorPanel">
+        <div class="sys-inspector-content">
+          <div class="sys-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Data Editor</span>
+            <button id="sysInspectorCloseBtn" title="Close panel" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;line-height:1;font-size:15px;">&#215;</button>
+          </div>
+          <div class="sys-data-editor" id="sysDataEditor">
+            <!-- Populated by JS -->
+          </div>
+          <div class="sys-panel-header sys-history-head">
+            <span>Run Trace</span>
+          </div>
+          <div class="sys-trace" id="sysTrace">
+            <!-- Populated by JS: trace() -->
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /.sys-body -->
+
+    <!-- Trace console (bottom collapsible drawer) -->
+    <div class="sys-trace-console collapsed" id="sysTraceConsole">
+      <div class="sys-trace-header" id="sysTraceToggle">
+        <span class="sys-trace-dot" id="sysTraceDot"></span>
+        <span class="sys-trace-label">Run Log</span>
+        <span class="sys-trace-summary" id="sysTraceSummary">No run yet</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
+          <button class="sys-trace-btn" id="sysTraceClearBtn">Clear</button>
+        </div>
+        <svg class="sys-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+    </div>
+
+    <!-- Import modal -->
+    <div class="amk-dialog" id="sysImportModal" style="z-index:310;">
+      <div class="amk-dialog-inner" style="width:440px;max-width:95vw;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+          <span style="font-size:13px;font-weight:700;color:var(--text);" id="sysImportTitle">Import System</span>
+          <button class="amk-btn" id="sysImportClose" style="padding:4px 9px;">&#215;</button>
+        </div>
+        <div id="sysImportBody" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+        <div id="sysImportCount" style="font-size:11px;font-family:var(--mono);color:var(--sys-accent);margin-bottom:14px;"></div>
+        <label style="display:block;padding:20px;border:2px dashed var(--sys-line);border-radius:8px;text-align:center;cursor:pointer;margin-bottom:14px;">
+          <span style="font-size:13px;color:var(--muted);">Click to select JSON file</span>
+          <input type="file" id="sysImportFile" accept=".json" style="display:none;" />
+        </label>
+        <div style="display:flex;justify-content:flex-end;gap:8px;">
+          <button class="amk-btn" id="sysImportCancel">Cancel</button>
+          <button class="amk-btn primary" id="sysImportConfirm" disabled>Import</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Record modal (create / edit record) -->
+    <div class="amk-dialog" id="sysRecordModal" style="z-index:320;">
+      <div class="amk-dialog-inner" style="width:500px;max-width:96vw;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <span style="font-size:14px;font-weight:700;color:var(--text);" id="sysRecordModalTitle">New Record</span>
+          <button class="amk-btn" id="sysRecordModalClose" style="padding:4px 9px;">&#215;</button>
+        </div>
+        <form id="sysRecordModalForm" style="display:flex;flex-direction:column;gap:10px;"></form>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button class="amk-btn" id="sysRecordModalCancel" type="button">Cancel</button>
+          <button class="amk-btn primary" id="sysRecordModalSave" type="submit">Save</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#system-maker-wrap -->
+
+
+  <!-- ══════════════════════════════════════════════════════════════
+       VIRTUAL OS — Isolated virtual project desktop (Void Studio)
+       Shown when body.virtual-os-mode is active
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="virtual-os-wrap">
+
+    <!-- Hidden file inputs (always in DOM so JS can .click() them) -->
+    <input type="file" id="voidFileInput" class="void-offscreen-input" multiple />
+    <input type="file" id="voidFolderInput" class="void-offscreen-input" webkitdirectory multiple />
+    <input type="file" id="voidWallpaperInput" class="void-offscreen-input" accept="image/*" />
+
+    <!-- Header -->
+    <div class="void-header">
+      <div class="void-header-left">
+        <img src="/assets/logo-mark.png" class="void-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+        <div>
+          <div class="void-title">Virtual OS</div>
+          <div class="void-sub" id="voidBreadcrumbSub" style="font-size:10px;color:rgba(134,239,172,.52);"></div>
+        </div>
+      </div>
+      <div class="void-header-right">
+        <span class="void-status" id="voidRunStatus"></span>
+        <select class="void-select" id="voidGodModelSelect"></select>
+        <button class="void-btn" id="voidImportBtn">Import Files</button>
+        <button class="void-btn" id="voidUploadFolderBtn">Upload Folder</button>
+        <button class="void-btn" id="voidDownloadFolderBtn">Download ZIP</button>
+        <button class="void-btn" id="voidExportZipBtn">Export ZIP</button>
+        <button class="void-btn" id="voidBackBtn">&#8592; Back</button>
+      </div>
+    </div><!-- /.void-header -->
+
+    <!-- Body: left coder panel + right desktop shell -->
+    <div class="void-body">
+
+      <!-- LEFT: Coder panel (chat + prompt) -->
+      <div class="void-coder-panel">
+
+        <!-- Chat area: header (model select + stop) -->
+        <div class="void-chat-header">
+          <select class="void-select" id="voidChatModelSelect" title="Pick Virtual OS agent model" aria-label="Pick Virtual OS agent model"></select>
+          <button class="void-stop-btn" id="voidChatStopBtn" style="background:transparent;border:1px solid rgba(57,255,129,.15);color:rgba(178,245,200,.36);font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:2px;cursor:pointer;display:flex;align-items:center;gap:4px;opacity:.32;" disabled></button>
+        </div>
+
+        <!-- Chat messages -->
+        <div class="void-chat-msgs" id="voidChatMsgs">
+          <div class="void-chat-welcome">
+            <b>Virtual OS</b>
+            <span>Isolated browser filesystem</span>
+            <span>Files persist in IndexedDB</span>
+            <span>Chat to generate and edit code</span>
+          </div>
+        </div>
+
+        <!-- Chat input footer -->
+        <div class="void-chat-footer">
+          <div class="void-chat-input-wrap">
+            <span class="void-chat-prompt-char">&#10095;</span>
+            <textarea class="void-chat-input" id="voidChatInput" rows="1" placeholder="Message the agent&#8230; (Enter to send, Shift+Enter for newline)"></textarea>
+          </div>
+          <button class="void-chat-send" id="voidChatSend" title="Send"></button>
+        </div>
+
+      </div><!-- /.void-coder-panel -->
+
+      <!-- RIGHT: macOS-style desktop shell -->
+      <div class="void-desktop-shell">
+        <div class="void-macbook">
+
+          <!-- Menu bar -->
+          <div class="void-menu-bar">
+            <div style="display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;">
+              <span style="font-weight:800;">&#8862; Virtual OS</span>
+            </div>
+            <div class="void-menubar-right">
+              <div class="void-wallpaper-wrap" id="voidWallpaperWrap">
+                <button class="void-wallpaper-btn" id="voidWallpaperBtn" title="Change wallpaper">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </button>
+                <div class="void-wallpaper-menu" id="voidWallpaperMenu" hidden>
+                  <button class="void-wallpaper-menu-item" id="voidWallpaperUpload">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Upload Image
+                  </button>
+                  <button class="void-wallpaper-menu-item void-wallpaper-reset" id="voidWallpaperReset">Reset Default</button>
+                </div>
+              </div>
+              <span id="voidClock" style="font-size:12px;font-weight:600;opacity:.70;margin-right:4px;letter-spacing:.01em;"></span>
+            </div>
+          </div>
+
+          <!-- Desktop canvas -->
+          <div class="void-desktop" id="voidDesktop">
+            <div id="voidDesktopStats" style="position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.40);text-align:right;pointer-events:none;z-index:2;line-height:1.6;"></div>
+            <div class="void-empty-desktop" id="voidEmptyDesktop">
+              <b>Virtual Desktop</b>
+              <span>Double-click files to open &middot; Drag to arrange</span>
+            </div>
+          </div>
+
+          <!-- Dock -->
+          <div class="void-dock">
+            <button id="voidCreateFileBtn" title="New File">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            </button>
+            <button id="voidCreateFolderBtn" title="New Folder">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <button id="voidDeleteSelectedBtn" title="Move to Trash" class="danger" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+            <button id="voidDeleteAllBtn" title="Empty Trash" class="danger">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+            <button class="void-dock-action void-stop-btn" id="voidStopBtn" disabled>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+              Stop
+            </button>
+            <button class="void-dock-action" id="voidFinderToggleBtn" title="Toggle Finder window">Show Finder</button>
+            <button class="void-dock-action" id="voidRefreshBtn">Refresh</button>
+            <button class="void-dock-action" id="voidTermOpenBtn" title="Open Terminal" style="display:none;">Terminal</button>
+          </div>
+
+        </div><!-- /.void-macbook -->
+      </div><!-- /.void-desktop-shell -->
+
+    </div><!-- /.void-body -->
+
+    <!-- Finder window (floating, draggable/resizable, position:absolute inside #virtual-os-wrap) -->
+    <div class="void-finder" id="voidFinder">
+
+      <!-- Edge + corner resize handles -->
+      <div class="vf-resize n"  data-dir="n"></div>
+      <div class="vf-resize s"  data-dir="s"></div>
+      <div class="vf-resize e"  data-dir="e"></div>
+      <div class="vf-resize w"  data-dir="w"></div>
+      <div class="vf-resize ne" data-dir="ne"></div>
+      <div class="vf-resize nw" data-dir="nw"></div>
+      <div class="vf-resize se" data-dir="se"></div>
+      <div class="vf-resize sw" data-dir="sw"></div>
+
+      <!-- Titlebar (drag handle) -->
+      <div class="void-finder-titlebar" id="voidFinderTitlebar">
+        <div class="void-traffic small">
+          <span title="Close" id="voidFinderClose">&#215;</span>
+          <span title="Minimise">&#8722;</span>
+          <span title="Zoom">+</span>
+        </div>
+        <span class="void-finder-wintitle">Finder</span>
+        <button class="void-finder-toolbtn" id="voidFinderSettingsBtn" title="Settings">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+
+      <!-- Finder toolbar: back/forward nav + breadcrumb + view toggle -->
+      <div class="void-finder-toolbar">
+        <button class="void-finder-navbtn" id="voidFinderBack" disabled title="Back">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="void-finder-navbtn" id="voidFinderFwd" disabled title="Forward">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <div class="void-breadcrumb" id="voidBreadcrumb">
+          <span class="void-bc-item active">Virtual OS</span>
+        </div>
+        <button class="void-finder-toolbtn" id="voidFinderViewToggle" title="Toggle list/grid view">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        </button>
+      </div>
+
+      <!-- Finder body: sidebar tree + file list -->
+      <div class="void-finder-body">
+        <div class="void-tree" id="voidTree">
+          <!-- Populated by JS: renderTree() -->
+        </div>
+        <div style="display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+          <div class="void-file-list" id="voidFileList">
+            <!-- Populated by JS: renderFileList() -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Status bar -->
+      <div class="void-finder-bar">
+        <span class="void-finder-status" id="voidFinderStatus">0 items</span>
+        <div class="void-finder-bar-actions" id="voidFinderBarActions">
+          <button class="void-mini-btn danger" id="voidFinderTrashBtn" title="Move selection to trash" style="display:none;">Trash</button>
+        </div>
+      </div>
+
+    </div><!-- /#voidFinder -->
+
+    <!-- Code editor (floating window, position:absolute) -->
+    <div class="void-editor" id="voidEditor">
+      <div class="void-editor-card">
+        <div class="void-editor-head">
+          <div class="void-editor-title-wrap">
+            <div class="void-traffic small">
+              <span title="Close" id="voidEditorClose">&#215;</span>
+              <span>&#8722;</span>
+              <span>+</span>
+            </div>
+            <div class="void-editor-title" id="voidEditorTitle">Untitled</div>
+            <div class="void-editor-path" id="voidEditorPath"></div>
+          </div>
+        </div>
+        <textarea class="void-editor-text" id="voidEditorText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+        <div class="void-editor-actions">
+          <button class="void-btn" id="voidEditorDownload">Download</button>
+          <button class="void-btn primary" id="voidEditorSave">Save</button>
+          <button class="void-btn" id="voidEditorClose2">&#215; Close</button>
+        </div>
+      </div>
+    </div><!-- /#voidEditor -->
+
+    <!-- Virtual terminal (floating, draggable) -->
+    <div class="void-terminal void-term-hidden" id="voidTerminal">
+      <div class="vf-resize n"  data-dir="n"></div>
+      <div class="vf-resize s"  data-dir="s"></div>
+      <div class="vf-resize e"  data-dir="e"></div>
+      <div class="vf-resize w"  data-dir="w"></div>
+      <div class="vf-resize ne" data-dir="ne"></div>
+      <div class="vf-resize nw" data-dir="nw"></div>
+      <div class="vf-resize se" data-dir="se"></div>
+      <div class="vf-resize sw" data-dir="sw"></div>
+      <div class="void-terminal-titlebar" id="voidTerminalTitlebar">
+        <div class="void-traffic small">
+          <span title="Close" id="voidTermClose">&#215;</span>
+          <span>&#8722;</span>
+          <span>+</span>
+        </div>
+        <span class="void-terminal-title">Terminal &#8212; Virtual OS</span>
+      </div>
+      <div class="void-terminal-body">
+        <div class="void-terminal-output" id="voidTermOutput"></div>
+        <div class="void-terminal-input-row">
+          <span class="void-term-prompt" id="voidTermPrompt">~/$ </span>
+          <input class="void-term-input" id="voidTermInput" type="text" autocomplete="off" spellcheck="false" placeholder="type a command&#8230;" />
+        </div>
+      </div>
+    </div><!-- /#voidTerminal -->
+
+
+
+    <!-- Path element used by some JS breadcrumb functions -->
+    <div id="voidPath" style="display:none;"></div>
+
+    <!-- Trace console (bottom collapsible drawer) -->
+    <div class="void-trace-console collapsed" id="voidTraceConsole">
+      <div class="void-trace-header" id="voidTraceToggle">
+        <span class="void-trace-dot" id="voidTraceDot"></span>
+        <span class="void-trace-label">Trace</span>
+        <span class="void-trace-summary" id="voidTraceSummary">No run yet</span>
+        <div class="void-trace-actions">
+          <button class="void-trace-btn" id="voidTraceClearBtn">Clear</button>
+        </div>
+        <svg class="void-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      </div>
+      <div class="void-trace-entries" id="voidTraceEntries"></div>
+    </div>
+
+    <!-- Themed dialog (alert / confirm / prompt) -->
+    <div class="void-dialog" id="voidDialog">
+      <div class="void-dialog-card">
+        <div class="void-dialog-head">
+          <div>
+            <div class="void-dialog-title" id="voidDialogTitle">Confirm</div>
+            <div class="void-dialog-sub" id="voidDialogSub"></div>
+          </div>
+          <button class="void-icon-btn" id="voidDialogClose" style="background:transparent;border:none;cursor:pointer;color:rgba(202,232,221,.55);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="void-dialog-body">
+          <div class="void-dialog-message" id="voidDialogMessage"></div>
+          <input class="void-dialog-input" id="voidDialogInput" type="text" style="display:none;" />
+        </div>
+        <div class="void-dialog-actions">
+          <button class="void-btn" id="voidDialogCancel" style="display:none;">Cancel</button>
+          <button class="void-btn primary" id="voidDialogOk">OK</button>
+        </div>
+      </div>
+    </div><!-- /#voidDialog -->
+
+  </div><!-- /#virtual-os-wrap -->
+
+  </div><!-- /#mainApp -->
+
+  <!-- ── Platform layer — must load before app.js ─────────── -->
+  <script src="/platform/index.js"></script>
+  <script src="/platform/tauri/keychain.js"></script>
+  <script src="/platform/tauri/guard.js"></script>
+  <script src="/platform/tauri/hashcoder.js"></script>
+
+  <!-- ── Mode JS files — loaded after DOM ready ──────────── -->
+  <script src="/js/app.js"></script>
+  <script src="/js/finance-mode.js"></script>
+  <script src="/js/sandbox.js"></script>
+  <script src="/js/code-mode.js"></script>
+  <script src="/js/swarm-maker.js"></script>
+  <script src="/js/system-maker.js"></script>
+  <script src="/js/forge-mode.js"></script>
+  <script src="/js/virtual-os.js"></script>
+
+  <!-- Boot controller — loaded last so all DOM is ready (no defer/module needed) -->
+  <script src="/main.js"></script>
+
+  <!-- ── Phase 3+4: Audit Log Modal ───────────────────────── -->
+  <div id="hcAuditModal" role="dialog" aria-modal="true" aria-labelledby="hcAuditTitle">
+    <div class="hc-audit-box">
+      <div class="hc-audit-head">
+        <h3 id="hcAuditTitle">HashCortX Coder Audit Log</h3>
+        <button class="hc-audit-close" id="hcAuditClose" title="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="hc-audit-body" id="hcAuditBody">
+        <div class="hc-audit-empty">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Phase 3: Permission Guard Dialog ─────────────────── -->
+  <div id="hc-perm-dialog" role="dialog" aria-modal="true" aria-labelledby="hc-perm-title">
+    <div class="hc-perm-card">
+      <div class="hc-perm-header">
+        <span class="hc-perm-icon">⚡</span>
+        <span id="hc-perm-title" class="hc-perm-title">HashCortX Coder wants to:</span>
+      </div>
+      <div class="hc-perm-body">
+        <div class="hc-perm-row">
+          <span class="hc-perm-badge" id="hc-perm-action">WRITE</span>
+          <code class="hc-perm-target" id="hc-perm-target"></code>
+        </div>
+        <p class="hc-perm-reason" id="hc-perm-reason"></p>
+      </div>
+      <div class="hc-perm-actions">
+        <button id="hc-perm-once"    class="hc-perm-btn hc-perm-btn--allow">Allow once</button>
+        <button id="hc-perm-session" class="hc-perm-btn hc-perm-btn--session">Allow for session</button>
+        <button id="hc-perm-deny"    class="hc-perm-btn hc-perm-btn--deny">Deny</button>
+      </div>
+    </div>
+  </div>
+  <div id="hc-guard-banner" class="hc-guard-banner" aria-live="assertive"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       CODER MODE — Full-screen HashCortX Coder
+       Shown when body.coder-mode is active
+       ══════════════════════════════════════════════════════════════ -->
+  <div id="coder-mode-wrap">
+
+    <!-- Header -->
+    <div class="cdr-header">
+      <div class="cdr-header-left">
+        <img src="/assets/logo-mark.png" class="cdr-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+        <div>
+          <div class="cdr-title">HashCortX Coder</div>
+          <div class="cdr-sub" id="cdrProjectSub">No project open</div>
+        </div>
+      </div>
+
+      <div class="cdr-header-center">
+        <div class="cdr-status-bar">
+          <span class="cdr-status-dot" id="cdrStatusDot"></span>
+          <span id="cdrStatusText">Ready</span>
+        </div>
+        <span id="cdrRouterChip" class="cdr-router-chip"></span>
+        <span id="cdrRouterLabel" style="display:none"></span>
+      </div>
+
+      <div class="cdr-header-right">
+        <button class="cdr-btn" id="cdrAuditBtn" title="View audit log">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+          Audit
+        </button>
+        <button class="cdr-btn cdr-btn--danger" id="cdrResetPermsBtn" title="Revoke all session permissions you granted this session">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+          Reset Perms
+        </button>
+        <div class="cdr-trace-wrap">
+          <button class="cdr-btn" id="cdrTraceBtn" title="Execution trace">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M4 19h16"/><path d="M4 15h10"/><path d="M4 11h16"/><path d="M4 7h10"/></svg>
+            Trace
+          </button>
+          <div class="cdr-trace-panel" id="cdrTracePanel">
+            <div class="cdr-trace-head">
+              <span>Execution Trace</span>
+              <button class="cdr-trace-clear" id="cdrTraceClear" type="button">Clear</button>
+            </div>
+            <div class="cdr-trace-entries" id="cdrTraceEntries"></div>
+          </div>
+        </div>
+        <button class="cdr-btn" id="cdrExportBtn" title="Export chat as Markdown">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <button class="cdr-back-btn" id="cdrBackBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back
+        </button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="cdr-body" id="cdrBody">
+
+      <!-- LEFT SIDEBAR: File explorer (always visible, VS-Code style) -->
+      <div class="cdr-sidebar" id="cdrSidebar">
+        <div class="cdr-sidebar-hd">
+          <span class="cdr-sidebar-title">Files</span>
+          <div class="cdr-sidebar-actions">
+            <button class="cdr-sidebar-iconbtn" id="cdrLeftAddFileBtn" title="Open File">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            </button>
+            <button class="cdr-sidebar-iconbtn" id="cdrLeftAddFolderBtn" title="Open Folder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            </button>
+            <button class="cdr-sidebar-iconbtn danger" id="cdrClearFilesBtn" title="Clear Files List">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="cdr-sidebar-body" id="cdrSidebarBody">
+          <div class="cdr-tree-root" id="cdrExplorerRoot">No project open</div>
+          <div class="cdr-explorer-body" id="cdrExplorerBody">
+            <div class="cdr-tree-empty">Open a project or file to start.</div>
+          </div>
+        </div>
+      </div><!-- /.cdr-sidebar -->
+
+      <!-- CENTER: Chat area -->
+      <div class="cdr-chat-area">
+
+        <!-- Chat messages -->
+        <div class="cdr-messages" id="cdrMessages">
+          <div class="cdr-welcome">
+            <img src="/assets/hashcortx-logo.png" class="cdr-welcome-logo" draggable="false" alt="HashCortx"/>
+            <div class="cdr-welcome-title">Coder Mode</div>
+            <div class="cdr-welcome-sub">Surgical AI tasks &middot; auto-routed &middot; local-first</div>
+            <div class="cdr-welcome-chips">
+              <span class="cdr-welcome-chip" data-prompt="List all files in the project and give me a quick overview of the codebase structure">Explore codebase</span>
+              <span class="cdr-welcome-chip" data-prompt="Find all TODO and FIXME comments in the project">Find TODOs</span>
+              <span class="cdr-welcome-chip" data-prompt="Check for any obvious bugs or issues in the main source files">Debug &amp; audit</span>
+              <span class="cdr-welcome-chip" data-prompt="Write unit tests for the core functionality">Write tests</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Inline permission strip -->
+        <div id="cdrPermStrip" class="cdr-perm-strip" role="alert" aria-live="assertive">
+          <div class="cdr-perm-row">
+            <svg class="cdr-perm-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span class="cdr-perm-badge" id="cdrPermAction2">WRITE</span>
+            <span class="cdr-perm-target" id="cdrPermTarget2"></span>
+          </div>
+          <div class="cdr-perm-row cdr-perm-meta">
+            <span class="cdr-perm-reason" id="cdrPermReason2"></span>
+            <div class="cdr-perm-btns">
+              <button id="cdrPermOnce2"    class="cdr-perm-btn">Allow once</button>
+              <button id="cdrPermSession2" class="cdr-perm-btn session">Always allow</button>
+              <button id="cdrPermDeny2"    class="cdr-perm-btn deny">Deny</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div class="cdr-composer">
+          <div class="cdr-composer-meta">
+            <select class="cdr-model-picker" id="cdrModelPicker" title="Model for HashCortx Coder"></select>
+            <div class="cdr-composer-right">
+              <span class="cdr-agents-label">Agents</span>
+              <div class="cdr-agents-toggle">
+                <button class="cdr-agent-btn active" data-agents="1">1</button>
+                <button class="cdr-agent-btn" data-agents="2">+2</button>
+                <button class="cdr-agent-btn" data-agents="3">+3</button>
+              </div>
+              <button class="cdr-new-chat-btn" id="cdrClearChatBtn" title="Start new conversation">New chat</button>
+            </div>
+          </div>
+          <div class="cdr-input-wrap">
+            <textarea id="cdrTaskInput" class="cdr-task-input" rows="1"
+              placeholder="Message HashCortx Coder...  (Enter / Shift+Enter for newline)"></textarea>
+            <button class="cdr-run-btn" id="cdrRunBtn" title="Run task">
+              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="8 6 14 12 8 18"/><line x1="15" y1="18" x2="20" y2="18"/></svg>
+            </button>
+            <button class="cdr-stop-btn" id="cdrStopBtn" style="display:none" title="Stop">&#9632;</button>
+          </div>
+        </div>
+
+      </div><!-- /.cdr-chat-area -->
+
+      <!-- BOTTOM: Terminal panel -->
+      <div class="cdr-terminal-panel" id="cdrTerminalPanel">
+        <div class="cdr-terminal-hd">
+          <div class="cdr-terminal-lights" aria-hidden="true">
+            <span class="red"></span>
+            <span class="yellow"></span>
+            <span class="green"></span>
+          </div>
+          <div class="cdr-terminal-title">
+            <span>Terminal</span>
+          </div>
+          <div class="cdr-terminal-actions">
+            <button class="cdr-terminal-btn" id="cdrTerminalClear" title="Clear">Clear</button>
+          </div>
+        </div>
+        <div class="cdr-terminal-body" id="cdrTerminalBody">
+          <div class="cdr-terminal-line cdr-terminal-muted">Ready. Open a project or run a command.</div>
+        </div>
+        <div class="cdr-terminal-input">
+          <span id="cdrTerminalPrompt">%</span>
+          <input type="text" id="cdrTerminalInput" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
+        </div>
+      </div><!-- /.cdr-terminal-panel -->
+
+      <!-- Change detail overlay -->
+      <div class="cdr-change-overlay" id="cdrChangeOverlay">
+        <div class="cdr-change-overlay-inner">
+          <div class="cdr-change-overlay-hd">
+            <span class="cdr-change-overlay-title" id="cdrChangeOverlayTitle"></span>
+            <button class="cdr-change-overlay-close" id="cdrChangeOverlayClose">&#215;</button>
+          </div>
+          <pre class="cdr-change-overlay-pre" id="cdrChangeOverlayPre"></pre>
+        </div>
+      </div>
+
+      <!-- RIGHT: Saved Chats panel (always visible) -->
+      <div class="cdr-right" id="cdrSessionsPanel">
+        <div class="cdr-sessions-hd">
+          <span>Saved Chats</span>
+          <button class="cdr-sessions-clear" id="cdrSessionsClearAllBtn" title="Clear all saved chats">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 5h10M6 5V3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V5M5 5l.7 8a.6.6 0 0 0 .6.5h3.4a.6.6 0 0 0 .6-.5L11 5"/></svg>
+          </button>
+        </div>
+        <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search chats..." autocomplete="off" spellcheck="false"/>
+        <div class="cdr-sessions-body" id="cdrSessionsList">
+          <div class="cdr-sessions-empty">Past conversations will appear here.</div>
+        </div>
+      </div>
+
+      <!-- Legacy elements (hidden, kept for JS compat) -->
+      <div class="cdr-left" style="display:none"></div>
+      <div class="cdr-perm-alert" id="cdrPermAlert" style="display:none"></div>
+    </div><!-- /.cdr-body -->
+
+  </div><!-- /#coder-mode-wrap -->
+
+  <!-- Text selection toolbar -->
+  <div class="selection-toolbar" id="selectionToolbar">
+    <button id="stb-copy" title="Copy">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><path d="M9 6h3a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-3"/></svg>
+    </button>
+    <button id="stb-quote" title="Quote & Reply">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h7M4 5h9M4 11h5"/></svg>
+    </button>
+    <button id="stb-explain" title="Explain">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M8 11V9.5"/><circle cx="8" cy="6.5" r=".6" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button id="stb-fix" title="Fix / Improve" style="display:none">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m11 2.5 2.5 2.5L5 13.5 2 14l.5-3Z"/></svg>
+    </button>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,136 @@
+# ============================================================
+# HashCortx — GitHub Actions Build Pipeline
+# STATUS: FUTURE — not active yet
+#
+# HOW TO ACTIVATE:
+#   1. Create a GitHub repo named "HashCortx"
+#   2. Move this file to: /.github/workflows/build.yml
+#   3. Push your code to GitHub
+#   4. Create a git tag (e.g. v0.2.0) to trigger a build
+#
+# WHAT THIS DOES:
+#   Automatically builds HashCortx for Mac (Intel + Apple Silicon),
+#   Windows, and Linux whenever you push a version tag.
+#   Outputs are uploaded as a GitHub Release (draft) so you
+#   review before publishing publicly.
+#
+# AUTO-UPDATE NOTE (no domain needed):
+#   After activating, update the updater endpoints in
+#   src-tauri/tauri.conf.json with your GitHub username.
+#   GitHub Releases URLs work fine — no custom domain required.
+#   Format:
+#   https://github.com/YOUR_USERNAME/HashCortx/releases/latest/download/latest.json
+# ============================================================
+
+name: Build HashCortx
+
+on:
+  push:
+    tags:
+      - 'v*'          # triggers on any tag: v0.1.0, v1.2.3, etc.
+  workflow_dispatch:  # allows manual trigger from GitHub Actions UI
+
+jobs:
+  build:
+    permissions:
+      contents: write   # needed to create GitHub Releases
+
+    strategy:
+      fail-fast: false  # if one platform fails, others still build
+      matrix:
+        include:
+          # ── Mac Apple Silicon (M1/M2/M3/M4) ──────────────────
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            label: mac-arm
+
+          # ── Mac Intel ─────────────────────────────────────────
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            label: mac-intel
+
+          # ── Windows x64 ───────────────────────────────────────
+          - platform: windows-latest
+            target: ''
+            label: windows
+
+          # ── Linux x64 (produces .AppImage + .deb) ─────────────
+          - platform: ubuntu-22.04
+            target: ''
+            label: linux
+
+    runs-on: ${{ matrix.platform }}
+    name: Build ${{ matrix.label }}
+
+    steps:
+      # ── 1. Get the source code ────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js (pinned to v20 LTS for stability) ─────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # ── 3. Rust stable ───────────────────────────────────────
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      # ── 4. Cache Rust build artifacts (faster subsequent runs) ──
+      - name: Cache Rust build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ── 5. Linux only: WebKit + system libs ──────────────────
+      # Mac/Windows have WebKit built in. Linux needs it installed.
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      # ── 6. Install JavaScript dependencies ───────────────────
+      - name: Install npm dependencies
+        run: npm install
+
+      # ── 7a. Build with cross-compile target (Mac arm/intel) ──
+      - name: Build (with target)
+        if: matrix.target != ''
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'HashCortx ${{ github.ref_name }}'
+          releaseBody: |
+            ## HashCortx ${{ github.ref_name }}
+            100% local. Zero cloud. Your keys. Your data.
+            See CHANGELOG.md for what changed.
+          releaseDraft: true   # review before making public
+          prerelease: false
+          args: --target ${{ matrix.target }}
+
+      # ── 7b. Build without target (Windows + Linux) ───────────
+      - name: Build (default target)
+        if: matrix.target == ''
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'HashCortx ${{ github.ref_name }}'
+          releaseBody: |
+            ## HashCortx ${{ github.ref_name }}
+            100% local. Zero cloud. Your keys. Your data.
+            See CHANGELOG.md for what changed.
+          releaseDraft: true
+          prerelease: false

@@ -1,0 +1,1425 @@
+/* ============================================================
+   HASHCORTX — Master Design System + Intro Screen
+   All brand tokens live here. Component CSS goes in src/components/
+   ============================================================ */
+
+:root {
+  --hc-green:         #22d3ee;
+  --hc-green-dim:     rgba(34,211,238,0.50);
+  --hc-green-glow:    rgba(34,211,238,0.12);
+  --hc-green-border:  rgba(34,211,238,0.18);
+
+  --hc-cyan:          #22d3ee;
+  --hc-amber:         #fbbf24;
+  --hc-red:           #f87171;
+  --hc-purple:        #a78bfa;
+
+  --hc-bg:            #040507;
+  --hc-bg-2:          #08090d;
+  --hc-bg-3:          #0d0f14;
+  --hc-bg-4:          #11131a;
+
+  --hc-text:          #c7e6f0;
+  --hc-text-dim:      rgba(199,230,240,0.50);
+  --hc-text-muted:    rgba(199,230,240,0.28);
+  --hc-text-faint:    rgba(199,230,240,0.14);
+
+  --hc-border:        rgba(34,211,238,0.13);
+  --hc-border-strong: rgba(34,211,238,0.28);
+  --hc-border-subtle: rgba(34,211,238,0.07);
+
+  --hc-font: 'JetBrains Mono','Berkeley Mono','Fira Code',
+             'Cascadia Code','SF Mono','Menlo','Consolas',monospace;
+  --hc-font-size: 13px;
+  --hc-line: 1.65;
+
+  --hc-s1:4px; --hc-s2:8px; --hc-s3:12px; --hc-s4:16px;
+  --hc-s5:20px;--hc-s6:24px;--hc-s8:32px; --hc-s10:40px;
+
+  --hc-r-sm:3px; --hc-r-md:6px; --hc-r-lg:12px; --hc-r-xl:18px;
+
+  --hc-t:0.15s ease; --hc-t-slow:0.28s ease;
+
+  --hc-shadow:    0 4px 24px rgba(0,0,0,0.65);
+  --hc-shadow-lg: 0 12px 48px rgba(0,0,0,0.75);
+
+  --toolbar-h: 44px;   /* iOS nav-bar height — used by all views below it */
+}
+
+/* ── Reset ───────────────────────────────────────────────── */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+
+html,body {
+  height:100%; overflow:hidden;
+  background: #06070a;
+  color: var(--hc-text);
+  font-family: var(--hc-font);
+  font-size: var(--hc-font-size);
+  line-height: var(--hc-line);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#app { width:100%; height:100%; }
+
+/* ── App-shell defaults: non-selectable, non-draggable ─────────
+   Treats the whole UI like a native desktop app. Opt-in selection
+   is granted to text users may want to copy (chat messages, code,
+   form fields) via the rule block below.
+   ──────────────────────────────────────────────────────────── */
+img, svg, canvas, video {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Opt-in selectable regions */
+input, textarea, [contenteditable="true"],
+.messages .msg .bubble, .messages .msg .bubble *,
+.bubble pre, .bubble code, pre, code,
+.selectable, .selectable * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+::-webkit-scrollbar             { width:4px; height:4px; }
+::-webkit-scrollbar-track       { background:transparent; }
+::-webkit-scrollbar-thumb       { background:var(--hc-border); border-radius:2px; }
+::-webkit-scrollbar-thumb:hover { background:var(--hc-border-strong); }
+::selection { background:rgba(34,211,238,0.18); color:var(--hc-green); }
+
+/* ── iOS-style toolbar / drag handle ─────────────────────────
+   Always sits at the very top, above every other layer.
+   The whole bar is a Tauri drag region (move the window by
+   grabbing anywhere on it). Child elements that need pointer
+   interaction get -webkit-app-region:no-drag.
+   ─────────────────────────────────────────────────────────── */
+.hc-toolbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 44px;                          /* iOS nav-bar standard height */
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  /* Frosted-glass look: dark tint + blur behind it */
+  background: rgba(4, 7, 4, 0.72);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+
+  /* Subtle green hairline at the bottom */
+  border-bottom: 1px solid rgba(57, 255, 129, 0.12);
+
+  /* Soft shadow so it lifts above the intro stage */
+  box-shadow: 0 1px 0 rgba(34,211,238,0.06),
+              0 4px 24px rgba(0,0,0,0.45);
+
+  -webkit-app-region: drag;             /* entire bar is draggable */
+  cursor: default;
+  user-select: none;
+}
+
+/* Left zone — 72 px keeps macOS traffic lights from overlapping the title.
+   Empty strip → must be a drag region, not no-drag. */
+.hc-toolbar-left {
+  width: 72px;
+  flex-shrink: 0;
+  -webkit-app-region: drag;   /* empty strip — drag here */
+}
+
+/* Center — logo + app name.
+   The content here is purely decorative (img + spans, no buttons).
+   Keep it drag so the most natural grip area (center of toolbar) works.
+   Individual interactive buttons added in Phase 2 get no-drag themselves. */
+.hc-toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  -webkit-app-region: drag;
+}
+
+.hc-toolbar-logo {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  opacity: 0.95;
+  filter:
+    drop-shadow(0 0 6px rgba(240,168,0,0.90))
+    drop-shadow(0 0 16px rgba(240,168,0,0.50));
+  -webkit-user-drag: none;
+  -webkit-app-region: drag;   /* must be explicit — not inherited from parent */
+}
+
+.hc-toolbar-name {
+  font-family: var(--hc-font);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--hc-green);
+  text-shadow: 0 0 12px rgba(34,211,238,0.45);
+  -webkit-app-region: drag;   /* must be explicit on each child */
+}
+
+.hc-toolbar-badge {
+  font-family: var(--hc-font);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  color: var(--hc-text-muted);
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1px solid rgba(34,211,238,0.18);
+  border-radius: 4px;
+  background: rgba(34,211,238,0.05);
+  margin-left: 2px;
+  -webkit-app-region: drag;   /* must be explicit on each child */
+}
+
+/* Right zone — Phase 2 action buttons go here.
+   Currently empty → drag region. Buttons added in Phase 2+ get no-drag individually. */
+.hc-toolbar-right {
+  width: 72px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  gap: 6px;
+  -webkit-app-region: drag;   /* empty strip — drag here */
+}
+
+/* Generic toolbar icon-button used in Phase 2+ */
+.hc-toolbar-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  border: 1px solid rgba(34,211,238,0.14);
+  background: rgba(34,211,238,0.06);
+  color: var(--hc-text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  -webkit-app-region: no-drag;
+}
+.hc-toolbar-btn:hover {
+  background: rgba(34,211,238,0.13);
+  border-color: rgba(34,211,238,0.32);
+  color: var(--hc-green);
+}
+.hc-safe-exit-mode {
+  display: none;
+  color: var(--hc-amber);
+  border-color: rgba(251,191,36,0.24);
+  background: rgba(251,191,36,0.07);
+}
+body.hashcortx-fullscreen-active .hc-safe-exit-mode {
+  display: flex;
+}
+.hc-safe-exit-mode:hover {
+  color: var(--hc-amber);
+  border-color: rgba(251,191,36,0.48);
+  background: rgba(251,191,36,0.13);
+}
+.hc-toolbar-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  pointer-events: none;
+}
+.hc-toolbar-btn:active {
+  transform: translateY(1px);
+}
+.hc-toolbar-btn.is-reloading svg {
+  animation: hc-toolbar-spin 0.72s linear infinite;
+}
+@keyframes hc-toolbar-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Main app shell — transparent so body::before ambient gradient shows through.
+   Offset by toolbar height. Phase 2: full app here. */
+#mainApp {
+  position: fixed;
+  top: 44px; left: 0; right: 0; bottom: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+/* ── Phase 2 overrides for Hash_UI .app inside #mainApp ──────── */
+/* .app uses 100vh/100vw by default; override to fill #mainApp instead */
+#mainApp .app {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+/* Brand sidebar logo image sizing */
+.brand-logo-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(240,168,0,0.80))
+          drop-shadow(0 0 20px rgba(240,168,0,0.40));
+  -webkit-user-drag: none;
+}
+
+/* About-pane logo (replaces the "H" monogram) */
+.about-logo-img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 10px rgba(240,168,0,0.85))
+          drop-shadow(0 0 28px rgba(240,168,0,0.45));
+  -webkit-user-drag: none;
+  margin-bottom: 4px;
+}
+/* The hc-toolbar is always above the app shell */
+.hc-toolbar { z-index: 99999; }
+
+/* ============================================================
+   INTRO SCREEN
+   Exact Hash_UI structure — only colors (gold→green),
+   logo (H→star SVG) and text content differ.
+   ============================================================ */
+
+/* Scoped CSS variables — mirrors Hash_UI's intro palette
+   but remapped to terminal green */
+/* Intro screen sits below the toolbar (z-index 9999 < toolbar 99999) */
+#intro-screen {
+  position: fixed; inset: 0; z-index: 9999;
+
+  --bg-0: #040507;
+  --bg-1: #060d06;
+  --bg-2: #0d1a0d;
+  --line:        rgba(34,211,238,0.10);
+  --line-soft:   rgba(34,211,238,0.06);
+  --line-strong: rgba(34,211,238,0.28);
+  --ink:         #c7e6f0;
+  --ink-mute:    rgba(199,230,240,0.65);
+  --ink-dim:     rgba(199,230,240,0.38);
+  --ink-faint:   rgba(199,230,240,0.18);
+  --gold:        #22d3ee;
+  --gold-bright: #6feaff;
+  --gold-deep:   #1a5a7a;
+  --accent-glow: rgba(34,211,238,0.45);
+  --ok:          #22d3ee;
+  --font-mono:   'JetBrains Mono', ui-monospace, monospace;
+  --font-display: 'JetBrains Mono', ui-monospace, monospace;
+
+  font-family: var(--font-mono);
+}
+
+/* modals.css sets #intro-screen .stage { inset: 0 } which starts at
+   top:0 — but our persistent toolbar is 44px tall and sits above z-index 9999.
+   Push the stage down by exactly toolbar-height so nothing is hidden. */
+#intro-screen .stage {
+  top: var(--toolbar-h, 44px) !important;
+}
+
+/* Grid */
+.grid-bg {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(var(--line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.4;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+/* Circuit lines container */
+.circuits { position:absolute; inset:0; pointer-events:none; }
+.circuits svg { width:100%; height:100%; }
+.circuit-line  { fill:none; stroke:var(--gold); stroke-width:0.5; opacity:0.18; }
+.circuit-pulse { fill:var(--gold-bright); }
+
+/* Vignette */
+.vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center,
+    transparent 30%, rgba(0,0,0,0.68) 80%, #000 100%);
+  pointer-events: none;
+}
+
+/* Corner brackets */
+.bracket {
+  position: absolute; width:28px; height:28px;
+  border: 1px solid var(--gold); opacity:0; z-index:4;
+  animation: ifi 0.8s 0.4s both;
+}
+.bracket.tl { top:20px;    left:20px;  border-right:none;  border-bottom:none; }
+.bracket.tr { top:20px;    right:20px; border-left:none;   border-bottom:none; }
+.bracket.bl { bottom:20px; left:20px;  border-right:none;  border-top:none;    }
+.bracket.br { bottom:20px; right:20px; border-left:none;   border-top:none;    }
+
+/* ── Boot lines — top left ──────────────────────────────── */
+.boot-lines {
+  position: absolute; top:4%; left:3.4%;
+  font-family: var(--font-mono);
+  font-size: clamp(8px, 0.78vw, 9.8px);
+  letter-spacing: .045em;
+  color: var(--ink-dim);
+  line-height: 1.68;
+  text-transform: uppercase;
+  width: auto; max-width: min(34vw, 430px); z-index:4;
+}
+.boot-lines .ok   { color: var(--ok); }
+.boot-lines .gold { color: var(--gold); }
+.boot-lines .dim  { color: var(--ink-faint); }
+.boot-lines .row  {
+  opacity:0; animation:ifl 0.5s forwards;
+  display:flex; gap:6px; flex-wrap:nowrap;
+  align-items:baseline; white-space:nowrap;
+}
+.boot-lines .row:nth-child(1) { animation-delay:0.30s; }
+.boot-lines .row:nth-child(2) { animation-delay:0.65s; }
+.boot-lines .row:nth-child(3) { animation-delay:1.00s; }
+.boot-lines .row:nth-child(4) { animation-delay:1.35s; }
+.boot-lines .row:nth-child(5) { animation-delay:1.70s; }
+.boot-lines .row:nth-child(6) { animation-delay:2.05s; }
+.boot-lines .row:nth-child(7) { animation-delay:2.40s; }
+@keyframes ifl { to { opacity:1; } }
+
+.boot-lines .cta {
+  font-family: var(--font-mono);
+  font-size: 10px; letter-spacing:.25em;
+  color: var(--gold-bright); text-transform:uppercase;
+  opacity:0; margin-top:6px;
+  text-shadow: 0 0 10px var(--accent-glow), 0 0 20px rgba(34,211,238,0.4);
+  animation: ifi 0.5s 3.2s forwards, cta-radiate 2.4s 3.6s ease-in-out infinite;
+}
+@keyframes cta-radiate {
+  0%,100% {
+    opacity:.62;
+    text-shadow: 0 0 10px var(--accent-glow), 0 0 20px rgba(34,211,238,0.35);
+  }
+  50% {
+    opacity:1;
+    text-shadow: 0 0 18px var(--gold-bright), 0 0 42px rgba(34,211,238,0.75), 0 0 90px rgba(34,211,238,0.35);
+  }
+}
+
+/* ── Boot meter — top right ─────────────────────────────── */
+.boot-meter {
+  position: absolute; top:4%; right:3.4%;
+  width: clamp(210px, 23vw, 252px);
+  font-family: var(--font-mono);
+  font-size: clamp(7.8px, 0.72vw, 8.9px);
+  letter-spacing:.15em;
+  color: var(--ink-dim);
+  text-transform: uppercase; z-index:4;
+}
+.boot-meter .grp { margin-bottom:8px; }
+.boot-meter .row { display:flex; justify-content:space-between; gap:14px; margin-bottom:3px; }
+.boot-meter .bar { height:1.5px; background:var(--line-soft); position:relative; overflow:hidden; }
+.boot-meter .bar::after {
+  content:""; position:absolute; inset:0;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
+  transform: translateX(-100%);
+  animation: iload 3s cubic-bezier(.4,0,.2,1) forwards;
+}
+.boot-meter .bar.b2::after { animation-duration:4.2s; animation-delay:0.4s; }
+.boot-meter .bar.b3::after { animation-duration:5.0s; animation-delay:0.8s; }
+.boot-meter .bar.b4::after { animation-duration:3.6s; animation-delay:1.2s; }
+.boot-meter .bar.b5::after { animation-duration:4.8s; animation-delay:1.6s; }
+.boot-meter .bar.b6::after { animation-duration:3.2s; animation-delay:2.0s; }
+.boot-meter .bar.b7::after { animation-duration:2.8s; animation-delay:2.4s; }
+.boot-meter .bar.b8::after { animation-duration:3.0s; animation-delay:2.8s; }
+@keyframes iload { to { transform:translateX(0); } }
+
+/* ── Bottom decoration ────────────────────────────────────── */
+.timestamp {
+  position: absolute; bottom:4%; left:4%;
+  font-family: var(--font-mono);
+  font-size: clamp(7.5px, 0.7vw, 9px);
+  letter-spacing:.22em; color:var(--ink-faint);
+  text-transform:uppercase; z-index:4;
+}
+#intro-screen .timestamp {
+  font-size: clamp(9.5px, 0.9vw, 12px);
+  letter-spacing: .18em;
+  color: rgba(212, 224, 240, 0.58);
+  line-height: 1.35;
+  white-space: nowrap;
+  text-shadow: 0 0 12px rgba(34, 211, 238, 0.22);
+}
+.signature {
+  position: absolute; bottom:4%; right:4%;
+  font-family: var(--font-display); font-size: clamp(10px,0.9vw,12px);
+  color:var(--ink-faint); text-align:right; z-index:4;
+  animation: ifi 1s 2s both;
+}
+#intro-screen .signature {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: clamp(10.5px, 0.92vw, 13px);
+  font-style: normal;
+  letter-spacing: .12em;
+  color: rgba(223, 255, 233, 0.84);
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-shadow: 0 0 14px rgba(57, 255, 129, 0.32);
+}
+#intro-screen .signature::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 1.1em;
+  margin-left: 8px;
+  background: currentColor;
+  vertical-align: -0.18em;
+  box-shadow: 0 0 10px rgba(57, 255, 129, 0.38);
+  animation: signatureCursorBlink 1s steps(1, end) infinite;
+}
+@keyframes signatureCursorBlink {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+/* Perfection quote — copied exactly from Hash_UI (original warm-gold palette).
+   Uses higher specificity (#intro-screen prefix) to override modals.css green.
+   Font-display + italic + larger size = the classic Hash_UI look. */
+#intro-screen .perfection-quote {
+  position: absolute; bottom: 7%; left: 4%;
+  font-family: var(--font-display); font-style: italic;
+  font-size: clamp(14px, 1.75vmin, 22px);
+  color: #d4e0f0;                       /* Hash_UI gold-bright, kept as-is */
+  text-align: left; z-index: 4; white-space: nowrap;
+  letter-spacing: .06em;
+  animation: ifi 1s 2.5s both;
+  text-shadow:
+    0 0 18px rgba(244,213,141,0.80),
+    0 0 40px rgba(244,213,141,0.45),
+    0 0 80px rgba(244,213,141,0.20);
+}
+.patch-badge {
+  position: absolute; bottom:12%; left:4%;
+  font-family: var(--font-mono);
+  font-size: clamp(7.5px, 0.72vw, 9px);
+  letter-spacing:.18em; color:var(--ink-mute);
+  text-transform:uppercase; z-index:4;
+  animation: ifi 1s 2.25s both;
+}
+
+/* Status badge */
+.status-badge {
+  position: absolute; top:20%; left:50%; transform:translateX(-50%);
+  display:inline-flex; align-items:center; gap:7px; padding:4px 12px;
+  border:1px solid var(--line-strong); border-radius:999px;
+  background: rgba(34,211,238,0.04);
+  font-family: var(--font-mono);
+  font-size: clamp(7.8px,0.72vw,9px); letter-spacing:.24em;
+  color: var(--gold); text-transform:uppercase; z-index:4;
+  animation: ifi 1s 1.2s both;
+}
+.status-badge .dot {
+  width:7px; height:7px; border-radius:50%;
+  background: var(--ok); box-shadow:0 0 8px var(--ok);
+  animation: idotpulse 1.4s ease-in-out infinite;
+}
+#intro-screen .status-badge.initializing {
+  border-color: rgba(245,201,122,0.42);
+  color: var(--gold);
+}
+#intro-screen .status-badge.initializing .dot {
+  background: var(--gold);
+  box-shadow: 0 0 8px var(--gold);
+}
+#intro-screen .status-badge.ready {
+  border-color: rgba(57,255,129,0.55);
+  background: rgba(57,255,129,0.07);
+  color: #6fffaa;
+  text-shadow: 0 0 12px rgba(57,255,129,0.42);
+}
+#intro-screen .status-badge.ready .dot {
+  background: #39ff81;
+  box-shadow: 0 0 10px #39ff81, 0 0 18px rgba(57,255,129,0.55);
+}
+#intro-screen .intro-loading-bar {
+  position: absolute;
+  top: calc(20% + 34px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(260px, 38vw);
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  z-index: 4;
+  background: rgba(57,255,129,0.09);
+  border: 1px solid rgba(57,255,129,0.24);
+  box-shadow: 0 0 14px rgba(57,255,129,0.12), inset 0 0 8px rgba(57,255,129,0.08);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+#intro-screen .intro-loading-bar span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(57,255,129,0.45), #39ff81);
+  box-shadow: 0 0 10px rgba(57,255,129,0.42);
+  transition: width 0.42s cubic-bezier(.2,.8,.2,1);
+}
+#intro-screen .intro-loading-bar.done {
+  animation: none;
+  opacity: 0;
+  transform: translateX(-50%) translateY(-4px);
+}
+#intro-screen .intro-loading-bar.done span {
+  animation: none;
+}
+
+/* ── Central emblem ───────────────────────────────────────── */
+.emblem-stage {
+  position: relative;
+  width: min(560px, 62vmin); height: min(560px, 62vmin);
+  display: grid; place-items:center; z-index:3;
+}
+
+/* Spinning rings */
+.ring {
+  position:absolute; border-radius:50%;
+  border:1px solid var(--line-strong); pointer-events:none;
+}
+.ring::before {
+  content:""; position:absolute;
+  width:8px; height:8px; background:var(--gold-bright);
+  border-radius:50%; top:-4px; left:50%; transform:translateX(-50%);
+  box-shadow: 0 0 16px 4px var(--accent-glow);
+}
+#intro-screen .ring::before { display: none; }
+.ring.r1 { width:100%;  height:100%;  animation:ispin 60s  linear infinite; }
+.ring.r2 { width:78%;   height:78%;   animation:ispin 40s  linear infinite reverse; border-style:dashed; opacity:.4; }
+.ring.r3 { width:118%;  height:118%;  animation:ispin 90s  linear infinite; opacity:.25; }
+.ring.r4 { width:140%;  height:140%;  animation:ispin 120s linear infinite reverse; opacity:.15; border-style:dotted; }
+@keyframes ispin { to { transform:rotate(360deg); } }
+
+/* Tick marks around outer ring */
+.ticks { position:absolute; width:118%; height:118%; animation:ispin 120s linear infinite; pointer-events:none; }
+.ticks .tick { position:absolute; left:50%; top:0; width:1px; height:8px; background:var(--gold); opacity:.5; transform-origin:center; }
+
+/* Logo wrap */
+.logo-wrap {
+  position:absolute; width:78%; height:78%; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  display:grid; place-items:center; text-align:center;
+  animation: ilogoin 2.4s cubic-bezier(.2,.8,.2,1) both;
+  z-index: 3;
+}
+@keyframes ilogoin {
+  0%   { opacity:0; filter:blur(24px) brightness(2); }
+  60%  { opacity:1; filter:blur(0)    brightness(1.3); }
+  100% { opacity:1; filter:blur(0)    brightness(1); }
+}
+
+/* Radial glow behind the logo */
+.logo-glow {
+  position:absolute; width:88%; height:88%; border-radius:50%;
+  background: radial-gradient(circle,
+    rgba(201,169,110,0.28) 0%,
+    transparent 65%);
+  filter:blur(22px); pointer-events:none;
+  animation: ipglow 4s ease-in-out infinite;
+}
+@keyframes ipglow { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:.8;transform:scale(1.1)} }
+
+/* Full brand logo image — star mark + "HashCortx" text below.
+   Sits inside .logo-wrap at the center of .emblem-stage.
+   Height is intentionally taller than width since the PNG
+   is portrait (mark on top, text below). */
+.hc-logo-full {
+  /* Fill the emblem stage — let it breathe but dominate the circle */
+  height: clamp(260px, 46vmin, 440px);
+  width:  auto;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 0 6px  rgba(240,168,0,0.90))
+    drop-shadow(0 0 20px rgba(240,168,0,0.50));
+  animation: hcLogoFloat 6s ease-in-out infinite;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+@keyframes hcLogoFloat {
+  0%,100% { transform: translateY(0px);   }
+  50%      { transform: translateY(-10px); }
+}
+
+/* The intro stage drag region is set via data-tauri-drag-region on the
+   element in HTML. Interactive children get -webkit-app-region:no-drag. */
+.boot-lines,
+.boot-meter,
+.title-block,
+.status-badge,
+.patch-badge,
+.perfection-quote,
+.signature,
+.timestamp,
+.emblem-stage { -webkit-app-region: no-drag; }
+
+/* Drone orbits */
+.drone-orbit { position:absolute; border-radius:50%; pointer-events:none; }
+#intro-screen .drone-orbit {
+  top: -12% !important;
+  right: -12% !important;
+  bottom: -12% !important;
+  left: -12% !important;
+  width: auto !important;
+  height: auto !important;
+  z-index: 1;
+  animation-name: ispin !important;
+  animation-duration: 42s !important;
+  animation-timing-function: linear !important;
+  animation-iteration-count: infinite !important;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+#intro-screen .intro-drone-a {
+  animation-delay: 0s !important;
+}
+#intro-screen .intro-drone-b {
+  animation-delay: -14s !important;
+}
+#intro-screen .intro-drone-c {
+  animation-delay: -28s !important;
+}
+.drone-orbit > .drone {
+  position:absolute; top:-22px; left:50%; transform:translateX(-50%);
+  width:44px; height:44px;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+}
+#intro-screen .drone-orbit > .drone {
+  top: -18px;
+  width: 34px;
+  height: 34px;
+  opacity: 0.28;
+}
+.drone svg { width:100%; height:100%; }
+.drone-glow { fill:var(--gold-bright); animation:idotpulse 1.6s ease-in-out infinite; }
+@keyframes idotpulse { 0%,100%{opacity:.6} 50%{opacity:1} }
+
+/* Security-ring sonar pulse */
+.security-rings {
+  position:absolute; width:46%; height:46%;
+  border:1px solid var(--gold); border-radius:50%;
+  opacity:0; pointer-events:none;
+  animation: ising 7s ease-out infinite;
+}
+.security-rings.r2 { animation-delay:2.3s; }
+.security-rings.r3 { animation-delay:4.6s; }
+@keyframes ising { 0%{opacity:.7;transform:scale(.8)} 100%{opacity:0;transform:scale(1.8)} }
+
+/* ── Title block — bottom center ───────────────────────────── */
+.title-block {
+  position:absolute; bottom:9%; left:50%; transform:translateX(-50%);
+  text-align:center; z-index:3;
+  animation: ifadeup 1.2s 1.6s both;
+}
+@keyframes ifadeup {
+  from { opacity:0; transform:translate(-50%,24px); }
+  to   { opacity:1; transform:translate(-50%,0);    }
+}
+
+/* Main title: #hashcortx_ — JetBrains Mono bold in green */
+.hc-title {
+  font-family: var(--font-mono); font-weight:700;
+  font-size: clamp(36px, 5.5vmin, 72px);
+  letter-spacing: -1.5px; line-height:1;
+  background: linear-gradient(180deg,
+    var(--gold-bright) 0%, var(--gold) 60%, var(--gold-deep) 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter: drop-shadow(0 4px 16px var(--accent-glow));
+  white-space:nowrap; overflow:visible;
+}
+.title-block .sub {
+  font-family: var(--font-mono); font-size:11px;
+  letter-spacing:.5em; color:var(--ink-mute);
+  text-transform:uppercase; margin-top:14px;
+  display:inline-flex; gap:14px; align-items:center;
+}
+.title-block .sub .pip { color:var(--gold); }
+
+/* ── Spark particles ────────────────────────────────────────── */
+.particles { position:absolute; inset:0; pointer-events:none; z-index:2; }
+.spark {
+  position:absolute; width:2px; height:2px;
+  background:var(--gold-bright); border-radius:50%;
+  box-shadow: 0 0 6px var(--gold-bright); opacity:0;
+}
+.spark.s1{left:20%;top:80%;animation:ispark 4.0s 0.5s ease-out infinite;}
+.spark.s2{left:80%;top:70%;animation:ispark 5.0s 1.0s ease-out infinite;}
+.spark.s3{left:35%;top:90%;animation:ispark 4.5s 2.0s ease-out infinite;}
+.spark.s4{left:65%;top:85%;animation:ispark 6.0s 1.5s ease-out infinite;}
+.spark.s5{left:50%;top:95%;animation:ispark 5.5s 0.0s ease-out infinite;}
+.spark.s6{left:10%;top:60%;animation:ispark 7.0s 2.5s ease-out infinite;}
+.spark.s7{left:90%;top:50%;animation:ispark 6.5s 0.8s ease-out infinite;}
+@keyframes ispark {
+  0%  {opacity:0;transform:translateY(0)    scale(.5);}
+  20% {opacity:1;transform:translateY(-40px) scale(1);}
+  100%{opacity:0;transform:translateY(-300px)scale(.3);}
+}
+
+/* Shared utility animations */
+@keyframes ifi { from{opacity:0;} to{opacity:1;} }
+
+/* ── Main app shell placeholder (Phase 0) ────────────────────── */
+/* Shown after the intro screen is dismissed. Replaced in Phase 1. */
+.hc-shell-placeholder {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+  background: var(--hc-bg);
+  animation: ifi 0.6s ease both;
+}
+.hc-shell-logo {
+  width: 80px; height: 80px; object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(34,211,238,0.6));
+  opacity: 0.85;
+  -webkit-user-drag: none;
+}
+.hc-shell-title {
+  font-family: var(--hc-font); font-weight: 700;
+  font-size: 28px; letter-spacing: -1px;
+  color: var(--hc-green);
+  text-shadow: 0 0 24px rgba(34,211,238,0.5);
+}
+.hc-shell-sub {
+  font-family: var(--hc-font); font-size: 11px;
+  letter-spacing: .35em; text-transform: uppercase;
+  color: var(--hc-text-muted);
+}
+
+/* ── Mode logo images (replaces H monogram in all full-screen modes) ───── */
+.mode-logo-img {
+  height: 34px;
+  width: auto;
+  object-fit: contain;
+  -webkit-user-drag: none;
+  user-select: none;
+  filter: drop-shadow(0 0 6px rgba(240,168,0,0.90))
+          drop-shadow(0 0 16px rgba(240,168,0,0.45));
+}
+
+/* ── Mode back buttons — unified gold style, impossible to miss ──────── */
+.frg-btn#frgBackBtn,
+.amk-back-btn#amkBackBtn,
+.sys-btn#sysBackBtn,
+.void-btn#voidBackBtn {
+  background: rgba(201,169,110,0.12) !important;
+  border: 1px solid rgba(201,169,110,0.45) !important;
+  color: #dfc38e !important;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 0 14px;
+  border-radius: 7px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.frg-btn#frgBackBtn:hover,
+.amk-back-btn#amkBackBtn:hover,
+.sys-btn#sysBackBtn:hover,
+.void-btn#voidBackBtn:hover {
+  background: rgba(201,169,110,0.22) !important;
+  border-color: rgba(201,169,110,0.75) !important;
+  color: #f5d98a !important;
+}
+
+/* Production-safe ERP button reset. Keeps Tauri release/DMG WebKit from
+   falling back to native button geometry while staying scoped to ERP only. */
+#system-maker-wrap .sys-btn,
+#system-maker-wrap .sys-icon-btn {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border-style: solid;
+  background-clip: padding-box;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-flow: row nowrap;
+}
+#system-maker-wrap .sys-btn {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 7px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#system-maker-wrap .sys-icon-btn {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 7px;
+  flex: 0 0 30px;
+}
+#system-maker-wrap .sys-header {
+  grid-template-columns: minmax(250px, 320px) minmax(300px, 1fr) max-content;
+  gap: 12px;
+  height: 64px;
+  padding-left: 14px;
+  padding-right: 14px;
+  overflow: hidden;
+}
+#system-maker-wrap .sys-header-center {
+  min-width: 0;
+  overflow: hidden;
+}
+#system-maker-wrap .sys-header-right,
+#system-maker-wrap .sys-preview-actions {
+  flex-wrap: nowrap;
+  overflow: visible;
+  gap: 10px;
+}
+#system-maker-wrap .sys-prompt-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+#system-maker-wrap #sysPromptInput {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#system-maker-wrap #sysHeaderAppSearch {
+  display: none !important;
+}
+#system-maker-wrap .sys-run-status {
+  flex: 0 0 54px;
+  min-width: 54px;
+  text-align: center;
+}
+#system-maker-wrap .sys-model-select {
+  width: clamp(250px, 20vw, 340px);
+  min-width: 250px;
+  height: 36px;
+  flex: 0 0 clamp(250px, 20vw, 340px);
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  padding: 0 42px 0 14px;
+  border-radius: 10px;
+  border-color: rgba(126, 159, 216, 0.25);
+  background-color: rgba(15, 23, 42, 0.86);
+  background-image:
+    linear-gradient(180deg, rgba(22, 31, 54, 0.92), rgba(12, 18, 33, 0.94)),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5.5 7.5 10 12l4.5-4.5' fill='none' stroke='%23c9d7f2' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 0 0, right 13px center;
+  background-size: auto, 16px 16px;
+  color: #e8f1ff;
+  font: 12.5px var(--sans);
+  letter-spacing: .01em;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+#system-maker-wrap .sys-model-select:focus {
+  border-color: rgba(56,189,248,.56);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.08), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+#system-maker-wrap .sys-preview-toolbar {
+  overflow: visible;
+}
+#system-maker-wrap .sys-preview-export-wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+#system-maker-wrap #sysPreviewExportMenu[hidden] {
+  display: none !important;
+}
+#system-maker-wrap .sys-preview-export-menu {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  width: 132px;
+  min-width: 132px;
+  padding: 5px;
+  border: 1px solid rgba(126, 159, 216, 0.24);
+  border-radius: 10px;
+  background: rgba(9, 13, 24, .98);
+  box-shadow: 0 16px 34px rgba(0,0,0,.36);
+  z-index: 70;
+}
+#system-maker-wrap .sys-preview-export-item {
+  width: 100%;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #dbeafe;
+  cursor: pointer;
+  font: 10.5px var(--mono);
+  letter-spacing: .12em;
+  text-align: left;
+  text-transform: uppercase;
+}
+#system-maker-wrap .sys-preview-export-item:hover {
+  background: rgba(56,189,248,.12);
+  color: #f8fbff;
+}
+#system-maker-wrap .sys-header-left {
+  flex: 0 1 auto;
+  overflow: hidden;
+}
+#system-maker-wrap .sys-title,
+#system-maker-wrap .sys-sub {
+  white-space: nowrap;
+}
+#system-maker-wrap .sys-header-right .sys-btn {
+  min-width: auto;
+}
+#system-maker-wrap #sysCreateBtn { min-width: 108px; }
+#system-maker-wrap #sysNewBtn { min-width: 68px; }
+#system-maker-wrap #sysResetDataBtn { min-width: 118px; }
+#system-maker-wrap #sysBackBtn { min-width: 86px; }
+#system-maker-wrap .sys-preview-toolbar {
+  min-height: 54px;
+  height: auto;
+  flex-wrap: nowrap;
+}
+#system-maker-wrap .sys-toolbar-left {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+#system-maker-wrap .sys-toolbar-left > div {
+  min-width: 0;
+}
+#system-maker-wrap .sys-preview-name,
+#system-maker-wrap .sys-preview-desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#system-maker-wrap .sys-preview-actions {
+  flex: 0 0 auto;
+  align-items: center;
+}
+#system-maker-wrap .sys-preview-actions > div {
+  flex: 0 0 auto;
+}
+@media (max-width: 1380px) {
+  #system-maker-wrap .sys-header {
+    grid-template-columns: minmax(190px, 250px) minmax(260px, 1fr) max-content;
+    gap: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  #system-maker-wrap .sys-sub {
+    display: none;
+  }
+  #system-maker-wrap .sys-model-select {
+    width: 220px;
+    min-width: 220px;
+    flex-basis: 220px;
+  }
+  #system-maker-wrap .sys-btn {
+    padding-left: 9px;
+    padding-right: 9px;
+    font-size: 9.5px;
+    letter-spacing: .08em;
+  }
+}
+@media (max-width: 1120px) {
+  #system-maker-wrap .sys-header {
+    height: auto;
+    min-height: 76px;
+    grid-template-columns: minmax(170px, 1fr) max-content;
+    grid-template-areas:
+      "brand actions"
+      "center actions";
+    align-items: center;
+    overflow: hidden;
+    row-gap: 6px;
+  }
+  #system-maker-wrap .sys-header-left { grid-area: brand; }
+  #system-maker-wrap .sys-header-center { grid-area: center; }
+  #system-maker-wrap .sys-header-right { grid-area: actions; }
+  #system-maker-wrap .sys-header-right {
+    min-width: max-content;
+  }
+}
+
+/* Settings modal: keep panes isolated and the shell opaque in packaged WebKit. */
+#settingsOverlay.modal-overlay {
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  padding: clamp(12px, 2.6vw, 24px) !important;
+  background:
+    radial-gradient(900px 620px at 50% 38%, rgba(34, 211, 238, 0.10), transparent 62%),
+    rgba(2, 4, 8, 0.84) !important;
+}
+#settingsOverlay > .modal.settings-modal {
+  width: min(760px, calc(100vw - 40px)) !important;
+  max-width: 760px !important;
+  max-height: calc(100vh - var(--toolbar-h, 44px) - 32px) !important;
+  max-height: min(760px, calc(100dvh - var(--toolbar-h, 44px) - 32px)) !important;
+  overflow: hidden !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(199, 230, 240, 0.20) !important;
+  background:
+    linear-gradient(180deg, rgba(24, 29, 40, 0.99), rgba(11, 14, 22, 0.995)) !important;
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.72),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
+}
+#settingsOverlay .settings-pane[hidden],
+#settingsOverlay .modal-body[hidden] {
+  display: none !important;
+}
+#settingsOverlay .modal-header {
+  flex: 0 0 auto;
+  padding: 18px 22px 10px !important;
+}
+#settingsOverlay .modal-header h2 {
+  font-size: 24px !important;
+  line-height: 1.05 !important;
+  color: #dff4ff !important;
+}
+#settingsOverlay .modal-tabs {
+  flex: 0 0 auto;
+  gap: 8px !important;
+  padding: 10px 18px !important;
+  overflow-x: auto;
+}
+#settingsOverlay .modal-tab {
+  min-height: 34px;
+  min-width: 94px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px !important;
+}
+#settingsOverlay .modal-body {
+  min-height: 0;
+  padding: 20px 22px 24px !important;
+  gap: 16px !important;
+  background: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.006));
+}
+#settingsOverlay .field {
+  min-width: 0;
+}
+#settingsOverlay .field > label {
+  font-size: 11.5px;
+  line-height: 1.45;
+  letter-spacing: .10em;
+}
+#settingsOverlay .field > label span {
+  letter-spacing: .02em;
+  text-transform: none;
+}
+#settingsOverlay .control,
+#settingsOverlay select.control,
+#settingsOverlay input.control {
+  min-width: 0;
+  height: 42px;
+  border-radius: 10px;
+  font: 13px var(--mono);
+}
+#settingsOverlay textarea.control {
+  height: auto;
+  min-height: 82px;
+  line-height: 1.5;
+}
+#settingsOverlay .modal-footer {
+  flex: 0 0 auto;
+  padding: 14px 22px !important;
+  background: rgba(2, 4, 8, 0.38);
+}
+#settingsOverlay .about-pane {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+#settingsOverlay .about-logo-img {
+  width: min(180px, 42vw);
+  height: auto;
+  margin: 0 auto 10px;
+  opacity: .96 !important;
+}
+@media (max-width: 720px) {
+  #settingsOverlay > .modal.settings-modal {
+    width: calc(100vw - 24px) !important;
+    max-height: calc(100dvh - var(--toolbar-h, 44px) - 20px) !important;
+  }
+  #settingsOverlay .modal-header,
+  #settingsOverlay .modal-body,
+  #settingsOverlay .modal-footer {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+  #settingsOverlay .modal-tab {
+    min-width: 82px;
+    padding: 0 12px !important;
+  }
+}
+
+/* Topbar agent chip: one compact pill, even in packaged WebKit. */
+header.topbar .crumbs .badge-row {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  overflow: hidden;
+}
+header.topbar .badge-row .topbar-badge {
+  flex: 0 0 auto;
+}
+header.topbar .badge-row #activeAgentChip[hidden] {
+  display: none !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex-flow: row nowrap !important;
+  flex: 0 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: min(220px, 38vw) !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  padding: 3px 7px 3px 5px !important;
+  gap: 6px !important;
+  overflow: hidden !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  vertical-align: middle;
+  border-radius: 8px !important;
+  border: 1px solid rgba(201,169,110,0.42) !important;
+  background:
+    linear-gradient(180deg, rgba(245,215,122,0.13), rgba(201,169,110,0.045)),
+    rgba(8,10,16,0.72) !important;
+  color: rgba(245,225,174,0.96) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.08),
+    0 0 14px rgba(201,169,110,0.08) !important;
+  font: 600 10.5px var(--mono) !important;
+  letter-spacing: 0.045em !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip .ico {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 17px !important;
+  width: 17px !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(201,169,110,0.34) !important;
+  background: rgba(201,169,110,0.11) !important;
+  color: rgba(245,215,122,0.94) !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip .ico svg {
+  width: 11px !important;
+  height: 11px !important;
+  stroke-width: 2 !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-name,
+header.topbar .badge-row #activeAgentChip.agent-chip > span:nth-child(2) {
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip .clear,
+header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 15px !important;
+  width: 15px !important;
+  min-width: 15px !important;
+  height: 15px !important;
+  border-radius: 5px !important;
+  background: rgba(0,0,0,0.22) !important;
+  color: rgba(226,232,240,0.62) !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip:hover {
+  border-color: rgba(245,215,122,0.62) !important;
+  background:
+    linear-gradient(180deg, rgba(245,215,122,0.18), rgba(201,169,110,0.07)),
+    rgba(8,10,16,0.78) !important;
+}
+header.topbar .badge-row #activeAgentChip.agent-chip .clear:hover,
+header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
+  color: #ffd1d1 !important;
+  background: rgba(248,113,113,0.16) !important;
+}
+
+
+/* ── LOGO OVERRIDE: pure white, no glow, no shades ───────── */
+.hc-toolbar-logo,
+.brand-logo-img,
+.about-logo-img,
+.mode-logo-img,
+.crest-logo-img,
+.amk-logo,
+.frg-logo,
+.sys-logo,
+.void-logo,
+.cdr-logo,
+.hc-logo-full,
+.amk-empty-logo {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* Low-GPU profile: static ambient visuals, no glass blur, lighter shadows.
+   It is intentionally opt-in so the launch intro keeps its normal motion. */
+html.low-gpu,
+body.low-gpu {
+  --glass-blur: none;
+  --shadow-lg: 0 12px 28px rgba(0,0,0,0.30);
+  --shadow-sm: 0 5px 14px rgba(0,0,0,0.20);
+  --hc-shadow: 0 3px 14px rgba(0,0,0,0.42);
+  --hc-shadow-lg: 0 8px 28px rgba(0,0,0,0.50);
+}
+
+html.low-gpu *,
+html.low-gpu *::before,
+html.low-gpu *::after,
+body.low-gpu *,
+body.low-gpu *::before,
+body.low-gpu *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html.low-gpu .pcb-traces,
+body.low-gpu .pcb-traces {
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  opacity: 0.07 !important;
+  animation: none !important;
+  transform: none !important;
+  filter: none !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+}
+
+html.low-gpu .circuit-spot,
+body.low-gpu .circuit-spot {
+  display: none !important;
+  animation: none !important;
+  will-change: auto !important;
+}
+
+html.low-gpu body.pulse-traces .pcb-traces,
+body.low-gpu.pulse-traces .pcb-traces {
+  opacity: 0.12 !important;
+  filter: none !important;
+}
+
+html.low-gpu body.pulse-traces .circuit-spot,
+body.low-gpu.pulse-traces .circuit-spot {
+  display: none !important;
+}
+
+html.low-gpu .drone-bg,
+body.low-gpu .drone-bg {
+  opacity: 0.55;
+}
+
+html.low-gpu .drone-b,
+html.low-gpu .drone-c,
+body.low-gpu .drone-b,
+body.low-gpu .drone-c {
+  display: none !important;
+}
+
+html.low-gpu .drone-a,
+body.low-gpu .drone-a {
+  opacity: 0.12 !important;
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 0 3px rgba(34,211,238,0.22)) !important;
+  will-change: auto !important;
+  backface-visibility: visible !important;
+}
+
+html.low-gpu .app.has-chat .drone-a,
+body.low-gpu .app.has-chat .drone-a {
+  opacity: 0.055 !important;
+}
+
+html.low-gpu .drone-inline,
+html.low-gpu .brand-drone,
+body.low-gpu .drone-inline,
+body.low-gpu .brand-drone {
+  animation: none !important;
+  transform: none !important;
+  filter: drop-shadow(0 0 3px rgba(34,211,238,0.20)) !important;
+  will-change: auto !important;
+}
+
+html.low-gpu .drone-bg animate,
+html.low-gpu .drone-bg animateTransform,
+html.low-gpu .brand-drone animate,
+html.low-gpu .brand-drone animateTransform,
+html.low-gpu .drone-inline animate,
+html.low-gpu .drone-inline animateTransform,
+body.low-gpu .drone-bg animate,
+body.low-gpu .drone-bg animateTransform,
+body.low-gpu .brand-drone animate,
+body.low-gpu .brand-drone animateTransform,
+body.low-gpu .drone-inline animate,
+body.low-gpu .drone-inline animateTransform {
+  display: none !important;
+}
+
+html.low-gpu .drone-bg svg > g,
+body.low-gpu .drone-bg svg > g {
+  display: none !important;
+}
+
+html.low-gpu #intro-screen .ring,
+html.low-gpu #intro-screen .ticks,
+html.low-gpu #intro-screen .security-rings,
+html.low-gpu #intro-screen .spark,
+html.low-gpu #intro-screen .drone-glow,
+html.low-gpu #intro-screen .processing-glow,
+body.low-gpu #intro-screen .ring,
+body.low-gpu #intro-screen .ticks,
+body.low-gpu #intro-screen .security-rings,
+body.low-gpu #intro-screen .spark,
+body.low-gpu #intro-screen .drone-glow,
+body.low-gpu #intro-screen .processing-glow {
+  animation: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+  will-change: auto !important;
+}
+
+html.low-gpu .hc-toolbar,
+html.low-gpu header.topbar,
+html.low-gpu .topbar .actions,
+html.low-gpu .export-menu,
+html.low-gpu .ram-panel,
+html.low-gpu .selection-toolbar,
+html.low-gpu .composer,
+html.low-gpu .msg .bubble,
+body.low-gpu .hc-toolbar,
+body.low-gpu header.topbar,
+body.low-gpu .topbar .actions,
+body.low-gpu .export-menu,
+body.low-gpu .ram-panel,
+body.low-gpu .selection-toolbar,
+body.low-gpu .composer,
+body.low-gpu .msg .bubble {
+  box-shadow: 0 2px 12px rgba(0,0,0,0.24) !important;
+}
