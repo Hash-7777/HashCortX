@@ -1,0 +1,149 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+
+  "productName": "HashCortx",
+  "version": "2.0.0",
+
+  // ── Bundle identifier ──────────────────────────────────────────
+  // This string permanently identifies the app on every platform.
+  // It is used by:
+  //   • macOS Keychain (API key storage)
+  //   • Windows Credential Manager
+  //   • Auto-updater signatures
+  //   • App Store (if submitted later)
+  //
+  // ⚠ NEVER change this after shipping to real users.
+  //   Changing it breaks Keychain access and update signatures.
+  //   If you buy hashcortx.com later, you can note the domain in
+  //   the README but do NOT change this identifier.
+  "identifier": "com.hashcortx.app",
+
+  "build": {
+    // ── Frontend source ────────────────────────────────────────
+    // Phase 0–2: served directly from /src (no build step needed).
+    // Phase 3+: switch to "../dist" and add Vite if complexity grows.
+    "frontendDist": "../src"
+  },
+
+  "app": {
+    // ── withGlobalTauri ────────────────────────────────────────
+    // Exposes window.__TAURI__ in JS so platform/tauri/*.js can
+    // call Rust commands. Must stay true.
+    "withGlobalTauri": true,
+
+    "windows": [
+      {
+        "title": "HashCortx",
+        "width": 1380,
+        "height": 860,
+
+        // Minimum size — below this the layout breaks
+        "minWidth": 960,
+        "minHeight": 640,
+
+        // ── titleBarStyle: Overlay ─────────────────────────────
+        // Hides the default Mac title bar (white bar with red/yellow/green dots).
+        // Our custom header draws its own traffic lights via CSS.
+        // Remove this if you want the default Mac chrome back.
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+
+        // acceptFirstMouse — first click focuses the window AND fires WebView events.
+        // Without this, macOS swallows the mousedown for focus, so Tauri's
+        // data-tauri-drag-region handler never fires on that first click.
+        "acceptFirstMouse": true,
+
+        // Open centered on first launch. The window starts hidden so JS can
+        // restore the saved size/position before the first visible paint.
+        "center": true,
+        "visible": false
+      }
+    ],
+
+    "security": {
+      // ── Content Security Policy ────────────────────────────────
+      // Locks down what the app can load and connect to.
+      // Each domain listed is an AI provider the user can add API keys for.
+      //
+      // HOW TO ADD A NEW PROVIDER:
+      //   Append its API base domain to connect-src.
+      //   Example: add "https://api.newprovider.com" to allow it.
+      //
+      // ⚠ Never use a wildcard (*) here — that would allow any domain.
+      //
+      // ipc: and http://ipc.localhost are required by Tauri internals.
+      // 'unsafe-inline' on style-src is needed for our dynamic theme tokens.
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434 http://*:11435 http://*:1234 http://*:8080 https://cdn.sheetjs.com"
+    }
+  },
+
+  "bundle": {
+    "active": true,
+
+    // ── Build targets ──────────────────────────────────────────
+    // "all" = build every format available for the current OS:
+    //   macOS  → .dmg + .app
+    //   Windows → .exe (NSIS installer) + .msi
+    //   Linux  → .AppImage + .deb
+    "targets": "all",
+
+    // ── App icons ─────────────────────────────────────────────
+    // These are auto-generated from a master 1024×1024 PNG.
+    // To regenerate after changing the logo:
+    //   1. Place your new logo at src/assets/icon-master.png
+    //   2. Run: npm run tauri icon src/assets/icon-master.png
+    //   3. Tauri will overwrite all sizes here automatically.
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+
+    // App Store category — affects discoverability if submitted later
+    "category": "DeveloperTool",
+
+    "shortDescription": "Local-first AI coding agents",
+    "longDescription": "HashCortx — 100% local AI coding agents. No cloud, no tracking. Your API keys stay in your keychain. Your files never leave your machine.",
+
+    "macOS": {
+      // Minimum macOS version. 10.15 (Catalina) supports all Tauri features.
+      // Lower = more compatibility, higher = newer APIs available.
+      "minimumSystemVersion": "10.15",
+
+      // ── Code signing ──────────────────────────────────────────
+      // null = unsigned (shows "unidentified developer" warning on first open).
+      // To sign: buy Apple Developer account ($99/yr), set signingIdentity
+      // to your certificate name (e.g. "Developer ID Application: Your Name").
+      // See docs/future/SIGNING.md when you're ready.
+      "signingIdentity": null,
+      "entitlements": null
+    },
+
+    "windows": {
+      // SHA-256 is the modern standard for Windows code signing.
+      // certificateThumbprint is null until you have a Windows code signing cert.
+      "digestAlgorithm": "sha256",
+      "certificateThumbprint": null
+    }
+  }
+
+  // ── Auto-updater (DISABLED — future feature) ───────────────────
+  // When you're ready to enable auto-updates:
+  //   1. Set up a GitHub repo and publish releases
+  //   2. Uncomment this block
+  //   3. Replace YOUR_USERNAME with your GitHub username
+  //   4. Generate an updater keypair: npm run tauri signer generate
+  //   5. Add the public key to pubkey below
+  //   6. Add the private key as a GitHub Actions secret
+  //
+  // "plugins": {
+  //   "updater": {
+  //     "pubkey": "YOUR_PUBLIC_KEY_HERE",
+  //     "endpoints": [
+  //       "https://github.com/YOUR_USERNAME/HashCortx/releases/latest/download/latest.json"
+  //     ]
+  //   }
+  // }
+}

@@ -1,0 +1,136 @@
+# ==============================================================
+# HashCortx — Rust package manifest
+#
+# This file defines the Rust crate that powers the native side
+# of HashCortx. Tauri apps have two halves:
+#   • src/          → JavaScript/HTML frontend (UI layer)
+#   • src-tauri/    → Rust backend (OS access, security, plugins)
+#
+# HOW TO UPDATE VERSIONS:
+#   Run `cargo update` to bump all deps to latest minor versions.
+#   For major version bumps, check the Tauri migration guide first:
+#   https://tauri.app/start/migrate/
+# ==============================================================
+
+[package]
+name        = "hashcortx"
+version     = "2.0.0"
+description = "HashCortx — Local-first AI coding agents"
+authors     = ["HashCortx"]
+edition     = "2021"   # Use Rust 2021 edition (latest stable feature set)
+
+# Minimum Rust version — guards against ancient toolchains that
+# lack features we rely on (e.g. GATs, edition 2021 imports).
+rust-version = "1.77.2"
+
+# ── Library target ─────────────────────────────────────────────
+# We expose a library crate (hashcortx_lib) so tests and the
+# mobile entry point can call run() directly.
+#   staticlib  → used by iOS (static linking)
+#   cdylib     → used by Android (dynamic linking)
+#   rlib       → used by the Rust test harness
+[lib]
+name       = "hashcortx_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+# ── Build dependencies ─────────────────────────────────────────
+# These only run at compile time to generate Tauri boilerplate.
+# tauri-build generates the required bindings from tauri.conf.json.
+#
+# config-json5: allows // and /* */ comments in tauri.conf.json.
+# Without this feature, the Cargo build step uses strict JSON and
+# rejects inline comments. Never remove this feature.
+[build-dependencies]
+tauri-build = { version = "2", features = ["config-json5"] }
+
+# ==============================================================
+# Runtime dependencies
+#
+# ADDING A NEW PLUGIN (Phase 3+):
+#   1. Add it here: tauri-plugin-xxx = "2"
+#   2. Register it in src/lib.rs: .plugin(tauri_plugin_xxx::init())
+#   3. Add its permissions to src-tauri/capabilities/default.json
+#   4. Document what it enables in the comment below
+#
+# ⚠ Only add plugins you actively use. Each plugin expands the
+#   attack surface — unused plugins are unnecessary risk.
+# ==============================================================
+[dependencies]
+
+# ── Core Tauri framework ──────────────────────────────────────
+# The runtime that creates the window, WebView, IPC bridge, and
+# capability permission system.
+#
+# config-json5: must match the feature in tauri-build above.
+# Both crates need to agree on the config format at build time.
+tauri = { version = "2", features = ["config-json5"] }
+
+# ── tauri-plugin-opener ──────────────────────────────────────
+# Opens files and URLs in the OS default app.
+# Used for: opening external links, system file viewer.
+# Phase: 0 (already active)
+tauri-plugin-opener = "2"
+
+# ── tauri-plugin-shell ──────────────────────────────────────
+# Runs shell commands and spawns child processes.
+# Used for: Code Mode terminal execution (Phase 4).
+# Phase: 4 — registered now so capabilities are wired, but
+#   no JS calls it until Phase 4 adds the terminal UI.
+# ⚠ All commands must be allowlisted in tauri.conf.json before
+#   the JS side can call them. Nothing executes without that gate.
+tauri-plugin-shell = "2"
+
+# ── tauri-plugin-fs ─────────────────────────────────────────
+# Read/write the real filesystem (outside the WebView sandbox).
+# Used for: Code Mode file operations (Phase 4), project loading.
+# Phase: 4
+# ⚠ Scope limited in capabilities — only paths the user grants.
+tauri-plugin-fs = "2"
+
+# ── tauri-plugin-dialog ─────────────────────────────────────
+# Native OS file picker and confirmation dialogs.
+# Used for: "Open Project" dialog, permission-guard confirmations.
+# Phase: 3 (Permission Guard) and 4 (Code Mode file open)
+tauri-plugin-dialog = "2"
+
+# ── tauri-plugin-store ──────────────────────────────────────
+# Persistent key-value store backed by a JSON file on disk.
+# Used for: user preferences, recent projects, UI state.
+# NOT used for API keys — those go in the OS Keychain (Phase 2).
+# Phase: 0 (already active for future use)
+tauri-plugin-store = "2"
+
+# ── tauri-plugin-notification ───────────────────────────────
+# Native OS push notifications.
+# Used for: long-running agent task completion alerts.
+# Phase: 5+
+tauri-plugin-notification = "2"
+
+# ── serde + serde_json ──────────────────────────────────────
+# Serialization/deserialization framework.
+# Required by Tauri's IPC bridge to pass structs between
+# Rust commands and JavaScript callers.
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# ── keyring ──────────────────────────────────────────────────
+# Cross-platform OS keychain (Windows Credential Manager, Linux Secret Service).
+# macOS uses security-framework directly (see below) to avoid binary-bound ACLs.
+keyring = "3"
+
+# ── security-framework (macOS only) ──────────────────────────
+# Direct access to macOS Generic Password Keychain API.
+# Unlike keyring v3, this stores items without an application ACL,
+# so keys survive DMG rebuilds without prompts or loss.
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "2"
+
+# ── chrono ───────────────────────────────────────────────────
+# Date/time for audit log timestamps (Phase 3).
+chrono      = { version = "0.4", features = ["serde"] }
+
+# ── dirs + shellexpand ───────────────────────────────────────
+# dirs: finds home/data dirs cross-platform (audit log path).
+# shellexpand: expands ~ in paths for the denylist checker.
+dirs        = "5"
+shellexpand = "3"
