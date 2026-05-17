@@ -1,6 +1,7 @@
 <img width="2560" height="1664" alt="logo with words no bg " src="https://github.com/user-attachments/assets/bc4748a3-f05b-4531-8bf6-5fb88de01aad" />
 
-https://hashcortx.com
+-> https://hashcortx.com
+--> you will find real screenshots below description  :)
 
 HashCortX is a local-first, open-source AI desktop agent built with Tauri, Rust, and vanilla JavaScript. It runs natively on macOS, Windows, and Linux — no Electron, no browser tab, no cloud dependency. Your API keys are stored in your OS keychain and never leave your machine.
 
