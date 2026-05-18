@@ -1,463 +1,307 @@
-<img width="1199" height="868" alt="Screenshot 2026-05-16 at 5 35 02 AM" src="https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28" />
-<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 44 27 AM" src="https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a" />
+<div align="center">
 
--> https://hashcortx.com
+# HashCortX
 
---> you will find real screenshots and Guide 101 below   :)
+**The local-first AI workspace. Eleven modes. Ten providers. Zero telemetry.**
 
-HashCortX is a local-first, open-source AI desktop agent app for OLLAMA and Cloud API models extended use and orchestration.
+[Website](https://hashcortx.com) · [Latest Release](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
-Built with Tauri, Rust, and vanilla JavaScript. It runs natively on macOS, Windows, and Linux — no Electron, no browser tab, no cloud dependency. Your API keys are stored in your OS keychain and never leave your machine.
+![License: MIT](https://img.shields.io/badge/license-MIT-39ff81.svg)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-39ff81.svg)
+![Version: 2.0.0](https://img.shields.io/badge/version-2.0.0-39ff81.svg)
+![Size: 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-39ff81.svg)
 
-The app ships with six purpose-built modes: Coder (autonomous multi-step coding agent with file tools, shell access, and live code execution), Finance AI (structured financial analysis studio that reads PDFs, CSVs, and bank statements and generates full reports with charts and KPIs), Forge (parametric multi-agent builder that spins up parallel specialist agents for large tasks), Swarm (visual agent orchestration where you design and run networks of AI workers), Sandbox (isolated code execution environment), and Virtual OS (a simulated operating environment for agents to work inside).
+</div>
 
-Supports 10+ AI providers out of the box — Anthropic Claude, OpenAI GPT, Google Gemini, Groq, Cerebras, SambaNova, DeepSeek, Mistral, Moonshot (Kimi), and local Ollama models — with automatic failover routing so if one provider rate-limits you, the agent seamlessly continues on the next available model. All provider keys are stored in the native OS keychain (macOS Keychain / Windows Credential Manager), never in files or environment variables.
+![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
 
-Zero telemetry. Zero accounts. Zero subscriptions. Clone, build, and own it completely.
 ---
 
-Run in the folder
-```bash
-npm install 
-```
-## Dev Start
+## What is HashCortX?
+
+**HashCortX is a local-first, open-source AI desktop application for developers that combines a multi-provider chat workspace, an autonomous coding agent, multi-agent swarms, 9 pre-built specialist agents, financial document analysis, security scanning, 3D planning, and a virtual project desktop — into a single native 8.9 MB macOS app built with Tauri v2, Rust, and vanilla JavaScript.**
+
+API keys live in the OS keychain. Files never leave your machine. There is no HashCortX backend, no telemetry, no analytics, no accounts, and no subscriptions. With Ollama, the entire app runs air-gapped offline. With cloud providers, every request travels directly from your device to the provider you chose — nothing passes through HashCortX infrastructure, because HashCortX infrastructure does not exist.
+
+**HashCortX is a free, open-source alternative to commercial AI coding tools** like Cursor, Claude Code, Continue, Aider, and Cline — with a wider feature set than any of them.
+
+---
+
+## Key facts
+
+| | |
+|---|---|
+| **Type** | Native AI desktop application |
+| **Platform** | macOS Apple Silicon (Windows and Linux planned) |
+| **License** | MIT |
+| **Version** | v2.0.0 (May 2026) |
+| **Bundle size** | 8.9 MB |
+| **Stack** | Tauri v2 · Rust · vanilla JavaScript · macOS Keychain |
+| **AI providers** | Anthropic · OpenAI · Google · Groq · Cerebras · SambaNova · DeepSeek · Moonshot · Mistral · OpenRouter · Ollama (local) |
+| **Modes** | 11 specialized AI workspaces |
+| **Pre-built agents** | 9 specialists |
+| **Telemetry** | None |
+| **Backend server** | None |
+| **Author** | [Seif Hashish](https://github.com/Hash-7777) |
+
+---
+
+## Why HashCortX
+
+- **Truly local-first.** No cloud backend, no auto-update, no telemetry, no accounts. The binary phones home to nothing.
+- **Multi-provider by design.** Ten cloud providers and Ollama for local models — all configured side-by-side, switched freely, with automatic provider failover in swarm runs.
+- **One app, eleven modes.** Coding, chat, swarms, research, financial analysis, security scanning, 3D planning, ERP generation, virtual OS — without juggling separate tools.
+- **OS-grade key storage.** API keys live in the macOS Keychain. Never in config files, never in environment variables, never on disk in plaintext.
+- **Tiny footprint.** 8.9 MB — roughly 30× smaller than Electron-based AI desktop apps that ship at 100–300 MB.
+- **Open source under MIT.** Read every line. Fork it. Ship your own version.
+
+---
+
+## About this project's development
+
+**Product, architecture, modes, philosophy, and every idea in this app are 100% by Seif Hashish.** The 11-mode structure, the local-first principle, the OS Keychain choice, the Permission Guard / Audit Log security model, the swarm-failover routing pattern, the pharma-informed source-grounding constraints in PubMed Agent, Drug Interaction, and Finance AI — every design decision was conceived and directed by the human author.
+
+**HashCortX was built with heavy AI assistance — approximately 30 million tokens consumed** across Claude, GPT, and other frontier models during the v2.0.0 build. AI handled the bulk of implementation, refactoring, and iteration under human direction. Architecture decisions, security model, mode boundaries, and final code review were the author's. This is disclosed because HashCortX is itself an AI tool — using AI to build it and hiding that fact would be inconsistent.
+
+All source is open at [Hash-7777/HashCortX](https://github.com/Hash-7777/HashCortX) and reviewable line by line.
+
+---
+
+## Screenshots
+
+![Code mode with file explorer and agent chat](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
+
+![Agent Swarm orchestration](https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2)
+
+![Finance AI analysis studio](https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121)
+
+![3D Forge spatial planning](https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75)
+
+---
+
+## The 11 Modes
+
+| # | Mode | What it does |
+|---|---|---|
+| 1 | **Chats** | Multi-provider chat workspace with projects, file attachments, slash commands, and chat history |
+| 2 | **Agents** | 9 pre-built specialist agents: Personal Assistant, Quick Assistant, Research Agent, Deep Research, Senior Engineer, Page Analyzer, PubMed Agent, Drug Interaction, ATS CV Auditor |
+| 3 | **Code (HashCoder)** | Full AI coding agent with file tree, project picker, real file-edit tools, shell access, and a browser panel |
+| 4 | **Split** | Side-by-side real-time comparison of two models on the same prompt |
+| 5 | **3D Forge** | Architecture-first 3D planning agent producing structured node/mesh plans for game levels, generative architecture, and spatial design |
+| 6 | **Finance AI** | Full-screen financial analysis studio for bank statements, CSVs, PDFs, and XLSX files — KPIs, charts, recommendations, never invents numbers |
+| 7 | **Sandbox** | Swarm-based security scanner for malware patterns, trojans, prompt injections, and suspicious logic in untrusted code or AI output |
+| 8 | **ERP / Systems Builder** | Generates working interactive prototypes — forms, tables, dashboards — from a workflow description |
+| 9 | **Agent Swarm** | Designer for multi-agent pipelines with voting mode, chain mode, and automatic provider failover when a model rate-limits or fails mid-run |
+| 10 | **Virtual OS** | Simulated project desktop where an AI agent creates, edits, and organizes files in a sandboxed workspace |
+| 11 | **Agent Maker** | No-code builder for custom agents with name, icon, system prompt, and curated tool sets |
+
+Full descriptions: [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features) · [MODES_GUIDE.txt](MODES_GUIDE.txt)
+
+---
+
+## Supported AI providers
+
+### Cloud providers (bring your own API key)
+
+| Provider | Notes |
+|---|---|
+| **Anthropic** | Claude family (Opus, Sonnet, Haiku) |
+| **OpenAI** | GPT family |
+| **Google** | Gemini Pro, Flash |
+| **Groq** | Llama, Mixtral — fast inference |
+| **Cerebras** | Ultra-fast inference |
+| **SambaNova** | Llama, DeepSeek hosting |
+| **DeepSeek** | V3, R1 |
+| **Moonshot** | Kimi |
+| **Mistral** | Mistral family |
+| **OpenRouter** | Meta-provider aggregating frontier models |
+
+### Local models
+
+| Provider | Notes |
+|---|---|
+| **Ollama** | Any Ollama-hosted local model. No API key required. Air-gapped capable. |
+
+API keys are stored in the macOS Keychain. They never touch disk in plaintext, never appear in environment variables, and are never transmitted anywhere except the corresponding provider's API.
+
+---
+
+## Install
+
+### Quick install (macOS, Apple Silicon)
+
+1. Download `HashCortx-2.0.0-macOS-arm64.dmg` from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest)
+2. Open the DMG and drag HashCortX to `/Applications`
+3. On first launch: right-click → **Open** → **Open** (the v2.0.0 build is unsigned)
+4. Open **Settings → Providers** and add API keys for the providers you want to use
+5. Or skip API keys and use local models via Ollama
+
+### Bypass Gatekeeper (unsigned build workaround)
 
 ```bash
+xattr -dr com.apple.quarantine /Applications/HashCortx.app
+```
+
+Code signing is planned for a future release.
+
+---
+
+## Build from source
+
+```bash
+git clone https://github.com/Hash-7777/HashCortX.git
+cd HashCortX
 npm install
 npm run tauri dev
 ```
 
-Main Build:
+Build a distributable:
+
 ```bash
 npm run tauri build
 ```
 
----
+Output: `src-tauri/target/release/bundle/dmg/`
 
+### Requirements
 
-
-
-
-<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 43 04 AM" src="https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2" />
-
-<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 44 41 AM" src="https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121" />
-
-<img width="1199" height="868" alt="Screenshot 2026-05-16 at 4 42 25 AM" src="https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75" />
-
-
-
-# HashCortX
-
-Local-first AI workspace with agents, coding tools, swarm orchestration, ERP generation, financial analysis, and virtual AI operating environments.
-
-Version: v2.0  
-License: MIT  
-Built by: Seif Hashish
+- macOS, Node 18+, Rust toolchain (`rustup`), Xcode Command Line Tools.
 
 ---
 
-HashCortX is an advanced AI workstation designed to unify:
+## Tech stack
 
-- Multi-provider AI chat
-- Autonomous coding agents
-- Swarm orchestration
-- ERP generation
-- Financial analysis
-- Virtual AI workspaces
-- Security scanning
-- Local-first workflows
+| Layer | Technology |
+|---|---|
+| **Framework** | Tauri v2 (Rust + native webview) |
+| **Backend** | Rust |
+| **Frontend** | Vanilla JavaScript (no React, no TypeScript, no bundler) |
+| **Native APIs** | macOS Keychain (via `keyring` crate), filesystem and shell via Tauri commands |
+| **Styling** | Plain CSS, JetBrains Mono / Berkeley Mono typography |
+| **Local models** | Ollama integration |
 
-Everything runs through a unified interface while keeping your data under your control.
+The choice of vanilla JS (no React, no bundler) is deliberate — it keeps the bundle at 8.9 MB and the codebase auditable end-to-end.
 
-=============
-CORE PHILOSOPHY
-===============
+---
 
-- Local-first architecture
-- Provider-independent
-- Model-agnostic
-- Swarm-native
-- Privacy-focused
-- Built for power users
-
-Supported providers:
-
-- OpenAI
-- Anthropic
-- Gemini
-- Groq
-- Cerebras
-- SambaNova
-- DeepSeek
-- Moonshot
-- Mistral
-- Ollama local models
+## Privacy and security
 
-========
-MODES
-==========================
+- **No backend server.** Every AI request travels directly from your machine to the provider you configured. There is no HashCortX intermediary.
+- **No telemetry.** No analytics, no tracking, no usage reporting, no error-reporting backend. The binary has no network calls except to AI provider endpoints you explicitly configure.
+- **No accounts.** No sign-up, no login, no email collection.
+- **OS Keychain storage.** API keys live in the macOS Keychain. Never in config files. Never in plaintext.
+- **Permission Guard.** Filesystem and shell calls from the coding agent are intercepted by a denylist-based gatekeeper before execution. Every guarded action is logged to the built-in Audit Log.
+- **Source-grounded modes.** PubMed Agent, Drug Interaction, and Finance AI are constrained to never fabricate data.
+- **Air-gapped capable.** With Ollama, the app runs fully offline.
 
-1. CHATS
-----------
+---
 
-Your primary AI workspace.
+## How HashCortX compares
 
-Talk to any connected model with:
-- File attachments
-- Chat history
-- Project organization
-- Slash commands
-- Multi-provider support
+| | HashCortX | Cursor | Claude Code | Continue | Aider | Cline | Zed |
+|---|---|---|---|---|---|---|---|
+| Type | Native desktop app | VS Code fork | CLI | VS Code/JetBrains extension | Terminal CLI | VS Code extension | Native editor |
+| License | MIT | Proprietary | Proprietary | Apache 2.0 | Apache 2.0 | Apache 2.0 | GPL/AGPL |
+| Free | Yes (BYO key) | Subscription | Subscription/API | Yes | Yes | Yes | Yes |
+| Local-first | Yes | No | No | Yes | Yes | Yes | Yes |
+| OS Keychain | Yes | No | Yes | No | No | No | No |
+| Cloud providers | 10 | Limited | Anthropic only | Many | Many | Many | Several |
+| Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
+| Multi-agent swarms | Yes | No | No | No | No | No | No |
+| Modes beyond coding | Yes (11) | No | No | No | No | No | No |
+| Pre-built agents | 9 | None | None | None | None | None | None |
+| Telemetry | None | Yes | Yes (opt-out) | Opt-in | None | None | Opt-in |
 
-Features:
-- Unified model picker
-- Persistent conversations
-- Project grouping
-- Fast provider switching
-- Local + cloud model compatibility
+Detailed breakdown: [Wiki → Comparison](https://github.com/Hash-7777/HashCortX/wiki/Comparison)
 
---------
+---
 
-2. AGENTS
--------------
-Pre-built specialist AI agents with curated prompts and tools.
+## FAQ
 
-Included agents:
+### Is HashCortX free?
+Yes. MIT-licensed, no paid tier, no usage caps. You pay AI providers directly for their API usage, or use Ollama to avoid all AI costs.
 
-- Personal Assistant
-  Direct senior-engineer style responses
+### Does HashCortX work offline?
+Yes, with Ollama. Cloud providers require internet.
 
-- Quick Assistant
-  Fast concise answers
-
-- Research Agent
-  Iterative sourced web research
+### Which operating systems are supported?
+macOS Apple Silicon in v2.0.0. Intel Mac, Windows, and Linux builds are planned.
 
-- Deep Research
-  Long-form grounded analysis
-
-- Senior Engineer
-  Production-grade coding guidance
+### Does HashCortX send my code or data anywhere?
+Only to AI providers you explicitly configure. There is no HashCortX server.
 
-- Page Analyzer
-  URL reading and extraction
+### Can I use Claude, GPT, and Gemini at the same time?
+Yes. Configure all your keys at once and switch freely. In Agent Swarm mode, automatic provider failover kicks in when a model fails or rate-limits.
 
-- PubMed Agent
-  Medical literature research
+### Was HashCortX built with AI?
+Yes — heavy AI assistance, approximately 30 million tokens consumed during development. All product ideas, architecture, and direction were by the human author. See [About this project's development](#about-this-projects-development).
 
-- Drug Interaction
-  Clinical pharmacology checks
+### How big is HashCortX?
+8.9 MB DMG. Roughly 30× smaller than Electron-based equivalents.
 
-- ATS CV Auditor
-  Resume optimization for 2026 ATS systems
+Full FAQ: [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ)
 
-You can also create custom agents using Agent Maker.
+---
 
----------
-
-3. CODE (HashCortX Coder)
--------------------------
-
-A real coding agent with:
-- File editing
-- Project understanding
-- Autonomous debugging
-- Multi-provider failover routing
-
-Highlights:
-- Dedicated coding workspace
-- Separate memory/history
-- Integrated file explorer
-- Up to 10-provider auto-routing
-- Local and cloud model support
-
-Best for:
-- Building features
-- Refactoring
-- Debugging
-- Explaining codebases
-- Generating full-stack applications
+## Roadmap
 
--------
+- Code signing for the macOS build
+- Intel Mac, Windows, and Linux builds
+- Further extraction of monolithic source modules
+- Permission Guard coverage for Virtual OS and 3D Forge native calls
+- Additional pre-built specialist agents based on user requests
 
-4. SPLIT
--------------
+Suggest features via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose).
 
-Compare two models side-by-side in real time.
+---
 
-Useful for:
-- Quality comparisons
-- Speed benchmarking
-- Prompt testing
-- Choosing the best provider
+## Keyboard shortcuts
 
------------
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + Shift + N` | Start a new chat from anywhere |
 
-5. 3D FORGE
--------------
+---
 
-Architecture-first spatial planning engine.
+## Documentation
 
-Generate:
-- Geometry plans
-- Mesh/node structures
-- Agentic build pipelines
-- Spatial AI workflows
+- [Wiki Home](https://github.com/Hash-7777/HashCortX/wiki) — overview and entry point
+- [Features](https://github.com/Hash-7777/HashCortX/wiki/Features) — full descriptions of all 11 modes
+- [Supported Providers](https://github.com/Hash-7777/HashCortX/wiki/Supported-Providers) — provider list with model details
+- [Comparison](https://github.com/Hash-7777/HashCortX/wiki/Comparison) — vs Cursor, Claude Code, Continue, Aider, Cline, Zed
+- [Privacy and Security](https://github.com/Hash-7777/HashCortX/wiki/Privacy-and-Security) — full security architecture
+- [FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ) — comprehensive Q&A
+- [MODES_GUIDE.txt](MODES_GUIDE.txt) — full mode reference
 
-Ideal for:
-- Game layouts
-- Generative architecture
-- Procedural environments
-- Swarm-driven 3D systems
+---
 
-------------------
+## Contributing
 
-6. FINANCE AI
--------------------
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture rules, and how to propose changes. Bug reports and feature requests via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issues). Questions and ideas via [GitHub Discussions](https://github.com/Hash-7777/HashCortX/discussions).
 
-AI-powered financial analysis studio.
+---
 
-Upload:
-- CSV
-- XLSX
-- PDF
-- Bank statements
+## License
 
-Generate:
-- KPI dashboards
-- Burn rate analysis
-- Savings insights
-- Transaction categorization
-- Charts and structured reports
+MIT. See [LICENSE](LICENSE).
 
-Strict rules:
-- Never invents numbers
-- No investment advice
-- Uses only uploaded data
-- Flags uncertain calculations clearly
+---
 
-------------------
+## Author
 
-7. SANDBOX
-------------------
+**Seif Hashish** — independent open-source developer with a pharma and clinical background. The pharma background informs the source-grounding constraints in HashCortX's PubMed Agent, Drug Interaction, and Finance AI modes.
 
-AI swarm-powered security scanner.
+- GitHub: [@Hash-7777](https://github.com/Hash-7777)
+- Website: [hashcortx.com](https://hashcortx.com)
 
-Analyze:
-- Scripts
-- Source code
-- AI outputs
-- Prompt injections
-- Suspicious logic
+---
 
-Detection areas:
-- Malware patterns
-- Trojans
-- Prompt injection attacks
-- Dangerous execution logic
-- Obfuscated payloads
+<div align="center">
 
-Each model provides an independent verdict before consensus aggregation.
+**HashCortX**
 
----------------------
+One UI · Agent Swarms · Zero Data Leak · Local-First · Open Source
 
-8. ERP (Systems Builder)
-----------------------
+[Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
-Generate interactive business systems from plain English.
-
-Create:
-- CRM flows
-- Inventory systems
-- Dashboards
-- Order trackers
-- Internal business tools
-
-No frontend coding required.
-
----------------------
-
-9. AGENT SWARM
---------------------
-
-Build and orchestrate multi-agent pipelines.
-
-Modes:
-
-Voting Mode
-All agents solve independently and compare outputs.
-
-Chain Mode
-Each agent improves the previous result step-by-step.
-
-Best for:
-- Complex reasoning
-- Multi-perspective tasks
-- Large research workflows
-- Autonomous pipelines
-
------------------
-
-10. VIRTUAL OS
------------------
-
-AI-powered virtual project desktop.
-
-Includes:
-- Simulated file system
-- Workspace manager
-- AI file generation
-- Repo scaffolding
-- Autonomous project organization
-
-Designed to feel like an AI-native operating environment.
-
---------------------
-
-11. AGENT MAKER
----------------------
-
-Create custom agents visually.
-
-Configure:
-- Name
-- Icon
-- Description
-- System prompt
-- Tool access
-
-Saved agents automatically appear inside:
-- Agents
-- Swarms
-
-No coding required.
-
-===================
-FEATURES
-===================
-
-- Multi-provider AI support
-- Local Ollama integration
-- Swarm orchestration
-- Local-first storage
-- Advanced file handling
-- Autonomous coding agents
-- ERP generation
-- Financial intelligence
-- Virtual AI workspace
-- Prompt injection scanning
-- Side-by-side model comparison
-
-=========================
-PRIVACY
-=====================
-
-HashCortX follows a local-first privacy model.
-
-Your data:
-- Stored locally on your machine
-- Never uploaded except to your selected AI provider
-- No hidden telemetry
-- No forced cloud sync
-
-API calls are only sent to providers you explicitly configure and use.
-
-======
-KEYBOARD SHORTCUTS
-======================
-
-Cmd/Ctrl + Shift + N
-Start a new chat from anywhere in the app.
-
-====================
-SETUP
-=====================
-
-1. Add API Keys
-Open the Settings panel and add keys for the providers you want to use.
-
-2. Select a Model
-Use the sidebar model picker to choose your active model.
-
-Some modes (like Code and Finance AI) include dedicated model pickers.
-
-3. Start Building
-Switch freely between:
-- Chats
-- Agents
-- Code
-- Swarms
-- ERP
-- Virtual OS
-- Finance AI
-- Sandbox
-
-All inside one unified workspace.
-
-====
-AUTO-ROUTER (CODER MODE)
-=========================
-
-HashCortX Coder includes an intelligent provider failover system.
-
-If one provider:
-- Rate-limits
-- Fails
-- Times out
-
-The system automatically switches to another configured provider so work continues uninterrupted.
-
-Supports up to 10 automatic provider fallbacks.
-
-=====================
-TECH STACK
-=====================
-
-- Electron
-- React
-- TypeScript
-- Node.js
-- Ollama
-- Multi-provider AI APIs
-- Local-first storage architecture
-
-===================
-INSTALLATION
-===================
-
-git clone https://github.com/Hash-7777/HashCortX.git
-
-cd HashCortX
-
-npm install
-
-npm run dev
-
-====================
-WEBSITE
-=====================
-
-https://HashCortX.com
-
-====================
-LICENSE
-====================
-
-MIT License
-
-=============
-BUILT BY
-===================
-
-Seif Hashish
-
-AI Systems
-Agent Architectures
-Local AI Infrastructure
-Swarm Workflows
-ERP & Automation Systems
-
----------------------------
-
-HashCortX
-One UI · Agent Swarms · Zero Data Leak
+</div>
