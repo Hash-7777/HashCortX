@@ -4,7 +4,7 @@
 
 **The local-first AI workspace. Eleven modes. Ten providers. Zero telemetry.**
 
-[Website](https://hashcortx.com) · [Latest Release](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
+[Website](https://hashcortx.com) · [Latest Release](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions) · [Youtube](https://youtu.be/On5wPdKZDfg)
 
 ![License: MIT](https://img.shields.io/badge/license-MIT-39ff81.svg)
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-39ff81.svg)
