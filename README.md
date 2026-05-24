@@ -21,7 +21,7 @@
 
 **HashCortX is a local-first, open-source AI desktop application for developers that combines a multi-provider chat workspace, an autonomous coding agent, multi-agent swarms, 9 pre-built specialist agents, financial document analysis, security scanning, 3D planning, and a virtual project desktop — into a single native 8.9 MB macOS app built with Tauri v2, Rust, and vanilla JavaScript.**
 
-API keys live in the OS keychain. Files never leave your machine. There is no HashCortX backend, no telemetry, no analytics, no accounts, and no subscriptions. With Ollama, the entire app runs air-gapped offline. With cloud providers, every request travels directly from your device to the provider you chose — nothing passes through HashCortX infrastructure, because HashCortX infrastructure does not exist.
+API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads. There is no HashCortX cloud backend, no telemetry, no analytics, no accounts, and no subscriptions. With Ollama, the entire app runs air-gapped offline. With cloud providers, every request travels directly from your device to the provider you chose — nothing passes through HashCortX infrastructure, because HashCortX infrastructure does not exist.
 
 **HashCortX is a free, open-source alternative to commercial AI coding tools** like Cursor, Claude Code, Continue, Aider, and Cline — with a wider feature set than any of them.
 
@@ -51,7 +51,7 @@ API keys live in the OS keychain. Files never leave your machine. There is no Ha
 - **Truly local-first.** No cloud backend, no auto-update, no telemetry, no accounts. The binary phones home to nothing.
 - **Multi-provider by design.** Ten cloud providers and Ollama for local models — all configured side-by-side, switched freely, with automatic provider failover in swarm runs.
 - **One app, eleven modes.** Coding, chat, swarms, research, financial analysis, security scanning, 3D planning, ERP generation, virtual OS — without juggling separate tools.
-- **OS-grade key storage.** API keys live in the macOS Keychain. Never in config files, never in environment variables, never on disk in plaintext.
+- **OS-grade key storage.**  API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
 - **Tiny footprint.** 8.9 MB — roughly 30× smaller than Electron-based AI desktop apps that ship at 100–300 MB.
 - **Open source under MIT.** Read every line. Fork it. Ship your own version.
 
@@ -122,7 +122,7 @@ Full descriptions: [Wiki → Features](https://github.com/Hash-7777/HashCortX/wi
 |---|---|
 | **Ollama** | Any Ollama-hosted local model. No API key required. Air-gapped capable. |
 
-API keys are stored in the macOS Keychain. They never touch disk in plaintext, never appear in environment variables, and are never transmitted anywhere except the corresponding provider's API.
+API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
 
 ---
 
@@ -176,7 +176,7 @@ Output: `src-tauri/target/release/bundle/dmg/`
 | **Framework** | Tauri v2 (Rust + native webview) |
 | **Backend** | Rust |
 | **Frontend** | Vanilla JavaScript (no React, no TypeScript, no bundler) |
-| **Native APIs** | macOS Keychain (via `keyring` crate), filesystem and shell via Tauri commands |
+| **Native APIs** | macOS Keychain (via `keyring` crate), filesystem and shell via Tauri commands, API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads. |
 | **Styling** | Plain CSS, JetBrains Mono / Berkeley Mono typography |
 | **Local models** | Ollama integration |
 
@@ -189,7 +189,7 @@ The choice of vanilla JS (no React, no bundler) is deliberate — it keeps the b
 - **No backend server.** Every AI request travels directly from your machine to the provider you configured. There is no HashCortX intermediary.
 - **No telemetry.** No analytics, no tracking, no usage reporting, no error-reporting backend. The binary has no network calls except to AI provider endpoints you explicitly configure.
 - **No accounts.** No sign-up, no login, no email collection.
-- **OS Keychain storage.** API keys live in the macOS Keychain. Never in config files. Never in plaintext.
+- **OS Keychain storage.** API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
 - **Permission Guard.** Filesystem and shell calls from the coding agent are intercepted by a denylist-based gatekeeper before execution. Every guarded action is logged to the built-in Audit Log.
 - **Source-grounded modes.** PubMed Agent, Drug Interaction, and Finance AI are constrained to never fabricate data.
 - **Air-gapped capable.** With Ollama, the app runs fully offline.
