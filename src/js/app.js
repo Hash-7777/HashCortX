@@ -4406,7 +4406,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // Shared SSE parser for OpenAI-compatible streams (Groq, OpenRouter)
-  async function* parseOpenAISSE(body) {
+  async function* parseOpenAISSE(body, onUsage) {
     const reader = body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
@@ -4417,6 +4417,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (!payload || payload === "[DONE]") return null;
       try {
         const evt = JSON.parse(payload);
+        // Final usage chunk (stream_options.include_usage) — real token counts.
+        if (evt.usage && onUsage) {
+          onUsage({ inputTokens: evt.usage.prompt_tokens || 0, outputTokens: evt.usage.completion_tokens || 0 });
+        }
         return evt.choices?.[0]?.delta?.content || null;
       } catch {
         return null;
@@ -4550,6 +4554,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Text-only fallback (for providers that don't support vision)
     const textMessages = messages.map(m => ({ role: m.role, content: m.content || "" }));
     const hasImages = messages.some(m => m.images?.length);
+    // Real token usage for this response, captured from each provider's final
+    // stream chunk and logged once at the end for the HashMeter ecosystem.
+    let captured = null;
+    const onUsage = (u) => { captured = u; };
 
     if (provider === "groq") {
       const key = (groqKeyEl.value || "").trim();
@@ -4559,11 +4567,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: groqMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: groqMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("groq", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "gemini") {
       const key = (geminiKeyEl.value || "").trim();
@@ -4594,6 +4602,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const payload = s.slice(5).trim(); if (!payload) return;
         try {
           const evt = JSON.parse(payload);
+          if (evt.usageMetadata) captured = { inputTokens: evt.usageMetadata.promptTokenCount || 0, outputTokens: evt.usageMetadata.candidatesTokenCount || 0 };
           // Collect text from all parts (Gemini can return multiple text parts)
           const parts = evt.candidates?.[0]?.content?.parts || [];
           parts.forEach(p => { if (p.text) onToken(p.text); });
@@ -4612,11 +4621,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "HTTP-Referer": "hash-gpt://local", "X-Title": "HashCortx" },
-        body: JSON.stringify({ model: modelId, messages: orMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: orMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("openrouter", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "cerebras") {
       const key = (cerebrasKeyEl.value || "").trim();
@@ -4624,11 +4633,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("cerebras", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "samba") {
       const key = (sambaKeyEl.value || "").trim();
@@ -4636,11 +4645,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.sambanova.ai/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("samba", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "openai") {
       const key = (openaiKeyEl.value || "").trim();
@@ -4649,11 +4658,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: oaMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: oaMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("openai", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "anthropic") {
       const key = (anthropicKeyEl.value || "").trim();
@@ -4689,6 +4698,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const payload = s.slice(5).trim(); if (!payload || payload === "[DONE]") return;
         try {
           const evt = JSON.parse(payload);
+          if (evt.type === "message_start" && evt.message?.usage)
+            captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
+          if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
+            captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
           if (evt.type === "content_block_delta" && evt.delta?.text) onToken(evt.delta.text);
         } catch {}
       };
@@ -4716,7 +4729,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const parseLine = (line) => {
           const s = line.trim(); if (!s.startsWith("data:")) return;
           const payload = s.slice(5).trim(); if (!payload || payload === "[DONE]") return;
-          try { const evt = JSON.parse(payload); if (evt.type === "content_block_delta" && evt.delta?.text) onToken(evt.delta.text); } catch {}
+          try {
+            const evt = JSON.parse(payload);
+            if (evt.type === "message_start" && evt.message?.usage)
+              captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
+            if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
+              captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
+            if (evt.type === "content_block_delta" && evt.delta?.text) onToken(evt.delta.text);
+          } catch {}
         };
         try {
           while (true) { const { value, done } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop() || ""; for (const line of lines) parseLine(line); }
@@ -4727,11 +4747,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
           method: "POST", referrerPolicy: "no-referrer",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-          body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true }),
+          body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
           signal,
         }));
         if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))); }
-        for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+        for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
       }
 
     } else if (provider === "deepseek") {
@@ -4740,11 +4760,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("deepseek", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "mistral") {
       const key = (mistralKeyEl.value || "").trim();
@@ -4752,14 +4772,25 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true }),
+        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("mistral", res.status, txt, res.headers.get("Retry-After"))); }
-      for await (const delta of parseOpenAISSE(res.body)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else {
       throw new Error(`Unknown cloud provider: ${provider}`);
+    }
+
+    // Record the real token usage for this response (measured-only — skipped
+    // when the provider reported none). Best-effort; never blocks the chat.
+    if (captured && (captured.inputTokens || captured.outputTokens)) {
+      HC.usageLog.append({
+        ts: new Date().toISOString(),
+        model: modelId,
+        input_tokens: captured.inputTokens || 0,
+        output_tokens: captured.outputTokens || 0,
+      });
     }
   }
 
