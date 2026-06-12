@@ -7,9 +7,16 @@ mod security;
 
 use commands::{
     audit::{audit_log_append, audit_log_read},
-    fs::{fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files, fs_write_file},
-    keychain::{keychain_delete, keychain_retrieve, keychain_store, keychain_store_bundle, keychain_retrieve_bundle},
+    fs::{
+        fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files,
+        fs_write_file,
+    },
+    keychain::{
+        keychain_delete, keychain_retrieve, keychain_retrieve_bundle, keychain_store,
+        keychain_store_bundle,
+    },
     shell::{shell_run, shell_run_stream},
+    usage_log::usage_log_append,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -42,6 +49,8 @@ pub fn run() {
             // Phase 4 — Shell
             shell_run,
             shell_run_stream,
+            // HashMeter ecosystem — token-usage log
+            usage_log_append,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");
