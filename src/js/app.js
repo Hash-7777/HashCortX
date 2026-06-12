@@ -2274,6 +2274,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   stabAbout?.addEventListener("click",    () => activateSettingsTab("about"));
   activateSettingsTab("settings");
 
+  // Ecosystem links in the About pane open the repo in the system browser.
+  aboutPane?.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-eco-url]");
+    if (!el) return;
+    e.preventDefault();
+    const url = el.getAttribute("data-eco-url");
+    if (url && window.HC?.invoke) HC.invoke("plugin:opener|open_url", { url }).catch(() => {});
+  });
+
   // ── APIs pane: status dots + test buttons ──────────────────────────────
   const MOONSHOT_API_BASES = [
     "https://api.kimi.com/v1",

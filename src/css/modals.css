@@ -402,6 +402,37 @@
     font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
     color: var(--gold-deep);
   }
+  /* About pane — the Hash ecosystem (sibling apps) */
+  .about-eco {
+    width: 100%; max-width: 360px; margin-top: 18px;
+    display: flex; flex-direction: column; gap: 8px; text-align: left;
+  }
+  .about-eco-title {
+    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 2px; text-align: center;
+  }
+  .about-eco-app {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 10px 13px; border-radius: 10px;
+    border: 1px solid rgba(34,211,238,0.16);
+    background: rgba(34,211,238,0.04);
+    cursor: pointer; transition: .15s; text-decoration: none;
+  }
+  .about-eco-app:hover {
+    border-color: rgba(34,211,238,0.4);
+    background: rgba(34,211,238,0.09);
+    transform: translateY(-1px);
+  }
+  .about-eco-name {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .about-eco-here {
+    font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--gold-deep); border: 1px solid rgba(34,211,238,0.3);
+    border-radius: 10px; padding: 1px 7px; font-weight: 700;
+  }
+  .about-eco-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
   .modal-header h2 {
     font-family: var(--serif); font-weight: 500;
     font-size: 22px; margin: 0; letter-spacing: 0.01em;
