@@ -1,367 +1,307 @@
-# HashCortx
+<div align="center">
 
-**Local-first AI coding agents. Your terminal. Your agents. Your code.**
+# HashCortX
 
-```
-100% local  ·  zero cloud  ·  your keys  ·  your data
-```
+**The local-first AI workspace. Eleven modes. Ten providers. Zero telemetry.**
 
-Your API keys never leave your keychain.
-Your files never leave your machine.
-No telemetry. No tracking. No backend server.
-Air-gapped capable with local models (Ollama, LM Studio).
+[Website](https://hashcortx.com) · [Latest Release](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions) · [Youtube](https://youtu.be/On5wPdKZDfg)
 
-Every AI request travels: your device → provider API → back.
-Nothing passes through us. There is no "us".
+![License: MIT](https://img.shields.io/badge/license-MIT-39ff81.svg)
+![Platform: macOS](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-39ff81.svg)
+![Version: 2.0.0](https://img.shields.io/badge/version-2.0.0-39ff81.svg)
+![Size: 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-39ff81.svg)
+
+</div>
+
+![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
 
 ---
 
-## Quick Start
+## What is HashCortX?
+
+**HashCortX is a local-first, open-source AI desktop application for developers that combines a multi-provider chat workspace, an autonomous coding agent, multi-agent swarms, 9 pre-built specialist agents, financial document analysis, security scanning, 3D planning, and a virtual project desktop — into a single native 8.9 MB macOS app built with Tauri v2, Rust, and vanilla JavaScript.**
+
+API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads. There is no HashCortX cloud backend, no telemetry, no analytics, no accounts, and no subscriptions. With Ollama, the entire app runs air-gapped offline. With cloud providers, every request travels directly from your device to the provider you chose — nothing passes through HashCortX infrastructure, because HashCortX infrastructure does not exist.
+
+**HashCortX is a free, open-source alternative to commercial AI coding tools** like Cursor, Claude Code, Continue, Aider, and Cline — with a wider feature set than any of them.
+
+---
+
+## Key facts
+
+| | |
+|---|---|
+| **Type** | Native AI desktop application |
+| **Platform** | macOS Apple Silicon (Windows and Linux planned) |
+| **License** | MIT |
+| **Version** | v2.0.0 (May 2026) |
+| **Bundle size** | 8.9 MB |
+| **Stack** | Tauri v2 · Rust · vanilla JavaScript · macOS Keychain |
+| **AI providers** | Anthropic · OpenAI · Google · Groq · Cerebras · SambaNova · DeepSeek · Moonshot · Mistral · OpenRouter · Ollama (local) |
+| **Modes** | 11 specialized AI workspaces |
+| **Pre-built agents** | 9 specialists |
+| **Telemetry** | None |
+| **Backend server** | None |
+| **Author** | [Seif Hashish](https://github.com/Hash-7777) |
+
+---
+
+## Why HashCortX
+
+- **Truly local-first.** No cloud backend, no auto-update, no telemetry, no accounts. The binary phones home to nothing.
+- **Multi-provider by design.** Ten cloud providers and Ollama for local models — all configured side-by-side, switched freely, with automatic provider failover in swarm runs.
+- **One app, eleven modes.** Coding, chat, swarms, research, financial analysis, security scanning, 3D planning, ERP generation, virtual OS — without juggling separate tools.
+- **OS-grade key storage.**  API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
+- **Tiny footprint.** 8.9 MB — roughly 30× smaller than Electron-based AI desktop apps that ship at 100–300 MB.
+- **Open source under MIT.** Read every line. Fork it. Ship your own version.
+
+---
+
+## About this project's development
+
+**Product, architecture, modes, philosophy, and every idea in this app are 100% by Seif Hashish.** The 11-mode structure, the local-first principle, the OS Keychain choice, the Permission Guard / Audit Log security model, the swarm-failover routing pattern, the pharma-informed source-grounding constraints in PubMed Agent, Drug Interaction, and Finance AI — every design decision was conceived and directed by the human author.
+
+**HashCortX was built with heavy AI assistance — approximately 30 million tokens consumed** across Claude, GPT, and other frontier models during the v2.0.0 build. AI handled the bulk of implementation, refactoring, and iteration under human direction. Architecture decisions, security model, mode boundaries, and final code review were the author's. This is disclosed because HashCortX is itself an AI tool — using AI to build it and hiding that fact would be inconsistent.
+
+All source is open at [Hash-7777/HashCortX](https://github.com/Hash-7777/HashCortX) and reviewable line by line.
+
+---
+
+## Screenshots
+
+![Code mode with file explorer and agent chat](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
+
+![Agent Swarm orchestration](https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2)
+
+![Finance AI analysis studio](https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121)
+
+![3D Forge spatial planning](https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75)
+
+---
+
+## The 11 Modes
+
+| # | Mode | What it does |
+|---|---|---|
+| 1 | **Chats** | Multi-provider chat workspace with projects, file attachments, slash commands, and chat history |
+| 2 | **Agents** | 9 pre-built specialist agents: Personal Assistant, Quick Assistant, Research Agent, Deep Research, Senior Engineer, Page Analyzer, PubMed Agent, Drug Interaction, ATS CV Auditor |
+| 3 | **Code (HashCoder)** | Full AI coding agent with file tree, project picker, real file-edit tools, shell access, and a browser panel |
+| 4 | **Split** | Side-by-side real-time comparison of two models on the same prompt |
+| 5 | **3D Forge** | Architecture-first 3D planning agent producing structured node/mesh plans for game levels, generative architecture, and spatial design |
+| 6 | **Finance AI** | Full-screen financial analysis studio for bank statements, CSVs, PDFs, and XLSX files — KPIs, charts, recommendations, never invents numbers |
+| 7 | **Sandbox** | Swarm-based security scanner for malware patterns, trojans, prompt injections, and suspicious logic in untrusted code or AI output |
+| 8 | **ERP / Systems Builder** | Generates working interactive prototypes — forms, tables, dashboards — from a workflow description |
+| 9 | **Agent Swarm** | Designer for multi-agent pipelines with voting mode, chain mode, and automatic provider failover when a model rate-limits or fails mid-run |
+| 10 | **Virtual OS** | Simulated project desktop where an AI agent creates, edits, and organizes files in a sandboxed workspace |
+| 11 | **Agent Maker** | No-code builder for custom agents with name, icon, system prompt, and curated tool sets |
+
+Full descriptions: [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features) · [MODES_GUIDE.txt](MODES_GUIDE.txt)
+
+---
+
+## Supported AI providers
+
+### Cloud providers (bring your own API key)
+
+| Provider | Notes |
+|---|---|
+| **Anthropic** | Claude family (Opus, Sonnet, Haiku) |
+| **OpenAI** | GPT family |
+| **Google** | Gemini Pro, Flash |
+| **Groq** | Llama, Mixtral — fast inference |
+| **Cerebras** | Ultra-fast inference |
+| **SambaNova** | Llama, DeepSeek hosting |
+| **DeepSeek** | V3, R1 |
+| **Moonshot** | Kimi |
+| **Mistral** | Mistral family |
+| **OpenRouter** | Meta-provider aggregating frontier models |
+
+### Local models
+
+| Provider | Notes |
+|---|---|
+| **Ollama** | Any Ollama-hosted local model. No API key required. Air-gapped capable. |
+
+API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
+
+---
+
+## Install
+
+### Quick install (macOS, Apple Silicon)
+
+1. Download `HashCortx-2.0.0-macOS-arm64.dmg` from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest)
+2. Open the DMG and drag HashCortX to `/Applications`
+3. On first launch: right-click → **Open** → **Open** (the v2.0.0 build is unsigned)
+4. Open **Settings → Providers** and add API keys for the providers you want to use
+5. Or skip API keys and use local models via Ollama
+
+### Bypass Gatekeeper (unsigned build workaround)
 
 ```bash
+xattr -dr com.apple.quarantine /Applications/HashCortx.app
+```
+
+Code signing is planned for a future release.
+
+---
+
+## Build from source
+
+```bash
+git clone https://github.com/Hash-7777/HashCortX.git
+cd HashCortX
 npm install
 npm run tauri dev
 ```
 
-Build for distribution:
+Build a distributable:
+
 ```bash
 npm run tauri build
 ```
 
+Output: `src-tauri/target/release/bundle/dmg/`
+
+### Requirements
+
+- macOS, Node 18+, Rust toolchain (`rustup`), Xcode Command Line Tools.
+
 ---
 
-## Master Plan — All 8 Phases
+## Tech stack
 
----
-
-### Phase 0 — Foundation & Brand ✅ COMPLETE
-
-**Goal:** Logo, icon, color system, brand docs, Tauri window, intro screen.
-
-**Deliverables:**
-- `logo-full.png` — star mark + "HashCortx" handwriting text, neon green `#39ff81`
-- `icon-master.png` — 1024×1024 squircle icon for all platforms
-- `BRAND.md` — full style guide
-- Tauri window with `titleBarStyle: Overlay` (custom title bar)
-- iOS-style frosted-glass toolbar as persistent drag handle
-- Intro boot screen: exact Hash_UI recreation in HashCortx green
-- All Hash_UI modes ported (CSS + JS) with gold→green color adaptation
-
-**Brand Identity:**
-
-| Element | Spec |
+| Layer | Technology |
 |---|---|
-| Wordmark | `HashCortx` |
-| Primary | `#39ff81` (terminal green) |
-| Accent | `#22d3ee` (electric cyan) |
-| Warning | `#fbbf24` (amber — permission prompts) |
-| Danger | `#f87171` (alert red — destructive actions) |
-| Background | `#040704` (near-black, terminal feel) |
-| Typography | JetBrains Mono / Berkeley Mono everywhere |
+| **Framework** | Tauri v2 (Rust + native webview) |
+| **Backend** | Rust |
+| **Frontend** | Vanilla JavaScript (no React, no TypeScript, no bundler) |
+| **Native APIs** | macOS Keychain (via `keyring` crate), filesystem and shell via Tauri commands, API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads. |
+| **Styling** | Plain CSS, JetBrains Mono / Berkeley Mono typography |
+| **Local models** | Ollama integration |
+
+The choice of vanilla JS (no React, no bundler) is deliberate — it keeps the bundle at 8.9 MB and the codebase auditable end-to-end.
 
 ---
 
-### Phase 1 — Architecture Refactor ✅ IN PROGRESS
+## Privacy and security
 
-**Goal:** Split the current monolithic files into `core/` + `platform/` so the app stays testable in a browser AND works inside Tauri.
-
-**Done (May 2026):**
-- `src/js/canvas.js` — Orchestration Canvas extracted from app.js (~854 lines). Uses `window._H` bridge for `ollamaChat`, `escapeHtml`, `runSwarm`, `state`, `render`, `persistCurrentChat`.
-- `src/js/sandbox.js` — Sandbox Security Scanner extracted from app.js (~588 lines). Uses `window._H` bridge.
-- `window._H` extended with `escapeHtml` and `runSwarm`.
-- app.js reduced from 10,035 → 8,594 lines.
-
-**Key principle:** `core/` never imports from Tauri. All native calls go through `platform/index.js`.
-
-```
-core/agent/hashcoder.js
-     calls platform/index.js → platform/tauri/fs.js   (in app)
-                              → platform/browser.js    (in browser)
-```
-
-**Target structure:**
-```
-src/
-├── core/
-│   ├── agent/          # One file per agent (hashcoder, forge, swarm, virtual-os)
-│   ├── ui/modes/       # One file per mode UI
-│   └── state/          # store.js, settings.js, permissions-store.js
-└── platform/
-    ├── index.js         # isWeb / isTauri detection
-    ├── browser.js       # Browser fallback (IndexedDB)
-    └── tauri/
-        ├── fs.js        # Real FS (gated by guard)
-        ├── shell.js     # Real shell (gated by guard)
-        ├── keychain.js  # API key storage
-        └── guard.js     # Permission gatekeeper ⭐
-```
-
-**Outcome:** Browser version still works perfectly. All existing features intact.
+- **No backend server.** Every AI request travels directly from your machine to the provider you configured. There is no HashCortX intermediary.
+- **No telemetry.** No analytics, no tracking, no usage reporting, no error-reporting backend. The binary has no network calls except to AI provider endpoints you explicitly configure.
+- **No accounts.** No sign-up, no login, no email collection.
+- **OS Keychain storage.** API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads.
+- **Permission Guard.** Filesystem and shell calls from the coding agent are intercepted by a denylist-based gatekeeper before execution. Every guarded action is logged to the built-in Audit Log.
+- **Source-grounded modes.** PubMed Agent, Drug Interaction, and Finance AI are constrained to never fabricate data.
+- **Air-gapped capable.** With Ollama, the app runs fully offline.
 
 ---
 
-### Phase 2 — Tauri Wrapper ✅ IN PROGRESS
+## How HashCortX compares
 
-**Goal:** App runs as `.app` / `.exe`. Existing Hash_UI features all work inside the Tauri shell. API keys move from localStorage to OS Keychain.
+| | HashCortX | Cursor | Claude Code | Continue | Aider | Cline | Zed |
+|---|---|---|---|---|---|---|---|
+| Type | Native desktop app | VS Code fork | CLI | VS Code/JetBrains extension | Terminal CLI | VS Code extension | Native editor |
+| License | MIT | Proprietary | Proprietary | Apache 2.0 | Apache 2.0 | Apache 2.0 | GPL/AGPL |
+| Free | Yes (BYO key) | Subscription | Subscription/API | Yes | Yes | Yes | Yes |
+| Local-first | Yes | No | No | Yes | Yes | Yes | Yes |
+| OS Keychain | Yes | No | Yes | No | No | No | No |
+| Cloud providers | 10 | Limited | Anthropic only | Many | Many | Many | Several |
+| Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
+| Multi-agent swarms | Yes | No | No | No | No | No | No |
+| Modes beyond coding | Yes (11) | No | No | No | No | No | No |
+| Pre-built agents | 9 | None | None | None | None | None | None |
+| Telemetry | None | Yes | Yes (opt-out) | Opt-in | None | None | Opt-in |
 
-**Deliverables:**
-- All 9 Hash_UI modes running inside Tauri
-- `tauri-plugin-store` for persistent settings
-- `tauri-plugin-notification` for agent alerts
-- API keys stored in OS Keychain (never plaintext)
-- CSP locked to known AI provider domains
-
-**Modes ported:**
-| Mode | Status |
-|------|--------|
-| Code Mode | ✅ Ported |
-| Virtual OS | ✅ Ported |
-| Forge | ✅ Ported |
-| Swarm Maker | ✅ Ported |
-| System Maker | ✅ Ported |
-| Agent Maker | ✅ Ported |
-| All other modes | ✅ CSS adapted |
+Detailed breakdown: [Wiki → Comparison](https://github.com/Hash-7777/HashCortX/wiki/Comparison)
 
 ---
 
-### Phase 3 — Permission Guard + Audit Log
+## FAQ
 
-**Goal:** Every native call (file read/write, shell exec, network) requires explicit user approval. Full audit trail.
+### Is HashCortX free?
+Yes. MIT-licensed, no paid tier, no usage caps. You pay AI providers directly for their API usage, or use Ollama to avoid all AI costs.
 
-**The Security Model — Layered Defense:**
-```
-┌─────────────────────────────────────────────────┐
-│  Layer 1: UI / Mode Switcher                    │
-│  (Code Mode requires explicit toggle)           │
-├─────────────────────────────────────────────────┤
-│  Layer 2: Agent Tool Calls                      │
-│  (Agent describes what it wants to do)          │
-├─────────────────────────────────────────────────┤
-│  Layer 3: Permission Guard ← THE GATEKEEPER     │
-│  Every native call passes through here:         │
-│  • Read file?    → prompt user                  │
-│  • Write file?   → prompt user                  │
-│  • Run command?  → prompt user                  │
-│  • Delete?       → ALWAYS prompt, no bypass     │
-│  • Hardcoded denylist: ~/.ssh, ~/.aws, /etc     │
-├─────────────────────────────────────────────────┤
-│  Layer 4: Tauri Allowlist (compile-time)        │
-│  Only these commands ever exist in the binary   │
-├─────────────────────────────────────────────────┤
-│  Layer 5: OS Sandbox                            │
-│  macOS hardened runtime, signed binary          │
-└─────────────────────────────────────────────────┘
-```
+### Does HashCortX work offline?
+Yes, with Ollama. Cloud providers require internet.
 
-**Permission dialog (modeled on Claude Code):**
-```
-┌─────────────────────────────────────────────┐
-│  ▸ HashCoder wants to:                      │
-│                                             │
-│      WRITE  /home/user/project/auth.js       │
-│             (147 lines, +23 / -8)           │
-│                                             │
-│  [ Allow once ]  [ Allow always ]           │
-│  [ Deny ]        [ Show diff ]              │
-│                                             │
-│  Reason: "Adding JWT verification step"     │
-└─────────────────────────────────────────────┘
-```
+### Which operating systems are supported?
+macOS Apple Silicon in v2.0.0. Intel Mac, Windows, and Linux builds are planned.
 
-**Permission scopes:**
-- **Once** — just this one action
-- **Session** — until app closes
-- **Always for this folder** — persistent, scoped to project
-- **Never (deny)** — adds to denylist
+### Does HashCortX send my code or data anywhere?
+Only to AI providers you explicitly configure. There is no HashCortX server.
 
-**Hard rules (cannot be overridden):**
-- `~/.ssh/*`, `~/.aws/*`, `~/.gnupg/*`, `~/Library/Keychains/*` — denied always
-- `rm -rf`, `sudo`, `dd`, `format` — require typing confirmation
-- `/System`, `/usr/bin`, `/etc` — denied always
+### Can I use Claude, GPT, and Gemini at the same time?
+Yes. Configure all your keys at once and switch freely. In Agent Swarm mode, automatic provider failover kicks in when a model fails or rate-limits.
 
-**Audit log** (append-only, stored locally):
-```
-2026-05-10 14:23:01 [allow-session] read  /home/user/project/auth.js
-2026-05-10 14:23:14 [allow-once]    patch /home/user/project/auth.js (line 42)
-2026-05-10 14:23:30 [deny]          shell rm -rf node_modules
-```
+### Was HashCortX built with AI?
+Yes — heavy AI assistance, approximately 30 million tokens consumed during development. All product ideas, architecture, and direction were by the human author. See [About this project's development](#about-this-projects-development).
 
-**Files to create:**
-- `src/platform/tauri/guard.js` — the permission gatekeeper
-- `src-tauri/src/commands/audit.rs` — append-only audit log
-- `src-tauri/src/security/denylist.rs` — hardcoded blocked paths
-- `src/core/ui/permission-dialog.js` — the trust prompt UI
+### How big is HashCortX?
+8.9 MB DMG. Roughly 30× smaller than Electron-based equivalents.
+
+Full FAQ: [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ)
 
 ---
 
-### Phase 4 — Code Mode (Real Filesystem + Shell)
+## Roadmap
 
-**Goal:** A new "Code Mode" that gives AI agents real filesystem access and shell execution, gated by the Phase 3 permission guard.
+- Code signing for the macOS build
+- Intel Mac, Windows, and Linux builds
+- Further extraction of monolithic source modules
+- Permission Guard coverage for Virtual OS and 3D Forge native calls
+- Additional pre-built specialist agents based on user requests
 
-**Two-mode architecture:**
-```
-┌─────────────────────────────────────────────────┐
-│  HashCortx                                      │
-│  ┌──────────────────┬──────────────────────┐   │
-│  │  Virtual OS Mode │  Code Mode           │   │
-│  │  (unchanged)     │                      │   │
-│  │  Sandboxed       │  Real filesystem     │   │
-│  │  IndexedDB       │  Real shell          │   │
-│  │  Agent swarms    │  Real browser        │   │
-│  │  Forge / Void    │  Like Claude Code    │   │
-│  │  Zero risk —     │  Permission-gated    │   │
-│  │  agents play     │  every action        │   │
-│  └──────────────────┴──────────────────────┘   │
-└─────────────────────────────────────────────────┘
-```
-
-**HashCoder agent tools:**
-- `read_file(path)` → streams file contents
-- `write_file(path, content)` → creates/overwrites (gated)
-- `patch_file(path, diff)` → surgical edit (gated)
-- `list_dir(path)` → directory listing
-- `shell_run(command, args)` → whitelisted shell exec (gated)
-- `search_files(pattern)` → ripgrep-style search
-- `open_browser(url)` → Tauri WebView (Phase 6)
-
-**Rust commands to add:**
-- `src-tauri/src/commands/fs.rs` — FS bridge with denylist
-- `src-tauri/src/commands/shell.rs` — shell exec with allowlist
+Suggest features via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose).
 
 ---
 
-### Phase 6 — Multi-Model BYOK Settings
+## Keyboard shortcuts
 
-**Goal:** Full BYOK UI. User adds API keys for any provider. Per-mode model assignment.
-
-**Providers supported (no backend, direct API calls):**
-- Anthropic (Claude Opus, Sonnet, Haiku)
-- OpenAI (GPT-4o, GPT-4, GPT-3.5)
-- Google Gemini (via generativelanguage.googleapis.com)
-- OpenRouter (1000+ models, many free)
-- Groq (ultra-fast llama-3.3-70b free)
-- Cerebras (fast inference)
-- Together AI
-- Mistral
-- SambaNova
-- Ollama (local, `localhost:11434`)
-- Any OpenAI-compatible endpoint
-
-**Settings UI:**
-```
-Settings → AI Providers
-┌───────────────────────────────────────────────┐
-│  ✓ Anthropic        sk-ant-•••••••  [Test]    │
-│  ✓ OpenAI           sk-•••••••••••  [Test]    │
-│  ✓ OpenRouter       sk-or-••••••••  [Test]    │
-│    Groq             [+ Add key]               │
-│    Ollama           http://localhost:11434    │
-└───────────────────────────────────────────────┘
-```
-
-**Per-mode model defaults:**
-| Mode | Default | User can change to |
-|---|---|---|
-| Forge | OpenRouter free | Any model |
-| Swarm | Groq llama-3.3-70b | Any model |
-| Virtual OS | Anthropic Sonnet | Any model |
-| Code Mode | Anthropic Opus | Any model |
-
-**Storage:** API keys → OS Keychain (hardware-backed encryption, never plaintext).
-
-**Files:**
-- `src/core/ui/components/settings-modal.js` — BYOK settings UI
-- `src/platform/tauri/keychain.js` — read/write keys from OS keychain
-- `src-tauri/src/commands/keychain.rs` — Rust Keychain bridge
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + Shift + N` | Start a new chat from anywhere |
 
 ---
 
-### Phase 7 — Polish, Signing & Distribution
+## Documentation
 
-**Goal:** Production-ready, signed, auto-updating builds for Mac + Windows + Linux.
-
-**Deliverables:**
-- macOS: Code signing with Apple Developer certificate, `.dmg` installer
-- Windows: Certificate signing, `.exe` NSIS installer + `.msi`
-- Linux: `.AppImage` + `.deb`
-- Auto-updater via GitHub Releases (Tauri updater plugin)
-- App Store preparation (macOS sandbox entitlements)
-- GitHub Actions CI/CD: auto-builds on tag push
-
-**Files to activate:**
-- `.github/workflows/build.yml` — already written in `docs/future/`, activate when ready
-- `src-tauri/tauri.conf.json` — uncomment `plugins.updater` block
-- `src-tauri/src/main.rs` — add updater check on launch
-
-**Signing setup:**
-1. Buy Apple Developer account ($99/yr)
-2. Set `signingIdentity` in `tauri.conf.json` to your cert name
-3. Add cert + private key as GitHub Actions secrets
-4. Run `npm run tauri signer generate` for updater keypair
-5. Add public key to `tauri.conf.json` updater block
+- [Wiki Home](https://github.com/Hash-7777/HashCortX/wiki) — overview and entry point
+- [Features](https://github.com/Hash-7777/HashCortX/wiki/Features) — full descriptions of all 11 modes
+- [Supported Providers](https://github.com/Hash-7777/HashCortX/wiki/Supported-Providers) — provider list with model details
+- [Comparison](https://github.com/Hash-7777/HashCortX/wiki/Comparison) — vs Cursor, Claude Code, Continue, Aider, Cline, Zed
+- [Privacy and Security](https://github.com/Hash-7777/HashCortX/wiki/Privacy-and-Security) — full security architecture
+- [FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ) — comprehensive Q&A
+- [MODES_GUIDE.txt](MODES_GUIDE.txt) — full mode reference
 
 ---
 
-### Phase 8 — What Sets HashCortx Apart
+## Contributing
 
-| Feature | Claude Code | Cursor | Windsurf | **HashCortx** |
-|---|---|---|---|---|
-| Bring your own model | Limited | ✗ | ✗ | **✓ Any model** |
-| Free models (Groq, Ollama) | ✗ | ✗ | ✗ | **✓** |
-| Visual sandboxed mode | ✗ | ✗ | ✗ | **✓ Virtual OS** |
-| Multiple agent paradigms | ✗ | ✗ | ✗ | **✓ Forge, Swarm, Code, Virtual OS** |
-| Permission per action + scopes | ✓ | ✗ | ✗ | **✓ + audit log** |
-| No telemetry, no backend | ✗ | ✗ | ✗ | **✓** |
-| Air-gapped (Ollama) | ✗ | ✗ | ✗ | **✓** |
-| Mac + Windows + Linux | ✓ | ✓ | ✓ | **✓** |
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture rules, and how to propose changes. Bug reports and feature requests via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issues). Questions and ideas via [GitHub Discussions](https://github.com/Hash-7777/HashCortX/discussions).
 
 ---
 
-## Current Status: Phase 2 In Progress
+## License
 
-### What's done
-- [x] Phase 0: Foundation complete — logo, icon, Tauri window, brand system
-- [x] Intro boot screen (exact Hash_UI recreation, green palette)
-- [x] iOS-style toolbar (frosted glass, drag handle, v0.1.0 badge)
-- [x] All Hash_UI modes ported: CSS color-adapted, JS brand-adapted
-- [x] Vendor libs vendored locally (marked, highlight.js, mermaid, jsPDF, DOMPurify, three.js)
-- [x] CSP locked to known AI providers
-
-### What's next
-- [ ] Phase 2: Wire all mode functionality end-to-end (test each mode works)
-- [ ] Phase 3: Permission guard UI + audit log Rust commands
-- [ ] Phase 4: Code Mode agent + real FS/shell commands in Rust
+MIT. See [LICENSE](LICENSE).
 
 ---
 
-## Modes
+## Author
 
-| Mode | Description |
-|------|-------------|
-| Code Mode | Real filesystem + shell access. Like Claude Code — but yours. |
-| Virtual OS | Sandboxed AI desktop. Safe playground for agents. |
-| Forge | 3D generative design agent. |
-| Swarm | Multi-agent collaboration. |
-| System Maker | AI system design + architecture. |
-| Agent Maker | Build and configure custom agents. |
+**Seif Hashish** — independent open-source developer with a pharma and clinical background. The pharma background informs the source-grounding constraints in HashCortX's PubMed Agent, Drug Interaction, and Finance AI modes.
 
-## Models Supported (BYOK)
+- GitHub: [@Hash-7777](https://github.com/Hash-7777)
+- Website: [hashcortx.com](https://hashcortx.com)
 
-Anthropic · OpenAI · Google Gemini · OpenRouter · Groq · Cerebras · Together AI · Mistral · SambaNova · Ollama · Any OpenAI-compatible endpoint
+---
 
-## Security
+<div align="center">
 
-- API keys in OS Keychain — never plaintext
-- Every file/shell action requires approval
-- Hardcoded denylist: `~/.ssh`, `~/.aws`, `/etc`, `/System`
-- Shell allowlist — `sudo`, `dd`, `format` always blocked
-- Full audit log of every agent action
-- Prompt injection filter (50+ patterns)
+**HashCortX**
 
-See `docs/SECURITY.md` for the full threat model.
+One UI · Agent Swarms · Zero Data Leak · Local-First · Open Source
 
-## Docs
+[Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
-- `docs/BRAND.md` — visual identity
-- `docs/ARCHITECTURE.md` — system design  
-- `docs/SECURITY.md` — threat model
+</div>
