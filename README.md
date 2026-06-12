@@ -275,6 +275,20 @@ Suggest features via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issu
 
 ---
 
+## The Hash ecosystem
+
+HashCortX is one of three local-first, privacy-first apps by the same developer — no cloud, no telemetry, your data stays on your machine:
+
+| App | What it is |
+|---|---|
+| **[HashCortX](https://github.com/Hash-7777/HashCortX)** *(this app)* | The local-first AI workspace — eleven modes, ten providers, zero telemetry. |
+| **[HashCerebrum](https://github.com/Hash-7777/HashCerebrum)** | A local-first medical-research workbench with a 3D brain interface for searching, citing, and peer-reviewing research. |
+| **[HashMeterAi](https://github.com/Hash-7777/HashMeterAi)** | See how much AI you really use — the honest local usage meter for AI coding tools. |
+
+HashCortX writes a local token-usage log (`~/.hashcortx/usage.jsonl`) that **HashMeterAi** reads, so your usage across the whole ecosystem is measured accurately in one place.
+
+---
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, architecture rules, and how to propose changes. Bug reports and feature requests via [GitHub Issues](https://github.com/Hash-7777/HashCortX/issues). Questions and ideas via [GitHub Discussions](https://github.com/Hash-7777/HashCortX/discussions).
