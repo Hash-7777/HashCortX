@@ -10,7 +10,7 @@ HashCortx is a local desktop app that:
 ## Security Layers
 
 ### Layer 1 — OS Keychain
-- API keys are stored in the renderer's localStorage as a single JSON bundle — not in the OS keychain on the hot path. There IS an OS keychain implementation in Rust, but it's no longer used for daily reads
+- All API keys stored in OS Keychain (Mac), Windows Credential Manager, or libsecret (Linux)
 - Keys stored once on first entry, persist until user removes them
 - JS layer NEVER receives the raw key — only calls Rust to "send this message"
 - Rust makes the HTTPS call, returns only the AI response
@@ -147,4 +147,4 @@ API Key: [OS Keychain] → [Rust reads at request time] → [HTTPS Authorization
 - Never stores conversation history remotely
 - Never accesses files outside permitted scope
 - Never runs commands outside the allowlist
-
+- Never stores API keys in plaintext

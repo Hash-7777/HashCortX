@@ -10,13 +10,6 @@
 #   Run `cargo update` to bump all deps to latest minor versions.
 #   For major version bumps, check the Tauri migration guide first:
 #   https://tauri.app/start/migrate/
-
-# Make sure you're running the build from inside the HashCortX folder, not src-tauri. The correct steps are:
-
-# cd HashCortX
-# npm install
-# npm run tauri build
-# Don't run cargo build directly — let npm run tauri build handle everything automatically.
 # ==============================================================
 
 [package]

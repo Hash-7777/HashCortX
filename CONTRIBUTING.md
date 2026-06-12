@@ -54,4 +54,4 @@ npm run tauri build
 
 ## Questions
 
-Open a [Discussion](https://github.com/Hash-7777/HashCortX/discussions) 
+Open a [Discussion](https://github.com/Hash-7777/HashCortX/discussions) instead of an issue.

@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+*.local
+
+# Tauri build artifacts — never commit, regenerated on build
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/gen/
+
+# Environment — NEVER commit API keys
+.env
+.env.local
+.env.*.local
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+._*
+Thumbs.db
+
+# Logs — audit log is device-local only, never shared
+audit.log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

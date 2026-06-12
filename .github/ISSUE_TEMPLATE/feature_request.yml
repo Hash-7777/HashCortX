@@ -1,0 +1,64 @@
+name: Feature request
+description: Suggest a new feature or improvement
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion. Concrete requests grounded in a real problem are more likely to ship than abstract wishes.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of HashCortx?
+      options:
+        - Chats
+        - Agents
+        - Code (HashCoder)
+        - Split
+        - 3D Forge
+        - Finance AI
+        - Sandbox
+        - ERP / Systems Builder
+        - Agent Swarm
+        - Virtual OS
+        - Agent Maker
+        - Provider / model support
+        - Settings / Keychain / Permissions
+        - Build / distribution (signing, Windows, Linux, Intel Mac)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation where you hit a wall. The "why" matters more than the "what."
+      placeholder: |
+        When I'm using Code mode on a large repo, the file tree takes a long time to load and I can't tell whether it froze or is still working.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What would the ideal version of this look like? Sketch the UI, the API, or the behavior.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Workarounds you've tried, similar features in other tools, or other approaches you ruled out.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I've searched existing issues for duplicate requests
+          required: true

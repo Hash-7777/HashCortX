@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussion
+    url: https://github.com/Hash-7777/HashCortX/discussions
+    about: Have a question, idea, or want to show off something you built? Start a discussion instead of opening an issue.

@@ -1,0 +1,94 @@
+name: Bug report
+description: Report something that doesn't work as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Please fill in the details below — the more specific you are, the faster it gets fixed.
+
+  - type: input
+    id: version
+    attributes:
+      label: HashCortx version
+      description: From the About panel, or the DMG filename you installed.
+      placeholder: "v2.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: "macOS 15.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Which mode is affected?
+      options:
+        - Chats
+        - Agents
+        - Code (HashCoder)
+        - Split
+        - 3D Forge
+        - Finance AI
+        - Sandbox
+        - ERP / Systems Builder
+        - Agent Swarm
+        - Virtual OS
+        - Agent Maker
+        - Settings / Keychain / Permissions
+        - Not mode-specific
+    validations:
+      required: true
+
+  - type: input
+    id: provider
+    attributes:
+      label: AI provider / model (if relevant)
+      placeholder: "Anthropic claude-opus-4-7, or Ollama llama3.1"
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you see, and what did you expect to see instead?
+      placeholder: |
+        1. Opened Code mode
+        2. Asked the agent to edit src/foo.js
+        3. Got an error in the tool-call panel
+        4. Expected the file to be edited successfully
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or error messages
+      description: Paste anything from the developer console, audit log, or tool-call inspector. (Cmd+Option+I to open DevTools.)
+      render: shell
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Before submitting
+      options:
+        - label: I've searched existing issues for duplicates
+          required: true
+        - label: I'm not including API keys, file contents, or other secrets in this report
+          required: true
