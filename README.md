@@ -10,11 +10,11 @@
 ![Platform: macOS](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-39ff81.svg)
 ![Version: 2.0.0](https://img.shields.io/badge/version-2.0.0-39ff81.svg)
 ![Size: 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-39ff81.svg)
-
+<a href="https://trendshift.io/repositories/36185?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-36185" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/36185/daily?language=JavaScript" alt="Hash-7777%2FHashCortX | Trendshift" width="250" height="55"/></a>
 </div>
 
 ![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
-<a href="https://trendshift.io/repositories/36185?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-36185" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/36185/daily?language=JavaScript" alt="Hash-7777%2FHashCortX | Trendshift" width="250" height="55"/></a>
+
 ---
 
 ## What is HashCortX?
