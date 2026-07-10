@@ -10,14 +10,24 @@
 
 <br>
 
-[Website](https://hashcortx.com) · [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions) · [Demo video](https://youtu.be/On5wPdKZDfg)
+<a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download the DMG" src="https://img.shields.io/badge/Download%20DMG-1c2029?style=for-the-badge&labelColor=1c2029&logo=apple&logoColor=e8eaed"></a>
+&nbsp;
+<a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-12151c?style=for-the-badge&labelColor=12151c&logo=googlechrome&logoColor=9aa1ac"></a>
+&nbsp;
+<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-12151c?style=for-the-badge&labelColor=12151c&logo=youtube&logoColor=9aa1ac"></a>
+&nbsp;
+<a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-12151c?style=for-the-badge&labelColor=12151c&logo=github&logoColor=9aa1ac"></a>
+&nbsp;
+<a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-12151c?style=for-the-badge&labelColor=12151c&logo=github&logoColor=9aa1ac"></a>
 
-![License MIT](https://img.shields.io/badge/license-MIT-f2f4f7?style=flat-square&labelColor=12151c)
-![Platform macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-f2f4f7?style=flat-square&labelColor=12151c)
-![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-f2f4f7?style=flat-square&labelColor=12151c)
-![DMG 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-f2f4f7?style=flat-square&labelColor=12151c)
-![Telemetry none](https://img.shields.io/badge/telemetry-none-4ade80?style=flat-square&labelColor=12151c)
-![Backend none](https://img.shields.io/badge/backend-none-4ade80?style=flat-square&labelColor=12151c)
+<br><br>
+
+<img alt="License MIT" src="https://img.shields.io/badge/license-MIT-9aa1ac?style=flat-square&labelColor=0b0d12&color=161a22">
+<img alt="Platform macOS Apple Silicon" src="https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-9aa1ac?style=flat-square&labelColor=0b0d12&color=161a22&logo=apple&logoColor=9aa1ac">
+<img alt="Built with Tauri v2" src="https://img.shields.io/badge/built%20with-Tauri%20v2-9aa1ac?style=flat-square&labelColor=0b0d12&color=161a22&logo=tauri&logoColor=9aa1ac">
+<img alt="Version 2.0.0" src="https://img.shields.io/badge/version-2.0.0-9aa1ac?style=flat-square&labelColor=0b0d12&color=161a22">
+<img alt="DMG 8.9 MB" src="https://img.shields.io/badge/dmg-8.9%20MB-9aa1ac?style=flat-square&labelColor=0b0d12&color=161a22">
+<img alt="Telemetry zero" src="https://img.shields.io/badge/telemetry-zero-4ade80?style=flat-square&labelColor=0b0d12">
 
 </div>
 
