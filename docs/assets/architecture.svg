@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" role="img" aria-labelledby="aTitle aDesc">
+  <title id="aTitle">HashCortx architecture</title>
+  <desc id="aDesc">Vanilla JS renderer, platform bridge, Permission Guard, Rust commands, macOS. AI requests go straight from the renderer to the provider.</desc>
+
+  <defs>
+    <linearGradient id="aBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+    </linearGradient>
+    <linearGradient id="aRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/><stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="aGate" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.10"/>
+      <stop offset="0.5" stop-color="#c9a96e" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#c9a96e" stop-opacity="0.10"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="780" rx="20" fill="url(#aBg)"/>
+
+  <text x="32" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">HOW IT IS BUILT</text>
+  <text x="32" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">Every call crosses a gate you control</text>
+  <line x1="32" y1="92" x2="1168" y2="92" stroke="url(#aRule)"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+
+    <!-- BAND A : renderer -->
+    <rect x="32" y="104" width="868" height="170" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="56" y="132" font-size="12" fill="#6b6558" letter-spacing="2">RENDERER — VANILLA JS, NO BUNDLER, NO FRAMEWORK</text>
+    <g>
+      <rect x="56" y="146" width="188" height="44" rx="9" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.22"/>
+      <text x="70" y="166" font-size="12.5" fill="#ece7dc">app.js</text><text x="230" y="166" font-size="11" fill="#8b6d2c" text-anchor="end">8,904</text>
+      <text x="70" y="181" font-size="10" fill="#6b6558">core + chat + tools</text>
+
+      <rect x="260" y="146" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="274" y="166" font-size="12.5" fill="#ece7dc">system-maker.js</text><text x="434" y="166" font-size="11" fill="#6b6558" text-anchor="end">4,184</text>
+      <text x="274" y="181" font-size="10" fill="#6b6558">ERP prototypes</text>
+
+      <rect x="464" y="146" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="478" y="166" font-size="12.5" fill="#ece7dc">virtual-os.js</text><text x="638" y="166" font-size="11" fill="#6b6558" text-anchor="end">3,837</text>
+      <text x="478" y="181" font-size="10" fill="#6b6558">project desktop</text>
+
+      <rect x="668" y="146" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="682" y="166" font-size="12.5" fill="#ece7dc">forge-mode.js</text><text x="842" y="166" font-size="11" fill="#6b6558" text-anchor="end">3,819</text>
+      <text x="682" y="181" font-size="10" fill="#6b6558">3D planning</text>
+
+      <rect x="56" y="200" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="70" y="220" font-size="12.5" fill="#ece7dc">swarm-maker.js</text><text x="230" y="220" font-size="11" fill="#6b6558" text-anchor="end">3,022</text>
+      <text x="70" y="235" font-size="10" fill="#6b6558">chain + vote + failover</text>
+
+      <rect x="260" y="200" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="274" y="220" font-size="12.5" fill="#ece7dc">finance-mode.js</text><text x="434" y="220" font-size="11" fill="#6b6558" text-anchor="end">2,710</text>
+      <text x="274" y="235" font-size="10" fill="#6b6558">statements to KPIs</text>
+
+      <rect x="464" y="200" width="188" height="44" rx="9" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.22"/>
+      <text x="478" y="220" font-size="12.5" fill="#ece7dc">code-mode.js</text><text x="638" y="220" font-size="11" fill="#8b6d2c" text-anchor="end">2,215</text>
+      <text x="478" y="235" font-size="10" fill="#6b6558">the coding agent loop</text>
+
+      <rect x="668" y="200" width="188" height="44" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="682" y="220" font-size="12.5" fill="#ece7dc">sandbox.js</text><text x="842" y="220" font-size="11" fill="#6b6558" text-anchor="end">603</text>
+      <text x="682" y="235" font-size="10" fill="#6b6558">security scanner</text>
+    </g>
+
+    <!-- arrow A->B -->
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M466 274 L466 296"/><path d="M460 290 L466 298 L472 290"/>
+    </g>
+
+    <!-- BAND B : bridge -->
+    <rect x="32" y="304" width="868" height="92" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="56" y="330" font-size="12" fill="#6b6558" letter-spacing="2">PLATFORM BRIDGE — window.HC</text>
+    <g>
+      <rect x="56" y="342" width="260" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="70" y="360" font-size="12.5" fill="#ece7dc">hashcoder.js</text>
+      <text x="70" y="375" font-size="10" fill="#6b6558">HC.code.* file + shell tools</text>
+
+      <rect x="332" y="342" width="260" height="40" rx="9" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.22"/>
+      <text x="346" y="360" font-size="12.5" fill="#ece7dc">guard.js</text>
+      <text x="346" y="375" font-size="10" fill="#6b6558">HC.guard.request() prompt</text>
+
+      <rect x="608" y="342" width="260" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="622" y="360" font-size="12.5" fill="#ece7dc">keychain.js</text>
+      <text x="622" y="375" font-size="10" fill="#6b6558">key bundle, app-scoped store</text>
+    </g>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M466 396 L466 418"/><path d="M460 412 L466 420 L472 412"/>
+    </g>
+
+    <!-- BAND C : guard -->
+    <rect x="32" y="426" width="868" height="92" rx="14" fill="url(#aGate)" stroke="#c9a96e" stroke-opacity="0.42"/>
+    <text x="56" y="452" font-size="12" fill="#c9a96e" letter-spacing="2">PERMISSION GUARD — RUST, ALWAYS ON, NOT OVERRIDABLE</text>
+    <g>
+      <rect x="56" y="464" width="400" height="40" rx="9" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.28"/>
+      <text x="70" y="482" font-size="12.5" fill="#ece7dc">security/denylist.rs</text>
+      <text x="70" y="497" font-size="10" fill="#6b6558">~/.ssh · ~/.aws · ~/.gnupg · /etc · /System · /usr/bin</text>
+
+      <rect x="472" y="464" width="396" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="486" y="482" font-size="12.5" fill="#ece7dc">commands/audit.rs</text>
+      <text x="486" y="497" font-size="10" fill="#6b6558">every guarded action written to the audit log</text>
+    </g>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M466 518 L466 540"/><path d="M460 534 L466 542 L472 534"/>
+    </g>
+
+    <!-- BAND D : rust -->
+    <rect x="32" y="548" width="868" height="92" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="56" y="574" font-size="12" fill="#6b6558" letter-spacing="2">TAURI v2 COMMANDS — RUST, 919 LINES TOTAL</text>
+    <g>
+      <rect x="56" y="586" width="148" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="70" y="604" font-size="12" fill="#ece7dc">fs.rs</text><text x="190" y="604" font-size="10" fill="#6b6558" text-anchor="end">343</text>
+      <text x="70" y="618" font-size="10" fill="#6b6558">read / write</text>
+
+      <rect x="220" y="586" width="148" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="234" y="604" font-size="12" fill="#ece7dc">shell.rs</text><text x="354" y="604" font-size="10" fill="#6b6558" text-anchor="end">133</text>
+      <text x="234" y="618" font-size="10" fill="#6b6558">processes</text>
+
+      <rect x="384" y="586" width="148" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="398" y="604" font-size="12" fill="#ece7dc">keychain.rs</text><text x="518" y="604" font-size="10" fill="#6b6558" text-anchor="end">113</text>
+      <text x="398" y="618" font-size="10" fill="#6b6558">legacy migration</text>
+
+      <rect x="548" y="586" width="148" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="562" y="604" font-size="12" fill="#ece7dc">usage_log.rs</text><text x="682" y="604" font-size="10" fill="#6b6558" text-anchor="end">93</text>
+      <text x="562" y="618" font-size="10" fill="#6b6558">token counts</text>
+
+      <rect x="712" y="586" width="148" height="40" rx="9" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+      <text x="726" y="604" font-size="12" fill="#ece7dc">audit.rs</text><text x="846" y="604" font-size="10" fill="#6b6558" text-anchor="end">52</text>
+      <text x="726" y="618" font-size="10" fill="#6b6558">append-only</text>
+    </g>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M466 640 L466 662"/><path d="M460 656 L466 664 L472 656"/>
+    </g>
+
+    <!-- BAND E : os -->
+    <rect x="32" y="670" width="868" height="62" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="56" y="696" font-size="12" fill="#6b6558" letter-spacing="2">macOS</text>
+    <text x="56" y="716" font-size="11.5" fill="#a39d91">filesystem · processes · ~/.hashcortx/usage.jsonl</text>
+    <text x="876" y="708" font-size="11" fill="#4ade80" text-anchor="end">your machine</text>
+
+    <!-- RIGHT : network -->
+    <rect x="924" y="104" width="244" height="628" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="948" y="132" font-size="12" fill="#6b6558" letter-spacing="2">NETWORK PATH</text>
+
+    <rect x="948" y="150" width="196" height="58" rx="10" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="962" y="174" font-size="12.5" fill="#ece7dc">Your device</text>
+    <text x="962" y="192" font-size="10" fill="#6b6558">renderer issues fetch()</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M1046 208 L1046 244"/><path d="M1040 238 L1046 246 L1052 238"/>
+    </g>
+    <text x="1058" y="232" font-size="10" fill="#8b6d2c">HTTPS</text>
+
+    <rect x="948" y="254" width="196" height="58" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
+    <text x="962" y="278" font-size="12.5" fill="#ece7dc">Provider API</text>
+    <text x="962" y="296" font-size="10" fill="#6b6558">the one key you configured</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M1046 312 L1046 348"/><path d="M1040 342 L1046 350 L1052 342"/>
+    </g>
+
+    <rect x="948" y="358" width="196" height="58" rx="10" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="962" y="382" font-size="12.5" fill="#ece7dc">Back to you</text>
+    <text x="962" y="400" font-size="10" fill="#6b6558">tokens logged locally</text>
+
+    <line x1="948" y1="450" x2="1144" y2="450" stroke="#ffffff" stroke-opacity="0.08"/>
+
+    <text x="948" y="484" font-size="12" fill="#6b6558" letter-spacing="2">NOT IN THE PATH</text>
+
+    <g>
+      <rect x="948" y="500" width="196" height="38" rx="9" fill="#12161f" stroke="#f87171" stroke-opacity="0.20"/>
+      <path d="M966 519 l14 0" stroke="#f87171" stroke-width="1.5"/>
+      <text x="992" y="524" font-size="11.5" fill="#a39d91">HashCortx server</text>
+    </g>
+    <g>
+      <rect x="948" y="546" width="196" height="38" rx="9" fill="#12161f" stroke="#f87171" stroke-opacity="0.20"/>
+      <path d="M966 565 l14 0" stroke="#f87171" stroke-width="1.5"/>
+      <text x="992" y="570" font-size="11.5" fill="#a39d91">Telemetry</text>
+    </g>
+    <g>
+      <rect x="948" y="592" width="196" height="38" rx="9" fill="#12161f" stroke="#f87171" stroke-opacity="0.20"/>
+      <path d="M966 611 l14 0" stroke="#f87171" stroke-width="1.5"/>
+      <text x="992" y="616" font-size="11.5" fill="#a39d91">Accounts</text>
+    </g>
+    <g>
+      <rect x="948" y="638" width="196" height="38" rx="9" fill="#12161f" stroke="#f87171" stroke-opacity="0.20"/>
+      <path d="M966 657 l14 0" stroke="#f87171" stroke-width="1.5"/>
+      <text x="992" y="662" font-size="11.5" fill="#a39d91">Auto-update</text>
+    </g>
+
+    <text x="1046" y="710" font-size="10.5" fill="#4ade80" text-anchor="middle">nothing passes through us</text>
+    <text x="1046" y="726" font-size="10.5" fill="#6b6558" text-anchor="middle">there is no us</text>
+  </g>
+</svg>

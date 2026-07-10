@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 380" width="1200" height="380" role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">HashCortx</title>
+  <desc id="heroDesc">Local-first AI workspace. Ten workspaces, twelve providers, zero telemetry.</desc>
+
+  <defs>
+    <linearGradient id="hBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080a0f"/>
+      <stop offset="0.55" stop-color="#06070a"/>
+      <stop offset="1" stop-color="#0b0d12"/>
+    </linearGradient>
+    <linearGradient id="hGold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8b6d2c"/>
+      <stop offset="0.35" stop-color="#c9a96e"/>
+      <stop offset="0.7" stop-color="#dfc38e"/>
+      <stop offset="1" stop-color="#c9a96e"/>
+    </linearGradient>
+    <linearGradient id="hRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="hGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="hSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="380" rx="20" fill="url(#hBg)"/>
+
+  <!-- grid -->
+  <g stroke="#ffffff" stroke-opacity="0.030">
+    <line x1="0" y1="63" x2="1200" y2="63"/><line x1="0" y1="126" x2="1200" y2="126"/>
+    <line x1="0" y1="189" x2="1200" y2="189"/><line x1="0" y1="252" x2="1200" y2="252"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/>
+    <line x1="150" y1="0" x2="150" y2="380"/><line x1="300" y1="0" x2="300" y2="380"/>
+    <line x1="450" y1="0" x2="450" y2="380"/><line x1="600" y1="0" x2="600" y2="380"/>
+    <line x1="750" y1="0" x2="750" y2="380"/><line x1="900" y1="0" x2="900" y2="380"/>
+    <line x1="1050" y1="0" x2="1050" y2="380"/>
+  </g>
+
+  <ellipse cx="170" cy="150" rx="300" ry="210" fill="url(#hGlow)"/>
+
+  <!-- brand mark -->
+  <g filter="url(#hSoft)" opacity="0.75">
+    <text x="96" y="180" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="150" font-weight="700" fill="#c9a96e" text-anchor="middle">#</text>
+  </g>
+  <text x="96" y="180" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="150" font-weight="700" fill="url(#hGold)" text-anchor="middle">#</text>
+
+  <!-- wordmark -->
+  <text x="176" y="150" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="72" font-weight="700" fill="#ece7dc" letter-spacing="-1">hashcortx</text>
+  <rect x="580" y="106" width="15" height="52" rx="2" fill="#c9a96e"/>
+
+  <text x="180" y="196" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="20" fill="#a39d91" letter-spacing="4">LOCAL-FIRST AI WORKSPACE</text>
+
+  <line x1="180" y1="228" x2="1060" y2="228" stroke="url(#hRule)" stroke-width="1"/>
+
+  <!-- stat chips -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <g>
+      <rect x="180" y="256" width="212" height="76" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+      <line x1="192" y1="257" x2="380" y2="257" stroke="#ffffff" stroke-opacity="0.06"/>
+      <text x="204" y="290" font-size="30" font-weight="700" fill="#dfc38e">10</text>
+      <text x="204" y="314" font-size="12" fill="#6b6558" letter-spacing="2">WORKSPACES</text>
+    </g>
+    <g>
+      <rect x="408" y="256" width="212" height="76" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+      <line x1="420" y1="257" x2="608" y2="257" stroke="#ffffff" stroke-opacity="0.06"/>
+      <text x="432" y="290" font-size="30" font-weight="700" fill="#dfc38e">12</text>
+      <text x="432" y="314" font-size="12" fill="#6b6558" letter-spacing="2">AI PROVIDERS</text>
+    </g>
+    <g>
+      <rect x="636" y="256" width="212" height="76" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+      <line x1="648" y1="257" x2="836" y2="257" stroke="#ffffff" stroke-opacity="0.06"/>
+      <text x="660" y="290" font-size="30" font-weight="700" fill="#dfc38e">8.9 MB</text>
+      <text x="660" y="314" font-size="12" fill="#6b6558" letter-spacing="2">NATIVE BUNDLE</text>
+    </g>
+    <g>
+      <rect x="864" y="256" width="212" height="76" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+      <line x1="876" y1="257" x2="1064" y2="257" stroke="#ffffff" stroke-opacity="0.06"/>
+      <text x="888" y="290" font-size="30" font-weight="700" fill="#4ade80">ZERO</text>
+      <text x="888" y="314" font-size="12" fill="#6b6558" letter-spacing="2">TELEMETRY</text>
+    </g>
+  </g>
+
+  <!-- corner tick -->
+  <g stroke="#c9a96e" stroke-opacity="0.5" stroke-width="1.5" fill="none">
+    <path d="M1160 28 L1176 28 L1176 44"/>
+    <path d="M1176 352 L1176 336"/>
+  </g>
+  <text x="1104" y="46" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#6b6558" letter-spacing="2" text-anchor="end">v2.0.0</text>
+</svg>

@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 470" width="1200" height="470" role="img" aria-labelledby="cTitle cDesc">
+  <title id="cTitle">The Coder agent loop</title>
+  <desc id="cDesc">You ask, the model plans, it calls a tool, the Permission Guard decides, Rust executes, the result feeds back. Denied calls are blocked and logged.</desc>
+
+  <defs>
+    <linearGradient id="cBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+    </linearGradient>
+    <linearGradient id="cRule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/><stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="470" rx="20" fill="url(#cBg)"/>
+
+  <text x="32" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">CODER</text>
+  <text x="32" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">The agent never touches disk unsupervised</text>
+  <line x1="32" y1="92" x2="1168" y2="92" stroke="url(#cRule)"/>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+
+    <!-- 1 -->
+    <rect x="32" y="140" width="160" height="104" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="48" y="166" font-size="10.5" fill="#3a3730">01</text>
+    <text x="48" y="192" font-size="14" font-weight="700" fill="#ece7dc">You ask</text>
+    <text x="48" y="214" font-size="10.5" fill="#6b6558">plain language,</text>
+    <text x="48" y="230" font-size="10.5" fill="#6b6558">a real project open</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M192 192 L216 192"/><path d="M210 186 L218 192 L210 198"/>
+    </g>
+
+    <!-- 2 -->
+    <rect x="224" y="140" width="160" height="104" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="240" y="166" font-size="10.5" fill="#3a3730">02</text>
+    <text x="240" y="192" font-size="14" font-weight="700" fill="#ece7dc">Model plans</text>
+    <text x="240" y="214" font-size="10.5" fill="#6b6558">any of 12 providers,</text>
+    <text x="240" y="230" font-size="10.5" fill="#6b6558">cloud or local</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M384 192 L408 192"/><path d="M402 186 L410 192 L402 198"/>
+    </g>
+
+    <!-- 3 -->
+    <rect x="416" y="140" width="160" height="104" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="432" y="166" font-size="10.5" fill="#3a3730">03</text>
+    <text x="432" y="192" font-size="14" font-weight="700" fill="#ece7dc">Tool call</text>
+    <text x="432" y="214" font-size="10.5" fill="#6b6558">readFile · writeFile</text>
+    <text x="432" y="230" font-size="10.5" fill="#6b6558">shell · python</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M576 192 L600 192"/><path d="M594 186 L602 192 L594 198"/>
+    </g>
+
+    <!-- 4 GATE -->
+    <rect x="608" y="140" width="160" height="104" rx="12" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.55"/>
+    <text x="624" y="166" font-size="10.5" fill="#8b6d2c">04</text>
+    <text x="624" y="192" font-size="14" font-weight="700" fill="#dfc38e">Guard</text>
+    <text x="624" y="214" font-size="10.5" fill="#a39d91">denylist first,</text>
+    <text x="624" y="230" font-size="10.5" fill="#a39d91">then you decide</text>
+
+    <!-- allow -->
+    <g stroke="#4ade80" stroke-opacity="0.55" stroke-width="1.5" fill="none">
+      <path d="M768 192 L792 192"/><path d="M786 186 L794 192 L786 198"/>
+    </g>
+    <text x="780" y="180" font-size="10" fill="#4ade80" text-anchor="middle">allow</text>
+
+    <!-- 5 -->
+    <rect x="800" y="140" width="160" height="104" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="816" y="166" font-size="10.5" fill="#3a3730">05</text>
+    <text x="816" y="192" font-size="14" font-weight="700" fill="#ece7dc">Rust runs it</text>
+    <text x="816" y="214" font-size="10.5" fill="#6b6558">real filesystem,</text>
+    <text x="816" y="230" font-size="10.5" fill="#6b6558">real processes</text>
+
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M960 192 L984 192"/><path d="M978 186 L986 192 L978 198"/>
+    </g>
+
+    <!-- 6 -->
+    <rect x="992" y="140" width="160" height="104" rx="12" fill="#0d1117" stroke="#c9a96e" stroke-opacity="0.22"/>
+    <text x="1008" y="166" font-size="10.5" fill="#3a3730">06</text>
+    <text x="1008" y="192" font-size="14" font-weight="700" fill="#ece7dc">Result</text>
+    <text x="1008" y="214" font-size="10.5" fill="#6b6558">shown as a diff you</text>
+    <text x="1008" y="230" font-size="10.5" fill="#6b6558">can expand</text>
+
+    <!-- feedback arc 6 -> 2 -->
+    <g stroke="#c9a96e" stroke-opacity="0.32" stroke-width="1.5" fill="none" stroke-dasharray="5 5">
+      <path d="M1072 244 L1072 300 L304 300 L304 250"/>
+    </g>
+    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M298 256 L304 246 L310 256"/>
+    </g>
+    <text x="688" y="292" font-size="10.5" fill="#8b6d2c" text-anchor="middle">the model reads its own result and keeps going until the task is done</text>
+
+    <!-- deny path -->
+    <g stroke="#f87171" stroke-opacity="0.45" stroke-width="1.5" fill="none">
+      <path d="M688 244 L688 340"/><path d="M682 334 L688 344 L694 334"/>
+    </g>
+    <text x="700" y="290" font-size="10" fill="#f87171">deny</text>
+
+    <rect x="440" y="352" width="496" height="82" rx="12" fill="#0d1117" stroke="#f87171" stroke-opacity="0.22"/>
+    <text x="464" y="378" font-size="13" font-weight="700" fill="#ece7dc">Blocked, then written to the audit log</text>
+    <text x="464" y="400" font-size="10.5" fill="#6b6558">Some paths can never be reached, no matter what you approve:</text>
+    <text x="464" y="418" font-size="10.5" fill="#a39d91">~/.ssh · ~/.aws · ~/.gnupg · /Library/Keychains · /etc · /System · /usr/bin</text>
+
+    <!-- side note -->
+    <rect x="32" y="352" width="380" height="82" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="56" y="378" font-size="13" font-weight="700" fill="#ece7dc">The denylist is Rust, not JavaScript</text>
+    <text x="56" y="400" font-size="10.5" fill="#6b6558">A compromised prompt cannot talk its way past it.</text>
+    <text x="56" y="418" font-size="10.5" fill="#6b6558">It is compiled in and cannot be overridden at runtime.</text>
+  </g>
+</svg>
