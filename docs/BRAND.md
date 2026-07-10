@@ -43,14 +43,18 @@ Use it white. Do not recolour it, do not add a glow, do not place it on a light 
 
 ## Colours
 
-The shipped UI palette, from `src/css/vars.css` — a champagne-gold accent on near-black:
+Read this section before you touch a colour. **Three palettes currently coexist in the app**, and the token names lie about two of them. This is real technical debt, documented here rather than hidden.
+
+### 1. The live token set — `src/css/vars.css` `:root`
+
+These are the tokens components should use.
 
 | Token | Hex | Use |
 |---|---|---|
-| `--gold` | `#c9a96e` | Primary accent, active states |
+| `--gold` | `#c9a96e` | Primary accent — the Send button, primary actions |
 | `--gold-2` | `#dfc38e` | Hover, highlights |
 | `--gold-deep` | `#8b6d2c` | Pressed, dim accent |
-| `--emerald` | `#4ade80` | Success, safe, allowed |
+| `--emerald` | `#4ade80` | Success, safe, allowed — active tab icons |
 | `--rose` | `#f87171` | Danger, denied, destructive |
 | `--bg-0` | `#06070a` | App background |
 | `--bg-2` | `#0d1117` | Panels |
@@ -58,9 +62,25 @@ The shipped UI palette, from `src/css/vars.css` — a champagne-gold accent on n
 | `--text-dim` | `#a39d91` | Secondary text |
 | `--muted` | `#6b6558` | Tertiary text |
 
-**README diagrams are monochrome**, not gold: white and grey on near-black, with emerald and rose reserved for allowed/denied. The app is gold; the documentation art is white. Both are intentional — keep them separate.
+### 2. Hardcoded cyan in the chrome
 
-An earlier version of this guide specified a cyan `#22d3ee` primary. That palette was never shipped.
+`tabs.css`, `sidebar.css` and friends do **not** use the tokens above for borders and glows. They hardcode `rgba(34, 211, 238, …)` — cyan — for tab borders, focus rings and glow shadows, with mint `#b6e5c7` label text and `--emerald` icons.
+
+This is why the app reads as cool green-teal on screen even though the accent token is gold. The gold shows up mainly on the Send button.
+
+### 3. Terminal green in Coder
+
+`coder-mode.css` uses `#39ff81` — neon terminal green — for output and status text. That is the colour `scripts/gen-icon.py` was built around, and it survives only inside Coder.
+
+### Traps
+
+- `src/styles.css` defines a legacy `--hc-*` set on `:root` in which **`--hc-green` is `#22d3ee`, which is cyan, not green.** The name is wrong. These tokens are effectively unused; do not build on them.
+- `src/styles.css` also redefines `--gold` as `#22d3ee` — but scoped to `#intro-screen` only. That is the splash screen's local palette, not the app's. An earlier version of this guide read that line, concluded the primary was cyan, and was wrong. So was the version that claimed gold was the only accent.
+- `styles.css` loads **last** in `index.html`, so anything it puts on `:root` wins. Check the selector before you assume a token is global.
+
+### Documentation art
+
+**README diagrams are monochrome** — white and grey on near-black, with emerald and rose reserved for allowed and denied. They deliberately do not follow the app palette, because the app palette is currently three palettes. Keep the docs art white until the UI colours are unified.
 
 ## Typography
 

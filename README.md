@@ -227,7 +227,44 @@ Design notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/SECURITY.md]
 
 **Air-gapped capable.** With Ollama, turn the network off and everything still works.
 
-**A usage log that stays put.** HashCortx appends real token counts to `~/.hashcortx/usage.jsonl` on your disk, which [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) can read.
+**A usage log that stays put.** HashCortx appends real token counts to `~/.hashcortx/usage.jsonl` on your disk. See below.
+
+---
+
+## Usage tracking, measured not guessed
+
+Most AI tools either hide what you spend or estimate it by counting characters. HashCortx does neither. After every model response, it appends **one JSON line** to a file on your disk:
+
+```
+~/.hashcortx/usage.jsonl
+```
+
+```json
+{"ts":"2026-07-10T04:12:57.113Z","model":"claude-opus-4-8","input_tokens":18432,"output_tokens":961}
+```
+
+**That line is the whole record.** A UTC timestamp, the model id, and token counts. No prompt, no answer, no file names, no project paths — nothing about what you were working on. The Rust that writes it is 93 lines and is worth reading: [`usage_log.rs`](src-tauri/src/commands/usage_log.rs).
+
+Two properties matter:
+
+**It is measured, not estimated.** The counts come from the provider's own response metadata. If a provider returns no token counts, HashCortx writes **nothing** rather than guessing. A missing line is honest; a fabricated one is not.
+
+**It never leaves your machine.** Nothing uploads it. Nothing reads it unless you install something that does.
+
+### It feeds HashMeterAi
+
+[HashMeterAi](https://github.com/Hash-7777/HashMeterAi) is a separate local app that answers "how much AI am I actually using?" It reads the transcripts and logs that tools leave behind — Claude Code, Codex, Kimi, HashCerebrum — and reports the total.
+
+Because HashCortx writes real provider-reported counts, HashMeterAi reports HashCortx usage as **measured** rather than estimated. The field names in that JSON line are a deliberate on-disk contract shared with HashCerebrum, which is why `usage_log.rs` warns against renaming them.
+
+You do not need HashMeterAi. The log is a plain text file — `wc -l ~/.hashcortx/usage.jsonl` works fine, and so does `jq`. It exists so that the number you see is one you can verify yourself.
+
+```bash
+# total tokens this month, no extra tools required
+jq -s 'map(.input_tokens + .output_tokens) | add' ~/.hashcortx/usage.jsonl
+```
+
+Delete the file whenever you like. The app recreates it on the next response.
 
 ---
 
@@ -360,6 +397,18 @@ They interlock. HashCortx appends real token counts to `~/.hashcortx/usage.jsonl
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the architecture rules. Bugs and features go in [Issues](https://github.com/Hash-7777/HashCortX/issues); questions and ideas in [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
+
+### Documentation
+
+| | |
+|---|---|
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | The real directory tree, how the layers talk, and the architectural debt |
+| [SECURITY.md](docs/SECURITY.md) | The threat model, the Permission Guard, and what the app does *not* protect |
+| [BRAND.md](docs/BRAND.md) | The mark, the palettes, and the traps in the colour tokens |
+| [CHANGELOG.md](CHANGELOG.md) | What changed, and what was wrong before |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, code style, architecture rules |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 |
+| [MODES_GUIDE.txt](MODES_GUIDE.txt) | Long-form reference for every workspace |
 
 ## License
 

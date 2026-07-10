@@ -29,13 +29,14 @@ npm run tauri build
 
 - **JS:** match what's already there — no new linter, no new formatter. The codebase is plain JS, no TypeScript, no bundler.
 - **Rust:** `cargo fmt` before committing.
-- **HTML/CSS:** match the existing terminal-green / JetBrains Mono aesthetic. Don't introduce new fonts or color systems.
+- **HTML/CSS:** use the tokens in `src/css/vars.css`. Don't introduce new fonts or colour systems — there are already three, which is two too many. See [docs/BRAND.md](docs/BRAND.md) before picking a colour.
 
 ## Architecture rules
 
-- `core/` modules must never import from Tauri. All native calls go through `src/platform/index.js`.
-- Every filesystem or shell call from a tool must go through `HC.guard.request()` — no exceptions.
-- API keys must use `keychain.rs`, never localStorage or plaintext config files.
+- `src/platform/` is the only place allowed to touch `window.__TAURI__`. Mode files reach native code through it, never directly. (There is no `core/` directory — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).)
+- Mode files in `src/js/` must not import one another. Cross-module access goes through the `window._H` bridge.
+- Every filesystem or shell call from a tool must go through `HC.guard.request()` — no exceptions — and is independently re-checked against the Rust denylist.
+- API keys currently live in a plain-text JSON bundle in the app's own local store, **not** in the Keychain. That is a deliberate trade tied to the build being unsigned. Read [docs/SECURITY.md](docs/SECURITY.md) before changing anything about key handling.
 - No telemetry. No analytics. No "phone home." Ever.
 
 ## Pull requests
