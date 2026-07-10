@@ -1,70 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-labelledby="kTitle kDesc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 660" width="920" height="660" role="img" aria-labelledby="kTitle kDesc">
   <title id="kTitle">Where your API keys live</title>
-  <desc id="kDesc">Keys are stored in an app-scoped local store keyed by bundle identifier, not in the macOS Keychain, because Keychain ACLs re-prompt on every unsigned rebuild.</desc>
+  <desc id="kDesc">Keys are stored in an app-scoped local store keyed by bundle identifier, not in the macOS Keychain, because Keychain access lists re-prompt on every unsigned rebuild.</desc>
 
   <defs>
     <linearGradient id="kBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+      <stop offset="0" stop-color="#0d1017"/><stop offset="1" stop-color="#0a0c11"/>
     </linearGradient>
     <linearGradient id="kRule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/><stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="360" rx="20" fill="url(#kBg)"/>
+  <rect x="0" y="0" width="920" height="660" rx="20" fill="url(#kBg)"/>
 
-  <text x="32" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">API KEYS</text>
-  <text x="32" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">Stored on your machine, scoped to this app</text>
-  <line x1="32" y1="92" x2="1168" y2="92" stroke="url(#kRule)"/>
+  <text x="28" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c636e" letter-spacing="3">API KEYS</text>
+  <text x="28" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="25" font-weight="700" fill="#ffffff">On your machine, scoped to this app</text>
+  <line x1="28" y1="94" x2="892" y2="94" stroke="url(#kRule)"/>
 
   <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
 
-    <!-- flow -->
-    <rect x="32" y="116" width="216" height="86" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <g transform="translate(52,136)" fill="none" stroke="#c9a96e" stroke-width="1.8" stroke-linecap="round">
-      <circle cx="7" cy="9" r="5"/><path d="M12 9 h12"/><path d="M20 9 v5"/>
-    </g>
-    <text x="52" y="176" font-size="12.5" fill="#ece7dc">You paste a key</text>
-    <text x="52" y="192" font-size="10" fill="#6b6558">Settings, once</text>
+    <!-- step 1 -->
+    <rect x="92" y="112" width="800" height="82" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="60" cy="153" r="21" fill="#171b24" stroke="#ffffff" stroke-opacity="0.16"/>
+    <text x="60" y="158" font-size="13" fill="#9aa1ac" text-anchor="middle">01</text>
+    <text x="118" y="146" font-size="15.5" font-weight="700" fill="#ffffff">You paste a key</text>
+    <text x="118" y="171" font-size="12" fill="#9aa1ac">Once, in Settings. Press Test and the app calls that provider directly.</text>
 
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M248 159 L276 159"/><path d="M270 153 L278 159 L270 165"/>
-    </g>
-
-    <rect x="288" y="116" width="252" height="86" rx="12" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.28"/>
-    <text x="308" y="146" font-size="12.5" fill="#dfc38e">hc_api_bundle_v2</text>
-    <text x="308" y="168" font-size="10" fill="#6b6558">one JSON bundle in the app's</text>
-    <text x="308" y="184" font-size="10" fill="#6b6558">own local store</text>
-
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M540 159 L568 159"/><path d="M562 153 L570 159 L562 165"/>
+    <g stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.6" fill="none">
+      <path d="M60 174 L60 200"/><path d="M54 194 L60 202 L66 194"/>
     </g>
 
-    <rect x="580" y="116" width="336" height="86" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="600" y="146" font-size="11" fill="#a39d91">~/Library/Application Support/</text>
-    <text x="600" y="164" font-size="11" fill="#a39d91">com.hashcortx.app/WebKit/</text>
-    <text x="600" y="188" font-size="10" fill="#6b6558">keyed by bundle id — survives every rebuild</text>
+    <!-- step 2 -->
+    <rect x="92" y="206" width="800" height="82" rx="13" fill="#161a22" stroke="#ffffff" stroke-opacity="0.30"/>
+    <circle cx="60" cy="247" r="21" fill="#171b24" stroke="#ffffff" stroke-opacity="0.30"/>
+    <text x="60" y="252" font-size="13" fill="#ffffff" text-anchor="middle">02</text>
+    <text x="118" y="240" font-size="15.5" font-weight="700" fill="#ffffff">It joins one JSON bundle</text>
+    <text x="118" y="265" font-size="12" fill="#9aa1ac">hc_api_bundle_v2 — plain text, in the app's own local store.</text>
 
-    <g stroke="#4ade80" stroke-opacity="0.5" stroke-width="1.5" fill="none">
-      <path d="M916 159 L944 159"/><path d="M938 153 L946 159 L938 165"/>
+    <g stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.6" fill="none">
+      <path d="M60 268 L60 294"/><path d="M54 288 L60 296 L66 288"/>
     </g>
 
-    <rect x="956" y="116" width="212" height="86" rx="12" fill="#0d1117" stroke="#4ade80" stroke-opacity="0.28"/>
-    <text x="976" y="150" font-size="12.5" fill="#ece7dc">Sent only to</text>
-    <text x="976" y="170" font-size="12.5" fill="#ece7dc">that provider</text>
-    <text x="976" y="190" font-size="10" fill="#4ade80">and nowhere else</text>
+    <!-- step 3 -->
+    <rect x="92" y="300" width="800" height="82" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="60" cy="341" r="21" fill="#171b24" stroke="#ffffff" stroke-opacity="0.16"/>
+    <text x="60" y="346" font-size="13" fill="#9aa1ac" text-anchor="middle">03</text>
+    <text x="118" y="334" font-size="15.5" font-weight="700" fill="#ffffff">Which lives here</text>
+    <text x="118" y="359" font-size="12" fill="#9aa1ac">~/Library/Application Support/com.hashcortx.app/ — keyed by bundle id,</text>
+    <text x="118" y="375" font-size="11" fill="#5c636e">so it survives every rebuild instead of asking again</text>
 
-    <!-- why panel -->
-    <rect x="32" y="226" width="560" height="110" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="56" y="254" font-size="12" fill="#c9a96e" letter-spacing="2">WHY NOT THE macOS KEYCHAIN</text>
-    <text x="56" y="280" font-size="11" fill="#a39d91">A Keychain item's access list is tied to the binary's code signature.</text>
-    <text x="56" y="300" font-size="11" fill="#a39d91">While the build is unsigned, every new DMG has a new signature — so macOS</text>
-    <text x="56" y="320" font-size="11" fill="#a39d91">would ask for your password again for every key, on every single update.</text>
+    <g stroke="#4ade80" stroke-opacity="0.45" stroke-width="1.6" fill="none">
+      <path d="M60 362 L60 388"/><path d="M54 382 L60 390 L66 382"/>
+    </g>
 
-    <rect x="608" y="226" width="560" height="110" rx="12" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="632" y="254" font-size="12" fill="#c9a96e" letter-spacing="2">WHAT THIS MEANS FOR YOU</text>
-    <text x="632" y="280" font-size="11" fill="#a39d91">Keys sit in a folder only this app writes to, protected by your user account</text>
-    <text x="632" y="300" font-size="11" fill="#a39d91">and macOS file permissions — not by Keychain encryption. If you had keys in</text>
-    <text x="632" y="320" font-size="11" fill="#a39d91">the old Keychain build, they migrate across once, then that entry is deleted.</text>
+    <!-- step 4 -->
+    <rect x="92" y="394" width="800" height="82" rx="13" fill="#12151c" stroke="#4ade80" stroke-opacity="0.28"/>
+    <circle cx="60" cy="435" r="21" fill="#171b24" stroke="#4ade80" stroke-opacity="0.28"/>
+    <text x="60" y="440" font-size="13" fill="#4ade80" text-anchor="middle">04</text>
+    <text x="118" y="428" font-size="15.5" font-weight="700" fill="#ffffff">Sent to that provider, and nowhere else</text>
+    <text x="118" y="453" font-size="12" fill="#9aa1ac">No HashCortx server sits in between, because no HashCortx server exists.</text>
+
+    <!-- why panels -->
+    <rect x="28" y="506" width="424" height="126" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="50" y="534" font-size="12" fill="#ffffff" letter-spacing="2">WHY NOT THE macOS KEYCHAIN</text>
+    <text x="50" y="560" font-size="11.5" fill="#9aa1ac">A Keychain item's access list is tied to the</text>
+    <text x="50" y="580" font-size="11.5" fill="#9aa1ac">binary's code signature. While the build is</text>
+    <text x="50" y="600" font-size="11.5" fill="#9aa1ac">unsigned, every DMG is a new signature — so</text>
+    <text x="50" y="620" font-size="11.5" fill="#9aa1ac">macOS would ask for every key, every update.</text>
+
+    <rect x="468" y="506" width="424" height="126" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="490" y="534" font-size="12" fill="#ffffff" letter-spacing="2">WHAT THAT COSTS YOU</text>
+    <text x="490" y="560" font-size="11.5" fill="#9aa1ac">The keys are protected by your user account</text>
+    <text x="490" y="580" font-size="11.5" fill="#9aa1ac">and file permissions, not by encryption. Any</text>
+    <text x="490" y="600" font-size="11.5" fill="#9aa1ac">process running as you can read them. Signing</text>
+    <text x="490" y="620" font-size="11.5" fill="#9aa1ac">is on the roadmap and brings the Keychain back.</text>
   </g>
 </svg>

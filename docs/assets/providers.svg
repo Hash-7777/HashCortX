@@ -1,101 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 440" width="1200" height="440" role="img" aria-labelledby="pTitle pDesc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 578" width="920" height="578" role="img" aria-labelledby="pTitle pDesc">
   <title id="pTitle">Supported providers</title>
   <desc id="pDesc">Eleven cloud providers plus Ollama for local models, and four grounding backends.</desc>
 
   <defs>
     <linearGradient id="pBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+      <stop offset="0" stop-color="#0d1017"/><stop offset="1" stop-color="#0a0c11"/>
     </linearGradient>
     <linearGradient id="pRule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/><stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="440" rx="20" fill="url(#pBg)"/>
+  <rect x="0" y="0" width="920" height="578" rx="20" fill="url(#pBg)"/>
 
-  <text x="32" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">BRING YOUR OWN KEY</text>
-  <text x="32" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">Twelve providers, side by side</text>
-  <line x1="32" y1="92" x2="1168" y2="92" stroke="url(#pRule)"/>
+  <text x="28" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c636e" letter-spacing="3">BRING YOUR OWN KEY</text>
+  <text x="28" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="25" font-weight="700" fill="#ffffff">Twelve providers, side by side</text>
+  <line x1="28" y1="94" x2="892" y2="94" stroke="url(#pRule)"/>
 
   <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
 
     <!-- row 1 -->
-    <rect x="32" y="112" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="56" cy="139" r="4" fill="#c9a96e"/>
-    <text x="74" y="135" font-size="12.5" fill="#ece7dc">Anthropic</text>
-    <text x="74" y="151" font-size="10" fill="#6b6558">Opus · Sonnet · Haiku</text>
+    <rect x="28" y="112" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="50" cy="144" r="4" fill="#ffffff"/>
+    <text x="68" y="139" font-size="13.5" fill="#ffffff">Anthropic</text>
+    <text x="68" y="159" font-size="11" fill="#5c636e">Opus · Sonnet · Haiku</text>
 
-    <rect x="320" y="112" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="344" cy="139" r="4" fill="#c9a96e"/>
-    <text x="362" y="135" font-size="12.5" fill="#ece7dc">OpenAI</text>
-    <text x="362" y="151" font-size="10" fill="#6b6558">the GPT family</text>
+    <rect x="321" y="112" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="343" cy="144" r="4" fill="#ffffff"/>
+    <text x="361" y="139" font-size="13.5" fill="#ffffff">OpenAI</text>
+    <text x="361" y="159" font-size="11" fill="#5c636e">the GPT family</text>
 
-    <rect x="608" y="112" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="632" cy="139" r="4" fill="#c9a96e"/>
-    <text x="650" y="135" font-size="12.5" fill="#ece7dc">Google Gemini</text>
-    <text x="650" y="151" font-size="10" fill="#6b6558">Pro · Flash</text>
-
-    <rect x="896" y="112" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="920" cy="139" r="4" fill="#c9a96e"/>
-    <text x="938" y="135" font-size="12.5" fill="#ece7dc">Groq</text>
-    <text x="938" y="151" font-size="10" fill="#6b6558">very fast inference</text>
+    <rect x="614" y="112" width="278" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="636" cy="144" r="4" fill="#ffffff"/>
+    <text x="654" y="139" font-size="13.5" fill="#ffffff">Google Gemini</text>
+    <text x="654" y="159" font-size="11" fill="#5c636e">Pro · Flash</text>
 
     <!-- row 2 -->
-    <rect x="32" y="178" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="56" cy="205" r="4" fill="#c9a96e"/>
-    <text x="74" y="201" font-size="12.5" fill="#ece7dc">Cerebras</text>
-    <text x="74" y="217" font-size="10" fill="#6b6558">very fast inference</text>
+    <rect x="28" y="188" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="50" cy="220" r="4" fill="#ffffff"/>
+    <text x="68" y="215" font-size="13.5" fill="#ffffff">Groq</text>
+    <text x="68" y="235" font-size="11" fill="#5c636e">very fast inference</text>
 
-    <rect x="320" y="178" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="344" cy="205" r="4" fill="#c9a96e"/>
-    <text x="362" y="201" font-size="12.5" fill="#ece7dc">SambaNova</text>
-    <text x="362" y="217" font-size="10" fill="#6b6558">Llama · DeepSeek hosting</text>
+    <rect x="321" y="188" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="343" cy="220" r="4" fill="#ffffff"/>
+    <text x="361" y="215" font-size="13.5" fill="#ffffff">Cerebras</text>
+    <text x="361" y="235" font-size="11" fill="#5c636e">very fast inference</text>
 
-    <rect x="608" y="178" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="632" cy="205" r="4" fill="#c9a96e"/>
-    <text x="650" y="201" font-size="12.5" fill="#ece7dc">DeepSeek</text>
-    <text x="650" y="217" font-size="10" fill="#6b6558">V3 · R1</text>
-
-    <rect x="896" y="178" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="920" cy="205" r="4" fill="#c9a96e"/>
-    <text x="938" y="201" font-size="12.5" fill="#ece7dc">Moonshot</text>
-    <text x="938" y="217" font-size="10" fill="#6b6558">Kimi, incl. Kimi for Code</text>
+    <rect x="614" y="188" width="278" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="636" cy="220" r="4" fill="#ffffff"/>
+    <text x="654" y="215" font-size="13.5" fill="#ffffff">SambaNova</text>
+    <text x="654" y="235" font-size="11" fill="#5c636e">Llama and DeepSeek hosting</text>
 
     <!-- row 3 -->
-    <rect x="32" y="244" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="56" cy="271" r="4" fill="#c9a96e"/>
-    <text x="74" y="267" font-size="12.5" fill="#ece7dc">Mistral</text>
-    <text x="74" y="283" font-size="10" fill="#6b6558">the Mistral family</text>
+    <rect x="28" y="264" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="50" cy="296" r="4" fill="#ffffff"/>
+    <text x="68" y="291" font-size="13.5" fill="#ffffff">DeepSeek</text>
+    <text x="68" y="311" font-size="11" fill="#5c636e">V3 · R1</text>
 
-    <rect x="320" y="244" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="344" cy="271" r="4" fill="#c9a96e"/>
-    <text x="362" y="267" font-size="12.5" fill="#ece7dc">OpenRouter</text>
-    <text x="362" y="283" font-size="10" fill="#6b6558">one key, many frontier models</text>
+    <rect x="321" y="264" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="343" cy="296" r="4" fill="#ffffff"/>
+    <text x="361" y="291" font-size="13.5" fill="#ffffff">Moonshot</text>
+    <text x="361" y="311" font-size="11" fill="#5c636e">Kimi, incl. Kimi for Code</text>
 
-    <rect x="608" y="244" width="272" height="54" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <circle cx="632" cy="271" r="4" fill="#c9a96e"/>
-    <text x="650" y="267" font-size="12.5" fill="#ece7dc">NVIDIA NIM</text>
-    <text x="650" y="283" font-size="10" fill="#6b6558">NIM-hosted open models</text>
+    <rect x="614" y="264" width="278" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="636" cy="296" r="4" fill="#ffffff"/>
+    <text x="654" y="291" font-size="13.5" fill="#ffffff">Mistral</text>
+    <text x="654" y="311" font-size="11" fill="#5c636e">the Mistral family</text>
 
-    <rect x="896" y="244" width="272" height="54" rx="10" fill="#12161f" stroke="#4ade80" stroke-opacity="0.38"/>
-    <circle cx="920" cy="271" r="4" fill="#4ade80"/>
-    <text x="938" y="267" font-size="12.5" fill="#ece7dc">Ollama</text>
-    <text x="938" y="283" font-size="10" fill="#4ade80">local · no key · works offline</text>
+    <!-- row 4 -->
+    <rect x="28" y="340" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="50" cy="372" r="4" fill="#ffffff"/>
+    <text x="68" y="367" font-size="13.5" fill="#ffffff">OpenRouter</text>
+    <text x="68" y="387" font-size="11" fill="#5c636e">one key, many frontier models</text>
+
+    <rect x="321" y="340" width="277" height="64" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <circle cx="343" cy="372" r="4" fill="#ffffff"/>
+    <text x="361" y="367" font-size="13.5" fill="#ffffff">NVIDIA NIM</text>
+    <text x="361" y="387" font-size="11" fill="#5c636e">NIM-hosted open models</text>
+
+    <rect x="614" y="340" width="278" height="64" rx="11" fill="#161a22" stroke="#4ade80" stroke-opacity="0.38"/>
+    <circle cx="636" cy="372" r="4" fill="#4ade80"/>
+    <text x="654" y="367" font-size="13.5" fill="#ffffff">Ollama</text>
+    <text x="654" y="387" font-size="11" fill="#4ade80">local · no key · works offline</text>
 
     <!-- grounding -->
-    <line x1="32" y1="326" x2="1168" y2="326" stroke="#ffffff" stroke-opacity="0.07"/>
-    <text x="32" y="356" font-size="12" fill="#6b6558" letter-spacing="2">GROUNDING BACKENDS — OPTIONAL, FOR AGENTS THAT MUST CITE</text>
+    <line x1="28" y1="436" x2="892" y2="436" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="28" y="466" font-size="12" fill="#5c636e" letter-spacing="2">GROUNDING BACKENDS — OPTIONAL, FOR AGENTS THAT MUST CITE</text>
 
-    <rect x="32" y="370" width="272" height="44" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="56" y="397" font-size="11.5" fill="#a39d91">Tavily</text>
+    <rect x="28" y="484" width="207" height="52" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="50" y="515" font-size="12.5" fill="#9aa1ac">Tavily</text>
 
-    <rect x="320" y="370" width="272" height="44" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="344" y="397" font-size="11.5" fill="#a39d91">Google Programmable Search</text>
+    <rect x="247" y="484" width="207" height="52" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="269" y="515" font-size="12.5" fill="#9aa1ac">Google Search</text>
 
-    <rect x="608" y="370" width="272" height="44" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="632" y="397" font-size="11.5" fill="#a39d91">Wikipedia</text>
+    <rect x="466" y="484" width="207" height="52" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="488" y="515" font-size="12.5" fill="#9aa1ac">Wikipedia</text>
 
-    <rect x="896" y="370" width="272" height="44" rx="10" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="920" y="397" font-size="11.5" fill="#a39d91">PubMed</text>
+    <rect x="685" y="484" width="207" height="52" rx="11" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="707" y="515" font-size="12.5" fill="#9aa1ac">PubMed</text>
   </g>
 </svg>

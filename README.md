@@ -12,12 +12,12 @@
 
 [Website](https://hashcortx.com) · [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions) · [Demo video](https://youtu.be/On5wPdKZDfg)
 
-![License MIT](https://img.shields.io/badge/license-MIT-c9a96e?style=flat-square&labelColor=0d1117)
-![Platform macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-c9a96e?style=flat-square&labelColor=0d1117)
-![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-c9a96e?style=flat-square&labelColor=0d1117)
-![DMG 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-c9a96e?style=flat-square&labelColor=0d1117)
-![Telemetry none](https://img.shields.io/badge/telemetry-none-4ade80?style=flat-square&labelColor=0d1117)
-![Backend none](https://img.shields.io/badge/backend-none-4ade80?style=flat-square&labelColor=0d1117)
+![License MIT](https://img.shields.io/badge/license-MIT-f2f4f7?style=flat-square&labelColor=12151c)
+![Platform macOS Apple Silicon](https://img.shields.io/badge/platform-macOS%20Apple%20Silicon-f2f4f7?style=flat-square&labelColor=12151c)
+![Version 2.0.0](https://img.shields.io/badge/version-2.0.0-f2f4f7?style=flat-square&labelColor=12151c)
+![DMG 8.9 MB](https://img.shields.io/badge/dmg-8.9%20MB-f2f4f7?style=flat-square&labelColor=12151c)
+![Telemetry none](https://img.shields.io/badge/telemetry-none-4ade80?style=flat-square&labelColor=12151c)
+![Backend none](https://img.shields.io/badge/backend-none-4ade80?style=flat-square&labelColor=12151c)
 
 </div>
 
@@ -295,7 +295,7 @@ Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/
 
 ## How this was built
 
-**Every product decision is the author's.** The ten-workspace structure, the local-first rule, the Permission Guard and audit model, the swarm failover pattern, and the source-grounding constraints in the medical and finance modes were conceived and directed by a human.
+**Every product decision is mine.** The ten-workspace structure, the local-first rule, the Permission Guard and audit model, the swarm failover pattern, and the source-grounding constraints in the medical and finance modes were conceived and directed by me.
 
 **The implementation leaned hard on AI — roughly 30 million tokens** across Claude, GPT and other frontier models during the v2.0.0 build. AI wrote most of the code, under human architecture, review and correction.
 
@@ -307,13 +307,51 @@ This is disclosed because HashCortx is itself an AI tool. Using AI to build it a
 
 Three local-first apps, same principles — no cloud, no telemetry, your data stays where it is.
 
-| | |
-|---|---|
-| **[HashCortx](https://github.com/Hash-7777/HashCortX)** *(this one)* | The local-first AI workspace |
-| **[HashCerebrum](https://github.com/Hash-7777/HashCerebrum)** | A medical-research workbench with a 3D brain interface for searching, citing and peer-reviewing papers |
-| **[HashMeterAi](https://github.com/Hash-7777/HashMeterAi)** | An honest local usage meter — how much AI you actually use |
+<table>
+<tr>
+<td width="33%" valign="top" align="center">
 
-HashCortx writes its token usage to `~/.hashcortx/usage.jsonl`, which HashMeterAi reads, so your spend across the whole ecosystem is measured in one place.
+### HashCortx
+
+*you are here*
+
+The local-first AI workspace.
+Ten workspaces, twelve providers,
+one window.
+
+`Tauri v2` · `MIT`
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### [HashCerebrum](https://github.com/Hash-7777/HashCerebrum)
+
+*medical research*
+
+A research workbench with a 3D brain
+interface for searching, citing and
+peer-reviewing papers.
+
+`Tauri v2` · `AGPL-3.0`
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### [HashMeterAi](https://github.com/Hash-7777/HashMeterAi)
+
+*usage meter*
+
+An honest local meter for how much
+AI you actually use, across every
+tool on your machine.
+
+`Tauri v2` · `Apache-2.0`
+
+</td>
+</tr>
+</table>
+
+They interlock. HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and HashMeterAi reads that file — so your spend across the whole ecosystem is measured in one place, on your disk, by tools that never phone home.
 
 ---
 

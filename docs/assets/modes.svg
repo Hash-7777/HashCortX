@@ -1,166 +1,125 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" role="img" aria-labelledby="mTitle mDesc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 782" width="920" height="782" role="img" aria-labelledby="mTitle mDesc">
   <title id="mTitle">The ten workspaces of HashCortx</title>
   <desc id="mDesc">Chats, Agents, Coder, Split, 3D Forge, Finance, Sandbox, ERP, Agent Swarm, Virtual OS.</desc>
 
   <defs>
     <linearGradient id="mBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+      <stop offset="0" stop-color="#0d1017"/><stop offset="1" stop-color="#0a0c11"/>
     </linearGradient>
     <linearGradient id="mRule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="560" rx="20" fill="url(#mBg)"/>
+  <rect x="0" y="0" width="920" height="782" rx="20" fill="url(#mBg)"/>
 
-  <text x="32" y="48" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">ONE APP</text>
-  <text x="32" y="80" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">Ten workspaces</text>
-  <line x1="32" y1="98" x2="1168" y2="98" stroke="url(#mRule)"/>
+  <text x="28" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c636e" letter-spacing="3">ONE APP</text>
+  <text x="28" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="25" font-weight="700" fill="#ffffff">Ten workspaces</text>
+  <line x1="28" y1="94" x2="892" y2="94" stroke="url(#mRule)"/>
 
   <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
 
-    <!-- 1 Chats -->
-    <g>
-      <rect x="32" y="120" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="44" y1="121" x2="231" y2="121" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="223" y="146" font-size="11" fill="#3a3730" text-anchor="end">01</text>
-      <g transform="translate(52,140) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      </g>
-      <text x="52" y="222" font-size="17" font-weight="700" fill="#ece7dc">Chats</text>
-      <text x="52" y="248" font-size="11.5" fill="#6b6558">Projects, attachments,</text>
-      <text x="52" y="266" font-size="11.5" fill="#6b6558">slash commands, history</text>
-      <text x="52" y="288" font-size="11.5" fill="#8b6d2c">12 providers</text>
+    <!-- 01 Chats -->
+    <rect x="28" y="112" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="430" y="146" font-size="11" fill="#454b55" text-anchor="end">01</text>
+    <g transform="translate(50,138) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
     </g>
+    <text x="100" y="162" font-size="17" font-weight="700" fill="#ffffff">Chats</text>
+    <text x="100" y="186" font-size="12.5" fill="#9aa1ac">Projects, attachments, slash commands</text>
+    <text x="100" y="208" font-size="11.5" fill="#5c636e">history that stays on your disk</text>
 
-    <!-- 2 Agents -->
-    <g>
-      <rect x="263" y="120" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="275" y1="121" x2="462" y2="121" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="454" y="146" font-size="11" fill="#3a3730" text-anchor="end">02</text>
-      <g transform="translate(283,140) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z"/>
-      </g>
-      <text x="283" y="222" font-size="17" font-weight="700" fill="#ece7dc">Agents</text>
-      <text x="283" y="248" font-size="11.5" fill="#6b6558">9 specialists + no-code</text>
-      <text x="283" y="266" font-size="11.5" fill="#6b6558">builder for your own</text>
-      <text x="283" y="288" font-size="11.5" fill="#8b6d2c">8 tools</text>
+    <!-- 02 Agents -->
+    <rect x="470" y="112" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="872" y="146" font-size="11" fill="#454b55" text-anchor="end">02</text>
+    <g transform="translate(492,138) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4L4.2 7.7l5.4-.8z"/>
     </g>
+    <text x="542" y="162" font-size="17" font-weight="700" fill="#ffffff">Agents</text>
+    <text x="542" y="186" font-size="12.5" fill="#9aa1ac">Nine specialists, plus a builder</text>
+    <text x="542" y="208" font-size="11.5" fill="#5c636e">for agents of your own</text>
 
-    <!-- 3 Coder -->
-    <g>
-      <rect x="494" y="120" width="211" height="184" rx="14" fill="#0d1117" stroke="#c9a96e" stroke-opacity="0.30"/>
-      <line x1="506" y1="121" x2="693" y2="121" stroke="#c9a96e" stroke-opacity="0.14"/>
-      <text x="685" y="146" font-size="11" fill="#3a3730" text-anchor="end">03</text>
-      <g transform="translate(514,140) scale(1.5)" fill="none" stroke="#dfc38e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
-      </g>
-      <text x="514" y="222" font-size="17" font-weight="700" fill="#ece7dc">Coder</text>
-      <text x="514" y="248" font-size="11.5" fill="#6b6558">File tree, real edits,</text>
-      <text x="514" y="266" font-size="11.5" fill="#6b6558">shell, browser panel</text>
-      <text x="514" y="288" font-size="11.5" fill="#4ade80">guarded</text>
+    <!-- 03 Coder -->
+    <rect x="28" y="242" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.30"/>
+    <text x="430" y="276" font-size="11" fill="#454b55" text-anchor="end">03</text>
+    <g transform="translate(50,268) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
     </g>
+    <text x="100" y="292" font-size="17" font-weight="700" fill="#ffffff">Coder</text>
+    <text x="100" y="316" font-size="12.5" fill="#9aa1ac">File tree, real edits, shell, browser</text>
+    <text x="100" y="338" font-size="11.5" fill="#4ade80">every native call is gated</text>
 
-    <!-- 4 Split -->
-    <g>
-      <rect x="725" y="120" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="737" y1="121" x2="924" y2="121" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="916" y="146" font-size="11" fill="#3a3730" text-anchor="end">04</text>
-      <g transform="translate(745,140) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="5" width="8" height="14" rx="2"/><rect x="13" y="5" width="8" height="14" rx="2"/>
-      </g>
-      <text x="745" y="222" font-size="17" font-weight="700" fill="#ece7dc">Split</text>
-      <text x="745" y="248" font-size="11.5" fill="#6b6558">Two models, one prompt,</text>
-      <text x="745" y="266" font-size="11.5" fill="#6b6558">streamed side by side</text>
-      <text x="745" y="288" font-size="11.5" fill="#8b6d2c">live compare</text>
+    <!-- 04 Split -->
+    <rect x="470" y="242" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="872" y="276" font-size="11" fill="#454b55" text-anchor="end">04</text>
+    <g transform="translate(492,268) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="5" width="8" height="14" rx="2"/><rect x="13" y="5" width="8" height="14" rx="2"/>
     </g>
+    <text x="542" y="292" font-size="17" font-weight="700" fill="#ffffff">Split</text>
+    <text x="542" y="316" font-size="12.5" fill="#9aa1ac">One prompt, two models, side by side</text>
+    <text x="542" y="338" font-size="11.5" fill="#5c636e">streamed live</text>
 
-    <!-- 5 3D Forge -->
-    <g>
-      <rect x="956" y="120" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="968" y1="121" x2="1155" y2="121" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="1147" y="146" font-size="11" fill="#3a3730" text-anchor="end">05</text>
-      <g transform="translate(976,140) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Z"/><path d="M12 22V10"/><path d="m4 6 8 4 8-4"/><path d="m7.5 8.2 9-4.4"/><circle cx="12" cy="10" r="2"/>
-      </g>
-      <text x="976" y="222" font-size="17" font-weight="700" fill="#ece7dc">3D Forge</text>
-      <text x="976" y="248" font-size="11.5" fill="#6b6558">Architecture-first node</text>
-      <text x="976" y="266" font-size="11.5" fill="#6b6558">and mesh planning</text>
-      <text x="976" y="288" font-size="11.5" fill="#8b6d2c">three.js</text>
+    <!-- 05 3D Forge -->
+    <rect x="28" y="372" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="430" y="406" font-size="11" fill="#454b55" text-anchor="end">05</text>
+    <g transform="translate(50,398) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 2 4 6v12l8 4 8-4V6l-8-4Z"/><path d="M12 22V10"/><path d="m4 6 8 4 8-4"/><path d="m7.5 8.2 9-4.4"/><circle cx="12" cy="10" r="2"/>
     </g>
+    <text x="100" y="422" font-size="17" font-weight="700" fill="#ffffff">3D Forge</text>
+    <text x="100" y="446" font-size="12.5" fill="#9aa1ac">Node and mesh plans before you build</text>
+    <text x="100" y="468" font-size="11.5" fill="#5c636e">three.js viewport</text>
 
-    <!-- 6 Finance -->
-    <g>
-      <rect x="32" y="322" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="44" y1="323" x2="231" y2="323" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="223" y="348" font-size="11" fill="#3a3730" text-anchor="end">06</text>
-      <g transform="translate(52,342) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
-      </g>
-      <text x="52" y="424" font-size="17" font-weight="700" fill="#ece7dc">Finance</text>
-      <text x="52" y="450" font-size="11.5" fill="#6b6558">Statements, CSV, PDF,</text>
-      <text x="52" y="468" font-size="11.5" fill="#6b6558">XLSX into KPIs + charts</text>
-      <text x="52" y="490" font-size="11.5" fill="#4ade80">never invents numbers</text>
+    <!-- 06 Finance -->
+    <rect x="470" y="372" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="872" y="406" font-size="11" fill="#454b55" text-anchor="end">06</text>
+    <g transform="translate(492,398) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
     </g>
+    <text x="542" y="422" font-size="17" font-weight="700" fill="#ffffff">Finance</text>
+    <text x="542" y="446" font-size="12.5" fill="#9aa1ac">Statements, CSV, PDF, XLSX to KPIs</text>
+    <text x="542" y="468" font-size="11.5" fill="#4ade80">never invents a number</text>
 
-    <!-- 7 Sandbox -->
-    <g>
-      <rect x="263" y="322" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="275" y1="323" x2="462" y2="323" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="454" y="348" font-size="11" fill="#3a3730" text-anchor="end">07</text>
-      <g transform="translate(283,342) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>
-      </g>
-      <text x="283" y="424" font-size="17" font-weight="700" fill="#ece7dc">Sandbox</text>
-      <text x="283" y="450" font-size="11.5" fill="#6b6558">Swarm scanner: malware,</text>
-      <text x="283" y="468" font-size="11.5" fill="#6b6558">trojans, prompt injection</text>
-      <text x="283" y="490" font-size="11.5" fill="#8b6d2c">for untrusted code</text>
+    <!-- 07 Sandbox -->
+    <rect x="28" y="502" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="430" y="536" font-size="11" fill="#454b55" text-anchor="end">07</text>
+    <g transform="translate(50,528) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>
     </g>
+    <text x="100" y="552" font-size="17" font-weight="700" fill="#ffffff">Sandbox</text>
+    <text x="100" y="576" font-size="12.5" fill="#9aa1ac">Scans untrusted code and AI output</text>
+    <text x="100" y="598" font-size="11.5" fill="#5c636e">malware, trojans, prompt injection</text>
 
-    <!-- 8 ERP -->
-    <g>
-      <rect x="494" y="322" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="506" y1="323" x2="693" y2="323" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="685" y="348" font-size="11" fill="#3a3730" text-anchor="end">08</text>
-      <g transform="translate(514,342) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M3 9h18"/><path d="M12 13h5"/><path d="M12 17h3"/>
-      </g>
-      <text x="514" y="424" font-size="17" font-weight="700" fill="#ece7dc">ERP</text>
-      <text x="514" y="450" font-size="11.5" fill="#6b6558">Describe a workflow, get</text>
-      <text x="514" y="468" font-size="11.5" fill="#6b6558">a working prototype</text>
-      <text x="514" y="490" font-size="11.5" fill="#8b6d2c">forms, tables, dashboards</text>
+    <!-- 08 ERP -->
+    <rect x="470" y="502" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="872" y="536" font-size="11" fill="#454b55" text-anchor="end">08</text>
+    <g transform="translate(492,528) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M3 9h18"/><path d="M12 13h5"/><path d="M12 17h3"/>
     </g>
+    <text x="542" y="552" font-size="17" font-weight="700" fill="#ffffff">ERP</text>
+    <text x="542" y="576" font-size="12.5" fill="#9aa1ac">Describe a workflow, get a prototype</text>
+    <text x="542" y="598" font-size="11.5" fill="#5c636e">forms, tables, dashboards</text>
 
-    <!-- 9 Agent Swarm -->
-    <g>
-      <rect x="725" y="322" width="211" height="184" rx="14" fill="#0d1117" stroke="#c9a96e" stroke-opacity="0.30"/>
-      <line x1="737" y1="323" x2="924" y2="323" stroke="#c9a96e" stroke-opacity="0.14"/>
-      <text x="916" y="348" font-size="11" fill="#3a3730" text-anchor="end">09</text>
-      <g transform="translate(745,342) scale(1.5)" fill="none" stroke="#dfc38e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="8" cy="19" r="2"/><circle cx="16" cy="19" r="2"/>
-        <path d="M12 7v3"/><path d="M7 12h2"/><path d="M15 12h2"/><path d="M9.5 17.5l2-2"/><path d="M14.5 17.5l-2-2"/>
-      </g>
-      <text x="745" y="424" font-size="17" font-weight="700" fill="#ece7dc">Agent Swarm</text>
-      <text x="745" y="450" font-size="11.5" fill="#6b6558">Chain and vote pipelines</text>
-      <text x="745" y="468" font-size="11.5" fill="#6b6558">across many models</text>
-      <text x="745" y="490" font-size="11.5" fill="#4ade80">provider failover</text>
+    <!-- 09 Agent Swarm -->
+    <rect x="28" y="632" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.30"/>
+    <text x="430" y="666" font-size="11" fill="#454b55" text-anchor="end">09</text>
+    <g transform="translate(50,658) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="8" cy="19" r="2"/><circle cx="16" cy="19" r="2"/>
+      <path d="M12 7v3"/><path d="M7 12h2"/><path d="M15 12h2"/><path d="M9.5 17.5l2-2"/><path d="M14.5 17.5l-2-2"/>
     </g>
+    <text x="100" y="682" font-size="17" font-weight="700" fill="#ffffff">Agent Swarm</text>
+    <text x="100" y="706" font-size="12.5" fill="#9aa1ac">Chain and vote across many models</text>
+    <text x="100" y="728" font-size="11.5" fill="#4ade80">automatic provider failover</text>
 
     <!-- 10 Virtual OS -->
-    <g>
-      <rect x="956" y="322" width="211" height="184" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-      <line x1="968" y1="323" x2="1155" y2="323" stroke="#ffffff" stroke-opacity="0.06"/>
-      <text x="1147" y="348" font-size="11" fill="#3a3730" text-anchor="end">10</text>
-      <g transform="translate(976,342) scale(1.5)" fill="none" stroke="#c9a96e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h4"/><path d="M7 11h7"/><path d="M16.5 8.5h.01"/>
-      </g>
-      <text x="976" y="424" font-size="17" font-weight="700" fill="#ece7dc">Virtual OS</text>
-      <text x="976" y="450" font-size="11.5" fill="#6b6558">A project desktop the</text>
-      <text x="976" y="468" font-size="11.5" fill="#6b6558">agent builds files inside</text>
-      <text x="976" y="490" font-size="11.5" fill="#8b6d2c">sandboxed workspace</text>
+    <rect x="470" y="632" width="422" height="118" rx="13" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="872" y="666" font-size="11" fill="#454b55" text-anchor="end">10</text>
+    <g transform="translate(492,658) scale(1.5)" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8h4"/><path d="M7 11h7"/><path d="M16.5 8.5h.01"/>
     </g>
+    <text x="542" y="682" font-size="17" font-weight="700" fill="#ffffff">Virtual OS</text>
+    <text x="542" y="706" font-size="12.5" fill="#9aa1ac">A project desktop the agent builds in</text>
+    <text x="542" y="728" font-size="11.5" fill="#5c636e">sandboxed workspace</text>
   </g>
 
-  <text x="1168" y="542" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" fill="#3a3730" text-anchor="end">Cmd+Shift+C toggles Coder from anywhere</text>
+  <text x="892" y="770" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" fill="#454b55" text-anchor="end">Cmd+Shift+C toggles Coder from anywhere</text>
 </svg>

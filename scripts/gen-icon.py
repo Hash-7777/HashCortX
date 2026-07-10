@@ -1,10 +1,19 @@
 """
+LEGACY — this does NOT generate the icon HashCortx ships.
+
+It draws a seven-ray neon-green burst. The shipped icon is the white brain
+mark (see docs/BRAND.md), authored as artwork and stored at
+logosss/new hashcortx logo no bg.png. Running this script will overwrite
+src/assets/icon-master.png with the wrong mark.
+
+Kept for reference only. To regenerate platform icon sizes from the real
+artwork:
+  npm run tauri icon "logosss/new hashcortx logo no bg.png"
+
+--- original header ---
 HashCortx icon generator
 Run: python3 scripts/gen-icon.py
 Output: src/assets/icon-master.png  (1024x1024, used by `npm run tauri icon`)
-
-After running this, regenerate all platform icon sizes with:
-  npm run tauri icon src/assets/icon-master.png
 """
 
 import math

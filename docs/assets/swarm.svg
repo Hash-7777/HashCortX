@@ -1,114 +1,102 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-labelledby="sTitle sDesc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 790" width="920" height="790" role="img" aria-labelledby="sTitle sDesc">
   <title id="sTitle">Agent Swarm</title>
   <desc id="sDesc">Chain mode passes work down a pipeline, vote mode runs models in parallel and judges them, and failover swaps provider mid-run.</desc>
 
   <defs>
     <linearGradient id="sBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#080a0f"/><stop offset="1" stop-color="#06070a"/>
+      <stop offset="0" stop-color="#0d1017"/><stop offset="1" stop-color="#0a0c11"/>
     </linearGradient>
     <linearGradient id="sRule" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#c9a96e" stop-opacity="0.55"/><stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.32"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="1200" height="500" rx="20" fill="url(#sBg)"/>
+  <rect x="0" y="0" width="920" height="790" rx="20" fill="url(#sBg)"/>
 
-  <text x="32" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" fill="#6b6558" letter-spacing="3">AGENT SWARM</text>
-  <text x="32" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#ece7dc">Many models on one problem</text>
-  <line x1="32" y1="92" x2="1168" y2="92" stroke="url(#sRule)"/>
+  <text x="28" y="44" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c636e" letter-spacing="3">AGENT SWARM</text>
+  <text x="28" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="25" font-weight="700" fill="#ffffff">Many models on one problem</text>
+  <line x1="28" y1="94" x2="892" y2="94" stroke="url(#sRule)"/>
 
   <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
 
     <!-- CHAIN -->
-    <rect x="32" y="110" width="364" height="300" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="56" y="138" font-size="12" fill="#c9a96e" letter-spacing="2">CHAIN MODE</text>
-    <text x="56" y="158" font-size="10.5" fill="#6b6558">each agent hands its output to the next</text>
+    <rect x="28" y="112" width="864" height="176" rx="14" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="48" y="140" font-size="12" fill="#ffffff" letter-spacing="2">CHAIN MODE</text>
+    <text x="48" y="162" font-size="12" fill="#5c636e">Each agent hands its output to the next one.</text>
 
-    <rect x="64" y="176" width="300" height="50" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <circle cx="88" cy="201" r="4" fill="#c9a96e"/>
-    <text x="106" y="198" font-size="12" fill="#ece7dc">Researcher</text>
-    <text x="106" y="214" font-size="10" fill="#6b6558">gathers sources</text>
+    <rect x="48" y="180" width="240" height="80" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
+    <circle cx="70" cy="212" r="4" fill="#ffffff"/>
+    <text x="88" y="217" font-size="14" fill="#ffffff">Researcher</text>
+    <text x="70" y="242" font-size="11" fill="#5c636e">gathers the sources</text>
 
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M214 226 L214 244"/><path d="M208 238 L214 246 L220 238"/>
+    <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.6" fill="none">
+      <path d="M296 220 L322 220"/><path d="M316 214 L324 220 L316 226"/>
     </g>
 
-    <rect x="64" y="252" width="300" height="50" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <circle cx="88" cy="277" r="4" fill="#c9a96e"/>
-    <text x="106" y="274" font-size="12" fill="#ece7dc">Coder</text>
-    <text x="106" y="290" font-size="10" fill="#6b6558">writes the implementation</text>
+    <rect x="332" y="180" width="240" height="80" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
+    <circle cx="354" cy="212" r="4" fill="#ffffff"/>
+    <text x="372" y="217" font-size="14" fill="#ffffff">Coder</text>
+    <text x="354" y="242" font-size="11" fill="#5c636e">writes the implementation</text>
 
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M214 302 L214 320"/><path d="M208 314 L214 322 L220 314"/>
+    <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.6" fill="none">
+      <path d="M580 220 L606 220"/><path d="M600 214 L608 220 L600 226"/>
     </g>
 
-    <rect x="64" y="328" width="300" height="50" rx="10" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.28"/>
-    <circle cx="88" cy="353" r="4" fill="#4ade80"/>
-    <text x="106" y="350" font-size="12" fill="#ece7dc">Reviewer</text>
-    <text x="106" y="366" font-size="10" fill="#6b6558">checks it before you see it</text>
+    <rect x="616" y="180" width="256" height="80" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.30"/>
+    <circle cx="638" cy="212" r="4" fill="#4ade80"/>
+    <text x="656" y="217" font-size="14" fill="#ffffff">Reviewer</text>
+    <text x="638" y="242" font-size="11" fill="#5c636e">checks it before you see it</text>
 
     <!-- VOTE -->
-    <rect x="418" y="110" width="364" height="300" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="442" y="138" font-size="12" fill="#c9a96e" letter-spacing="2">VOTE MODE</text>
-    <text x="442" y="158" font-size="10.5" fill="#6b6558">same prompt, many models, one verdict</text>
+    <rect x="28" y="308" width="864" height="228" rx="14" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="48" y="336" font-size="12" fill="#ffffff" letter-spacing="2">VOTE MODE</text>
+    <text x="48" y="358" font-size="12" fill="#5c636e">The same prompt to several models, then one verdict.</text>
 
-    <rect x="450" y="176" width="92" height="56" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <text x="496" y="200" font-size="11" fill="#ece7dc" text-anchor="middle">Claude</text>
-    <text x="496" y="217" font-size="9.5" fill="#6b6558" text-anchor="middle">answer A</text>
+    <rect x="48" y="374" width="256" height="56" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="176" y="397" font-size="13" fill="#ffffff" text-anchor="middle">Claude</text>
+    <text x="176" y="416" font-size="10.5" fill="#5c636e" text-anchor="middle">answer A</text>
 
-    <rect x="554" y="176" width="92" height="56" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <text x="600" y="200" font-size="11" fill="#ece7dc" text-anchor="middle">GPT</text>
-    <text x="600" y="217" font-size="9.5" fill="#6b6558" text-anchor="middle">answer B</text>
+    <rect x="332" y="374" width="256" height="56" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="460" y="397" font-size="13" fill="#ffffff" text-anchor="middle">GPT</text>
+    <text x="460" y="416" font-size="10.5" fill="#5c636e" text-anchor="middle">answer B</text>
 
-    <rect x="658" y="176" width="92" height="56" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <text x="704" y="200" font-size="11" fill="#ece7dc" text-anchor="middle">Gemini</text>
-    <text x="704" y="217" font-size="9.5" fill="#6b6558" text-anchor="middle">answer C</text>
+    <rect x="616" y="374" width="256" height="56" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
+    <text x="744" y="397" font-size="13" fill="#ffffff" text-anchor="middle">Gemini</text>
+    <text x="744" y="416" font-size="10.5" fill="#5c636e" text-anchor="middle">answer C</text>
 
-    <g stroke="#c9a96e" stroke-opacity="0.40" stroke-width="1.5" fill="none">
-      <path d="M496 232 L496 250 L600 250 L600 262"/>
-      <path d="M704 232 L704 250 L600 250"/>
-      <path d="M600 232 L600 262"/>
-      <path d="M594 254 L600 264 L606 254"/>
+    <g stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5" fill="none">
+      <path d="M176 430 L176 448 L460 448"/>
+      <path d="M744 430 L744 448 L460 448"/>
+      <path d="M460 430 L460 464"/>
+      <path d="M454 456 L460 466 L466 456"/>
     </g>
 
-    <rect x="450" y="272" width="300" height="50" rx="10" fill="#12161f" stroke="#c9a96e" stroke-opacity="0.42"/>
-    <text x="470" y="294" font-size="12" fill="#dfc38e">Judge</text>
-    <text x="470" y="310" font-size="10" fill="#6b6558">scores every answer, picks the winner</text>
-
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M600 322 L600 340"/><path d="M594 334 L600 342 L606 334"/>
-    </g>
-
-    <rect x="450" y="348" width="300" height="44" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <circle cx="474" cy="370" r="4" fill="#4ade80"/>
-    <text x="492" y="374" font-size="11.5" fill="#ece7dc">One answer, cross-checked</text>
+    <rect x="192" y="472" width="536" height="46" rx="11" fill="#171b24" stroke="#ffffff" stroke-opacity="0.34"/>
+    <text x="212" y="492" font-size="13.5" fill="#ffffff">Judge</text>
+    <text x="212" y="509" font-size="11" fill="#9aa1ac">scores every answer and picks the one that survives</text>
 
     <!-- FAILOVER -->
-    <rect x="804" y="110" width="364" height="300" rx="14" fill="#0d1117" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="828" y="138" font-size="12" fill="#c9a96e" letter-spacing="2">FAILOVER</text>
-    <text x="828" y="158" font-size="10.5" fill="#6b6558">a rate limit does not end the run</text>
+    <rect x="28" y="556" width="864" height="150" rx="14" fill="#12151c" stroke="#ffffff" stroke-opacity="0.10"/>
+    <text x="48" y="584" font-size="12" fill="#ffffff" letter-spacing="2">FAILOVER</text>
+    <text x="48" y="606" font-size="12" fill="#5c636e">A rate limit does not end the run.</text>
 
-    <rect x="836" y="176" width="300" height="58" rx="10" fill="#12161f" stroke="#f87171" stroke-opacity="0.28"/>
-    <circle cx="860" cy="205" r="4" fill="#f87171"/>
-    <text x="878" y="200" font-size="12" fill="#ece7dc">Groq</text>
-    <text x="878" y="218" font-size="10" fill="#f87171">429 — rate limited mid-run</text>
+    <rect x="48" y="622" width="380" height="66" rx="11" fill="#171b24" stroke="#f87171" stroke-opacity="0.28"/>
+    <circle cx="70" cy="648" r="4" fill="#f87171"/>
+    <text x="88" y="653" font-size="14" fill="#ffffff">Groq</text>
+    <text x="70" y="674" font-size="11" fill="#f87171">429 — rate limited mid-run</text>
 
-    <g stroke="#c9a96e" stroke-opacity="0.45" stroke-width="1.5" fill="none">
-      <path d="M986 234 L986 260"/><path d="M980 254 L986 262 L992 254"/>
+    <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.6" fill="none">
+      <path d="M436 655 L474 655"/><path d="M468 649 L476 655 L468 661"/>
     </g>
-    <text x="1000" y="252" font-size="10" fill="#8b6d2c">swap</text>
+    <text x="456" y="640" font-size="9.5" fill="#5c636e" text-anchor="middle">swap</text>
 
-    <rect x="836" y="270" width="300" height="58" rx="10" fill="#12161f" stroke="#4ade80" stroke-opacity="0.28"/>
-    <circle cx="860" cy="299" r="4" fill="#4ade80"/>
-    <text x="878" y="294" font-size="12" fill="#ece7dc">Cerebras</text>
-    <text x="878" y="312" font-size="10" fill="#4ade80">picks the task up, same context</text>
-
-    <rect x="836" y="344" width="300" height="48" rx="10" fill="#12161f" stroke="#ffffff" stroke-opacity="0.07"/>
-    <text x="856" y="366" font-size="11" fill="#a39d91">No restart. No lost work.</text>
-    <text x="856" y="382" font-size="10" fill="#6b6558">You keep every provider you configured in reserve.</text>
+    <rect x="492" y="622" width="380" height="66" rx="11" fill="#171b24" stroke="#4ade80" stroke-opacity="0.28"/>
+    <circle cx="514" cy="648" r="4" fill="#4ade80"/>
+    <text x="532" y="653" font-size="14" fill="#ffffff">Cerebras</text>
+    <text x="514" y="674" font-size="11" fill="#4ade80">picks it up with the same context</text>
 
     <!-- footer -->
-    <rect x="32" y="426" width="1136" height="46" rx="12" fill="#0d1117" stroke="#c9a96e" stroke-opacity="0.18"/>
-    <text x="600" y="454" font-size="12" fill="#a39d91" text-anchor="middle">Mix providers inside a single run — a cheap local model to draft, a frontier model to review.</text>
+    <rect x="28" y="726" width="864" height="46" rx="12" fill="#12151c" stroke="#ffffff" stroke-opacity="0.16"/>
+    <text x="460" y="754" font-size="12" fill="#9aa1ac" text-anchor="middle">Mix providers inside one run — a cheap local model to draft, a frontier model to review.</text>
   </g>
 </svg>

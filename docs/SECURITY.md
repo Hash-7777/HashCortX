@@ -1,150 +1,159 @@
 # HashCortx — Security Architecture
 
-## Threat Model
+This document describes what HashCortx **actually does** as of v2.0.0. Where a protection is weaker than you might expect, that is stated plainly rather than papered over. If you find a claim here that the code does not support, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) — a security document that flatters the code is worse than no security document.
+
+## Threat model
+
 HashCortx is a local desktop app that:
-1. Calls AI provider APIs (user's own keys)
-2. Accesses the local filesystem (Code Mode only, with permission gates)
-3. Executes shell commands (Code Mode only, whitelisted, gated)
-4. Has no backend server, no user accounts, no cloud storage
 
-## Security Layers
+1. Calls AI provider APIs using the user's own keys
+2. Reads and writes the local filesystem (Coder mode, behind a permission gate)
+3. Executes shell commands (Coder mode, behind a permission gate and a command denylist)
+4. Runs Python in a WebAssembly sandbox (Pyodide)
+5. Has no backend server, no user accounts, and no cloud storage
 
-### Layer 1 — OS Keychain
-- All API keys stored in OS Keychain (Mac), Windows Credential Manager, or libsecret (Linux)
-- Keys stored once on first entry, persist until user removes them
-- JS layer NEVER receives the raw key — only calls Rust to "send this message"
-- Rust makes the HTTPS call, returns only the AI response
+**Out of scope.** HashCortx does not defend against a local attacker who already runs code as your user, and it does not defend against a malicious AI provider you have handed a key to. It cannot: it is an app on your machine talking to a service you chose.
 
-### Layer 2 — Hardened Runtime (Mac)
-- Prevents code injection into the HashCortx process
-- Prevents library injection attacks
-- Prevents ptrace debugging in release builds
+---
 
-### Layer 3 — Content Security Policy
-Defined in `tauri.conf.json`. Allows connections only to known AI provider domains:
-- `https://api.anthropic.com`
-- `https://api.openai.com`
-- `https://openrouter.ai`
-- `https://api.groq.com`
-- `https://api.cerebras.ai`
-- `https://api.together.xyz`
-- `https://api.mistral.ai`
-- `https://generativelanguage.googleapis.com`
-No wildcard domains. No unknown origins.
+## Where API keys live
 
-### Layer 4 — Permission Guard (Phase 3)
-Every native action (read file, write file, run command) passes through the Permission Guard:
-- Shows a dialog to the user
-- User approves: Once / Session / Always for this folder / Never
-- Approval stored in encrypted local store
-- Audit log appended for every action
+Keys are stored as a single JSON bundle under the key `hc_api_bundle_v2` in the renderer's `localStorage`, which Tauri writes into the app's own WebKit data directory:
 
-### Layer 5 — Filesystem Denylist (hardcoded in Rust, cannot be overridden)
-These paths are ALWAYS blocked, regardless of user permissions:
 ```
-~/.ssh/
-~/.aws/
-~/.gnupg/
-~/.config/
-~/Library/Keychains/
-~/Library/Application Support/Google/Chrome/
-/etc/
-/System/
-/usr/bin/
-/usr/sbin/
-/private/
+~/Library/Application Support/com.hashcortx.app/WebKit/
 ```
 
-### Layer 6 — Shell Command Allowlist (Phase 3+)
-Only these commands can be executed by agents:
+That directory is keyed by the **bundle identifier**, not by the binary, so it survives every rebuild.
+
+### They are not in the macOS Keychain, and that is a deliberate trade
+
+A Keychain item's access control list is bound to the binary's code signature. While the build is unsigned, every new DMG carries a different signature, so macOS would prompt for your password once per key on every single update. That made the Keychain unusable in practice.
+
+`src-tauri/src/commands/keychain.rs` still ships. On first run, `src/platform/tauri/keychain.js` silently pulls any keys out of the old Keychain bundle, copies them into the local store, and deletes the Keychain entry so it never prompts again.
+
+**What this costs you, stated plainly:**
+
+- Keys sit on disk **in plain text**, inside a directory only this app writes to.
+- They are protected by your macOS user account and filesystem permissions, **not by encryption**.
+- Any process running as your user can read them. That is the same exposure as a `.env` file, and weaker than the Keychain.
+- The JavaScript layer **does** hold the raw key in memory, and the renderer makes the HTTPS call to the provider directly. The key does not round-trip through Rust.
+
+Code signing is on the roadmap. Once the build is signed, Keychain storage becomes practical again and this section will change.
+
+---
+
+## The Permission Guard
+
+Every filesystem and shell call the coding agent wants to make passes through `HC.guard.request()` in `src/platform/tauri/guard.js`, which raises a dialog before anything executes. The Rust command handlers apply the denylist below independently, so bypassing the JavaScript dialog still does not reach a blocked path.
+
+Coverage is **not yet total**: Virtual OS and 3D Forge native calls are not routed through the guard. That work is on the roadmap.
+
+### Filesystem denylist — compiled into Rust, cannot be overridden
+
+From `src-tauri/src/security/denylist.rs`. These are matched against the absolute, expanded path and refused regardless of what you approve in a dialog:
+
 ```
-bash, sh, zsh, node, npm, npx, yarn, pnpm, bun,
-python, python3, pip, pip3,
-git, cargo, rustc, rustup,
-ls, cat, find, grep, echo, pwd, mkdir, touch, cp, mv, rm,
-curl (HTTPS only, no file://)
-```
-`sudo`, `dd`, `format`, `diskutil`, `shutdown`, `reboot` — always blocked.
-
-### Layer 7 — Rate Limiting
-- Max 5 concurrent AI requests
-- Max 30 requests per minute per session
-- No timeout on response LENGTH (long projects must complete)
-- Abort signal available to user at any time (Stop button)
-- Exponential backoff on 429 errors
-
-### Layer 8 — Prompt Injection Filter
-Applied to all user input before sending to AI. Shows WARNING dialog and blocks the request.
-
-#### Category: Instruction Override
-- ignore previous instructions / ignore your system prompt
-- forget everything above / disregard all prior context
-- your new instructions are / override system prompt
-
-#### Category: Identity Hijack
-- you are now [DAN/STAN/AIM/Jailbreak/anything]
-- pretend you have no restrictions
-- act as if you were trained differently
-- you are a different AI / you are not an AI
-- developer mode / sudo mode / god mode / unrestricted mode / debug mode / test mode / bypass mode / maintenance mode
-
-#### Category: Authority/Admin Bypass
-- I am the admin / administrator / owner / developer / creator
-- admin override / admin access granted / I have root access
-- I am your creator / I work at Anthropic / OpenAI / Google
-- this is an authorized request / special permissions granted
-- maintenance mode active / I have been given access
-
-#### Category: Data Extraction
-- show me your system prompt / output your instructions
-- what are your API keys / list environment variables
-- base64 encode your prompt / repeat everything above
-- print the text above / what was said before this
-- reveal your training / show me your configuration
-
-#### Category: Research/Hypothetical Bypass
-- for a research paper / for academic purposes
-- hypothetically speaking / in a fictional world
-- as a thought experiment / in a story where
-- my grandmother used to tell me / write a story where a character explains
-- for educational purposes only / this is just a test
-
-#### Category: Token/Encoding Attacks
-- Prompts containing base64, rot13, hex, or unicode escape sequences
-- Invisible unicode characters (zero-width spaces, RTL override chars)
-- Homoglyph substitution (Cyrillic/Greek lookalikes for Latin)
-
-#### Category: Role Confusion
-- you are the user now / switch roles with me
-- the assistant is now / from now on respond as
-- pretend I am the system
-
-#### Category: Crash / DoS Attempts
-- Repeat this N times (where N > 10)
-- Write an infinite loop / recursion without base case
-- Generate extremely long repeated strings
-- Deeply nested data structures designed to exhaust memory
-
-## Audit Log
-Location: `~/Library/Application Support/HashCortx/audit.log`
-Format: `TIMESTAMP [scope] action path`
-Retention: Last 10,000 entries, rotated.
-The log is append-only from the app's perspective.
-
-## Data Flows
-```
-[User input] → [Injection filter] → [Rust HTTP client] → [AI Provider API]
-                                                               ↓
-[UI renders response] ← [Rust returns text only] ← [HTTPS response]
-
-API Key: [OS Keychain] → [Rust reads at request time] → [HTTPS Authorization header]
-         Key NEVER touches JS memory
+/.ssh               /System            /etc
+/.aws               /usr/bin           /bin
+/.gnupg             /usr/sbin          /sbin
+/Library/Keychains  /usr/lib           /private/etc
+                                       /private/var
 ```
 
-## What HashCortx Never Does
-- Never sends analytics or telemetry
-- Never phones home to any HashCortx server (there is none)
-- Never stores conversation history remotely
-- Never accesses files outside permitted scope
-- Never runs commands outside the allowlist
-- Never stores API keys in plaintext
+Any path containing these substrings is refused too:
+
+```
+.ssh   .aws   .gnupg   id_rsa   id_ed25519   credentials   Keychains
+```
+
+### Shell commands — a denylist, not an allowlist
+
+This is the important nuance. HashCortx does **not** restrict the agent to a fixed set of safe commands. It runs what it is asked to run, minus a blocked list that includes:
+
+```
+sudo   rm -rf   dd       mkfs     shutdown
+su     rm -fr   fdisk    parted   reboot
+       rm -r    format   diskutil eraseDisk
+```
+
+An allowlist would be stronger. Treat the shell tool as what it is: an agent holding your shell, restrained by a permission prompt and a list of the worst commands.
+
+### Audit log
+
+Every guarded action, allowed or denied, is appended to:
+
+```
+~/.hashcortx/audit.log
+```
+
+Format: `TIMESTAMP [scope] action target`. It is append-only from the app's perspective, and readable from Settings.
+
+---
+
+## Content Security Policy
+
+Defined in `src-tauri/tauri.conf.json`. `connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, PubMed, DuckDuckGo), and local Ollama ports.
+
+Two honest caveats:
+
+- `script-src` permits `'unsafe-inline'` and three external CDNs (`cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, `cdn.sheetjs.com`). This is not a locked-down policy.
+- `connect-src` includes wildcard local ports (`http://*:11434`, `http://*:1234`, `http://*:8080`) so self-hosted model servers work.
+
+Most third-party libraries are vendored into `src/js/vendor/` and load from disk rather than a CDN.
+
+---
+
+## Network behaviour
+
+- **No backend server.** Every AI request goes from the renderer straight to the provider you configured. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
+- **No telemetry.** No analytics, no usage reporting, no crash reporting.
+- **No accounts.** Nothing to sign up for.
+- **No auto-updater.** The app never reaches out on its own.
+- **Air-gapped capable.** With Ollama, it works with the network off.
+
+Token counts are appended locally to `~/.hashcortx/usage.jsonl`. That file never leaves your disk; [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) reads it if you install it.
+
+---
+
+## What HashCortx does *not* have
+
+These are commonly assumed, and worth naming because an earlier version of this document claimed several of them:
+
+- **No prompt-injection filter.** User input is not scanned for jailbreak or instruction-override patterns. (The `/inject` command toggles RAG and web-context *injection into the prompt* — an unrelated feature with a confusingly similar name.)
+- **No request rate limiting.** There is no concurrency cap and no requests-per-minute cap. There is retry with backoff on `429` and `5xx`, and a Stop button that aborts a run.
+- **No shell command allowlist.** See above — it is a denylist.
+- **No Hardened Runtime, no notarisation, no code signature.** The v2.0.0 build is unsigned, so installing it requires a Gatekeeper bypass.
+- **No encryption at rest** for API keys, chat history, or the audit log.
+
+---
+
+## Data flow
+
+```
+[Your prompt]
+     |
+     v
+[Renderer: app.js] ---- HTTPS, key in Authorization header ----> [Provider API]
+     |                                                                  |
+     |  <----------------------- response ------------------------------+
+     v
+[UI renders]  ->  token counts appended to ~/.hashcortx/usage.jsonl
+
+
+[Agent wants a file or a shell command]
+     |
+     v
+[guard.js: permission dialog] --> [Rust: denylist check] --> [OS]
+     |                                    |
+     +----------- refused <---------------+
+                      |
+                      v
+             ~/.hashcortx/audit.log
+```
+
+---
+
+## Reporting a vulnerability
+
+Open a [GitHub issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) for non-sensitive findings. For anything that would put users at risk if disclosed publicly, use GitHub's private vulnerability reporting on the repository instead.
