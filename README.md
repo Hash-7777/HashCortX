@@ -97,8 +97,6 @@ The agent reads your real files, edits them, runs commands, and shows you every 
 
 Every filesystem and shell call from the agent passes through `HC.guard.request()` and lands in Rust, where a compiled denylist rejects anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, `/Library/Keychains`, `/etc`, `/System`, or the system binaries. That list is not configurable and not reachable from JavaScript. Everything the guard sees, allowed or denied, is written to an audit log you can open from Settings.
 
-![Coder with file explorer and agent chat](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
-
 ---
 
 ## Agent Swarm
@@ -107,7 +105,9 @@ Every filesystem and shell call from the agent passes through `HC.guard.request(
 
 Chain mode hands each agent's output to the next. Vote mode runs the same prompt across several models and has a judge score the answers. If a provider rate-limits or dies in the middle of a run, the swarm swaps to another one you configured and carries on with the same context — no restart, nothing lost.
 
-![Agent Swarm orchestration](https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2)
+Below: a six-agent hierarchical blueprint building an e-commerce site — a supervisor planning, three coders working in parallel on HTML, CSS and JS, a critic validating, and a supervisor polishing. Each node runs on a different model. The orchestrator trace at the bottom shows the run live.
+
+![Agent Swarm blueprint canvas with a live orchestrator trace](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
 
 ---
 
@@ -135,13 +135,13 @@ Build your own from the Agents tab: name it, give it an icon and a system prompt
 
 ## Finance and 3D Forge
 
-Finance ingests statements, CSVs, PDFs and spreadsheets and turns them into KPIs, charts and recommendations. Its system prompt forbids inventing figures — if a number is not in your document, it does not appear in the analysis.
+Finance ingests statements, CSVs, PDFs and spreadsheets and turns them into KPIs, charts and recommendations. Its system prompt forbids inventing figures — if a number is not in your document, it does not appear in the analysis. Here it breaks down a spending leak: the KPI row, the category split, and a written analysis that names the three biggest cost drivers.
 
-![Finance analysis studio](https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121)
+![FinanceAI studio showing a spending leak analysis with KPIs and a category breakdown](https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75)
 
-3D Forge plans spatial work before any of it gets built — structured node and mesh plans for game levels, generative architecture and scene layout, on a three.js viewport.
+3D Forge plans spatial work before any of it gets built — structured node and mesh plans for game levels, generative architecture and scene layout, on a three.js viewport. A row of specialist agents handles parameters, structure, surface, detail and audit, each on its own model.
 
-![3D Forge spatial planning](https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75)
+![Forge Studio with a 3D mesh in the viewport and the agent stack on the right](https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121)
 
 ---
 
@@ -300,6 +300,8 @@ Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/
 **The implementation leaned hard on AI — roughly 30 million tokens** across Claude, GPT and other frontier models during the v2.0.0 build. AI wrote most of the code, under human architecture, review and correction.
 
 This is disclosed because HashCortx is itself an AI tool. Using AI to build it and hiding that would be incoherent. Every line is public and reviewable at [Hash-7777/HashCortX](https://github.com/Hash-7777/HashCortX).
+
+![The About pane inside HashCortx, showing the brain mark and the author](https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2)
 
 ---
 
