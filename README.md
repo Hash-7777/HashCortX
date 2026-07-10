@@ -2,16 +2,16 @@
 
 <img src="docs/assets/hero.svg" alt="HashCortx — local-first AI workspace. Ten workspaces, twelve providers, zero telemetry." width="100%">
 
-<a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-161a22?style=flat-square&labelColor=0b0d12&logo=apple&logoColor=e8eaed"></a>
-<a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-12151c?style=flat-square&labelColor=0b0d12&logo=googlechrome&logoColor=9aa1ac"></a>
-<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-12151c?style=flat-square&labelColor=0b0d12&logo=youtube&logoColor=9aa1ac"></a>
-<a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-12151c?style=flat-square&labelColor=0b0d12&logo=github&logoColor=9aa1ac"></a>
-<a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-12151c?style=flat-square&labelColor=0b0d12&logo=github&logoColor=9aa1ac"></a>
+<a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
+<a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
+<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
+<a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
+<a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
 
-<img alt="MIT" src="https://img.shields.io/badge/MIT-12151c?style=flat-square&labelColor=0b0d12">
-<img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-12151c?style=flat-square&labelColor=0b0d12&logo=apple&logoColor=9aa1ac">
-<img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-12151c?style=flat-square&labelColor=0b0d12&logo=tauri&logoColor=9aa1ac">
-<img alt="Version 2.0.0" src="https://img.shields.io/badge/v2.0.0-12151c?style=flat-square&labelColor=0b0d12">
+<img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
+<img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
+<img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
+<img alt="Version 2.0.0" src="https://img.shields.io/badge/v2.0.0-2d333b?style=flat-square">
 
 <br>
 
