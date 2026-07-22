@@ -15,6 +15,7 @@ use commands::{
         keychain_delete, keychain_retrieve, keychain_retrieve_bundle, keychain_store,
         keychain_store_bundle,
     },
+    notch::notch_activity_post,
     shell::{shell_run, shell_run_stream},
     usage_log::usage_log_append,
 };
@@ -51,6 +52,8 @@ pub fn run() {
             shell_run_stream,
             // HashMeter ecosystem — token-usage log
             usage_log_append,
+            // HashNotch — "finished" live-activity ping
+            notch_activity_post,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");

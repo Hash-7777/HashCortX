@@ -25,3 +25,22 @@ HC.usageLog = {
       ? HC.invoke("usage_log_append", { record }).catch(() => {})
       : Promise.resolve(),
 };
+
+// HashNotch ping — light up the notch "HashCortX finished" when a run
+// completes, like the iPhone Dynamic Island (the same feed Claude Code's
+// hook writes). Best-effort and metadata-only — a model label at most,
+// never message content. No-op in the browser or if HashNotch isn't there.
+HC.notch = {
+  finished: (subtitle) => {
+    if (!HC.isTauri) return Promise.resolve();
+    const record = {
+      id: "hashcortx",
+      icon: "checkmark.circle.fill",
+      title: "HashCortX finished",
+      endsAt: new Date(Date.now() + 45000).toISOString().replace(/\.\d+Z$/, "Z"),
+    };
+    const sub = (subtitle || "").toString().trim();
+    if (sub) record.subtitle = sub.slice(0, 120);
+    return HC.invoke("notch_activity_post", { record }).catch(() => {});
+  },
+};
