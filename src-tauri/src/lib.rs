@@ -52,7 +52,7 @@ pub fn run() {
             shell_run_stream,
             // HashMeter ecosystem — token-usage log
             usage_log_append,
-            // HashNotch — "finished" live-activity ping
+            // Hash D Island — "finished" live-activity ping
             notch_activity_post,
         ])
         .run(tauri::generate_context!())

@@ -1,18 +1,18 @@
 // ==============================================================
-// HashNotch live-activity ping
+// Hash D Island live-activity ping
 //
 // When a run finishes, HashCortX writes one short "finished" activity to
-// HashNotch's local feed so the notch lights up like the iPhone Dynamic
+// Hash D Island's local feed so the notch lights up like the iPhone Dynamic
 // Island — the same way Claude Code's hook does. Metadata only: a title and
 // an optional model label, never any prompt or answer content.
 //
-// The feed is HashNotch's documented merge-by-id contract:
-//   ~/.hashnotch/activities.json  — an array of
+// The feed is Hash D Island's documented merge-by-id contract:
+//   ~/.hashdisland/activities.json  — an array of
 //   { id, icon, title, subtitle?, endsAt? (ISO8601) }
 //
 // We replace our own previous activity, leave every other poster's alone,
 // keep the file bounded, and write atomically so a reader never sees a
-// half-written file. Best-effort: if HashNotch isn't installed the file just
+// half-written file. Best-effort: if Hash D Island isn't installed the file just
 // sits there unread, and any failure is swallowed by the caller.
 // ==============================================================
 
@@ -20,12 +20,12 @@ use serde_json::Value;
 use std::fs;
 use std::path::PathBuf;
 
-/// HashNotch itself only shows a handful; keep the file from ever growing.
+/// Hash D Island itself only shows a handful; keep the file from ever growing.
 const MAX_ACTIVITIES: usize = 8;
 
 fn feed_path() -> PathBuf {
     let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-    home.join(".hashnotch").join("activities.json")
+    home.join(".hashdisland").join("activities.json")
 }
 
 #[tauri::command]

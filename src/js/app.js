@@ -5935,7 +5935,7 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     }
     state.streaming = false;
     sendBtn.textContent = "Send";
-    // Light up HashNotch — "HashCortX finished", like the iPhone island.
+    // Light up Hash D Island — "HashCortX finished", like the iPhone island.
     // Fires once per turn for every path (cloud, local, agent, code mode).
     HC.notch?.finished((modelEl.value || "").split(":").pop());
     if (tpsBtn && !assistant.tps) {

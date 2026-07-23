@@ -26,10 +26,10 @@ HC.usageLog = {
       : Promise.resolve(),
 };
 
-// HashNotch ping — light up the notch "HashCortX finished" when a run
+// Hash D Island ping — light up the notch "HashCortX finished" when a run
 // completes, like the iPhone Dynamic Island (the same feed Claude Code's
 // hook writes). Best-effort and metadata-only — a model label at most,
-// never message content. No-op in the browser or if HashNotch isn't there.
+// never message content. No-op in the browser or if Hash D Island isn't there.
 HC.notch = {
   finished: (subtitle) => {
     if (!HC.isTauri) return Promise.resolve();
