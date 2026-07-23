@@ -8,7 +8,7 @@
 //
 // The feed is Hash D Island's documented merge-by-id contract:
 //   ~/.hashdisland/activities.json  — an array of
-//   { id, icon, title, subtitle?, endsAt? (ISO8601) }
+//   { id, icon, title, subtitle?, endsAt? (ISO8601), dismissAfter?, image? }
 //
 // We replace our own previous activity, leave every other poster's alone,
 // keep the file bounded, and write atomically so a reader never sees a
@@ -28,6 +28,19 @@ fn feed_path() -> PathBuf {
     home.join(".hashdisland").join("activities.json")
 }
 
+/// Where this app's logo would live, if the user has put one there.
+///
+/// The notch shows a tool's own mark instead of a generic symbol when it can
+/// find one. Nothing is shipped or created here: the path is simply offered,
+/// and Hash D Island ignores it unless it names a readable image, in which case
+/// the symbol is drawn as before.
+fn logo_path(id: &str) -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    home.join(".hashdisland")
+        .join("logos")
+        .join(format!("{id}.png"))
+}
+
 #[tauri::command]
 pub fn notch_activity_post(record: Value) -> Result<(), String> {
     let id = record
@@ -45,6 +58,17 @@ pub fn notch_activity_post(record: Value) -> Result<(), String> {
         .ok()
         .and_then(|text| serde_json::from_str::<Vec<Value>>(&text).ok())
         .unwrap_or_default();
+
+    // Offer our logo, unless the caller named one itself.
+    let mut record = record;
+    if record.get("image").is_none() {
+        if let Some(object) = record.as_object_mut() {
+            object.insert(
+                "image".to_string(),
+                Value::String(logo_path(&id).to_string_lossy().into_owned()),
+            );
+        }
+    }
 
     // Replace our own previous activity; never touch anyone else's.
     items.retain(|item| item.get("id").and_then(Value::as_str) != Some(id.as_str()));

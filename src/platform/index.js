@@ -33,11 +33,19 @@ HC.usageLog = {
 HC.notch = {
   finished: (subtitle) => {
     if (!HC.isTauri) return Promise.resolve();
+    // A notice, not a countdown: this has already happened, so the notch shows
+    // it briefly and drops it rather than ticking a timer down beside the word
+    // "finished". endsAt rides along only so the entry expires from the shared
+    // file on its own.
+    const seconds = 3;
     const record = {
       id: "hashcortx",
       icon: "checkmark.circle.fill",
       title: "HashCortX finished",
-      endsAt: new Date(Date.now() + 45000).toISOString().replace(/\.\d+Z$/, "Z"),
+      dismissAfter: seconds,
+      endsAt: new Date(Date.now() + seconds * 1000)
+        .toISOString()
+        .replace(/\.\d+Z$/, "Z"),
     };
     const sub = (subtitle || "").toString().trim();
     if (sub) record.subtitle = sub.slice(0, 120);
