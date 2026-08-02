@@ -17,7 +17,7 @@ use commands::{
         keychain_store_bundle,
     },
     notch::notch_activity_post,
-    shell::{shell_run, shell_run_stream},
+    shell::{shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream},
     usage_log::usage_log_append,
 };
 
@@ -51,6 +51,9 @@ pub fn run() {
             // Phase 4 — Shell
             shell_run,
             shell_run_stream,
+            shell_run_line,
+            shell_run_line_stream,
+            shell_platform,
             // Local embeddings — bundled bge-small-en-v1.5, run natively
             embed_texts,
             embed_available,

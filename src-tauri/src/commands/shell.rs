@@ -72,6 +72,53 @@ pub struct StreamChunk {
     pub code: Option<i32>,
 }
 
+/// The program and flag this platform uses to run a whole command line.
+///
+/// The renderer used to hard-code `sh -c`, which simply does not exist on
+/// Windows — every terminal command and the home-directory probe would have
+/// failed there. Choosing the shell in Rust means the JavaScript never has to
+/// know which OS it is on, and there is one place to be wrong instead of four.
+#[cfg(windows)]
+pub const fn platform_shell() -> (&'static str, &'static str) {
+    ("cmd", "/C")
+}
+#[cfg(not(windows))]
+pub const fn platform_shell() -> (&'static str, &'static str) {
+    ("sh", "-c")
+}
+
+/// The command that prints the user's home directory on this platform.
+#[cfg(windows)]
+const HOME_PROBE: &str = "echo %USERPROFILE%";
+#[cfg(not(windows))]
+const HOME_PROBE: &str = "echo $HOME";
+
+/// What the frontend needs to know about the platform it is running on, so it
+/// can describe commands to the model correctly rather than assuming Unix.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PlatformInfo {
+    /// "windows" | "macos" | "linux" | …
+    pub os: String,
+    /// The shell used to run a command line, e.g. "sh" or "cmd".
+    pub shell: String,
+    /// Path separator, "/" or "\\".
+    pub separator: String,
+    /// A command line that prints the home directory.
+    pub home_probe: String,
+}
+
+#[tauri::command]
+pub fn shell_platform() -> PlatformInfo {
+    let (shell, _) = platform_shell();
+    PlatformInfo {
+        os: std::env::consts::OS.to_string(),
+        shell: shell.to_string(),
+        separator: std::path::MAIN_SEPARATOR.to_string(),
+        home_probe: HOME_PROBE.to_string(),
+    }
+}
+
 fn resolve_timeout(timeout_ms: Option<u64>) -> Duration {
     Duration::from_millis(
         timeout_ms
@@ -168,6 +215,42 @@ fn read_capped<R: Read>(reader: R) -> (String, bool) {
         text.push_str("\n\n[Output truncated — exceeded 512 KB. Narrow the command, or pipe through `head`, `tail`, or `grep`.]");
     }
     (text, truncated)
+}
+
+/// Run a whole command line through this platform's shell.
+///
+/// Callers that have a command line rather than a program plus arguments — the
+/// terminal, the home-directory probe — use this instead of guessing at `sh`.
+#[tauri::command]
+pub fn shell_run_line(
+    line: String,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+) -> Result<ShellOutput, String> {
+    let (shell, flag) = platform_shell();
+    shell_run(
+        shell.to_string(),
+        vec![flag.to_string(), line],
+        cwd,
+        timeout_ms,
+    )
+}
+
+#[tauri::command]
+pub fn shell_run_line_stream(
+    line: String,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+    on_chunk: Channel<StreamChunk>,
+) -> Result<(), String> {
+    let (shell, flag) = platform_shell();
+    shell_run_stream(
+        shell.to_string(),
+        vec![flag.to_string(), line],
+        cwd,
+        timeout_ms,
+        on_chunk,
+    )
 }
 
 #[tauri::command]

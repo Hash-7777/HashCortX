@@ -63,13 +63,28 @@ jobs:
         run: npm run check:agent
 
   rust:
-    name: Rust compiles and tests pass
-    # 24.04, not 22.04, and the reason is linking rather than preference.
-    # ort downloads a prebuilt ONNX Runtime, and that build wants glibc 2.38+
-    # (the __isoc23_* string functions) and libstdc++ 13+ (_M_replace_cold).
-    # 22.04 ships glibc 2.35 and GCC 11, so `cargo check` passed — it does not
-    # link — and `cargo test` then failed with a wall of undefined symbols.
-    runs-on: ubuntu-24.04
+    name: Rust — ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    # All three platforms, because for the entire life of this project only
+    # macOS was ever built. A dependency table header had quietly made chrono,
+    # dirs and shellexpand macOS-only, so the crate did not compile on Linux or
+    # Windows at all and nothing noticed. A matrix is the only thing that keeps
+    # that honest — the alternative is finding out from a user.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 24.04, not 22.04, and the reason is linking rather than preference.
+          # ort downloads a prebuilt ONNX Runtime that wants glibc 2.38+ (the
+          # __isoc23_* string functions) and libstdc++ 13+ (_M_replace_cold).
+          # 22.04 ships glibc 2.35 and GCC 11, so `cargo check` passed — it does
+          # not link — and `cargo test` failed with a wall of undefined symbols.
+          - os: ubuntu-24.04
+            label: Linux
+          - os: macos-latest
+            label: macOS
+          - os: windows-latest
+            label: Windows
     steps:
       - uses: actions/checkout@v4
 
@@ -80,13 +95,16 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          key: ${{ matrix.label }}
 
       # Tauri needs the system webview and its -sys crates' headers even to
       # type-check. This is the full Tauri v2 Linux prerequisite list, not the
       # shorter one docs/future/build.yml carries: that one predates v2, names
       # libappindicator3-dev (v2 wants the ayatana fork), and omits libxdo-dev
       # and libssl-dev, whose -sys crates then fail to build.
+      # macOS and Windows ship their webview with the OS and need none of this.
       - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -101,14 +119,26 @@ jobs:
             libdbus-1-dev \
             patchelf
 
-      # Every cargo step goes through the annotator so a failure is readable
-      # from the checks API without admin rights on the repository. See the
-      # script's header for why that matters.
+      # Every cargo step on Unix goes through the annotator so a failure is
+      # readable from the checks API without admin rights on the repository.
+      # See the script's header for why that matters.
       - name: cargo check
-        run: scripts/ci/run-and-annotate.sh "cargo check" cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+        if: runner.os != 'Windows'
+        run: scripts/ci/run-and-annotate.sh "cargo check (${{ matrix.label }})" cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 
       - name: cargo test
-        run: scripts/ci/run-and-annotate.sh "cargo test" cargo test --manifest-path src-tauri/Cargo.toml
+        if: runner.os != 'Windows'
+        run: scripts/ci/run-and-annotate.sh "cargo test (${{ matrix.label }})" cargo test --manifest-path src-tauri/Cargo.toml
+
+      # Windows has no bash by default for the annotator wrapper, and its logs
+      # are readable from the run page anyway. Run cargo directly there.
+      - name: cargo check (Windows)
+        if: runner.os == 'Windows'
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+
+      - name: cargo test (Windows)
+        if: runner.os == 'Windows'
+        run: cargo test --manifest-path src-tauri/Cargo.toml
 
       # The security code is where a warning is most worth reading, so
       # clippy runs — but it does not fail the build yet, because the

@@ -27,6 +27,17 @@
   // ── Shared state ───────────────────────────────────────────
   const sharedState = { projectRoot: null, activeFile: null };
 
+  // Whether the AppleScript picker fallbacks are worth attempting. osascript
+  // does not exist on Windows or Linux, so trying it there produces a confusing
+  // "command not found" rather than an honest "no picker available". The Rust
+  // side reports the real platform; navigator is the fallback for the brief
+  // window before that resolves, and for browser dev mode.
+  function isMacOS() {
+    const reported = sharedState?.platform?.os;
+    if (reported) return reported === 'macos';
+    return /mac/i.test(navigator.platform || navigator.userAgent || '');
+  }
+
   function esc(s) {
     return String(s || '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -442,7 +453,11 @@
       // — this is an internal app initialisation, not an AI agent action, so a permission
       // dialog would be jarring UX. The command is read-only and hardcoded.
       if (HC?.isTauri && !sharedState.homeDir) {
-        HC.invoke('shell_run', { command: 'sh', args: ['-c', 'echo $HOME'], cwd: null })
+        // The home-directory probe and its shell are chosen in Rust — `sh` does
+        // not exist on Windows, and hard-coding it here made every terminal
+        // command and this probe fail there.
+        HC.invoke('shell_platform')
+          .then(info => { sharedState.platform = info; return HC.invoke('shell_run_line', { line: info.homeProbe, cwd: null }); })
           .then(r => { if (r?.stdout?.trim()) sharedState.homeDir = r.stdout.trim(); })
           .catch(() => {});
       }
@@ -668,7 +683,7 @@
           console.warn('[CoderMode] dialog plugin unavailable, using AppleScript fallback:', e?.message || e);
         }
         // 2) AppleScript fallback
-        if (!pluginAvailable) {
+        if (!pluginAvailable && isMacOS()) {
           try {
             const out = await window.HC.invoke('shell_run', {
               command: 'osascript',
@@ -705,7 +720,7 @@
           pluginAvailable = false;
           console.warn('[CoderMode] dialog plugin unavailable, using AppleScript fallback:', e?.message || e);
         }
-        if (!pluginAvailable) {
+        if (!pluginAvailable && isMacOS()) {
           try {
             const out = await window.HC.invoke('shell_run', {
               command: 'osascript',
@@ -1392,7 +1407,7 @@
             else if (chunk.kind === 'stderr') terminalLog(chunk.data, 'cdr-terminal-error');
             else if (chunk.kind === 'done') exitCode = chunk.code;
           };
-          await HC.invoke('shell_run_stream', { command: 'sh', args: ['-c', cmd], cwd: sharedState.projectRoot || undefined, on_chunk: channel });
+          await HC.invoke('shell_run_line_stream', { line: cmd, cwd: sharedState.projectRoot || undefined, on_chunk: channel });
           if (exitCode !== 0 && exitCode !== null) {
             terminalLog(`(exit code: ${exitCode})`, 'cdr-terminal-error');
           }
@@ -1401,7 +1416,7 @@
         }
       } else {
         try {
-          const result = await HC.invoke('shell_run', { command: 'sh', args: ['-c', cmd], cwd: sharedState.projectRoot || undefined });
+          const result = await HC.invoke('shell_run_line', { line: cmd, cwd: sharedState.projectRoot || undefined });
           if (result?.stdout) result.stdout.split('\n').forEach(l => { if (l || result.stdout.endsWith('\n')) terminalLog(l); });
           if (result?.stderr) result.stderr.split('\n').forEach(l => { if (l) terminalLog(l, 'cdr-terminal-error'); });
           if (result?.code !== 0 && result?.code !== undefined) {
