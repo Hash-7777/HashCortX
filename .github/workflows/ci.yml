@@ -53,6 +53,11 @@ jobs:
       - name: Permission Guard checks
         run: npm run check:guard
 
+      # Retrieval fails quietly — nothing crashes when ranking gets worse, the
+      # answers just start missing the point. These pin the ordering rules.
+      - name: Knowledge-base retrieval checks
+        run: npm run check:rag
+
   rust:
     name: Rust compiles and tests pass
     runs-on: ubuntu-22.04

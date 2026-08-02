@@ -8149,64 +8149,48 @@ sys.stderr = _stderr
   const RAG_MAX_BYTES = 6_500_000; // ~6.5 MB char budget — embeddings add ~1.5 KB per chunk
   const RAG_MAX_CONTEXT = 3;       // chunks injected per query
   const RAG_CHUNK_MAX = 600;       // max chars stored per chunk
-  const RAG_VECTOR_MIN_SIM = 0.32; // cosine-sim threshold for vector hits
 
-  // ── Local embeddings (transformers.js) ────────────────────────────────
-  // Lazy-load all-MiniLM-L6-v2 (~22 MB) on first embed call. Stays in
-  // memory after that. Browser-only, no API key, no network at query time.
-  let _embedderPromise = null;
-  async function getEmbedder() {
-    if (_embedderPromise) return _embedderPromise;
-    _embedderPromise = (async () => {
-      const mod = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2/+esm");
-      try { mod.env.allowLocalModels = false; mod.env.useBrowserCache = true; } catch {}
-      return await mod.pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
-    })();
-    return _embedderPromise;
-  }
-  async function embedText(text) {
-    const t = String(text || "").trim().slice(0, 1000);
-    if (!t) return null;
+  // Vectors are 384-wide and come from bge-small-en-v1.5. A chunk embedded by
+  // an older build carries a different width and is simply ignored rather than
+  // compared — mixing vector spaces produces confident nonsense.
+  const RAG_VECTOR_DIM = 384;
+
+  // ── Local embeddings ──────────────────────────────────────────────────
+  // The model ships inside the app and runs natively in Rust; see
+  // src-tauri/src/commands/embed.rs. This used to import transformers.js from
+  // a CDN and fetch weights from huggingface.co, which connect-src does not
+  // permit — so every call here threw, was caught, and semantic search
+  // silently never ran in any shipped build.
+  //
+  // `kind` matters: bge is an asymmetric retriever, so a question and a stored
+  // passage are encoded differently. Pass "query" for what the user asked and
+  // "passage" for anything being stored.
+  async function embedTexts(texts, kind = "passage") {
+    const list = (Array.isArray(texts) ? texts : [texts])
+      .map(t => String(t || "").trim())
+      .filter(Boolean);
+    if (!list.length) return [];
+    if (!window.HC?.isTauri) return [];
     try {
-      const embedder = await getEmbedder();
-      const out = await embedder(t, { pooling: "mean", normalize: true });
-      return Array.from(out.data);
+      const vecs = await HC.invoke("embed_texts", { texts: list, kind });
+      return Array.isArray(vecs) ? vecs : [];
     } catch (e) {
       console.warn("[embed] failed:", e?.message || e);
-      return null;
+      return [];
     }
   }
-  function cosineSim(a, b) {
-    if (!a || !b || a.length !== b.length) return 0;
-    // Vectors are L2-normalized at extraction time, so cosine = dot product.
-    let dot = 0;
-    for (let i = 0; i < a.length; i++) dot += a[i] * b[i];
-    return dot;
+
+  async function embedText(text, kind = "passage") {
+    const [vec] = await embedTexts([text], kind);
+    return vec || null;
   }
 
-  const STOP_WORDS = new Set("a an the and or but in on at to of for is are was were be been being have has had do does did will would could should may might shall can this that these those with from by into out up as it its if not no so i we you he she they their them our my your his her its what which who when where how all just also only more over than then".split(" "));
-
-  function ragExtractKeywords(text) {
-    return [...new Set(
-      (text || "").toLowerCase()
-        .split(/[^a-z0-9]+/)
-        .filter(w => w.length > 2 && !STOP_WORDS.has(w))
-    )];
-  }
-
-  function ragScore(queryKw, chunk) {
-    if (!queryKw.length || !chunk.keywords?.length) return 0;
-    const cSet = new Set(chunk.keywords);
-    const titleKw = new Set(ragExtractKeywords(chunk.title || ""));
-    let score = 0, totalWeight = 0;
-    for (const w of queryKw) {
-      // Word length proxies IDF: longer terms are rarer and more informative
-      const weight = Math.log(2 + w.length);
-      totalWeight += weight;
-      if (cSet.has(w)) score += weight * (titleKw.has(w) ? 1.6 : 1.0);
-    }
-    return totalWeight > 0 ? score / totalWeight : 0;
-  }
+  // The ranking maths lives in js/rag-search.js, loaded before this file, so
+  // that retrieval quality — the part of a knowledge base that degrades
+  // quietly — is covered by scripts/checks/rag.mjs instead of being sealed
+  // inside this closure.
+  const { extractKeywords: ragExtractKeywords, keywordScore: ragScore, cosineSim, fuseByRank } =
+    window.HCRagSearch;
 
   function loadRAG() {
     try {
@@ -8255,9 +8239,10 @@ sys.stderr = _stderr
     };
     store.push(entry);
     saveRAG(store);
-    // Async embed + patch — so ingestion never blocks UI even on first run
-    // when the 22 MB embedding model is still downloading.
-    embedText(`${entry.title}. ${chunk}`).then(vec => {
+    // Embed and patch asynchronously, so ingestion never blocks the UI. The
+    // chunk is searchable by keyword the moment it is stored and gains
+    // semantic reach a moment later.
+    embedText(`${entry.title}. ${chunk}`, "passage").then(vec => {
       if (!vec) return;
       const cur = loadRAG();
       const i = cur.findIndex(c => c.key === entry.key);
@@ -8278,25 +8263,25 @@ sys.stderr = _stderr
       .slice(0, topK);
   }
 
-  // Vector retrieval — semantic search via cosine similarity. Runs in
-  // parallel with keyword retrieval and the two are merged, so chunks
-  // ingested before embeddings existed still surface via keywords.
+  // Vector retrieval — semantic search by cosine similarity.
+  //
+  // Returns a RANKING, deliberately without a similarity cut-off. Measured
+  // against the bundled bge model, a passage about pastry scores 0.41 against
+  // a question about shell commands, while a genuinely relevant one scores
+  // 0.68 — the numbers live in a high, compressed band where any absolute
+  // threshold is either arbitrary or lets everything through. The old 0.32
+  // cut-off would admit literally every chunk in the store. What separates
+  // results here is position, not score, so ranking is what this returns and
+  // fusion is what uses it.
   async function queryRAGVector(text, topK = RAG_MAX_CONTEXT) {
     if (!ragEnabled) return [];
     const store = loadRAG();
-    const withVec = store.filter(c => Array.isArray(c.vec) && c.vec.length);
+    const withVec = store.filter(c => Array.isArray(c.vec) && c.vec.length === RAG_VECTOR_DIM);
     if (!withVec.length) return [];
-    // First call may need to download the 22 MB model. Race against a
-    // generous timeout so we never block a user query for >2 s — keyword
-    // search will carry that turn, vector takes over once warm.
-    const qVec = await Promise.race([
-      embedText(text),
-      new Promise(r => setTimeout(() => r(null), 2000))
-    ]);
+    const qVec = await embedText(text, "query");
     if (!qVec) return [];
     return withVec
       .map(c => ({ ...c, _score: cosineSim(qVec, c.vec) }))
-      .filter(c => c._score >= RAG_VECTOR_MIN_SIM)
       .sort((a, b) => b._score - a._score)
       .slice(0, topK);
   }
@@ -8314,27 +8299,33 @@ sys.stderr = _stderr
     _ragLocalAdd(title, text, source);
   }
 
-  // Hybrid retrieval: vector (semantic) + keyword (lexical).
-  // Vector goes first — it catches paraphrases and synonyms that keyword
-  // misses ("CEO" ↔ "chief executive"). Keyword fills in exact-match cases
-  // (rare names, codes, IDs) where embeddings can be fuzzy.
+  // Hybrid retrieval by Reciprocal Rank Fusion.
+  //
+  // Semantic search catches paraphrase — "CEO" finding "chief executive" —
+  // and keyword search catches the things embeddings blur: rare names, error
+  // codes, identifiers. Neither is reliably better, so the question is how to
+  // combine them.
+  //
+  // Concatenating the two lists, which is what this used to do, gives the
+  // semantic list absolute priority: its third-best guess outranked the
+  // keyword list's perfect match. RRF instead scores each chunk by where it
+  // placed in each list, 1/(K + rank), and adds those up. A chunk both
+  // rankers liked beats one that only a single ranker put first, and no
+  // comparison is ever made between a cosine similarity and a keyword score —
+  // two numbers that share no scale and should never be weighed against each
+  // other.
+  //
+  // The fusion itself is in js/rag-search.js, where it can be tested.
   const _queryRAGLocal = queryRAG;
+
   async function queryRAGMerged(text) {
     if (!ragEnabled) return [];
-    const vec = await queryRAGVector(text, RAG_MAX_CONTEXT).catch(() => []);
-    const kw = _queryRAGLocal(text);
-    const seen = new Set();
-    const out = [];
-    const dedupKey = c => (c.title || "").trim().toLowerCase() + "|" + (c.text || "").slice(0, 80);
-    const push = (arr) => {
-      for (const c of arr) {
-        const k = dedupKey(c);
-        if (!seen.has(k)) { seen.add(k); out.push(c); }
-      }
-    };
-    push(vec);  // semantic matches first
-    push(kw);   // exact-token fallbacks
-    return out.slice(0, RAG_MAX_CONTEXT + 2);
+    // Ask each ranker for more than we need: fusion can only reorder what it
+    // is given, so a chunk outside both shortlists can never be recovered.
+    const depth = RAG_MAX_CONTEXT * 3;
+    const vec = await queryRAGVector(text, depth).catch(() => []);
+    const kw = _queryRAGLocal(text, depth);
+    return fuseByRank([vec, kw]).slice(0, RAG_MAX_CONTEXT + 2);
   }
 
   // ========= Boot =========

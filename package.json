@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:syntax && npm run check:guard",
+    "check": "npm run check:syntax && npm run check:guard && npm run check:rag",
     "check:syntax": "node scripts/checks/syntax.mjs",
-    "check:guard": "node scripts/checks/guard.mjs"
+    "check:guard": "node scripts/checks/guard.mjs",
+    "check:rag": "node scripts/checks/rag.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

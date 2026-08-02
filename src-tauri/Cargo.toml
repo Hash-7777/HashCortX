@@ -118,13 +118,6 @@ serde_json = "1"
 # macOS uses security-framework directly (see below) to avoid binary-bound ACLs.
 keyring = "3"
 
-# ── security-framework (macOS only) ──────────────────────────
-# Direct access to macOS Generic Password Keychain API.
-# Unlike keyring v3, this stores items without an application ACL,
-# so keys survive DMG rebuilds without prompts or loss.
-[target.'cfg(target_os = "macos")'.dependencies]
-security-framework = "2"
-
 # ── ort + tokenizers ─────────────────────────────────────────
 # Local sentence embeddings for the knowledge base: bge-small-en-v1.5 run
 # natively, so semantic search needs no network and no WebAssembly runtime.
@@ -149,3 +142,26 @@ chrono      = { version = "0.4", features = ["serde"] }
 # shellexpand: expands ~ in paths for the denylist checker.
 dirs        = "5"
 shellexpand = "3"
+
+# ==============================================================
+# Platform-specific dependencies
+#
+# ⚠ EVERY TABLE HEADER BELOW THIS POINT ENDS [dependencies].
+#
+# A `[target.'cfg(…)'.dependencies]` header does not open a subsection of the
+# shared dependency list — it opens a DIFFERENT list, and every line after it
+# belongs to that one until the next header. So a shared dependency written
+# below one of these silently becomes platform-only.
+#
+# That is not hypothetical. chrono, dirs and shellexpand sat under the macOS
+# header for the entire life of this project, which meant the crate did not
+# compile on Linux or Windows at all — invisible here, because the only builds
+# anyone ran were macOS ones. Add shared dependencies ABOVE this banner.
+# ==============================================================
+
+# ── security-framework (macOS only) ──────────────────────────
+# Direct access to macOS Generic Password Keychain API.
+# Unlike keyring v3, this stores items without an application ACL,
+# so keys survive DMG rebuilds without prompts or loss.
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "2"
