@@ -1,52 +1,42 @@
-<div align="center">
+# HashCortx
 
-<img src="docs/assets/hero.svg" alt="HashCortx — local-first AI workspace. Ten workspaces, twelve providers, zero telemetry." width="100%">
+**A local-first AI workspace: multi-provider chat, an autonomous coding agent, and multi-agent swarms in one native desktop app. No backend, no telemetry, no account. MIT-licensed.**
 
-<a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
-<a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
-<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
-<a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
-<a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
-
-<img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
-<img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
-<img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 2.0.0" src="https://img.shields.io/badge/v2.0.0-2d333b?style=flat-square">
-
-<br>
-
-<a href="https://trendshift.io/repositories/36185?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-36185" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/36185/daily?language=JavaScript" alt="Hash-7777%2FHashCortX | Trendshift" width="250" height="55"/></a>
-
-</div>
-
-<br>
-
-![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
+[Download](https://github.com/Hash-7777/HashCortX/releases/latest) ·
+[Website](https://hashcortx.com) ·
+[Demo video](https://youtu.be/On5wPdKZDfg) ·
+[Wiki](https://github.com/Hash-7777/HashCortX/wiki) ·
+[Discussions](https://github.com/Hash-7777/HashCortX/discussions) ·
+[Architecture](docs/ARCHITECTURE.md) ·
+[Security](docs/SECURITY.md)
 
 ---
 
 ## What this is
 
-HashCortx is a native macOS app that puts a multi-provider AI chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a Python sandbox, financial document analysis, a security scanner, 3D planning, and a virtual project desktop behind one window.
+HashCortx is a native desktop app that puts a multi-provider AI chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a Python sandbox, financial document analysis, a security scanner, 3D planning, and a virtual project desktop behind one window.
 
-It is **40.9 MB**, three quarters of which is a sentence-embedding model that ships inside the app so the knowledge base works offline. It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
+It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
 
 It is MIT-licensed, and you can read all of it — roughly 30,600 lines of vanilla JavaScript and 1,820 lines of Rust, with no bundler and no framework in between.
 
-<br>
+| | |
+|---|---|
+| **Type** | Native desktop app (Tauri v2) |
+| **Runs on** | macOS Apple Silicon — the only platform built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app on them yet |
+| **License** | MIT |
+| **Latest release** | v2.0.0 (May 2026), 8 MB |
+| **Current `main`** | 40.9 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework |
+| **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
+| **Workspaces** | 10, plus a no-code agent builder |
+| **Specialist agents** | 9 built in |
+| **Telemetry · backend · accounts** | None · None · None |
+| **Tests** | 34 Rust, 72 frontend checks, CI on Linux, macOS and Windows |
 
-<table>
-<tr><td width="200"><b>Type</b></td><td>Native desktop app (Tauri v2)</td></tr>
-<tr><td><b>Platform</b></td><td>macOS Apple Silicon · Intel, Windows and Linux planned</td></tr>
-<tr><td><b>License</b></td><td>MIT</td></tr>
-<tr><td><b>Version</b></td><td>2.0.0</td></tr>
-<tr><td><b>Bundle size</b></td><td>40.9 MB DMG (7 MB app, 34 MB bundled embedding model)</td></tr>
-<tr><td><b>Stack</b></td><td>Rust · vanilla JavaScript · no bundler · no framework</td></tr>
-<tr><td><b>AI providers</b></td><td>11 cloud + Ollama for local models</td></tr>
-<tr><td><b>Workspaces</b></td><td>10, plus a no-code agent builder</td></tr>
-<tr><td><b>Specialist agents</b></td><td>9 built in</td></tr>
-<tr><td><b>Telemetry · backend · accounts</b></td><td>None · None · None</td></tr>
-</table>
+> **`main` is ahead of the latest release.** v2.0.0 is from May 2026 and predates the offline knowledge base, the security fixes and the cross-platform work described below. Until a new release is cut, the numbers here describe what `main` builds, and the download gives you v2.0.0. Build from source if you want what is written here.
+
+![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
 
 ---
 
@@ -56,7 +46,7 @@ It is MIT-licensed, and you can read all of it — roughly 30,600 lines of vanil
 
 **Your keys, your models.** Eleven cloud providers and Ollama, all configured at once, switched freely, and mixed inside a single swarm run.
 
-**It stays small.** 40.9 MB, against 100–300 MB for the Electron apps in this category. Most of that is not the app: the application itself is around 7 MB, and the other 34 MB is a sentence-embedding model bundled so that searching your own notes works offline, with nothing to download and nothing sent anywhere.
+**It stays small.** 40.9 MB, against 100–300 MB for the Electron apps in this category. Most of that is not the app: the application itself is around 7 MB, and the other 34 MB is a sentence-embedding model bundled so searching your own notes works offline, with nothing to download and nothing sent anywhere.
 
 **The agent asks before it acts.** File and shell calls from the coding agent hit a Rust permission gate before they run, and a hard denylist that no prompt can talk its way past.
 
@@ -179,7 +169,9 @@ Keys are written to a single JSON bundle (`hc_api_bundle_v2`) in the app's own l
 
 **They are not in the macOS Keychain, and this is deliberate.** A Keychain item's access list is bound to the binary's code signature. While the build is unsigned, every new DMG carries a new signature, which would make macOS ask for your password once per key on every single update. The Rust Keychain implementation still ships ([`src-tauri/src/commands/keychain.rs`](src-tauri/src/commands/keychain.rs)); on first run it pulls any keys out of the old Keychain bundle, copies them across, and deletes the entry so it never prompts again.
 
-What this means in practice: your keys sit in a directory only this app writes to, protected by your macOS user account and file permissions — not by Keychain encryption. That is a real difference, and it is stated plainly here rather than dressed up. Code signing is on the roadmap, and Keychain storage becomes practical again the moment it lands.
+What this means in practice: your keys sit in a directory only this app writes to, protected by your user account and file permissions — not by encryption. That is a real difference, and it is stated plainly here rather than dressed up. Code signing is on the roadmap, and Keychain storage becomes practical again the moment it lands.
+
+On Linux and Windows the same store lives under the platform's own app-data directory, and the denylist refuses the agent access to it there too — but as with everything off macOS, that path has been tested, not used.
 
 ---
 
@@ -187,7 +179,9 @@ What this means in practice: your keys sit in a directory only this app writes t
 
 Download `HashCortx-2.0.0-macOS-arm64.dmg` from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, and drag HashCortx to `/Applications`.
 
-The build is unsigned, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
+That release is v2.0.0 from May 2026. It works, but it predates the offline knowledge base, the security fixes and the cross-platform work described in this README — those are on `main` and not yet released. Build from source for those.
+
+The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/HashCortx.app
@@ -205,7 +199,18 @@ npm run tauri dev      # live-reload development
 npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
 ```
 
-Requires macOS, Node 18+, a Rust toolchain via `rustup`, and Xcode Command Line Tools.
+Requires Node 18+ and a Rust toolchain via `rustup`, plus:
+
+- **macOS** — Xcode Command Line Tools
+- **Linux** — `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libxdo-dev`, `libssl-dev`, `libdbus-1-dev`, `patchelf`, `build-essential`, `pkg-config`. glibc 2.38+ and libstdc++ 13+ are needed to link the bundled ONNX Runtime, so Ubuntu 24.04 or newer
+- **Windows** — the MSVC build tools and WebView2 (preinstalled on Windows 11)
+
+Before pushing, run the checks CI runs:
+
+```bash
+npm run check                                        # scripts parse, guard, retrieval, agent context
+cargo test --manifest-path src-tauri/Cargo.toml      # 34 tests
+```
 
 ---
 
@@ -216,12 +221,14 @@ Requires macOS, Node 18+, a Rust toolchain via `rustup`, and Xcode Command Line 
 | Layer | Technology |
 |---|---|
 | **Shell** | Tauri v2 — Rust core, the system webview, no Chromium |
-| **Backend** | Rust: filesystem, shell, audit log, token usage log, Keychain migration |
+| **Backend** | Rust: filesystem, shell, audit log, token usage log, Keychain migration, sentence embeddings |
 | **Security** | Compiled denylist in `security/denylist.rs`, permission prompt via `HC.guard.request()` |
 | **Frontend** | Vanilla JavaScript. No React, no TypeScript, no bundler, no build step |
 | **Vendored libs** | marked, highlight.js, DOMPurify, mermaid, pdf.js, jsPDF, three.js — all local, no CDN |
 | **Python** | Pyodide (CPython on WebAssembly) with pandas, numpy, matplotlib, python-docx, openpyxl, reportlab |
 | **Local models** | Ollama, with saved endpoint presets |
+| **Embeddings** | bge-small-en-v1.5 (MIT) compiled into the binary, run via ONNX Runtime — no download, no network |
+| **Tests** | 34 Rust tests; 72 frontend checks that load the real source into a Node VM; CI on Linux, macOS and Windows |
 
 Vanilla JS with no bundler is a deliberate constraint, not an oversight. It is what keeps the application itself around 7 MB, and it lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
 
@@ -318,7 +325,7 @@ Best effort as of July 2026. If something here is out of date, please [open an i
 
 **Does it work offline?** Yes, with Ollama. Cloud providers need the internet.
 
-**Which systems?** macOS Apple Silicon today. Intel Mac, Windows and Linux are planned — Tauri supports all three, so the remaining work is packaging and testing.
+**Which systems?** macOS Apple Silicon is the one that is built and used daily. The code now compiles and passes its tests on Linux and Windows too, and CI runs all three on every push — but nobody has actually launched the app on Linux or Windows yet, so treat those as buildable rather than supported. Intel Mac is untested for the same reason. If you run it on one of them, an issue saying what happened would genuinely help.
 
 **Does it send my code anywhere?** Only to the provider you configured, when you send a message. There is no HashCortx server.
 
@@ -326,7 +333,9 @@ Best effort as of July 2026. If something here is out of date, please [open an i
 
 **Are my API keys encrypted?** No. They live in an app-scoped local directory protected by your macOS user account, not by Keychain encryption. [Here is the reasoning.](#where-your-api-keys-live)
 
-**Why is it so small?** No Chromium, no Electron, no React, no bundler. Tauri uses the webview macOS already ships with.
+**Why is it so small?** No Chromium, no Electron, no React, no bundler. Tauri uses the webview your OS already ships with, so the application itself is about 7 MB. The download is larger because a 34 MB sentence-embedding model ships inside it, which is what lets the knowledge base work offline with nothing sent anywhere.
+
+**Does the knowledge base send my notes anywhere?** No. The embedding model runs inside the app, on your machine. Nothing is fetched to make it work and nothing is uploaded. It works with the network off.
 
 **Was it built with AI?** Yes, heavily. See below.
 
@@ -336,10 +345,13 @@ More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
 ## Roadmap
 
+- A release cut from `main`, so the download matches this README
 - Code signing and notarisation for the macOS build, which also unlocks Keychain key storage
-- Intel Mac, Windows and Linux builds
-- Continued extraction of `app.js` into focused modules
+- Someone actually running the app on Linux and Windows — it compiles and passes tests there, which is not the same thing
+- Intel Mac build
+- Continued extraction of `app.js` into focused modules — the retrieval ranking and the agent context budget are out; the rest of the memory system, the model utilities and the swarm log are next
 - Permission Guard coverage for Virtual OS and 3D Forge native calls
+- Knowledge base storage beyond `localStorage`, which caps it at about 6.5 MB
 - More specialist agents, driven by what people ask for
 
 Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose) or [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
