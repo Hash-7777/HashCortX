@@ -67,14 +67,23 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      # Tauri needs the system webview headers even to type-check.
+      # Tauri needs the system webview and its -sys crates' headers even to
+      # type-check. This is the full Tauri v2 Linux prerequisite list, not the
+      # shorter one docs/future/build.yml carries: that one predates v2, names
+      # libappindicator3-dev (v2 wants the ayatana fork), and omits libxdo-dev
+      # and libssl-dev, whose -sys crates then fail to build.
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+            build-essential \
+            pkg-config \
+            curl wget file \
             libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
+            libayatana-appindicator3-dev \
             librsvg2-dev \
+            libxdo-dev \
+            libssl-dev \
             patchelf
 
       - name: cargo check
