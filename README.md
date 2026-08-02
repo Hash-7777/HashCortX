@@ -1,56 +1,67 @@
+<div align="center">
+
+<img src="docs/assets/hero.svg" alt="HashCortx — local-first AI workspace. Ten workspaces, twelve providers, zero telemetry." width="100%">
+
 # HashCortx
 
-**A local-first AI workspace: multi-provider chat, an autonomous coding agent, and multi-agent swarms in one native desktop app. No backend, no telemetry, no account. MIT-licensed.**
+**A local-first AI workspace — multi-provider chat, an autonomous coding agent, and multi-agent swarms in one native desktop app.**<br>
+**No backend. No telemetry. No account. MIT-licensed.**
 
-[Download](https://github.com/Hash-7777/HashCortX/releases/latest) ·
-[Website](https://hashcortx.com) ·
-[Demo video](https://youtu.be/On5wPdKZDfg) ·
-[Wiki](https://github.com/Hash-7777/HashCortX/wiki) ·
-[Discussions](https://github.com/Hash-7777/HashCortX/discussions) ·
-[Architecture](docs/ARCHITECTURE.md) ·
-[Security](docs/SECURITY.md)
+<a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
+<a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
+<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
+<a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
+<a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
 
----
+<a href="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml/badge.svg"></a>
+<img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
+<img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
+<img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
+<img alt="Version 2.0.0" src="https://img.shields.io/badge/v2.0.0-2d333b?style=flat-square">
 
-## What this is
+<br>
 
-HashCortx is a native desktop app that puts a multi-provider AI chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a Python sandbox, financial document analysis, a security scanner, 3D planning, and a virtual project desktop behind one window.
+<a href="https://trendshift.io/repositories/36185?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-36185" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/36185/daily?language=JavaScript" alt="Hash-7777%2FHashCortX | Trendshift" width="250" height="55"/></a>
 
-It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
+</div>
 
-It is MIT-licensed, and you can read all of it — roughly 30,600 lines of vanilla JavaScript and 1,820 lines of Rust, with no bundler and no framework in between.
-
-| | |
-|---|---|
-| **Type** | Native desktop app (Tauri v2) |
-| **Runs on** | macOS Apple Silicon — the only platform built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app on them yet |
-| **License** | MIT |
-| **Latest release** | v2.0.0 (May 2026), 8 MB |
-| **Current `main`** | 40.9 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework |
-| **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
-| **Workspaces** | 10, plus a no-code agent builder |
-| **Specialist agents** | 9 built in |
-| **Telemetry · backend · accounts** | None · None · None |
-| **Tests** | 34 Rust, 72 frontend checks, CI on Linux, macOS and Windows |
-
-> **`main` is ahead of the latest release.** v2.0.0 is from May 2026 and predates the offline knowledge base, the security fixes and the cross-platform work described below. Until a new release is cut, the numbers here describe what `main` builds, and the download gives you v2.0.0. Build from source if you want what is written here.
+<br>
 
 ![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
 
 ---
 
+## What this is
+
+Ten workspaces — chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a real Python sandbox, financial document analysis, a security scanner, 3D planning and a virtual project desktop — behind one window.
+
+Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
+
+| | |
+|---|---|
+| **Type** | Native desktop app (Tauri v2) |
+| **Runs on** | macOS Apple Silicon — built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app there yet |
+| **License** | MIT |
+| **Latest release** | v2.0.0 (May 2026), 8 MB |
+| **Current `main`** | 40.9 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
+| **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~30,600 lines JS, ~1,820 Rust |
+| **Tests** | 34 Rust, 72 frontend checks, CI on Linux, macOS and Windows |
+| **Telemetry · backend · accounts** | None · None · None |
+
+> **`main` is ahead of the release.** v2.0.0 predates the offline knowledge base, the security fixes and the cross-platform work described below. Build from source if you want what is written here.
+
+---
+
 ## Why you might want it
 
-**Nothing phones home.** No analytics, no crash reporting, no update pings. The only outbound connections are to the AI providers you configured yourself.
+**Nothing phones home.** No analytics, no crash reporting, no update pings. The only outbound connections are to providers you configured yourself.
 
-**Your keys, your models.** Eleven cloud providers and Ollama, all configured at once, switched freely, and mixed inside a single swarm run.
+**Your keys, your models.** Eleven cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run.
 
-**It stays small.** 40.9 MB, against 100–300 MB for the Electron apps in this category. Most of that is not the app: the application itself is around 7 MB, and the other 34 MB is a sentence-embedding model bundled so searching your own notes works offline, with nothing to download and nothing sent anywhere.
+**The agent asks before it acts.** File and shell calls hit a Rust permission gate and a compiled denylist that no prompt can talk its way past.
 
-**The agent asks before it acts.** File and shell calls from the coding agent hit a Rust permission gate before they run, and a hard denylist that no prompt can talk its way past.
-
-**Ten workspaces, not ten apps.** Coding, chat, swarms, research, finance, security scanning, 3D planning, ERP prototyping, and a virtual desktop — one window, one set of keys.
+**Search that understands meaning.** Ask about "stopping a runaway command" and your notes about killing a process on timeout come back — from a model that ships inside the app and never sends anything anywhere.
 
 **You can audit it.** MIT, no build step, no minified application code. Read it, fork it, ship your own.
 
@@ -62,124 +73,56 @@ It is MIT-licensed, and you can read all of it — roughly 30,600 lines of vanil
 
 | | Workspace | What it does |
 |---|---|---|
-| 01 | **Chats** | Multi-provider chat with projects, file and image attachments, slash commands, and full history |
-| 02 | **Agents** | Nine built-in specialists, plus a no-code builder for your own — name, icon, system prompt, tool set |
-| 03 | **Coder** | The coding agent: file tree, project picker, real file edits, shell access, and a browser panel |
-| 04 | **Split** | The same prompt sent to two models at once, streamed side by side |
-| 05 | **3D Forge** | Architecture-first 3D planning — structured node and mesh plans for game levels and spatial design |
-| 06 | **Finance** | Bank statements, CSV, PDF and XLSX into KPIs, charts and recommendations. Constrained never to invent a number |
-| 07 | **Sandbox** | A swarm of agents scanning untrusted code or AI output for malware, trojans, prompt injection and suspicious logic |
-| 08 | **ERP** | Describe a workflow, get a working interactive prototype — forms, tables, dashboards |
-| 09 | **Agent Swarm** | Multi-agent pipelines with chain mode, vote mode, and automatic provider failover mid-run |
-| 10 | **Virtual OS** | A simulated project desktop where an agent creates, edits and organises files in a sandboxed workspace |
+| 01 | **Chats** | Multi-provider chat with projects, attachments, slash commands, full history |
+| 02 | **Agents** | Nine built-in specialists, plus a no-code builder for your own |
+| 03 | **Coder** | The coding agent: file tree, real file edits, shell access, browser panel |
+| 04 | **Split** | One prompt, two models, streamed side by side |
+| 05 | **3D Forge** | Structured node and mesh plans for game levels and spatial design |
+| 06 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
+| 07 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
+| 08 | **ERP** | Describe a workflow, get a working interactive prototype |
+| 09 | **Agent Swarm** | Chain mode, vote mode, automatic provider failover mid-run |
+| 10 | **Virtual OS** | A simulated project desktop an agent works inside |
 
-Full reference: [MODES_GUIDE.txt](MODES_GUIDE.txt) · [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features)
+The nine agents, the Python sandbox and every workspace in detail: [MODES_GUIDE.txt](MODES_GUIDE.txt) · [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features)
 
 ---
 
 ## Coder
 
-The agent reads your real files, edits them, runs commands, and shows you every change as a diff you can expand. It does not get to do any of that quietly.
+The agent reads your real files, edits them, runs commands, and shows every change as a diff you can expand. It does not get to do any of that quietly.
 
 <img src="docs/assets/coder-loop.svg" alt="The Coder loop: you ask, the model plans, it calls a tool, the Permission Guard decides, Rust executes, the result feeds back. Denied calls are blocked and logged." width="100%">
 
-Every filesystem and shell call from the agent passes through `HC.guard.request()` and lands in Rust, where a compiled denylist rejects anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, `/Library/Keychains`, `/etc`, `/System`, the system binaries, or HashCortx's own stored keys — whether the path arrives as a file operation or inside a shell command. That list is not configurable and not reachable from JavaScript. Everything the guard sees, allowed or denied, is written to an audit log you can open from Settings.
+Every filesystem and shell call passes through `HC.guard.request()` and lands in Rust, where a compiled denylist refuses anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, the system directories, or HashCortx's own stored keys — whether the path arrives as a file operation or inside a shell command. Inside the folder you opened, the agent works without interrupting you. Outside it, everything asks first, **including reads**, because an agent that reads a file is an agent that can send it to a provider.
 
-Inside the folder you opened, the agent works without interrupting you. Outside it, every action asks first — including reads, because an agent that reads a file is an agent that can send it to a model provider. What is and is not gated is set out in full in [SECURITY.md](docs/SECURITY.md), along with the limits of the denylist, which is a denylist and not a sandbox.
+Every command is bounded: a five-minute timeout, closed stdin, a 512 KB output cap. Full detail, and the honest limits: [SECURITY.md](docs/SECURITY.md).
 
 ---
 
 ## Agent Swarm
 
-<img src="docs/assets/swarm.svg" alt="Chain mode passes work down a pipeline; vote mode runs models in parallel and a judge picks the winner; failover swaps provider mid-run." width="100%">
-
-Chain mode hands each agent's output to the next. Vote mode runs the same prompt across several models and has a judge score the answers. If a provider rate-limits or dies in the middle of a run, the swarm swaps to another one you configured and carries on with the same context — no restart, nothing lost.
-
-Below: a six-agent hierarchical blueprint building an e-commerce site — a supervisor planning, three coders working in parallel on HTML, CSS and JS, a critic validating, and a supervisor polishing. Each node runs on a different model. The orchestrator trace at the bottom shows the run live.
+Chain mode hands each agent's output to the next. Vote mode runs one prompt across several models and has a judge score the answers. If a provider rate-limits or dies mid-run, the swarm swaps to another one you configured and carries on with the same context.
 
 ![Agent Swarm blueprint canvas with a live orchestrator trace](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
 
 ---
 
-## The nine specialist agents
-
-| Agent | What it is for | Tools |
-|---|---|---|
-| **HashCortx** | General assistant with persistent memory | memory, web search, fetch URL, datetime, calculate, Python |
-| **HashCortx Lite** | Tuned for tiny local models (1.5B–3B): short prompt, no tool calling, memory still works | memory |
-| **Researcher** | Multi-step research — searches, reads pages, follows up | memory, web search, Wikipedia, fetch URL, datetime, Python |
-| **Deep Research** | Plans, searches, reads, cross-checks, then writes a cited brief | memory, web search, Wikipedia, fetch URL, PubMed, datetime, Python |
-| **Coder** | Senior-staff coding help | memory, web search, fetch URL, datetime, calculate, Python |
-| **URL Reader** | Pulls a page apart and explains it | memory, fetch URL, web search, Python |
-| **Published Papers Researcher** | Literature search grounded in PubMed | memory, web search, fetch URL, Python |
-| **Medical Lexi-Check** | Drug and interaction checks, source-grounded | memory, web search, fetch URL, Python |
-| **ATS CV Auditor** | Audits a CV the way an applicant tracking system would | memory, web search, Python |
-
-Build your own from the Agents tab: name it, give it an icon and a system prompt, tick the tools it is allowed to use.
-
-### The Python tool is real Python
-
-`execute_python` runs full CPython compiled to WebAssembly (Pyodide) inside the app, preloaded with `pandas`, `numpy`, `matplotlib`, `python-docx`, `openpyxl` and `reportlab`. Globals persist across calls within a conversation. Anything the agent writes to `/output/` downloads to your machine — so "turn this into a Word report" produces an actual `.docx`, not a description of one. The first call pulls about 10 MB and takes a few seconds; after that it is instant.
-
----
-
-## Finance and 3D Forge
-
-Finance ingests statements, CSVs, PDFs and spreadsheets and turns them into KPIs, charts and recommendations. Its system prompt forbids inventing figures — if a number is not in your document, it does not appear in the analysis. Here it breaks down a spending leak: the KPI row, the category split, and a written analysis that names the three biggest cost drivers.
-
-![FinanceAI studio showing a spending leak analysis with KPIs and a category breakdown](https://github.com/user-attachments/assets/305cd8ef-d77f-4f52-9bbb-c0c0ede2ac75)
-
-3D Forge plans spatial work before any of it gets built — structured node and mesh plans for game levels, generative architecture and scene layout, on a three.js viewport. A row of specialist agents handles parameters, structure, surface, detail and audit, each on its own model.
-
-![Forge Studio with a 3D mesh in the viewport and the agent stack on the right](https://github.com/user-attachments/assets/5e2cdc5c-854a-4331-a786-97a6337f0121)
-
----
-
-## Providers
-
-<img src="docs/assets/providers.svg" alt="Eleven cloud providers plus Ollama, and four grounding backends" width="100%">
-
-Bring your own key for any of the eleven cloud providers, or run Ollama and use no key at all. Each key gets a **Test** button in Settings that calls the provider's own endpoint, so you find out immediately whether it works.
-
-The grounding backends are optional. Agents that must cite their sources use Tavily or Google Programmable Search for the web, Wikipedia for background, and PubMed for medical literature.
-
----
-
 ## The knowledge base
 
-Anything you ingest — notes, documents, PDFs — becomes searchable, and searchable by *meaning*, not just by matching words. Ask about "stopping a runaway command" and it finds the passage about killing a process on timeout, which shares none of those words.
+Anything you ingest becomes searchable by **meaning**, not just by matching words — `bge-small-en-v1.5` (MIT) ships inside the app and runs natively in Rust. It is inference-only: a sentence encoder, not a language model.
 
-That works because a sentence-embedding model ships inside the app: `bge-small-en-v1.5`, MIT-licensed, running natively in the Rust process. It is inference-only — a fixed sentence encoder, not a language model, and it cannot generate text.
+- **Nothing is fetched.** No first-run download, no cache to warm. It works offline on first launch.
+- **Nothing is sent.** What you index never crosses a network boundary.
+- **34 MB of the download.** That is the price of the two lines above, paid once.
 
-Three consequences worth stating, because they are the reason it is bundled rather than downloaded:
-
-- **Nothing is fetched.** No first-run download, no cache to warm, no host to reach. It works on first launch with the network off.
-- **Nothing is sent.** What you index never crosses a network boundary — not to a provider, not to HashCortx, which has nowhere to send it.
-- **It is 34 MB of the 40.9 MB download.** That is the price, paid once, and it is the honest trade for the two lines above.
-
-Results are ranked two ways at once — by meaning and by keyword — and the two rankings are combined, so a rare identifier or error code still finds its exact match while a paraphrased question still finds the right passage.
-
----
-
-## Where your API keys live
-
-<img src="docs/assets/key-storage.svg" alt="Keys are stored in an app-scoped local store keyed by bundle identifier, not the macOS Keychain" width="100%">
-
-Keys are written to a single JSON bundle (`hc_api_bundle_v2`) in the app's own local store under `~/Library/Application Support/com.hashcortx.app/`. That directory is keyed by the bundle identifier rather than by the binary, so it survives every rebuild.
-
-**They are not in the macOS Keychain, and this is deliberate.** A Keychain item's access list is bound to the binary's code signature. While the build is unsigned, every new DMG carries a new signature, which would make macOS ask for your password once per key on every single update. The Rust Keychain implementation still ships ([`src-tauri/src/commands/keychain.rs`](src-tauri/src/commands/keychain.rs)); on first run it pulls any keys out of the old Keychain bundle, copies them across, and deletes the entry so it never prompts again.
-
-What this means in practice: your keys sit in a directory only this app writes to, protected by your user account and file permissions — not by encryption. That is a real difference, and it is stated plainly here rather than dressed up. Code signing is on the roadmap, and Keychain storage becomes practical again the moment it lands.
-
-On Linux and Windows the same store lives under the platform's own app-data directory, and the denylist refuses the agent access to it there too — but as with everything off macOS, that path has been tested, not used.
+Results are ranked by meaning and by keyword at once, then fused — so a rare error code still finds its exact match while a paraphrased question still finds the right passage.
 
 ---
 
 ## Install
 
-Download `HashCortx-2.0.0-macOS-arm64.dmg` from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, and drag HashCortx to `/Applications`.
-
-That release is v2.0.0 from May 2026. It works, but it predates the offline knowledge base, the security fixes and the cross-platform work described in this README — those are on `main` and not yet released. Build from source for those.
+Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, drag HashCortx to `/Applications`. That release is v2.0.0 and predates the work described above — build from source for that.
 
 The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
 
@@ -187,7 +130,7 @@ The build is unsigned and not notarised, so on first launch right-click the app 
 xattr -dr com.apple.quarantine /Applications/HashCortx.app
 ```
 
-Then open **Settings → Providers**, add a key for whichever provider you want, and press **Test**. Or skip keys entirely and point it at a local Ollama server.
+Then open **Settings → Providers**, add a key, press **Test**. Or skip keys entirely and point it at Ollama.
 
 ### Build from source
 
@@ -199,107 +142,64 @@ npm run tauri dev      # live-reload development
 npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
 ```
 
-Requires Node 18+ and a Rust toolchain via `rustup`, plus:
+Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line Tools · **Linux**: Ubuntu 24.04+ and the Tauri v2 system libraries (glibc 2.38+ is required to link the bundled ONNX Runtime) · **Windows**: MSVC build tools and WebView2.
 
-- **macOS** — Xcode Command Line Tools
-- **Linux** — `libwebkit2gtk-4.1-dev`, `libayatana-appindicator3-dev`, `librsvg2-dev`, `libxdo-dev`, `libssl-dev`, `libdbus-1-dev`, `patchelf`, `build-essential`, `pkg-config`. glibc 2.38+ and libstdc++ 13+ are needed to link the bundled ONNX Runtime, so Ubuntu 24.04 or newer
-- **Windows** — the MSVC build tools and WebView2 (preinstalled on Windows 11)
-
-Before pushing, run the checks CI runs:
+Before pushing, run what CI runs:
 
 ```bash
-npm run check                                        # scripts parse, guard, retrieval, agent context
-cargo test --manifest-path src-tauri/Cargo.toml      # 34 tests
+npm run check                                     # scripts parse, guard, retrieval, agent context
+cargo test --manifest-path src-tauri/Cargo.toml   # 34 tests
 ```
 
 ---
 
 ## Under the hood
 
-<img src="docs/assets/architecture.svg" alt="Architecture: vanilla JS renderer, platform bridge, Permission Guard in Rust, Tauri commands, macOS. AI requests go straight from the renderer to the provider." width="100%">
+<img src="docs/assets/architecture.svg" alt="Architecture: vanilla JS renderer, platform bridge, Permission Guard in Rust, Tauri commands. AI requests go straight from the renderer to the provider." width="100%">
 
 | Layer | Technology |
 |---|---|
 | **Shell** | Tauri v2 — Rust core, the system webview, no Chromium |
-| **Backend** | Rust: filesystem, shell, audit log, token usage log, Keychain migration, sentence embeddings |
+| **Backend** | Rust: filesystem, shell, audit log, usage log, embeddings, Keychain migration |
 | **Security** | Compiled denylist in `security/denylist.rs`, permission prompt via `HC.guard.request()` |
 | **Frontend** | Vanilla JavaScript. No React, no TypeScript, no bundler, no build step |
-| **Vendored libs** | marked, highlight.js, DOMPurify, mermaid, pdf.js, jsPDF, three.js — all local, no CDN |
+| **Embeddings** | bge-small-en-v1.5 (MIT) compiled into the binary, run via ONNX Runtime |
 | **Python** | Pyodide (CPython on WebAssembly) with pandas, numpy, matplotlib, python-docx, openpyxl, reportlab |
-| **Local models** | Ollama, with saved endpoint presets |
-| **Embeddings** | bge-small-en-v1.5 (MIT) compiled into the binary, run via ONNX Runtime — no download, no network |
-| **Tests** | 34 Rust tests; 72 frontend checks that load the real source into a Node VM; CI on Linux, macOS and Windows |
+| **Vendored libs** | marked, highlight.js, DOMPurify, mermaid, pdf.js, jsPDF, three.js — all local, no CDN |
 
-Vanilla JS with no bundler is a deliberate constraint, not an oversight. It is what keeps the application itself around 7 MB, and it lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
+No bundler is a deliberate constraint. It keeps the application itself around 7 MB and lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
 
-Design notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/SECURITY.md](docs/SECURITY.md)
+[ARCHITECTURE.md](docs/ARCHITECTURE.md) · [SECURITY.md](docs/SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md)
 
 ---
 
 ## Privacy and security
 
-**No backend server.** Every AI request goes from your machine to the provider you configured. There is no intermediary to trust.
+**No backend, no telemetry, no accounts, no auto-updater.** The binary makes no network call except to the provider endpoints you set up.
 
-**No telemetry.** No analytics, no tracking, no usage reporting, no error reporting. The binary makes no network call except to the provider endpoints you set up.
+**A permission gate in Rust.** Sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. Every guarded action is logged to `~/.hashcortx/audit.log`.
 
-**No accounts, no auto-updater.** Nothing to sign up for. Nothing that reaches out on its own.
+**Keys are not encrypted.** They sit in an app-scoped local directory protected by your user account, not by Keychain encryption — because a Keychain item's access list is bound to the code signature, and an unsigned build would re-prompt for every key on every update. Code signing is on the roadmap; the reasoning is written out in full in [SECURITY.md](docs/SECURITY.md).
 
-**A permission gate in Rust.** The coding agent's filesystem and shell calls are intercepted before execution. Sensitive paths are denied unconditionally. Every guarded action is logged.
-
-**Source-grounded modes.** Published Papers Researcher, Medical Lexi-Check and Finance are constrained never to fabricate data — a rule informed by the author's pharma background.
-
-**Air-gapped capable.** With Ollama, turn the network off and everything still works.
-
-**A usage log that stays put.** HashCortx appends real token counts to `~/.hashcortx/usage.jsonl` on your disk. See below.
-
----
-
-## Usage tracking, measured not guessed
-
-Most AI tools either hide what you spend or estimate it by counting characters. HashCortx does neither. After every model response, it appends **one JSON line** to a file on your disk:
-
-```
-~/.hashcortx/usage.jsonl
-```
-
-```json
-{"ts":"2026-07-10T04:12:57.113Z","model":"claude-opus-4-8","input_tokens":18432,"output_tokens":961}
-```
-
-**That line is the whole record.** A UTC timestamp, the model id, and token counts. No prompt, no answer, no file names, no project paths — nothing about what you were working on. The Rust that writes it is 93 lines and is worth reading: [`usage_log.rs`](src-tauri/src/commands/usage_log.rs).
-
-Two properties matter:
-
-**It is measured, not estimated.** The counts come from the provider's own response metadata. If a provider returns no token counts, HashCortx writes **nothing** rather than guessing. A missing line is honest; a fabricated one is not.
-
-**It never leaves your machine.** Nothing uploads it. Nothing reads it unless you install something that does.
-
-### It feeds HashMeterAi
-
-[HashMeterAi](https://github.com/Hash-7777/HashMeterAi) is a separate local app that answers "how much AI am I actually using?" It reads the transcripts and logs that tools leave behind — Claude Code, Codex, Kimi, HashCerebrum — and reports the total.
-
-Because HashCortx writes real provider-reported counts, HashMeterAi reports HashCortx usage as **measured** rather than estimated. The field names in that JSON line are a deliberate on-disk contract shared with HashCerebrum, which is why `usage_log.rs` warns against renaming them.
-
-You do not need HashMeterAi. The log is a plain text file — `wc -l ~/.hashcortx/usage.jsonl` works fine, and so does `jq`. It exists so that the number you see is one you can verify yourself.
+**Measured usage, not guessed.** One JSON line per response to `~/.hashcortx/usage.jsonl` — timestamp, model id, token counts. No prompt, no answer, no file names. Counts come from the provider's own metadata; if a provider reports none, HashCortx writes nothing rather than estimating. [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) reads that file if you install it.
 
 ```bash
-# total tokens this month, no extra tools required
 jq -s 'map(.input_tokens + .output_tokens) | add' ~/.hashcortx/usage.jsonl
 ```
 
-Delete the file whenever you like. The app recreates it on the next response.
+**Source-grounded modes.** Published Papers Researcher, Medical Lexi-Check and Finance are constrained never to fabricate data.
 
 ---
 
 ## How it compares
 
-Best effort as of July 2026. If something here is out of date, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) and it will be corrected.
+Best effort as of August 2026. If something is out of date, [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose).
 
 | | HashCortx | Cursor | Claude Code | Continue | Aider | Cline | Zed |
 |---|---|---|---|---|---|---|---|
-| Type | Native app | VS Code fork | CLI | Editor extension | Terminal CLI | VS Code extension | Native editor |
+| Type | Native app | VS Code fork | CLI | Extension | Terminal CLI | Extension | Native editor |
 | License | MIT | Proprietary | Proprietary | Apache 2.0 | Apache 2.0 | Apache 2.0 | GPL/AGPL |
-| Free | Yes, bring your own key | Subscription | Subscription or API | Yes | Yes | Yes | Yes |
+| Free | Bring your own key | Subscription | Subscription or API | Yes | Yes | Yes | Yes |
 | Cloud providers | 11 | Limited | Anthropic only | Many | Many | Many | Several |
 | Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
 | Multi-agent swarms | Yes | No | No | No | No | No | No |
@@ -309,35 +209,19 @@ Best effort as of July 2026. If something here is out of date, please [open an i
 
 ---
 
-## Keyboard shortcuts
-
-| Shortcut | Action |
-|---|---|
-| `Cmd/Ctrl + Shift + C` | Toggle Coder from anywhere, and back again to where you were |
-| `Cmd/Ctrl + Shift + N` | New chat |
-| `Cmd/Ctrl + K` | Jump to the model picker |
-
----
-
 ## FAQ
 
-**Is it free?** Yes. MIT, no paid tier, no usage caps. You pay the AI providers directly, or you pay nothing at all and use Ollama.
+**Is it free?** Yes. MIT, no paid tier, no usage caps. You pay the AI providers directly, or nothing at all with Ollama.
 
-**Does it work offline?** Yes, with Ollama. Cloud providers need the internet.
+**Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet.
 
-**Which systems?** macOS Apple Silicon is the one that is built and used daily. The code now compiles and passes its tests on Linux and Windows too, and CI runs all three on every push — but nobody has actually launched the app on Linux or Windows yet, so treat those as buildable rather than supported. Intel Mac is untested for the same reason. If you run it on one of them, an issue saying what happened would genuinely help.
+**Which systems?** macOS Apple Silicon is built and used daily. The code compiles and passes its tests on Linux and Windows, and CI runs all three on every push — but nobody has launched the app there, so treat those as buildable rather than supported. If you try it, an issue saying what happened would genuinely help.
 
 **Does it send my code anywhere?** Only to the provider you configured, when you send a message. There is no HashCortx server.
 
-**Can I use Claude, GPT and Gemini at once?** Yes, and inside the same swarm run. Configure every key and switch freely.
+**Are my API keys encrypted?** No — see above.
 
-**Are my API keys encrypted?** No. They live in an app-scoped local directory protected by your macOS user account, not by Keychain encryption. [Here is the reasoning.](#where-your-api-keys-live)
-
-**Why is it so small?** No Chromium, no Electron, no React, no bundler. Tauri uses the webview your OS already ships with, so the application itself is about 7 MB. The download is larger because a 34 MB sentence-embedding model ships inside it, which is what lets the knowledge base work offline with nothing sent anywhere.
-
-**Does the knowledge base send my notes anywhere?** No. The embedding model runs inside the app, on your machine. Nothing is fetched to make it work and nothing is uploaded. It works with the network off.
-
-**Was it built with AI?** Yes, heavily. See below.
+**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the ten-workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
 
 More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
@@ -346,27 +230,13 @@ More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 ## Roadmap
 
 - A release cut from `main`, so the download matches this README
-- Code signing and notarisation for the macOS build, which also unlocks Keychain key storage
-- Someone actually running the app on Linux and Windows — it compiles and passes tests there, which is not the same thing
-- Intel Mac build
-- Continued extraction of `app.js` into focused modules — the retrieval ranking and the agent context budget are out; the rest of the memory system, the model utilities and the swarm log are next
-- Permission Guard coverage for Virtual OS and 3D Forge native calls
+- Code signing and notarisation, which also unlocks Keychain key storage
+- Someone actually running the app on Linux and Windows — compiling and passing tests is not the same thing
+- Continued extraction of `app.js` into focused modules
+- Permission Guard coverage for Virtual OS and 3D Forge
 - Knowledge base storage beyond `localStorage`, which caps it at about 6.5 MB
-- More specialist agents, driven by what people ask for
 
 Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose) or [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
-
----
-
-## How this was built
-
-**Every product decision is mine.** The ten-workspace structure, the local-first rule, the Permission Guard and audit model, the swarm failover pattern, and the source-grounding constraints in the medical and finance modes were conceived and directed by me.
-
-**The implementation leaned hard on AI — roughly 30 million tokens** across Claude, GPT and other frontier models during the v2.0.0 build. AI wrote most of the code, under human architecture, review and correction.
-
-This is disclosed because HashCortx is itself an AI tool. Using AI to build it and hiding that would be incoherent. Every line is public and reviewable at [Hash-7777/HashCortX](https://github.com/Hash-7777/HashCortX).
-
-![The About pane inside HashCortx, showing the brain mark and the author](https://github.com/user-attachments/assets/a07931d6-6e4c-4221-9ab2-cb3668fc70e2)
 
 ---
 
@@ -374,89 +244,31 @@ This is disclosed because HashCortx is itself an AI tool. Using AI to build it a
 
 Three local-first apps, same principles — no cloud, no telemetry, your data stays where it is.
 
-<table>
-<tr>
-<td width="33%" valign="top" align="center">
+| App | What it is | Licence |
+|---|---|---|
+| **HashCortx** *(you are here)* | The local-first AI workspace | MIT |
+| [**HashCerebrum**](https://github.com/Hash-7777/HashCerebrum) | Medical research workbench with a 3D brain interface | AGPL-3.0 |
+| [**HashMeterAi**](https://github.com/Hash-7777/HashMeterAi) | An honest local meter for how much AI you actually use | Apache-2.0 |
 
-### HashCortx
-
-*you are here*
-
-The local-first AI workspace.
-Ten workspaces, twelve providers,
-one window.
-
-`Tauri v2` · `MIT`
-
-</td>
-<td width="33%" valign="top" align="center">
-
-### [HashCerebrum](https://github.com/Hash-7777/HashCerebrum)
-
-*medical research*
-
-A research workbench with a 3D brain
-interface for searching, citing and
-peer-reviewing papers.
-
-`Tauri v2` · `AGPL-3.0`
-
-</td>
-<td width="33%" valign="top" align="center">
-
-### [HashMeterAi](https://github.com/Hash-7777/HashMeterAi)
-
-*usage meter*
-
-An honest local meter for how much
-AI you actually use, across every
-tool on your machine.
-
-`Tauri v2` · `Apache-2.0`
-
-</td>
-</tr>
-</table>
-
-They interlock. HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and HashMeterAi reads that file — so your spend across the whole ecosystem is measured in one place, on your disk, by tools that never phone home.
+They interlock: HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and HashMeterAi reads it — so your spend is measured in one place, on your disk, by tools that never phone home.
 
 ---
 
-## Contributing
+## Keyboard shortcuts
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the architecture rules. Bugs and features go in [Issues](https://github.com/Hash-7777/HashCortX/issues); questions and ideas in [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
-
-### Documentation
-
-| | |
-|---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | The real directory tree, how the layers talk, and the architectural debt |
-| [SECURITY.md](docs/SECURITY.md) | The threat model, the Permission Guard, and what the app does *not* protect |
-| [BRAND.md](docs/BRAND.md) | The mark, the palettes, and the traps in the colour tokens |
-| [CHANGELOG.md](CHANGELOG.md) | What changed, and what was wrong before |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, code style, architecture rules |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant 2.1 |
-| [MODES_GUIDE.txt](MODES_GUIDE.txt) | Long-form reference for every workspace |
-
-## License
-
-MIT. See [LICENSE](LICENSE).
-
-## Author
-
-**Seif Hashish** — independent open-source developer with a pharma and clinical background, which is where the refusal-to-fabricate constraints in the medical and finance modes come from.
-
-[@Hash-7777](https://github.com/Hash-7777) · [hashcortx.com](https://hashcortx.com)
+`Cmd/Ctrl + Shift + C` toggle Coder · `Cmd/Ctrl + Shift + N` new chat · `Cmd/Ctrl + K` model picker
 
 ---
+
+**Author** — [Seif Hashish](https://github.com/Hash-7777), independent open-source developer with a pharma and clinical background, which is where the refusal-to-fabricate constraints in the medical and finance modes come from. · [hashcortx.com](https://hashcortx.com)
+
+**License** — MIT. See [LICENSE](LICENSE).
 
 <div align="center">
 
 <br>
 
-**HashCortx**
-
-One window · Twelve providers · Zero data leak · Local-first · MIT
+**HashCortx** · One window · Twelve providers · Zero data leak · Local-first · MIT
 
 [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
