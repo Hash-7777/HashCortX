@@ -70,6 +70,11 @@ jobs:
       - name: Agent loop policy checks
         run: npm run check:policy
 
+      # Clipped text and wrapped labels are invisible until someone
+      # screenshots the app. These catch the two CSS mistakes that cause them.
+      - name: Layout checks
+        run: npm run check:layout
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

@@ -980,7 +980,16 @@ body.coder-mode #app { display: none; }
   letter-spacing: 0;
   white-space: nowrap;
   overflow: hidden;
+}
+/* The title carries the working directory, which is genuinely long, so this
+   one gets a real ellipsis rather than a note explaining why it cannot have
+   one: the text lives in its own span, so the properties belong there. On the
+   flex container above they did nothing and the path was clipped mid-word. */
+.cdr-terminal-title > span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cdr-terminal-title svg {
   color: #5fcaff;
@@ -1982,7 +1991,7 @@ body.coder-mode #app { display: none; }
   font-size: 10.5px;
   line-height: 1.5;
 }
-.cdr-trace-time  { color: rgba(255,255,255,.22); flex: 0 0 44px; }
+.cdr-trace-time  { color: rgba(255,255,255,.22); flex: 0 0 auto; min-width: 44px; white-space: nowrap; }
 .cdr-trace-stage { flex: 0 0 68px; font-weight: 800; color: var(--cdr-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cdr-trace-icon  { flex: 0 0 13px; text-align: center; font-weight: 900; color: var(--cdr-text-muted); }
 .cdr-trace-msg   { flex: 1; min-width: 0; color: var(--cdr-text-dim); overflow-wrap: anywhere; }

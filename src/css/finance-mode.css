@@ -301,7 +301,7 @@ body.finance-mode #app > *:not(#finance-wrap) { display: none !important; }
 }
 .fin-trace-time {
   color: rgba(148,163,184,.5);
-  flex: 0 0 46px;
+  flex: 0 0 auto; min-width: 46px; white-space: nowrap;
 }
 .fin-trace-stage {
   flex: 0 0 74px;

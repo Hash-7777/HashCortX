@@ -32,7 +32,9 @@
     display: flex; align-items: center; justify-content: center; gap: 6px;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    /* See .side-privacy-text — text-overflow cannot apply to the anonymous
+       flex item holding a tab's label, so declaring it here only looked like
+       truncation was handled. Tab names are fixed and short. */
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
     box-shadow:
@@ -288,7 +290,7 @@
     max-width: 100%;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    /* Same as .tab: the tool name is a bare text node in a flex box. */
   }
   .agent-tool-pulse.done   { color: var(--emerald); border-color: rgba(34,211,238,0.35); background: rgba(34,211,238,0.10); }
   .agent-tool-pulse.failed { color: var(--rose);    border-color: rgba(217,138,133,0.35); background: rgba(217,138,133,0.10); }
@@ -636,10 +638,18 @@
     background: rgba(0,0,0,0.22);
     border: 1px solid var(--line);
     border-radius: 8px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; overflow: hidden;
     height: 30px;
   }
+  /* text-overflow only applies to the box whose own text overflows. On the
+     flex container above it does nothing: the text lives in this span, so the
+     span was clipped mid-word — "Local host offline · cl" — with no ellipsis
+     to show that anything had been cut. */
+  .status > span:not(.dot) {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .dot {
+    flex: 0 0 auto;
     width: 8px; height: 8px; border-radius: 50%;
     background: var(--muted);
     box-shadow: 0 0 0 3px rgba(107,101,88,0.15);

@@ -214,7 +214,11 @@
     color: #80a8c8;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+    /* No text-overflow: the label is a bare text node inside a flex box, and
+       an anonymous flex item cannot be ellipsed — declaring it here looked
+       like truncation was handled when it was not. The content is short and
+       fixed, so clipping is the honest behaviour; wrap the text in a span
+       with min-width: 0 if that ever stops being true. */
   }
 
   /* ── Sidebar memory row ── */
@@ -243,7 +247,12 @@
     cursor: pointer;
   }
   .memory-row .mem-val {
-    flex: 0 0 26px; text-align: right;
+    /* Was a fixed 26px box. At 9.5px mono with .18em letter-spacing that fits
+       "20" but not "Off", which wrapped to "OF" on one line and "F" on the
+       next. Sizing to content with a floor keeps the slider from jumping as
+       the number changes width. */
+    flex: 0 0 auto; min-width: 26px; text-align: right;
+    white-space: nowrap;
     color: var(--emerald); font-weight: 600;
   }
   .search-wrap { position: relative; display: flex; align-items: center; gap: 5px; }
