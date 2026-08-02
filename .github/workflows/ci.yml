@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   javascript:
-    name: JavaScript parses
+    name: Scripts parse and the Permission Guard behaves
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -45,15 +45,13 @@ jobs:
       # src/js/vendor/ are third-party minified builds and are checked
       # too — a corrupt vendor file breaks the app just as thoroughly.
       - name: Syntax-check every loaded script
-        run: |
-          failed=0
-          while IFS= read -r f; do
-            if ! node --check "$f"; then
-              echo "::error file=$f::failed to parse"
-              failed=1
-            fi
-          done < <(find src -name '*.js' -type f | sort)
-          exit $failed
+        run: npm run check:syntax
+
+      # Loads the real guard.js and asserts what it refuses, what it asks
+      # about, and what it lets through unprompted. It is the only thing
+      # between a language model and the user's disk.
+      - name: Permission Guard checks
+        run: npm run check:guard
 
   rust:
     name: Rust compiles and tests pass

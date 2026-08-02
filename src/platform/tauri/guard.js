@@ -21,40 +21,102 @@
   // Session permission memory: "action::target" → "allow" | "deny"
   const _session = new Map();
 
+  // Directories the user granted for the session, per action: action → Set(dir).
+  // Without this, approving a read of one file re-asked for its sibling, and an
+  // agent exploring a folder produced a dialog per file until the user gave up
+  // and clicked through everything — which is worse than not asking at all.
+  const _sessionDirs = new Map();
+
   // Project root — paths inside are auto-approved for read/list/search/write/patch
   let _projectRoot = null;
 
-  // Hard-blocked paths (mirrors the Rust denylist for early JS rejection)
+  // Hard-blocked paths (mirrors the Rust denylist for early JS rejection).
+  // Rust re-checks independently and is the authority; this only saves a round
+  // trip and gives the user a clearer message.
   const BLOCKED_PREFIXES = [
     '/System', '/usr/bin', '/usr/sbin', '/etc', '/bin', '/sbin',
     '/private/etc', '/Library/Keychains',
   ];
-  const BLOCKED_SUBSTRINGS = ['.ssh', '.aws', '.gnupg', 'id_rsa', 'id_ed25519', 'Keychains'];
-  const BLOCKED_COMMANDS   = ['sudo', 'rm -rf', 'rm -fr', 'rm -r ', 'dd ', 'mkfs', 'format ', 'shutdown', 'reboot'];
-  // Pipe-to-shell: executing downloaded content directly in an interpreter.
-  const BLOCKED_PIPE_SHELL = ['| sh', '| bash', '| zsh', '| fish', '| python', '| node', '| perl', '| ruby'];
-  // Process substitution: bash <(curl ...) or sh <(curl ...)
-  const BLOCKED_PROC_SUB   = ['bash <(', 'sh <(', 'zsh <('];
+  const BLOCKED_SUBSTRINGS = [
+    '.ssh', '.aws', '.gnupg', 'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+    'Keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
+    '.kube/config', '.config/gh/', '.config/gcloud',
+    // HashCortX's own state: the plaintext API-key bundle and the audit trail.
+    'com.hashcortx.app', '.hashcortx',
+  ];
+  // Words that are dangerous wherever they appear, matched as whole tokens.
+  const BLOCKED_WORDS = ['sudo', 'su', 'shutdown', 'reboot', 'halt', 'poweroff', 'pkill', 'launchctl'];
+  // Programs dangerous only as the program being run. Matched in leading
+  // position only: substring-matching these is what made the old list refuse
+  // `git add file` (it contains "dd "), `npm run format` and `cat departed.md`.
+  const BLOCKED_TOOLS = ['dd', 'mkfs', 'fdisk', 'parted', 'format', 'newfs'];
+  // Phrases that cannot occur innocently.
+  const BLOCKED_PHRASES = [
+    'diskutil erasedisk', 'chmod 777', 'chown root',
+    // Pipe-to-shell: executing downloaded content directly in an interpreter.
+    '| sh', '| bash', '| zsh', '| fish', '| python', '| node', '| perl', '| ruby',
+    // Process substitution: bash <(curl ...) or sh <(curl ...)
+    'bash <(', 'sh <(', 'zsh <(',
+  ];
+  // Secret locations a command must never name. Tighter than BLOCKED_SUBSTRINGS
+  // on purpose — a command is mostly prose, and `grep -rn credentials src/` is
+  // ordinary work.
+  const BLOCKED_CMD_PATHS = [
+    '.ssh/', '.ssh ', '.aws/', '.gnupg/', 'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+    'library/keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
+    '.kube/config', '.config/gh/', '.config/gcloud', 'com.hashcortx.app', '.hashcortx/',
+  ];
 
-  function isPipeToShell(cmd) {
-    return BLOCKED_PIPE_SHELL.some(p => cmd.includes(p)) ||
-           BLOCKED_PROC_SUB.some(p => cmd.includes(p));
+  // Lowercase, give pipes and separators their own space, collapse whitespace —
+  // so `rm  -rf` and `curl x|sh` normalise to the forms the lists match.
+  function normalizeCommand(cmd) {
+    return String(cmd || '')
+      .toLowerCase()
+      .replace(/[|;&]/g, ' $& ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .join(' ');
   }
 
-  function isRmDestructive(cmd) {
-    // Catch `rm` with recursive (-r/-R/--recursive) AND force (-f/--force) in any order/form.
-    if (!/(?:^|\s)rm(?:\s|$)/.test(cmd)) return false;
-    const hasRecursive = /(?:\s|^)-[a-zA-Z]*[rR][a-zA-Z]*|\s--recursive/.test(cmd);
-    const hasForce     = /(?:\s|^)-[a-zA-Z]*f[a-zA-Z]*|\s--force/.test(cmd);
-    return hasRecursive && hasForce;
+  function isRmDestructive(normalized) {
+    const tokens = normalized.split(' ');
+    if (!tokens.includes('rm')) return false;
+    let recursive = false, force = false;
+    for (const t of tokens) {
+      if (t === '--recursive') recursive = true;
+      if (t === '--force') force = true;
+      if (t.startsWith('-') && !t.startsWith('--')) {
+        if (t.includes('r')) recursive = true;
+        if (t.includes('f')) force = true;
+      }
+    }
+    return recursive && force;
+  }
+
+  // The program each command segment invokes: start of line, and after | ; &.
+  function leadingTools(normalized) {
+    const tools = [];
+    let expecting = true;
+    for (const t of normalized.split(' ')) {
+      if (t === '|' || t === ';' || t === '&') { expecting = true; continue; }
+      if (expecting && t) { tools.push(t.split('/').pop()); expecting = false; }
+    }
+    return tools;
   }
 
   function isHardBlocked(action, target) {
     if (action === 'shell') {
-      const lower = target.toLowerCase();
-      if (isRmDestructive(lower)) return true;
-      if (isPipeToShell(lower))   return true;
-      return BLOCKED_COMMANDS.some(b => lower.includes(b));
+      const lower = String(target || '').toLowerCase();
+      const normalized = normalizeCommand(target);
+      if (isRmDestructive(normalized)) return true;
+      if (BLOCKED_PHRASES.some(p => normalized.includes(p))) return true;
+      if (normalized.split(' ').some(t => BLOCKED_WORDS.includes(t))) return true;
+      if (leadingTools(normalized).some(p =>
+        BLOCKED_TOOLS.some(b => p === b || p.startsWith(b + '.') || p.startsWith(b + '_')))) return true;
+      // A command must not reach for a key store either — the Rust side refuses
+      // this too, and did not before, which made the path denylist meaningless
+      // for anything a shell could reach.
+      return BLOCKED_CMD_PATHS.some(m => lower.includes(m));
     }
     return (
       BLOCKED_PREFIXES.some(p => target.startsWith(p)) ||
@@ -164,10 +226,38 @@
     return norm === root || norm.startsWith(root + '/');
   }
 
-  // Read-only actions are safe anywhere (no data modified, no dialog needed)
-  const AUTO_APPROVE_READS   = new Set(['read', 'list', 'search']);
-  // Write/patch/delete/shell still require approval outside the project root
+  // Read-only actions inside the project root need no dialog — the user chose
+  // that folder, and asking per file would make the agent unusable.
+  //
+  // Outside it, a read is NOT free and is no longer auto-approved. "It only
+  // reads" is a fair argument about the filesystem and a bad one about an
+  // agent whose whole purpose is to send what it reads to a provider: a
+  // prompt-injected model could read anything on disk and put it in its next
+  // request, and the user would never see a prompt. Write, patch, delete and
+  // shell were always gated; reads now join them.
   const AUTO_APPROVE_IN_ROOT = new Set(['read', 'list', 'search', 'write', 'patch']);
+
+  // Directory of a path, for coarse session grants.
+  function parentDir(target) {
+    const norm = String(target || '').replace(/\/+$/, '');
+    const cut = norm.lastIndexOf('/');
+    return cut > 0 ? norm.slice(0, cut) : norm;
+  }
+
+  function hasSessionDirGrant(action, target) {
+    const dirs = _sessionDirs.get(action);
+    if (!dirs) return false;
+    const norm = String(target || '').replace(/\/+$/, '');
+    for (const dir of dirs) {
+      if (norm === dir || norm.startsWith(dir + '/')) return true;
+    }
+    return false;
+  }
+
+  function addSessionDirGrant(action, target) {
+    if (!_sessionDirs.has(action)) _sessionDirs.set(action, new Set());
+    _sessionDirs.get(action).add(parentDir(target));
+  }
 
   HC.guard = {
     // Set the current project root — all paths inside are auto-approved for safe actions
@@ -192,24 +282,25 @@
         return false;
       }
 
-      // Read-only actions (list, read, search) are always auto-approved — no data is modified
-      if (AUTO_APPROVE_READS.has(action)) {
-        auditLog('allow-read', action, target);
-        return true;
-      }
-
-      // Auto-approve write/patch inside the open project root — user already chose this folder
+      // Auto-approve read/list/search/write/patch inside the open project root —
+      // the user already chose this folder.
       if (AUTO_APPROVE_IN_ROOT.has(action) && isInProjectRoot(target)) {
         auditLog('allow-project-root', action, target);
         return true;
       }
 
-      // Session memory — already decided
+      // Session memory — already decided for this exact target
       const key = `${action}::${target}`;
       if (_session.has(key)) {
         const prev = _session.get(key);
         auditLog(prev, action, target);
         return prev === 'allow';
+      }
+
+      // …or for a directory the user granted earlier this session.
+      if (action !== 'shell' && hasSessionDirGrant(action, target)) {
+        auditLog('allow-session-dir', action, target);
+        return true;
       }
 
       // Show dialog
@@ -218,6 +309,9 @@
 
       if (choice === 'allow-session') {
         _session.set(key, 'allow');
+        // Grant the containing folder too, so the next file in it does not
+        // re-ask. A shell command has no containing folder — it stays exact.
+        if (action !== 'shell') addSessionDirGrant(action, target);
         return true;
       }
       if (choice === 'deny') {
@@ -231,8 +325,10 @@
     // Clear all session-remembered permissions (allow-session / deny).
     // Does NOT affect the project-root auto-approval — only manually granted decisions.
     clearSession() {
-      const count = _session.size;
+      let count = _session.size;
+      for (const dirs of _sessionDirs.values()) count += dirs.size;
       _session.clear();
+      _sessionDirs.clear();
       auditLog('session-reset', 'permissions', `${count} session permission(s) cleared`);
       HC.guard.notify(`Session permissions reset (${count} cleared)`, 'info');
     },
