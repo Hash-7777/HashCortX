@@ -202,4 +202,8 @@ These are commonly assumed, and worth naming because an earlier version of this 
 
 ## Reporting a vulnerability
 
-Open a [GitHub issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) for non-sensitive findings. For anything that would put users at risk if disclosed publicly, use GitHub's private vulnerability reporting on the repository instead.
+Open a [GitHub issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) for non-sensitive findings.
+
+For anything that would put users at risk if disclosed publicly: **open an issue saying only that you have a security finding and asking for a private channel — no details.** GitHub's private vulnerability reporting is not currently enabled on this repository, so an issue is the only way to make contact, and a public issue is the wrong place for the specifics.
+
+This document previously told you to use private vulnerability reporting. That was wrong: the setting is off, so anyone following that instruction found nothing to click and may reasonably have posted the details publicly instead. Enabling it is the better answer and is on the roadmap; until then, the paragraph above is what actually works.

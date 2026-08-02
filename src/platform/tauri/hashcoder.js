@@ -184,41 +184,59 @@
       fn: (p) => HC.code.shellRun(p.command, p.args || [], p.cwd || null, p.reason),
     },
     {
-      name: 'image_search',
-      description: 'Get real topic-specific image URLs from Unsplash for use in code. Returns ready-to-embed URLs. Use before writing any HTML/CSS that needs images — never invent image URLs or use placeholder services.',
+      name: 'placeholder_images',
+      description: 'Get working placeholder image URLs for a mock-up or prototype. These are STABLE, real, loadable URLs — but they are generic placeholder photography, not pictures of the subject. Say so when you use them, and tell the user to swap in their own assets before shipping. Only call this when a layout genuinely needs a photo; a gradient, an icon or an inline SVG is usually better and always faster.',
       parameters: {
-        query: { type: 'string', description: 'Topic keywords, e.g. "pizza,italian" or "startup,office"' },
-        count: { type: 'number', description: 'Number of URLs to return (1–8, default 4)' },
+        seed:  { type: 'string', description: 'Any word. The same seed always returns the same picture, so a rebuild does not reshuffle the page.' },
+        count: { type: 'number', description: 'How many URLs (1–8, default 4)' },
       },
       fn: async (p) => {
-        const query   = String(p.query || '').trim().replace(/\s+/g, ',');
-        const count   = Math.min(Math.max(parseInt(p.count) || 4, 1), 8);
-        if (!query) return JSON.stringify({ error: 'query is required' });
+        // This used to call source.unsplash.com, which Unsplash retired — every
+        // URL it produced returned HTTP 503, so every site the agent built
+        // shipped with broken images while the tool description promised "real
+        // topic-specific image URLs". picsum.photos is keyless, stable, and
+        // seeded, so a page looks the same on every rebuild.
+        const seed = String(p.seed || 'hashcortx').trim().replace(/[^\w-]+/g, '-').slice(0, 40) || 'hashcortx';
+        const count = Math.min(Math.max(parseInt(p.count) || 4, 1), 8);
         const sizes = [
-          { w: 1600, h: 900,  label: 'hero/banner' },
-          { w: 800,  h: 600,  label: 'card/section' },
-          { w: 600,  h: 400,  label: 'thumbnail' },
-          { w: 1200, h: 800,  label: 'feature' },
-          { w: 400,  h: 400,  label: 'avatar/square' },
-          { w: 1400, h: 600,  label: 'wide-banner' },
-          { w: 800,  h: 800,  label: 'square-card' },
-          { w: 900,  h: 600,  label: 'landscape' },
+          { w: 1600, h: 900, label: 'hero / banner' },
+          { w: 800,  h: 600, label: 'card / section' },
+          { w: 600,  h: 400, label: 'thumbnail' },
+          { w: 1200, h: 800, label: 'feature' },
+          { w: 400,  h: 400, label: 'avatar / square' },
+          { w: 1400, h: 600, label: 'wide banner' },
+          { w: 800,  h: 800, label: 'square card' },
+          { w: 900,  h: 600, label: 'landscape' },
         ];
-        const urls = sizes.slice(0, count).map(s =>
-          `https://source.unsplash.com/${s.w}x${s.h}/?${encodeURIComponent(query)}`
-        );
-        return JSON.stringify({ query, urls, usage: 'Use these as src= in <img> or url() in CSS background-image.' });
+        const images = sizes.slice(0, count).map((s, i) => ({
+          label: s.label,
+          url: `https://picsum.photos/seed/${encodeURIComponent(seed + '-' + i)}/${s.w}/${s.h}`,
+        }));
+        return JSON.stringify({
+          images,
+          note: 'Generic placeholder photography, not pictures of the subject. Give every <img> descriptive alt text, set width/height or aspect-ratio to avoid layout shift, and tell the user these are placeholders to replace.',
+        });
       },
     },
     {
       name: 'web_search',
-      description: 'Search the web for design trends, UI patterns, technology documentation, or any topic. Call this BEFORE building any website or UI to research current design approaches. Returns summaries and relevant topics.',
+      description: 'Search the web for documentation, APIs, error messages or design references. With a Tavily key configured in Settings this is a real search engine. Without one it falls back to DuckDuckGo\'s instant-answer endpoint, which only knows encyclopedia-style facts and returns nothing for most developer queries — the result will say so plainly. Do not call it for things you already know.',
       parameters: {
-        query: { type: 'string', description: 'Search query, e.g. "modern SaaS landing page design 2024" or "glassmorphism CSS" or "bento grid layout inspiration"' },
+        query: { type: 'string', description: 'What to search for' },
       },
       fn: async (p) => {
         const query = String(p.query || '').trim();
         if (!query) return JSON.stringify({ error: 'query is required' });
+
+        // Prefer the real search engine the app already supports. Coder mode
+        // had no access to it and always used DuckDuckGo's instant-answer API,
+        // which answers "what is a capybara" and almost nothing a developer
+        // would ask — while the tool described itself as a web search.
+        try {
+          const viaTavily = await window._H?.tavilySearch?.(query, 5);
+          if (viaTavily) return JSON.stringify({ query, source: 'tavily', results: viaTavily });
+        } catch { /* fall through to the free endpoint */ }
+
         try {
           const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
           const resp = await fetch(url);
@@ -232,10 +250,17 @@
               if (t.Text) results.push({ title: (t.FirstURL || '').split('/').pop()?.replace(/_/g, ' ') || '', snippet: t.Text.slice(0, 200), url: t.FirstURL || '' });
             }
           }
-          if (!results.length) return JSON.stringify({ query, message: 'No instant answers found. Apply your training knowledge on this topic.' });
-          return JSON.stringify({ query, results });
+          if (!results.length) {
+            return JSON.stringify({
+              query,
+              source: 'duckduckgo-instant-answer',
+              results: [],
+              message: 'No results. This endpoint only covers encyclopedia-style facts, so a developer query usually returns nothing. Answer from your own knowledge and say it is not from a search. Add a Tavily key in Settings for real search.',
+            });
+          }
+          return JSON.stringify({ query, source: 'duckduckgo-instant-answer', results });
         } catch (err) {
-          return JSON.stringify({ error: err.message, tip: 'Network unavailable. Apply training knowledge: glassmorphism, bento grids, neobrutalism, editorial layouts, dark mode with vibrant accents, bold variable typography.' });
+          return JSON.stringify({ error: err.message, message: 'Search is unavailable. Answer from your own knowledge and say so.' });
         }
       },
     },
@@ -286,8 +311,8 @@ TOOL ROUTING:
 • New file / full rewrite  → write_file
 • Explore structure        → list_dir
 • Build / test / git / inspect binary → shell_run
-• Research design/trends/docs → web_search(query) — call this FIRST for any website or UI task
-• Need images for a website/app → image_search(query, count) — ALWAYS call this before writing any HTML/CSS that needs photos. Never invent image URLs.
+• Look something up you do not know → web_search(query)
+• A layout genuinely needs a photo → placeholder_images(seed, count). Prefer gradients, icons or inline SVG; never invent an image URL.
 
 FILE READING:
 • read_file handles all text formats and returns readable metadata for binary/large files.
@@ -308,17 +333,18 @@ DEPENDENCY RULES (follow every time, no exceptions):
 • brew/apt/dnf: NEVER install system packages without explicit user instruction — ask first.
 • When adding a NEW package: only install packages that are in the project's manifest (package.json, requirements.txt, Cargo.toml, pyproject.toml, go.mod). Ask the user before installing anything not already listed there.
 
-DESIGN RESEARCH (for every website / UI / app task):
-① Call web_search with a specific design query BEFORE writing any HTML/CSS. Examples:
-   – "modern [type] website design 2024"   (e.g. "modern SaaS dashboard design 2024")
-   – "bento grid CSS layout"
-   – "glassmorphism UI card design"
-   – "neobrutalism web design"
-   – "editorial magazine layout CSS"
-② Read the results and extract the visual style, color approach, typography, and layout patterns that fit.
-③ Call image_search for topic-specific photos.
-④ THEN build — applying what you found. Never produce generic hero→features→CTA cookie-cutter templates.
-The search is your creative brief. Use it.
+BUILDING A UI:
+• Design from what you know. You have read more design work than a search will return, and
+  a mandatory search before every UI task cost a round trip and returned nothing useful.
+  Search only when you actually need a fact you do not have — an API signature, a CSS
+  property's support, a library's current name.
+• Never produce a generic hero→features→CTA template. Commit to a specific visual idea
+  and carry it through: type scale, spacing rhythm, one accent colour used deliberately.
+• Images: prefer CSS gradients, icons and inline SVG. When a photo is genuinely required,
+  call placeholder_images — the URLs it returns work, but they are generic stock, so say
+  so and tell the user to replace them. Never write an image URL you have not been given.
+• Always: descriptive alt text, explicit width/height or aspect-ratio to stop layout shift,
+  visible :hover and :focus states, and a prefers-reduced-motion fallback for animation.
 
 MEMORY:
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.

@@ -8816,6 +8816,10 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
   // ── Cross-module bridge — lets swarm-maker.js (loaded separately) access core app functions ──
   window._H = {
     get state()                  { return state; },
+    // Real web search, when the user has configured a Tavily key. Coder mode
+    // had no access to it and fell back to DuckDuckGo's instant-answer
+    // endpoint, which returns nothing for most developer queries.
+    tavilySearch,
     runOneTool,
     appendAssistantToolCallTurn,
     appendToolResult,

@@ -1846,10 +1846,15 @@ const VoidStudio = (() => {
   function buildDynamicImageInstruction(userPrompt) {
     const topic = String(userPrompt || "").slice(0, 140);
     const fallbackSeed = Math.floor(Math.random() * 9000) + 1000;
-    return `IMAGES — use Unsplash Source for real, high-quality topic photos (no API key needed).
+    return `IMAGES — use LoremFlickr for real, topic-matched photos (no API key needed).
 
-PRIMARY format (always use this first):
-  https://source.unsplash.com/{W}x{H}/?{keyword1},{keyword2}
+Unsplash Source (source.unsplash.com) was RETIRED and now returns HTTP 503 for
+every request. Do not use it: it produces a site where every image is broken.
+
+PRIMARY format (always use this):
+  https://loremflickr.com/{W}/{H}/{keyword1},{keyword2}?lock={n}
+  The lock number keeps an image stable across rebuilds. Start at ${fallbackSeed}
+  and add 1 for each additional image so they differ from one another.
 
   Derive keywords directly from the topic "${topic}":
   – pizza/food site        → /?pizza,italian  · /?chef,cooking  · /?restaurant,dining
@@ -1865,12 +1870,12 @@ Hard rules:
 • Every image must have DIFFERENT keywords to get visual variety.
 • Sizes: 1600x900 for hero/banner · 800x600 for cards · 600x400 for thumbnails.
 • NEVER use: "cat", "statue", "animal", "kitten", "dog", "placeholder", "lorem", "nature" (unless topic IS nature), or any unrelated term.
-• NEVER invent Unsplash photo IDs — only the /?keywords format above.
-• Use ≥ 3 distinct images per visual website.
-
-FALLBACK (only if Unsplash Source is unsuitable for the context):
-  https://loremflickr.com/{W}/{H}/{k1},{k2}?lock=${fallbackSeed}
-  Increment lock by 1 per additional image. Same keyword rules apply.`;
+• NEVER invent a photo ID or a filename — only the keyword format above.
+• Use >= 3 distinct images per visual website.
+• Give every <img> descriptive alt text and an explicit width/height or
+  aspect-ratio, so the layout does not jump while images load.
+• These are placeholder photographs, not licensed stock. Say so, and tell the
+  user to swap in their own before the site goes anywhere real.`;
   }
 
   // keep alias for any legacy reference (should not be called, but avoids ReferenceError)
@@ -1918,7 +1923,7 @@ full file content here
 - Every generated project must be ready to run/deploy as written. Do not leave setup chores, missing assets, missing API keys, manual image steps, or comments telling the user what to add later.
 - For websites: polished, real UI with actual CSS (not bare HTML). No sample/fake data.
 - IMAGES — use the God Agent's chosen Unsplash Source URLs verbatim. Never invent new URLs and never use photo IDs. NEVER use "cat", "statue", "animal", "kitten", or any keyword unrelated to the project topic.
-- For visual designs: every <img> and background-image must use an Unsplash Source URL (https://source.unsplash.com/{W}x{H}/?{keywords}) with topic-specific keywords. No placeholders, no empty boxes, no base64 stubs.
+- For visual designs: every <img> and background-image must use a LoremFlickr URL (https://loremflickr.com/{W}/{H}/{keywords}?lock={n}) with topic-specific keywords. No empty boxes, no base64 stubs, and never source.unsplash.com — it is retired and returns 503.
 - Include at least 3 distinct images for any visual website — each with a different URL and different keywords.
 - Design standard: think like an editorial creative director, not a template factory. Every project must have a distinct visual identity: unique color palette, deliberate type hierarchy, original layout composition. No two builds should look the same. Avoid generic hero→features→CTA cookie-cutter layouts.
 - For apps: create all required frontend + backend + config files.
@@ -2042,7 +2047,7 @@ Typography: [two Google Font pairs with roles, e.g. "'Playfair Display', serif f
 Layout: [describe the specific layout approach: asymmetric two-column, magazine editorial, full-bleed hero with floating cards, mosaic grid, etc.]
 Unique Angle: [one sentence on what makes this design NOT a generic template — must be specific to this topic]
 Images (use Unsplash Source, topic-specific keywords — DIFFERENT keywords per image):
-  [usage]: https://source.unsplash.com/{W}x{H}/?{keyword1},{keyword2}
+  [usage]: https://loremflickr.com/{W}/{H}/{keyword1},{keyword2}?lock={n}
   [at least 4 image URLs, each with different dimensions and different topic-specific keywords]
 
 ━━━ SECTION 2 — EXECUTION BRIEF ━━━
@@ -2079,7 +2084,7 @@ ${buildDynamicImageInstruction(userPrompt)}`
     { name: "fs_move",    params: '{"from":"string","to":"string"}',                                            desc: "Move or rename a file or folder." },
     { name: "fs_grep",    params: '{"pattern":"string","path":"string (opt, default /)"}',                      desc: "Search for a text pattern across files. Returns matches with file path and line number." },
     { name: "terminal_run", params: '{"command":"string"}',                                                     desc: "Run a shell command in the Virtual OS terminal (ls, cat, grep, find, echo, etc.)." },
-    { name: "image_search", params: '{"query":"string","count":"number (1-8, default 4)"}',                    desc: "Get real topic-specific image URLs from Unsplash. Call before writing any HTML/CSS that needs photos." },
+    { name: "image_search", params: '{"query":"string","count":"number (1-8, default 4)"}',                    desc: "Topic-matched placeholder photo URLs that actually load. Call when a layout needs a photo." },
     { name: "web_search",   params: '{"query":"string"}',                                                        desc: "Search the web for design trends, UI patterns, tech docs. Call this FIRST before building any website." },
     { name: "task_done",  params: '{"summary":"string"}',                                                        desc: "Call this when the task is fully complete." },
   ];
@@ -2098,7 +2103,7 @@ ${AGENT_OS_TOOLS.map(t => `• ${t.name}(${t.params})\n  ${t.desc}`).join("\n")}
 DESIGN RESEARCH — for every website / UI task:
 ① Call web_search FIRST with a design query, e.g. "modern [type] website design 2024", "glassmorphism UI", "bento grid layout".
 ② Read the results, extract visual style, color palette, typography, and layout patterns.
-③ Call image_search for topic-specific photos — never invent image URLs.
+③ Call image_search when a layout needs photos — never invent image URLs.
 ④ THEN write the files, applying what you found. No cookie-cutter hero→features→CTA templates.
 
 RULES — READ CAREFULLY:
@@ -2336,8 +2341,12 @@ SPEED — avoid these time-wasting patterns:
             { w: 800,  h: 800,  label: "square-card" },
             { w: 900,  h: 600,  label: "landscape" },
           ];
-          const urls = sizes.slice(0, count).map(s =>
-            `https://source.unsplash.com/${s.w}x${s.h}/?${encodeURIComponent(query)} [${s.label}]`
+          // source.unsplash.com was retired and returns 503 for every request,
+          // so this tool used to hand the model URLs that were guaranteed to
+          // break in the generated site. LoremFlickr is keyless and topical,
+          // and lock= keeps each image stable across rebuilds.
+          const urls = sizes.slice(0, count).map((s, i) =>
+            `https://loremflickr.com/${s.w}/${s.h}/${encodeURIComponent(query)}?lock=${1000 + i} [${s.label}]`
           );
           log(`image_search: ${count} URLs for "${query}"`, "ok");
           return `Image URLs for "${query}":\n${urls.join("\n")}\n\nUse these src values directly in <img> tags or CSS background-image.`;
@@ -2773,7 +2782,7 @@ CRITICAL RULES:
 6. Write COMPLETE file contents — no "// ... rest of code", no TODO placeholders.
 7. If editing existing files, use the exact existing paths from context and preserve unrelated code and folder structure.
 8. If creating a new website/app/tool/game while files already exist, use a new top-level folder and do not overwrite existing paths.
-9. IMAGES: Use ONLY the Unsplash Source URLs specified in the God Agent's Creative Brief. Construct each URL as https://source.unsplash.com/{W}x{H}/?{keyword1},{keyword2} where keywords match exactly what the image shows. Never reuse the same keywords twice.
+9. IMAGES: Use ONLY the image URLs specified in the God Agent's Creative Brief. Construct each URL as https://loremflickr.com/{W}/{H}/{keyword1},{keyword2}?lock={n} where keywords match exactly what the image shows. Never reuse the same keywords twice.
 10. Visual websites must use at least 3 distinct Unsplash Source images with different keywords and sizes.
 11. DESIGN: Execute the God Agent's Creative Brief exactly — use the specified colors, fonts, and layout style. Every project must feel like a bespoke design, not a template. No two builds should look alike.
 12. Make the project fully working and ready for deployment. All referenced files must be generated, and there must be no manual steps inside comments or UI.
@@ -2803,7 +2812,7 @@ ${buildDynamicImageInstruction(prompt)}`
         const rewriteContent = await callWithFailover("worker", workerModel, [
           {
             role: "system",
-            content: `You are fixing generated project files so they are fully working, deployment-ready, and visually polished. Rewrite the provided files so there are no TODOs, placeholders, missing assets, fake local image filenames, manual setup comments, or instructions telling the user to add/replace/provide anything later. For images, use Unsplash Source URLs with topic-specific keywords: https://source.unsplash.com/{W}x{H}/?{keyword1},{keyword2} — use at least 3 distinct URLs with different keywords and sizes. Elevate naive/basic design into premium responsive production UI. Keep all code complete and return ONLY path-labeled fenced code blocks.\n\n${buildDynamicImageInstruction(prompt)}`
+            content: `You are fixing generated project files so they are fully working, deployment-ready, and visually polished. Rewrite the provided files so there are no TODOs, placeholders, missing assets, fake local image filenames, manual setup comments, or instructions telling the user to add/replace/provide anything later. For images, use LoremFlickr URLs with topic-specific keywords: https://loremflickr.com/{W}/{H}/{keyword1},{keyword2}?lock={n} — use at least 3 distinct URLs with different keywords and sizes. Elevate naive/basic design into premium responsive production UI. Keep all code complete and return ONLY path-labeled fenced code blocks.\n\n${buildDynamicImageInstruction(prompt)}`
           },
           {
             role: "user",
@@ -3102,10 +3111,10 @@ RESPONSE MODES — pick the right one:
 
    TERMINAL (full shell access):
    terminal_run(command) — run any shell command: ls, cat, grep, find, head, tail, wc, touch, cp, mv, rm, mkdir
-   image_search(query, count?) — fetch real topic-specific image URLs for use in code
+   image_search(query, count?) — topic-matched placeholder photo URLs that load
    web_search(query) — search the web for design trends, UI patterns, tech docs. Call FIRST before building any website.
 
-   ⚠ DESIGN RESEARCH: before building any website or UI, call web_search("modern [type] website design 2024") to get current design trends, then call image_search for photos. Never produce generic templates.
+   ⚠ Design from what you know rather than searching first — a mandatory search costs a round trip and rarely returns anything useful. Call image_search when a layout needs a photo. Never produce generic templates.
    ⚠ PATCH RULE: always fs_read the file FIRST — copy exact text, then patch.
    ⚠ VIRTUAL FS RULE: NEVER run npm install, pip install, cargo build, brew install, or any package-manager command — the terminal is a JS simulation. Write package.json/requirements.txt instead; the user installs deps outside Virtual OS.
    ⚠ MULTI-FILE RULE: when you edit HTML, ALWAYS check if CSS and JS need updating too.
