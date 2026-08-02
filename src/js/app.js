@@ -1853,11 +1853,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       <div class="kb-body">
         <div class="kb-title">Knowledge Base</div>
         <div class="kb-stats">
-          <span>This PC: <b id="ragCount">${macCount}</b></span>
-          <span style="color:var(--line-strong)">·</span>
-          <span>Local PC: <b id="ragDellCount">—</b></span>
-          <button class="kb-clear" id="ragClearBtn">Clear This PC</button>
-          <button class="kb-clear" id="ragDellClearBtn" style="display:none">Clear Local PC</button>
+          <span><b id="ragCount">${macCount}</b> chunks</span>
+          <button class="kb-clear" id="ragClearBtn">Clear</button>
         </div>
       </div>
       <div class="rag-toggle${ragEnabled ? " on" : ""}" id="ragToggle" title="Enable/disable knowledge base"></div>`;
@@ -1869,25 +1866,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     });
     kb.querySelector("#ragClearBtn").addEventListener("click", async (e) => {
       e.stopPropagation();
-      if (!await themedConfirm("Clear all This PC knowledge chunks?", "Knowledge Base")) return;
+      if (!await themedConfirm("Clear all knowledge base chunks?", "Knowledge Base")) return;
       localStorage.removeItem(RAG_KEY);
       updateRagCount();
     });
-    kb.querySelector("#ragDellClearBtn").addEventListener("click", async (e) => {
-      e.stopPropagation();
-      if (!await themedConfirm("Clear Local PC knowledge base?", "Knowledge Base")) return;
-      await ragDellClear();
-    });
     agentsListEl.appendChild(kb);
-    // Fetch local stats async and update the card
-    ragDellStats().then(s => {
-      const dc = document.getElementById("ragDellCount");
-      const db = document.getElementById("ragDellClearBtn");
-      if (dc && s !== null) {
-        dc.textContent = s.count;
-        if (db && s.count > 0) db.style.display = "";
-      }
-    }).catch(() => {});
 
     // ── Separator ──
     const sep = document.createElement("div");
@@ -2081,11 +2064,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // custom presets; 3 built-ins always show first and can't be deleted.
   // ════════════════════════════════════════════════════════════════
   const HOST_PRESETS_KEY = "hashui_host_presets_v1";
+  // Only loopback ships as a built-in. A LAN address is specific to one
+  // network — it was this developer's own machine, which is nobody else's
+  // Ollama host — so anyone running Ollama on another box adds it with
+  // "+ Save" and it persists like any other preset.
   const BUILTIN_PRESETS = [
-    { label: "Off — disable local Ollama", url: "",                          builtin: true },
-    { label: "Local (this Mac)",           url: "http://127.0.0.1:11434",   builtin: true },
-    { label: "Local (alt: localhost)",     url: "http://localhost:11434",   builtin: true },
-    { label: "LAN — common /24",           url: "http://192.168.1.107:11434", builtin: true },
+    { label: "Off — disable local Ollama", url: "",                        builtin: true },
+    { label: "Local (this Mac)",           url: "http://127.0.0.1:11434",  builtin: true },
+    { label: "Local (alt: localhost)",     url: "http://localhost:11434",  builtin: true },
   ];
   function loadHostPresets() {
     try { return JSON.parse(localStorage.getItem(HOST_PRESETS_KEY) || "[]"); } catch { return []; }
@@ -8317,18 +8303,6 @@ sys.stderr = _stderr
 
   // RAG card events are wired per-render inside renderAgentsList()
 
-  // ========= Local RAG (persistent 5 GB SQLite on the local host) =========
-  // Endpoints added to /opt/hashgpt/helper.py:
-  //   POST /rag/add   { title, text, source }
-  //   POST /rag/query { query, limit }  → { results: [{title,text,source,score}] }
-  //   GET  /rag/stats                   → { count, size_mb }
-  //   POST /rag/clear
-
-  function dellRagBase() {
-    // Use the sensor helper port (9999) on whichever host Ollama is using
-    return safeHost().replace(":11434", ":9999");
-  }
-
   // Use AbortSignal.timeout when available (Chrome 103+, Safari 16+, FF 100+).
   // It is GC-safe — no dangling setTimeout on successful requests.
   // Falls back to the old AbortController pattern on older engines.
@@ -8336,64 +8310,19 @@ sys.stderr = _stderr
     return window.HashCortxRuntime.makeSignal(ms);
   }
 
-  async function ragDellAdd(title, text, source) {
-    if (!ragEnabled) return;
-    try {
-      await fetch(`${dellRagBase()}/rag/add`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: (title||"").slice(0,200), text: text.slice(0,2000), source: source||"" }),
-        signal: makeSignal(4000),
-      });
-    } catch {}
-  }
-
-  async function ragDellQuery(query, limit = 3) {
-    try {
-      const r = await fetch(`${dellRagBase()}/rag/query`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, limit }),
-        signal: makeSignal(4000),
-      });
-      if (!r.ok) return [];
-      const d = await r.json();
-      return (d.results || []).map(c => ({ title: c.title, text: c.text, source: c.source }));
-    } catch { return []; }
-  }
-
-  async function ragDellStats() {
-    try {
-      const r = await fetch(`${dellRagBase()}/rag/stats`, { signal: makeSignal(3000) });
-      if (!r.ok) return null;
-      return await r.json();
-    } catch { return null; }
-  }
-
-  async function ragDellClear() {
-    try {
-      await fetch(`${dellRagBase()}/rag/clear`, { method: "POST", signal: makeSignal(4000) });
-      renderAgentsList();
-    } catch {}
-  }
-
   function addToRAG(title, text, source) {
     _ragLocalAdd(title, text, source);
-    ragDellAdd(title, text, source);
   }
 
-  // Hybrid retrieval: vector (semantic) + keyword (lexical) + server.
+  // Hybrid retrieval: vector (semantic) + keyword (lexical).
   // Vector goes first — it catches paraphrases and synonyms that keyword
   // misses ("CEO" ↔ "chief executive"). Keyword fills in exact-match cases
   // (rare names, codes, IDs) where embeddings can be fuzzy.
   const _queryRAGLocal = queryRAG;
   async function queryRAGMerged(text) {
     if (!ragEnabled) return [];
-    const [macVec, dell] = await Promise.all([
-      queryRAGVector(text, RAG_MAX_CONTEXT).catch(() => []),
-      ragDellQuery(text, RAG_MAX_CONTEXT).catch(() => [])
-    ]);
-    const macKw = _queryRAGLocal(text);
+    const vec = await queryRAGVector(text, RAG_MAX_CONTEXT).catch(() => []);
+    const kw = _queryRAGLocal(text);
     const seen = new Set();
     const out = [];
     const dedupKey = c => (c.title || "").trim().toLowerCase() + "|" + (c.text || "").slice(0, 80);
@@ -8403,9 +8332,8 @@ sys.stderr = _stderr
         if (!seen.has(k)) { seen.add(k); out.push(c); }
       }
     };
-    push(macVec);   // semantic matches first
-    push(macKw);    // exact-token fallbacks
-    push(dell);     // server-side knowledge base
+    push(vec);  // semantic matches first
+    push(kw);   // exact-token fallbacks
     return out.slice(0, RAG_MAX_CONTEXT + 2);
   }
 
