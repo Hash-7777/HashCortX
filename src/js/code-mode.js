@@ -2209,9 +2209,170 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     if (auditModal) auditModal.addEventListener('click', e => { if (e.target === auditModal) auditModal.classList.remove('open'); });
   }
 
+
+  // ══════════════════════════════════════════════════════════════
+  // Coder layout: resizable, collapsible panels that stay put
+  //
+  // The panels were three fixed columns and a 140px terminal, none of them
+  // adjustable. At the window's 960px minimum the two side columns took 480px
+  // — half the app — and the terminal showed about six lines, which is not
+  // enough to read a stack trace or the tail of a build.
+  //
+  // Sizes live in CSS custom properties on .cdr-body, so dragging is just
+  // writing a number, and a collapsed panel is a width of zero. Everything is
+  // remembered, because a layout you must rebuild on every launch is not one
+  // you have chosen.
+  // ══════════════════════════════════════════════════════════════
+  const CDR_LAYOUT_KEY = 'hashcortx_coder_layout_v1';
+  const CDR_LAYOUT_DEFAULTS = { sideW: 250, termH: 220, sideHidden: false, termHidden: false };
+  const CDR_LIMITS = { sideMin: 170, sideMax: 460, termMin: 90, termMax: 640 };
+
+  let cdrLayout = { ...CDR_LAYOUT_DEFAULTS };
+
+  function cdrLoadLayout() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CDR_LAYOUT_KEY) || '{}');
+      cdrLayout = { ...CDR_LAYOUT_DEFAULTS, ...saved };
+    } catch { cdrLayout = { ...CDR_LAYOUT_DEFAULTS }; }
+  }
+  function cdrSaveLayout() {
+    try { localStorage.setItem(CDR_LAYOUT_KEY, JSON.stringify(cdrLayout)); } catch {}
+  }
+
+  const cdrClamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
+
+  function cdrApplyLayout() {
+    const body = $('cdrBody');
+    if (!body) return;
+    cdrLayout.sideW = cdrClamp(Number(cdrLayout.sideW) || CDR_LAYOUT_DEFAULTS.sideW,
+                               CDR_LIMITS.sideMin, CDR_LIMITS.sideMax);
+    cdrLayout.termH = cdrClamp(Number(cdrLayout.termH) || CDR_LAYOUT_DEFAULTS.termH,
+                               CDR_LIMITS.termMin, CDR_LIMITS.termMax);
+    body.style.setProperty('--cdr-side-w', cdrLayout.sideW + 'px');
+    body.style.setProperty('--cdr-term-h', cdrLayout.termH + 'px');
+    body.classList.toggle('cdr-side-hidden', !!cdrLayout.sideHidden);
+    body.classList.toggle('cdr-term-hidden', !!cdrLayout.termHidden);
+    if (cdrLayout.termHidden) body.classList.remove('cdr-term-full');
+
+    const expandBtn = $('cdrTerminalExpand');
+    if (expandBtn) expandBtn.textContent = body.classList.contains('cdr-term-full') ? 'Restore' : 'Expand';
+  }
+
+  /** Wire one split handle. `axis` is 'x' (side width) or 'y' (terminal height). */
+  function cdrWireSplit(handleId, axis) {
+    const handle = $(handleId);
+    const body = $('cdrBody');
+    if (!handle || !body) return;
+
+    let startPos = 0, startVal = 0, dragging = false;
+
+    const onMove = (e) => {
+      if (!dragging) return;
+      if (axis === 'x') {
+        cdrLayout.sideW = cdrClamp(startVal + (e.clientX - startPos), CDR_LIMITS.sideMin, CDR_LIMITS.sideMax);
+      } else {
+        // The terminal grows as the pointer moves UP, so the delta is inverted.
+        cdrLayout.termH = cdrClamp(startVal - (e.clientY - startPos), CDR_LIMITS.termMin, CDR_LIMITS.termMax);
+      }
+      cdrApplyLayout();
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      body.classList.remove('cdr-dragging', 'cdr-dragging-x', 'cdr-dragging-y');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      cdrSaveLayout();
+    };
+
+    handle.addEventListener('pointerdown', (e) => {
+      // Dragging a hidden panel back open is confusing; use the rail instead.
+      if (axis === 'x' && cdrLayout.sideHidden) return;
+      if (axis === 'y' && cdrLayout.termHidden) return;
+      dragging = true;
+      startPos = axis === 'x' ? e.clientX : e.clientY;
+      startVal = axis === 'x' ? cdrLayout.sideW : cdrLayout.termH;
+      body.classList.add('cdr-dragging', axis === 'x' ? 'cdr-dragging-x' : 'cdr-dragging-y');
+      body.classList.remove('cdr-term-full');
+      // Listen on the window, not the handle: the pointer routinely outruns a
+      // 6px target, and a drag that stops when you move too fast is worse than
+      // no drag at all.
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      e.preventDefault();
+    });
+
+    handle.addEventListener('dblclick', () => {
+      if (axis === 'x') cdrLayout.sideW = CDR_LAYOUT_DEFAULTS.sideW;
+      else cdrLayout.termH = CDR_LAYOUT_DEFAULTS.termH;
+      cdrApplyLayout(); cdrSaveLayout();
+    });
+
+    // Keyboard: a 6px drag target is unusable without a pointer.
+    handle.addEventListener('keydown', (e) => {
+      const step = e.shiftKey ? 40 : 12;
+      const key = e.key;
+      let handled = true;
+      if (axis === 'x' && key === 'ArrowLeft') cdrLayout.sideW -= step;
+      else if (axis === 'x' && key === 'ArrowRight') cdrLayout.sideW += step;
+      else if (axis === 'y' && key === 'ArrowUp') cdrLayout.termH += step;
+      else if (axis === 'y' && key === 'ArrowDown') cdrLayout.termH -= step;
+      else handled = false;
+      if (handled) { e.preventDefault(); cdrApplyLayout(); cdrSaveLayout(); }
+    });
+  }
+
+  function cdrInitLayout() {
+    const body = $('cdrBody');
+    if (!body) return;
+    cdrLoadLayout();
+    cdrApplyLayout();
+
+    cdrWireSplit('cdrSplitX', 'x');
+    cdrWireSplit('cdrSplitY', 'y');
+
+    const setSideHidden = (hidden) => {
+      cdrLayout.sideHidden = hidden; cdrApplyLayout(); cdrSaveLayout();
+    };
+    $('cdrSideCollapse')?.addEventListener('click', () => setSideHidden(true));
+    $('cdrSideRail')?.addEventListener('click', () => setSideHidden(false));
+
+    $('cdrTerminalCollapse')?.addEventListener('click', () => {
+      cdrLayout.termHidden = !cdrLayout.termHidden;
+      cdrApplyLayout(); cdrSaveLayout();
+    });
+    $('cdrTerminalExpand')?.addEventListener('click', () => {
+      // Expand is a view state, not a size: leaving the dragged height alone
+      // means Restore puts back exactly what the user had chosen.
+      if (cdrLayout.termHidden) { cdrLayout.termHidden = false; cdrApplyLayout(); cdrSaveLayout(); return; }
+      body.classList.toggle('cdr-term-full');
+      cdrApplyLayout();
+    });
+
+    // Files / Chats tabs.
+    document.querySelectorAll('.cdr-side-tab[data-cdr-side-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const want = tab.getAttribute('data-cdr-side-tab');
+        document.querySelectorAll('.cdr-side-tab[data-cdr-side-tab]').forEach((t) => {
+          const on = t === tab;
+          t.classList.toggle('active', on);
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.cdr-side-pane[data-cdr-side-pane]').forEach((pane) => {
+          pane.classList.toggle('active', pane.getAttribute('data-cdr-side-pane') === want);
+        });
+        cdrLayout.sideTab = want; cdrSaveLayout();
+      });
+    });
+    if (cdrLayout.sideTab) {
+      document.querySelector(`.cdr-side-tab[data-cdr-side-tab="${cdrLayout.sideTab}"]`)?.click();
+    }
+  }
+
   function init() {
     if (!window._H) { setTimeout(init, 150); return; }
     initSharedDom();
+    cdrInitLayout();
   }
 
   if (document.readyState === 'loading') {

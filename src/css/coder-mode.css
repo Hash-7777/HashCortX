@@ -174,26 +174,122 @@ body.coder-mode #app { display: none; }
 .cdr-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 220px 1fr 260px;
-  grid-template-rows: 1fr 140px;
+  /* Driven by custom properties so the split handles can move them, and so a
+     collapsed panel is simply a width of zero.
+
+     This was three fixed columns — 220px file tree, chat, 260px saved chats —
+     none of them resizable. At the window's 960px minimum the two side columns
+     took 480px, half the app, and the terminal was pinned at 140px, about six
+     lines of build output. */
+  --cdr-side-w: 250px;
+  --cdr-term-h: 220px;
+  --cdr-split: 6px;
+  grid-template-columns: var(--cdr-side-w) var(--cdr-split) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) var(--cdr-split) var(--cdr-term-h);
   grid-template-areas:
-    "sidebar chat    sessions"
-    "sidebar terminal sessions";
+    "side splitx chat"
+    "side splitx splity"
+    "side splitx terminal";
   overflow: hidden;
   position: relative;
 }
+.cdr-body.cdr-side-hidden { --cdr-side-w: 0px; --cdr-split: 0px; }
+.cdr-body.cdr-term-hidden { --cdr-term-h: 0px; }
+.cdr-body.cdr-term-full   { --cdr-term-h: calc(100% - 46px); }
+
+/* ── The side panel: Files and Chats as tabs in one column ── */
+.cdr-side {
+  grid-area: side;
+  display: flex; flex-direction: column;
+  min-width: 0; overflow: hidden;
+  background: var(--cdr-bg-panel);
+  border-right: 1px solid var(--cdr-border);
+}
+.cdr-body.cdr-side-hidden .cdr-side,
+.cdr-body.cdr-side-hidden .cdr-split-x { display: none; }
+
+.cdr-side-tabs {
+  flex: 0 0 auto;
+  display: flex; align-items: stretch; gap: 2px;
+  padding: 5px 5px 0;
+  border-bottom: 1px solid var(--cdr-border);
+}
+.cdr-side-tab {
+  flex: 1 1 0; min-width: 0;
+  padding: 6px 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  color: var(--cdr-text-muted);
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  white-space: nowrap; overflow: hidden;
+  cursor: pointer;
+}
+.cdr-side-tab:hover { color: var(--cdr-text-dim); background: rgba(255,255,255,0.04); }
+.cdr-side-tab.active {
+  color: var(--cdr-cyan);
+  background: rgba(255,255,255,0.05);
+  border-color: var(--cdr-border);
+}
+.cdr-side-collapse {
+  flex: 0 0 auto; width: 24px;
+  background: transparent; border: none;
+  color: var(--cdr-text-muted); cursor: pointer;
+  font-size: 12px; line-height: 1;
+}
+.cdr-side-collapse:hover { color: var(--cdr-cyan); }
+
+.cdr-side-pane { display: none; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.cdr-side-pane.active { display: flex; flex-direction: column; }
+
+/* A rail to bring the panel back, only while it is hidden. */
+.cdr-side-rail {
+  display: none;
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 4;
+  width: 14px; padding: 0;
+  background: var(--cdr-bg-panel);
+  border: none; border-right: 1px solid var(--cdr-border);
+  color: var(--cdr-text-muted); cursor: pointer; font-size: 11px;
+}
+.cdr-side-rail:hover { color: var(--cdr-cyan); background: rgba(255,255,255,0.05); }
+.cdr-body.cdr-side-hidden .cdr-side-rail { display: block; }
+
+/* ── Split handles ── */
+.cdr-split {
+  position: relative;
+  background: transparent;
+  z-index: 3;
+}
+.cdr-split::after {
+  content: ""; position: absolute; inset: 0;
+  background: var(--cdr-border);
+  transition: background .12s ease;
+}
+.cdr-split:hover::after,
+.cdr-split:focus-visible::after { background: var(--cdr-cyan); }
+.cdr-split-x { grid-area: splitx; cursor: col-resize; }
+.cdr-split-y { grid-area: splity; cursor: row-resize; }
+.cdr-split-x::after { left: 2px; right: 2px; }
+.cdr-split-y::after { top: 2px; bottom: 2px; }
+.cdr-body.cdr-term-hidden .cdr-split-y::after { background: var(--cdr-border); }
+/* While dragging, the whole body takes the cursor and stops selecting text. */
+.cdr-body.cdr-dragging { user-select: none; }
+.cdr-body.cdr-dragging.cdr-dragging-x { cursor: col-resize; }
+.cdr-body.cdr-dragging.cdr-dragging-y { cursor: row-resize; }
+.cdr-body.cdr-dragging iframe { pointer-events: none; }
 /* Legacy class kept for JS compat — no longer controls layout */
 .cdr-body.has-sidebar { /* no-op now, panel is always shown */ }
 
 /* ── Sidebar (left — Files panel, always visible) ─────────────── */
 .cdr-sidebar {
-  grid-area: sidebar;
+  flex: 1 1 auto; min-height: 0;
   display: flex;
   flex-direction: column;
   background: var(--cdr-bg-panel);
-  border-right: 1px solid var(--cdr-border);
   overflow: hidden;
-  width: 220px;
+  width: 100%;
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 .cdr-sidebar.open { display: flex; }  /* legacy compat */
@@ -1500,7 +1596,7 @@ body.coder-mode #app { display: none; }
 
 /* ── Saved Chats (right panel) — always visible ───────────────── */
 .cdr-right {
-  grid-area: sessions;
+  flex: 1 1 auto; min-height: 0; min-width: 0;
   display: flex !important;            /* override the legacy display:none inline */
   flex-direction: column;
   background: var(--cdr-bg-panel);

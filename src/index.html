@@ -2106,7 +2106,20 @@
     <!-- Body -->
     <div class="cdr-body" id="cdrBody">
 
-      <!-- LEFT SIDEBAR: File explorer (always visible, VS-Code style) -->
+      <!-- LEFT: one resizable, collapsible panel holding Files and Chats as
+           tabs. These were two separate fixed columns, 220px and 260px, which
+           together ate half the window at its minimum width. -->
+      <div class="cdr-side" id="cdrSidePanel">
+        <div class="cdr-side-tabs" role="tablist">
+          <button type="button" class="cdr-side-tab active" data-cdr-side-tab="files"
+                  role="tab" aria-selected="true">Files</button>
+          <button type="button" class="cdr-side-tab" data-cdr-side-tab="chats"
+                  role="tab" aria-selected="false">Chats</button>
+          <button type="button" class="cdr-side-collapse" id="cdrSideCollapse"
+                  title="Hide this panel">&#10094;</button>
+        </div>
+
+      <div class="cdr-side-pane active" data-cdr-side-pane="files">
       <div class="cdr-sidebar" id="cdrSidebar">
         <div class="cdr-sidebar-hd">
           <span class="cdr-sidebar-title">Files</span>
@@ -2129,6 +2142,30 @@
           </div>
         </div>
       </div><!-- /.cdr-sidebar -->
+      </div><!-- /.cdr-side-pane files -->
+
+      <div class="cdr-side-pane" data-cdr-side-pane="chats">
+        <div class="cdr-right" id="cdrSessionsPanel">
+          <div class="cdr-sessions-hd">
+            <span>Saved Chats</span>
+            <button class="cdr-sessions-clear" id="cdrSessionsClearAllBtn" title="Clear all saved chats">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 5h10M6 5V3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V5M5 5l.7 8a.6.6 0 0 0 .6.5h3.4a.6.6 0 0 0 .6-.5L11 5"/></svg>
+            </button>
+          </div>
+          <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search chats..." autocomplete="off" spellcheck="false"/>
+          <div class="cdr-sessions-body" id="cdrSessionsList">
+            <div class="cdr-sessions-empty">Past conversations will appear here.</div>
+          </div>
+        </div>
+      </div><!-- /.cdr-side-pane chats -->
+      </div><!-- /.cdr-side -->
+
+      <!-- Drag to resize the side panel; double-click to reset. -->
+      <div class="cdr-split cdr-split-x" id="cdrSplitX" role="separator"
+           aria-orientation="vertical" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
+      <!-- A thin rail to bring the panel back once it is hidden. -->
+      <button type="button" class="cdr-side-rail" id="cdrSideRail" title="Show the side panel">&#10095;</button>
 
       <!-- CENTER: Chat area -->
       <div class="cdr-chat-area">
@@ -2192,6 +2229,10 @@
       </div><!-- /.cdr-chat-area -->
 
       <!-- BOTTOM: Terminal panel -->
+      <!-- Drag to resize the terminal; double-click to reset. -->
+      <div class="cdr-split cdr-split-y" id="cdrSplitY" role="separator"
+           aria-orientation="horizontal" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
       <div class="cdr-terminal-panel" id="cdrTerminalPanel">
         <div class="cdr-terminal-hd">
           <div class="cdr-terminal-lights" aria-hidden="true">
@@ -2204,6 +2245,8 @@
           </div>
           <div class="cdr-terminal-actions">
             <button class="cdr-terminal-btn" id="cdrTerminalClear" title="Clear">Clear</button>
+            <button class="cdr-terminal-btn" id="cdrTerminalExpand" title="Expand to full height">Expand</button>
+            <button class="cdr-terminal-btn" id="cdrTerminalCollapse" title="Hide the terminal">Hide</button>
           </div>
         </div>
         <div class="cdr-terminal-body" id="cdrTerminalBody">
@@ -2223,20 +2266,6 @@
             <button class="cdr-change-overlay-close" id="cdrChangeOverlayClose">&#215;</button>
           </div>
           <pre class="cdr-change-overlay-pre" id="cdrChangeOverlayPre"></pre>
-        </div>
-      </div>
-
-      <!-- RIGHT: Saved Chats panel (always visible) -->
-      <div class="cdr-right" id="cdrSessionsPanel">
-        <div class="cdr-sessions-hd">
-          <span>Saved Chats</span>
-          <button class="cdr-sessions-clear" id="cdrSessionsClearAllBtn" title="Clear all saved chats">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 5h10M6 5V3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V5M5 5l.7 8a.6.6 0 0 0 .6.5h3.4a.6.6 0 0 0 .6-.5L11 5"/></svg>
-          </button>
-        </div>
-        <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search chats..." autocomplete="off" spellcheck="false"/>
-        <div class="cdr-sessions-body" id="cdrSessionsList">
-          <div class="cdr-sessions-empty">Past conversations will appear here.</div>
         </div>
       </div>
 
