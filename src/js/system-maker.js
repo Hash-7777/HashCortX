@@ -3603,14 +3603,14 @@ Repair requirements:
     const data = getRuntimeData(spec);
     const rows = data[entityId] || [];
     const fields = entity?.fields || [];
-    const header = fields.map(f => `"${f.label}"`).join(",");
-    const body = rows.map(r => fields.map(f => {
-      const v = String(r[f.id] ?? "").replace(/"/g, '""');
-      return `"${v}"`;
-    }).join(",")).join("\n");
-    const csv = header + "\n" + body;
+    // Shared builder: formula-injection guard, BOM for Excel, CRLF, escaped
+    // header. Records here are user data typed into a generated prototype.
+    const csv = window.HCExport.csvDocument(
+      fields.map(f => f.label),
+      rows.map(r => fields.map(f => r[f.id]))
+    );
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     a.download = `${slug(entity?.name || "export")}.csv`;
     document.body.appendChild(a);
     a.click();
@@ -3624,10 +3624,12 @@ Repair requirements:
     Object.values(spec.entities || {}).forEach(entity => {
       const rows = data[entity.id] || [];
       const fields = entity.fields || [];
-      const header = fields.map(f => `"${f.label}"`).join(",");
-      const body = rows.map(r => fields.map(f => `"${String(r[f.id] ?? "").replace(/"/g,'""')}"`).join(",")).join("\n");
+      const csv = window.HCExport.csvDocument(
+        fields.map(f => f.label),
+        rows.map(r => fields.map(f => r[f.id]))
+      );
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([header + "\n" + body], { type: "text/csv" }));
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
       a.download = `${slug(spec.name)}_${slug(entity.name)}.csv`;
       document.body.appendChild(a);
       a.click();

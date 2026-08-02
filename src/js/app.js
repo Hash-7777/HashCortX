@@ -1308,14 +1308,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     });
   }
 
-  function slugifyTitle(title) {
-    return (title || "conversation")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 48) || "conversation";
-  }
-
   function currentConversationSnapshot() {
     if (!state.messages.length) return null;
     const chat = activeChatList().find(c => c.id === state.currentChatId);
@@ -1324,6 +1316,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       model: modelEl.value || chat?.model || "",
       exportedAt: new Date().toISOString(),
       agentId: state.activeAgentId || null,
+      agentName: (loadAgents().find(a => a.id === state.activeAgentId) || {}).name || undefined,
       messages: state.messages
         .filter(m => !(state.streaming && m === state.messages[state.messages.length - 1] && m.role === "assistant" && !m.content))
         .map(m => ({
@@ -1332,35 +1325,27 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         replyTo: m.replyTo ? { ...m.replyTo } : undefined,
         attachments: m.attachments ? m.attachments.map(a => typeof a === "object" ? { ...a } : a) : undefined,
         images: m.images ? m.images.slice() : undefined,
+        // Everything the run actually measured. The export used to drop all of
+        // this, so a JSON export was not a record of the conversation — it was
+        // a transcript with the evidence removed.
+        model: m.model || undefined,
         durationMs: m.durationMs || undefined,
+        tps: m.tps || undefined,
+        tpsSource: m.tpsSource || undefined,
+        inputTokens: m.inputTokens || undefined,
+        outputTokens: m.outputTokens || m.generatedTokens || undefined,
+        startedAt: m.startedAt || undefined,
+        completedAt: m.completedAt || undefined,
+        toolCalls: Array.isArray(m._toolBlocks) && m._toolBlocks.length
+          ? m._toolBlocks.map(t => ({ name: t.name, arguments: t.arguments, ok: t.ok }))
+          : undefined,
       })),
     };
   }
 
-  function messageMarkdown(m) {
-    const head = m.role === "assistant" ? "## Assistant" : "## You";
-    const body = m.role === "user" ? stripReplyPrelude(m.content || "") : (m.content || "");
-    const parts = [head];
-    if (m.replyTo) parts.push(`> Replying to ${m.replyTo.role === "assistant" ? "assistant" : "user"}: ${m.replyTo.preview || ""}`);
-    parts.push(body || "_(empty)_");
-    if (m.attachments?.length) {
-      parts.push(`Attachments: ${m.attachments.map(a => typeof a === "string" ? a : a.name).join(", ")}`);
-    }
-    if (m.images?.length) {
-      parts.push(`Images: ${m.images.length}`);
-    }
-    return parts.join("\n\n");
-  }
-
-  function conversationToMarkdown(snapshot) {
-    return [
-      `# ${snapshot.title}`,
-      snapshot.model ? `Model: \`${snapshot.model}\`` : "",
-      `Exported: ${snapshot.exportedAt}`,
-      "",
-      ...snapshot.messages.map(messageMarkdown),
-    ].filter(Boolean).join("\n\n");
-  }
+  // Markdown, filenames, CSV and PDF text all come from js/export-format.js so
+  // that a fix reaches every export instead of the one that was reported.
+  const conversationToMarkdown = (snapshot) => window.HCExport.conversationToMarkdown(snapshot);
 
   function downloadBlob(filename, blob) {
     const url = URL.createObjectURL(blob);
@@ -1377,7 +1362,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       await themedAlert("No conversation to export yet.", "Export");
       return;
     }
-    const stem = slugifyTitle(snapshot.title);
+    const stem = window.HCExport.safeFilename(snapshot.title);
     if (format === "markdown") {
       downloadBlob(`${stem}.md`, new Blob([conversationToMarkdown(snapshot)], { type: "text/markdown;charset=utf-8" }));
       return;
@@ -1416,18 +1401,23 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         return startY;
       }
 
+      // jsPDF's built-in fonts are WinAnsi. Every string below goes through
+      // pdfSafe, or a curly quote — which models produce constantly — renders
+      // as broken text. Finance mode already did this; chat did not.
+      const P = window.HCExport.pdfSafe;
+
       // Title
       doc.setFontSize(18);
       doc.setTextColor(26, 18, 8);
       doc.setFont("helvetica", "bold");
-      y = addWrapped(snapshot.title || "Conversation", margin, y, { lineHeight: 22 });
+      y = addWrapped(P(snapshot.title || "Conversation"), margin, y, { lineHeight: 22 });
       y += 4;
 
       // Meta
       doc.setFontSize(9);
       doc.setTextColor(102, 102, 102);
       doc.setFont("helvetica", "normal");
-      const meta = `Model: ${snapshot.model || "—"}   ·   Exported: ${snapshot.exportedAt || ""}`;
+      const meta = P(`Model: ${snapshot.model || "-"}   |   Exported: ${snapshot.exportedAt || ""}`);
       y = addWrapped(meta, margin, y, { lineHeight: 11 });
       y += 12;
 
@@ -1446,22 +1436,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(isAi ? 122 : 26, isAi ? 78 : 58, isAi ? 16 : 92);
-        const dur = m.durationMs ? `  (${formatDuration(m.durationMs)})` : "";
-        y = addWrapped(role.toUpperCase() + dur, margin, y, { lineHeight: 11 });
+        const bits = [];
+        if (m.durationMs) bits.push(formatDuration(m.durationMs));
+        if (m.tps) bits.push(`${m.tps} tok/s`);
+        if (m.inputTokens || m.outputTokens) bits.push(`${m.inputTokens || 0} in / ${m.outputTokens || 0} out`);
+        const dur = bits.length ? `  (${bits.join(" | ")})` : "";
+        y = addWrapped(P(role.toUpperCase() + dur), margin, y, { lineHeight: 11 });
         y += 4;
 
         // Body
         let body = m.role === "user" ? stripReplyPrelude(m.content || "") : (m.content || "");
-        // Strip markdown syntax for cleaner PDF text
-        body = body
-          .replace(/```[\s\S]*?```/g, (match) => match.replace(/```\w*\n?/g, "").replace(/```/g, ""))
-          .replace(/`([^`]+)`/g, "$1")
-          .replace(/\*\*([^*]+)\*\*/g, "$1")
-          .replace(/\*([^*]+)\*/g, "$1")
-          .replace(/#{1,6}\s+/g, "")
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-          .replace(/>\s+/g, "")
-          .replace(/\n{3,}/g, "\n\n");
+        // Flatten markdown properly: code keeps its shape and its indentation
+        // rather than reflowing as prose, which made it unreadable in an app
+        // whose main output is code.
+        body = P(window.HCExport.markdownToPlainText(body));
 
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -1472,7 +1460,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         if (m.attachments?.length) {
           doc.setFontSize(8);
           doc.setTextColor(119, 119, 119);
-          const attText = "📎 " + m.attachments.map(a => typeof a === "string" ? a : a.name).join(", ");
+          // No emoji: jsPDF's built-in fonts cannot render one, so this line
+          // used to come out as a broken glyph or vanish entirely.
+          const attText = P("Attachments: " + m.attachments.map(a => typeof a === "string" ? a : a.name).join(", "));
           y = addWrapped(attText, margin, y, { lineHeight: 10 });
         }
 

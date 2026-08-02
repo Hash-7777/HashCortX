@@ -242,15 +242,19 @@ Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/
 
 ## The Hash ecosystem
 
-Three local-first apps, same principles — no cloud, no telemetry, your data stays where it is.
+Four local-first apps, same principles — no cloud, no telemetry, your data stays where it is.
 
 | App | What it is | Licence |
 |---|---|---|
 | **HashCortx** *(you are here)* | The local-first AI workspace | MIT |
 | [**HashCerebrum**](https://github.com/Hash-7777/HashCerebrum) | Medical research workbench with a 3D brain interface | AGPL-3.0 |
 | [**HashMeterAi**](https://github.com/Hash-7777/HashMeterAi) | An honest local meter for how much AI you actually use | Apache-2.0 |
+| [**Hash D Island**](https://github.com/Hash-7777/Hash-D-Island) | Turns the MacBook notch into a live activity island | GPL-3.0 |
 
-They interlock: HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and HashMeterAi reads it — so your spend is measured in one place, on your disk, by tools that never phone home.
+They interlock, through files on your disk rather than a service:
+
+- HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and **HashMeterAi** reads it — so your spend across every tool is measured in one place, by software that never phones home.
+- When a run finishes, HashCortx posts a short notice to `~/.hashdisland/activities.json`, and **Hash D Island** lights up the notch — a title and a model name at most, never a prompt or an answer. If it is not installed, the file simply sits there unread.
 
 ---
 

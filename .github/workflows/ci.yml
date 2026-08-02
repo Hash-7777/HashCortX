@@ -62,6 +62,10 @@ jobs:
       - name: Agent context-budgeting checks
         run: npm run check:agent
 
+      # Export bugs are invisible until someone opens the file a week later.
+      - name: Export formatting checks
+        run: npm run check:export
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

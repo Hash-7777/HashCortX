@@ -2240,22 +2240,24 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
 
   function exportCsv(r) {
     if (!r.table) return;
-    const lines = [r.table.headers.join(","), ...r.table.rows.map(row =>
-      row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(","))];
-    downloadBlob(new Blob([lines.join("\n")], { type: "text/csv" }),
-      (r.table.title || "table").replace(/\s+/g, "-").toLowerCase() + ".csv");
+    // Built by js/export-format.js: neutralises spreadsheet formula injection,
+    // writes a BOM so Excel reads UTF-8, uses CRLF, and escapes the header row.
+    // These cells are written by a model summarising the user's own statement,
+    // so a cell beginning "=" is not a theoretical concern.
+    const csv = window.HCExport.csvDocument(r.table.headers || [], r.table.rows || []);
+    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }),
+      window.HCExport.safeFilename(r.table.title || "table", "csv"));
   }
 
   /* ── PDF export ─────────────────────────────────────────────────── */
   async function loadJsPdf() {
+    // jsPDF is vendored at src/js/vendor/jspdf.umd.min.js and loaded by
+    // index.html. This used to fall back to a CDN, which breaks the offline
+    // guarantee, contradicts the no-CDN-at-runtime rule in ARCHITECTURE.md,
+    // and would fail silently on a machine with no network — exactly when a
+    // local-first app should still work.
     if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
-    return new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
-      s.onload  = () => resolve(window.jspdf?.jsPDF);
-      s.onerror = () => reject(new Error("jsPDF failed to load"));
-      document.head.appendChild(s);
-    });
+    throw new Error("PDF library not loaded. Please restart the app.");
   }
 
   function svgToDataUrl(svgId) {
