@@ -59,7 +59,9 @@ Reads outside the project folder used to be auto-approved with no dialog at all,
 
 Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact.
 
-Coverage is **not yet total**: Virtual OS and 3D Forge native calls are not routed through the guard. That work is on the roadmap.
+**Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. They have no native calls. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file. 3D Forge exports by handing the webview a Blob to download, the same as any web page.
+
+That claim was wrong in the alarming direction, describing an exposure the app does not have, and it sat on the roadmap as work nobody needed to do. `scripts/checks/native-surface.mjs` now enforces the real property: it scans the source, asserts which files may invoke a native command at all, and fails if one appears in a mode that is supposed to be sandboxed.
 
 ### Filesystem denylist — compiled into Rust, cannot be overridden
 

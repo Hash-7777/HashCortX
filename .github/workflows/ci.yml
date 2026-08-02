@@ -80,6 +80,11 @@ jobs:
       - name: Idle power checks
         run: npm run check:power
 
+      # Which files may reach the machine at all. Turns ARCHITECTURE.md rule 1
+      # from prose into something that fails the build.
+      - name: Native surface checks
+        run: npm run check:native
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

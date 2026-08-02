@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power",
+    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native",
     "check:syntax": "node scripts/checks/syntax.mjs",
     "check:guard": "node scripts/checks/guard.mjs",
     "check:rag": "node scripts/checks/rag.mjs",
@@ -13,7 +13,8 @@
     "check:export": "node scripts/checks/export.mjs",
     "check:policy": "node scripts/checks/agent-policy.mjs",
     "check:layout": "node scripts/checks/layout.mjs",
-    "check:power": "node scripts/checks/power.mjs"
+    "check:power": "node scripts/checks/power.mjs",
+    "check:native": "node scripts/checks/native-surface.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

@@ -123,7 +123,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 ## Design rules
 
-1. `src/platform/` is the only place allowed to touch `window.__TAURI__`.
+1. `src/platform/` is the only place allowed to touch `window.__TAURI__`. Enforced by `scripts/checks/native-surface.mjs`, which also pins the set of files outside it that may invoke a command, and the modes that must invoke none.
 2. Every native call is intercepted by `guard.js` before executing, and independently re-checked in Rust.
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
@@ -137,7 +137,6 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- Virtual OS and 3D Forge make native calls that do not yet route through the Permission Guard.
 - The frontend's only automated coverage is `scripts/checks/` — the Permission Guard and the retrieval ranking, plus that every script parses. Nothing tests a UI behaviour.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
