@@ -664,7 +664,7 @@
     window.addEventListener("resize", resize);
     resize();
     initialized = true;
-    animate();
+    startLoop();
     setStatus("Idle");
     log("SYSTEM", "Forge void is online.");
     return true;
@@ -704,10 +704,30 @@
     renderer.setSize(w, h, false);
   }
 
-  function animate(now) {
+  // Come back to life when the window does.
+  try {
+    window.HCPower?.onChange(({ visible }) => { if (visible && mounted) startLoop(); });
+  } catch {}
+
+  /** Start the render loop if it is not already running. */
+  function startLoop() {
+    if (raf) return;
     raf = requestAnimationFrame(animate);
-    if (!renderer || !scene || !camera) return;
-    if (!mounted) return;
+  }
+
+  function animate(now) {
+    // The loop used to re-schedule itself here, unconditionally, and nothing
+    // ever cancelled it — `raf` was assigned and never read. So once Forge had
+    // been opened once, the app woke sixty times a second for the rest of its
+    // life, on every other tab, doing nothing but scheduling itself again.
+    //
+    // Now the chain simply ends when there is nothing to draw, and startLoop()
+    // restarts it. `raf = 0` marks it stopped so a restart cannot double up.
+    if (!renderer || !scene || !camera || !mounted || !window.HCPower?.isVisible()) {
+      raf = 0;
+      return;
+    }
+    raf = requestAnimationFrame(animate);
     controls?.update();
     if (starField) starField.rotation.y += 0.00018;
     if (logoMeshes.length > 0) {

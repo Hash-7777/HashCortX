@@ -39,7 +39,9 @@
     transform: translate3d(0, 0, 0);
     animation: traces-drift 240s linear infinite;
     transition: opacity 1.2s ease, filter 1.2s ease;
-    will-change: transform, opacity;
+    /* Only transform animates. Naming opacity here pinned a second compositor
+       buffer for a property that never changes on this layer. */
+    will-change: transform;
     backface-visibility: hidden;
   }
   @keyframes traces-drift {
@@ -60,7 +62,11 @@
     opacity: 0.55;
     transition: opacity 1.2s ease;
     animation: spot-wander 34s ease-in-out infinite alternate;
-    will-change: transform, opacity;
+    /* As above — this layer animates transform only. It is also the app's one
+       full-viewport mix-blend-mode: screen, which makes the compositor
+       re-blend the whole window every frame; that is the single most
+       expensive thing on screen when the app is doing nothing. */
+    will-change: transform;
     backface-visibility: hidden;
   }
   @keyframes spot-wander {
@@ -91,3 +97,53 @@
   aside { flex: 0 0 300px; width: 300px; transition: flex-basis .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1), padding .28s, border .28s; }
   .app.collapsed aside { flex-basis: 0; width: 0; }
 
+
+
+/* ══════════════════════════════════════════════════════════════
+   Idle power
+
+   js/power.js sets .hc-power-idle on <html> whenever the window is not
+   visible — minimised, or on another Space. Nothing is on screen, so nothing
+   is lost by stopping: 78 infinite CSS animations and two full-viewport
+   background layers were otherwise repainting for an audience of nobody.
+
+   Paused rather than cancelled, so an animation resumes where it stopped
+   instead of snapping back to its first frame.
+   ══════════════════════════════════════════════════════════════ */
+html.hc-power-idle *,
+html.hc-power-idle *::before,
+html.hc-power-idle *::after {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+
+/* A compositor layer is promoted for the whole life of the app by
+   will-change. That is the right call while something animates and pure cost
+   while it does not, so the hint is dropped along with the animation. */
+html.hc-power-idle .pcb-traces,
+html.hc-power-idle .circuit-spot {
+  will-change: auto;
+}
+
+/* The system setting is a request, not a suggestion. Decorative motion stops;
+   anything that communicates progress is left alone, because a frozen spinner
+   reads as a hang. */
+@media (prefers-reduced-motion: reduce) {
+  .pcb-traces,
+  .circuit-spot {
+    animation: none !important;
+    will-change: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Progress indicators keep moving — they are information, not decoration. */
+  .spinner, .cdr-pulse, .agent-tool-pulse, [class*="-spin"], [class*="-pulse"] {
+    animation-duration: revert !important;
+    animation-iteration-count: infinite !important;
+  }
+}

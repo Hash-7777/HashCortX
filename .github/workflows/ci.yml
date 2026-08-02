@@ -75,6 +75,11 @@ jobs:
       - name: Layout checks
         run: npm run check:layout
 
+      # Battery bugs never announce themselves — nothing fails, the laptop is
+      # just warm. These pin what stops when nobody is looking.
+      - name: Idle power checks
+        run: npm run check:power
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

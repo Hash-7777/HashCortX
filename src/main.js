@@ -78,7 +78,13 @@
 
       // Save position + size every 3 s (only when changed)
       let lastX, lastY, lastW, lastH;
+      // Polling the window's own geometry costs two Tauri IPC round trips, and
+      // it ran every three seconds forever — including while the window was
+      // hidden or the user was in another app, where by definition it cannot
+      // have moved. Skipping those turns removes almost all of the calls
+      // without changing when a real move gets saved.
       setInterval(async () => {
+        if (document.hidden || !document.hasFocus()) return;
         try {
           const pos = await invoke('plugin:window|outer_position');
           if (pos && (pos.x !== lastX || pos.y !== lastY)) {
@@ -186,7 +192,17 @@
       h = h % 12 || 12;
       el.textContent = `${h}:${z(d.getMinutes())}:${z(d.getSeconds())} ${suffix} · ${DAYS[d.getDay()]} · ${MONTHS[d.getMonth()]} ${d.getDate()} · ${d.getFullYear()}`;
     }
-    tick(); setInterval(tick, 1000);
+    tick();
+    // This clock lives on the splash screen. It used to tick once a second for
+    // the entire life of the app, writing into an element that is hidden the
+    // moment the app launches — a repaint per second for an audience of
+    // nobody. It now stops as soon as its own element leaves the screen, and
+    // while the window is hidden.
+    const clock = setInterval(() => {
+      if (document.hidden) return;
+      if (!el.isConnected || !el.offsetParent) { clearInterval(clock); return; }
+      tick();
+    }, 1000);
   })();
 
   // Declared here so sonarDots and introReadiness can safely reference it
