@@ -6,6 +6,11 @@ dist/
 dist-ssr/
 *.local
 
+# Local-only notes, plans and handoffs. `*.local` above does NOT match a
+# `.local.md` suffix, so this pattern is separate and load-bearing: it is what
+# keeps working notes out of a public repository.
+*.local.md
+
 # Tauri build artifacts — never commit, regenerated on build
 src-tauri/target/
 src-tauri/WixTools/

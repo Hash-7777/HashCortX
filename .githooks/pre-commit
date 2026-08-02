@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# Refuses a commit that would put a secret, a private note, or build output into
+# this repository.
+#
+# This repository is PUBLIC and has forks. A secret pushed here is copied by
+# everyone who clones, and history rewriting — the only real cleanup — breaks
+# every fork. So the gate has to be a check, not a good intention.
+#
+# Install (per clone — git does not carry hooks, and that is deliberate on git's
+# part, because a hook is code that runs on checkout):
+#
+#   git config core.hooksPath .githooks
+#
+# Everything below judges only what is STAGED. An unstaged file in the working
+# tree is not going anywhere and is none of this hook's business.
+#
+# To get past it deliberately: `git commit --no-verify`. That is a decision the
+# rules say belongs to the repository owner, so it is left possible and left
+# loud rather than being made impossible.
+#
+set -uo pipefail
+
+fail=0
+say() { printf '  %s\n' "$1" >&2; }
+problem() {
+  if [ "$fail" -eq 0 ]; then
+    printf '\nThis commit was refused. What is wrong:\n\n' >&2
+  fi
+  fail=1
+  say "$1"
+}
+
+# Only added/copied/modified files — a deletion cannot introduce anything.
+staged="$(git diff --cached --name-only --diff-filter=ACM)"
+[ -z "$staged" ] && exit 0
+
+# ── 1. Files that must never be committed ────────────────────────────────────
+#
+# .gitignore already covers most of these, but `git add -f` overrides it and the
+# rules explicitly anticipate that mistake. Checked by NAME, so it holds even for
+# a file that has never been seen before.
+while IFS= read -r file; do
+  case "$file" in
+    *.local.md)
+      problem "$file is a local-only note. It must never be committed (rules, §9)." ;;
+    .env|.env.*)
+      case "$file" in
+        .env.example) : ;;
+        *) problem "$file may hold real secrets. Commit .env.example instead." ;;
+      esac ;;
+    *.p12|*.mobileprovision|AuthKey_*.p8|*.pem|*.key)
+      problem "$file is signing or key material and must never be committed." ;;
+    *.DS_Store)
+      problem "$file is macOS junk, not a project file." ;;
+    src-tauri/target/*|src-tauri/gen/*|src-tauri/WixTools/*|dist/*|node_modules/*)
+      problem "$file is build output or a dependency. The repository holds sources." ;;
+    *.dmg|*.app/*|*.AppImage|*.deb|*.msi)
+      problem "$file is a built product. Products belong on the Releases page." ;;
+    *\ 2.*)
+      problem "$file looks like an iCloud conflict copy." ;;
+  esac
+done <<< "$staged"
+
+# ── 2. Secret-shaped strings in the diff ─────────────────────────────────────
+#
+# Matched by PATTERN, never by storing a literal — writing a secret into this
+# file so it could be compared against would itself be the leak the rules exist
+# to prevent (§1).
+#
+# Only added lines are read: a line being REMOVED that matches is a leak being
+# cleaned up, and refusing that would be exactly backwards.
+added="$(git diff --cached --diff-filter=ACM -U0 | grep '^+' | grep -v '^+++' || true)"
+
+check_pattern() {
+  if printf '%s' "$added" | grep -qE "$1"; then
+    problem "$2"
+  fi
+}
+
+check_pattern 'sk-ant-[A-Za-z0-9_-]{16,}'      "an Anthropic API key"
+check_pattern 'sk-[A-Za-z0-9]{32,}'            "an OpenAI-style API key"
+check_pattern 'gsk_[A-Za-z0-9]{32,}'           "a Groq API key"
+check_pattern 'AIza[A-Za-z0-9_-]{30,}'         "a Google API key"
+check_pattern 'gh[pousr]_[A-Za-z0-9]{30,}'     "a GitHub token"
+check_pattern 'AKIA[A-Z0-9]{16}'               "an AWS access key id"
+check_pattern 'xox[abprs]-[A-Za-z0-9-]{10,}'   "a Slack token"
+check_pattern 'BEGIN [A-Z ]*PRIVATE KEY'       "a private key block"
+
+# A passphrase written into a file is the exact incident these rules were
+# written after. Matched on the shape of an assignment, not on any value.
+check_pattern '(passphrase|PASSPHRASE)[[:space:]]*[=:][[:space:]]*[^[:space:]"'"'"'{$]' \
+  "a passphrase being assigned a literal value"
+
+# ── 3. Private network addresses ─────────────────────────────────────────────
+#
+# This is a public product, not a personal tool. A developer's own LAN address
+# baked in as a default is both a privacy leak and a broken default for every
+# user who is not on that network. Loopback is fine — that is where a user's own
+# Ollama actually lives.
+if printf '%s' "$added" \
+   | grep -vE '^\+\s*(//|#|\*)' \
+   | grep -qE '\b(192\.168\.[0-9]{1,3}\.[0-9]{1,3}|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'; then
+  problem "a private LAN IP address. Users are not on your network — make it configurable, not a default."
+fi
+
+# ── 4. Report ────────────────────────────────────────────────────────────────
+if [ "$fail" -ne 0 ]; then
+  cat >&2 <<'EOF'
+
+Nothing has been committed. Unstage what should not be there:
+
+    git restore --staged <file>
+
+If this is a false alarm and you are sure, commit with --no-verify.
+EOF
+  exit 1
+fi
+
+exit 0

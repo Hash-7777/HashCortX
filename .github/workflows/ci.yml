@@ -1,0 +1,94 @@
+# ============================================================
+# HashCortX — continuous integration
+#
+# This repository has no frontend test suite, and `src/` is served
+# unbundled, so nothing catches a syntax error in a JavaScript file
+# before it reaches a user: the browser stops executing that script
+# and every feature after it silently disappears.
+#
+# So the gate is deliberately modest and entirely honest about what
+# it proves: the JavaScript parses, the Rust compiles, and the Rust
+# tests pass. It does NOT prove the app works. Only running it does.
+#
+# The release pipeline is a separate concern — see docs/future/build.yml.
+# ============================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to the same branch cancels the first — no point burning
+# minutes on a commit that has already been superseded.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  javascript:
+    name: JavaScript parses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Every file the app actually loads. Vendored libraries under
+      # src/js/vendor/ are third-party minified builds and are checked
+      # too — a corrupt vendor file breaks the app just as thoroughly.
+      - name: Syntax-check every loaded script
+        run: |
+          failed=0
+          while IFS= read -r f; do
+            if ! node --check "$f"; then
+              echo "::error file=$f::failed to parse"
+              failed=1
+            fi
+          done < <(find src -name '*.js' -type f | sort)
+          exit $failed
+
+  rust:
+    name: Rust compiles and tests pass
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # Tauri needs the system webview headers even to type-check.
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: cargo check
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+
+      - name: cargo test
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      # The security code is where a warning is most worth reading, so
+      # clippy runs — but it does not fail the build yet, because the
+      # existing code has never been linted and a red CI that everyone
+      # learns to ignore is worse than no CI.
+      - name: cargo clippy (advisory)
+        continue-on-error: true
+        run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets
