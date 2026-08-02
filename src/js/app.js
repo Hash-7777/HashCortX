@@ -6945,12 +6945,35 @@ Search query:`;
       memAdd(key, v);
       saved.push({ key, value: v });
     };
+    // A name is at most a few words, and the sentence usually carries on past
+    // it. The previous patterns swallowed everything to the end of the clause:
+    // "my name is seif save it" stored the name as "seif save it", and
+    // "my name is seif and i work at acme" stored the whole remainder. Names
+    // are now capped at three words and trimmed at the first word that plainly
+    // is not part of one.
+    const NOT_A_NAME = new Set([
+      "and","but","so","then","also","please","save","remember","store","keep",
+      "it","that","this","ok","okay","thanks","thank","now","too","as","well",
+      "i","im","my","me","you","we","they","he","she","is","are","was","from",
+      "who","what","when","where","why","how","for","with","by","in","on","at",
+    ]);
+    const cleanName = (raw) => {
+      const words = String(raw || "").trim().split(/\s+/);
+      const kept = [];
+      for (const word of words) {
+        if (kept.length >= 3) break;
+        if (NOT_A_NAME.has(word.toLowerCase().replace(/[^a-z']/g, ""))) break;
+        kept.push(word);
+      }
+      return kept.join(" ");
+    };
+
     const patterns = [
       // Identity
-      [/\bmy\s+name\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", m[1])],
-      [/\bi(?:'m|\s+am)\s+called\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", m[1])],
-      [/\bcall\s+me\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", m[1])],
-      [/\bthis\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})\s+speaking/i, m => push("name", m[1])],
+      [/\bmy\s+name\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
+      [/\bi(?:'m|\s+am)\s+called\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
+      [/\bcall\s+me\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
+      [/\bthis\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})\s+speaking/i, m => push("name", cleanName(m[1]))],
       // Preferences
       [/\bi\s+(?:love|like|enjoy|adore|prefer|am\s+a\s+fan\s+of)\s+([^,.;!?\n]{2,80})/i, m => push("likes", m[1])],
       [/\bmy\s+favou?rite\s+([a-z ]{2,30}?)\s+(?:is|are)\s+([^,.;!?\n]{2,80})/i, m => push(`favorite_${m[1].trim().replace(/\s+/g,"_")}`, m[2])],
@@ -7764,6 +7787,22 @@ sys.stderr = _stderr
       const k = f.key.toLowerCase();
       if (!seen.has(k)) { recalled.push(f); seen.add(k); }
     }
+    // Tell the model that memory exists, whether or not anything is recalled
+    // yet. Without this it denies a capability the app actually has: asked to
+    // remember a name, it answers "I can't store personal information" while
+    // the app is silently saving it — the user is told the opposite of what
+    // happened. Plain chat has no remember_fact tool, so this note is the only
+    // thing standing between the model and a false statement about itself.
+    {
+      const memNote = "[MEMORY: this app saves the user's stated preferences, " +
+        "identity and project details on their own machine, automatically. If the user " +
+        "asks you to remember something, confirm that it has been noted. Never claim you " +
+        "are unable to store information — that is untrue here.]";
+      const sysIdx0 = baseMessages.findIndex(m => m.role === "system");
+      if (sysIdx0 >= 0) baseMessages[sysIdx0].content = `${baseMessages[sysIdx0].content}\n\n${memNote}`;
+      else baseMessages.unshift({ role: "system", content: memNote });
+    }
+
     if (recalled.length) {
       const memBlock = "[INTERNAL MEMORY — do NOT recite, list, or acknowledge this block unless the user explicitly asks what you remember. Use silently as background context only.]\n" +
         recalled.map(f => `- ${f.key}: ${f.value}`).join("\n");
