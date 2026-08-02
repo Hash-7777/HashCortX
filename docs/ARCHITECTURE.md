@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **33,000 lines of JavaScript** and **919 lines of Rust**.
+Roughly **30,400 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **1,530 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -42,17 +42,26 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
+│   │   │   ├── shell.rs       349   process execution: denylist, timeout,
+│   │   │   │                        closed stdin, output cap
 │   │   │   ├── fs.rs          343   filesystem bridge, applies the denylist
-│   │   │   ├── shell.rs       133   process execution, applies the denylist
 │   │   │   ├── keychain.rs    113   one-time migration out of the old Keychain
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
+│   │   │   ├── notch.rs        92   Hash D Island live-activity ping
 │   │   │   └── audit.rs        52   append-only audit log
 │   │   └── security/
-│   │       └── denylist.rs     99   hardcoded blocked paths and commands
+│   │       └── denylist.rs    398   hardcoded blocked paths and commands
 │   ├── capabilities/default.json
 │   ├── icons/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
+│
+├── scripts/checks/                  the only automated frontend checks
+│   ├── syntax.mjs                   every loaded script parses
+│   └── guard.mjs                    what the Permission Guard refuses,
+│                                    asks about, and lets through
+│
+├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
 ├── docs/
 │   ├── ARCHITECTURE.md              (this file)
@@ -66,7 +75,7 @@ HashCortX/
 └── README.md
 ```
 
-There is no `core/` directory, no `ai.rs`, no `allowlist.rs`, no `browser.js`, and no `.github/workflows/`. Builds are run by hand.
+There is no `core/` directory, no `ai.rs`, no `allowlist.rs`, and no `browser.js`. Release builds are still run by hand; `.github/workflows/ci.yml` only checks the code, it does not produce a DMG.
 
 ---
 
@@ -81,7 +90,7 @@ src/js/*.js  ──▶  window.HC.*        ──▶  Tauri IPC  ──▶  src-
 
 1. **AI requests do not go through Rust.** `app.js` calls `fetch()` in the renderer, straight to the provider, with the API key in the `Authorization` header. Rust is involved only in filesystem, shell, audit, and usage logging.
 
-2. **The denylist is enforced in Rust, not JavaScript.** `guard.js` raises the permission dialog, but `fs.rs` and `shell.rs` consult `security/denylist.rs` independently. A compromised prompt that talks its way past the dialog still cannot read `~/.ssh`.
+2. **The denylist is enforced in Rust, not JavaScript.** `guard.js` raises the permission dialog, but `fs.rs` and `shell.rs` consult `security/denylist.rs` independently. A compromised prompt that talks its way past the dialog still cannot read `~/.ssh` — through either door. That was not true until recently: `shell.rs` checked only the working directory, never the command text, so `cat ~/.ssh/id_ed25519` ran even though `fs_read_file` refused the identical path. Both are checked now, and the difference is covered by tests in `denylist.rs`.
 
 ---
 
@@ -120,9 +129,11 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 ## Known architectural debt
 
-- `app.js` is still an 8,904-line monolith. Extracting the memory/RAG system, the model utilities and the swarm log is the next slice.
+- `app.js` is still an ~8,850-line monolith. Extracting the memory/RAG system, the model utilities and the swarm log is the next slice.
+- `legacyRun` in `code-mode.js` is a single ~1,800-line function.
 - Virtual OS and 3D Forge make native calls that do not yet route through the Permission Guard.
-- The frontend has no tests.
+- The frontend's only automated coverage is `scripts/checks/` — the Permission Guard, and that every script parses. Nothing tests a UI behaviour.
+- The knowledge base's vector search does not run. It loads its embedding model from a CDN, which the CSP does not permit, so retrieval is keyword-only in practice. See [SECURITY.md](SECURITY.md).
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

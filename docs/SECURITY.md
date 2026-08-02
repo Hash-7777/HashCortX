@@ -45,7 +45,19 @@ Code signing is on the roadmap. Once the build is signed, Keychain storage becom
 
 ## The Permission Guard
 
-Every filesystem and shell call the coding agent wants to make passes through `HC.guard.request()` in `src/platform/tauri/guard.js`, which raises a dialog before anything executes. The Rust command handlers apply the denylist below independently, so bypassing the JavaScript dialog still does not reach a blocked path.
+Every filesystem and shell call the coding agent wants to make passes through `HC.guard.request()` in `src/platform/tauri/guard.js`. The Rust command handlers apply the denylist below independently, so talking the JavaScript dialog into approving something still does not reach a blocked path.
+
+**What raises a dialog, and what does not:**
+
+| | Inside the open project folder | Anywhere else |
+|---|---|---|
+| read, list, search | no dialog | **asks** |
+| write, patch | no dialog | **asks** |
+| delete, shell | **asks** | **asks** |
+
+Reads outside the project folder used to be auto-approved with no dialog at all, on the reasoning that reading modifies nothing. That reasoning does not hold for an agent whose purpose is to send what it reads to a model provider — a prompt-injected model could have read any file you could and placed it in its next request, without you seeing a prompt. They now ask.
+
+Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact.
 
 Coverage is **not yet total**: Virtual OS and 3D Forge native calls are not routed through the guard. That work is on the roadmap.
 
@@ -64,20 +76,35 @@ From `src-tauri/src/security/denylist.rs`. These are matched against the absolut
 Any path containing these substrings is refused too:
 
 ```
-.ssh   .aws   .gnupg   id_rsa   id_ed25519   credentials   Keychains
+.ssh    .aws     .gnupg   id_rsa   id_dsa    id_ecdsa   id_ed25519
+.netrc  .npmrc   .pypirc  .kube/config       .docker/config.json
+.config/gh/      .config/gcloud     Keychains
+com.hashcortx.app          .hashcortx
 ```
 
-### Shell commands — a denylist, not an allowlist
+The last two are HashCortX's own directories: the plaintext key bundle described above, and the audit log. The agent has no business reading your keys or editing the record of what it did, and the app reaches both through separate commands that do not accept a path.
 
-This is the important nuance. HashCortx does **not** restrict the agent to a fixed set of safe commands. It runs what it is asked to run, minus a blocked list that includes:
+### Shell commands — a denylist, not an allowlist, and not a sandbox
 
-```
-sudo   rm -rf   dd       mkfs     shutdown
-su     rm -fr   fdisk    parted   reboot
-       rm -r    format   diskutil eraseDisk
-```
+This is the important nuance. HashCortx does **not** restrict the agent to a fixed set of safe commands. It runs what it is asked to run, minus:
 
-An allowlist would be stronger. Treat the shell tool as what it is: an agent holding your shell, restrained by a permission prompt and a list of the worst commands.
+- **`rm` that is both recursive and forceful**, in any spelling — `-rf`, `-fR`, `-r -f`, `--recursive --force`.
+- **Privilege and power words**, matched as whole tokens: `sudo`, `su`, `shutdown`, `reboot`, `halt`, `poweroff`, `pkill`, `launchctl`.
+- **Disk tools**, matched as the program being run (including their families, e.g. `mkfs.ext4`, `newfs_hfs`): `dd`, `mkfs`, `fdisk`, `parted`, `format`, `newfs`.
+- **Phrases that cannot occur innocently**: `diskutil eraseDisk`, `chmod 777`, `chown root`, piping anything into an interpreter (`… | sh`, `| bash`, `| python`, …), and process substitution (`bash <(…)`).
+- **Any command naming a protected location** — `cat ~/.ssh/id_ed25519` is refused. Before this the filesystem denylist was decorative wherever a shell existed: `fs_read_file` refused that path and `shell_run` read it anyway.
+
+**Be clear about what this is not.** The agent composes the command string, so obfuscation — base64, `eval`, splicing a word out of a variable — defeats any string match, and no addition to the list changes that. An allowlist would be stronger. Treat the shell tool as what it is: an agent holding your shell, restrained by a permission prompt and a list of the worst commands.
+
+### Every command run is bounded
+
+From `src-tauri/src/commands/shell.rs`:
+
+- **Timeout** — five minutes by default, then the child is killed. A caller can ask for more, up to ten minutes.
+- **Closed stdin** — a command that prompts for input gets end-of-file and fails fast, instead of waiting forever on input that can never arrive.
+- **Output cap** — 512 KB per stream, then the rest is dropped with a notice.
+
+Honest limit: killing the child kills the process the shell became. A command that puts work in the background can leave grandchildren running. This is a time limit, not a process supervisor.
 
 ### Audit log
 
@@ -125,6 +152,7 @@ These are commonly assumed, and worth naming because an earlier version of this 
 - **No shell command allowlist.** See above — it is a denylist.
 - **No Hardened Runtime, no notarisation, no code signature.** The v2.0.0 build is unsigned, so installing it requires a Gatekeeper bypass.
 - **No encryption at rest** for API keys, chat history, or the audit log.
+- **No working semantic search yet.** The knowledge base ranks by keyword. The vector-search code exists but does not run: it loads its model from a CDN, which `connect-src` does not permit, so every embedding attempt fails and is caught. Bundling the model so it works offline is the next piece of work. Until then, treat the knowledge base as keyword search.
 
 ---
 

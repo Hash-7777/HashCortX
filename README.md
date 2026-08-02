@@ -31,7 +31,7 @@ HashCortx is a native macOS app that puts a multi-provider AI chat, an autonomou
 
 It is **8.9 MB**. It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
 
-It is MIT-licensed, and you can read all of it — roughly 33,000 lines of vanilla JavaScript and 919 lines of Rust, with no bundler and no framework in between.
+It is MIT-licensed, and you can read all of it — roughly 30,400 lines of vanilla JavaScript and 1,530 lines of Rust, with no bundler and no framework in between.
 
 <br>
 
@@ -93,7 +93,9 @@ The agent reads your real files, edits them, runs commands, and shows you every 
 
 <img src="docs/assets/coder-loop.svg" alt="The Coder loop: you ask, the model plans, it calls a tool, the Permission Guard decides, Rust executes, the result feeds back. Denied calls are blocked and logged." width="100%">
 
-Every filesystem and shell call from the agent passes through `HC.guard.request()` and lands in Rust, where a compiled denylist rejects anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, `/Library/Keychains`, `/etc`, `/System`, or the system binaries. That list is not configurable and not reachable from JavaScript. Everything the guard sees, allowed or denied, is written to an audit log you can open from Settings.
+Every filesystem and shell call from the agent passes through `HC.guard.request()` and lands in Rust, where a compiled denylist rejects anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, `/Library/Keychains`, `/etc`, `/System`, the system binaries, or HashCortx's own stored keys — whether the path arrives as a file operation or inside a shell command. That list is not configurable and not reachable from JavaScript. Everything the guard sees, allowed or denied, is written to an audit log you can open from Settings.
+
+Inside the folder you opened, the agent works without interrupting you. Outside it, every action asks first — including reads, because an agent that reads a file is an agent that can send it to a model provider. What is and is not gated is set out in full in [SECURITY.md](docs/SECURITY.md), along with the limits of the denylist, which is a denylist and not a sandbox.
 
 ---
 
