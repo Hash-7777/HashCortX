@@ -58,6 +58,10 @@ jobs:
       - name: Knowledge-base retrieval checks
         run: npm run check:rag
 
+      # What the model actually sees of a long agent run.
+      - name: Agent context-budgeting checks
+        run: npm run check:agent
+
   rust:
     name: Rust compiles and tests pass
     # 24.04, not 22.04, and the reason is linking rather than preference.

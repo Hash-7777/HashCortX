@@ -1817,40 +1817,15 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       return out + (extra ? '\n' + extra : '');
     }
 
-    // ── History compression: keep last 8 turns verbatim, roll older into one summary line.
-    // Tool results trimmed to 800 chars when sent to the API (full version stays in UI).
-    function compressHistory(msgs) {
-      if (!Array.isArray(msgs) || msgs.length <= 18) {
-        return msgs.map(m => trimToolResult(m));
-      }
-      // Always preserve the original system prompt at index 0.
-      const systemMsg = msgs[0]?.role === 'system' ? msgs[0] : null;
-      const rest      = systemMsg ? msgs.slice(1) : msgs;
-
-      // Don't cut inside a tool call pair — advance past any leading tool messages.
-      let cutIdx = Math.max(0, rest.length - 16);
-      while (cutIdx < rest.length && rest[cutIdx]?.role === 'tool') cutIdx++;
-
-      const tail  = rest.slice(cutIdx);
-      const older = rest.slice(0, cutIdx);
-      const users = older.filter(m => m.role === 'user').length;
-      const tools = older.filter(m => m.role === 'tool').length;
-      const asst  = older.filter(m => m.role === 'assistant').length;
-      const summary = `[Earlier context compressed: ${users} user msg${users !== 1 ? 's' : ''}, ${asst} assistant repl${asst !== 1 ? 'ies' : 'y'}, ${tools} tool call${tools !== 1 ? 's' : ''}.]`;
-
-      // Append summary to the system message so there is only ever one system turn.
-      const newSystem = systemMsg
-        ? { ...systemMsg, content: systemMsg.content + '\n' + summary }
-        : { role: 'system', content: summary };
-
-      return [newSystem].concat(tail.map(m => trimToolResult(m)));
-    }
-
-    function trimToolResult(m) {
-      if (!m || m.role !== 'tool' || typeof m.content !== 'string') return m;
-      if (m.content.length <= 800) return m;
-      return Object.assign({}, m, { content: m.content.slice(0, 800) + '\n…[truncated for prompt size]' });
-    }
+    // History compression lives in js/agent-context.js so it can be tested.
+    //
+    // It used to cut EVERY tool result to 800 characters on every call — not
+    // just old ones, but the file the agent had asked for one step earlier.
+    // read_file returns up to 100 KB and the model saw the first 800 bytes of
+    // it, which is why the agent so often "forgot" what it had just read. It
+    // now spends a character budget newest-first, so recent results arrive
+    // whole and only older ones give way.
+    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs);
 
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
