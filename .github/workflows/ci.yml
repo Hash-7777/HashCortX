@@ -84,13 +84,17 @@ jobs:
             librsvg2-dev \
             libxdo-dev \
             libssl-dev \
+            libdbus-1-dev \
             patchelf
 
+      # Every cargo step goes through the annotator so a failure is readable
+      # from the checks API without admin rights on the repository. See the
+      # script's header for why that matters.
       - name: cargo check
-        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets
+        run: scripts/ci/run-and-annotate.sh "cargo check" cargo check --manifest-path src-tauri/Cargo.toml --all-targets
 
       - name: cargo test
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: scripts/ci/run-and-annotate.sh "cargo test" cargo test --manifest-path src-tauri/Cargo.toml
 
       # The security code is where a warning is most worth reading, so
       # clippy runs — but it does not fail the build yet, because the
