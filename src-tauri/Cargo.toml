@@ -125,6 +125,21 @@ keyring = "3"
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "2"
 
+# ── ort + tokenizers ─────────────────────────────────────────
+# Local sentence embeddings for the knowledge base: bge-small-en-v1.5 run
+# natively, so semantic search needs no network and no WebAssembly runtime.
+# See src/commands/embed.rs for why this is not done in the web view.
+#
+# ort's "download-binaries" fetches a prebuilt ONNX Runtime at BUILD time and
+# links it STATICALLY — the shipped app has no external ONNX dylib to find.
+# It costs roughly 28 MB of binary size.
+#
+# tokenizers is built without default features: the defaults pull a progress
+# bar and HTTP model downloading, neither of which belongs in this app. The
+# vocabulary is loaded from bytes compiled into the binary.
+ort        = { version = "2.0.0-rc.10", features = ["download-binaries"] }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+
 # ── chrono ───────────────────────────────────────────────────
 # Date/time for audit log timestamps (Phase 3).
 chrono      = { version = "0.4", features = ["serde"] }

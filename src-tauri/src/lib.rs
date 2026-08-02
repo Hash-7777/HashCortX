@@ -7,6 +7,7 @@ mod security;
 
 use commands::{
     audit::{audit_log_append, audit_log_read},
+    embed::{embed_available, embed_texts},
     fs::{
         fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files,
         fs_write_file,
@@ -50,6 +51,9 @@ pub fn run() {
             // Phase 4 — Shell
             shell_run,
             shell_run_stream,
+            // Local embeddings — bundled bge-small-en-v1.5, run natively
+            embed_texts,
+            embed_available,
             // HashMeter ecosystem — token-usage log
             usage_log_append,
             // Hash D Island — "finished" live-activity ping

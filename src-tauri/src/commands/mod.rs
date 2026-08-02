@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod embed;
 pub mod fs;
 pub mod keychain;
 pub mod notch;

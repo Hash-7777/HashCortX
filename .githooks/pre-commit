@@ -62,7 +62,26 @@ while IFS= read -r file; do
   esac
 done <<< "$staged"
 
-# ── 2. Secret-shaped strings in the diff ─────────────────────────────────────
+# ── 2. Oversized files ───────────────────────────────────────────────────────
+#
+# A binary committed by mistake is in the history forever, and on a repository
+# with forks it is in everyone else's history too. The one exception is the
+# bundled embedding model: it has to ship, or a clone builds an app whose
+# knowledge base cannot do semantic search. See
+# src-tauri/models/bge-small-en-v1.5/PROVENANCE.md.
+MAX_BYTES=$((5 * 1024 * 1024))
+LARGE_FILE_ALLOWED='^src-tauri/models/.*\.(onnx|json)$'
+
+while IFS= read -r file; do
+  [ -f "$file" ] || continue
+  echo "$file" | grep -qE "$LARGE_FILE_ALLOWED" && continue
+  bytes=$(wc -c <"$file" | tr -d ' ')
+  if [ "$bytes" -gt "$MAX_BYTES" ]; then
+    problem "$file is $((bytes / 1024 / 1024)) MB. Large binaries do not belong in git history."
+  fi
+done <<< "$staged"
+
+# ── 3. Secret-shaped strings in the diff ─────────────────────────────────────
 #
 # Matched by PATTERN, never by storing a literal — writing a secret into this
 # file so it could be compared against would itself be the leak the rules exist
@@ -92,7 +111,7 @@ check_pattern 'BEGIN [A-Z ]*PRIVATE KEY'       "a private key block"
 check_pattern '(passphrase|PASSPHRASE)[[:space:]]*[=:][[:space:]]*[^[:space:]"'"'"'{$]' \
   "a passphrase being assigned a literal value"
 
-# ── 3. Private network addresses ─────────────────────────────────────────────
+# ── 4. Private network addresses ─────────────────────────────────────────────
 #
 # This is a public product, not a personal tool. A developer's own LAN address
 # baked in as a default is both a privacy leak and a broken default for every
@@ -104,7 +123,7 @@ if printf '%s' "$added" \
   problem "a private LAN IP address. Users are not on your network — make it configurable, not a default."
 fi
 
-# ── 4. Report ────────────────────────────────────────────────────────────────
+# ── 5. Report ────────────────────────────────────────────────────────────────
 if [ "$fail" -ne 0 ]; then
   cat >&2 <<'EOF'
 
