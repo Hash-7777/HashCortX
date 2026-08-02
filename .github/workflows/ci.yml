@@ -60,7 +60,12 @@ jobs:
 
   rust:
     name: Rust compiles and tests pass
-    runs-on: ubuntu-22.04
+    # 24.04, not 22.04, and the reason is linking rather than preference.
+    # ort downloads a prebuilt ONNX Runtime, and that build wants glibc 2.38+
+    # (the __isoc23_* string functions) and libstdc++ 13+ (_M_replace_cold).
+    # 22.04 ships glibc 2.35 and GCC 11, so `cargo check` passed — it does not
+    # link — and `cargo test` then failed with a wall of undefined symbols.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
