@@ -143,6 +143,24 @@ Token counts are appended locally to `~/.hashcortx/usage.jsonl`. That file never
 
 ---
 
+## The knowledge base
+
+What you ingest is indexed twice: by keyword, and as a vector produced by a sentence-embedding model. Searching combines the two rankings, so a question can find a passage that *means* the same thing rather than only one that repeats its words.
+
+**The model is inside the app.** `bge-small-en-v1.5` (MIT, from BAAI) ships with HashCortx and runs through ONNX Runtime in the Rust process. It is inference-only — a fixed, pre-trained sentence encoder, not a language model, and it cannot generate text.
+
+This matters for the privacy claim above, so it is worth being precise about:
+
+- **Nothing is downloaded.** The weights are compiled into the binary. There is no first-run fetch, no cache to warm, and no host to reach.
+- **Nothing is uploaded.** Embedding happens in the same process as the rest of the app. What you index never crosses a network boundary — not to a provider, not to HashCortx, which has no infrastructure to send it to.
+- **It works with the network off**, on the first launch, with no configuration.
+
+The previous implementation did none of this. It loaded a library from a CDN and fetched weights from `huggingface.co`, a host `connect-src` does not permit — so every embedding attempt failed, was swallowed, and semantic search never ran in any shipped build while the docs described it as working. Moving the model into the binary means no CSP rule can silently disable it again.
+
+Provenance, the exact file's SHA-256, and the measurements behind the ranking design are in `src-tauri/models/bge-small-en-v1.5/PROVENANCE.md`.
+
+---
+
 ## What HashCortx does *not* have
 
 These are commonly assumed, and worth naming because an earlier version of this document claimed several of them:
@@ -152,7 +170,7 @@ These are commonly assumed, and worth naming because an earlier version of this 
 - **No shell command allowlist.** See above — it is a denylist.
 - **No Hardened Runtime, no notarisation, no code signature.** The v2.0.0 build is unsigned, so installing it requires a Gatekeeper bypass.
 - **No encryption at rest** for API keys, chat history, or the audit log.
-- **No working semantic search yet.** The knowledge base ranks by keyword. The vector-search code exists but does not run: it loads its model from a CDN, which `connect-src` does not permit, so every embedding attempt fails and is caught. Bundling the model so it works offline is the next piece of work. Until then, treat the knowledge base as keyword search.
+- **No semantic search over anything you did not put there.** The knowledge base only contains what you ingested. See below for how it works.
 
 ---
 

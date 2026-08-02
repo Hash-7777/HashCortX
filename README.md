@@ -29,9 +29,9 @@
 
 HashCortx is a native macOS app that puts a multi-provider AI chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a Python sandbox, financial document analysis, a security scanner, 3D planning, and a virtual project desktop behind one window.
 
-It is **8.9 MB**. It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
+It is **40.9 MB**, three quarters of which is a sentence-embedding model that ships inside the app so the knowledge base works offline. It has **no backend, no telemetry, no account, and no auto-updater**. Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
 
-It is MIT-licensed, and you can read all of it — roughly 30,400 lines of vanilla JavaScript and 1,530 lines of Rust, with no bundler and no framework in between.
+It is MIT-licensed, and you can read all of it — roughly 30,600 lines of vanilla JavaScript and 1,820 lines of Rust, with no bundler and no framework in between.
 
 <br>
 
@@ -40,7 +40,7 @@ It is MIT-licensed, and you can read all of it — roughly 30,400 lines of vanil
 <tr><td><b>Platform</b></td><td>macOS Apple Silicon · Intel, Windows and Linux planned</td></tr>
 <tr><td><b>License</b></td><td>MIT</td></tr>
 <tr><td><b>Version</b></td><td>2.0.0</td></tr>
-<tr><td><b>Bundle size</b></td><td>8.9 MB DMG</td></tr>
+<tr><td><b>Bundle size</b></td><td>40.9 MB DMG (7 MB app, 34 MB bundled embedding model)</td></tr>
 <tr><td><b>Stack</b></td><td>Rust · vanilla JavaScript · no bundler · no framework</td></tr>
 <tr><td><b>AI providers</b></td><td>11 cloud + Ollama for local models</td></tr>
 <tr><td><b>Workspaces</b></td><td>10, plus a no-code agent builder</td></tr>
@@ -56,7 +56,7 @@ It is MIT-licensed, and you can read all of it — roughly 30,400 lines of vanil
 
 **Your keys, your models.** Eleven cloud providers and Ollama, all configured at once, switched freely, and mixed inside a single swarm run.
 
-**It fits in a pocket.** 8.9 MB, against 100–300 MB for the Electron apps in this category — roughly thirty times smaller.
+**It stays small.** 40.9 MB, against 100–300 MB for the Electron apps in this category. Most of that is not the app: the application itself is around 7 MB, and the other 34 MB is a sentence-embedding model bundled so that searching your own notes works offline, with nothing to download and nothing sent anywhere.
 
 **The agent asks before it acts.** File and shell calls from the coding agent hit a Rust permission gate before they run, and a hard denylist that no prompt can talk its way past.
 
@@ -155,6 +155,22 @@ The grounding backends are optional. Agents that must cite their sources use Tav
 
 ---
 
+## The knowledge base
+
+Anything you ingest — notes, documents, PDFs — becomes searchable, and searchable by *meaning*, not just by matching words. Ask about "stopping a runaway command" and it finds the passage about killing a process on timeout, which shares none of those words.
+
+That works because a sentence-embedding model ships inside the app: `bge-small-en-v1.5`, MIT-licensed, running natively in the Rust process. It is inference-only — a fixed sentence encoder, not a language model, and it cannot generate text.
+
+Three consequences worth stating, because they are the reason it is bundled rather than downloaded:
+
+- **Nothing is fetched.** No first-run download, no cache to warm, no host to reach. It works on first launch with the network off.
+- **Nothing is sent.** What you index never crosses a network boundary — not to a provider, not to HashCortx, which has nowhere to send it.
+- **It is 34 MB of the 40.9 MB download.** That is the price, paid once, and it is the honest trade for the two lines above.
+
+Results are ranked two ways at once — by meaning and by keyword — and the two rankings are combined, so a rare identifier or error code still finds its exact match while a paraphrased question still finds the right passage.
+
+---
+
 ## Where your API keys live
 
 <img src="docs/assets/key-storage.svg" alt="Keys are stored in an app-scoped local store keyed by bundle identifier, not the macOS Keychain" width="100%">
@@ -207,7 +223,7 @@ Requires macOS, Node 18+, a Rust toolchain via `rustup`, and Xcode Command Line 
 | **Python** | Pyodide (CPython on WebAssembly) with pandas, numpy, matplotlib, python-docx, openpyxl, reportlab |
 | **Local models** | Ollama, with saved endpoint presets |
 
-Vanilla JS with no bundler is a deliberate constraint, not an oversight. It is what keeps the bundle at 8.9 MB, and it lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
+Vanilla JS with no bundler is a deliberate constraint, not an oversight. It is what keeps the application itself around 7 MB, and it lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
 
 Design notes: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/SECURITY.md](docs/SECURITY.md)
 

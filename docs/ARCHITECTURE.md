@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **30,400 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **1,530 lines of Rust**.
+Roughly **30,600 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **1,820 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -19,7 +19,9 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,904  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,826  core: state, chat, agents, tools, providers
+│   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
+│   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── system-maker.js   4,184  ERP prototype generator
 │   │   ├── virtual-os.js     3,837  virtual project desktop
 │   │   ├── forge-mode.js     3,819  3D planning
@@ -44,6 +46,7 @@ HashCortX/
 │   │   ├── commands/
 │   │   │   ├── shell.rs       349   process execution: denylist, timeout,
 │   │   │   │                        closed stdin, output cap
+│   │   │   ├── embed.rs       288   sentence embeddings, run natively
 │   │   │   ├── fs.rs          343   filesystem bridge, applies the denylist
 │   │   │   ├── keychain.rs    113   one-time migration out of the old Keychain
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
@@ -51,6 +54,8 @@ HashCortX/
 │   │   │   └── audit.rs        52   append-only audit log
 │   │   └── security/
 │   │       └── denylist.rs    398   hardcoded blocked paths and commands
+│   ├── models/bge-small-en-v1.5/    bundled embedding model, MIT, 34 MB
+│   │                                compiled into the binary; PROVENANCE.md
 │   ├── capabilities/default.json
 │   ├── icons/
 │   ├── Cargo.toml
@@ -58,8 +63,9 @@ HashCortX/
 │
 ├── scripts/checks/                  the only automated frontend checks
 │   ├── syntax.mjs                   every loaded script parses
-│   └── guard.mjs                    what the Permission Guard refuses,
-│                                    asks about, and lets through
+│   ├── guard.mjs                    what the Permission Guard refuses,
+│   │                                asks about, and lets through
+│   └── rag.mjs                      how retrieval orders its results
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -123,17 +129,16 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 4. `src/main.js` only bootstraps — no feature code.
 5. One mode per file in `src/js/`. Cross-module access goes through `window._H`.
 6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime.
-7. No bundler and no framework. This is a constraint, not an oversight: it keeps the DMG at 8.9 MB, and it lets a reader trace a button to the Rust function it triggers without a source map.
+7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 40.9 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
 
 ---
 
 ## Known architectural debt
 
-- `app.js` is still an ~8,850-line monolith. Extracting the memory/RAG system, the model utilities and the swarm log is the next slice.
+- `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
 - Virtual OS and 3D Forge make native calls that do not yet route through the Permission Guard.
-- The frontend's only automated coverage is `scripts/checks/` — the Permission Guard, and that every script parses. Nothing tests a UI behaviour.
-- The knowledge base's vector search does not run. It loads its embedding model from a CDN, which the CSP does not permit, so retrieval is keyword-only in practice. See [SECURITY.md](SECURITY.md).
+- The frontend's only automated coverage is `scripts/checks/` — the Permission Guard and the retrieval ranking, plus that every script parses. Nothing tests a UI behaviour.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---
