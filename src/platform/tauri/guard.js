@@ -211,11 +211,30 @@
     });
   }
 
-  // Route to inline alert (coder mode) or modal (everything else)
+  // Route to inline alert (coder mode) or modal (everything else).
   function showDialog(action, target, reason) {
     return isCdrActive()
       ? showInlineAlert(action, target, reason)
       : showModal(action, target, reason);
+  }
+
+  // One decision at a time.
+  //
+  // There is exactly one permission dialog in the DOM, and both renderers above
+  // bind listeners to its buttons and read its fields. Two overlapping requests
+  // would share it: the second would overwrite the first's text, and a single
+  // click would resolve both — the user approving one action and unknowingly
+  // approving another they never saw.
+  //
+  // This became reachable the moment the agent started running tools in
+  // parallel. Requests that need a decision queue here and are answered in
+  // turn, which is also the only honest way to ask.
+  let _chain = Promise.resolve();
+  function _enqueue(task) {
+    const next = _chain.then(task, task);
+    // The chain must never break on a rejection, or every later request hangs.
+    _chain = next.then(() => {}, () => {});
+    return next;
   }
 
   // Returns true if target path is inside the current project root
@@ -289,37 +308,44 @@
         return true;
       }
 
-      // Session memory — already decided for this exact target
       const key = `${action}::${target}`;
-      if (_session.has(key)) {
-        const prev = _session.get(key);
-        auditLog(prev, action, target);
-        return prev === 'allow';
-      }
 
-      // …or for a directory the user granted earlier this session.
-      if (action !== 'shell' && hasSessionDirGrant(action, target)) {
-        auditLog('allow-session-dir', action, target);
+      // Everything from here can need the dialog, so it runs inside the queue —
+      // and re-reads the session state on entry rather than before waiting.
+      //
+      // That re-read matters now the agent runs tools in parallel. Three reads
+      // of the same folder arrive at once; all three would check for a grant,
+      // find none, and queue a dialog. The user then answers "allow for
+      // session" and is asked twice more for a folder they just granted.
+      // Deciding on entry means a grant made while a request waited is honoured.
+      return _enqueue(async () => {
+        if (_session.has(key)) {
+          const prev = _session.get(key);
+          auditLog(prev, action, target);
+          return prev === 'allow';
+        }
+        if (action !== 'shell' && hasSessionDirGrant(action, target)) {
+          auditLog('allow-session-dir', action, target);
+          return true;
+        }
+
+        const choice = await showDialog(action, target, reason);
+        auditLog(choice, action, target);
+
+        if (choice === 'allow-session') {
+          _session.set(key, 'allow');
+          // Grant the containing folder too, so the next file in it does not
+          // re-ask. A shell command has no containing folder — it stays exact.
+          if (action !== 'shell') addSessionDirGrant(action, target);
+          return true;
+        }
+        if (choice === 'deny') {
+          _session.set(key, 'deny');
+          return false;
+        }
+        // allow-once — don't remember
         return true;
-      }
-
-      // Show dialog
-      const choice = await showDialog(action, target, reason);
-      auditLog(choice, action, target);
-
-      if (choice === 'allow-session') {
-        _session.set(key, 'allow');
-        // Grant the containing folder too, so the next file in it does not
-        // re-ask. A shell command has no containing folder — it stays exact.
-        if (action !== 'shell') addSessionDirGrant(action, target);
-        return true;
-      }
-      if (choice === 'deny') {
-        _session.set(key, 'deny');
-        return false;
-      }
-      // allow-once — don't remember
-      return true;
+      });
     },
 
     // Clear all session-remembered permissions (allow-session / deny).

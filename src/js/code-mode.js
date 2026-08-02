@@ -1847,23 +1847,33 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const H = window._H;
       const temperature = H?.selectedTemperature ? Math.min(H.selectedTemperature(), 0.35) : 0.15;
       activeContentEl = contentEl;
-      const MAX_ITER = 16;
+      const policy = window.HCAgentPolicy;
       let iter = 0;
+      // Progress tracking, so the loop can tell an agent that is working from
+      // one that is going in circles. The old fixed cap could not: it stopped
+      // both at the same number and reported both as "paused".
+      const seenReadTargets = new Set();
+      let stalledIterations = 0;
+      let lastStop = null;
       let thinkEl = appendThinking(contentEl);
       let reasoningEl = null; // real-time reasoning display
 
-      while (iter < MAX_ITER) {
+      for (;;) {
+        const verdict = policy.shouldContinue({
+          iteration: iter,
+          stalledIterations,
+          madeProgress: stalledIterations === 0,
+        });
+        if (!verdict.continue) { lastStop = verdict; break; }
         iter++;
 
         setStatus(`${label ? label + ' · ' : ''}Thinking…`, 'thinking');
         if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-        // On the final iteration pass a copy with a wrap-up nudge so the model
-        // stops calling tools. We use a copy so the nudge never persists into
-        // conversationMsgs on the next user turn.
-        // Also compress older turns to keep the prompt small (Claude-Code style).
-        const baseMsgs = iter === MAX_ITER
-          ? [...messages, { role: 'user', content: 'Stop calling tools now. Write a 2-sentence summary of what was done and any leftover.' }]
+        // A nudge is passed on a COPY, so it never persists into
+        // conversationMsgs and colour the next user turn.
+        const baseMsgs = verdict.nudge
+          ? [...messages, { role: 'user', content: verdict.nudge }]
           : messages;
         const callMessages = compressHistory(baseMsgs);
 
@@ -1903,10 +1913,21 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         if (turn.tool_calls?.length) {
           H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls); // always append to real history
-          for (const call of turn.tool_calls) {
-            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-            // Bash preview: show shell_run commands in terminal before executing
+          // Independent reads run together. A turn that opens six files used to
+          // make six sequential round trips through Rust for no reason. Writes
+          // and shell commands still run alone and in order — batching may only
+          // ever merge ADJACENT reads, so a read that follows a write still
+          // sees the write. The rules live in js/agent-policy.js and are tested.
+          const batches = policy.planBatches(turn.tool_calls);
+
+          // Results are collected per call and appended in the ORIGINAL order,
+          // whatever order they finish in: the provider APIs require each tool
+          // result to follow its call, and a shuffled history is rejected.
+          const results = new Map();
+
+          async function runOne(call) {
+            // Shell preview goes to the terminal before the command runs.
             if (call.name === 'shell_run') {
               const cmd = call.arguments?.command || '';
               const args = (call.arguments?.args || []).join(' ');
@@ -1916,7 +1937,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             }
 
             const toolEl = appendToolBlock(contentEl, call.name, call.arguments);
-            setStatus(`${call.name}…`, 'run');
             const pathHint = call.arguments?.path || call.arguments?.dir || call.arguments?.command || '';
             cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + String(pathHint).split('/').pop() : ''), 'run');
             const t0 = performance.now();
@@ -1943,8 +1963,30 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               addChangeEntry(fp.split('/').slice(-1)[0] || fp, fp, 'delete', '(file deleted)');
               if (ok && fp) addAIFileToExplorer(fp, 'delete');
             }
-            H.appendToolResult(messages, call, resultStr);
+            results.set(call, resultStr);
           }
+
+          for (const batch of batches) {
+            if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+            setStatus(batch.length > 1
+              ? `${batch.length} tools…`
+              : `${batch[0].name}…`, 'run');
+            // A failure inside runOne is already turned into an error result,
+            // so allSettled is belt-and-braces: one tool must never abort the
+            // rest of its batch.
+            await Promise.allSettled(batch.map(runOne));
+          }
+
+          // Original order, so every result follows the call it answers.
+          for (const call of turn.tool_calls) {
+            H.appendToolResult(messages, call, results.get(call) ?? JSON.stringify({ error: 'no result' }));
+          }
+
+          // Is this agent still getting somewhere, or reading the same files
+          // round and round? The stall counter is what tells them apart.
+          if (policy.iterationMadeProgress(turn.tool_calls, seenReadTargets)) stalledIterations = 0;
+          else stalledIterations++;
+
           thinkEl = appendThinking(contentEl);
           continue;
         }
@@ -1961,15 +2003,22 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
         return finalText;
       }
-      // Fallback if the model kept calling tools even on the final iteration.
-      // Strip any dangling tool turns so the next user message doesn't produce
-      // an invalid sequence like [tool, user] which most APIs reject.
+      // The budget ran out while the model was still calling tools. Strip any
+      // dangling tool turns so the next user message does not produce an
+      // invalid sequence like [tool, user], which most provider APIs reject.
       reasoningEl?.remove(); reasoningEl = null;
+      thinkEl?.remove(); thinkEl = null;
       while (messages.length && messages[messages.length - 1].role === 'tool') messages.pop();
       while (messages.length && messages[messages.length - 1].role === 'assistant' &&
              Array.isArray(messages[messages.length - 1].tool_calls)) messages.pop();
-      cdrTraceAdd('Done', 'Max iterations reached', 'warn');
-      appendTextToBubble(contentEl, '*Task paused — reply to continue or click regen to retry.*');
+
+      // Say WHY it stopped. "Task paused" was shown whether the agent had run
+      // out of budget or spent four turns re-reading the same file, and the
+      // user could not tell which — so they could not tell whether replying
+      // "continue" would help or repeat the same loop.
+      const stop = lastStop || { reason: 'unknown', message: 'Stopped. Reply to continue.' };
+      cdrTraceAdd('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
+      appendTextToBubble(contentEl, `*${stop.message}*`);
       return '';
     }
 

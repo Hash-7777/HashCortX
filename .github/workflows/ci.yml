@@ -66,6 +66,10 @@ jobs:
       - name: Export formatting checks
         run: npm run check:export
 
+      # Batching must never reorder a write past a read.
+      - name: Agent loop policy checks
+        run: npm run check:policy
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

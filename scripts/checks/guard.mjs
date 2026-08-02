@@ -28,6 +28,11 @@ const src = readFileSync(guardPath, 'utf8');
 
 let dialogsShown = 0;
 let answer = 'allow-once'; // what the fake user clicks
+// Highest number of dialogs open at once. There is ONE dialog in the DOM, so
+// anything above 1 means two requests are sharing it — the second overwriting
+// the first's text, and one click resolving both.
+let openNow = 0, maxOpenAtOnce = 0;
+let answerDelay = 0;
 
 function el(id) {
   const listeners = { click: [] };
@@ -51,10 +56,15 @@ function el(id) {
         // microtask, the way a user clicking a button would.
         if (c === 'open' && id === 'hc-perm-dialog') {
           dialogsShown++;
-          queueMicrotask(() => {
+          openNow++;
+          maxOpenAtOnce = Math.max(maxOpenAtOnce, openNow);
+          const respond = () => {
+            openNow--;
             const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', deny: 'hc-perm-deny' }[answer];
             nodes[btn]._fire('click');
-          });
+          };
+          if (answerDelay) setTimeout(respond, answerDelay);
+          else queueMicrotask(respond);
         }
       },
       remove(c) { this._s.delete(c); },
@@ -83,6 +93,10 @@ vm.runInContext(src, sandbox, { filename: 'guard.js' });
 const guard = sandbox.HC.guard;
 
 let pass = 0, fail = 0;
+function assert(label, condition, detail = '') {
+  if (condition) { pass++; console.log(`  ok    ${label}`); }
+  else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
+}
 async function check(label, fn, want) {
   const before = dialogsShown;
   const allowed = await fn();
@@ -145,6 +159,59 @@ await check('read ~/Other/c.md — different folder, asks', () => guard.request(
 
 console.log('\nA session grant does NOT leak to shell:');
 await check('shell in granted folder still asks', () => guard.request('shell', 'ls /Users/x/Notes'), ASKED);
+
+console.log('\nConcurrent requests are asked one at a time:');
+{
+  // The agent now runs independent tools in parallel, so several permission
+  // requests can be in flight at once. There is only one dialog in the DOM:
+  // without serialisation the second request overwrites the first's text and a
+  // single click answers both — the user approving something they never saw.
+  answerDelay = 5;
+
+  // "Allow once" genuinely applies once, so three files means three questions.
+  answer = 'allow-once';
+  maxOpenAtOnce = 0;
+  let before = dialogsShown;
+  let results = await Promise.all([
+    guard.request('read', '/Users/x/Once/a.txt'),
+    guard.request('read', '/Users/x/Once/b.txt'),
+    guard.request('read', '/Users/x/Once/c.txt'),
+  ]);
+  assert('never more than one dialog open at a time', maxOpenAtOnce === 1,
+    `peaked at ${maxOpenAtOnce}`);
+  assert('every concurrent request still gets an answer',
+    results.every(r => r === true), JSON.stringify(results));
+  assert('"allow once" asks once per file, as it says',
+    dialogsShown - before === 3, `asked ${dialogsShown - before} times`);
+
+  // "Allow for session" must not be asked three times for one folder. Each
+  // queued request re-checks the grant on entry, so the first answer covers
+  // the two still waiting.
+  answer = 'allow-session';
+  before = dialogsShown;
+  results = await Promise.all([
+    guard.request('read', '/Users/x/Batch/a.txt'),
+    guard.request('read', '/Users/x/Batch/b.txt'),
+    guard.request('read', '/Users/x/Batch/c.txt'),
+  ]);
+  assert('"allow for session" is asked ONCE for a folder read in parallel',
+    dialogsShown - before === 1, `asked ${dialogsShown - before} times`);
+  assert('the requests that waited are all allowed',
+    results.every(r => r === true), JSON.stringify(results));
+
+  // And a denial made while others wait applies to them too.
+  answer = 'deny';
+  before = dialogsShown;
+  results = await Promise.all([
+    guard.request('read', '/Users/x/Nope/a.txt'),
+    guard.request('read', '/Users/x/Nope/a.txt'),
+  ]);
+  assert('a denial is not re-asked for the identical target',
+    dialogsShown - before === 1, `asked ${dialogsShown - before} times`);
+  assert('both concurrent requests are refused',
+    results.every(r => r === false), JSON.stringify(results));
+  answerDelay = 0;
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);
