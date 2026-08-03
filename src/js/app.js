@@ -2254,6 +2254,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const HCProviders = window.HCProviders;
 
+  // Reading a model identifier — provider, name, class — in js/model-names.js
+  // so it can be checked. All string handling over names the app does not
+  // control, and every mistake in it is quiet.
+  const HCModelNames = window.HCModelNames;
+  const {
+    MODEL_TIER, parseCloudModel, prettifyModelId, isExcludedCloudModel,
+    visibleCloudModels, ollamaModelName, getModelTier,
+  } = HCModelNames;
+  const cloudModelLabel = (val) => HCModelNames.cloudModelLabel(val, CLOUD_MODELS);
+  const isImageGenModel = (val) => HCModelNames.isImageGenModel(val, CLOUD_MODELS);
+  const getBestFailoverModel = (currentModel, excludeSet = new Set()) =>
+    HCModelNames.getBestFailoverModel(currentModel, getAvailableCloudModels(), excludeSet);
+
+
   // How a conversation is described to each provider — images, tools, tool
   // results — in js/agent-shape.js so the translations can be checked. These
   // fail quietly when wrong: the request is accepted and answered badly.
@@ -3611,56 +3625,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Pretty-print a raw model id into a label.
   // "llama-3.3-70b-versatile"  → "Llama 3.3 70B Versatile"
   // "openai/gpt-oss-120b:free" → "GPT OSS 120B (free)" with provider suffix added later
-  function prettifyModelId(id) {
-    if (!id) return "";
-    let core = id.split("/").pop().replace(/:free$/i, "");
-
-    // Replace separators — but protect digit.digit (version numbers like 3.1, 2.5)
-    core = core
-      .replace(/[-_]/g, " ")
-      .replace(/(\d)\.(\d)/g, "$1\x00$2")   // shield "3.1", "2.5" etc.
-      .replace(/\./g, " ")
-      .replace(/\x00/g, ".")                  // restore shielded dots
-      .replace(/\s+/g, " ").trim();
-
-    // Token-level casing
-    const ALWAYS_UPPER = new Set(["gpt", "oss", "llm", "api", "rag", "sql"]);
-    const CUSTOM_CASE  = { deepseek: "DeepSeek", qwq: "QwQ", llava: "LLaVA", nvidia: "NVIDIA" };
-
-    core = core.split(" ").filter(Boolean).map(tok => {
-      const lo = tok.toLowerCase();
-      if (CUSTOM_CASE[lo])  return CUSTOM_CASE[lo];
-      if (ALWAYS_UPPER.has(lo)) return tok.toUpperCase();
-      // Parameter-count suffix: "8b" → "8B", "70b" → "70B", "405b" → "405B"
-      if (/^\d+(\.\d+)?[bkmtBKMT]$/i.test(tok))
-        return tok.slice(0, -1) + tok.slice(-1).toUpperCase();
-      // MoE spec like "a22b" → "A22B"
-      if (/^[a-zA-Z]\d+[bkmtBKMT]$/i.test(tok))
-        return tok.charAt(0).toUpperCase() + tok.slice(1, -1) + tok.slice(-1).toUpperCase();
-      // Pure number or version number → keep as-is
-      if (/^[\d.]+$/.test(tok)) return tok;
-      // Default title case
-      return tok.charAt(0).toUpperCase() + tok.slice(1).toLowerCase();
-    }).join(" ");
-
-    return /:free$/i.test(id.split("/").pop()) ? `${core} (free)` : core;
-  }
-
-  function isExcludedCloudModel(model) {
-    const haystack = [
-      model?.value,
-      model?.id,
-      model?.name,
-      model?.label,
-      model?.shortLabel,
-    ].filter(Boolean).join(" ").toLowerCase();
-    return /baidu|qianfan|cobuddy/.test(haystack);
-  }
-
-  function visibleCloudModels(models) {
-    return (models || []).filter(m => !isExcludedCloudModel(m));
-  }
-
   function sortMoonshotModelIds(ids) {
     const preferred = [
       "kimi-k2.6",
@@ -3938,22 +3902,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   // Parse "cloud:provider:modelId" — modelId may contain colons (OpenRouter paths).
   // Guards against malformed values: returns empty strings instead of undefined.
-  function parseCloudModel(val) {
-    if (!val || !val.startsWith("cloud:")) return { provider: "", modelId: "" };
-    const parts = val.split(":");
-    return { provider: parts[1] || "", modelId: parts.slice(2).join(":") };
-  }
-
   // True when the selected cloud model generates images instead of text.
-  function isImageGenModel(val) {
-    if (!val) return false;
-    for (const grp of CLOUD_MODELS) {
-      const m = grp.models.find(x => x.value === val);
-      if (m) return !!m.imageGen;
-    }
-    return false;
-  }
-
+  // ── Model tier system for quality-aware failover ────────────────
+  // Build a flat list of all currently-available cloud models with their keys set.
   function seedSavedModelDropdown() {
     const savedModel = SAVED.model || "";
     if (!savedModel || isExcludedCloudModel({ value: savedModel, label: savedModel, shortLabel: savedModel })) {
@@ -3971,43 +3922,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     populateCloudModels();
   }
 
-  // Return a human-readable label for a model value (cloud or local)
-  function cloudModelLabel(val) {
-    if (!val) return "";
-    if (isExcludedCloudModel({ value: val, label: val, shortLabel: val })) return "";
-    if (!val.startsWith("cloud:")) return val;
-    for (const grp of CLOUD_MODELS) {
-      const m = grp.models.find(x => x.value === val);
-      if (m) return m.label;
-    }
-    const { provider, modelId } = parseCloudModel(val);
-    return `${modelId} · ${provider}`;
-  }
-
-  // ── Model tier system for quality-aware failover ────────────────
-  const MODEL_TIER = {
-    frontier: 300, // GPT-4o, Claude 4, Gemini 2.5 Pro, Kimi K1.5, DeepSeek-V3, Llama-4-Maverick, 405B+
-    strong:   200, // GPT-4, Claude 3.5, Gemini Pro, 120B–235B, Qwen3-235B
-    capable:  100, // 70B class: Llama-3.3, Qwen3-72B, Nemotron-70B
-    moderate:  50, // 32B–40B: DeepSeek-R1-Distill, Qwen2.5-32B
-    small:      0, // < 32B: flash, lite, mini, 8B, 3B
-  };
-
-  function getModelTier(value, label) {
-    const s = `${value || ""} ${label || ""}`.toLowerCase();
-    const sizeMatch = s.match(/(\d+)(?:\.\d+)?\s*([bkmt])/i);
-    const sizeUnit = sizeMatch?.[2]?.toLowerCase();
-    const sizeNum = sizeMatch ? (sizeUnit === 't' ? parseFloat(sizeMatch[1]) * 1000 : parseFloat(sizeMatch[1])) : 0;
-    // Explicit tier detection by model family
-    if (/gpt-4o|claude-4|gemini-2\.5-pro|kimi-k(?:1\.5|2(?:\.|-))|deepseek-v3|llama-4-maverick|405b|253b|235b|120b/i.test(s)) return MODEL_TIER.frontier;
-    if (/gpt-4|claude-3\.5|gemini-pro|qwen3-235|120b|70b|maverick|nemotron-ultra/i.test(s)) return MODEL_TIER.strong;
-    if (/70b|llama-3\.3|qwen3-72|nemotron-70/i.test(s)) return MODEL_TIER.capable;
-    if (/32b|40b|deepseek-r1-distill|qwen2\.5-32/i.test(s)) return MODEL_TIER.moderate;
-    if (/8b|7b|3b|mini|flash|lite|instant|small|tiny/i.test(s)) return MODEL_TIER.small;
-    return sizeNum >= 120 ? MODEL_TIER.frontier : sizeNum >= 70 ? MODEL_TIER.capable : sizeNum >= 32 ? MODEL_TIER.moderate : MODEL_TIER.small;
-  }
-
-  // Build a flat list of all currently-available cloud models with their keys set.
   function getAvailableCloudModels() {
     const available = [];
     for (const grp of CLOUD_MODELS) {
@@ -4023,35 +3937,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Pick the best failover model when `currentModel` fails.
   // Prefers same or higher tier, then falls back one tier at a time.
   // Returns null if nothing usable is available.
-  function getBestFailoverModel(currentModel, excludeSet = new Set()) {
-    const currentTier = getModelTier(currentModel, cloudModelLabel(currentModel));
-    const available = getAvailableCloudModels()
-      .filter(m => !excludeSet.has(m.value) && m.value !== currentModel);
-    if (!available.length) return null;
-
-    // Sort by tier desc, then by whether provider is free-tier preferred
-    const FREE_PREFERRED = { groq: 1, gemini: 1, cerebras: 1, samba: 1, openrouter: 1 };
-    available.sort((a, b) => {
-      if (b.tier !== a.tier) return b.tier - a.tier;
-      return (FREE_PREFERRED[b.provider] || 0) - (FREE_PREFERRED[a.provider] || 0);
-    });
-
-    // Try same tier or higher first
-    const sameOrBetter = available.find(m => m.tier >= currentTier);
-    if (sameOrBetter) return sameOrBetter;
-    // Then one tier down
-    const oneDown = available.find(m => m.tier >= currentTier - 50);
-    if (oneDown) return oneDown;
-    // Finally anything available
-    return available[0];
-  }
-
-  function ollamaModelName(entry) {
-    if (typeof entry === "string") return entry;
-    if (!entry || typeof entry !== "object") return "";
-    return entry.name || entry.model || entry.id || "";
-  }
-
   function rememberLocalModels(names) {
     trackedLocalModels.clear();
     (names || []).forEach(name => {

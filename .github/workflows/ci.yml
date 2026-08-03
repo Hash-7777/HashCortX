@@ -138,6 +138,12 @@ jobs:
       - name: Agent request-shape checks
         run: npm run check:shape
 
+      # Reading a model's identifier: which provider, what to call it, roughly
+      # how capable it is. A tier read too low sends a hard question to a small
+      # model, and the user blames the answer.
+      - name: Model-identifier checks
+        run: npm run check:model-names
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
