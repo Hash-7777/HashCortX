@@ -35,8 +35,9 @@ HashCortX/
 │   │   ├── diff.js             171  line diff behind the Coder change view
 │   │   ├── sandbox.js          603  security scanner
 │   │   └── vendor/                  marked, highlight.js, DOMPurify, mermaid,
-│   │                                pdf.js, jsPDF, SheetJS, and three/ with
-│   │                                its loaders — all local, none fetched
+│   │                                pdf.js, jsPDF, SheetJS, and three/ —
+│   │                                core + module + add-ons + utils, r184,
+│   │                                all local, none fetched
 │   │
 │   └── platform/
 │       ├── index.js                 detects browser vs Tauri
@@ -70,7 +71,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 466 of
+├── scripts/checks/                  the automated frontend checks — 471 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -92,8 +93,10 @@ HashCortX/
 │   ├── rag-store.mjs                chunking covers every character of a
 │   │                                document, over random inputs
 │   ├── url-safety.mjs               where the agent's fetch tool may go
-│   └── providers.mjs                every provider endpoint is inside the
-│                                    Content Security Policy
+│   ├── providers.mjs                every provider endpoint is inside the
+│   │                                Content Security Policy
+│   └── imports.mjs                  every import resolves to a file that is
+│                                    actually there
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -165,7 +168,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 466 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses and cloud providers. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- The frontend's automated coverage is `scripts/checks/` — 471 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers and module imports. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

@@ -56,7 +56,6 @@ const KNOWN_ABSENT = {
   'cv-swarm-result-body': 'See swarm-log-entries.',
   'cv-swarm-result-title': 'See swarm-log-entries.',
   amkPolishBtn: 'Agent Maker polish control, rendered only in some editor states.',
-  frgModel_god: 'Forge quality preset that is not offered in the current model list.',
   voidEditModeBtn: 'Virtual OS control not present in the current shell markup.',
   voidPrompt: 'See voidEditModeBtn.',
   voidTermClearBtn: 'See voidEditModeBtn.',
@@ -75,7 +74,16 @@ const dynamicIds = new Set();
 for (const m of allSource.matchAll(/id=\\?["'`]([A-Za-z0-9_-]+)/g)) dynamicIds.add(m[1]);
 for (const m of allSource.matchAll(/\.id\s*=\s*["'`]([A-Za-z0-9_-]+)/g)) dynamicIds.add(m[1]);
 
-const exists = (id) => staticIds.has(id) || dynamicIds.has(id);
+// An id built from a template literal — `id="frgModel_${agent.id}"` — is
+// captured above only as far as the `${`, giving a prefix like `frgModel_`.
+// A lookup for one of the ids that pattern produces is therefore resolved by
+// its prefix. Without this, `$("frgModel_god")` looks like a lookup of
+// something that never exists, when the element is built for every agent.
+const dynamicPrefixes = [...dynamicIds].filter((id) => id.endsWith('_'));
+const exists = (id) =>
+  staticIds.has(id) ||
+  dynamicIds.has(id) ||
+  dynamicPrefixes.some((prefix) => id.length > prefix.length && id.startsWith(prefix));
 
 let pass = 0;
 let fail = 0;

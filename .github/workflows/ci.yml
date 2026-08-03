@@ -122,6 +122,12 @@ jobs:
       - name: Cloud provider checks
         run: npm run check:providers
 
+      # A vendored library that arrives without a file it imports parses fine
+      # and fails only when the feature is opened. three.js ships as two files
+      # and only one was copied, which took 3D Forge out entirely.
+      - name: Module-import checks
+        run: npm run check:imports
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
