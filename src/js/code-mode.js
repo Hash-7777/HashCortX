@@ -1456,6 +1456,16 @@
       conversationMsgs = [];
       fileChanges = [];
       activeContentEl = null;
+      // Clear what is on DISK too, not just what is in memory.
+      //
+      // Without this, "New chat" emptied the screen while localStorage still
+      // held the old conversation, and restoreCoderState() put it straight
+      // back on the next launch. Since the app's data directory is keyed by
+      // bundle identifier rather than by the binary, a rebuild does not clear
+      // it either — so the same conversation kept reappearing with no way to
+      // get rid of it. clearCoderState() existed for exactly this and was
+      // never called from anywhere.
+      clearCoderState();
       const msgs = $('cdrMessages');
       if (msgs) {
         msgs.innerHTML = `<div class="cdr-welcome">
