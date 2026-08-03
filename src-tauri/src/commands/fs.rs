@@ -47,6 +47,28 @@ fn guard_path(path: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Returns `true` when a directory entry is a symlink leading somewhere the
+/// denylist refuses.
+///
+/// The recursive walkers below descend with `is_dir()`, which follows symlinks,
+/// and only the directory the caller named was ever checked. A link inside the
+/// project pointing at a credential store was therefore walked like any other
+/// folder, and `fs_grep` returned what it found in the files there — reaching,
+/// through a search of the project the user approved, a location `guard_path`
+/// would have refused outright.
+///
+/// Only links are resolved, so an ordinary tree costs nothing extra. A link that
+/// cannot be resolved is treated as one to avoid: it cannot be read anyway.
+fn link_escapes_to_protected(entry: &fs::DirEntry) -> bool {
+    match entry.file_type() {
+        Ok(kind) if kind.is_symlink() => match fs::canonicalize(entry.path()) {
+            Ok(real) => denylist::is_path_denied(&real.to_string_lossy()),
+            Err(_) => true,
+        },
+        _ => false,
+    }
+}
+
 #[tauri::command]
 pub fn fs_read_file(path: String) -> Result<String, String> {
     guard_path(&path)?;
@@ -183,6 +205,7 @@ fn search_recursive(
         let p    = entry.path();
         let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
         if name.starts_with('.') || name == "node_modules" || name == "target" { continue; }
+        if link_escapes_to_protected(&entry) { continue; }
         if name.contains(pattern) {
             results.push(p.to_string_lossy().into_owned());
         }
@@ -260,6 +283,7 @@ fn fuzzy_recursive(dir: &Path, query: &str, results: &mut Vec<FuzzyMatch>, depth
         let p    = entry.path();
         let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
         if name.starts_with('.') || name == "node_modules" || name == "target" || name == ".git" { continue; }
+        if link_escapes_to_protected(&entry) { continue; }
         if p.is_dir() {
             let _ = fuzzy_recursive(&p, query, results, depth + 1);
         } else {
@@ -309,6 +333,7 @@ fn grep_recursive(
         let p    = entry.path();
         let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
         if name.starts_with('.') || name == "node_modules" || name == "target" || name == ".git" { continue; }
+        if link_escapes_to_protected(&entry) { continue; }
         if p.is_dir() {
             let _ = grep_recursive(&p, pattern, ext_filter, results, depth + 1);
         } else {
@@ -340,4 +365,87 @@ fn grep_recursive(
         }
     }
     Ok(())
+}
+
+// Symlinks are only creatable without privileges on Unix, so the escape these
+// cover is a Unix-shaped one and the tests are too.
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+
+    /// A scratch tree under the build directory, named per test so two running
+    /// at once cannot collide.
+    ///
+    /// Not the OS temp directory: on macOS that resolves under `/private/var`,
+    /// which the denylist refuses outright, so every one of these tests would
+    /// fail for a reason that has nothing to do with what it is checking.
+    fn temp_root(name: &str) -> std::path::PathBuf {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("fs-check-scratch")
+            .join(format!("{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_search_does_not_follow_a_link_out_to_a_protected_directory() {
+        let root = temp_root("escape");
+        // `.aws` anywhere in a path is refused by the denylist, so this stands
+        // in for the real credential store without touching the user's own.
+        let secrets = root.join(".aws");
+        fs::create_dir_all(&secrets).unwrap();
+        fs::write(secrets.join("credentials.txt"), "aws_secret_access_key = SENTINEL").unwrap();
+
+        let project = root.join("project");
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("main.txt"), "ordinary source").unwrap();
+        // The link is named like an ordinary folder: nothing about the name
+        // itself gives away where it leads.
+        symlink(&secrets, project.join("vendor")).unwrap();
+
+        let hits = fs_grep(
+            project.to_string_lossy().into_owned(),
+            "sentinel".into(),
+            Some("txt".into()),
+        )
+        .unwrap();
+        assert_eq!(
+            hits.len(),
+            0,
+            "a search of the project read a file through a link into a protected directory"
+        );
+
+        let found = fs_search_files(project.to_string_lossy().into_owned(), "credentials".into())
+            .unwrap();
+        assert_eq!(found.len(), 0, "a filename search walked through the same link");
+
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn an_ordinary_link_inside_the_project_is_still_followed() {
+        // The rule refuses links by where they lead, not by being links. A repo
+        // that symlinks a shared folder must keep working.
+        let root = temp_root("ordinary");
+        let shared = root.join("shared");
+        fs::create_dir_all(&shared).unwrap();
+        fs::write(shared.join("helper.txt"), "shared helper SENTINEL").unwrap();
+
+        let project = root.join("project");
+        fs::create_dir_all(&project).unwrap();
+        symlink(&shared, project.join("lib")).unwrap();
+
+        let hits = fs_grep(
+            project.to_string_lossy().into_owned(),
+            "sentinel".into(),
+            Some("txt".into()),
+        )
+        .unwrap();
+        assert_eq!(hits.len(), 1, "an ordinary symlinked folder was skipped");
+
+        let _ = fs::remove_dir_all(&root);
+    }
 }

@@ -86,6 +86,8 @@ com.hashcortx.app          .hashcortx
 
 The last two are HashCortX's own directories: the plaintext key bundle described above, and the audit log. The agent has no business reading your keys or editing the record of what it did, and the app reaches both through separate commands that do not accept a path.
 
+**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. The recursive tools — file search, fuzzy find and code grep — do the same for every link they meet while walking, so a link sitting inside the project folder cannot be used to read out of a protected directory the same tools would refuse to open directly. A link that leads somewhere ordinary is followed as normal.
+
 ### Shell commands — a denylist, not an allowlist, and not a sandbox
 
 This is the important nuance. HashCortx does **not** restrict the agent to a fixed set of safe commands. It runs what it is asked to run, minus:
