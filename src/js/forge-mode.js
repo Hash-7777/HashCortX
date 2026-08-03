@@ -1933,7 +1933,7 @@
     const isTauri = typeof window.__TAURI__ !== "undefined" || typeof window.__TAURI_INTERNALS__ !== "undefined";
     if (!isTauri) {
       try {
-        const headers = { "Content-Type": "application/json", ...(window._H?.backendAuthHeaders?.() || {}) };
+        const headers = { "Content-Type": "application/json" };
         const endpoint = route === "anatomical" ? "/api/forge-kernel/anatomical" : "/api/forge-kernel";
         const paramPlan = await askParameterPlanWithFailover(prompt, prefs, referenceBrief, route, signal);
         const res = await fetch(endpoint, {

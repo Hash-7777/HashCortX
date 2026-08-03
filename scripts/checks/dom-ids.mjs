@@ -42,25 +42,12 @@ const srcDir = join(root, 'src');
  */
 const KNOWN_ABSENT = {
   // ── Settings controls removed from the UI, code kept and null-safe ──
-  backendSyncToken:
-    'Backend secret sync has no UI. Every read is null-safe and the feature stays off.',
-  backendSecretsStatus:
-    'Status line for the same backend secret sync. Written to only when present.',
   nvidiaModel:
     'The NVIDIA model picker was removed; the provider list supplies the model instead.',
-  rewriterModel:
-    'The query rewriter has no UI control, so it stays off and the raw message is used.',
   settingsNotes:
     'The settings notes pane was removed; the toggle below is bound optionally.',
   settingsNotesToggle:
     'Toggle for the notes pane above. Bound with ?. so its absence is inert.',
-
-  // ── Declared but never read ──
-  projectNameInput:
-    'Project editor fields that were never wired to anything. Declarations only.',
-  projectInstructionsInput: 'See projectNameInput.',
-  projectMemoryMode: 'See projectNameInput.',
-  projectSaveBtn: 'See projectNameInput.',
 
   // ── Panels owned by another mode, absent until that mode builds them ──
   'swarm-log-entries': 'Built by Agent Swarm when it runs; absent until then.',

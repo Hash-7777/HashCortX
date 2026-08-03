@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **31,800 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **2,590 lines of Rust**.
+Roughly **31,600 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **2,590 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -19,7 +19,7 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,729  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,514  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── system-maker.js   4,186  ERP prototype generator

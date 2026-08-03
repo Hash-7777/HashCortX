@@ -64,8 +64,6 @@
   const app = $("app");
   const toggleSide = $("toggleSide");
   const hostEl = $("host");
-  const backendSyncTokenEl = $("backendSyncToken");
-  const backendSecretsStatusEl = $("backendSecretsStatus");
   const modelEl = $("model");
   const systemEl = $("system");
   const tempEl = $("temp");
@@ -155,15 +153,10 @@
   const templateBodyEl = $("templateBody");
   const googleKeyEl = $("googleKey");
   const googleCxEl = $("googleCx");
-  const rewriterEl = $("rewriterModel");   // removed from Settings UI — element will be null; rewriter is permanently disabled
   const activeAgentChip = $("activeAgentChip");
   const listLabel = $("listLabel");
   const projectSelect = $("projectSelect");
   const projectNewBtn = $("projectNewBtn");
-  const projectNameInput = $("projectNameInput");
-  const projectInstructionsInput = $("projectInstructionsInput");
-  const projectMemoryMode = $("projectMemoryMode");
-  const projectSaveBtn = $("projectSaveBtn");
   const tpsBtn = $("tpsBtn");
   const tpsVal = $("tpsVal");
   const exportBtn = $("exportBtn");
@@ -796,7 +789,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   if (SAVED.system) systemEl.value = SAVED.system;
   if (SAVED.temp) { tempEl.value = SAVED.temp; tempVal.textContent = SAVED.temp; }
   if (SAVED.nvidiaModel && nvidiaModelEl) nvidiaModelEl.value = SAVED.nvidiaModel;
-  if (SAVED.backendSyncToken && backendSyncTokenEl) backendSyncTokenEl.value = SAVED.backendSyncToken;
 
   // Phase 6 — Load API keys from OS Keychain (async, non-blocking)
   const HC_KEY_PROVIDERS = [
@@ -854,118 +846,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   privacyLocalEl.checked     = SAVED.privacyLocal === true;
   privacyLocalSideEl.checked = SAVED.privacyLocal === true;
   ragEnabled = SAVED.ragEnabled === true; // default OFF; user can toggle in Agents tab
-  // rewriter model restored later in loadModels() once tags are known
   state.activeAgentId = SAVED.activeAgentId || null;
   // Clear removed built-in agent IDs so old localStorage doesn't ghost-activate them
   const _removedAgents = ["builtin_general", "builtin_writer", "builtin_translator"];
   if (_removedAgents.includes(state.activeAgentId)) state.activeAgentId = null;
   updateRangeFill();
-
-  function backendAuthHeaders() {
-    const t = (backendSyncTokenEl?.value || "").trim();
-    return t ? { Authorization: `Bearer ${t}` } : {};
-  }
-
-  let backendSecretsReachable = false;
-  let backendAuthRequired = false;
-  let backendFetchProxyAvailable = false;
-
-  function applyServerSecretIfPresent(el, v) {
-    if (!el || typeof v !== "string" || !v) return;
-    el.value = v;
-  }
-
-  async function pullBackendSecrets() {
-    const line = (s) => { if (backendSecretsStatusEl) backendSecretsStatusEl.textContent = s; };
-    backendSecretsReachable = false;
-    backendAuthRequired = false;
-    backendFetchProxyAvailable = false;
-    try {
-      const h = await fetch("/api/backend/health", { cache: "no-store" });
-      if (!h.ok) throw new Error("health_" + h.status);
-      const health = await h.json().catch(() => ({}));
-      backendAuthRequired = !!health.authRequired;
-      backendFetchProxyAvailable = !!health.fetchUrlProxy;
-      const rs = await fetch("/api/backend/secrets", { cache: "no-store", headers: { ...backendAuthHeaders() } });
-      if (!rs.ok) {
-        if (rs.status === 401) {
-          line(
-            "Backend is running but requires a sync token — copy the bearer from the server file " +
-              (health.dataDir ? `${health.dataDir}/api-bearer.txt` : "data/api-bearer.txt") +
-              " (also printed in the terminal when the server first created it) into Settings → Backend sync token. " +
-              "For open local dev only, restart the server with HASH_UI_OPEN_API=1."
-          );
-          return;
-        }
-        throw new Error("secrets_" + rs.status);
-      }
-      const sec = await rs.json();
-      if (typeof sec !== "object" || !sec) throw new Error("bad_secrets");
-      applyServerSecretIfPresent(googleKeyEl, sec.googleKey);
-      applyServerSecretIfPresent(googleCxEl, sec.googleCx);
-      applyServerSecretIfPresent(tavilyKeyEl, sec.tavilyKey);
-      applyServerSecretIfPresent(nvidiaKeyEl, sec.nvidiaKey);
-      applyServerSecretIfPresent(groqKeyEl, sec.groqKey);
-      applyServerSecretIfPresent(geminiKeyEl, sec.geminiKey);
-      applyServerSecretIfPresent(openRouterKeyEl, sec.openRouterKey);
-      applyServerSecretIfPresent(cerebrasKeyEl,   sec.cerebrasKey);
-      applyServerSecretIfPresent(sambaKeyEl,      sec.sambaKey);
-      applyServerSecretIfPresent(openaiKeyEl,     sec.openaiKey);
-      applyServerSecretIfPresent(anthropicKeyEl,  sec.anthropicKey);
-      applyServerSecretIfPresent(moonshotKeyEl,   sec.moonshotKey);
-      applyServerSecretIfPresent(deepseekKeyEl,   sec.deepseekKey);
-      applyServerSecretIfPresent(mistralKeyEl,    sec.mistralKey);
-      backendSecretsReachable = true;
-      line(
-        health.hasSecretsFile
-          ? "Backend: connected — non-empty API keys from the server were merged into this form (see data/secrets.json on the machine running node server.js)."
-          : "Backend: connected — server has no key file yet; saving Settings will create data/secrets.json."
-      );
-    } catch {
-      const port = (typeof location !== "undefined" && location.port) ? location.port : "3000";
-      line(
-        `Backend: not syncing (open this UI via http://localhost:${port} with node server.js running, or ignore — keys stay in this browser only).`
-      );
-    }
-  }
-
-  async function pushBackendSecretsQuietly() {
-    if (!backendSecretsReachable) return;
-    try {
-      const body = {
-        googleKey: googleKeyEl.value || "",
-        googleCx: googleCxEl.value || "",
-        tavilyKey: tavilyKeyEl.value || "",
-        nvidiaKey: nvidiaKeyEl.value || "",
-        groqKey: groqKeyEl.value || "",
-        geminiKey: geminiKeyEl.value || "",
-        openRouterKey: openRouterKeyEl.value || "",
-        cerebrasKey:   cerebrasKeyEl.value   || "",
-        sambaKey:      sambaKeyEl.value      || "",
-        openaiKey:     openaiKeyEl.value     || "",
-        anthropicKey:  anthropicKeyEl.value  || "",
-        moonshotKey:   moonshotKeyEl.value   || "",
-        deepseekKey:   deepseekKeyEl.value   || "",
-        mistralKey:    mistralKeyEl.value    || "",
-      };
-      const r = await fetch("/api/backend/secrets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...backendAuthHeaders() },
-        body: JSON.stringify(body),
-      });
-      if (!r.ok) {
-        console.warn("[backend] POST /api/backend/secrets failed:", r.status);
-        if (r.status === 401 && backendSecretsStatusEl) {
-          backendSecretsStatusEl.textContent =
-            "Backend: save rejected (401) — paste the bearer from data/api-bearer.txt (or HASH_UI_API_TOKEN) into Backend sync token, or use HASH_UI_OPEN_API=1 on the server.";
-        }
-      }
-    } catch (e) {
-      console.warn("[backend] POST secrets:", e);
-    }
-  }
-
-  await pullBackendSecrets();
 
   const saveSettings = () => {
     try {
@@ -974,10 +859,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         ...readSavedSettings(),
         host: hostEl.value, system: systemEl.value, temp: tempEl.value, model: modelEl.value,
         nvidiaModel: nvidiaModelEl?.value || "",
-        backendSyncToken: backendSyncTokenEl ? backendSyncTokenEl.value : "",
         privacyLocal: privacyLocalEl.checked,
         ragEnabled,
-        rewriterModel: rewriterEl?.value || "",
         currentProjectId: state.currentProjectId,
         activeAgentId: state.activeAgentId,
         // Remove API keys from localStorage (Phase 6 migration: wipe old values)
@@ -1002,7 +885,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         void HC.keychain.store('tavilyKey',     tavilyKeyEl.value     || "");
         void HC.keychain.store('nvidiaKey',     nvidiaKeyEl.value     || "");
       }
-      void pushBackendSecretsQuietly();
     } catch (err) {
       console.warn("[settings] save failed:", err);
       showError(err);
@@ -2042,7 +1924,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   tempEl.addEventListener("input", () => { tempVal.textContent = tempEl.value; updateRangeFill(); saveSettings(); });
   systemEl.addEventListener("change", saveSettings);
   hostEl.addEventListener("change", () => { syncHostPreset(); saveSettings(); loadModels(); });
-  backendSyncTokenEl?.addEventListener("change", () => { saveSettings(); void pullBackendSecrets(); });
 
   // ════════════════════════════════════════════════════════════════
   // Ollama endpoint presets — store + + Save / Delete / dropdown wiring
@@ -4830,18 +4711,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (pick) modelEl.value = pick;
       setActiveSub(modelEl.value);
 
-      // Query rewriter dropdown removed from Settings UI — population skipped when element absent
-      if (rewriterEl) {
-        const rewriterPrev = rewriterEl.value || SAVED.rewriterModel || "";
-        rewriterEl.innerHTML = `<option value="">— off — use raw message —</option>`;
-        models.forEach(m => {
-          const opt = document.createElement("option");
-          opt.value = m; opt.textContent = m;
-          rewriterEl.appendChild(opt);
-        });
-        if (rewriterPrev && models.includes(rewriterPrev)) rewriterEl.value = rewriterPrev;
-      }
-
       saveSettings();
     } catch (err) {
       if (seq !== loadModelsSeq) return;
@@ -6541,9 +6410,12 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
   // Allowed URL prefixes for the fetch_url agent tool.
   // Block file://, javascript:, data:, private/local ranges, link-local
   // (169.254.x.x / cloud metadata), and common metadata hostnames.
-  // When the HashCortx server is used with a Backend sync token, fetch_url uses
-  // POST /api/backend/fetch-url (DNS + IP checks on the server). Without that,
-  // this URL gate still applies to direct browser fetches only.
+  //
+  // Be clear about what this is: a check on the address as WRITTEN. It reads
+  // the hostname, not where that hostname actually leads, so a public name
+  // pointing at a private address is not caught here. There used to be a note
+  // saying a server proxy did the real address check — no server ships with
+  // this app, so nothing did.
   function isSafeExternalUrl(raw) {
     let parsed;
     try { parsed = new URL(raw); } catch { return false; }
@@ -6572,43 +6444,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 3000);
-
-    async function viaServerProxy() {
-      try {
-        const r = await fetch("/api/backend/fetch-url", {
-          method: "POST",
-          referrerPolicy: "no-referrer",
-          headers: { "Content-Type": "application/json", ...backendAuthHeaders() },
-          body: JSON.stringify({ url }),
-          signal: makeSignal(12000),
-        });
-        if (!r.ok) return null;
-        const j = await r.json().catch(() => null);
-        if (j && j.ok && typeof j.text === "string") return j.text;
-        return null;
-      } catch {
-        return null;
-      }
-    }
-
-    if (backendFetchProxyAvailable) {
-      const hasTok = !!(backendSyncTokenEl?.value || "").trim();
-      if (backendAuthRequired && hasTok) {
-        const proxied = await viaServerProxy();
-        if (proxied != null) return proxied;
-        return null;
-      }
-      if (!backendAuthRequired) {
-        const proxied = await viaServerProxy();
-        if (proxied != null) return proxied;
-      }
-      if (backendAuthRequired && !hasTok) {
-        console.warn(
-          "[fetch_url] Server uses a bearer token — set Backend sync token so fetches use the hardened proxy (blocks rebinding to private IPs)."
-        );
-        return null;
-      }
-    }
 
     try {
       const r = await fetch(url, {
@@ -6652,53 +6487,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       })).filter(x => x.title && x.abstract);
       return results;
     } catch { return []; }
-  }
-
-  // ========= Query rewriter =========
-  // When an agent with tools is active, we first ask a small fast local model
-  // to turn the user's conversational message into a short keyword search query.
-  // This keeps the model offline — it's still just a local Ollama call — but
-  // gives the browser a cleaner query to hand to Europe PMC / Wikipedia / Google.
-  async function rewriteForSearch(userText) {
-    const rewriter = (rewriterEl?.value || "").trim();
-    if (!rewriter) return null; // feature off — caller will use raw text
-    const host = safeHost();
-    const prompt =
-`You are a search query rewriter. Convert the user's message into a concise keyword search query suitable for a search engine or research database (PubMed, Wikipedia, Google). Rules:
-- Return ONLY the query text. No quotes, no explanation, no prefix.
-- Keep it short (3–10 keywords).
-- Drop filler words ("what do you think about", "can you tell me", "please").
-- Keep proper nouns, drug names, gene names, acronyms, years exactly as written.
-- Do not add information the user did not provide.
-
-User message:
-${userText}
-
-Search query:`;
-    try {
-      const r = await fetch(`${host}/api/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: rewriter,
-          prompt,
-          stream: false,
-          keep_alive: -1,
-          options: { temperature: 0.2, num_predict: 60 }
-        }),
-        signal: makeSignal(8000) // don't block research for more than 8s
-      });
-      if (!r.ok) return null;
-      const j = await r.json();
-      let q = (j.response || "").trim();
-      // Strip common wrappers the rewriter model might add anyway
-      q = q.replace(/^["'`]+|["'`]+$/g, "");
-      q = q.replace(/^(search query:|query:)\s*/i, "");
-      q = q.split(/\r?\n/)[0].trim();
-      if (!q || q.length < 2) return null;
-      if (q.length > 200) q = q.slice(0, 200);
-      return q;
-    } catch { return null; }
   }
 
   async function runAgentTools(agent, userText, searchQuery = null) {
@@ -7969,9 +7757,7 @@ sys.stderr = _stderr
     try { memAutoExtract(userText); } catch {}
     let toolContext = null;
     try {
-      let q = null;
-      if (rewriterEl?.value) q = await rewriteForSearch(userText);
-      toolContext = await runAgentTools(agent, userText, q);
+      toolContext = await runAgentTools(agent, userText);
     } catch {}
     // Inject memories into context for non-tool-calling models too
     try {
@@ -8699,7 +8485,6 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     safeExitMode,
     render,
     ollamaChat,
-    backendAuthHeaders,
     selectedModel: () => modelEl.value,
     selectedTemperature: () => (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.3)(parseFloat(tempEl.value)),
     agentTurnOpenAI,
