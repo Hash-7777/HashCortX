@@ -2244,6 +2244,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Where each provider lives and how its key becomes a header, in
   // js/providers.js so streamCloudModel and the agent loop read one copy
   // rather than each repeating it.
+  // Rendering model output without handing it the page — the link sanitiser
+  // in particular, which had no tests while it decided which links are safe
+  // to click. In js/markdown-safe.js, checked by scripts/checks/markdown-safe.mjs.
+  const {
+    escapeHtml, safeMarkdownHref, extractMarkedLinkArgs, extractMarkedCodeArgs,
+    decodeHtmlEntities, stripReplyPrelude, fallbackFormatContent,
+  } = window.HCMarkdown;
+
   const HCProviders = window.HCProviders;
 
   // The settings field holding each provider's key. Kept here rather than in
@@ -5019,15 +5027,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     });
   }
 
-  function stripReplyPrelude(text) {
-    const raw = String(text || "");
-    const parts = raw.split(/\n\n(?=[^>])/);
-    if (parts.length > 1 && /^Replying to /.test(parts[0])) {
-      return parts.slice(1).join("\n\n");
-    }
-    return raw;
-  }
-
   function buildReplyWrappedContent(baseText, replyMeta) {
     if (!replyMeta || !state.messages[replyMeta.idx]) return baseText;
     const src = state.messages[replyMeta.idx];
@@ -5436,55 +5435,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
   }
 
   // Escape map hoisted out of the replace callback — allocated once, not per call.
-  const _esc = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
-  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => _esc[c]); }
-  /** Only absolute http(s) URLs for markdown links — blocks javascript:, data:, etc. */
-  function safeMarkdownHref(raw) {
-    const s = String(raw || "").trim();
-    if (!s) return null;
-    try {
-      const u = new URL(s);
-      if (u.protocol !== "http:" && u.protocol !== "https:") return null;
-      if (u.username !== "" || u.password !== "") return null;
-      return u.href;
-    } catch {
-      return null;
-    }
-  }
-  function extractMarkedLinkArgs(args) {
-    const first = args[0];
-    if (first && typeof first === "object" && !Array.isArray(first)) {
-      const label = first.tokens?.map(t => t.raw || t.text || "").join("") || first.text || first.href || "";
-      return { href: first.href || "", title: first.title || "", text: label };
-    }
-    return {
-      href: first || "",
-      title: args[1] || "",
-      text: args[2] || first || "",
-    };
-  }
-  function extractMarkedCodeArgs(args) {
-    const first = args[0];
-    if (first && typeof first === "object" && !Array.isArray(first)) {
-      return { text: first.text || "", lang: first.lang || "" };
-    }
-    return { text: first || "", lang: args[1] || "" };
-  }
-  function decodeHtmlEntities(s) {
-    let t = String(s || "");
-    if (!t) return "";
-    t = t.replace(/&#x([0-9a-f]+);/gi, (_, hex) => {
-      const c = parseInt(hex, 16);
-      return Number.isFinite(c) && c >= 0 && c <= 0x10ffff ? String.fromCodePoint(c) : _;
-    });
-    t = t.replace(/&#(\d+);/g, (_, dec) => {
-      const c = parseInt(dec, 10);
-      return Number.isFinite(c) && c >= 0 && c <= 0x10ffff ? String.fromCodePoint(c) : _;
-    });
-    t = t.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&apos;/g, "'");
-    t = t.replace(/&amp;/g, "&");
-    return t;
-  }
   const markdownRenderer = (() => {
     if (!window.marked?.Renderer) return null;
     const renderer = new window.marked.Renderer();
@@ -5519,10 +5469,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     };
     return renderer;
   })();
-
-  function fallbackFormatContent(text) {
-    return escapeHtml(text).replace(/\n/g, "<br>");
-  }
 
   function renderMermaidDiagrams() {
     if (!window.mermaid) return;

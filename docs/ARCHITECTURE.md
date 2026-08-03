@@ -19,13 +19,14 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,632  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,578  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
 │   │   │                              chunking must cover the whole text
 │   │   ├── url-safety.js        93  addresses the fetch tool may reach
 │   │   ├── providers.js        148  each cloud provider's endpoint and auth
+│   │   ├── markdown-safe.js    131  link sanitiser, entity decoding, escaping
 │   │   ├── system-maker.js   4,186  ERP prototype generator
 │   │   ├── virtual-os.js     3,846  virtual project desktop
 │   │   ├── forge-mode.js     3,657  3D planning
@@ -71,7 +72,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 471 of
+├── scripts/checks/                  the automated frontend checks — 516 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -95,8 +96,9 @@ HashCortX/
 │   ├── url-safety.mjs               where the agent's fetch tool may go
 │   ├── providers.mjs                every provider endpoint is inside the
 │   │                                Content Security Policy
-│   └── imports.mjs                  every import resolves to a file that is
-│                                    actually there
+│   ├── imports.mjs                  every import resolves to a file that is
+│   │                                actually there
+│   └── markdown-safe.mjs            which links in a reply are safe to click
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -168,7 +170,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 471 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers and module imports. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- The frontend's automated coverage is `scripts/checks/` — 516 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports and markdown safety. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

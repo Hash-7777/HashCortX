@@ -128,6 +128,11 @@ jobs:
       - name: Module-import checks
         run: npm run check:imports
 
+      # The link sanitiser decides which links in a model's reply are safe to
+      # click, and an agent may be quoting a page it fetched.
+      - name: Markdown safety checks
+        run: npm run check:markdown
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
