@@ -157,8 +157,65 @@
     return progress;
   }
 
+  // ── A ceiling on one multi-step generation ──────────────────────────────
+  //
+  // A pipeline that retries and then fails over has no natural end. ERP's
+  // generation is four direct attempts, each with a JSON-repair call, and then
+  // a whole second multi-phase pipeline that retries three more times — and
+  // every failure moves to the next provider rather than stopping. Nothing
+  // bounded the total, so a run that could not succeed did not fail: it worked
+  // through every model the user had configured, twice, with no end in sight.
+  // That is what "it never finishes" is.
+  //
+  // The clock is passed in rather than read, so the rule can be checked.
+
+  const RUN_BUDGET = {
+    /** Wall-clock ceiling for one generation. */
+    ms: 4 * 60 * 1000,
+    /** Ceiling on model calls, so a run of fast failures also ends. */
+    calls: 14,
+  };
+
+  function newRunBudget(now, options) {
+    const limits = Object.assign({}, RUN_BUDGET, options || {});
+    return {
+      startedAt: now,
+      deadline: now + limits.ms,
+      callsUsed: 0,
+      maxCalls: limits.calls,
+      limitMs: limits.ms,
+    };
+  }
+
+  /**
+   * Whether one more model call is allowed.
+   *
+   * Returns `null` to proceed, or a reason the caller can show. The message
+   * says what was spent, because "generation failed" after four silent minutes
+   * tells the user nothing about whether to retry or change model.
+   */
+  function runBudgetExceeded(budget, now) {
+    if (!budget) return null;
+    if (now >= budget.deadline) {
+      return `Stopped after ${Math.round(budget.limitMs / 1000)}s and ${budget.callsUsed} model call(s). `
+        + `The selected model is not returning a usable result — try a different one.`;
+    }
+    if (budget.callsUsed >= budget.maxCalls) {
+      return `Stopped after ${budget.maxCalls} model calls. `
+        + `The selected model is not returning a usable result — try a different one.`;
+    }
+    return null;
+  }
+
+  /** Count a call against the budget. Separate so a refusal costs nothing. */
+  function chargeRunBudget(budget) {
+    if (budget) budget.callsUsed++;
+    return budget;
+  }
+
   window.HCAgentPolicy = {
-    TOOL_EFFECT, BUDGET, MAX_PARALLEL,
+    TOOL_EFFECT, BUDGET, MAX_PARALLEL, RUN_BUDGET,
     effectOf, planBatches, shouldContinue, iterationMadeProgress,
+    newRunBudget, runBudgetExceeded, chargeRunBudget,
   };
 })();

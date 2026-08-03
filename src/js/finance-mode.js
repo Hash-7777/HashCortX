@@ -145,40 +145,30 @@ const FinanceMode = (() => {
     const parsed   = window._H?.parseCloudModel?.(selected) || { provider: "", modelId: "" };
     const provider = parsed.provider || "ollama";
     const model    = parsed.modelId || selected;
-    const payload  = {
-      provider,
-      model,
-      messages,
-      tools: [],
-      temperature: window._H?.selectedTemperature?.() ?? 0.35,
-      signal,
-    };
-
     let result;
     traceAdd("Model", `Calling ${provider}:${model} · ${messages.length} message(s)`, "run");
     try {
-      if (provider === "gemini" && window._H?.agentTurnGemini) {
-        result = await window._H.agentTurnGemini(payload);
-      } else if (provider === "anthropic" && window._H?.agentTurnAnthropic) {
-        result = await window._H.agentTurnAnthropic(payload);
-      } else if (provider !== "ollama" && window._H?.agentTurnOpenAI) {
-        result = await window._H.agentTurnOpenAI(payload);
-      } else if (window._H?.agentTurnOllama) {
-        result = await window._H.agentTurnOllama(payload);
-      }
+      // Routing lives in app.js — one copy of which client each provider
+      // needs, shared by every mode.
+      result = await window._H.runModelTurn({
+        modelValue: selected,
+        messages,
+        tools: [],
+        temperature: window._H?.selectedTemperature?.() ?? 0.35,
+        signal,
+      });
     } catch (err) {
       traceAdd("Model", `Provider call failed · ${err?.message || err}`, "err");
       throw err;
     }
 
+    // No "no adapter available" branch any more: routing either returns a
+    // result or throws, where this used to fall through every unmatched
+    // provider to a message that named none of them.
     const text = result?.content || "";
     if (text) onChunk?.(text);
-    if (result) {
-      traceAdd("Model", `Provider returned · ${text.length} content chars`, text.trim() ? "ok" : "warn");
-      return result;
-    }
-    traceAdd("Model", "No provider adapter was available", "err");
-    throw new Error("No LLM provider available.");
+    traceAdd("Model", `Provider returned · ${text.length} content chars`, text.trim() ? "ok" : "warn");
+    return result;
   }
 
   /* ── system prompt ──────────────────────────────────────────────── */

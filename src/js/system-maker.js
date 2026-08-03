@@ -17,6 +17,8 @@ const SystemMaker = (() => {
   let sortState = { field: "", dir: "asc" };
   let searchQuery = "";
   let runAbort = null;
+  // Ceiling for one generation — see runBudgetExceeded in js/agent-policy.js.
+  let runBudget = null;
   let traceStart = Date.now();
   let libraryCollapsed = false;
   let inspectorCollapsed = true;
@@ -1277,17 +1279,25 @@ WORKFLOWS:
 Build a complete, production-realistic system. Impress with depth and realism.`;
   }
 
+  // Routing lives in app.js so every mode shapes a request the same way. This
+  // used to send everything that was not Gemini to the OpenAI client —
+  // including Anthropic, whose endpoint needs a different body and never
+  // answers with `choices`. Every call with a Claude model selected therefore
+  // failed, and because a failure here means failover, generation walked the
+  // whole provider list twice before stopping.
   async function callModel(modelValue, messages, signal, temperature = 0.25) {
-    const mv = modelValue || $("model")?.value || "llama3.2";
-    if (mv.startsWith("cloud:")) {
-      const rest = mv.slice(6);
-      const colon = rest.indexOf(":");
-      const provider = colon !== -1 ? rest.slice(0, colon) : rest;
-      const model = colon !== -1 ? rest.slice(colon + 1) : rest;
-      if (provider === "gemini") return window._H.agentTurnGemini({ model, messages, tools: [], temperature, signal });
-      return window._H.agentTurnOpenAI({ provider, model, messages, tools: [], temperature, signal });
+    // Every model call in a generation passes through here, so this is where
+    // the ceiling belongs — one place rather than in each of the three retry
+    // loops, which is how the total went unbounded.
+    const stop = window.HCAgentPolicy.runBudgetExceeded(runBudget, Date.now());
+    if (stop) {
+      const err = new Error(stop);
+      err.name = "BudgetExceeded";
+      throw err;
     }
-    return window._H.agentTurnOllama({ model: mv, messages, tools: [], temperature, signal });
+    window.HCAgentPolicy.chargeRunBudget(runBudget);
+    const mv = modelValue || $("model")?.value || "llama3.2";
+    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal });
   }
 
   function modelTraceLabel(modelValue) {
@@ -1298,6 +1308,10 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
   }
 
   function isFailoverError(err) {
+    // The budget is the thing that ends a run. Treating it as failover would
+    // hand the run straight to the next provider, which is the behaviour it
+    // exists to stop.
+    if (err?.name === "BudgetExceeded" || err?.name === "AbortError") return false;
     return /rate.?limit|quota|429|too many|capacity|overloaded|unavailable|timeout|timed.?out|failed to fetch|jsondecodeerror|invalid_request_error|invalid ai systemspec|semantic repair|tool|function|model.{0,12}not.{0,12}found|context/i.test(err?.message || "");
   }
 
@@ -1462,7 +1476,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
         trace("SystemSpec validated and finance model linked", "ok");
         return spec;
       } catch (err) {
-        if (err.name === "AbortError") throw err;
+        if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
         trace(`${modelTraceLabel(active)} failed: ${String(err.message || err).slice(0, 90)}`, "warn");
         tried.push(active);
         if (!isFailoverError(err)) break;
@@ -1490,7 +1504,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
         brief = null;
         throw new Error("Brief missing modules");
       } catch (err) {
-        if (err.name === "AbortError") throw err;
+        if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
         trace(`God Agent brief attempt ${attempt} failed: ${String(err.message).slice(0,70)}`, "warn");
         const next = failoverModels(active).find(m => !tried.includes(m));
         if (next) { tried.push(active); active = next; trace(`→ switching to ${modelTraceLabel(active)}`, "run"); }
@@ -1533,7 +1547,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           trace("Finance model linked", "ok");
           return spec;
         } catch (err) {
-          if (err.name === "AbortError") throw err;
+          if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
           trace(`Specialist attempt ${attempt} failed: ${String(err.message).slice(0,70)}`, "warn");
           tried.push(active);
           if (!isFailoverError(err)) break;
@@ -2336,6 +2350,7 @@ Repair requirements:
     clearTrace();
     setStatus("Running", "running");
     runAbort = new AbortController();
+    runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
     updateCreateButtonState();
     try {
       trace("Planning business modules", "plan");
@@ -2356,12 +2371,18 @@ Repair requirements:
       if (err.name === "AbortError") {
         setStatus("Stopped", "stopped");
         trace("Generation stopped before a new system was saved", "warn");
+      } else if (err.name === "BudgetExceeded") {
+        // Say what was spent. "Generation failed" after four silent minutes
+        // tells the user nothing about whether to retry or change model.
+        setStatus("Gave up", "error");
+        trace(err.message, "err");
       } else {
         setStatus("Error", "error");
         trace(err.message || "System generation failed", "err");
       }
     } finally {
       runAbort = null;
+      runBudget = null;
       updateCreateButtonState();
     }
   }

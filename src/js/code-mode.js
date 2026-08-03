@@ -266,16 +266,9 @@
       let lastErr = null;
       for (let attempt = 0; attempt < 2; attempt++) {  // up to 2 retries for transient errors on SAME model
         try {
-          let result;
-          if (adapter.kind === 'gemini') {
-            result = await H.agentTurnGemini({ model: adapter.model, messages, tools, temperature, signal });
-          } else if (adapter.kind === 'anthropic') {
-            result = await H.agentTurnAnthropic({ model: adapter.model, messages, tools, temperature, signal });
-          } else if (adapter.kind === 'openai') {
-            result = await H.agentTurnOpenAI({ provider: adapter.provider, model: adapter.model, messages, tools, temperature, signal });
-          } else {
-            result = await H.agentTurnOllama({ model: adapter.model, messages, tools, temperature, signal });
-          }
+          // Routing lives in app.js — one copy of which client each provider
+          // needs, shared by every mode.
+          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal });
           // Success — reset streak, update chip, return
           _routerStreaks.set(key, 0);
           if (i > 0) setRouterChip(adapter.label, 'switched');

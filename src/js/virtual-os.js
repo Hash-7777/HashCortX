@@ -1950,28 +1950,14 @@ ${ctx}
 ${userPrompt}`;
   }
 
-  function parseModelValue(value) {
-    if (String(value || "").startsWith("cloud:")) {
-      const parts = value.split(":");
-      return { cloud: true, provider: parts[1], model: parts.slice(2).join(":") };
-    }
-    return { cloud: false, model: value };
-  }
-
   async function callModelValue(modelValue, messages, signal) {
     const api = window._H || {};
     const value = modelValue || api.selectedModel?.() || document.getElementById("model")?.value || "";
     if (!value) throw new Error("No model selected.");
-    const route = parseModelValue(value);
-    if (route.cloud) {
-      if (route.provider === "gemini") {
-        const r = await api.agentTurnGemini({ model: route.model, messages, tools: [], temperature: 0.75, signal });
-        return r.content || "";
-      }
-      const r = await api.agentTurnOpenAI({ provider: route.provider, model: route.model, messages, tools: [], temperature: 0.75, signal });
-      return r.content || "";
-    }
-    const r = await api.agentTurnOllama({ model: route.model, messages, tools: [], temperature: 0.75, signal });
+    // Routing lives in app.js — local models included, so there is no branch
+    // here to get wrong. This used to hand every non-Gemini provider to the
+    // OpenAI client, so an Anthropic model failed on every call.
+    const r = await api.runModelTurn({ modelValue: value, messages, tools: [], temperature: 0.75, signal });
     return r.content || "";
   }
 

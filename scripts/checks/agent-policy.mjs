@@ -20,8 +20,10 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'agent-policy.js' });
 
-const { effectOf, planBatches, shouldContinue, iterationMadeProgress, BUDGET } =
-  sandbox.window.HCAgentPolicy;
+const {
+  effectOf, planBatches, shouldContinue, iterationMadeProgress, BUDGET,
+  newRunBudget, runBudgetExceeded, chargeRunBudget, RUN_BUDGET,
+} = sandbox.window.HCAgentPolicy;
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -118,6 +120,54 @@ console.log('\nProgress detection:');
     iterationMadeProgress([call('read_file', { path: '/new' })], seen) === false,
     'this is the signature of an agent that has lost the thread');
   check('nothing at all is not progress', iterationMadeProgress([], seen) === false);
+}
+
+// ── The ceiling on one generation ─────────────────────────────────────────
+//
+// ERP's pipeline retries, then fails over, then runs a second pipeline that
+// retries again — and every failure moved to the next provider instead of
+// stopping. Nothing bounded the total, so a run that could not succeed worked
+// through every configured model rather than ending. These pin the ceiling
+// that now does end it.
+console.log('\nOne generation has an end:');
+{
+  const t0 = 1_000_000;
+  const budget = newRunBudget(t0, { ms: 60_000, calls: 3 });
+
+  check('a fresh budget allows a call', runBudgetExceeded(budget, t0) === null);
+  check('time left and calls left both allow it',
+    runBudgetExceeded(budget, t0 + 59_000) === null);
+
+  // The clock alone must end it. A model that answers slowly never exhausts a
+  // call count, which is the shape of the run that felt like a hang.
+  check('running out of time stops it', typeof runBudgetExceeded(budget, t0 + 60_000) === 'string');
+  check('the deadline is inclusive, not one tick late',
+    runBudgetExceeded(budget, t0 + 60_001) !== null);
+
+  // And the call count alone must end it, for a run of fast failures that
+  // would otherwise burn the whole provider list well inside the time limit.
+  const fast = newRunBudget(t0, { ms: 60_000, calls: 3 });
+  chargeRunBudget(fast); chargeRunBudget(fast);
+  check('under the call ceiling still runs', runBudgetExceeded(fast, t0) === null);
+  chargeRunBudget(fast);
+  check('running out of calls stops it', typeof runBudgetExceeded(fast, t0) === 'string');
+
+  // The message is what the user sees after minutes of waiting, so it has to
+  // say what was spent and what to do, not just that something failed.
+  const reason = runBudgetExceeded(fast, t0);
+  check('the reason says how much was spent', /3 model calls/.test(reason), reason);
+  check('the reason says what to do next', /try a different one/.test(reason), reason);
+
+  // A refusal must not consume anything, or asking twice would charge twice.
+  const untouched = newRunBudget(t0, { ms: 60_000, calls: 3 });
+  runBudgetExceeded(untouched, t0);
+  runBudgetExceeded(untouched, t0);
+  check('asking does not spend', untouched.callsUsed === 0);
+
+  // No budget means no ceiling — every other caller of this module is
+  // unaffected by the ERP change.
+  check('no budget never stops anything', runBudgetExceeded(null, t0) === null);
+  check('there is a default ceiling', RUN_BUDGET.ms > 0 && RUN_BUDGET.calls > 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);

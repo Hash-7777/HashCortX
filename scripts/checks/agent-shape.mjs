@@ -170,5 +170,79 @@ console.log('\nThe adapter follows the provider table rather than its own list:'
   ok('a provider in no table is refused loudly', threw);
 }
 
+// ── Which client a turn is sent to ────────────────────────────────────────
+//
+// This decision was written out in six modes, and three of them sent every
+// non-Gemini provider to the OpenAI client — Anthropic included. An OpenAI
+// body posted to Anthropic's endpoint fails on every call, and the modes that
+// failed over then walked the whole provider list before giving up, which is
+// what "it never finishes" looked like from the outside.
+//
+// The one that matters most is the negative: nothing may reach the OpenAI
+// client except providers that genuinely take an OpenAI body.
+console.log('\nA turn goes to the client its provider actually needs:');
+{
+  const parseCloudModel = (v) => {
+    const [, provider, ...rest] = v.split(':');
+    return { provider, modelId: rest.join(':') };
+  };
+  const providers = { get: (p) => (['groq', 'openai', 'mistral', 'nvidia'].includes(p) ? {} : null) };
+
+  /** Records which client was called, and with what. */
+  function route(modelValue, extra = {}) {
+    const seen = [];
+    const fns = {};
+    for (const kind of ['ollama', 'gemini', 'anthropic', 'openai']) {
+      fns[kind] = (args) => { seen.push({ kind, args }); return `sent-to-${kind}`; };
+    }
+    const returned = A.routeModelTurn(
+      { modelValue, messages: [{ role: 'user', content: 'x' }], temperature: 0.3, ...extra },
+      fns, { parseCloudModel, providers },
+    );
+    return { calls: seen, returned, only: seen.length === 1 ? seen[0] : null };
+  }
+
+  ok('a local model goes to ollama', route('llama3').only.kind === 'ollama');
+  ok('gemini goes to the gemini client', route('cloud:gemini:pro').only.kind === 'gemini');
+  // The defect this whole change exists for.
+  ok('anthropic goes to the anthropic client',
+    route('cloud:anthropic:claude-sonnet-4').only.kind === 'anthropic');
+  ok('anthropic never reaches the OpenAI client',
+    !route('cloud:anthropic:claude-sonnet-4').calls.some(c => c.kind === 'openai'));
+  ok('an OpenAI-shaped provider goes to the OpenAI client',
+    route('cloud:groq:llama').only.kind === 'openai');
+  ok('exactly one client is called', route('cloud:openai:gpt-4o').calls.length === 1);
+  ok('the answer is passed straight back', route('cloud:gemini:pro').returned === 'sent-to-gemini');
+
+  // Only the OpenAI client is told which provider it is talking to; the others
+  // each serve one, and a stray provider field there would be silently ignored.
+  ok('the OpenAI client is told which provider',
+    route('cloud:mistral:large').only.args.provider === 'mistral');
+  ok('the model id is passed without its prefix',
+    route('cloud:anthropic:claude-3:5').only.args.model === 'claude-3:5');
+
+  // A provider nobody routed must stop, not become OpenAI-shaped by default.
+  // That default is precisely how Anthropic got the wrong body.
+  {
+    let threw = false;
+    try { route('cloud:unknown-vendor:x'); } catch { threw = true; }
+    ok('an unrouted provider is refused, not defaulted to OpenAI', threw);
+  }
+
+  // Each client takes a different tool shape, and Swarm builds them per call.
+  ok('tools are passed through unchanged when they are a list',
+    route('cloud:groq:llama', { tools: [{ n: 1 }] }).only.args.tools.length === 1);
+  ok('tools may be built from the client that was chosen',
+    route('cloud:anthropic:sonnet', { tools: (kind) => [kind] }).only.args.tools[0] === 'anthropic');
+  ok('no tools means an empty list, never undefined',
+    Array.isArray(route('llama3').only.args.tools));
+
+  // Coder picks its own failover chain, so it hands over a ready adapter.
+  // It must not be re-derived from a model string it no longer has.
+  ok('a ready adapter is used as given',
+    A.routeModelTurn({ adapter: { kind: 'anthropic', model: 'opus' }, messages: [] },
+      { anthropic: (a) => a.model }, {}) === 'opus');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

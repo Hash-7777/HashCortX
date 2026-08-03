@@ -11,9 +11,6 @@ const extractPythonFence          = (...a) => window._H.extractPythonFence(...a)
 const persistCurrentChat          = (...a) => window._H.persistCurrentChat(...a);
 const setTab                      = (...a) => window._H.setTab(...a);
 const render                      = (...a) => window._H.render(...a);
-const agentTurnOpenAI             = (...a) => window._H.agentTurnOpenAI(...a);
-const agentTurnGemini             = (...a) => window._H.agentTurnGemini(...a);
-const agentTurnOllama             = (...a) => window._H.agentTurnOllama(...a);
 const buildOpenAITools            = (...a) => window._H.buildOpenAITools(...a);
 const buildGeminiTools            = (...a) => window._H.buildGeminiTools(...a);
 const buildOllamaTools            = (...a) => window._H.buildOllamaTools(...a);
@@ -376,17 +373,21 @@ const SwarmMaker = (() => {
     const temp = typeof temperature === "number" ? temperature : 0.7;
     // Build tool definitions from agent config
     const agentObj = arguments[4] || null; // optional 5th arg
-    if (mv.startsWith("cloud:")) {
-      const rest     = mv.slice(6);
-      const colon    = rest.indexOf(":");
-      const provider = colon !== -1 ? rest.slice(0, colon) : rest;
-      const model    = colon !== -1 ? rest.slice(colon + 1) : rest;
-      if (provider === "gemini") {
-        return await agentTurnGemini({ model, messages, tools: agentObj ? buildGeminiTools(agentObj) : [], temperature: temp, signal });
-      }
-      return await agentTurnOpenAI({ provider, model, messages, tools: agentObj ? buildOpenAITools(agentObj) : [], temperature: temp, signal });
-    }
-    return await agentTurnOllama({ model: mv, messages, tools: agentObj ? buildOllamaTools(agentObj) : [], temperature: temp, signal });
+    // Routing lives in app.js. This used to send every non-Gemini provider to
+    // the OpenAI client, so an Anthropic model failed on every call. Tools are
+    // built per client because each takes a different shape.
+    return await window._H.runModelTurn({
+      modelValue: mv,
+      messages,
+      temperature: temp,
+      signal,
+      tools: (kind) => {
+        if (!agentObj) return [];
+        if (kind === "gemini") return buildGeminiTools(agentObj);
+        if (kind === "ollama") return buildOllamaTools(agentObj);
+        return buildOpenAITools(agentObj);
+      },
+    });
   }
 
   function modelTraceLabel(modelValue) {

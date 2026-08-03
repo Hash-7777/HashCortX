@@ -178,6 +178,37 @@
     throw new Error(`Unknown cloud provider for agent mode: ${provider}`);
   }
 
+  /**
+   * Send one turn to whichever client the selected model needs.
+   *
+   * This decision was written out five times — in chat, Coder, Finance, ERP,
+   * Swarm and Virtual OS — and three of those copies were wrong in the same
+   * way: they sent everything that was not Gemini to the OpenAI client,
+   * including Anthropic. That posts an OpenAI body to /v1/messages, which
+   * requires max_tokens and never answers with `choices`, so the call failed
+   * every single time a Claude model was picked. ERP looked like it hung
+   * because a failure there is a failover, so it walked the whole provider
+   * list twice before giving up.
+   *
+   * The clients arrive as `fns` so this stays pure and the routing can be
+   * checked without a network. `tools` may be a function of the adapter kind,
+   * because each client takes a different tool shape and Swarm builds them
+   * per call.
+   */
+  function routeModelTurn({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
+    const route = adapter || selectAgentAdapter(modelValue, deps);
+    const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
+    const base = { model: route.model, messages, tools: list, temperature, signal };
+    if (route.kind === 'ollama') return fns.ollama(base);
+    if (route.kind === 'gemini') return fns.gemini(base);
+    if (route.kind === 'anthropic') return fns.anthropic(base);
+    if (route.kind === 'openai') return fns.openai({ ...base, provider: route.provider });
+    // Never fall through to the OpenAI client. That default is exactly what
+    // sent Anthropic the wrong body: a provider nobody routed became one
+    // silently shaped like OpenAI, and the failure looked like a bad key.
+    throw new Error(`No client for model adapter: ${route.kind}`);
+  }
+
   window.HCAgentShape = {
     toOpenAIVision,
     toTextOnly,
@@ -189,5 +220,6 @@
     safeJsonParse,
     extractPythonFence,
     selectAgentAdapter,
+    routeModelTurn,
   };
 })();

@@ -2254,6 +2254,21 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const selectAgentAdapter = (modelValue) =>
     HCAgentShape.selectAgentAdapter(modelValue, { parseCloudModel, providers: HCProviders });
 
+  // The one place a model turn is dispatched to a client. Every mode goes
+  // through this, so a provider that needs its own request shape needs it
+  // written down once instead of in each mode that happens to remember.
+  const runModelTurn = (request) =>
+    HCAgentShape.routeModelTurn(
+      request,
+      {
+        ollama: agentTurnOllama,
+        gemini: agentTurnGemini,
+        anthropic: agentTurnAnthropic,
+        openai: agentTurnOpenAI,
+      },
+      { parseCloudModel, providers: HCProviders },
+    );
+
 
   // The settings field holding each provider's key. Kept here rather than in
   // providers.js because these are DOM elements and that file is pure.
@@ -7173,15 +7188,7 @@ sys.stderr = _stderr
 
       let turn;
       try {
-        if (adapter.kind === "ollama") {
-          turn = await agentTurnOllama({ model: adapter.model, messages, tools, temperature, signal });
-        } else if (adapter.kind === "gemini") {
-          turn = await agentTurnGemini({ model: adapter.model, messages, tools, temperature, signal });
-        } else if (adapter.kind === "anthropic") {
-          turn = await agentTurnAnthropic({ model: adapter.model, messages, tools, temperature, signal });
-        } else {
-          turn = await agentTurnOpenAI({ provider: adapter.provider, model: adapter.model, messages, tools, temperature, signal });
-        }
+        turn = await runModelTurn({ adapter, messages, tools, temperature, signal });
       } catch (e) {
         // If the model rejects tools (older models, some configs), retry once
         // without tools — the agent then runs in legacy "RAG-prefetch" mode.
@@ -7258,13 +7265,7 @@ sys.stderr = _stderr
       onStatus?.("Reached max tool iterations — finalizing", "warn");
       // One more call without tools to force a text answer
       try {
-        const closing = adapter.kind === "ollama"
-          ? await agentTurnOllama({ model: adapter.model, messages, tools: [], temperature, signal })
-          : adapter.kind === "gemini"
-          ? await agentTurnGemini({ model: adapter.model, messages, tools: [], temperature, signal })
-          : adapter.kind === "anthropic"
-          ? await agentTurnAnthropic({ model: adapter.model, messages, tools: [], temperature, signal })
-          : await agentTurnOpenAI({ provider: adapter.provider, model: adapter.model, messages, tools: [], temperature, signal });
+        const closing = await runModelTurn({ adapter, messages, tools: [], temperature, signal });
         finalText = closing.content || finalText || "(no answer)";
       } catch {}
     }
@@ -8164,6 +8165,10 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     ollamaChat,
     selectedModel: () => modelEl.value,
     selectedTemperature: () => (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.3)(parseFloat(tempEl.value)),
+    // One dispatcher for every mode. Modes that picked a client themselves
+    // got Anthropic wrong; there is now one copy of that decision.
+    runModelTurn,
+    selectAgentAdapter,
     agentTurnOpenAI,
     agentTurnGemini,
     agentTurnAnthropic,
