@@ -21,8 +21,10 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'export-format.js' });
 
-const { csvCell, csvDocument, pdfSafe, markdownToPlainText, safeFilename, conversationToMarkdown } =
-  sandbox.window.HCExport;
+const {
+  csvCell, csvDocument, pdfSafe, markdownToPlainText, safeFilename,
+  extensionOf, mimeFor, dialogFilter, conversationToMarkdown,
+} = sandbox.window.HCExport;
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -149,6 +151,44 @@ check('tool calls are recorded',
     .includes('read_file'));
 check('a missing messages array is not fatal',
   typeof conversationToMarkdown({ title: 't' }) === 'string');
+
+// ── What a saved file is ──────────────────────────────────────────────────
+//
+// These decide the type the save dialog offers and the type the bytes are
+// labelled with. Getting one wrong does not fail: it produces a file the OS
+// opens with the wrong application, or appends a second extension to a name
+// the user already typed.
+console.log('\nA filename says what the file is:');
+check('a plain extension is read', extensionOf('report.PDF') === 'pdf');
+check('only the last one counts', extensionOf('archive.tar.gz') === 'gz');
+check('a path is not mistaken for an extension',
+  extensionOf('/home/a.b/notes') === '', extensionOf('/home/a.b/notes'));
+check('a dotfile has no extension', extensionOf('.gitignore') === '');
+check('a trailing dot is not an extension', extensionOf('draft.') === '');
+check('no name is safe', extensionOf('') === '' && extensionOf(null) === '');
+
+console.log('\nEach one is labelled with what it actually is:');
+check('markdown', mimeFor('notes.md').startsWith('text/markdown'));
+check('csv carries a charset so Excel reads accents',
+  /charset=utf-8/.test(mimeFor('rows.csv')));
+check('a 3D model', mimeFor('plane.glb') === 'model/gltf-binary');
+check('a Word document', /wordprocessingml/.test(mimeFor('brief.docx')));
+check('a spreadsheet', /spreadsheetml/.test(mimeFor('books.xlsx')));
+// The default must be the binary one: labelling unknown bytes as text invites
+// something downstream to re-encode them, which corrupts the file silently.
+check('anything unrecognised stays binary',
+  mimeFor('model.weights') === 'application/octet-stream');
+check('a file with no extension stays binary',
+  mimeFor('README') === 'application/octet-stream');
+
+console.log('\nThe save dialog filters to the type being saved:');
+check('one filter, matching the extension',
+  JSON.stringify(dialogFilter('a.csv')) === JSON.stringify({ name: 'CSV', extensions: ['csv'] }));
+check('an unknown extension is still offered',
+  dialogFilter('a.weights').extensions[0] === 'weights');
+// Null, not a filter of "": a filter the file cannot match hides it from the
+// dialog the user is trying to save it with.
+check('no extension means no filter', dialogFilter('README') === null);
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/export-format.js)`);
 process.exit(fail ? 1 : 0);

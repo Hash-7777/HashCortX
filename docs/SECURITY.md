@@ -59,7 +59,9 @@ Reads outside the project folder used to be auto-approved with no dialog at all,
 
 Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact.
 
-**Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. They have no native calls. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file. 3D Forge exports by handing the webview a Blob to download, the same as any web page.
+**Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. They have no native calls. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file.
+
+Both modes do save exports to a real disk, through `HC.save` in `src/platform/tauri/save.js`. That is not a hole in the rule above. No model can reach it: every path starts with you clicking an export control, the destination comes from a native save dialog you answer, and the write goes through `export_write_file`, which applies the same denylist as every other write. A dialog is your consent to save a file — it is not consent to overwrite a private key, so a protected destination is still refused.
 
 That claim was wrong in the alarming direction, describing an exposure the app does not have, and it sat on the roadmap as work nobody needed to do. `scripts/checks/native-surface.mjs` now enforces the real property: it scans the source, asserts which files may invoke a native command at all, and fails if one appears in a mode that is supposed to be sandboxed.
 

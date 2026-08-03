@@ -155,6 +155,81 @@
     return extension ? `${stem}.${String(extension).replace(/^\./, '')}` : stem;
   }
 
+  /**
+   * The extension of a filename, lowercased, without the dot.
+   *
+   * A leading dot is a hidden file, not an extension: ".gitignore" has none.
+   */
+  function extensionOf(filename) {
+    const base = String(filename || '').split(/[/\\]/).pop() || '';
+    const dot = base.lastIndexOf('.');
+    if (dot <= 0 || dot === base.length - 1) return '';
+    return base.slice(dot + 1).toLowerCase();
+  }
+
+  /**
+   * What a file of this name is.
+   *
+   * Only what this app actually writes. The default is the binary one, because
+   * a wrong text type invites something downstream to re-encode the bytes,
+   * while an unknown binary is simply handed over untouched.
+   */
+  const MIME_BY_EXTENSION = {
+    md: 'text/markdown;charset=utf-8',
+    markdown: 'text/markdown;charset=utf-8',
+    txt: 'text/plain;charset=utf-8',
+    json: 'application/json;charset=utf-8',
+    csv: 'text/csv;charset=utf-8',
+    html: 'text/html;charset=utf-8',
+    htm: 'text/html;charset=utf-8',
+    svg: 'image/svg+xml',
+    xml: 'application/xml;charset=utf-8',
+    yaml: 'text/yaml;charset=utf-8',
+    yml: 'text/yaml;charset=utf-8',
+    js: 'text/javascript;charset=utf-8',
+    css: 'text/css;charset=utf-8',
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    webp: 'image/webp',
+    zip: 'application/zip',
+    glb: 'model/gltf-binary',
+    gltf: 'model/gltf+json',
+    stl: 'model/stl',
+    obj: 'text/plain;charset=utf-8',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  };
+
+  function mimeFor(filename) {
+    return MIME_BY_EXTENSION[extensionOf(filename)] || 'application/octet-stream';
+  }
+
+  /**
+   * The filter a native save dialog should show for this name.
+   *
+   * One entry, matching the extension the caller chose. Offering a list would
+   * let the dialog hand back a path with a different extension than the bytes,
+   * and null for an unknown extension means the dialog shows everything rather
+   * than hiding the file the user is trying to save.
+   */
+  const FILTER_LABELS = {
+    md: 'Markdown', markdown: 'Markdown', txt: 'Text', json: 'JSON', csv: 'CSV',
+    html: 'Web page', htm: 'Web page', svg: 'SVG image', xml: 'XML',
+    yaml: 'YAML', yml: 'YAML', pdf: 'PDF', png: 'PNG image', jpg: 'JPEG image',
+    jpeg: 'JPEG image', webp: 'WebP image', zip: 'Zip archive',
+    glb: '3D model', gltf: '3D model', stl: '3D model', obj: '3D model',
+    docx: 'Word document', xlsx: 'Excel workbook', pptx: 'PowerPoint deck',
+  };
+
+  function dialogFilter(filename) {
+    const ext = extensionOf(filename);
+    if (!ext) return null;
+    return { name: FILTER_LABELS[ext] || ext.toUpperCase(), extensions: [ext] };
+  }
+
   // ── Conversation markdown ────────────────────────────────────────────────
 
   function fmtDuration(ms) {
@@ -260,6 +335,9 @@
     pdfSafe,
     markdownToPlainText,
     safeFilename,
+    extensionOf,
+    mimeFor,
+    dialogFilter,
     conversationToMarkdown,
   };
 })();

@@ -1702,16 +1702,27 @@ const VoidStudio = (() => {
     closeEditor();
   }
 
-  function downloadItem(item) {
-    if (!item || item.type !== "file") return;
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([item.content || ""], { type: item.mime || "text/plain;charset=utf-8" }));
-    a.download = item.name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  // Saving goes through HC.save. The old <a download> is cancelled outright by
+  // this webview (see platform/tauri/save.js), so nothing ever left the
+  // virtual disk.
+  async function saveOut(filename, content, mime) {
+    try {
+      const result = await window.HC.save.file(filename, content, mime ? { mime } : undefined);
+      if (!result.saved) { log("Export cancelled", "warn"); return false; }
+      return true;
+    } catch (err) {
+      log(`Export failed: ${err?.message || err}`, "err");
+      return false;
+    }
   }
 
-  function downloadFolder(folderId) {
+  async function downloadItem(item) {
+    if (!item || item.type !== "file") return;
+    if (!await saveOut(item.name, item.content || "", item.mime)) return;
+    log(`Saved ${item.name}`, "ok");
+  }
+
+  async function downloadFolder(folderId) {
     if (!activeProject || !folderId || folderId === ROOT_ID) return;
     const root = getItem(folderId);
     if (!root || root.deletedAt || root.type !== "folder") return;
@@ -1731,13 +1742,8 @@ const VoidStudio = (() => {
       else entries.push({ name: f.path, data: f.content || "" });
     }
     if (!entries.length) { log("Folder is empty.", "warn"); return; }
-    const blob = makeZip(entries);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `${root.name}.zip`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    log(`Downloaded ${root.name}.zip (${entries.filter(e => !e.name.endsWith("/")).length} files)`, "ok");
+    if (!await saveOut(`${root.name}.zip`, makeZip(entries))) return;
+    log(`Saved ${root.name}.zip (${entries.filter(e => !e.name.endsWith("/")).length} files)`, "ok");
   }
 
   async function deleteAll() {
@@ -3712,12 +3718,7 @@ ${tree}`;
       log("Nothing to export.", "warn");
       return;
     }
-    const blob = makeZip(entries);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `desktop-files.zip`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    if (!await saveOut("desktop-files.zip", makeZip(entries))) return;
     log(`Exported ${entries.length} ZIP entr${entries.length === 1 ? "y" : "ies"}`, "ok");
   }
 

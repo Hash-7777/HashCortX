@@ -26,6 +26,7 @@ const ALLOWED = new Map([
   ['platform/index.js', 'defines HC.invoke itself, plus the usage log and notch bridges'],
   ['platform/tauri/guard.js', 'the Permission Guard; writes the audit log'],
   ['platform/tauri/undo.js', 'saves and restores what a file held before a change — no model can call it, every path starts with the user clicking Undo, and a restore still goes through fs_write_file and the denylist'],
+  ['platform/tauri/save.js', 'writes an export to the disk — no model can call it, every path starts with the user clicking Export and naming a file in the native dialog, and the write still passes the denylist in export_write_file'],
   ['platform/tauri/hashcoder.js', 'the agent tools — every one gated by HC.guard.request first'],
   ['platform/tauri/keychain.js', 'one-time migration out of the old Keychain'],
   ['main.js', 'window geometry and lifecycle at boot'],
@@ -38,9 +39,14 @@ const ALLOWED = new Map([
  *
  * Virtual OS looks like a filesystem and is not one: its fs_read / fs_write /
  * terminal_run tools operate on an IndexedDB project and a terminal simulated
- * in JavaScript. 3D Forge exports by handing the webview a Blob to download.
- * Neither can touch a real file, which is why neither needs the guard — and
- * why an HC.invoke appearing in either is a change worth stopping to look at.
+ * in JavaScript. Neither it nor 3D Forge can touch a real file on its own,
+ * which is why neither needs the guard — and why an HC.invoke appearing in
+ * either is a change worth stopping to look at.
+ *
+ * These modes do save exports to the disk, through HC.save. That is deliberate
+ * and it is not a hole in this rule: the write lives in platform/tauri/save.js
+ * behind a native dialog the user answers, so the destination is theirs rather
+ * than the mode's, and the bytes still pass the denylist in Rust.
  */
 const MUST_BE_SANDBOXED = [
   'js/virtual-os.js',

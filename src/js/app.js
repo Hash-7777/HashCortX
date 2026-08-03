@@ -327,7 +327,7 @@ Source honesty (CRITICAL):
 
 Tools (call them — don't describe or narrate them):
 - remember_fact / recall_facts — silent long-term memory. Save preferences/projects/names as you notice them, with stable keys. Recall before saying "unknown" on anything personal.
-- execute_python — Pyodide sandbox with python-docx, openpyxl, reportlab, pandas, numpy, matplotlib. Globals persist across calls in a chat. Save deliverables to /output/<descriptive>.<ext> — they auto-download.
+- execute_python — Pyodide sandbox with python-docx, openpyxl, reportlab, pandas, numpy, matplotlib. Globals persist across calls in a chat. Save deliverables to /output/<descriptive>.<ext>; the user is then asked where to keep each one. The tool result says which were saved — say a file exists only for those.
 - web_search / fetch_url — fresh facts and pasted links.
 - current_datetime / calculate — time and arithmetic.
 
@@ -341,7 +341,7 @@ Conventions:
 - Treat love/like/favorite/prefer/enjoy as equivalent for recall.
 - "Now as PDF / Word / Excel" = re-export the prior data in the requested format, reusing globals when possible. Never produce a placeholder doc.
 - When the user asks for an app, UI, website, game, demo, artifact, preview, interactive file, or working HTML: output one complete runnable HTML document in a single \`\`\`html fence. Include all CSS and JS inline. No placeholders.
-- When the user asks for a real Word/Excel/PDF file: use execute_python and write the actual file to /output/. Mention the generated filename only after the tool succeeds.`,
+- When the user asks for a real Word/Excel/PDF file: use execute_python and write the actual file to /output/. Mention a filename only once the tool result reports that file saved.`,
       tools: ["memory", "web_search", "fetch_url", "datetime", "calculate", "code_interpreter"]
     },
     {
@@ -1226,13 +1226,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // that a fix reaches every export instead of the one that was reported.
   const conversationToMarkdown = (snapshot) => window.HCExport.conversationToMarkdown(snapshot);
 
-  function downloadBlob(filename, blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1500);
+  // Saving goes through HC.save, which asks where the file should go and then
+  // writes it. The previous route — an <a download> — is cancelled outright by
+  // this webview (see platform/tauri/save.js), so it wrote nothing and
+  // reported nothing. A failure here is now shown, because an export that
+  // silently does not happen is the defect this replaces.
+  async function downloadBlob(filename, blob) {
+    try {
+      const result = await window.HC.save.file(filename, blob);
+      if (!result.saved) return false;
+      return true;
+    } catch (e) {
+      await themedAlert(`Could not save "${filename}": ${e?.message || e}`, "Export");
+      return false;
+    }
   }
 
   async function exportConversation(format) {
@@ -1243,11 +1250,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     const stem = window.HCExport.safeFilename(snapshot.title);
     if (format === "markdown") {
-      downloadBlob(`${stem}.md`, new Blob([conversationToMarkdown(snapshot)], { type: "text/markdown;charset=utf-8" }));
+      await downloadBlob(`${stem}.md`, conversationToMarkdown(snapshot));
       return;
     }
     if (format === "json") {
-      downloadBlob(`${stem}.json`, new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json;charset=utf-8" }));
+      await downloadBlob(`${stem}.json`, JSON.stringify(snapshot, null, 2));
       return;
     }
     if (format === "pdf") {
@@ -1354,7 +1361,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         }
       }
 
-      doc.save(`${stem}.pdf`);
+      // Not doc.save() — jsPDF's own save is the <a download> route, which is
+      // the thing that never worked. Take the bytes and write them instead.
+      await downloadBlob(`${stem}.pdf`, doc.output("blob"));
     }
   }
 
@@ -2460,15 +2469,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     renderMemoryPane();
   });
   // Export
-  $("memExportBtn")?.addEventListener("click", () => {
-    const data = JSON.stringify(memLoad(), null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+  $("memExportBtn")?.addEventListener("click", async () => {
     const dt = new Date().toISOString().slice(0, 10);
-    a.href = url; a.download = `hashui-memory-${dt}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    await downloadBlob(`hashcortx-memory-${dt}.json`, JSON.stringify(memLoad(), null, 2));
   });
   // Import
   $("memImportBtn")?.addEventListener("click", () => $("memImportFile").click());
@@ -5001,11 +5004,9 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
           dlBtn.className = "gen-img-dl";
           dlBtn.title = "Download image";
           dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Save`;
-          dlBtn.addEventListener("click", () => {
-            const a = document.createElement("a");
-            a.href = dataUrl;
-            a.download = `hash-image-${Date.now()}.png`;
-            a.click();
+          dlBtn.addEventListener("click", async () => {
+            const res = await fetch(dataUrl);
+            await downloadBlob(`hash-image-${Date.now()}.png`, await res.blob());
           });
           // Copy button
           const cpBtn = document.createElement("button");
@@ -6625,10 +6626,10 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       }
     },
     execute_python: {
-      description: "Run Python (Pyodide). Globals persist across calls. Files saved to /output/ auto-download.\nPre-installed: python-docx, openpyxl, reportlab, pandas, numpy, matplotlib.\nWord: from docx import Document; doc=Document(); doc.add_heading(t); doc.add_paragraph(p); doc.save('/output/x.docx').\nExcel: from openpyxl import Workbook; wb=Workbook(); ws=wb.active; ws.append(row); wb.save('/output/x.xlsx').\nPDF (use platypus, not Canvas.drawString for reports): from reportlab.platypus import SimpleDocTemplate,Table,TableStyle,Paragraph; from reportlab.lib.pagesizes import letter; from reportlab.lib.styles import getSampleStyleSheet; SimpleDocTemplate('/output/x.pdf',pagesize=letter).build([...]).\nNever paste this code in chat — call the tool.",
+      description: "Run Python (Pyodide). Globals persist across calls. Files written to /output/ are offered to the user to save; the result says which ones they kept.\nPre-installed: python-docx, openpyxl, reportlab, pandas, numpy, matplotlib.\nWord: from docx import Document; doc=Document(); doc.add_heading(t); doc.add_paragraph(p); doc.save('/output/x.docx').\nExcel: from openpyxl import Workbook; wb=Workbook(); ws=wb.active; ws.append(row); wb.save('/output/x.xlsx').\nPDF (use platypus, not Canvas.drawString for reports): from reportlab.platypus import SimpleDocTemplate,Table,TableStyle,Paragraph; from reportlab.lib.pagesizes import letter; from reportlab.lib.styles import getSampleStyleSheet; SimpleDocTemplate('/output/x.pdf',pagesize=letter).build([...]).\nNever paste this code in chat — call the tool.",
       parameters: {
         type: "object",
-        properties: { code: { type: "string", description: "Python source. Stdout is captured. Files written to /output/<name> are downloaded automatically." } },
+        properties: { code: { type: "string", description: "Python source. Stdout is captured. Files written to /output/<name> are offered to the user to save." } },
         required: ["code"]
       },
       statusLabel: a => `Running Python: ${(a.code || "").split("\n")[0].slice(0, 60)}`,
@@ -6652,19 +6653,37 @@ sys.stderr = _stderr
           const stdout = py.runPython("_stdout.getvalue()") || "";
           const stderr = py.runPython("_stderr.getvalue()") || "";
           py.runPython("sys.stdout = sys.__stdout__\nsys.stderr = sys.__stderr__");
+          // Whatever the code wrote to /output/ is a real file the user asked
+          // for — a .docx, .xlsx or .pdf built by genuine Python libraries. It
+          // used to be handed to an <a download>, which this webview cancels,
+          // so none of it ever reached a disk while the model was told it had.
+          //
+          // What goes back to the model now says whether each file was actually
+          // saved, and where. A model that is told "saved" writes "I've saved
+          // it to your Downloads" in the reply, and that has to be true.
           const files = [];
           try {
             const names = py.FS.readdir("/output").filter(n => n !== "." && n !== "..");
+            // One destination for the whole run. Asking per file would put a
+            // dialog in front of the user once per page of a report.
+            const folder = names.length > 1 ? await window.HC.save.folder("Save the generated files") : null;
             for (const name of names) {
               const path = "/output/" + name;
               const data = py.FS.readFile(path);
-              const blob = new Blob([data]);
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url; a.download = name;
-              document.body.appendChild(a); a.click(); a.remove();
-              setTimeout(() => URL.revokeObjectURL(url), 8000);
-              files.push({ filename: name, bytes: data.length });
+              const record = { filename: name, bytes: data.length, saved: false };
+              try {
+                const result = names.length > 1 && folder
+                  ? await window.HC.save.fileInto(folder, name, data)
+                  : (names.length > 1 && !folder
+                      ? { saved: false, reason: "cancelled" }
+                      : await window.HC.save.file(name, data));
+                record.saved = !!result.saved;
+                if (result.saved) record.savedTo = result.path;
+                else record.reason = result.reason || "cancelled";
+              } catch (e) {
+                record.reason = String(e?.message || e);
+              }
+              files.push(record);
               try { py.FS.unlink(path); } catch {}
             }
           } catch {}
@@ -6673,9 +6692,19 @@ sys.stderr = _stderr
             stderr: stderr.slice(0, 2000),
             error: runError,
             files,
-            note: files.length
-              ? `${files.length} file(s) downloaded to the user's computer: ${files.map(f => f.filename).join(", ")}`
-              : "No files written. To export a document for the user, write to /output/<filename>."
+            // The model reports this back to the user in its own words, so it
+            // has to distinguish saved from not saved. Telling it "downloaded"
+            // for a file the user cancelled makes the model state something
+            // untrue about their computer.
+            note: (() => {
+              if (!files.length) return "No files written. To export a document for the user, write to /output/<filename>.";
+              const saved = files.filter(f => f.saved);
+              const missed = files.filter(f => !f.saved);
+              const parts = [];
+              if (saved.length) parts.push(`Saved to the user's computer: ${saved.map(f => f.filename).join(", ")}.`);
+              if (missed.length) parts.push(`NOT saved (the user cancelled or the write failed), so do not tell the user these exist: ${missed.map(f => f.filename).join(", ")}.`);
+              return parts.join(" ");
+            })()
           };
         } catch (e) {
           return { error: "Python runtime failed to start: " + String(e?.message || e) };

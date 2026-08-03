@@ -3598,7 +3598,25 @@ Repair requirements:
 
   // ── Export ────────────────────────────────────────────────────────
 
-  function exportCSV(spec, entityId) {
+  /**
+   * Write one export, and answer whether it landed.
+   *
+   * Every export here used to be an <a download>, which this webview cancels
+   * outright (see platform/tauri/save.js), so the trace logged "Exported" over
+   * a file that was never written. A cancel is quiet; a failure is said out loud.
+   */
+  async function saveExport(filename, content, mime) {
+    try {
+      const result = await window.HC.save.file(filename, content, mime ? { mime } : undefined);
+      if (!result.saved) { trace("Export cancelled", "warn"); return false; }
+      return true;
+    } catch (err) {
+      trace(`Export failed: ${err?.message || err}`, "err");
+      return false;
+    }
+  }
+
+  async function exportCSV(spec, entityId) {
     const entity = spec?.entities?.[entityId];
     const data = getRuntimeData(spec);
     const rows = data[entityId] || [];
@@ -3609,37 +3627,38 @@ Repair requirements:
       fields.map(f => f.label),
       rows.map(r => fields.map(f => r[f.id]))
     );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    a.download = `${slug(entity?.name || "export")}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    if (!await saveExport(`${slug(entity?.name || "export")}.csv`, csv)) return;
     trace(`Exported ${entity?.name} as CSV`, "ok");
   }
 
-  function exportAllEntitiesCSV(spec) {
+  async function exportAllEntitiesCSV(spec) {
     const data = getRuntimeData(spec);
-    Object.values(spec.entities || {}).forEach(entity => {
+    const entities = Object.values(spec.entities || {});
+    if (!entities.length) { trace("There are no tables to export", "warn"); return; }
+    // One folder for the whole set, so exporting eight tables asks once
+    // rather than eight times.
+    const folder = await window.HC.save.folder("Choose where to put the CSV files");
+    if (!folder && window.HC.isTauri) { trace("Export cancelled", "warn"); return; }
+    let written = 0;
+    for (const entity of entities) {
       const rows = data[entity.id] || [];
       const fields = entity.fields || [];
       const csv = window.HCExport.csvDocument(
         fields.map(f => f.label),
         rows.map(r => fields.map(f => r[f.id]))
       );
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      a.download = `${slug(spec.name)}_${slug(entity.name)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(a.href);
-    });
-    trace(`Exported all entities as CSV`, "ok");
+      const name = `${slug(spec.name)}_${slug(entity.name)}.csv`;
+      try {
+        const result = await window.HC.save.fileInto(folder, name, csv, { mime: "text/csv;charset=utf-8" });
+        if (result.saved) written++;
+      } catch (err) {
+        trace(`Could not save ${name}: ${err?.message || err}`, "err");
+      }
+    }
+    trace(`Exported ${written} of ${entities.length} table(s) as CSV`, written ? "ok" : "warn");
   }
 
-  function exportJSON(spec) {
+  async function exportJSON(spec) {
     const data = getRuntimeData(spec);
     const backup = {
       name: spec.name, description: spec.description,
@@ -3650,13 +3669,7 @@ Repair requirements:
       ])),
       workflows: spec.workflows || [],
     };
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" }));
-    a.download = `${slug(spec.name || "erp-backup")}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    if (!await saveExport(`${slug(spec.name || "erp-backup")}.json`, JSON.stringify(backup, null, 2))) return;
     trace(`Exported full system backup as JSON`, "ok");
   }
 

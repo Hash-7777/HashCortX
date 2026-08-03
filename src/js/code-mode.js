@@ -1547,22 +1547,22 @@
       });
     }
 
-    function doExport(fmt) {
+    async function doExport(fmt) {
       const ts = Date.now();
       const proj = sharedState.projectRoot ? sharedState.projectRoot.split('/').slice(-1)[0] : 'chat';
 
       if (fmt === 'txt') {
         const out = buildPlainText();
-        downloadBlob(out, 'text/plain', `hashcortx-${proj}-${ts}.txt`);
+        await downloadBlob(out, 'text/plain', `hashcortx-${proj}-${ts}.txt`);
       } else if (fmt === 'md') {
         const out = buildMarkdown();
-        downloadBlob(out, 'text/markdown', `hashcortx-${proj}-${ts}.md`);
+        await downloadBlob(out, 'text/markdown', `hashcortx-${proj}-${ts}.md`);
       } else if (fmt === 'code') {
         const out = buildCodeOnly();
         if (!out.trim()) { alert('No fenced code blocks found in this conversation.'); return; }
-        downloadBlob(out, 'text/plain', `hashcortx-${proj}-code-${ts}.txt`);
+        await downloadBlob(out, 'text/plain', `hashcortx-${proj}-code-${ts}.txt`);
       } else if (fmt === 'pdf') {
-        exportAsPdf(`hashcortx-${proj}-${ts}.pdf`);
+        await exportAsPdf(`hashcortx-${proj}-${ts}.pdf`);
       }
     }
 
@@ -1614,23 +1614,27 @@
       return out.join('\n');
     }
 
-    function downloadBlob(content, mime, filename) {
-      const blob = new Blob([content], { type: mime });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-      setStatus(`Exported · ${filename}`, 'ok');
+    // Goes through HC.save: the old <a download> is cancelled outright by
+    // this webview (see platform/tauri/save.js), so this reported "Exported"
+    // over a file that was never written.
+    async function downloadBlob(content, mime, filename) {
+      try {
+        const result = await window.HC.save.file(filename, content, { mime });
+        if (!result.saved) { setStatus('Ready', ''); return; }
+        setStatus(`Exported · ${filename}`, 'ok');
+      } catch (e) {
+        setStatus(`Export failed · ${e?.message || e}`, 'err');
+        return;
+      }
       setTimeout(() => setStatus('Ready', ''), 2400);
     }
 
-    function exportAsPdf(filename) {
+    async function exportAsPdf(filename) {
       // jsPDF is loaded as window.jspdf.jsPDF (UMD bundle, included in index.html)
       const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
       if (!jsPDFCtor) {
         // No jsPDF available — fall back to opening a printable HTML window
-        return exportAsPdfPrintFallback(filename);
+        return await exportAsPdfPrintFallback(filename);
       }
       try {
         const pdf = new jsPDFCtor({ unit: 'pt', format: 'a4' });
@@ -1673,16 +1677,16 @@
           }
           if (last < text.length) write(text.slice(last).trim());
         }
-        pdf.save(filename);
-        setStatus(`Exported · ${filename}`, 'ok');
-        setTimeout(() => setStatus('Ready', ''), 2400);
+        // Not pdf.save() — jsPDF saves through <a download>, the route this
+        // webview cancels, so the status said "Exported" over nothing.
+        await downloadBlob(pdf.output('blob'), 'application/pdf', filename);
       } catch (e) {
         console.warn('[CoderMode] PDF export error:', e);
-        exportAsPdfPrintFallback(filename);
+        await exportAsPdfPrintFallback(filename);
       }
     }
 
-    function exportAsPdfPrintFallback(filename) {
+    async function exportAsPdfPrintFallback(filename) {
       // Build a styled HTML page and open print dialog — user picks "Save as PDF"
       const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(filename)}</title>
 <style>
@@ -1704,13 +1708,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 </body></html>`;
       const w = window.open('', '_blank');
       if (!w) {
-        // Pop-up blocked → blob URL workaround
-        const blob = new Blob([html], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = filename.replace(/\.pdf$/, '.html');
-        a.click();
-        setStatus('Saved as HTML — open and Print > Save as PDF', 'ok');
+        // No window to print from, so offer the page as a file instead.
+        await downloadBlob(html, 'text/html', filename.replace(/\.pdf$/, '.html'));
         return;
       }
       w.document.open(); w.document.write(html); w.document.close();

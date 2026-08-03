@@ -1442,16 +1442,16 @@
     }
     updateStage("export", "active", `writing ${kind.toUpperCase()}`);
     const base = safeFileName(activePlan?.name || $("frgPrompt")?.value || "3d-forge-model");
+    let saved = false;
     try {
       if (kind === "glb") {
         if (activePlan?.glbUrl) {
-          const a = document.createElement("a");
-          a.href = activePlan.glbUrl;
-          a.download = `${base}.glb`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          log("Pipeline", "Downloaded kernel GLB asset", "ok");
+          const asset = await fetch(activePlan.glbUrl).then(r => r.blob());
+          if (!await downloadBlob(`${base}.glb`, asset)) {
+            updateStage("export", "idle", "not saved");
+            return;
+          }
+          log("Pipeline", "Saved kernel GLB asset", "ok");
           updateStage("export", "done", "GLB exported");
           return;
         }
@@ -1460,16 +1460,19 @@
         const result = await new Promise((resolve, reject) => {
           exporter.parse(object, resolve, reject, { binary: true, onlyVisible: true, trs: false });
         });
-        downloadBlob(`${base}.glb`, new Blob([result], { type: "model/gltf-binary" }));
+        saved = await downloadBlob(`${base}.glb`, new Blob([result], { type: "model/gltf-binary" }));
       } else if (kind === "obj") {
         await ensurePipelineModule("objExporter");
         const text = new OBJExporter().parse(object);
-        downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
+        saved = await downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
       } else if (kind === "stl") {
         await ensurePipelineModule("stlExporter");
         const result = new STLExporter().parse(object, { binary: true });
-        downloadBlob(`${base}.stl`, new Blob([result], { type: "model/stl" }));
+        saved = await downloadBlob(`${base}.stl`, new Blob([result], { type: "model/stl" }));
       }
+      // Only claim it when it happened. The export used to be announced before
+      // anything was written, and nothing ever was.
+      if (!saved) { updateStage("export", "idle", "not saved"); return; }
       log("Pipeline", `Exported ${kind.toUpperCase()} asset`, "ok");
       updateStage("export", "done", `${kind.toUpperCase()} exported`);
     } catch (err) {
@@ -1549,15 +1552,21 @@
     return String(name || "3d-forge-model").toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "3d-forge-model";
   }
 
-  function downloadBlob(name, blob) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1200);
+  // Goes through HC.save. The old route was an <a download>, which this
+  // webview cancels outright (see platform/tauri/save.js) — so every Forge
+  // export logged success and wrote nothing.
+  async function downloadBlob(name, blob) {
+    try {
+      const result = await window.HC.save.file(name, blob);
+      if (!result.saved) {
+        log("Pipeline", "Export cancelled", "warn");
+        return false;
+      }
+      return true;
+    } catch (e) {
+      log("Pipeline", `Export failed: ${e?.message || e}`, "err");
+      return false;
+    }
   }
 
   function selectNodeById(nodeId) {

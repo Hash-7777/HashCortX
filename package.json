@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory",
+    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:save",
     "check:syntax": "node scripts/checks/syntax.mjs",
     "check:guard": "node scripts/checks/guard.mjs",
     "check:rag": "node scripts/checks/rag.mjs",
@@ -26,7 +26,8 @@
     "check:markdown": "node scripts/checks/markdown-safe.mjs",
     "check:shape": "node scripts/checks/agent-shape.mjs",
     "check:model-names": "node scripts/checks/model-names.mjs",
-    "check:memory": "node scripts/checks/memory.mjs"
+    "check:memory": "node scripts/checks/memory.mjs",
+    "check:save": "node scripts/checks/save.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

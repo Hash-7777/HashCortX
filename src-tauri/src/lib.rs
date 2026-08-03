@@ -9,6 +9,7 @@ use commands::{
     audit::{audit_log_append, audit_log_read},
     checkpoint::{checkpoint_drop, checkpoint_read, checkpoint_save},
     embed::{embed_available, embed_texts},
+    export::export_write_file,
     fs::{
         fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files,
         fs_write_file,
@@ -69,6 +70,8 @@ pub fn run() {
             checkpoint_save,
             checkpoint_read,
             checkpoint_drop,
+            // Export — write a file the user named in a native save dialog
+            export_write_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");

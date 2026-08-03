@@ -2508,7 +2508,20 @@ function _polishToast(text, isError) {
     }
   }
 
-  function _polisherDownload() {
+  // Saving goes through HC.save. An <a download> is cancelled outright by
+  // this webview (see platform/tauri/save.js), so every one of these said it
+  // had downloaded something and had not.
+  async function swarmSave(filename, content, mime) {
+    try {
+      const result = await window.HC.save.file(filename, content, mime ? { mime } : undefined);
+      return !!result.saved;
+    } catch (err) {
+      _polishToast(`Could not save: ${err?.message || err}`, true);
+      return false;
+    }
+  }
+
+  async function _polisherDownload() {
     // Build merged HTML fresh from swarm output every time
     const source = lastSwarmOutput;
     const statusEl = document.getElementById("amkPolisherStatus");
@@ -2532,14 +2545,12 @@ function _polishToast(text, isError) {
       return;
     }
 
-    setStatus("Downloading…", "running");
-    const blob = new Blob([_polishedHtmlCache], { type: "text/html;charset=utf-8" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "site.html";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    setStatus("Downloaded ✓", "done");
+    setStatus("Saving…", "running");
+    if (!await swarmSave("site.html", _polishedHtmlCache, "text/html;charset=utf-8")) {
+      setStatus("", "");
+      return;
+    }
+    setStatus("Saved ✓", "done");
     setTimeout(() => setStatus("", ""), 3000);
   }
 
@@ -2914,16 +2925,11 @@ function _polishToast(text, isError) {
     document.getElementById("amkPeekCopyBtn")?.addEventListener("click", () => {
       if (lastSwarmOutput) navigator.clipboard.writeText(lastSwarmOutput).catch(() => {});
     });
-    document.getElementById("amkPeekExportBtn")?.addEventListener("click", () => {
+    document.getElementById("amkPeekExportBtn")?.addEventListener("click", async () => {
       if (!lastSwarmOutput) return;
       const bp = getActive();
       const stem = (bp?.name || "swarm-output").replace(/\s+/g, "-").toLowerCase();
-      const blob = new Blob([lastSwarmOutput], { type: "text/markdown;charset=utf-8" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${stem}-${Date.now()}.md`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      await swarmSave(`${stem}-${Date.now()}.md`, lastSwarmOutput, "text/markdown;charset=utf-8");
     });
 
     // Trace console toggle
@@ -2948,12 +2954,8 @@ function _polishToast(text, isError) {
     document.getElementById("amkExportBlueprintBtn")?.addEventListener("click", async () => {
       const bp = getActive();
       if (!bp) { await amkAlert("No active blueprint to export."); return; }
-      const json = JSON.stringify(bp, null, 2);
-      const blob = new Blob([json], { type: "application/json" });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href = url; a.download = (bp.name || "blueprint").replace(/\s+/g,"_") + ".json";
-      a.click(); URL.revokeObjectURL(url);
+      await swarmSave((bp.name || "blueprint").replace(/\s+/g, "_") + ".json",
+        JSON.stringify(bp, null, 2), "application/json;charset=utf-8");
     });
 
     // God Agent modal
