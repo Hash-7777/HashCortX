@@ -21,25 +21,25 @@ body.finance-mode #app > *:not(#finance-wrap) { display: none !important; }
 
 /* ── Design tokens ─────────────────────────────────────────────────── */
 #finance-wrap {
-  --fin-bg:         #06080f;
-  --fin-surface:    #0b0f1c;
-  --fin-surface-2:  #0f1525;
-  --fin-card:       rgba(15,21,37,.82);
-  --fin-border:     rgba(100,116,139,.12);
-  --fin-border-hi:  rgba(100,116,139,.22);
-  --fin-primary:    #10b981;
-  --fin-primary-d:  rgba(16,185,129,.12);
-  --fin-accent:     #6366f1;
+  --fin-bg:         var(--surface-0);
+  --fin-surface:    var(--surface-1);
+  --fin-surface-2:  var(--surface-2);
+  --fin-card:       var(--panel);
+  --fin-border:     var(--line);
+  --fin-border-hi:  var(--line-strong);
+  --fin-primary:    var(--accent);
+  --fin-primary-d:  var(--accent-soft);
+  --fin-accent:     var(--info);
   --fin-accent-d:   rgba(99,102,241,.12);
-  --fin-gold:       #f59e0b;
-  --fin-gold-d:     rgba(245,158,11,.12);
-  --fin-danger:     #f43f5e;
-  --fin-danger-d:   rgba(244,63,94,.12);
-  --fin-text:       #f1f5f9;
-  --fin-sub:        #94a3b8;
-  --fin-muted:      #475569;
-  --fin-radius:     10px;
-  --fin-radius-sm:  7px;
+  --fin-gold:       var(--warn);
+  --fin-gold-d:     var(--warn-soft);
+  --fin-danger:     var(--danger);
+  --fin-danger-d:   var(--danger-soft);
+  --fin-text:       var(--text);
+  --fin-sub:        var(--text-dim);
+  --fin-muted:      var(--muted);
+  --fin-radius:     var(--radius-sm);
+  --fin-radius-sm:  var(--radius-xs);
 }
 
 /* ── Header ────────────────────────────────────────────────────────── */

@@ -1429,11 +1429,15 @@
   position: fixed; inset: 0; z-index: 9999;
   /* HashCortx green palette — replaces Hash_UI amber */
   --bg-0: #040507; --bg-1: #08090d; --bg-2: #0d0f14;
-  --line: rgba(34,211,238,0.12); --line-soft: rgba(34,211,238,0.07);
-  --line-strong: rgba(34,211,238,0.28);
+  /* Scoped to this splash under its own names. It used to override --line,
+     --line-strong and --ok directly, which meant "ok" was a different colour
+     inside the intro than everywhere else in the app — the one thing the
+     shared tokens exist to prevent. */
+  --intro-line-soft: rgba(34,211,238,0.07);
+  --intro-line-strong: rgba(34,211,238,0.28);
   --ink: #c7e6f0; --ink-mute: rgba(199,230,240,0.65); --ink-dim: rgba(199,230,240,0.38); --ink-faint: rgba(199,230,240,0.18);
   --gold: #22d3ee; --gold-bright: #6feaff; --gold-deep: #1a5a7a;
-  --accent-glow: rgba(34,211,238,0.45); --ok: #22d3ee;
+  --accent-glow: rgba(34,211,238,0.45); --intro-ok: #22d3ee;
   --font-display: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   font-family: "JetBrains Mono", ui-monospace, monospace;
@@ -1463,8 +1467,8 @@
 }
 #intro-screen .grid-bg {
   position: absolute; inset: 0;
-  background-image: linear-gradient(var(--line-soft) 1px, transparent 1px),
-                    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+  background-image: linear-gradient(var(--intro-line-soft) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--intro-line-soft) 1px, transparent 1px);
   background-size: 60px 60px; opacity: 0.4;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
   -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
@@ -1484,7 +1488,7 @@
   color: var(--ink-dim); line-height: 1.68; text-transform: uppercase;
   width: auto; max-width: min(34vw, 430px); z-index: 4;
 }
-#intro-screen .boot-lines .ok   { color: var(--ok); }
+#intro-screen .boot-lines .ok   { color: var(--intro-ok); }
 #intro-screen .boot-lines .gold { color: var(--gold); }
 #intro-screen .boot-lines .dim  { color: var(--ink-faint); }
 #intro-screen .boot-lines .row  { opacity: 0; animation: ifl 0.5s forwards; display: flex; gap: 6px; flex-wrap: nowrap; align-items: baseline; white-space: nowrap; }
@@ -1503,7 +1507,7 @@
 }
 #intro-screen .boot-meter .grp { margin-bottom: 8px; }
 #intro-screen .boot-meter .row { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 3px; }
-#intro-screen .boot-meter .bar { height: 1.5px; background: var(--line-soft); position: relative; overflow: hidden; }
+#intro-screen .boot-meter .bar { height: 1.5px; background: var(--intro-line-soft); position: relative; overflow: hidden; }
 #intro-screen .boot-meter .bar::after {
   content: ""; position: absolute; inset: 0;
   background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
@@ -1558,7 +1562,7 @@
 }
 #intro-screen .ring {
   position: absolute; border-radius: 50%;
-  border: 1px solid var(--line-strong); pointer-events: none;
+  border: 1px solid var(--intro-line-strong); pointer-events: none;
 }
 #intro-screen .ring::before {
   content: ""; position: absolute;
@@ -1682,15 +1686,15 @@
 #intro-screen .status-badge {
   position: absolute; top: 20%; left: 50%; transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 12px;
-  border: 1px solid var(--line-strong); border-radius: 999px;
+  border: 1px solid var(--intro-line-strong); border-radius: 999px;
   background: rgba(34,211,238,.04);
   font-family: var(--font-mono); font-size: clamp(7.8px, 0.72vw, 9px); letter-spacing: .24em;
   color: var(--gold); text-transform: uppercase; z-index: 4;
   animation: ifi 1s 1.2s both;
 }
 #intro-screen .status-badge .dot {
-  width:7px; height:7px; border-radius:50%; background: var(--ok);
-  box-shadow: 0 0 8px var(--ok); animation: idotpulse 1.4s ease-in-out infinite;
+  width:7px; height:7px; border-radius:50%; background: var(--intro-ok);
+  box-shadow: 0 0 8px var(--intro-ok); animation: idotpulse 1.4s ease-in-out infinite;
 }
 #intro-screen .boot-lines .fail { color: #e07070; }
 #intro-screen .boot-meter .bar.fail::after {

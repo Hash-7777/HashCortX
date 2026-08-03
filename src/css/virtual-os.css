@@ -15,14 +15,14 @@
   font-family: var(--sans);
   overflow: hidden;
   flex-direction: column;
-  --void: #22d3ee;
-  --void-2: #86efac;
-  --void-line: rgba(34, 211, 238, 0.24);
-  --void-dim: rgba(34, 211, 238, 0.09);
-  --void-panel: rgba(3, 10, 18, 0.84);
-  --void-panel-2: rgba(6, 17, 26, 0.92);
-  --void-danger: #f87171;
-  --void-gold: #22d3ee;
+  --void: var(--accent);
+  --void-2: var(--accent-2);
+  --void-line: var(--accent-line);
+  --void-dim: var(--accent-soft);
+  --void-panel: var(--panel);
+  --void-panel-2: var(--panel-solid);
+  --void-danger: var(--danger);
+  --void-gold: var(--accent);
 }
 
 body.virtual-os-mode #virtual-os-wrap { display: flex; }
@@ -260,16 +260,16 @@ body.virtual-os-mode #app { display: none; }
   overflow: hidden;
   background: #040507;
   border-right: 1px solid rgba(57, 255, 129, 0.13);
-  --tp-bg:      #040507;
-  --tp-bg2:     #08090d;
-  --tp-bg3:     #0d130d;
-  --tp-fg:      #c7e6f0;
+  --tp-bg:      var(--surface-0);
+  --tp-bg2:     var(--surface-1);
+  --tp-bg3:     var(--surface-2);
+  --tp-fg:      var(--text);
   --tp-fg-dim:  rgba(178, 245, 200, 0.36);
-  --tp-accent:  #22d3ee;
+  --tp-accent:  var(--accent);
   --tp-border:  rgba(57, 255, 129, 0.15);
-  --tp-cyan:    #22d3ee;
-  --tp-amber:   #fbbf24;
-  --tp-err:     #f87171;
+  --tp-cyan:    var(--accent);
+  --tp-amber:   var(--warn);
+  --tp-err:     var(--danger);
 }
 
 /* Finder is position:absolute inside #virtual-os-wrap (position:fixed; inset:0)

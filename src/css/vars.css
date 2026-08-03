@@ -1,3 +1,24 @@
+/* ============================================================
+   The tokens every mode shares.
+
+   HashCortx is one app with several modes, and it stopped looking like one.
+   Each mode had grown its own copy of the same decisions: five different
+   near-blacks for the background, four different borders, four different reds
+   all meaning "danger" and four different greens all meaning "success", and
+   radii of 6, 7, 8, 10 and 14 pixels. None of that was ever a design choice —
+   it is what happens when a mode is built beside the others instead of on top
+   of them.
+
+   So the surfaces, lines, text, spacing, radii and the colours that carry
+   meaning live here, once. A mode declares its accent and nothing else, which
+   is what keeps the modes recognisable from each other while the app stays
+   recognisable as itself.
+
+   scripts/checks/theme.mjs enforces that: a mode stylesheet may name a colour
+   only when assigning its own accent. Without it this drifts apart again, one
+   reasonable-looking hex at a time.
+   ============================================================ */
+
   :root {
     color-scheme: dark;
     --bg-0: #06070a;
@@ -28,5 +49,123 @@
     --serif: "Cormorant Garamond", "Playfair Display", ui-serif, Georgia, "Times New Roman", serif;
     --script: "Snell Roundhand", "Zapfino", "Apple Chancery", "Segoe Script", "Lucida Handwriting", cursive;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+
+    /* ── Surfaces ────────────────────────────────────────────────────────
+       Four steps, deepest first. A mode that wants a darker panel picks the
+       next step down rather than inventing a new near-black. */
+    --surface-0: var(--bg-0);
+    --surface-1: var(--bg-1);
+    --surface-2: var(--bg-2);
+    --surface-raised: rgba(255, 255, 255, 0.035);
+    --surface-sunken: rgba(0, 0, 0, 0.28);
+
+    /* ── Spacing ─────────────────────────────────────────────────────────
+       One scale, so gaps line up across panels that were built separately. */
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+
+    /* ── Controls ────────────────────────────────────────────────────────
+       Buttons, inputs and selects share a height per size, which is what
+       stops a row of controls from sitting at four different heights. */
+    --control-h-sm: 26px;
+    --control-h: 32px;
+    --control-h-lg: 40px;
+    --radius-xs: 6px;
+    --radius-sm: 8px;
+
+    /* ── Colour that carries meaning ─────────────────────────────────────
+       These say what happened, so they must not vary by mode. A user should
+       never have to learn that danger is one red here and a different red
+       two tabs over. */
+    --ok: var(--emerald);
+    --warn: #f5c97a;
+    --danger: var(--rose);
+    --info: #7dd3fc;
+    --ok-soft: rgba(74, 222, 128, 0.12);
+    --warn-soft: rgba(245, 201, 122, 0.12);
+    --danger-soft: rgba(248, 113, 113, 0.12);
+
+    /* ── Accent ──────────────────────────────────────────────────────────
+       The one thing a mode is allowed to change. Everything above stays put.
+       Gold is the app's own, so it is the default and what chat wears. */
+    --accent: var(--gold);
+    --accent-2: var(--gold-2);
+    --accent-soft: rgba(201, 169, 110, 0.12);
+    --accent-line: rgba(201, 169, 110, 0.26);
+    /* Text that sits ON the accent, when the accent is a filled background. */
+    --accent-ink: #14100a;
   }
 
+  /* ── What each mode wears ────────────────────────────────────────────────
+     One block, so the answer to "what colour is this mode" is in one place
+     rather than spread through seven stylesheets. The hues are the ones each
+     mode already had — the point of this file is not to restyle them, it is
+     to stop everything around the accent from differing too.
+
+     A mode sets these four and nothing else. theme.mjs checks that. */
+
+  /* Coder carries two: the green is the terminal signal, the mint is what the
+     surrounding panels have always used. Both were already here — naming them
+     accent and accent-2 changes nothing on screen and makes the pair explicit
+     instead of one being a stray hex repeated seven times. */
+  body.coder-mode {
+    --accent: #39ff81;
+    --accent-2: #4bd2be;
+    --accent-soft: rgba(57, 255, 129, 0.10);
+    --accent-line: rgba(57, 255, 129, 0.24);
+    --accent-ink: #04140a;
+  }
+
+  body.forge-studio-mode {
+    --accent: #9ff4e7;
+    --accent-2: #4bd2be;
+    --accent-soft: rgba(159, 244, 231, 0.10);
+    --accent-line: rgba(159, 244, 231, 0.24);
+    --accent-ink: #05201c;
+  }
+
+  body.system-maker-mode {
+    --accent: #38bdf8;
+    --accent-2: #7dd3fc;
+    --accent-soft: rgba(56, 189, 248, 0.10);
+    --accent-line: rgba(56, 189, 248, 0.24);
+    --accent-ink: #04141f;
+  }
+
+  body.virtual-os-mode {
+    --accent: #22d3ee;
+    --accent-2: #86efac;
+    --accent-soft: rgba(34, 211, 238, 0.10);
+    --accent-line: rgba(34, 211, 238, 0.24);
+    --accent-ink: #041519;
+  }
+
+  body.finance-mode {
+    --accent: #10b981;
+    --accent-2: #34d399;
+    --accent-soft: rgba(16, 185, 129, 0.10);
+    --accent-line: rgba(16, 185, 129, 0.24);
+    --accent-ink: #04150f;
+  }
+
+  body.agent-maker-mode {
+    --accent: #60a5fa;
+    --accent-2: #93c5fd;
+    --accent-soft: rgba(96, 165, 250, 0.10);
+    --accent-line: rgba(96, 165, 250, 0.24);
+    --accent-ink: #050f1e;
+  }
+
+  /* Sandbox has no body class of its own — it stays inside the app shell —
+     so its accent hangs off the pane it renders into. */
+  .sbx-mode {
+    --accent: #00ff41;
+    --accent-2: #a8ffb8;
+    --accent-soft: rgba(0, 255, 65, 0.10);
+    --accent-line: rgba(0, 255, 65, 0.24);
+    --accent-ink: #021206;
+  }

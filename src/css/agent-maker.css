@@ -23,19 +23,19 @@ body.agent-maker-mode #app { display: none; }
 
 /* ── CSS tokens scoped to this mode ── */
 #agent-maker-wrap {
-  --amk:        #4ade80;           /* terminal green  — TEXT only   */
-  --amk-bright: #86efac;           /* light green     — TEXT only   */
-  --amk-ui:     #3b82f6;           /* blue            — UI accents  */
-  --amk-ui-b:   #60a5fa;           /* light blue      — UI hover    */
-  --amk-dim:    rgba(59,130,246,0.11);
+  --amk:        var(--ok);           /* terminal green  — TEXT only   */
+  --amk-bright: var(--accent-2);           /* light green     — TEXT only   */
+  --amk-ui:     var(--accent);           /* blue            — UI accents  */
+  --amk-ui-b:   var(--accent);           /* light blue      — UI hover    */
+  --amk-dim:    var(--accent-soft);
   --amk-glow:   rgba(59,130,246,0.26);
-  --amk-line:   rgba(59,130,246,0.22);
-  --amk-gold:   #22d3ee;
-  --amk-emerald:#4ade80;
-  --amk-rose:   #f87171;
-  --amk-amber:  #fbbf24;
-  --amk-cyan:   #22d3ee;
-  --amk-bg:     rgba(0, 4, 12, 0.97);
+  --amk-line:   var(--accent-line);
+  --amk-gold:   var(--warn);
+  --amk-emerald:var(--ok);
+  --amk-rose:   var(--danger);
+  --amk-amber:  var(--warn);
+  --amk-cyan:   var(--info);
+  --amk-bg:     var(--surface-0);
 }
 /* Dialog also needs these tokens */
 .amk-dialog { --amk: #4ade80; --amk-bright: #86efac; --amk-ui: #3b82f6; --amk-dim: rgba(59,130,246,0.11); --amk-line: rgba(59,130,246,0.22); --amk-rose: #f87171; }

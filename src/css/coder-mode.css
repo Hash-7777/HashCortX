@@ -14,26 +14,26 @@
   flex-direction: column;
 
   /* ── Terminal-inspired palette ─────────────────────────────── */
-  --cdr-bg:        #0a0a0f;
-  --cdr-bg-panel:  #111118;
-  --cdr-bg-chat:   #0d0d12;
-  --cdr-bg-input:  #13131a;
-  --cdr-border:    rgba(255,255,255,0.06);
-  --cdr-border-hover: rgba(255,255,255,0.10);
+  --cdr-bg:        var(--surface-0);
+  --cdr-bg-panel:  var(--surface-2);
+  --cdr-bg-chat:   var(--surface-1);
+  --cdr-bg-input:  var(--surface-2);
+  --cdr-border:    var(--line);
+  --cdr-border-hover: var(--line-strong);
 
-  --cdr-text:      #e8e8ec;
-  --cdr-text-dim:  #6b6b78;
-  --cdr-text-muted:#4a4a55;
+  --cdr-text:      var(--text);
+  --cdr-text-dim:  var(--text-dim);
+  --cdr-text-muted:var(--muted);
 
-  --cdr-cyan:      #4bd2be;
-  --cdr-gold:      #f5c97a;
-  --cdr-violet:    #7c6af5;
-  --cdr-rose:      #ff8f8f;
-  --cdr-success:   #5fb88a;
-  --cdr-error:     #d98a85;
+  --cdr-cyan:      var(--accent-2);
+  --cdr-gold:      var(--warn);
+  --cdr-violet:    var(--info);
+  --cdr-rose:      var(--danger);
+  --cdr-success:   var(--ok);
+  --cdr-error:     var(--danger);
 
-  --cdr-radius:    6px;
-  --cdr-radius-lg: 8px;
+  --cdr-radius:    var(--radius-xs);
+  --cdr-radius-lg: var(--radius-sm);
 }
 body.coder-mode #coder-mode-wrap { display: flex; }
 body.coder-mode #app { display: none; }
@@ -763,7 +763,7 @@ body.coder-mode #app { display: none; }
 
 /* ── Bash preview in terminal ───────────────────────────────── */
 .cdr-bash-preview {
-  color: #39ff81;
+  color: var(--accent);
   font-family: var(--mono);
   font-size: 11px;
   padding: 2px 0;
@@ -1030,7 +1030,7 @@ body.coder-mode #app { display: none; }
 }
 .cdr-run-btn {
   background: #10141a;
-  color: #39ff81;
+  color: var(--accent);
   border-color: rgba(57,255,129,0.32);
   box-shadow: inset 0 0 0 1px rgba(57,255,129,0.04);
 }
@@ -1141,7 +1141,7 @@ body.coder-mode #app { display: none; }
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 11px;
   line-height: 1.35;
-  color: #39ff81;
+  color: var(--accent);
   background: #080a08;
   letter-spacing: 0;
 }
@@ -1151,7 +1151,7 @@ body.coder-mode #app { display: none; }
   padding: 0;
 }
 .cdr-terminal-prompt {
-  color: #39ff81;
+  color: var(--accent);
 }
 .cdr-terminal-muted {
   color: rgba(57,255,129,0.62);
@@ -1165,7 +1165,7 @@ body.coder-mode #app { display: none; }
   background: #080a08;
 }
 .cdr-terminal-input span {
-  color: #39ff81;
+  color: var(--accent);
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 11px;
   line-height: 1.35;
@@ -1175,13 +1175,13 @@ body.coder-mode #app { display: none; }
   flex: 1;
   background: transparent;
   border: none;
-  color: #39ff81;
+  color: var(--accent);
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 11px;
   line-height: 1.35;
   outline: none;
   min-width: 0;
-  caret-color: #39ff81;
+  caret-color: var(--accent);
 }
 .cdr-terminal-input input::placeholder { color: rgba(57,255,129,0.42); }
 
