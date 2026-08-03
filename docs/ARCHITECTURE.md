@@ -62,7 +62,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 208 of
+├── scripts/checks/                  the automated frontend checks — 222 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -74,7 +74,9 @@ HashCortX/
 │   ├── layout.mjs                   the CSS mistakes that clip text
 │   ├── power.mjs                    what stops when nobody is looking
 │   ├── native-surface.mjs           which files may reach the machine
-│   └── usage.mjs                    every path records real token counts
+│   ├── usage.mjs                    every path records real token counts
+│   └── dom-ids.mjs                  every element lookup resolves, or is
+│                                    written down as deliberately absent
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -146,7 +148,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 208 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface and the usage log. They load the real source, but none of them drives the UI: nothing catches a broken button.
+- The frontend's automated coverage is `scripts/checks/` — 222 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log and element lookups. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

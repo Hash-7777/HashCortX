@@ -90,6 +90,12 @@ jobs:
       - name: Usage-log checks
         run: npm run check:usage
 
+      # getElementById returns null rather than throwing, so a control removed
+      # from the markup silently disables the code that reads it. This makes
+      # every such lookup a written-down decision instead of a surprise.
+      - name: Element-lookup checks
+        run: npm run check:dom
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
