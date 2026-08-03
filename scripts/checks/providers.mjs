@@ -134,5 +134,111 @@ console.log('\nA ready-made request has both halves:');
   ok('it has the headers', r.headers.Authorization === 'Bearer KEY123');
 }
 
+console.log('\nMoonshot answers on four hosts, and the order matters:');
+{
+  ok('the OpenAI-compatible bases are all listed', P.MOONSHOT_API_BASES.length === 4);
+  ok('and the Anthropic-protocol ones too', P.KIMI_ANTHROPIC_BASES.length === 4);
+  ok('every base is https', [...P.MOONSHOT_API_BASES, ...P.KIMI_ANTHROPIC_BASES]
+    .every((b) => b.startsWith('https://')));
+  ok('all of them are inside connect-src',
+    [...P.MOONSHOT_API_BASES, ...P.KIMI_ANTHROPIC_BASES].every((b) => cspAllows(new URL(b).origin)));
+
+  const base = P.MOONSHOT_API_BASES[2];
+  const ordered = P.orderedMoonshotBases(base);
+  ok('a base that worked before is tried first', ordered[0] === base);
+  ok('and the rest still follow it', ordered.length === P.MOONSHOT_API_BASES.length);
+  ok('no base is lost or repeated', new Set(ordered).size === P.MOONSHOT_API_BASES.length);
+  ok('with nothing remembered, the default order stands',
+    P.orderedMoonshotBases(null)[0] === P.MOONSHOT_API_BASES[0]);
+  ok('a remembered base that is not one of ours is ignored',
+    P.orderedMoonshotBases('https://elsewhere.example/v1')[0] === P.MOONSHOT_API_BASES[0]);
+}
+
+console.log('\nA key refused by the wrong platform is not treated as a bad key:');
+{
+  // kimi.com and the older Moonshot platforms are separate account systems, so
+  // a valid key returns 401 on the wrong one. Stopping there would report a
+  // working key as broken.
+  ok('401 tries the next host', P.shouldTryNextMoonshotEndpoint(401) === true);
+  ok('403 tries the next host', P.shouldTryNextMoonshotEndpoint(403) === true);
+  ok('404 tries the next host', P.shouldTryNextMoonshotEndpoint(404) === true);
+  ok('500 does not — that is the host failing, not the wrong host',
+    P.shouldTryNextMoonshotEndpoint(500) === false);
+  ok('429 does not — sweeping hosts would just spend the rate limit again',
+    P.shouldTryNextMoonshotEndpoint(429) === false);
+  ok('200 does not', P.shouldTryNextMoonshotEndpoint(200) === false);
+}
+
+console.log('\nA Kimi for Code key is recognised, since it speaks another protocol:');
+{
+  ok('sk-ki is recognised', P.isKimiCodeKey('sk-ki-abc123') === true);
+  ok('whatever the case', P.isKimiCodeKey('SK-KI-ABC') === true);
+  ok('and with stray spaces', P.isKimiCodeKey('  sk-ki-abc  ') === true);
+  ok('an ordinary Moonshot key is not', P.isKimiCodeKey('sk-abcdef') === false);
+  ok('nothing is not', P.isKimiCodeKey('') === false && P.isKimiCodeKey(null) === false);
+}
+
+console.log('\nEach host is named the way a user would recognise it:');
+{
+  ok('kimi.com', P.moonshotEndpointLabel('https://api.kimi.com/v1') === 'api.kimi.com');
+  ok('kimi.ai', P.moonshotEndpointLabel('https://api.kimi.ai/v1') === 'api.kimi.ai');
+  ok('moonshot.cn', P.moonshotEndpointLabel('https://api.moonshot.cn/v1') === 'api.moonshot.cn');
+  ok('moonshot.ai', P.moonshotEndpointLabel('https://api.moonshot.ai/v1') === 'api.moonshot.ai');
+  ok('every base maps to a label',
+    P.MOONSHOT_API_BASES.every((b) => P.moonshotEndpointLabel(b).startsWith('api.')));
+}
+
+console.log('\nMoonshot models are offered newest first, and none is dropped:');
+{
+  const listed = P.sortMoonshotModelIds(['moonshot-v1-8k', 'kimi-k2.6', 'kimi-k2-thinking']);
+  ok('the newest comes first', listed[0] === 'kimi-k2.6');
+  ok('the oldest comes last', listed[listed.length - 1] === 'moonshot-v1-8k');
+  // A model released after this list was written must still appear.
+  const withUnknown = P.sortMoonshotModelIds(['zzz-future-model', 'kimi-k2.6']);
+  ok('an unlisted model still appears', withUnknown.includes('zzz-future-model'));
+  ok('and sorts after the known ones', withUnknown[1] === 'zzz-future-model');
+  ok('nothing is lost', P.sortMoonshotModelIds(['a', 'b', 'c']).length === 3);
+  ok('the input is not modified', (() => {
+    const input = ['moonshot-v1-8k', 'kimi-k2.6'];
+    P.sortMoonshotModelIds(input);
+    return input[0] === 'moonshot-v1-8k';
+  })());
+  ok('an empty list is safe', P.sortMoonshotModelIds([]).length === 0);
+  ok('undefined is safe', P.sortMoonshotModelIds(undefined).length === 0);
+}
+
+console.log('\nAn OpenAI-style conversation becomes the Anthropic body Kimi expects:');
+{
+  const body = P.buildKimiAnthropicBody('kimi-k2.6', [
+    { role: 'system', content: 'be brief' },
+    { role: 'user', content: 'hello' },
+    { role: 'assistant', content: 'hi' },
+  ], { temperature: 0.4, maxTokens: 100 });
+
+  ok('the system prompt is lifted out', body.system === 'be brief');
+  ok('and is not left among the messages', body.messages.every((m) => m.role !== 'system'));
+  ok('content becomes an array', Array.isArray(body.messages[0].content));
+  ok('the text survives', body.messages[0].content[0].text === 'hello');
+  ok('roles are preserved', body.messages[1].role === 'assistant');
+  ok('max_tokens is set', body.max_tokens === 100);
+  ok('temperature is passed', body.temperature === 0.4);
+  ok('streaming is off unless asked', body.stream === undefined);
+
+  // Anthropic rejects an empty content array outright.
+  const empty = P.buildKimiAnthropicBody('m', [{ role: 'user', content: '' }], {});
+  ok('an empty message still carries one block', empty.messages[0].content.length === 1);
+  ok('max_tokens has a default', empty.max_tokens === 4096);
+
+  const withImage = P.buildKimiAnthropicBody('m', [{ role: 'user', content: 'see', images: ['AAA'] }], {});
+  ok('an image becomes a base64 block', withImage.messages[0].content[1].source.data === 'AAA');
+  ok('alongside the text', withImage.messages[0].content[0].type === 'text');
+
+  // Anthropic knows only user and assistant.
+  const toolish = P.buildKimiAnthropicBody('m', [{ role: 'tool', content: 'result' }], {});
+  ok('an unknown role becomes user', toolish.messages[0].role === 'user');
+  ok('no messages is safe', P.buildKimiAnthropicBody('m', [], {}).messages.length === 0);
+  ok('undefined messages is safe', P.buildKimiAnthropicBody('m', undefined, {}).messages.length === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/providers.js)`);
 process.exit(fail ? 1 : 0);

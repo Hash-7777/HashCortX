@@ -2140,25 +2140,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   });
 
   // ── APIs pane: status dots + test buttons ──────────────────────────────
-  const MOONSHOT_API_BASES = [
-    "https://api.kimi.com/v1",
-    "https://api.kimi.ai/v1",
-    "https://api.moonshot.ai/v1",
-    "https://api.moonshot.cn/v1",
-  ];
-  // Anthropic-compatible bases used by the new Kimi for Code platform.
-  // Keys minted at kimi.com/code/console start with "sk-ki" and only work here.
-  const KIMI_ANTHROPIC_BASES = [
-    "https://api.moonshot.ai/anthropic",
-    "https://api.moonshot.cn/anthropic",
-    "https://api.kimi.com/anthropic",
-    "https://api.kimi.ai/anthropic",
-  ];
-  const _moonshotApiBaseByKey = new Map();
-
-  function isKimiCodeKey(key) {
-    return typeof key === "string" && key.trim().toLowerCase().startsWith("sk-ki");
-  }
 
   async function fetchKimiAnthropic(path, key, initFactory) {
     let lastError = null;
@@ -2180,44 +2161,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     }
     throw lastError || new Error(`Kimi (Anthropic-compat) request failed. Last endpoint: ${lastUrl}`);
-  }
-
-  function buildKimiAnthropicBody(model, messages, opts) {
-    const systemMsg = messages.find(m => m.role === "system");
-    const anthropicMessages = messages
-      .filter(m => m.role !== "system")
-      .map(m => {
-        const content = [];
-        if (m.content) content.push({ type: "text", text: m.content });
-        if (m.images?.length) m.images.forEach(b64 => content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } }));
-        return { role: m.role === "assistant" ? "assistant" : "user", content: content.length ? content : [{ type: "text", text: "" }] };
-      });
-    const body = { model, messages: anthropicMessages, max_tokens: (opts && opts.maxTokens) || 4096 };
-    if (systemMsg) body.system = systemMsg.content;
-    if (opts && typeof opts.temperature === "number") body.temperature = opts.temperature;
-    if (opts && opts.stream) body.stream = true;
-    return body;
-  }
-
-  function moonshotEndpointLabel(baseUrl) {
-    const s = String(baseUrl || "");
-    if (s.includes("kimi.com")) return "api.kimi.com";
-    if (s.includes("kimi.ai"))  return "api.kimi.ai";
-    if (s.includes(".cn"))      return "api.moonshot.cn";
-    return "api.moonshot.ai";
-  }
-
-  function orderedMoonshotBases(apiKey) {
-    const cached = _moonshotApiBaseByKey.get(apiKey || "");
-    if (!cached) return MOONSHOT_API_BASES.slice();
-    return [cached, ...MOONSHOT_API_BASES.filter(base => base !== cached)];
-  }
-
-  function shouldTryNextMoonshotEndpoint(status) {
-    // Kimi.com (sk-ki keys) and legacy Moonshot platforms are SEPARATE auth backends
-    // — a key minted on one will 401 on the other. So fall back on 401/403/404 to
-    // sweep all four candidates (kimi.com → kimi.ai → moonshot.ai → moonshot.cn).
-    return status === 401 || status === 403 || status === 404;
   }
 
   async function fetchMoonshotApi(path, apiKey, initFactory) {
@@ -2253,6 +2196,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   } = window.HCMarkdown;
 
   const HCProviders = window.HCProviders;
+
+  // Moonshot answers on four hosts across two separate account systems, so its
+  // endpoint knowledge lives with the other provider facts in js/providers.js.
+  // Only the memory of which base last worked stays here.
+  const {
+    MOONSHOT_API_BASES, KIMI_ANTHROPIC_BASES, isKimiCodeKey, moonshotEndpointLabel,
+    shouldTryNextMoonshotEndpoint, sortMoonshotModelIds, buildKimiAnthropicBody,
+  } = window.HCProviders;
+  const _moonshotApiBaseByKey = new Map();
+  const orderedMoonshotBases = (apiKey) =>
+    window.HCProviders.orderedMoonshotBases(_moonshotApiBaseByKey.get(apiKey || ""));
+
 
   // Reading a model identifier — provider, name, class — in js/model-names.js
   // so it can be checked. All string handling over names the app does not
@@ -3625,28 +3580,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Pretty-print a raw model id into a label.
   // "llama-3.3-70b-versatile"  → "Llama 3.3 70B Versatile"
   // "openai/gpt-oss-120b:free" → "GPT OSS 120B (free)" with provider suffix added later
-  function sortMoonshotModelIds(ids) {
-    const preferred = [
-      "kimi-k2.6",
-      "kimi-k2.5",
-      "kimi-k2-thinking-turbo",
-      "kimi-k2-thinking",
-      "kimi-k2-turbo-preview",
-      "kimi-k2-0905-preview",
-      "kimi-k2-0711-preview",
-      "moonshot-v1-128k",
-      "moonshot-v1-32k",
-      "moonshot-v1-8k",
-    ];
-    return (ids || []).slice().sort((a, b) => {
-      const ai = preferred.indexOf(a);
-      const bi = preferred.indexOf(b);
-      const ar = ai === -1 ? 999 : ai;
-      const br = bi === -1 ? 999 : bi;
-      return ar - br || String(a).localeCompare(String(b));
-    });
-  }
-
   async function fetchGroqModels(apiKey) {
     const r = await fetch("https://api.groq.com/openai/v1/models", {
       headers: { Authorization: `Bearer ${apiKey}` },
