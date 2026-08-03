@@ -26,7 +26,7 @@ pub struct DirEntry {
     size:     u64,
 }
 
-fn guard_path(path: &str) -> Result<(), String> {
+pub(crate) fn guard_path(path: &str) -> Result<(), String> {
     // Reject any path that contains .. components — prevents traversal attacks
     // even on non-existent paths where canonicalize() would silently succeed.
     if Path::new(path).components().any(|c| c == std::path::Component::ParentDir) {

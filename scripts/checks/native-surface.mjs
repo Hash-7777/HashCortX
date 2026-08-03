@@ -25,6 +25,7 @@ const srcDir = join(root, 'src');
 const ALLOWED = new Map([
   ['platform/index.js', 'defines HC.invoke itself, plus the usage log and notch bridges'],
   ['platform/tauri/guard.js', 'the Permission Guard; writes the audit log'],
+  ['platform/tauri/undo.js', 'saves and restores what a file held before a change — no model can call it, every path starts with the user clicking Undo, and a restore still goes through fs_write_file and the denylist'],
   ['platform/tauri/hashcoder.js', 'the agent tools — every one gated by HC.guard.request first'],
   ['platform/tauri/keychain.js', 'one-time migration out of the old Keychain'],
   ['main.js', 'window geometry and lifecycle at boot'],

@@ -84,7 +84,21 @@ Any path containing these substrings is refused too:
 com.hashcortx.app          .hashcortx
 ```
 
-The last two are HashCortX's own directories: the plaintext key bundle described above, and the audit log. The agent has no business reading your keys or editing the record of what it did, and the app reaches both through separate commands that do not accept a path.
+The last two are HashCortX's own directories: the plaintext key bundle described above, the audit log, and the undo checkpoints below. The agent has no business reading your keys, editing the record of what it did, or deleting the copy of a file it just overwrote — and the app reaches all three through separate commands that do not accept a path.
+
+### Undo checkpoints
+
+Before the coding agent writes or deletes a file, what that file held is copied to:
+
+```
+~/.hashcortx/checkpoints/
+```
+
+That location is deliberate. It is inside the denylisted directory above, so the agent cannot read those copies back, overwrite them, or delete them — an agent that could erase its own undo history could make a change permanent. The `checkpoint_*` commands take no directory from the caller, only an id they generated themselves, so there is nothing in them to point elsewhere; and saving a checkpoint applies the same path guard as reading a file, so it cannot be used to copy a protected file into somewhere readable.
+
+Restoring goes back out through `fs_write_file`, which means an undo passes the same denylist as any other write. A checkpoint of a binary file, or one over 8 MB, keeps no contents — it is marked as unrestorable and the Undo button is disabled and says why, rather than offering to write something that is not what was there.
+
+Checkpoints hold file contents from your project, in your home directory, in plain text. They are removed when you keep a change, and when you undo one.
 
 **Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. The recursive tools — file search, fuzzy find and code grep — do the same for every link they meet while walking, so a link sitting inside the project folder cannot be used to read out of a protected directory the same tools would refuse to open directly. A link that leads somewhere ordinary is followed as normal.
 

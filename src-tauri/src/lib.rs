@@ -7,6 +7,7 @@ mod security;
 
 use commands::{
     audit::{audit_log_append, audit_log_read},
+    checkpoint::{checkpoint_drop, checkpoint_read, checkpoint_save},
     embed::{embed_available, embed_texts},
     fs::{
         fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files,
@@ -61,6 +62,10 @@ pub fn run() {
             usage_log_append,
             // Hash D Island — "finished" live-activity ping
             notch_activity_post,
+            // Undo — what a file held before the agent changed it
+            checkpoint_save,
+            checkpoint_read,
+            checkpoint_drop,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");

@@ -26,7 +26,15 @@
       }
       const ok = await HC.guard.request('write', path, reason);
       if (!ok) throw new Error(`Permission denied: write ${path}`);
+      // Recorded after approval and before the write, so the copy is of what
+      // the file actually held at the moment it was replaced.
+      const record = await HC.undo.capture(path);
       await HC.invoke('fs_write_file', { path, content: String(content) });
+      // The resulting text, kept alongside the previous text so the panel can
+      // show a real diff. patch_file has no `content` argument of its own — it
+      // computes the new file and calls through here — so this is the only
+      // place the finished result is known without reading the file again.
+      if (record) record.after = String(content);
       /* Return a structured result instead of Tauri's null so the UI
          shows something meaningful rather than displaying "null" */
       return JSON.stringify({ ok: true, path, bytes: String(content).length });
@@ -41,6 +49,9 @@
     async deleteFile(path, reason = '') {
       const ok = await HC.guard.request('delete', path, reason);
       if (!ok) throw new Error(`Permission denied: delete ${path}`);
+      // A deletion is the change most worth being able to take back.
+      const record = await HC.undo.capture(path);
+      if (record) record.after = '';
       return HC.invoke('fs_delete_file', { path });
     },
 

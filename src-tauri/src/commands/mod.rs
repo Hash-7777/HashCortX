@@ -1,4 +1,5 @@
 pub mod audit;
+pub mod checkpoint;
 pub mod embed;
 pub mod fs;
 pub mod keychain;
