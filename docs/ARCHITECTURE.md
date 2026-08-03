@@ -19,13 +19,13 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,308  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,302  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
 │   │   │                              chunking must cover the whole text
 │   │   ├── url-safety.js        93  addresses the fetch tool may reach
-│   │   ├── providers.js        289  each provider's endpoint and auth, plus
+│   │   ├── providers.js        277  each provider's endpoint and auth, plus
 │   │                                Moonshot's four hosts and two account systems
 │   │   ├── markdown-safe.js    131  link sanitiser, entity decoding, escaping
 │   │   ├── agent-shape.js      186  images, tools and tool results per provider
