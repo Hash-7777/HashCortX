@@ -105,11 +105,12 @@ pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
 /// Deliberately tighter than `BLOCKED_PATH_SUBSTRINGS`. A shell command is
 /// mostly prose — `grep -r credentials src/` is ordinary work — so only
 /// markers that are unambiguously a secret location belong here.
+///
+/// Everything in this list names a single file, or a directory together with the
+/// file inside it, so a plain substring match is exact enough. Directories that
+/// are a secret store in their own right live in `BLOCKED_COMMAND_DIR_MARKERS`
+/// and are matched differently.
 pub const BLOCKED_COMMAND_PATH_MARKERS: &[&str] = &[
-    ".ssh/",
-    ".ssh ",
-    ".aws/",
-    ".gnupg/",
     "id_rsa",
     "id_dsa",
     "id_ecdsa",
@@ -123,8 +124,14 @@ pub const BLOCKED_COMMAND_PATH_MARKERS: &[&str] = &[
     ".config/gh/",
     ".config/gcloud",
     "com.hashcortx.app",
-    ".hashcortx/",
 ];
+
+/// Directories that are a credential store in their own right.
+///
+/// These are matched as a whole path token — see `names_protected_directory` —
+/// rather than as a literal substring, because naming the directory is enough to
+/// take everything in it.
+pub const BLOCKED_COMMAND_DIR_MARKERS: &[&str] = &[".ssh", ".aws", ".gnupg", ".hashcortx"];
 
 /// Multi-token command patterns that are always blocked.
 ///
@@ -346,6 +353,54 @@ pub fn is_command_denied(command: &str) -> bool {
     false
 }
 
+/// Characters that can end a path where it is written in a command line: a
+/// separator, a quote, a shell operator, or whitespace.
+fn ends_a_path_token(c: char) -> bool {
+    c.is_whitespace()
+        || matches!(
+            c,
+            '/' | '\\' | '"' | '\'' | '`' | ';' | '&' | '|' | '(' | ')' | ',' | ':' | '<' | '>'
+        )
+}
+
+/// Returns `true` if the command names one of the protected directories as a
+/// path in its own right.
+///
+/// The rule this replaces matched two literal spellings, `".ssh/"` and
+/// `".ssh "`, and so only ever caught a file *inside* the directory or a
+/// mention with something after it. Naming the directory itself walked past:
+/// at the end of a line there is no trailing character to match, and `.aws`,
+/// `.gnupg` and `.hashcortx` had no space-terminated spelling in the list at
+/// all. Copying or archiving a whole credential store to somewhere unprotected
+/// was therefore allowed, which is a larger loss than reading one key file.
+///
+/// Matching at a token boundary covers every spelling at once. The character
+/// before the marker must not be part of a longer name, so an ordinary file
+/// called `deploy.aws` or `config.ssh` is still ordinary work.
+fn names_protected_directory(lowered: &str) -> bool {
+    for marker in BLOCKED_COMMAND_DIR_MARKERS {
+        let mut search_from = 0;
+        while let Some(offset) = lowered[search_from..].find(marker) {
+            let start = search_from + offset;
+            let end = start + marker.len();
+            let continues_a_longer_name = lowered[..start]
+                .chars()
+                .next_back()
+                .map_or(false, |c| c.is_alphanumeric());
+            // Nothing after the marker means the path ended the command line.
+            let ends_cleanly = lowered[end..]
+                .chars()
+                .next()
+                .map_or(true, ends_a_path_token);
+            if !continues_a_longer_name && ends_cleanly {
+                return true;
+            }
+            search_from = end;
+        }
+    }
+    false
+}
+
 /// Returns `true` if the shell command references a protected location.
 ///
 /// This closes the hole that made the filesystem denylist decorative: `fs_read_file`
@@ -357,6 +412,9 @@ pub fn command_touches_denied_path(command: &str) -> bool {
         .iter()
         .any(|marker| lowered.contains(marker))
     {
+        return true;
+    }
+    if names_protected_directory(&lowered) {
         return true;
     }
     // The same check in Windows spelling, so `type %USERPROFILE%\.ssh\id_rsa`
@@ -470,6 +528,39 @@ mod tests {
             "cat ~/Library/Application Support/com.hashcortx.app/WebKit/x"
         ));
         assert!(command_touches_denied_path("tail ~/.hashcortx/audit.log"));
+    }
+
+    #[test]
+    fn naming_a_credential_directory_is_refused_however_it_is_written() {
+        // Taking the whole directory needs no filename, so the rule cannot
+        // depend on one following. Each of these was allowed while only the
+        // `.ssh/` and `.ssh ` spellings were matched.
+        assert!(command_touches_denied_path("tar czf /tmp/k.tgz ~/.ssh")); // ends the line
+        assert!(command_touches_denied_path("cp -r ~/.aws /tmp/x")); // no slash after
+        assert!(command_touches_denied_path("cp -r ~/.gnupg /tmp/x"));
+        assert!(command_touches_denied_path(
+            "tar czf /tmp/h.tgz ~/.hashcortx"
+        ));
+        assert!(command_touches_denied_path("zip -r /tmp/o.zip ~/.ssh"));
+        assert!(command_touches_denied_path("ls ~/.ssh"));
+        // A link is as good as a copy: follow it and the walkers read through it.
+        assert!(command_touches_denied_path("ln -s ~/.aws vendor"));
+        // Quoted, chained, and Windows-shaped spellings of the same thing.
+        assert!(command_touches_denied_path("cat \"$HOME/.ssh\"/config"));
+        assert!(command_touches_denied_path("cd ~/.aws;cat credentials"));
+        assert!(command_touches_denied_path(
+            r"copy %USERPROFILE%\.ssh d:\out"
+        ));
+    }
+
+    #[test]
+    fn a_longer_name_that_merely_ends_in_a_marker_is_ordinary_work() {
+        // The boundary rule has to earn its keep in both directions, or it just
+        // becomes the next thing that refuses ordinary work.
+        assert!(!command_touches_denied_path("cat deploy.aws"));
+        assert!(!command_touches_denied_path("vim config.ssh"));
+        assert!(!command_touches_denied_path("ls terraform/.aws-vault"));
+        assert!(!command_touches_denied_path("npm run build"));
     }
 
     // ── Windows ──────────────────────────────────────────────────────────────

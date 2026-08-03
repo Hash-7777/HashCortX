@@ -60,12 +60,34 @@
   ];
   // Secret locations a command must never name. Tighter than BLOCKED_SUBSTRINGS
   // on purpose — a command is mostly prose, and `grep -rn credentials src/` is
-  // ordinary work.
+  // ordinary work. Each of these names one file, so a substring match is exact.
   const BLOCKED_CMD_PATHS = [
-    '.ssh/', '.ssh ', '.aws/', '.gnupg/', 'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+    'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
     'library/keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
-    '.kube/config', '.config/gh/', '.config/gcloud', 'com.hashcortx.app', '.hashcortx/',
+    '.kube/config', '.config/gh/', '.config/gcloud', 'com.hashcortx.app',
   ];
+  // Directories that are a credential store in their own right. Matched as a
+  // whole path token, because naming the directory takes everything in it and
+  // there may be nothing after it to match on. Mirrors BLOCKED_COMMAND_DIR_MARKERS.
+  const BLOCKED_CMD_DIRS = ['.ssh', '.aws', '.gnupg', '.hashcortx'];
+  const ENDS_A_PATH_TOKEN = /[\s/\\"'`;&|(),:<>]/;
+
+  // True when the command names a protected directory as a path, rather than
+  // merely ending some longer name with those characters (`deploy.aws`).
+  function namesProtectedDirectory(lower) {
+    return BLOCKED_CMD_DIRS.some((marker) => {
+      let from = 0;
+      for (;;) {
+        const start = lower.indexOf(marker, from);
+        if (start === -1) return false;
+        const end = start + marker.length;
+        const before = start === 0 ? '' : lower[start - 1];
+        const after = end >= lower.length ? '' : lower[end];
+        if (!/[a-z0-9]/.test(before) && (after === '' || ENDS_A_PATH_TOKEN.test(after))) return true;
+        from = end;
+      }
+    });
+  }
 
   // Lowercase, give pipes and separators their own space, collapse whitespace —
   // so `rm  -rf` and `curl x|sh` normalise to the forms the lists match.
@@ -116,7 +138,8 @@
       // A command must not reach for a key store either — the Rust side refuses
       // this too, and did not before, which made the path denylist meaningless
       // for anything a shell could reach.
-      return BLOCKED_CMD_PATHS.some(m => lower.includes(m));
+      if (BLOCKED_CMD_PATHS.some(m => lower.includes(m))) return true;
+      return namesProtectedDirectory(lower);
     }
     return (
       BLOCKED_PREFIXES.some(p => target.startsWith(p)) ||

@@ -95,6 +95,7 @@ This is the important nuance. HashCortx does **not** restrict the agent to a fix
 - **Disk tools**, matched as the program being run (including their families, e.g. `mkfs.ext4`, `newfs_hfs`): `dd`, `mkfs`, `fdisk`, `parted`, `format`, `newfs`.
 - **Phrases that cannot occur innocently**: `diskutil eraseDisk`, `chmod 777`, `chown root`, piping anything into an interpreter (`… | sh`, `| bash`, `| python`, …), and process substitution (`bash <(…)`).
 - **Any command naming a protected location** — `cat ~/.ssh/id_ed25519` is refused. Before this the filesystem denylist was decorative wherever a shell existed: `fs_read_file` refused that path and `shell_run` read it anyway.
+- **Any command naming a credential directory**, whether or not a filename follows it. `.ssh`, `.aws`, `.gnupg` and HashCortX's own `.hashcortx` are matched as whole path tokens, so copying, archiving or linking a whole store is refused the same way reading one key out of it is. An ordinary file whose name merely ends the same way — `deploy.aws`, `config.ssh` — is not a protected location and is left alone.
 
 **Be clear about what this is not.** The agent composes the command string, so obfuscation — base64, `eval`, splicing a word out of a variable — defeats any string match, and no addition to the list changes that. An allowlist would be stronger. Treat the shell tool as what it is: an agent holding your shell, restrained by a permission prompt and a list of the worst commands.
 
