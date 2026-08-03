@@ -2241,6 +2241,27 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     throw lastError || new Error("Moonshot (Kimi) request failed.");
   }
 
+  // Where each provider lives and how its key becomes a header, in
+  // js/providers.js so streamCloudModel and the agent loop read one copy
+  // rather than each repeating it.
+  const HCProviders = window.HCProviders;
+
+  // The settings field holding each provider's key. Kept here rather than in
+  // providers.js because these are DOM elements and that file is pure.
+  const PROVIDER_KEY_ELEMENTS = {
+    groq: groqKeyEl,
+    gemini: geminiKeyEl,
+    openai: openaiKeyEl,
+    anthropic: anthropicKeyEl,
+    moonshot: moonshotKeyEl,
+    deepseek: deepseekKeyEl,
+    mistral: mistralKeyEl,
+    cerebras: cerebrasKeyEl,
+    samba: sambaKeyEl,
+    openrouter: openRouterKeyEl,
+    nvidia: nvidiaKeyEl,
+  };
+
   const API_PROVIDERS = [
     { id: "groq",       name: "Groq",        keyId: "groqKey",       testUrl: "https://api.groq.com/openai/v1/models",           auth: "bearer" },
     { id: "gemini",     name: "Gemini",      keyId: "geminiKey",     testUrl: "https://generativelanguage.googleapis.com/v1beta/models?key=", auth: "query" },
@@ -4396,9 +4417,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (!key) throw new Error("Groq API key missing.\nAdd it in Settings → Cloud Models — free at console.groq.com");
       // Vision models accept image_url content blocks; text-only models get plain strings
       const groqMessages = (hasImages && /vision/i.test(modelId)) ? toOpenAIVision(messages) : textMessages;
-      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("groq", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: groqMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4450,9 +4472,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (!key) throw new Error("OpenRouter API key missing.\nAdd it in Settings → Cloud Models — free at openrouter.ai");
       // OpenRouter supports OpenAI vision format
       const orMessages = hasImages ? toOpenAIVision(messages) : textMessages;
-      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("openrouter", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "HTTP-Referer": "hash-gpt://local", "X-Title": "HashCortx" },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: orMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4462,9 +4485,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } else if (provider === "cerebras") {
       const key = (cerebrasKeyEl.value || "").trim();
       if (!key) throw new Error("Cerebras API key missing.\nAdd it in Settings → Cloud Models — free at cloud.cerebras.ai");
-      const res = await fetch("https://api.cerebras.ai/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("cerebras", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4474,9 +4498,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } else if (provider === "samba") {
       const key = (sambaKeyEl.value || "").trim();
       if (!key) throw new Error("SambaNova API key missing.\nAdd it in Settings → Cloud Models — free at cloud.sambanova.ai");
-      const res = await fetch("https://api.sambanova.ai/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("samba", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4487,9 +4512,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const key = (openaiKeyEl.value || "").trim();
       if (!key) throw new Error("OpenAI API key missing.\nAdd it in Settings → APIs");
       const oaMessages = hasImages ? toOpenAIVision(messages) : textMessages;
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("openai", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: oaMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4516,9 +4542,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         ...(systemMsg ? { system: systemMsg.content } : {}),
       };
       if (typeof temperature === "number") body.temperature = temperature;
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("anthropic", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        headers: epHeaders,
         body: JSON.stringify(body),
         signal,
       });
@@ -4589,9 +4616,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } else if (provider === "deepseek") {
       const key = (deepseekKeyEl.value || "").trim();
       if (!key) throw new Error("DeepSeek API key missing.\nAdd it in Settings → APIs");
-      const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("deepseek", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -4601,9 +4629,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } else if (provider === "mistral") {
       const key = (mistralKeyEl.value || "").trim();
       if (!key) throw new Error("Mistral API key missing.\nAdd it in Settings → APIs");
-      const res = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("mistral", key);
+      const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        headers: epHeaders,
         body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
         signal,
       });
@@ -7179,40 +7208,16 @@ sys.stderr = _stderr
       }
       return { role: m.role, content: m.content || '' };
     });
-    if (provider === "groq") {
-      const key = (groqKeyEl.value || "").trim();
-      if (!key) throw new Error("Groq API key missing.");
-      url = "https://api.groq.com/openai/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "openrouter") {
-      const key = (openRouterKeyEl.value || "").trim();
-      if (!key) throw new Error("OpenRouter API key missing.");
-      url = "https://openrouter.ai/api/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "HTTP-Referer": "hash-gpt://local", "X-Title": "HashCortx" };
-    } else if (provider === "cerebras") {
-      const key = (cerebrasKeyEl.value || "").trim();
-      if (!key) throw new Error("Cerebras API key missing.");
-      url = "https://api.cerebras.ai/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "samba") {
-      const key = (sambaKeyEl.value || "").trim();
-      if (!key) throw new Error("SambaNova API key missing.");
-      url = "https://api.sambanova.ai/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "nvidia") {
-      const key = (nvidiaKeyEl.value || "").trim();
-      if (!key) throw new Error("NVIDIA API key missing.");
-      url = "https://integrate.api.nvidia.com/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "openai") {
-      const key = (openaiKeyEl.value || "").trim();
-      if (!key) throw new Error("OpenAI API key missing.");
-      url = "https://api.openai.com/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "moonshot") {
-      const key = (moonshotKeyEl.value || "").trim();
-      if (!key) throw new Error("Moonshot API key missing.");
+    // Endpoint and auth come from js/providers.js, so this and streamCloudModel
+    // read one copy of those facts instead of each carrying their own. A wrong
+    // endpoint is not a crash — it is a request the CSP blocks, reported as the
+    // provider being unreachable — so the table is checked against the policy.
+    const keyEl = PROVIDER_KEY_ELEMENTS[provider];
+    if (!keyEl) throw new Error("Unknown provider: " + provider);
+    const key = (keyEl.value || "").trim();
+    if (!key) throw new Error(`${HCProviders.get(provider)?.label || provider} API key missing.`);
 
+    if (provider === "moonshot") {
       // sk-ki keys (Kimi for Code / kimi.com platform) use the Anthropic protocol.
       // Short-circuit here — convert OpenAI-style payload → Anthropic and return.
       if (isKimiCodeKey(key)) {
@@ -7250,19 +7255,9 @@ sys.stderr = _stderr
       }
 
       moonshotKeyForRequest = key;
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "deepseek") {
-      const key = (deepseekKeyEl.value || "").trim();
-      if (!key) throw new Error("DeepSeek API key missing.");
-      url = "https://api.deepseek.com/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
-    } else if (provider === "mistral") {
-      const key = (mistralKeyEl.value || "").trim();
-      if (!key) throw new Error("Mistral API key missing.");
-      url = "https://api.mistral.ai/v1/chat/completions";
-      headers = { "Content-Type": "application/json", "Authorization": `Bearer ${key}` };
+      headers = HCProviders.headersFor("moonshot", key);
     } else {
-      throw new Error("Unknown provider: " + provider);
+      ({ url, headers } = HCProviders.requestFor(provider, key));
     }
     const supportsOpenAIVision =
       provider === "openai" ||
@@ -7357,9 +7352,10 @@ sys.stderr = _stderr
         input_schema: t.function.parameters || { type: "object", properties: {} }
       }));
     }
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("anthropic", key);
+    const r = await fetch(epUrl, {
       method: "POST", referrerPolicy: "no-referrer",
-      headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+      headers: epHeaders,
       body: JSON.stringify(body),
       signal
     });
