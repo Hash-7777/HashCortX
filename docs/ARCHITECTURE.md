@@ -19,7 +19,7 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,367  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,369  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
@@ -28,7 +28,7 @@ HashCortX/
 │   │   ├── providers.js        148  each cloud provider's endpoint and auth
 │   │   ├── markdown-safe.js    131  link sanitiser, entity decoding, escaping
 │   │   ├── agent-shape.js      186  images, tools and tool results per provider
-│   │   ├── model-names.js      184  provider, display name, size class, failover
+│   │   ├── model-names.js      190  provider, display name, size class, failover
 │   │   ├── system-maker.js   4,186  ERP prototype generator
 │   │   ├── virtual-os.js     3,846  virtual project desktop
 │   │   ├── forge-mode.js     3,657  3D planning
