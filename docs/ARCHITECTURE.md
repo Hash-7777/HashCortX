@@ -28,7 +28,7 @@ HashCortX/
 │   │   ├── providers.js        148  each cloud provider's endpoint and auth
 │   │   ├── system-maker.js   4,186  ERP prototype generator
 │   │   ├── virtual-os.js     3,846  virtual project desktop
-│   │   ├── forge-mode.js     3,843  3D planning
+│   │   ├── forge-mode.js     3,657  3D planning
 │   │   ├── swarm-maker.js    3,022  chain / vote / failover
 │   │   ├── finance-mode.js   2,715  financial document analysis
 │   │   ├── code-mode.js      2,488  the Coder agent loop
