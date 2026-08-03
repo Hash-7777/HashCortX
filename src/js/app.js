@@ -2254,6 +2254,22 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const HCProviders = window.HCProviders;
 
+  // How a conversation is described to each provider — images, tools, tool
+  // results — in js/agent-shape.js so the translations can be checked. These
+  // fail quietly when wrong: the request is accepted and answered badly.
+  const HCAgentShape = window.HCAgentShape;
+  const {
+    toOpenAIVision, safeJsonParse, extractPythonFence,
+    appendAssistantToolCallTurn, appendToolResult,
+  } = HCAgentShape;
+  const agentToolNames  = (agent) => HCAgentShape.agentToolNames(agent, AGENT_TOOLS);
+  const buildOpenAITools = (agent) => HCAgentShape.buildOpenAITools(agent, AGENT_TOOLS);
+  const buildOllamaTools = buildOpenAITools;   // Ollama accepts the OpenAI shape unchanged
+  const buildGeminiTools = (agent) => HCAgentShape.buildGeminiTools(agent, AGENT_TOOLS);
+  const selectAgentAdapter = (modelValue) =>
+    HCAgentShape.selectAgentAdapter(modelValue, { parseCloudModel, providers: HCProviders });
+
+
   // The settings field holding each provider's key. Kept here rather than in
   // providers.js because these are DOM elements and that file is pure.
   const PROVIDER_KEY_ELEMENTS = {
@@ -4397,19 +4413,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // Convert Ollama-format messages (images: [base64...]) to OpenAI vision format.
-  function toOpenAIVision(messages) {
-    return messages.map(m => {
-      if (!m.images?.length) return { role: m.role, content: m.content || "" };
-      return {
-        role: m.role,
-        content: [
-          { type: "text", text: m.content || "Describe what you see." },
-          ...m.images.map(b64 => ({ type: "image_url", image_url: { url: `data:image/jpeg;base64,${b64}` } })),
-        ],
-      };
-    });
-  }
-
   async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal) {
     const temp = typeof temperature === "number" ? temperature : 0.7;
     // Text-only fallback (for providers that don't support vision)
@@ -7034,45 +7037,6 @@ sys.stderr = _stderr
 
   // Map agent.tools[] entries to AGENT_TOOLS keys. The agent stores ids like
   // "memory" (= remember + recall) and "datetime" — expand them here.
-  function agentToolNames(agent) {
-    if (!agent || !Array.isArray(agent.tools)) return [];
-    const out = new Set();
-    for (const t of agent.tools) {
-      if (t === "memory") { out.add("remember_fact"); out.add("recall_facts"); }
-      else if (t === "datetime") out.add("current_datetime");
-      else if (t === "pubmed") out.add("pubmed_search");
-      else if (t === "code_interpreter" || t === "python") out.add("execute_python");
-      else if (AGENT_TOOLS[t]) out.add(t);
-    }
-    return [...out];
-  }
-
-  // Build OpenAI-compatible tools array from agent's selected tool ids.
-  function buildOpenAITools(agent) {
-    return agentToolNames(agent).map(name => ({
-      type: "function",
-      function: {
-        name,
-        description: AGENT_TOOLS[name].description,
-        parameters: AGENT_TOOLS[name].parameters
-      }
-    }));
-  }
-
-  // Same shape, slightly different wrapper for Ollama's /api/chat tools field.
-  // (Ollama actually accepts the OpenAI shape one-for-one as of 0.3+.)
-  function buildOllamaTools(agent) { return buildOpenAITools(agent); }
-
-  // Gemini wants functionDeclarations[] inside tools[].
-  function buildGeminiTools(agent) {
-    const decls = agentToolNames(agent).map(name => ({
-      name,
-      description: AGENT_TOOLS[name].description,
-      parameters: AGENT_TOOLS[name].parameters
-    }));
-    return decls.length ? [{ functionDeclarations: decls }] : [];
-  }
-
   // -------------------------------------------------------------------------
   // Tool execution — with per-tool timeout, error capture, status pulse.
   // Returns a string suitable for feeding back as a tool message content.
@@ -7404,65 +7368,7 @@ sys.stderr = _stderr
     return { content: textOut || null, tool_calls: calls.length ? calls : null, raw: data };
   }
 
-  function safeJsonParse(s) {
-    if (typeof s !== "string") return s;
-    try { return JSON.parse(s); } catch { return {}; }
-  }
-
-  // Pull python source out of one or more ```python``` fences in a model
-  // reply. Handles the common buggy variants ([wb.save](...) auto-links,
-  // smart quotes) so we can re-run the code reliably.
-  function extractPythonFence(text) {
-    if (!text) return "";
-    const fences = [];
-    const re = /```(?:python|py)?\s*\n([\s\S]*?)```/gi;
-    let m;
-    while ((m = re.exec(text)) !== null) fences.push(m[1]);
-    if (!fences.length) return "";
-    let code = fences.join("\n\n");
-    // Markdown auto-link mangling: [wb.save](http://wb.save) → wb.save
-    code = code.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-    // Smart quotes → straight quotes
-    code = code.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-    return code.trim();
-  }
-
   // Pick the right adapter based on the model selector value.
-  function selectAgentAdapter(modelValue) {
-    if (modelValue.startsWith("cloud:")) {
-      const { provider, modelId } = parseCloudModel(modelValue);
-      if (provider === "gemini") return { kind: "gemini", model: modelId };
-      if (provider === "anthropic") return { kind: "anthropic", model: modelId };
-      if (provider === "groq" || provider === "openrouter" || provider === "cerebras" || provider === "samba" || provider === "openai" || provider === "moonshot" || provider === "deepseek" || provider === "mistral") {
-        return { kind: "openai", provider, model: modelId };
-      }
-      throw new Error(`Unknown cloud provider for agent mode: ${provider}`);
-    }
-    return { kind: "ollama", model: modelValue };
-  }
-
-  // Convert message list into the right shape for tool-call appending.
-  // OpenAI/Ollama use the same shape; Gemini we translate inside its adapter.
-  function appendAssistantToolCallTurn(messages, content, toolCalls) {
-    messages.push({
-      role: "assistant",
-      content: content || "",
-      tool_calls: toolCalls.map(c => ({
-        id: c.id,
-        type: "function",
-        function: { name: c.name, arguments: JSON.stringify(c.arguments || {}) }
-      }))
-    });
-  }
-  function appendToolResult(messages, call, resultStr) {
-    messages.push({
-      role: "tool",
-      tool_call_id: call.id,
-      name: call.name,
-      content: resultStr
-    });
-  }
-
   // -------------------------------------------------------------------------
   // The loop. Builds messages, calls provider, executes tool_calls, repeats.
   // Streams status into the assistant bubble. Returns the final text.
