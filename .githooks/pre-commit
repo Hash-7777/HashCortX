@@ -117,11 +117,30 @@ check_pattern '(passphrase|PASSPHRASE)[[:space:]]*[=:][[:space:]]*[^[:space:]"'"
 # baked in as a default is both a privacy leak and a broken default for every
 # user who is not on that network. Loopback is fine — that is where a user's own
 # Ollama actually lives.
-if printf '%s' "$added" \
-   | grep -vE '^\+\s*(//|#|\*)' \
-   | grep -qE '\b(192\.168\.[0-9]{1,3}\.[0-9]{1,3}|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'; then
-  problem "a private LAN IP address. Users are not on your network — make it configurable, not a default."
-fi
+LAN_PATTERN='\b(192\.168\.[0-9]{1,3}\.[0-9]{1,3}|10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]{1,3}\.[0-9]{1,3})\b'
+
+# Files whose whole job is to REFUSE these addresses.
+#
+# A test asserting that 192.168.1.1 is blocked is the exact opposite of a LAN
+# address baked in as a default, and a rule that cannot tell the two apart
+# pushes the code that does the blocking out of the repository — which is a
+# worse outcome than the one this check exists to prevent. Each entry below is
+# a file that exists to keep the agent off a private network, so the addresses
+# in it are the ones being kept out.
+#
+# Judged per file rather than over the whole diff, so an address added anywhere
+# else is still refused, and the message can say which file it was in.
+LAN_LITERAL_ALLOWED='^(src/js/url-safety\.js|scripts/checks/url-safety\.mjs|src-tauri/src/commands/net\.rs|src-tauri/src/security/denylist\.rs|docs/SECURITY\.md)$'
+
+while IFS= read -r file; do
+  echo "$file" | grep -qE "$LAN_LITERAL_ALLOWED" && continue
+  file_added="$(git diff --cached --diff-filter=ACM -U0 -- "$file" | grep '^+' | grep -v '^+++' || true)"
+  if printf '%s' "$file_added" \
+     | grep -vE '^\+\s*(//|#|\*)' \
+     | grep -qE "$LAN_PATTERN"; then
+    problem "$file adds a private LAN IP address. Users are not on your network — make it configurable, not a default."
+  fi
+done <<< "$staged"
 
 # ── 5. Report ────────────────────────────────────────────────────────────────
 if [ "$fail" -ne 0 ]; then
