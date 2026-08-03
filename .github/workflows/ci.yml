@@ -107,6 +107,11 @@ jobs:
       - name: Undo checks
         run: npm run check:undo
 
+      # Chunking has to cover the whole document. It did not, and half of every
+      # file added to the knowledge base was dropped without a sign.
+      - name: Knowledge-base chunking checks
+        run: npm run check:rag-store
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

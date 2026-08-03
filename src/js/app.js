@@ -1736,8 +1736,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     kb.querySelector("#ragClearBtn").addEventListener("click", async (e) => {
       e.stopPropagation();
       if (!await themedConfirm("Clear all knowledge base chunks?", "Knowledge Base")) return;
+      // Both stores: the one in use, and the localStorage one an older build
+      // may still hold, so clearing does not leave it to be migrated back in.
+      saveRAG([]);
       localStorage.removeItem(RAG_KEY);
-      updateRagCount();
     });
     agentsListEl.appendChild(kb);
 
@@ -3389,10 +3391,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               extracted,
               text: text.slice(0, 400_000),
             });
-            // Feed into knowledge base in 1200-char chunks
-            for (let ci = 0; ci < Math.min(text.length, 12000); ci += 1200) {
-              addToRAG(f.name, text.slice(ci, ci + 1200), `file:${f.name}:p${Math.floor(ci/1200)}`);
-            }
+            // Feed the whole extracted text into the knowledge base.
+            ingestIntoRAG(f.name, text, `file:${f.name}:pdf`);
           } catch (err) {
             console.warn("[pdf] extract failed:", err);
             state.pendingFiles.push({
@@ -3413,9 +3413,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             extracted: true,
             text: text.slice(0, 200_000),
           });
-          for (let ci = 0; ci < Math.min(text.length, 12000); ci += 1200) {
-            addToRAG(f.name, text.slice(ci, ci + 1200), `file:${f.name}:c${Math.floor(ci/1200)}`);
-          }
+          ingestIntoRAG(f.name, text, `file:${f.name}:text`);
           continue;
         }
         // Unknown binary — don't send garbage to the model. Leave a note.
@@ -7830,10 +7828,11 @@ sys.stderr = _stderr
   // store of chunks ingested from search results, papers, and uploaded files.
   // No server changes, no embeddings — fast enough for thousands of chunks.
 
-  const RAG_KEY = "hashgpt_rag";
-  const RAG_MAX_BYTES = 6_500_000; // ~6.5 MB char budget — embeddings add ~1.5 KB per chunk
+  const RAG_KEY = "hashgpt_rag";   // the old localStorage store, migrated at boot
+  const RAG_DB_NAME = "hashcortx_rag";
+  const RAG_STORE = "chunks";
+  const RAG_MAX_CHUNKS = 20_000;   // ceiling on the store, by passage count
   const RAG_MAX_CONTEXT = 3;       // chunks injected per query
-  const RAG_CHUNK_MAX = 600;       // max chars stored per chunk
 
   // Vectors are 384-wide and come from bge-small-en-v1.5. A chunk embedded by
   // an older build carries a different width and is simply ignored rather than
@@ -7877,24 +7876,116 @@ sys.stderr = _stderr
   const { extractKeywords: ragExtractKeywords, keywordScore: ragScore, cosineSim, fuseByRank } =
     window.HCRagSearch;
 
-  function loadRAG() {
+  // How a document becomes passages, in js/rag-store.js so that the rule which
+  // matters — chunking must cover the whole text — is checked rather than
+  // assumed. It was not, and half of every file was being dropped.
+  const HCRagStore = window.HCRagStore;
+
+  // ── Where the knowledge base lives ────────────────────────────────────
+  //
+  // The store was a single localStorage entry. Every chunk carries a 384-number
+  // vector, which as JSON is well over a kilobyte on its own, so a few thousand
+  // passages reached the roughly 5 MB quota — and saveRAG dealt with that by
+  // dropping the oldest chunks until it fit. Documents disappeared out of the
+  // back of the store with no sign that anything had gone.
+  //
+  // It is IndexedDB now, which has no such ceiling. The store is held in memory
+  // and written through in the background, so loadRAG and saveRAG keep the
+  // synchronous shape their ten callers expect — including queryRAG, which runs
+  // inside retrieval and cannot start awaiting.
+  let _ragCache = [];
+  let _ragWriteTimer = null;
+  let _ragDbPromise = null;
+
+  function ragOpenDb() {
+    if (_ragDbPromise) return _ragDbPromise;
+    _ragDbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(RAG_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(RAG_STORE)) db.createObjectStore(RAG_STORE, { keyPath: "key" });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IndexedDB failed"));
+    });
+    return _ragDbPromise;
+  }
+
+  function ragRequest(req) {
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error("IndexedDB request failed"));
+    });
+  }
+
+  /**
+   * Read the store into memory, once, at boot — migrating a localStorage store
+   * from an earlier build if this is the first run on IndexedDB.
+   */
+  async function ragBootLoad() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(RAG_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
+      const db = await ragOpenDb();
+      const all = await ragRequest(db.transaction(RAG_STORE, "readonly").objectStore(RAG_STORE).getAll());
+      _ragCache = Array.isArray(all) ? all : [];
+
+      if (!_ragCache.length) {
+        const legacy = localStorage.getItem(RAG_KEY);
+        if (legacy) {
+          const parsed = JSON.parse(legacy || "[]");
+          if (Array.isArray(parsed) && parsed.length) {
+            // Older entries were keyed without a position; keep them findable.
+            _ragCache = parsed.map((c, i) => (c && c.key ? c : { ...c, key: `legacy#${i}` }));
+            await ragPersist();
+            // Only after the copy is safely readable back does the old one go,
+            // and only then — losing a knowledge base to a failed migration is
+            // not a trade worth making for a few megabytes of quota.
+            const back = await ragRequest(db.transaction(RAG_STORE, "readonly").objectStore(RAG_STORE).getAll());
+            if (Array.isArray(back) && back.length >= _ragCache.length) {
+              localStorage.removeItem(RAG_KEY);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("[rag] could not open the knowledge base:", e?.message || e);
+      _ragCache = [];
     }
-    catch { return []; }
+    updateRagCount();
+  }
+
+  async function ragPersist() {
+    try {
+      const db = await ragOpenDb();
+      const tx = db.transaction(RAG_STORE, "readwrite");
+      const os = tx.objectStore(RAG_STORE);
+      os.clear();
+      for (const c of _ragCache) os.put(c);
+      await new Promise((resolve, reject) => {
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error);
+      });
+    } catch (e) {
+      console.warn("[rag] could not save the knowledge base:", e?.message || e);
+    }
+  }
+
+  function loadRAG() {
+    return _ragCache;
   }
 
   function saveRAG(store) {
-    try {
-      let s = JSON.stringify(store);
-      // Trim oldest entries if over size cap
-      while (s.length > RAG_MAX_BYTES && store.length > 0) {
-        store.shift();
-        s = JSON.stringify(store);
-      }
-      localStorage.setItem(RAG_KEY, s);
-    } catch {}
+    _ragCache = Array.isArray(store) ? store : [];
+    // A cap by count rather than by bytes. IndexedDB has room, but an
+    // unbounded store makes every query slower, and this is high enough that
+    // no ordinary use reaches it.
+    if (_ragCache.length > RAG_MAX_CHUNKS) {
+      _ragCache = _ragCache.slice(_ragCache.length - RAG_MAX_CHUNKS);
+    }
+    // Batched: ingesting a document calls this once per passage, and writing
+    // the whole store each time would be quadratic.
+    clearTimeout(_ragWriteTimer);
+    _ragWriteTimer = setTimeout(() => { void ragPersist(); }, 250);
     updateRagCount();
   }
 
@@ -7906,13 +7997,16 @@ sys.stderr = _stderr
     if (tog) tog.classList.toggle("on", ragEnabled);
   }
 
-  function _ragLocalAdd(title, text, source) {
+  function _ragLocalAdd(title, text, source, index = 0) {
     if (!ragEnabled) return;
-    if (!text || text.trim().length < 40) return;
+    if (!HCRagStore.isWorthStoring(text)) return;
     const store = loadRAG();
-    const key = `${source}::${(title || "").slice(0, 80)}`;
+    const key = HCRagStore.chunkKey(source, title, index);
     if (store.some(c => c.key === key)) return;
-    const chunk = text.slice(0, RAG_CHUNK_MAX);
+    // Stored whole. This used to cut the passage to RAG_CHUNK_MAX while the
+    // caller advanced by twice that, so half of every document was dropped.
+    // Splitting is the caller's job now, and it covers the whole text.
+    const chunk = String(text);
     const entry = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       key,
@@ -7984,6 +8078,22 @@ sys.stderr = _stderr
     _ragLocalAdd(title, text, source);
   }
 
+  /**
+   * Add a whole document, split into overlapping passages that between them
+   * cover every character of it.
+   *
+   * The splitting rule lives in js/rag-store.js so it can be checked. It is
+   * there because the previous arrangement lost half of every file: this
+   * caller advanced 1200 characters at a time while the store kept only the
+   * first 600 of each step.
+   */
+  function ingestIntoRAG(title, text, sourcePrefix) {
+    if (!ragEnabled) return 0;
+    const chunks = HCRagStore.chunkText(text);
+    for (const c of chunks) _ragLocalAdd(title, c.text, sourcePrefix, c.index);
+    return chunks.length;
+  }
+
   // Hybrid retrieval by Reciprocal Rank Fusion.
   //
   // Semantic search catches paraphrase — "CEO" finding "chief executive" —
@@ -8014,6 +8124,10 @@ sys.stderr = _stderr
   }
 
   // ========= Boot =========
+  // Reads the knowledge base into memory, and migrates one saved by an earlier
+  // build. Not awaited: retrieval is only reachable after the user types, and
+  // blocking the first paint on a database open would be a poor trade.
+  void ragBootLoad();
   loadProjects();
   loadAgentRuns();
   loadChats();

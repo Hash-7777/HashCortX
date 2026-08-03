@@ -234,7 +234,7 @@ More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 - Someone actually running the app on Linux and Windows — compiling and passing tests is not the same thing
 - Continued extraction of `app.js` into focused modules
 - Permission Guard coverage for Virtual OS and 3D Forge
-- Knowledge base storage beyond `localStorage`, which caps it at about 6.5 MB
+- Reaching the knowledge base from Coder mode, which still cannot see it
 
 Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose) or [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
 
