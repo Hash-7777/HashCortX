@@ -542,16 +542,20 @@
     setStatus("Loading");
     log("SYSTEM", "Loading Three.js runtime...");
     try {
-      const threeMod = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js");
-      const controlsMod = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/controls/OrbitControls.js");
-      const transformMod = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/controls/TransformControls.js");
-      const roomEnvMod = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/environments/RoomEnvironment.js");
+      // All four load from disk. They came from a CDN, which meant 3D Forge
+      // did not work at all with the network off — while the README called the
+      // app air-gapped capable — and it contradicted the rule in
+      // ARCHITECTURE.md that libraries are vendored, never fetched at runtime.
+      const threeMod = await import("/js/vendor/three/three.module.min.js");
+      const controlsMod = await import("/js/vendor/three/examples/OrbitControls.js");
+      const transformMod = await import("/js/vendor/three/examples/TransformControls.js");
+      const roomEnvMod = await import("/js/vendor/three/examples/RoomEnvironment.js");
       THREE = threeMod;
       OrbitControls = controlsMod.OrbitControls;
       TransformControls = transformMod.TransformControls;
       window.__forgeRoomEnv = roomEnvMod.RoomEnvironment;
     } catch (err) {
-      log("SYSTEM", "Could not load Three.js from CDN: " + (err.message || err), "err");
+      log("SYSTEM", "Could not load the 3D runtime: " + (err.message || err), "err");
       setStatus("3D error");
       return false;
     }
@@ -1399,13 +1403,13 @@
 
   async function ensurePipelineModule(kind) {
     if (kind === "gltfLoader" && !GLTFLoader) {
-      ({ GLTFLoader } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/loaders/GLTFLoader.js"));
+      ({ GLTFLoader } = await import("/js/vendor/three/examples/GLTFLoader.js"));
     } else if (kind === "gltfExporter" && !GLTFExporter) {
-      ({ GLTFExporter } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/exporters/GLTFExporter.js"));
+      ({ GLTFExporter } = await import("/js/vendor/three/examples/GLTFExporter.js"));
     } else if (kind === "stlExporter" && !STLExporter) {
-      ({ STLExporter } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/exporters/STLExporter.js"));
+      ({ STLExporter } = await import("/js/vendor/three/examples/STLExporter.js"));
     } else if (kind === "objExporter" && !OBJExporter) {
-      ({ OBJExporter } = await import("https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/exporters/OBJExporter.js"));
+      ({ OBJExporter } = await import("/js/vendor/three/examples/OBJExporter.js"));
     }
   }
 

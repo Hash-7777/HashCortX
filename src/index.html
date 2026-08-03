@@ -16,10 +16,12 @@
   </style>
 
   <!-- ── Import map: resolves bare 'three' specifier used by OrbitControls/TransformControls ── -->
+  <!-- three.js resolves to the vendored copy. The examples below import a
+       bare "three" specifier, so this map is what lets them load from disk. -->
   <script type="importmap">
   {
     "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js"
+      "three": "/js/vendor/three/three.module.min.js"
     }
   }
   </script>

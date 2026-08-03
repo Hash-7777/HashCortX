@@ -35,7 +35,7 @@
 
 Ten workspaces — chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a real Python sandbox, financial document analysis, a security scanner, 3D planning and a virtual project desktop — behind one window.
 
-Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and the whole app runs with the network off.
+Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and it runs with the network off — everything except the Python sandbox, which fetches its runtime on first use.
 
 | | |
 |---|---|
@@ -43,7 +43,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Runs on** | macOS Apple Silicon — built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app there yet |
 | **License** | MIT |
 | **Latest release** | v2.0.0 (May 2026), 8 MB |
-| **Current `main`** | 40.9 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
+| **Current `main`** | 41.2 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~30,600 lines JS, ~1,820 Rust |
 | **Tests** | 34 Rust, 72 frontend checks, CI on Linux, macOS and Windows |

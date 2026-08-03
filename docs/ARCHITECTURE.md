@@ -30,7 +30,8 @@ HashCortX/
 │   │   ├── code-mode.js      2,215  the Coder agent loop
 │   │   ├── sandbox.js          603  security scanner
 │   │   └── vendor/                  marked, highlight.js, DOMPurify, mermaid,
-│   │                                pdf.js, jsPDF, three.js — all local
+│   │                                pdf.js, jsPDF, SheetJS, and three/ with
+│   │                                its loaders — all local, none fetched
 │   │
 │   └── platform/
 │       ├── index.js                 detects browser vs Tauri
@@ -61,11 +62,19 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the only automated frontend checks
+├── scripts/checks/                  the automated frontend checks — 208 of
+│   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
 │   │                                asks about, and lets through
-│   └── rag.mjs                      how retrieval orders its results
+│   ├── rag.mjs                      how retrieval orders its results
+│   ├── agent-context.mjs            what the model sees of a long run
+│   ├── agent-policy.mjs             what may run in parallel, when to stop
+│   ├── export.mjs                   CSV, PDF text, filenames, markdown
+│   ├── layout.mjs                   the CSS mistakes that clip text
+│   ├── power.mjs                    what stops when nobody is looking
+│   ├── native-surface.mjs           which files may reach the machine
+│   └── usage.mjs                    every path records real token counts
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -128,8 +137,8 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
 5. One mode per file in `src/js/`. Cross-module access goes through `window._H`.
-6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime.
-7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 40.9 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
+6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime — **with exactly one exception**: Pyodide, whose CPython runtime and wheels (pandas, numpy, matplotlib) are fetched on first use and are far too large to ship. It is the only reason `script-src` still names a host. three.js, its four loaders and SheetJS used to be fetched too; they are vendored now, which is what makes 3D Forge and spreadsheet import work offline.
+7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 41.2 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
 
 ---
 
@@ -137,7 +146,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's only automated coverage is `scripts/checks/` — the Permission Guard and the retrieval ranking, plus that every script parses. Nothing tests a UI behaviour.
+- The frontend's automated coverage is `scripts/checks/` — 208 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface and the usage log. They load the real source, but none of them drives the UI: nothing catches a broken button.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

@@ -73,7 +73,17 @@
       //
       // ipc: and http://ipc.localhost are required by Tauri internals.
       // 'unsafe-inline' on style-src is needed for our dynamic theme tokens.
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.sheetjs.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434 http://*:11435 http://*:1234 http://*:8080 https://cdn.sheetjs.com"
+      //
+      // script-src once allowed three CDNs. Two are gone: cdnjs.cloudflare.com
+      // was never used at all, and cdn.sheetjs.com is now vendored. jsdelivr
+      // remains for ONE reason — Pyodide, whose runtime pulls CPython plus
+      // pandas/numpy/matplotlib wheels on demand and cannot sensibly be
+      // shipped in the app. three.js and its loaders used to come from there
+      // too; they are vendored now, so 3D Forge works with the network off.
+      //
+      // Before adding a host here, vendor the library instead. That rule is in
+      // ARCHITECTURE.md and this list is where breaking it shows up.
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434 http://*:11435 http://*:1234 http://*:8080"
     }
   },
 

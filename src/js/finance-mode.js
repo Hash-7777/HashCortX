@@ -874,7 +874,10 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     if (window.XLSX) return window.XLSX;
     return new Promise((resolve, reject) => {
       const s = document.createElement("script");
-      s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+      // Vendored, not fetched. Spreadsheet import used to need the network,
+      // which is a poor requirement for a local-first finance tool holding
+      // someone's bank statements.
+      s.src = "/js/vendor/xlsx.full.min.js";
       s.onload  = () => resolve(window.XLSX);
       s.onerror = () => reject(new Error("SheetJS failed to load"));
       document.head.appendChild(s);

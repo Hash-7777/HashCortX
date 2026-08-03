@@ -139,7 +139,9 @@ Most third-party libraries are vendored into `src/js/vendor/` and load from disk
 - **No telemetry.** No analytics, no usage reporting, no crash reporting.
 - **No accounts.** Nothing to sign up for.
 - **No auto-updater.** The app never reaches out on its own.
-- **Air-gapped capable.** With Ollama, it works with the network off.
+- **Air-gapped capable, with one exception.** With Ollama, chat, the coding agent, the knowledge base, 3D Forge and spreadsheet import all work with the network off. **The Python sandbox does not** — Pyodide fetches its CPython runtime and any wheel you use (pandas, numpy, matplotlib) from jsDelivr on first use, and those are far too large to ship. That is the only reason `script-src` still names a CDN.
+
+  Until recently this was less true than it said: 3D Forge loaded three.js and four of its loaders from a CDN, so it failed outright offline, and spreadsheet import fetched SheetJS the same way. Both are vendored now.
 
 Token counts are appended locally to `~/.hashcortx/usage.jsonl`. That file never leaves your disk; [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) reads it if you install it.
 
