@@ -6,7 +6,7 @@
       linear-gradient(180deg, rgba(34,211,238,0.025), transparent),
       rgba(4,8,7,0.62);
     border: 1px solid rgba(34,211,238,0.18);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     padding: 3px;
     gap: 3px;
     box-shadow:
@@ -17,7 +17,7 @@
     position: relative;
     min-width: 0;
     padding: 8px 6px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     background:
       linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012)),
       rgba(4,8,7,0.32);
@@ -88,13 +88,13 @@
   .agents::-webkit-scrollbar { width: 8px; }
   .agents::-webkit-scrollbar-thumb {
     background: rgba(34,211,238,0.18);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     border: 2px solid transparent; background-clip: padding-box;
   }
   /* ── Knowledge Base slim card (first item in agents scroll list) ── */
   .kb-card {
     display: flex; align-items: center; gap: 9px;
-    padding: 7px 9px; border-radius: 9px;
+    padding: 7px 9px; border-radius: var(--radius-sm);
     background:
       linear-gradient(180deg, rgba(34,211,238,0.10), rgba(34,211,238,0.035)),
       rgba(255,255,255,0.02);
@@ -104,7 +104,7 @@
   .kb-icon {
     width: 28px; height: 28px; flex: 0 0 28px;
     display: grid; place-items: center;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: rgba(34,211,238,0.12);
     border: 1px solid rgba(34,211,238,0.22);
     color: var(--gold-2);
@@ -121,7 +121,7 @@
   }
   .kb-stats b { color: var(--text-dim); }
   .kb-clear {
-    font-size: 9.5px; padding: 1px 7px; border-radius: 5px;
+    font-size: 9.5px; padding: 1px 7px; border-radius: var(--radius-xs);
     background: transparent; border: 1px solid var(--line);
     color: var(--muted); cursor: pointer; transition: all .12s; white-space: nowrap;
     line-height: 1.5;
@@ -146,7 +146,7 @@
   /* ── Agent list items ── */
   .agent-item {
     display: flex; align-items: center; gap: 9px;
-    padding: 7px 9px; border-radius: 9px;
+    padding: 7px 9px; border-radius: var(--radius-sm);
     cursor: pointer;
     border: 1px solid rgba(255,255,255,0.045);
     background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.012));
@@ -174,7 +174,7 @@
   .agent-icon {
     width: 28px; height: 28px; flex: 0 0 28px;
     display: grid; place-items: center;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background:
       radial-gradient(circle at 30% 20%, rgba(255,245,210,0.20), transparent 42%),
       linear-gradient(145deg, rgba(34,211,238,0.18), rgba(34,211,238,0.055));
@@ -221,7 +221,7 @@
     width: 22px; height: 22px; padding: 0;
     display: grid; place-items: center;
     background: rgba(0,0,0,0.12); border: 1px solid transparent;
-    color: var(--muted); border-radius: 6px;
+    color: var(--muted); border-radius: var(--radius-xs);
     transition: all .12s;
   }
   .agent-actions button:hover { color: var(--text); background: rgba(255,255,255,0.07); border-color: var(--line); }
@@ -232,7 +232,7 @@
   .agent-chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 10px 5px 6px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     background: linear-gradient(160deg, rgba(245,215,122,0.12), rgba(201,169,110,0.05));
     border: 1px solid rgba(201,169,110,0.32);
     font-size: 11.5px; color: var(--gold);
@@ -251,7 +251,7 @@
     padding: 0;
     display: grid;
     place-items: center;
-    border-radius: 5px;
+    border-radius: var(--radius-xs);
     background: rgba(201,169,110,0.15);
     border: 1px solid rgba(201,169,110,0.25);
     color: var(--gold);
@@ -259,7 +259,7 @@
   .agent-chip .ico svg { width: 11px; height: 11px; stroke-width: 2; }
   .agent-chip .clear {
     display: grid; place-items: center;
-    width: 16px; height: 16px; border-radius: 4px;
+    width: 16px; height: 16px; border-radius: var(--radius-xs);
     background: rgba(0,0,0,0.3); color: var(--muted);
     font-weight: 700; font-size: 12px;
     transition: color .12s;
@@ -269,7 +269,7 @@
   /* Agent modal specifics */
   .tool-option {
     display: flex; gap: 12px; align-items: flex-start;
-    padding: 10px 12px; border-radius: 10px;
+    padding: 10px 12px; border-radius: var(--radius-md);
     background: rgba(0,0,0,0.22); border: 1px solid var(--line);
     cursor: pointer;
   }
@@ -339,7 +339,7 @@
     background: rgba(0,0,0,0.55);
     border: 1px solid rgba(34,211,238,0.25);
     color: var(--gold-2);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     opacity: 0.5;
     transition: opacity .15s, background .15s, color .15s;
   }
@@ -395,7 +395,7 @@
     font-family: var(--mono);
     font-size: 0.92em;
     padding: 0.14em 0.42em;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     background: rgba(34,211,238,0.09);
     border: 1px solid rgba(34,211,238,0.14);
     color: var(--gold-2);
@@ -403,7 +403,7 @@
   .markdown-body pre {
     margin: 1.15em 0 1.45em;
     padding: 1em;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     background: rgba(0,0,0,0.34);
     border: 1px solid rgba(255,255,255,0.08);
     white-space: pre;
@@ -471,7 +471,7 @@
   .mermaid-wrap {
     margin: 12px 0;
     padding: 14px;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     background: rgba(0,0,0,0.28);
     border: 1px solid rgba(34,211,238,0.16);
     overflow-x: auto;
@@ -483,7 +483,7 @@
   .diff-box {
     margin-top: 12px;
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     border: 1px solid rgba(34,211,238,0.18);
     background: rgba(0,0,0,0.22);
     white-space: normal;
@@ -505,7 +505,7 @@
   .diff-del {
     display: inline;
     padding: 1px 3px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     box-decoration-break: clone;
     -webkit-box-decoration-break: clone;
   }
@@ -529,7 +529,7 @@
     font: inherit; color: var(--text); font-size: 13.5px;
     background: rgba(0,0,0,0.35);
     border: 1px solid var(--line-strong);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     padding: 10px 12px;
     outline: none;
     transition: border-color .15s, box-shadow .15s, background .2s;
@@ -558,7 +558,7 @@
     font: inherit; cursor: pointer; user-select: none; color: var(--text);
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--line-strong);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     padding: 9px 14px;
     transition: all .15s;
     font-size: 13px;
@@ -586,7 +586,7 @@
     background: rgba(255,255,255,0.03);
     border: 1px solid var(--line);
     color: var(--text-dim);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     transition: all .15s;
   }
   .settings-btn:hover { color: var(--text); border-color: var(--line-strong); background: rgba(255,255,255,0.06); }
@@ -599,7 +599,7 @@
     background: rgba(200,80,70,0.06);
     border: 1px solid rgba(200,80,70,0.28);
     color: #d98080;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     transition: all .15s;
   }
   .terminate-btn:hover {
@@ -637,7 +637,7 @@
     padding: 5px 9px;
     background: rgba(0,0,0,0.22);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     white-space: nowrap; overflow: hidden;
     height: 30px;
   }
@@ -666,13 +666,13 @@
 
   .hint {
     font-size: 11.5px; line-height: 1.6; color: var(--text-dim);
-    padding: 12px; border: 1px dashed var(--line-strong); border-radius: 10px;
+    padding: 12px; border: 1px dashed var(--line-strong); border-radius: var(--radius-md);
     background: rgba(0,0,0,0.2);
   }
   .hint code {
     font-family: var(--mono); font-size: 10.5px;
     background: rgba(34,211,238,0.08); color: var(--gold-2);
-    padding: 1px 6px; border-radius: 4px;
+    padding: 1px 6px; border-radius: var(--radius-xs);
     border: 1px solid rgba(34,211,238,0.15);
   }
   .hint b { color: var(--gold); font-weight: 600; }

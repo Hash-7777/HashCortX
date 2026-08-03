@@ -21,7 +21,7 @@
   .toggle-side {
     appearance: none;
     -webkit-appearance: none;
-    width: 36px; height: 36px; border-radius: 10px;
+    width: 36px; height: 36px; border-radius: var(--radius-md);
     display: grid; place-items: center;
     background: rgba(255,255,255,0.04);
     border: 1px solid var(--line-strong);
@@ -65,7 +65,7 @@
     width: max-content;
     max-width: 100%;
     padding: 2px 8px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     font-size: 10px;
     font-weight: 700;
     letter-spacing: .12em;
@@ -100,7 +100,7 @@
     height: 32px;
     padding: 0 6px 0 10px;
     border: 1px solid rgba(34,211,238,0.14);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: rgba(4,8,7,0.34);
     color: var(--text-dim);
   }
@@ -121,7 +121,7 @@
     max-width: 116px;
     min-width: 84px;
     border: 1px solid rgba(255,255,255,0.12);
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     background: rgba(255,255,255,0.07);
     color: var(--text-dim);
     font: 11px var(--sans);
@@ -131,7 +131,7 @@
     width: 24px;
     height: 24px;
     padding: 0;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(255,255,255,0.10);
     background: transparent;
     color: var(--text-dim);
@@ -161,7 +161,7 @@
     width: 24px;
     height: 24px;
     padding: 0;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(34,211,238,0.16);
     background: rgba(34,211,238,0.05);
     color: var(--gold);
@@ -182,7 +182,7 @@
     min-width: 74px;
     padding: 0 10px;
     border: 1px solid rgba(34,211,238,0.16);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: rgba(4,8,7,0.34);
     color: var(--text-dim);
     cursor: pointer;
@@ -237,7 +237,7 @@
       linear-gradient(90deg, rgba(34,211,238,0.035), transparent 42%, rgba(93,211,238,0.026)),
       rgba(1, 8, 6, 0.78);
     border: 1px solid rgba(96,255,160,0.24);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     box-shadow:
       inset 0 1px 0 rgba(160,255,200,0.07),
       inset 0 0 0 1px rgba(34,211,238,0.07),
@@ -270,7 +270,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
       rgba(15,18,26,0.94);
     border: 1px solid rgba(34,211,238,0.18);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-lg), var(--glass-edge);
     backdrop-filter: blur(18px) saturate(150%);
     -webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -285,7 +285,7 @@
     padding: 9px 10px;
     border: none;
     background: transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     color: var(--text-dim);
     font-size: 12px;
     text-align: left;
@@ -321,7 +321,7 @@
     width: 100%;
     background-color: rgba(12,8,5,0.78);
     border: 1px solid rgba(200,110,60,0.28);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     padding: 12px 14px;
     font-family: var(--mono);
     font-size: 12.5px;
@@ -364,7 +364,7 @@
       rgba(12,8,5,0.85);
     color: #f5c97a;
     border: 1px solid rgba(200,110,60,0.45);
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     padding: 12px 16px;
     font-family: var(--mono);
     font-size: 11.5px;
@@ -464,7 +464,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
       rgba(0,0,0,0.26);
     border: 1px solid rgba(34,211,238,0.28);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     overflow: hidden;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
     transition: border-color .15s, background .15s, box-shadow .15s;
@@ -556,7 +556,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.006)),
       rgba(0,0,0,0.10);
     border: 1px solid rgba(96,255,160,0.20);
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.035),
       0 0 0 1px rgba(0,0,0,0.28);
@@ -664,7 +664,7 @@
   .rv-gb    { letter-spacing: 0; font-size: 1.08em; }
   .rv-n     { background: rgba(34,211,238,0.13);
               border: 1px solid rgba(34,211,238,0.28);
-              border-radius: 4px; padding: 0 4px;
+              border-radius: var(--radius-xs); padding: 0 4px;
               font-size: 8px; line-height: 13px;
               color: var(--gold); font-weight: 600; }
   .power-btn { gap: 0; }
@@ -711,7 +711,7 @@
     backdrop-filter: blur(18px) saturate(145%);
     -webkit-backdrop-filter: blur(18px) saturate(145%);
     border: 1px solid var(--line-strong);
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     box-shadow: 0 20px 54px rgba(0,0,0,0.34), 0 0 0 1px rgba(34,211,238,0.08) inset, inset 0 1px 0 rgba(255,255,255,0.06);
     padding: 10px;
     z-index: 9999;
@@ -732,7 +732,7 @@
     padding: 8px 10px;
     background: rgba(255,255,255,0.02);
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     transition: background .15s, border-color .15s;
   }
   .ram-row:hover { background: rgba(34,211,238,0.05); border-color: rgba(34,211,238,0.25); }
@@ -795,7 +795,7 @@
   .ram-panel .ram-foot button {
     font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
     background: transparent; border: 1px solid var(--line);
-    color: var(--text-dim); padding: 6px 10px; border-radius: 6px;
+    color: var(--text-dim); padding: 6px 10px; border-radius: var(--radius-xs);
     cursor: pointer;
     transition: color .15s, border-color .15s, background .15s;
   }
@@ -823,7 +823,7 @@
   #errorSlot { flex: 0 0 auto; }
   .messages::-webkit-scrollbar { width: 10px; }
   .messages::-webkit-scrollbar-thumb {
-    background: rgba(34,211,238,0.2); border-radius: 10px;
+    background: rgba(34,211,238,0.2); border-radius: var(--radius-md);
     border: 3px solid transparent; background-clip: padding-box;
   }
   .messages::-webkit-scrollbar-thumb:hover { background: rgba(34,211,238,0.4); background-clip: padding-box; }
@@ -1015,7 +1015,7 @@
     to { opacity: 1; transform: none; }
   }
   .avatar {
-    width: 32px; height: 32px; flex: 0 0 32px; border-radius: 10px;
+    width: 32px; height: 32px; flex: 0 0 32px; border-radius: var(--radius-md);
     display: grid; place-items: center;
     margin-top: 3px;
     font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -1045,7 +1045,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
       rgba(22,24,32,0.80);
     border: 1px solid var(--line);
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     padding: 9px 12px;
     line-height: 1.46; font-size: 13.7px;
     word-wrap: break-word; white-space: pre-wrap; overflow: hidden;
@@ -1119,7 +1119,7 @@
     background: rgba(0,0,0,0.5);
     border: 1px solid var(--line-strong);
     padding: 12px 14px;
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     overflow-x: auto;
     font-size: 12.5px; line-height: 1.55;
     margin: 14px 0 18px;
@@ -1138,7 +1138,7 @@
   .bubble :not(pre) > code {
     font-family: var(--mono); font-size: 12.5px;
     background: rgba(34,211,238,0.1); color: var(--gold-2);
-    padding: 1px 6px; border-radius: 4px;
+    padding: 1px 6px; border-radius: var(--radius-xs);
     border: 1px solid rgba(34,211,238,0.12);
   }
   .bubble strong { color: #fff; font-weight: 600; }
@@ -1176,13 +1176,13 @@
     letter-spacing: .03em;
   }
   .bubble .markdown-body tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
-  .bubble img { max-width: 300px; border-radius: 10px; display: block; margin-top: 10px; border: 1px solid var(--line-strong); }
+  .bubble img { max-width: 300px; border-radius: var(--radius-md); display: block; margin-top: 10px; border: 1px solid var(--line-strong); }
   /* Generated image wrapper (Nano Banana / image-gen models) */
   .gen-img-wrap { position: relative; display: inline-block; margin-top: 12px; }
-  .gen-img-wrap img { max-width: 520px; width: 100%; border-radius: 12px; display: block; border: 1px solid var(--line-strong); box-shadow: 0 4px 24px rgba(0,0,0,.35); }
+  .gen-img-wrap img { max-width: 520px; width: 100%; border-radius: var(--radius-md); display: block; border: 1px solid var(--line-strong); box-shadow: 0 4px 24px rgba(0,0,0,.35); }
   .gen-img-dl, .gen-img-copy {
     position: absolute; bottom: 10px; background: rgba(10,12,20,.75);
-    border: 1px solid rgba(255,255,255,.18); border-radius: 7px; padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,.18); border-radius: var(--radius-sm); padding: 5px 8px;
     cursor: pointer; opacity: 0; transition: opacity .18s; color: #e8e0cc;
     display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600;
     letter-spacing: .04em; backdrop-filter: blur(6px);
@@ -1197,7 +1197,7 @@
   .attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .attachment {
     background: rgba(255,255,255,0.04); border: 1px solid var(--line);
-    border-radius: 8px; padding: 4px 10px; font-size: 11.5px;
+    border-radius: var(--radius-sm); padding: 4px 10px; font-size: 11.5px;
     display: inline-flex; align-items: center; gap: 6px;
     color: var(--text-dim);
   }
@@ -1215,7 +1215,7 @@
     align-items: center;
     justify-content: center;
     width: 18px; height: 18px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
     background: rgba(255,255,255,0.07);
     margin-right: 5px;
     vertical-align: middle;
@@ -1248,7 +1248,7 @@
     gap: 2px;
     background: rgba(18, 20, 28, 0.96);
     border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 4px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.4);
     backdrop-filter: blur(12px);
@@ -1266,7 +1266,7 @@
     color: var(--text-dim);
     cursor: pointer;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1314,7 +1314,7 @@
     font-weight: 500;
     letter-spacing: 0.02em;
     padding: 4px 10px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     border: 1px solid rgba(255,255,255,0.10);
     background: rgba(255,255,255,0.04);
     color: var(--text-dim, #a39d91);

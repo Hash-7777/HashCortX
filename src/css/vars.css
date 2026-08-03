@@ -74,8 +74,13 @@
     --control-h-sm: 26px;
     --control-h: 32px;
     --control-h-lg: 40px;
+    /* Five steps. The app had thirteen — 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14
+       and 20 — which is most of why two modes at the same colour still read
+       as two products: Coder's corners were sharp, Virtual OS's were round,
+       and everything else sat somewhere between. */
     --radius-xs: 6px;
     --radius-sm: 8px;
+    --radius-md: 12px;
 
     /* ── Colour that carries meaning ─────────────────────────────────────
        These say what happened, so they must not vary by mode. A user should

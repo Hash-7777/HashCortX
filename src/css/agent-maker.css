@@ -97,7 +97,7 @@ body.agent-maker-mode #app { display: none; }
   gap: 8px;
   background: rgba(59,130,246,0.05);
   border: 1px solid var(--amk-line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   padding: 7px 13px;
   width: 100%;
   transition: border-color 0.2s;
@@ -120,7 +120,7 @@ body.agent-maker-mode #app { display: none; }
 }
 
 .amk-icon-btn {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 32px; height: 32px; border-radius: var(--radius-sm);
   border: 1px solid var(--amk-line); background: transparent;
   color: var(--muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
@@ -136,7 +136,7 @@ body.agent-maker-mode #app { display: none; }
   letter-spacing: 0.12em;
   text-transform: uppercase;
   padding: 6px 14px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--amk-line);
   background: transparent;
   color: var(--amk-bright);
@@ -160,7 +160,7 @@ body.agent-maker-mode #app { display: none; }
 .amk-back-btn {
   font-family: var(--mono);
   font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
-  padding: 6px 14px; border-radius: 7px;
+  padding: 6px 14px; border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.10);
   background: transparent; color: var(--text-dim);
   cursor: pointer; transition: background 0.15s, border-color 0.15s;
@@ -208,7 +208,7 @@ body.agent-maker-mode #app { display: none; }
 }
 .amk-icon-btn {
   width: 26px; height: 26px;
-  border-radius: 6px; border: 1px solid var(--amk-line);
+  border-radius: var(--radius-xs); border: 1px solid var(--amk-line);
   background: transparent; color: var(--amk-bright);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   transition: background 0.15s, border-color 0.15s;
@@ -225,7 +225,7 @@ body.agent-maker-mode #app { display: none; }
 
 /* Blueprint card */
 .amk-blueprint-card {
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.07);
   background: rgba(255,255,255,0.03);
   padding: 10px 12px;
@@ -251,7 +251,7 @@ body.agent-maker-mode #app { display: none; }
 }
 .amk-blueprint-card .bp-topology {
   font-size: 9.5px; color: var(--amk-bright); opacity: 0.8;
-  background: var(--amk-dim); padding: 1px 6px; border-radius: 4px;
+  background: var(--amk-dim); padding: 1px 6px; border-radius: var(--radius-xs);
   font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.08em;
 }
 .amk-blueprint-card .bp-actions {
@@ -261,7 +261,7 @@ body.agent-maker-mode #app { display: none; }
 }
 .amk-blueprint-card:hover .bp-actions { opacity: 1; }
 .amk-blueprint-card .bp-action-btn {
-  width: 20px; height: 20px; border-radius: 4px;
+  width: 20px; height: 20px; border-radius: var(--radius-xs);
   border: none; background: transparent;
   color: var(--muted); cursor: pointer; font-size: 13px;
   display: flex; align-items: center; justify-content: center;
@@ -297,7 +297,7 @@ body.agent-maker-mode #app { display: none; }
 
 /* Template chip */
 .amk-template-chip {
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   border: 1px dashed rgba(255,255,255,0.10);
   background: transparent;
   padding: 8px 12px;
@@ -352,7 +352,7 @@ body.agent-maker-mode #app { display: none; }
 .amk-topology-select {
   background: rgba(59,130,246,0.07);
   border: 1px solid var(--amk-line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   font-family: var(--sans);
   font-size: 11.5px;
@@ -375,12 +375,12 @@ body.agent-maker-mode #app { display: none; }
 .amk-zoom-ctrl {
   display: flex; align-items: center; gap: 2px;
   background: rgba(255,255,255,0.04); border: 1px solid var(--amk-line);
-  border-radius: 7px; padding: 2px 4px; flex-shrink: 0;
+  border-radius: var(--radius-sm); padding: 2px 4px; flex-shrink: 0;
 }
 .amk-zoom-btn {
   background: none; border: none; color: var(--text-dim);
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 5px;
+  width: 22px; height: 22px; border-radius: var(--radius-xs);
   transition: background 0.15s, color 0.15s;
 }
 .amk-zoom-btn:hover { background: var(--amk-dim); color: var(--amk-bright); }
@@ -519,7 +519,7 @@ img.amk-empty-logo {
 .amk-form-group select {
   background: rgba(59,130,246,0.05);
   border: 1px solid var(--amk-line);
-  border-radius: 8px; color: var(--text);
+  border-radius: var(--radius-sm); color: var(--text);
   font-family: var(--sans); font-size: 12.5px;
   padding: 7px 10px; outline: none; width: 100%;
   transition: border-color 0.2s;
@@ -542,7 +542,7 @@ img.amk-empty-logo {
   display: flex; gap: 6px; flex-wrap: wrap;
 }
 .amk-icon-opt {
-  width: 30px; height: 30px; border-radius: 7px;
+  width: 30px; height: 30px; border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.04);
   cursor: pointer; font-size: 15px;
@@ -582,7 +582,7 @@ img.amk-empty-logo {
 .amk-tool-check {
   display: flex; align-items: center; gap: 7px;
   font-size: 11px; color: var(--text-dim); cursor: pointer;
-  padding: 5px 8px; border-radius: 6px;
+  padding: 5px 8px; border-radius: var(--radius-xs);
   border: 1px solid transparent; transition: background 0.15s, border-color 0.15s;
   user-select: none; white-space: nowrap;
 }
@@ -594,7 +594,7 @@ img.amk-empty-logo {
 .amk-role-badge {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 10px; font-weight: 700; letter-spacing: 0.10em;
-  padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
+  padding: 2px 8px; border-radius: var(--radius-xs); text-transform: uppercase;
 }
 .role-researcher { background: rgba(78,205,196,0.15); color: var(--amk-cyan); }
 .role-writer     { background: rgba(59,130,246,0.12); color: var(--amk-bright); }
@@ -615,7 +615,7 @@ img.amk-empty-logo {
 /* ── BLUEPRINT BLUEPRINT NAME PILL ── */
 .amk-active-name {
   font-size: 11.5px; font-weight: 600; color: var(--text-dim);
-  background: var(--amk-dim); border-radius: 6px;
+  background: var(--amk-dim); border-radius: var(--radius-xs);
   padding: 4px 10px; font-family: var(--mono);
   border: 1px solid var(--amk-line); max-width: 180px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -677,7 +677,7 @@ img.amk-empty-logo {
 .amk-trace-btn {
   font-family: var(--mono); font-size: 9px; letter-spacing: 0.10em;
   text-transform: uppercase; padding: 3px 9px;
-  border-radius: 5px; border: 1px solid var(--amk-line);
+  border-radius: var(--radius-xs); border: 1px solid var(--amk-line);
   background: transparent; color: var(--amk-bright); cursor: pointer;
   transition: background 0.15s;
 }
@@ -730,7 +730,7 @@ img.amk-empty-logo {
 .amk-god-modal-inner {
   background: var(--bg-1);
   border: 1px solid var(--amk-line);
-  border-radius: 16px;
+  border-radius: var(--radius);
   padding: 28px;
   width: 560px; max-width: 95vw;
   box-shadow: 0 32px 80px rgba(0,0,0,0.6);
@@ -742,7 +742,7 @@ img.amk-empty-logo {
   display: flex; align-items: center; gap: 12px;
 }
 .amk-god-icon {
-  width: 40px; height: 40px; border-radius: 10px;
+  width: 40px; height: 40px; border-radius: var(--radius-md);
   background: var(--amk-dim); border: 1px solid var(--amk-line);
   display: flex; align-items: center; justify-content: center;
   color: var(--amk-bright); flex-shrink: 0;
@@ -753,7 +753,7 @@ img.amk-empty-logo {
 .amk-god-textarea {
   width: 100%; min-height: 100px; resize: vertical;
   background: rgba(59,130,246,0.05);
-  border: 1px solid var(--amk-line); border-radius: 10px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-md);
   color: var(--text); font-family: var(--sans); font-size: 13px;
   padding: 12px 14px; outline: none; line-height: 1.5;
   box-sizing: border-box;
@@ -771,7 +771,7 @@ img.amk-empty-logo {
 .amk-god-example {
   font-size: 11px; color: var(--amk-bright); opacity: 0.7;
   background: var(--amk-dim); border: 1px solid var(--amk-line);
-  border-radius: 6px; padding: 4px 10px; cursor: pointer;
+  border-radius: var(--radius-xs); padding: 4px 10px; cursor: pointer;
   transition: opacity 0.15s, background 0.15s;
 }
 .amk-god-example:hover { opacity: 1; background: rgba(59,130,246,0.18); }
@@ -785,7 +785,7 @@ img.amk-empty-logo {
 }
 .amk-god-model-select {
   flex: 1; background: rgba(59,130,246,0.05);
-  border: 1px solid var(--amk-line); border-radius: 8px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm);
   color: var(--text); font-size: 12px; padding: 6px 10px;
   outline: none; cursor: pointer;
   transition: border-color 0.2s;
@@ -825,7 +825,7 @@ img.amk-empty-logo {
 .amk-dialog-inner {
   background: #020812;
   border: 1px solid var(--amk-line);
-  border-radius: 13px;
+  border-radius: var(--radius);
   padding: 26px 28px 20px;
   width: 360px; max-width: 92vw;
   box-shadow: 0 0 0 1px rgba(59,130,246,0.10), 0 28px 64px rgba(0,0,0,0.7);
@@ -837,7 +837,7 @@ img.amk-empty-logo {
   content: "";
   position: absolute; top: 0; left: 0; right: 0; height: 1px;
   background: linear-gradient(90deg, transparent, var(--amk-ui), transparent);
-  opacity: 0.5; border-radius: 13px 13px 0 0;
+  opacity: 0.5; border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .amk-dialog-msg {
@@ -852,7 +852,7 @@ img.amk-empty-logo {
   display: none;
   background: rgba(59,130,246,0.06);
   border: 1px solid var(--amk-line);
-  border-radius: 8px; color: var(--text);
+  border-radius: var(--radius-sm); color: var(--text);
   font-family: var(--mono); font-size: 13px;
   padding: 8px 12px; outline: none; width: 100%;
   box-sizing: border-box;
@@ -876,7 +876,7 @@ img.amk-empty-logo {
    ROLE SVG ICONS in node canvas
 ══════════════════════════════════════════════════════════════ */
 .amk-role-svg-btn {
-  width: 34px; height: 34px; border-radius: 8px;
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
   border: 1px solid rgba(255,255,255,0.10);
   background: rgba(255,255,255,0.04);
   cursor: pointer; color: var(--text-dim);
@@ -917,7 +917,7 @@ img.amk-empty-logo {
 .amk-peek-hbtn {
   display: flex; align-items: center; gap: 5px;
   font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
-  padding: 4px 9px; border-radius: 6px; border: 1px solid var(--amk-line);
+  padding: 4px 9px; border-radius: var(--radius-xs); border: 1px solid var(--amk-line);
   background: transparent; color: var(--muted); cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
@@ -968,7 +968,7 @@ img.amk-empty-logo {
 .amk-peek-msg-content .markdown-body strong { color: var(--text); }
 .amk-peek-msg-content .markdown-body code {
   font-size: 11.5px; background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.18); border-radius: 4px;
+  border: 1px solid rgba(59,130,246,0.18); border-radius: var(--radius-xs);
   padding: 1px 5px; font-family: var(--mono);
 }
 
@@ -986,7 +986,7 @@ img.amk-empty-logo {
 .amk-peek-run-badge {
   font-size: 10px; font-weight: 500; font-family: var(--mono);
   color: var(--muted); background: rgba(255,255,255,0.05);
-  border: 1px solid var(--amk-line); border-radius: 10px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-md);
   padding: 2px 8px;
 }
 .amk-peek-output-body { display: flex; flex-direction: column; gap: 10px; }
@@ -1002,7 +1002,7 @@ img.amk-empty-logo {
 .amk-peek-md-segment hr { border: none; border-top: 1px solid var(--amk-line); margin: 12px 0; }
 .amk-peek-md-segment code {
   font-size: 11.5px; background: rgba(59,130,246,0.1);
-  border: 1px solid rgba(59,130,246,0.18); border-radius: 4px;
+  border: 1px solid rgba(59,130,246,0.18); border-radius: var(--radius-xs);
   padding: 1px 5px; font-family: var(--mono); color: var(--amk-bright);
 }
 .amk-peek-md-segment table {
@@ -1021,7 +1021,7 @@ img.amk-empty-logo {
 
 /* Code block in peek */
 .amk-peek-code-block {
-  border-radius: 9px; overflow: hidden;
+  border-radius: var(--radius-sm); overflow: hidden;
   border: 1px solid var(--amk-line);
   margin: 4px 0;
   background: rgba(0,0,0,0.28);
@@ -1038,7 +1038,7 @@ img.amk-empty-logo {
 }
 .amk-peek-code-btns { display: flex; gap: 5px; }
 .amk-peek-code-btn {
-  font-size: 10px; padding: 3px 9px; border-radius: 5px;
+  font-size: 10px; padding: 3px 9px; border-radius: var(--radius-xs);
   border: 1px solid var(--amk-line); background: transparent;
   color: var(--muted); cursor: pointer; font-weight: 500;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -1064,7 +1064,7 @@ img.amk-empty-logo {
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
-  padding: 5px 13px; border-radius: 7px;
+  padding: 5px 13px; border-radius: var(--radius-sm);
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   color: #fff; border: none; cursor: pointer;
   transition: opacity 0.15s, transform 0.12s;
@@ -1084,7 +1084,7 @@ img.amk-empty-logo {
 .amk-peek-file-tab {
   display: inline-flex; align-items: center; gap: 5px;
   font-size: 11px; font-family: var(--mono); font-weight: 500;
-  padding: 4px 10px; border-radius: 6px;
+  padding: 4px 10px; border-radius: var(--radius-xs);
   border: 1px solid var(--amk-line);
   background: transparent; color: var(--muted);
   cursor: pointer; transition: background 0.14s, color 0.14s, border-color 0.14s;
@@ -1100,7 +1100,7 @@ img.amk-empty-logo {
 
 /* ── File content view ── */
 .amk-peek-file-content { flex: 1; overflow: hidden; }
-.amk-peek-file-content .amk-peek-code-block { margin: 0; border-radius: 8px; }
+.amk-peek-file-content .amk-peek-code-block { margin: 0; border-radius: var(--radius-sm); }
 .amk-peek-file-content .amk-peek-pre {
   max-height: calc(100vh - 260px);
 }
@@ -1187,10 +1187,10 @@ img.amk-empty-logo {
 .amk-preview-vp-btns {
   display: flex; gap: 3px;
   background: rgba(255,255,255,0.05);
-  border: 1px solid var(--amk-line); border-radius: 7px; padding: 3px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm); padding: 3px;
 }
 .amk-preview-vp-btn {
-  width: 28px; height: 26px; border-radius: 5px; border: none;
+  width: 28px; height: 26px; border-radius: var(--radius-xs); border: none;
   background: transparent; color: var(--muted); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.13s, color 0.13s;
@@ -1200,7 +1200,7 @@ img.amk-empty-logo {
 
 .amk-preview-toolbar-btn {
   font-size: 10.5px; font-weight: 600; padding: 5px 11px;
-  border-radius: 6px; border: 1px solid var(--amk-line);
+  border-radius: var(--radius-xs); border: 1px solid var(--amk-line);
   background: transparent; color: var(--muted); cursor: pointer;
   transition: background 0.14s, color 0.14s, border-color 0.14s;
 }
@@ -1247,7 +1247,7 @@ img.amk-empty-logo {
 }
 .amk-polish-btn {
   display: flex; align-items: center; gap: 6px;
-  padding: 5px 13px; border-radius: 7px; cursor: pointer; white-space: nowrap;
+  padding: 5px 13px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap;
   background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
   border: 1px solid rgba(139,92,246,0.5);
   color: #fff; font-size: 11.5px; font-weight: 700;

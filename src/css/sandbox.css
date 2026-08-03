@@ -64,7 +64,7 @@
   background: transparent;
   border: 1px solid rgba(0,255,65,0.25);
   color: rgba(0,255,65,0.55);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all .15s;
 }
@@ -83,7 +83,7 @@
   background: rgba(255,60,60,0.08);
   border: 1px solid rgba(255,80,80,0.38);
   color: var(--danger);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all .15s;
   animation: sbx-pulse-red 1.4s ease-in-out infinite;
@@ -141,7 +141,7 @@
   color: var(--accent-2);
   background: rgba(0,20,5,0.7);
   border: 1px solid rgba(0,255,65,0.20);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   padding: 10px 12px;
   outline: none;
   transition: border-color .15s, box-shadow .15s;
@@ -168,7 +168,7 @@
   color: var(--accent-2);
   background: rgba(0,20,5,0.7);
   border: 1px solid rgba(0,255,65,0.22);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   padding: 5px 10px;
   outline: none;
   appearance: none;
@@ -195,7 +195,7 @@
   background: rgba(0,255,65,0.06);
   border: 1px solid rgba(0,255,65,0.22);
   color: rgba(0,255,65,0.65);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all .15s;
 }
@@ -213,7 +213,7 @@
   position: relative;
   background: rgba(0,16,4,0.97);
   border: 1px solid rgba(0,255,65,0.28);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   padding: 10px;
   display: flex; flex-direction: column; gap: 8px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,255,65,0.06);
@@ -243,7 +243,7 @@
   background: rgba(0,255,65,0.06);
   border: 1px solid rgba(0,255,65,0.22);
   color: rgba(0,255,65,0.65);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all .12s;
 }
@@ -267,7 +267,7 @@
   font-size: 8.5px; font-weight: 700;
   letter-spacing: 0.12em;
   padding: 2px 7px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   min-width: 56px;
   text-align: center;
   white-space: nowrap;
@@ -295,7 +295,7 @@
 .sbx-scan-model-tag {
   font-family: var(--mono);
   font-size: 8.5px; font-weight: 700; letter-spacing: 0.10em;
-  padding: 2px 7px; border-radius: 3px;
+  padding: 2px 7px; border-radius: var(--radius-xs);
   white-space: nowrap;
 }
 .sbx-scan-model-tag.boss    { background: rgba(0,255,65,0.08);   border: 1px solid rgba(0,255,65,0.28);   color: var(--accent); }
@@ -319,7 +319,7 @@
   background: linear-gradient(180deg, rgba(0,255,65,0.14), rgba(0,200,40,0.07));
   border: 1px solid rgba(0,255,65,0.40);
   color: var(--accent);
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   cursor: pointer;
   transition: all .15s;
   text-shadow: 0 0 8px rgba(0,255,65,0.5);
@@ -345,7 +345,7 @@
   overflow-y: auto;
   background: rgba(0,12,3,0.8);
   border: 1px solid rgba(0,255,65,0.12);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   padding: 10px 12px;
   display: flex; flex-direction: column; gap: 4px;
   scrollbar-width: thin;
@@ -375,7 +375,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   padding: 1px 6px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: rgba(0,255,65,0.08);
   border: 1px solid rgba(0,255,65,0.20);
   color: rgba(0,255,65,0.75);
@@ -417,7 +417,7 @@
 .sbx-report-card {
   background: rgba(0,16,4,0.85);
   border: 1px solid rgba(0,255,65,0.14);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   flex: 0 0 auto;
   animation: sbx-card-in .3s ease-out;
@@ -450,7 +450,7 @@
 
 .sbx-risk-badge {
   font-size: 9px; font-weight: 800; letter-spacing: 0.16em;
-  padding: 2px 8px; border-radius: 3px;
+  padding: 2px 8px; border-radius: var(--radius-xs);
 }
 .sbx-risk-badge.CRITICAL { background: rgba(255,30,30,0.18); border: 1px solid rgba(255,50,50,0.5); color: var(--danger); }
 .sbx-risk-badge.HIGH     { background: rgba(255,120,30,0.15); border: 1px solid rgba(255,140,40,0.45); color: var(--warn); }
@@ -516,7 +516,7 @@
 .sbx-verdict-badge {
   display: flex; align-items: center; gap: 8px;
   padding: 5px 14px 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;

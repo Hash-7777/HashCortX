@@ -124,7 +124,7 @@ body.virtual-os-mode #app { display: none; }
 .void-btn {
   min-height: 31px;
   padding: 6px 12px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   font-family: var(--mono);
   font-size: 10px;
   letter-spacing: 0.10em;
@@ -141,14 +141,14 @@ body.virtual-os-mode #app { display: none; }
 .void-mini-btn {
   min-height: 26px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   font-size: 11px;
 }
 
 .void-icon-btn {
   width: 31px;
   height: 31px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -216,7 +216,7 @@ body.virtual-os-mode #app { display: none; }
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--void-line);
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: rgba(0, 0, 0, 0.28);
   color: #eafff8;
   font-size: 11px;
@@ -287,7 +287,7 @@ body.virtual-os-mode #app { display: none; }
   overflow: hidden;
   z-index: 200;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 22px;
+  border-radius: var(--radius-lg);
   background: #1f1f1f;
   box-shadow:
     0 32px 90px rgba(0,0,0,0.68),
@@ -313,7 +313,7 @@ body.virtual-os-mode #app { display: none; }
   padding: 0 18px;
   border-bottom: 1px solid rgba(255,255,255,0.10);
   background: #202020;
-  border-radius: 22px 22px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   cursor: grab;
   user-select: none;
   position: relative;
@@ -345,7 +345,7 @@ body.virtual-os-mode #app { display: none; }
   width: 34px;
   height: 34px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: transparent;
   color: rgba(245,245,247,0.72);
   cursor: pointer;
@@ -376,7 +376,7 @@ body.virtual-os-mode #app { display: none; }
   width: 32px;
   height: 32px;
   border: 1px solid rgba(255,255,255,0.10);
-  border-radius: 14px;
+  border-radius: var(--radius);
   background: rgba(0,0,0,0.14);
   color: rgba(245,245,247,0.80);
   cursor: pointer;
@@ -407,7 +407,7 @@ body.virtual-os-mode #app { display: none; }
   height: 22px;
   padding: 0 6px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: rgba(202,232,221,0.55);
   font-family: var(--sans);
@@ -435,7 +435,7 @@ body.virtual-os-mode #app { display: none; }
   padding: 0 18px;
   border-top: 1px solid rgba(255,255,255,0.12);
   background: #202020;
-  border-radius: 0 0 22px 22px;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
   overflow: hidden;
 }
 .void-finder-status {
@@ -491,7 +491,7 @@ body.virtual-os-mode #app { display: none; }
   gap: 5px;
   padding: 8px 4px;
   min-height: 72px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   text-align: center;
 }
 .void-file-list.grid .void-row-title {
@@ -541,7 +541,7 @@ body.virtual-os-mode #app { display: none; }
   max-width: none;
   background: rgba(57, 255, 129, 0.045);
   border: 1px solid var(--tp-border);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   outline: none;
   color: var(--tp-fg);
   font-family: var(--mono);
@@ -779,7 +779,7 @@ body.virtual-os-mode #app { display: none; }
 .void-change-ref {
   background: rgba(57, 255, 129, 0.07);
   border: 1px solid rgba(57, 255, 129, 0.22);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   color: var(--tp-accent);
   font-family: var(--mono);
   font-size: 10.5px;
@@ -890,7 +890,7 @@ body.virtual-os-mode #app { display: none; }
   resize: vertical;
   /* visible border + lighter tinted background so it's never invisible */
   border: 1px solid rgba(34, 211, 238, 0.42);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: rgba(34, 211, 238, 0.04);
   color: #effffb;
   outline: none;
@@ -919,7 +919,7 @@ body.virtual-os-mode #app { display: none; }
   margin: 0 12px 10px;
   padding: 9px;
   border: 1px solid var(--void-line);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: rgba(0, 0, 0, 0.18);
   display: grid;
   gap: 8px;
@@ -1051,7 +1051,7 @@ body.virtual-os-mode #app { display: none; }
   letter-spacing: 0.10em;
   text-transform: uppercase;
   padding: 3px 9px;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--void-line);
   background: transparent;
   color: var(--void-2);
@@ -1128,7 +1128,7 @@ body.virtual-os-mode #app { display: none; }
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #0d1117;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.55);
 }
@@ -1163,7 +1163,7 @@ body.virtual-os-mode #app { display: none; }
   width: 22px;
   height: 22px;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: rgba(245, 248, 250, 0.45);
   cursor: pointer;
@@ -1181,7 +1181,7 @@ body.virtual-os-mode #app { display: none; }
   min-width: 168px;
   background: rgba(30, 34, 40, 0.98);
   border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.05) inset;
   padding: 5px;
   z-index: 400;
@@ -1195,7 +1195,7 @@ body.virtual-os-mode #app { display: none; }
   width: 100%;
   padding: 7px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: rgba(235, 240, 245, 0.82);
   font-size: 12px;
@@ -1260,7 +1260,7 @@ body.virtual-os-mode #app { display: none; }
   align-items: center;
   gap: 6px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: #fff;
   padding: 8px 6px;
@@ -1305,7 +1305,7 @@ body.virtual-os-mode #app { display: none; }
   overflow-wrap: anywhere;
   text-shadow: 0 1px 5px rgba(0, 0, 0, 0.72);
   padding: 2px 4px;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
 }
 
 .void-file-glyph {
@@ -1339,7 +1339,7 @@ body.virtual-os-mode #app { display: none; }
 .void-dock button {
   min-height: 32px;
   border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.12);
   color: rgba(246, 248, 250, 0.90);
   padding: 0 12px;
@@ -1415,7 +1415,7 @@ body.virtual-os-mode #app { display: none; }
 .void-file-row {
   width: 100%;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: rgba(245, 245, 247, 0.84);
   cursor: default;
@@ -1567,7 +1567,7 @@ body.virtual-os-mode #app { display: none; }
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: rgba(18, 23, 29, 0.98);
   box-shadow: 0 26px 74px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(255,255,255,0.06) inset;
   overflow: hidden;
@@ -1646,7 +1646,7 @@ body.virtual-os-mode #app { display: none; }
 .void-dialog-card {
   width: min(440px, 94vw);
   border: 1px solid var(--void-line);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: #06111a;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.56), 0 0 0 1px rgba(134, 239, 172, 0.06) inset;
   overflow: hidden;
@@ -1691,7 +1691,7 @@ body.virtual-os-mode #app { display: none; }
   min-height: 36px;
   margin-top: 12px;
   border: 1px solid var(--void-line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: #02070c;
   color: #eafff8;
   outline: none;
@@ -1809,7 +1809,7 @@ body.virtual-os-mode #app { display: none; }
   position: fixed;
   background: rgba(2, 6, 12, 0.98);
   border: 1px solid rgba(34, 211, 238, 0.28);
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   box-shadow: 0 28px 90px rgba(0,0,0,0.75), 0 0 0 0.5px rgba(255,255,255,0.05);
   display: flex;
   flex-direction: column;

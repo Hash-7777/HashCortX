@@ -21,13 +21,33 @@
 //
 // Run with: npm run check:theme
 // ==============================================================
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const cssDir = join(here, '..', '..', 'src', 'css');
-const read = (f) => readFileSync(join(cssDir, f), 'utf8');
+const srcDir = join(here, '..', '..', 'src');
+const cssDir = join(srcDir, 'css');
+
+/**
+ * Every stylesheet the page actually loads, not just the ones in src/css/.
+ *
+ * This check originally scanned that folder alone, and missed src/styles.css —
+ * 1,400 lines calling itself the master design system, carrying a second set
+ * of brand tokens, and linked LAST so it has the final say. A guard that reads
+ * a directory rather than the page is a guard the page can step around.
+ */
+function linkedStylesheets() {
+  const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
+  const out = [];
+  for (const [, href] of html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)) {
+    if (href.includes('vendor/')) continue;      // third-party, not ours to shape
+    out.push(href.replace(/^\//, ''));
+  }
+  return out;
+}
+const SHEETS = linkedStylesheets();
+const read = (f) => readFileSync(join(srcDir, f), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -35,7 +55,7 @@ function check(label, condition, detail = '') {
   else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
 }
 
-const vars = read('vars.css');
+const vars = read('css/vars.css');
 
 // ── 1. The shared vocabulary ─────────────────────────────────────────────
 console.log('\nThe shared tokens exist:');
@@ -80,13 +100,37 @@ const SHARED = [
   '--radius', '--radius-lg', '--radius-sm', '--radius-xs',
 ];
 console.log('\nNo stylesheet redefines what the shared tokens mean:');
-for (const file of readdirSync(cssDir).filter((f) => f.endsWith('.css') && f !== 'vars.css')) {
+for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
   const src = read(file);
   const redefined = SHARED.filter((t) => new RegExp(`^\\s*${t}\\s*:`, 'm').test(src));
   check(`${file}`, redefined.length === 0, `redefines ${redefined.join(', ')}`);
 }
 
-// ── 4. The ratchet ───────────────────────────────────────────────────────
+// ── 4. Corners come from the scale ───────────────────────────────────────
+//
+// The app had thirteen radii: 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 20, 22.
+// Coder's corners were sharp, Virtual OS's were round, everything else sat
+// between — which is most of why two modes at the same colour still read as
+// two products.
+//
+// Allowed without a token: 1px and 2px, which are hairlines, bars and
+// scrollbar thumbs where a 6px corner would look like a mistake; 999px and 50%
+// for pills and circles; and var(--sys-radius…), which the generated ERP
+// prototype sets per spec from its own theme.
+console.log('\nEvery corner comes from the scale:');
+for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
+  const src = read(file);
+  const strays = [];
+  for (const [, value] of src.matchAll(/border-radius:\s*([^;}]+)/g)) {
+    for (const [, px] of value.matchAll(/(?<![-\w(])(\d+)px/g)) {
+      const n = Number(px);
+      if (n >= 3 && n !== 999 && !value.includes('--sys-radius')) strays.push(`${n}px`);
+    }
+  }
+  check(`${file}`, strays.length === 0, `off-scale: ${[...new Set(strays)].join(', ')}`);
+}
+
+// ── 5. The ratchet ───────────────────────────────────────────────────────
 //
 // Counts of hardcoded colours, measured. Lower these when a file is converted;
 // the check fails if one rises, and also if one falls without being recorded,
@@ -96,29 +140,38 @@ for (const file of readdirSync(cssDir).filter((f) => f.endsWith('.css') && f !==
 // ERP prototype in the preview, which is meant to look like real business
 // software rather than like HashCortx. Its builder chrome is on the tokens.
 const BUDGET = {
-  'vars.css': 35,
-  'system-maker.css': 131,
-  'modals.css': 64,
-  'virtual-os.css': 56,
-  'modes.css': 51,
-  'main.css': 43,
-  'coder-mode.css': 37,
-  'agent-maker.css': 36,
-  'finance-mode.css': 29,
-  'tabs.css': 18,
-  'sidebar.css': 9,
-  'composer.css': 5,
-  'base.css': 3,
-  'sandbox.css': 2,
-  'forge-mode.css': 2,
+  // Not in css/. A second design system in its own --hc-* namespace, linked
+  // last so it has the final say; recorded here so it can shrink but not grow.
+  'styles.css': 32,
+  'css/vars.css': 35,
+  'css/system-maker.css': 131,
+  'css/modals.css': 64,
+  'css/virtual-os.css': 56,
+  'css/modes.css': 51,
+  'css/main.css': 43,
+  'css/coder-mode.css': 37,
+  'css/agent-maker.css': 36,
+  'css/finance-mode.css': 29,
+  'css/tabs.css': 18,
+  'css/sidebar.css': 9,
+  'css/composer.css': 5,
+  'css/base.css': 3,
+  'css/sandbox.css': 2,
+  'css/forge-mode.css': 2,
 };
 
 console.log('\nHardcoded colour counts go down, never up:');
 {
-  const files = readdirSync(cssDir).filter((f) => f.endsWith('.css'));
-  check('every stylesheet has a recorded budget',
+  // Both directions: a linked sheet with no budget, and a budget for a sheet
+  // the page no longer loads. The second is how a stale entry hides a file
+  // that has quietly stopped mattering.
+  const files = SHEETS;
+  check('every linked stylesheet has a recorded budget',
     files.every((f) => f in BUDGET),
     files.filter((f) => !(f in BUDGET)).join(', '));
+  check('every recorded budget is for a stylesheet still loaded',
+    Object.keys(BUDGET).every((f) => files.includes(f)),
+    Object.keys(BUDGET).filter((f) => !files.includes(f)).join(', '));
 
   for (const file of files.filter((f) => f in BUDGET)) {
     const count = (read(file).match(/#[0-9a-fA-F]{6}\b|#[0-9a-fA-F]{3}\b/g) || []).length;

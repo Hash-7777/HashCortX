@@ -19,7 +19,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
       linear-gradient(180deg, rgba(26,28,36,0.94), rgba(18,20,27,0.94));
     border: 1px solid rgba(34,211,238,0.18);
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg), var(--glass-edge);
     backdrop-filter: blur(20px) saturate(150%);
     -webkit-backdrop-filter: blur(20px) saturate(150%);
@@ -200,7 +200,7 @@
     padding: 5px 18px 6px;
     background: none;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     cursor: pointer;
     font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
     color: var(--text-dim);
@@ -242,7 +242,7 @@
     background:
       linear-gradient(180deg, rgba(20,28,44,0.97), rgba(12,18,30,0.98));
     border: 1px solid rgba(80,140,220,0.32);
-    border-radius: 14px;
+    border-radius: var(--radius);
     box-shadow:
       inset 0 1px 0 rgba(160,200,255,0.07),
       0 0 0 1px rgba(80,140,220,0.10),
@@ -265,7 +265,7 @@
   .terminal-alert-mark {
     width: 34px; height: 34px; flex: 0 0 34px;
     display: grid; place-items: center;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: linear-gradient(180deg, #4a8fe8, #3b78d6);
     color: #ffffff;
     font-weight: 700;
@@ -294,7 +294,7 @@
     margin-top: 12px;
     height: 38px;
     padding: 0 12px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     border: 1px solid rgba(80,140,220,0.30);
     outline: none;
     background: rgba(8,14,24,0.78);
@@ -320,7 +320,7 @@
   .terminal-alert-actions button {
     min-width: 92px;
     height: 34px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
     font-size: 12.5px;
     font-weight: 600;
@@ -396,7 +396,7 @@
   }
   .about-badge {
     display: inline-flex; align-items: center; gap: 7px;
-    padding: 5px 14px; border-radius: 20px;
+    padding: 5px 14px; border-radius: var(--radius-lg);
     border: 1px solid rgba(34,211,238,0.28);
     background: rgba(34,211,238,0.06);
     font-size: 11px; letter-spacing: .1em; text-transform: uppercase;
@@ -413,7 +413,7 @@
   }
   .about-eco-app {
     display: flex; flex-direction: column; gap: 2px;
-    padding: 10px 13px; border-radius: 10px;
+    padding: 10px 13px; border-radius: var(--radius-md);
     border: 1px solid rgba(34,211,238,0.16);
     background: rgba(34,211,238,0.04);
     cursor: pointer; transition: .15s; text-decoration: none;
@@ -430,7 +430,7 @@
   .about-eco-here {
     font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
     color: var(--gold-deep); border: 1px solid rgba(34,211,238,0.3);
-    border-radius: 10px; padding: 1px 7px; font-weight: 700;
+    border-radius: var(--radius-md); padding: 1px 7px; font-weight: 700;
   }
   .about-eco-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
   .modal-header h2 {
@@ -442,7 +442,7 @@
     width: 32px; height: 32px; padding: 0;
     display: grid; place-items: center;
     background: rgba(255,255,255,0.04);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
   }
   .modal-header .close-btn svg { width: 14px; height: 14px; color: var(--text-dim); }
   .modal-body {
@@ -454,7 +454,7 @@
   }
   .modal-body::-webkit-scrollbar { width: 8px; }
   .modal-body::-webkit-scrollbar-thumb {
-    background: rgba(34,211,238,0.2); border-radius: 10px;
+    background: rgba(34,211,238,0.2); border-radius: var(--radius-md);
     border: 2px solid transparent; background-clip: padding-box;
   }
   .modal-footer {
@@ -467,7 +467,7 @@
   .mem-list { display: flex; flex-direction: column; gap: 7px; }
   .mem-empty {
     padding: 22px 12px; text-align: center; color: var(--text-dim);
-    font-size: 12.5px; border: 1px dashed var(--line); border-radius: 10px;
+    font-size: 12.5px; border: 1px dashed var(--line); border-radius: var(--radius-md);
   }
   .mem-row {
     display: grid;
@@ -481,7 +481,7 @@
     align-items: center;
     padding: 10px 12px 8px;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: rgba(255,255,255,0.02);
     transition: background 130ms ease, border-color 130ms ease, box-shadow 160ms ease;
   }
@@ -507,7 +507,7 @@
   .mem-val[contenteditable="true"] {
     -webkit-line-clamp: unset; display: block;
     background: rgba(34,211,238,0.08); border: 1px solid rgba(34,211,238,0.42);
-    border-radius: 6px; padding: 4px 7px; outline: none;
+    border-radius: var(--radius-xs); padding: 4px 7px; outline: none;
   }
   .mem-actions {
     grid-area: actions;
@@ -516,7 +516,7 @@
   }
   .mem-actions button {
     background: transparent; border: 1px solid var(--line); color: var(--text-dim);
-    width: 26px; height: 26px; border-radius: 6px;
+    width: 26px; height: 26px; border-radius: var(--radius-xs);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; transition: all 120ms ease;
     flex: 0 0 26px;
@@ -550,7 +550,7 @@
     width: min(1120px, 96vw) !important;
     height: min(780px, 88vh) !important;
     max-width: 1120px !important;
-    border-radius: 14px;
+    border-radius: var(--radius);
     overflow: hidden;
   }
   .mem-map-modal .modal-header {
@@ -579,7 +579,7 @@
     max-width: min(460px, calc(100% - 190px));
     padding: 7px 10px;
     border: 1px solid rgba(34,211,238,0.14);
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     background: rgba(12,11,9,0.72);
     color: rgba(236,231,220,0.68);
     font-size: 11px;
@@ -676,7 +676,7 @@
   }
   #memMapTools button {
     background: rgba(19,18,16,0.78); border: 1px solid rgba(34,211,238,0.18);
-    color: rgba(236,211,160,0.95); width: 40px; height: 40px; border-radius: 10px;
+    color: rgba(236,211,160,0.95); width: 40px; height: 40px; border-radius: var(--radius-md);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -704,7 +704,7 @@
     min-height: 42px;
     padding: 11px 14px;
     border: 1px solid rgba(34,211,238,0.16);
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     background: rgba(12,11,9,0.78);
     color: var(--text);
     font-size: 12.5px;
@@ -740,7 +740,7 @@
   }
   .template-item {
     padding: 9px 10px;
-    border-radius: 9px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.03);
     text-align: left;
@@ -887,7 +887,7 @@
     .ping-btn, .ping-btn.ok, .ping-btn.fail,
     .ping-btn.warm, .ping-btn.hot, .ping-btn.critical {
       height: 30px; padding: 0 7px;
-      border-radius: 9px;
+      border-radius: var(--radius-sm);
     }
     .ping-btn svg { width: 12px; height: 12px; }
     .ping-btn span,
@@ -988,7 +988,7 @@
     padding: 1px 7px;
     line-height: 16px;
     font-size: 9.5px;
-    border-radius: 7px;
+    border-radius: var(--radius-sm);
   }
   .crumbs .badge-row {
     min-height: 24px;
@@ -1000,7 +1000,7 @@
     height: 22px !important;
     padding: 2px 7px 2px 4px !important;
     gap: 5px;
-    border-radius: 6px;
+    border-radius: var(--radius-xs);
     font-size: 10px;
     font-weight: 500;
     letter-spacing: 0.05em;
@@ -1013,7 +1013,7 @@
     width: 15px;
     min-width: 15px;
     height: 15px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
   .badge-row #activeAgentChip.agent-chip > span:nth-child(2) {
     display: inline !important;
@@ -1028,7 +1028,7 @@
     flex: 0 0 14px;
     width: 14px;
     height: 14px;
-    border-radius: 3px;
+    border-radius: var(--radius-xs);
   }
   .topbar .actions {
     position: fixed;
@@ -1051,7 +1051,7 @@
       linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.018)),
       linear-gradient(180deg, rgba(40,58,52,0.72), rgba(4,12,10,0.82));
     border: 1px solid rgba(96,255,160,0.30);
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
     box-shadow:
       inset 0 1px 0 rgba(255,255,255,0.12),
       inset 0 0 0 1px rgba(34,211,238,0.07),
@@ -1063,7 +1063,7 @@
     position: absolute;
     inset: 6px;
     pointer-events: none;
-    border-radius: 14px;
+    border-radius: var(--radius);
     border: 1px solid rgba(255,255,255,0.045);
   }
   .topbar .actions > .ping-btn,
@@ -1083,7 +1083,7 @@
     height: auto;
     min-height: 48px;
     padding: 6px 3px;
-    border-radius: 11px;
+    border-radius: var(--radius-md);
     flex-direction: column;
     gap: 3px;
     font-size: 8.5px;
@@ -1140,7 +1140,7 @@
     padding: 1px 5px;
     font-size: 7px;
     line-height: 10px;
-    border-radius: 4px;
+    border-radius: var(--radius-xs);
   }
   .topbar .actions #exportBtn span,
   .topbar .actions #powerBtn span {
@@ -1266,11 +1266,11 @@
     .topbar .actions {
       grid-auto-rows: auto;
       gap: 6px;
-      border-radius: 16px;
+      border-radius: var(--radius);
     }
     .topbar .actions .ping-btn {
       min-height: 46px;
-      border-radius: 11px;
+      border-radius: var(--radius-md);
       font-size: 8px;
       padding-top: 5px;
       padding-bottom: 5px;
@@ -1338,7 +1338,7 @@
     min-width: max-content !important;
     padding: 4px !important;
     overflow: visible !important;
-    border-radius: 12px !important;
+    border-radius: var(--radius-md) !important;
   }
   .app:not(.code-mode):not(.forge-mode) .topbar .actions::before {
     display: none !important;
@@ -1364,7 +1364,7 @@
     height: 30px !important;
     min-height: 30px !important;
     padding: 0 9px !important;
-    border-radius: 9px !important;
+    border-radius: var(--radius-sm) !important;
     flex-direction: row !important;
     gap: 6px !important;
     font-size: 10px !important;
@@ -1770,7 +1770,7 @@ body.intro-exiting #intro-screen .logo-glow {
 .hc-perm-card {
   background: #0f1117;
   border: 1px solid rgba(34,211,238,.22);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: 0 0 40px rgba(34,211,238,.12), 0 24px 48px rgba(0,0,0,.6);
   width: min(520px, 92vw);
   font-family: var(--mono, 'JetBrains Mono', monospace);
@@ -1790,13 +1790,13 @@ body.intro-exiting #intro-screen .logo-glow {
 .hc-perm-row  { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .hc-perm-badge {
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  padding: 3px 8px; border-radius: 4px;
+  padding: 3px 8px; border-radius: var(--radius-xs);
   background: rgba(34,211,238,.15); color: #22d3ee;
   border: 1px solid rgba(34,211,238,.3); flex-shrink: 0;
 }
 .hc-perm-target {
   font-size: 12px; color: #e2fde8; word-break: break-all;
-  background: rgba(255,255,255,.04); padding: 3px 7px; border-radius: 4px;
+  background: rgba(255,255,255,.04); padding: 3px 7px; border-radius: var(--radius-xs);
 }
 .hc-perm-reason {
   margin: 10px 0 0; font-size: 11px;
@@ -1807,7 +1807,7 @@ body.intro-exiting #intro-screen .logo-glow {
 }
 .hc-perm-btn {
   flex: 1; min-width: 100px; padding: 9px 14px;
-  border: 1px solid; border-radius: 7px;
+  border: 1px solid; border-radius: var(--radius-sm);
   font-family: inherit; font-size: 12px; font-weight: 600;
   cursor: pointer; transition: background .15s, transform .1s;
 }
@@ -1828,7 +1828,7 @@ body.intro-exiting #intro-screen .logo-glow {
 /* Guard notification banner */
 .hc-guard-banner {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
-  z-index: 20000; padding: 10px 20px; border-radius: 8px;
+  z-index: 20000; padding: 10px 20px; border-radius: var(--radius-sm);
   font-family: var(--mono, monospace); font-size: 12px; font-weight: 600;
   pointer-events: none; opacity: 0;
   transition: transform .25s cubic-bezier(.22,1,.36,1), opacity .2s;

@@ -175,7 +175,7 @@ input, textarea, [contenteditable="true"],
   text-transform: uppercase;
   padding: 1px 5px;
   border: 1px solid rgba(34,211,238,0.18);
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   background: rgba(34,211,238,0.05);
   margin-left: 2px;
   -webkit-app-region: drag;   /* must be explicit on each child */
@@ -198,7 +198,7 @@ input, textarea, [contenteditable="true"],
 .hc-toolbar-btn {
   width: 28px; height: 28px;
   display: flex; align-items: center; justify-content: center;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   border: 1px solid rgba(34,211,238,0.14);
   background: rgba(34,211,238,0.06);
   color: var(--hc-text-dim);
@@ -296,9 +296,13 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   --bg-0: #040507;
   --bg-1: #060d06;
   --bg-2: #0d1a0d;
-  --line:        rgba(34,211,238,0.10);
-  --line-soft:   rgba(34,211,238,0.06);
-  --line-strong: rgba(34,211,238,0.28);
+  /* Under this splash's own names. These used to be --line, --line-strong and
+     --ok, and because this file is linked last they won app-wide inside the
+     intro — "ok" was one colour here and another everywhere else, which is the
+     single thing the shared tokens exist to prevent. */
+  --intro-line:        rgba(34,211,238,0.10);
+  --intro-line-soft:   rgba(34,211,238,0.06);
+  --intro-line-strong: rgba(34,211,238,0.28);
   --ink:         #c7e6f0;
   --ink-mute:    rgba(199,230,240,0.65);
   --ink-dim:     rgba(199,230,240,0.38);
@@ -307,7 +311,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   --gold-bright: #6feaff;
   --gold-deep:   #1a5a7a;
   --accent-glow: rgba(34,211,238,0.45);
-  --ok:          #22d3ee;
+  --intro-ok:    #22d3ee;
   --font-mono:   'JetBrains Mono', ui-monospace, monospace;
   --font-display: 'JetBrains Mono', ui-monospace, monospace;
 
@@ -325,8 +329,8 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 .grid-bg {
   position: absolute; inset: 0;
   background-image:
-    linear-gradient(var(--line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    linear-gradient(var(--intro-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--intro-line-soft) 1px, transparent 1px);
   background-size: 60px 60px;
   opacity: 0.4;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
@@ -369,7 +373,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   text-transform: uppercase;
   width: auto; max-width: min(34vw, 430px); z-index:4;
 }
-.boot-lines .ok   { color: var(--ok); }
+.boot-lines .ok   { color: var(--intro-ok); }
 .boot-lines .gold { color: var(--gold); }
 .boot-lines .dim  { color: var(--ink-faint); }
 .boot-lines .row  {
@@ -417,7 +421,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 .boot-meter .grp { margin-bottom:8px; }
 .boot-meter .row { display:flex; justify-content:space-between; gap:14px; margin-bottom:3px; }
-.boot-meter .bar { height:1.5px; background:var(--line-soft); position:relative; overflow:hidden; }
+.boot-meter .bar { height:1.5px; background:var(--intro-line-soft); position:relative; overflow:hidden; }
 .boot-meter .bar::after {
   content:""; position:absolute; inset:0;
   background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
@@ -509,7 +513,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 .status-badge {
   position: absolute; top:20%; left:50%; transform:translateX(-50%);
   display:inline-flex; align-items:center; gap:7px; padding:4px 12px;
-  border:1px solid var(--line-strong); border-radius:999px;
+  border:1px solid var(--intro-line-strong); border-radius:999px;
   background: rgba(34,211,238,0.04);
   font-family: var(--font-mono);
   font-size: clamp(7.8px,0.72vw,9px); letter-spacing:.24em;
@@ -518,7 +522,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 .status-badge .dot {
   width:7px; height:7px; border-radius:50%;
-  background: var(--ok); box-shadow:0 0 8px var(--ok);
+  background: var(--intro-ok); box-shadow:0 0 8px var(--intro-ok);
   animation: idotpulse 1.4s ease-in-out infinite;
 }
 #intro-screen .status-badge.initializing {
@@ -582,7 +586,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 /* Spinning rings */
 .ring {
   position:absolute; border-radius:50%;
-  border:1px solid var(--line-strong); pointer-events:none;
+  border:1px solid var(--intro-line-strong); pointer-events:none;
 }
 .ring::before {
   content:""; position:absolute;
@@ -813,7 +817,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   font-weight: 700;
   letter-spacing: 0.12em;
   padding: 0 14px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .frg-btn#frgBackBtn:hover,
@@ -846,7 +850,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   height: 32px;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   flex: 0 0 auto;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -857,7 +861,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   min-width: 30px;
   min-height: 30px;
   padding: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   flex: 0 0 30px;
 }
 #system-maker-wrap .sys-header {
@@ -905,7 +909,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   appearance: none;
   box-sizing: border-box;
   padding: 0 42px 0 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   border-color: rgba(126, 159, 216, 0.25);
   background-color: rgba(15, 23, 42, 0.86);
   background-image:
@@ -942,7 +946,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   min-width: 132px;
   padding: 5px;
   border: 1px solid rgba(126, 159, 216, 0.24);
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   background: rgba(9, 13, 24, .98);
   box-shadow: 0 16px 34px rgba(0,0,0,.36);
   z-index: 70;
@@ -954,7 +958,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   align-items: center;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: #dbeafe;
   cursor: pointer;
@@ -1065,7 +1069,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   max-height: calc(100vh - var(--toolbar-h, 44px) - 32px) !important;
   max-height: min(760px, calc(100dvh - var(--toolbar-h, 44px) - 32px)) !important;
   overflow: hidden !important;
-  border-radius: 16px !important;
+  border-radius: var(--radius) !important;
   border: 1px solid rgba(199, 230, 240, 0.20) !important;
   background:
     linear-gradient(180deg, rgba(24, 29, 40, 0.99), rgba(11, 14, 22, 0.995)) !important;
@@ -1123,7 +1127,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 #settingsOverlay input.control {
   min-width: 0;
   height: 42px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   font: 13px var(--mono);
 }
 #settingsOverlay textarea.control {
@@ -1193,7 +1197,7 @@ header.topbar .badge-row #activeAgentChip.agent-chip {
   line-height: 1 !important;
   white-space: nowrap !important;
   vertical-align: middle;
-  border-radius: 8px !important;
+  border-radius: var(--radius-sm) !important;
   border: 1px solid rgba(201,169,110,0.42) !important;
   background:
     linear-gradient(180deg, rgba(245,215,122,0.13), rgba(201,169,110,0.045)),
@@ -1212,7 +1216,7 @@ header.topbar .badge-row #activeAgentChip.agent-chip .ico {
   width: 17px !important;
   min-width: 17px !important;
   height: 17px !important;
-  border-radius: 6px !important;
+  border-radius: var(--radius-xs) !important;
   border: 1px solid rgba(201,169,110,0.34) !important;
   background: rgba(201,169,110,0.11) !important;
   color: rgba(245,215,122,0.94) !important;
@@ -1241,7 +1245,7 @@ header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear {
   width: 15px !important;
   min-width: 15px !important;
   height: 15px !important;
-  border-radius: 5px !important;
+  border-radius: var(--radius-xs) !important;
   background: rgba(0,0,0,0.22) !important;
   color: rgba(226,232,240,0.62) !important;
   font-size: 11px !important;
