@@ -5889,9 +5889,17 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       flushPendingBubbleUpdate();
     } else {
       // ── Plain chat / route-based search (no agent selected) ───────────
+      //
+      // Injection is gated on `injectionEnabled` alone. It also required a
+      // route, and the auto-router lost its switch in the UI, so `route` is
+      // always null — which quietly took the knowledge base with it. `/inject`
+      // reported that it had turned injection on and then nothing was ever
+      // retrieved, because the only call to queryRAGMerged on this path sat
+      // inside the route branch. The route-driven searches below are still
+      // skipped while there is no router; the knowledge base is not.
       let toolContext = null;
-      if (injectionEnabled && route?.route) {
-        const routeDef = ROUTE_DEFS[route.route];
+      if (injectionEnabled) {
+        const routeDef = route?.route ? ROUTE_DEFS[route.route] : null;
         try {
           if (routeDef?.useSearch === true) {
             pulse("Searching the web…");
