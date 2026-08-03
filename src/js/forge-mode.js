@@ -34,6 +34,9 @@
   let starField = null;
   let activePlan = null;
   let raf = 0;
+  // True between the GPU taking the context away and giving it back. Nothing
+  // may draw in between: the render target no longer exists.
+  let contextLost = false;
   let flights = [];
   let revealMeshes = [];
   let logoMeshes = [];
@@ -666,12 +669,64 @@
     scene.add(starField);
 
     window.addEventListener("resize", resize);
+    wireContextLoss();
     resize();
     initialized = true;
     startLoop();
     setStatus("Idle");
     log("SYSTEM", "Forge void is online.");
     return true;
+  }
+
+  /**
+   * Survive the GPU taking the drawing context away.
+   *
+   * A WebGL context is not owned by the page. The system reclaims it when the
+   * GPU comes under pressure or the app sits in the background, and this one
+   * was built with `alpha: false` and no handler — so when that happened the
+   * canvas went opaque white and stayed there. Nothing else broke: the panel
+   * still counted parts, clicks still logged, the render loop still ran and
+   * drew into a dead context. Only the picture was gone, permanently, until
+   * the mode was rebuilt from scratch.
+   *
+   * That is what a Forge that stops previewing after being left alone looks
+   * like, and it explains why the viewport can be blank while the trace says
+   * a model was loaded.
+   *
+   * The browser only offers a restore if the default is prevented, so that
+   * call is what makes recovery possible rather than a courtesy.
+   */
+  function wireContextLoss() {
+    const canvas = renderer?.domElement;
+    if (!canvas || canvas.dataset.frgContextWired) return;
+    canvas.dataset.frgContextWired = "1";
+
+    canvas.addEventListener("webglcontextlost", (event) => {
+      event.preventDefault();
+      contextLost = true;
+      stopLoop();
+      setStatus("Paused");
+      log("Viewport", "The system took the 3D context back — restoring", "warn");
+    });
+
+    canvas.addEventListener("webglcontextrestored", () => {
+      contextLost = false;
+      try {
+        // three.js rebuilds its own GPU state on the next frame, but every
+        // texture and buffer it had is gone, so the scene is built again from
+        // the plan rather than assumed to have survived.
+        renderer.resetState?.();
+        const plan = activePlan;
+        if (plan) buildPlan(plan);
+        resize();
+        startLoop();
+        log("Viewport", "3D context restored", "ok");
+        setStatus("Ready");
+      } catch (err) {
+        log("Viewport", `Could not restore the 3D context: ${err.message || err}`, "err");
+        setStatus("Failed");
+      }
+    });
   }
 
   function makeStarField() {
@@ -715,8 +770,17 @@
 
   /** Start the render loop if it is not already running. */
   function startLoop() {
-    if (raf) return;
+    // The context check belongs here rather than at each caller — the power
+    // handler restarts the loop whenever the window becomes visible, and that
+    // would otherwise resume drawing into a context that is gone.
+    if (raf || contextLost) return;
     raf = requestAnimationFrame(animate);
+  }
+
+  /** Stop the render loop. Safe to call when it is already stopped. */
+  function stopLoop() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
   }
 
   function animate(now) {
@@ -727,7 +791,7 @@
     //
     // Now the chain simply ends when there is nothing to draw, and startLoop()
     // restarts it. `raf = 0` marks it stopped so a restart cannot double up.
-    if (!renderer || !scene || !camera || !mounted || !window.HCPower?.isVisible()) {
+    if (!renderer || !scene || !camera || !mounted || contextLost || !window.HCPower?.isVisible()) {
       raf = 0;
       return;
     }
@@ -1751,6 +1815,9 @@
     traceStartTime = Date.now();
     const prompt = ($("frgPrompt")?.value || "").trim() || "a complex original 3D object";
     const prefs = forgePrefs();
+    // Which refinement passes did not run. A run that lost one is not a run
+    // that finished, and the difference has to reach the user.
+    const failedRoles = [];
     activeReferenceBrief = "";
     resetStages();
     updateStage("input", "done", "prompt locked");
@@ -1827,10 +1894,16 @@
           } else {
             log(agentMeta?.name || role, `No ${role} additions needed`, "wait");
           }
+          setAgentState(role, "done");
         } catch (err) {
+          // An agent that could not run is not done. Marking it done and
+          // finishing with "Forge complete" is why a model missing its whole
+          // surface pass still looked like a finished run: the part that
+          // shapes the silhouette had dropped out, and nothing said so.
+          failedRoles.push(agentMeta?.name || role);
           log(agentMeta?.name || role, `${role} failed: ${err.message || err}`, "warn");
+          setAgentState(role, "failed");
         }
-        setAgentState(role, "done");
       }
 
       // Keep every agent contribution attached to one assembled subject.
@@ -1847,11 +1920,24 @@
 
     buildPlan(plan);
     saveCurrentProject(false);
-    log("Orchestrator", `Forge complete · ${renderableNodes(plan.nodes).length} mesh part(s) exported`, "ok");
+    const partCount = renderableNodes(plan.nodes).length;
     const dot = $("frgTraceDot");
-    if (dot) dot.className = "frg-trace-dot done";
+    if (failedRoles.length) {
+      // Say which pass is missing. Each role contributes a different thing —
+      // losing the surface pass is why a model can come out as bare slabs —
+      // so "complete" over a partial run sends the user to the prompt to fix
+      // something that was never the problem.
+      log("Orchestrator",
+        `Forge finished with ${failedRoles.length} agent(s) failed · ${partCount} mesh part(s)`, "warn",
+        `${failedRoles.join(", ")} did not run — the model is missing that detail. Forge again to retry.`);
+      if (dot) dot.className = "frg-trace-dot error";
+      setStatus("Partial");
+    } else {
+      log("Orchestrator", `Forge complete · ${partCount} mesh part(s) exported`, "ok");
+      if (dot) dot.className = "frg-trace-dot done";
+      setStatus("Ready");
+    }
     updateStage("export", "active", `${(prefs.output || "glb").toUpperCase()} ready`);
-    setStatus("Ready");
   }
 
   function failForgeRun(label, message) {
@@ -3623,7 +3709,11 @@ Do not add floating decorations or abstract markers. Structure must add load-bea
     loadForgeProjects();
     syncModelSelectors();
     renderForgeProjects();
-    updatePlanList(null);
+    // Whatever is loaded, not nothing. Entering Forge a second time used to
+    // reset the header to "Void ready · 0 mesh parts" while the model was
+    // still in the scene and activePlan still held it — the panel disagreed
+    // with the viewport until some later click happened to refresh it.
+    updatePlanList(activePlan);
     wireEvents();
     const ok = await initThree();
     if (ok && !activePlan) buildPlan(hLogoPlan());
