@@ -1720,15 +1720,32 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     function addChangeEntry(name, path, kind, content) {
       const idx = fileChanges.length;
-      fileChanges.push({ name, path, kind, content });
+      // What the file held before this change. Captured by HC.code.undo at the
+      // moment of the write, which is the only point where it still exists.
+      const checkpoint = HC?.undo?.lastFor(path) || null;
+      const canUndo = !!HC?.undo?.canRestore(checkpoint);
+      fileChanges.push({ name, path, kind, content, checkpoint });
       const target = activeContentEl || $('cdrMessages')?.querySelector('.cdr-msg.assistant:last-of-type .cdr-msg-content');
       if (!target) return;
       const safeId = 'ch_' + Math.random().toString(36).slice(2, 9);
       const row = document.createElement('div');
       row.className = 'cdr-change-row pending';
       row.dataset.changeIdx = String(idx);
-      const lineCount = content ? (content.match(/\n/g) || []).length + 1 : 0;
-      const stats = content ? `+${lineCount} lines` : '';
+
+      // The real before/after, not the length of whatever the tool echoed back.
+      // For a patch there is no `content` argument at all, so the old count was
+      // measuring the tool's JSON result.
+      const before = checkpoint?.existed ? (checkpoint.content ?? '') : '';
+      // `checkpoint.after` is what was actually written. Preferred over the
+      // tool's arguments because patch_file has no content argument at all.
+      const after = kind === 'delete'
+        ? ''
+        : String(checkpoint?.after ?? content ?? '');
+      const rows = window.HCDiff ? window.HCDiff.diffLines(before, after) : [];
+      const tally = window.HCDiff ? window.HCDiff.countChanges(rows) : { added: 0, removed: 0 };
+      const stats = rows.length
+        ? `+${tally.added} −${tally.removed}`
+        : '';
       const svgAccept = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
       const svgReject = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
       const svgView = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
@@ -1737,19 +1754,38 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         <span class="cdr-change-file">${esc(name)}</span>
         <span class="cdr-change-stats">${esc(stats)}</span>
         <div class="cdr-change-actions">
-          <button class="cdr-change-btn primary cdr-change-accept">${svgAccept} Accept</button>
-          <button class="cdr-change-btn danger cdr-change-reject">${svgReject} Reject</button>
+          <button class="cdr-change-btn primary cdr-change-accept">${svgAccept} Keep</button>
+          <button class="cdr-change-btn danger cdr-change-reject"${canUndo ? '' : ' disabled title="The previous contents could not be saved, so this change cannot be undone."'}>${svgReject} Undo</button>
           <button class="cdr-change-btn cdr-change-view">${svgView} View</button>
         </div>`;
       row.querySelector('.cdr-change-accept').addEventListener('click', () => {
         row.classList.remove('pending'); row.classList.add('accepted');
         const btn = row.querySelector('.cdr-change-accept');
-        if (btn) btn.innerHTML = `${svgAccept} Accepted`;
+        if (btn) btn.innerHTML = `${svgAccept} Kept`;
+        const rejectBtn = row.querySelector('.cdr-change-reject');
+        if (rejectBtn) rejectBtn.disabled = true;
+        // The change is staying, so the saved copy is dead weight.
+        HC?.undo?.drop(checkpoint);
       });
-      row.querySelector('.cdr-change-reject').addEventListener('click', () => {
-        row.classList.remove('pending'); row.classList.add('rejected');
+      row.querySelector('.cdr-change-reject').addEventListener('click', async () => {
         const btn = row.querySelector('.cdr-change-reject');
-        if (btn) btn.innerHTML = `${svgReject} Rejected`;
+        if (!canUndo || btn?.disabled) return;
+        btn.disabled = true;
+        try {
+          await HC.undo.restore(checkpoint);
+          row.classList.remove('pending'); row.classList.add('rejected');
+          btn.innerHTML = `${svgReject} Undone`;
+          const acceptBtn = row.querySelector('.cdr-change-accept');
+          if (acceptBtn) acceptBtn.disabled = true;
+          terminalLog(`[undo] restored ${path}`, 'cdr-bash-preview');
+          if (checkpoint.existed) addAIFileToExplorer(path, 'write');
+        } catch (e) {
+          // Say so rather than showing "Rejected" over a file that did not change.
+          btn.disabled = false;
+          btn.innerHTML = `${svgReject} Undo failed`;
+          btn.title = String(e?.message || e);
+          terminalLog(`[undo] could not restore ${path}: ${e?.message || e}`, 'cdr-terminal-error');
+        }
       });
       row.querySelector('.cdr-change-view').addEventListener('click', () => {
         const preview = document.getElementById(safeId);
@@ -1760,18 +1796,40 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       });
       target.appendChild(row);
 
-      // Inline diff preview
+      // Inline diff — what changed, not what the file now says.
       const preview = document.createElement('div');
       preview.className = 'cdr-diff-preview';
       preview.id = safeId;
       preview.style.display = 'none';
-      const ext = name.split('.').pop() || 'txt';
+
+      let body;
+      if (!rows.length) {
+        body = `<pre><code>${esc(content || '')}</code></pre>`;
+      } else if (!checkpoint?.existed && kind !== 'delete') {
+        // A new file has nothing to compare against; show it as written.
+        body = `<pre><code>${esc(after)}</code></pre>`;
+      } else {
+        const shown = window.HCDiff.collapseUnchanged(rows, 3);
+        body = '<pre class="cdr-diff-lines">' + shown.map((r) => {
+          if (r.type === 'gap') {
+            return `<span class="cdr-diff-gap">    ⋯ ${r.hidden} unchanged line${r.hidden === 1 ? '' : 's'}</span>`;
+          }
+          const sign = r.type === 'add' ? '+' : r.type === 'del' ? '−' : ' ';
+          const no = r.type === 'add' ? r.afterNo : r.beforeNo;
+          return `<span class="cdr-diff-line ${r.type}">${String(no ?? '').padStart(4, ' ')} ${sign} ${esc(r.text)}</span>`;
+        }).join('\n') + '</pre>';
+      }
+
+      const heading = checkpoint?.unrestorable
+        ? `cannot be undone — ${esc(checkpoint.unrestorable)}`
+        : (!checkpoint?.existed && kind !== 'delete') ? 'new file' : `+${tally.added} −${tally.removed}`;
+
       preview.innerHTML = `
         <div class="cdr-diff-header">
           <span>${esc(name)}</span>
-          <span style="color:var(--cdr-text-muted)">${lineCount} lines</span>
+          <span style="color:var(--cdr-text-muted)">${heading}</span>
         </div>
-        <div class="cdr-diff-body"><pre><code>${esc(content || '')}</code></pre></div>`;
+        <div class="cdr-diff-body">${body}</div>`;
       target.appendChild(preview);
       scrollMessages();
     }

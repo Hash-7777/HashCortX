@@ -96,6 +96,17 @@ jobs:
       - name: Element-lookup checks
         run: npm run check:dom
 
+      # The diff is what a user reads before deciding whether to keep a change
+      # the agent already made. One that drops a line is worse than none.
+      - name: Diff checks
+        run: npm run check:diff
+
+      # Undo decides whether a user's file gets written over. The case that
+      # matters is the one where nothing usable was saved: it has to refuse
+      # rather than write emptiness and report success.
+      - name: Undo checks
+        run: npm run check:undo
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

@@ -808,6 +808,30 @@ body.coder-mode #app { display: none; }
 .cdr-diff-body .diff-del  { color: var(--cdr-error);  background: rgba(217,138,133,0.08); text-decoration: line-through; }
 .cdr-diff-body .diff-linenum { color: var(--cdr-text-muted); margin-right: 10px; user-select: none; }
 
+/* Line-by-line diff of one change. Each line is its own block so the tint
+   spans the full width rather than stopping at the end of the text. */
+.cdr-diff-lines { margin: 0; white-space: pre; }
+.cdr-diff-lines .cdr-diff-line { display: block; padding: 0 6px; border-radius: 2px; }
+.cdr-diff-lines .cdr-diff-line.add {
+  color: var(--cdr-success);
+  background: rgba(95,184,138,0.10);
+}
+.cdr-diff-lines .cdr-diff-line.del {
+  color: var(--cdr-error);
+  background: rgba(217,138,133,0.10);
+}
+.cdr-diff-lines .cdr-diff-line.same { color: var(--cdr-text-dim); }
+.cdr-diff-lines .cdr-diff-gap {
+  display: block;
+  padding: 2px 6px;
+  color: var(--cdr-text-muted);
+  font-style: italic;
+}
+
+/* A change whose previous contents could not be saved cannot be undone, and
+   the button says so rather than pretending. */
+.cdr-change-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+
 /* ── Slim permission strip ──────────────────────────────────── */
 .cdr-perm-strip {
   display: none;
