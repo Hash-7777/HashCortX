@@ -125,6 +125,21 @@ From `src-tauri/src/commands/shell.rs`:
 
 Honest limit: killing the child kills the process the shell became. A command that puts work in the background can leave grandchildren running. This is a time limit, not a process supervisor.
 
+### Where the agent's fetch tool may go
+
+`fetch_url` takes a URL a language model chose. If it can be pointed at your own network, a prompt-injected model can read a router's admin page, a service on your machine, or a cloud instance's metadata endpoint, and put what it finds in its next request to a provider.
+
+Two checks run before any fetch, and both must pass:
+
+1. **The address as written** (`src/js/url-safety.js`). Only `http:` and `https:`; no credentials embedded in the URL; and no literal loopback, private, link-local, unique-local or carrier-grade-NAT address, in IPv4 or IPv6, including the `::ffff:` spellings of an IPv4 address.
+2. **Where the name actually leads** (`src-tauri/src/commands/net.rs`). The hostname is resolved and refused if **any** address it answers with is one of those — any, not the first, because a name that returns one public address and one private one is exactly the case worth catching. A name that does not resolve is refused rather than allowed.
+
+The second check is new. Before it, only the first existed, and a perfectly ordinary-looking hostname pointing at a private address passed it — while a comment in the source claimed a server proxy performed the real address check. No server ships with this app, so nothing performed it.
+
+**Honest limit, and it is a real one.** The app resolves the name, and then the webview resolves it *again* when it makes the request. A name that answers differently between those two moments is not caught by this. Closing that gap means performing the fetch in Rust over a connection pinned to the address that was checked, which needs an HTTP stack the Rust side does not currently have. This narrows the hole considerably; it does not seal it.
+
+In a plain browser build there is no Rust to ask, so only the first check applies. The shipped desktop app runs both.
+
 ### Audit log
 
 Every guarded action, allowed or denied, is appended to:

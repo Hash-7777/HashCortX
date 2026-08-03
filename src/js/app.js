@@ -6405,35 +6405,43 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     } catch { return null; }
   }
 
-  // Allowed URL prefixes for the fetch_url agent tool.
-  // Block file://, javascript:, data:, private/local ranges, link-local
-  // (169.254.x.x / cloud metadata), and common metadata hostnames.
-  //
-  // Be clear about what this is: a check on the address as WRITTEN. It reads
-  // the hostname, not where that hostname actually leads, so a public name
-  // pointing at a private address is not caught here. There used to be a note
-  // saying a server proxy did the real address check — no server ships with
-  // this app, so nothing did.
-  function isSafeExternalUrl(raw) {
-    let parsed;
-    try { parsed = new URL(raw); } catch { return false; }
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return false;
-    if (parsed.username !== "" || parsed.password !== "") return false;
-    const h = parsed.hostname.toLowerCase();
-    if (h === "localhost" || h === "0.0.0.0") return false;
-    if (/^127\./.test(h) || /^10\./.test(h) || /^172\.(1[6-9]|2\d|3[01])\./.test(h) || /^192\.168\./.test(h)) return false;
-    if (/^169\.254\./.test(h)) return false;
-    if (/^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(h)) return false;
-    if (h === "metadata.google.internal" || h === "metadata.goog") return false;
-    if (h === "::1" || h === "[::1]" || h.startsWith("[::1")) return false;
-    if (h.startsWith("[fe80:") || h.startsWith("[fe80::")) return false;
-    if (/^\[f[cd][0-9a-f:/]/i.test(h)) return false;
-    if (/^::ffff:127\./i.test(h)) return false;
-    return true;
+  // Where the agent's fetch tool may go. The rules are in js/url-safety.js so
+  // they can be checked; nothing tested them before.
+  const { isSafeExternalUrl, hostnameOf } = window.HCUrlSafety;
+
+  /**
+   * Two checks, because one is not enough.
+   *
+   * The first reads the address as written and refuses a literal private one.
+   * It cannot follow a hostname to where it leads — the renderer cannot
+   * resolve a name — so the second asks Rust to resolve it and refuses if any
+   * answer is on this machine or its private network. Without that, a public
+   * name pointing at a router or a metadata service walked straight through.
+   */
+  async function fetchUrlIsAllowed(url) {
+    if (!isSafeExternalUrl(url)) return false;
+    const host = hostnameOf(url);
+    if (!host) return false;
+    // Only Tauri can resolve. In a plain browser build the address check is
+    // all there is, and saying so here is better than pretending otherwise.
+    if (!window.HC?.isTauri) return true;
+    try {
+      const verdict = await HC.invoke("net_resolve_is_public", { host });
+      if (!verdict?.ok) {
+        console.warn("[fetch_url] refused:", verdict?.reason || "the address could not be checked");
+        return false;
+      }
+      return true;
+    } catch (e) {
+      // A failed check is a refusal. Treating an error as permission is how a
+      // gate stops being one.
+      console.warn("[fetch_url] address check failed:", e?.message || e);
+      return false;
+    }
   }
 
   async function fetchUrl(url) {
-    if (!isSafeExternalUrl(url)) return null;
+    if (!await fetchUrlIsAllowed(url)) return null;
     const stripForAgent = (text) =>
       String(text || "")
         .replace(/<script[\s\S]*?<\/script>/gi, " ")

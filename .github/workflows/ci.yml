@@ -112,6 +112,11 @@ jobs:
       - name: Knowledge-base chunking checks
         run: npm run check:rag-store
 
+      # Where a language model may send the agent's fetch tool. This gate
+      # shipped with no tests at all.
+      - name: Fetch-address checks
+        run: npm run check:url-safety
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

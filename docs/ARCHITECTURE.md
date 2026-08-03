@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **31,900 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **2,590 lines of Rust**.
+Roughly **31,900 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **2,820 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -19,11 +19,12 @@ HashCortX/
 │   ├── css/                         one stylesheet per mode
 │   │
 │   ├── js/
-│   │   ├── app.js            8,628  core: state, chat, agents, tools, providers
+│   │   ├── app.js            8,636  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
 │   │   │                              chunking must cover the whole text
+│   │   ├── url-safety.js        93  addresses the fetch tool may reach
 │   │   ├── system-maker.js   4,186  ERP prototype generator
 │   │   ├── virtual-os.js     3,846  virtual project desktop
 │   │   ├── forge-mode.js     3,843  3D planning
@@ -53,6 +54,7 @@ HashCortX/
 │   │   │   │                        closed stdin, output cap
 │   │   │   ├── embed.rs       288   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  314   what a file held before the agent changed it
+│   │   │   ├── net.rs         229   resolves a hostname and refuses private ones
 │   │   │   ├── fs.rs          451   filesystem bridge, applies the denylist
 │   │   │   ├── keychain.rs    113   one-time migration out of the old Keychain
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
@@ -67,7 +69,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 332 of
+├── scripts/checks/                  the automated frontend checks — 383 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -86,8 +88,9 @@ HashCortX/
 │   │                                the Coder panel shows before you undo
 │   ├── undo.mjs                     a change is put back, or refused — never
 │   │                                reported as undone while it still stands
-│   └── rag-store.mjs                chunking covers every character of a
-│                                    document, over random inputs
+│   ├── rag-store.mjs                chunking covers every character of a
+│   │                                document, over random inputs
+│   └── url-safety.mjs               where the agent's fetch tool may go
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -159,7 +162,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 - `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
 - `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 332 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo and knowledge-base chunking. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- The frontend's automated coverage is `scripts/checks/` — 383 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking and fetch addresses. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

@@ -17,6 +17,7 @@ use commands::{
         keychain_delete, keychain_retrieve, keychain_retrieve_bundle, keychain_store,
         keychain_store_bundle,
     },
+    net::net_resolve_is_public,
     notch::notch_activity_post,
     shell::{shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream},
     usage_log::usage_log_append,
@@ -62,6 +63,8 @@ pub fn run() {
             usage_log_append,
             // Hash D Island — "finished" live-activity ping
             notch_activity_post,
+            // Where a hostname actually leads, before the agent fetches it
+            net_resolve_is_public,
             // Undo — what a file held before the agent changed it
             checkpoint_save,
             checkpoint_read,
