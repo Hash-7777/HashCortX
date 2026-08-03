@@ -2197,6 +2197,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const HCProviders = window.HCProviders;
 
+  // Reading facts out of a message, and finding them again afterwards. In
+  // js/memory.js: a fact extracted badly is repeated back for as long as it
+  // survives, and one that never ranks makes the model deny knowing something
+  // it was told.
+  const HCMemory = window.HCMemory;
+
+
   // Moonshot answers on four hosts across two separate account systems, so its
   // endpoint knowledge lives with the other provider facts in js/providers.js.
   // Only the memory of which base last worked stays here.
@@ -6416,189 +6423,42 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
   }
   // Synonym groups so semantically related queries hit the same facts.
   // E.g. asking "what do I love" matches a saved "likes" / "favorite".
-  const MEM_SYNONYMS = [
-    ["love","loves","loved","loving","like","likes","liked","liking","favorite","favourite","favorites","favourites","favored","prefer","prefers","preferred","preference","preferences","enjoy","enjoys","enjoyed","fan","into","adore","adores"],
-    ["hate","hates","hated","dislike","dislikes","disliked","loathe","loathes","despise","despises"],
-    ["animal","animals","pet","pets","creature","creatures"],
-    ["work","works","working","job","jobs","career","employer","company","employed","occupation","profession"],
-    ["live","lives","living","home","city","town","reside","resides","based","located","location","address"],
-    ["name","named","called","calls"],
-    ["birthday","birth","born","dob","age"],
-    ["family","spouse","wife","husband","partner","kid","kids","child","children","son","daughter","mom","dad","mother","father","brother","sister"],
-    ["food","foods","eat","eats","cuisine","meal","dish","snack"],
-    ["drink","drinks","beverage","coffee","tea","alcohol"],
-    ["music","song","songs","band","artist","genre"],
-    ["movie","movies","film","films","show","shows","series"],
-    ["color","colors","colour","colours"],
-    ["language","languages","speak","speaks","spoken"],
-    ["project","projects","building","builds","working_on"],
-    ["deadline","deadlines","due","by","ship","launch"],
-    ["goal","goals","aim","aims","plan","plans","target","targets"],
-    ["allergy","allergies","allergic","intolerant"]
-  ];
-  const MEM_SYN_MAP = (() => {
-    const m = new Map();
-    for (const group of MEM_SYNONYMS) for (const w of group) m.set(w, group);
-    return m;
-  })();
-  // Cheap suffix stemmer — collapses plurals/verb tenses to a common stub.
-  function memStem(w) {
-    w = w.toLowerCase();
-    if (w.length <= 3) return w;
-    return w
-      .replace(/(?:ing|edly|edness|ies|ied|ily|ment|ness|tion|sion)$/,"")
-      .replace(/(?:ed|es|ly|er|or|al)$/,"")
-      .replace(/s$/,"");
-  }
-  function memExpand(token) {
-    const base = memStem(token);
-    const out = new Set([token, base]);
-    const grp = MEM_SYN_MAP.get(token) || MEM_SYN_MAP.get(base);
-    if (grp) for (const w of grp) { out.add(w); out.add(memStem(w)); }
-    return Array.from(out).filter(t => t.length >= 2);
-  }
   function memRecall(query, limit = 6) {
     const projectOnly = currentProject()?.memoryMode === "project";
     const arr = memLoad().filter(f => {
       const pid = f.projectId || DEFAULT_PROJECT_ID;
       return projectOnly ? pid === state.currentProjectId : (pid === DEFAULT_PROJECT_ID || pid === state.currentProjectId);
     });
-    if (!arr.length) return [];
-    const q = String(query || "").toLowerCase();
-    if (!q) return arr.slice(-limit).reverse(); // most recent if no query
-    const rawTokens = q.split(/[^a-z0-9_]+/i).filter(t => t.length >= 2);
-    // Build expanded token set with synonyms + stems
-    const expanded = new Map(); // token -> weight
-    for (const t of rawTokens) {
-      for (const e of memExpand(t)) {
-        const w = e === t ? t.length : Math.max(2, e.length * 0.7);
-        expanded.set(e, Math.max(expanded.get(e) || 0, w));
-      }
-    }
-    const scored = arr.map(f => {
-      const blob = (f.key + " " + f.value).toLowerCase();
-      const blobStem = blob.split(/[^a-z0-9_]+/).map(memStem).join(" ");
-      let score = 0;
-      for (const [tok, w] of expanded) {
-        if (blob.includes(tok) || blobStem.includes(memStem(tok))) score += w;
-      }
-      // recency boost — facts under 7 days always get a small floor so they
-      // survive the > 0 filter even when no keyword matches.
-      const ageDays = (Date.now() - f.ts) / 86400000;
-      const recency = 2 - ageDays * 0.05;
-      score += ageDays < 7 ? Math.max(0.1, recency) : Math.max(0, recency);
-      return { ...f, _score: score };
-    });
-    return scored.filter(f => f._score > 0).sort((a,b) => b._score - a._score).slice(0, limit);
+    // Which facts this project may see is decided here; the ordering is in
+    // js/memory.js, where it can be checked against questions worded nothing
+    // like the fact they are looking for.
+    return HCMemory.rankMemories(arr, query, { limit });
   }
+
   // Lightweight auto-extractor: catches the most common "I am / I like / I
   // work at / I live in / my name is" patterns from a user message and
   // saves them silently. Runs on every user turn so memory is reliable
   // even when the model forgets to call remember_fact.
   function memAutoExtract(text) {
-    const t = String(text || "").trim();
-    if (!t || t.length > 1200) return [];
-    const saved = [];
-    const push = (key, value) => {
-      const v = String(value || "").trim().replace(/[.!?]+$/, "");
-      if (!v || v.length > 200) return;
-      memAdd(key, v);
-      saved.push({ key, value: v });
-    };
-    // A name is at most a few words, and the sentence usually carries on past
-    // it. The previous patterns swallowed everything to the end of the clause:
-    // "my name is seif save it" stored the name as "seif save it", and
-    // "my name is seif and i work at acme" stored the whole remainder. Names
-    // are now capped at three words and trimmed at the first word that plainly
-    // is not part of one.
-    const NOT_A_NAME = new Set([
-      "and","but","so","then","also","please","save","remember","store","keep",
-      "it","that","this","ok","okay","thanks","thank","now","too","as","well",
-      "i","im","my","me","you","we","they","he","she","is","are","was","from",
-      "who","what","when","where","why","how","for","with","by","in","on","at",
-    ]);
-    const cleanName = (raw) => {
-      const words = String(raw || "").trim().split(/\s+/);
-      const kept = [];
-      for (const word of words) {
-        if (kept.length >= 3) break;
-        if (NOT_A_NAME.has(word.toLowerCase().replace(/[^a-z']/g, ""))) break;
-        kept.push(word);
-      }
-      return kept.join(" ");
-    };
-
-    const patterns = [
-      // Identity
-      [/\bmy\s+name\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
-      [/\bi(?:'m|\s+am)\s+called\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
-      [/\bcall\s+me\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", cleanName(m[1]))],
-      [/\bthis\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})\s+speaking/i, m => push("name", cleanName(m[1]))],
-      // Preferences
-      [/\bi\s+(?:love|like|enjoy|adore|prefer|am\s+a\s+fan\s+of)\s+([^,.;!?\n]{2,80})/i, m => push("likes", m[1])],
-      [/\bmy\s+favou?rite\s+([a-z ]{2,30}?)\s+(?:is|are)\s+([^,.;!?\n]{2,80})/i, m => push(`favorite_${m[1].trim().replace(/\s+/g,"_")}`, m[2])],
-      [/\bi\s+(?:hate|dislike|can'?t\s+stand|loathe|despise)\s+([^,.;!?\n]{2,80})/i, m => push("dislikes", m[1])],
-      [/\bi\s+(?:always|usually|tend\s+to)\s+([^,.;!?\n]{4,100})/i, m => push("habits", m[1])],
-      [/\bi\s+(?:never|don'?t|do\s+not)\s+([^,.;!?\n]{4,100})/i, m => push("avoids", m[1])],
-      // Work
-      [/\bi\s+(?:work|am\s+working)\s+(?:at|for)\s+([^,.;!?\n]{2,80})/i, m => push("employer", m[1])],
-      [/\bi(?:'m|\s+am)\s+(?:a|an)\s+([a-z ]{2,40}?)(?:\s+(?:at|for|in)\s+([^,.;!?\n]{2,80}))?/i, m => { push("role", m[1]); if (m[2]) push("employer", m[2]); }],
-      [/\bi(?:'m|\s+am)\s+(?:building|making|developing|creating)\s+([^,.;!?\n]{4,120})/i, m => push("current_project", m[1])],
-      // Place / origin
-      [/\bi\s+live\s+in\s+([^,.;!?\n]{2,80})/i, m => push("location", m[1])],
-      [/\bi(?:'m|\s+am)\s+(?:from|based\s+in)\s+([^,.;!?\n]{2,80})/i, m => push("origin", m[1])],
-      [/\bi\s+speak\s+([^,.;!?\n]{2,80})/i, m => push("languages", m[1])],
-      // Health
-      [/\bi(?:'m|\s+am)\s+allergic\s+to\s+([^,.;!?\n]{2,80})/i, m => push("allergies", m[1])],
-      [/\bmy\s+(birthday|dob)\s+(?:is\s+)?([^,.;!?\n]{2,40})/i, m => push("birthday", m[2])],
-      [/\bi(?:'m|\s+am)\s+(\d{1,2})\s+years?\s+old/i, m => push("age", m[1])],
-      // Project / paths the user mentions (great for coder mode)
-      [/\bmy\s+project\s+(?:is\s+(?:at|in|located\s+at)\s+|root\s+is\s+)([^\s,.;!?\n]{4,200})/i, m => push("project_root", m[1])],
-      [/\bworking\s+(?:directory|dir)\s+(?:is\s+)?([^\s,.;!?\n]{4,200})/i, m => push("workdir", m[1])],
-      [/\bcheck\s+(?:the\s+)?file\s+(?:at\s+)?([^\s,.;!?\n]{4,200})/i, m => push("recent_file", m[1])],
-      // Tech preferences
-      [/\bi\s+(?:use|prefer|code\s+in|write\s+in)\s+([A-Za-z0-9+#./\- ]{2,40})\s+(?:for|as|when)/i, m => push("preferred_tech", m[1])],
-      [/\bmy\s+stack\s+is\s+([^,.;!?\n]{4,160})/i, m => push("stack", m[1])],
-      // Explicit "remember"
-      [/\bremember\s+(?:that\s+)?([^,.;!?\n]{2,160})/i, m => push("note_" + Date.now().toString(36), m[1])],
-      [/\bplease\s+(?:remember|note|save)\s+(?:that\s+)?([^,.;!?\n]{2,160})/i, m => push("note_" + Date.now().toString(36), m[1])],
-      // Arabic-friendly (transliterated patterns the user uses occasionally)
-      [/\bana\s+esmi\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", m[1])],
-      [/\bismi\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, m => push("name", m[1])],
-    ];
-    for (const [re, fn] of patterns) {
-      const m = t.match(re);
-      if (m) try { fn(m); } catch {}
-    }
-    return saved;
+    // The patterns are in js/memory.js and return what they found without
+    // storing it, so they can be run over any text in a check. Deciding what
+    // is kept stays here.
+    const found = HCMemory.extractFacts(text);
+    for (const f of found) memAdd(f.key, f.value);
+    return found;
   }
 
   // Run extraction on assistant replies too. Catches facts the assistant
   // confirmed/echoed back ("Got it — I'll remember you live in Cairo")
   // and silently extracts inferred facts from the user side of the dialog.
   function memAutoExtractFromAssistant(text) {
-    const t = String(text || "").trim();
-    if (!t || t.length > 4000) return [];
-    const saved = [];
-    const push = (key, value) => {
-      const v = String(value || "").trim().replace(/[.!?,]+$/, "");
-      if (!v || v.length > 200) return;
-      memAdd(key, v);
-      saved.push({ key, value: v });
-    };
-    // Assistant-side patterns — the AI confirming a fact
-    const patterns = [
-      [/(?:I'?ll|I\s+will|let\s+me)\s+remember\s+(?:that\s+)?(?:your|you'?re|you\s+are)\s+([^,.;!?\n]{2,160})/i, m => push("note_" + Date.now().toString(36), m[1])],
-      [/(?:got\s+it|noted|saved)[\s,.\-—]+(?:your|you'?re)\s+(?:name\s+is\s+)?([A-Za-z][A-Za-z'\- ]{1,40})\b/i, m => push("name", m[1])],
-      [/(?:noted|saved|remembered)\s+(?:that\s+)?you\s+(?:work\s+at|are\s+at)\s+([^,.;!?\n]{2,80})/i, m => push("employer", m[1])],
-      [/(?:noted|saved)\s+(?:that\s+)?you\s+(?:live\s+in|are\s+in|are\s+from)\s+([^,.;!?\n]{2,80})/i, m => push("location", m[1])],
-    ];
-    for (const [re, fn] of patterns) {
-      const m = t.match(re);
-      if (m) try { fn(m); } catch {}
-    }
-    return saved;
+    // Patterns in js/memory.js, for the same reason as the user-side ones:
+    // they return what they found and the storing is decided here.
+    const found = HCMemory.extractFactsFromAssistant(text);
+    for (const f of found) memAdd(f.key, f.value);
+    return found;
   }
+
   // Expose for other modes (coder, swarm) to call after their assistant turns
   try { window.memAutoExtractFromAssistant = memAutoExtractFromAssistant; } catch {}
   function memClear() { try { localStorage.removeItem(MEM_KEY); } catch {} }

@@ -144,6 +144,11 @@ jobs:
       - name: Model-identifier checks
         run: npm run check:model-names
 
+      # A fact extracted badly is repeated back for as long as it survives, and
+      # one that never ranks makes the model deny knowing what it was told.
+      - name: Memory checks
+        run: npm run check:memory
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
