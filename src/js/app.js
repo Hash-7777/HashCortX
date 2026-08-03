@@ -135,7 +135,6 @@
   const moonshotKeyEl   = $("moonshotKey");
   const deepseekKeyEl   = $("deepseekKey");
   const mistralKeyEl    = $("mistralKey");
-  const autoRouterEl = $("autoRouter");   // removed from Settings UI — element will be null; auto-router is permanently disabled
   const privacyLocalEl     = $("privacyLocal");
   const privacyLocalSideEl = $("privacyLocalSide");
   const sideModelWrap = $("sideModelWrap");
@@ -852,7 +851,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (SAVED.deepseekKey) deepseekKeyEl.value = SAVED.deepseekKey;
     if (SAVED.mistralKey) mistralKeyEl.value = SAVED.mistralKey;
   }
-  if (autoRouterEl) autoRouterEl.checked = SAVED.autoRouter === true;
   privacyLocalEl.checked     = SAVED.privacyLocal === true;
   privacyLocalSideEl.checked = SAVED.privacyLocal === true;
   ragEnabled = SAVED.ragEnabled === true; // default OFF; user can toggle in Agents tab
@@ -977,7 +975,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         host: hostEl.value, system: systemEl.value, temp: tempEl.value, model: modelEl.value,
         nvidiaModel: nvidiaModelEl?.value || "",
         backendSyncToken: backendSyncTokenEl ? backendSyncTokenEl.value : "",
-        autoRouter: !!(autoRouterEl?.checked),
         privacyLocal: privacyLocalEl.checked,
         ragEnabled,
         rewriterModel: rewriterEl?.value || "",
@@ -3133,7 +3130,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { name: "/pdf", desc: "Export conversation as PDF", run: () => exportConversation("pdf") },
     { name: "/temp", desc: "Set temperature, e.g. /temp 0.3", run: (arg) => { const v = parseFloat(arg); if (Number.isFinite(v)) { tempEl.value = Math.max(0, Math.min(2, v)); tempVal.textContent = tempEl.value; updateRangeFill(); saveSettings(); } else tempEl.focus(); } },
     { name: "/privacy", desc: "Toggle local-only privacy mode", run: () => { privacyLocalEl.checked = !privacyLocalEl.checked; privacyLocalEl.dispatchEvent(new Event("change")); } },
-    { name: "/inject", desc: "Toggle RAG and web context injection", run: () => { injectionEnabled = !injectionEnabled; applyInjectionState(); } },
+    { name: "/inject", desc: "Toggle knowledge-base context injection", run: () => { injectionEnabled = !injectionEnabled; applyInjectionState(); } },
     { name: "/templates", desc: "Open prompt template library", run: openTemplates },
     { name: "/template", desc: "Use a saved prompt template", run: async () => { const t = activeTemplate(); const text = await fillTemplate(t); if (text) insertAtComposer(text, true); } },
   ];
@@ -3239,38 +3236,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
     const text = input.value.trim();
     let toolContext = null;
-    const activeAgent = getActiveAgent();
-    const route = currentRoute(text, !!(state.pendingImages?.length || state.pendingFiles?.length));
-    const routeDef = route?.route ? ROUTE_DEFS[route.route] : null;
-    const routeSearchMode = routeDef?.useSearch === true || routeDef?.useSearch === "pubmed";
-
-    try {
-      if (activeAgent && activeAgent.tools?.length && routeSearchMode) {
-        let searchQuery = null;
-        if (rewriterEl?.value) searchQuery = await rewriteForSearch(text);
-        toolContext = await runAgentTools(activeAgent, text, searchQuery);
-      } else if (route?.route) {
-        const def = routeDef;
-        if (def?.useSearch === true) {
-          const tav = await tavilySearch(text);
-          if (tav && (tav.results.length || tav.answer)) {
-            const parts = [];
-            if (tav.answer) parts.push(tav.answer);
-            if (tav.results.length) parts.push(tav.results.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n"));
-            toolContext = `Sources:\n${parts.join("\n\n")}`;
-          } else {
-            const goog = await googleSearch(text);
-            if (goog && goog.length) {
-              toolContext = `Sources:\n` + goog.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n");
-            }
-          }
-        }
-      }
-    } catch(e) { console.warn("Preview tool fetch failed:", e); }
 
     // SECURITY: never expose personal knowledge base in preview for cloud/external models
-    const _previewIsExternal = modelEl.value.startsWith("cloud:") ||
-      !!(route?.route && ROUTE_DEFS[route.route]?.backend === "nvidia");
+    const _previewIsExternal = modelEl.value.startsWith("cloud:");
     const ragChunks = _previewIsExternal ? [] : await queryRAGMerged(text);
     if (ragChunks.length) {
       const ragBlock = `Background:\n` + ragChunks.map((c,i)=>`${i+1}. ${c.title}: ${c.text}`).join("\n\n");
@@ -5822,9 +5790,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     if (tpsVal) tpsVal.textContent = "…";
     render();
 
-    const route = currentRoute(seedText, hadAttachments);
-    if (route?.manual) routeOverride = null;
-
     const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
     const pulse = (label, sub) => {
       if (!last) return;
@@ -5836,8 +5801,7 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     };
 
     const _selectedIsCloud = modelEl.value.startsWith("cloud:");
-    const _selectedIsNvidia = !!(route?.route && ROUTE_DEFS[route.route]?.backend === "nvidia");
-    const _isExternalModel  = _selectedIsCloud || _selectedIsNvidia;
+    const _isExternalModel  = _selectedIsCloud;
     const activeAgent = getActiveAgent();
 
     // ── Code Mode dispatch — HashCoder agent (Tauri only) ───────────────
@@ -5888,65 +5852,24 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       finishAgentRun(assistant);
       flushPendingBubbleUpdate();
     } else {
-      // ── Plain chat / route-based search (no agent selected) ───────────
+      // ── Plain chat (no agent selected) ────────────────────────────────
       //
-      // Injection is gated on `injectionEnabled` alone. It also required a
-      // route, and the auto-router lost its switch in the UI, so `route` is
-      // always null — which quietly took the knowledge base with it. `/inject`
-      // reported that it had turned injection on and then nothing was ever
-      // retrieved, because the only call to queryRAGMerged on this path sat
-      // inside the route branch. The route-driven searches below are still
-      // skipped while there is no router; the knowledge base is not.
+      // Injection means the knowledge base here. The web and PubMed searches
+      // that used to sit alongside it were driven by the auto-router, which
+      // classified each message and decided when a search was worth making.
+      // The router has no switch in the UI and has been returning nothing for
+      // a long time, so those searches never ran; they are gone with it rather
+      // than left to fire on every message, which is not what they were for.
+      // Select an agent to search the web deliberately.
       let toolContext = null;
-      if (injectionEnabled) {
-        const routeDef = route?.route ? ROUTE_DEFS[route.route] : null;
-        try {
-          if (routeDef?.useSearch === true) {
-            pulse("Searching the web…");
-            const tav = await tavilySearch(seedText);
-            if (tav && (tav.results.length || tav.answer)) {
-              const parts = [];
-              if (tav.answer) parts.push(tav.answer);
-              if (tav.results.length) {
-                parts.push(tav.results.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n"));
-                tav.results.forEach(r => addToRAG(r.title, r.snippet, `tavily:${r.url}`));
-                if (tav.answer) addToRAG("Tavily synthesized answer", tav.answer, `tavily:answer:${seedText.slice(0,60)}`);
-              }
-              toolContext = `Sources:\n${parts.join("\n\n")}`;
-            } else {
-              const goog = await googleSearch(seedText);
-              if (goog && goog.length) {
-                goog.forEach(r => addToRAG(r.title, r.snippet, `google:${r.url}`));
-                toolContext = `Sources:\n` + goog.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n");
-              } else {
-                const wiki = await wikipediaSearch(seedText);
-                if (wiki.length) {
-                  wiki.forEach(r => addToRAG(r.title, r.snippet, `wiki:${r.url}`));
-                  toolContext = `Sources:\n` + wiki.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n");
-                }
-              }
-            }
-          } else if (routeDef?.useSearch === "pubmed") {
-            pulse("Searching PubMed…");
-            const papers = await pubmedSearch(seedText);
-            if (papers.length) {
-              papers.forEach(p => addToRAG(p.title, `${p.authors} (${p.year}). ${p.abstract}`, `pubmed:${p.pmid || p.doi || p.url}`));
-              toolContext = `Papers:\n` +
-                papers.map((p,i)=>`${i+1}. ${p.title} (${p.year}${p.pmid ? `, PMID:${p.pmid}` : ""}): ${p.abstract}`).join("\n\n");
-            }
-          }
-        } catch (e) { console.warn("Route search failed:", e); }
-
-        if (!_isExternalModel) {
-          const ragChunks = await queryRAGMerged(seedText);
-          if (ragChunks.length) {
-            const ragBlock = `Background:\n` + ragChunks.map((c,i) => `${i+1}. ${c.title}: ${c.text}`).join("\n\n");
-            toolContext = toolContext ? `${toolContext}\n\n${ragBlock}` : ragBlock;
-          }
+      if (injectionEnabled && !_isExternalModel) {
+        const ragChunks = await queryRAGMerged(seedText);
+        if (ragChunks.length) {
+          toolContext = `Background:\n` + ragChunks.map((c,i) => `${i+1}. ${c.title}: ${c.text}`).join("\n\n");
         }
       }
       try {
-        await streamChat(assistant, toolContext, route);
+        await streamChat(assistant, toolContext);
       } finally {
         flushPendingBubbleUpdate();
       }
@@ -6181,7 +6104,7 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
 
   function abort() { state.abort?.abort(); }
 
-  async function streamChat(assistant, toolContext = null, route = null) {
+  async function streamChat(assistant, toolContext = null) {
     clearError();
     const messages = buildOllamaMessages();
     if (toolContext) {
@@ -6200,8 +6123,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
     const hasAttachedFileContext = messages.some(m => /\[ATTACHED FILES - use this content when answering\]/.test(m.content || ""));
     const numCtx = hasAttachedFileContext ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096);
-    const def = route ? ROUTE_DEFS[route.route] : null;
-    const useNvidia = def?.backend === "nvidia";
     const isCloud = modelEl.value.startsWith("cloud:");
     const onCloudToken = (delta) => {
       if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
@@ -6265,21 +6186,6 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
             currentModelValue = fallback.value;
           }
         }
-      } else if (useNvidia) {
-        if (privacyLocalEl.checked) {
-          assistant.content = "_(Blocked by Privacy: Local only)_";
-          return;
-        }
-        if (!(nvidiaKeyEl.value || "").trim()) {
-          throw new Error("NVIDIA route picked but no API key set in Settings.");
-        }
-        await nvidiaStreamChat({
-          messages,
-          model: (nvidiaModelEl?.value) || "meta/llama-3.3-70b-instruct",
-          temperature,
-          onToken: onCloudToken,
-          signal: ctrl.signal,
-        });
       } else {
         const host = safeHost();
         trackLocalModel(modelEl.value);
@@ -8052,7 +7958,7 @@ sys.stderr = _stderr
       }
     } catch {}
     onStatus?.("Generating reply…", "running");
-    await streamChat(assistant, toolContext, null);
+    await streamChat(assistant, toolContext);
   }
 
   // Legacy fallback for models that genuinely don't speak function-calling.
@@ -8085,7 +7991,7 @@ sys.stderr = _stderr
       }
     } catch {}
     onStatus?.("Generating reply…", "running");
-    await streamChat(assistant, toolContext, null);
+    await streamChat(assistant, toolContext);
   }
 
   // Animated typewriter — writes the final non-streamed answer into the bubble
@@ -8110,118 +8016,6 @@ sys.stderr = _stderr
     tick();
   }
 
-  // ========= NVIDIA NIM (cloud LLM) =========
-  // OpenAI-compatible streaming chat completions. Key is held only in
-  // localStorage and sent only to integrate.api.nvidia.com over HTTPS.
-  async function nvidiaStreamChat({ messages, model, temperature, onToken, signal }) {
-    const key = (nvidiaKeyEl.value || "").trim();
-    if (!key) throw new Error("Missing NVIDIA API key");
-    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-      method: "POST",
-      referrerPolicy: "no-referrer",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${key}`,
-        "Accept": "text/event-stream",
-      },
-      body: JSON.stringify({
-        model,
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
-        temperature: typeof temperature === "number" ? temperature : 0.7,
-        stream: true,
-      }),
-      signal,
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`NVIDIA HTTP ${res.status}: ${txt.slice(0, 200)}`);
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    const parseNvidiaLine = (line) => {
-      const s = line.trim();
-      if (!s.startsWith("data:")) return;
-      const payload = s.slice(5).trim();
-      if (!payload || payload === "[DONE]") return;
-      try {
-        const evt = JSON.parse(payload);
-        const delta = evt.choices?.[0]?.delta?.content;
-        if (delta) onToken(delta);
-      } catch {}
-    };
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() || "";
-      for (const line of lines) parseNvidiaLine(line);
-    }
-    parseNvidiaLine(buf);
-  }
-
-  // ========= Auto-router =========
-  // Reads the user's message and decides which backend to use. Pure local
-  // heuristics — zero network round-trip, ~0.1 ms. Result is shown in the
-  // chip above the composer so the user can see (and override) every route.
-  const ROUTE_DEFS = {
-    dell:        { backend: "dell",   useSearch: false, label: "Local",        icon: "⌂", cls: "" },
-    dellSearch:  { backend: "dell",   useSearch: true,  label: "Local + web",          icon: "⌂", cls: "search" },
-    dellPubmed:  { backend: "dell",   useSearch: "pubmed", label: "Local + PubMed",    icon: "⌂", cls: "search" },
-    nvidia:      { backend: "nvidia", useSearch: false, label: "NVIDIA cloud",        icon: "☁", cls: "cloud" },
-    nvidiaSearch:{ backend: "nvidia", useSearch: true,  label: "NVIDIA + web",        icon: "☁", cls: "cloud search" },
-  };
-  // Reset on every send. null = "auto", anything else = manual override
-  // for the next message only.
-  let routeOverride = null;
-
-  // Heuristic classifier. Order = priority (first match wins).
-  function classifyMessage(text, hasAttachments) {
-    const t = (text || "").toLowerCase();
-    const hasCodeBlock = /```/.test(text || "");
-    const codeWords = /\b(function|class|const |let |var |refactor|debug|stack ?trace|exception|null pointer|segfault|compile|typescript|python|node\.js|react|next\.js|tailwind|sql|regex|api endpoint|docker|kubernetes)\b/.test(t);
-    const recencyWords = /\b(today|yesterday|tonight|this week|latest|current(ly)?|right now|just (released|announced|launched)|news|breaking|202[5-9]|recent(ly)?|update[ds]?)\b/.test(t);
-    const newsWords = /\b(who won|score|election|stock price|weather|forecast|exchange rate|trending)\b/.test(t);
-    const factWords = /\b(when (is|was|did|will)|what year|how (old|tall|big|much) is|capital of|president of|ceo of|population of|distance (from|to))\b/.test(t);
-    const medicalWords = /\b(clinical|trial|placebo|cohort|meta-?analysis|pubmed|peer[- ]?reviewed|mg\/kg|in vitro|in vivo|systematic review|patient(s)?|diagnos(is|ed)|symptom(s)?|treatment|therapy|drug|medication|dose|dosage|side effect|prognosis|pathology|biomarker|gene expression)\b/.test(t);
-    const reasoningWords = /\b(prove|proof|derivation|step[- ]by[- ]step|reason about|think through|theorem|integral|derivative)\b/.test(t);
-
-    if (hasCodeBlock || codeWords) return { route: "dell", reason: "code-related" };
-    if (medicalWords) return { route: "dellPubmed", reason: "medical/scientific" };
-    if (recencyWords || newsWords || factWords) {
-      const cloudOk = canUseCloud();
-      return {
-        route: cloudOk ? "nvidiaSearch" : "dellSearch",
-        reason: cloudOk ? "needs current info" : "needs current info (local-only mode)",
-      };
-    }
-    if (reasoningWords && canUseCloud()) return { route: "nvidia", reason: "reasoning-heavy" };
-    return { route: "dell", reason: "general (default)" };
-  }
-
-  function canUseCloud() {
-    if (privacyLocalEl.checked) return false;
-    return !!(nvidiaKeyEl.value || "").trim();
-  }
-  function canUseSearch() {
-    return !!(tavilyKeyEl.value || "").trim() || !!(googleKeyEl.value || "").trim();
-  }
-
-  // Returns the route the next send() will use. Honors manual override.
-  function currentRoute(text, hasAttachments) {
-    if (!autoRouterEl?.checked) return null; // router off → use legacy path (always true now: auto-router removed from UI)
-    if (routeOverride) {
-      const def = ROUTE_DEFS[routeOverride.route];
-      if (privacyLocalEl.checked && def?.backend === "nvidia") {
-        routeOverride = null;
-        return { route: "dell", reason: "local-only mode", manual: false };
-      }
-      return routeOverride;
-    }
-    const c = classifyMessage(text, hasAttachments);
-    return { ...c, manual: false };
-  }
 
   // Keep both privacy toggles (settings panel + sidebar shortcut) in sync.
   function applyPrivacyLocal(checked) {

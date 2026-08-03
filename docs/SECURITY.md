@@ -172,7 +172,7 @@ Provenance, the exact file's SHA-256, and the measurements behind the ranking de
 
 These are commonly assumed, and worth naming because an earlier version of this document claimed several of them:
 
-- **No prompt-injection filter.** User input is not scanned for jailbreak or instruction-override patterns. (The `/inject` command toggles RAG and web-context *injection into the prompt* — an unrelated feature with a confusingly similar name.)
+- **No prompt-injection filter.** User input is not scanned for jailbreak or instruction-override patterns. (The `/inject` command toggles knowledge-base *injection into the prompt* — an unrelated feature with a confusingly similar name.)
 - **No request rate limiting.** There is no concurrency cap and no requests-per-minute cap. There is retry with backoff on `429` and `5xx`, and a Stop button that aborts a run.
 - **No shell command allowlist.** See above — it is a denylist.
 - **No Hardened Runtime, no notarisation, no code signature.** The v2.0.0 build is unsigned, so installing it requires a Gatekeeper bypass.
