@@ -4769,14 +4769,56 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
     // Record the real token usage for this response (measured-only — skipped
     // when the provider reported none). Best-effort; never blocks the chat.
-    if (captured && (captured.inputTokens || captured.outputTokens)) {
-      HC.usageLog.append({
-        ts: new Date().toISOString(),
-        model: modelId,
-        input_tokens: captured.inputTokens || 0,
-        output_tokens: captured.outputTokens || 0,
-      });
+    if (captured) recordUsage(modelId, captured.inputTokens, captured.outputTokens);
+  }
+
+
+  // Token usage — one recorder for every path that finishes a model turn.
+  //
+  // This used to live inline in streamCloudModel only, so HashMeterAi counted
+  // cloud chat and nothing else: local Ollama turns and every Coder-mode turn
+  // were invisible, and the reported total was quietly short.
+  //
+  // Measured only. When a provider reports no counts we write nothing rather
+  // than estimating — a missing line is honest, an invented one is not.
+  function recordUsage(model, input, output) {
+    const inTok = Number(input) || 0;
+    const outTok = Number(output) || 0;
+    if (!inTok && !outTok) return;
+    HC.usageLog.append({
+      ts: new Date().toISOString(),
+      model: String(model || "unknown"),
+      input_tokens: inTok,
+      output_tokens: outTok,
+    });
+  }
+
+  /** Pull counts out of whatever shape this provider answered with. */
+  function usageFrom(data) {
+    if (!data || typeof data !== "object") return null;
+    // OpenAI-compatible, which most providers follow.
+    if (data.usage) {
+      const u = data.usage;
+      if (u.prompt_tokens != null || u.completion_tokens != null) {
+        return { input: u.prompt_tokens, output: u.completion_tokens };
+      }
+      // Anthropic.
+      if (u.input_tokens != null || u.output_tokens != null) {
+        return { input: u.input_tokens, output: u.output_tokens };
+      }
     }
+    // Gemini.
+    if (data.usageMetadata) {
+      return {
+        input: data.usageMetadata.promptTokenCount,
+        output: data.usageMetadata.candidatesTokenCount,
+      };
+    }
+    // Ollama reports these on the final object.
+    if (data.prompt_eval_count != null || data.eval_count != null) {
+      return { input: data.prompt_eval_count, output: data.eval_count };
+    }
+    return null;
   }
 
   let loadModelsSeq = 0;
@@ -5916,7 +5958,8 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     state.streaming = false;
     sendBtn.textContent = "Send";
     // Light up Hash D Island — "HashCortX finished", like the iPhone island.
-    // Fires once per turn for every path (cloud, local, agent, code mode).
+    // Once per chat turn, cloud or local. Coder mode has its own loop and
+    // fires its own, at the end of startRun in code-mode.js.
     HC.notch?.finished((modelEl.value || "").split(":").pop());
     if (tpsBtn && !assistant.tps) {
       tpsBtn.className = "ping-btn tps-btn";
@@ -6262,6 +6305,15 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
               const tps = Math.round(evt.eval_count / (evt.eval_duration / 1e9));
               assistant.tps = tps;
               setTpsDisplay(tps);
+            }
+            if (evt.done) {
+              // Ollama reports real counts on its final object. They were read
+              // for tokens-per-second and then thrown away, so every local run
+              // was missing from the usage log while cloud runs were counted —
+              // which made the reported total look smaller than it was.
+              assistant.inputTokens = evt.prompt_eval_count || assistant.inputTokens;
+              assistant.outputTokens = evt.eval_count || assistant.outputTokens;
+              recordUsage(modelEl.value || "ollama", evt.prompt_eval_count, evt.eval_count);
             }
           } catch {}
         };
@@ -7400,6 +7452,9 @@ sys.stderr = _stderr
         ? safeJsonParse(c.function.arguments)
         : (c.function?.arguments || c.arguments || {})
     })) : null;
+    // Coder mode runs through here, and none of these paths recorded a
+    // single token before — so every agent turn was missing from the log.
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
     return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg };
   }
 
@@ -7540,6 +7595,9 @@ sys.stderr = _stderr
         ? safeJsonParse(c.function.arguments)
         : (c.function?.arguments || {})
     })) : null;
+    // Coder mode runs through here, and none of these paths recorded a
+    // single token before — so every agent turn was missing from the log.
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
     return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg };
   }
 
@@ -7615,6 +7673,9 @@ sys.stderr = _stderr
         });
       }
     }
+    // Coder mode runs through here, and none of these paths recorded a
+    // single token before — so every agent turn was missing from the log.
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
     return {
       content: text || null,
       tool_calls: toolCalls.length ? toolCalls.map(c => ({ id: c.id, function: { name: c.name, arguments: c.arguments } })) : null,
@@ -7687,6 +7748,9 @@ sys.stderr = _stderr
         });
       }
     }
+    // Coder mode runs through here, and none of these paths recorded a
+    // single token before — so every agent turn was missing from the log.
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
     return { content: textOut || null, tool_calls: calls.length ? calls : null, raw: data };
   }
 

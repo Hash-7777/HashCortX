@@ -85,6 +85,11 @@ jobs:
       - name: Native surface checks
         run: npm run check:native
 
+      # HashMeterAi reports this log as measured. That only holds if every
+      # path records, and records real counts.
+      - name: Usage-log checks
+        run: npm run check:usage
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

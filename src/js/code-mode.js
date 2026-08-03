@@ -2077,6 +2077,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (stopBtn) stopBtn.style.display = 'none';
         runAbort = null;
         setRouterChip('Auto', '');
+        // Light up Hash D Island. app.js fires this for a chat turn, but Coder
+        // has its own loop and never reached that line — so the one kind of run
+        // long enough that you would switch away from it was the one that never
+        // told you it had finished. Metadata only: a model label at most.
+        try { window.HC?.notch?.finished((coderModel || '').split(':').pop() || 'Coder'); } catch {}
       }
     }
 
