@@ -145,8 +145,11 @@
 
   /* ── Agent list items ── */
   .agent-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 7px 9px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; gap: 10px;
+    /* Roomier than it was. The rows carried three lines of content in the
+       height of two, which is what made the list hard to pick from. */
+    padding: 10px 11px; border-radius: var(--radius-sm);
+    margin-bottom: 5px;
     cursor: pointer;
     border: 1px solid rgba(255,255,255,0.045);
     background: linear-gradient(180deg, rgba(255,255,255,0.028), rgba(255,255,255,0.012));
@@ -192,26 +195,29 @@
       linear-gradient(145deg, rgba(34,211,238,0.28), rgba(34,211,238,0.10));
     border-color: rgba(34,211,238,0.38);
   }
-  .agent-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .agent-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .agent-name {
     font-size: 12px; color: var(--text); font-weight: 600;
     letter-spacing: .01em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .agent-desc {
-    font-size: 10px; color: var(--text-dim);
+    font-size: 10.5px; line-height: 1.35; color: var(--text-dim);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .agent-tools {
-    display: flex; gap: 3px; margin-top: 3px; flex-wrap: wrap;
+  /* One quiet token instead of the whole toolset spelled out. It sits beside
+     the name rather than under it, so it never adds a line. */
+  .agent-toolcount {
+    flex: 0 0 auto;
+    font-size: 9px; letter-spacing: .06em;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
-  .agent-tool {
-    font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase;
-    color: var(--gold-2); font-weight: 700;
-    padding: 1px 5px; border-radius: 999px;
-    background: rgba(34,211,238,0.09);
-    border: 1px solid rgba(34,211,238,0.18);
-  }
+  .agent-item:hover .agent-toolcount,
+  .agent-item.active .agent-toolcount { color: var(--text-dim); }
+  /* Out of the way while the row's buttons are showing. */
+  .agent-item:hover .agent-toolcount { display: none; }
   .agent-actions {
     display: flex; gap: 4px;
     opacity: 0; transition: opacity .12s;
@@ -311,15 +317,36 @@
   .tool-option .tool-name { font-size: 13px; font-weight: 500; color: var(--text); }
   .tool-option .tool-desc { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; line-height: 1.5; }
 
-  .icon-picker { display: flex; flex-wrap: wrap; gap: 6px; }
-  .icon-picker button {
-    width: 36px; height: 36px; padding: 0;
-    font-size: 17px;
-    background: rgba(0,0,0,0.25);
+  /* A grid, not a wrapping row: the icons are now all drawn at one size, so
+     they line up in columns instead of reflowing into ragged rows. */
+  .icon-picker {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+    gap: 6px;
   }
+  .icon-picker button {
+    aspect-ratio: 1; width: 100%; height: auto; padding: 0;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.008)),
+      rgba(0,0,0,0.22);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s, transform .15s;
+  }
+  .icon-picker button:hover {
+    color: var(--text);
+    border-color: var(--accent-line);
+    transform: translateY(-1px);
+  }
+  .icon-picker button svg { width: 16px; height: 16px; display: block; }
   .icon-picker button.selected {
-    background: linear-gradient(180deg, rgba(34,211,238,0.28), rgba(34,211,238,0.12));
-    border-color: rgba(34,211,238,0.55);
+    color: var(--text);
+    background: var(--accent-soft);
+    border-color: var(--accent-line);
+    box-shadow: inset 0 0 0 1px var(--accent-soft);
   }
 
   /* Code block with copy */

@@ -114,6 +114,7 @@
   }
   const errorSlot = $("errorSlot");
   const chatsListEl  = $("chatsList");
+  // The agent list renders into the composer picker now, not the sidebar.
   const agentsListEl = $("agentsList");
   const searchInput  = $("searchInput");
   const searchWrap   = $("searchWrap");
@@ -305,6 +306,34 @@
     activeTemplateId: null,
   };
 
+  /**
+   * The rules every tool-using agent needs, written once.
+   *
+   * These were spread unevenly across the built-ins: the main assistant had
+   * careful source-honesty and tool-use judgment, while the research agents —
+   * the ones that call tools most — had a single line about not inventing
+   * citations and nothing about when to stop calling. That costs a request per
+   * wasted call and invites the failure the strict rules were written for.
+   *
+   * Efficiency here is not brevity for its own sake. A speculative tool call
+   * spends the user's quota and adds a round trip before any answer appears.
+   */
+  const AGENT_CORE = `
+Tool-use judgment:
+- One well-formed call beats three speculative ones. Skip tools entirely when you already know the answer.
+- Issue calls in parallel only when they are genuinely independent of each other.
+- Refine and retry a weak search once; do not keep re-running near-identical queries.
+- After a tool returns, answer with its real values. Do not paste the tool output back, and do not narrate the steps you took.
+
+Source honesty (CRITICAL):
+- You may cite only (a) a tool you actually called in this conversation, quoting the real title and URL from its result, or (b) "my training data" when you answered without one.
+- Never invent a source, paper, PMID, URL or filename. If you cannot recall where something came from, say so and offer to look it up.
+- "Where did you get this" is a question, not a hint to produce a citation.
+
+Memory:
+- Facts injected into your context are internal. Never list them back unless the user explicitly asks what you remember.
+`;
+
   // Ready-made agents
   const BUILTIN_AGENTS = [
     {
@@ -312,7 +341,7 @@
       builtin: true,
       icon: "H",
       name: "HashCortx",
-      description: "Personal assistant with real persistent memory + tools",
+      description: "Everyday assistant that remembers",
       systemPrompt: `You are the user's personal AI agent. You operate like a senior engineer: thoughtful, direct, calibrated.
 
 Voice:
@@ -351,7 +380,7 @@ Conventions:
       lite: true, // Lite mode: skip tool-calling loop, use compact memory injection, force fallback path
       icon: "·",
       name: "HashCortx Lite",
-      description: "Tuned for tiny models (1.5B–3B). Short prompt, no tool-calling, memory still works.",
+      description: "Built for small local models",
       // Deliberately tiny — small models drift on long prompts.
       systemPrompt: `You are the user's assistant. Be short, direct, accurate.
 Rules: open with the answer, no filler. Plain prose. Say "I don't know" instead of guessing. Never invent sources, songs, URLs, or numbers. Match the user's tone — short questions get short replies.
@@ -363,7 +392,7 @@ The "Memory:" lines (if any) are background context — never list them back unl
       builtin: true,
       icon: "RS",
       name: "Researcher",
-      description: "Multi-step research — searches, reads pages, follows up",
+      description: "Searches, reads, follows up",
       systemPrompt: `You are a research agent. You have real tools — use them iteratively, not just once:
 
 1. Start with web_search or wikipedia for an overview.
@@ -373,7 +402,7 @@ The "Memory:" lines (if any) are background context — never list them back unl
 5. Cite each source by title and URL in your final answer.
 6. remember_fact / recall_facts — save and retrieve user preferences, projects, and context across sessions.
 
-Only call tools that actually help. Don't search if the answer is general knowledge. If you're confident, skip the tools and answer directly. Never invent facts or citations.`,
+Only call tools that actually help. If you are confident, skip them and answer directly.` + AGENT_CORE,
       tools: ["memory", "web_search", "wikipedia", "fetch_url", "datetime", "code_interpreter"]
     },
     {
@@ -381,7 +410,7 @@ Only call tools that actually help. Don't search if the answer is general knowle
       builtin: true,
       icon: "DR",
       name: "Deep Research",
-      description: "Plans, searches, reads, cross-checks, then writes a cited brief",
+      description: "Cross-checked brief with sources",
       systemPrompt: `You are a deep-research agent. Produce source-grounded work, not quick summaries.
 
 Workflow:
@@ -395,7 +424,7 @@ Workflow:
 8. remember_fact / recall_facts — save key findings and user preferences for future sessions.
 9. Final answer must include: executive answer, evidence table, caveats, and source list with URLs/PMIDs.
 
-Never invent citations. If sources are weak, say the evidence is weak.`,
+If sources are weak, say the evidence is weak rather than dressing it up.` + AGENT_CORE,
       tools: ["memory", "web_search", "wikipedia", "fetch_url", "pubmed", "datetime", "code_interpreter"]
     },
     {
@@ -403,7 +432,7 @@ Never invent citations. If sources are weak, say the evidence is weak.`,
       builtin: true,
       icon: "</>",
       name: "Coder",
-      description: "Senior-staff coding help at 2026 pro standards",
+      description: "Production-grade code and review",
       systemPrompt: `You are a senior staff software engineer and product designer. Every answer must meet a professional, ship-ready bar.
 
 === CODE QUALITY (non-negotiable) ===
@@ -417,7 +446,7 @@ Never invent citations. If sources are weak, say the evidence is weak.`,
 - Accessibility defaults: semantic HTML, proper ARIA, keyboard navigation, focus-visible rings, contrast ≥ WCAG AA.
 - Follow the ESLint + Prettier conventions that ship with each framework's official starter.
 
-=== 2026 DESIGN LANGUAGE (for any UI you touch) ===
+=== DESIGN LANGUAGE (for any UI you touch) ===
 - Minimal but rich. Generous whitespace, confident typography, a restrained accent palette (one hero color + 2 neutrals).
 - Typography: modern variable font (Inter, Geist) + serif display face for headings (Fraunces, Cormorant).
 - Dark mode is the default; light mode must also work.
@@ -456,10 +485,8 @@ Skip the tools if the question is straightforward and you're confident.`,
       builtin: true,
       icon: "URL",
       name: "URL Reader",
-      description: "Paste a URL — fetches the page and analyzes it",
-      systemPrompt: `You are a page-analysis agent. When the user provides URLs, call fetch_url on each one to read the real content. If the page references another URL that's important, fetch that too. Never make up content you didn't actually read. Summarize or analyze as the user requests.
-
-Tools: remember_fact / recall_facts — save user interests and reading habits for better future recommendations.`,
+      description: "Reads a link and explains it",
+      systemPrompt: `You are a page-analysis agent. When the user provides URLs, call fetch_url on each one to read the real content. If the page references another URL that's important, fetch that too. Never describe content you did not actually read.` + AGENT_CORE,
       tools: ["memory", "fetch_url", "web_search", "code_interpreter"]
     },
     {
@@ -467,10 +494,8 @@ Tools: remember_fact / recall_facts — save user interests and reading habits f
       builtin: true,
       icon: "PM",
       name: "Published Papers Researcher",
-      description: "Searches PubMed / Europe PMC for medical & scientific papers",
-      systemPrompt: `You are a scientific-literature agent. Use pubmed_search to find peer-reviewed papers and preprints in life sciences and medicine. If a paper looks central to the answer, you may call fetch_url on its DOI/PubMed link to read more. Cite every claim as (Author, Year, PMID). Never invent citations or PMIDs. If results are thin, refine the query and search again.
-
-Tools: remember_fact / recall_facts — save the user's research interests and frequently queried topics for better future recommendations.`,
+      description: "Finds peer-reviewed papers",
+      systemPrompt: `You are a scientific-literature agent. Use pubmed_search to find peer-reviewed papers and preprints in life sciences and medicine. If a paper looks central to the answer, you may call fetch_url on its DOI/PubMed link to read more. Cite every claim as (Author, Year, PMID). If results are thin, refine the query and search once more.` + AGENT_CORE,
       tools: ["memory", "pubmed", "fetch_url", "datetime", "code_interpreter"]
     },
     {
@@ -478,7 +503,7 @@ Tools: remember_fact / recall_facts — save the user's research interests and f
       builtin: true,
       icon: "Rx",
       name: "Medical Lexi-Check",
-      description: "Scans prescription lists for drug–drug interactions and grades each risk A–X",
+      description: "Checks drug interactions",
       systemPrompt: `You are Medical Lexi-Check, a clinical pharmacology agent specialising in drug–drug interaction analysis. Patient safety is the top priority — never diagnose, never recommend dosage changes; always advise consulting a licensed pharmacist or physician.
 
 MANDATORY RESEARCH RULE — NEVER SKIP THIS:
@@ -530,8 +555,8 @@ After all cards, output:
       builtin: true,
       icon: "CV",
       name: "ATS CV Auditor",
-      description: "Forensic resume analysis — keyword gaps, ATS scoring, structural fixes for 2026 hiring",
-      systemPrompt: `You are the ATS CV Auditor, a forensic resume analyst calibrated to 2026 applicant-tracking system (ATS) standards and recruiter expectations. You help job seekers maximise resume visibility and pass automated screening filters before human review.
+      description: "Scores a CV against hiring filters",
+      systemPrompt: `You are the ATS CV Auditor, a forensic resume analyst calibrated to current applicant-tracking system (ATS) standards and recruiter expectations. You help job seekers maximise resume visibility and pass automated screening filters before human review.
 
 ATS SCORING MODEL (internal, explain to user):
   • Keyword match score  (0–40 pts): hard skills, tools, certifications matching the job description
@@ -1480,11 +1505,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const showChatSidebar = chatTabs.has(tab);
     setActiveTabButton(tab);
     chatsListEl.style.display = showChatSidebar ? "" : "none";
-    agentsListEl.style.display = "none";
     searchWrap.style.display  = showChatSidebar ? "" : "none";
     memoryRowEl.style.display = showChatSidebar ? "" : "none";
-    const agentsHeader = document.getElementById("agentsHeader");
-    if (agentsHeader) agentsHeader.style.display = "none";
     if (listLabel) {
       listLabel.style.display = "";
       listLabel.textContent = tab === "code" ? "Coding" : (tab === "forge" ? "3D Forge" : (tab === "split" ? "Split" : "Recent"));
@@ -1511,27 +1533,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     leaveFullscreenModes();
 
     // Agents is a panel over whatever you were doing, not a workspace of its
-    // own. It used to sit in the row of modes, which said it was one — you
-    // "left" your chat to pick an agent, and the agent then applied to the
-    // chat you had apparently left. It is reached from the chat toolbar now,
-    // and this still preserves the mode underneath so returning is exact.
-    if (tab === "agents") {
-      if (state.tab !== "agents") state._preAgentsTab = state.tab; // remember where we came from
-      state.tab = "agents";
-      setActiveTabButton("agents");
-      chatsListEl.style.display = "none";
-      agentsListEl.style.display = "";
-      searchWrap.style.display  = "none";
-      memoryRowEl.style.display = "none";
-      const ah = document.getElementById("agentsHeader");
-      if (ah) ah.style.display = "";
-      if (listLabel) listLabel.style.display = "none";
-      renderAgentsList();
-      return;
-    }
-
-    // Leaving agents panel — restore the mode we saved (or fall through to requested tab)
-    const effectiveFrom = fromFullscreen ? "chats" : ((state.tab === "agents" && state._preAgentsTab) ? state._preAgentsTab : state.tab);
+    // "agents" is no longer a tab value. Picking an agent is done from the
+    // composer, in a menu over the message being written, so nothing has to be
+    // left and restored — which is what the branch that used to live here did.
+    const effectiveFrom = fromFullscreen ? "chats" : state.tab;
     const fromBucket = chatBucketForTab(effectiveFrom);
     const toBucket = chatBucketForTab(tab);
 
@@ -1564,11 +1569,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.tab = tab;
     setActiveTabButton(tab);
     chatsListEl.style.display = "none";
-    agentsListEl.style.display = "none";
     searchWrap.style.display  = "none";
     memoryRowEl.style.display = "none";
-    const agentsHeader = document.getElementById("agentsHeader");
-    if (agentsHeader) agentsHeader.style.display = "none";
     if (listLabel) { listLabel.style.display = ""; listLabel.textContent = mode.label || tab; }
     setCompareMode(false);
     renderComposerChips("default");
@@ -1693,17 +1695,25 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
    * click, pressing it again has to be the way back, or the panel is a place
    * you can enter and not leave.
    */
-  function syncAgentsButton(open) {
-    const btn = $("agentsBtn");
-    if (!btn) return;
-    btn.classList.toggle("active", open);
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
+  /**
+   * Show or hide the agent picker.
+   *
+   * A menu over the composer rather than a panel in the sidebar: choosing an
+   * agent is a decision about the message being written, and it used to mean
+   * replacing the chat list with something else and then finding the way back.
+   */
   function toggleAgentsPanel(force) {
-    const open = typeof force === "boolean" ? force : state.tab !== "agents";
-    setTab(open ? "agents" : (state._preAgentsTab || "chats"));
-    syncAgentsButton(open);
+    const menu = $("agentsPicker");
+    const btn = $("agentsBtn");
+    if (!menu) return;
+    const open = typeof force === "boolean" ? force : menu.hidden;
+    if (open) renderAgentsList();
+    menu.hidden = !open;
+    menu.setAttribute("aria-hidden", open ? "false" : "true");
+    if (btn) {
+      btn.classList.toggle("active", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
   }
 
   function setActiveAgent(id) {
@@ -1775,35 +1785,42 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       saveRAG([]);
       localStorage.removeItem(RAG_KEY);
     });
-    agentsListEl.appendChild(kb);
-
-    // ── Separator ──
-    const sep = document.createElement("div");
-    sep.style.cssText = "height:1px;background:rgba(255,255,255,0.05);margin:2px 0 4px";
-    agentsListEl.appendChild(sep);
+    // The knowledge base is not an agent, so it sits in the picker's footer
+    // rather than at the head of the list of things you are choosing between.
+    const foot = $("agentsPickerFoot");
+    if (foot) { foot.innerHTML = ""; foot.appendChild(kb); }
 
     const list = allAgents();
     list.forEach(agent => {
       const row = document.createElement("div");
       row.className = "agent-item" + (agent.id === state.activeAgentId ? " active" : "");
-      const toolsHtml = (agent.tools && agent.tools.length)
-        ? `<div class="agent-tools">${agent.tools.map(t => `<span class="agent-tool">${escapeHtml(t.replace("_"," "))}</span>`).join("")}</div>`
+      // A count, not eight pills. Every agent listing its whole toolset meant
+      // the list was mostly tiny repeated words, wrapping onto three lines per
+      // row — which is the opposite of something you scan to pick from. Which
+      // tools an agent has is still one click away in the editor.
+      const toolCount = (agent.tools && agent.tools.length) || 0;
+      const toolsHtml = toolCount
+        ? `<span class="agent-toolcount">${toolCount} tool${toolCount === 1 ? "" : "s"}</span>`
         : "";
+      // Lighter strokes and tighter geometry than the 2px originals, which
+      // read as heavy beside the row's own icon at this size.
+      const ICON = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"';
       const editBtn = !agent.builtin
-        ? `<button class="edit-agent" title="Edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
-           <button class="del-agent" title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg></button>`
-        : `<button class="edit-agent" title="Duplicate & edit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button>`;
+        ? `<button class="edit-agent" title="Edit"><svg ${ICON}><path d="M16.8 3.9a1.9 1.9 0 0 1 2.7 2.7L8.4 17.7l-3.6.9.9-3.6z"/><path d="M15.2 5.5l3.3 3.3"/></svg></button>
+           <button class="del-agent" title="Delete"><svg ${ICON}><path d="M4.5 6.5h15"/><path d="M9.5 6.5V5a1.2 1.2 0 0 1 1.2-1.2h2.6A1.2 1.2 0 0 1 14.5 5v1.5"/><path d="M6.4 6.5l.9 12a1.6 1.6 0 0 0 1.6 1.5h6.2a1.6 1.6 0 0 0 1.6-1.5l.9-12"/><path d="M10.4 10.2v6.3M13.6 10.2v6.3"/></svg></button>`
+        : `<button class="edit-agent" title="Duplicate & edit"><svg ${ICON}><rect x="9.2" y="9.2" width="11.4" height="11.4" rx="2.2"/><path d="M5.6 14.8H4.9A1.6 1.6 0 0 1 3.3 13.2V4.9A1.6 1.6 0 0 1 4.9 3.3h8.3A1.6 1.6 0 0 1 14.8 4.9v.7"/></svg></button>`;
       row.innerHTML = `
         <div class="agent-icon">${agentIconSvg(agent)}</div>
         <div class="agent-meta">
           <div class="agent-name">${escapeHtml(agent.name)}</div>
           <div class="agent-desc">${escapeHtml(agent.description || "")}</div>
-          ${toolsHtml}
         </div>
+        ${toolsHtml}
         <div class="agent-actions">${editBtn}</div>`;
       row.addEventListener("click", (e) => {
         if (e.target.closest(".edit-agent") || e.target.closest(".del-agent")) return;
         setActiveAgent(agent.id === state.activeAgentId ? null : agent.id);
+        toggleAgentsPanel(false);
       });
       const editEl = row.querySelector(".edit-agent");
       if (editEl) editEl.addEventListener("click", (e) => { e.stopPropagation(); openAgentEditor(agent); });
@@ -1822,7 +1839,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   // ========= Agent editor =========
   const ICON_OPTIONS = [
-    "⚙︎", "✦", "✎", "{ }",
+    // Drawn, not typed. The first four used to be a gear glyph, a star, a pencil
+    // and a pair of braces set as text, which rendered at whatever weight and
+    // baseline the platform font happened to give them and sat wrong beside the
+    // drawn ones.
+    `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"/></svg>`,
+    `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 1.8l1.7 3.6 3.9.5-2.8 2.7.7 3.9L8 10.6l-3.5 1.9.7-3.9L2.4 5.9l3.9-.5z"/></svg>`,
+    `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.2 2.3a1.7 1.7 0 012.4 2.4L5.4 12.9l-3.2.8.8-3.2z"/><path d="M10 3.6l2.4 2.4"/></svg>`,
+    `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2.4H4.6A1.6 1.6 0 003 4v2.4c0 .9-.7 1.6-1.6 1.6.9 0 1.6.7 1.6 1.6V12a1.6 1.6 0 001.6 1.6H6"/><path d="M10 2.4h1.4A1.6 1.6 0 0113 4v2.4c0 .9.7 1.6 1.6 1.6-.9 0-1.6.7-1.6 1.6V12a1.6 1.6 0 01-1.6 1.6H10"/></svg>`,
     `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg>`,
     `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c-2 2.5-2.5 4-2.5 6s.5 3.5 2.5 6M8 2c2 2.5 2.5 4 2.5 6s-.5 3.5-2.5 6"/></svg>`,
     `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 10.5a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24L6.5 5.5"/><path d="M10.5 5.5a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l1-1"/></svg>`,
@@ -1934,15 +1958,34 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const btn = e.target.closest("[data-tab]");
     if (!btn || !btn.closest(".tabs")) return;
     e.preventDefault();
-    // Choosing a workspace closes the agents panel over it, so the button
-    // cannot be left looking pressed above a sidebar showing chats.
-    if (state.tab === "agents") syncAgentsButton(false);
+    toggleAgentsPanel(false);
     setTab(btn.dataset.tab);
   });
 
   $("agentsBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     toggleAgentsPanel();
+  });
+
+  $("agentsNewBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleAgentsPanel(false);
+    openAgentEditor(null);
+  });
+
+  // A menu has to close when you look elsewhere, or it sits over the composer
+  // you are trying to type in.
+  document.addEventListener("click", (e) => {
+    const menu = $("agentsPicker");
+    if (!menu || menu.hidden) return;
+    if (e.target.closest(".agents-picker-wrap")) return;
+    toggleAgentsPanel(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const menu = $("agentsPicker");
+    if (menu && !menu.hidden) toggleAgentsPanel(false);
   });
   $("hcSafeExitModeBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -3172,7 +3215,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   });
   sendBtn.addEventListener("click", () => state.streaming ? abort() : send());
   $("newChatBtn")?.addEventListener("click", () => newChat());
-  $("agentsNewChatBtn")?.addEventListener("click", () => newChat());
 
   // ── Preview button — show full payload that would be sent to the model ──
   const previewModal = $("previewModal");
