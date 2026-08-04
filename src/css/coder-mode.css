@@ -565,75 +565,7 @@ body.coder-mode #app { display: none; }
 }
 
 /* ── Slim tool rows (inline in chat) ────────────────────────── */
-.cdr-tool-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  transition: background .12s, border-color .12s;
-  margin: 4px 0;
-}
-.cdr-tool-row:hover {
-  background: rgba(255,255,255,0.03);
-  border-color: var(--cdr-border-hover);
-}
-.cdr-tool-row.running {
-  border-color: rgba(75,210,190,0.20);
-  background: rgba(75,210,190,0.03);
-}
-.cdr-tool-row.ok    { border-left: 2px solid var(--cdr-success); }
-.cdr-tool-row.err   { border-left: 2px solid var(--cdr-error); }
-.cdr-tool-row.warn  { border-left: 2px solid var(--cdr-gold); }
-
-.cdr-tool-row svg { flex-shrink: 0; opacity: 0.7; }
-.cdr-tool-name {
-  font-weight: 500;
-  color: var(--cdr-text);
-  white-space: nowrap;
-}
-.cdr-tool-target {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-family: var(--mono);
-}
-.cdr-tool-status {
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-  white-space: nowrap;
-}
-
 /* Expanded tool details */
-.cdr-tool-details {
-  display: none;
-  padding: 8px 10px;
-  border-radius: 0 0 var(--cdr-radius) var(--cdr-radius);
-  border: 1px solid var(--cdr-border);
-  border-top: none;
-  background: var(--cdr-bg-input);
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  margin: -5px 0 6px;
-}
-.cdr-tool-row.open + .cdr-tool-details { display: block; }
-.cdr-tool-details pre {
-  background: var(--cdr-bg-panel);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--radius-xs);
-  padding: 8px;
-  overflow-x: auto;
-  font-size: 10px;
-  margin: 4px 0 0;
-}
-
 /* ── One step of a run ──────────────────────────────────────────
    A tool call and a file change are the same thing from the outside: a thing
    the run did. They used to be two different blocks sitting next to each other,
@@ -806,90 +738,6 @@ body.coder-mode #app { display: none; }
 }
 
 /* ── Slim file-change rows ──────────────────────────────────── */
-.cdr-change-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  font-size: 11px;
-  margin: 4px 0;
-}
-.cdr-change-row.pending { border-left: 2px solid var(--cdr-gold); }
-.cdr-change-row.accepted { border-left: 2px solid var(--cdr-success); opacity: 0.7; }
-.cdr-change-row.rejected { border-left: 2px solid var(--cdr-error); opacity: 0.5; text-decoration: line-through; }
-
-.cdr-change-file {
-  font-family: var(--mono);
-  color: var(--cdr-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-change-stats {
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-  white-space: nowrap;
-}
-.cdr-change-stats .add { color: var(--cdr-success); }
-.cdr-change-stats .del { color: var(--cdr-error); }
-
-.cdr-change-actions {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-.cdr-change-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all .12s;
-  font-family: var(--mono);
-}
-.cdr-change-btn:hover {
-  background: rgba(255,255,255,0.05);
-  color: var(--cdr-text);
-  transform: translateY(-1px);
-}
-.cdr-change-btn.primary {
-  border-color: rgba(95,184,138,0.35);
-  color: var(--cdr-success);
-  background: rgba(95,184,138,0.06);
-}
-.cdr-change-btn.primary:hover {
-  background: rgba(95,184,138,0.14);
-  border-color: rgba(95,184,138,0.50);
-  box-shadow: 0 2px 8px rgba(95,184,138,0.12);
-}
-.cdr-change-btn.danger {
-  border-color: rgba(217,138,133,0.35);
-  color: var(--cdr-error);
-  background: rgba(217,138,133,0.06);
-}
-.cdr-change-btn.danger:hover {
-  background: rgba(217,138,133,0.14);
-  border-color: rgba(217,138,133,0.50);
-  box-shadow: 0 2px 8px rgba(217,138,133,0.12);
-}
-.cdr-change-row.accepted .cdr-change-btn.primary {
-  background: rgba(95,184,138,0.20);
-  border-color: var(--cdr-success);
-}
-.cdr-change-row.rejected .cdr-change-btn.danger {
-  background: rgba(217,138,133,0.20);
-  border-color: var(--cdr-error);
-}
-
 /* ── Real-time thinking stream ────────────────────────────── */
 .cdr-thinking-stream {
   font-family: var(--mono);
@@ -944,16 +792,6 @@ body.coder-mode #app { display: none; }
 }
 
 /* Inline diff preview */
-.cdr-diff-preview {
-  display: none;
-  margin: -5px 0 6px;
-  border: 1px solid var(--cdr-border);
-  border-top: none;
-  border-radius: 0 0 var(--cdr-radius) var(--cdr-radius);
-  background: var(--cdr-bg-input);
-  overflow: hidden;
-}
-.cdr-diff-preview.open { display: block; }
 .cdr-diff-header {
   display: flex;
   align-items: center;
@@ -998,8 +836,6 @@ body.coder-mode #app { display: none; }
 
 /* A change whose previous contents could not be saved cannot be undone, and
    the button says so rather than pretending. */
-.cdr-change-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
-
 /* ── Slim permission strip ──────────────────────────────────── */
 .cdr-perm-strip {
   display: none;
@@ -1538,58 +1374,6 @@ body.coder-mode #app { display: none; }
   animation: cdr-pulse 1.2s ease-in-out infinite;
 }
 
-.cdr-tool-call {
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-input);
-  margin: 6px 0;
-  overflow: hidden;
-}
-.cdr-tool-call.running {
-  border-color: rgba(75,210,190,0.20);
-}
-.cdr-tool-summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  list-style: none;
-}
-.cdr-tool-icon { opacity: 0.7; flex-shrink: 0; }
-.cdr-tool-name { font-weight: 500; color: var(--cdr-text); }
-.cdr-tool-args {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--cdr-text-muted);
-  font-size: 10px;
-}
-.cdr-tool-status {
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-}
-.cdr-tool-status.ok  { color: var(--cdr-success); }
-.cdr-tool-status.err { color: var(--cdr-error); }
-
-.cdr-tool-body {
-  padding: 8px 10px;
-  border-top: 1px solid var(--cdr-border);
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-}
-.cdr-tool-result {
-  font-family: var(--mono);
-  font-size: 10px;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-
 .cdr-error-bubble {
   padding: 10px 14px;
   border-radius: var(--cdr-radius);
@@ -1791,17 +1575,6 @@ body.coder-mode #app { display: none; }
   color: var(--cdr-cyan);
   margin-bottom: 4px;
   display: block;
-}
-
-/* Tool calls: gold */
-.cdr-tool-row,
-.cdr-tool-call {
-  font-family: var(--mono);
-}
-.cdr-tool-row::before {
-  content: "[tool] ";
-  color: var(--cdr-gold);
-  font-weight: 600;
 }
 
 /* Thinking / reasoning: violet */
