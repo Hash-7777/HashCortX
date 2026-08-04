@@ -152,9 +152,17 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Comma
     let mut cmd = Command::new(command);
     cmd.args(args);
     if let Some(dir) = cwd {
-        if denylist::is_path_denied(dir) {
-            return Err(format!("Working directory is protected: {dir}"));
-        }
+        // The working directory decides what every relative path in the command
+        // means, so it gets the same gate a file operation gets rather than a
+        // bare denylist lookup.
+        //
+        // `is_path_denied` matches the spelling it is handed. Half of that list
+        // is prefixes — /etc, /System, /usr/bin — and a directory written with
+        // `..` matches none of them: `<project>/../../../etc` is not spelled
+        // /etc, so it was accepted, and the shell then ran there. `guard_path`
+        // refuses `..` outright and resolves links before deciding.
+        crate::commands::fs::guard_path(dir)
+            .map_err(|why| format!("Working directory refused: {why}"))?;
         cmd.current_dir(dir);
     }
     // A command that asks a question gets EOF rather than an inherited terminal
@@ -404,6 +412,35 @@ mod tests {
     fn prepare_allows_ordinary_work() {
         assert!(prepare("git", &["status".into()], &None).is_ok());
         assert!(prepare("npm", &["test".into()], &None).is_ok());
+    }
+
+    #[test]
+    fn a_working_directory_written_with_dot_dot_is_refused() {
+        // The denylist matches the spelling it is given, and half of it is
+        // prefixes. A directory that climbs out with `..` is spelled like
+        // nothing on that list, so the shell used to start there — the command
+        // text never mentions the destination, so nothing else would catch it.
+        let escape = Some(format!("{}/../../../etc", env!("CARGO_MANIFEST_DIR")));
+        let err = prepare("ls", &[], &escape).unwrap_err();
+        assert!(
+            err.contains("Working directory refused"),
+            "unexpected refusal: {err}"
+        );
+
+        // And the plain spelling stays refused, which it always was.
+        let err = prepare("ls", &[], &Some("/etc".to_string())).unwrap_err();
+        assert!(
+            err.contains("Working directory refused"),
+            "unexpected refusal: {err}"
+        );
+    }
+
+    #[test]
+    fn an_ordinary_working_directory_is_still_accepted() {
+        // The rule has to hold in both directions, or it becomes the next thing
+        // that refuses real work.
+        let here = Some(env!("CARGO_MANIFEST_DIR").to_string());
+        assert!(prepare("git", &["status".into()], &here).is_ok());
     }
 
     #[test]

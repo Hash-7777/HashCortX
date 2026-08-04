@@ -17,6 +17,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
+import vm from 'node:vm';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const srcDir = join(root, 'src');
@@ -118,6 +119,41 @@ console.log('\nThe agent tools are gated:');
   const requests = (hashcoder.match(/HC\.guard\.request\(/g) || []).length;
   check(`every native call has a guard request (${requests} guards / ${invokes} invokes)`,
     requests >= invokes, 'a tool is reaching Rust without asking first');
+}
+
+console.log('\nThe guard is shown the whole action, not half of it:');
+{
+  // A shell command's working directory is chosen by the model and decides
+  // what every relative path in that command means. The dialog used to show
+  // only the command, so approving `rm output.o` said nothing about which
+  // folder was about to lose a file. Loading the REAL hashcoder.js and
+  // recording what the guard is handed is the only way to check that.
+  const asked = [];
+  const sandbox = {
+    console,
+    HC: {
+      isTauri: true,
+      guard: { request: (action, target, reason) => { asked.push({ action, target, reason }); return Promise.resolve(true); } },
+      invoke: () => Promise.resolve({ stdout: '', stderr: '', code: 0 }),
+      undo: { capture: () => Promise.resolve(null) },
+    },
+  };
+  sandbox.window = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(readFileSync(join(srcDir, 'platform', 'tauri', 'hashcoder.js'), 'utf8'),
+    sandbox, { filename: 'hashcoder.js' });
+
+  await sandbox.HC.code.shellRun('rm', ['output.o'], '/Users/x/other-project', 'cleaning up');
+  const withCwd = asked.at(-1);
+  check('a shell request names the folder the command will run in',
+    withCwd?.target.includes('/Users/x/other-project'),
+    `the user was asked to approve "${withCwd?.target}" with no mention of where`);
+  check('and still names the command itself',
+    withCwd?.target.startsWith('rm output.o'), withCwd?.target);
+
+  await sandbox.HC.code.shellRun('npm', ['test'], null, '');
+  check('a command with no folder of its own is unchanged',
+    asked.at(-1)?.target === 'npm test', asked.at(-1)?.target);
 }
 
 console.log('\nThe guard itself is reachable:');

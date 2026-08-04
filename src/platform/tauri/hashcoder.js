@@ -63,8 +63,15 @@
 
     async shellRun(command, args = [], cwd = null, reason = '') {
       const display = [command, ...args].join(' ');
-      const ok = await HC.guard.request('shell', display, reason);
-      if (!ok) throw new Error(`Permission denied: shell ${display}`);
+      // Where a command runs decides what it does. `npm test` and `rm out.o`
+      // mean different things in different folders, and the working directory
+      // is chosen by the model, not by the user. Showing only the command
+      // asked the user to approve half of the action, so the folder goes in
+      // the same string — which also puts it in front of the guard's own
+      // checks and into the audit log.
+      const shown = cwd ? `${display} (in ${cwd})` : display;
+      const ok = await HC.guard.request('shell', shown, reason);
+      if (!ok) throw new Error(`Permission denied: shell ${shown}`);
       return HC.invoke('shell_run', { command, args, cwd });
     },
 
@@ -157,9 +164,14 @@
     },
     {
       name: 'delete_file',
-      description: 'Permanently delete a file or directory. Irreversible — always confirm the path with list_dir or read_file first.',
+      // It said "a file or directory". fs_delete_file refuses a directory
+      // outright, so every attempt at one failed and the model had been told
+      // it was a thing it could do. It also said "irreversible": what the file
+      // held is checkpointed first, and the user can put it back from the
+      // change list.
+      description: 'Delete a file. Directories are refused — remove their contents, or use shell_run. Always confirm the path with list_dir or read_file first.',
       parameters: {
-        path:   'Absolute path to delete',
+        path:   'Absolute path to the file to delete',
         reason: 'Why you are deleting this',
       },
       fn: (p) => HC.code.deleteFile(p.path, p.reason),
