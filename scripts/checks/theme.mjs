@@ -147,7 +147,7 @@ const BUDGET = {
   'css/system-maker.css': 131,
   'css/modals.css': 64,
   'css/virtual-os.css': 56,
-  'css/modes.css': 51,
+  'css/modes.css': 50,
   'css/main.css': 43,
   'css/coder-mode.css': 37,
   'css/agent-maker.css': 36,

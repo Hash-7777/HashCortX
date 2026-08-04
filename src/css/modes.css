@@ -814,17 +814,14 @@
   }
   .inject-btn:hover svg,
   .inject-btn:focus-visible svg { color: var(--gold-2); }
-  /* OFF (banned) — dim border, red slash overlay */
-  .inject-btn.banned::after {
-    content: "";
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 22px; height: 2px;
-    background: #e05555;
-    border-radius: 2px;
-    transform: translate(-50%, -50%) rotate(-45deg);
-    pointer-events: none;
-  }
+  /* OFF — the icon recedes.
+     This used to be a 22px red bar drawn across a 30px button, which covered
+     most of the drawing underneath: whatever the icon was, at this size you
+     saw a red slash on a square. It also made the loudest colour in the app
+     mean "this feature is switched off", which is not what red is for. */
+  .inject-btn.banned { opacity: .55; }
+  .inject-btn.banned svg { color: var(--muted); }
+  .inject-btn.banned:hover { opacity: 1; }
   /* ON (active) — gold border + tint */
   .inject-btn.active {
     background: rgba(34,211,238,0.10);

@@ -3502,6 +3502,9 @@ ${tree}`;
     $("voidFolderInput")?.addEventListener("change", e => handleUpload(e.target.files, true).then(() => { e.target.value = ""; }));
     $("voidExportZipBtn")?.addEventListener("click", exportZip);
     $("voidEditorClose")?.addEventListener("click", closeEditor);
+    // The editor has two Close buttons. Only the first was ever wired, so the
+    // one at the foot of the dialog looked like a Close and was not one.
+    $("voidEditorClose2")?.addEventListener("click", closeEditor);
     $("voidEditorSave")?.addEventListener("click", saveEditor);
     $("voidEditorDownload")?.addEventListener("click", () => downloadItem(getItem(editingId)));
     $("voidEditor")?.addEventListener("click", e => { if (e.target === $("voidEditor")) closeEditor(); });

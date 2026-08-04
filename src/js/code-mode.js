@@ -2263,7 +2263,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       }
     }
 
-    return { mount, destroy, remount };
+    // showAuditLog goes out too: the audit dialog is shared chrome, opened
+    // from the About panel as well as from Coder, and the About button was
+    // reaching for a name that only exists inside this closure.
+    return { mount, destroy, remount, showAuditLog };
   })();
 
   // ── Wire audit modal close (shared) ──────────────────────────
@@ -2469,10 +2472,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (folder && typeof folder === 'string') sharedState.projectRoot = folder;
       } catch {}
     },
-    showAuditLog: async () => {
-      const modal = document.getElementById('hcAuditModal');
-      if (modal) modal.classList.add('open');
-    },
+    // Opens the modal AND fills it. This used to only add the open class, so
+    // callers outside Coder got an empty dialog — the function that actually
+    // reads the log sits inside the CoderMode closure, which is why it is
+    // reached through CoderMode rather than named directly here.
+    showAuditLog: () => CoderMode.showAuditLog(),
     afterRender: injectAllToolBlocks,
     get state() { return sharedState; },
   };

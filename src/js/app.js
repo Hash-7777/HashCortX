@@ -142,7 +142,40 @@
   let ragEnabled = false;
   // injectionEnabled: false = pure messages only; true = RAG + web tools fire.
   // Persisted in localStorage so preference survives refresh.
-  let injectionEnabled = false;
+  let injectionEnabled = (() => {
+    try { return localStorage.getItem("hc_injection_enabled") === "1"; } catch { return false; }
+  })();
+
+  /**
+   * Put the injection button in the state the flag says it is in.
+   *
+   * This function was called and never existed. The only caller was the
+   * /inject command, which flipped the flag and then threw on the missing
+   * name, so the command never finished and the button never changed. The
+   * button itself had no click handler at all, in any build — so a feature
+   * with a control in the composer and a slash command could not actually be
+   * switched on from the interface.
+   *
+   * Whether retrieval then runs is decided separately, on the send path: a
+   * personal knowledge base is never sent to a cloud provider, and the topbar
+   * badge is what says so. This only reflects the preference.
+   */
+  function applyInjectionState() {
+    const btn = $("injectToggle");
+    if (!btn) return;
+    btn.classList.toggle("banned", !injectionEnabled);
+    btn.classList.toggle("active", injectionEnabled);
+    btn.setAttribute("aria-pressed", injectionEnabled ? "true" : "false");
+    btn.title = injectionEnabled
+      ? "Context injection ON — knowledge base and web context may be added"
+      : "Context injection OFF — click to add knowledge base and web context";
+    try { localStorage.setItem("hc_injection_enabled", injectionEnabled ? "1" : "0"); } catch {}
+  }
+
+  function toggleInjection() {
+    injectionEnabled = !injectionEnabled;
+    applyInjectionState();
+  }
 
   const compareBar = $("compareBar");
   const compareModelEl = $("compareModel");
@@ -1962,6 +1995,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     setTab(btn.dataset.tab);
   });
 
+  // "View Audit Log" in the About dialog had no handler at all — a button
+  // offering to show a security record, that did nothing when pressed.
+  $("hcAuditBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    window.HC_CODE?.showAuditLog?.();
+  });
+
+  $("injectToggle")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleInjection();
+  });
+  applyInjectionState();
+
   $("agentsBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -3128,7 +3174,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { name: "/pdf", desc: "Export conversation as PDF", run: () => exportConversation("pdf") },
     { name: "/temp", desc: "Set temperature, e.g. /temp 0.3", run: (arg) => { const v = parseFloat(arg); if (Number.isFinite(v)) { tempEl.value = Math.max(0, Math.min(2, v)); tempVal.textContent = tempEl.value; updateRangeFill(); saveSettings(); } else tempEl.focus(); } },
     { name: "/privacy", desc: "Toggle local-only privacy mode", run: () => { privacyLocalEl.checked = !privacyLocalEl.checked; privacyLocalEl.dispatchEvent(new Event("change")); } },
-    { name: "/inject", desc: "Toggle knowledge-base context injection", run: () => { injectionEnabled = !injectionEnabled; applyInjectionState(); } },
+    { name: "/inject", desc: "Toggle knowledge-base context injection", run: () => toggleInjection() },
     { name: "/templates", desc: "Open prompt template library", run: openTemplates },
     { name: "/template", desc: "Use a saved prompt template", run: async () => { const t = activeTemplate(); const text = await fillTemplate(t); if (text) insertAtComposer(text, true); } },
   ];
