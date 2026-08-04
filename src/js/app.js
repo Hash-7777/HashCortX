@@ -8301,6 +8301,16 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     // endpoint, which returns nothing for most developer queries.
     tavilySearch,
     runOneTool,
+    // The knowledge base, for modes that are not chat.
+    //
+    // Retrieval has always been reachable from here and from nowhere else, so
+    // Coder — the mode most likely to need a house standard or a past incident
+    // while it writes code — could not see it at all. `ragIsOn` is exposed
+    // beside it deliberately: the toggle defaults to OFF, and a search that
+    // quietly returns nothing because a switch is off is the exact failure this
+    // knowledge base has already had twice.
+    ragSearch: (query) => queryRAGMerged(String(query || "")),
+    ragIsOn: () => ragEnabled,
     appendAssistantToolCallTurn,
     appendToolResult,
     extractPythonFence,

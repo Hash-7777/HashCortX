@@ -212,6 +212,45 @@ console.log('\nThe guard is shown the whole action, not half of it:');
   await sandbox.HC.code.shellRun('npm', ['test'], null, '');
   check('a command with no folder of its own is unchanged',
     asked.at(-1)?.target === 'npm test', asked.at(-1)?.target);
+
+  // Reading a web page is a network call whose address the model chose, made
+  // by the mode that can read every file in the project. Chat does it without
+  // asking; here that would be a way for anything just read to leave inside a
+  // query string.
+  sandbox.window._H = { runOneTool: () => Promise.resolve('{}') };
+  const before = asked.length;
+  await sandbox.HC.code.TOOL_DEFINITIONS
+    .find((t) => t.name === 'fetch_url')
+    .fn({ url: 'https://example.com/page' });
+  const fetchAsk = asked.slice(before).find((a) => a.action === 'fetch');
+  check('reading a web page asks first', !!fetchAsk,
+    'a URL the model chose can carry what it just read off the machine');
+  check('and the dialog names the address',
+    fetchAsk?.target === 'https://example.com/page', fetchAsk?.target);
+}
+
+console.log('\nEvery tool Coder hands to chat is a tool chat has:');
+{
+  // `runOneTool` answers an unknown name with {"error": "Unknown tool: x"},
+  // which the model reads as a failure and works around. So a delegated tool
+  // whose name drifts does not break loudly — the feature just stops being
+  // available, which is this repo's oldest defect wearing a new hat.
+  const hashcoder = readFileSync(join(srcDir, 'platform', 'tauri', 'hashcoder.js'), 'utf8');
+  const app = readFileSync(join(srcDir, 'js', 'app.js'), 'utf8');
+
+  const delegated = [...hashcoder.matchAll(/viaChatTool\(\s*'([a-z_]+)'/g)].map((m) => m[1]);
+  check('Coder delegates at least one tool to chat', delegated.length > 0);
+
+  const table = /const AGENT_TOOLS = \{([\s\S]*?)\n  \};/.exec(app)?.[1] || '';
+  const chatTools = new Set(
+    [...table.matchAll(/^ {4}([a-z_]+): \{/gm)].map((m) => m[1]),
+  );
+  check('chat exposes a tool table to compare against', chatTools.size > 0);
+
+  for (const name of delegated) {
+    check(`${name} exists in chat's AGENT_TOOLS`, chatTools.has(name),
+      'runOneTool would answer "Unknown tool" and the model would route around it');
+  }
 }
 
 console.log('\nThe guard itself is reachable:');

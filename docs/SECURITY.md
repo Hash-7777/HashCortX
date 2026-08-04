@@ -54,8 +54,11 @@ Every filesystem and shell call the coding agent wants to make passes through `H
 | | Inside the open project folder | Anywhere else |
 |---|---|---|
 | read, list, search | no dialog | **asks** |
-| write, patch | no dialog | **asks** |
+| write, patch, move | no dialog | **asks** |
 | delete, shell | **asks** | **asks** |
+| fetch a web page | **asks** | **asks** |
+
+Reading a web page asks even though it touches no file. Chat does it without asking and that is defensible there; in Coder it is not. The agent can read every file in the project, the address comes from the model, and a URL carries whatever is put in it — so a fetch is a way for something just read to leave the machine. The address checks described further down stop it reaching your own network; they have no opinion about a public host, which is why this one is a question rather than a rule.
 
 Reads outside the project folder used to be auto-approved with no dialog at all, on the reasoning that reading modifies nothing. That reasoning does not hold for an agent whose purpose is to send what it reads to a model provider — a prompt-injected model could have read any file you could and placed it in its next request, without you seeing a prompt. They now ask.
 

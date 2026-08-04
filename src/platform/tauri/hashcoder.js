@@ -75,6 +75,22 @@
       return HC.invoke('shell_run', { command, args, cwd });
     },
 
+    async moveFile(from, to, reason = '') {
+      if (!from || !to) throw new Error('move_file: both from and to are required.');
+      const ok = await HC.guard.request('write', `${from} → ${to}`, reason);
+      if (!ok) throw new Error(`Permission denied: move ${from}`);
+      // Two records, because a move is two changes: the file stops existing at
+      // one path and starts existing at another. Undoing the pair puts both
+      // ends back. Captured before the move, which is the last moment the
+      // source still holds anything.
+      const gone = await HC.undo.capture(from);
+      const made = await HC.undo.capture(to);
+      await HC.invoke('fs_move_file', { from, to });
+      if (gone) gone.after = '';
+      if (made) made.after = gone?.content ?? '';
+      return JSON.stringify({ ok: true, from, to });
+    },
+
     async patchFile(path, search, replace, reason = '') {
       if (!search) throw new Error('patch_file: search string is required and must not be empty.');
       if (replace == null) throw new Error('patch_file: replace string is required (use "" to delete).');
@@ -123,6 +139,25 @@
   };
 
   // ── Tool definitions ────────────────────────────────────────
+
+  /**
+   * Run one of the tools chat already has, through chat's own dispatcher.
+   *
+   * Four of the tools below — fetch_url, execute_python, current_datetime and
+   * calculate — existed and worked, and Coder simply could not reach them. The
+   * worst of those was fetch_url: Coder could search the web and then had no
+   * way to read the page it found.
+   *
+   * Delegating rather than copying matters for more than tidiness. fetch_url
+   * carries the address checks in url-safety.js and the name resolution in
+   * net.rs; a second copy here would be a second place for those to be missing.
+   */
+  async function viaChatTool(name, args) {
+    const run = window._H?.runOneTool;
+    if (!run) return JSON.stringify({ error: `${name} is unavailable — the main app is not loaded.` });
+    const result = await run(name, args || {});
+    return typeof result === 'string' ? result : JSON.stringify(result);
+  }
 
   HC.code.TOOL_DEFINITIONS = [
     {
@@ -175,6 +210,99 @@
         reason: 'Why you are deleting this',
       },
       fn: (p) => HC.code.deleteFile(p.path, p.reason),
+    },
+    {
+      name: 'move_file',
+      description: 'Rename a file, or move it to another folder. Refuses to overwrite an existing destination — delete that first if replacing it is what you mean. Prefer this over `mv` in shell_run: a move made this way is recorded and the user can undo it.',
+      parameters: {
+        from:   'Absolute path of the file as it is now',
+        to:     'Absolute path it should have (parent folders are created)',
+        reason: 'Why you are moving it',
+      },
+      fn: (p) => HC.code.moveFile(p.from, p.to, p.reason),
+    },
+    {
+      name: 'search_knowledge',
+      description: "Search the user's knowledge base — documents and pages they ingested — for passages about a topic. Use it before assuming a house convention, a policy or a past decision, and cite the source it returns. Returns nothing useful if the user has not ingested anything or has the knowledge base switched off, and says which of those it is.",
+      parameters: {
+        query: { type: 'string', description: 'What to look for, in a few words.' },
+      },
+      fn: async (p) => {
+        const query = String(p.query || '').trim();
+        if (!query) return JSON.stringify({ error: 'query is required' });
+        if (!window._H?.ragSearch) {
+          return JSON.stringify({ error: 'The knowledge base is unavailable — the main app is not loaded.' });
+        }
+        // Off and empty are different answers, and both used to look like "no
+        // results". A model told "nothing found" will state a convention it
+        // invented; one told the base is switched off will say so.
+        if (window._H.ragIsOn && !window._H.ragIsOn()) {
+          return JSON.stringify({
+            query, passages: [],
+            message: 'The knowledge base is switched off, so nothing was searched. Say so rather than answering as if it were empty — the user can turn it on in the Agents tab.',
+          });
+        }
+        const chunks = await window._H.ragSearch(query);
+        if (!chunks.length) {
+          return JSON.stringify({
+            query, passages: [],
+            message: 'The knowledge base is on and held nothing matching this. Answer from the code and say the knowledge base had nothing on it.',
+          });
+        }
+        return JSON.stringify({
+          query,
+          passages: chunks.map((c, i) => ({
+            rank: i + 1,
+            source: c.source || 'unknown',
+            title: c.title || '',
+            chunk: c.index ?? 0,
+            text: c.text || '',
+          })),
+          note: 'Cite the source and title when you use one of these.',
+        });
+      },
+    },
+    {
+      name: 'fetch_url',
+      description: 'Read a web page and return its text. Use it after web_search to actually read what you found — a search result gives you a title and a snippet, not the documentation. Only public http(s) addresses; anything resolving to a private or local address is refused.',
+      parameters: {
+        url: { type: 'string', description: 'Absolute http(s) URL.' },
+      },
+      fn: async (p) => {
+        const url = String(p.url || '').trim();
+        if (!url) return JSON.stringify({ error: 'url is required' });
+        // Chat calls this without asking, and that is defensible there. Here it
+        // is not: Coder can read every file in the project, and a URL is chosen
+        // by the model, so a fetch is a way for anything just read to leave the
+        // machine inside a query string. url-safety.js and net.rs stop it
+        // reaching the user's own network; neither has an opinion about a
+        // public host. So the user is asked, and can grant the session.
+        const ok = await HC.guard.request('fetch', url, p.reason || 'Reading a web page');
+        if (!ok) throw new Error(`Permission denied: fetch ${url}`);
+        return viaChatTool('fetch_url', { url });
+      },
+    },
+    {
+      name: 'execute_python',
+      description: 'Run Python in a sandbox that ships with the app, with pandas, numpy and matplotlib available. Use it for data work, quick calculations over a file, or generating a chart — it needs no Python installed on the machine and cannot touch the filesystem. To run the project\'s own Python, use shell_run instead.',
+      parameters: {
+        code: { type: 'string', description: 'Python source. Stdout is captured. Files written to /output/<name> are offered to the user to save.' },
+      },
+      fn: (p) => viaChatTool('execute_python', { code: p.code }),
+    },
+    {
+      name: 'current_datetime',
+      description: "Today's date and the current time. Call it before writing a date into a file, a changelog or a commit message — you do not otherwise know what day it is.",
+      parameters: {},
+      fn: () => viaChatTool('current_datetime', {}),
+    },
+    {
+      name: 'calculate',
+      description: 'Evaluate a arithmetic expression exactly. Use it rather than doing arithmetic in your head when the number ends up in code or in a message to the user.',
+      parameters: {
+        expression: { type: 'string', description: "Math expression, e.g. '(3.14 * 2**10) / 7' or 'Math.sqrt(2)'." },
+      },
+      fn: (p) => viaChatTool('calculate', { expression: p.expression }),
     },
     {
       name: 'fuzzy_find',
@@ -332,9 +460,22 @@ TOOL ROUTING:
 • Find code by content     → grep_code(dir, pattern, file_ext?)
 • Targeted edit            → patch_file
 • New file / full rewrite  → write_file
+• Rename or relocate a file → move_file, NOT \`mv\` in shell_run. A move made
+  with move_file is recorded and the user can undo it; one made with \`mv\`
+  cannot be undone at all.
 • Explore structure        → list_dir
 • Build / test / git / inspect binary → shell_run
-• Look something up you do not know → web_search(query)
+• A house convention, policy, or past decision → search_knowledge(query) FIRST,
+  and cite the source it gives you. Do not invent a convention. If it reports
+  the knowledge base is off or empty, say so rather than answering as if you
+  had checked.
+• Look something up you do not know → web_search(query), then fetch_url(url) to
+  actually read the page. A search result is a title and a snippet, not
+  documentation — do not answer from the snippet alone.
+• Data work, a calculation over a file, a chart → execute_python. It ships with
+  the app and needs no Python installed. For the project's OWN python, shell_run.
+• Writing a date anywhere → current_datetime first. You do not know what day it is.
+• A number that ends up in code or in a message → calculate
 • A layout genuinely needs a photo → placeholder_images(seed, count). Prefer gradients, icons or inline SVG; never invent an image URL.
 
 FILE READING:

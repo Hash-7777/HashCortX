@@ -254,6 +254,68 @@ pub fn fs_delete_file(path: String) -> Result<(), String> {
     fs::remove_file(p).map_err(|e| e.to_string())
 }
 
+/// Move or rename a file.
+///
+/// There was no way to do this except `shell_run mv`, which the undo system
+/// cannot see. Every other change the agent makes is checkpointed and can be
+/// taken back; a rename was the one that could not, which is the worst kind of
+/// gap — the safety net looks complete and has a hole in it at the point where
+/// a file changes its name and the old one stops existing.
+///
+/// Both ends are guarded, because a move is a write to one path and a delete of
+/// another, and each has to pass the same rules a write and a delete would.
+///
+/// It refuses to overwrite. `mv` would, and the destination's contents would be
+/// gone in a single call the model chose the arguments for. Deleting first is a
+/// separate action with its own approval, which is the right shape for it.
+#[tauri::command]
+pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
+    guard_path(&from)?;
+    guard_path(&to)?;
+
+    let source = Path::new(&from);
+    let target = Path::new(&to);
+
+    if !source.exists() {
+        return Err(format!("There is nothing at \"{from}\" to move."));
+    }
+    if source.is_dir() {
+        return Err(format!(
+            "\"{from}\" is a directory. This moves one file at a time, so that what it held can be \
+             checkpointed and the move taken back."
+        ));
+    }
+    if target.exists() {
+        return Err(format!(
+            "\"{to}\" already exists. Delete it first if replacing it is what you meant — that is a \
+             separate action, and it is checkpointed."
+        ));
+    }
+    if let Some(parent) = target.parent() {
+        let parent_str = parent.to_string_lossy();
+        if !parent_str.is_empty() {
+            guard_path(&parent_str)?;
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+    }
+
+    match fs::rename(source, target) {
+        Ok(()) => Ok(()),
+        // rename cannot cross a filesystem boundary, and a project on an
+        // external disk is an ordinary thing. Copy and remove is what `mv`
+        // falls back to as well.
+        Err(_) => {
+            fs::copy(source, target).map_err(|e| format!("Could not move \"{from}\": {e}"))?;
+            fs::remove_file(source).map_err(|e| {
+                // The copy landed, so leaving it is safer than reporting success
+                // for a move that only half happened.
+                let _ = fs::remove_file(target);
+                format!("Could not remove \"{from}\" after copying it: {e}")
+            })
+        }
+    }
+}
+
 #[tauri::command]
 pub fn fs_search_files(dir: String, pattern: String) -> Result<Vec<String>, String> {
     guard_path(&dir)?;
@@ -648,6 +710,87 @@ mod containment_tests {
             p,
         ));
 
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_file_can_be_moved_and_what_it_held_arrives_intact() {
+        let root = scratch("move");
+        let src = root.join("old-name.txt");
+        let dst = root.join("nested").join("new-name.txt");
+        fs::write(&src, "contents that must survive\n").unwrap();
+
+        fs_move_file(
+            src.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+        )
+        .expect("an ordinary move");
+
+        assert!(!src.exists(), "the source must be gone");
+        assert_eq!(
+            fs::read_to_string(&dst).unwrap(),
+            "contents that must survive\n"
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_move_refuses_to_destroy_what_is_already_there() {
+        // `mv` would overwrite. The destination's contents would be gone in one
+        // call whose arguments the model chose.
+        let root = scratch("move-clobber");
+        let src = root.join("a.txt");
+        let dst = root.join("b.txt");
+        fs::write(&src, "source").unwrap();
+        fs::write(&dst, "must not be lost").unwrap();
+
+        let err = fs_move_file(
+            src.to_string_lossy().into_owned(),
+            dst.to_string_lossy().into_owned(),
+        )
+        .expect_err("an existing destination must be refused");
+        assert!(err.contains("already exists"), "unexpected refusal: {err}");
+        assert_eq!(fs::read_to_string(&dst).unwrap(), "must not be lost");
+        assert!(src.exists(), "a refused move must not have moved anything");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_move_cannot_reach_a_protected_location_at_either_end() {
+        let root = scratch("move-guard");
+        let src = root.join("a.txt");
+        fs::write(&src, "x").unwrap();
+        let home = dirs::home_dir().expect("a home directory");
+
+        // Out of a protected location…
+        assert!(fs_move_file(
+            home.join(".ssh").join("id_ed25519").to_string_lossy().into_owned(),
+            root.join("stolen.txt").to_string_lossy().into_owned(),
+        )
+        .is_err());
+        // …and into one.
+        assert!(fs_move_file(
+            src.to_string_lossy().into_owned(),
+            home.join(".ssh").join("authorized_keys").to_string_lossy().into_owned(),
+        )
+        .is_err());
+        assert!(src.exists(), "a refused move must leave the source alone");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_directory_is_not_moved() {
+        // What a directory held cannot be checkpointed, so moving one would be
+        // the single change the undo history could not describe.
+        let root = scratch("move-dir");
+        let dir = root.join("a-folder");
+        fs::create_dir_all(&dir).unwrap();
+        let err = fs_move_file(
+            dir.to_string_lossy().into_owned(),
+            root.join("b-folder").to_string_lossy().into_owned(),
+        )
+        .expect_err("a directory must be refused");
+        assert!(err.contains("directory"), "unexpected refusal: {err}");
         let _ = fs::remove_dir_all(&root);
     }
 
