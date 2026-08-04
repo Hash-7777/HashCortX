@@ -11,18 +11,39 @@
 
   const $ = id => document.getElementById(id);
 
-  const TOOL_ICONS = {
-    read_file:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>`,
-    write_file:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
-    patch_file:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>`,
-    list_dir:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>`,
-    delete_file:  `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`,
-    search_files: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>`,
-    shell_run:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>`,
-    fuzzy_find:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg>`,
-    grep_code:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><circle cx="18" cy="17" r="3"/><line x1="20.5" y1="19.5" x2="22" y2="21"/></svg>`,
+
+  /**
+   * What each tool did, as one short word.
+   *
+   * A run used to read as a list of function names — `read_file`, `grep_code`,
+   * `fs_search_files` — which is the agent's vocabulary, not the user's. The
+   * question being answered while a run scrolls past is "what is it doing",
+   * and a verb answers that where an identifier does not.
+   *
+   * A tool with no entry falls back to its own name, so a new tool appears in
+   * the run immediately rather than waiting for this table to catch up.
+   */
+  const TOOL_VERBS = {
+    read_file: 'READ', write_file: 'WROTE', patch_file: 'EDIT',
+    list_dir: 'LIST', delete_file: 'DELETE', move_file: 'MOVE',
+    fuzzy_find: 'FIND', grep_code: 'GREP', search_files: 'FIND',
+    shell_run: 'SHELL', web_search: 'SEARCH', fetch_url: 'FETCH',
+    search_knowledge: 'KB', execute_python: 'PYTHON',
+    current_datetime: 'TIME', calculate: 'CALC',
+    remember_fact: 'REMEMBER', recall_facts: 'RECALL',
+    placeholder_images: 'IMAGES',
   };
-  const TOOL_ICON_DEFAULT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`;
+  const toolVerb = (name) => TOOL_VERBS[name] || String(name || '').toUpperCase();
+
+  /** The one argument worth showing beside the verb. */
+  function toolObject(name, args) {
+    const a = args || {};
+    if (name === 'shell_run') {
+      return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
+    }
+    if (name === 'move_file') return `${a.from || ''} → ${a.to || ''}`;
+    return String(a.path || a.dir || a.file || a.query || a.url || a.pattern || a.expression || a.key || '');
+  }
 
   // ── Shared state ───────────────────────────────────────────
   const sharedState = { projectRoot: null, activeFile: null };
@@ -66,29 +87,29 @@
     rootEl.title = path;
   }
 
-  // ── Slim tool row renderer (v1.6 inline style) ─────────────
+  // ── One step, rendered from a finished record ───────────────
+  //
+  // The same shape appendStep() builds live, for tool calls that arrive already
+  // complete through the chat renderer. Two shapes for the same thing is what
+  // made a run read as a pile of unrelated blocks.
   function toolBlockHtml(rec) {
     const { name, args, result, ms, ok } = rec;
-    const icon = TOOL_ICONS[name] || TOOL_ICON_DEFAULT;
-    const pathArg = args?.path || args?.dir || args?.file || '';
     const resultText = String(result || '');
     const isErr = !ok || resultText.includes('"error"');
-    const statusClass = isErr ? 'err' : ok ? 'ok' : '';
-    const statusText  = isErr ? 'Failed' : `${ms}ms`;
-    const safeId = 'tb_' + Math.random().toString(36).slice(2, 9);
     const argsJson = esc(JSON.stringify(args || {}, null, 2).slice(0, 500));
-    const resultPreview = esc(resultText.slice(0, 600)) + (resultText.length > 600 ? '\n…' : '');
+    const resultPreview = esc(resultText.slice(0, 2000)) + (resultText.length > 2000 ? '\n…' : '');
     return `
-<div class="cdr-tool-row ${statusClass}" data-tool-toggle="${safeId}">
-  ${icon}
-  <span class="cdr-tool-name">${esc(name)}</span>
-  <span class="cdr-tool-target">${esc(pathArg)}</span>
-  <span class="cdr-tool-status">${esc(statusText)}</span>
-</div>
-<div class="cdr-tool-details" id="${safeId}">
-  ${argsJson !== '{}' ? `<div style="margin-bottom:6px"><b>Args</b><pre>${argsJson}</pre></div>` : ''}
-  <div><b>Result</b><pre>${resultPreview}</pre></div>
-</div>`;
+<details class="cdr-step ${isErr ? 'err' : 'ok'}"${isErr ? ' open' : ''}>
+  <summary class="cdr-step-head">
+    <span class="cdr-step-verb">${esc(toolVerb(name))}</span>
+    <span class="cdr-step-object">${esc(toolObject(name, args) || name)}</span>
+    <span class="cdr-step-result">${isErr ? 'failed' : esc(String(ms)) + 'ms'}</span>
+  </summary>
+  <div class="cdr-step-body">
+    ${argsJson !== '{}' ? `<pre>${argsJson}</pre>` : ''}
+    <pre>${resultPreview}</pre>
+  </div>
+</details>`;
   }
 
   function injectAllToolBlocks() {
@@ -109,20 +130,6 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'hc-tool-blocks-wrap';
       wrapper.innerHTML = msg._toolBlocks.map(toolBlockHtml).join('');
-      // Wire click handlers for slim tool row expand/collapse
-      wrapper.querySelectorAll('.cdr-tool-row[data-tool-toggle]').forEach(row => {
-        row.addEventListener('click', () => {
-          const id = row.dataset.toolToggle;
-          const details = document.getElementById(id);
-          if (details) {
-            const isOpen = details.style.display === 'block';
-            details.style.display = isOpen ? 'none' : 'block';
-            row.classList.toggle('open', !isOpen);
-          }
-        });
-      });
-      // Hide details by default
-      wrapper.querySelectorAll('.cdr-tool-details').forEach(d => { d.style.display = 'none'; });
       bubble.insertBefore(wrapper, bubble.firstChild);
     });
   }
@@ -1097,30 +1104,46 @@
       return el;
     }
 
-    function appendToolBlock(contentEl, name, args) {
+    /**
+     * One step of a run.
+     *
+     * Tool calls and file changes both come through here, so a run reads as one
+     * list of things that happened rather than two kinds of block sitting next
+     * to each other. Both are a <details>: the row is the summary, and whatever
+     * detail belongs to that step opens underneath it, in place. Native
+     * disclosure, so it works from the keyboard without any of this having to
+     * reimplement it.
+     *
+     * Layout is verb · object · result, which is the order the question comes
+     * in — what did it do, to what, and how did it go.
+     */
+    function appendStep(contentEl, { verb, object, status, statusClass = '', open = false }) {
       if (!contentEl) return null;
-      const id = ++toolCallCounter;
-      const icon = TOOL_ICONS[name] || TOOL_ICON_DEFAULT;
-      const argStr = Object.entries(args || {})
-        .filter(([, v]) => v && String(v).length < 60)
-        .slice(0, 2).map(([k, v]) => `${k}=${String(v).slice(0, 38)}`).join(', ');
-
       const el = document.createElement('details');
-      el.className = 'cdr-tool-call running';
-      el.open = true;
-      el.dataset.id = String(id);
+      el.className = 'cdr-step' + (statusClass ? ' ' + statusClass : '');
+      el.open = open;
       el.innerHTML = `
-        <summary class="cdr-tool-summary">
-          <span class="cdr-tool-icon">${icon}</span>
-          <span class="cdr-tool-name">${esc(name)}</span>
-          ${argStr ? `<span class="cdr-tool-args">${esc(argStr)}</span>` : ''}
-          <span class="cdr-tool-status running">running…</span>
+        <summary class="cdr-step-head">
+          <span class="cdr-step-verb">${esc(verb)}</span>
+          <span class="cdr-step-object" title="${esc(object)}">${esc(object)}</span>
+          <span class="cdr-step-result">${status || ''}</span>
         </summary>
-        <div class="cdr-tool-body">
-          <div class="cdr-tool-result">Working…</div>
-        </div>`;
+        <div class="cdr-step-body"></div>`;
       contentEl.appendChild(el);
       scrollMessages();
+      return el;
+    }
+
+    function appendToolBlock(contentEl, name, args) {
+      const id = ++toolCallCounter;
+      const el = appendStep(contentEl, {
+        verb: toolVerb(name),
+        object: toolObject(name, args) || name,
+        status: '<span class="cdr-step-running">running…</span>',
+        statusClass: 'running',
+        open: false,
+      });
+      if (el) el.dataset.id = String(id);
       return el;
     }
 
@@ -1128,18 +1151,19 @@
       if (!el) return;
       el.classList.remove('running');
       el.classList.add(ok ? 'ok' : 'err');
-      el.open = false;
-      const status = el.querySelector('.cdr-tool-status');
-      if (status) {
-        status.className = 'cdr-tool-status ' + (ok ? 'ok' : 'err');
-        const svgOk  = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        const svgErr = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-        status.innerHTML = ok ? `${svgOk} ${ms}ms` : `${svgErr} error`;
+      const status = el.querySelector('.cdr-step-result');
+      if (status) status.textContent = ok ? `${ms}ms` : 'failed';
+      const body = el.querySelector('.cdr-step-body');
+      if (body) {
+        const text = String(result || '');
+        const pre = document.createElement('pre');
+        pre.textContent = text.slice(0, 2000) + (text.length > 2000 ? '\n…' : '');
+        body.innerHTML = '';
+        body.appendChild(pre);
       }
-      const resultEl = el.querySelector('.cdr-tool-result');
-      if (resultEl) {
-        resultEl.textContent = (result || '').slice(0, 600) + ((result || '').length > 600 ? '\n…' : '');
-      }
+      // A failure is the one result worth opening without being asked: it is
+      // why the run did what it did next.
+      if (!ok) el.open = true;
       scrollMessages();
     }
 
@@ -1768,87 +1792,79 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const pending = await HC.undo.pending();
       if (!pending.length) return;
 
-      const { svgAccept, svgReject, svgView, svgFile } = CHANGE_ICONS;
+      const { svgAccept, svgReject } = CHANGE_ICONS;
       const group = document.createElement('div');
       group.className = 'cdr-change-group';
-      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} change${pending.length === 1 ? '' : 's'} from your last session — keep or undo</div>`;
+      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} change${pending.length === 1 ? '' : 's'} from your last session \u2014 keep or undo</div>`;
 
       for (const summary of pending) {
         const name = String(summary.path || '').split('/').pop() || summary.path;
         const canUndo = !summary.unrestorable;
-        const row = document.createElement('div');
-        row.className = 'cdr-change-row pending';
-        const previewId = 'chp_' + String(summary.id).replace(/[^a-zA-Z0-9]/g, '');
-        row.innerHTML = `
-          ${svgFile}
-          <span class="cdr-change-file" title="${esc(summary.path || '')}">${esc(name)}</span>
-          <span class="cdr-change-stats">${summary.existed ? esc(String(summary.bytes) + ' bytes saved') : 'new file'}</span>
-          <div class="cdr-change-actions">
-            <button class="cdr-change-btn primary cdr-change-accept">${svgAccept} Keep</button>
-            <button class="cdr-change-btn danger cdr-change-reject"${canUndo ? '' : ` disabled title="${esc(summary.unrestorable)}"`}>${svgReject} Undo</button>
-            <button class="cdr-change-btn cdr-change-view">${svgView} View</button>
-          </div>`;
-
-        row.querySelector('.cdr-change-accept').addEventListener('click', async () => {
-          row.classList.remove('pending'); row.classList.add('accepted');
-          row.querySelector('.cdr-change-accept').innerHTML = `${svgAccept} Kept`;
-          const rejectBtn = row.querySelector('.cdr-change-reject');
-          if (rejectBtn) rejectBtn.disabled = true;
-          await HC.undo.drop(summary);
+        // The same shape as a step in a live run. A change from last session is
+        // the same kind of thing as one from this one, so it should not arrive
+        // looking like a different feature.
+        const el = appendStep(group, {
+          verb: summary.existed ? 'EDIT' : 'CREATE',
+          object: name,
+          status: `${summary.existed ? esc(String(summary.bytes)) + ' bytes saved' : 'new file'}` +
+            `<span class="cdr-step-actions">` +
+            `<button class="cdr-step-btn keep">${svgAccept} Keep</button>` +
+            `<button class="cdr-step-btn undo"${canUndo ? '' : ` disabled title="${esc(summary.unrestorable)}"`}>${svgReject} Undo</button>` +
+            `</span>`,
+          statusClass: 'change pending',
         });
+        if (!el) continue;
+        el.querySelector('.cdr-step-object').title = summary.path || '';
 
-        row.querySelector('.cdr-change-reject').addEventListener('click', async () => {
-          const btn = row.querySelector('.cdr-change-reject');
-          if (!canUndo || btn.disabled) return;
-          btn.disabled = true;
+        const keepBtn = el.querySelector('.cdr-step-btn.keep');
+        const undoBtn = el.querySelector('.cdr-step-btn.undo');
+        const own = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(e); };
+
+        keepBtn.addEventListener('click', own(async () => {
+          el.classList.remove('pending'); el.classList.add('accepted');
+          keepBtn.innerHTML = `${svgAccept} Kept`;
+          undoBtn.disabled = true;
+          await HC.undo.drop(summary);
+        }));
+
+        undoBtn.addEventListener('click', own(async () => {
+          if (!canUndo || undoBtn.disabled) return;
+          undoBtn.disabled = true;
           try {
-            // restore() fetches the contents itself — the summary does not
+            // restore() fetches the contents itself \u2014 the summary does not
             // carry them, and writing it as-is would empty the file.
             await HC.undo.restore(summary);
-            row.classList.remove('pending'); row.classList.add('rejected');
-            btn.innerHTML = `${svgReject} Undone`;
-            const acceptBtn = row.querySelector('.cdr-change-accept');
-            if (acceptBtn) acceptBtn.disabled = true;
+            el.classList.remove('pending'); el.classList.add('rejected');
+            undoBtn.innerHTML = `${svgReject} Undone`;
+            keepBtn.disabled = true;
             terminalLog(`[undo] restored ${summary.path}`, 'cdr-bash-preview');
             if (summary.existed) addAIFileToExplorer(summary.path, 'write');
           } catch (e) {
-            btn.disabled = false;
-            btn.innerHTML = `${svgReject} Undo failed`;
-            btn.title = String(e?.message || e);
+            undoBtn.disabled = false;
+            undoBtn.innerHTML = `${svgReject} Undo failed`;
+            undoBtn.title = String(e?.message || e);
             terminalLog(`[undo] could not restore ${summary.path}: ${e?.message || e}`, 'cdr-terminal-error');
           }
-        });
+        }));
 
-        // What Undo would put back. Not a diff: the row is being drawn before
-        // anyone has asked for the file, so there is nothing to compare against
-        // until they do.
-        const preview = document.createElement('div');
-        preview.className = 'cdr-diff-preview';
-        preview.id = previewId;
-        preview.style.display = 'none';
-        row.querySelector('.cdr-change-view').addEventListener('click', async () => {
-          if (preview.style.display === 'block') { preview.style.display = 'none'; return; }
-          preview.style.display = 'block';
-          if (preview.dataset.loaded) return;
-          preview.dataset.loaded = '1';
+        // What Undo would put back, fetched the first time it is asked for.
+        // Not a diff: nothing has asked for the file yet, so there is nothing
+        // to compare it against.
+        const body = el.querySelector('.cdr-step-body');
+        body.textContent = 'Loading\u2026';
+        el.addEventListener('toggle', async () => {
+          if (!el.open || el.dataset.loaded) return;
+          el.dataset.loaded = '1';
           const full = summary.existed ? await HC.undo.load(summary.id) : null;
-          const body = summary.existed
-            ? `<pre><code>${esc(full?.content ?? '')}</code></pre>`
+          body.innerHTML = summary.existed
+            ? `<div class="cdr-step-note">What Undo would put back</div><pre><code>${esc(full?.content ?? '')}</code></pre>`
             : '<pre><code>This change created the file. Undoing it deletes the file again.</code></pre>';
-          preview.innerHTML = `
-            <div class="cdr-diff-header">
-              <span>${esc(summary.path || name)}</span>
-              <span style="color:var(--cdr-text-muted)">what Undo would put back</span>
-            </div>
-            <div class="cdr-diff-body">${body}</div>`;
         });
-
-        group.appendChild(row);
-        group.appendChild(preview);
       }
       msgs.appendChild(group);
       scrollMessages();
     }
+
 
     function addChangeEntry(name, path, kind, content) {
       // What the file held before this change. Captured by HC.code.undo at the
@@ -1857,9 +1873,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const canUndo = !!HC?.undo?.canRestore(checkpoint);
       const target = activeContentEl || $('cdrMessages')?.querySelector('.cdr-msg.assistant:last-of-type .cdr-msg-content');
       if (!target) return;
-      const safeId = 'ch_' + Math.random().toString(36).slice(2, 9);
-      const row = document.createElement('div');
-      row.className = 'cdr-change-row pending';
 
       // The real before/after, not the length of whatever the tool echoed back.
       // For a patch there is no `content` argument at all, so the old count was
@@ -1867,99 +1880,93 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const before = checkpoint?.existed ? (checkpoint.content ?? '') : '';
       // `checkpoint.after` is what was actually written. Preferred over the
       // tool's arguments because patch_file has no content argument at all.
-      const after = kind === 'delete'
-        ? ''
-        : String(checkpoint?.after ?? content ?? '');
+      const after = kind === 'delete' ? '' : String(checkpoint?.after ?? content ?? '');
       const rows = window.HCDiff ? window.HCDiff.diffLines(before, after) : [];
       const tally = window.HCDiff ? window.HCDiff.countChanges(rows) : { added: 0, removed: 0 };
-      const stats = rows.length
-        ? `+${tally.added} −${tally.removed}`
-        : '';
-      const { svgAccept, svgReject, svgView } = CHANGE_ICONS;
-      row.innerHTML = `
-        ${CHANGE_ICONS.svgFile}
-        <span class="cdr-change-file">${esc(name)}</span>
-        <span class="cdr-change-stats">${esc(stats)}</span>
-        <div class="cdr-change-actions">
-          <button class="cdr-change-btn primary cdr-change-accept">${svgAccept} Keep</button>
-          <button class="cdr-change-btn danger cdr-change-reject"${canUndo ? '' : ' disabled title="The previous contents could not be saved, so this change cannot be undone."'}>${svgReject} Undo</button>
-          <button class="cdr-change-btn cdr-change-view">${svgView} View</button>
-        </div>`;
-      row.querySelector('.cdr-change-accept').addEventListener('click', () => {
-        row.classList.remove('pending'); row.classList.add('accepted');
-        const btn = row.querySelector('.cdr-change-accept');
-        if (btn) btn.innerHTML = `${svgAccept} Kept`;
-        const rejectBtn = row.querySelector('.cdr-change-reject');
-        if (rejectBtn) rejectBtn.disabled = true;
+      const isNew = !checkpoint?.existed && kind !== 'delete';
+
+      const verb = kind === 'delete' ? 'DELETE' : isNew ? 'CREATE' : 'EDIT';
+      const stat = kind === 'delete'
+        ? 'deleted'
+        : isNew
+          ? 'new file'
+          : `<span class="cdr-plus">+${tally.added}</span> <span class="cdr-minus">\u2212${tally.removed}</span>`;
+
+      const { svgAccept, svgReject } = CHANGE_ICONS;
+      // A change is a step in the run like any other, so it takes the same
+      // shape. Keep and Undo sit in the row rather than inside the opened diff:
+      // burying the answer behind a disclosure would make the common case —
+      // "yes, keep it" — cost an extra click.
+      const el = appendStep(target, {
+        verb,
+        object: name,
+        status: `${stat}<span class="cdr-step-actions">` +
+          `<button class="cdr-step-btn keep">${svgAccept} Keep</button>` +
+          `<button class="cdr-step-btn undo"${canUndo ? '' : ' disabled title="The previous contents could not be saved, so this change cannot be undone."'}>${svgReject} Undo</button>` +
+          `</span>`,
+        statusClass: 'change pending',
+      });
+      if (!el) return;
+
+      const keepBtn = el.querySelector('.cdr-step-btn.keep');
+      const undoBtn = el.querySelector('.cdr-step-btn.undo');
+      // The buttons live inside a <summary>, so a click would also toggle the
+      // disclosure. Answering a change and looking at it are different actions.
+      const own = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(e); };
+
+      keepBtn.addEventListener('click', own(() => {
+        el.classList.remove('pending'); el.classList.add('accepted');
+        keepBtn.innerHTML = `${svgAccept} Kept`;
+        undoBtn.disabled = true;
         // The change is staying, so the saved copy is dead weight.
         HC?.undo?.drop(checkpoint);
-      });
-      row.querySelector('.cdr-change-reject').addEventListener('click', async () => {
-        const btn = row.querySelector('.cdr-change-reject');
-        if (!canUndo || btn?.disabled) return;
-        btn.disabled = true;
+      }));
+
+      undoBtn.addEventListener('click', own(async () => {
+        if (!canUndo || undoBtn.disabled) return;
+        undoBtn.disabled = true;
         try {
           await HC.undo.restore(checkpoint);
-          row.classList.remove('pending'); row.classList.add('rejected');
-          btn.innerHTML = `${svgReject} Undone`;
-          const acceptBtn = row.querySelector('.cdr-change-accept');
-          if (acceptBtn) acceptBtn.disabled = true;
+          el.classList.remove('pending'); el.classList.add('rejected');
+          undoBtn.innerHTML = `${svgReject} Undone`;
+          keepBtn.disabled = true;
           terminalLog(`[undo] restored ${path}`, 'cdr-bash-preview');
           if (checkpoint.existed) addAIFileToExplorer(path, 'write');
         } catch (e) {
-          // Say so rather than showing "Rejected" over a file that did not change.
-          btn.disabled = false;
-          btn.innerHTML = `${svgReject} Undo failed`;
-          btn.title = String(e?.message || e);
+          // Say so rather than showing "Undone" over a file that did not change.
+          undoBtn.disabled = false;
+          undoBtn.innerHTML = `${svgReject} Undo failed`;
+          undoBtn.title = String(e?.message || e);
           terminalLog(`[undo] could not restore ${path}: ${e?.message || e}`, 'cdr-terminal-error');
         }
-      });
-      row.querySelector('.cdr-change-view').addEventListener('click', () => {
-        const preview = document.getElementById(safeId);
-        if (preview) {
-          const isOpen = preview.style.display === 'block';
-          preview.style.display = isOpen ? 'none' : 'block';
-        }
-      });
-      target.appendChild(row);
+      }));
 
-      // Inline diff — what changed, not what the file now says.
-      const preview = document.createElement('div');
-      preview.className = 'cdr-diff-preview';
-      preview.id = safeId;
-      preview.style.display = 'none';
-
-      let body;
+      // The diff, in the step body — what changed, not what the file now says.
+      const body = el.querySelector('.cdr-step-body');
       if (!rows.length) {
-        body = `<pre><code>${esc(content || '')}</code></pre>`;
-      } else if (!checkpoint?.existed && kind !== 'delete') {
-        // A new file has nothing to compare against; show it as written.
-        body = `<pre><code>${esc(after)}</code></pre>`;
+        body.innerHTML = `<pre><code>${esc(content || '')}</code></pre>`;
+      } else if (isNew) {
+        body.innerHTML = `<pre><code>${esc(after)}</code></pre>`;
       } else {
         const shown = window.HCDiff.collapseUnchanged(rows, 3);
-        body = '<pre class="cdr-diff-lines">' + shown.map((r) => {
+        body.innerHTML = '<pre class="cdr-diff-lines">' + shown.map((r) => {
           if (r.type === 'gap') {
-            return `<span class="cdr-diff-gap">    ⋯ ${r.hidden} unchanged line${r.hidden === 1 ? '' : 's'}</span>`;
+            return `<span class="cdr-diff-gap">    \u22ef ${r.hidden} unchanged line${r.hidden === 1 ? '' : 's'}</span>`;
           }
-          const sign = r.type === 'add' ? '+' : r.type === 'del' ? '−' : ' ';
+          const sign = r.type === 'add' ? '+' : r.type === 'del' ? '\u2212' : ' ';
           const no = r.type === 'add' ? r.afterNo : r.beforeNo;
           return `<span class="cdr-diff-line ${r.type}">${String(no ?? '').padStart(4, ' ')} ${sign} ${esc(r.text)}</span>`;
         }).join('\n') + '</pre>';
       }
-
-      const heading = checkpoint?.unrestorable
-        ? `cannot be undone — ${esc(checkpoint.unrestorable)}`
-        : (!checkpoint?.existed && kind !== 'delete') ? 'new file' : `+${tally.added} −${tally.removed}`;
-
-      preview.innerHTML = `
-        <div class="cdr-diff-header">
-          <span>${esc(name)}</span>
-          <span style="color:var(--cdr-text-muted)">${heading}</span>
-        </div>
-        <div class="cdr-diff-body">${body}</div>`;
-      target.appendChild(preview);
+      if (checkpoint?.unrestorable) {
+        const why = document.createElement('div');
+        why.className = 'cdr-step-note';
+        why.textContent = `Cannot be undone \u2014 ${checkpoint.unrestorable}`;
+        body.prepend(why);
+      }
       scrollMessages();
     }
+
 
     // ── Build tools + system ──────────────────────────────────
     function buildTools() {
