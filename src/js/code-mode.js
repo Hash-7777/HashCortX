@@ -395,11 +395,17 @@
     // ── State persistence ─────────────────────────────────────
     function saveCoderState() {
       try {
+        // fileChanges is deliberately NOT saved. Each entry carried the whole
+        // file, before and after, so a session's worth of edits wrote megabytes
+        // of duplicated file text into localStorage — the same store the API
+        // keys live in, and one with a quota that, once hit, fails silently.
+        // Nothing ever read it back. What has to survive a restart is the undo
+        // history, and that is on disk in ~/.hashcortx/checkpoints/, which
+        // restorePendingChanges() reads.
         const state = {
           projectRoot: sharedState.projectRoot,
           homeDir: sharedState.homeDir,
           chatHistory: conversationMsgs,
-          fileChangeLog: fileChanges,
           activeFile: sharedState.activeFile,
           ts: Date.now(),
         };
@@ -424,9 +430,6 @@
         if (Array.isArray(state.chatHistory) && state.chatHistory.length) {
           conversationMsgs = state.chatHistory;
           renderConversation();
-        }
-        if (Array.isArray(state.fileChangeLog)) {
-          fileChanges = state.fileChangeLog;
         }
       } catch (e) { console.warn('[CoderMode] restore state failed:', e); }
     }
@@ -455,6 +458,11 @@
           .catch(() => {});
       }
       restoreCoderState();
+      // Deliberately NOT inside restoreCoderState: that returns early when there
+      // is no saved session, and a change waiting to be kept or undone has
+      // nothing to do with whether the last conversation was saved. Reading the
+      // records is the whole point — they are the part that survives.
+      restorePendingChanges().catch((e) => console.warn('[CoderMode] pending changes:', e));
       syncTerminalPrompt();
     }
 
@@ -1710,6 +1718,115 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       setTimeout(() => setStatus('Ready', ''), 2400);
     }
 
+    // Shared by the rows drawn as the agent works and the rows drawn for changes
+    // left over from a previous session.
+    const CHANGE_ICONS = {
+      svgAccept: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+      svgReject: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+      svgView: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
+      svgFile: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
+    };
+
+    /**
+     * Draw the changes left unanswered when the app last closed.
+     *
+     * Keep and Undo only ever existed for the run that made the change: the row
+     * lives in the message list, and the record it acts on lived in a map in
+     * memory. Both went at shutdown, while the saved copy of the file stayed on
+     * disk — so a change the user had not answered became one they could no
+     * longer undo, and the copy sat in the home directory for good.
+     *
+     * The records themselves are the durable part, so they are what the list is
+     * rebuilt from. Summaries only; the contents are fetched if someone asks.
+     */
+    async function restorePendingChanges() {
+      const msgs = $('cdrMessages');
+      if (!msgs || !HC?.undo?.pending) return;
+      const pending = await HC.undo.pending();
+      if (!pending.length) return;
+
+      const { svgAccept, svgReject, svgView, svgFile } = CHANGE_ICONS;
+      const group = document.createElement('div');
+      group.className = 'cdr-change-group';
+      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} change${pending.length === 1 ? '' : 's'} from your last session — keep or undo</div>`;
+
+      for (const summary of pending) {
+        const name = String(summary.path || '').split('/').pop() || summary.path;
+        const canUndo = !summary.unrestorable;
+        const row = document.createElement('div');
+        row.className = 'cdr-change-row pending';
+        const previewId = 'chp_' + String(summary.id).replace(/[^a-zA-Z0-9]/g, '');
+        row.innerHTML = `
+          ${svgFile}
+          <span class="cdr-change-file" title="${esc(summary.path || '')}">${esc(name)}</span>
+          <span class="cdr-change-stats">${summary.existed ? esc(String(summary.bytes) + ' bytes saved') : 'new file'}</span>
+          <div class="cdr-change-actions">
+            <button class="cdr-change-btn primary cdr-change-accept">${svgAccept} Keep</button>
+            <button class="cdr-change-btn danger cdr-change-reject"${canUndo ? '' : ` disabled title="${esc(summary.unrestorable)}"`}>${svgReject} Undo</button>
+            <button class="cdr-change-btn cdr-change-view">${svgView} View</button>
+          </div>`;
+
+        row.querySelector('.cdr-change-accept').addEventListener('click', async () => {
+          row.classList.remove('pending'); row.classList.add('accepted');
+          row.querySelector('.cdr-change-accept').innerHTML = `${svgAccept} Kept`;
+          const rejectBtn = row.querySelector('.cdr-change-reject');
+          if (rejectBtn) rejectBtn.disabled = true;
+          await HC.undo.drop(summary);
+        });
+
+        row.querySelector('.cdr-change-reject').addEventListener('click', async () => {
+          const btn = row.querySelector('.cdr-change-reject');
+          if (!canUndo || btn.disabled) return;
+          btn.disabled = true;
+          try {
+            // restore() fetches the contents itself — the summary does not
+            // carry them, and writing it as-is would empty the file.
+            await HC.undo.restore(summary);
+            row.classList.remove('pending'); row.classList.add('rejected');
+            btn.innerHTML = `${svgReject} Undone`;
+            const acceptBtn = row.querySelector('.cdr-change-accept');
+            if (acceptBtn) acceptBtn.disabled = true;
+            terminalLog(`[undo] restored ${summary.path}`, 'cdr-bash-preview');
+            if (summary.existed) addAIFileToExplorer(summary.path, 'write');
+          } catch (e) {
+            btn.disabled = false;
+            btn.innerHTML = `${svgReject} Undo failed`;
+            btn.title = String(e?.message || e);
+            terminalLog(`[undo] could not restore ${summary.path}: ${e?.message || e}`, 'cdr-terminal-error');
+          }
+        });
+
+        // What Undo would put back. Not a diff: the row is being drawn before
+        // anyone has asked for the file, so there is nothing to compare against
+        // until they do.
+        const preview = document.createElement('div');
+        preview.className = 'cdr-diff-preview';
+        preview.id = previewId;
+        preview.style.display = 'none';
+        row.querySelector('.cdr-change-view').addEventListener('click', async () => {
+          if (preview.style.display === 'block') { preview.style.display = 'none'; return; }
+          preview.style.display = 'block';
+          if (preview.dataset.loaded) return;
+          preview.dataset.loaded = '1';
+          const full = summary.existed ? await HC.undo.load(summary.id) : null;
+          const body = summary.existed
+            ? `<pre><code>${esc(full?.content ?? '')}</code></pre>`
+            : '<pre><code>This change created the file. Undoing it deletes the file again.</code></pre>';
+          preview.innerHTML = `
+            <div class="cdr-diff-header">
+              <span>${esc(summary.path || name)}</span>
+              <span style="color:var(--cdr-text-muted)">what Undo would put back</span>
+            </div>
+            <div class="cdr-diff-body">${body}</div>`;
+        });
+
+        group.appendChild(row);
+        group.appendChild(preview);
+      }
+      msgs.appendChild(group);
+      scrollMessages();
+    }
+
     function addChangeEntry(name, path, kind, content) {
       const idx = fileChanges.length;
       // What the file held before this change. Captured by HC.code.undo at the
@@ -1738,11 +1855,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const stats = rows.length
         ? `+${tally.added} −${tally.removed}`
         : '';
-      const svgAccept = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-      const svgReject = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-      const svgView = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      const { svgAccept, svgReject, svgView } = CHANGE_ICONS;
       row.innerHTML = `
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        ${CHANGE_ICONS.svgFile}
         <span class="cdr-change-file">${esc(name)}</span>
         <span class="cdr-change-stats">${esc(stats)}</span>
         <div class="cdr-change-actions">

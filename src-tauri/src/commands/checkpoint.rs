@@ -49,6 +49,18 @@ use std::sync::atomic::{AtomicU64, Ordering};
 /// to make a button work is a worse outcome than saying the button cannot.
 const MAX_CHECKPOINT_BYTES: usize = 8_000_000;
 
+/// How long a checkpoint nobody answered is kept.
+///
+/// Records are removed when the change is kept and when it is undone, and for a
+/// long time that was the only way one ever went away. Closing the app with a
+/// change still pending left the copy behind for good — so a directory of file
+/// contents, in plain text, in the home directory, only ever grew.
+///
+/// A week, because a checkpoint exists so a change can be taken back shortly
+/// after it was made. Long after that the file has moved on, and writing the old
+/// contents over it would be a change of its own rather than an undo.
+const MAX_CHECKPOINT_AGE_DAYS: i64 = 7;
+
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Checkpoint {
@@ -153,6 +165,104 @@ pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
     let json = serde_json::to_string(&record).map_err(|e| e.to_string())?;
     fs::write(&file, json).map_err(|e| e.to_string())?;
     Ok(record)
+}
+
+/// What the panel needs to show a pending change, without its contents.
+///
+/// Deliberately not the whole record. Listing is done at startup, over every
+/// change the user has not answered yet, and each record can hold up to 8 MB of
+/// file text — pulling all of that into the renderer to draw a row saying which
+/// file changed would be the wrong trade. The contents come back through
+/// `checkpoint_read`, when someone actually asks to see or undo one.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CheckpointSummary {
+    pub id: String,
+    pub path: String,
+    pub existed: bool,
+    pub unrestorable: Option<String>,
+    pub saved_at: String,
+    /// How much text the record holds, so the panel can say something true
+    /// about the change without reading it.
+    pub bytes: u64,
+}
+
+/// Every change still waiting to be kept or undone, newest first.
+///
+/// Without this the undo history was write-only. Records were saved to disk and
+/// only ever read back out of a map in the renderer's memory, so closing the app
+/// with a change pending meant the button was gone on the next launch while the
+/// copy stayed on disk for ever. Nothing listed the directory, so nothing could
+/// offer the change back or clear it away.
+///
+/// Expired records are removed here rather than in a separate sweep: this is the
+/// one call that already reads every file in the directory, and a cleanup that
+/// only runs when someone is looking is a cleanup that cannot be forgotten.
+#[tauri::command]
+pub fn checkpoint_list() -> Result<Vec<CheckpointSummary>, String> {
+    let dir = checkpoint_dir();
+    let entries = match fs::read_dir(&dir) {
+        Ok(e) => e,
+        // No directory means no checkpoints, which is a perfectly good answer.
+        Err(_) => return Ok(Vec::new()),
+    };
+
+    let cutoff = chrono::Local::now() - chrono::Duration::days(MAX_CHECKPOINT_AGE_DAYS);
+    let mut out: Vec<CheckpointSummary> = Vec::new();
+
+    for entry in entries.flatten() {
+        let file = entry.path();
+        if file.extension().and_then(|e| e.to_str()) != Some("json") {
+            continue;
+        }
+        let Ok(raw) = fs::read_to_string(&file) else {
+            continue;
+        };
+        let Ok(record) = serde_json::from_str::<Checkpoint>(&raw) else {
+            // A record that cannot be parsed cannot be restored either. Age it
+            // out by the file's own timestamp so a corrupt one does not sit
+            // there for ever, but never try to interpret it.
+            let stale = entry
+                .metadata()
+                .and_then(|m| m.modified())
+                .map(|t| chrono::DateTime::<chrono::Local>::from(t) < cutoff)
+                .unwrap_or(false);
+            if stale {
+                let _ = fs::remove_file(&file);
+            }
+            continue;
+        };
+
+        let expired = chrono::DateTime::parse_from_rfc3339(&record.saved_at)
+            .map(|t| t.with_timezone(&chrono::Local) < cutoff)
+            // An unreadable timestamp falls back to the file's own, rather than
+            // being treated as new for ever.
+            .unwrap_or_else(|_| {
+                entry
+                    .metadata()
+                    .and_then(|m| m.modified())
+                    .map(|t| chrono::DateTime::<chrono::Local>::from(t) < cutoff)
+                    .unwrap_or(false)
+            });
+        if expired {
+            let _ = fs::remove_file(&file);
+            continue;
+        }
+
+        out.push(CheckpointSummary {
+            bytes: record.content.as_ref().map(|c| c.len() as u64).unwrap_or(0),
+            id: record.id,
+            path: record.path,
+            existed: record.existed,
+            unrestorable: record.unrestorable,
+            saved_at: record.saved_at,
+        });
+    }
+
+    // Newest first: the most recent change is the one someone is most likely to
+    // be looking for.
+    out.sort_by(|a, b| b.saved_at.cmp(&a.saved_at));
+    Ok(out)
 }
 
 #[tauri::command]
@@ -302,6 +412,120 @@ mod tests {
         // Keeping and undoing both drop the record, and the panel may do either
         // twice on a double click. Being asked to remove nothing is success.
         assert!(checkpoint_drop("deadbeef-0".to_string()).is_ok());
+    }
+
+    // ── Listing, and clearing away what nobody answered ──────────────────────
+    //
+    // These write into the real checkpoint directory, because that is the only
+    // place the commands look. Each one uses a file of its own and removes its
+    // own records, so a developer's genuine pending changes are left alone.
+
+    #[test]
+    fn a_saved_checkpoint_can_be_found_again_without_knowing_its_id() {
+        // The whole point: after a restart nothing remembers the id, so a
+        // history that can only be read by id is a history nobody can reach.
+        let dir = scratch("listed");
+        let file = dir.join("main.rs");
+        fs::write(&file, "fn main() {}\n").unwrap();
+
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        let listed = checkpoint_list().unwrap();
+        let mine = listed
+            .iter()
+            .find(|c| c.id == saved.id)
+            .expect("the saved record is listed");
+
+        assert_eq!(mine.path, file.to_string_lossy());
+        assert!(mine.existed);
+        assert!(mine.unrestorable.is_none());
+        assert_eq!(mine.bytes, "fn main() {}\n".len() as u64);
+
+        checkpoint_drop(saved.id.clone()).unwrap();
+        assert!(
+            !checkpoint_list().unwrap().iter().any(|c| c.id == saved.id),
+            "a dropped record must leave the list"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_list_carries_no_file_contents() {
+        // Listing happens at startup over every unanswered change, and a record
+        // can hold megabytes. Drawing a row that names a file must not pull the
+        // file into the renderer — that is what checkpoint_read is for.
+        let dir = scratch("no-content");
+        let file = dir.join("secret.txt");
+        fs::write(&file, "SENTINEL-not-in-the-list").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+
+        let listed = checkpoint_list().unwrap();
+        let json = serde_json::to_string(&listed).unwrap();
+        assert!(
+            !json.contains("SENTINEL-not-in-the-list"),
+            "the summary must not carry what the file held"
+        );
+        // …and reading it back by id still does.
+        assert_eq!(
+            checkpoint_read(saved.id.clone())
+                .unwrap()
+                .content
+                .as_deref(),
+            Some("SENTINEL-not-in-the-list")
+        );
+
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_record_nobody_answered_is_cleared_away_once_it_is_old() {
+        // Records went away when a change was kept and when it was undone, and
+        // in no other case. Closing the app with a change pending left a copy of
+        // the file, in plain text, in the home directory, for ever.
+        let dir = scratch("expiry");
+        let file = dir.join("old.txt");
+        fs::write(&file, "contents").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+
+        // Age the record past the limit by rewriting its own timestamp — the
+        // same thing the passage of time would do.
+        let record_file = record_path(&saved.id).unwrap();
+        let mut aged: Checkpoint =
+            serde_json::from_str(&fs::read_to_string(&record_file).unwrap()).unwrap();
+        aged.saved_at = (chrono::Local::now()
+            - chrono::Duration::days(MAX_CHECKPOINT_AGE_DAYS + 1))
+        .to_rfc3339();
+        fs::write(&record_file, serde_json::to_string(&aged).unwrap()).unwrap();
+
+        let listed = checkpoint_list().unwrap();
+        assert!(
+            !listed.iter().any(|c| c.id == saved.id),
+            "an expired record must not be offered as something to undo"
+        );
+        assert!(
+            !record_file.exists(),
+            "and the copy of the file must be gone from disk, not merely hidden"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_recent_record_is_kept() {
+        // The rule has to hold in both directions, or the feature is just a
+        // delayed way of losing an undo.
+        let dir = scratch("kept");
+        let file = dir.join("fresh.txt");
+        fs::write(&file, "contents").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+
+        assert!(
+            checkpoint_list().unwrap().iter().any(|c| c.id == saved.id),
+            "a change made moments ago must still be undoable"
+        );
+        assert!(record_path(&saved.id).unwrap().exists());
+
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

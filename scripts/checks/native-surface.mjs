@@ -164,7 +164,6 @@ console.log('\nEvery command the renderer calls is registered, and every registe
    * machine that nothing uses. Delete it rather than adding it below.
    */
   const REGISTERED_WITHOUT_A_CALLER = new Map([
-    ['checkpoint_read', 'reads a saved checkpoint back from disk. Undo currently restores from the record it still holds in memory, so this is unused and an undo does not survive a restart — the command is what closing that needs. It takes no path, only an id this crate generated'],
     ['embed_available', 'reports whether the bundled embedding model loaded; reads nothing and takes no argument'],
   ]);
   for (const name of registered) {

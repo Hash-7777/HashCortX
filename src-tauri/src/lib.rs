@@ -7,7 +7,7 @@ mod security;
 
 use commands::{
     audit::{audit_log_append, audit_log_read},
-    checkpoint::{checkpoint_drop, checkpoint_read, checkpoint_save},
+    checkpoint::{checkpoint_drop, checkpoint_list, checkpoint_read, checkpoint_save},
     embed::{embed_available, embed_texts},
     export::export_write_file,
     fs::{
@@ -76,8 +76,14 @@ pub fn run() {
             notch_activity_post,
             // Where a hostname actually leads, before the agent fetches it
             net_resolve_is_public,
-            // Undo — what a file held before the agent changed it
+            // Undo — what a file held before the agent changed it.
+            //
+            // checkpoint_list is what makes the history readable at all: the
+            // records were written to disk and only ever read back out of a map
+            // in the renderer's memory, so a restart lost every pending undo
+            // while the copies stayed on disk for ever.
             checkpoint_save,
+            checkpoint_list,
             checkpoint_read,
             checkpoint_drop,
             // Export — write a file the user named in a native save dialog

@@ -104,7 +104,11 @@ That location is deliberate. It is inside the denylisted directory above, so the
 
 Restoring goes back out through `fs_write_file`, which means an undo passes the same denylist as any other write. A checkpoint of a binary file, or one over 8 MB, keeps no contents — it is marked as unrestorable and the Undo button is disabled and says why, rather than offering to write something that is not what was there.
 
-Checkpoints hold file contents from your project, in your home directory, in plain text. They are removed when you keep a change, and when you undo one.
+Checkpoints hold file contents from your project, in your home directory, in plain text. They are removed when you keep a change, when you undo one, and **after seven days if you never answered it**.
+
+That last rule is new, and it closes a leak of a different kind. Records only ever went away when a change was answered, and the panel offering that answer lived in the run that made it — so closing the app with a change pending lost the button and kept the copy, for good. A directory of your file contents only ever grew, and nothing in the app could show you what was in it. Coder now lists changes left over from your last session when it opens, so an undo outlives the run that offered it, and anything still unanswered a week later is deleted.
+
+Coder's saved session no longer carries file contents either. It used to store every changed file, before and after, in `localStorage` — the same store your API keys are in, with a quota that fails silently once it is full — and nothing ever read it back. The undo history on disk is the record now.
 
 **Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead.
 

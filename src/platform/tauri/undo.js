@@ -64,6 +64,44 @@
     },
 
     /**
+     * Every change still waiting to be kept or undone, newest first.
+     *
+     * The records were always written to disk and never read back: the panel
+     * found them through the map above, which starts empty. So closing the app
+     * with a change pending lost the button while the copy of the file stayed
+     * on disk, and neither the user nor the app could reach it again.
+     *
+     * Summaries only — no file contents. This runs at startup over everything
+     * unanswered, and a record can hold megabytes.
+     */
+    async pending() {
+      if (!HC.isTauri) return [];
+      try {
+        const list = await HC.invoke('checkpoint_list');
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    },
+
+    /**
+     * The full record for an id, contents and all.
+     *
+     * Fetched when someone asks to see or undo a change, rather than for every
+     * row drawn. Kept in the map afterwards so a second look costs nothing.
+     */
+    async load(id) {
+      if (!id || !HC.isTauri) return null;
+      try {
+        const record = await HC.invoke('checkpoint_read', { id });
+        if (record?.path) _lastByPath.set(record.path, record);
+        return record;
+      } catch {
+        return null;
+      }
+    },
+
+    /**
      * Whether this change can be put back.
      *
      * False for a file that was binary, too large, or unreadable. Restoring one
@@ -86,6 +124,16 @@
     async restore(record) {
       if (!HC.undo.canRestore(record)) {
         throw new Error(record?.unrestorable || 'There is nothing recorded for that change.');
+      }
+      // A row drawn from `pending()` carries a summary, not the file. Fetch the
+      // contents before writing anything, or an undo of a file that had text in
+      // it would empty the file instead of putting it back.
+      if (record.existed && record.content == null && record.id) {
+        const full = await HC.undo.load(record.id);
+        if (!full || (full.existed && full.content == null)) {
+          throw new Error('That change can no longer be undone — its saved copy is gone.');
+        }
+        record = full;
       }
       if (!record.existed) {
         // The change created this file, so undoing it means removing it again.

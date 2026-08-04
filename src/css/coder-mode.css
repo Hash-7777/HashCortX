@@ -637,6 +637,24 @@ body.coder-mode #app { display: none; }
   margin: 4px 0 0;
 }
 
+/* ── Changes carried over from a previous session ───────────── */
+/* Drawn by restorePendingChanges(): the same rows, gathered under one heading
+   so it is clear they are not from the conversation above them. */
+.cdr-change-group {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  background: var(--cdr-bg-input);
+}
+.cdr-change-group-title {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cdr-text-muted);
+  margin-bottom: 6px;
+}
+
 /* ── Slim file-change rows ──────────────────────────────────── */
 .cdr-change-row {
   display: flex;
