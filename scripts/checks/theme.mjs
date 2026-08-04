@@ -21,7 +21,7 @@
 //
 // Run with: npm run check:theme
 // ==============================================================
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -130,7 +130,57 @@ for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
   check(`${file}`, strays.length === 0, `off-scale: ${[...new Set(strays)].join(', ')}`);
 }
 
-// ── 5. The ratchet ───────────────────────────────────────────────────────
+// ── 5. Every id selector points at something ─────────────────────────────
+//
+// A CSS rule whose selector matches nothing does not fail. It sits in the
+// file looking like styling, and the thing it was meant to style keeps the
+// styling it had. A whole redesign of Coder was written against `#coder`,
+// which does not exist — the root is `#coder-mode-wrap` — and every rule in
+// it was dead. Nothing said so; the mode simply looked identical.
+//
+// The listed ones are leftovers from a system-stats bar that was removed:
+// styling for a ping button, CPU temperature, fan, RAM and power readouts
+// that no longer exist. Recorded rather than deleted here so that removing
+// them is its own change, and so a NEW dead selector fails instead of
+// joining them.
+const DEAD_ID_SELECTORS = new Set([
+  'cpuTempBtn', 'fanBtn', 'fanVal', 'pingBtn', 'pingMs',
+  'powerBtn', 'ramBtn', 'ramVal', 'voidAgentOSBtn',
+]);
+
+console.log('\nEvery id a stylesheet targets exists:');
+{
+  const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
+  const known = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+  // Ids the JS builds at runtime count as real.
+  const jsFiles = [];
+  const collect = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'vendor') continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) collect(full);
+      else if (entry.name.endsWith('.js')) jsFiles.push(full);
+    }
+  };
+  collect(srcDir);
+  for (const f of jsFiles) {
+    const js = readFileSync(f, 'utf8');
+    for (const m of js.matchAll(/id=["']([a-zA-Z][\w-]*)["']/g)) known.add(m[1]);
+  }
+
+  for (const file of SHEETS) {
+    const css = read(file).replace(/\/\*[\s\S]*?\*\//g, '');
+    const dead = new Set();
+    for (const [, selBlock] of css.matchAll(/([^{}]+)\{/g)) {
+      for (const [, id] of selBlock.matchAll(/#([a-zA-Z][\w-]*)/g)) {
+        if (!known.has(id) && !DEAD_ID_SELECTORS.has(id)) dead.add(id);
+      }
+    }
+    check(`${file}`, dead.size === 0, `targets ids that do not exist: ${[...dead].join(', ')}`);
+  }
+}
+
+// ── 6. The ratchet ───────────────────────────────────────────────────────
 //
 // Counts of hardcoded colours, measured. Lower these when a file is converted;
 // the check fails if one rises, and also if one falls without being recorded,
