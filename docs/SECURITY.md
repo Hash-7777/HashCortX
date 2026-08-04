@@ -57,6 +57,8 @@ Every filesystem and shell call the coding agent wants to make passes through `H
 
 Reads outside the project folder used to be auto-approved with no dialog at all, on the reasoning that reading modifies nothing. That reasoning does not hold for an agent whose purpose is to send what it reads to a model provider — a prompt-injected model could have read any file you could and placed it in its next request, without you seeing a prompt. They now ask.
 
+**"Inside the project folder" means where the path really leads.** The guard used to decide that by comparing two strings, and a symlink is written exactly like an ordinary folder — so a link inside your project pointing anywhere on the disk read as being inside the project, and reading, writing, listing and searching through it were approved with no dialog. The renderer cannot resolve a link, so it asks Rust (`fs_path_inside_root`), which follows every link in the path — including for a file that does not exist yet, which is the case a write presents. A path it cannot resolve raises the dialog rather than being allowed or refused outright.
+
 Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact.
 
 **Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. They have no native calls. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file.
@@ -102,7 +104,9 @@ Restoring goes back out through `fs_write_file`, which means an undo passes the 
 
 Checkpoints hold file contents from your project, in your home directory, in plain text. They are removed when you keep a change, and when you undo one.
 
-**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. The recursive tools — file search, fuzzy find and code grep — do the same for every link they meet while walking, so a link sitting inside the project folder cannot be used to read out of a protected directory the same tools would refuse to open directly. A link that leads somewhere ordinary is followed as normal.
+**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead.
+
+The recursive tools — file search, fuzzy find and code grep — check every link they meet while walking, against two rules: the denylist, and **the folder you asked them to search**. The second is the one that matters most and it was missing. Refusing only denylisted destinations meant a link to any *ordinary* directory outside the search — your home folder, another project — was walked like part of the tree, and code grep returns the contents of the files it matches. Searching inside the project raises no dialog, so that was a way to read files you were never asked about. A link is now judged by whether its destination is inside the folder being searched; one leading to a folder within it is followed as normal.
 
 ### Shell commands — a denylist, not an allowlist, and not a sandbox
 

@@ -227,5 +227,64 @@ console.log('\nConcurrent requests are asked one at a time:');
   answerDelay = 0;
 }
 
+// ── The project root is a place, not a spelling ──────────────────────────────
+//
+// Everything above ran with isTauri false, which is the browser build: there is
+// no Rust to resolve a link, so the guard falls back to comparing the written
+// path. The desktop app asks Rust, and that is the half worth testing, because
+// a symlink inside the project is written exactly like a path inside it.
+console.log('\nA link out of the project is not inside the project:');
+{
+  // A stand-in for fs_path_inside_root: `vendor` leads out of the project, and
+  // `packages` is an ordinary folder within it.
+  const resolve = (p) => String(p).replace(`${R}/vendor`, '/Users/x/Documents');
+  let asked = [];
+  sandbox.HC.isTauri = true;
+  sandbox.HC.invoke = (cmd, args) => {
+    if (cmd !== 'fs_path_inside_root') return Promise.resolve();
+    asked.push(args.path);
+    const real = resolve(args.path);
+    return Promise.resolve(real === R || real.startsWith(R + '/'));
+  };
+
+  answer = 'allow-once';
+  await check('read an ordinary file in the project — still free',
+    () => guard.request('read', R + '/src/main.rs'), FREE);
+  assert('the resolved location is what was consulted', asked.length > 0);
+
+  await check('read through a link out of the project — asks',
+    () => guard.request('read', R + '/vendor/tax.pdf'), ASKED);
+  await check('write through a link out of the project — asks',
+    () => guard.request('write', R + '/vendor/new.txt'), ASKED);
+  await check('search through a link out of the project — asks',
+    () => guard.request('search', R + '/vendor'), ASKED);
+
+  // A path that is not even spelled inside the root must not cost a round trip.
+  asked = [];
+  await check('a path outside the root is not sent to be resolved',
+    () => guard.request('read', '/Users/x/Elsewhere/a.txt'), ASKED);
+  assert('nothing outside the root was resolved', asked.length === 0,
+    `resolved ${asked.length} path(s) it did not need to`);
+
+  // Windows spells the same path with backslashes. This used to fail the string
+  // test outright, so on Windows every action in the project raised a dialog.
+  const winRoot = 'C:\\Users\\x\\project';
+  guard.setProjectRoot(winRoot);
+  sandbox.HC.invoke = (cmd) => Promise.resolve(cmd === 'fs_path_inside_root');
+  await check('a Windows path inside the project is recognised',
+    () => guard.request('read', winRoot + '\\src\\main.rs'), FREE);
+  guard.setProjectRoot(R);
+
+  // If the resolver cannot answer, the user is asked. Never silently allowed.
+  sandbox.HC.invoke = (cmd) => cmd === 'fs_path_inside_root'
+    ? Promise.reject(new Error('command unavailable'))
+    : Promise.resolve();
+  await check('a resolver that fails makes the guard ask, not assume',
+    () => guard.request('read', R + '/src/other.rs'), ASKED);
+
+  sandbox.HC.isTauri = false;
+  sandbox.HC.invoke = () => Promise.resolve();
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

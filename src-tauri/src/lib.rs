@@ -11,8 +11,8 @@ use commands::{
     embed::{embed_available, embed_texts},
     export::export_write_file,
     fs::{
-        fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_read_file, fs_search_files,
-        fs_write_file,
+        fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_path_inside_root, fs_read_file,
+        fs_search_files, fs_write_file,
     },
     keychain::{
         keychain_delete, keychain_retrieve, keychain_retrieve_bundle, keychain_store,
@@ -51,6 +51,10 @@ pub fn run() {
             fs_search_files,
             fs_fuzzy_find,
             fs_grep,
+            // Does a path really lead inside the open project, links and all —
+            // the question the Permission Guard used to answer with a string
+            // comparison a symlink walked straight past.
+            fs_path_inside_root,
             // Phase 4 — Shell
             shell_run,
             shell_run_stream,

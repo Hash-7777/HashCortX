@@ -260,12 +260,39 @@
     return next;
   }
 
-  // Returns true if target path is inside the current project root
-  function isInProjectRoot(target) {
+  // Does the path, as written, name somewhere inside the project root?
+  //
+  // Separators are levelled first: a Windows path arrives with backslashes and
+  // this compared only forward ones, so on Windows nothing was ever recognised
+  // as being in the project and every single action raised a dialog.
+  function spelledInsideProjectRoot(target) {
     if (!_projectRoot || !target) return false;
-    const root = _projectRoot.replace(/\/+$/, '');
-    const norm = target.replace(/\/+$/, '');
+    const level = (s) => String(s).replace(/\\/g, '/').replace(/\/+$/, '');
+    const root = level(_projectRoot);
+    const norm = level(target);
     return norm === root || norm.startsWith(root + '/');
+  }
+
+  // Returns true if the path really leads inside the current project root.
+  //
+  // The spelling is only the first half of the question. A symlink inside the
+  // project is written exactly like a path inside the project, so comparing the
+  // two strings — which is all this used to do — auto-approved reading, writing,
+  // listing and searching anywhere on the disk the link happened to lead, with
+  // no dialog at all. The renderer cannot resolve a link, so Rust is asked.
+  //
+  // Anything that cannot be answered falls through to the dialog rather than
+  // being allowed or refused outright: the guard's job here is to decide whether
+  // the user needs to see this, and "ask" is the safe answer to a question with
+  // no answer.
+  async function isInProjectRoot(target) {
+    if (!spelledInsideProjectRoot(target)) return false;
+    if (!HC.isTauri) return true; // browser build: nothing here can resolve a link
+    try {
+      return (await HC.invoke('fs_path_inside_root', { root: _projectRoot, path: target })) === true;
+    } catch {
+      return false;
+    }
   }
 
   // Read-only actions inside the project root need no dialog — the user chose
@@ -325,8 +352,9 @@
       }
 
       // Auto-approve read/list/search/write/patch inside the open project root —
-      // the user already chose this folder.
-      if (AUTO_APPROVE_IN_ROOT.has(action) && isInProjectRoot(target)) {
+      // the user already chose this folder. "Inside" means where the path really
+      // leads, not how it is spelled, so a link out of the project still asks.
+      if (AUTO_APPROVE_IN_ROOT.has(action) && await isInProjectRoot(target)) {
         auditLog('allow-project-root', action, target);
         return true;
       }
