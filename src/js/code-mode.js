@@ -382,7 +382,6 @@
     let mounted            = false;
     let agentCount         = 1;
     let runAbort           = null;
-    let fileChanges        = [];
     let conversationMsgs   = []; // persists across turns — full chat history
     let toolCallCounter    = 0;
     let coderModel         = null; // null = use main model picker
@@ -395,13 +394,13 @@
     // ── State persistence ─────────────────────────────────────
     function saveCoderState() {
       try {
-        // fileChanges is deliberately NOT saved. Each entry carried the whole
-        // file, before and after, so a session's worth of edits wrote megabytes
-        // of duplicated file text into localStorage — the same store the API
-        // keys live in, and one with a quota that, once hit, fails silently.
-        // Nothing ever read it back. What has to survive a restart is the undo
-        // history, and that is on disk in ~/.hashcortx/checkpoints/, which
-        // restorePendingChanges() reads.
+        // No file contents here. A log of every change, holding each file
+        // before and after, used to be saved alongside this — megabytes of
+        // duplicated text into localStorage, the same store the API keys live
+        // in, with a quota that fails silently once full. Nothing ever read it
+        // back. What has to survive a restart is the undo history, and that is
+        // on disk in ~/.hashcortx/checkpoints/, which restorePendingChanges()
+        // reads.
         const state = {
           projectRoot: sharedState.projectRoot,
           homeDir: sharedState.homeDir,
@@ -550,10 +549,6 @@
         renderSessions();
       });
 
-      const overlayClose = $('cdrChangeOverlayClose');
-      if (overlayClose) overlayClose.addEventListener('click', closeChangeOverlay);
-      const overlay = $('cdrChangeOverlay');
-      if (overlay) overlay.addEventListener('click', e => { if (e.target === overlay) closeChangeOverlay(); });
 
       renderSessions();
 
@@ -655,7 +650,6 @@
       if (!sidebar) return;
       const opening = !sidebar.classList.contains('open');
       sidebar.classList.toggle('open', opening);
-      if (body) body.classList.toggle('has-sidebar', opening);
       if (opening && sharedState.projectRoot) {
         renderExplorerTree(sharedState.projectRoot);
       }
@@ -760,7 +754,6 @@
       const sidebar = $('cdrSidebar');
       const body = $('cdrBody');
       if (sidebar) sidebar.classList.add('open');
-      if (body) body.classList.add('has-sidebar');
       saveCoderState();
     }
 
@@ -1251,7 +1244,6 @@
     function restoreSession(session) {
       if (!session?.msgs?.length) return;
       conversationMsgs = session.msgs.slice();
-      fileChanges = [];
       renderConversation();
       setStatus('Ready', '');
     }
@@ -1273,24 +1265,6 @@
           }
         }
       }
-    }
-
-    // ── Change overlay ────────────────────────────────────────
-    function showChangeOverlay(idx) {
-      const entry = fileChanges[idx];
-      if (!entry) return;
-      const overlay = $('cdrChangeOverlay');
-      const title   = $('cdrChangeOverlayTitle');
-      const pre     = $('cdrChangeOverlayPre');
-      if (!overlay || !title || !pre) return;
-      const kindLabels = { write: 'MODIFIED', create: 'CREATED', delete: 'DELETED' };
-      title.textContent = `${kindLabels[entry.kind] || 'CHANGED'} · ${entry.path || entry.name}`;
-      pre.textContent   = entry.content || '(empty)';
-      overlay.classList.add('open');
-    }
-
-    function closeChangeOverlay() {
-      $('cdrChangeOverlay')?.classList.remove('open');
     }
 
     // ── Terminal ──────────────────────────────────────────────
@@ -1455,7 +1429,6 @@
     function clearChat() {
       saveCurrentSession();
       conversationMsgs = [];
-      fileChanges = [];
       activeContentEl = null;
       // Clear what is on DISK too, not just what is in memory.
       //
@@ -1828,18 +1801,15 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     }
 
     function addChangeEntry(name, path, kind, content) {
-      const idx = fileChanges.length;
       // What the file held before this change. Captured by HC.code.undo at the
       // moment of the write, which is the only point where it still exists.
       const checkpoint = HC?.undo?.lastFor(path) || null;
       const canUndo = !!HC?.undo?.canRestore(checkpoint);
-      fileChanges.push({ name, path, kind, content, checkpoint });
       const target = activeContentEl || $('cdrMessages')?.querySelector('.cdr-msg.assistant:last-of-type .cdr-msg-content');
       if (!target) return;
       const safeId = 'ch_' + Math.random().toString(36).slice(2, 9);
       const row = document.createElement('div');
       row.className = 'cdr-change-row pending';
-      row.dataset.changeIdx = String(idx);
 
       // The real before/after, not the length of whatever the tool echoed back.
       // For a patch there is no `content` argument at all, so the old count was

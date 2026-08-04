@@ -163,16 +163,18 @@
   // Inline alert shown above the coder mode textarea
   function showInlineAlert(action, target, reason) {
     return new Promise((resolve) => {
-      // Prefer the new v1.6 strip, fall back to legacy alert
-      const strip   = document.getElementById('cdrPermStrip');
-      const legacy  = document.getElementById('cdrPermAlert');
-      const alert   = strip || legacy;
-      const actEl   = document.getElementById(strip ? 'cdrPermAction2' : 'cdrPermAction');
-      const tgtEl   = document.getElementById(strip ? 'cdrPermTarget2'   : 'cdrPermTarget');
-      const rsnEl   = document.getElementById(strip ? 'cdrPermReason2'   : 'cdrPermReason');
-      const onceBtn = document.getElementById(strip ? 'cdrPermOnce2'     : 'cdrPermOnce');
-      const sessBtn = document.getElementById(strip ? 'cdrPermSession2'  : 'cdrPermSession');
-      const denyBtn = document.getElementById(strip ? 'cdrPermDeny2'     : 'cdrPermDeny');
+      // One strip, not two. This used to pick between the current strip and a
+      // "legacy alert" kept for compatibility — which was an empty div with
+      // display:none and no children at all, so every id on that branch
+      // resolved to null. The branch could never run, and the six element
+      // lookups behind it named nothing in the page.
+      const alert   = document.getElementById('cdrPermStrip');
+      const actEl   = document.getElementById('cdrPermAction2');
+      const tgtEl   = document.getElementById('cdrPermTarget2');
+      const rsnEl   = document.getElementById('cdrPermReason2');
+      const onceBtn = document.getElementById('cdrPermOnce2');
+      const sessBtn = document.getElementById('cdrPermSession2');
+      const denyBtn = document.getElementById('cdrPermDeny2');
       if (!alert || !actEl || !onceBtn) { resolve('deny'); return; }
 
       actEl.textContent = action.toUpperCase();

@@ -279,9 +279,6 @@ body.coder-mode #app { display: none; }
 .cdr-body.cdr-dragging.cdr-dragging-x { cursor: col-resize; }
 .cdr-body.cdr-dragging.cdr-dragging-y { cursor: row-resize; }
 .cdr-body.cdr-dragging iframe { pointer-events: none; }
-/* Legacy class kept for JS compat — no longer controls layout */
-.cdr-body.has-sidebar { /* no-op now, panel is always shown */ }
-
 /* ── Sidebar (left — Files panel, always visible) ─────────────── */
 .cdr-sidebar {
   flex: 1 1 auto; min-height: 0;
@@ -1203,98 +1200,6 @@ body.coder-mode #app { display: none; }
 }
 .cdr-terminal-input input::placeholder { color: rgba(57,255,129,0.42); }
 
-/* ── Legacy overlays (kept for JS compat) ───────────────────── */
-.cdr-change-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  background: rgba(10,10,15,0.85);
-  backdrop-filter: blur(8px);
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-.cdr-change-overlay.visible { display: flex; }
-.cdr-change-overlay-inner {
-  width: 100%;
-  max-width: 720px;
-  max-height: 80vh;
-  background: var(--cdr-bg-panel);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius-lg);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.cdr-change-overlay-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--cdr-border);
-}
-.cdr-change-overlay-title {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--cdr-text);
-}
-.cdr-change-overlay-close {
-  background: none; border: none;
-  color: var(--cdr-text-dim);
-  font-size: 18px; line-height: 1;
-  cursor: pointer;
-}
-.cdr-change-overlay-close:hover { color: var(--cdr-text); }
-.cdr-change-overlay-pre {
-  flex: 1;
-  overflow: auto;
-  padding: 12px 14px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-  color: var(--cdr-text-dim);
-  margin: 0;
-  background: transparent;
-  border: none;
-}
-
-/* ── Legacy sessions panel rule — neutralized (v2.0 right panel is its own block below) ─── */
-.cdr-right { /* visibility controlled by the v2.0 block at line ~1360 */ }
-.cdr-sessions-panel,
-.cdr-sessions-header,
-.cdr-sessions-list,
-.cdr-sessions-empty,
-.cdr-sessions-clear-btn,
-.cdr-section-label { display: none; }
-
-/* ── Legacy tool blocks (kept for JS compat) ────────────────── */
-.hc-tool-block,
-.cdr-tool-block {
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-input);
-  margin: 6px 0;
-  overflow: hidden;
-}
-.hc-tool-block summary,
-.cdr-tool-block summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  list-style: none;
-}
-.hc-tool-block summary::-webkit-details-marker,
-.cdr-tool-block summary::-webkit-details-marker { display: none; }
-
-/* ── Legacy perm alert (kept for JS compat) ─────────────────── */
-.cdr-perm-alert { display: none; }
-.cdr-perm-alert.visible { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--cdr-radius); border: 1px solid rgba(245,201,122,0.20); background: rgba(245,201,122,0.04); margin: 6px 0; }
-
 /* ── Scrollbars ─────────────────────────────────────────────── */
 .cdr-messages::-webkit-scrollbar,
 .cdr-sidebar-body::-webkit-scrollbar,
@@ -1313,7 +1218,7 @@ body.coder-mode #app { display: none; }
 
 /* ── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 720px) {
-  .cdr-body, .cdr-body.has-sidebar {
+  .cdr-body {
     grid-template-columns: 1fr;
     grid-template-areas:
       "chat"
@@ -1334,8 +1239,7 @@ body.coder-mode #app { display: none; }
   }
 }
 
-/* ── Legacy JS compatibility aliases ────────────────────────── */
-/* These map old class names (used in code-mode.js) to the new design */
+/* ── Message bubbles ────────────────────────────────────────── */
 
 .cdr-user-bubble {
   background: rgba(95,184,138,0.08);
@@ -1443,40 +1347,15 @@ body.coder-mode #app { display: none; }
   font-size: 12px;
 }
 
-/* Legacy change pills → map to new change rows */
-.cdr-change-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  margin: 2px 4px 2px 0;
-  transition: all .1s;
-}
-.cdr-change-pill:hover {
-  background: rgba(255,255,255,0.04);
-  color: var(--cdr-text);
-}
-.cdr-change-pill.write   { border-left: 2px solid var(--cdr-gold); }
-.cdr-change-pill.create  { border-left: 2px solid var(--cdr-success); }
-.cdr-change-pill.delete  { border-left: 2px solid var(--cdr-error); }
-
-/* Legacy tool blocks */
-.hc-tool-block,
-.cdr-tool-block {
+/* Tool blocks */
+.hc-tool-block {
   border: 1px solid var(--cdr-border);
   border-radius: var(--cdr-radius);
   background: var(--cdr-bg-input);
   margin: 6px 0;
   overflow: hidden;
 }
-.hc-tool-block summary,
-.cdr-tool-block summary {
+.hc-tool-block summary {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1486,8 +1365,7 @@ body.coder-mode #app { display: none; }
   cursor: pointer;
   list-style: none;
 }
-.hc-tool-block summary::-webkit-details-marker,
-.cdr-tool-block summary::-webkit-details-marker { display: none; }
+.hc-tool-block summary::-webkit-details-marker { display: none; }
 
 /* ── More legacy JS compatibility aliases ───────────────────── */
 
