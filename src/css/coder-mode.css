@@ -566,6 +566,84 @@ body.coder-mode #app { display: none; }
 
 /* ── Slim tool rows (inline in chat) ────────────────────────── */
 /* Expanded tool details */
+/* ── Pane labels ────────────────────────────────────────────────
+   Every panel names itself the same way: small, spaced, bracketed. It is what
+   makes the columns read as parts of one tool rather than four widgets that
+   happen to be adjacent. */
+.cdr-pane-label {
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+/* ── The overflow menu ──────────────────────────────────────────
+   Audit, trace, export and reset-permissions used to sit in the header
+   permanently — four controls you touch about once a month, two of them
+   diagnostics, competing with the two you read constantly. */
+.cdr-icon-btn {
+  height: var(--control-h-sm);
+  min-width: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  background: transparent;
+  color: var(--cdr-text-dim);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+.cdr-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+.cdr-more-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 178px;
+  padding: 4px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  background: var(--cdr-bg-panel);
+  box-shadow: var(--shadow-sm);
+}
+.cdr-more-menu.open { display: block; }
+.cdr-more-item {
+  display: block;
+  width: 100%;
+  padding: 6px 9px;
+  border: none;
+  border-radius: var(--cdr-radius);
+  background: transparent;
+  color: var(--cdr-text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.cdr-more-item:hover { background: var(--surface-raised); color: var(--cdr-text); }
+.cdr-more-item.danger { color: var(--cdr-error); }
+
+/* The router chip only earns its space while it is saying something. Idle it
+   read "Auto" for ever, which is a label for a setting, not a status. During a
+   run it reports which provider is answering and when one has failed over,
+   which is worth the room. */
+.cdr-router-chip:empty,
+.cdr-router-chip[data-idle="1"] { display: none; }
+
+/* ── The composer reads as a prompt ─────────────────────────── */
+.cdr-prompt-mark {
+  align-self: center;
+  padding-left: 12px;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1;
+  user-select: none;
+}
+
 /* ── One step of a run ──────────────────────────────────────────
    A tool call and a file change are the same thing from the outside: a thing
    the run did. They used to be two different blocks sitting next to each other,
@@ -1065,41 +1143,22 @@ body.coder-mode #app { display: none; }
 .cdr-terminal-hd {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   min-height: 28px;
   padding: 5px 11px;
-  border-bottom: 1px solid rgba(0,0,0,0.34);
-  background: linear-gradient(180deg, #242424 0%, #1c1c1c 100%);
+  border-bottom: 1px solid var(--cdr-border);
+  background: var(--cdr-bg-panel);
   position: relative;
 }
-.cdr-terminal-lights {
-  position: absolute;
-  left: 11px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cdr-terminal-lights span {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: block;
-  box-shadow: inset 0 -1px 2px rgba(0,0,0,0.28);
-}
-.cdr-terminal-lights .red { background: #ff453a; }
-.cdr-terminal-lights .yellow { background: #ffd60a; }
-.cdr-terminal-lights .green { background: #30d158; }
 .cdr-terminal-title {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
   max-width: calc(100% - 150px);
-  color: #a9a9a9;
+  color: var(--cdr-text-dim);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
   letter-spacing: 0;
   white-space: nowrap;

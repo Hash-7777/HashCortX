@@ -232,7 +232,12 @@
     if (!chip) return;
     chip.className = 'cdr-router-chip' + (state ? ' ' + state : '');
     chip.textContent = label || '';
-    chip.style.display = label ? '' : 'none';
+    // "Auto" is the name of a setting, not a status, and it sat in the header
+    // permanently saying nothing. The chip is for when routing has something to
+    // report: which provider is answering, and when one has failed over.
+    const idle = !label || label === 'Auto';
+    chip.dataset.idle = idle ? '1' : '0';
+    chip.style.display = idle ? 'none' : '';
     if (lbl) { lbl.textContent = label || ''; }
   }
 
@@ -515,12 +520,33 @@
         HC.guard.clearSession?.();
       });
 
+      // The overflow menu. Audit, trace, export and reset-permissions live in
+      // here rather than in the header, where four controls nobody uses daily
+      // were crowding the two that are read constantly.
+      const moreBtn  = $('cdrMoreBtn');
+      const moreMenu = $('cdrMoreMenu');
+      const closeMore = () => {
+        moreMenu?.classList.remove('open');
+        moreBtn?.setAttribute('aria-expanded', 'false');
+      };
+      if (moreBtn && moreMenu) {
+        moreBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const open = moreMenu.classList.toggle('open');
+          moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        // Choosing anything closes it; the action's own handler still runs.
+        moreMenu.addEventListener('click', () => closeMore());
+        document.addEventListener('click', closeMore);
+      }
+
       const traceBtn   = $('cdrTraceBtn');
       const tracePanel = $('cdrTracePanel');
       const traceClear = $('cdrTraceClear');
       if (traceBtn && tracePanel) {
         traceBtn.addEventListener('click', e => {
           e.stopPropagation();
+          closeMore();
           tracePanel.classList.toggle('open');
           renderCdrTrace();
         });
@@ -1519,7 +1545,7 @@
         msgs.innerHTML = `<div class="cdr-welcome">
           <img src="/assets/hashcortx-logo.png" class="cdr-welcome-logo" draggable="false" alt="HashCortx"/>
           <div class="cdr-welcome-title">Coder Mode</div>
-          <div class="cdr-welcome-sub">Surgical AI tasks &middot; auto-routed &middot; local-first</div>
+          <div class="cdr-welcome-sub">Surgical AI tasks &middot; local-first &middot; your keys</div>
           <div class="cdr-welcome-chips">
             <span class="cdr-welcome-chip" data-prompt="List all files in the project and give me a quick overview of the codebase structure">Explore codebase</span>
             <span class="cdr-welcome-chip" data-prompt="Find all TODO and FIXME comments in the project">Find TODOs</span>
