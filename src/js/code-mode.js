@@ -393,6 +393,9 @@
 
     // ── State persistence ─────────────────────────────────────
     function saveCoderState() {
+      // Saved on every turn, which is exactly when the context reading and the
+      // change counts move.
+      updateCoderStatus();
       try {
         // No file contents here. A log of every change, holding each file
         // before and after, used to be saved alongside this — megabytes of
@@ -463,6 +466,7 @@
       // records is the whole point — they are the part that survives.
       restorePendingChanges().catch((e) => console.warn('[CoderMode] pending changes:', e));
       syncTerminalPrompt();
+      updateCoderStatus();
     }
 
     function remount() {
@@ -1246,6 +1250,52 @@
       conversationMsgs = session.msgs.slice();
       renderConversation();
       setStatus('Ready', '');
+    }
+
+    /**
+     * How full the model's context window is, and what the knowledge base holds.
+     *
+     * Chat has shown context usage all along. Coder — where a run reads files,
+     * runs commands and accumulates tool results for minutes at a time — showed
+     * nothing, so the first sign of a full window was a failure.
+     *
+     * The knowledge base beside it answers a different question: Coder can
+     * search it now, and "off" and "empty" are not the same answer. Both used
+     * to look like no results.
+     */
+    function updateCoderStatus() {
+      const H = window._H;
+      const box = $('cdrContext');
+      if (box && H?.estimatePromptTokens) {
+        // The window a model actually has is far larger than chat's own cap, and
+        // a Coder run is long. Until the model list carries a real figure this
+        // is one honest number rather than a guessed one per provider.
+        const MAX = 64000;
+        const used = H.estimatePromptTokens(conversationMsgs) || 0;
+        const pct = Math.min(100, Math.round((used / MAX) * 100));
+        const pctEl = $('cdrContextPct'), fillEl = $('cdrContextFill'), cntEl = $('cdrContextCount');
+        if (pctEl) pctEl.textContent = `${pct}%`;
+        if (fillEl) fillEl.style.width = `${pct}%`;
+        const k = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+        if (cntEl) cntEl.textContent = `${k(used)}/${k(MAX)}`;
+        box.classList.toggle('warn', pct >= 70 && pct < 90);
+        box.classList.toggle('hot', pct >= 90);
+        box.title = `Estimated context: ${used.toLocaleString()} of ~${MAX.toLocaleString()} tokens`;
+      }
+
+      const kb = $('cdrKb'), kbState = $('cdrKbState'), kbRows = $('cdrKbRows');
+      if (kb && kbState && kbRows) {
+        const on = !!H?.ragIsOn?.();
+        const size = H?.ragSize?.() || { passages: 0, sources: 0 };
+        kb.classList.toggle('on', on);
+        kbState.textContent = on ? 'on' : 'off';
+        kbRows.innerHTML = on
+          ? (size.passages
+            ? `<div class="cdr-kb-row"><span>passages</span><b>${size.passages.toLocaleString()}</b></div>
+               <div class="cdr-kb-row"><span>sources</span><b>${size.sources}</b></div>`
+            : '<div class="cdr-kb-row"><span>nothing ingested yet</span></div>')
+          : '<div class="cdr-kb-row"><span>search_knowledge will find nothing</span></div>';
+      }
     }
 
     function renderConversation() {

@@ -7,8 +7,8 @@
   position: fixed;
   inset: 0;
   z-index: 82;
-  background: #0a0a0f;
-  color: #e8e8ec;
+  background: var(--surface-0);
+  color: var(--text);
   font-family: var(--mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace);
   overflow: hidden;
   flex-direction: column;
@@ -633,6 +633,69 @@ body.coder-mode #app { display: none; }
   font-size: 10px;
   margin: 4px 0 0;
 }
+
+/* ── Context indicator ──────────────────────────────────────── */
+/* How full the model's window is. Amber past 70%, red past 90% — the same
+   thresholds chat uses, so the two do not disagree about what "nearly full"
+   means. */
+.cdr-ctx {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  font-size: 10px;
+  color: var(--cdr-text-dim);
+  white-space: nowrap;
+}
+.cdr-ctx-label { color: var(--cdr-text-muted); letter-spacing: 0.08em; }
+.cdr-ctx-count { color: var(--cdr-text-muted); }
+.cdr-ctx-bar {
+  width: 46px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.cdr-ctx-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.2s ease;
+}
+.cdr-ctx.warn { border-color: var(--warn); color: var(--warn); }
+.cdr-ctx.warn .cdr-ctx-fill { background: var(--warn); }
+.cdr-ctx.hot { border-color: var(--danger); color: var(--danger); }
+.cdr-ctx.hot .cdr-ctx-fill { background: var(--danger); }
+
+/* ── Knowledge base strip ───────────────────────────────────── */
+.cdr-kb {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--cdr-border);
+  padding: 8px 10px 10px;
+}
+.cdr-kb-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cdr-text-muted);
+  margin-bottom: 5px;
+}
+.cdr-kb-state { letter-spacing: 0; text-transform: none; }
+.cdr-kb.on .cdr-kb-state { color: var(--accent); }
+.cdr-kb-rows { display: flex; flex-direction: column; gap: 2px; }
+.cdr-kb-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--cdr-text-dim);
+}
+.cdr-kb-row b { font-weight: 500; color: var(--cdr-text); }
 
 /* ── Changes carried over from a previous session ───────────── */
 /* Drawn by restorePendingChanges(): the same rows, gathered under one heading

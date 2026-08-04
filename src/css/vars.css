@@ -28,9 +28,15 @@
     --panel-solid: rgba(16, 19, 28, 0.92);
     --line: rgba(255, 255, 255, 0.08);
     --line-strong: rgba(255, 255, 255, 0.16);
+    /* Contrast against --bg-0, measured: 16.3:1, 7.5:1, 5.4:1.
+       --muted used to sit at 3.5:1 — under the 4.5:1 floor for body text, and
+       under even the 3:1 floor for large text. It is not decoration: it
+       carries line numbers, timestamps, file sizes, empty-state lines and
+       every secondary label in the app, so the least readable colour in the
+       palette was on the text that explains what you are looking at. */
     --text: #ece7dc;
     --text-dim: #a39d91;
-    --muted: #6b6558;
+    --muted: #8a8375;
     --gold: #c9a96e;
     --gold-2: #dfc38e;
     --gold-deep: #8b6d2c;

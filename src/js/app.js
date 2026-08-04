@@ -8311,6 +8311,13 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     // knowledge base has already had twice.
     ragSearch: (query) => queryRAGMerged(String(query || "")),
     ragIsOn: () => ragEnabled,
+    ragSize: () => {
+      // What the base actually holds, so a panel can say "on and empty" rather
+      // than leaving the user to guess why nothing comes back.
+      const chunks = _ragCache || [];
+      return { passages: chunks.length, sources: new Set(chunks.map(c => c.source || "")).size };
+    },
+    estimatePromptTokens,
     appendAssistantToolCallTurn,
     appendToolResult,
     extractPythonFence,

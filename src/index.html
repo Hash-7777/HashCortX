@@ -2096,6 +2096,15 @@
         </div>
         <span id="cdrRouterChip" class="cdr-router-chip"></span>
         <span id="cdrRouterLabel" style="display:none"></span>
+        <!-- How full the model's context is. Chat has had one of these all
+             along; Coder is where a long run quietly fills the window, and it
+             had none. -->
+        <div class="cdr-ctx" id="cdrContext" title="Estimated context usage">
+          <span class="cdr-ctx-label">CTX</span>
+          <span id="cdrContextPct">0%</span>
+          <span class="cdr-ctx-bar" aria-hidden="true"><span class="cdr-ctx-fill" id="cdrContextFill"></span></span>
+          <span class="cdr-ctx-count" id="cdrContextCount"></span>
+        </div>
       </div>
 
       <div class="cdr-header-right">
@@ -2168,6 +2177,13 @@
           <div class="cdr-explorer-body" id="cdrExplorerBody">
             <div class="cdr-tree-empty">Open a project or file to start.</div>
           </div>
+        </div>
+        <!-- What the knowledge base holds. Coder can search it now, and a
+             knowledge base that is silently off or silently empty is a failure
+             this app has already had twice — so it says which it is. -->
+        <div class="cdr-kb" id="cdrKb">
+          <div class="cdr-kb-hd"><span>Knowledge</span><span class="cdr-kb-state" id="cdrKbState">off</span></div>
+          <div class="cdr-kb-rows" id="cdrKbRows"></div>
         </div>
       </div><!-- /.cdr-sidebar -->
       </div><!-- /.cdr-side-pane files -->
