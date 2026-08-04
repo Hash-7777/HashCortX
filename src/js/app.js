@@ -292,7 +292,8 @@
     pendingFiles: [],
     streaming: false,
     abort: null,
-    tab: "chats",       // "chats" | "agents" | "code" | "split"
+    tab: "chats",       // "chats" | "code" | "split" | a registered mode
+                        // ("agents" is a panel over one of these, not a mode)
     agents: [],         // custom agents
     activeAgentId: null,
     replyTo: null,      // { idx, role, preview } — set when user clicks Reply on a message
@@ -1509,7 +1510,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const fromFullscreen = !!activeFullscreenMode;
     leaveFullscreenModes();
 
-    // "agents" is a sidebar panel, not a mode — preserve the underlying mode when entering/leaving it
+    // Agents is a panel over whatever you were doing, not a workspace of its
+    // own. It used to sit in the row of modes, which said it was one — you
+    // "left" your chat to pick an agent, and the agent then applied to the
+    // chat you had apparently left. It is reached from the chat toolbar now,
+    // and this still preserves the mode underneath so returning is exact.
     if (tab === "agents") {
       if (state.tab !== "agents") state._preAgentsTab = state.tab; // remember where we came from
       state.tab = "agents";
@@ -1678,7 +1683,27 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       e.stopPropagation();
       setActiveAgent(null);
     });
-    activeAgentChip.onclick = () => { setTab("agents"); };
+    activeAgentChip.onclick = () => { toggleAgentsPanel(true); };
+  }
+
+  /**
+   * Show or hide the agents panel.
+   *
+   * A toggle because it is opened from a single button now: with no tab to
+   * click, pressing it again has to be the way back, or the panel is a place
+   * you can enter and not leave.
+   */
+  function syncAgentsButton(open) {
+    const btn = $("agentsBtn");
+    if (!btn) return;
+    btn.classList.toggle("active", open);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  function toggleAgentsPanel(force) {
+    const open = typeof force === "boolean" ? force : state.tab !== "agents";
+    setTab(open ? "agents" : (state._preAgentsTab || "chats"));
+    syncAgentsButton(open);
   }
 
   function setActiveAgent(id) {
@@ -1909,7 +1934,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const btn = e.target.closest("[data-tab]");
     if (!btn || !btn.closest(".tabs")) return;
     e.preventDefault();
+    // Choosing a workspace closes the agents panel over it, so the button
+    // cannot be left looking pressed above a sidebar showing chats.
+    if (state.tab === "agents") syncAgentsButton(false);
     setTab(btn.dataset.tab);
+  });
+
+  $("agentsBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleAgentsPanel();
   });
   $("hcSafeExitModeBtn")?.addEventListener("click", (e) => {
     e.preventDefault();

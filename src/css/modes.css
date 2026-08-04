@@ -625,6 +625,59 @@
   .toolbar .icon { width: 30px; height: 30px; flex: 0 0 30px; }
   .toolbar .icon svg { width: 14px; height: 14px; color: var(--text-dim); }
   .toolbar .icon:hover svg { color: var(--gold); }
+  /* Sits against the context pill, and is built to the pill's measurements —
+     same height, border, radius and background — so the pair reads as one
+     group of controls rather than two things that happen to be adjacent.
+     margin-left:auto moves to this button because it is now the first of the
+     pair; the pill drops its own so the two stay together. */
+  .agents-btn {
+    margin-left: auto;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line-strong);
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
+      rgba(0,0,0,0.12);
+    color: var(--text-dim);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: .04em;
+    white-space: nowrap;
+    cursor: pointer;
+    flex: 0 0 auto;
+    transition: background .2s, border-color .2s, color .2s;
+  }
+  .agents-btn svg {
+    width: 15px; height: 15px; flex: 0 0 15px;
+    color: var(--text-dim);
+    transition: color .2s;
+  }
+  .agents-btn:hover,
+  .agents-btn:focus-visible {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.18);
+    color: var(--text);
+  }
+  .agents-btn:hover svg,
+  .agents-btn:focus-visible svg { color: var(--gold-2); }
+  /* Open — matches how the injection toggle shows itself on, so "this control
+     is currently doing something" looks the same across the row. */
+  .agents-btn.active {
+    background: rgba(34,211,238,0.10);
+    border-color: rgba(34,211,238,0.45);
+    color: var(--text);
+  }
+  .agents-btn.active svg {
+    color: var(--gold-2);
+    filter: drop-shadow(0 0 6px rgba(34,211,238,0.28));
+  }
+  .agents-btn + .context-window { margin-left: 0; }
+
   .context-window {
     margin-left: auto;
     height: 30px;
