@@ -645,6 +645,11 @@ body.coder-mode #app { display: none; }
 }
 
 /* ── One step of a run ──────────────────────────────────────────
+   State classes are namespaced. They were bare — `change`, `pending`, `ok` —
+   and `modes.css` carries `.pending { display: flex }` for something else
+   entirely, which turned every pending change into a flex row: the summary and
+   the diff sat side by side instead of the diff opening underneath. A generic
+   class name in this app is a collision waiting to happen.
    A tool call and a file change are the same thing from the outside: a thing
    the run did. They used to be two different blocks sitting next to each other,
    which is most of why a run was hard to follow. One shape now — verb, what it
@@ -671,9 +676,9 @@ body.coder-mode #app { display: none; }
   letter-spacing: 0.08em;
   color: var(--cdr-text-muted);
 }
-.cdr-step.ok .cdr-step-verb    { color: var(--accent); }
-.cdr-step.err .cdr-step-verb   { color: var(--cdr-error); }
-.cdr-step.change .cdr-step-verb { color: var(--accent); }
+.cdr-step--ok .cdr-step-verb    { color: var(--accent); }
+.cdr-step--err .cdr-step-verb   { color: var(--cdr-error); }
+.cdr-step--change .cdr-step-verb { color: var(--accent); }
 .cdr-step-object {
   font-family: var(--mono);
   color: var(--cdr-text);
@@ -690,7 +695,7 @@ body.coder-mode #app { display: none; }
   white-space: nowrap;
 }
 .cdr-step-running { color: var(--cdr-text-muted); }
-.cdr-step.err .cdr-step-result { color: var(--cdr-error); }
+.cdr-step--err .cdr-step-result { color: var(--cdr-error); }
 .cdr-plus  { color: var(--cdr-success); }
 .cdr-minus { color: var(--cdr-error); }
 .cdr-step-body {
@@ -731,8 +736,8 @@ body.coder-mode #app { display: none; }
 .cdr-step-btn.keep:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
 .cdr-step-btn.undo:not(:disabled):hover { border-color: var(--cdr-error); color: var(--cdr-error); }
 .cdr-step-btn:disabled { opacity: 0.45; cursor: default; }
-.cdr-step.accepted .cdr-step-object { opacity: 0.65; }
-.cdr-step.rejected .cdr-step-object { opacity: 0.5; text-decoration: line-through; }
+.cdr-step--accepted .cdr-step-object { opacity: 0.65; }
+.cdr-step--rejected .cdr-step-object { opacity: 0.5; text-decoration: line-through; }
 
 /* ── Context indicator ──────────────────────────────────────── */
 /* How full the model's window is. Amber past 70%, red past 90% — the same

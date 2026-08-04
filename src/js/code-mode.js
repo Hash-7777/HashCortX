@@ -99,7 +99,7 @@
     const argsJson = esc(JSON.stringify(args || {}, null, 2).slice(0, 500));
     const resultPreview = esc(resultText.slice(0, 2000)) + (resultText.length > 2000 ? '\n…' : '');
     return `
-<details class="cdr-step ${isErr ? 'err' : 'ok'}"${isErr ? ' open' : ''}>
+<details class="cdr-step ${isErr ? 'cdr-step--err' : 'cdr-step--ok'}"${isErr ? ' open' : ''}>
   <summary class="cdr-step-head">
     <span class="cdr-step-verb">${esc(toolVerb(name))}</span>
     <span class="cdr-step-object">${esc(toolObject(name, args) || name)}</span>
@@ -1166,7 +1166,7 @@
         verb: toolVerb(name),
         object: toolObject(name, args) || name,
         status: '<span class="cdr-step-running">running…</span>',
-        statusClass: 'running',
+        statusClass: 'cdr-step--running',
         open: false,
       });
       if (el) el.dataset.id = String(id);
@@ -1175,8 +1175,8 @@
 
     function finalizeToolBlock(el, result, ok, ms) {
       if (!el) return;
-      el.classList.remove('running');
-      el.classList.add(ok ? 'ok' : 'err');
+      el.classList.remove('cdr-step--running');
+      el.classList.add(ok ? 'cdr-step--ok' : 'cdr-step--err');
       const status = el.querySelector('.cdr-step-result');
       if (status) status.textContent = ok ? `${ms}ms` : 'failed';
       const body = el.querySelector('.cdr-step-body');
@@ -1837,7 +1837,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             `<button class="cdr-step-btn keep">${svgAccept} Keep</button>` +
             `<button class="cdr-step-btn undo"${canUndo ? '' : ` disabled title="${esc(summary.unrestorable)}"`}>${svgReject} Undo</button>` +
             `</span>`,
-          statusClass: 'change pending',
+          statusClass: 'cdr-step--change cdr-step--pending',
         });
         if (!el) continue;
         el.querySelector('.cdr-step-object').title = summary.path || '';
@@ -1847,7 +1847,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const own = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(e); };
 
         keepBtn.addEventListener('click', own(async () => {
-          el.classList.remove('pending'); el.classList.add('accepted');
+          el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--accepted');
           keepBtn.innerHTML = `${svgAccept} Kept`;
           undoBtn.disabled = true;
           await HC.undo.drop(summary);
@@ -1860,7 +1860,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             // restore() fetches the contents itself \u2014 the summary does not
             // carry them, and writing it as-is would empty the file.
             await HC.undo.restore(summary);
-            el.classList.remove('pending'); el.classList.add('rejected');
+            el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--rejected');
             undoBtn.innerHTML = `${svgReject} Undone`;
             keepBtn.disabled = true;
             terminalLog(`[undo] restored ${summary.path}`, 'cdr-bash-preview');
@@ -1930,7 +1930,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           `<button class="cdr-step-btn keep">${svgAccept} Keep</button>` +
           `<button class="cdr-step-btn undo"${canUndo ? '' : ' disabled title="The previous contents could not be saved, so this change cannot be undone."'}>${svgReject} Undo</button>` +
           `</span>`,
-        statusClass: 'change pending',
+        statusClass: 'cdr-step--change cdr-step--pending',
       });
       if (!el) return;
 
@@ -1941,7 +1941,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const own = (fn) => (e) => { e.preventDefault(); e.stopPropagation(); fn(e); };
 
       keepBtn.addEventListener('click', own(() => {
-        el.classList.remove('pending'); el.classList.add('accepted');
+        el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--accepted');
         keepBtn.innerHTML = `${svgAccept} Kept`;
         undoBtn.disabled = true;
         // The change is staying, so the saved copy is dead weight.
@@ -1953,7 +1953,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         undoBtn.disabled = true;
         try {
           await HC.undo.restore(checkpoint);
-          el.classList.remove('pending'); el.classList.add('rejected');
+          el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--rejected');
           undoBtn.innerHTML = `${svgReject} Undone`;
           keepBtn.disabled = true;
           terminalLog(`[undo] restored ${path}`, 'cdr-bash-preview');
