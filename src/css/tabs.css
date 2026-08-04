@@ -447,6 +447,19 @@
     cursor: help;
     border-bottom: none;
   }
+  /* A remote image in a reply is offered rather than fetched — see
+     renderer.image in app.js. It has to read as a picture the user may open,
+     not as one that failed, so it says what it is and names the host it
+     leads to. */
+  .markdown-body .md-image-tag {
+    color: var(--muted);
+    font-size: 0.86em;
+    margin-right: 0.35em;
+  }
+  .markdown-body .md-image-host {
+    color: var(--muted);
+    font-size: 0.86em;
+  }
   .markdown-body blockquote {
     margin: 0.9em 0;
     padding: 0.15em 0 0.15em 0.95em;

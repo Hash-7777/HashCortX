@@ -5414,6 +5414,31 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       const safeTitle = title ? ` title="${escapeHtml(title)}"` : "";
       return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer"${safeTitle}>${escapeHtml(text || href || "")}</a>`;
     };
+    // An image in a model's reply is a request the app makes on the model's
+    // behalf, before anyone has read a word of it. Left on marked's default
+    // renderer that was an <img> pointing anywhere, fetched the instant the
+    // message was drawn — so text injected into a page the agent fetched, or a
+    // file it read, could put what it learned into a URL and have the app send
+    // it. img-src in tauri.conf.json no longer permits a remote host at all;
+    // this turns what would be a broken-image icon into a link the user can
+    // choose to open, and keeps the reason visible next to the markdown rather
+    // than only in the config.
+    renderer.image = function(...args) {
+      const { href, title, text } = extractMarkedLinkArgs(args);
+      const label = escapeHtml(text || title || "image");
+      // data: and blob: are the app's own images — a generated picture or one
+      // the user pasted. They reach no network, so they render as before.
+      const local = /^(?:data:image\/|blob:)/i.test(String(href || "").trim());
+      if (local) return `<img src="${escapeHtml(href)}" alt="${label}" loading="lazy">`;
+      const resolved = safeMarkdownHref(href);
+      if (!resolved) return `<span class="md-link-blocked" title="Only http(s) images are allowed">${label}</span>`;
+      let host = "";
+      try { host = new URL(resolved).host; } catch { host = ""; }
+      return `<a href="${escapeHtml(resolved)}" target="_blank" rel="noopener noreferrer" class="md-image-link" ` +
+        `title="A picture from another site is not loaded automatically. Opens ${escapeHtml(resolved)} in your browser.">` +
+        `<span class="md-image-tag">Image</span>${label}` +
+        `${host ? ` <span class="md-image-host">${escapeHtml(host)}</span>` : ""}</a>`;
+    };
     renderer.code = function(...args) {
       const { text, lang } = extractMarkedCodeArgs(args);
       const src = decodeHtmlEntities(text).replace(/\n$/, "");

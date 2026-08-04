@@ -156,12 +156,26 @@ Format: `TIMESTAMP [scope] action target`. It is append-only from the app's pers
 
 ## Content Security Policy
 
-Defined in `src-tauri/tauri.conf.json`. `connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, PubMed, DuckDuckGo), and local Ollama ports.
+Defined in `src-tauri/tauri.conf.json`, and checked by `scripts/checks/csp.mjs` so a rule cannot be widened without a test failing.
 
-Two honest caveats:
+`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, PubMed, DuckDuckGo), and Ollama.
 
-- `script-src` permits `'unsafe-inline'` and three external CDNs (`cdn.jsdelivr.net`, `cdnjs.cloudflare.com`, `cdn.sheetjs.com`). This is not a locked-down policy.
-- `connect-src` includes wildcard local ports (`http://*:11434`, `http://*:1234`, `http://*:8080`) so self-hosted model servers work.
+### No image is loaded from the network
+
+`img-src` permits `'self'`, `data:` and `blob:` — nothing remote. Every picture the app shows is a bundled asset, a generated or pasted image as a `data:` URL, or a `blob:`, so this costs no feature.
+
+It used to permit `https:` as well, and that was a way out of the app. A markdown image in a model's reply — `![](https://host/?…)` — was rendered as an `<img>` by the markdown library's default renderer and fetched the moment the reply was drawn. No click, nothing shown in the interface, and the URL is whatever the model chose to write. In an app whose agent reads your files and fetches web pages, text injected into either could put what it just read into that URL. Chat now renders a picture from another site as a link you can choose to open, and `img-src` is what enforces it.
+
+### One wildcard host, and why
+
+`connect-src` contains a single wildcard, `http://*:11434` — Ollama's port. Ollama may run on another machine on your network, so it cannot be pinned to loopback.
+
+Three more used to sit beside it: `http://*:1234`, `http://*:8080` and `http://*:11435`, listed for "self-hosted model servers". No line in this app has ever connected to any of them. They granted plaintext access to every host on the internet's most common alternate web ports and bought nothing. They are gone, and the check above fails on a wildcard that has no caller in the source.
+
+### Honest caveats
+
+- `script-src` permits `'unsafe-inline'` and one external CDN, `cdn.jsdelivr.net`. This is not a locked-down policy. That one host is there for Pyodide, which fetches CPython and any wheel you use on demand and cannot sensibly be shipped inside the app. (This document previously named three CDNs; the other two were vendored and removed, and the paragraph was not updated. The check now compares the two.)
+- `style-src` permits `'unsafe-inline'`, which the app's dynamic theme tokens need.
 
 Most third-party libraries are vendored into `src/js/vendor/` and load from disk rather than a CDN.
 

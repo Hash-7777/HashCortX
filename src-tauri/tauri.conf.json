@@ -69,7 +69,27 @@
       //   Append its API base domain to connect-src.
       //   Example: add "https://api.newprovider.com" to allow it.
       //
-      // ⚠ Never use a wildcard (*) here — that would allow any domain.
+      // ⚠ A wildcard host grants every host on that port. There is exactly
+      //   ONE here — http://*:11434 — because Ollama's port is the only local
+      //   server the app talks to and it may live on another machine on the
+      //   user's network. Ports 1234, 8080 and 11435 used to be listed the
+      //   same way for "self-hosted model servers"; nothing in this app has
+      //   ever connected to them, so they granted plaintext access to any
+      //   host on the internet's most common alternate web ports in exchange
+      //   for no feature at all. Do not add another without a caller.
+      //
+      // ── img-src ────────────────────────────────────────────────
+      // 'self' data: blob: — and deliberately NOT https:.
+      //
+      // Nothing in this app loads a picture from the network: every image is
+      // a bundled asset, a data: URL (a generated or pasted image) or a
+      // blob:. Allowing https: meant a markdown image in a model's reply —
+      // ![](https://host/?...) — fetched that host the moment the reply was
+      // drawn, with no click. For an app whose agent reads files and web
+      // pages, that is a way for injected text to send what it just read
+      // somewhere, in a request the user never sees. Chat renders a remote
+      // image as a link now (see markdownRenderer in app.js); this line is
+      // what enforces it.
       //
       // ipc: and http://ipc.localhost are required by Tauri internals.
       // 'unsafe-inline' on style-src is needed for our dynamic theme tokens.
@@ -83,7 +103,7 @@
       //
       // Before adding a host here, vendor the library instead. That rule is in
       // ARCHITECTURE.md and this list is where breaking it shows up.
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434 http://*:11435 http://*:1234 http://*:8080"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434"
     }
   },
 
