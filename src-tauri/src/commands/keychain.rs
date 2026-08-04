@@ -1,16 +1,34 @@
 // ==============================================================
-// Phase 6 — OS Keychain bridge
+// The one-time migration out of the old Keychain bundle
 //
-// macOS: uses security-framework GenericPassword directly.
-//   Entries have NO application ACL, so they survive DMG
-//   rebuilds without prompting or losing keys.
+// API keys do NOT live in the OS Keychain — docs/SECURITY.md explains the
+// trade. A Keychain item's access control list is bound to the binary's code
+// signature, and while the build is unsigned every new DMG carries a different
+// one, so macOS prompted for a password per key on every update. Keys live in
+// the app's own data directory instead, keyed by the bundle identifier, which
+// survives a rebuild.
 //
-// Other platforms: fall back to the `keyring` crate.
+// What remains here is the way out of the old arrangement. On first run the
+// renderer reads the old bundle, merges it into the local store, and deletes
+// the Keychain entry so it can never prompt again.
+//
+// WHAT USED TO BE HERE, AND WHY IT IS NOT
+// ---------------------------------------
+// keychain_store, keychain_retrieve and keychain_store_bundle were registered
+// alongside these two with nothing in the app calling any of them. Every
+// registered command is an entry point the renderer can reach, so a dead one
+// is surface with no feature paying for it — and keychain_store would have
+// written a secret back into the Keychain, which is the thing this app
+// deliberately stopped doing. scripts/checks/native-surface.mjs now fails on a
+// command registered without a caller.
+//
+// macOS uses security-framework directly; entries have no application ACL, so
+// an old bundle is still readable after a rebuild. Other platforms use the
+// `keyring` crate.
 //
 // JS calls:
-//   invoke("keychain_store",    { provider, secret })
-//   invoke("keychain_retrieve", { provider }) -> Option<String>
-//   invoke("keychain_delete",   { provider })
+//   invoke("keychain_retrieve_bundle") -> Option<String>
+//   invoke("keychain_delete", { provider })
 // ==============================================================
 
 const SERVICE: &str = "com.hashcortx.app";
@@ -20,14 +38,7 @@ const BUNDLE_ACCOUNT: &str = "__api_bundle__";
 #[cfg(target_os = "macos")]
 mod platform {
     use super::SERVICE;
-    use security_framework::passwords::{
-        delete_generic_password, get_generic_password, set_generic_password,
-    };
-
-    pub fn store(provider: &str, secret: &str) -> Result<(), String> {
-        set_generic_password(SERVICE, provider, secret.as_bytes())
-            .map_err(|e| e.to_string())
-    }
+    use security_framework::passwords::{delete_generic_password, get_generic_password};
 
     pub fn retrieve(provider: &str) -> Result<Option<String>, String> {
         match get_generic_password(SERVICE, provider) {
@@ -59,10 +70,6 @@ mod platform {
         Entry::new(SERVICE, provider).map_err(|e| e.to_string())
     }
 
-    pub fn store(provider: &str, secret: &str) -> Result<(), String> {
-        entry(provider)?.set_password(secret).map_err(|e| e.to_string())
-    }
-
     pub fn retrieve(provider: &str) -> Result<Option<String>, String> {
         match entry(provider)?.get_password() {
             Ok(s) => Ok(Some(s)),
@@ -81,33 +88,16 @@ mod platform {
 }
 
 // ── Tauri commands ────────────────────────────────────────────
-#[tauri::command]
-pub fn keychain_store(provider: String, secret: String) -> Result<(), String> {
-    if secret.trim().is_empty() {
-        return keychain_delete(provider);
-    }
-    platform::store(&provider, &secret)
-}
 
-#[tauri::command]
-pub fn keychain_retrieve(provider: String) -> Result<Option<String>, String> {
-    platform::retrieve(&provider)
-}
-
-#[tauri::command]
-pub fn keychain_delete(provider: String) -> Result<(), String> {
-    platform::delete(&provider)
-}
-
-// ── Bundle commands — all keys in one keychain entry ─────────
-// One Keychain entry = one macOS password prompt per new build.
-
-#[tauri::command]
-pub fn keychain_store_bundle(bundle: String) -> Result<(), String> {
-    platform::store(BUNDLE_ACCOUNT, &bundle)
-}
-
+/// Read the old all-keys bundle, if a previous build left one behind.
 #[tauri::command]
 pub fn keychain_retrieve_bundle() -> Result<Option<String>, String> {
     platform::retrieve(BUNDLE_ACCOUNT)
+}
+
+/// Remove a Keychain entry. The renderer calls this with the bundle account
+/// once the keys have been copied out, so the old entry stops existing.
+#[tauri::command]
+pub fn keychain_delete(provider: String) -> Result<(), String> {
+    platform::delete(&provider)
 }

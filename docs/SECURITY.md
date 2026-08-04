@@ -30,7 +30,9 @@ That directory is keyed by the **bundle identifier**, not by the binary, so it s
 
 A Keychain item's access control list is bound to the binary's code signature. While the build is unsigned, every new DMG carries a different signature, so macOS would prompt for your password once per key on every single update. That made the Keychain unusable in practice.
 
-`src-tauri/src/commands/keychain.rs` still ships. On first run, `src/platform/tauri/keychain.js` silently pulls any keys out of the old Keychain bundle, copies them into the local store, and deletes the Keychain entry so it never prompts again.
+`src-tauri/src/commands/keychain.rs` still ships, and now does only that one job. On first run, `src/platform/tauri/keychain.js` silently pulls any keys out of the old Keychain bundle, copies them into the local store, and deletes the Keychain entry so it never prompts again.
+
+Reading that bundle and deleting it are the only two Keychain commands the app registers. Three more — storing a key, storing the bundle, reading a single key — were registered with nothing calling any of them. A registered command is an entry point the renderer can reach, and one of those would have written a secret *into* the Keychain, which is the arrangement this app moved away from. They are gone, and `scripts/checks/native-surface.mjs` now fails on any command registered without a caller.
 
 **What this costs you, stated plainly:**
 

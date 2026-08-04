@@ -121,6 +121,65 @@ console.log('\nThe agent tools are gated:');
     requests >= invokes, 'a tool is reaching Rust without asking first');
 }
 
+console.log('\nEvery command the renderer calls is registered, and every registered command is called:');
+{
+  // Two failures this catches, both of which look like working code.
+  //
+  // A name the renderer invokes that Rust never registered fails at runtime
+  // inside a catch, so the feature behind it simply stops happening — this
+  // repo's oldest defect, in its native form.
+  //
+  // A command registered with nothing calling it is the reverse: an entry
+  // point into the machine that exists for no reason. Each one is reachable
+  // from the renderer, so a dead one is attack surface with no feature paying
+  // for it.
+  const lib = readFileSync(join(root, 'src-tauri', 'src', 'lib.rs'), 'utf8');
+  const handler = /generate_handler!\s*\[([\s\S]*?)\]/.exec(lib)?.[1] || '';
+  const registered = new Set(
+    handler.split('\n')
+      .map((line) => line.replace(/\/\/.*$/, '').trim().replace(/,$/, ''))
+      .filter((name) => /^[a-z_][a-z0-9_]*$/.test(name)),
+  );
+  check('lib.rs registers a command list', registered.size > 0);
+
+  const invoked = new Map(); // name → the file that calls it
+  for (const file of files) {
+    const rel = relative(srcDir, file).split('\\').join('/');
+    for (const m of readFileSync(file, 'utf8').matchAll(/invoke\(\s*['"]([^'"]+)['"]/g)) {
+      // `plugin:` names belong to a Tauri plugin and are granted in
+      // src-tauri/capabilities/default.json, not in generate_handler!.
+      if (!m[1].startsWith('plugin:')) invoked.set(m[1], rel);
+    }
+  }
+
+  for (const [name, where] of invoked) {
+    check(`${name} is registered (called from ${where})`, registered.has(name),
+      'the invoke would reject at runtime and the feature behind it would stop happening');
+  }
+
+  /**
+   * Registered commands with no caller in the renderer, and why each one stays.
+   *
+   * Anything not listed here and not called is a live entry point into the
+   * machine that nothing uses. Delete it rather than adding it below.
+   */
+  const REGISTERED_WITHOUT_A_CALLER = new Map([
+    ['checkpoint_read', 'reads a saved checkpoint back from disk. Undo currently restores from the record it still holds in memory, so this is unused and an undo does not survive a restart — the command is what closing that needs. It takes no path, only an id this crate generated'],
+    ['embed_available', 'reports whether the bundled embedding model loaded; reads nothing and takes no argument'],
+  ]);
+  for (const name of registered) {
+    if (invoked.has(name)) continue;
+    check(`${name} is registered without a caller for a stated reason`,
+      REGISTERED_WITHOUT_A_CALLER.has(name),
+      'nothing calls it — remove it from generate_handler! rather than leaving the renderer an entry point nobody uses');
+  }
+  // And the list must not outlive its entries.
+  for (const name of REGISTERED_WITHOUT_A_CALLER.keys()) {
+    check(`${name} is still uncalled, as recorded`, registered.has(name) && !invoked.has(name),
+      'it is called now, or gone — remove the entry');
+  }
+}
+
 console.log('\nThe guard is shown the whole action, not half of it:');
 {
   // A shell command's working directory is chosen by the model and decides
