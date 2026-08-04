@@ -235,5 +235,55 @@ console.log('\nHardcoded colour counts go down, never up:');
   }
 }
 
+// ── 4. A class must be able to hide an element ───────────────────────────────
+//
+// `button:not(.template-item):not(.chat-item) { display: inline-flex }` scored
+// 0,2,1 — higher than any single-class rule in this app. So every
+// `.some-button { display: none }` written anywhere silently lost to it and the
+// button stayed on screen. Coder's side rail is what surfaced it: a 14px bar
+// meant to appear only when the file panel is collapsed sat over the panel
+// permanently, clipping the first character off every line in that column.
+//
+// The pattern to refuse is narrow and exact: a `display` declaration whose
+// subject is a bare element type inflated with `:not()`. Written without the
+// `:not()`s it scores 0,0,1 and a class rule wins, which is what anyone writing
+// one expects.
+console.log('\nA class can still hide an element:');
+{
+  let offenders = 0;
+  for (const file of SHEETS) {
+    // Comments go first. A brace inside prose is not a rule, and this check
+    // was defeated by its own explanation in main.css, which quotes
+    // `{ display: none }` while describing the trap.
+    const css = read(file).replace(/\/\*[\s\S]*?\*\//g, '');
+    // Selector immediately followed by a block containing `display`.
+    for (const m of css.matchAll(/(^|[}\n])\s*([^{}@\n][^{}]*?)\{([^{}]*)\}/g)) {
+      const [, , selector, body] = m;
+      if (!/(^|;|\s)display\s*:/.test(body)) continue;
+      for (const part of selector.split(',')) {
+        const s = part.trim();
+        if (!s || s.startsWith('/*')) continue;
+        // What matters is the SUBJECT — the last compound — not the start of
+        // the selector. `body.x #app > *:not(#y)` is an intentional
+        // hide-everything-else rule whose subject is `*`; `button:not(.a)` is
+        // the trap. Parenthesised groups are stripped first so a combinator
+        // inside :not() cannot split the selector in the wrong place.
+        // Only a SINGLE compound is the trap: a bare element inflated by
+        // :not(), with no ancestor to scope it, so it applies to every such
+        // element in the app. `.panel .row span { display: … }` is also a bare
+        // element subject, but it is scoped to a component and nobody expects a
+        // loose class to beat it.
+        const parts = s.replace(/\([^()]*\)/g, '').split(/[\s>+~]+/).filter(Boolean);
+        if (parts.length === 1 && /^[a-z][a-z0-9-]*/i.test(parts[0]) && /:not\(/.test(s)) {
+          offenders++;
+          check(`${file}: ${s.slice(0, 70)}`, false,
+            'sets display on a bare element but scores above a class — write it without :not() and give the exceptions their own rule');
+        }
+      }
+    }
+  }
+  if (offenders === 0) check('no display rule out-specifies a plain class', true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (one identity)`);
 process.exit(fail ? 1 : 0);

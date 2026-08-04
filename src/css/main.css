@@ -427,8 +427,23 @@
     justify-content: center;
     vertical-align: middle;
   }
-  button:not(.template-item):not(.chat-item) {
+  /* Deliberately a bare element selector.
+     This was `button:not(.template-item):not(.chat-item)`, which scores 0,2,1 —
+     higher than any single-class rule in the app. So every
+     `.some-button { display: none }` written anywhere silently lost to it, and
+     the button stayed on screen. The side rail in Coder is what found it: a
+     14px bar that should only appear when the file panel is collapsed sat over
+     the panel's first 14px permanently, clipping the first character off every
+     line in that column.
+     At 0,0,1 a class rule wins, which is what anyone writing one expects. The
+     two exemptions keep their own rule below, where being more specific than
+     this one is the point. */
+  button {
     display: inline-flex;
+  }
+  button.template-item,
+  button.chat-item {
+    display: revert;
   }
   button svg,
   .tab svg,
