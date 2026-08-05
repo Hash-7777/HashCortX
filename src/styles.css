@@ -1064,9 +1064,14 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
     rgba(2, 4, 8, 0.84) !important;
 }
 #settingsOverlay > .modal.settings-modal {
-  width: min(760px, calc(100vw - 40px)) !important;
-  max-width: 760px !important;
-  max-height: calc(100vh - var(--toolbar-h, 44px) - 32px) !important;
+  width: min(780px, calc(100vw - 40px)) !important;
+  max-width: 780px !important;
+  /* A fixed height, not a maximum.
+     With max-height the dialog sized itself to whichever section was open, so
+     Memory came in a third shorter than General and the whole window jumped
+     every time you switched. Every section is the same box now; short ones
+     leave space at the bottom rather than dragging the frame up. */
+  height: min(760px, calc(100dvh - var(--toolbar-h, 44px) - 32px)) !important;
   max-height: min(760px, calc(100dvh - var(--toolbar-h, 44px) - 32px)) !important;
   overflow: hidden !important;
   border-radius: var(--radius) !important;
@@ -1083,88 +1088,233 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 #settingsOverlay .modal-header {
   flex: 0 0 auto;
-  padding: 18px 22px 10px !important;
+  padding: var(--set-3) var(--set-pad) var(--set-2) !important;
+}
+#settingsOverlay .modal-header .close-btn {
+  width: 28px; height: 28px;
+}
+/* ── Type in the settings dialog ──────────────────────────────────────
+   html,body sets --hc-font, which is JetBrains Mono, so every explanatory
+   sentence in here rendered as code. Monospace is for text the user types
+   or the machine emits; prose belongs in the reading face.
+
+   Two families, one rule: --sans for anything that is language, --mono for
+   anything that is a literal. The serif came from the app's brand mark and
+   made a third face in a single dialog, so the title joins the first group.
+
+   One scale, declared once, so a label in API keys is the same size as a
+   label in General instead of every pane picking its own. */
+#settingsOverlay {
+  --set-body: 13px;    /* paragraphs, table cells, step text */
+  --set-label: 12px;   /* field labels */
+  --set-micro: 11px;   /* pills, table headings, button caps */
+  --set-code: 12.5px;  /* commands, model ids, endpoints */
+
+  /* One spacing grid, in fours. Before this the dialog used 2, 6, 7, 8, 9, 10
+     and 14px for gaps alone, each chosen locally, which is what made the
+     rhythm feel arbitrary from one block to the next. Four steps is enough
+     for every distance in here. */
+  --set-1: 4px;        /* inside a control */
+  --set-2: 8px;        /* between controls on a row */
+  --set-3: 12px;       /* between blocks in a group */
+  --set-4: 16px;       /* between groups */
+  --set-pad: 20px;     /* the pane's own edge */
+
+  font-family: var(--sans);
+  letter-spacing: 0;
 }
 #settingsOverlay .modal-header h2 {
-  font-size: 24px !important;
-  line-height: 1.05 !important;
+  font-family: var(--sans) !important;
+  font-size: 17px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  line-height: 1.2 !important;
   color: #dff4ff !important;
 }
-#settingsOverlay .modal-tabs {
-  flex: 0 0 auto;
-  gap: 8px !important;
-  padding: 10px 18px !important;
-  overflow-x: auto;
+/* The sections moved from a strip across the top to a rail down the side.
+   Both halves need min-height:0 or the pane inside cannot shrink, and the
+   footer ends up sitting on top of the scrolling content. */
+#settingsOverlay .settings-shell {
+  flex: 1 1 auto;
+  min-height: 0;
 }
-#settingsOverlay .modal-tab {
-  min-height: 34px;
-  min-width: 94px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px !important;
+#settingsOverlay .settings-panes {
+  min-height: 0;
+}
+#settingsOverlay .srail-item {
+  min-height: 30px;
 }
 #settingsOverlay .modal-body {
   min-height: 0;
-  padding: 20px 22px 24px !important;
-  gap: 16px !important;
+  padding: var(--set-pad) !important;
+  gap: var(--set-4) !important;
   background: linear-gradient(180deg, rgba(255,255,255,0.018), rgba(255,255,255,0.006));
 }
 #settingsOverlay .field {
   min-width: 0;
+  gap: var(--set-2);
 }
+/* Labels were uppercase mono with wide tracking on every single field, which
+   is what made a column of them read as a wall rather than a form. Sentence
+   case in the reading face says the same thing and is shorter to scan. */
 #settingsOverlay .field > label {
-  font-size: 11.5px;
+  font-family: var(--sans);
+  font-size: var(--set-label);
+  font-weight: 600;
   line-height: 1.45;
-  letter-spacing: .10em;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
 }
 #settingsOverlay .field > label span {
-  letter-spacing: .02em;
+  letter-spacing: 0;
   text-transform: none;
+  font-weight: 400;
 }
+/* A key, a URL and a model id are literals — those stay monospaced, because
+   character-for-character legibility is the whole point of them. */
 #settingsOverlay .control,
 #settingsOverlay select.control,
 #settingsOverlay input.control {
   min-width: 0;
-  height: 42px;
-  border-radius: var(--radius-md);
-  font: 13px var(--mono);
+  height: 36px;
+  border-radius: var(--radius-sm);
+  font: var(--set-code) var(--mono);
+}
+#settingsOverlay .lm-step-body p,
+#settingsOverlay .lm-intro-text,
+#settingsOverlay .lm-os,
+#settingsOverlay .mem-blurb,
+#settingsOverlay .lm-table td {
+  font-family: var(--sans);
+  font-size: var(--set-body);
+  letter-spacing: 0;
+}
+#settingsOverlay .lm-note,
+#settingsOverlay .range-end { font-size: var(--set-label); }
+/* Long lines are hard to track back to the next one. Cap the measure so a
+   wider dialog gives more margin rather than longer sentences. */
+#settingsOverlay .lm-step-body p,
+#settingsOverlay .lm-intro-text,
+#settingsOverlay .mem-blurb,
+#settingsOverlay .lm-os { max-width: 68ch; }
+#settingsOverlay .lm-table th,
+#settingsOverlay .lm-pill,
+#settingsOverlay .set-sec,
+#settingsOverlay .mem-tool,
+#settingsOverlay .lm-copy,
+#settingsOverlay .lm-test,
+#settingsOverlay .lm-recheck {
+  font-family: var(--sans);
+  font-size: var(--set-micro);
+}
+#settingsOverlay .lm-step-title { font-family: var(--sans); font-size: 13.5px; }
+/* A literal spelled out inside a sentence — keep it monospaced and keep it
+   whole, so an env var does not break across two lines mid-token. */
+#settingsOverlay .field > label code {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+  padding: 1px 5px 2px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  color: var(--gold-2);
+}
+/* The provider filter is prose, not a key. */
+#settingsOverlay input.lm-search { font-family: var(--sans); font-size: var(--set-body); }
+#settingsOverlay .lm-link { font-family: var(--sans); font-size: var(--set-body); }
+#settingsOverlay .srail-item { font-family: var(--sans); font-size: 12.5px; }
+/* Literals inside the walkthrough. */
+#settingsOverlay .lm-cmd code,
+#settingsOverlay .lm-endpoint code,
+#settingsOverlay .lm-model-name,
+#settingsOverlay .lm-step-num {
+  font-family: var(--mono);
+  font-size: var(--set-code);
 }
 #settingsOverlay textarea.control {
   height: auto;
   min-height: 82px;
   line-height: 1.5;
 }
-#settingsOverlay .modal-footer {
-  flex: 0 0 auto;
-  padding: 14px 22px !important;
-  background: rgba(2, 4, 8, 0.38);
-}
+/* Centred, but never at the cost of the top.
+   justify-content:center on a scroll container pushes overflow past the top
+   edge, where scrolling cannot reach it — with the dialog at a fixed height
+   the logo was cut off and unrecoverable. Auto margins centre while there is
+   room and collapse to nothing once the content is taller than the pane. */
 #settingsOverlay .about-pane {
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
 }
+#settingsOverlay .about-pane > :first-child { margin-top: auto; }
+#settingsOverlay .about-pane > :last-child { margin-bottom: auto; }
+/* The audit button was the last control still in monospace caps. */
+#settingsOverlay .hc-audit-btn {
+  font-family: var(--sans);
+  font-size: var(--set-label);
+  letter-spacing: 0;
+}
 #settingsOverlay .about-logo-img {
-  width: min(180px, 42vw);
+  width: min(124px, 30vw);
   height: auto;
-  margin: 0 auto 10px;
+  margin: 0 auto var(--set-2);
   opacity: .96 !important;
 }
+/* Each block in this pane carried its own margin-bottom on top of the pane's
+   16px flex gap, so the header ran to nearly half the dialog and pushed the
+   apps below the fold. One gap, set once, and the margins go. */
+#settingsOverlay .about-pane { gap: var(--set-2) !important; }
+#settingsOverlay .about-name,
+#settingsOverlay .about-role,
+#settingsOverlay .about-divider,
+#settingsOverlay .about-desc { margin-bottom: 0; }
+#settingsOverlay .about-name { font-size: 21px; }
+#settingsOverlay .about-role,
+#settingsOverlay .about-badge { font-size: var(--set-micro); }
+#settingsOverlay .about-desc { font-size: var(--set-body); }
+/* The About pane joins the same type scale as every other section. */
+#settingsOverlay .about-eco-title,
+#settingsOverlay .about-eco-here,
+#settingsOverlay .about-eco-link { font-size: var(--set-micro); }
+#settingsOverlay .about-eco-name { font-size: var(--set-body); }
+#settingsOverlay .about-eco-desc,
+#settingsOverlay .about-eco-lede,
+#settingsOverlay .about-origin { font-size: var(--set-label); }
 @media (max-width: 720px) {
   #settingsOverlay > .modal.settings-modal {
     width: calc(100vw - 24px) !important;
     max-height: calc(100dvh - var(--toolbar-h, 44px) - 20px) !important;
   }
   #settingsOverlay .modal-header,
-  #settingsOverlay .modal-body,
-  #settingsOverlay .modal-footer {
+  #settingsOverlay .modal-body {
     padding-left: 16px !important;
     padding-right: 16px !important;
   }
-  #settingsOverlay .modal-tab {
-    min-width: 82px;
-    padding: 0 12px !important;
+  /* Too narrow for a rail beside the pane — stack it above instead, as a
+     scrolling strip, so no section becomes unreachable. */
+  #settingsOverlay .settings-shell {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  #settingsOverlay .settings-rail {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 0;
+  }
+  /* Laid out sideways, the hairline that separates one section from the next
+     has to turn with it. */
+  #settingsOverlay .srail-item {
+    width: auto;
+    flex: 0 0 auto;
+    border-bottom: none;
+    border-right: 1px solid var(--line);
+  }
+  #settingsOverlay .srail-item.active {
+    box-shadow: inset 0 -2px 0 var(--gold-2);
   }
 }
 

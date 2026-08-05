@@ -35,11 +35,11 @@
   html[data-theme="light"] .modal-overlay {
     background: rgba(24,34,29,0.30);
   }
-  html[data-theme="light"] .modal-tab:hover {
+  html[data-theme="light"] .srail-item:hover {
     background: #ffffff;
     border-color: rgba(24,34,29,0.16);
   }
-  html[data-theme="light"] .modal-tab.active {
+  html[data-theme="light"] .srail-item.active {
     background: linear-gradient(180deg, rgba(52,120,93,0.10), rgba(143,107,45,0.08));
     border-color: rgba(52,120,93,0.22);
     color: var(--gold-2);
@@ -191,32 +191,275 @@
     display: flex; align-items: center; gap: 12px;
     padding: 18px 22px 0;
   }
-  .modal-tabs {
-    display: flex; gap: 4px;
-    padding: 12px 22px 10px;
-    border-bottom: 1px solid var(--line);
+  /* ── Settings: side rail + panes ──────────────────────────────
+     The sections used to be chips in a strip across the top. Five of
+     them did not fit, and the strip gave no room for anything but a
+     word. A rail down the side has room for a name and an icon, and
+     stays legible however many sections there turn out to be. */
+  .settings-modal { max-width: 900px; }
+  .settings-shell {
+    flex: 1; min-height: 0;
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    border-top: 1px solid var(--line);
+    margin-top: 14px;
   }
-  .modal-tab {
-    padding: 5px 18px 6px;
+  .settings-rail {
+    display: flex; flex-direction: column; gap: 0;
+    padding: var(--set-2) 0;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  .srail-item {
+    display: flex; align-items: center; gap: var(--set-2);
+    width: 100%;
+    padding: 8px var(--set-3);
+    /* A button's own user-agent style centres its flex content, which lined
+       every label up on its own midpoint — five different starting positions
+       down one column. Nothing in the app set it, so nothing overrode it. */
+    justify-content: flex-start;
+    text-align: left;
     background: none;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm);
+    border: none;
+    border-bottom: 1px solid var(--line);
+    border-radius: 0;
     cursor: pointer;
-    font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    font-weight: 500; letter-spacing: 0;
+    text-transform: none;
     color: var(--text-dim);
-    transition: color .15s, background .15s, border-color .15s;
+    transition: color .15s, background .15s;
     outline: none;
   }
-  .modal-tab:hover {
+  .srail-item:last-child { border-bottom: none; }
+  .srail-item svg { width: 14px; height: 14px; flex: 0 0 14px; opacity: .8; }
+  .srail-item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .srail-item:hover {
     color: var(--text);
-    background: rgba(255,255,255,0.04);
-    border-color: var(--line-strong);
+    background: rgba(255,255,255,0.045);
   }
-  .modal-tab.active {
+  .srail-item.active {
     color: var(--gold-2);
-    background: rgba(34,211,238,0.08);
-    border-color: rgba(34,211,238,0.38);
+    background: rgba(34,211,238,0.09);
+    box-shadow: inset 2px 0 0 var(--gold-2);
   }
+  .srail-item.active svg { opacity: 1; }
+  .settings-panes { min-width: 0; display: flex; flex-direction: column; }
+
+  /* A heading inside a pane. Replaces the ad-hoc bold labels and bare
+     dividers that used to separate one group of fields from the next. */
+  .set-sec {
+    display: flex; align-items: center; gap: var(--set-3);
+    font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--gold);
+    margin-top: var(--set-2);   /* + the pane's 16px gap = a clear 24 */
+  }
+  .set-sec::after {
+    content: ""; flex: 1; height: 1px;
+    background: linear-gradient(90deg, var(--line), transparent 62%);
+  }
+  .settings-pane > .set-sec:first-child { margin-top: 0; }
+  /* .field sets display:flex, which out-specifies the browser's own rule for
+     the hidden attribute — so a filtered-out row stayed on screen. Anything
+     that hides a .field has to say so at least this loudly. */
+  .settings-pane .field[hidden],
+  .settings-pane .set-sec[hidden],
+  .settings-pane button[hidden] { display: none; }
+  .field-note { color: var(--muted); font-weight: 400; }
+  .check-row { display: flex; align-items: center; gap: var(--set-2); cursor: pointer; }
+  .check-box { width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; flex: 0 0 16px; }
+  .range-ends {
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); margin-top: var(--set-2);
+  }
+  /* Two unlabelled database glyphs used to mark the ends of this slider. They
+     were a puzzle, not a legend — the words are shorter to read than the
+     tooltip was to find. */
+  .range-end { color: var(--muted); }
+  .range-end-max { color: var(--muted); }
+
+  /* Memory pane toolbar */
+  .mem-head { display: flex; align-items: center; gap: var(--set-2); }
+  .mem-blurb {
+    color: var(--text-dim);
+    margin: -4px 0 8px; line-height: 1.5;
+  }
+  .mem-tools { display: flex; gap: var(--set-2); margin-bottom: var(--set-3); flex-wrap: wrap; }
+  .mem-tools > .control { flex: 1; min-width: 150px; }
+  .mem-tool svg { flex: 0 0 13px; display: block; }
+  /* Destructive, but not shouting until you reach for it. Five red-and-caps
+     buttons in a row made the toolbar louder than the memories under it. */
+  .mem-tool-danger { color: var(--text-dim); }
+  .mem-tool-danger:hover { color: var(--rose); border-color: rgba(217,138,133,0.4); }
+
+  /* ── One button shape for the whole dialog ────────────────────────────
+     Every action in here used to be UPPERCASE with wide tracking — Copy,
+     Test, Map, Export, Clear all, Check again, Save. Caps is an emphasis,
+     and when it is on everything it emphasises nothing; it just makes the
+     dialog shout. Sentence case, one size, one radius. */
+  .settings-pane .mem-tool,
+  .settings-pane .set-btn,
+  .settings-pane .lm-copy,
+  .settings-pane .lm-test,
+  .settings-pane .lm-recheck {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 30px; padding: 0 var(--set-3);
+    letter-spacing: 0; text-transform: none; font-weight: 500;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+  }
+  .settings-pane .mem-tool:hover,
+  .settings-pane .set-btn:hover,
+  .settings-pane .lm-copy:hover,
+  .settings-pane .lm-test:hover,
+  .settings-pane .lm-recheck:hover { color: var(--text); }
+  .set-btn-danger { color: var(--text-dim); }
+  .set-btn-danger:hover { color: var(--rose); border-color: rgba(217,138,133,0.4); }
+  .host-row { display: flex; gap: var(--set-2); align-items: stretch; }
+  .host-row > .control { flex: 1; min-width: 0; }
+  .host-row > .host-preset { flex: 0 0 168px; }
+  .host-row > .set-btn { flex: 0 0 auto; align-self: center; }
+
+  /* ── Local model walkthrough ──────────────────────────────────
+     Four steps that check themselves. Each pill is filled in by a
+     real probe of the machine, so a step that says "done" has been
+     verified rather than assumed. */
+  .lm-intro {
+    display: flex; align-items: flex-start; gap: var(--set-3);
+  }
+  .lm-intro-text {
+    flex: 1; min-width: 0;
+    line-height: 1.6; color: var(--text-dim);
+  }
+  .lm-intro-text b { color: var(--text); font-weight: 600; }
+  .lm-recheck {
+    flex: 0 0 auto;
+  }
+  .lm-steps {
+    list-style: none; margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: var(--set-2);
+  }
+  .lm-step {
+    background: rgba(255,255,255,0.022);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    padding: var(--set-3) var(--set-3) var(--set-4);
+    transition: background .18s, border-color .18s;
+  }
+  .lm-step.lm-done {
+    background: rgba(255,255,255,0.03);
+    border-color: color-mix(in srgb, var(--ok) 22%, transparent);
+  }
+  .lm-step-head {
+    display: flex; align-items: center; gap: var(--set-2);
+  }
+  .lm-step-num {
+    flex: 0 0 20px; width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--line-strong);
+    color: var(--text-dim);
+  }
+  .lm-done .lm-step-num {
+    border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+    color: var(--ok);
+  }
+  .lm-step-title {
+    flex: 1; min-width: 0;
+    font-weight: 600; color: var(--text);
+  }
+  .lm-pill {
+    flex: 0 0 auto;
+    padding: 2px 9px 3px;
+    border-radius: 999px;
+    border: 1px solid var(--line-strong);
+    letter-spacing: .05em; font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .lm-pill.ok    { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 38%, transparent); background: var(--ok-soft); }
+  .lm-pill.wait  { color: var(--gold); border-color: rgba(212,175,90,0.34); background: rgba(212,175,90,0.09); }
+  .lm-step-body {
+    margin-top: var(--set-3);
+    display: flex; flex-direction: column; gap: var(--set-2);
+  }
+  .lm-step-body p {
+    margin: 0;
+    line-height: 1.62; color: var(--text-dim);
+  }
+  .lm-step-body p b { color: var(--text); font-weight: 600; }
+  .lm-note { color: var(--muted); }
+  .lm-os {
+    line-height: 1.6;
+    color: var(--gold-2);
+  }
+  .lm-cmd, .lm-endpoint {
+    display: flex; align-items: center; gap: var(--set-2);
+    background: rgba(0,0,0,0.30);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: var(--set-1) var(--set-1) var(--set-1) var(--set-3);
+  }
+  .lm-cmd code, .lm-endpoint code {
+    flex: 1; min-width: 0;
+    color: var(--gold-2);
+    overflow-x: auto; white-space: nowrap;
+    scrollbar-width: none;
+  }
+  .lm-cmd code::-webkit-scrollbar, .lm-endpoint code::-webkit-scrollbar { display: none; }
+  .lm-copy, .lm-test {
+    flex: 0 0 auto;
+  }
+  .lm-link {
+    align-self: flex-start;
+    display: inline-flex; align-items: center; gap: var(--set-2);
+    padding: 6px var(--set-3) 7px;
+    color: var(--gold-2);
+    border-color: rgba(34,211,238,0.28);
+    background: rgba(34,211,238,0.07);
+  }
+  .lm-link:hover { background: rgba(34,211,238,0.13); border-color: rgba(34,211,238,0.44); }
+  .lm-link svg { flex: 0 0 12px; opacity: .8; }
+  .lm-table {
+    width: 100%;
+    /* separate, not collapse: a collapsed table drops border-radius on its
+       cells, so the chosen row's rounded ends would not render. */
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .lm-table th {
+    text-align: left; font-weight: 600;
+    padding: 0 var(--set-3) var(--set-2) var(--set-3);
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+  }
+  .lm-table td {
+    padding: var(--set-2) var(--set-3);
+    border-bottom: 1px solid var(--line);
+    color: var(--text-dim);
+    vertical-align: middle;
+  }
+  .lm-table tr:last-child td { border-bottom: none; }
+  .lm-table tr[data-lm-model] { cursor: pointer; }
+  .lm-table tr[data-lm-model]:hover td { color: var(--text); background: rgba(255,255,255,0.04); }
+  /* The chosen row.
+     This used to be a 2px gold rule inset on the first cell plus 8px of extra
+     padding on that cell alone. Two things went wrong: the bar sat hard against
+     the first character and read as a text caret highlighting one letter, and
+     the extra padding shifted the chosen row out of line with every other row.
+     A tint across the whole row cannot be mistaken for a cursor, and it moves
+     nothing. */
+  .lm-table tr.lm-picked td {
+    color: var(--text);
+    background: var(--accent-soft);
+    border-bottom-color: var(--accent-line);
+  }
+  .lm-table tr.lm-picked td:first-child { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+  .lm-table tr.lm-picked td:last-child { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+  .lm-table tr.lm-picked .lm-model-name { color: var(--gold); }
+  .lm-model-name { color: var(--gold-2); }
+  .lm-search { margin-bottom: 2px; }
 
   .terminal-alert-overlay {
     position: fixed;
@@ -404,35 +647,56 @@
   }
   /* About pane — the Hash ecosystem (sibling apps) */
   .about-eco {
-    width: 100%; max-width: 360px; margin-top: 18px;
-    display: flex; flex-direction: column; gap: 8px; text-align: left;
+    width: 100%; max-width: 440px; margin-top: var(--set-4, 16px);
+    display: flex; flex-direction: column; gap: var(--set-2, 8px); text-align: left;
   }
   .about-eco-title {
-    font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
-    color: var(--gold); margin-bottom: 2px; text-align: center;
+    letter-spacing: .14em; text-transform: uppercase; font-weight: 700;
+    color: var(--gold); text-align: center;
   }
+  .about-origin {
+    margin: 0; color: var(--muted); line-height: 1.55;
+  }
+  .about-eco-lede {
+    margin: 0 0 var(--set-1, 4px);
+    color: var(--text-dim); line-height: 1.55; text-align: center;
+  }
+  /* One card per app: the name, whether it plugs into this one, and a single
+     line on what it is for. The old cards led with a feature list, which says
+     what a thing has rather than what it does for you. */
   .about-eco-app {
-    display: flex; flex-direction: column; gap: 2px;
-    padding: 10px 13px; border-radius: var(--radius-md);
-    border: 1px solid rgba(34,211,238,0.16);
-    background: rgba(34,211,238,0.04);
-    cursor: pointer; transition: .15s; text-decoration: none;
+    display: flex; flex-direction: column; gap: var(--set-1, 4px);
+    padding: var(--set-3, 12px);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.022);
+    cursor: pointer; text-decoration: none;
+    transition: border-color .15s, background .15s;
   }
   .about-eco-app:hover {
-    border-color: rgba(34,211,238,0.4);
-    background: rgba(34,211,238,0.09);
-    transform: translateY(-1px);
+    border-color: rgba(34,211,238,0.34);
+    background: rgba(34,211,238,0.06);
   }
   .about-eco-name {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: var(--set-2, 8px); flex-wrap: wrap;
+  }
+  .about-eco-here,
+  .about-eco-link {
+    letter-spacing: .08em; text-transform: uppercase; font-weight: 600;
+    border-radius: 999px; padding: 2px 8px 3px;
   }
   .about-eco-here {
-    font-size: 9px; letter-spacing: .1em; text-transform: uppercase;
-    color: var(--gold-deep); border: 1px solid rgba(34,211,238,0.3);
-    border-radius: var(--radius-md); padding: 1px 7px; font-weight: 700;
+    color: var(--muted); border: 1px solid var(--line-strong);
   }
-  .about-eco-desc { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  /* The two that genuinely exchange data with this app say so. It is the most
+     useful thing on the card and it is the one claim that has to stay true. */
+  .about-eco-link {
+    color: var(--gold-2);
+    border: 1px solid rgba(34,211,238,0.3);
+    background: rgba(34,211,238,0.07);
+  }
+  .about-eco-desc { color: var(--text-dim); line-height: 1.55; }
   .modal-header h2 {
     font-family: var(--serif); font-weight: 500;
     font-size: 22px; margin: 0; letter-spacing: 0.01em;

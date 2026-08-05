@@ -785,143 +785,244 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
-        <div class="modal-tabs">
-          <button class="modal-tab active" id="stab-settings">Settings</button>
-          <button class="modal-tab" id="stab-apis">APIs</button>
-          <button class="modal-tab" id="stab-memory">Memory</button>
-          <button class="modal-tab" id="stab-about">About</button>
-        </div>
-    
+        <div class="settings-shell">
+        <nav class="settings-rail" aria-label="Settings sections">
+          <button class="srail-item active" id="stab-settings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>General</span>
+          </button>
+          <button class="srail-item" id="stab-local">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 8.5 9.5 11 7 13.5"/><path d="M12 13.5h5"/></svg>
+            <span>Local model</span>
+          </button>
+          <button class="srail-item" id="stab-apis">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 7.5 19 4"/><path d="m4 20 4.5-4.5"/><path d="M14 5.5a3.54 3.54 0 0 1 5 5l-2 2-5-5z"/><path d="M10 18.5a3.54 3.54 0 0 1-5-5l2-2 5 5z"/><path d="m9 15 6-6"/></svg>
+            <span>API keys</span>
+          </button>
+          <button class="srail-item" id="stab-memory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6"/><path d="M4.5 12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3"/></svg>
+            <span>Memory</span>
+          </button>
+          <button class="srail-item" id="stab-about">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            <span>About</span>
+          </button>
+        </nav>
+        <div class="settings-panes">
+
         <!-- Settings pane (General) -->
         <div class="modal-body settings-pane" id="settingsPane">
+          <div class="set-sec">Connection</div>
           <div class="field">
-            <label>Ollama endpoints <span style="color:var(--muted);font-weight:400">— your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
-            <div style="display:flex;gap:8px;align-items:stretch">
-              <select class="control" id="hostPreset" style="flex:0 0 170px"></select>
-              <input class="control" id="host" value="http://127.0.0.1:11434" spellcheck="false" placeholder="http://127.0.0.1:11434 or http://&lt;LAN-ip&gt;:11434" style="flex:1" />
+            <label>Ollama endpoints <span class="field-note">— your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
+            <div class="host-row">
+              <select class="control host-preset" id="hostPreset"></select>
+              <input class="control" id="host" value="http://127.0.0.1:11434" spellcheck="false" placeholder="http://127.0.0.1:11434 or http://&lt;LAN-ip&gt;:11434" />
             </div>
-            <div style="display:flex;gap:6px;margin-top:8px;align-items:stretch">
-              <input class="control" id="hostLabel" placeholder="Label (e.g. My Mac, Home PC, Office workstation)" spellcheck="false" style="flex:1;font-size:12px" />
-              <button class="ghost" type="button" id="saveHostBtn" title="Save the current URL as a preset" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 12px">+ Save</button>
-              <button class="ghost" type="button" id="deleteHostBtn" title="Delete the selected custom preset" style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:0 12px;display:none;color:var(--rose);border-color:rgba(217,138,133,0.35)">Delete</button>
+            <div class="host-row">
+              <input class="control" id="hostLabel" placeholder="Label (e.g. My Mac, Home PC, Office workstation)" spellcheck="false" />
+              <button class="ghost set-btn" type="button" id="saveHostBtn" title="Save the current URL as a preset">Save</button>
+              <button class="ghost set-btn set-btn-danger" type="button" id="deleteHostBtn" title="Delete the selected custom preset" hidden>Delete</button>
             </div>
           </div>
     
+          <div class="set-sec">How the model answers</div>
+
           <div class="field">
             <label>System prompt</label>
             <textarea class="control" id="system" rows="3" placeholder="You are a helpful assistant."></textarea>
           </div>
-    
+
           <div class="field">
             <div class="range-row">
-              <label>Temperature</label>
+              <label>Temperature <span class="field-note">— low is exact and repeatable, high is inventive</span></label>
               <span class="val" id="tempVal">0.7</span>
             </div>
             <input type="range" id="temp" min="0" max="2" step="0.1" value="0.7" />
           </div>
-    
-          <div class="divider"></div>
-    
-          <div class="field">
-            <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
-              <input type="checkbox" id="privacyLocal" style="width:16px;height:16px;accent-color:#80c8a0;cursor:pointer" />
-              <span><b>Privacy: Local only</b> <span style="color:var(--muted);font-weight:400">— prompts confirmation before sending any chat to a cloud model</span></span>
-            </label>
-          </div>
 
-          <div class="divider"></div>
           <div class="field">
             <div class="range-row">
-              <label>Memory depth <span style="color:var(--muted);font-weight:400">— turns of conversation sent to the model</span></label>
+              <label>Memory depth <span class="field-note">— turns of conversation sent to the model</span></label>
               <span class="val" id="historyVal">20</span>
             </div>
             <input type="range" id="historyDepth" min="0" max="40" step="2" value="20" />
-            <div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin-top:6px">
-              <span title="No memory — model sees only the current message" style="display:inline-flex;align-items:center;opacity:0.7">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/></svg>
-              </span>
-              <span title="Full memory — last 40 turns sent to the model" style="display:inline-flex;align-items:center;opacity:0.85;color:var(--gold)">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="4" rx="5" ry="2"/><path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4"/><path d="M3 7c0 1.1 2.2 2 5 2s5-.9 5-2"/><path d="M3 10c0 1.1 2.2 2 5 2s5-.9 5-2"/></svg>
-              </span>
+            <div class="range-ends">
+              <span class="range-end">Nothing remembered</span>
+              <span class="range-end range-end-max">Last 40 turns</span>
             </div>
           </div>
-    
+
+          <div class="set-sec">Privacy</div>
+
+          <div class="field">
+            <label class="check-row">
+              <input type="checkbox" id="privacyLocal" class="check-box" />
+              <span><b>Local only</b> <span class="field-note">— ask me first before any chat is sent to a cloud model</span></span>
+            </label>
+          </div>
+
         </div><!-- end #settingsPane -->
+
+        <!-- Local model pane — the end-to-end walkthrough -->
+        <div class="modal-body settings-pane" id="localPane" style="display:none" hidden>
+          <div class="lm-intro">
+            <div class="lm-intro-text">
+              <b>Run a model on this computer.</b> It costs nothing, needs no key, and not one
+              word leaves the machine. Four steps — this page checks each one for you.
+            </div>
+            <button class="ghost lm-recheck" type="button" id="lmRecheck">Check again</button>
+          </div>
+
+          <ol class="lm-steps">
+            <li class="lm-step">
+              <div class="lm-step-head">
+                <span class="lm-step-num">1</span>
+                <span class="lm-step-title">Get Ollama</span>
+                <span class="lm-pill" id="lmPill1">Checking…</span>
+              </div>
+              <div class="lm-step-body">
+                <p>Ollama is the free program that actually runs the model. HashCortX only talks
+                  to it over your own network loopback — it never installs it, never changes your
+                  system files, and never asks for your password.</p>
+                <div class="lm-os" id="lmOsHint">Reading your system…</div>
+                <div class="lm-cmd" id="lmInstallCmdRow" hidden>
+                  <code id="lmInstallCmd"></code>
+                  <button class="lm-copy" type="button" data-lm-copy="lmInstallCmd">Copy</button>
+                </div>
+                <button class="lm-link" type="button" data-lm-url="https://ollama.com/download">
+                  Open ollama.com/download
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </button>
+              </div>
+            </li>
+
+            <li class="lm-step">
+              <div class="lm-step-head">
+                <span class="lm-step-num">2</span>
+                <span class="lm-step-title">Download a model</span>
+                <span class="lm-pill" id="lmPill2">Checking…</span>
+              </div>
+              <div class="lm-step-body">
+                <p>Pick the row that matches the memory in your machine, then run the command.
+                  It downloads once and works offline forever after.</p>
+                <table class="lm-table">
+                  <thead>
+                    <tr><th>Your memory</th><th>Model</th><th>Download</th><th>Licence</th></tr>
+                  </thead>
+                  <tbody id="lmModelRows"></tbody>
+                </table>
+                <div class="lm-cmd">
+                  <code id="lmPullCmd">ollama pull qwen2.5-coder:7b</code>
+                  <button class="lm-copy" type="button" data-lm-copy="lmPullCmd">Copy</button>
+                </div>
+                <p class="lm-note" id="lmInstalled">No models found yet.</p>
+              </div>
+            </li>
+
+            <li class="lm-step">
+              <div class="lm-step-head">
+                <span class="lm-step-num">3</span>
+                <span class="lm-step-title">Point HashCortX at it</span>
+                <span class="lm-pill" id="lmPill3">Checking…</span>
+              </div>
+              <div class="lm-step-body">
+                <p>Nothing to do for most people — the address below is where Ollama listens by
+                  default. Change it only if the model runs on another machine on your network.</p>
+                <div class="lm-endpoint">
+                  <code id="lmHostEcho">http://127.0.0.1:11434</code>
+                  <button class="ghost lm-test" type="button" id="lmTestBtn">Test</button>
+                </div>
+                <p class="lm-note">Full endpoint settings live in <b>General</b>.</p>
+              </div>
+            </li>
+
+            <li class="lm-step">
+              <div class="lm-step-head">
+                <span class="lm-step-num">4</span>
+                <span class="lm-step-title">Use it</span>
+                <span class="lm-pill" id="lmPill4">Checking…</span>
+              </div>
+              <div class="lm-step-body">
+                <p>Close this window and choose your model in the picker at the top of the
+                  screen. Local models sit above the cloud ones in the list.</p>
+                <p>They work in <b>Chat</b>, <b>Coder</b>, <b>Swarm</b>, <b>Forge</b> and the
+                  knowledge base. With one downloaded, the whole app runs with the network off —
+                  the only exception is the Python sandbox, which fetches its runtime the first
+                  time you use it.</p>
+                <p class="lm-note">A smaller model that fits in memory beats a larger one that
+                  does not. If replies crawl, drop a size.</p>
+              </div>
+            </li>
+          </ol>
+        </div><!-- end #localPane -->
 
         <!-- APIs pane -->
         <div class="modal-body settings-pane" id="apisPane" style="display:none" hidden>
+          <input class="control lm-search" id="apiSearch" placeholder="Find a provider…" spellcheck="false" autocomplete="off" />
+          <div class="set-sec" data-api-group>Model providers</div>
           <div class="field">
-            <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);font-weight:600;display:flex;align-items:center;gap:7px">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="12" height="9" rx="2"/><path d="M8 2v3"/><circle cx="8" cy="10" r="1.5"/></svg>
-              LLM Providers
-            </label>
-          </div>
-          <div class="field">
-            <label for="groqKey">Groq API key <span style="color:var(--muted);font-weight:400">— free at <b>console.groq.com</b></span></label>
+            <label for="groqKey">Groq API key <span class="field-note">— free at <b>console.groq.com</b></span></label>
             <input class="control" id="groqKey" type="password" placeholder="gsk_…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="geminiKey">Google AI Studio key <span style="color:var(--muted);font-weight:400">— free at <b>aistudio.google.com</b></span></label>
+            <label for="geminiKey">Google AI Studio key <span class="field-note">— free at <b>aistudio.google.com</b></span></label>
             <input class="control" id="geminiKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="openaiKey">OpenAI API key <span style="color:var(--muted);font-weight:400">— <b>platform.openai.com</b> · GPT-4o, o3-mini</span></label>
+            <label for="openaiKey">OpenAI API key <span class="field-note">— <b>platform.openai.com</b> · GPT-4o, o3-mini</span></label>
             <input class="control" id="openaiKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="anthropicKey">Anthropic API key <span style="color:var(--muted);font-weight:400">— <b>console.anthropic.com</b> · Claude Sonnet, Claude Opus</span></label>
+            <label for="anthropicKey">Anthropic API key <span class="field-note">— <b>console.anthropic.com</b> · Claude Sonnet, Claude Opus</span></label>
             <input class="control" id="anthropicKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="moonshotKey">Moonshot (Kimi) API key <span style="color:var(--muted);font-weight:400">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context</span></label>
+            <label for="moonshotKey">Moonshot (Kimi) API key <span class="field-note">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context</span></label>
             <input class="control" id="moonshotKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="deepseekKey">DeepSeek API key <span style="color:var(--muted);font-weight:400">— <b>platform.deepseek.com</b> · V3, R1</span></label>
+            <label for="deepseekKey">DeepSeek API key <span class="field-note">— <b>platform.deepseek.com</b> · V3, R1</span></label>
             <input class="control" id="deepseekKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="mistralKey">Mistral AI API key <span style="color:var(--muted);font-weight:400">— <b>console.mistral.ai</b> · Large, Codestral</span></label>
+            <label for="mistralKey">Mistral AI API key <span class="field-note">— <b>console.mistral.ai</b> · Large, Codestral</span></label>
             <input class="control" id="mistralKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="cerebrasKey">Cerebras API key <span style="color:var(--muted);font-weight:400">— free at <b>cloud.cerebras.ai</b></span></label>
+            <label for="cerebrasKey">Cerebras API key <span class="field-note">— free at <b>cloud.cerebras.ai</b></span></label>
             <input class="control" id="cerebrasKey" type="password" placeholder="csk-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="sambaKey">SambaNova API key <span style="color:var(--muted);font-weight:400">— free at <b>cloud.sambanova.ai</b></span></label>
+            <label for="sambaKey">SambaNova API key <span class="field-note">— free at <b>cloud.sambanova.ai</b></span></label>
             <input class="control" id="sambaKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label for="openRouterKey">OpenRouter key <span style="color:var(--muted);font-weight:400">— free models at <b>openrouter.ai</b></span></label>
+            <label for="openRouterKey">OpenRouter key <span class="field-note">— free models at <b>openrouter.ai</b></span></label>
             <input class="control" id="openRouterKey" type="password" placeholder="sk-or-v1-…" spellcheck="false" autocomplete="off" />
           </div>
-    
-          <div class="divider"></div>
-    
           <div class="field">
-            <label style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan);font-weight:600;display:flex;align-items:center;gap:7px">
-              <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="m14 14-3.2-3.2"/></svg>
-              Search & Tools
-            </label>
+            <label for="nvidiaKey">NVIDIA NIM key <span class="field-note">— free big models at <b>build.nvidia.com</b></span></label>
+            <input class="control" id="nvidiaKey" type="password" placeholder="nvapi-…" spellcheck="false" autocomplete="off" />
           </div>
+
+          <div class="set-sec" data-api-group>Web search</div>
+
           <div class="field">
-            <label>Google Search API key (optional)</label>
-            <input class="control" id="googleKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label>Google Custom Search engine ID (cx)</label>
-            <input class="control" id="googleCx" placeholder="0123abc:xyz…" spellcheck="false" autocomplete="off" />
-          </div>
-          <div class="field">
-            <label>Tavily API key <span style="color:var(--muted);font-weight:400">— better web search built for LLMs (free 1000/mo at tavily.com)</span></label>
+            <label for="tavilyKey">Tavily key <span class="field-note">— search built for models, free 1000/mo at <b>tavily.com</b></span></label>
             <input class="control" id="tavilyKey" type="password" placeholder="tvly-…" spellcheck="false" autocomplete="off" />
           </div>
           <div class="field">
-            <label>NVIDIA NIM API key <span style="color:var(--muted);font-weight:400">— free big models at build.nvidia.com</span></label>
-            <input class="control" id="nvidiaKey" type="password" placeholder="nvapi-…" spellcheck="false" autocomplete="off" />
+            <label for="googleKey">Google Search key <span class="field-note">— optional</span></label>
+            <input class="control" id="googleKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
           </div>
-    
+          <div class="field">
+            <label for="googleCx">Google search engine ID <span class="field-note">— the <b>cx</b> value that goes with the key above</span></label>
+            <input class="control" id="googleCx" placeholder="0123abc:xyz…" spellcheck="false" autocomplete="off" />
+          </div>
+
+          <p class="lm-note" id="apiNoMatch" hidden>Nothing matches that.</p>
+
         </div><!-- end #apisPane -->
     
         <!-- About pane (hidden by default) -->
@@ -935,28 +1036,41 @@
           </div>
           <div class="about-badge">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l3 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" fill="none"/></svg>
-            HashCortx · v2.0 · May 2026
+            Building since 1 May 2026
           </div>
-          <div style="margin-top:10px">
-            <button class="hc-audit-btn" id="hcAuditBtn" title="View the HashCortX Coder permission audit log">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
-              View Audit Log
-            </button>
-          </div>
+          <p class="about-origin">It began as one web page. Same idea, grown into an app.</p>
+          <button class="hc-audit-btn" id="hcAuditBtn" title="View the HashCortX Coder permission audit log">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>
+            View audit log
+          </button>
 
           <div class="about-eco">
-            <div class="about-eco-title">The Hash ecosystem</div>
+            <div class="about-eco-title">The Hash apps</div>
+            <p class="about-eco-lede">Four tools that run on your own machine and keep your work there. Two of them
+              already talk to this one.</p>
+
             <a class="about-eco-app" data-eco-url="https://github.com/Hash-7777/HashCortX">
-              <span class="about-eco-name">HashCortX <span class="about-eco-here">this app</span></span>
-              <span class="about-eco-desc">Local-first AI workspace — 11 modes, 10 providers, zero telemetry.</span>
+              <span class="about-eco-name">HashCortX <span class="about-eco-here">you are here</span></span>
+              <span class="about-eco-desc">Eleven ways to work with AI in one window — chat, a coding agent, a swarm,
+                3D, spreadsheets — across eleven cloud providers and any model on your own machine.</span>
             </a>
+
             <a class="about-eco-app" data-eco-url="https://github.com/Hash-7777/HashCerebrum">
               <span class="about-eco-name">HashCerebrum</span>
-              <span class="about-eco-desc">Local-first medical-research workbench with a 3D brain interface.</span>
+              <span class="about-eco-desc">Medical research you can check. It reads real papers, grades every claim
+                against the source it cites, and writes up what it actually found.</span>
             </a>
+
+            <a class="about-eco-app" data-eco-url="https://github.com/Hash-7777/Hash-D-Island">
+              <span class="about-eco-name">Hash D Island <span class="about-eco-link">works with this app</span></span>
+              <span class="about-eco-desc">Turns the notch on your Mac into a live status bar. HashCortX lights it up
+                the moment a long run finishes, so you can look away and still know.</span>
+            </a>
+
             <a class="about-eco-app" data-eco-url="https://github.com/Hash-7777/HashMeterAi">
-              <span class="about-eco-name">HashMeterAi</span>
-              <span class="about-eco-desc">See how much AI you really use — the honest local usage meter. Reads HashCortX's usage log.</span>
+              <span class="about-eco-name">HashMeterAi <span class="about-eco-link">works with this app</span></span>
+              <span class="about-eco-desc">What your AI habit really costs. It counts the tokens every tool on your
+                machine spends — including this one, straight from its own usage log.</span>
             </a>
           </div>
         </div>
@@ -964,29 +1078,28 @@
         <!-- Memory pane (hidden by default) -->
         <div id="memoryPane" style="display:none" class="modal-body settings-pane" hidden>
           <div class="field">
-            <label style="display:flex;align-items:center;gap:8px">
+            <label class="mem-head">
               <span>Long-term memory</span>
-              <span id="memCountBadge" style="color:var(--muted);font-weight:400">0 facts</span>
+              <span id="memCountBadge" class="field-note">0 facts</span>
             </label>
-            <div style="font-size:11.5px;color:var(--text-dim);margin:-4px 0 8px;line-height:1.5">
-              Stored only in your browser. Used silently as background context for every chat — local and cloud models alike. Edit, export, or wipe at any time.
+            <div class="mem-blurb">
+              Stored only on this computer. Used quietly as background context for every chat — local and cloud models alike. Edit, export, or wipe at any time.
             </div>
-            <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-              <input class="control" id="memSearchInput" placeholder="Search facts…" spellcheck="false" style="flex:1;min-width:140px" />
-              <button class="ghost" type="button" id="memMapBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px;display:inline-flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 13px;display:block"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/><line x1="6.4" y1="6.4" x2="10.3" y2="10.3"/><line x1="17.6" y1="6.4" x2="13.7" y2="10.3"/><line x1="6.4" y1="17.6" x2="10.3" y2="13.7"/><line x1="17.6" y1="17.6" x2="13.7" y2="13.7"/></svg>Map</button>
-              <button class="ghost" type="button" id="memAddBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">+ Add</button>
-              <button class="ghost" type="button" id="memExportBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">Export</button>
-              <button class="ghost" type="button" id="memImportBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px">Import</button>
-              <button class="ghost" type="button" id="memClearBtn" style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:0 12px;color:var(--rose);border-color:rgba(217,138,133,0.35)">Clear all</button>
-              <input type="file" id="memImportFile" accept="application/json,.json" style="display:none" />
+            <div class="mem-tools">
+              <input class="control" id="memSearchInput" placeholder="Search facts…" spellcheck="false" />
+              <button class="ghost mem-tool" type="button" id="memMapBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/><line x1="6.4" y1="6.4" x2="10.3" y2="10.3"/><line x1="17.6" y1="6.4" x2="13.7" y2="10.3"/><line x1="6.4" y1="17.6" x2="10.3" y2="13.7"/><line x1="17.6" y1="17.6" x2="13.7" y2="13.7"/></svg>Map</button>
+              <button class="ghost mem-tool" type="button" id="memAddBtn">+ Add</button>
+              <button class="ghost mem-tool" type="button" id="memExportBtn">Export</button>
+              <button class="ghost mem-tool" type="button" id="memImportBtn">Import</button>
+              <button class="ghost mem-tool mem-tool-danger" type="button" id="memClearBtn">Clear all</button>
+              <input type="file" id="memImportFile" accept="application/json,.json" hidden />
             </div>
             <div id="memList" class="mem-list"></div>
           </div>
         </div>
-    
-        <div class="modal-footer">
-          <button class="ghost" id="closeSettingsFooter">Close</button>
-        </div>
+
+        </div><!-- end .settings-panes -->
+        </div><!-- end .settings-shell -->
       </div>
     </div>
     

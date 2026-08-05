@@ -130,7 +130,7 @@ The build is unsigned and not notarised, so on first launch right-click the app 
 xattr -dr com.apple.quarantine /Applications/HashCortx.app
 ```
 
-Then open **Settings → Providers**, add a key, press **Test**. Or skip keys entirely and point it at Ollama.
+Then open **Settings → API keys**, add a key, press **Test**. Or skip keys entirely and run a model on your own machine — **Settings → Local model** walks you through it and checks each step for you.
 
 ### Build from source
 
