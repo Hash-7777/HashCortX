@@ -425,30 +425,7 @@
 @keyframes sbx-card-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: none; }
-}
-
-.sbx-report-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(0,255,65,0.10);
-  background: rgba(0,255,65,0.04);
-}
-
-.sbx-report-meta {
-  display: flex; align-items: center; gap: 10px;
-}
-
-.sbx-report-num {
-  font-size: 9px; font-weight: 700; letter-spacing: 0.18em;
-  color: rgba(0,255,65,0.45);
-}
-
-.sbx-report-time {
-  font-size: 9px; letter-spacing: 0.08em;
-  color: rgba(0,255,65,0.28);
-}
-
-.sbx-risk-badge {
+}.sbx-risk-badge {
   font-size: 9px; font-weight: 800; letter-spacing: 0.16em;
   padding: 2px 8px; border-radius: var(--radius-xs);
 }

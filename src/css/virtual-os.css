@@ -57,11 +57,8 @@ body.virtual-os-mode #app { display: none; }
 
 .void-header-left,
 .void-header-right,
-.void-action-row,
-.void-panel-head,
 .void-menu-bar,
 .void-dock,
-.void-detail-actions,
 .void-editor-actions {
   display: flex;
   align-items: center;
@@ -640,21 +637,7 @@ body.virtual-os-mode #app { display: none; }
   border-radius: 0;
   background: transparent;
   border: none;
-}
-
-/* User input line — prefixed with ❯ */
-.void-chat-user {
-  color: var(--tp-accent);
-  padding-top: 10px;
-  padding-bottom: 2px;
-}
-.void-chat-user::before {
-  content: "❯  ";
-  color: var(--tp-accent);
-  font-weight: 700;
-}
-
-/* Agent output — like stdout */
+}/* Agent output — like stdout */
 .void-chat-assistant {
   color: var(--tp-fg);
   padding-left: 28px;
@@ -682,17 +665,7 @@ body.virtual-os-mode #app { display: none; }
   border-radius: 0;
   padding: 4px 14px 4px 14px;
   margin: 3px 0;
-}
-.void-chat-tool-pre {
-  margin: 3px 0 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-size: 10px;
-  color: rgba(34, 211, 238, 0.55);
-  max-height: 200px;
-  overflow-y: auto;
-}
-.void-chat-tool-badge {
+}.void-chat-tool-badge {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--tp-cyan);
@@ -857,21 +830,6 @@ body.virtual-os-mode #app { display: none; }
   color: var(--tp-accent);
   background: rgba(57, 255, 129, 0.07);
 }
-
-/* ── keep panel-head for legacy compat ─────── */
-.void-panel-head {
-  flex: 0 0 auto;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 11px 13px;
-  border-bottom: 1px solid var(--void-line);
-  color: var(--void-2);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
 .void-status {
   color: rgba(202, 232, 221, 0.58);
   font-family: var(--mono);
@@ -880,84 +838,7 @@ body.virtual-os-mode #app { display: none; }
 }
 .void-status.running { color: var(--void); }
 .void-status.done { color: var(--void-2); }
-.void-status.error { color: var(--void-danger); }
-
-.void-prompt {
-  margin: 12px;
-  height: 126px;
-  min-height: 64px;
-  max-height: 270px;
-  resize: vertical;
-  /* visible border + lighter tinted background so it's never invisible */
-  border: 1px solid rgba(34, 211, 238, 0.42);
-  border-radius: var(--radius-md);
-  background: rgba(34, 211, 238, 0.04);
-  color: #effffb;
-  outline: none;
-  padding: 12px;
-  font: 12.5px/1.55 var(--sans);
-}
-
-.void-prompt:focus {
-  border-color: rgba(34, 211, 238, 0.72);
-  background: rgba(34, 211, 238, 0.07);
-  box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.10);
-}
-
-.void-action-row {
-  gap: 8px;
-  padding: 0 12px 10px;
-}
-.void-action-row .void-select { flex: 1; min-width: 0; }
-
-.void-primary-actions .void-btn {
-  flex: 1 1 0;
-  justify-content: center;
-}
-
-.void-agent-router {
-  margin: 0 12px 10px;
-  padding: 9px;
-  border: 1px solid var(--void-line);
-  border-radius: var(--radius-md);
-  background: rgba(0, 0, 0, 0.18);
-  display: grid;
-  gap: 8px;
-}
-
-.void-agent-row {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.void-agent-row > * {
-  min-width: 0;
-}
-
-.void-agent-row .void-select {
-  min-width: 0;
-  max-width: 100%;
-  justify-self: stretch;
-}
-
-.void-agent-row label {
-  color: var(--void-2);
-  font-family: var(--mono);
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.void-agent-router .void-btn {
-  width: 100%;
-  justify-content: center;
-}
-
-/* ── Execution Trace Console (matches Forge/Agent Swarm style) ─────────── */
+.void-status.error { color: var(--void-danger); }/* ── Execution Trace Console (matches Forge/Agent Swarm style) ─────────── */
 
 .void-trace-console {
   /* bottom bar — sits as last child of #virtual-os-wrap (flex column) */
@@ -1099,16 +980,7 @@ body.virtual-os-mode #app { display: none; }
   flex-shrink: 0;
 }
 .void-trace-entry .te-msg  { flex: 1; overflow-wrap: anywhere; opacity: 0.72; }
-.void-trace-entry .te-time { flex-shrink: 0; font-size: 9.5px; opacity: 0.32; white-space: nowrap; }
-
-/* kind colours — icon + text share the colour */
-.void-te-ok    .te-icon, .void-te-ok    .te-msg { color: var(--void-2);      }
-.void-te-run   .te-icon, .void-te-run   .te-msg { color: var(--void);        }
-.void-te-warn  .te-icon, .void-te-warn  .te-msg { color: #fbbf24;            }
-.void-te-error .te-icon, .void-te-error .te-msg { color: var(--void-danger); }
-.void-te-info  .te-icon, .void-te-info  .te-msg { color: rgba(202,232,221,.45); }
-
-.void-desktop-shell {
+.void-trace-entry .te-time { flex-shrink: 0; font-size: 9.5px; opacity: 0.32; white-space: nowrap; }.void-desktop-shell {
   min-width: 0;
   min-height: 0;
   display: flex;
@@ -1765,40 +1637,12 @@ body.virtual-os-mode #app { display: none; }
   .void-header { gap: 6px; padding: 7px 10px; }
   .void-header-left { gap: 7px; }
   .void-logo { height: 26px; }
-  .void-title { font-size: 11px; }
-
-  .void-prompt { margin: 8px; height: 100px; padding: 10px; }
-
-  /* agent row: stack label above select at very small widths */
-  .void-agent-row {
-    grid-template-columns: 1fr;
-    gap: 4px;
-  }
-  .void-agent-router { margin: 0 8px 8px; padding: 8px; }
-
-  /* buttons: stack vertically */
-  .void-action-row.void-primary-actions {
-    flex-direction: column;
-    padding: 0 8px 8px;
-    gap: 6px;
-  }
-  .void-action-row.void-primary-actions .void-btn {
-    width: 100%;
-    justify-content: center;
-  }
-
-  /* select: remove max-width cap */
-  .void-select { max-width: 100%; width: 100%; min-width: 0; }
-  .void-action-row .void-select { max-width: 100%; }
-
-  .void-panel-head { padding: 8px 10px; font-size: 10px; }
-  .void-trace-header { padding: 0 10px; }
+  .void-title { font-size: 11px; }  /* select: remove max-width cap */
+  .void-select { max-width: 100%; width: 100%; min-width: 0; }  .void-trace-header { padding: 0 10px; }
   .void-trace-entries { padding: 5px 10px 8px; }
 }
 
-@media (max-width: 380px) {
-  .void-prompt { height: 88px; }
-  .void-btn { font-size: 9.5px; padding: 5px 10px; }
+@media (max-width: 380px) {  .void-btn { font-size: 9.5px; padding: 5px 10px; }
 }
 
 /* ==========================================================================
@@ -1919,15 +1763,3 @@ body.virtual-os-mode #app { display: none; }
   min-width: 0;
 }
 .void-term-input::placeholder { color: rgba(255,255,255,0.18); }
-
-/* ==========================================================================
-   AGENT OS BUTTON STATE
-   ========================================================================== */
-
-.void-agent-os-btn.void-agent-os-active,
-#voidAgentOSBtn.void-agent-os-active {
-  background: rgba(134, 239, 172, 0.14);
-  border-color: var(--void-2, #86efac);
-  color: var(--void-2, #86efac);
-  box-shadow: 0 0 12px rgba(134, 239, 172, 0.18);
-}
