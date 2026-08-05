@@ -80,9 +80,6 @@
   const statusDot = $("statusDot");
   const statusText = $("statusText");
   const activeTitle = $("activeTitle");
-  const activeSub = $("activeSub");
-  const cloudBadgeEl    = $("cloudBadge");
-  const ragBlockedBadgeEl = $("ragBlockedBadge");
   // Helper: update model subtitle + cloud/RAG badges together
   // Provider SVG icons — 14×14, minimal, no fills unless noted.
   const PROVIDER_ICONS = {
@@ -93,25 +90,6 @@
     samba:       `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><path d="M1.5 10Q4 3.5 7 7Q10 10.5 12.5 4" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/><path d="M1.5 6.5Q4 0 7 3.5Q10 7 12.5 0.5" stroke="#EF4444" stroke-width="1" stroke-linecap="round" opacity="0.45"/></svg>`,
   };
 
-  function setActiveSub(val) {
-    const label = cloudModelLabel(val) || "—";
-    const isCloud = !!(val && val.startsWith("cloud:"));
-    if (isCloud) {
-      const { provider } = parseCloudModel(val);
-      const icon = PROVIDER_ICONS[provider] || "";
-      // Strip " · ProviderName" suffix — the chip conveys that
-      const shortName = label.replace(/\s*·\s*[^·]+$/, "") || label;
-      activeSub.innerHTML = icon
-        ? `<span class="provider-icon-chip provider-chip-${provider}">${icon}</span>${escapeHtml(shortName)}`
-        : escapeHtml(label);
-    } else {
-      activeSub.textContent = label;
-    }
-    if (cloudBadgeEl)      cloudBadgeEl.style.display      = isCloud ? "inline-flex" : "none";
-    // RAG OFF badge: shown whenever a cloud/external model is active —
-    // reminds the user that their personal knowledge base is protected.
-    if (ragBlockedBadgeEl) ragBlockedBadgeEl.style.display = isCloud ? "inline-flex" : "none";
-  }
   const errorSlot = $("errorSlot");
   const chatsListEl  = $("chatsList");
   // The agent list renders into the composer picker now, not the sidebar.
@@ -135,7 +113,6 @@
   const deepseekKeyEl   = $("deepseekKey");
   const mistralKeyEl    = $("mistralKey");
   const privacyLocalEl     = $("privacyLocal");
-  const privacyLocalSideEl = $("privacyLocalSide");
   const sideModelWrap = $("sideModelWrap");
   const trackedLocalModels = new Set();
   // RAG enabled state — boolean, synced to localStorage. DOM elements rendered per-tab.
@@ -189,8 +166,6 @@
   const googleCxEl = $("googleCx");
   const activeAgentChip = $("activeAgentChip");
   const listLabel = $("listLabel");
-  const projectSelect = $("projectSelect");
-  const projectNewBtn = $("projectNewBtn");
   const tpsBtn = $("tpsBtn");
   const tpsVal = $("tpsVal");
   const exportBtn = $("exportBtn");
@@ -709,13 +684,51 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return chatProjectId(chat) === state.currentProjectId;
   }
 
-  function renderProjectSelect() {
-    if (!projectSelect) return;
-    projectSelect.innerHTML = state.projects.map(p =>
-      `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`
-    ).join("");
-    projectSelect.value = state.currentProjectId;
-    projectSelect.title = `Project: ${currentProject().name}`;
+  // The project control: a name you can read, and a menu holding everything
+  // you can do about it. Rebuilt rather than restyled — a native select could
+  // not show which project is current in the button and still offer rename,
+  // delete and new without three more buttons parked beside it.
+  function renderProjectPicker() {
+    const nameEl = $("projName");
+    const list = $("projList");
+    if (!nameEl || !list) return;
+    const current = currentProject();
+    nameEl.textContent = current.name;
+    list.textContent = "";
+    for (const proj of state.projects) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "proj-row" + (proj.id === state.currentProjectId ? " on" : "");
+      row.dataset.projId = proj.id;
+      row.setAttribute("role", "menuitemradio");
+      row.setAttribute("aria-checked", proj.id === state.currentProjectId ? "true" : "false");
+      const label = document.createElement("span");
+      label.textContent = proj.name;
+      row.appendChild(label);
+      if (proj.id === state.currentProjectId) {
+        row.insertAdjacentHTML("beforeend",
+          `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`);
+      }
+      list.appendChild(row);
+    }
+  }
+
+  function setProjMenuOpen(open) {
+    const menu = $("projMenu"), btn = $("projBtn");
+    if (!menu || !btn) return;
+    menu.hidden = !open;
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    btn.classList.toggle("on", open);
+    if (!open) return;
+    renderProjectPicker();
+    // Anchored in viewport coordinates, not to the button.
+    // <main> clips its overflow, so an absolutely positioned menu inside the
+    // header was cut off at the header's own bottom edge — it opened, it just
+    // could not be seen. Fixed positioning escapes every clipping ancestor.
+    const r = btn.getBoundingClientRect();
+    const width = menu.offsetWidth || 208;
+    menu.style.top = `${Math.round(r.bottom + 6)}px`;
+    menu.style.left = `${Math.round(Math.min(r.left, window.innerWidth - width - 12))}px`;
   }
 
   function switchProject(id) {
@@ -732,9 +745,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     input.style.height = "auto";
     renderPending();
     setActiveTitle("New Conversation");
-    setActiveSub(modelEl.value);
     saveSettings();
-    renderProjectSelect();
+    renderProjectPicker();
     renderChatList();
     render();
   }
@@ -751,7 +763,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     };
     state.projects.unshift(record);
     saveProjects();
-    renderProjectSelect();
+    renderProjectPicker();
     switchProject(record.id);
   }
 
@@ -762,7 +774,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     proj.name = name.trim().slice(0, 80);
     proj.updatedAt = Date.now();
     saveProjects();
-    renderProjectSelect();
+    renderProjectPicker();
   }
 
   async function deleteProject() {
@@ -778,7 +790,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.projects = state.projects.filter(p => p.id !== proj.id);
     saveProjects();
     state.currentProjectId = DEFAULT_PROJECT_ID;
-    renderProjectSelect();
+    renderProjectPicker();
     switchProject(DEFAULT_PROJECT_ID);
   }
 
@@ -903,7 +915,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (SAVED.mistralKey) mistralKeyEl.value = SAVED.mistralKey;
   }
   privacyLocalEl.checked     = SAVED.privacyLocal === true;
-  privacyLocalSideEl.checked = SAVED.privacyLocal === true;
   ragEnabled = SAVED.ragEnabled === true; // default OFF; user can toggle in Agents tab
   state.activeAgentId = SAVED.activeAgentId || null;
   // Clear removed built-in agent IDs so old localStorage doesn't ghost-activate them
@@ -1050,7 +1061,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const list = bucket === "code" ? state.codeChats : bucket === "forge" ? state.forgeChats : state.chats;
     const chat = list.find(c => c.id === state.currentChatId);
     setActiveTitle(chat ? chat.title : "New Conversation");
-    setActiveSub((chat && chat.model) || modelEl.value);
   }
 
   function deriveTitle(messages) {
@@ -1118,7 +1128,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     input.value = ""; input.style.height = "auto";
     renderPending();
     setActiveTitle("New Conversation");
-    setActiveSub(modelEl.value);
     render();
     renderChatList();
     if (isNarrow()) app.classList.remove("open");
@@ -1141,7 +1150,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     input.value = ""; input.style.height = "auto";
     renderPending();
     setActiveTitle(chat.title || "Conversation");
-    setActiveSub(chat.model || modelEl.value);
     // Restore the agent this chat was using (if any)
     if (chat.agentId !== undefined) {
       state.activeAgentId = chat.agentId;
@@ -1474,7 +1482,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   //            prompt chips. Still a normal chat, just a different skin +
   //            chip preset. Tabs don't blow away chat history.
   const BUILTIN_BODY_MODE_CLASSES = ["agent-maker-mode","system-maker-mode","forge-studio-mode","virtual-os-mode","coder-mode","finance-mode"];
-  const BUILTIN_APP_MODE_CLASSES  = ["canvas-mode","code-mode","forge-mode","split-mode","sandbox-mode","system-maker-mode","agent-maker-mode"];
+  const BUILTIN_APP_MODE_CLASSES  = ["canvas-mode","code-mode","forge-mode","sandbox-mode","system-maker-mode","agent-maker-mode"];
   let activeFullscreenMode = null;
   let modeTransitionToken = 0;
 
@@ -1534,7 +1542,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   function resetSharedModeUi(tab) {
-    const chatTabs = new Set(["chats", "code", "forge", "split"]);
+    const chatTabs = new Set(["chats", "code", "forge"]);
     const showChatSidebar = chatTabs.has(tab);
     setActiveTabButton(tab);
     chatsListEl.style.display = showChatSidebar ? "" : "none";
@@ -1542,9 +1550,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     memoryRowEl.style.display = showChatSidebar ? "" : "none";
     if (listLabel) {
       listLabel.style.display = "";
-      listLabel.textContent = tab === "code" ? "Coding" : (tab === "forge" ? "3D Forge" : (tab === "split" ? "Split" : "Recent"));
+      listLabel.textContent = tab === "code" ? "Coding" : (tab === "forge" ? "3D Forge" : "Recent");
     }
-    setCompareMode(tab === "split");
     renderComposerChips(tab === "code" ? "code" : tab === "forge" ? "forge" : "default");
     renderCodeBadge(tab === "code");
     renderForgeBadge(tab === "forge");
@@ -1585,7 +1592,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const app = document.getElementById("app");
     app.classList.toggle("code-mode", tab === "code");
     app.classList.toggle("forge-mode", tab === "forge");
-    app.classList.toggle("split-mode", tab === "split");
     resetSharedModeUi(tab);
     renderChatList();
   }
@@ -1605,7 +1611,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     searchWrap.style.display  = "none";
     memoryRowEl.style.display = "none";
     if (listLabel) { listLabel.style.display = ""; listLabel.textContent = mode.label || tab; }
-    setCompareMode(false);
     renderComposerChips("default");
     renderCodeBadge(false);
     renderForgeBadge(false);
@@ -1631,10 +1636,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Composer chip presets. Default = general-purpose, code = Claude-Code style.
   const COMPOSER_CHIPS = {
     default: [
-      { preset: "hashAi",    label: `<svg viewBox="0 0 16 16" width="11" height="11" fill="currentColor" aria-hidden="true" style="vertical-align:-1px"><path d="M8 1.5l1.6 4.9L15 8l-5.4 1.6L8 14.5l-1.6-4.9L1 8l5.4-1.6z"/></svg> HashCortx`, title: "Prime HashCortx system rules" },
-      { preset: "fullstack", label: "Full Stack",         title: "Pro 2026 full-stack website brief" },
-      { preset: "mobile",    label: "Mobile App",         title: "Pro 2026 mobile app brief" },
-      { preset: "freeRam",   label: `<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM`, accent: true, title: "Unload every model on the local host to free RAM and enable speed mode" },
+      { preset: "explainAny",    label: "Explain this",   title: "Paste anything — code, an error, a contract, a log — and get it in plain language" },
+      { preset: "grounded",      label: "Look it up",     title: "Search the web first, then answer with the source behind every claim" },
+      { preset: "knowledge",     label: "Use my notes",   title: "Answer from your knowledge base only, quoting the passages it used" },
+      { preset: "compute",       label: "Work it out",    title: "Do the maths in Python and show the code, the steps and the result" },
+      { preset: "secondOpinion", label: "Ask two models", title: "Turn on Split and put the same question to two models side by side" },
+      { preset: "freeRam",       label: `<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM`, accent: true, title: "Unload every model on the local host to free memory and switch to short answers" },
     ],
     code: [
       { preset: "fullstack",   label: "⌘ Full-stack app",     title: "Scaffold a production full-stack web app" },
@@ -2037,12 +2044,28 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     e.preventDefault();
     safeExitMode();
   });
-  projectSelect?.addEventListener("change", () => {
-    switchProject(projectSelect.value);
+  // One delegated listener for the whole control: pick a project, or run one
+  // of the three actions on the current one.
+  $("projBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    setProjMenuOpen($("projMenu")?.hidden !== false);
   });
-  projectNewBtn?.addEventListener("click", createProject);
-  $("projectRenameBtn")?.addEventListener("click", renameProject);
-  $("projectDeleteBtn")?.addEventListener("click", deleteProject);
+  $("projMenu")?.addEventListener("click", (e) => {
+    const row = e.target.closest("[data-proj-id]");
+    if (row) { setProjMenuOpen(false); switchProject(row.dataset.projId); return; }
+    const act = e.target.closest("[data-proj-act]");
+    if (!act) return;
+    setProjMenuOpen(false);
+    if (act.dataset.projAct === "new") createProject();
+    else if (act.dataset.projAct === "rename") renameProject();
+    else if (act.dataset.projAct === "delete") deleteProject();
+  });
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#projWrap")) setProjMenuOpen(false);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && $("projMenu")?.hidden === false) setProjMenuOpen(false);
+  });
   $("closeAgent").addEventListener("click", () => agentOverlay.classList.remove("open"));
   $("cancelAgentBtn").addEventListener("click", () => agentOverlay.classList.remove("open"));
   $("saveAgentBtn").addEventListener("click", saveAgentFromEditor);
@@ -3366,7 +3389,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const slashCommands = [
     { name: "/model", desc: "Focus the model picker", run: () => modelEl.focus() },
-    { name: "/compare", desc: "Open side-by-side model comparison", run: () => setTab("split") },
+    { name: "/compare", desc: "Answer with two models side by side", run: () => setCompareMode(!state.compareMode) },
     { name: "/clear", desc: "Start a new chat", run: () => newChat() },
     { name: "/system", desc: "Open system prompt settings", run: () => { openSettings(); systemEl.focus(); } },
     { name: "/export", desc: "Export conversation as Markdown", run: () => exportConversation("markdown") },
@@ -4188,7 +4211,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const savedModel = SAVED.model || "";
     if (!savedModel || isExcludedCloudModel({ value: savedModel, label: savedModel, shortLabel: savedModel })) {
       modelEl.innerHTML = `<option value="" disabled selected>Loading models…</option>`;
-      setActiveSub("");
       return;
     }
     modelEl.innerHTML = "";
@@ -4197,7 +4219,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     opt.textContent = cloudModelLabel(savedModel) || savedModel;
     modelEl.appendChild(opt);
     modelEl.value = savedModel;
-    setActiveSub(savedModel);
     populateCloudModels();
   }
 
@@ -4438,9 +4459,21 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     else if (available) compareModelEl.value = available.value;
   }
 
+  // Split is a chat option now, so it is restored the way the other chat
+  // options are: from what it was last set to, not from which tab is open.
+  $("splitToggle")?.addEventListener("click", () => setCompareMode(!state.compareMode));
+  // The X on the compare bar was rendered, styled and never wired to anything.
+  compareClose?.addEventListener("click", () => setCompareMode(false));
+
   function setCompareMode(on) {
     state.compareMode = !!on;
     compareBar?.classList.toggle("visible", state.compareMode);
+    app.classList.toggle("split-mode", state.compareMode);
+    const toggle = $("splitToggle");
+    if (toggle) {
+      toggle.classList.toggle("on", state.compareMode);
+      toggle.setAttribute("aria-pressed", state.compareMode ? "true" : "false");
+    }
     try { localStorage.setItem("hashui_compare_mode", state.compareMode ? "1" : "0"); } catch {}
     syncCompareModelOptions();
     input.focus();
@@ -4911,7 +4944,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
                    canSelectModel(SAVED.model) ? SAVED.model :
                    (models[0] || "");
       if (pick) modelEl.value = pick;
-      setActiveSub(modelEl.value);
 
       saveSettings();
     } catch (err) {
@@ -4923,10 +4955,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const savedModel = SAVED.model || "";
       if (savedModel.startsWith("cloud:")) {
         modelEl.value = savedModel;
-        setActiveSub(savedModel);
       } else {
-        activeSub.textContent = "Local host offline";
-        if (cloudBadgeEl) cloudBadgeEl.style.display = "none";
       }
       const hasCloud = CLOUD_MODELS.some(g => (g.keyEl().value || "").trim());
       setStatus(hasCloud ? "warn" : "err", hasCloud ? "Local host offline · cloud ready" : "Local host offline");
@@ -5104,7 +5133,70 @@ Use instanced particles, CubicBezierCurve3 paths, role-specific arcs and duratio
   const FORGE_PHASES_PROMPT = `Turn 3D Forge into a 7-phase implementation checklist.
 For each phase include deliverables, files touched, done criteria, tests/visual checks, and likely failure points. Preserve the critical file order: types, forgeAgent, SwarmParticles, meshBuilder, useGeometry.`;
 
+  // ── The chat starter prompts ────────────────────────────────────────
+  //
+  // The old set was three build briefs and a RAM button: "Full Stack",
+  // "Mobile App". They wrote a website for you whether or not that was what
+  // you came for, and none of them touched anything this app can do that a
+  // plain chat box cannot. Each of these turns on a different part of it —
+  // grounded search, the knowledge base, the Python sandbox, two models at
+  // once — and each is written so the answer is checkable.
+
+  const EXPLAIN_ANY_PROMPT = `Explain what I paste below, in plain language.
+
+In this order:
+1. What it is, in one sentence.
+2. What it actually does, step by step.
+3. The part people usually get wrong about it.
+4. What I should do next.
+
+Assume I am capable but new to this. Define any jargon the first time you use it. If something in it looks wrong or risky, say so.
+
+Here it is:
+`;
+
+  const GROUNDED_PROMPT = `Look this up before you answer. Do not answer from memory.
+
+- Search first, then answer in a few sentences.
+- Put the evidence underneath, and say which page each claim came from.
+- If the sources disagree, show both sides rather than picking one quietly.
+- If you cannot find it, say "not found". Do not fill the gap with a guess.
+
+My question:
+`;
+
+  const KNOWLEDGE_PROMPT = `Answer using only my knowledge base. Nothing from your own memory.
+
+- Quote the passages you used, word for word.
+- Name the file each quote came from.
+- If my documents do not cover it, say so plainly and stop there. Do not complete the answer from general knowledge — I need to know what my own notes actually say.
+
+My question:
+`;
+
+  const COMPUTE_PROMPT = `Work this out in Python rather than in your head.
+
+- Write the code, run it, and show me both the code and the result.
+- Print the intermediate steps, not just the final number, so I can check the reasoning.
+- Draw a chart if it makes the answer clearer.
+- State your assumptions before you start, and flag any that would change the answer a lot.
+
+The problem:
+`;
+
+  const SECOND_OPINION_PROMPT = `Answer this as carefully as you can. I am putting the same question to a second model and comparing the two.
+
+Commit to a position rather than listing every possibility, and mark clearly the parts you are unsure about.
+
+My question:
+`;
+
   const PRESET_PROMPTS = {
+    explainAny: EXPLAIN_ANY_PROMPT,
+    grounded: GROUNDED_PROMPT,
+    knowledge: KNOWLEDGE_PROMPT,
+    compute: COMPUTE_PROMPT,
+    secondOpinion: SECOND_OPINION_PROMPT,
     hashAi: HASH_AI_PROMPT,
     fullstack: FULLSTACK_PROMPT,
     mobile: MOBILE_PROMPT,
@@ -5129,6 +5221,9 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     input.value = PRESET_PROMPTS[preset] || (chipEl && chipEl.dataset.q) || "";
     input.focus();
     input.dispatchEvent(new Event("input"));
+    // The prompt says the question is going to two models, so switch Split on
+    // rather than leaving the user to discover the button that makes it true.
+    if (preset === "secondOpinion" && !state.compareMode) setCompareMode(true);
     // Free RAM chip also unloads every currently-loaded model on the local host.
     if (preset === "freeRam") {
       const host = safeHost();
@@ -5172,9 +5267,11 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
             </div>
             <p>Massive UI . Isolated Intelligence . Agentic<span class="drone-inline"><svg viewBox="0 0 200 120" width="40" height="24" overflow="visible" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="dg-s" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#f5d77a"/><stop offset="0.5" stop-color="#c9a96e"/><stop offset="1" stop-color="#8a6a10"/></linearGradient><radialGradient id="dr-s" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="rgba(201,169,110,0.40)"/><stop offset="1" stop-color="rgba(201,169,110,0)"/></radialGradient></defs><line x1="40" y1="40" x2="160" y2="80" stroke="url(#dg-s)" stroke-width="3" stroke-linecap="round"/><line x1="160" y1="40" x2="40" y2="80" stroke="url(#dg-s)" stroke-width="3" stroke-linecap="round"/><circle cx="40" cy="40" r="20" fill="url(#dr-s)"/><circle cx="160" cy="40" r="20" fill="url(#dr-s)"/><circle cx="40" cy="80" r="20" fill="url(#dr-s)"/><circle cx="160" cy="80" r="20" fill="url(#dr-s)"/><g><ellipse cx="40" cy="40" rx="15" ry="2" fill="url(#dg-s)" opacity="0.9"/><ellipse cx="40" cy="40" rx="2" ry="15" fill="url(#dg-s)" opacity="0.9"/><animateTransform attributeName="transform" type="rotate" from="0 40 40" to="360 40 40" dur="0.78s" repeatCount="indefinite"/></g><g><ellipse cx="160" cy="40" rx="15" ry="2" fill="url(#dg-s)" opacity="0.9"/><ellipse cx="160" cy="40" rx="2" ry="15" fill="url(#dg-s)" opacity="0.9"/><animateTransform attributeName="transform" type="rotate" from="0 160 40" to="-360 160 40" dur="0.70s" repeatCount="indefinite"/></g><g><ellipse cx="40" cy="80" rx="15" ry="2" fill="url(#dg-s)" opacity="0.9"/><ellipse cx="40" cy="80" rx="2" ry="15" fill="url(#dg-s)" opacity="0.9"/><animateTransform attributeName="transform" type="rotate" from="0 40 80" to="-360 40 80" dur="0.84s" repeatCount="indefinite"/></g><g><ellipse cx="160" cy="80" rx="15" ry="2" fill="url(#dg-s)" opacity="0.9"/><ellipse cx="160" cy="80" rx="2" ry="15" fill="url(#dg-s)" opacity="0.9"/><animateTransform attributeName="transform" type="rotate" from="0 160 80" to="360 160 80" dur="0.74s" repeatCount="indefinite"/></g><rect x="72" y="46" width="56" height="28" rx="8" fill="rgba(8,10,18,0.95)" stroke="url(#dg-s)" stroke-width="1.5"/><rect x="78" y="52" width="14" height="9" rx="2" fill="url(#dg-s)" opacity="0.8"/><circle cx="118" cy="60" r="2.5" fill="#f5d77a"/><line x1="80" y1="74" x2="75" y2="94" stroke="url(#dg-s)" stroke-width="1.5" stroke-linecap="round"/><line x1="120" y1="74" x2="125" y2="94" stroke="url(#dg-s)" stroke-width="1.5" stroke-linecap="round"/><line x1="75" y1="94" x2="125" y2="94" stroke="url(#dg-s)" stroke-width="1.6" stroke-linecap="round"/><circle cx="100" cy="60" r="1.6" fill="#f5d77a"><animate attributeName="opacity" values="0.2;1;0.2" dur="1.6s" begin="0.3s" repeatCount="indefinite"/></circle></svg></span></p>
             <div class="chips">
-              <button data-preset="hashAi">Initialize HashCortx</button>
-              <button data-preset="fullstack">Full Stack website</button>
-              <button data-preset="mobile">Mobile App</button>
+              <button data-preset="explainAny" title="Paste anything — code, an error, a contract, a log — and get it in plain language">Explain this</button>
+              <button data-preset="grounded" title="Search the web first, then answer with the source behind every claim">Look it up</button>
+              <button data-preset="knowledge" title="Answer from your knowledge base only, quoting the passages it used">Use my notes</button>
+              <button data-preset="compute" title="Do the maths in Python and show the code, the steps and the result">Work it out</button>
+              <button data-preset="secondOpinion" title="Turn on Split and put the same question to two models side by side">Ask two models</button>
               <button data-preset="freeRam" title="Unloads all models on the local host to free RAM and preps a speed-mode prompt"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM · Speed mode</button>
             </div>
           </div>
@@ -5254,14 +5351,16 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
     const wrap = document.createElement("div");
     wrap.className = `msg ${m.role}`;
     wrap.dataset.idx = idx;
+    // No avatar. A disc beside every line was a column of decoration down the
+    // whole conversation. The reply is named instead, once, above it; what you
+    // typed needs no label at all, because it is the thing with the tint.
     const av = document.createElement("div");
-    av.className = "avatar";
-    av.textContent = m.role === "user" ? "You" : "AI";
+    av.className = "msg-who";
+    av.textContent = m.role === "user" ? "" : "HashCortX";
     const bubble = document.createElement("div");
     bubble.className = "bubble";
     if (m.compare) {
       wrap.classList.add("compare-msg");
-      bubble.classList.add("has-actions");
       const paneHtml = (side) => {
         const branch = m.compare[side] || {};
         const status = branch.error ? "error" : branch.done ? "done" : "streaming";
@@ -5274,17 +5373,17 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
         </div>`;
       };
       bubble.innerHTML = `<div class="compare-grid">${paneHtml("left")}${paneHtml("right")}</div>`;
+      wrap.appendChild(av); wrap.appendChild(bubble);
       if (!(idx === state.messages.length - 1 && state.streaming)) {
-        const actions = document.createElement("div");
-        actions.className = "msg-actions";
-        actions.innerHTML = `
+        const foot = document.createElement("div");
+        foot.className = "msg-foot";
+        foot.innerHTML = `
           <button class="msg-action" data-action="copy-msg" title="Copy both comparison replies">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
             Copy
           </button>`;
-        bubble.appendChild(actions);
+        wrap.appendChild(foot);
       }
-      wrap.appendChild(av); wrap.appendChild(bubble);
       return wrap;
     }
     // If this user message was a reply to an earlier one, show a compact
@@ -5317,9 +5416,20 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       } else {
         html = formatContent(displayContent); // streaming — content still changing
       }
+      // The rendered markdown gets its own wrapper so the raw source can take
+      // its place in situ. Reading what was actually said used to mean opening
+      // a separate window and losing your place in the conversation.
       const body = document.createElement("div");
+      body.className = "msg-body";
       body.innerHTML = html;
-      while (body.firstChild) bubble.appendChild(body.firstChild);
+      bubble.appendChild(body);
+      if (displayContent && !isStreamingPlaceholder) {
+        const raw = document.createElement("pre");
+        raw.className = "msg-raw";
+        raw.hidden = true;
+        raw.textContent = displayContent;
+        bubble.appendChild(raw);
+      }
       if (m.role === "assistant" && m.diffFrom && displayContent) {
         bubble.insertAdjacentHTML("beforeend", diffBlockHtml(m.diffFrom, displayContent, isStreamingPlaceholder));
       }
@@ -5387,63 +5497,52 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
       });
       bubble.appendChild(at);
     }
-    // Duration chip — floats at the top-right of every finished assistant reply.
-    // Shows the response time when available; falls back to "—" for old chats
-    // that were saved before we started persisting durationMs.
-    if (m.role === "assistant" && m.content && !(idx === state.messages.length - 1 && state.streaming)) {
-      const meta = document.createElement("div");
-      meta.className = "msg-meta";
-      const label = m.durationMs ? formatDuration(m.durationMs) : "—";
-      meta.innerHTML = `
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <polyline points="12 7 12 12 15.5 14"/>
-        </svg>
-        <span><b>${escapeHtml(label)}</b></span>`;
-      bubble.classList.add("has-meta");
-      bubble.appendChild(meta);
-    }
-    // Message-action row — assistant replies get reply/copy/regenerate.
-    if (m.role === "assistant" && m.content && !(idx === state.messages.length - 1 && state.streaming)) {
-      const actions = document.createElement("div");
-      actions.className = "msg-actions";
-      if (state.replyTo && state.replyTo.idx === idx) actions.classList.add("pinned");
-      actions.innerHTML = `
-        <button class="msg-action" data-action="reply" title="Reply to this message">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-          Reply
-        </button>
-        <button class="msg-action" data-action="copy-msg" title="Copy the full reply">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-          Copy
-        </button>
-        <button class="msg-action" data-action="regenerate" title="Regenerate from the previous prompt">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.5 15a9 9 0 0 1-14.13 3.36L1 14"/></svg>
-          Regenerate
-        </button>`;
-      bubble.classList.add("has-actions");
-      bubble.appendChild(actions);
-    }
-    if (m.role === "user" && m.content) {
-      const actions = document.createElement("div");
-      actions.className = "msg-actions";
-      if (state.editing && state.editing.idx === idx) actions.classList.add("pinned");
-      actions.innerHTML = `
-        <button class="msg-action" data-action="edit-msg" title="Edit this message and branch from here">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-          Edit
-        </button>
-        <button class="msg-action" data-action="copy-msg" title="Copy this message">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
-          Copy
-        </button>`;
-      bubble.classList.add("has-actions");
-      bubble.appendChild(actions);
+    // One footer line per message, below the bubble rather than inside it.
+    //
+    // The duration chip and the action pill both used to be absolutely
+    // positioned over the bubble, which meant the bubble had to reserve room
+    // for them: 42px of padding at the top and 58px at the bottom, on every
+    // finished reply, whether or not you ever used them. That padding is what
+    // made short messages read as enormous boxes. In flow and outside the
+    // bubble, the same controls cost one compact row.
+    let pendingFoot = null;
+    const settled = m.content && !(idx === state.messages.length - 1 && state.streaming);
+    if (settled && (m.role === "assistant" || m.role === "user")) {
+      const foot = document.createElement("div");
+      foot.className = "msg-foot";
+      const pinned = (state.replyTo && state.replyTo.idx === idx) ||
+                     (state.editing && state.editing.idx === idx);
+      if (pinned) foot.classList.add("pinned");
+
+      const parts = [];
+      if (m.role === "assistant") {
+        const label = m.durationMs ? formatDuration(m.durationMs) : "—";
+        parts.push(`<span class="msg-time" title="How long this reply took">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14"/></svg>
+          ${escapeHtml(label)}</span>`);
+        parts.push(`<button class="msg-action" data-action="reply" title="Reply to this message">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>Reply</button>`);
+      } else {
+        parts.push(`<button class="msg-action" data-action="edit-msg" title="Edit this message and branch from here">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>`);
+      }
+      parts.push(`<button class="msg-action" data-action="copy-msg" title="Copy this message">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Copy</button>`);
+      // Read exactly what was written, here, without leaving the conversation.
+      parts.push(`<button class="msg-action" data-action="raw-msg" aria-pressed="false" title="Show the message exactly as written, without formatting">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>Raw</button>`);
+      if (m.role === "assistant") {
+        parts.push(`<button class="msg-action" data-action="regenerate" title="Regenerate from the previous prompt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.5 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.5 15a9 9 0 0 1-14.13 3.36L1 14"/></svg>Regenerate</button>`);
+      }
+      foot.innerHTML = parts.join("");
+      pendingFoot = foot;
     }
     // Highlight the message currently being replied to.
     if (state.replyTo && state.replyTo.idx === idx) wrap.classList.add("reply-target");
     if (state.editing && state.editing.idx === idx) wrap.classList.add("reply-target");
     wrap.appendChild(av); wrap.appendChild(bubble);
+    if (pendingFoot) wrap.appendChild(pendingFoot);
     return wrap;
   }
 
@@ -5521,10 +5620,24 @@ For each phase include deliverables, files touched, done criteria, tests/visual 
   // Delegate Reply/Copy clicks on assistant bubbles. Copy-code is handled
   // separately further down; keep this listener narrow so they don't conflict.
   msgs.addEventListener("click", (e) => {
-    const btn = e.target.closest('[data-action="reply"], [data-action="copy-msg"], [data-action="edit-msg"], [data-action="regenerate"]');
+    const btn = e.target.closest('[data-action="reply"], [data-action="copy-msg"], [data-action="edit-msg"], [data-action="regenerate"], [data-action="raw-msg"]');
     if (!btn) return;
     const msgEl = btn.closest(".msg");
     if (!msgEl) return;
+    // Raw is a view of this message, not an operation on the conversation, so
+    // it swaps what the bubble shows and touches nothing else. No index needed
+    // and no re-render, which is what keeps your scroll position.
+    if (btn.dataset.action === "raw-msg") {
+      const body = msgEl.querySelector(".msg-body");
+      const raw = msgEl.querySelector(".msg-raw");
+      if (!body || !raw) return;
+      const showRaw = raw.hidden;
+      raw.hidden = !showRaw;
+      body.hidden = showRaw;
+      btn.classList.toggle("on", showRaw);
+      btn.setAttribute("aria-pressed", showRaw ? "true" : "false");
+      return;
+    }
     const idx = Number(msgEl.dataset.idx);
     if (!Number.isFinite(idx)) return;
     const action = btn.dataset.action;
@@ -7711,15 +7824,15 @@ sys.stderr = _stderr
   }
 
 
-  // Keep both privacy toggles (settings panel + sidebar shortcut) in sync.
+  // One privacy switch, in Settings. The header carried a second copy of it
+  // that had to be kept in sync with the first; the protection it turns on is
+  // unchanged, it just has one home now.
   function applyPrivacyLocal(checked) {
-    privacyLocalEl.checked     = checked;
-    privacyLocalSideEl.checked = checked;
+    privacyLocalEl.checked = checked;
     saveSettings();
     updateCloudModelVisualState();
   }
-  privacyLocalEl.addEventListener("change",     () => applyPrivacyLocal(privacyLocalEl.checked));
-  privacyLocalSideEl.addEventListener("change", () => applyPrivacyLocal(privacyLocalSideEl.checked));
+  privacyLocalEl.addEventListener("change", () => applyPrivacyLocal(privacyLocalEl.checked));
   tavilyKeyEl.addEventListener("change", saveSettings);
   nvidiaKeyEl.addEventListener("change", saveSettings);
   nvidiaModelEl?.addEventListener("change", saveSettings);
@@ -8042,7 +8155,7 @@ sys.stderr = _stderr
   loadAgentRuns();
   loadChats();
   loadAgents();
-  renderProjectSelect();
+  renderProjectPicker();
   renderChatList();
   renderAgentsList();
   renderActiveAgentChip();

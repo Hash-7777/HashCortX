@@ -6,45 +6,79 @@
     position: relative;
     overflow: hidden;
   }
+  /* One row, one rhythm.
+     Everything in here used to be a bordered pill — the project, the privacy
+     switch, the meters, each with its own outline, tint and glow, and the
+     meters additionally wrapped in a bordered glass panel of their own. Seven
+     competing boxes for controls that are mostly read, not pressed. They are
+     plain text with an icon now; the outline arrives on hover, when you are
+     actually reaching for one. */
   header.topbar {
-    padding: 12px 28px;
-    border-bottom: 1px solid var(--line);
-    display: flex; align-items: center; gap: 12px;
+    padding: 9px 20px;
+    border-bottom: 1px solid var(--line-strong);
+    display: flex; align-items: center; gap: 8px;
     flex-wrap: wrap;
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.004)),
-      linear-gradient(180deg, rgba(8,10,14,0.56), rgba(5,6,9,0.34));
-    backdrop-filter: blur(16px) saturate(145%);
-    -webkit-backdrop-filter: blur(16px) saturate(145%);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.026), 0 8px 28px rgba(0,0,0,0.10);
+      linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.014)),
+      rgba(9, 12, 18, 0.92);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 0 rgba(0,0,0,0.5);
   }
-  .toggle-side {
+  /* One shape for every control in this bar. */
+  .topbar .hc-ctl,
+  .topbar .ping-btn,
+  .topbar .toggle-side {
+    height: 26px;
+    border-radius: var(--radius-sm);
+    background-color: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .topbar .ping-btn:hover,
+  .topbar .toggle-side:hover {
+    background-color: rgba(255,255,255,0.085);
+    border-color: var(--line-strong);
+    color: var(--text);
+  }  .toggle-side {
     appearance: none;
     -webkit-appearance: none;
-    width: 36px; height: 36px; border-radius: var(--radius-md);
+    width: 26px;
     display: grid; place-items: center;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid var(--line-strong);
     padding: 0;
-    color: inherit;
     cursor: pointer;
-    flex: 0 0 36px;
+    flex: 0 0 26px;
   }
-  .toggle-side:hover { background: rgba(255,255,255,0.08); }
-  .toggle-side svg { width: 16px; height: 16px; color: var(--text-dim); }
+  .toggle-side svg { width: 13px; height: 13px; color: var(--text-dim); }
+  .toggle-side:hover svg { color: var(--text); }
 
   .crumbs {
-    display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 180px;
+    display: flex; flex-direction: row; align-items: baseline;
+    gap: 9px; min-width: 0; flex: 1 1 200px;
+    font-family: var(--hc-font);
   }
+  /* The conversation's name is the one piece of content in this bar, so it
+     leads: the reading face at a readable size, with the status under it in
+     plain words. It was a 17px serif over 9px gold capitals — two display
+     faces neither of which is used anywhere else in the app. */
   .crumbs .title {
     font-family: var(--serif); font-size: 17px; font-weight: 500;
-    letter-spacing: 0.01em; line-height: 1.1;
+    letter-spacing: .012em; line-height: 1.1;
+    color: var(--text);
+    /* The name outranks its status line for space: the status may shrink to
+       an ellipsis, the thing you are looking at should not. */
+    flex: 0 1 auto; min-width: 3ch;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .crumbs .sub {
-    font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
-    color: var(--gold); font-weight: 500;
-    line-height: 1.1;
+  /* The status follows the name on the same line,
+  behind a hairline {
+    font-size: 11px; letter-spacing: 0; text-transform: none;
+    color: var(--muted); font-weight: 400;
+    line-height: 1;
+    flex: 0 4 auto; min-width: 0;
+    padding-left: 9px;
+    border-left: 1px solid var(--line-strong);
     max-width: min(42vw, 520px);
     white-space: nowrap;
     overflow: hidden;
@@ -52,200 +86,108 @@
   }
   .crumbs .badge-row {
     display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    flex-wrap: nowrap;
+    gap: 6px;
     align-items: center;
-    max-width: 100%;
-    margin-top: 4px;
-  }
-  .topbar-badge {
-    display: none;
-    align-items: center;
-    gap: 5px;
-    width: max-content;
-    max-width: 100%;
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: .12em;
-    line-height: 17px;
-    white-space: nowrap;
-  }
-  .topbar-badge.cloud {
-    background: rgba(120,180,255,0.12);
-    border: 1px solid rgba(120,180,255,0.34);
-    color: rgba(120,200,255,0.95);
-  }
-  .topbar-badge.rag-off {
-    background: rgba(255,100,100,0.10);
-    border: 1px solid rgba(255,120,120,0.34);
-    color: rgba(255,150,150,0.95);
-  }
-  .topbar-badge .badge-icon {
-    margin: 0;
-    display: inline-flex;
-  }
-  .topbar-badge .badge-icon svg {
-    width: 12px;
-    height: 12px;
-  }
-  .topbar-project-wrap {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    flex: 0 0 auto;
     min-width: 0;
-    height: 32px;
-    padding: 0 6px 0 10px;
-    border: 1px solid rgba(34,211,238,0.14);
-    border-radius: var(--radius-md);
-    background: rgba(4,8,7,0.34);
-    color: var(--text-dim);
+    margin-top: 0;
+  }  /* ── Project picker ────────────────────────────────────────────────
+     One button, one menu. The old control was a native <select> — system
+     chrome, system arrow — with three icon buttons parked beside it, so the
+     name you actually needed to read was the smallest thing in the group. */
+  .proj { position: relative; display: inline-flex; align-items: center; flex: 0 0 auto; }
+  .proj::before {
+    content: "";
+    width: 1px; height: 16px;
+    background: var(--line-strong);
+    margin-right: 10px;
+    flex: 0 0 1px;
   }
-  .topbar-project-label {
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: .04em;
-    color: var(--text);
-    line-height: 1;
-  }
-  #projectSelect {
-    height: 24px;
-    max-width: 116px;
-    min-width: 84px;
-    border: 1px solid rgba(255,255,255,0.12);
+  .proj-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    height: 26px; padding: 0 8px 0 9px;
+    max-width: 190px;
     border-radius: var(--radius-sm);
-    background: rgba(255,255,255,0.07);
+    background-color: rgba(255,255,255,0.04);
+    border: 1px solid var(--line);
     color: var(--text-dim);
-    font: 11px var(--sans);
-    padding: 0 22px 0 8px;
-  }
-  .topbar-project-action {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(255,255,255,0.10);
-    background: transparent;
-    color: var(--text-dim);
-    flex: 0 0 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: color .15s, background .15s, border-color .15s;
+    font: 11px var(--hc-font);
+    letter-spacing: .01em;
     cursor: pointer;
+    transition: background-color .15s, border-color .15s, color .15s;
   }
-  .topbar-project-action svg {
-    width: 12px;
-    height: 12px;
-    pointer-events: none;
-  }
-  .topbar-project-action:hover {
-    border-color: rgba(34,211,238,0.30);
-    background: rgba(34,211,238,0.08);
+  .proj-btn:hover,
+  .proj-btn.on {
+    background-color: rgba(255,255,255,0.085);
+    border-color: var(--line-strong);
     color: var(--text);
   }
-  .topbar-project-delete:hover {
-    border-color: rgba(239,68,68,0.35);
-    background: rgba(239,68,68,0.10);
-    color: #f87171;
+  .proj-icon { width: 13px; height: 13px; flex: 0 0 13px; opacity: .75; }
+  .proj-caret { width: 11px; height: 11px; flex: 0 0 11px; opacity: .6; }
+  .proj-name {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .topbar-project-new {
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border-radius: var(--radius-sm);
-    border: 1px solid rgba(34,211,238,0.16);
-    background: rgba(34,211,238,0.05);
-    color: var(--gold);
-    flex: 0 0 24px;
-  }
-  .topbar-project-new svg {
-    width: 13px;
-    height: 13px;
-  }
-  .topbar-privacy {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    flex: 0 0 auto;
-    height: 32px;
-    min-width: 74px;
-    padding: 0 10px;
-    border: 1px solid rgba(34,211,238,0.16);
+  .proj-menu {
+    position: fixed;
+    z-index: 100000;
+    min-width: 208px;
+    padding: 6px;
+    display: flex; flex-direction: column; gap: 1px;
+    background: var(--panel-solid);
+    border: 1px solid var(--line-strong);
     border-radius: var(--radius-md);
-    background: rgba(4,8,7,0.34);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  .proj-menu[hidden] { display: none; }
+  .proj-menu-label {
+    padding: 4px 8px 6px;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .proj-list { display: flex; flex-direction: column; gap: 1px; max-height: 220px; overflow-y: auto; }
+  .proj-row,
+  .proj-act {
+    display: flex; align-items: center; gap: 8px;
+    /* A button centres its own flex content in the user-agent stylesheet, so
+       every row lined up on its own midpoint. Third time in this file. */
+    justify-content: flex-start;
+    width: 100%; min-height: 28px;
+    padding: 0 8px;
+    text-align: left;
+    background: none; border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     color: var(--text-dim);
+    font: 12px var(--sans);
+    letter-spacing: 0;
     cursor: pointer;
-    line-height: 1;
-    user-select: none;
+    transition: background .13s, color .13s;
   }
-  .topbar-privacy input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-    width: 1px;
-    height: 1px;
-  }
-  .topbar-privacy svg {
-    width: 15px;
-    height: 15px;
-    flex: 0 0 15px;
-    display: block;
-    color: var(--text-dim);
-  }
-  .topbar-privacy-text {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    color: var(--text-dim);
-  }
-  .topbar-privacy input:checked ~ svg,
-  .topbar-privacy input:checked ~ .topbar-privacy-text {
-    color: var(--gold);
-  }
-  .topbar-project-wrap:hover,
-  .topbar-privacy:hover {
-    border-color: rgba(34,211,238,0.32);
-    background: rgba(34,211,238,0.06);
-  }
+  .proj-row span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .proj-row svg { width: 12px; height: 12px; flex: 0 0 12px; }
+  .proj-act svg { width: 13px; height: 13px; flex: 0 0 13px; opacity: .7; }
+  .proj-row:hover,
+  .proj-act:hover { background: rgba(255,255,255,0.06); color: var(--text); }
+  .proj-row.on { color: var(--gold-2); }
+  .proj-act-danger:hover { background: rgba(239,68,68,0.12); color: #f87171; }
+  .proj-menu-sep { height: 1px; background: var(--line); margin: 5px 2px; }  /* The meters were held in a glass panel with a green border and a glow, so
+     a read-only number carried more weight than the Send button. They are
+     just numbers in the bar now. */
   .topbar .actions {
     margin-left: auto;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(82px, max-content));
-    grid-auto-rows: 30px;
-    gap: 0;
-    align-items: stretch;
+    display: flex;
+    align-items: center;
+    gap: 2px;
     justify-content: end;
     flex: 0 0 auto;
     min-width: 0;
-    padding: 4px;
-    background:
-      linear-gradient(180deg, rgba(93,211,238,0.055), rgba(93,211,238,0.012)),
-      linear-gradient(90deg, rgba(34,211,238,0.035), transparent 42%, rgba(93,211,238,0.026)),
-      rgba(1, 8, 6, 0.78);
-    border: 1px solid rgba(96,255,160,0.24);
-    border-radius: var(--radius-md);
-    box-shadow:
-      inset 0 1px 0 rgba(160,255,200,0.07),
-      inset 0 0 0 1px rgba(34,211,238,0.07),
-      0 0 0 1px rgba(0,0,0,0.40),
-      0 4px 16px rgba(0,0,0,0.18),
-      0 0 14px rgba(96,255,160,0.025);
-    backdrop-filter: blur(16px) saturate(135%);
-    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    padding: 0;
+    background: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
   }
   .topbar .actions > .ping-btn,
   .topbar .actions > .ram-anchor,
@@ -565,25 +507,20 @@
      40°C → 92°C, etc.) never cause a layout-reflow that jitters the whole
      header row. Only the RAM button may stay icon-only at narrow widths. */
   .ping-btn {
-    display: inline-flex; align-items: center; gap: 4px;
-    height: 28px; padding: 0 9px;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.026), rgba(255,255,255,0.006)),
-      rgba(0,0,0,0.10);
-    border: 1px solid rgba(96,255,160,0.20);
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 26px; padding: 0 9px;
     border-radius: var(--radius-sm);
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.035),
-      0 0 0 1px rgba(0,0,0,0.28);
+    box-shadow: none;
     color: var(--text-dim);
-    font: inherit; font-size: 10.5px; letter-spacing: .03em;
+    font: inherit; font-size: 11px; letter-spacing: 0;
     cursor: pointer;
-    transition: border-color .15s, color .15s, background .15s;
+    transition: color .15s, background .15s;
     flex: 0 0 auto;
     justify-content: center;
     white-space: nowrap;
     overflow: hidden;
   }
+  .ping-btn:hover { background: rgba(255,255,255,0.06); color: var(--text); }
   #pingBtn,
   #cpuTempBtn,
   #fanBtn,
@@ -597,7 +534,7 @@
   #ramBtn,
   #tpsBtn,
   #exportBtn,
-  #powerBtn { min-width: 82px; }
+  #powerBtn { min-width: 0; }
   #pingMs   { display: inline-block; min-width: 40px; text-align: center;
               font-variant-numeric: tabular-nums; }
   .ping-btn svg { width: 13px; height: 13px; color: var(--gold); flex: 0 0 13px; }
@@ -819,12 +756,26 @@
 
   /* Messages */
   .messages {
+    position: relative;
     flex: 1 1 0; min-height: 0; overflow-y: auto;
     padding: 34px clamp(22px, 9vw, 138px) 44px;
-    display: flex; flex-direction: column; gap: 16px;
+    display: flex; flex-direction: column; gap: 18px;
     align-items: flex-start;
     scrollbar-width: thin; scrollbar-color: rgba(34,211,238,0.25) transparent;
   }
+  /* A scrim between the wallpaper and the words.
+     The bubbles used to cover it. With replies sitting straight on the page
+     the circuit pattern and the watermark read through the text, which is
+     exactly the kind of busy that makes a screen tiring. Held back here and
+     left alone at the margins, so the artwork is still there. */
+  .app.has-chat .messages::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: rgba(6, 8, 13, 0.38);
+    pointer-events: none;
+    z-index: 0;
+  }
+  .messages > * { position: relative; z-index: 1; }
   /* No messages → keep the welcome prompts reachable on short windows. */
   .app:not(.has-chat) .messages {
     overflow-y: auto;
@@ -1012,13 +963,18 @@
   @keyframes fade { to { opacity: 1; transform: none; } }
 
   .msg {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
+    /* One column, three stacked rows: name, message, actions. Auto placement
+       rather than fixed rows, so a user message — which has no name — simply
+       has one row fewer instead of leaving a gap where the name would be. */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 2px;
+    align-items: start;
     width: min(920px, 100%);
     max-width: 100%;
     animation: slideIn .25s cubic-bezier(.2,.8,.2,1);
   }
+
   .msg.assistant { align-self: flex-start; }
   .msg.user {
     align-self: flex-start;
@@ -1029,43 +985,31 @@
     from { opacity: 0; transform: translateY(6px); }
     to { opacity: 1; transform: none; }
   }
-  .avatar {
-    width: 32px; height: 32px; flex: 0 0 32px; border-radius: var(--radius-md);
-    display: grid; place-items: center;
-    margin-top: 3px;
-    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
-    text-transform: uppercase;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
-  }
-  .msg.user .avatar {
-    background:
-      linear-gradient(180deg, rgba(34,211,238,0.12), rgba(34,211,238,0.03)),
-      rgba(24,27,35,0.88);
+  /* The reply is named once, above it, in the same place every time. The
+     name column is gone with the avatars, so the whole conversation sits on
+     one left edge instead of being indented past a row of discs. */
+  .msg-who {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: .02em;
     color: var(--gold-2);
-    border: 1px solid rgba(34,211,238,0.24);
+    line-height: 1.4;
+    user-select: none;
   }
-  .msg.assistant .avatar {
-    background: radial-gradient(circle at 30% 30%, #f6e4b9, var(--gold) 65%, var(--gold-deep));
-    color: #2a2110;
-    box-shadow:
-      inset 0 1px 0 rgba(255,255,255,0.4),
-      0 0 16px rgba(34,211,238,0.25);
-  }
+  .msg.user .msg-who { display: none; }
+
   .bubble {
     position: relative;
-    flex: 1; min-width: 0; max-width: 100%;
+    min-width: 0; max-width: 100%;
     user-select: text;
     -webkit-user-select: text;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
-      rgba(22,24,32,0.80);
-    border: 1px solid var(--line);
+    background: none;
+    border: 1px solid transparent;
     border-radius: var(--radius-md);
-    padding: 9px 12px;
+    padding: 2px 0;
     line-height: 1.46; font-size: 13.7px;
     word-wrap: break-word; white-space: pre-wrap; overflow: hidden;
-    box-shadow: var(--glass-edge), 0 10px 26px rgba(0,0,0,0.12);
   }
+
   .app:not(.code-mode) .bubble {
     font-family: var(--comfort);
     font-size: 14px;
@@ -1077,8 +1021,6 @@
   }
   .app:not(.code-mode) .bubble pre,
   .app:not(.code-mode) .bubble code,
-  .app:not(.code-mode) .msg-meta,
-  .app:not(.code-mode) .msg-actions,
   .app:not(.code-mode) .attachments {
     font-family: var(--mono);
   }
@@ -1086,23 +1028,20 @@
   .app:not(.code-mode) .copy-btn {
     font-family: var(--sans);
   }
-  .msg.assistant .bubble.has-meta { padding-top: 42px; }
-  /* Role-based color: user messages in gold, AI replies in white — easier to
-     scan a long conversation at a glance. */
+  /* Role, told by weight rather than by two competing boxes.
+     What you typed keeps a light tint so it reads as an interjection; the
+     reply gets nothing at all and sits directly on the page. */
   .msg.user .bubble {
-    background:
-      linear-gradient(180deg, rgba(34,211,238,0.075), rgba(34,211,238,0.018)),
-      rgba(24,26,34,0.62);
-    border-color: rgba(34,211,238,0.18);
+    background: rgba(34,211,238,0.05);
+    border-color: rgba(34,211,238,0.14);
     color: #f0dfb8;
+    padding: 7px 11px;
     max-width: min(520px, 100%);
   }
   .msg.user .bubble strong { color: #fff6dd; }
   .msg.assistant .bubble {
-    background:
-      linear-gradient(180deg, rgba(34,211,238,0.08), rgba(255,255,255,0.02) 34%, transparent 72%),
-      rgba(22,24,32,0.58);
-    border-color: rgba(34,211,238,0.14);
+    background: none;
+    border-color: transparent;
     color: #ffffff;
     max-width: min(720px, 100%);
   }
@@ -1221,26 +1160,7 @@
     height: 13px;
     color: var(--gold);
     flex: 0 0 13px;
-  }
-
-
-  /* Provider icon chip — shown in the topbar active-model subtitle */
-  .provider-icon-chip {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px; height: 18px;
-    border-radius: var(--radius-xs);
-    background: rgba(255,255,255,0.07);
-    margin-right: 5px;
-    vertical-align: middle;
-    flex-shrink: 0;
-    position: relative;
-    top: -1px;
-  }
-  .provider-icon-chip svg { display: block; }
-
-  /* Typing */
+  }  /* Typing */
   .typing { display: inline-flex; gap: 4px; padding: 2px 0; }
   .typing span {
     width: 6px; height: 6px; border-radius: 50%;

@@ -258,16 +258,6 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   height: 100%;
   max-height: 100%;
 }
-/* Brand sidebar logo image sizing */
-.brand-logo-img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(240,168,0,0.80))
-          drop-shadow(0 0 20px rgba(240,168,0,0.40));
-  -webkit-user-drag: none;
-}
-
 /* About-pane logo (replaces the "H" monogram) */
 .about-logo-img {
   width: 72px;
@@ -1323,11 +1313,7 @@ header.topbar .crumbs .badge-row {
   flex-wrap: nowrap !important;
   align-items: center !important;
   overflow: hidden;
-}
-header.topbar .badge-row .topbar-badge {
-  flex: 0 0 auto;
-}
-header.topbar .badge-row #activeAgentChip[hidden] {
+}header.topbar .badge-row #activeAgentChip[hidden] {
   display: none !important;
 }
 header.topbar .badge-row #activeAgentChip.agent-chip {
@@ -1416,7 +1402,6 @@ header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
 
 /* ── LOGO OVERRIDE: pure white, no glow, no shades ───────── */
 .hc-toolbar-logo,
-.brand-logo-img,
 .about-logo-img,
 .mode-logo-img,
 .crest-logo-img,
@@ -1458,7 +1443,10 @@ body.low-gpu .pcb-traces {
   left: 0 !important;
   width: 100vw !important;
   height: 100vh !important;
-  opacity: 0.07 !important;
+  /* The number that reaches a user. low-gpu is switched on at launch and
+     never off, so this !important is the real setting and the value in
+     base.css is decoration. At 0.07 the artwork was not dim, it was absent. */
+  opacity: 0.15 !important;
   animation: none !important;
   transform: none !important;
   filter: none !important;
@@ -1475,7 +1463,7 @@ body.low-gpu .circuit-spot {
 
 html.low-gpu body.pulse-traces .pcb-traces,
 body.low-gpu.pulse-traces .pcb-traces {
-  opacity: 0.12 !important;
+  opacity: 0.20 !important;
   filter: none !important;
 }
 

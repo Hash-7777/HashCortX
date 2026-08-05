@@ -37,7 +37,6 @@ const srcDir = join(root, 'src');
  */
 const ALLOWED_UNREFERENCED = new Map([
   ['tabChats', 'the workspace tabs are handled together by one delegated listener on .tabs, matched by data-tab rather than by id'],
-  ['tabSplit', 'same delegated .tabs listener'],
   ['voidChatStopBtn', 'rendered disabled and never enabled — a placeholder for cancelling a Virtual OS chat turn, which that mode does not yet offer'],
 ]);
 

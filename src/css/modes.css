@@ -26,7 +26,6 @@
   .app.code-mode header.topbar,
   .app.code-mode .crumbs,
   .app.code-mode .crumbs .title,
-  .app.code-mode .crumbs .sub,
   .app.code-mode aside,
   .app.code-mode .brand .name .sub,
   .app.code-mode .section-label,
@@ -46,8 +45,7 @@
     letter-spacing: 0;
     color: #d4f0ff;
   }
-  .app.code-mode .chat-item .model-tag,
-  .app.code-mode .crumbs .sub {
+  .app.code-mode .chat-item .model-tag {
     color: #f5c97a;
   }
 
@@ -338,7 +336,6 @@
     content: "◇ ";
     color: #4bd2be;
   }
-  .app.forge-mode .crumbs .sub,
   .app.forge-mode .chat-item .model-tag {
     color: #f5c97a;
   }
@@ -414,76 +411,75 @@
     animation: ping-pulse 1.6s ease-in-out infinite;
   }
 
-  /* Assistant duration chip — floats at the top-right corner of the bubble */
-  .msg-meta {
-    position: absolute;
-    top: 10px; right: 12px;
-    padding: 2px 7px;
-    font-size: 9px;
-    letter-spacing: .02em;
-    color: var(--text-dim);
-    background:
-      linear-gradient(180deg, rgba(34,211,238,0.13), rgba(34,211,238,0.045));
-    border: 1px solid rgba(34,211,238,0.24);
-    border-radius: 999px;
-    display: inline-flex; align-items: center; gap: 5px;
-    pointer-events: none;
-    z-index: 2;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-  }
-  .msg-meta svg { width: 10px; height: 10px; color: var(--gold); opacity: 0.9; }
-  .msg-meta b { color: var(--gold-2); font-weight: 700; letter-spacing: .01em; text-transform: none; font-size: 9.5px; }
+  /* The footer line under a message: how long it took, then what you can do
+     with it.
 
-  /* Per-message action row (reply, copy). Only rendered for assistant replies.
-     Pinned to the bottom-right corner of the bubble so it's always in the same
-     place, no matter how long the reply is. */
-  .msg { position: relative; }
-  .msg-actions {
-    position: absolute;
-    bottom: 13px; right: 14px;
-    display: inline-flex; gap: 4px;
-    padding: 2px;
-    background: rgba(20,22,30,0.58);
-    border: 1px solid rgba(34,211,238,0.18);
-    border-radius: 999px;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    opacity: 1; transform: none;
-    transition: opacity .18s ease, transform .18s ease;
-    z-index: 3;
+     Both used to be pills floating over the bubble, and floating chrome has to
+     be paid for in padding — 42px at the top and 58px at the bottom of every
+     finished reply, reserved whether or not you ever reached for it. That
+     padding is what made a three-word message read as an enormous box. In
+     normal flow, below the bubble, the whole row costs about 22px. */
+  .msg-foot {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 2px;
+    margin-top: 4px;
   }
-  .msg.assistant .bubble.has-actions { padding-bottom: 54px; }
-  .msg.user .bubble.has-actions { padding-bottom: 54px; }
-  .msg.assistant .bubble.has-meta.has-actions { padding-top: 42px; padding-bottom: 58px; }
-  .app.code-mode .msg.assistant .bubble.has-actions,
-  .app.code-mode .msg.user .bubble.has-actions {
-    padding-bottom: 62px;
+  /* Quiet by colour, not by opacity.
+     Fading the row to 58% multiplied it against whatever the wallpaper was
+     doing underneath, so its legibility changed from one part of the screen
+     to the next. A muted colour at full opacity measures the same everywhere
+     — 5.1:1 against the page — and still recedes next to the reply. */
+  .msg-foot .msg-action,
+  .msg-foot .msg-time { color: var(--muted); }
+  .msg:hover .msg-foot .msg-action,
+  .msg:focus-within .msg-foot .msg-action,
+  .msg-foot.pinned .msg-action { color: var(--text-dim); }
+  .msg-foot .msg-action:hover { color: var(--gold-2); }
+  .msg-time {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding-right: 6px;
+    font-size: 10.5px;
+    color: var(--muted);
+    white-space: nowrap;
   }
-  .app.code-mode .msg.assistant .bubble.has-meta {
-    padding-top: 48px;
-  }
-  .app.code-mode .msg.assistant .bubble.has-meta.has-actions {
-    padding-top: 48px;
-    padding-bottom: 66px;
-  }
-  .msg-action {
-    display: inline-grid; place-items: center;
-    width: 21px; height: 21px; padding: 0;
-    font-size: 0; letter-spacing: 0; text-transform: none;
+  .msg-time svg { width: 11px; height: 11px; opacity: .8; }
+
+  /* The message exactly as written, standing in for the rendered version.
+     Reading the source used to mean opening a separate window and losing your
+     place in the conversation. */
+  .msg-raw {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
     color: var(--text-dim);
-    background: rgba(255,255,255,0.03);
-    border: 1px solid var(--line);
-    border-radius: 999px;
+  }
+  /* Icon and word, no chrome. These were bordered circles with the label
+     switched off by font-size:0 — five identical rings you had to hover to
+     identify. The word costs a little width and removes the guessing. */
+  .msg-action {
+    display: inline-flex; align-items: center; gap: 5px;
+    height: 22px; padding: 0 7px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0; text-transform: none;
+    color: var(--text-dim);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: color .15s, border-color .15s, background .15s, transform .15s;
+    transition: color .15s, border-color .15s, background .15s;
   }
-  .msg-action svg { width: 11px; height: 11px; }
+  .msg-action svg { width: 11px; height: 11px; flex: 0 0 11px; }
   .msg-action:hover {
-    color: var(--gold);
-    border-color: rgba(34,211,238,0.45);
-    background: rgba(34,211,238,0.06);
+    color: var(--gold-2);
+    background: rgba(34,211,238,0.08);
   }
-  .msg-action:active { transform: scale(0.97); }
+  /* Raw is a toggle, so it has to look held down while it is on. */
+  .msg-action.on {
+    color: var(--gold-2);
+    background: rgba(34,211,238,0.10);
+    border-color: rgba(34,211,238,0.32);
+  }
 
   /* Reply banner above the textarea — shows when user is replying to a specific message */
   .reply-banner {
@@ -749,7 +745,25 @@
     color: var(--gold-2);
     filter: drop-shadow(0 0 6px rgba(34,211,238,0.28));
   }
-  .agents-picker-wrap + .context-window { margin-left: 0; }
+  /* Split is a toggle rather than a menu, so "on" has to hold: it stays lit
+     for as long as the next message is going to two models, and wears the
+     same on-state as everything else in this row. */
+  .split-btn.on {
+    background: rgba(34,211,238,0.10);
+    border-color: rgba(34,211,238,0.45);
+    color: var(--text);
+  }
+  .split-btn.on svg {
+    color: var(--gold-2);
+    filter: drop-shadow(0 0 6px rgba(34,211,238,0.28));
+  }
+  /* One push, not two. Both the agent picker and the context meter carried
+     margin-left:auto, so the row split into three clumps with a void either
+     side of the pair. The picker does the pushing; everything after it just
+     follows at the normal gap. */
+  .agents-picker-wrap + .context-window,
+  .agents-picker-wrap ~ .split-btn,
+  .split-btn + .context-window { margin-left: 0; }
 
   .context-window {
     margin-left: auto;
