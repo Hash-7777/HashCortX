@@ -57,11 +57,6 @@ body.coder-mode #app { display: none; }
   align-items: center;
   gap: 10px;
 }
-.cdr-logo {
-  width: 22px; height: 22px;
-  object-fit: contain;
-  opacity: 0.85;
-}
 .cdr-title {
   font-size: 12px;
   font-weight: 600;
@@ -79,13 +74,6 @@ body.coder-mode #app { display: none; }
   align-items: center;
   justify-content: center;
   gap: 10px;
-}
-.cdr-status-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--cdr-text-dim);
 }
 .cdr-status-dot {
   width: 6px; height: 6px;
@@ -125,51 +113,6 @@ body.coder-mode #app { display: none; }
   gap: 6px;
 }
 
-/* Buttons */
-.cdr-btn,
-.cdr-back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 11px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid var(--cdr-border);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background .12s, color .12s, border-color .12s, transform .08s;
-}
-.cdr-btn:hover,
-.cdr-back-btn:hover {
-  background: rgba(255,255,255,0.04);
-  color: var(--cdr-text);
-  border-color: var(--cdr-border-hover);
-}
-.cdr-btn:active,
-.cdr-back-btn:active { transform: scale(0.97); }
-
-/* Danger variant — Reset Permissions button */
-.cdr-btn--danger {
-  border-color: rgba(244,63,94,.28);
-  color: rgba(244,63,94,.75);
-}
-.cdr-btn--danger:hover {
-  background: rgba(244,63,94,.10);
-  border-color: rgba(244,63,94,.55);
-  color: #f43f5e;
-}
-
-.cdr-back-btn {
-  border-color: rgba(255,143,143,0.25);
-  color: var(--cdr-rose);
-}
-.cdr-back-btn:hover {
-  background: rgba(255,143,143,0.08);
-  border-color: rgba(255,143,143,0.40);
-}
-
 /* ── Body layout (VS-Code style: files | chat | sessions) ─────── */
 .cdr-body {
   flex: 1;
@@ -181,20 +124,23 @@ body.coder-mode #app { display: none; }
      none of them resizable. At the window's 960px minimum the two side columns
      took 480px, half the app, and the terminal was pinned at 140px, about six
      lines of build output. */
-  --cdr-side-w: 250px;
+  --cdr-side-w: 232px;
+  --cdr-right-w: 210px;
   --cdr-term-h: 220px;
-  --cdr-split: 6px;
-  grid-template-columns: var(--cdr-side-w) var(--cdr-split) minmax(0, 1fr);
+  --cdr-split: 5px;
+  grid-template-columns: var(--cdr-side-w) var(--cdr-split) minmax(0, 1fr) var(--cdr-right-w);
   grid-template-rows: minmax(0, 1fr) var(--cdr-split) var(--cdr-term-h);
   grid-template-areas:
-    "side splitx chat"
-    "side splitx splity"
-    "side splitx terminal";
+    "side splitx chat     right"
+    "side splitx splity   right"
+    "side splitx terminal right";
   overflow: hidden;
   position: relative;
 }
 .cdr-body.cdr-side-hidden { --cdr-side-w: 0px; --cdr-split: 0px; }
-.cdr-body.cdr-term-hidden { --cdr-term-h: 0px; }
+.cdr-body.cdr-term-hidden { --cdr-term-h: 34px; }
+.cdr-body.cdr-term-hidden .cdr-terminal-body,
+.cdr-body.cdr-term-hidden .cdr-terminal-input { display: none; }
 .cdr-body.cdr-term-full   { --cdr-term-h: calc(100% - 46px); }
 
 /* ── The side panel: Files and Chats as tabs in one column ── */
@@ -208,12 +154,6 @@ body.coder-mode #app { display: none; }
 .cdr-body.cdr-side-hidden .cdr-side,
 .cdr-body.cdr-side-hidden .cdr-split-x { display: none; }
 
-.cdr-side-tabs {
-  flex: 0 0 auto;
-  display: flex; align-items: stretch; gap: 2px;
-  padding: 5px 5px 0;
-  border-bottom: 1px solid var(--cdr-border);
-}
 .cdr-side-tab {
   flex: 1 1 0; min-width: 0;
   padding: 6px 4px;
@@ -233,14 +173,6 @@ body.coder-mode #app { display: none; }
   background: rgba(255,255,255,0.05);
   border-color: var(--cdr-border);
 }
-.cdr-side-collapse {
-  flex: 0 0 auto; width: 24px;
-  background: transparent; border: none;
-  color: var(--cdr-text-muted); cursor: pointer;
-  font-size: 12px; line-height: 1;
-}
-.cdr-side-collapse:hover { color: var(--cdr-cyan); }
-
 .cdr-side-pane { display: none; flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .cdr-side-pane.active { display: flex; flex-direction: column; }
 
@@ -290,16 +222,42 @@ body.coder-mode #app { display: none; }
   font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
 }
 .cdr-sidebar.open { display: flex; }  /* legacy compat */
-.cdr-sidebar-hd {
+.cdr-sidebar-hd,
+.cdr-sessions-hd {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-bottom: 1px solid var(--cdr-border);
   gap: 6px;
+  min-height: 34px;
 }
 .cdr-sidebar-actions {
-  display: flex; align-items: center; gap: 4px;
+  display: flex; align-items: center; gap: 3px;
+}
+/* All four the same size. They were not: a generic button rule adds padding,
+   so the collapse chevron came out a third wider than the file actions beside
+   it and the row read as broken. */
+.cdr-sidebar-actions .cdr-sidebar-iconbtn,
+.cdr-sidebar-actions #cdrSideCollapse {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+  flex: none;
+  background: transparent;
+  border-color: transparent;
+}
+.cdr-sidebar-actions .cdr-sidebar-iconbtn:hover,
+.cdr-sidebar-actions #cdrSideCollapse:hover {
+  background: var(--surface-raised);
+  border-color: var(--cdr-border);
+}
+/* The collapse acts on the panel, not on the files in it. */
+.cdr-sidebar-actions #cdrSideCollapse {
+  order: 9;
+  margin-left: 6px;
+  color: var(--cdr-text-muted);
 }
 .cdr-sidebar-iconbtn {
   width: 22px; height: 22px;
@@ -333,20 +291,10 @@ body.coder-mode #app { display: none; }
   text-transform: uppercase;
   color: var(--cdr-text-dim);
 }
-.cdr-sidebar-close {
-  background: none; border: none;
-  color: var(--cdr-text-dim);
-  font-size: 14px; line-height: 1;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: var(--radius-xs);
-}
-.cdr-sidebar-close:hover { color: var(--cdr-text); background: rgba(255,255,255,0.04); }
-
 .cdr-sidebar-body {
   flex: 1;
   overflow: auto;
-  padding: 6px;
+  padding: 4px 6px;
 }
 
 /* Explorer tree */
@@ -410,6 +358,17 @@ body.coder-mode #app { display: none; }
   display: block;
   opacity: 0.68;
 }
+/* A folder says whether it is open. Without this the tree gave no sign a row
+   could be expanded at all, which is the first thing a file tree has to do. */
+.cdr-tree-entry.dir::before {
+  content: "\25B8";
+  font-size: 8px;
+  width: 8px;
+  flex: none;
+  color: var(--cdr-text-muted);
+}
+.cdr-tree-entry.dir.open::before { content: "\25BE"; color: var(--accent); }
+.cdr-tree-entry:not(.dir)::before { content: ""; width: 8px; flex: none; }
 .cdr-tree-entry.dir svg { color: var(--cdr-gold); opacity: 0.78; }
 .cdr-tree-entry .cdr-tree-name {
   flex: 1 1 auto;
@@ -465,17 +424,6 @@ body.coder-mode #app { display: none; }
   padding: 48px 24px;
   color: var(--cdr-text-dim);
 }
-.cdr-welcome-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px; height: 52px;
-  border-radius: var(--radius);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  color: var(--cdr-cyan);
-  margin-bottom: 16px;
-}
 .cdr-welcome-title {
   font-size: 14px;
   font-weight: 600;
@@ -489,6 +437,9 @@ body.coder-mode #app { display: none; }
   margin-bottom: 20px;
 }
 .cdr-welcome-chips {
+  flex-wrap: wrap;
+  max-width: 720px;
+  justify-content: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -525,47 +476,67 @@ body.coder-mode #app { display: none; }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.cdr-msg-hd {
+/* ── The header, as one status line ────────────────────────────
+   It carried a logo, a two-line title, a centred status group and five
+   buttons. The mock reads left to right in one line: what this is, where it
+   is pointed, whether it is busy — then the model, and two controls. */
+.cdr-header-left {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  font-weight: 500;
-  padding: 0 2px;
+  gap: 9px;
+  min-width: 0;
 }
-.cdr-msg-hd .role-user  { color: var(--cdr-success); }
-.cdr-msg-hd .role-agent { color: var(--cdr-cyan); }
-
-.cdr-msg-body {
+.cdr-header-center { justify-self: start; }
+.cdr-header-left .cdr-title {
   font-size: 12px;
-  line-height: 1.6;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   color: var(--cdr-text);
-  padding: 0 2px;
 }
-.cdr-msg-body pre,
-.cdr-msg-body code {
-  font-family: var(--mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 12px;
+.cdr-header-left .cdr-sub {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--cdr-text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.cdr-msg-body pre {
-  background: var(--cdr-bg-input);
+.cdr-status-word {
+  font-size: 11px;
+  color: var(--cdr-text-muted);
+  margin-left: 2px;
+}
+.cdr-header-right { display: flex; align-items: center; gap: 8px; }
+.cdr-header-right .cdr-model-picker {
+  height: var(--control-h-sm);
+  width: 168px;
+  max-width: 168px;
+  text-overflow: ellipsis;
+  padding: 0 8px;
   border: 1px solid var(--cdr-border);
   border-radius: var(--cdr-radius);
-  padding: 10px 12px;
-  overflow-x: auto;
-  margin: 6px 0;
+  background: transparent;
+  color: var(--cdr-text);
+  font-family: var(--mono);
+  font-size: 11px;
 }
-.cdr-msg-body code {
-  background: rgba(255,255,255,0.04);
-  padding: 1px 4px;
-  border-radius: var(--radius-xs);
+.cdr-more-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 9px;
+  color: var(--cdr-text-dim);
+  font-family: var(--mono);
+  font-size: 11px;
 }
 
-/* ── Slim tool rows (inline in chat) ────────────────────────── */
-/* Expanded tool details */
+/* ── The side rail: three stacked panes, no tabs ───────────────
+   Files and Chats were two tabs in one column, so finding an old session meant
+   leaving the file tree. The mock stacks them, which is also how Knowledge
+   already sat. */
+.cdr-side-pane[data-cdr-side-pane="files"] { flex: 1 1 auto; min-height: 0; }
+
 /* ── Pane labels ────────────────────────────────────────────────
    Every panel names itself the same way: small, spaced, bracketed. It is what
    makes the columns read as parts of one tool rather than four widgets that
@@ -634,6 +605,21 @@ body.coder-mode #app { display: none; }
 .cdr-router-chip[data-idle="1"] { display: none; }
 
 /* ── The composer reads as a prompt ─────────────────────────── */
+.cdr-run-btn {
+  height: 24px;
+  padding: 0 14px;
+  flex: none;
+  border: 1px solid var(--accent);
+  border-radius: var(--cdr-radius);
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.cdr-run-btn:hover { background: rgba(92,255,151,0.10); }
+
 .cdr-prompt-mark {
   align-self: center;
   padding-left: 12px;
@@ -659,17 +645,24 @@ body.coder-mode #app { display: none; }
   border-bottom: 1px solid var(--cdr-border);
   font-size: 11.5px;
 }
+.cdr-step:last-of-type { border-bottom: none; }
 .cdr-step-head {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr) auto;
+  grid-template-columns: 12px 58px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
-  padding: 6px 8px;
+  gap: 9px;
+  padding: 3px 8px;
   cursor: pointer;
   list-style: none;
   border-radius: var(--cdr-radius);
 }
 .cdr-step-head::-webkit-details-marker { display: none; }
+.cdr-step-head::before {
+  content: "\25B8";
+  font-size: 9px;
+  color: var(--cdr-text-muted);
+}
+.cdr-step[open] > .cdr-step-head::before { content: "\25BE"; color: var(--accent); }
 .cdr-step-head:hover { background: var(--surface-raised); }
 .cdr-step-verb {
   font-size: 9.5px;
@@ -699,7 +692,7 @@ body.coder-mode #app { display: none; }
 .cdr-plus  { color: var(--cdr-success); }
 .cdr-minus { color: var(--cdr-error); }
 .cdr-step-body {
-  padding: 4px 8px 10px 74px;
+  padding: 2px 8px 8px 79px;
   overflow: auto;
   max-height: 340px;
 }
@@ -779,7 +772,7 @@ body.coder-mode #app { display: none; }
 .cdr-kb {
   flex: 0 0 auto;
   border-top: 1px solid var(--cdr-border);
-  padding: 8px 10px 10px;
+  padding: 7px 10px 9px;
 }
 .cdr-kb-hd {
   display: flex;
@@ -791,9 +784,30 @@ body.coder-mode #app { display: none; }
   color: var(--cdr-text-muted);
   margin-bottom: 5px;
 }
-.cdr-kb-state { letter-spacing: 0; text-transform: none; }
+.cdr-kb-state {
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 1px 8px;
+  border: 1px solid var(--cdr-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cdr-text-muted);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  cursor: pointer;
+}
+.cdr-kb-state:hover { border-color: var(--accent); color: var(--accent); }
+.cdr-kb.on .cdr-kb-state { border-color: var(--accent); }
 .cdr-kb.on .cdr-kb-state { color: var(--accent); }
-.cdr-kb-rows { display: flex; flex-direction: column; gap: 2px; }
+.cdr-kb-rows { display: flex; flex-direction: column; gap: 1px; }
+.cdr-kb-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* The off/empty state is a sentence, not a label and a value, so it gets its
+   own shape rather than being squeezed into the two-column row. */
+.cdr-kb-note {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: var(--cdr-text-muted);
+}
 .cdr-kb-row {
   display: flex;
   justify-content: space-between;
@@ -875,31 +889,9 @@ body.coder-mode #app { display: none; }
 }
 
 /* Inline diff preview */
-.cdr-diff-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--cdr-border);
-  font-size: 10px;
-  color: var(--cdr-text-dim);
-}
-.cdr-diff-body {
-  padding: 8px 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.5;
-  overflow-x: auto;
-  max-height: 320px;
-  overflow-y: auto;
-}
-.cdr-diff-body .diff-add  { color: var(--cdr-success); background: rgba(95,184,138,0.08); }
-.cdr-diff-body .diff-del  { color: var(--cdr-error);  background: rgba(217,138,133,0.08); text-decoration: line-through; }
-.cdr-diff-body .diff-linenum { color: var(--cdr-text-muted); margin-right: 10px; user-select: none; }
-
 /* Line-by-line diff of one change. Each line is its own block so the tint
    spans the full width rather than stopping at the end of the text. */
-.cdr-diff-lines { margin: 0; white-space: pre; }
+.cdr-diff-lines { margin: 0; white-space: pre; line-height: 1.55; }
 .cdr-diff-lines .cdr-diff-line { display: block; padding: 0 6px; border-radius: 2px; }
 .cdr-diff-lines .cdr-diff-line.add {
   color: var(--cdr-success);
@@ -1010,12 +1002,6 @@ body.coder-mode #app { display: none; }
   flex-direction: column;
   gap: 8px;
 }
-.cdr-composer-meta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
 .cdr-model-picker {
   appearance: none;
   -webkit-appearance: none;
@@ -1031,17 +1017,6 @@ body.coder-mode #app { display: none; }
 .cdr-model-picker:focus {
   outline: none;
   border-color: rgba(75,210,190,0.35);
-}
-.cdr-composer-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cdr-agents-label {
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 .cdr-agents-toggle {
   display: flex;
@@ -1079,24 +1054,30 @@ body.coder-mode #app { display: none; }
 
 .cdr-input-wrap {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  background: var(--cdr-bg-input);
+  transition: border-color .15s;
 }
+.cdr-input-wrap:focus-within { border-color: var(--accent); }
 .cdr-task-input {
   flex: 1;
   min-height: 20px;
   max-height: 320px;
-  padding: 10px 12px;
-  border-radius: var(--cdr-radius-lg);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
+  padding: 2px 0;
+  border: none;
+  background: transparent;
   color: var(--cdr-text);
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: 12.5px;
   line-height: 1.5;
   resize: none;
   outline: none;
-  transition: border-color .15s, box-shadow .15s;
 }
+.cdr-task-input::placeholder { color: var(--cdr-text-muted); }
 .cdr-task-input::placeholder { color: var(--cdr-text-muted); }
 .cdr-task-input:focus {
   border-color: rgba(75,210,190,0.30);
@@ -1391,15 +1372,6 @@ body.coder-mode #app { display: none; }
   border-radius: var(--radius-xs);
 }
 
-.cdr-msg-error {
-  padding: 10px 14px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid rgba(217,138,133,0.20);
-  background: rgba(217,138,133,0.05);
-  color: var(--cdr-error);
-  font-size: 12px;
-}
-
 /* Tool blocks */
 .hc-tool-block {
   border: 1px solid var(--cdr-border);
@@ -1436,15 +1408,6 @@ body.coder-mode #app { display: none; }
   border-radius: 50%;
   background: var(--cdr-cyan);
   animation: cdr-pulse 1.2s ease-in-out infinite;
-}
-
-.cdr-error-bubble {
-  padding: 10px 14px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid rgba(217,138,133,0.20);
-  background: rgba(217,138,133,0.05);
-  color: var(--cdr-error);
-  font-size: 12px;
 }
 
 .cdr-sessions-empty {
@@ -1517,14 +1480,13 @@ body.coder-mode #app { display: none; }
 
 /* ── Saved Chats (right panel) — always visible ───────────────── */
 .cdr-right {
-  flex: 1 1 auto; min-height: 0; min-width: 0;
+  grid-area: right;
+  min-height: 0; min-width: 0;
   display: flex !important;            /* override the legacy display:none inline */
   flex-direction: column;
   background: var(--cdr-bg-panel);
   border-left: 1px solid var(--cdr-border);
   overflow: hidden;
-  width: 260px;
-  min-width: 0;
 }
 .cdr-sessions-hd {
   display: flex; align-items: center; justify-content: space-between;
@@ -1536,23 +1498,39 @@ body.coder-mode #app { display: none; }
   text-transform: uppercase;
   color: var(--cdr-text-dim);
 }
+.cdr-sessions-hd-actions { display: flex; align-items: center; gap: 4px; }
+.cdr-new-chat-btn {
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid var(--cdr-border);
+  border-radius: var(--cdr-radius);
+  background: transparent;
+  color: var(--cdr-text-dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  cursor: pointer;
+}
+.cdr-new-chat-btn:hover { border-color: var(--accent); color: var(--accent); }
 .cdr-sessions-clear {
-  background: rgba(217,138,133,0.06);
-  border: 1px solid rgba(217,138,133,0.25);
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: var(--radius-xs);
   width: 22px; height: 22px;
-  color: var(--cdr-error);
+  min-width: 22px;
+  padding: 0;
+  color: var(--cdr-text-muted);
   cursor: pointer;
   display: grid; place-items: center;
   font-size: 13px; line-height: 1;
 }
+.cdr-sessions-clear:hover { color: var(--cdr-error); border-color: var(--cdr-border); }
 .cdr-sessions-clear:hover {
   background: rgba(217,138,133,0.18);
   border-color: rgba(217,138,133,0.50);
 }
 .cdr-sessions-search {
-  margin: 8px 10px;
-  padding: 6px 9px;
+  margin: 6px 8px;
+  padding: 4px 8px;
   background: var(--cdr-bg-input);
   border: 1px solid var(--cdr-border);
   border-radius: var(--radius-xs);
@@ -1569,8 +1547,7 @@ body.coder-mode #app { display: none; }
 .cdr-sessions-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0 8px 8px;
-  display: flex; flex-direction: column; gap: 4px;
+  padding: 0;
 }
 .cdr-sessions-empty {
   text-align: center;
@@ -1580,25 +1557,23 @@ body.coder-mode #app { display: none; }
   line-height: 1.5;
 }
 .cdr-session-item {
-  background: rgba(255,255,255,0.025);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--radius-xs);
-  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--cdr-border);
+  border-radius: 0;
+  padding: 5px 10px;
   cursor: pointer;
-  transition: background .12s, border-color .12s;
+  transition: background .12s;
 }
-.cdr-session-item:hover {
-  background: rgba(75,210,190,0.06);
-  border-color: rgba(75,210,190,0.22);
-}
+.cdr-session-item:hover { background: var(--surface-raised); }
 .cdr-session-item .cdr-session-title {
   font-size: 11px;
   color: var(--cdr-text);
-  margin-bottom: 3px;
+  margin-bottom: 1px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cdr-session-item .cdr-session-meta {
-  font-size: 9.5px;
+  font-size: 9px;
   color: var(--cdr-text-muted);
   letter-spacing: 0.04em;
   margin-top: 0;
@@ -1606,56 +1581,48 @@ body.coder-mode #app { display: none; }
 
 /* ── Color-tagged role bubbles (terminal-themed) ──────────────── */
 /* User: green prompt-style */
-.cdr-msg.user .cdr-user-bubble,
+/* What you asked for, written as a prompt line rather than boxed and
+   labelled. The label said "$ USER" above every message you had just typed. */
 .cdr-msg.user .cdr-msg-content {
-  border-left: 2px solid var(--cdr-success);
-  background: rgba(95,184,138,0.04);
-  padding: 8px 12px;
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  display: flex;
+  gap: 10px;
+  padding: 2px 0 10px;
+  background: none;
+  border: none;
 }
-.cdr-msg.user::before {
-  content: "$ user";
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--cdr-success);
-  margin-bottom: 4px;
-  display: block;
+.cdr-msg.user .cdr-msg-content::before {
+  content: "\276F";
+  color: var(--accent);
+  flex: none;
+}
+.cdr-msg.user .cdr-user-bubble {
+  background: none;
+  border: none;
+  padding: 0;
+  max-width: none;
+  align-self: auto;
+  color: var(--cdr-text);
 }
 
 /* Assistant: cyan output-style */
 .cdr-msg.assistant .cdr-msg-content,
-.cdr-msg.assistant .cdr-asst-content {
-  border-left: 2px solid var(--cdr-cyan);
-  background: rgba(75,210,190,0.03);
-  padding: 8px 12px;
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+/* The reply itself is marked, not the whole turn — the steps in between are
+   the run, and they carry their own verbs. */
+.cdr-msg.assistant .cdr-msg-text {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0 4px;
 }
-.cdr-msg.assistant::before {
-  content: "> agent";
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--cdr-cyan);
-  margin-bottom: 4px;
-  display: block;
+.cdr-msg.assistant .cdr-msg-text::before {
+  content: "::";
+  color: var(--green-dim, var(--accent));
+  opacity: 0.7;
+  flex: none;
 }
 
 /* Thinking / reasoning: violet */
 .cdr-thinking,
-.cdr-reasoning,
-.cdr-reasoning-block {
-  border-left: 2px solid var(--cdr-violet);
-  background: rgba(124,106,245,0.04);
-  padding: 6px 10px;
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  font-style: italic;
-}
-
 /* Error rows: rose */
-.cdr-error-row,
 .cdr-msg.error .cdr-msg-content {
   border-left: 2px solid var(--cdr-error);
   background: rgba(217,138,133,0.06);
@@ -1665,8 +1632,7 @@ body.coder-mode #app { display: none; }
 /* Code blocks: dark VSCode-ish with cyan trim, monospace */
 .cdr-msg-content pre,
 .cdr-msg-content code,
-.cdr-asst-content pre,
-.cdr-asst-content code,
+.cdr-msg-content code,
 .cdr-user-bubble pre,
 .cdr-user-bubble code {
   font-family: var(--mono) !important;
@@ -1675,7 +1641,6 @@ body.coder-mode #app { display: none; }
   border-radius: var(--radius-xs);
 }
 .cdr-msg-content pre,
-.cdr-asst-content pre,
 .cdr-user-bubble pre {
   padding: 10px 12px;
   overflow-x: auto;
@@ -1684,7 +1649,6 @@ body.coder-mode #app { display: none; }
   color: #d7f0ea;
 }
 .cdr-msg-content :not(pre) > code,
-.cdr-asst-content :not(pre) > code,
 .cdr-user-bubble :not(pre) > code {
   padding: 1px 5px;
   font-size: 11px;
@@ -1803,19 +1767,9 @@ body.coder-mode #app { display: none; }
   opacity: 0.7;
 }
 
-/* ── Neon green borders on both side panels ───────────────────── */
-.cdr-sidebar {
-  border-right: 1px solid rgba(57,255,129,0.45) !important;
-  box-shadow:
-    inset -1px 0 0 rgba(57,255,129,0.18),
-    2px 0 14px rgba(57,255,129,0.06);
-}
-.cdr-right {
-  border-left: 1px solid rgba(57,255,129,0.45) !important;
-  box-shadow:
-    inset 1px 0 0 rgba(57,255,129,0.18),
-    -2px 0 14px rgba(57,255,129,0.06);
-}
+/* Panels are separated by a hairline, not framed by a glow. */
+.cdr-sidebar { border-right: 1px solid var(--cdr-border); }
+
 .cdr-sidebar-hd,
 .cdr-sessions-hd {
   border-bottom-color: rgba(57,255,129,0.22) !important;
@@ -1831,32 +1785,10 @@ body.coder-mode #app { display: none; }
   box-shadow: 0 0 8px rgba(57,255,129,0.30);
 }
 
-/* ── Blueprint background for the chat (faint drafting grid) ───── */
-.cdr-chat-area {
-  isolation: isolate;
-  background: linear-gradient(180deg, #05090f 0%, #030609 100%) !important;
-}
-.cdr-chat-area::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 1;
-  background:
-    radial-gradient(780px 520px at 52% 32%, rgba(79,178,255,0.095), transparent 72%),
-    radial-gradient(circle at 18% 24%, rgba(79,178,255,0.095) 0 1.2px, transparent 1.8px),
-    radial-gradient(circle at 76% 68%, rgba(57,255,129,0.060) 0 1.2px, transparent 1.8px),
-    repeating-linear-gradient(90deg, transparent 0 23px, rgba(79,178,255,0.070) 23px 24px, transparent 24px 95px, rgba(79,178,255,0.130) 95px 96px),
-    repeating-linear-gradient(180deg, transparent 0 23px, rgba(79,178,255,0.070) 23px 24px, transparent 24px 95px, rgba(79,178,255,0.130) 95px 96px);
-  background-size:
-    auto,
-    96px 96px,
-    128px 128px,
-    auto,
-    auto;
-  mask-image: linear-gradient(180deg, rgba(0,0,0,0.95), rgba(0,0,0,0.72) 55%, rgba(0,0,0,0.88));
-}
+/* ── The chat surface ──────────────────────────────────────────
+   Plain. A drafting grid used to sit behind the run, which competes with the
+   code it is drawn under. */
+.cdr-chat-area { isolation: isolate; background: var(--cdr-bg); }
 .cdr-chat-area::after {
   content: "";
   position: absolute;

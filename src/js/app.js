@@ -8311,6 +8311,16 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     // knowledge base has already had twice.
     ragSearch: (query) => queryRAGMerged(String(query || "")),
     ragIsOn: () => ragEnabled,
+    // Any mode can turn it on. Telling someone to go to another tab to flip a
+    // switch is worse than giving them the switch, and this one setting is
+    // what decides whether search_knowledge finds anything at all.
+    ragSetOn: (on) => {
+      ragEnabled = !!on;
+      saveSettings();
+      // Keep the toggle in the Agents tab showing the truth.
+      document.getElementById("ragToggle")?.classList.toggle("on", ragEnabled);
+      return ragEnabled;
+    },
     ragSize: () => {
       // What the base actually holds, so a panel can say "on and empty" rather
       // than leaving the user to guess why nothing comes back.

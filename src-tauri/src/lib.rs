@@ -17,7 +17,9 @@ use commands::{
     keychain::{keychain_delete, keychain_retrieve_bundle},
     net::net_resolve_is_public,
     notch::notch_activity_post,
-    shell::{shell_platform, shell_run, shell_run_line, shell_run_line_stream},
+    shell::{
+        shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream,
+    },
     usage_log::usage_log_append,
 };
 
@@ -60,13 +62,12 @@ pub fn run() {
             // the question the Permission Guard used to answer with a string
             // comparison a symlink walked straight past.
             fs_path_inside_root,
-            // Phase 4 — Shell.
-            //
-            // shell_run_stream is not registered: nothing in the renderer calls
-            // it, and shell_run_line_stream — which does the streaming the
-            // terminal uses — reaches it inside Rust. An unused way to run a
-            // command is surface with no feature paying for it.
+            // Phase 4 — Shell. shell_run_stream is registered again: it was
+            // dropped when nothing called it, and the agent now streams its
+            // output through it so a long build reports progress instead of
+            // going quiet until it ends.
             shell_run,
+            shell_run_stream,
             shell_run_line,
             shell_run_line_stream,
             shell_platform,

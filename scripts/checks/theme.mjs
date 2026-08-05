@@ -199,7 +199,7 @@ const BUDGET = {
   'css/virtual-os.css': 56,
   'css/modes.css': 50,
   'css/main.css': 43,
-  'css/coder-mode.css': 29,
+  'css/coder-mode.css': 26,
   'css/agent-maker.css': 36,
   'css/finance-mode.css': 29,
   'css/tabs.css': 18,

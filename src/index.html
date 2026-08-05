@@ -2082,41 +2082,42 @@
     <!-- Header -->
     <div class="cdr-header">
       <div class="cdr-header-left">
-        <img src="/assets/logo-mark.png" class="cdr-logo mode-logo-img" draggable="false" alt="HashCortx"/>
-        <div>
-          <div class="cdr-title">HashCortX Coder</div>
-          <div class="cdr-sub" id="cdrProjectSub">No project open</div>
-        </div>
+        <span class="cdr-status-dot" id="cdrStatusDot"></span>
+        <span class="cdr-title">CODER</span>
+        <span class="cdr-sub" id="cdrProjectSub">No project open</span>
+        <span id="cdrStatusText" class="cdr-status-word">Ready</span>
       </div>
 
       <div class="cdr-header-center">
-        <div class="cdr-status-bar">
-          <span class="cdr-status-dot" id="cdrStatusDot"></span>
-          <span id="cdrStatusText">Ready</span>
-        </div>
         <span id="cdrRouterChip" class="cdr-router-chip"></span>
         <span id="cdrRouterLabel" style="display:none"></span>
-        <!-- How full the model's context is. Chat has had one of these all
-             along; Coder is where a long run quietly fills the window, and it
-             had none. -->
-        <div class="cdr-ctx" id="cdrContext" title="Estimated context usage">
-          <span class="cdr-ctx-label">CTX</span>
-          <span id="cdrContextPct">0%</span>
-          <span class="cdr-ctx-bar" aria-hidden="true"><span class="cdr-ctx-fill" id="cdrContextFill"></span></span>
-          <span class="cdr-ctx-count" id="cdrContextCount"></span>
-        </div>
       </div>
 
       <!-- Four of these were sitting in the header permanently: things you
            touch once a month, and two of them diagnostics. They live behind
            one control now. -->
       <div class="cdr-header-right">
+        <div class="cdr-ctx" id="cdrContext" title="Estimated context usage">
+          <span class="cdr-ctx-label">CTX</span>
+          <span id="cdrContextPct">0%</span>
+          <span class="cdr-ctx-bar" aria-hidden="true"><span class="cdr-ctx-fill" id="cdrContextFill"></span></span>
+          <span class="cdr-ctx-count" id="cdrContextCount"></span>
+        </div>
+        <select class="cdr-model-picker" id="cdrModelPicker" title="Model for Coder"></select>
         <div class="cdr-trace-wrap">
           <button class="cdr-icon-btn" id="cdrMoreBtn" title="More" aria-haspopup="true" aria-expanded="false">&#8943;</button>
           <div class="cdr-more-menu" id="cdrMoreMenu">
             <button class="cdr-more-item" id="cdrAuditBtn" title="View audit log">Audit log</button>
             <button class="cdr-more-item" id="cdrTraceBtn" title="Execution trace">Execution trace</button>
             <button class="cdr-more-item" id="cdrExportBtn" title="Export chat as Markdown">Export chat</button>
+            <div class="cdr-more-row">
+              <span>Agents</span>
+              <span class="cdr-agents-toggle">
+                <button class="cdr-agent-btn active" data-agents="1">1</button>
+                <button class="cdr-agent-btn" data-agents="2">+2</button>
+                <button class="cdr-agent-btn" data-agents="3">+3</button>
+              </span>
+            </div>
             <button class="cdr-more-item danger" id="cdrResetPermsBtn" title="Revoke every permission granted this session">Reset permissions</button>
           </div>
           <div class="cdr-trace-panel" id="cdrTracePanel">
@@ -2127,7 +2128,7 @@
             <div class="cdr-trace-entries" id="cdrTraceEntries"></div>
           </div>
         </div>
-        <button class="cdr-back-btn" id="cdrBackBtn">&#8592; Back</button>
+        <button class="cdr-icon-btn" id="cdrBackBtn" title="Leave Coder">&#215;</button>
       </div>
     </div>
 
@@ -2138,20 +2139,13 @@
            tabs. These were two separate fixed columns, 220px and 260px, which
            together ate half the window at its minimum width. -->
       <div class="cdr-side" id="cdrSidePanel">
-        <div class="cdr-side-tabs" role="tablist">
-          <button type="button" class="cdr-side-tab active" data-cdr-side-tab="files"
-                  role="tab" aria-selected="true">Files</button>
-          <button type="button" class="cdr-side-tab" data-cdr-side-tab="chats"
-                  role="tab" aria-selected="false">Chats</button>
-          <button type="button" class="cdr-side-collapse" id="cdrSideCollapse"
-                  title="Hide this panel">&#10094;</button>
-        </div>
 
       <div class="cdr-side-pane active" data-cdr-side-pane="files">
       <div class="cdr-sidebar" id="cdrSidebar">
         <div class="cdr-sidebar-hd">
           <span class="cdr-pane-label">[ FILES ]</span>
           <div class="cdr-sidebar-actions">
+            <button type="button" class="cdr-sidebar-iconbtn" id="cdrSideCollapse" title="Hide this panel">&#10094;</button>
             <button class="cdr-sidebar-iconbtn" id="cdrLeftAddFileBtn" title="Open File">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
             </button>
@@ -2173,26 +2167,13 @@
              knowledge base that is silently off or silently empty is a failure
              this app has already had twice — so it says which it is. -->
         <div class="cdr-kb" id="cdrKb">
-          <div class="cdr-kb-hd"><span class="cdr-pane-label">[ KNOWLEDGE ]</span><span class="cdr-kb-state" id="cdrKbState">off</span></div>
+          <div class="cdr-kb-hd"><span class="cdr-pane-label">[ KNOWLEDGE ]</span><button type="button" class="cdr-kb-state" id="cdrKbState" title="Switch the knowledge base on">off</button></div>
           <div class="cdr-kb-rows" id="cdrKbRows"></div>
         </div>
       </div><!-- /.cdr-sidebar -->
       </div><!-- /.cdr-side-pane files -->
 
-      <div class="cdr-side-pane" data-cdr-side-pane="chats">
-        <div class="cdr-right" id="cdrSessionsPanel">
-          <div class="cdr-sessions-hd">
-            <span class="cdr-pane-label">[ SESSIONS ]</span>
-            <button class="cdr-sessions-clear" id="cdrSessionsClearAllBtn" title="Clear all saved chats">
-              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 5h10M6 5V3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V5M5 5l.7 8a.6.6 0 0 0 .6.5h3.4a.6.6 0 0 0 .6-.5L11 5"/></svg>
-            </button>
-          </div>
-          <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search chats..." autocomplete="off" spellcheck="false"/>
-          <div class="cdr-sessions-body" id="cdrSessionsList">
-            <div class="cdr-sessions-empty">Past conversations will appear here.</div>
-          </div>
-        </div>
-      </div><!-- /.cdr-side-pane chats -->
+      <!-- /.cdr-side-pane chats -->
       </div><!-- /.cdr-side -->
 
       <!-- Drag to resize the side panel; double-click to reset. -->
@@ -2212,10 +2193,14 @@
             <div class="cdr-welcome-title">Coder Mode</div>
             <div class="cdr-welcome-sub">Surgical AI tasks &middot; local-first &middot; your keys</div>
             <div class="cdr-welcome-chips">
-              <span class="cdr-welcome-chip" data-prompt="List all files in the project and give me a quick overview of the codebase structure">Explore codebase</span>
-              <span class="cdr-welcome-chip" data-prompt="Find all TODO and FIXME comments in the project">Find TODOs</span>
-              <span class="cdr-welcome-chip" data-prompt="Check for any obvious bugs or issues in the main source files">Debug &amp; audit</span>
-              <span class="cdr-welcome-chip" data-prompt="Write unit tests for the core functionality">Write tests</span>
+              <span class="cdr-welcome-chip" data-prompt="Map this project. Use list_dir from the project root, then grep_code for the entry point. Tell me: what it is, how it starts, the three or four files that matter most, and anything that looks unusual. Read before you conclude, and name the file behind every claim.">Map the project</span>
+              <span class="cdr-welcome-chip" data-prompt="Find every TODO, FIXME, HACK and XXX comment with grep_code. Group them by file, quote the line, and say which ones look like real work versus notes someone left and forgot. Do not fix anything yet.">Find the TODOs</span>
+              <span class="cdr-welcome-chip" data-prompt="Look for real defects, not style. Read the main source files and report anything that would misbehave at runtime: unhandled errors, a value used before it is set, an await that is missing, an off-by-one, a branch that can never run. For each one give me the file, the line, and the input that would break it. Do not change any code.">Hunt for bugs</span>
+              <span class="cdr-welcome-chip" data-prompt="Find the test command in package.json, Cargo.toml or the Makefile and run it with shell_run. If it passes, tell me what is NOT covered and write tests for the most important gap. If it fails, show me the failing output and diagnose it before changing anything.">Run and extend the tests</span>
+              <span class="cdr-welcome-chip" data-prompt="Explain how one thing works end to end. Ask me which feature first if it is not obvious, then trace it: where it starts, every file it passes through, and where it ends. Quote the key lines rather than describing them.">Explain a feature</span>
+              <span class="cdr-welcome-chip" data-prompt="Review the uncommitted changes. Run git status --short and git diff with shell_run, read what changed, and tell me what is wrong with it — correctness first, then anything left behind like a debug print or dead code. Be specific and do not praise it.">Review my changes</span>
+              <span class="cdr-welcome-chip" data-prompt="Find the dead code. Look for functions, classes, exports, CSS classes and files that nothing references, using grep_code to confirm each one has no caller. List them with the evidence. Delete nothing until I say so.">Find dead code</span>
+              <span class="cdr-welcome-chip" data-prompt="Check the dependencies. Read package.json, Cargo.toml or requirements.txt, then grep the source for each one and tell me which are imported nowhere. Flag anything pinned loosely enough to change under me.">Audit dependencies</span>
             </div>
           </div>
         </div>
@@ -2239,25 +2224,11 @@
 
         <!-- Composer -->
         <div class="cdr-composer">
-          <div class="cdr-composer-meta">
-            <select class="cdr-model-picker" id="cdrModelPicker" title="Model for HashCortx Coder"></select>
-            <div class="cdr-composer-right">
-              <span class="cdr-agents-label">Agents</span>
-              <div class="cdr-agents-toggle">
-                <button class="cdr-agent-btn active" data-agents="1">1</button>
-                <button class="cdr-agent-btn" data-agents="2">+2</button>
-                <button class="cdr-agent-btn" data-agents="3">+3</button>
-              </div>
-              <button class="cdr-new-chat-btn" id="cdrClearChatBtn" title="Start new conversation">New chat</button>
-            </div>
-          </div>
           <div class="cdr-input-wrap">
             <span class="cdr-prompt-mark" aria-hidden="true">&#10095;</span>
             <textarea id="cdrTaskInput" class="cdr-task-input" rows="1"
               placeholder="Tell Coder what to change"></textarea>
-            <button class="cdr-run-btn" id="cdrRunBtn" title="Run task">
-              <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="8 6 14 12 8 18"/><line x1="15" y1="18" x2="20" y2="18"/></svg>
-            </button>
+            <button class="cdr-run-btn" id="cdrRunBtn" title="Run task">RUN</button>
             <button class="cdr-stop-btn" id="cdrStopBtn" style="display:none" title="Stop">&#9632;</button>
           </div>
         </div>
@@ -2288,6 +2259,23 @@
           <input type="text" id="cdrTerminalInput" placeholder="Type a command..." autocomplete="off" spellcheck="false" />
         </div>
       </div><!-- /.cdr-terminal-panel -->
+
+      <!-- Saved chats: their own column on the right, so browsing the file
+           tree and finding an old conversation do not take turns. -->
+        <div class="cdr-right" id="cdrSessionsPanel">
+          <div class="cdr-sessions-hd">
+            <span class="cdr-pane-label">[ SESSIONS ]</span>
+            <span class="cdr-sessions-hd-actions">
+            <button class="cdr-new-chat-btn" id="cdrClearChatBtn" title="Start a new conversation">+ New</button>
+            <button class="cdr-sessions-clear" id="cdrSessionsClearAllBtn" title="Clear all saved chats">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M3 5h10M6 5V3.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V5M5 5l.7 8a.6.6 0 0 0 .6.5h3.4a.6.6 0 0 0 .6-.5L11 5"/></svg>
+            </button>
+          </div>
+          <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search chats..." autocomplete="off" spellcheck="false"/>
+          <div class="cdr-sessions-body" id="cdrSessionsList">
+            <div class="cdr-sessions-empty">Past conversations will appear here.</div>
+          </div>
+        </div>
 
     </div><!-- /.cdr-body -->
 

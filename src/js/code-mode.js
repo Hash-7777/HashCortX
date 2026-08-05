@@ -396,6 +396,7 @@
     let runAbort           = null;
     let conversationMsgs   = []; // persists across turns — full chat history
     let toolCallCounter    = 0;
+    let _lastAgentCommand  = null;   // echo a command once, not once per line
     let coderModel         = null; // null = use main model picker
     let activeContentEl    = null; // current assistant bubble — for change pills
     let cdrTraceEntries    = [];
@@ -471,6 +472,28 @@
           .then(r => { if (r?.stdout?.trim()) sharedState.homeDir = r.stdout.trim(); })
           .catch(() => {});
       }
+      // Everything the agent's commands print reaches the terminal as it
+      // arrives, so a build or a test run reads live instead of appearing
+      // whole once it has already finished.
+      if (window.HC?.code) {
+        HC.code.onShellChunk = (chunk, display) => {
+          if (!chunk) return;
+          if (_lastAgentCommand !== display) {
+            _lastAgentCommand = display;
+            terminalLog(`${terminalPrompt()} ${display}`, 'cdr-bash-preview');
+          }
+          terminalLog(chunk.data ?? '', chunk.kind === 'stderr' ? 'cdr-terminal-error' : '');
+        };
+      }
+      // The state word is the switch. It read "Turn on in Agents to search
+      // your documents" — an instruction to go somewhere else for one setting
+      // that decides whether searching your documents works at all.
+      $('cdrKbState')?.addEventListener('click', () => {
+        const H = window._H;
+        if (!H?.ragSetOn) return;
+        H.ragSetOn(!H.ragIsOn?.());
+        updateCoderStatus();
+      });
       restoreCoderState();
       // Deliberately NOT inside restoreCoderState: that returns early when there
       // is no saved session, and a change waiting to be kept or undone has
@@ -635,7 +658,7 @@
       dest.innerHTML = '';
       const autoOpt = document.createElement('option');
       autoOpt.value = '';
-      autoOpt.textContent = 'Auto (follow main picker)';
+      autoOpt.textContent = 'Auto';
       dest.appendChild(autoOpt);
       src.querySelectorAll('optgroup, option').forEach(node => {
         if (node.tagName === 'OPTGROUP') {
@@ -1339,12 +1362,17 @@
         const size = H?.ragSize?.() || { passages: 0, sources: 0 };
         kb.classList.toggle('on', on);
         kbState.textContent = on ? 'on' : 'off';
+        kbState.title = on ? 'Switch the knowledge base off' : 'Switch the knowledge base on';
+        // Plain words. This said "search_knowledge will find nothing", which
+        // names a tool the reader never sees and wrapped onto three lines in a
+        // narrow panel, so the one strip meant to tell you the truth about the
+        // knowledge base looked broken.
         kbRows.innerHTML = on
           ? (size.passages
-            ? `<div class="cdr-kb-row"><span>passages</span><b>${size.passages.toLocaleString()}</b></div>
-               <div class="cdr-kb-row"><span>sources</span><b>${size.sources}</b></div>`
-            : '<div class="cdr-kb-row"><span>nothing ingested yet</span></div>')
-          : '<div class="cdr-kb-row"><span>search_knowledge will find nothing</span></div>';
+            ? `<div class="cdr-kb-row"><span>passages</span><b>${size.passages.toLocaleString()}</b></div>` +
+              `<div class="cdr-kb-row"><span>sources</span><b>${size.sources}</b></div>`
+            : '<div class="cdr-kb-note">On, but empty. Add documents to use it.</div>')
+          : '<div class="cdr-kb-note">Off. Nothing of yours is searched.</div>';
       }
     }
 
@@ -1547,10 +1575,14 @@
           <div class="cdr-welcome-title">Coder Mode</div>
           <div class="cdr-welcome-sub">Surgical AI tasks &middot; local-first &middot; your keys</div>
           <div class="cdr-welcome-chips">
-            <span class="cdr-welcome-chip" data-prompt="List all files in the project and give me a quick overview of the codebase structure">Explore codebase</span>
-            <span class="cdr-welcome-chip" data-prompt="Find all TODO and FIXME comments in the project">Find TODOs</span>
-            <span class="cdr-welcome-chip" data-prompt="Check for any obvious bugs or issues in the main source files">Debug &amp; audit</span>
-            <span class="cdr-welcome-chip" data-prompt="Write unit tests for the core functionality">Write tests</span>
+            <span class="cdr-welcome-chip" data-prompt="Map this project. Use list_dir from the project root, then grep_code for the entry point. Tell me: what it is, how it starts, the three or four files that matter most, and anything that looks unusual. Read before you conclude, and name the file behind every claim.">Map the project</span>
+            <span class="cdr-welcome-chip" data-prompt="Find every TODO, FIXME, HACK and XXX comment with grep_code. Group them by file, quote the line, and say which ones look like real work versus notes someone left and forgot. Do not fix anything yet.">Find the TODOs</span>
+            <span class="cdr-welcome-chip" data-prompt="Look for real defects, not style. Read the main source files and report anything that would misbehave at runtime: unhandled errors, a value used before it is set, an await that is missing, an off-by-one, a branch that can never run. For each one give me the file, the line, and the input that would break it. Do not change any code.">Hunt for bugs</span>
+            <span class="cdr-welcome-chip" data-prompt="Find the test command in package.json, Cargo.toml or the Makefile and run it with shell_run. If it passes, tell me what is NOT covered and write tests for the most important gap. If it fails, show me the failing output and diagnose it before changing anything.">Run and extend the tests</span>
+            <span class="cdr-welcome-chip" data-prompt="Explain how one thing works end to end. Ask me which feature first if it is not obvious, then trace it: where it starts, every file it passes through, and where it ends. Quote the key lines rather than describing them.">Explain a feature</span>
+            <span class="cdr-welcome-chip" data-prompt="Review the uncommitted changes. Run git status --short and git diff with shell_run, read what changed, and tell me what is wrong with it — correctness first, then anything left behind like a debug print or dead code. Be specific and do not praise it.">Review my changes</span>
+            <span class="cdr-welcome-chip" data-prompt="Find the dead code. Look for functions, classes, exports, CSS classes and files that nothing references, using grep_code to confirm each one has no caller. List them with the evidence. Delete nothing until I say so.">Find dead code</span>
+            <span class="cdr-welcome-chip" data-prompt="Check the dependencies. Read package.json, Cargo.toml or requirements.txt, then grep the source for each one and tell me which are imported nowhere. Flag anything pinned loosely enough to change under me.">Audit dependencies</span>
           </div>
         </div>`;
         msgs.querySelectorAll('.cdr-welcome-chip').forEach(chip => {
@@ -1982,7 +2014,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           const sign = r.type === 'add' ? '+' : r.type === 'del' ? '\u2212' : ' ';
           const no = r.type === 'add' ? r.afterNo : r.beforeNo;
           return `<span class="cdr-diff-line ${r.type}">${String(no ?? '').padStart(4, ' ')} ${sign} ${esc(r.text)}</span>`;
-        }).join('\n') + '</pre>';
+        // Joined with nothing, not a newline. Each line is its own block
+        // element inside a <pre>, so a newline between them renders as a blank
+        // line and the diff came out double-spaced.
+        }).join('') + '</pre>';
       }
       if (checkpoint?.unrestorable) {
         const why = document.createElement('div');
@@ -2460,8 +2495,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
   // you have chosen.
   // ══════════════════════════════════════════════════════════════
   const CDR_LAYOUT_KEY = 'hashcortx_coder_layout_v1';
-  const CDR_LAYOUT_DEFAULTS = { sideW: 250, termH: 220, sideHidden: false, termHidden: false };
-  const CDR_LIMITS = { sideMin: 170, sideMax: 460, termMin: 90, termMax: 640 };
+  const CDR_LAYOUT_DEFAULTS = { sideW: 232, termH: 220, sideHidden: false, termHidden: false };
+  // Floors, not suggestions. Dragging used to be able to squeeze a panel until
+  // its own labels were clipped; these are the widths at which every panel
+  // still shows what it is.
+  const CDR_LIMITS = { sideMin: 208, sideMax: 460, termMin: 120, termMax: 640 };
 
   let cdrLayout = { ...CDR_LAYOUT_DEFAULTS };
 
@@ -2492,6 +2530,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     const expandBtn = $('cdrTerminalExpand');
     if (expandBtn) expandBtn.textContent = body.classList.contains('cdr-term-full') ? 'Restore' : 'Expand';
+    const hideBtn = $('cdrTerminalCollapse');
+    if (hideBtn) hideBtn.textContent = cdrLayout.termHidden ? 'Show' : 'Hide';
+    if (expandBtn) expandBtn.disabled = !!cdrLayout.termHidden;
   }
 
   /** Wire one split handle. `axis` is 'x' (side width) or 'y' (terminal height). */
@@ -2577,6 +2618,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       cdrLayout.termHidden = !cdrLayout.termHidden;
       cdrApplyLayout(); cdrSaveLayout();
     });
+    // A control labelled Hide that cannot be pressed again is a one-way door.
+    // It reads Show while the terminal is collapsed.
     $('cdrTerminalExpand')?.addEventListener('click', () => {
       // Expand is a view state, not a size: leaving the dragged height alone
       // means Restore puts back exactly what the user had chosen.

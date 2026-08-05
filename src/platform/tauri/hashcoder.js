@@ -61,6 +61,15 @@
       return HC.invoke('fs_search_files', { dir, pattern });
     },
 
+    /**
+     * Where a running command's output goes as it arrives.
+     *
+     * Set by the Coder panel so a build or a test run appears in the terminal
+     * line by line. Left unset — in a browser build, or before the panel
+     * mounts — the run still works and returns everything at the end.
+     */
+    onShellChunk: null,
+
     async shellRun(command, args = [], cwd = null, reason = '') {
       const display = [command, ...args].join(' ');
       // Where a command runs decides what it does. `npm test` and `rm out.o`
@@ -72,6 +81,24 @@
       const shown = cwd ? `${display} (in ${cwd})` : display;
       const ok = await HC.guard.request('shell', shown, reason);
       if (!ok) throw new Error(`Permission denied: shell ${shown}`);
+
+      // Stream when there is somewhere to stream to. A command the agent ran
+      // handed back everything at once when it finished, so a two-minute build
+      // looked identical to a hung one right up until it ended.
+      const Channel = window.__TAURI__?.core?.Channel;
+      if (Channel && typeof HC.code.onShellChunk === 'function') {
+        const channel = new Channel();
+        let stdout = '', stderr = '', code = 0;
+        channel.onmessage = (chunk) => {
+          if (!chunk) return;
+          if (chunk.kind === 'done') { code = chunk.code ?? 0; return; }
+          const line = (chunk.data ?? '') + '\n';
+          if (chunk.kind === 'stderr') stderr += line; else stdout += line;
+          try { HC.code.onShellChunk(chunk, display); } catch { /* a sink must never break a run */ }
+        };
+        await HC.invoke('shell_run_stream', { command, args, cwd, on_chunk: channel });
+        return { stdout, stderr, code, timedOut: false, truncated: false };
+      }
       return HC.invoke('shell_run', { command, args, cwd });
     },
 
