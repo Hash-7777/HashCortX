@@ -62,8 +62,7 @@ function ratchet(label, actual, budget, whenOver) {
 // Only the files big enough to hide things in. A 300-line module does not need
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
-  'js/app.js': 8682,
-  'index.html': 2372,
+  'js/app.js': 8340,
   'js/system-maker.js': 4220,
   'js/virtual-os.js': 3836,
   'js/forge-mode.js': 3756,
@@ -77,6 +76,27 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
   ratchet(file, lines(file), budget, 'move something into its own file rather than growing this one');
 }
 
+// index.html is measured differently, on purpose.
+//
+// A plain line count punishes the thing it is supposed to reward. Moving a
+// block of code out of app.js into its own file adds one <script> line here,
+// so a shell budget counted naively fails on exactly the change that makes the
+// app smaller — and the way to make it pass would be to not extract anything.
+//
+// So the asset lines are excluded. They are a manifest of what the page loads,
+// not content the shell is carrying, and in Stage 3 they stop being written by
+// hand at all. What is counted is markup: the shell's own structure, plus the
+// mode panels that should not be in it. That number may only fall.
+const SHELL_MARKUP_BUDGET = 2321;
+
+console.log('\nThe shell holds no more markup than it did:');
+{
+  const isAsset = (l) => /<script\s+src=|<link[^>]+rel="stylesheet"/.test(l);
+  const markup = textLines(read('index.html')).filter((l) => !isAsset(l));
+  ratchet('index.html markup lines', markup.length, SHELL_MARKUP_BUDGET,
+    'new markup in the shell belongs to whatever owns it');
+}
+
 // ── 2. How many things app.js is responsible for ─────────────────────────
 //
 // Counted from the file's own `// ========= Name =========` banners. Those
@@ -86,7 +106,7 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // not, which is the actual cost — not the length.
 //
 // This falls by one every time a section becomes a file.
-const RESPONSIBILITY_BUDGET = 16;
+const RESPONSIBILITY_BUDGET = 15;
 
 console.log('\napp.js holds fewer separate responsibilities over time:');
 {
