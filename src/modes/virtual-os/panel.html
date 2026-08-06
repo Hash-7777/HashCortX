@@ -1,0 +1,280 @@
+<div id="virtual-os-wrap">
+
+  <!-- Hidden file inputs (always in DOM so JS can .click() them) -->
+  <input type="file" id="voidFileInput" class="void-offscreen-input" multiple />
+  <input type="file" id="voidFolderInput" class="void-offscreen-input" webkitdirectory multiple />
+  <input type="file" id="voidWallpaperInput" class="void-offscreen-input" accept="image/*" />
+
+  <!-- Header -->
+  <div class="void-header">
+    <div class="void-header-left">
+      <img src="/assets/logo-mark.png" class="void-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+      <div>
+        <div class="void-title">Virtual OS</div>
+        <div class="void-sub" id="voidBreadcrumbSub" style="font-size:10px;color:rgba(134,239,172,.52);"></div>
+      </div>
+    </div>
+    <div class="void-header-right">
+      <span class="void-status" id="voidRunStatus"></span>
+      <select class="void-select" id="voidGodModelSelect"></select>
+      <button class="void-btn" id="voidImportBtn">Import Files</button>
+      <button class="void-btn" id="voidUploadFolderBtn">Upload Folder</button>
+      <button class="void-btn" id="voidDownloadFolderBtn">Download ZIP</button>
+      <button class="void-btn" id="voidExportZipBtn">Export ZIP</button>
+      <button class="void-btn" id="voidBackBtn">&#8592; Back</button>
+    </div>
+  </div><!-- /.void-header -->
+
+  <!-- Body: left coder panel + right desktop shell -->
+  <div class="void-body">
+
+    <!-- LEFT: Coder panel (chat + prompt) -->
+    <div class="void-coder-panel">
+
+      <!-- Chat area: header (model select + stop) -->
+      <div class="void-chat-header">
+        <select class="void-select" id="voidChatModelSelect" title="Pick Virtual OS agent model" aria-label="Pick Virtual OS agent model"></select>
+        <button class="void-stop-btn" id="voidChatStopBtn" style="background:transparent;border:1px solid rgba(57,255,129,.15);color:rgba(178,245,200,.36);font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:3px 7px;border-radius:2px;cursor:pointer;display:flex;align-items:center;gap:4px;opacity:.32;" disabled></button>
+      </div>
+
+      <!-- Chat messages -->
+      <div class="void-chat-msgs" id="voidChatMsgs">
+        <div class="void-chat-welcome">
+          <b>Virtual OS</b>
+          <span>Isolated browser filesystem</span>
+          <span>Files persist in IndexedDB</span>
+          <span>Chat to generate and edit code</span>
+        </div>
+      </div>
+
+      <!-- Chat input footer -->
+      <div class="void-chat-footer">
+        <div class="void-chat-input-wrap">
+          <span class="void-chat-prompt-char">&#10095;</span>
+          <textarea class="void-chat-input" id="voidChatInput" rows="1" placeholder="Message the agent&#8230; (Enter to send, Shift+Enter for newline)"></textarea>
+        </div>
+        <button class="void-chat-send" id="voidChatSend" title="Send"></button>
+      </div>
+
+    </div><!-- /.void-coder-panel -->
+
+    <!-- RIGHT: macOS-style desktop shell -->
+    <div class="void-desktop-shell">
+      <div class="void-macbook">
+
+        <!-- Menu bar -->
+        <div class="void-menu-bar">
+          <div style="display:flex;align-items:center;gap:16px;font-size:13px;font-weight:600;">
+            <span style="font-weight:800;">&#8862; Virtual OS</span>
+          </div>
+          <div class="void-menubar-right">
+            <div class="void-wallpaper-wrap" id="voidWallpaperWrap">
+              <button class="void-wallpaper-btn" id="voidWallpaperBtn" title="Change wallpaper">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              </button>
+              <div class="void-wallpaper-menu" id="voidWallpaperMenu" hidden>
+                <button class="void-wallpaper-menu-item" id="voidWallpaperUpload">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload Image
+                </button>
+                <button class="void-wallpaper-menu-item void-wallpaper-reset" id="voidWallpaperReset">Reset Default</button>
+              </div>
+            </div>
+            <span id="voidClock" style="font-size:12px;font-weight:600;opacity:.70;margin-right:4px;letter-spacing:.01em;"></span>
+          </div>
+        </div>
+
+        <!-- Desktop canvas -->
+        <div class="void-desktop" id="voidDesktop">
+          <div id="voidDesktopStats" style="position:absolute;top:8px;right:10px;font-family:var(--mono);font-size:9px;color:rgba(255,255,255,.40);text-align:right;pointer-events:none;z-index:2;line-height:1.6;"></div>
+          <div class="void-empty-desktop" id="voidEmptyDesktop">
+            <b>Virtual Desktop</b>
+            <span>Double-click files to open &middot; Drag to arrange</span>
+          </div>
+        </div>
+
+        <!-- Dock -->
+        <div class="void-dock">
+          <button id="voidCreateFileBtn" title="New File">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+          </button>
+          <button id="voidCreateFolderBtn" title="New Folder">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <button id="voidDeleteSelectedBtn" title="Move to Trash" class="danger" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+          <button id="voidDeleteAllBtn" title="Empty Trash" class="danger">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+          </button>
+          <button class="void-dock-action void-stop-btn" id="voidStopBtn" disabled>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+            Stop
+          </button>
+          <button class="void-dock-action" id="voidFinderToggleBtn" title="Toggle Finder window">Show Finder</button>
+          <button class="void-dock-action" id="voidRefreshBtn">Refresh</button>
+          <button class="void-dock-action" id="voidTermOpenBtn" title="Open Terminal" style="display:none;">Terminal</button>
+        </div>
+
+      </div><!-- /.void-macbook -->
+    </div><!-- /.void-desktop-shell -->
+
+  </div><!-- /.void-body -->
+
+  <!-- Finder window (floating, draggable/resizable, position:absolute inside #virtual-os-wrap) -->
+  <div class="void-finder" id="voidFinder">
+
+    <!-- Edge + corner resize handles -->
+    <div class="vf-resize n"  data-dir="n"></div>
+    <div class="vf-resize s"  data-dir="s"></div>
+    <div class="vf-resize e"  data-dir="e"></div>
+    <div class="vf-resize w"  data-dir="w"></div>
+    <div class="vf-resize ne" data-dir="ne"></div>
+    <div class="vf-resize nw" data-dir="nw"></div>
+    <div class="vf-resize se" data-dir="se"></div>
+    <div class="vf-resize sw" data-dir="sw"></div>
+
+    <!-- Titlebar (drag handle) -->
+    <div class="void-finder-titlebar" id="voidFinderTitlebar">
+      <div class="void-traffic small">
+        <span title="Close" id="voidFinderClose">&#215;</span>
+        <span title="Minimise">&#8722;</span>
+        <span title="Zoom">+</span>
+      </div>
+      <span class="void-finder-wintitle">Finder</span>
+      <button class="void-finder-toolbtn" id="voidFinderSettingsBtn" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- Finder toolbar: back/forward nav + breadcrumb + view toggle -->
+    <div class="void-finder-toolbar">
+      <button class="void-finder-navbtn" id="voidFinderBack" disabled title="Back">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <button class="void-finder-navbtn" id="voidFinderFwd" disabled title="Forward">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <div class="void-breadcrumb" id="voidBreadcrumb">
+        <span class="void-bc-item active">Virtual OS</span>
+      </div>
+      <button class="void-finder-toolbtn" id="voidFinderViewToggle" title="Toggle list/grid view">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      </button>
+    </div>
+
+    <!-- Finder body: sidebar tree + file list -->
+    <div class="void-finder-body">
+      <div class="void-tree" id="voidTree">
+        <!-- Populated by JS: renderTree() -->
+      </div>
+      <div style="display:flex;flex-direction:column;min-height:0;overflow:hidden;">
+        <div class="void-file-list" id="voidFileList">
+          <!-- Populated by JS: renderFileList() -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="void-finder-bar">
+      <span class="void-finder-status" id="voidFinderStatus">0 items</span>
+      <div class="void-finder-bar-actions" id="voidFinderBarActions">
+        <button class="void-mini-btn danger" id="voidFinderTrashBtn" title="Move selection to trash" style="display:none;">Trash</button>
+      </div>
+    </div>
+
+  </div><!-- /#voidFinder -->
+
+  <!-- Code editor (floating window, position:absolute) -->
+  <div class="void-editor" id="voidEditor">
+    <div class="void-editor-card">
+      <div class="void-editor-head">
+        <div class="void-editor-title-wrap">
+          <div class="void-traffic small">
+            <span title="Close" id="voidEditorClose">&#215;</span>
+            <span>&#8722;</span>
+            <span>+</span>
+          </div>
+          <div class="void-editor-title" id="voidEditorTitle">Untitled</div>
+          <div class="void-editor-path" id="voidEditorPath"></div>
+        </div>
+      </div>
+      <textarea class="void-editor-text" id="voidEditorText" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      <div class="void-editor-actions">
+        <button class="void-btn" id="voidEditorDownload">Download</button>
+        <button class="void-btn primary" id="voidEditorSave">Save</button>
+        <button class="void-btn" id="voidEditorClose2">&#215; Close</button>
+      </div>
+    </div>
+  </div><!-- /#voidEditor -->
+
+  <!-- Virtual terminal (floating, draggable) -->
+  <div class="void-terminal void-term-hidden" id="voidTerminal">
+    <div class="vf-resize n"  data-dir="n"></div>
+    <div class="vf-resize s"  data-dir="s"></div>
+    <div class="vf-resize e"  data-dir="e"></div>
+    <div class="vf-resize w"  data-dir="w"></div>
+    <div class="vf-resize ne" data-dir="ne"></div>
+    <div class="vf-resize nw" data-dir="nw"></div>
+    <div class="vf-resize se" data-dir="se"></div>
+    <div class="vf-resize sw" data-dir="sw"></div>
+    <div class="void-terminal-titlebar" id="voidTerminalTitlebar">
+      <div class="void-traffic small">
+        <span title="Close" id="voidTermClose">&#215;</span>
+        <span>&#8722;</span>
+        <span>+</span>
+      </div>
+      <span class="void-terminal-title">Terminal &#8212; Virtual OS</span>
+    </div>
+    <div class="void-terminal-body">
+      <div class="void-terminal-output" id="voidTermOutput"></div>
+      <div class="void-terminal-input-row">
+        <span class="void-term-prompt" id="voidTermPrompt">~/$ </span>
+        <input class="void-term-input" id="voidTermInput" type="text" autocomplete="off" spellcheck="false" placeholder="type a command&#8230;" />
+      </div>
+    </div>
+  </div><!-- /#voidTerminal -->
+
+
+
+  <!-- Path element used by some JS breadcrumb functions -->
+  <div id="voidPath" style="display:none;"></div>
+
+  <!-- Trace console (bottom collapsible drawer) -->
+  <div class="void-trace-console collapsed" id="voidTraceConsole">
+    <div class="void-trace-header" id="voidTraceToggle">
+      <span class="void-trace-dot" id="voidTraceDot"></span>
+      <span class="void-trace-label">Trace</span>
+      <span class="void-trace-summary" id="voidTraceSummary">No run yet</span>
+      <div class="void-trace-actions">
+        <button class="void-trace-btn" id="voidTraceClearBtn">Clear</button>
+      </div>
+      <svg class="void-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+    <div class="void-trace-entries" id="voidTraceEntries"></div>
+  </div>
+
+  <!-- Themed dialog (alert / confirm / prompt) -->
+  <div class="void-dialog" id="voidDialog">
+    <div class="void-dialog-card">
+      <div class="void-dialog-head">
+        <div>
+          <div class="void-dialog-title" id="voidDialogTitle">Confirm</div>
+          <div class="void-dialog-sub" id="voidDialogSub"></div>
+        </div>
+        <button class="void-icon-btn" id="voidDialogClose" style="background:transparent;border:none;cursor:pointer;color:rgba(202,232,221,.55);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="void-dialog-body">
+        <div class="void-dialog-message" id="voidDialogMessage"></div>
+        <input class="void-dialog-input" id="voidDialogInput" type="text" style="display:none;" />
+      </div>
+      <div class="void-dialog-actions">
+        <button class="void-btn" id="voidDialogCancel" style="display:none;">Cancel</button>
+        <button class="void-btn primary" id="voidDialogOk">OK</button>
+      </div>
+    </div>
+  </div><!-- /#voidDialog -->
+
+</div><!-- /#virtual-os-wrap -->

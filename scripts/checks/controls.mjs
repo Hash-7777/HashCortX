@@ -24,6 +24,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { panelMarkup } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -56,7 +57,9 @@ function check(label, condition, detail = '') {
   else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
 }
 
-const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
+// The shell AND every mode panel. A button in a mode's panel.html is still a
+// button the app ships; reading index.html alone would call all of them gone.
+const html = readFileSync(join(srcDir, 'index.html'), 'utf8') + '\n' + panelMarkup(srcDir);
 const js = walk(srcDir).map((f) => readFileSync(f, 'utf8')).join('\n');
 
 const buttonIds = [...html.matchAll(/<button[^>]*\bid="([^"]+)"/g)].map((m) => m[1]);
@@ -75,7 +78,7 @@ if (!unreferenced.length) check('none are unreferenced', true);
 console.log('\nThe exceptions are still exceptions:');
 for (const [id, reason] of ALLOWED_UNREFERENCED) {
   if (!buttonIds.includes(id)) {
-    check(`#${id} still exists`, false, `listed as inert but no longer in index.html — remove the entry (${reason})`);
+    check(`#${id} still exists`, false, `listed as inert but no longer in the markup — remove the entry (${reason})`);
   } else if (js.includes(id)) {
     check(`#${id} is still unreferenced`, false, 'it is wired now — remove it from the allow list');
   } else {

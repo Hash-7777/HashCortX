@@ -1,0 +1,206 @@
+<div id="agent-maker-wrap">
+
+  <!-- Header bar -->
+  <div class="amk-header">
+
+    <div class="amk-header-left">
+      <img src="/assets/logo-full.png" class="amk-logo mode-logo-img" draggable="false" alt="HashCortx" style="height:38px;"/>
+    </div>
+
+    <div class="amk-header-center">
+      <div class="amk-task-input-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <input id="amkTaskInput" type="text" placeholder="Describe the swarm task… e.g. 'Research and write a market analysis'" autocomplete="off" />
+      </div>
+    </div>
+
+    <div class="amk-header-right">
+      <span class="amk-run-status" id="amkRunStatus">Idle</span>
+      <button class="amk-btn primary" id="amkRunBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <span class="btn-label">Run Swarm</span>
+      </button>
+      <button class="amk-btn danger" id="amkStopBtn">Stop</button>
+      <button class="amk-btn" id="amkGodBtn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        <span class="btn-label">God Agent</span>
+      </button>
+      <button class="amk-back-btn" id="amkBackBtn">&#8592; Back</button>
+    </div>
+
+  </div><!-- /.amk-header -->
+
+  <div class="amk-body">
+
+    <!-- LEFT: Blueprint list -->
+    <div class="amk-blueprints-panel">
+      <div class="amk-panel-header">
+        <span class="amk-panel-title">Blueprints</span>
+        <button class="amk-icon-btn" id="amkNewBlueprintBtn" title="New Blueprint">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
+      <div class="amk-blueprints-list" id="amkBlueprintsList">
+        <!-- Populated by JS: renderBlueprintList() -->
+      </div>
+    </div>
+
+    <!-- CENTER: DAG canvas -->
+    <div class="amk-canvas-panel">
+
+      <div class="amk-canvas-toolbar">
+        <select class="amk-topology-select" id="amkTopologySelect">
+          <option value="pipeline">Pipeline</option>
+          <option value="fan-out">Fan-Out</option>
+          <option value="fan-in">Fan-In</option>
+          <option value="broadcast">Broadcast</option>
+          <option value="custom">Custom</option>
+        </select>
+        <select class="amk-topology-select" id="amkAggregationSelect">
+          <option value="sequential">Sequential</option>
+          <option value="parallel">Parallel</option>
+          <option value="vote">Vote</option>
+        </select>
+        <div class="amk-canvas-sep"></div>
+        <button class="amk-btn" id="amkAddAgentToCanvasBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span class="btn-label">Add Agent</span>
+        </button>
+        <button class="amk-btn" id="amkAutoLayoutBtn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span class="btn-label">Auto Layout</span>
+        </button>
+        <button class="amk-btn" id="amkViewChatBtn">Output</button>
+        <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
+        <div class="amk-canvas-sep"></div>
+        <div class="amk-zoom-ctrl">
+          <button class="amk-zoom-btn" id="amkZoomOutBtn" title="Zoom out">&#8722;</button>
+          <span class="amk-zoom-val" id="amkZoomVal">100%</span>
+          <button class="amk-zoom-btn" id="amkZoomInBtn" title="Zoom in">+</button>
+          <button class="amk-zoom-btn" id="amkZoomResetBtn" title="Reset zoom" style="font-size:11px;">&#8962;</button>
+        </div>
+        <span class="amk-canvas-hint">Scroll to zoom &middot; Drag background to pan &middot; Shift+click node to connect</span>
+      </div>
+
+      <!-- SVG DAG canvas -->
+      <svg id="amkDagSvg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="amk-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="rgba(59,130,246,0.6)"/>
+          </marker>
+        </defs>
+        <g id="amkDagContent">
+          <g id="amkDagEdges"></g>
+          <g id="amkDagNodes"></g>
+        </g>
+      </svg>
+
+      <!-- Empty state -->
+      <div class="amk-empty-dag" id="amkEmptyDag">
+        <img src="/assets/logo-full.png" class="amk-empty-logo" draggable="false" alt="HashCortx" style="height:140px;opacity:0.55;margin-bottom:24px;filter:drop-shadow(0 0 18px rgba(59,130,246,0.25));"/>
+        <span class="empty-title">No agents yet</span>
+        <span class="empty-sub">Create a blueprint and add agents to design your swarm topology.</span>
+      </div>
+
+      <!-- Progress bar strip -->
+      <div class="amk-progress-bar" id="amkProgressBar">
+        <div class="amk-progress-fill" id="amkProgressFill" style="width:0%"></div>
+      </div>
+
+    </div><!-- /.amk-canvas-panel -->
+
+    <!-- RIGHT: Inspector panel -->
+    <div class="amk-inspector-panel">
+      <div class="amk-panel-header">
+        <span class="amk-panel-title">Inspector</span>
+        <span class="amk-active-name" id="amkInspectorTitle">—</span>
+      </div>
+      <div class="amk-inspector-body" id="amkInspectorBody">
+        <div class="amk-inspector-empty">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p>Click an agent node to inspect and edit its properties.</p>
+        </div>
+      </div>
+      <div class="amk-inspector-footer" id="amkInspectorFooter">
+        <button class="amk-btn primary" id="amkSaveAgentBtn" style="display:none;">Save Agent</button>
+        <button class="amk-btn danger" id="amkDeleteAgentBtn" style="display:none;">Remove</button>
+      </div>
+    </div>
+
+  </div><!-- /.amk-body -->
+
+  <!-- Trace console (bottom collapsible drawer) -->
+  <div class="amk-trace-console collapsed" id="amkTraceConsole">
+    <div class="amk-trace-header" id="amkTraceToggle">
+      <span class="amk-trace-dot" id="amkTraceDot"></span>
+      <span class="amk-trace-label">Trace</span>
+      <span class="amk-trace-summary" id="amkTraceSummary">No run yet</span>
+      <div class="amk-trace-actions">
+        <button class="amk-trace-btn" id="amkTraceClearBtn">Clear</button>
+      </div>
+      <svg class="amk-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+    <div class="amk-trace-entries" id="amkTraceEntries"></div>
+  </div>
+
+  <!-- God Agent modal -->
+  <div class="amk-god-modal" id="amkGodModal">
+    <div class="amk-god-modal-inner">
+      <div class="amk-god-header">
+        <div class="amk-god-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div>
+          <div class="amk-god-title">God Agent &#8212; Auto-Design Swarm</div>
+          <div class="amk-god-sub">Describe your goal and the AI will design the entire swarm.</div>
+        </div>
+      </div>
+      <textarea class="amk-god-textarea" id="amkGodTextarea" placeholder="e.g. Build a research pipeline that gathers data, analyzes trends, and writes a report&#8230;"></textarea>
+      <div class="amk-god-examples">
+        <button class="amk-god-example" data-example="Research and summarize the latest AI news into a structured report">AI news report</button>
+        <button class="amk-god-example" data-example="Analyze competitor products and draft a positioning strategy">Competitor analysis</button>
+        <button class="amk-god-example" data-example="Generate a multi-section blog post with research, outline, and drafting">Blog post pipeline</button>
+      </div>
+      <div class="amk-god-model-row">
+        <span class="amk-god-model-label">Model</span>
+        <select class="amk-god-model-select" id="amkGodModelSelect"></select>
+      </div>
+      <div class="amk-god-status">
+        <div class="amk-god-spinner" id="amkGodSpinner"></div>
+        <span id="amkGodStatusText"></span>
+      </div>
+      <div class="amk-god-footer">
+        <button class="amk-btn" id="amkGodCancelBtn">Cancel</button>
+        <button class="amk-btn primary" id="amkGodGenerateBtn">Generate Swarm</button>
+      </div>
+    </div>
+  </div><!-- /.amk-god-modal -->
+
+  <!-- Themed dialog (alert / confirm / prompt) — shared by swarm maker + system maker -->
+  <div class="amk-dialog" id="amkDialog">
+    <div class="amk-dialog-inner">
+      <div class="amk-dialog-msg" id="amkDialogMsg"></div>
+      <input class="amk-dialog-input" id="amkDialogInput" type="text" style="display:none;" />
+      <div class="amk-dialog-actions">
+        <button class="amk-btn" id="amkDialogCancel" style="display:none;">Cancel</button>
+        <button class="amk-btn primary" id="amkDialogOk">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat/output peek side panel -->
+  <div class="amk-chat-peek" id="amkChatPeek">
+    <div class="amk-chat-peek-header">
+      <span class="amk-chat-peek-title">Swarm Output</span>
+      <div class="amk-peek-header-actions">
+        <button class="amk-peek-hbtn" id="amkPeekCopyBtn">Copy</button>
+        <button class="amk-peek-hbtn" id="amkPeekExportBtn">Export .md</button>
+        <button class="amk-peek-hbtn close-btn" id="amkChatPeekClose">&#215;</button>
+      </div>
+    </div>
+    <div class="amk-chat-peek-body" id="amkChatPeekBody">
+      <div class="amk-peek-empty"><p>Run a swarm to see output here.</p></div>
+    </div>
+  </div>
+
+</div><!-- /#agent-maker-wrap -->

@@ -87,7 +87,7 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // not content the shell is carrying, and in Stage 3 they stop being written by
 // hand at all. What is counted is markup: the shell's own structure, plus the
 // mode panels that should not be in it. That number may only fall.
-const SHELL_MARKUP_BUDGET = 2321;
+const SHELL_MARKUP_BUDGET = 1196;
 
 console.log('\nThe shell holds no more markup than it did:');
 {
@@ -115,19 +115,20 @@ console.log('\napp.js holds fewer separate responsibilities over time:');
     'a new section in this file is a new file that was not created');
 }
 
-// ── 3. How much of the shell is really a mode ────────────────────────────
+// ── 3. No mode markup comes back to the shell ────────────────────────────
 //
-// Each of these blocks is a full-screen mode's markup, sitting in the shared
-// document. It belongs with the mode's JS and CSS, and until it moves there,
-// adding a mode means editing index.html in four places with nothing checking
-// that you did all four.
+// These were 1,124 lines — 47% of index.html — of full-screen panels sitting
+// in the shared document, parsed on every launch for the one mode the user is
+// in. They are now in src/modes/<id>/panel.html and inserted at boot.
 //
-// Falls to zero as each mode takes its markup into its own folder.
+// The budget is zero and stays zero. This is no longer a debt being paid down;
+// it is a line that has been drawn, and the check is what keeps the next
+// mode's markup from being pasted into the shell because it was quicker.
 const MODE_WRAPS = [
   'sandbox-wrap', 'forge-mode-wrap', 'agent-maker-wrap',
   'system-maker-wrap', 'virtual-os-wrap', 'coder-mode-wrap',
 ];
-const MODE_MARKUP_BUDGET = 1124;
+const MODE_MARKUP_BUDGET = 0;
 
 console.log('\nMode markup leaves the shell:');
 {

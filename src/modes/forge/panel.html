@@ -1,0 +1,188 @@
+<div id="forge-mode-wrap">
+
+  <!-- Header bar -->
+  <div class="frg-header">
+
+    <!-- Left: logo + project info -->
+    <div class="frg-header-left">
+      <img src="/assets/logo-mark.png" class="frg-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+      <div>
+        <div class="frg-title">Forge Studio</div>
+        <span class="frg-sub" id="frgPlanName">No project loaded</span>
+      </div>
+    </div>
+
+    <!-- Center: prompt + generate -->
+    <div class="frg-prompt-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="frgPrompt" type="text" placeholder="Describe a 3D model… e.g. 'a sleek futuristic chair'" autocomplete="off" />
+      <button class="frg-btn primary" id="frgGodBtn">Generate</button>
+    </div>
+
+    <!-- Gen controls: style / detail / output — display:contents so they slot into header grid -->
+    <div class="frg-gen-controls">
+      <label>
+        <span>Style</span>
+        <select id="frgStyle">
+          <option value="realistic">Realistic</option>
+          <option value="stylized">Stylized</option>
+          <option value="low-poly">Low-Poly</option>
+          <option value="wireframe">Wireframe</option>
+          <option value="cartoon">Cartoon</option>
+        </select>
+      </label>
+      <label>
+        <span>Detail</span>
+        <select id="frgDetail">
+          <option value="low">Low</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="high">High</option>
+        </select>
+      </label>
+      <label>
+        <span>Export as</span>
+        <select id="frgOutputTarget">
+          <option value="glb">GLB</option>
+          <option value="gltf">GLTF</option>
+          <option value="stl">STL</option>
+          <option value="obj">OBJ</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- Right: status + action buttons -->
+    <div class="frg-header-right">
+      <span class="frg-status" id="frgStatus">Idle</span>
+      <span id="frgParticleCount" style="font-family:var(--mono);font-size:9px;color:rgba(223,251,245,0.42);letter-spacing:.08em;"></span>
+      <button class="frg-btn" id="frgMockBtn">Mock</button>
+      <button class="frg-btn" id="frgAutoRouteBtn">Auto</button>
+      <button class="frg-btn" id="frgSaveProjectBtn">Save</button>
+      <button class="frg-btn" id="frgNewProjectBtn">New</button>
+      <button class="frg-icon-btn" id="frgResetViewBtn" title="Reset camera">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
+      </button>
+      <button class="frg-btn" id="frgBackBtn">&#8592; Back</button>
+    </div>
+
+  </div><!-- /.frg-header -->
+
+  <!-- Body: 3D viewport + side panel -->
+  <div class="frg-body">
+
+    <!-- 3D canvas viewport -->
+    <div class="frg-viewport">
+      <div id="frgCanvasMount"></div>
+
+      <!-- HUD: node count badge -->
+      <div class="frg-viewport-hud">
+        <span id="frgNodeCount">0 nodes</span>
+      </div>
+
+      <!-- CAD toolbar (top-right of viewport) -->
+      <div class="frg-cad-toolbar" id="frgCadToolbar">
+        <button class="frg-cad-btn" data-frg-tool="selectObject" title="Select the whole object">Whole object</button>
+        <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn active" data-frg-tool="translate" title="Move selected part (W)">Move</button>
+        <button class="frg-cad-btn" data-frg-tool="rotate" title="Rotate selected part (R)">Rotate</button>
+        <button class="frg-cad-btn" data-frg-tool="scale" title="Resize selected part (S)">Resize</button>
+        <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn" data-frg-tool="snap" title="Toggle snapping">Snap</button>
+        <button class="frg-cad-btn" data-frg-tool="duplicate" title="Duplicate selected part (D)">Duplicate</button>
+        <button class="frg-cad-btn" data-frg-tool="floor" title="Align selected part to floor">To floor</button>
+        <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn" data-frg-tool="focus" title="Focus camera on selected part">Focus</button>
+        <button class="frg-cad-btn" data-frg-tool="camUp" title="Pan camera up">Cam up</button>
+        <button class="frg-cad-btn" data-frg-tool="camDown" title="Pan camera down">Cam down</button>
+        <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn" data-frg-tool="import" title="Import a GLB or GLTF mesh asset">Import</button>
+        <span class="frg-export-wrap">
+          <button class="frg-cad-btn" data-frg-tool="exportMenu" title="Export model">Export</button>
+          <span class="frg-export-menu" id="frgExportMenu">
+            <button data-frg-export-kind="glb">GLB</button>
+            <button data-frg-export-kind="obj">OBJ</button>
+            <button data-frg-export-kind="stl">STL</button>
+          </span>
+        </span>
+        <button class="frg-cad-btn danger" data-frg-tool="delete" title="Delete selected part">Delete</button>
+        <input id="frgAssetImport" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
+      </div>
+
+      <!-- Keyboard hint -->
+      <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove</div>
+    </div><!-- /.frg-viewport -->
+
+    <!-- Right side panel -->
+    <div class="frg-panel">
+
+      <!-- Agents -->
+      <div class="frg-panel-section">
+        <div class="frg-panel-label">Agents</div>
+        <div class="frg-agent-list" id="frgAgents">
+          <!-- Populated by JS: renderAgents() -->
+        </div>
+      </div>
+
+      <!-- Pipeline stage indicators -->
+      <div class="frg-panel-section">
+        <div class="frg-panel-label">Pipeline</div>
+        <div class="frg-stage-list">
+          <div class="frg-stage" data-frg-stage="input">
+            <b>Input</b><span>prompt ready</span>
+          </div>
+          <div class="frg-stage" data-frg-stage="generate">
+            <b>Generate</b><span>waiting</span>
+          </div>
+          <div class="frg-stage" data-frg-stage="refine">
+            <b>Refine</b><span>waiting</span>
+          </div>
+          <div class="frg-stage" data-frg-stage="export">
+            <b>Export</b><span>waiting</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Projects -->
+      <div class="frg-panel-section">
+        <div class="frg-panel-label-row">
+          <span class="frg-panel-label" style="margin-bottom:0">Projects</span>
+        </div>
+        <div class="frg-project-list" id="frgProjectsList">
+          <!-- Populated by JS: renderForgeProjects() -->
+        </div>
+      </div>
+
+      <!-- Plan / nodes list -->
+      <div class="frg-panel-section grow">
+        <div class="frg-panel-label">Plan</div>
+        <div class="frg-plan-list" id="frgPlanList">
+          <!-- Populated by JS: updatePlanList() -->
+        </div>
+      </div>
+
+      <!-- Selection inspector card -->
+      <div class="frg-panel-section">
+        <div class="frg-panel-label">Selection</div>
+        <div class="frg-selection-card" id="frgSelectionCard">
+          <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
+        </div>
+      </div>
+
+    </div><!-- /.frg-panel -->
+
+  </div><!-- /.frg-body -->
+
+  <!-- Trace console (bottom collapsible drawer) -->
+  <div class="frg-trace-console collapsed" id="frgTraceConsole">
+    <div class="frg-trace-header" id="frgTraceToggle">
+      <span class="frg-trace-dot" id="frgTraceDot"></span>
+      <span class="frg-trace-label">Trace</span>
+      <span class="frg-trace-summary" id="frgTraceSummary">No run yet</span>
+      <div class="frg-trace-actions">
+        <button class="frg-trace-btn" id="frgTraceClearBtn">Clear</button>
+      </div>
+      <svg class="frg-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+    <div class="frg-trace-entries" id="frgTraceEntries"></div>
+  </div>
+
+</div><!-- /#forge-mode-wrap -->

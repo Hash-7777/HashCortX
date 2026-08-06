@@ -25,11 +25,24 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** The mode ids, read out of the manifest the app itself uses. */
-export function modeIds(srcDir) {
+/** Every mode the app loads: its id and the element its panel is inserted into. */
+export function modes(srcDir) {
   const src = readFileSync(join(srcDir, 'modes', 'manifest.js'), 'utf8');
-  const list = /MANIFEST:\s*\[([\s\S]*?)\]/.exec(src)?.[1] || '';
-  return [...list.matchAll(/['"]([a-z0-9-]+)['"]/g)].map((m) => m[1]);
+  const list = /MANIFEST:\s*\[([\s\S]*?)\n\s*\],/.exec(src)?.[1] || '';
+  return [...list.matchAll(/\{\s*id:\s*['"]([a-z0-9-]+)['"]\s*,\s*host:\s*['"]([^'"]+)['"]/g)]
+    .map((m) => ({ id: m[1], host: m[2] }));
+}
+
+/** The mode ids, in load order. */
+export function modeIds(srcDir) {
+  return modes(srcDir).map((m) => m.id);
+}
+
+/** Every mode panel's markup, concatenated — markup that is no longer in index.html. */
+export function panelMarkup(srcDir) {
+  return modeIds(srcDir)
+    .map((id) => readFileSync(join(srcDir, 'modes', id, 'panel.html'), 'utf8'))
+    .join('\n');
 }
 
 /**

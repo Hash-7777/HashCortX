@@ -24,7 +24,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { stylesheets } from './lib/page-assets.mjs';
+import { stylesheets, panelMarkup } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', '..', 'src');
@@ -134,7 +134,10 @@ const DEAD_ID_SELECTORS = new Set([
 
 console.log('\nEvery id a stylesheet targets exists:');
 {
-  const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
+  // The shell AND the mode panels. Each mode's markup lives in
+  // src/modes/<id>/panel.html now, so reading index.html alone would report
+  // every id a mode's own stylesheet targets as an id that does not exist.
+  const html = readFileSync(join(srcDir, 'index.html'), 'utf8') + '\n' + panelMarkup(srcDir);
   const known = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
   // Ids the JS builds at runtime count as real.
   const jsFiles = [];

@@ -28,6 +28,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { panelMarkup } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -61,7 +62,11 @@ const KNOWN_ABSENT = {
   voidTermClearBtn: 'See voidEditModeBtn.',
 };
 
-const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
+// The shell, plus every mode panel. A mode's markup left index.html for
+// src/modes/<id>/panel.html and is inserted at boot; reading only index.html
+// would report every id in all seven panels as an element that never exists.
+const shell = readFileSync(join(srcDir, 'index.html'), 'utf8');
+const html = shell + '\n' + panelMarkup(srcDir);
 
 /**
  * Every script the app ships, wherever it lives.

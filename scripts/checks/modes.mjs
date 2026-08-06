@@ -1,9 +1,10 @@
 // ==============================================================
 // Mode contract — checks
 //
-// A mode is a folder. src/modes/<id>/ holds its behaviour in mode.js and its
-// look in mode.css, the manifest names it once, and the loader turns that name
-// into the tags index.html used to carry by hand.
+// A mode is a folder. src/modes/<id>/ holds its behaviour in mode.js, its look
+// in mode.css and its markup in panel.html; the manifest names it once, and
+// the loader turns that name into the tags and the markup index.html used to
+// carry by hand.
 //
 // It was not always. Adding a mode meant four edits to index.html — a <link>,
 // a <script>, a tab button, and a couple of hundred lines of markup — plus an
@@ -19,7 +20,8 @@
 //   3. Every registration is complete.
 //   4. Every mode can be opened, and every tab opens something.
 //   5. Every skin class a mode claims is one a stylesheet acts on.
-//   6. RATCHET — how many SHARED files still name each mode. This is the
+//   6. Every panel has a host element to be inserted into.
+//   7. RATCHET — how many SHARED files still name each mode. This is the
 //      number that says whether adding a mode is a one-folder job. It may
 //      fall and never rise.
 //
@@ -28,7 +30,7 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { modeIds, stylesheets } from './lib/page-assets.mjs';
+import { modes as manifestModes, stylesheets, panelMarkup } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', '..', 'src');
@@ -41,7 +43,8 @@ function check(label, condition, detail = '') {
   else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
 }
 
-const MANIFEST = modeIds(srcDir);
+const MODES = manifestModes(srcDir);
+const MANIFEST = MODES.map((m) => m.id);
 
 // ── 1. The folders and the manifest agree ────────────────────────────────
 //
@@ -64,10 +67,23 @@ console.log('\nThe manifest and the folders agree:');
     MANIFEST.filter((id) => !folders.includes(id)).join(', '));
 
   for (const id of MANIFEST) {
-    for (const file of ['mode.js', 'mode.css']) {
+    for (const file of ['mode.js', 'mode.css', 'panel.html']) {
       check(`${id}/${file}`, existsSync(join(srcDir, 'modes', id, file)));
     }
   }
+}
+
+// ── 1b. Every panel has somewhere to go ──────────────────────────────────
+//
+// The panels were not all in one place: Finance and Sandbox were inside #app,
+// four were inside #mainApp, and Coder was a direct child of <body>. Those are
+// different stacking and layout contexts. A host that no longer exists means
+// insertAdjacentHTML throws, the mode is skipped, and its tab does nothing.
+console.log('\nEvery panel has a host element to go into:');
+for (const { id, host } of MODES) {
+  if (host === 'body') { check(`${id} → body`, true); continue; }
+  check(`${id} → ${host}`, html.includes(`id="${host.slice(1)}"`),
+    'no such element in index.html — the panel would never be inserted');
 }
 
 // ── 2 & 3. Registration: present, complete, and under the right id ───────
@@ -145,10 +161,11 @@ console.log('\nEvery skin class a mode claims exists in a stylesheet:');
 // The real cost of a mode is not its own size. It is how many files that
 // belong to nobody have to know its name.
 //
-// This was 8, 5, 3, 3, 3, 2, 2 when the modes still had their stylesheets and
-// scripts written into index.html by hand. What is left is the tab button and
-// the mode's markup — both still in the shell — and, for Coder and Forge, the
-// special cases app.js and the shared stylesheets carry for them.
+// The stylesheets, the scripts and the markup have all left index.html. What
+// still names a mode is the manifest (which is the point), its tab button in
+// index.html, the mode-switching special cases in app.js, its accent block in
+// vars.css — and, for Coder and Forge, the extra cases the shared stylesheets
+// carry because both grew out of the chat view.
 //
 // The goal for every mode is 1: named once, in the manifest.
 const SHARED_FILES = [

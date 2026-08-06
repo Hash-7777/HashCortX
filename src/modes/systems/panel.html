@@ -1,0 +1,168 @@
+<div id="system-maker-wrap">
+
+  <!-- Header bar -->
+  <div class="sys-header">
+
+    <div class="sys-header-left">
+      <img src="/assets/logo-mark.png" class="sys-logo mode-logo-img" draggable="false" alt="HashCortx"/>
+      <div>
+        <div class="sys-title">System Maker</div>
+        <div class="sys-sub">Business App Builder</div>
+      </div>
+    </div>
+
+    <div class="sys-header-center">
+      <div class="sys-prompt-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="sysPromptInput" type="text" placeholder="Describe a business app&#8230; e.g. 'restaurant order management system'" autocomplete="off" />
+      </div>
+      <input type="text" id="sysHeaderAppSearch" placeholder="Search records&#8230;" style="height:36px;border:1px solid var(--sys-line);border-radius:7px;background:rgba(15,23,42,.72);color:#e5edf5;font:12px var(--sans);padding:0 10px;outline:0;min-width:140px;display:none;" />
+    </div>
+
+    <div class="sys-header-right">
+      <span class="sys-run-status" id="sysRunStatus">Idle</span>
+      <select class="sys-model-select" id="sysModelSelect"></select>
+      <button class="sys-btn primary" id="sysCreateBtn">Generate</button>
+      <button class="sys-btn" id="sysNewBtn">New</button>
+      <button class="sys-btn" id="sysResetDataBtn">Reset Data</button>
+      <button class="sys-btn" id="sysBackBtn">&#8592; Back</button>
+    </div>
+
+  </div><!-- /.sys-header -->
+
+  <!-- Body: library | preview shell | inspector -->
+  <div class="sys-body">
+
+    <!-- LEFT: System library -->
+    <div class="sys-library" id="sysLibraryPanel">
+      <div class="sys-panel-header">
+        <span>Systems</span>
+        <button class="sys-icon-btn" id="sysCloseLibraryBtn" title="Hide library">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="sys-system-list" id="sysSystemList">
+        <!-- Populated by JS: renderSystemList() -->
+      </div>
+      <div class="sys-panel-header sys-history-head">
+        <span>History</span>
+      </div>
+      <div class="sys-version-list" id="sysVersionList">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- CENTER: Preview shell -->
+    <div class="sys-preview-shell" id="sysPreviewShell" style="position:relative;">
+
+      <div class="sys-preview-toolbar">
+        <div class="sys-toolbar-left">
+          <button class="sys-btn sys-panel-toggle-btn" id="sysToggleLibraryBtn">&#9776; Library</button>
+          <div>
+            <div class="sys-preview-name" id="sysPreviewName">No system loaded</div>
+            <div class="sys-preview-desc" id="sysPreviewDesc">Generate or select a system from the library.</div>
+          </div>
+        </div>
+        <div class="sys-preview-actions">
+          <div class="sys-preview-export-wrap">
+            <button class="sys-btn sys-export-trigger" id="sysPreviewExportMenuBtn" aria-haspopup="menu" aria-expanded="false">Export &#9660;</button>
+            <div id="sysPreviewExportMenu" class="sys-preview-export-menu" role="menu" aria-hidden="true" hidden>
+              <button class="sys-preview-export-item" data-preview-export="json" role="menuitem">JSON</button>
+              <button class="sys-preview-export-item" data-preview-export="csv" role="menuitem">CSV</button>
+            </div>
+          </div>
+          <button class="sys-btn" id="sysPreviewImportBtn">Import JSON</button>
+          <button class="sys-btn sys-panel-toggle-btn" id="sysToggleInspectorBtn">Inspector</button>
+          <button class="sys-icon-btn" id="sysCloseInspectorBtn" style="display:none;" title="Close inspector">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Live app host (JS renders generated app HTML here) -->
+      <div class="sys-app-host" id="sysAppHost">
+        <div class="sys-empty">
+          <div>
+            <h2>System Maker</h2>
+            <p>Describe a business app and click <b>Generate</b> &#8212; or pick an existing system from the library.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Drop zone for JSON import drag-and-drop -->
+      <div id="sysDropZone" style="display:none;position:absolute;inset:0;background:rgba(56,189,248,.08);border:3px dashed rgba(56,189,248,.55);border-radius:12px;z-index:50;align-items:center;justify-content:center;pointer-events:none;">
+        <span style="font-size:18px;color:var(--sys-accent);font-weight:800;">Drop JSON here to import</span>
+      </div>
+
+    </div><!-- /.sys-preview-shell -->
+
+    <!-- RIGHT: Data editor / inspector -->
+    <div class="sys-inspector" id="sysInspectorPanel">
+      <div class="sys-inspector-content">
+        <div class="sys-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>Data Editor</span>
+          <button id="sysInspectorCloseBtn" title="Close panel" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;line-height:1;font-size:15px;">&#215;</button>
+        </div>
+        <div class="sys-data-editor" id="sysDataEditor">
+          <!-- Populated by JS -->
+        </div>
+        <div class="sys-panel-header sys-history-head">
+          <span>Run Trace</span>
+        </div>
+        <div class="sys-trace" id="sysTrace">
+          <!-- Populated by JS: trace() -->
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /.sys-body -->
+
+  <!-- Trace console (bottom collapsible drawer) -->
+  <div class="sys-trace-console collapsed" id="sysTraceConsole">
+    <div class="sys-trace-header" id="sysTraceToggle">
+      <span class="sys-trace-dot" id="sysTraceDot"></span>
+      <span class="sys-trace-label">Run Log</span>
+      <span class="sys-trace-summary" id="sysTraceSummary">No run yet</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
+        <button class="sys-trace-btn" id="sysTraceClearBtn">Clear</button>
+      </div>
+      <svg class="sys-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+    </div>
+  </div>
+
+  <!-- Import modal -->
+  <div class="amk-dialog" id="sysImportModal" style="z-index:310;">
+    <div class="amk-dialog-inner" style="width:440px;max-width:95vw;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <span style="font-size:13px;font-weight:700;color:var(--text);" id="sysImportTitle">Import System</span>
+        <button class="amk-btn" id="sysImportClose" style="padding:4px 9px;">&#215;</button>
+      </div>
+      <div id="sysImportBody" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
+      <div id="sysImportCount" style="font-size:11px;font-family:var(--mono);color:var(--sys-accent);margin-bottom:14px;"></div>
+      <label style="display:block;padding:20px;border:2px dashed var(--sys-line);border-radius:8px;text-align:center;cursor:pointer;margin-bottom:14px;">
+        <span style="font-size:13px;color:var(--muted);">Click to select JSON file</span>
+        <input type="file" id="sysImportFile" accept=".json" style="display:none;" />
+      </label>
+      <div style="display:flex;justify-content:flex-end;gap:8px;">
+        <button class="amk-btn" id="sysImportCancel">Cancel</button>
+        <button class="amk-btn primary" id="sysImportConfirm" disabled>Import</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Record modal (create / edit record) -->
+  <div class="amk-dialog" id="sysRecordModal" style="z-index:320;">
+    <div class="amk-dialog-inner" style="width:500px;max-width:96vw;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <span style="font-size:14px;font-weight:700;color:var(--text);" id="sysRecordModalTitle">New Record</span>
+        <button class="amk-btn" id="sysRecordModalClose" style="padding:4px 9px;">&#215;</button>
+      </div>
+      <form id="sysRecordModalForm" style="display:flex;flex-direction:column;gap:10px;"></form>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+        <button class="amk-btn" id="sysRecordModalCancel" type="button">Cancel</button>
+        <button class="amk-btn primary" id="sysRecordModalSave" type="submit">Save</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#system-maker-wrap -->
