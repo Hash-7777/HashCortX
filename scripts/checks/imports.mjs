@@ -157,5 +157,35 @@ console.log('\nVendored libraries bring everything they depend on:');
     broken.join('\n          '));
 }
 
+// ── The Python sandbox's vendored wheels ─────────────────────────────────────
+//
+// pyodide.js installs these by filename from the app's own origin. A wheel
+// that is renamed, upgraded or deleted without the list being updated fails
+// the same quiet way everything else in this area has: micropip cannot find
+// it, the install is caught and logged, the sandbox comes up without the
+// package, and the failure only reaches the user as an import error inside
+// Python — long after the cause.
+//
+// Both directions, because a leftover wheel is dead weight in every download.
+
+{
+  const sandbox = join(srcDir, 'core', 'sandbox', 'pyodide.js');
+  const wheelDir = join(srcDir, 'wheels');
+  const listed = [...readFileSync(sandbox, 'utf8').matchAll(/'([\w.+-]+\.whl)'/g)].map((m) => m[1]);
+  const onDisk = existsSync(wheelDir)
+    ? readdirSync(wheelDir).filter((f) => f.endsWith('.whl'))
+    : [];
+
+  ok('pyodide.js lists the wheels it installs', listed.length > 0);
+  for (const w of listed) {
+    ok(`${w} ships with the app`, onDisk.includes(w),
+      'pyodide.js installs this by name and src/wheels/ does not have it');
+  }
+  for (const w of onDisk) {
+    ok(`${w} is one pyodide.js installs`, listed.includes(w),
+      'nothing installs this wheel — remove it rather than ship a file no code uses');
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (module imports)`);
 process.exit(fail ? 1 : 0);

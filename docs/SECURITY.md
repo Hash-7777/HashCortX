@@ -173,7 +173,21 @@ Format: `TIMESTAMP [scope] action target`. It is append-only from the app's pers
 
 Defined in `src-tauri/tauri.conf.json`, and checked by `scripts/checks/csp.mjs` so a rule cannot be widened without a test failing.
 
-`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, PubMed, DuckDuckGo), and Ollama.
+`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, Europe PMC, DuckDuckGo), the jsDelivr CDN that serves the Python runtime, and Ollama.
+
+### The policy and the code have to name the same host
+
+A host in `connect-src` that nothing calls grants reach for no feature. A host the code calls that is not in `connect-src` fails as an ordinary network error — and the app reports that as the service being unreachable, with nothing in the interface able to say why.
+
+Three had drifted apart, and each one cost a feature that this repository advertised:
+
+- the Google Programmable Search tool asked `www.googleapis.com`; only `customsearch.googleapis.com` was permitted. The same API answers on both names, so the code now uses the permitted one.
+- the PubMed tool reads Europe PMC at `www.ebi.ac.uk`; the policy permitted `eutils.ncbi.nlm.nih.gov`, which nothing in the app calls.
+- Pyodide fetches its runtime from `cdn.jsdelivr.net`, which was permitted in `script-src` only. The `<script>` tag loaded and the runtime fetch behind it did not.
+
+`api.together.xyz` was permitted with no caller anywhere and has been removed. `scripts/checks/csp.mjs` now pins both directions, so neither kind of drift can return quietly.
+
+**One thing to know before testing any of this by hand:** `tauri dev` serves the frontend from a local dev server and applies **no** policy at all. Every rule in this section is invisible until `tauri build`. That is why the drift above survived so long — in development, all of it worked.
 
 ### No image is loaded from the network
 

@@ -5735,7 +5735,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const cx = googleCxEl.value.trim();
     if (!key || !cx) return null;
     try {
-      const url = `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`;
+      const url = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`; // not www.googleapis.com — connect-src permits only this name
       const r = await fetch(url, { referrerPolicy: "no-referrer" });
       if (!r.ok) return null;
       const data = await r.json();
@@ -6103,7 +6103,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       async execute({ code }) {
         if (!code) return { error: "code is required" };
         try {
-          const py = await getPyodide();
+          const py = await window.HCPyodide.getRuntime();
           py.runPython(`
 import sys, io as _io
 _stdout = _io.StringIO()
@@ -6113,6 +6113,9 @@ sys.stderr = _stderr
 `);
           let runError = null;
           try {
+            // Pyodide ships pandas, numpy and matplotlib but loads none of
+            // them until asked. Without this, importing one raises instead.
+            await py.loadPackagesFromImports(code);
             await py.runPythonAsync(code);
           } catch (e) {
             runError = String(e?.message || e).split("\n").slice(-12).join("\n");
@@ -6179,35 +6182,6 @@ sys.stderr = _stderr
       }
     }
   };
-
-  // ── Pyodide lazy loader (code-interpreter sandbox) ──────────────────────
-  // Loaded on first execute_python call. Heavy (~10 MB) so we never load it
-  // on page start. Pre-installs python-docx, openpyxl, reportlab via micropip
-  // so the agent can produce real Word/Excel/PDF files.
-  let _pyodidePromise = null;
-  function getPyodide() {
-    if (_pyodidePromise) return _pyodidePromise;
-    _pyodidePromise = (async () => {
-      if (!window.loadPyodide) {
-        await new Promise((res, rej) => {
-          const s = document.createElement("script");
-          s.src = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js";
-          s.onload = res;
-          s.onerror = () => rej(new Error("Failed to load Pyodide CDN"));
-          document.head.appendChild(s);
-        });
-      }
-      const py = await window.loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/" });
-      await py.loadPackage(["micropip"]);
-      const micropip = py.pyimport("micropip");
-      // python-docx + openpyxl + reportlab cover Word/Excel/PDF.
-      // pandas/numpy/matplotlib are loaded on demand via py.loadPackage when imported.
-      try { await micropip.install(["python-docx", "openpyxl", "reportlab"]); } catch (e) { console.warn("micropip install warning:", e); }
-      try { py.FS.mkdirTree("/output"); } catch {}
-      return py;
-    })();
-    return _pyodidePromise;
-  }
 
   // Map agent.tools[] entries to AGENT_TOOLS keys. The agent stores ids like
   // "memory" (= remember + recall) and "datetime" — expand them here.

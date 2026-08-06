@@ -103,7 +103,41 @@
       //
       // Before adding a host here, vendor the library instead. That rule is in
       // ARCHITECTURE.md and this list is where breaking it shows up.
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.together.xyz https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://eutils.ncbi.nlm.nih.gov https://api.duckduckgo.com http://localhost:11434 http://127.0.0.1:11434 http://*:11434"
+      // ── connect-src and the code must name the SAME host ───────────
+      // A host listed here that nothing calls grants reach for no
+      // feature. A host the code calls that is NOT listed fails as an
+      // ordinary network error, which the app reports as the service
+      // being unreachable — a feature that looks broken for a reason
+      // nothing in the interface can explain.
+      //
+      // Three had drifted apart, and each cost a shipped feature:
+      //   • the Google search tool calls customsearch.googleapis.com;
+      //     the code asked www.googleapis.com, which is not listed
+      //   • the PubMed tool reads Europe PMC at www.ebi.ac.uk; only
+      //     eutils.ncbi.nlm.nih.gov was listed, which nothing calls
+      //   • Pyodide fetches its runtime from cdn.jsdelivr.net. That host
+      //     was in script-src only, so the script tag loaded and the
+      //     runtime fetch behind it did not
+      // api.together.xyz was listed with no caller anywhere and is gone.
+      //
+      // scripts/checks/csp.mjs now pins both directions. Note that
+      // `tauri dev` applies NO policy at all — these rules only take
+      // effect in `tauri build`, which is why the drift went unseen.
+      //
+      // ── 'wasm-unsafe-eval' ─────────────────────────────────────────
+      // The Python sandbox is CPython compiled to WebAssembly, and
+      // compiling a WebAssembly module counts as evaluating script. With
+      // neither 'unsafe-eval' nor 'wasm-unsafe-eval' listed, every
+      // WebAssembly.instantiate call was refused outright, so the sandbox
+      // could not run in any shipped build however well the network
+      // behaved.
+      //
+      // 'wasm-unsafe-eval' permits WebAssembly and NOTHING else: eval()
+      // and new Function() stay refused, which is the pair that turns an
+      // injected string into running script. Full 'unsafe-eval' would
+      // permit all three and must not be added — the sandbox does not
+      // need it.
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.mistral.ai https://generativelanguage.googleapis.com https://api.sambanova.ai https://api.kimi.com https://api.kimi.ai https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://integrate.api.nvidia.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://www.ebi.ac.uk https://api.duckduckgo.com https://cdn.jsdelivr.net http://localhost:11434 http://127.0.0.1:11434 http://*:11434"
     }
   },
 

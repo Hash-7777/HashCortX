@@ -114,6 +114,85 @@ for (const [w, why] of ALLOWED_WILDCARDS) {
     'nothing connects to this port any more — remove it from connect-src and from this list');
 }
 
+// ── Every host the app contacts, against the policy that lets it ─────────────
+//
+// docs/SECURITY.md already records what this costs when it drifts: the
+// embedding model used to fetch its weights from a host connect-src did not
+// permit, so every attempt failed, was swallowed, and semantic search never
+// ran in any shipped build while the documentation described it as working.
+//
+// The policy is maintained by hand in a config file and the fetch is written
+// months later in another file, so the two drift silently and only a release
+// finds out. Both directions are pinned here: an address the source builds
+// must be allowed, and an address that is allowed must have something that
+// builds it.
+//
+// Note for anyone testing this by hand: `tauri dev` serves the frontend from
+// 127.0.0.1 and applies NO policy at all. Every one of these rules is
+// invisible until `tauri build`, which is why drift survives so long.
+
+/**
+ * URL literals that are not requests this app makes. Each carries its reason,
+ * because the default answer to "why is this host not in connect-src" is that
+ * it should be.
+ */
+const NOT_A_REQUEST = new Map([
+  ['www.w3.org', 'the SVG namespace handed to createElementNS, not an address'],
+  ['doi.org', 'a link shown beside a search result for the user to open'],
+  ['europepmc.org', 'a link shown beside a search result'],
+  ['pubmed.ncbi.nlm.nih.gov', 'a link shown beside a search result'],
+  ['sketchfab.com', 'a reference link and a source-filter name in 3D Forge'],
+  ['cdn.tailwindcss.com', 'written into the site the agent generates, not fetched by this app'],
+  ['images.unsplash.com', 'an address handed to the model for a generated site'],
+  ['loremflickr.com', 'an address handed to the model for a generated site'],
+  ['picsum.photos', 'an address handed to the model for a generated site'],
+]);
+
+/** Every literal address the frontend builds, and where it was found. */
+function hostsInSource() {
+  const found = new Map();
+  for (const file of sourceFiles(join(root, 'src'))) {
+    if (!file.endsWith('.js')) continue;
+    // Blank the block comments without losing the line count, so a failure
+    // can name the line it came from.
+    const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ''));
+    text.split('\n').forEach((line, i) => {
+      // A line comment starts at // — but not the // in https://.
+      const code = line.replace(/(^|[^:"'`])\/\/.*$/, '$1');
+      for (const m of code.matchAll(/["'`](https?:\/\/[^"'`\s)]+)/g)) {
+        let host;
+        try { host = new URL(m[1]).host; } catch { continue; }
+        // Built from a variable at runtime — nothing to pin.
+        if (host.includes('$') || host.includes('{')) continue;
+        if (!found.has(host)) found.set(host, `${file.slice(root.length + 1)}:${i + 1}`);
+      }
+    });
+  }
+  return found;
+}
+
+/** The host part of a connect-src entry, e.g. https://api.groq.com → api.groq.com */
+function hostOf(entry) {
+  try { return new URL(entry).host; } catch { return entry; }
+}
+
+const sourceHosts = hostsInSource();
+const connectHosts = new Set(connectSrc.filter((s) => s.startsWith('http')).map(hostOf));
+
+console.log('\nEvery address the app builds is one connect-src allows:');
+for (const [host, where] of sourceHosts) {
+  if (NOT_A_REQUEST.has(host)) continue;
+  ok(`${host} is allowed`, connectHosts.has(host),
+    `${where} builds this address and the policy does not allow it — the request fails as a plain network error, which the app reports as the service being unreachable`);
+}
+
+console.log('\nEvery address connect-src allows is one something builds:');
+for (const entry of connectSrc) {
+  if (!entry.startsWith('http') || entry.includes('*')) continue;
+  ok(`${entry} has a caller`, sourceHosts.has(hostOf(entry)),
+    'nothing in the app builds this address — remove it rather than grant reach no feature needs');
+}
+
 // ── The config's comment against the config's value ──────────────────────────
 
 console.log('\nThe warning above the policy matches the policy:');
@@ -135,6 +214,23 @@ ok('exactly one remote script host', remoteScript.length === 1,
 ok('and it is jsDelivr, which serves Pyodide', remoteScript[0] === 'https://cdn.jsdelivr.net');
 
 const securityDoc = readFileSync(join(root, 'docs', 'SECURITY.md'), 'utf8');
+// ── What may be turned from a string into running script ─────────────────────
+//
+// The Python sandbox is WebAssembly, and compiling a WebAssembly module counts
+// as evaluating script, so the policy has to permit it or the sandbox cannot
+// run at all — it was refused outright in every shipped build.
+//
+// 'wasm-unsafe-eval' permits exactly that and nothing else. 'unsafe-eval'
+// would additionally permit eval() and new Function(), which is what turns a
+// string an agent was handed into code. The sandbox does not need it, so the
+// narrow keyword is pinned here and the broad one is refused.
+
+console.log('\nOnly WebAssembly may be compiled, not arbitrary strings:');
+ok("script-src permits 'wasm-unsafe-eval'", scriptSrc.includes("'wasm-unsafe-eval'"),
+  'without it WebAssembly.instantiate is refused and the Python sandbox cannot start');
+ok("script-src does NOT permit 'unsafe-eval'", !scriptSrc.includes("'unsafe-eval'"),
+  'that would allow eval() and new Function() as well — the sandbox does not need them');
+
 ok('docs/SECURITY.md does not name a CDN the policy dropped',
   !/cdnjs\.cloudflare\.com|cdn\.sheetjs\.com/.test(securityDoc),
   'both are vendored now; the document still lists them as permitted');

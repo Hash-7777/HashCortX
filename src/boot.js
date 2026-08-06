@@ -81,6 +81,7 @@
     '/core/settings/local-model.js',
     '/core/settings/memory-pane.js',
     '/core/rag/knowledge-base.js',
+    '/core/sandbox/pyodide.js',
 
     '/js/app.js',
     '/modes/manifest.js',
