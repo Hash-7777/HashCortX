@@ -5048,7 +5048,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     sendBtn.textContent = "Send";
     // Light up Hash D Island — "HashCortX finished", like the iPhone island.
     // Once per chat turn, cloud or local. Coder mode has its own loop and
-    // fires its own, at the end of startRun in code-mode.js.
+    // fires its own, at the end of startRun in modes/code/mode.js.
     HC.notch?.finished((modelEl.value || "").split(":").pop());
     if (tpsBtn && !assistant.tps) {
       tpsBtn.className = "ping-btn tps-btn";
@@ -7619,7 +7619,7 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     }
   });
 
-  // ── Cross-module bridge — lets swarm-maker.js (loaded separately) access core app functions ──
+  // ── Cross-module bridge — lets the mode files (loaded separately) reach core app functions ──
   window._H = {
     get state()                  { return state; },
     // Real web search, when the user has configured a Tavily key. Coder mode

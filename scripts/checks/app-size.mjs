@@ -63,12 +63,12 @@ function ratchet(label, actual, budget, whenOver) {
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
   'js/app.js': 7695,
-  'js/system-maker.js': 4220,
-  'js/virtual-os.js': 3836,
-  'js/forge-mode.js': 3756,
-  'js/swarm-maker.js': 3025,
-  'js/finance-mode.js': 2705,
-  'js/code-mode.js': 2695,
+  'modes/systems/mode.js': 4220,
+  'modes/virtual-os/mode.js': 3836,
+  'modes/forge/mode.js': 3756,
+  'modes/agent-maker/mode.js': 3025,
+  'modes/finance/mode.js': 2705,
+  'modes/code/mode.js': 2695,
 };
 
 console.log('\nFile sizes go down, never up:');

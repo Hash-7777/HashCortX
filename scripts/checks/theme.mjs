@@ -24,29 +24,13 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { stylesheets } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', '..', 'src');
 const cssDir = join(srcDir, 'css');
 
-/**
- * Every stylesheet the page actually loads, not just the ones in src/css/.
- *
- * This check originally scanned that folder alone, and missed src/styles.css —
- * 1,400 lines calling itself the master design system, carrying a second set
- * of brand tokens, and linked LAST so it has the final say. A guard that reads
- * a directory rather than the page is a guard the page can step around.
- */
-function linkedStylesheets() {
-  const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
-  const out = [];
-  for (const [, href] of html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)) {
-    if (href.includes('vendor/')) continue;      // third-party, not ours to shape
-    out.push(href.replace(/^\//, ''));
-  }
-  return out;
-}
-const SHEETS = linkedStylesheets();
+const SHEETS = stylesheets(srcDir);
 const read = (f) => readFileSync(join(srcDir, f), 'utf8');
 
 let pass = 0, fail = 0;
@@ -194,20 +178,20 @@ const BUDGET = {
   // last so it has the final say; recorded here so it can shrink but not grow.
   'styles.css': 32,
   'css/vars.css': 35,
-  'css/system-maker.css': 131,
+  'modes/systems/mode.css': 131,
   'css/modals.css': 64,
-  'css/virtual-os.css': 52,
+  'modes/virtual-os/mode.css': 52,
   'css/modes.css': 50,
   'css/main.css': 41,
-  'css/coder-mode.css': 26,
-  'css/agent-maker.css': 24,
-  'css/finance-mode.css': 27,
+  'modes/code/mode.css': 26,
+  'modes/agent-maker/mode.css': 24,
+  'modes/finance/mode.css': 27,
   'css/tabs.css': 18,
   'css/sidebar.css': 9,
   'css/composer.css': 5,
   'css/base.css': 3,
-  'css/sandbox.css': 2,
-  'css/forge-mode.css': 2,
+  'modes/sandbox/mode.css': 2,
+  'modes/forge/mode.css': 2,
 };
 
 console.log('\nHardcoded colour counts go down, never up:');

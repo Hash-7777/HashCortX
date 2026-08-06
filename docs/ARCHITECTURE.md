@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **32,100 lines of JavaScript** (plus ~4,000 more in vendored libraries) and **2,820 lines of Rust**.
+Roughly **34,000 lines of JavaScript** (plus ~19,000 more in vendored libraries) and **3,700 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -13,13 +13,35 @@ Roughly **32,100 lines of JavaScript** (plus ~4,000 more in vendored libraries) 
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html                   the app shell and every mode's markup
+│   ├── index.html                   the app shell — and still every mode's markup
 │   ├── main.js                      bootstrap
-│   ├── styles.css                   design tokens
-│   ├── css/                         one stylesheet per mode
+│   ├── styles.css                   the second design system, linked last
+│   ├── css/                         the shared stylesheets: tokens, base,
+│   │                                sidebar, tabs, main, composer, modes, modals
+│   │
+│   ├── modes/                       one folder per mode. Adding a mode is a
+│   │   │                            folder and one line in the manifest.
+│   │   ├── manifest.js         35   the only place a mode is named
+│   │   ├── boot.js             55   turns that list into <link> and <script>
+│   │   ├── systems/          4,220  ERP prototype generator      (mode.js + mode.css)
+│   │   ├── virtual-os/       3,836  virtual project desktop
+│   │   ├── forge/            3,756  3D planning
+│   │   ├── agent-maker/      3,025  chain / vote / failover
+│   │   ├── finance/          2,705  financial document analysis
+│   │   ├── code/             2,695  the Coder agent loop
+│   │   └── sandbox/            603  security scanner
+│   │
+│   ├── core/                        pieces taken out of app.js
+│   │   └── settings/
+│   │       ├── memory-pane.js  534  the memory list and the radial map
+│   │       └── local-model.js  197  the Local model walkthrough
+│   │
+│   ├── data/                        content, not behaviour
+│   │   ├── prompts.js          292  every preset prompt and chip row
+│   │   └── cloud-models.js     108  the fallback model catalogue
 │   │
 │   ├── js/
-│   │   ├── app.js            8,162  core: state, chat, agents, tools, providers
+│   │   ├── app.js            7,695  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
@@ -31,14 +53,7 @@ HashCortX/
 │   │   ├── agent-shape.js      186  images, tools and tool results per provider
 │   │   ├── model-names.js      190  provider, display name, size class, failover
 │   │   ├── memory.js           276  reading facts from a message, ranking them
-│   │   ├── system-maker.js   4,186  ERP prototype generator
-│   │   ├── virtual-os.js     3,846  virtual project desktop
-│   │   ├── forge-mode.js     3,657  3D planning
-│   │   ├── swarm-maker.js    3,022  chain / vote / failover
-│   │   ├── finance-mode.js   2,715  financial document analysis
-│   │   ├── code-mode.js      2,488  the Coder agent loop
 │   │   ├── diff.js             171  line diff behind the Coder change view
-│   │   ├── sandbox.js          603  security scanner
 │   │   └── vendor/                  marked, highlight.js, DOMPurify, mermaid,
 │   │                                pdf.js, jsPDF, SheetJS, and three/ —
 │   │                                core + module + add-ons + utils, r184,
@@ -76,7 +91,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 733 of
+├── scripts/checks/                  the automated frontend checks — 1,096 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -121,7 +136,7 @@ HashCortX/
 └── README.md
 ```
 
-There is no `core/` directory, no `ai.rs`, no `allowlist.rs`, and no `browser.js`. Release builds are still run by hand; `.github/workflows/ci.yml` only checks the code, it does not produce a DMG.
+There is no `ai.rs`, no `allowlist.rs`, and no `browser.js`. `core/` exists now, but only as far as app.js has been taken apart — two settings panes. Release builds are still run by hand; `.github/workflows/ci.yml` only checks the code, it does not produce a DMG.
 
 ---
 
@@ -142,7 +157,7 @@ src/js/*.js  ──▶  window.HC.*        ──▶  Tauri IPC  ──▶  src-
 
 ## The cross-module bridge
 
-`app.js` is a monolith, and the other mode files load after it as separate `<script>` tags. They share state through a global bridge that `app.js` publishes near the bottom of the file:
+`app.js` is a monolith, and the mode files load after it as separate `<script>` tags, written by `modes/boot.js` from the manifest. They share state through a global bridge that `app.js` publishes near the bottom of the file:
 
 ```js
 window._H = {
@@ -167,7 +182,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 2. Every native call is intercepted by `guard.js` before executing, and independently re-checked in Rust.
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
-5. One mode per file in `src/js/`. Cross-module access goes through `window._H`.
+5. One folder per mode in `src/modes/<id>/`, named once in `modes/manifest.js`. Cross-module access goes through `window._H`. Enforced by `scripts/checks/modes.mjs`, which also counts how many shared files still name each mode and refuses to let that number rise.
 6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime — **with exactly one exception**: Pyodide, whose CPython runtime and wheels (pandas, numpy, matplotlib) are fetched on first use and are far too large to ship. It is the only reason `script-src` still names a host. three.js, its four loaders and SheetJS used to be fetched too; they are vendored now, which is what makes 3D Forge and spreadsheet import work offline.
 7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 41.2 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
 
@@ -175,15 +190,16 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 
 ## Known architectural debt
 
-- `app.js` is still an ~8,830-line monolith. The retrieval maths is out (`js/rag-search.js`); the rest of the memory system, the model utilities and the swarm log are the next slices.
-- `legacyRun` in `code-mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 733 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- `app.js` is still a 7,695-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- Every mode's markup is still in `index.html` — 1,124 lines of it, 47% of the shell, parsed on every launch for the one mode the user is in. The JS and CSS have moved into `src/modes/<id>/`; the markup has not.
+- `legacyRun` in `modes/code/mode.js` is a single ~1,800-line function.
+- The frontend's automated coverage is `scripts/checks/` — 1,096 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Abandoned plan
 
-The original design called for a platform-agnostic `core/` layer — pure JS, testable in a browser without Tauri — sitting behind a `platform/` abstraction with `browser.js` and `tauri/` implementations, so that a mobile target would need only a new `platform/` folder. Phase 1 got as far as pulling the mode files out of `app.js` into `src/js/`. The `core/` split was never built, and `platform/` ended up holding just the three Tauri bridge files.
+The original design called for a platform-agnostic `core/` layer — pure JS, testable in a browser without Tauri — sitting behind a `platform/` abstraction with `browser.js` and `tauri/` implementations, so that a mobile target would need only a new `platform/` folder. Phase 1 got as far as pulling the mode files out of `app.js` into `src/js/`, and they have since moved again into `src/modes/<id>/`. `core/` has now been started — it holds the settings panes taken out of app.js — but it is nothing like the platform-agnostic layer that was planned, and `platform/` still holds just the Tauri bridge files.
 
 It is recorded here because the goal is still sound. It is not recorded as current structure, because it is not.

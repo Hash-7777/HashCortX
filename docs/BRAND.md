@@ -70,7 +70,7 @@ This is why the app reads as cool green-teal on screen even though the accent to
 
 ### 3. Terminal green in Coder
 
-`coder-mode.css` uses `#39ff81` — neon terminal green — for output and status text. That is the colour `scripts/gen-icon.py` was built around, and it survives only inside Coder.
+`modes/code/mode.css` uses `#39ff81` — neon terminal green — for output and status text. That is the colour `scripts/gen-icon.py` was built around, and it survives only inside Coder.
 
 ### Traps
 

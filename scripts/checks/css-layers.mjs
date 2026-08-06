@@ -35,6 +35,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { stylesheets } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', '..', 'src');
@@ -47,10 +48,8 @@ function check(label, condition, detail = '') {
   else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
 }
 
-/** The sheets the page loads, in the order it loads them. Order is the point. */
-const SHEETS = [...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"/g)]
-  .map((m) => m[1].replace(/^\//, ''))
-  .filter((f) => !f.includes('vendor/'));
+/** The sheets the app loads, in the order it loads them. Order is the point. */
+const SHEETS = stylesheets(srcDir);
 
 /**
  * Every selector a sheet declares, qualified by the at-rule it sits inside.
@@ -152,19 +151,19 @@ const IMPORTANT_BUDGET = {
   'styles.css': 154,
   'css/modals.css': 92,
   'css/modes.css': 17,
-  'css/sandbox.css': 14,
-  'css/agent-maker.css': 11,
-  'css/virtual-os.css': 11,
-  'css/coder-mode.css': 11,
-  'css/system-maker.css': 10,
+  'modes/sandbox/mode.css': 14,
+  'modes/agent-maker/mode.css': 11,
+  'modes/virtual-os/mode.css': 11,
+  'modes/code/mode.css': 11,
+  'modes/systems/mode.css': 10,
   'css/base.css': 8,
-  'css/finance-mode.css': 4,
+  'modes/finance/mode.css': 4,
   'css/main.css': 3,
   'css/vars.css': 0,
   'css/sidebar.css': 0,
   'css/tabs.css': 0,
   'css/composer.css': 0,
-  'css/forge-mode.css': 0,
+  'modes/forge/mode.css': 0,
 };
 
 console.log('\n!important counts go down, never up:');

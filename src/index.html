@@ -48,13 +48,6 @@
   <link rel="stylesheet" href="/css/composer.css"/>
   <link rel="stylesheet" href="/css/modes.css"/>
   <link rel="stylesheet" href="/css/modals.css"/>
-  <link rel="stylesheet" href="/css/finance-mode.css"/>
-  <link rel="stylesheet" href="/css/sandbox.css"/>
-  <link rel="stylesheet" href="/css/agent-maker.css"/>
-  <link rel="stylesheet" href="/css/system-maker.css"/>
-  <link rel="stylesheet" href="/css/forge-mode.css"/>
-  <link rel="stylesheet" href="/css/virtual-os.css"/>
-  <link rel="stylesheet" href="/css/coder-mode.css"/>
   <link rel="stylesheet" href="/js/vendor/highlight-github-dark.min.css"/>
 
   <!-- ── HashCortx brand + intro overrides (loaded last) ── -->
@@ -2080,7 +2073,7 @@
   <script src="/platform/tauri/save.js"></script>
   <script src="/platform/tauri/hashcoder.js"></script>
 
-  <!-- ── Mode JS files — loaded after DOM ready ──────────── -->
+  <!-- ── Shared libraries, content, and core split out of app.js ─── -->
   <script src="/js/power.js"></script>
   <script src="/js/diff.js"></script>
   <script src="/js/export-format.js"></script>
@@ -2099,13 +2092,8 @@
   <script src="/core/settings/local-model.js"></script>
   <script src="/core/settings/memory-pane.js"></script>
   <script src="/js/app.js"></script>
-  <script src="/js/finance-mode.js"></script>
-  <script src="/js/sandbox.js"></script>
-  <script src="/js/code-mode.js"></script>
-  <script src="/js/swarm-maker.js"></script>
-  <script src="/js/system-maker.js"></script>
-  <script src="/js/forge-mode.js"></script>
-  <script src="/js/virtual-os.js"></script>
+  <script src="/modes/manifest.js"></script>
+  <script src="/modes/boot.js"></script>
 
   <!-- Boot controller — loaded last so all DOM is ready (no defer/module needed) -->
   <script src="/main.js"></script>

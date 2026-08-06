@@ -1,5 +1,5 @@
 // =============================================================
-// code-mode.js — HashCoder Coder Mode (Full-screen God Agent)
+// modes/code/mode.js — HashCoder Coder Mode (Full-screen God Agent)
 //
 // Loaded after app.js. Uses window._H bridge for API access.
 // Exposes window.CoderMode for app.js lifecycle calls.

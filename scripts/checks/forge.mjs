@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const src = readFileSync(join(here, '..', '..', 'src', 'js', 'forge-mode.js'), 'utf8');
+const src = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -90,5 +90,5 @@ console.log('\nA run that lost an agent does not report success:');
   check('the message names which agents did not run', /failedRoles\.join\(/.test(src));
 }
 
-console.log(`\n${pass} passed, ${fail} failed  (src/js/forge-mode.js)`);
+console.log(`\n${pass} passed, ${fail} failed  (src/modes/forge/mode.js)`);
 process.exit(fail ? 1 : 0);

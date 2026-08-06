@@ -28,31 +28,31 @@
     <text x="62" y="188" font-size="10.5" fill="#5c636e">core, chat, tools</text>
 
     <rect x="257" y="150" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="271" y="171" font-size="13" fill="#ffffff">system-maker.js</text><text x="440" y="171" font-size="11" fill="#5c636e" text-anchor="end">4,184</text>
+    <text x="271" y="171" font-size="13" fill="#ffffff">systems/</text><text x="440" y="171" font-size="11" fill="#5c636e" text-anchor="end">4,184</text>
     <text x="271" y="188" font-size="10.5" fill="#5c636e">ERP prototypes</text>
 
     <rect x="466" y="150" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="480" y="171" font-size="13" fill="#ffffff">virtual-os.js</text><text x="649" y="171" font-size="11" fill="#5c636e" text-anchor="end">3,837</text>
+    <text x="480" y="171" font-size="13" fill="#ffffff">virtual-os/</text><text x="649" y="171" font-size="11" fill="#5c636e" text-anchor="end">3,837</text>
     <text x="480" y="188" font-size="10.5" fill="#5c636e">project desktop</text>
 
     <rect x="675" y="150" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="689" y="171" font-size="13" fill="#ffffff">forge-mode.js</text><text x="858" y="171" font-size="11" fill="#5c636e" text-anchor="end">3,819</text>
+    <text x="689" y="171" font-size="13" fill="#ffffff">forge/</text><text x="858" y="171" font-size="11" fill="#5c636e" text-anchor="end">3,819</text>
     <text x="689" y="188" font-size="10.5" fill="#5c636e">3D planning</text>
 
     <rect x="48" y="210" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="62" y="231" font-size="13" fill="#ffffff">swarm-maker.js</text><text x="231" y="231" font-size="11" fill="#5c636e" text-anchor="end">3,022</text>
+    <text x="62" y="231" font-size="13" fill="#ffffff">agent-maker/</text><text x="231" y="231" font-size="11" fill="#5c636e" text-anchor="end">3,022</text>
     <text x="62" y="248" font-size="10.5" fill="#5c636e">chain, vote, failover</text>
 
     <rect x="257" y="210" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="271" y="231" font-size="13" fill="#ffffff">finance-mode.js</text><text x="440" y="231" font-size="11" fill="#5c636e" text-anchor="end">2,710</text>
+    <text x="271" y="231" font-size="13" fill="#ffffff">finance/</text><text x="440" y="231" font-size="11" fill="#5c636e" text-anchor="end">2,710</text>
     <text x="271" y="248" font-size="10.5" fill="#5c636e">statements to KPIs</text>
 
     <rect x="466" y="210" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.22"/>
-    <text x="480" y="231" font-size="13" fill="#ffffff">code-mode.js</text><text x="649" y="231" font-size="11" fill="#9aa1ac" text-anchor="end">2,215</text>
+    <text x="480" y="231" font-size="13" fill="#ffffff">code/</text><text x="649" y="231" font-size="11" fill="#9aa1ac" text-anchor="end">2,215</text>
     <text x="480" y="248" font-size="10.5" fill="#5c636e">the coding agent loop</text>
 
     <rect x="675" y="210" width="197" height="48" rx="9" fill="#171b24" stroke="#ffffff" stroke-opacity="0.08"/>
-    <text x="689" y="231" font-size="13" fill="#ffffff">sandbox.js</text><text x="858" y="231" font-size="11" fill="#5c636e" text-anchor="end">603</text>
+    <text x="689" y="231" font-size="13" fill="#ffffff">sandbox/</text><text x="858" y="231" font-size="11" fill="#5c636e" text-anchor="end">603</text>
     <text x="689" y="248" font-size="10.5" fill="#5c636e">security scanner</text>
 
     <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.6" fill="none">

@@ -62,9 +62,28 @@ const KNOWN_ABSENT = {
 };
 
 const html = readFileSync(join(srcDir, 'index.html'), 'utf8');
-const jsFiles = readdirSync(join(srcDir, 'js'))
-  .filter((f) => f.endsWith('.js'))
-  .map((f) => join(srcDir, 'js', f));
+
+/**
+ * Every script the app ships, wherever it lives.
+ *
+ * This used to read src/js/ and nothing else — a flat listing of one folder.
+ * That was already blind to src/platform/, and it went blind to the modes the
+ * moment each one moved into src/modes/<id>/: four ids it had been tracking
+ * looked, overnight, like ids nothing looks up any more. Nothing was wrong
+ * with the app. The check had simply stopped reading most of it.
+ *
+ * A guard that reads one directory is a guard the code can walk out of.
+ */
+function walkScripts(dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === 'vendor') continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) walkScripts(full, out);
+    else if (entry.name.endsWith('.js')) out.push(full);
+  }
+  return out;
+}
+const jsFiles = walkScripts(srcDir).sort();
 
 const staticIds = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
 

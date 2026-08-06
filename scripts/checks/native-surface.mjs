@@ -32,7 +32,7 @@ const ALLOWED = new Map([
   ['platform/tauri/keychain.js', 'one-time migration out of the old Keychain'],
   ['main.js', 'window geometry and lifecycle at boot'],
   ['js/app.js', 'local embeddings, checking whether a host resolves off-device before a request is allowed to leave, and opening a hardcoded ecosystem link in the browser'],
-  ['js/code-mode.js', 'the Coder terminal and file pickers'],
+  ['modes/code/mode.js', 'the Coder terminal and file pickers'],
   ['core/settings/local-model.js', 'reads which operating system this is, so step one shows the right install instructions instead of handing a Windows user a curl command; and opens the one download page in the real browser. The command takes no argument, and the URL is a fixed string in index.html that no code writes — no model reaches either'],
 ]);
 
@@ -51,12 +51,12 @@ const ALLOWED = new Map([
  * than the mode's, and the bytes still pass the denylist in Rust.
  */
 const MUST_BE_SANDBOXED = [
-  'js/virtual-os.js',
-  'js/forge-mode.js',
-  'js/finance-mode.js',
-  'js/swarm-maker.js',
-  'js/system-maker.js',
-  'js/sandbox.js',
+  'modes/virtual-os/mode.js',
+  'modes/forge/mode.js',
+  'modes/finance/mode.js',
+  'modes/agent-maker/mode.js',
+  'modes/systems/mode.js',
+  'modes/sandbox/mode.js',
   'js/rag-search.js',
   'js/agent-context.js',
   'js/agent-policy.js',
