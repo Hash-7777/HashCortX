@@ -62,7 +62,7 @@ function ratchet(label, actual, budget, whenOver) {
 // Only the files big enough to hide things in. A 300-line module does not need
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
-  'js/app.js': 7695,
+  'js/app.js': 7413,
   'modes/systems/mode.js': 4220,
   'modes/virtual-os/mode.js': 3836,
   'modes/forge/mode.js': 3756,

@@ -118,7 +118,62 @@ console.log('\nNo binding is read before it exists:');
   }
 }
 
-// ── 3. Each module publishes exactly one name ────────────────────────────
+// ── 3. Nothing left behind reads a name that moved ───────────────────────
+//
+// The failure this catches happened while the knowledge base was being moved.
+// `_ragCache` went with it, but one function in app.js still read the variable
+// directly — a reach across a boundary that worked fine while both halves were
+// in one closure. Moved apart, it is a ReferenceError, thrown inside a bridge
+// function that nothing calls at boot. Every static check passed. It only
+// surfaced when the feature was actually exercised in a browser.
+//
+// So: any name a module declares at its top level must not also be read in
+// app.js, unless app.js declares that name itself as its own binding.
+console.log('\nNothing in app.js reads a name that moved out of it:');
+{
+  const appSrc = read('js/app.js');
+  const appDeclares = new Set([
+    // At ANY depth, not just the top level. A name declared inside a function
+    // in app.js is bound there — `const init = …` in a fetch helper is not a
+    // read of a module's `init`, and treating it as one buries the real ones.
+    ...[...appSrc.matchAll(/^\s*(?:async )?function ([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]),
+    // Every declarator, not just the first: `const a = x, b = y;` declares both,
+    // and reading only `a` reports `b` as an orphan.
+    ...[...appSrc.matchAll(/(?:^\s*(?:const|let|var)\s+|,\s*)([A-Za-z_$][\w$]*)\s*=/gm)].map((m) => m[1]),
+    // Destructured bindings — `const { A, B } = window.HCPrompts;`
+    ...[...appSrc.matchAll(/^\s*(?:const|let|var)\s*\{([^}]*)\}\s*=/gm)]
+      .flatMap((m) => m[1].split(',').map((n) => n.split(':').pop().trim()))
+      .filter(Boolean),
+  ]);
+  // Strip comments and strings so prose and message text cannot look like code.
+  const appCode = appSrc
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+    .replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
+
+  let orphans = 0;
+  for (const file of modules()) {
+    const src = read(file);
+    const declared = [
+      ...[...src.matchAll(/^  (?:async )?function ([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]),
+      ...[...src.matchAll(/^  (?:const|let|var) ([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]),
+      ...[...src.matchAll(/^    (?:const|let|var) (_[A-Za-z_$][\w$]*)/gm)].map((m) => m[1]),
+    ];
+    for (const name of new Set(declared)) {
+      if (appDeclares.has(name)) continue;          // app.js has its own binding
+      // A bare read only. `window.HCRag.init(…)` is a property, and
+      // `{ isRagEnabled: … }` is a key — neither reaches the module's scope.
+      const bareRead = new RegExp(`(?<![.\\w$])${name}(?![\\w$])(?!\\s*:)`);
+      if (!bareRead.test(appCode)) continue;
+      orphans++;
+      check(`${name} (moved to ${file})`, false,
+        'app.js still reads this name but no longer declares it — it is a ReferenceError at runtime, and only where the code actually runs');
+    }
+  }
+  if (orphans === 0) check('no name is read in app.js after moving out of it', true);
+}
+
+// ── 4. Each module publishes exactly one name ────────────────────────────
 //
 // One file, one window.HC* object. A module that sets two of them is two
 // modules, and the next person to move something will have to work out which
