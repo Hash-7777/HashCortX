@@ -197,7 +197,7 @@ const LEAK_BUDGET = {
   'finance': 3,
   'agent-maker': 3,
   'virtual-os': 3,
-  'sandbox': 3,
+  'sandbox': 2,
   'systems': 2,
 };
 

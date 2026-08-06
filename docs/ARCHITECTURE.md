@@ -13,7 +13,10 @@ Roughly **34,000 lines of JavaScript** (plus ~19,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html            1,187  the app shell: chrome, composer, modals
+│   ├── index.html              644  the shell: the intro screen, the sidebar
+│   │                                and the chat column. Nothing else.
+│   ├── boot.js                      puts the hidden panels in, then runs
+│   │                                every script in order
 │   ├── main.js                      bootstrap
 │   ├── styles.css                   the second design system, linked last
 │   ├── css/                         the shared stylesheets: tokens, base,
@@ -33,10 +36,13 @@ HashCortX/
 │   │   ├── code/             2,695  the Coder agent loop
 │   │   └── sandbox/            603  security scanner
 │   │
-│   ├── core/                        pieces taken out of app.js
-│   │   └── settings/
-│   │       ├── memory-pane.js  534  the memory list and the radial map
-│   │       └── local-model.js  197  the Local model walkthrough
+│   ├── core/                        pieces taken out of app.js, each with
+│   │   │                            its own markup beside it
+│   │   ├── settings/  panel.html + memory-pane.js + local-model.js
+│   │   ├── memory/    store.js + map-panel.html
+│   │   ├── agents/    panel.html
+│   │   ├── rag/       knowledge-base.js
+│   │   └── overlays/  panel.html   templates, preview, the alert dialog
 │   │
 │   ├── data/                        content, not behaviour
 │   │   ├── prompts.js          292  every preset prompt and chip row
@@ -93,7 +99,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 1,096 of
+├── scripts/checks/                  the automated frontend checks — 1,131 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -194,10 +200,9 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 7,695-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 7,068-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- `legacyRun` in `modes/code/mode.js` is a single ~1,800-line function.
-- The frontend's automated coverage is `scripts/checks/` — 1,096 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- The frontend's automated coverage is `scripts/checks/` — 1,131 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---

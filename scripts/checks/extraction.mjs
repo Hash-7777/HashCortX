@@ -33,6 +33,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, relative } from 'node:path';
+import { scripts as loadOrder } from './lib/page-assets.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const srcDir = join(here, '..', '..', 'src');
@@ -153,9 +154,12 @@ const GLOBALS = publishedGlobals(srcDir);
 // ── 1. Loaded, and loaded first ──────────────────────────────────────────
 console.log('\nEvery split-out module is loaded before app.js:');
 {
-  const order = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map((m) => m[1].replace(/^\//, ''));
+  // The order comes from src/boot.js now, not from tags in index.html. Reading
+  // the markup alone would report every module as never loaded, which reads
+  // like a broken app rather than like a check that stopped looking.
+  const order = loadOrder(srcDir);
   const appAt = order.indexOf('js/app.js');
-  check('app.js is in the script list', appAt !== -1);
+  check('app.js is in the load order', appAt !== -1);
 
   const found = modules();
   check('there are modules to check', found.length > 0, 'src/core and src/data are both empty');
@@ -163,7 +167,7 @@ console.log('\nEvery split-out module is loaded before app.js:');
   for (const file of found) {
     const at = order.indexOf(file);
     if (at === -1) {
-      check(file, false, 'no <script src> in index.html — the window.HC* object will be undefined at the call site');
+      check(file, false, 'not in the load order in src/boot.js — the window.HC* object will be undefined at the call site');
     } else {
       check(`${file} (position ${at + 1})`, at < appAt, 'loaded after app.js, which reads it');
     }

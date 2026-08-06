@@ -1,0 +1,53 @@
+<div class="terminal-alert-overlay" id="terminalAlertOverlay" aria-hidden="true">
+  <div class="terminal-alert" role="dialog" aria-modal="true" aria-labelledby="terminalAlertTitle">
+    <div class="terminal-alert-head">
+      <div class="terminal-alert-mark">!</div>
+      <div class="terminal-alert-title" id="terminalAlertTitle">System Alert</div>
+    </div>
+    <div class="terminal-alert-body" id="terminalAlertBody"></div>
+    <div class="terminal-alert-actions">
+      <button type="button" class="terminal-alert-cancel" id="terminalAlertCancel">Cancel</button>
+      <button type="button" class="terminal-alert-ok" id="terminalAlertOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="previewModal">
+  <div class="preview-box">
+    <div class="preview-box-header">
+      <h3>Full message payload</h3>
+      <span id="previewMeta"></span>
+      <button class="preview-copy-btn" id="previewCopy">Copy JSON</button>
+      <button class="preview-close" id="previewClose">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="preview-body" id="previewBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="templateOverlay">
+  <div class="modal" role="dialog" aria-labelledby="templateTitle" aria-modal="true">
+    <div class="modal-header">
+      <h2 id="templateTitle">Prompt Templates</h2>
+      <button class="close-btn" id="templateClose" title="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <div class="template-layout">
+        <div class="template-list" id="templateList"></div>
+        <div class="template-editor">
+          <input class="control" id="templateName" placeholder="Template name" />
+          <textarea class="control" id="templateBody" placeholder="Use {{variables}} inside the prompt body."></textarea>
+          <div class="template-actions">
+            <button type="button" id="templateNew">New</button>
+            <button type="button" id="templateDelete" class="ghost">Delete</button>
+            <button type="button" id="templateSave" class="primary">Save</button>
+            <button type="button" id="templateUse">Use Template</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
