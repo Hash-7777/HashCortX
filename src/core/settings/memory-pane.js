@@ -6,14 +6,14 @@
 // radial map that draws the facts around their categories with positions and
 // zoom that survive a restart.
 //
-// This is the UI only. The store it reads and writes — memLoad, memSave,
-// memAdd, memClear — stays in app.js because the agent layer writes through
-// the same four functions, and one source of truth for the facts matters more
-// than a tidy boundary here.
+// This is the UI only. The store it reads and writes is
+// src/core/memory/store.js, which the agent tools write through as well — one
+// source of truth for the facts, now in one file rather than in the middle of
+// the agent-tool registry.
 //
-// So the dependencies are passed in rather than reached for. There are
-// thirteen of them and they are listed in one place, which is the point: the
-// old arrangement had the same thirteen, it just never had to say so.
+// So the dependencies are passed in rather than reached for. There are nine of
+// them and they are listed in one place, which is the point: the old
+// arrangement had the same ones, it just never had to say so.
 //
 // init() is called by app.js at the moment this code used to run inline, so
 // the buttons below are wired in the same order relative to everything else
@@ -25,14 +25,23 @@
   'use strict';
 
   const $ = (id) => document.getElementById(id);
+  // Both panes build markup from stored text, so escaping is not optional.
+  // It comes from the shared sanitiser rather than a local copy — a second
+  // implementation of this is how one of them ends up subtly weaker.
+  const escapeHtml = (s) => window.HCMarkdown.escapeHtml(s);
   let _renderMemoryPane = () => {};
 
   function init(deps) {
     const {
-      DEFAULT_PROJECT_ID, abort, currentProject, downloadBlob, input,
-      memAdd, memClear, memLoad, memSave, state,
+      DEFAULT_PROJECT_ID, abort, currentProject, downloadBlob, input, state,
       themedAlert, themedConfirm, themedPrompt,
     } = deps;
+
+    // The store is a module now, so the four functions that read and write the
+    // facts are read from it rather than handed in. Thirteen dependencies down
+    // to nine, and the pane and the agent tools demonstrably share one store
+    // rather than being passed the same four names and trusted to.
+    const { memAdd, memClear, memLoad, memSave } = window.HCMemoryStore;
 
     function fmtRelative(ts) {
       const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));

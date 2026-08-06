@@ -39,6 +39,92 @@ const srcDir = join(here, '..', '..', 'src');
 const read = (f) => readFileSync(join(srcDir, f), 'utf8');
 const html = read('index.html');
 
+/** A name used inside a regex must be escaped — "$" is an anchor otherwise. */
+const rx = (name) => name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Names published as window.<name> by any script the app loads.
+ *
+ * A module reading HCMemory or HCMarkdown is reading a global, not reaching
+ * into app.js's closure, even though app.js also keeps a local alias for it.
+ */
+function publishedGlobals(walkFrom) {
+  const out = new Set();
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'vendor') continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.js')) {
+        for (const m of readFileSync(full, 'utf8').matchAll(/window\.([A-Za-z_$][\w$]*)\s*=/g)) out.add(m[1]);
+      }
+    }
+  };
+  walk(walkFrom);
+  return out;
+}
+
+/**
+ * Source with comments and string bodies blanked out, in one pass.
+ *
+ * Ordered regexes cannot do this. Stripping comments first turns the `//` in
+ * "https://ollama.com" into a comment, which swallows the closing quote and
+ * desynchronises every string after it — that is what made this check report
+ * `data` as a free variable when the only `data` in the file was inside
+ * "tr[data-lm-model]". Stripping strings first has the mirror problem: an
+ * apostrophe in a comment opens a string that never closes.
+ *
+ * And a template literal is not simply a string. `${escapeHtml(f.key)}` is
+ * code, in the middle of one. Blanking the whole literal hid every call the
+ * memory pane makes — including the one name that had actually shipped broken.
+ * So interpolations are walked as code, to any depth.
+ */
+function codeOnly(src) {
+  let out = '';
+  let i = 0;
+
+  const readString = (quote) => {
+    i++;                                     // opening quote
+    while (i < src.length) {
+      if (src[i] === '\\') { i += 2; continue; }
+      if (src[i] === quote) { i++; return; }
+      if (quote === '`' && src[i] === '$' && src[i + 1] === '{') {
+        i += 2;
+        let depth = 1;
+        const from = i;
+        while (i < src.length && depth > 0) {
+          if (src[i] === '{') depth++;
+          else if (src[i] === '}') depth--;
+          else if (src[i] === '"' || src[i] === "'" || src[i] === '`') { readString(src[i]); continue; }
+          if (depth > 0) i++;
+        }
+        out += ' ' + codeOnly(src.slice(from, i)) + ' ';   // the interpolation is code
+        i++;                                                // closing brace
+        continue;
+      }
+      i++;
+    }
+  };
+
+  while (i < src.length) {
+    const c = src[i], d = src[i + 1];
+    if (c === '/' && d === '*') {
+      const end = src.indexOf('*/', i + 2);
+      i = end === -1 ? src.length : end + 2;
+      out += ' ';
+    } else if (c === '/' && d === '/') {
+      while (i < src.length && src[i] !== '\n') i++;
+    } else if (c === '"' || c === "'" || c === '`') {
+      readString(c);
+      out += '""';
+    } else {
+      out += c;
+      i++;
+    }
+  }
+  return out;
+}
+
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
   if (condition) { pass++; console.log(`  ok    ${label}`); }
@@ -61,6 +147,8 @@ function modules() {
   }
   return out.sort();
 }
+
+const GLOBALS = publishedGlobals(srcDir);
 
 // ── 1. Loaded, and loaded first ──────────────────────────────────────────
 console.log('\nEvery split-out module is loaded before app.js:');
@@ -145,11 +233,8 @@ console.log('\nNothing in app.js reads a name that moved out of it:');
       .flatMap((m) => m[1].split(',').map((n) => n.split(':').pop().trim()))
       .filter(Boolean),
   ]);
-  // Strip comments and strings so prose and message text cannot look like code.
-  const appCode = appSrc
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/\/\/.*$/gm, '')
-    .replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
+  // Comments and string bodies removed, so prose cannot look like code.
+  const appCode = codeOnly(appSrc);
 
   let orphans = 0;
   for (const file of modules()) {
@@ -163,7 +248,7 @@ console.log('\nNothing in app.js reads a name that moved out of it:');
       if (appDeclares.has(name)) continue;          // app.js has its own binding
       // A bare read only. `window.HCRag.init(…)` is a property, and
       // `{ isRagEnabled: … }` is a key — neither reaches the module's scope.
-      const bareRead = new RegExp(`(?<![.\\w$])${name}(?![\\w$])(?!\\s*:)`);
+      const bareRead = new RegExp(`(?<![.\\w$])${rx(name)}(?![\\w$])(?!\\s*:)`);
       if (!bareRead.test(appCode)) continue;
       orphans++;
       check(`${name} (moved to ${file})`, false,
@@ -171,6 +256,59 @@ console.log('\nNothing in app.js reads a name that moved out of it:');
     }
   }
   if (orphans === 0) check('no name is read in app.js after moving out of it', true);
+}
+
+// ── 3b. Nothing in a module reads a name it does not have ────────────────
+//
+// The mirror of the rule above, and the direction that actually shipped a bug.
+//
+// memory-pane.js was moved out of app.js and kept using escapeHtml, which is
+// destructured from HCMarkdown near the top of app.js and was therefore in
+// scope right up until the move. Afterwards it was a free variable. The pane
+// still opened, because the throw only happens on the line that renders a
+// fact — so with an empty memory nothing went wrong, which is exactly what the
+// verification at the time saw. Anyone with a saved fact got an empty list and
+// a console error.
+//
+// So: a module may not read a bare name that app.js declares, unless it
+// declares that name itself or destructures it from its own deps.
+console.log('\nNothing in a module reads a name it does not have:');
+{
+  const appTop = new Set([
+    ...[...read('js/app.js').matchAll(/^  (?:async )?function ([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]),
+    ...[...read('js/app.js').matchAll(/(?:^  (?:const|let|var)\s+|,\s*)([A-Za-z_$][\w$]*)\s*=/gm)].map((m) => m[1]),
+    // Multi-line destructuring counts. app.js pulls escapeHtml out of
+    // HCMarkdown across three lines, and a one-line pattern misses it — which
+    // is exactly the name that shipped broken.
+    ...[...read('js/app.js').matchAll(/^  (?:const|let|var)\s*\{([\s\S]*?)\}\s*=/gm)]
+      .flatMap((m) => m[1].split(',').map((n) => n.split(':').pop().trim())).filter(Boolean),
+  ]);
+
+  let free = 0;
+  for (const file of modules()) {
+    const src = read(file);
+    const owns = new Set([
+      ...[...src.matchAll(/(?:async )?function ([A-Za-z_$][\w$]*)/g)].map((m) => m[1]),
+      ...[...src.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]),
+      ...[...src.matchAll(/(?:const|let|var)\s*\{([\s\S]*?)\}\s*=/g)]
+        .flatMap((m) => m[1].split(',').map((n) => n.split(':').pop().trim())).filter(Boolean),
+      // parameters count as owned
+      ...[...src.matchAll(/\(([^)]*)\)\s*(?:=>|\{)/g)]
+        .flatMap((m) => m[1].split(',').map((n) => n.trim().split(/[=\s]/)[0].replace(/^\.\.\./, '')))
+        .filter((n) => /^[A-Za-z_$][\w$]*$/.test(n)),
+    ]);
+    const code = codeOnly(src);
+
+    for (const name of appTop) {
+      if (owns.has(name)) continue;
+      if (GLOBALS.has(name)) continue;            // window.<name>, not app.js's closure
+      if (!new RegExp(`(?<![.\\w$])${rx(name)}(?![\\w$])(?!\\s*:)`).test(code)) continue;
+      free++;
+      check(`${file} reads ${name}`, false,
+        'this name is declared in app.js and is not declared, injected or destructured here — it was in scope before the move and is a free variable now');
+    }
+  }
+  if (free === 0) check('every name a module reads is one it owns or is given', true);
 }
 
 // ── 4. Each module publishes exactly one name ────────────────────────────
