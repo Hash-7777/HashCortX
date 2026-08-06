@@ -7343,6 +7343,23 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
   });
 
   // ── Cross-module bridge — lets the mode files (loaded separately) reach core app functions ──
+  // ── Cross-module bridge — what a mode may reach in here, and nothing else ──
+  //
+  // A mode file loads after this one and shares nothing with it. This object is
+  // the whole seam. Two rules make it worth having, and check:bridge enforces
+  // both, because breaking either is silent.
+  //
+  // NOTHING EXPOSED THAT NOBODY CALLS. It was 38 members and 23 of them were
+  // reachable from a mode for no reason.
+  //
+  // NOTHING CALLED THAT IS NOT EXPOSED. This is the one that cost something.
+  // hashcoder.js has offered the Coder agent two memory tools — save a fact,
+  // recall a fact — since they were written. Both call through this object, and
+  // neither name was ever on it. Both were written defensively, so the model
+  // was told the tools existed, called them, and got back "Memory not
+  // available" every time. code-mode.js's automatic fact extraction was
+  // optional-chained and did nothing at all. Three names were missing; the
+  // feature had never once worked.
   window._H = {
     get state()                  { return state; },
     // Real web search, when the user has configured a Tavily key. Coder mode
@@ -7351,58 +7368,34 @@ Pick the best response or merge them into one final answer. Start with "BEST:" t
     tavilySearch,
     runOneTool,
     // The knowledge base, for modes that are not chat.
-    //
-    // Retrieval has always been reachable from here and from nowhere else, so
-    // Coder — the mode most likely to need a house standard or a past incident
-    // while it writes code — could not see it at all. `ragIsOn` is exposed
-    // beside it deliberately: the toggle defaults to OFF, and a search that
-    // quietly returns nothing because a switch is off is the exact failure this
-    // knowledge base has already had twice.
     ragSearch: (query) => queryRAGMerged(String(query || "")),
     ragIsOn: () => ragEnabled,
-    // Any mode can turn it on. Telling someone to go to another tab to flip a
-    // switch is worse than giving them the switch, and this one setting is
-    // what decides whether search_knowledge finds anything at all.
-    ragSetOn: (on) => {
-      ragEnabled = !!on;
-      saveSettings();
-      // Keep the toggle in the Agents tab showing the truth.
-      document.getElementById("ragToggle")?.classList.toggle("on", ragEnabled);
-      return ragEnabled;
-    },
-    ragSize: () => window.HCRag.size(),
-    estimatePromptTokens,
+    // Long-term memory. The three names below are what the Coder agent's
+    // remember_fact and recall_facts tools have always called.
+    memAdd,
+    memRecall,
+    memAutoExtract,
     appendAssistantToolCallTurn,
     appendToolResult,
     extractPythonFence,
     persistCurrentChat,
     setTab,
-    safeExitMode,
     render,
     ollamaChat,
+    escapeHtml,
     selectedModel: () => modelEl.value,
     selectedTemperature: () => (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.3)(parseFloat(tempEl.value)),
     // One dispatcher for every mode. Modes that picked a client themselves
     // got Anthropic wrong; there is now one copy of that decision.
     runModelTurn,
-    selectAgentAdapter,
-    agentTurnOpenAI,
-    agentTurnGemini,
-    agentTurnAnthropic,
-    agentTurnOllama,
     buildOpenAITools,
     buildGeminiTools,
     buildOllamaTools,
-    buildOllamaMessages,
-    safeJsonParse,
-    updateLastBubble,
-    flushPendingBubbleUpdate,
-    isCodeMode,
     parseCloudModel,
-    getAvailableCloudModels,
-    showError,
-    escapeHtml,
-    runSwarm,
+    // The way a mode is meant to register itself. Nothing calls it today —
+    // every mode writes window._registeredModes directly — but it is the
+    // documented extension point and the architecture rests on it, so it stays
+    // and check:bridge lists it as a deliberate exception rather than dead.
     registerMode(id, config) {
       (window._registeredModes = window._registeredModes || {})[id] = normalizeModeConfig(id, config);
     },

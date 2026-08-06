@@ -165,16 +165,18 @@ src/js/*.js  ──▶  window.HC.*        ──▶  Tauri IPC  ──▶  src-
 window._H = {
   get state() { return state; },
   runOneTool,
+  memAdd, memRecall, memAutoExtract,
   appendAssistantToolCallTurn,
   appendToolResult,
-  afterRender,          // hook: lets code-mode.js re-inject tool blocks after render()
   ...
 };
 ```
 
-`code-mode.js` additionally exposes `window.HC_CODE`. This is the seam to respect when adding a mode: **never import across mode files directly** — go through `_H`.
+This is the seam to respect when adding a mode: **never import across mode files directly** — go through `_H`. It holds 24 members: the 23 something calls, plus `registerMode`, which is the documented way for a mode to register itself even though every mode currently writes `window._registeredModes` directly.
 
-The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale, which would otherwise destroy the collapsible tool-call blocks that Coder mode injects.
+`scripts/checks/bridge.mjs` holds that to equality in both directions, because both ways of getting it wrong are silent. It was 38 members with 23 of them unused — and, worse, three names were *called and never exposed*: `memAdd`, `memRecall` and `memAutoExtract`. The Coder agent's `remember_fact` and `recall_facts` tools call through this object and the system prompt tells the model it has them, but the call sites are written defensively, so the model was told "Memory not available" every time instead of anything failing. That feature had never worked.
+
+`modes/code/mode.js` additionally exposes `window.HC_CODE`, and `render()` calls its `afterRender` hook — that hook is on `HC_CODE`, not on `_H`. It exists because `render()` rebuilds the chat DOM wholesale, which would otherwise destroy the collapsible tool-call blocks Coder injects.
 
 ---
 
