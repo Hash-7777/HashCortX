@@ -51,11 +51,10 @@ const KNOWN_ABSENT = {
     'Toggle for the notes pane above. Bound with ?. so its absence is inert.',
 
   // ── Panels owned by another mode, absent until that mode builds them ──
-  'swarm-log-entries': 'Built by Agent Swarm when it runs; absent until then.',
-  'cv-swarm-terminate': 'See swarm-log-entries.',
-  'cv-swarm-result-box': 'See swarm-log-entries.',
-  'cv-swarm-result-body': 'See swarm-log-entries.',
-  'cv-swarm-result-title': 'See swarm-log-entries.',
+  // The five swarm entries that used to sit here said "built by Agent Swarm
+  // when it runs". Nothing ever ran: the code that looked them up was 311
+  // lines in app.js with no caller anywhere, driving elements that existed in
+  // no markup file. Both the code and these entries are gone.
   amkPolishBtn: 'Agent Maker polish control, rendered only in some editor states.',
   voidEditModeBtn: 'Virtual OS control not present in the current shell markup.',
   voidPrompt: 'See voidEditModeBtn.',

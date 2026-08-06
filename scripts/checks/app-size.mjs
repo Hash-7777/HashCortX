@@ -62,7 +62,7 @@ function ratchet(label, actual, budget, whenOver) {
 // Only the files big enough to hide things in. A 300-line module does not need
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
-  'js/app.js': 7406,
+  'js/app.js': 7140,
   'modes/systems/mode.js': 4220,
   'modes/virtual-os/mode.js': 3836,
   'modes/forge/mode.js': 3756,
@@ -106,7 +106,7 @@ console.log('\nThe shell holds no more markup than it did:');
 // not, which is the actual cost — not the length.
 //
 // This falls by one every time a section becomes a file.
-const RESPONSIBILITY_BUDGET = 15;
+const RESPONSIBILITY_BUDGET = 14;
 
 console.log('\napp.js holds fewer separate responsibilities over time:');
 {
