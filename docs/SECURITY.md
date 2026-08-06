@@ -203,7 +203,7 @@ Three more used to sit beside it: `http://*:1234`, `http://*:8080` and `http://*
 
 ### Honest caveats
 
-- `script-src` permits `'unsafe-inline'` and one external CDN, `cdn.jsdelivr.net`. This is not a locked-down policy. That one host is there for Pyodide, which fetches CPython and any wheel you use on demand and cannot sensibly be shipped inside the app. (This document previously named three CDNs; the other two were vendored and removed, and the paragraph was not updated. The check now compares the two.)
+- `script-src` permits `'unsafe-inline'`, `'wasm-unsafe-eval'` and one external CDN, `cdn.jsdelivr.net`. This is not a locked-down policy. The CDN is there for Pyodide, which fetches CPython and the packages it bundles on demand and cannot sensibly be shipped inside the app. `'wasm-unsafe-eval'` is there because compiling a WebAssembly module counts as evaluating script, and the sandbox is WebAssembly — without it every `WebAssembly.instantiate` was refused and the sandbox could not start at all. It permits WebAssembly and nothing else: `eval()` and `new Function()` stay refused, full `'unsafe-eval'` is not permitted, and `csp.mjs` fails if it is ever added. (This document previously named three CDNs; the other two were vendored and removed, and the paragraph was not updated. The check now compares the two.)
 - `style-src` permits `'unsafe-inline'`, which the app's dynamic theme tokens need.
 
 Most third-party libraries are vendored into `src/js/vendor/` and load from disk rather than a CDN.
@@ -216,7 +216,7 @@ Most third-party libraries are vendored into `src/js/vendor/` and load from disk
 - **No telemetry.** No analytics, no usage reporting, no crash reporting.
 - **No accounts.** Nothing to sign up for.
 - **No auto-updater.** The app never reaches out on its own.
-- **Air-gapped capable, with one exception.** With Ollama, chat, the coding agent, the knowledge base, 3D Forge and spreadsheet import all work with the network off. **The Python sandbox does not** — Pyodide fetches its CPython runtime and any wheel you use (pandas, numpy, matplotlib) from jsDelivr on first use, and those are far too large to ship. That is the only reason `script-src` still names a CDN.
+- **Air-gapped capable, with one exception.** With Ollama, chat, the coding agent, the knowledge base, 3D Forge and spreadsheet import all work with the network off. **The Python sandbox does not** — Pyodide fetches its CPython runtime, and the packages it bundles (pandas, numpy, matplotlib), from jsDelivr on first use, and those are far too large to ship. That is the only reason `script-src` and `connect-src` still name a CDN. The three packages Pyodide does not bundle — python-docx, openpyxl and reportlab — ship with the app in `src/wheels/` and install from its own origin, so the sandbox needs the network for its runtime and nothing else.
 
   Until recently this was less true than it said: 3D Forge loaded three.js and four of its loaders from a CDN, so it failed outright offline, and spreadsheet import fetched SheetJS the same way. Both are vendored now.
 

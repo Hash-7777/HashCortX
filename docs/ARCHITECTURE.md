@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **34,000 lines of JavaScript** (plus ~19,000 more in vendored libraries) and **3,700 lines of Rust**.
+Roughly **34,200 lines of JavaScript** (plus ~19,000 more in vendored libraries) and **3,700 lines of Rust**.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -13,7 +13,7 @@ Roughly **34,000 lines of JavaScript** (plus ~19,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html              644  the shell: the intro screen, the sidebar
+│   ├── index.html              643  the shell: the intro screen, the sidebar
 │   │                                and the chat column. Nothing else.
 │   ├── boot.js                      puts the hidden panels in, then runs
 │   │                                every script in order
@@ -42,14 +42,23 @@ HashCortX/
 │   │   ├── memory/    store.js + map-panel.html
 │   │   ├── agents/    panel.html
 │   │   ├── rag/       knowledge-base.js
+│   │   ├── sandbox/   pyodide.js    the Python runtime loader, bounded at
+│   │   │                            every stage so it cannot hang the agent
 │   │   └── overlays/  panel.html   templates, preview, the alert dialog
+│   │
+│   ├── wheels/                      the Python packages Pyodide does not
+│   │                                bundle — python-docx, openpyxl,
+│   │                                reportlab and two dependencies. Shipped
+│   │                                rather than fetched, because micropip
+│   │                                takes them from PyPI, which the policy
+│   │                                does not permit. See PROVENANCE.md
 │   │
 │   ├── data/                        content, not behaviour
 │   │   ├── prompts.js          292  every preset prompt and chip row
 │   │   └── cloud-models.js     108  the fallback model catalogue
 │   │
 │   ├── js/
-│   │   ├── app.js            7,695  core: state, chat, agents, tools, providers
+│   │   ├── app.js            7,042  core: state, chat, agents, tools, providers
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                              cosine, rank fusion — pure, tested
 │   │   ├── rag-store.js        123  how a document becomes passages —
@@ -57,8 +66,8 @@ HashCortX/
 │   │   ├── url-safety.js        93  addresses the fetch tool may reach
 │   │   ├── providers.js        277  each provider's endpoint and auth, plus
 │   │                                Moonshot's four hosts and two account systems
-│   │   ├── markdown-safe.js    131  link sanitiser, entity decoding, escaping
-│   │   ├── agent-shape.js      186  images, tools and tool results per provider
+│   │   ├── markdown-safe.js    134  link sanitiser, entity decoding, escaping
+│   │   ├── agent-shape.js      225  images, tools and tool results per provider
 │   │   ├── model-names.js      190  provider, display name, size class, failover
 │   │   ├── memory.js           276  reading facts from a message, ranking them
 │   │   ├── diff.js             171  line diff behind the Coder change view
@@ -80,13 +89,14 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs       432   process execution: denylist, timeout,
+│   │   │   ├── shell.rs       469   process execution: denylist, timeout,
 │   │   │   │                        closed stdin, output cap
 │   │   │   ├── embed.rs       288   sentence embeddings, run natively
-│   │   │   ├── checkpoint.rs  314   what a file held before the agent changed it
+│   │   │   ├── checkpoint.rs  538   what a file held before the agent changed it
 │   │   │   ├── net.rs         229   resolves a hostname and refuses private ones
-│   │   │   ├── fs.rs          451   filesystem bridge, applies the denylist
-│   │   │   ├── keychain.rs    113   one-time migration out of the old Keychain
+│   │   │   ├── fs.rs          815   filesystem bridge, applies the denylist
+│   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
+│   │   │   ├── export.rs      261   writes a file the user named in a save dialog
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
 │   │   │   ├── notch.rs        92   Hash D Island live-activity ping
 │   │   │   └── audit.rs        52   append-only audit log
@@ -99,7 +109,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 1,131 of
+├── scripts/checks/                  the automated frontend checks — 1,190 of
 │   │                                them, all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -128,7 +138,24 @@ HashCortX/
 │   ├── markdown-safe.mjs            which links in a reply are safe to click
 │   ├── agent-shape.mjs              how the conversation reaches each provider
 │   ├── model-names.mjs              provider, name and class of a model
-│   └── memory.mjs                   what is remembered, and found again
+│   ├── memory.mjs                   what is remembered, and found again
+│   ├── save.mjs                     where a file the user exports ends up
+│   ├── forge.mjs                    what 3D Forge reports as finished
+│   ├── theme.mjs                    the colour budget per stylesheet
+│   ├── controls.mjs                 every control the markup offers is wired
+│   ├── csp.mjs                      the security policy against the code:
+│   │                                every host the source builds is allowed,
+│   │                                every host allowed has something that
+│   │                                builds it, and only WebAssembly may be
+│   │                                compiled from a string
+│   ├── modes.mjs                    a mode is a folder named once
+│   ├── css-layers.mjs               no selector is declared in two sheets
+│   ├── app-size.mjs                 the ratchets: app.js and the shell may
+│   │                                shrink, never grow
+│   ├── extraction.mjs               a module taken out of app.js is loaded
+│   │                                first and reads no name it does not own
+│   └── bridge.mjs                   window._H exposes what is called, and
+│                                    only what is called
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -193,16 +220,16 @@ This is the seam to respect when adding a mode: **never import across mode files
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
 5. One folder per mode in `src/modes/<id>/` — `mode.js`, `mode.css`, `panel.html` — named once in `modes/manifest.js`. Nothing else in the app names a mode. Cross-module access goes through `window._H`. Enforced by `scripts/checks/modes.mjs`, which also counts how many shared files still name each mode and refuses to let that number rise.
-6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime — **with exactly one exception**: Pyodide, whose CPython runtime and wheels (pandas, numpy, matplotlib) are fetched on first use and are far too large to ship. It is the only reason `script-src` still names a host. three.js, its four loaders and SheetJS used to be fetched too; they are vendored now, which is what makes 3D Forge and spreadsheet import work offline.
+6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime — **with exactly one exception**: Pyodide, whose CPython runtime and bundled wheels (pandas, numpy, matplotlib) are fetched on first use and are far too large to ship. It is the only reason `script-src` and `connect-src` still name a host. The three packages Pyodide does *not* bundle — python-docx, openpyxl and reportlab — are vendored in `src/wheels/` and installed from the app's own origin, because the alternative was permitting PyPI, and this rule is what says vendor the library instead. three.js, its four loaders and SheetJS used to be fetched too; they are vendored now, which is what makes 3D Forge and spreadsheet import work offline.
 7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 41.2 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
 
 ---
 
 ## Known architectural debt
 
-- `app.js` is still a 7,068-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 7,042-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 1,131 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
+- The frontend's automated coverage is `scripts/checks/` — 1,190 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
 ---
