@@ -31,8 +31,9 @@ const ALLOWED = new Map([
   ['platform/tauri/hashcoder.js', 'the agent tools — every one gated by HC.guard.request first'],
   ['platform/tauri/keychain.js', 'one-time migration out of the old Keychain'],
   ['main.js', 'window geometry and lifecycle at boot'],
-  ['js/app.js', 'local embeddings, and opening a hardcoded ecosystem link in the browser'],
+  ['js/app.js', 'local embeddings, checking whether a host resolves off-device before a request is allowed to leave, and opening a hardcoded ecosystem link in the browser'],
   ['js/code-mode.js', 'the Coder terminal and file pickers'],
+  ['core/settings/local-model.js', 'reads which operating system this is, so step one shows the right install instructions instead of handing a Windows user a curl command; and opens the one download page in the real browser. The command takes no argument, and the URL is a fixed string in index.html that no code writes — no model reaches either'],
 ]);
 
 /**
