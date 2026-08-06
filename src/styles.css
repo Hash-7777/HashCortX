@@ -1,47 +1,43 @@
 /* ============================================================
-   HASHCORTX — Master Design System + Intro Screen
-   All brand tokens live here. Component CSS goes in src/components/
+   HASHCORTX — the intro screen, the toolbar, and the overrides
+   that need the last word.
+
+   This file called itself the master design system and it is not
+   one. The real tokens are in css/vars.css. What was here was a
+   SECOND vocabulary in an --hc-* namespace — a full parallel set
+   of spacing steps, corner radii, shadows and transitions, 27 of
+   which were never referenced by a single rule in the app. They
+   have been deleted.
+
+   The eleven below are the ones something actually reads. They are
+   not duplicates of the vars.css tokens: --hc-font is the intro's
+   JetBrains Mono stack, and the colours are the intro's own cyan
+   palette. Folding them into vars.css would change what is drawn,
+   so it is its own change, not a tidy-up.
+
+   This file is linked LAST, so wherever it and css/ disagree, this
+   wins. scripts/checks/css-layers.mjs pins that ordering and holds
+   the overlap to a number that may fall and never rise.
    ============================================================ */
 
 :root {
   --hc-green:         #22d3ee;
-  --hc-green-dim:     rgba(34,211,238,0.50);
-  --hc-green-glow:    rgba(34,211,238,0.12);
-  --hc-green-border:  rgba(34,211,238,0.18);
 
-  --hc-cyan:          #22d3ee;
   --hc-amber:         #fbbf24;
-  --hc-red:           #f87171;
-  --hc-purple:        #a78bfa;
 
   --hc-bg:            #040507;
-  --hc-bg-2:          #08090d;
-  --hc-bg-3:          #0d0f14;
-  --hc-bg-4:          #11131a;
 
   --hc-text:          #c7e6f0;
   --hc-text-dim:      rgba(199,230,240,0.50);
   --hc-text-muted:    rgba(199,230,240,0.28);
-  --hc-text-faint:    rgba(199,230,240,0.14);
 
   --hc-border:        rgba(34,211,238,0.13);
   --hc-border-strong: rgba(34,211,238,0.28);
-  --hc-border-subtle: rgba(34,211,238,0.07);
 
   --hc-font: 'JetBrains Mono','Berkeley Mono','Fira Code',
              'Cascadia Code','SF Mono','Menlo','Consolas',monospace;
   --hc-font-size: 13px;
   --hc-line: 1.65;
-
-  --hc-s1:4px; --hc-s2:8px; --hc-s3:12px; --hc-s4:16px;
-  --hc-s5:20px;--hc-s6:24px;--hc-s8:32px; --hc-s10:40px;
-
-  --hc-r-sm:3px; --hc-r-md:6px; --hc-r-lg:12px; --hc-r-xl:18px;
-
-  --hc-t:0.15s ease; --hc-t-slow:0.28s ease;
-
-  --hc-shadow:    0 4px 24px rgba(0,0,0,0.65);
-  --hc-shadow-lg: 0 12px 48px rgba(0,0,0,0.75);
 
   --toolbar-h: 44px;   /* iOS nav-bar height — used by all views below it */
 }
@@ -1399,7 +1395,6 @@ header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
   background: rgba(248,113,113,0.16) !important;
 }
 
-
 /* ── LOGO OVERRIDE: pure white, no glow, no shades ───────── */
 .hc-toolbar-logo,
 .about-logo-img,
@@ -1423,8 +1418,6 @@ body.low-gpu {
   --glass-blur: none;
   --shadow-lg: 0 12px 28px rgba(0,0,0,0.30);
   --shadow-sm: 0 5px 14px rgba(0,0,0,0.20);
-  --hc-shadow: 0 3px 14px rgba(0,0,0,0.42);
-  --hc-shadow-lg: 0 8px 28px rgba(0,0,0,0.50);
 }
 
 html.low-gpu *,

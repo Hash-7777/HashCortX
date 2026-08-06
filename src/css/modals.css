@@ -606,10 +606,6 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 16px 24px 16px; gap: 0; text-align: center;
   }
-  .about-logo-img {
-    height: 130px; width: auto; object-fit: contain;
-    margin-bottom: 10px; -webkit-user-drag: none;
-  }
   .about-h {
     font-family: 'Great Vibes', var(--script);
     font-size: 80px; line-height: 1; font-weight: 400;
@@ -1650,23 +1646,6 @@
   }
 
 /* ── Intro screen (scoped to #intro-screen) ───────────────────────────── */
-#intro-screen {
-  position: fixed; inset: 0; z-index: 9999;
-  /* HashCortx green palette — replaces Hash_UI amber */
-  --bg-0: #040507; --bg-1: #08090d; --bg-2: #0d0f14;
-  /* Scoped to this splash under its own names. It used to override --line,
-     --line-strong and --ok directly, which meant "ok" was a different colour
-     inside the intro than everywhere else in the app — the one thing the
-     shared tokens exist to prevent. */
-  --intro-line-soft: rgba(34,211,238,0.07);
-  --intro-line-strong: rgba(34,211,238,0.28);
-  --ink: #c7e6f0; --ink-mute: rgba(199,230,240,0.65); --ink-dim: rgba(199,230,240,0.38); --ink-faint: rgba(199,230,240,0.18);
-  --gold: #22d3ee; --gold-bright: #6feaff; --gold-deep: #1a5a7a;
-  --accent-glow: rgba(34,211,238,0.45); --intro-ok: #22d3ee;
-  --font-display: "JetBrains Mono", ui-monospace, monospace;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-}
 #intro-screen .stage {
   position: fixed; inset: 0;
   display: grid; place-items: center;
@@ -1757,13 +1736,6 @@
   font-family: var(--font-display); font-style: italic; font-size: clamp(10px, 0.9vw, 12px);
   color: var(--ink-faint); text-align: right; z-index: 4;
   animation: ifi 1s 2s both;
-}
-#intro-screen .perfection-quote {
-  position: absolute; bottom: 7%; left: 4%;
-  font-family: var(--font-display); font-style: italic; font-size: clamp(14px, 1.75vmin, 22px);
-  color: var(--gold-bright); text-align: left; z-index: 4; white-space: nowrap;
-  letter-spacing: .06em; animation: ifi 1s 2.5s both;
-  text-shadow: 0 0 18px rgba(34,211,238,.9), 0 0 40px rgba(34,211,238,.6), 0 0 80px rgba(34,211,238,.3);
 }
 #intro-screen .patch-badge {
   position: absolute; bottom: 12%; left: 4%;

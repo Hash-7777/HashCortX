@@ -179,10 +179,10 @@ console.log('\nEvery id a stylesheet targets exists:');
 const BUDGET = {
   // Not in css/. A second design system in its own --hc-* namespace, linked
   // last so it has the final say; recorded here so it can shrink but not grow.
-  'styles.css': 32,
+  'styles.css': 26,
   'css/vars.css': 35,
   'modes/systems/mode.css': 131,
-  'css/modals.css': 64,
+  'css/modals.css': 56,
   'modes/virtual-os/mode.css': 52,
   'css/modes.css': 50,
   'css/main.css': 41,

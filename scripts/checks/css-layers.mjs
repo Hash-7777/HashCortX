@@ -112,7 +112,7 @@ console.log('\nLoad order is a decision, not an accident:');
 // Two sheets styling one selector means one of them is invisible, and which
 // one depends on link order rather than on anything in the rule. Lower the
 // budget as rules are merged into the sheet that owns them.
-const DUPLICATE_BUDGET = 57;
+const DUPLICATE_BUDGET = 54;
 
 console.log('\nSelectors declared in more than one sheet go down, never up:');
 {
@@ -189,14 +189,17 @@ console.log('\n!important counts go down, never up:');
 
 // ── 4. The second token namespace shrinks to nothing ─────────────────────
 //
-// styles.css defines 30 --hc-* tokens. Only 22 uses of them exist in the whole
-// app, 20 of those inside styles.css itself. So this is not a design system in
-// use; it is a second one left running beside the first, and one of the two
-// decides what the app looks like depending on link order.
+// styles.css defined 38 --hc-* tokens. 27 of them — the entire parallel
+// spacing scale, the radius scale, the shadows and the transitions — were
+// never referenced by a single rule anywhere in the app. A second design
+// system that nothing used. They are gone.
 //
-// The target is zero: every --hc-* either becomes a token in vars.css or is
-// deleted with the rule that used it.
-const HC_TOKEN_BUDGET = 30;
+// The eleven left are read by something, and they are not duplicates of the
+// vars.css tokens: --hc-font is the intro screen's JetBrains Mono stack and
+// the colours are its own cyan palette. Folding those into vars.css changes
+// what is drawn, so it is its own change rather than a tidy-up — which is why
+// this number is 11 and not 0 yet.
+const HC_TOKEN_BUDGET = 11;
 
 console.log('\nThe second token namespace shrinks to nothing:');
 {
