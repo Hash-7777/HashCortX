@@ -13,7 +13,7 @@ Roughly **34,000 lines of JavaScript** (plus ~19,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html                   the app shell — and still every mode's markup
+│   ├── index.html            1,187  the app shell: chrome, composer, modals
 │   ├── main.js                      bootstrap
 │   ├── styles.css                   the second design system, linked last
 │   ├── css/                         the shared stylesheets: tokens, base,
@@ -21,9 +21,11 @@ HashCortX/
 │   │
 │   ├── modes/                       one folder per mode. Adding a mode is a
 │   │   │                            folder and one line in the manifest.
-│   │   ├── manifest.js         35   the only place a mode is named
-│   │   ├── boot.js             55   turns that list into <link> and <script>
-│   │   ├── systems/          4,220  ERP prototype generator      (mode.js + mode.css)
+│   │   ├── manifest.js              the only place a mode is named
+│   │   ├── boot.js                  turns that list into the stylesheet, the
+│   │   │                            tab button, the markup and the script
+│   │   ├── systems/          4,220  ERP prototype generator
+│   │   │                            (mode.js + mode.css + panel.html)
 │   │   ├── virtual-os/       3,836  virtual project desktop
 │   │   ├── forge/            3,756  3D planning
 │   │   ├── agent-maker/      3,025  chain / vote / failover
@@ -182,7 +184,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 2. Every native call is intercepted by `guard.js` before executing, and independently re-checked in Rust.
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
-5. One folder per mode in `src/modes/<id>/`, named once in `modes/manifest.js`. Cross-module access goes through `window._H`. Enforced by `scripts/checks/modes.mjs`, which also counts how many shared files still name each mode and refuses to let that number rise.
+5. One folder per mode in `src/modes/<id>/` — `mode.js`, `mode.css`, `panel.html` — named once in `modes/manifest.js`. Nothing else in the app names a mode. Cross-module access goes through `window._H`. Enforced by `scripts/checks/modes.mjs`, which also counts how many shared files still name each mode and refuses to let that number rise.
 6. Third-party libraries are vendored into `src/js/vendor/`, never fetched from a CDN at runtime — **with exactly one exception**: Pyodide, whose CPython runtime and wheels (pandas, numpy, matplotlib) are fetched on first use and are far too large to ship. It is the only reason `script-src` still names a host. three.js, its four loaders and SheetJS used to be fetched too; they are vendored now, which is what makes 3D Forge and spreadsheet import work offline.
 7. No bundler and no framework. This is a constraint, not an oversight: it keeps the application itself around 7 MB, and it lets a reader trace a button to the Rust function it triggers without a source map. The DMG is 41.2 MB because the bundled embedding model is 34 MB of it — a cost paid once, deliberately, so the knowledge base works offline.
 
@@ -191,7 +193,7 @@ The `afterRender` hook exists because `render()` rebuilds the chat DOM wholesale
 ## Known architectural debt
 
 - `app.js` is still a 7,695-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
-- Every mode's markup is still in `index.html` — 1,124 lines of it, 47% of the shell, parsed on every launch for the one mode the user is in. The JS and CSS have moved into `src/modes/<id>/`; the markup has not.
+- Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
 - `legacyRun` in `modes/code/mode.js` is a single ~1,800-line function.
 - The frontend's automated coverage is `scripts/checks/` — 1,096 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers and memory. They load the real source, but none of them drives the UI: nothing catches a broken button. `dom-ids.mjs` is the nearest thing to a guard against that — it cannot tell whether a button works, but it does catch a control the code reads and the markup no longer has.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).

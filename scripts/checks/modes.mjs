@@ -18,7 +18,8 @@
 //   1. The folders and the manifest agree, in both directions.
 //   2. A mode registers itself under the same id as its folder.
 //   3. Every registration is complete.
-//   4. Every mode can be opened, and every tab opens something.
+//   4. Every mode can be opened, every tab opens something, and each mode
+//      carries its own tab button.
 //   5. Every skin class a mode claims is one a stylesheet acts on.
 //   6. Every panel has a host element to be inserted into.
 //   7. RATCHET — how many SHARED files still name each mode. This is the
@@ -120,13 +121,21 @@ for (const id of MANIFEST) {
 // ── 4. Reachable, in both directions ─────────────────────────────────────
 console.log('\nEvery mode can be opened, and every tab opens something:');
 {
+  // The shell holds one tab button — Chats. Every other one lives in its own
+  // mode's panel.html, inside a <template data-mode-tab>, and is lifted into
+  // the strip at boot.
+  const allMarkup = html + '\n' + panelMarkup(srcDir);
   const buttons = new Map(
-    [...html.matchAll(/<button[^>]*\bdata-tab="([^"]+)"[^>]*\bid="([^"]+)"/g)].map((m) => [m[1], m[2]])
+    [...allMarkup.matchAll(/<button[^>]*\bdata-tab="([^"]+)"[^>]*\bid="([^"]+)"/g)].map((m) => [m[1], m[2]])
   );
   const CHAT_TABS = new Set(['chats']);
 
   for (const [id, reg] of registrations) {
-    check(`${id} has a tab button`, buttons.has(id), 'no [data-tab] button in index.html');
+    check(`${id} has a tab button`, buttons.has(id), 'no [data-tab] button in its panel.html');
+    const own = read(`modes/${id}/panel.html`);
+    check(`${id} owns its tab button`,
+      /<template[^>]*data-mode-tab/.test(own) && own.includes(`data-tab="${id}"`),
+      'the button that opens this mode is not in its own panel.html');
     if (buttons.has(id)) {
       check(`${id} btnId matches its button`, reg.btnId === buttons.get(id),
         `registration says "${reg.btnId}", markup says "${buttons.get(id)}"`);
@@ -175,14 +184,21 @@ const SHARED_FILES = [
   'styles.css',
 ];
 
+//
+// One caveat, stated rather than hidden: this counts the mode's id as a word,
+// so "code" and "sandbox" also match ordinary English in UI copy — "Code
+// interpreter (Python sandbox)" is a sentence, not a coupling. Their numbers
+// are therefore higher than their real coupling. The metric is still worth
+// having, because it moves in the right direction for the right reasons and it
+// cannot be made to go up by accident.
 const LEAK_BUDGET = {
   'code': 9,
   'forge': 6,
-  'finance': 4,
-  'agent-maker': 4,
-  'virtual-os': 4,
+  'finance': 3,
+  'agent-maker': 3,
+  'virtual-os': 3,
   'sandbox': 3,
-  'systems': 3,
+  'systems': 2,
 };
 
 console.log('\nShared files naming a mode go down, never up:');

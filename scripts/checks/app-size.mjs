@@ -87,7 +87,7 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // not content the shell is carrying, and in Stage 3 they stop being written by
 // hand at all. What is counted is markup: the shell's own structure, plus the
 // mode panels that should not be in it. That number may only fall.
-const SHELL_MARKUP_BUDGET = 1196;
+const SHELL_MARKUP_BUDGET = 1144;
 
 console.log('\nThe shell holds no more markup than it did:');
 {

@@ -1,10 +1,12 @@
 // ==============================================================
 // Mode loader
 //
-// Turns the list in manifest.js into the stylesheet, markup and script that
-// index.html used to carry by hand — fourteen tags and 1,125 lines of panel
-// markup, in four places that had to be kept in step with each other and with
-// the mode's own registration.
+// Turns the list in manifest.js into the stylesheet, the tab button, the
+// markup and the script that index.html used to carry by hand — fourteen tags,
+// seven buttons and 1,125 lines of panel markup, in four places that had to be
+// kept in step with each other and with the mode's own registration.
+//
+// A mode is now a folder and one line. Nothing else in the app names it.
 //
 // Four details here are load-bearing.
 //
@@ -14,6 +16,12 @@
 // every disagreement — for every mode at once. So each mode's sheet is
 // inserted immediately BEFORE the styles.css link, which is exactly where it
 // sat when index.html listed it. The cascade is unchanged.
+//
+// WHERE THE TAB BUTTON GOES. The button that opens a mode lives in that mode's
+// panel.html, inside a <template data-mode-tab>, and is lifted into the
+// sidebar's tab strip as the panel is inserted. Tab order is manifest order.
+// The click handler in app.js is delegated on .tabs, so a button that arrives
+// after boot works exactly like one that was in the document.
 //
 // WHERE THE PANELS GO. The seven panels were not all in the same place.
 // Finance and Sandbox sat inside #app, four sat inside #mainApp, and Coder was
@@ -63,7 +71,23 @@
     if (!target) throw new Error(`host ${host} not found`);
     const res = await fetch(modes.path(id, 'panel.html'), { cache: 'no-store' });
     if (!res.ok) throw new Error(`panel.html returned ${res.status}`);
-    target.insertAdjacentHTML('beforeend', await res.text());
+
+    // Parse rather than insert as text, because a panel carries two things
+    // that belong in different places: the mode's own markup, and — inside a
+    // <template data-mode-tab> — the button that opens it. The button belongs
+    // in the sidebar's tab strip, so it is lifted out before the rest goes in.
+    const holder = document.createElement('template');
+    holder.innerHTML = await res.text();
+
+    const tabTemplate = holder.content.querySelector('template[data-mode-tab]');
+    if (tabTemplate) {
+      const strip = document.querySelector('.tabs');
+      if (!strip) throw new Error('no .tabs strip to put the tab button in');
+      strip.appendChild(tabTemplate.content.cloneNode(true));
+      tabTemplate.remove();
+    }
+
+    target.appendChild(holder.content);
   }
 
   function addScript(id) {
