@@ -5,9 +5,15 @@
 //
 // src/css/*.css is the first: tokens in vars.css, --sans / --serif / --mono,
 // one sheet per area. src/styles.css is the second: its own --hc-* namespace,
-// its own type scale, 347 selectors — and it is linked LAST, so wherever the
+// its own type scale, 343 selectors — and it is linked LAST, so wherever the
 // two disagree, it wins. Nothing in either file says so. You find out by
 // changing a rule in css/ and watching nothing happen.
+//
+// The vocabularies no longer collide, which is the half that would hurt most:
+// the second system keeps to its --hc-* namespace, and the only sheets that
+// reach for a shared token do it inside a selector, on purpose. Section 5
+// holds that. What remains is overlap of SELECTORS and a pile of !important,
+// which the ratchets below are grinding down.
 //
 // This is not a tidiness complaint. It is where the bugs come from:
 //
@@ -210,6 +216,79 @@ console.log('\nThe second token namespace shrinks to nothing:');
     check('--hc-* tokens defined', false, `${n}, budget ${HC_TOKEN_BUDGET} — good, now lower the budget to ${n}`);
   } else {
     check(`--hc-* tokens defined (${n})`, true);
+  }
+}
+
+// ── 5. No sheet takes a shared token away from vars.css ──────────────────
+//
+// The overlap that would hurt most is not a duplicated selector — it is a
+// redefined TOKEN. vars.css owns the shared vocabulary, and a sheet loaded
+// after it that redefines one of those names at `:root` changes every rule in
+// the app that reads it, from a file the reader is not looking at. Nothing
+// would fail; the value would simply be somebody else's.
+//
+// That is the shape of the font bug in the header of this file. Today no sheet
+// does it — styles.css keeps its own vocabulary in the --hc-* namespace, and
+// the two places it does reach for a shared token are scoped to a selector and
+// deliberate. This pins that, so it stays true rather than being true by luck.
+//
+// A scoped redefinition is legitimate: it is what a token is for. It has to be
+// listed here with a reason, so adding one is a decision and not a drift.
+const SCOPED_TOKEN_OVERRIDES = {
+  '#intro-screen':
+    'The intro screen is a self-contained cyan scene on its own dark ground, ' +
+    'not the gold app chrome. It restates the surfaces and the accent for its ' +
+    'own subtree, which is what a scoped token override is for.',
+  'html.low-gpu, body.low-gpu':
+    'The reduced-effects mode. Turning blur and shadow off by rewriting the ' +
+    'tokens is exactly right — every rule reading them follows, and no rule ' +
+    'needs to know the mode exists.',
+};
+
+// Global scopes: a redefinition here reaches the whole app.
+const GLOBAL_SCOPES = new Set([':root', 'html', 'body', ':root,html', 'html,body', '*']);
+
+console.log('\nNo sheet takes a shared token away from vars.css:');
+{
+  const decomment = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
+  const tokensIn = (css) => new Set([...decomment(css).matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]));
+  const shared = tokensIn(read('css/vars.css'));
+  check(`vars.css owns a shared vocabulary (${shared.size} tokens)`, shared.size > 0);
+
+  let globals = 0, undeclared = 0;
+  for (const sheet of stylesheets(srcDir)) {
+    if (sheet.endsWith('vars.css')) continue;
+    const css = decomment(read(sheet.replace(/^\//, '')));
+    for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = sel.split(/\s+/).join(' ').trim();
+      const hit = [...body.matchAll(/(--[a-z0-9-]+)\s*:/g)]
+        .map((m) => m[1]).filter((t) => shared.has(t));
+      if (!hit.length) continue;
+      if (GLOBAL_SCOPES.has(selector.replace(/\s*,\s*/g, ','))) {
+        globals++;
+        check(`${sheet} redefines ${hit.join(', ')} at "${selector}"`, false,
+          'this is the shared vocabulary, redefined for the whole app from a sheet that does not own it — scope it to a selector, or change vars.css');
+      } else if (!(selector in SCOPED_TOKEN_OVERRIDES)) {
+        undeclared++;
+        check(`${sheet} redefines ${hit.join(', ')} at "${selector}"`, false,
+          'a scoped token override is fine, but it has to be listed in SCOPED_TOKEN_OVERRIDES in this file with the reason it exists');
+      }
+    }
+  }
+  if (globals === 0) check('nothing redefines a shared token for the whole app', true);
+  if (undeclared === 0) check('every scoped override is listed with a reason', true);
+
+  // Both ways, so an entry that stops being true is caught too.
+  for (const selector of Object.keys(SCOPED_TOKEN_OVERRIDES)) {
+    const still = stylesheets(srcDir).some((sheet) => {
+      if (sheet.endsWith('vars.css')) return false;
+      const css = decomment(read(sheet.replace(/^\//, '')));
+      return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].some(([, sel, body]) =>
+        sel.split(/\s+/).join(' ').trim() === selector &&
+        [...body.matchAll(/(--[a-z0-9-]+)\s*:/g)].some((m) => shared.has(m[1])));
+    });
+    check(`"${selector}" still overrides a shared token`, still,
+      'nothing does this any more — remove the entry rather than leaving a reason for something that stopped happening');
   }
 }
 
