@@ -4999,13 +4999,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // a long time, so those searches never ran; they are gone with it rather
       // than left to fire on every message, which is not what they were for.
       // Select an agent to search the web deliberately.
-      let toolContext = null;
+      // Read with or without an agent. Tools only run for an agent, so plain
+      // chat answered from the address alone — describing a page it had never
+      // opened, which is worse than declining.
+      const parts = await readPastedLinks(seedText);
       if (injectionEnabled && !_isExternalModel) {
         const ragChunks = await queryRAGMerged(seedText);
         if (ragChunks.length) {
-          toolContext = `Background:\n` + ragChunks.map((c,i) => `${i+1}. ${c.title}: ${c.text}`).join("\n\n");
+          parts.push(`Background:\n` + ragChunks.map((c,i) => `${i+1}. ${c.title}: ${c.text}`).join("\n\n"));
         }
       }
+      const toolContext = parts.length ? parts.join("\n\n") : null;
       try {
         await streamChat(assistant, toolContext);
       } finally {
@@ -5796,6 +5800,26 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } catch { return []; }
   }
 
+  /**
+   * Read any address the user pasted into their own message. No dialog: it is
+   * their address, not one a model chose. One that cannot be read says so —
+   * otherwise the model answers from the URL and its own idea of the page.
+   */
+  async function readPastedLinks(text) {
+    const blocks = [];
+    for (const u of extractUrls(text)) {
+      const content = await fetchUrl(u);
+      if (!content) {
+        blocks.push(`Page (${u}): could not be read. Tell the user you could not open it. Do NOT describe it from its address.`);
+        continue;
+      }
+      addToRAG(u, content, `fetch:${u}`);
+      const win = HCPageText.windowOf(content, 0, HCPageText.PASSIVE_LIMIT);
+      blocks.push(`Page (${u}):\n${win.text}${HCPageText.continuationNote(win, u)}`);
+    }
+    return blocks;
+  }
+
   async function runAgentTools(agent, userText, searchQuery = null) {
     if (!agent || !agent.tools?.length) return null;
     // The query used for API lookups: rewritten if available, else raw.
@@ -5835,17 +5859,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         pieces.push(wiki.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n"));
       }
     }
-    if (agent.tools.includes("fetch_url")) {
-      const urls = extractUrls(userText);
-      for (const u of urls) {
-        const content = await fetchUrl(u);
-        if (content) {
-          addToRAG(u, content, `fetch:${u}`);
-          const win = HCPageText.windowOf(content, 0, HCPageText.PASSIVE_LIMIT);
-          pieces.push(`Page (${u}):\n${win.text}${HCPageText.continuationNote(win, u)}`);
-        }
-      }
-    }
+    if (agent.tools.includes("fetch_url")) pieces.push(...await readPastedLinks(userText));
     if (agent.tools.includes("pubmed")) {
       const papers = await pubmedSearch(q);
       if (papers.length) {
