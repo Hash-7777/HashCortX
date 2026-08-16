@@ -2994,38 +2994,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   //   - anything else → a friendly "[binary file]" placeholder so the AI
   //                     doesn't choke on gibberish but the user still sees
   //                     the attachment chip.
-  async function waitForPdfJs(timeoutMs = 6000) {
-    if (window.pdfjsLib) return window.pdfjsLib;
-    const started = Date.now();
-    while (!window.pdfjsLib && Date.now() - started < timeoutMs) {
-      await new Promise(resolve => setTimeout(resolve, 80));
-    }
-    if (!window.pdfjsLib) throw new Error("pdf.js did not finish loading");
-    return window.pdfjsLib;
-  }
-
+  // Extraction lives in js/pdf-text.js so the coding agent reads a PDF the
+  // same way this does, rather than a second copy drifting from this one.
   async function extractPdfText(file) {
-    const pdfjs = await waitForPdfJs();
-    const buf = await file.arrayBuffer();
-    const doc = await pdfjs.getDocument({ data: buf }).promise;
-    const chunks = [];
-    const maxPages = Math.min(doc.numPages, 120); // hard cap so huge PDFs don't blow the prompt
-    for (let i = 1; i <= maxPages; i++) {
-      const page = await doc.getPage(i);
-      const content = await page.getTextContent();
-      const pageText = content.items.map(it => ("str" in it ? it.str : "")).join(" ");
-      chunks.push(`--- Page ${i} ---\n${pageText}`);
-    }
-    const trailing = doc.numPages > maxPages ? `\n\n[… ${doc.numPages - maxPages} more pages truncated …]` : "";
-    const text = chunks.join("\n\n").trim();
-    if (!text) {
-      return {
-        text: `[PDF attached: ${file.name} — no selectable text was found. This is probably a scanned/image-only PDF and needs OCR.]`,
-        pages: doc.numPages,
-        extracted: false,
-      };
-    }
-    return { text: text + trailing, pages: doc.numPages, extracted: true };
+    return window.HCPdfText.extractFromData(await file.arrayBuffer(), file.name);
   }
 
   function looksTextLike(file) {
@@ -4415,13 +4387,25 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     const isStreamingPlaceholder = m.role === "assistant" && idx === state.messages.length - 1 && state.streaming;
     if (displayContent || !isStreamingPlaceholder) {
-      // Use cached HTML for finished messages so formatContent never runs twice
-      // for the same message content. Cache is keyed on the message object so
-      // it dies automatically when the message is GC'd.
+      // Cached so formatContent never runs twice for the same text. Keyed on
+      // the message object, which dies with it — AND on the text that was
+      // formatted, which is the part that was missing.
+      //
+      // A message is mutated as it streams (`assistant.content += delta`), so
+      // the key stayed identical while the value went stale. An entry made
+      // while a reply was still arriving pinned that partial text for ever:
+      // the reply looked complete, because the live bubble is written
+      // separately token by token, and then collapsed to its first few words
+      // the moment anything re-rendered it — which is what the next turn does.
       let html;
       if (!isStreamingPlaceholder) {
-        if (!_htmlCache.has(m)) _htmlCache.set(m, formatContent(displayContent));
-        html = _htmlCache.get(m);
+        const cached = _htmlCache.get(m);
+        if (cached && cached.source === displayContent) {
+          html = cached.html;
+        } else {
+          html = formatContent(displayContent);
+          _htmlCache.set(m, { source: displayContent, html });
+        }
       } else {
         html = formatContent(displayContent); // streaming — content still changing
       }
