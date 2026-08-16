@@ -96,7 +96,7 @@
           if (chunk.kind === 'stderr') stderr += line; else stdout += line;
           try { HC.code.onShellChunk(chunk, display); } catch { /* a sink must never break a run */ }
         };
-        await HC.invoke('shell_run_stream', { command, args, cwd, on_chunk: channel });
+        await HC.invoke('shell_run_stream', { command, args, cwd, onChunk: channel });
         return { stdout, stderr, code, timedOut: false, truncated: false };
       }
       return HC.invoke('shell_run', { command, args, cwd });
@@ -176,7 +176,7 @@
     async grepCode(dir, pattern, fileExt = null) {
       const ok = await HC.guard.request('search', dir, `Grep: ${pattern}`);
       if (!ok) throw new Error(`Permission denied: search ${dir}`);
-      return HC.invoke('fs_grep', { dir, pattern, file_ext: fileExt });
+      return HC.invoke('fs_grep', { dir, pattern, fileExt });
     },
   };
 

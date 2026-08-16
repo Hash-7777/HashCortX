@@ -1510,7 +1510,7 @@
             else if (chunk.kind === 'stderr') terminalLog(chunk.data, 'cdr-terminal-error');
             else if (chunk.kind === 'done') exitCode = chunk.code;
           };
-          await HC.invoke('shell_run_line_stream', { line: cmd, cwd: sharedState.projectRoot || undefined, on_chunk: channel });
+          await HC.invoke('shell_run_line_stream', { line: cmd, cwd: sharedState.projectRoot || undefined, onChunk: channel });
           if (exitCode !== 0 && exitCode !== null) {
             terminalLog(`(exit code: ${exitCode})`, 'cdr-terminal-error');
           }

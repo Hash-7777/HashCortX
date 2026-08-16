@@ -263,5 +263,67 @@ console.log('\nThe guard itself is reachable:');
     'a missing dialog element must refuse, never silently allow');
 }
 
+// ── Every argument name a call passes is one the command takes ───────────
+//
+// Tauri renames a command's arguments across the bridge: a Rust parameter
+// written `on_chunk` is `onChunk` in JavaScript. Passing the Rust spelling
+// does not fail loudly, and what happens next depends only on whether the
+// parameter is optional:
+//
+//   required → the call is rejected outright. Coder's shell streamed through
+//              `shell_run_stream` with `on_chunk`, so every command the agent
+//              ran came back "missing required key onChunk" — the terminal
+//              worked and the agent's shell did not.
+//   optional → Tauri sees nothing, uses None, and the call SUCCEEDS with the
+//              argument dropped. `fs_grep` took `file_ext` that way, so the
+//              extension filter was silently ignored and grep searched
+//              everything, for as long as it has existed.
+//
+// The second is the one worth a check: it produces no error anywhere, and the
+// feature simply is not applied.
+console.log('\nEvery argument a call passes is one the command takes:');
+{
+  const cmdDir = join(root, 'src-tauri', 'src', 'commands');
+  const rustSrc = readdirSync(cmdDir)
+    .filter((f) => f.endsWith('.rs'))
+    .map((f) => readFileSync(join(cmdDir, f), 'utf8'))
+    .join('\n');
+  // Rust: `pub fn name(a: T, b_c: U, …)` up to the closing paren.
+  const params = new Map();
+  for (const m of rustSrc.matchAll(/pub fn ([a-z0-9_]+)\s*\(([^)]*)\)/g)) {
+    params.set(m[1], new Set(
+      [...m[2].matchAll(/(?:^|,)\s*([a-z0-9_]+)\s*:/g)].map((p) => p[1]),
+    ));
+  }
+  check(`the Rust commands declare their parameters (${params.size} functions)`, params.size > 0);
+
+  const camel = (s) => s.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+  let checked = 0, bad = 0;
+  for (const file of files) {
+    const src = readFileSync(file, 'utf8');
+    for (const call of src.matchAll(/invoke\(\s*['"]([a-z0-9_]+)['"]\s*,\s*\{([^}]*)\}/g)) {
+      const [, name, argBlock] = call;
+      const takes = params.get(name);
+      if (!takes) continue;                       // plugin call, or not ours
+      const passed = [...argBlock.matchAll(/(?:^|,)\s*([A-Za-z0-9_]+)\s*(?::|,|$)/g)]
+        .map((a) => a[1]);
+      for (const arg of passed) {
+        checked++;
+        // Accept the JavaScript spelling. The Rust spelling is the bug.
+        if (takes.has(arg) && camel(arg) !== arg) {
+          bad++;
+          check(`${name}({ ${arg} }) uses the Rust spelling`, false,
+            `Tauri exposes this parameter as "${camel(arg)}" — passing "${arg}" means it never arrives`);
+        } else if (!takes.has(arg) && !takes.has(arg.replace(/[A-Z]/g, (c) => '_' + c.toLowerCase()))) {
+          bad++;
+          check(`${name}({ ${arg} }) is not a parameter of ${name}`, false,
+            `${name} takes: ${[...takes].map(camel).join(', ') || '(nothing)'}`);
+        }
+      }
+    }
+  }
+  if (bad === 0) check(`every argument name reaches its command (${checked} checked)`, true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (native surface)`);
 process.exit(fail ? 1 : 0);
