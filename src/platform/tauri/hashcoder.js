@@ -121,6 +121,37 @@
       return HC.invoke('shell_run', { command, args, cwd });
     },
 
+    /**
+     * Images the agent has opened and not yet shown to the model.
+     *
+     * A tool returns text, and an image is not text — a provider only looks at
+     * one when it arrives as part of a message. So reading an image cannot
+     * hand it back the way read_file hands back a file; it queues it here, and
+     * the Coder panel attaches whatever is waiting to the next turn it builds.
+     */
+    pendingVision: [],
+
+    async viewImage(path, reason = '') {
+      const ok = await HC.guard.request('read', path, reason || 'Looking at an image');
+      if (!ok) throw new Error(`Permission denied: read ${path}`);
+      const file = await HC.invoke('fs_read_base64', { path });
+      const name = String(path).split(/[\\/]/).pop() || path;
+      HC.code.pendingVision.push({ path, name, base64: file.base64 });
+      return JSON.stringify({
+        ok: true, path, bytes: file.bytes,
+        note: `${name} is attached to this conversation and you can see it from your next message onward. ` +
+              'Describe what is actually in it. If you cannot see an image, say so plainly rather than ' +
+              'guessing from the file name — the model in use may not be one that can look at pictures.',
+      });
+    },
+
+    /** Hand over what is queued, and clear it. Called once per turn built. */
+    takePendingVision() {
+      const out = HC.code.pendingVision.slice();
+      HC.code.pendingVision.length = 0;
+      return out;
+    },
+
     async moveFile(from, to, reason = '') {
       if (!from || !to) throw new Error('move_file: both from and to are required.');
       // Each end is asked about on its own, as the path it actually is.
@@ -271,6 +302,15 @@
         reason: 'Why you are deleting this',
       },
       fn: (p) => HC.code.deleteFile(p.path, p.reason),
+    },
+    {
+      name: 'view_image',
+      description: "Look at an image file — a screenshot, a diagram, a photo, a mockup. The picture is attached to the conversation and you can see it from your next message onward, so call this and then describe what is there. Use it before rebuilding a screen from a screenshot, or when a file's meaning is visual rather than textual. Needs a model that can see images; if you cannot see it, say so rather than guessing from the file name.",
+      parameters: {
+        path:   'Absolute path of the image (png, jpg, gif, webp)',
+        reason: 'Why you are opening it',
+      },
+      fn: (p) => HC.code.viewImage(p.path, p.reason),
     },
     {
       name: 'move_file',
@@ -521,6 +561,8 @@ TOOL ROUTING:
 • Find code by content     → grep_code(dir, pattern, file_ext?)
 • Targeted edit            → patch_file
 • New file / full rewrite  → write_file
+• A screenshot, diagram, mockup or photo → view_image, then say what is in
+  it. Never describe an image from its file name.
 • Rename or relocate a file → move_file, NOT \`mv\` in shell_run. A move made
   with move_file is recorded and the user can undo it; one made with \`mv\`
   cannot be undone at all.

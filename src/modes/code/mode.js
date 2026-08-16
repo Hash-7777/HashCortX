@@ -146,6 +146,12 @@
     return msgs;
   }
 
+  /** Show the model any image view_image opened. Shape: agent-shape.js. */
+  function attachPendingImages(messages) {
+    const shown = HC?.code?.takePendingVision?.() || [];
+    if (shown.length) messages.push(window._H.visionMessage(shown));
+  }
+
   function buildLegacyTools() {
     return (HC?.code?.TOOL_DEFINITIONS || []).map(t => ({
       type: 'function',
@@ -374,6 +380,7 @@
           onStatus(`${call.name} done (${assistant._toolBlocks.length} tool${assistant._toolBlocks.length > 1 ? 's' : ''} used)`, 'done');
           H.appendToolResult(messages, call, resultStr);
         }
+        attachPendingImages(messages);
         continue;
       }
       finalText = turn.content || '';
@@ -2244,6 +2251,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           for (const call of turn.tool_calls) {
             H.appendToolResult(messages, call, results.get(call) ?? JSON.stringify({ error: 'no result' }));
           }
+          attachPendingImages(messages);
 
           // Is this agent still getting somewhere, or reading the same files
           // round and round? The stall counter is what tells them apart.

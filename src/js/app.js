@@ -2395,7 +2395,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const HCAgentShape = window.HCAgentShape;
   const {
     toOpenAIVision, safeJsonParse, extractPythonFence,
-    appendAssistantToolCallTurn, appendToolResult,
+    appendAssistantToolCallTurn, appendToolResult, visionMessage,
   } = HCAgentShape;
   const agentToolNames  = (agent) => HCAgentShape.agentToolNames(agent, AGENT_TOOLS);
   const buildOpenAITools = (agent) => HCAgentShape.buildOpenAITools(agent, AGENT_TOOLS);
@@ -3856,7 +3856,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         .map(m => {
           const parts = [];
           if (m.content) parts.push({ text: m.content });
-          if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
+          if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
           return { role: m.role === "assistant" ? "model" : "user", parts: parts.length ? parts : [{ text: "" }] };
         });
       const body = {
@@ -3950,7 +3950,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         .map(m => {
           const content = [];
           if (m.content) content.push({ type: "text", text: m.content });
-          if (m.images?.length) m.images.forEach(b64 => content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } }));
+          if (m.images?.length) m.images.forEach(b64 => content.push({ type: "image", source: { type: "base64", media_type: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
           return { role: m.role, content: content.length ? content : [{ type: "text", text: "" }] };
         });
       const body = {
@@ -6365,7 +6365,7 @@ sys.stderr = _stderr
       }
       const content = [];
       if (m.content) content.push({ type: "text", text: m.content });
-      if (m.images?.length) m.images.forEach(b64 => content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } }));
+      if (m.images?.length) m.images.forEach(b64 => content.push({ type: "image", source: { type: "base64", media_type: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
       anthropicMessages.push({ role: m.role === "assistant" ? "assistant" : "user", content });
     }
     const body = {
@@ -6450,7 +6450,7 @@ sys.stderr = _stderr
       }
       const parts = [];
       if (m.content) parts.push({ text: m.content });
-      if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 } }));
+      if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
       contents.push({
         role: m.role === "assistant" ? "model" : "user",
         parts: parts.length ? parts : [{ text: "" }]
@@ -6984,6 +6984,8 @@ sys.stderr = _stderr
     memAutoExtract,
     appendAssistantToolCallTurn,
     appendToolResult,
+    // Puts an image the agent opened in front of the model — see view_image.
+    visionMessage,
     extractPythonFence,
     persistCurrentChat,
     setTab,

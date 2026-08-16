@@ -23,6 +23,32 @@
   'use strict';
 
   /**
+   * What kind of image this actually is, read from its own first bytes.
+   *
+   * Images travel through this app as bare base64 with no type beside them,
+   * and every provider was told "image/jpeg" regardless. OpenAI sniffs the
+   * bytes and forgives it; Anthropic validates media_type against the data and
+   * rejects a mismatch outright. So a PNG — which is what a screenshot is —
+   * was being sent to Anthropic labelled as a JPEG and refused, and the reply
+   * read as a provider problem rather than as this app mislabelling the file.
+   *
+   * Base64 encodes three bytes into four characters, so a file's magic number
+   * lands in a fixed prefix of the string and can be recognised without
+   * decoding anything.
+   */
+  function imageMimeFromBase64(base64) {
+    const head = String(base64 || '').slice(0, 16);
+    if (head.startsWith('iVBORw0KGgo')) return 'image/png';
+    if (head.startsWith('R0lGOD')) return 'image/gif';
+    if (head.startsWith('UklGR')) return 'image/webp';
+    if (head.startsWith('PHN2Zy') || head.startsWith('PD94bW')) return 'image/svg+xml';
+    // JPEG, and the fallback: it is the most common of these by far, and it is
+    // what everything was labelled as before, so an unknown format is no worse
+    // off than it already was.
+    return 'image/jpeg';
+  }
+
+  /**
    * Rewrite messages into the content-block form providers use for vision.
    *
    * A message with no image keeps the plain string form — some providers
@@ -38,7 +64,7 @@
           { type: 'text', text: m.content || 'Describe what you see.' },
           ...m.images.map((b64) => ({
             type: 'image_url',
-            image_url: { url: `data:image/jpeg;base64,${b64}` },
+            image_url: { url: `data:${imageMimeFromBase64(b64)};base64,${b64}` },
           })),
         ],
       };
@@ -96,6 +122,31 @@
     // An empty tools array is not the same as no tools: some providers reject
     // it outright rather than reading it as "none".
     return decls.length ? [{ functionDeclarations: decls }] : [];
+  }
+
+  /**
+   * The message that puts an opened image in front of the model.
+   *
+   * A tool hands back text, and no provider looks at an image that arrives as
+   * text — it is only seen when it is part of a message. So view_image queues
+   * what it read and the agent loop attaches it here, straight after the tool
+   * results, which puts the picture in front of the model on the very next
+   * turn rather than a turn later.
+   *
+   * A user message rather than a tool one, because a tool result carrying an
+   * image is rejected by several providers, and this is the form all of them
+   * already accept.
+   */
+  function visionMessage(items) {
+    const list = (items || []).filter((v) => v && v.base64);
+    const names = list.map((v) => v.name || 'image').join(', ');
+    return {
+      role: 'user',
+      content: list.length === 1
+        ? `This is ${names}, the image you opened.`
+        : `These are the images you opened: ${names}.`,
+      images: list.map((v) => v.base64),
+    };
   }
 
   /**
@@ -247,6 +298,8 @@
   }
 
   window.HCAgentShape = {
+    imageMimeFromBase64,
+    visionMessage,
     toOpenAIVision,
     toTextOnly,
     agentToolNames,

@@ -244,6 +244,50 @@ console.log('\nA turn goes to the client its provider actually needs:');
       { anthropic: (a) => a.model }, {}) === 'opus');
 }
 
+console.log('\nAn image is labelled as what it actually is:');
+{
+  // Base64 puts a file's magic number in a fixed prefix, so the type can be
+  // read without decoding. Every provider was told "image/jpeg" regardless.
+  // OpenAI sniffs the bytes and forgives it; Anthropic validates the label
+  // against the data and refuses a mismatch — so a screenshot, which is a PNG,
+  // was refused and the failure read as a provider problem.
+  ok('a PNG is a PNG', A.imageMimeFromBase64('iVBORw0KGgoAAAANSUhEUg') === 'image/png')
+  ok('a GIF is a GIF', A.imageMimeFromBase64('R0lGODlhAQABAIAAAA') === 'image/gif')
+  ok('a WebP is a WebP', A.imageMimeFromBase64('UklGRiQAAABXRUJQ') === 'image/webp')
+  ok('a JPEG is a JPEG', A.imageMimeFromBase64('/9j/4AAQSkZJRgABAQ') === 'image/jpeg')
+  ok('an unknown format falls back to what everything used to be sent as', A.imageMimeFromBase64('ZZZZunknown') === 'image/jpeg')
+  ok('empty is safe', A.imageMimeFromBase64('') === 'image/jpeg')
+  ok('null is safe', A.imageMimeFromBase64(null) === 'image/jpeg')
+
+  // And it must reach the data URL, which is the form OpenAI-shaped providers
+  // read the type from.
+  const v = A.toOpenAIVision([{ role: 'user', content: 'what is this', images: ['iVBORw0KGgoAAAANSUhEUg'] }]);
+  ok('the vision block carries the real type',
+    v[0].content[1].image_url.url.startsWith('data:image/png;base64,'));
+}
+
+console.log('\nAn opened image is put in front of the model:');
+{
+  const one = A.visionMessage([{ name: 'shot.png', base64: 'iVBORw0KGgo' }]);
+  // A user message, not a tool one: several providers reject a tool result
+  // carrying an image, and every provider accepts this form.
+  ok('it arrives as a user message', one.role === 'user')
+  ok('it names the file so the model knows which is which', one.content.includes('shot.png'));
+  ok('and it carries the image', one.images.length === 1);
+
+  const many = A.visionMessage([
+    { name: 'a.png', base64: 'x' }, { name: 'b.png', base64: 'y' },
+  ]);
+  ok('several images are named together', many.content.includes('a.png') && many.content.includes('b.png'));
+  ok('and all of them travel', many.images.length === 2);
+
+  // An entry with no data would send an empty image, which some providers
+  // reject and others answer about as though it were blank.
+  ok('an entry with nothing in it is dropped', A.visionMessage([{ name: 'gone.png' }, { name: 'ok.png', base64: 'z' }]).images.length === 1)
+  ok('nothing to show is still a well-formed message', A.visionMessage([]).images.length === 0)
+  ok('nonsense does not throw', A.visionMessage(null).role === 'user')
+}
+
 console.log('\nGemini gets the tool shape Gemini takes:');
 {
   const openAi = [
