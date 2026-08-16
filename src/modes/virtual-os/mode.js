@@ -26,7 +26,6 @@ const VoidStudio = (() => {
   let finderHistory    = [];
   let finderHistoryIdx = -1;
   let finderViewMode   = "list"; // "list" | "grid"
-  let forceEditMode    = false;
   let dialogResolve = null;
   let clockTimer = null;
   let selectedSystemIconId = "";
@@ -588,7 +587,6 @@ const VoidStudio = (() => {
     updateNavBtns();
     renderFinderToggle();
     renderDock();
-    renderEditMode();
   }
 
   function renderDock() {
@@ -615,19 +613,6 @@ const VoidStudio = (() => {
       const btn = $(id);
       if (btn) btn.disabled = inTrash;
     });
-  }
-
-  function renderEditMode() {
-    const btn = $("voidEditModeBtn");
-    if (!btn) return;
-    const target = selectedId ? getItem(selectedId) : (activeFolderId !== ROOT_ID ? getItem(activeFolderId) : null);
-    btn.classList.toggle("active", forceEditMode);
-    btn.textContent = forceEditMode ? "Editing" : "Edit";
-    btn.title = forceEditMode
-      ? target
-        ? `Edit Mode on: sending context for /${target.path}`
-        : "Edit Mode on: sending existing project context"
-      : "Turn on to send existing project context for edits";
   }
 
   function renderHeader() {
@@ -1838,7 +1823,7 @@ const VoidStudio = (() => {
   }
 
   function wantsEditContext(prompt) {
-    return forceEditMode || isEditRequest(prompt);
+    return isEditRequest(prompt);
   }
 
   function shouldCreateSeparateProject(prompt) {
@@ -2436,7 +2421,7 @@ SPEED — avoid these time-wasting patterns:
   }
 
   async function generateAgentOS(taskOverride = null) {
-    const task = taskOverride ?? $("voidPrompt")?.value?.trim() ?? "";
+    const task = (taskOverride || "").trim();
     if (!task) { log("Describe a task for Agent OS.", "warn"); return; }
     if (runAbort) runAbort.abort();
     runAbort = new AbortController();
@@ -2726,7 +2711,7 @@ SPEED — avoid these time-wasting patterns:
 
   async function generate(repair = false, promptOverride = null) {
     if (agentOSMode && !repair) return generateAgentOS(promptOverride);
-    const prompt = promptOverride ?? $("voidPrompt")?.value?.trim() ?? "";
+    const prompt = (promptOverride || "").trim();
     if (!prompt) {
       log("Describe a file action or project to build first.", "warn");
       return;
@@ -3346,18 +3331,6 @@ ${tree}`;
     $("voidFinderSettingsBtn")?.addEventListener("click", openVoidSettings);
     $("voidFinderToggleBtn")?.addEventListener("click", () => setFinderCollapsed(!finderCollapsed));
     $("voidFinderClose")?.addEventListener("click", () => setFinderCollapsed(true));
-    $("voidEditModeBtn")?.addEventListener("click", () => {
-      forceEditMode = !forceEditMode;
-      const target = selectedId ? getItem(selectedId) : (activeFolderId !== ROOT_ID ? getItem(activeFolderId) : null);
-      log(forceEditMode
-        ? target
-          ? `Edit Mode on. Sending context for /${target.path}.`
-          : "Edit Mode on. Existing project context will be sent."
-        : "Edit Mode off. Existing projects will be hidden from new prompts.",
-        forceEditMode ? "warn" : "ok"
-      );
-      renderEditMode();
-    });
     $("voidFinderBack")?.addEventListener("click", () => {
       if (finderHistoryIdx > 0) {
         finderHistoryIdx--;
@@ -3416,7 +3389,6 @@ ${tree}`;
       const btn = $("voidTermOpenBtn");
       if (btn) btn.style.display = "";
     });
-    $("voidTermClearBtn")?.addEventListener("click", () => { termLines = []; renderTermOutput(); });
 
     // Terminal keyboard input
     $("voidTermInput")?.addEventListener("keydown", e => {

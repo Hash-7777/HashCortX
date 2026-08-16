@@ -2464,51 +2464,6 @@ function _polishToast(text, isError) {
     t._tmr = setTimeout(() => t.remove(), isError ? 6000 : 3000);
   }
 
-  // Merge swarm output algorithmically (no LLM) and open in a new tab.
-  function _polishAndPreview(rawContent) {
-    const source = rawContent || lastSwarmOutput;
-
-    const btn      = document.getElementById("amkPolishBtn");
-    const statusEl = document.getElementById("amkPolisherStatus");
-    const setStatus = (text, cls) => {
-      if (statusEl) { statusEl.textContent = text; statusEl.className = "amk-polisher-status " + (cls || ""); }
-    };
-
-    if (!source) {
-      _polishToast("Run an Agent Swarm first — the polisher merges swarm output into one HTML file.", true);
-      return;
-    }
-
-    if (btn) btn.disabled = true;
-    setStatus("Merging…", "running");
-    _polishToast("Merging files…");
-
-    try {
-      const files  = _extractProjectFiles(source);
-      const merged = files.size > 0 ? _buildPreviewHTML(files) : null;
-
-      if (!merged) {
-        throw new Error("No HTML file found in swarm output. Make sure your swarm produces an index.html file.");
-      }
-
-      _polishedHtmlCache = merged;
-      setStatus("Done ✓", "done");
-      _polishToast("Done — opening in new tab");
-
-      const blob = new Blob([_polishedHtmlCache], { type: "text/html;charset=utf-8" });
-      const url  = URL.createObjectURL(blob);
-      window.open(url, "_blank");
-      setTimeout(() => URL.revokeObjectURL(url), 15000);
-      setTimeout(() => setStatus("", ""), 4000);
-
-    } catch (err) {
-      setStatus(err.message, "error");
-      _polishToast(err.message, true);
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  }
-
   // Saving goes through HC.save. An <a download> is cancelled outright by
   // this webview (see platform/tauri/save.js), so every one of these said it
   // had downloaded something and had not.

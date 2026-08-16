@@ -101,7 +101,6 @@
   const agentOverlay = $("agentOverlay");
   const tavilyKeyEl = $("tavilyKey");
   const nvidiaKeyEl = $("nvidiaKey");
-  const nvidiaModelEl = $("nvidiaModel");   // removed from Settings UI — element will be null; references below are null-safe
   const groqKeyEl = $("groqKey");
   const geminiKeyEl = $("geminiKey");
   const openRouterKeyEl = $("openRouterKey");
@@ -866,7 +865,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   if (SAVED.host) hostEl.value = SAVED.host;
   if (SAVED.system) systemEl.value = SAVED.system;
   if (SAVED.temp) { tempEl.value = SAVED.temp; tempVal.textContent = SAVED.temp; }
-  if (SAVED.nvidiaModel && nvidiaModelEl) nvidiaModelEl.value = SAVED.nvidiaModel;
 
   // Phase 6 — Load API keys from OS Keychain (async, non-blocking)
   const HC_KEY_PROVIDERS = [
@@ -935,7 +933,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       localStorage.setItem("atelier", JSON.stringify({
         ...readSavedSettings(),
         host: hostEl.value, system: systemEl.value, temp: tempEl.value, model: modelEl.value,
-        nvidiaModel: nvidiaModelEl?.value || "",
         privacyLocal: privacyLocalEl.checked,
         ragEnabled,
         currentProjectId: state.currentProjectId,
@@ -2216,13 +2213,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function closeSettings() { settingsOverlay.classList.remove("open"); saveSettings(); }
   $("openSettings").addEventListener("click", openSettings);
   $("closeSettings").addEventListener("click", closeSettings);
-  $("settingsNotesToggle")?.addEventListener("click", () => {
-    const notes = $("settingsNotes");
-    if (!notes) return;
-    const open = notes.style.display === "none";
-    notes.style.display = open ? "" : "none";
-    $("settingsNotesToggle").classList.toggle("active", open);
-  });
   settingsOverlay.addEventListener("click", (e) => { if (e.target === settingsOverlay) closeSettings(); });
   document.addEventListener("keydown", (e) => {
     if (terminalAlertOverlay?.classList.contains("open")) return;
@@ -6802,7 +6792,6 @@ sys.stderr = _stderr
   privacyLocalEl.addEventListener("change", () => applyPrivacyLocal(privacyLocalEl.checked));
   tavilyKeyEl.addEventListener("change", saveSettings);
   nvidiaKeyEl.addEventListener("change", saveSettings);
-  nvidiaModelEl?.addEventListener("change", saveSettings);
   groqKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
   geminiKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
   openRouterKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });

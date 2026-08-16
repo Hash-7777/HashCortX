@@ -41,25 +41,26 @@ const srcDir = join(root, 'src');
  * correct. If the answer is "the feature was removed", the code that reads it
  * should usually be removed too — that is the whole point of this check.
  */
-const KNOWN_ABSENT = {
-  // ── Settings controls removed from the UI, code kept and null-safe ──
-  nvidiaModel:
-    'The NVIDIA model picker was removed; the provider list supplies the model instead.',
-  settingsNotes:
-    'The settings notes pane was removed; the toggle below is bound optionally.',
-  settingsNotesToggle:
-    'Toggle for the notes pane above. Bound with ?. so its absence is inert.',
-
-  // ── Panels owned by another mode, absent until that mode builds them ──
-  // The five swarm entries that used to sit here said "built by Agent Swarm
-  // when it runs". Nothing ever ran: the code that looked them up was 311
-  // lines in app.js with no caller anywhere, driving elements that existed in
-  // no markup file. Both the code and these entries are gone.
-  amkPolishBtn: 'Agent Maker polish control, rendered only in some editor states.',
-  voidEditModeBtn: 'Virtual OS control not present in the current shell markup.',
-  voidPrompt: 'See voidEditModeBtn.',
-  voidTermClearBtn: 'See voidEditModeBtn.',
-};
+// Nothing. Every lookup in the app resolves to an element that exists.
+//
+// This list is where a dead feature hides, so it is kept empty on purpose.
+// Each entry read as a note about markup — "rendered only in some editor
+// states", "absent until that mode builds them" — and every one of them was
+// actually code with nothing behind it:
+//
+//   nvidiaModel          a setting written to storage that nothing ever read
+//   settingsNotes(+Toggle) a toggle for a pane that no longer exists
+//   amkPolishBtn         inside a 44-line function with no caller at all
+//   voidEditModeBtn      the Edit Mode toggle, so the flag it set could never
+//                        become true and the check behind it was a constant
+//   voidPrompt           a fallback for an input that does not exist, in a
+//                        function whose one caller always passes the text
+//   voidTermClearBtn     a listener for a button that is not in the markup
+//
+// The rule the emptiness enforces: an id that resolves to nothing means the
+// feature is gone, and the code should go with it. Adding an entry here is
+// admitting otherwise, so it needs a reason that is about markup and true.
+const KNOWN_ABSENT = {};
 
 // The shell, plus every mode panel. A mode's markup left index.html for
 // src/modes/<id>/panel.html and is inserted at boot; reading only index.html
