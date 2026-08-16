@@ -99,6 +99,39 @@
   }
 
   /**
+   * The Gemini form of a tool list, whatever form it arrives in.
+   *
+   * Gemini does not take the OpenAI array. It wants one entry holding a
+   * `functionDeclarations` list, and it rejects the OpenAI shape outright with
+   * "Unknown name \"type\" at 'tools[0]'" — which surfaces as a 400 from the
+   * provider and reads like a bad key or a bad model, not like a body this app
+   * built wrong.
+   *
+   * That is what happened: modes build their tools in OpenAI shape, because
+   * most providers take it, and hand the array straight through. Every Gemini
+   * call carrying tools failed, and failover to Gemini could never succeed.
+   *
+   * Converting here rather than in each caller is the same reasoning as
+   * routeModelTurn itself: a provider that needs its own shape needs it
+   * written down once. Already-Gemini input passes through unchanged, so a
+   * caller that builds the right shape itself is not punished for it.
+   */
+  function toGeminiTools(tools) {
+    const list = Array.isArray(tools) ? tools : [];
+    if (!list.length) return [];
+    if (list.some((t) => t && Array.isArray(t.functionDeclarations))) return list;
+    const decls = list
+      .map((t) => (t && t.type === 'function' && t.function) ? t.function : t)
+      .filter((f) => f && typeof f.name === 'string' && f.name)
+      .map((f) => ({
+        name: f.name,
+        description: f.description || '',
+        parameters: f.parameters || { type: 'object', properties: {} },
+      }));
+    return decls.length ? [{ functionDeclarations: decls }] : [];
+  }
+
+  /**
    * Record the assistant's turn that asked for tools.
    *
    * Arguments are serialised because that is how the providers send them back
@@ -198,7 +231,11 @@
   function routeModelTurn({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
-    const base = { model: route.model, messages, tools: list, temperature, signal };
+    // Gemini is the one provider whose tool list is shaped differently, and a
+    // caller handing over the OpenAI array is the normal case rather than a
+    // mistake worth failing on. Shaped here so no mode has to remember.
+    const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
+    const base = { model: route.model, messages, tools: shaped, temperature, signal };
     if (route.kind === 'ollama') return fns.ollama(base);
     if (route.kind === 'gemini') return fns.gemini(base);
     if (route.kind === 'anthropic') return fns.anthropic(base);
@@ -215,6 +252,7 @@
     agentToolNames,
     buildOpenAITools,
     buildGeminiTools,
+    toGeminiTools,
     appendAssistantToolCallTurn,
     appendToolResult,
     safeJsonParse,

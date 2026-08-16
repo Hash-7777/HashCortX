@@ -244,5 +244,46 @@ console.log('\nA turn goes to the client its provider actually needs:');
       { anthropic: (a) => a.model }, {}) === 'opus');
 }
 
+console.log('\nGemini gets the tool shape Gemini takes:');
+{
+  const openAi = [
+    { type: 'function', function: { name: 'read_file', description: 'Read', parameters: { type: 'object', properties: { path: { type: 'string' } } } } },
+    { type: 'function', function: { name: 'write_file', description: 'Write', parameters: { type: 'object', properties: {} } } },
+  ];
+
+  const g = A.toGeminiTools(openAi);
+  ok('the OpenAI array becomes one functionDeclarations entry',
+    g.length === 1 && Array.isArray(g[0].functionDeclarations));
+  ok('every function survives the conversion', g[0].functionDeclarations.length === 2);
+  ok('names are kept', g[0].functionDeclarations[0].name === 'read_file');
+  ok('descriptions are kept', g[0].functionDeclarations[1].description === 'Write');
+  // The whole bug in one assertion: "type" at the top level is what Gemini
+  // rejects, and rejecting it looks like a bad key rather than a bad body.
+  ok('no "type" key is left at the top level',
+    g.every((t) => !('type' in t)) && g[0].functionDeclarations.every((d) => !('type' in d)));
+
+  ok('an already-Gemini list passes through untouched',
+    A.toGeminiTools(g) === g);
+  ok('no tools stays empty', A.toGeminiTools([]).length === 0);
+  ok('nonsense does not throw', Array.isArray(A.toGeminiTools(null)));
+  ok('a function with no name is dropped rather than sent nameless',
+    A.toGeminiTools([{ type: 'function', function: { description: 'x' } }]).length === 0);
+
+  // And through the router, which is where every mode actually reaches it —
+  // a mode handing over the OpenAI array is the normal case, not a mistake.
+  const sent = A.routeModelTurn(
+    { adapter: { kind: 'gemini', model: 'gemini-2.5-pro' }, messages: [], tools: openAi },
+    { gemini: (a) => a.tools }, {},
+  );
+  ok('the router converts on the way to Gemini',
+    sent.length === 1 && sent[0].functionDeclarations.length === 2);
+
+  const untouched = A.routeModelTurn(
+    { adapter: { kind: 'openai', model: 'gpt-4o' }, messages: [], tools: openAi },
+    { openai: (a) => a.tools }, {},
+  );
+  ok('and leaves every other provider alone', untouched === openAi);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);
