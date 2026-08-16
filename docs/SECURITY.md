@@ -64,7 +64,9 @@ Reads outside the project folder used to be auto-approved with no dialog at all,
 
 **"Inside the project folder" means where the path really leads.** The guard used to decide that by comparing two strings, and a symlink is written exactly like an ordinary folder — so a link inside your project pointing anywhere on the disk read as being inside the project, and reading, writing, listing and searching through it were approved with no dialog. The renderer cannot resolve a link, so it asks Rust (`fs_path_inside_root`), which follows every link in the path — including for a file that does not exist yet, which is the case a write presents. A path it cannot resolve raises the dialog rather than being allowed or refused outright.
 
-Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact.
+Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact. On a web page it covers the **host** you granted and only that host, matched whole — so allowing one site for the session does not quietly allow another whose name merely begins with it.
+
+**A move is two questions, not one.** It ends a file at one path and starts it at another, and each end is judged on its own, so moving something out of the project asks about where it is going even though writing inside the project does not ask at all.
 
 **Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. They have no native calls. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file.
 

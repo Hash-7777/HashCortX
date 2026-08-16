@@ -104,8 +104,23 @@
 
     async moveFile(from, to, reason = '') {
       if (!from || !to) throw new Error('move_file: both from and to are required.');
-      const ok = await HC.guard.request('write', `${from} → ${to}`, reason);
-      if (!ok) throw new Error(`Permission denied: move ${from}`);
+      // Each end is asked about on its own, as the path it actually is.
+      //
+      // This used to ask once, about the string `from → to`. The guard reads
+      // its target as a path — that is how it decides whether somewhere is
+      // inside the project and needs no dialog — and the joined string is
+      // spelled starting with the source, so any move OUT of the project read
+      // as a move within it and was approved with no dialog at all. A file
+      // written into the project (free) could then be placed anywhere on the
+      // disk the denylist does not name, and the user was never asked once.
+      //
+      // Two requests also mean the destination is checked against the blocked
+      // prefixes, which are matched from the start of the target and so only
+      // ever saw the source.
+      const okFrom = await HC.guard.request('write', from, reason);
+      if (!okFrom) throw new Error(`Permission denied: move ${from}`);
+      const okTo = await HC.guard.request('write', to, reason ? `${reason} (moving ${from} here)` : `Moving ${from} here`);
+      if (!okTo) throw new Error(`Permission denied: move to ${to}`);
       // Two records, because a move is two changes: the file stops existing at
       // one path and starts existing at another. Undoing the pair puts both
       // ends back. Captured before the move, which is the last moment the

@@ -315,9 +315,48 @@
     return cut > 0 ? norm.slice(0, cut) : norm;
   }
 
+  // Scheme and host, with no path, query or fragment:
+  // `https://example.com/a/b?q=1` → `https://example.com`.
+  function originOf(url) {
+    const s = String(url || '');
+    const scheme = s.indexOf('://');
+    if (scheme === -1) return '';
+    const hostAt = scheme + 3;
+    let end = s.length;
+    for (const ch of ['/', '?', '#']) {
+      const at = s.indexOf(ch, hostAt);
+      if (at !== -1 && at < end) end = at;
+    }
+    // A scheme with no host grants nothing.
+    return end > hostAt ? s.slice(0, end) : '';
+  }
+
+  // How far a session grant reaches.
+  //
+  // A fetch target is a URL, not a path, and taking its "containing folder"
+  // was wrong in a way that got worse the shorter the URL was: an address with
+  // no path at all has its last `/` inside `https://`, so granting one bare
+  // domain for the session cut the scope back to `https:/` — and every https
+  // address on the internet then matched it, silently, for the rest of the
+  // session. The one thing the fetch dialog exists to stop is an address the
+  // model chose carrying out what it has just read.
+  //
+  // A host is also what the dialog appears to be asking about, so this is what
+  // the user thinks they are granting.
+  function grantScope(action, target) {
+    return action === 'fetch' ? originOf(target) : parentDir(target);
+  }
+
   function hasSessionDirGrant(action, target) {
     const dirs = _sessionDirs.get(action);
     if (!dirs) return false;
+    // A granted host covers that host and nothing else. Matched whole, not by
+    // prefix, so `https://example.com` cannot also cover
+    // `https://example.com.elsewhere.test`.
+    if (action === 'fetch') {
+      const origin = originOf(target);
+      return !!origin && dirs.has(origin);
+    }
     const norm = String(target || '').replace(/\/+$/, '');
     for (const dir of dirs) {
       if (norm === dir || norm.startsWith(dir + '/')) return true;
@@ -326,8 +365,12 @@
   }
 
   function addSessionDirGrant(action, target) {
+    const scope = grantScope(action, target);
+    // Nothing to grant — an unparseable target stays exact, so the next one
+    // asks again rather than being covered by a scope that means nothing.
+    if (!scope) return;
     if (!_sessionDirs.has(action)) _sessionDirs.set(action, new Set());
-    _sessionDirs.get(action).add(parentDir(target));
+    _sessionDirs.get(action).add(scope);
   }
 
   HC.guard = {

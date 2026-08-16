@@ -286,5 +286,115 @@ console.log('\nA link out of the project is not inside the project:');
   sandbox.HC.invoke = () => Promise.resolve();
 }
 
+// A session grant on a fetch covers the host that was granted — not the web.
+//
+// Granting one is the whole safety valve on the Coder agent's fetch_url: the
+// address is chosen by the model, and everything the agent has just read is
+// available to put in it. The grant was scoped by taking the target's
+// "containing folder", which for an address with no path cut back to `https:/`
+// — and matched every https address there is, for the rest of the session.
+console.log('\nA session grant on a fetch covers that host and no other:');
+{
+  guard.clearSession();
+  answer = 'allow-session';
+  await check('the user grants a bare-domain fetch',
+    () => guard.request('fetch', 'https://docs.python.org'), ASKED);
+
+  answer = 'deny'; // anything still asked shows up as asked, not as free
+  await check('the granted host is free afterwards',
+    () => guard.request('fetch', 'https://docs.python.org/3/library/os.html'),
+    FREE);
+  await check('an unrelated host still asks',
+    () => guard.request('fetch', 'https://elsewhere.test/collect?data=x'),
+    { allowed: false, asked: true });
+  await check('a host that merely starts with the granted one still asks',
+    () => guard.request('fetch', 'https://docs.python.org.elsewhere.test/x'),
+    { allowed: false, asked: true });
+  await check('the same host over plain http still asks',
+    () => guard.request('fetch', 'http://docs.python.org/x'),
+    { allowed: false, asked: true });
+
+  guard.clearSession();
+  answer = 'allow-session';
+  await check('a grant made on a deep URL also covers its host',
+    () => guard.request('fetch', 'https://example.test/a/b/c.html'), ASKED);
+  answer = 'deny';
+  await check('another page on that host is free',
+    () => guard.request('fetch', 'https://example.test/other.html'), FREE);
+  await check('a different host is not',
+    () => guard.request('fetch', 'https://other.test/x'),
+    { allowed: false, asked: true });
+  guard.clearSession();
+}
+
+// A move is asked about as two real paths, not as one joined string.
+//
+// This drives the REAL hashcoder.js against the REAL guard, because the defect
+// was in how the caller phrased the question rather than in the guard's answer:
+// `move_file` asked once about `from → to`. The guard reads a target as a path
+// to decide whether it is inside the project, and the joined string begins with
+// the source — so a move OUT of the project was auto-approved with no dialog,
+// and a file written inside the project (itself free) could be placed anywhere
+// on the disk the denylist does not name without the user being asked once.
+console.log('\nA move asks about where the file is going:');
+{
+  const coderSrc = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');
+  const moved = [];
+  sandbox.HC.isTauri = true;
+  sandbox.HC.undo = { capture: () => Promise.resolve(null) };
+  sandbox.HC.invoke = (cmd, args) => {
+    if (cmd === 'fs_path_inside_root') {
+      return Promise.resolve(args.path === R || String(args.path).startsWith(R + '/'));
+    }
+    if (cmd === 'fs_move_file') { moved.push(args); return Promise.resolve(); }
+    return Promise.resolve();
+  };
+  vm.runInContext(coderSrc, sandbox, { filename: 'hashcoder.js' });
+  const code = sandbox.HC.code;
+
+  guard.clearSession();
+  answer = 'deny';
+
+  await check('a rename inside the project is still free',
+    async () => { await code.moveFile(`${R}/old.txt`, `${R}/new.txt`); return true; },
+    FREE);
+  assert('the free rename really reached the move', moved.length === 1);
+
+  // Out of the project: the destination must be asked about, and a refusal
+  // must stop the move happening at all.
+  const wasMoved = moved.length;
+  let refused = false;
+  const asked0 = dialogsShown;
+  try {
+    await code.moveFile(`${R}/a.txt`, '/Users/x/Library/LaunchAgents/com.test.plist');
+  } catch { refused = true; }
+  assert('a move out of the project asks the user', dialogsShown > asked0,
+    'no dialog was shown for a destination outside the project');
+  assert('denying it refuses the move', refused);
+  assert('nothing was moved when it was denied', moved.length === wasMoved,
+    `${moved.length - wasMoved} move(s) went through after a denial`);
+
+  // And the same when the destination is an ordinary folder elsewhere — the
+  // boundary the guard promises is the project, not just the denylist.
+  const asked1 = dialogsShown;
+  try { await code.moveFile(`${R}/a.txt`, '/Users/x/Desktop/other/notes.txt'); } catch { /* denied */ }
+  assert('a move to a sibling folder asks too', dialogsShown > asked1);
+
+  // The other direction was already safe; keep it that way. A path that has not
+  // been refused already, so this measures the question and not the memory of
+  // the previous answer.
+  const asked2 = dialogsShown;
+  try { await code.moveFile('/Users/x/Desktop/elsewhere/notes.txt', `${R}/a.txt`); } catch { /* denied */ }
+  assert('a move INTO the project from outside asks about the source',
+    dialogsShown > asked2);
+
+  assert('an approved destination is required before anything moves',
+    moved.length === 1, `${moved.length} moves reached the disk, expected 1`);
+
+  sandbox.HC.isTauri = false;
+  sandbox.HC.invoke = () => Promise.resolve();
+  guard.clearSession();
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);
