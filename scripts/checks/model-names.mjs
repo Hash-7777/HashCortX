@@ -70,13 +70,21 @@ console.log('\nHow capable a model is, read from its name:');
   eq('a 405B model', M.getModelTier('llama-3.1-405b', ''), T.frontier);
   eq('a 70B model is capable or better', true, M.getModelTier('llama-3.3-70b', '') >= T.capable);
   eq('a 32B model', M.getModelTier('qwen2.5-32b', ''), T.moderate);
-  // Recorded as it behaves, not as it ideally would: the family pattern is
-  // tried before the "mini/flash/lite" rule, so gpt-4o-mini matches gpt-4o and
-  // is treated as frontier. That makes failover consider it a peer of the full
-  // model. Pinning it here means changing it later is a deliberate decision
-  // with a check to update, rather than a silent shift in which model answers.
-  eq('gpt-4o-mini is classed by its family, not by "mini"', M.getModelTier('gpt-4o-mini', ''), T.frontier);
+  // A variant name beats its family. This used to answer "frontier", because
+  // the family pattern was tried first and gpt-4o-mini contains gpt-4o — so
+  // failover offered it as an equal replacement for the full model.
+  eq('a mini is small, not the frontier model it is named after', M.getModelTier('gpt-4o-mini', ''), T.small);
+  eq('and the same through a provider prefix', M.getModelTier('cloud:openai:gpt-4o-mini', ''), T.small);
+  eq('a haiku is small, not its family', M.getModelTier('claude-haiku-4-5', ''), T.small);
+  eq('o4-mini is small', M.getModelTier('o4-mini', ''), T.small);
   ok('a flash model is small', M.getModelTier('gemini-1.5-flash', '') === T.small);
+
+  // The reason the rule could not simply be moved: "gemini" CONTAINS "mini".
+  // A substring test would class every Gemini model as small, which is a far
+  // worse bug than the one being fixed. Markers match as whole tokens only.
+  eq('gemini is not a mini', M.getModelTier('gemini-2.5-pro', ''), T.frontier);
+  ok('nor is it through a prefix', M.getModelTier('cloud:gemini:gemini-2.5-pro', '') === T.frontier);
+  ok('a full model keeps its tier', M.getModelTier('gpt-4o', '') === T.frontier);
   ok('an 8B model is small', M.getModelTier('llama-3.1-8b', '') === T.small);
   ok('an unknown name still gets a tier', typeof M.getModelTier('mystery-model', '') === 'number');
   ok('the label is read as well as the value', M.getModelTier('x', 'Llama 3.1 405B') === T.frontier);

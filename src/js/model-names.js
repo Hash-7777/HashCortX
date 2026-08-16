@@ -37,6 +37,18 @@
     small:      0, // < 32B: flash, lite, mini, 8B, 3B
   };
 
+  /**
+   * Names that mark a model as the small member of its family.
+   *
+   * Each is matched as a whole token — preceded by the start of the name or a
+   * separator, and followed by a separator or the end. A substring test cannot
+   * be used here: "gemini" contains "mini", "flash" appears inside no larger
+   * name but "lite" does, and one careless match reclassifies a whole
+   * provider's line-up.
+   */
+  const SMALL_VARIANT =
+    /(^|[-_ ./:])(mini|flash|lite|instant|small|tiny|haiku|nano|micro)([-_ ./:]|$)/;
+
   /** Split `cloud:provider:model-id` — the model id may contain colons. */
   function parseCloudModel(val) {
     if (!val || !val.startsWith('cloud:')) return { provider: '', modelId: '' };
@@ -114,11 +126,25 @@
     const sizeMatch = s.match(/(\d+)(?:\.\d+)?\s*([bkmt])/i);
     const sizeUnit = sizeMatch?.[2]?.toLowerCase();
     const sizeNum = sizeMatch ? (sizeUnit === 't' ? parseFloat(sizeMatch[1]) * 1000 : parseFloat(sizeMatch[1])) : 0;
+    // A variant name beats the family it belongs to, so this is asked first.
+    //
+    // It used to be asked last, after the family patterns, which meant
+    // `gpt-4o-mini` matched `gpt-4o` and came back frontier — and failover
+    // then treated it as an equal replacement for the full model, quietly
+    // answering with something far weaker. The same held for every small
+    // member of a large family.
+    //
+    // The reason it sat last is real and is why this cannot be a plain
+    // substring test: **"gemini" contains "mini"**, so `/mini/` would class
+    // every Gemini model as small. Each marker is therefore matched as a whole
+    // token, bounded by a separator or the end of the name — `gpt-4o-mini`
+    // matches, `gemini-2.5-pro` does not.
+    if (SMALL_VARIANT.test(s)) return MODEL_TIER.small;
     if (/gpt-4o|claude-4|gemini-2\.5-pro|kimi-k(?:1\.5|2(?:\.|-))|deepseek-v3|llama-4-maverick|405b|253b|235b|120b/i.test(s)) return MODEL_TIER.frontier;
     if (/gpt-4|claude-3\.5|gemini-pro|qwen3-235|120b|70b|maverick|nemotron-ultra/i.test(s)) return MODEL_TIER.strong;
     if (/70b|llama-3\.3|qwen3-72|nemotron-70/i.test(s)) return MODEL_TIER.capable;
     if (/32b|40b|deepseek-r1-distill|qwen2\.5-32/i.test(s)) return MODEL_TIER.moderate;
-    if (/8b|7b|3b|mini|flash|lite|instant|small|tiny/i.test(s)) return MODEL_TIER.small;
+    if (/8b|7b|3b/i.test(s)) return MODEL_TIER.small;
     return sizeNum >= 120 ? MODEL_TIER.frontier
       : sizeNum >= 70 ? MODEL_TIER.capable
       : sizeNum >= 32 ? MODEL_TIER.moderate
