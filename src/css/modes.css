@@ -922,6 +922,13 @@
     font-size: 9.5px; letter-spacing: .2em; text-transform: uppercase;
     font-weight: 700; margin-bottom: 5px; display: flex; justify-content: space-between;
   }
+  /* Inline with the label, sized to the text beside it rather than to
+     whatever an emoji font would have chosen. */
+  .preview-img-mark {
+    width: 1em; height: 1em;
+    vertical-align: -0.15em;
+    display: inline-block;
+  }
   .preview-role-label .preview-turn {
     font-weight: 400; opacity: 0.55; font-size: 9px;
   }

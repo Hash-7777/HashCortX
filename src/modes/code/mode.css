@@ -1931,7 +1931,10 @@ body.coder-mode #app { display: none; }
 }
 .cdr-trace-time  { color: rgba(255,255,255,.22); flex: 0 0 auto; min-width: 44px; white-space: nowrap; }
 .cdr-trace-stage { flex: 0 0 68px; font-weight: 800; color: var(--cdr-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdr-trace-icon  { flex: 0 0 13px; text-align: center; font-weight: 900; color: var(--cdr-text-muted); }
+.cdr-trace-icon  { flex: 0 0 13px; display: grid; place-items: center; color: var(--cdr-text-muted); }
+/* The mark is drawn now, so it takes its colour from the row rather than its
+   weight from whatever font happened to render a tick. */
+.cdr-trace-icon svg { width: 12px; height: 12px; display: block; }
 .cdr-trace-msg   { flex: 1; min-width: 0; color: var(--cdr-text-dim); overflow-wrap: anywhere; }
 .cdr-trace-stage.ok, .cdr-trace-icon.ok, .cdr-trace-msg.ok   { color: var(--cdr-cyan); }
 .cdr-trace-stage.run,.cdr-trace-icon.run,.cdr-trace-msg.run   { color: #60a5fa; }

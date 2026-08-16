@@ -2904,7 +2904,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
       parts.push(`<div class="preview-msg role-${m.role}${isPending ? " preview-pending" : ""}">
         <div class="preview-role-label">
-          <span>${roleDisplay}${hasImg ? " · 🖼" : ""}</span>
+          <span>${roleDisplay}${hasImg ? ` · <svg class="preview-img-mark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="has an image"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>` : ""}</span>
           <span class="preview-turn">${turnLabel}</span>
         </div>${escapeHtml(m.content)}${imgNote}</div>`);
     });

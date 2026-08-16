@@ -1464,7 +1464,19 @@
     function renderCdrTrace() {
       const list = $('cdrTraceEntries');
       if (!list) return;
-      function icon(s) { return s === 'ok' ? '✓' : s === 'err' ? '!' : s === 'warn' ? '!' : s === 'run' ? '›' : '·'; }
+      // Stroked marks, not characters. A tick and a bang are drawn by the
+      // text font at whatever weight it feels like, so they never matched the
+      // icons beside them and an error and a warning were the same glyph.
+      const mark = (d, extra = '') =>
+        `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}${extra}</svg>`;
+      const MARKS = {
+        ok:   mark('<path d="m3.5 8.5 3 3 6-6"/>'),
+        err:  mark('<circle cx="8" cy="8" r="6"/><path d="M8 5v4"/><path d="M8 11h.01"/>'),
+        warn: mark('<path d="M8 2.5 14 13H2Z"/><path d="M8 7v2.5"/><path d="M8 11h.01"/>'),
+        run:  mark('<path d="m6 4 4 4-4 4"/>'),
+        wait: mark('<circle cx="8" cy="8" r="1.6"/>'),
+      };
+      function icon(s) { return MARKS[s] || MARKS.wait; }
       if (!cdrTraceEntries.length) {
         list.innerHTML = '<div class="cdr-trace-empty">No trace entries yet.</div>';
         return;
