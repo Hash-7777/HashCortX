@@ -1441,8 +1441,22 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function toggleExportMenu(force) {
     const open = force === undefined ? !exportMenu.classList.contains("open") : force;
     if (open && exportBtn) {
-      // Anchor to viewport so the dropdown escapes every ancestor's overflow:hidden
-      // (#mainApp, .app, main, and the .actions backdrop-filter stacking context).
+      // Moved to <body> while it is open, then put back.
+      //
+      // This is positioned `fixed` so it can escape the ancestors that clip it.
+      // That did not work, and the reason is not obvious: `.topbar` carries a
+      // backdrop-filter, and an element with a filter becomes the CONTAINING
+      // BLOCK for fixed-position descendants. So `fixed` stopped meaning "the
+      // viewport" and started meaning "the toolbar", while the coordinates
+      // below are still measured from the viewport — the menu opened, every
+      // time, somewhere off the screen. The button appeared to do nothing.
+      //
+      // Nothing in the CSS can fix that from inside the toolbar; the element
+      // has to leave it. Moving the node is the whole fix.
+      if (exportMenu.parentElement !== document.body) {
+        exportMenu._homeParent = exportMenu.parentElement;
+        document.body.appendChild(exportMenu);
+      }
       const rect = exportBtn.getBoundingClientRect();
       exportMenu.style.setProperty("position", "fixed", "important");
       exportMenu.style.setProperty("top", (rect.bottom + 8) + "px", "important");
@@ -1450,6 +1464,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       exportMenu.style.setProperty("left", "auto", "important");
       exportMenu.style.setProperty("z-index", "99999", "important");
     } else {
+      // Home again, so the stylesheet's own positioning applies as written.
+      if (exportMenu._homeParent) {
+        exportMenu._homeParent.appendChild(exportMenu);
+        exportMenu._homeParent = null;
+      }
       // Restore stylesheet-controlled positioning on close
       exportMenu.style.removeProperty("position");
       exportMenu.style.removeProperty("top");
@@ -1473,7 +1492,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   });
   document.addEventListener("click", (e) => {
     if (!exportMenu?.classList.contains("open")) return;
-    if (e.target.closest(".export-wrap")) return;
+    if (e.target.closest(".export-wrap") || e.target.closest("#exportMenu")) return;
     toggleExportMenu(false);
   });
 
