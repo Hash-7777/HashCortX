@@ -74,6 +74,7 @@
     '/js/agent-shape.js',
     '/js/model-names.js',
     '/js/memory.js',
+    '/js/vector-map.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',
 
