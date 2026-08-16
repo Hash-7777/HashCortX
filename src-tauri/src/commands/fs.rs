@@ -139,6 +139,34 @@ fn walk_root(dir: &str) -> Result<PathBuf, String> {
     fs::canonicalize(dir).map_err(|e| format!("Cannot access \"{dir}\": {e}"))
 }
 
+/// How to look inside a binary file, on the machine this build is running on.
+///
+/// This used to name `sips` and `xxd` to everyone. Both are Unix tools and
+/// `sips` is macOS-only, so on Windows the agent was told to run commands that
+/// cannot exist there — and a tool result is the one place a model treats as
+/// fact about its environment, so it would try them, fail, and try again.
+/// Chosen at compile time, because a build only ever runs on one platform.
+fn inspect_hint(path: &str) -> String {
+    if cfg!(target_os = "windows") {
+        format!(
+            "`certutil -dump \"{path}\"`, or PowerShell `Format-Hex -Path \"{path}\" -Count 128`. \
+             For archives: `tar -tf \"{path}\"`. For databases: `sqlite3 \"{path}\" .tables`."
+        )
+    } else if cfg!(target_os = "macos") {
+        format!(
+            "`file \"{path}\"`, `xxd -l 128 \"{path}\"`. \
+             For archives: `unzip -l` or `tar -tf`. For images: `sips -g all \"{path}\"`. \
+             For databases: `sqlite3 \"{path}\" .tables`."
+        )
+    } else {
+        format!(
+            "`file \"{path}\"`, `xxd -l 128 \"{path}\"`. \
+             For archives: `unzip -l` or `tar -tf`. For images: `identify \"{path}\"` if ImageMagick is installed. \
+             For databases: `sqlite3 \"{path}\" .tables`."
+        )
+    }
+}
+
 #[tauri::command]
 pub fn fs_read_file(path: String) -> Result<String, String> {
     guard_path(&path)?;
@@ -163,10 +191,8 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
         let kb = (size + 1023) / 1024;
         return Ok(format!(
             "[Binary file: \"{name}\" · {ext} · {kb}KB] Not text-readable. \
-             Use shell_run to inspect: `file \"{path}\"`. \
-             For archives: `unzip -l` or `tar -tf`. \
-             For images: `sips -g all \"{path}\"`. \
-             For databases: `sqlite3 \"{path}\" .tables`."
+             Use shell_run to inspect: {}",
+            inspect_hint(&path)
         ));
     }
 
@@ -187,7 +213,8 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
         let kb = (size + 1023) / 1024;
         return Ok(format!(
             "[Binary file: \"{name}\" · {kb}KB — contains non-text data (detected {null_count} null bytes). \
-             Use shell_run with `file`, `xxd -l 128`, or appropriate tools to inspect.]"
+             Use shell_run to inspect: {}]",
+            inspect_hint(&path)
         ));
     }
 

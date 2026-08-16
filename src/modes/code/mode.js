@@ -140,7 +140,7 @@
     const msgs = (H.buildOllamaMessages && H.buildOllamaMessages()) || [];
     const projectCtx = sharedState.projectRoot ? `\nProject root: ${sharedState.projectRoot}` : '';
     const sysMsgIdx = msgs.findIndex(m => m.role === 'system');
-    const fullSys = (HC?.code?.SYSTEM_PROMPT || '') + projectCtx;
+    const fullSys = (HC?.code?.SYSTEM_PROMPT || '') + projectCtx + (HC?.code?.platformLine?.(sharedState.platform) || '');
     if (sysMsgIdx >= 0) msgs[sysMsgIdx].content = fullSys + '\n\n' + msgs[sysMsgIdx].content;
     else msgs.unshift({ role: 'system', content: fullSys });
     return msgs;
@@ -2090,7 +2090,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
       } catch {}
 
-      const richBase = HC?.code?.SYSTEM_PROMPT || '';
+      const richBase = (HC?.code?.SYSTEM_PROMPT || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
     }

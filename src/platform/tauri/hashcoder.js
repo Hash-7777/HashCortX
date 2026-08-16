@@ -523,11 +523,20 @@ TOOL ROUTING:
 FILE READING:
 • read_file handles all text formats and returns readable metadata for binary/large files.
 • For truncated files: use grep_code or shell_run grep/head/tail to target specific sections.
-• For binary inspection: shell_run with \`file\`, \`xxd -l 128\`, \`sips\`, \`sqlite3 .tables\`, etc.
+• For binary inspection, use what this machine actually has — the platform is
+  stated at the end of this prompt, so read it before choosing.
+  macOS and Linux: \`file\`, \`xxd -l 128\`, \`sqlite3 <db> .tables\`.
+  macOS only: \`sips -g all\` for image dimensions.
+  Windows: \`certutil -dump\`, or PowerShell \`Format-Hex -Count 128\`.
+  If a command comes back "not found", that tool is not installed — pick
+  another rather than repeating it.
 
 SHELL RULES:
 • Blocked commands: sudo, rm -rf, dd, format, shutdown, reboot.
-• Blocked paths: ~/.ssh, ~/.aws, /System, /etc, /private, /usr/bin.
+• Blocked paths, refused wherever they are spelled: credential stores
+  (~/.ssh, ~/.aws, ~/.gnupg, ~/.hashcortx) and system directories — /System,
+  /etc, /private, /usr/bin on macOS and Linux; Windows\\System32, SysWOW64 and
+  the Microsoft credential stores on Windows.
 • Always pass paths in the args array — never concatenate them into the command string.
 • NEVER pipe downloaded content to a shell interpreter: curl/wget/fetch … | sh/bash/zsh/python is strictly forbidden.
 • NEVER use process substitution to execute remote content: bash <(curl …) or sh <(curl …) is forbidden.
@@ -560,4 +569,28 @@ REASONING:
 • Ambiguous request → ask ONE focused clarifying question before acting.
 • After each tool call, assess the result before deciding the next step.
 • NEVER call tools for greetings, conversational replies, or questions that need no file access.`;
+
+  /**
+   * One line telling the model which machine it is working on.
+   *
+   * Without it the prompt could only name tools and hope. It named macOS ones
+   * — `sips`, `xxd` — which do not exist on Windows, so on that platform the
+   * agent was being advised to run commands that cannot work, and had no way
+   * of knowing that. The app already asks Rust for this at boot for the
+   * terminal's sake; it costs nothing to tell the model too.
+   *
+   * `info` is what `shell_platform` returns. Anything missing is left out
+   * rather than guessed. Returned ready to append — with its own leading
+   * newline, or '' before the boot probe has answered — so a caller can add it
+   * to a prompt unconditionally.
+   */
+  HC.code.platformLine = function platformLine(info) {
+    if (!info || !info.os) return '';
+    const name = { macos: 'macOS', windows: 'Windows', linux: 'Linux' }[String(info.os).toLowerCase()]
+      || info.os;
+    const parts = [`Platform: ${name}`];
+    if (info.shell) parts.push(`shell: ${info.shell}`);
+    if (info.separator) parts.push(`path separator: ${info.separator}`);
+    return '\n' + parts.join(', ') + '. Use the tools that exist here.';
+  };
 })();

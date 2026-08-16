@@ -394,6 +394,30 @@ console.log('\nA move asks about where the file is going:');
   sandbox.HC.isTauri = false;
   sandbox.HC.invoke = () => Promise.resolve();
   guard.clearSession();
+
+  // The agent is told which machine it is on. Checked here because the real
+  // hashcoder.js is already loaded above; it has no check file of its own.
+  //
+  // The prompt names tools per platform — `sips` is macOS-only, `xxd` is not on
+  // Windows — and before this the model was never told which it had, so the
+  // macOS names were simply stated to everyone.
+  console.log('\nThe agent is told which machine it is working on:');
+  const line = (info) => sandbox.HC.code.platformLine(info);
+  assert('macOS is named in words, not as a platform code',
+    line({ os: 'macos', shell: 'sh -c', separator: '/' }).includes('macOS'));
+  assert('so is Windows',
+    line({ os: 'windows', shell: 'cmd /C', separator: '\\' }).includes('Windows'));
+  assert('so is Linux', line({ os: 'linux' }).includes('Linux'));
+  assert('the shell is included when known',
+    line({ os: 'windows', shell: 'cmd /C' }).includes('cmd /C'));
+  assert('an unknown platform name is passed through rather than guessed',
+    line({ os: 'freebsd' }).includes('freebsd'));
+  // It is appended unconditionally, so it must carry its own newline and be
+  // empty — not "undefined" or a stray blank line — before the probe answers.
+  assert('it arrives ready to append', line({ os: 'linux' }).startsWith('\n'));
+  for (const nothing of [null, undefined, {}, { os: '' }]) {
+    assert(`nothing to say adds nothing (${JSON.stringify(nothing)})`, line(nothing) === '');
+  }
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
