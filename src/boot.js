@@ -81,6 +81,7 @@
     '/data/prompts.js',
     '/data/cloud-models.js',
     '/core/memory/store.js',
+    '/core/memory/map.js',
     '/core/settings/local-model.js',
     '/core/settings/memory-pane.js',
     '/core/rag/knowledge-base.js',

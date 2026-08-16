@@ -182,12 +182,12 @@ const BUDGET = {
   'styles.css': 26,
   'css/vars.css': 35,
   'modes/systems/mode.css': 131,
-  // 58, up from 56: the two dialog marks each state a colour for the icon
-  // they hold. They replaced an emoji and a text "!", which took their colour
-  // from the platform's emoji font and from nothing at all — neither matched
-  // the stroke language of every other icon in the app. Both literals already
-  // appear in this sheet; this is two more occurrences, not two new colours.
-  'css/modals.css': 58,
+  // 50, down from 58: the memory map was rebuilt on the shared tokens. What
+  // went was its own palette — a near-black canvas of its own, a gradient
+  // centre node in Coder's neon green, and the two light-theme parchment
+  // shades. None of it was a decision about this map; it predates the app
+  // having tokens at all.
+  'css/modals.css': 50,
   'modes/virtual-os/mode.css': 52,
   'css/modes.css': 50,
   'css/main.css': 41,

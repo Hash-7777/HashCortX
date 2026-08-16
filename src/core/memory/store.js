@@ -71,6 +71,16 @@
       memSave(arr);
       return { ok: true, saved: { key: k, value: v, projectId } };
     }
+    // Which facts the most recent recall actually returned.
+    //
+    // Recorded here because this is the one funnel every caller goes through —
+    // chat, the Coder agent's recall_facts tool and the modes all reach
+    // memRecall, so there is nowhere else a fact can be looked up from. The map
+    // reads it to mark what the last reply used, which is the difference
+    // between showing what is stored and showing what is working.
+    let _lastRecalled = [];
+    function lastRecalledIds() { return _lastRecalled.slice(); }
+
     // Synonym groups so semantically related queries hit the same facts.
     // E.g. asking "what do I love" matches a saved "likes" / "favorite".
     function memRecall(query, limit = 6) {
@@ -82,7 +92,9 @@
       // Which facts this project may see is decided here; the ordering is in
       // js/memory.js, where it can be checked against questions worded nothing
       // like the fact they are looking for.
-      return HCMemory.rankMemories(arr, query, { limit });
+      const ranked = HCMemory.rankMemories(arr, query, { limit });
+      _lastRecalled = ranked.map(f => f.id).filter(Boolean);
+      return ranked;
     }
 
     // Lightweight auto-extractor: catches the most common "I am / I like / I
@@ -115,7 +127,7 @@
   window.HCMemoryStore = {
     init,
     MEM_KEY,
-    memLoad, memSave, memAdd, memRecall, memClear,
+    memLoad, memSave, memAdd, memRecall, memClear, lastRecalledIds,
     memAutoExtract, memAutoExtractFromAssistant,
   };
 })();

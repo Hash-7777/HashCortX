@@ -155,7 +155,11 @@ console.log('\nSelectors declared in more than one sheet go down, never up:');
 // the 245-odd in the app between them, which is the shape of the problem.
 const IMPORTANT_BUDGET = {
   'styles.css': 154,
-  'css/modals.css': 92,
+  // 83, down from 92: the memory map's nine went with its own palette. Every
+  // one of them was there to beat a rule the map itself had no need to fight —
+  // it was forcing its width, its padding, its display mode and the stroke on
+  // its own icons. Built on the shared tokens it wins those on specificity.
+  'css/modals.css': 83,
   'css/modes.css': 17,
   'modes/sandbox/mode.css': 14,
   'modes/agent-maker/mode.css': 11,

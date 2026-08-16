@@ -216,6 +216,16 @@ console.log('\nA group is named after what is in it:');
   ok('a key with no underscore counts as its own stem', V.groupLabel(['education', 'education_year']) === 'education');
   ok('a tie goes to the alphabetically first, not to insertion order',
     V.groupLabel(['work_role', 'home_city']) === V.groupLabel(['home_city', 'work_role']));
+
+  // Naming a group that shares nothing is how the picture starts lying: a
+  // cluster holding a name, a username and a pet came out headed CAT, because
+  // c sorts before n and u. No shared stem, no heading.
+  ok('a group whose keys share nothing is not named',
+    V.groupLabel(['name', 'user_name', 'cat_name', 'pet_kind']) === '');
+  ok('two keys sharing a stem are enough to name it',
+    V.groupLabel(['note_work', 'note_tooling', 'allergies']) === 'note');
+  ok('a majority is not required, only something shared',
+    V.groupLabel(['a_one', 'b_two', 'b_three', 'c_four']) === 'b');
   ok('spaces and dashes separate a stem too', V.groupLabel(['favourite food', 'favourite-drink']) === 'favourite');
   ok('case does not matter', V.groupLabel(['CAT_NAME', 'cat_age']) === 'cat');
   ok('nothing to name', V.groupLabel([]) === '' && V.groupLabel(['', null]) === '');

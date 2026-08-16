@@ -642,7 +642,7 @@
   }
   /* About pane — the Hash ecosystem (sibling apps) */
   .about-eco {
-    width: 100%; max-width: 440px; margin-top: var(--set-4, 16px);
+    width: 100%; max-width: 440px; margin-top: var(--set-4);
     display: flex; flex-direction: column; gap: var(--set-2, 8px); text-align: left;
   }
   .about-eco-title {
@@ -804,185 +804,194 @@
     opacity: 0.72;
   }
 
-  /* ── Memory map (Obsidian-style canvas) ── */
+  /* ── Memory map ──────────────────────────────────────────────────────
+     Built on the same language as the Settings pane it opens from:
+     hairlines instead of boxes, one accent, tiny uppercase labels, and the
+     controls in a row rather than glass floating over the picture.
+
+     It used to be its own look — fifty-eight hardcoded cyan values, a
+     Gaussian-blur glow on every pill, and a centre node filled with Coder's
+     neon green. None of that was ever a decision about this map; it is what
+     the map had before the app had shared tokens, and it is why opening it
+     felt like leaving the app. */
   .mem-map-modal {
-    width: min(1120px, 96vw) !important;
-    height: min(780px, 88vh) !important;
-    max-width: 1120px !important;
-    border-radius: var(--radius);
+    width: min(1120px, 96vw);
+    max-width: 1120px;
+    height: min(800px, 90vh);
     overflow: hidden;
   }
-  .mem-map-modal .modal-header {
-    min-height: 56px;
-    padding: 14px 18px;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025)),
-      rgba(19,20,25,0.92);
-    border-bottom: 1px solid rgba(34,211,238,0.13);
-  }
-  .mem-map-modal .modal-title {
-    font-size: 25px;
-    letter-spacing: 0;
-  }
+  .mem-map-modal .modal-header { border-bottom: 1px solid var(--line); padding-bottom: 14px; }
   .mem-map-body {
-    padding: 0 !important;
-    display: block !important;
-    overflow: hidden !important;
-    position: relative;
-    background: #0d0c0a;
+    padding: 0;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    min-height: 0;
   }
-  #memMapHint {
-    position: absolute;
-    top: 16px; left: 18px;
-    z-index: 4;
-    max-width: min(460px, calc(100% - 190px));
-    padding: 7px 10px;
-    border: 1px solid rgba(34,211,238,0.14);
+
+  /* The control row. Same button height and sentence case as the Memory
+     pane's own toolbar, so the two read as one screen. */
+  .mm-bar {
+    display: flex; align-items: center; gap: var(--set-2);
+    padding: var(--set-3) var(--set-4);
+    border-bottom: 1px solid var(--line);
+  }
+  .mm-bar-gap { flex: 1; }
+  .mm-search { flex: 0 1 260px; min-width: 120px; }
+  .mm-layout {
+    height: 30px; padding: 0 var(--set-3);
+    display: inline-flex; align-items: center;
+    letter-spacing: 0; text-transform: none; font-weight: 500;
     border-radius: var(--radius-sm);
-    background: rgba(12,11,9,0.72);
-    color: rgba(236,231,220,0.68);
-    font-size: 11px;
-    line-height: 1;
-    pointer-events: none;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    color: var(--text-dim);
+    white-space: nowrap;
   }
+  .mm-layout:hover { color: var(--text); }
+  .mm-layout.mm-on { color: var(--accent-2); border-color: var(--accent-line); background: var(--accent-soft); }
+  .mm-zoom { display: flex; gap: var(--set-1); }
+  .mm-zoom button {
+    width: 30px; height: 30px; padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+  }
+  .mm-zoom button:hover { color: var(--text); border-color: var(--accent-line); }
+  .mm-zoom svg { width: 15px; height: 15px; display: block; }
+
+  /* What the picture is, in a sentence. Written by core/memory/map.js — which
+     layout is live, and how much of the difference between the facts a flat
+     picture can keep. */
+  .mm-legend {
+    margin: 0;
+    padding: 9px var(--set-4);
+    border-bottom: 1px solid var(--line);
+    color: var(--text-dim);
+    font-size: 11.5px; line-height: 1.45;
+  }
+  .mm-canvas { min-height: 0; position: relative; overflow: hidden; }
   #memMapSvg {
-    background:
-      radial-gradient(circle at 50% 50%, rgba(34,211,238,0.09) 0%, rgba(34,211,238,0.025) 28%, rgba(34,211,238,0) 62%),
-      linear-gradient(180deg, #0b0b09 0%, #11100e 52%, #15110f 100%);
+    display: block; width: 100%; height: 100%;
+    background: var(--surface-sunken);
     cursor: grab;
     user-select: none;
   }
   #memMapSvg.panning { cursor: grabbing; }
-  #memMapSvg .mm-grid { stroke: rgba(34,211,238,0.052); stroke-width: 0.55; fill: none; }
-  #memMapSvg .mm-link {
-    stroke: rgba(34,211,238,0.30); stroke-width: 1; fill: none;
-    transition: stroke 150ms ease;
+  #memMapSvg .mm-grid { stroke: var(--line); stroke-width: 0.5; fill: none; opacity: 0.5; }
+  .mm-empty {
+    fill: var(--muted); font-size: 13px; font-family: var(--sans);
+    text-anchor: middle; dominant-baseline: central;
   }
-  #memMapSvg .mm-link.cat { stroke: rgba(34,211,238,0.62); stroke-width: 1.45; }
-  #memMapSvg .mm-link.dim { stroke: rgba(34,211,238,0.10); }
+
+  /* Links. A pair that chose each other is drawn firmly; a one-sided nearest
+     neighbour — which every fact has, however unrelated — stays faint, because
+     drawing both the same way would claim a relationship that is not there. */
+  #memMapSvg .mm-link { stroke: var(--line-strong); stroke-width: 1; fill: none; }
+  #memMapSvg .mm-link-pair { stroke: var(--accent-line); stroke-width: 1.4; }
+  #memMapSvg .mm-link-strong { stroke: var(--accent-line); stroke-width: 1.3; }
+  #memMapSvg .mm-link-lit { stroke: var(--accent); stroke-width: 1.6; }
+  #memMapSvg .mm-link-dim { opacity: 0.25; }
 
   #memMapSvg .mm-node { cursor: grab; }
-  #memMapSvg .mm-node.dragging { cursor: grabbing; }
   #memMapSvg .mm-node text { pointer-events: none; user-select: none; }
 
-  /* Center "YOU" — soft gold halo, gradient core */
-  #memMapSvg .mm-center-halo { fill: url(#mmCenterHalo); opacity: 0.85; pointer-events: none; }
-  #memMapSvg .mm-center-core {
-    fill: url(#mmCenterCore);
-    stroke: rgba(255,224,151,0.86); stroke-width: 1.25;
-    filter: drop-shadow(0 10px 26px rgba(34,211,238,0.18));
+  /* A group's name, from the keys actually in it. */
+  .mm-caption {
+    fill: var(--gold); font-size: 9.5px; font-weight: 700;
+    letter-spacing: 0.12em; text-anchor: middle;
+    font-family: var(--mono);
   }
-  #memMapSvg .mm-center-text {
-    fill: #14110b; font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-sans-serif, system-ui, sans-serif;
+  .mm-caption-count { fill: var(--muted); font-weight: 500; letter-spacing: 0; }
+
+  /* Centre of the key layout. Filled with the accent rather than a green
+     gradient, and the text on it takes the ink token — the one colour that
+     exists for sitting on top of a filled accent. */
+  #memMapSvg .mm-centre { fill: var(--accent); stroke: var(--accent-2); stroke-width: 1; }
+  #memMapSvg .mm-centre-text {
+    fill: var(--accent-ink); font-size: 12px; font-weight: 700; letter-spacing: 0.12em;
+    text-anchor: middle; dominant-baseline: central; font-family: var(--sans);
   }
-  #memMapSvg .mm-center-sub {
-    fill: rgba(20,17,11,0.6); font-size: 8.5px; font-weight: 500;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-monospace, Menlo, monospace;
+  #memMapSvg .mm-centre-sub {
+    fill: var(--accent-ink); opacity: 0.66; font-size: 8.5px;
+    text-anchor: middle; dominant-baseline: central; font-family: var(--mono);
   }
 
-  /* Category pill */
-  #memMapSvg .mm-cat-bg {
-    fill: rgba(34,211,238,0.13);
-    stroke: rgba(34,211,238,0.58); stroke-width: 1.1;
-    filter: url(#mmGlow);
-    transition: fill 150ms ease, stroke 150ms ease;
-  }
-  #memMapSvg .mm-node:hover .mm-cat-bg { fill: rgba(34,211,238,0.22); stroke: var(--gold); }
+  #memMapSvg .mm-cat { fill: var(--accent-soft); stroke: var(--accent-line); stroke-width: 1; }
+  #memMapSvg .mm-node:hover .mm-cat { stroke: var(--accent); }
   #memMapSvg .mm-cat-text {
-    fill: var(--gold); font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    fill: var(--gold); font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+    text-anchor: middle; dominant-baseline: central; font-family: var(--mono);
   }
-  #memMapSvg .mm-cat-count {
-    fill: rgba(34,211,238,0.7); font-size: 9px; font-weight: 500;
-    font-family: ui-monospace, Menlo, monospace;
-  }
+  .mm-cat-count { fill: var(--muted); font-weight: 500; }
 
-  /* Fact bubble */
-  #memMapSvg .mm-fact-bg {
-    fill: rgba(255,255,255,0.038);
-    stroke: rgba(34,211,238,0.43); stroke-width: 0.95;
-    transition: fill 150ms ease, stroke 150ms ease;
-  }
-  #memMapSvg .mm-node:hover .mm-fact-bg,
-  #memMapSvg .mm-node.active .mm-fact-bg {
-    fill: rgba(34,211,238,0.18); stroke: var(--gold); stroke-width: 1.4;
-  }
-  #memMapSvg .mm-fact-text {
-    fill: var(--text); font-size: 9.5px;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-sans-serif, system-ui, sans-serif;
+  #memMapSvg .mm-fact {
+    fill: var(--surface-raised); stroke: var(--line-strong); stroke-width: 1;
+    transition: fill 120ms ease, stroke 120ms ease;
   }
   #memMapSvg .mm-fact-key {
-    fill: var(--gold-deep); font-size: 8.5px; font-weight: 600; letter-spacing: 0.04em;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-monospace, Menlo, monospace;
+    fill: var(--gold); font-size: 8.5px; font-weight: 600; letter-spacing: 0.04em;
+    text-anchor: middle; dominant-baseline: central; font-family: var(--mono);
   }
   #memMapSvg .mm-fact-val {
     fill: var(--text-dim); font-size: 8.5px;
-    text-anchor: middle; dominant-baseline: central;
-    font-family: ui-sans-serif, system-ui, sans-serif;
+    text-anchor: middle; dominant-baseline: central; font-family: var(--sans);
   }
-  /* Map toolbar (zoom + reset positions) */
-  #memMapTools {
-    position: absolute; top: 14px; right: 18px; z-index: 5;
-    display: flex; gap: 8px;
-  }
-  #memMapTools button {
-    background: rgba(19,18,16,0.78); border: 1px solid rgba(34,211,238,0.18);
-    color: rgba(236,211,160,0.95); width: 40px; height: 40px; border-radius: var(--radius-md);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    transition: all 120ms ease;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.045);
-  }
-  #memMapTools button:hover { color: #c7e6f0; border-color: rgba(199,230,240,0.54); background: rgba(34,211,238,0.10); }
-  #memMapTools button svg,
-  #memMapTools button svg * {
-    stroke: currentColor !important;
-    fill: none !important;
-    opacity: 1 !important;
-  }
-  #memMapTools button svg {
-    width: 20px;
-    height: 20px;
-    display: block;
-    stroke-width: 2.35;
-    filter: drop-shadow(0 0 5px rgba(34,211,238,0.22));
-  }
-  #memMapDetail {
-    position: absolute;
-    bottom: 14px; left: 18px; right: 18px;
-    z-index: 4;
-    min-height: 42px;
-    padding: 11px 14px;
-    border: 1px solid rgba(34,211,238,0.16);
-    border-radius: var(--radius-md);
-    background: rgba(12,11,9,0.78);
+  #memMapSvg .mm-node:hover .mm-fact { stroke: var(--accent-line); fill: var(--surface-2); }
+  #memMapSvg .mm-near .mm-fact { stroke: var(--accent-line); }
+  #memMapSvg .mm-selected .mm-fact { stroke: var(--accent); stroke-width: 1.6; }
+  #memMapSvg .mm-selected .mm-fact-val { fill: var(--text); }
+  /* Filled, so it is not confused with the stroke that means selected. */
+  #memMapSvg .mm-recalled .mm-fact { fill: var(--accent-soft); }
+  /* Placed by hand, so its position is the user's and not its meaning's. */
+  #memMapSvg .mm-moved .mm-fact { stroke-dasharray: 3 2; }
+  /* A dot, once there are more facts than the canvas can label. It is read by
+     hovering, so it needs to be findable and to grow under the pointer. */
+  #memMapSvg .mm-dot .mm-fact { fill: var(--accent-soft); stroke: var(--accent-line); }
+  #memMapSvg .mm-dot:hover .mm-fact { fill: var(--accent); stroke: var(--accent-2); }
+  #memMapSvg .mm-dot.mm-selected .mm-fact { fill: var(--accent); stroke: var(--accent-2); stroke-width: 2; }
+  #memMapSvg .mm-dot.mm-recalled .mm-fact { fill: var(--accent-2); }
+
+  /* While something is being searched for, everything else recedes rather than
+     disappearing — a fact that vanishes looks deleted. */
+  #memMapSvg .mm-filtering .mm-node { opacity: 0.2; }
+  #memMapSvg .mm-filtering .mm-node.mm-hit { opacity: 1; }
+  #memMapSvg .mm-filtering .mm-hit .mm-fact { stroke: var(--accent); }
+  #memMapSvg .mm-filtering .mm-link { opacity: 0.12; }
+
+  /* The strip along the bottom: what is selected, and what is nearest to it. */
+  .mm-detail {
+    padding: 10px var(--set-4);
+    border-top: 1px solid var(--line);
+    background: var(--surface-raised);
     color: var(--text);
-    font-size: 12.5px;
-    line-height: 1.35;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.035);
+    font-size: 12.5px; line-height: 1.45;
+    min-height: 58px;
+    max-height: 132px;
+    overflow-y: auto;
   }
-  html[data-theme="light"] #memMapSvg {
-    background:
-      radial-gradient(circle at 50% 50%, rgba(34,211,238,0.06) 0%, rgba(34,211,238,0) 60%),
-      linear-gradient(180deg, #f5f0e6 0%, #ece5d6 100%);
+  .mm-detail-head { display: flex; align-items: center; gap: var(--set-2); flex-wrap: wrap; }
+  .mm-detail-key { color: var(--gold); font-family: var(--mono); font-size: 11.5px; }
+  .mm-detail-dim { color: var(--muted); font-size: 11px; }
+  .mm-detail-value { margin-top: 3px; color: var(--text); word-break: break-word; }
+  .mm-detail-value-inline { color: var(--text-dim); }
+  .mm-detail-actions { margin-left: auto; display: flex; gap: var(--set-1); }
+  .mm-detail-near {
+    margin-top: 6px; display: flex; align-items: center; gap: var(--set-1);
+    flex-wrap: wrap; color: var(--muted); font-size: 11px;
   }
-  html[data-theme="light"] #memMapHint,
-  html[data-theme="light"] #memMapDetail,
-  html[data-theme="light"] #memMapTools button {
-    background: rgba(255,252,244,0.78);
-    border-color: rgba(120,90,40,0.18);
+  .mm-act, .mm-jump {
+    height: 24px; padding: 0 9px;
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: var(--radius-xs);
+    letter-spacing: 0; text-transform: none; font-weight: 500; font-size: 11px;
+    color: var(--text-dim);
   }
+  .mm-act:hover, .mm-jump:hover { color: var(--text); border-color: var(--accent-line); }
+  .mm-act-danger:hover { color: var(--rose); border-color: var(--danger-soft); }
+  .mm-jump { font-family: var(--mono); }
+  .mm-jump span { color: var(--muted); }
+
+  html[data-theme="light"] #memMapSvg { background: rgba(24,34,29,0.04); }
+  html[data-theme="light"] .mm-detail { background: rgba(24,34,29,0.03); }
 
   .template-layout {
     display: grid;

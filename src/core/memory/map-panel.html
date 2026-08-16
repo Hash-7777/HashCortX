@@ -7,37 +7,34 @@
       </button>
     </div>
     <div class="modal-body mem-map-body">
-      <div id="memMapHint">Drag to move · scroll to zoom · double-click a fact to edit</div>
-      <div id="memMapTools">
-        <button type="button" id="memMapZoomIn"  title="Zoom in" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-        <button type="button" id="memMapZoomOut" title="Zoom out" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-        <button type="button" id="memMapFit"     title="Fit view" aria-label="Fit view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg></button>
-        <button type="button" id="memMapReset"   title="Reset positions" aria-label="Reset positions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><polyline points="3 21 3 16 8 16"/></svg></button>
+      <!-- The controls are a row, not glass floating over the picture: the same
+           shape as the toolbar in the Memory pane this map opens from. -->
+      <div class="mm-bar">
+        <input class="control mm-search" id="memMapSearch" placeholder="Search the map…" spellcheck="false" aria-label="Search the map" />
+        <button type="button" class="ghost mm-layout" id="memMapLayout" title="Switch how the facts are placed">By meaning</button>
+        <span class="mm-bar-gap"></span>
+        <div class="mm-zoom" role="group" aria-label="View">
+          <button type="button" id="memMapZoomOut" title="Zoom out  ( − )" aria-label="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="20.5" y1="20.5" x2="16" y2="16"/></svg></button>
+          <button type="button" id="memMapZoomIn" title="Zoom in  ( + )" aria-label="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="20.5" y1="20.5" x2="16" y2="16"/></svg></button>
+          <button type="button" id="memMapFit" title="Fit everything on screen  ( 0 )" aria-label="Fit everything on screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="20" y2="4"/><line x1="4" y1="20" x2="10" y2="14"/></svg></button>
+          <button type="button" id="memMapReset" title="Put everything back where it belongs" aria-label="Reset positions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.4L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15.5 6.4L3 16"/><polyline points="3 21 3 16 8 16"/></svg></button>
+        </div>
       </div>
-      <div id="memMapDetail"><span style="color:var(--text-dim)">Hover or click a node...</span></div>
-      <svg id="memMapSvg" width="100%" height="100%" style="display:block;width:100%;height:100%" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          <radialGradient id="mmCenterHalo" cx="50%" cy="50%" r="50%">
-            <stop offset="0%"  stop-color="rgba(57,255,129,0.55)"/>
-            <stop offset="60%" stop-color="rgba(57,255,129,0.15)"/>
-            <stop offset="100%" stop-color="rgba(57,255,129,0)"/>
-          </radialGradient>
-          <radialGradient id="mmCenterCore" cx="35%" cy="30%" r="80%">
-            <stop offset="0%"  stop-color="#b0ffe0"/>
-            <stop offset="55%" stop-color="#39ff81"/>
-            <stop offset="100%" stop-color="#1a7a40"/>
-          </radialGradient>
-          <pattern id="mmGridPattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path class="mm-grid" d="M 40 0 L 0 0 0 40"/>
-          </pattern>
-          <filter id="mmGlow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="2" result="b"/>
-            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
-        </defs>
-        <rect id="mmGridBg" x="-4000" y="-4000" width="8000" height="8000" fill="url(#mmGridPattern)"/>
-        <g id="mmWorld"></g>
-      </svg>
+      <!-- Filled in by core/memory/map.js: which layout is live, and how much
+           of the truth this flat picture keeps. -->
+      <p class="mm-legend" id="memMapHint">Reading the memory…</p>
+      <div class="mm-canvas">
+        <svg id="memMapSvg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-label="Memory map">
+          <defs>
+            <pattern id="mmGridPattern" x="0" y="0" width="48" height="48" patternUnits="userSpaceOnUse">
+              <path class="mm-grid" d="M 48 0 L 0 0 0 48"/>
+            </pattern>
+          </defs>
+          <rect id="mmGridBg" x="-4000" y="-4000" width="8000" height="8000" fill="url(#mmGridPattern)"/>
+          <g id="mmWorld"></g>
+        </svg>
+      </div>
+      <div class="mm-detail" id="memMapDetail"></div>
     </div>
   </div>
 </div>

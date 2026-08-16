@@ -33,6 +33,7 @@ const ALLOWED = new Map([
   ['main.js', 'window geometry and lifecycle at boot'],
   ['js/app.js', 'checking whether a host resolves off-device before a request is allowed to leave, and opening a hardcoded ecosystem link in the browser'],
   ['core/rag/knowledge-base.js', 'embeds text with the model bundled in the binary. The command takes text and a kind and returns numbers — it reads no file, runs no process, and reaches no network; the CDN import it replaced is why semantic search never ran in any shipped build'],
+  ['core/memory/map.js', 'asks whether the bundled embedding model loaded, and turns the facts already on this machine into vectors so they can be placed by meaning. Both commands take text or nothing and return numbers or a boolean — no file, no process, no network — and the text is the memory the user is looking at, which never leaves the app'],
   ['modes/code/mode.js', 'the Coder terminal and file pickers'],
   ['core/settings/local-model.js', 'reads which operating system this is, so step one shows the right install instructions instead of handing a Windows user a curl command; and opens the one download page in the real browser. The command takes no argument, and the URL is a fixed string in index.html that no code writes — no model reaches either'],
 ]);
@@ -185,7 +186,11 @@ console.log('\nEvery command the renderer calls is registered, and every registe
    * machine that nothing uses. Delete it rather than adding it below.
    */
   const REGISTERED_WITHOUT_A_CALLER = new Map([
-    ['embed_available', 'reports whether the bundled embedding model loaded; reads nothing and takes no argument'],
+    // Empty, and worth keeping that way. embed_available sat here for a while:
+    // the command existed so the UI could say whether the bundled model had
+    // loaded, and no UI ever asked — so semantic search degraded to keyword
+    // search with nothing on screen admitting it. The memory map asks now, and
+    // says which layout it is actually drawing.
   ]);
   for (const name of registered) {
     if (invoked.has(name)) continue;

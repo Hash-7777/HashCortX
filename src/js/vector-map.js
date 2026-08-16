@@ -255,12 +255,18 @@
   }
 
   /**
-   * A name for a group, taken from the keys in it.
+   * A name for a group, taken from the keys in it — or no name at all.
    *
    * The old map named a group from the text before the first underscore and
    * presented it as a category. This names a group after what is actually in
-   * it: the stem most of its keys share. A tie goes to the alphabetically
-   * first, so the label does not depend on the order facts were saved in.
+   * it: the stem its keys share. A tie goes to the alphabetically first, so the
+   * label does not depend on the order facts were saved in.
+   *
+   * IT RETURNS NOTHING WHEN NOTHING IS SHARED, and that is the important half.
+   * Taking the first stem regardless produces a heading that misrepresents the
+   * group — a cluster holding a name, a username and a pet came out labelled
+   * after the pet, because c sorts before n and u. An unlabelled group is
+   * honest; a mislabelled one is the defect this map was rebuilt to escape.
    */
   function groupLabel(keys) {
     const counts = new Map();
@@ -273,8 +279,9 @@
       counts.set(stem, (counts.get(stem) || 0) + 1);
     }
     if (!counts.size) return '';
-    return [...counts.entries()]
-      .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0][0];
+    const [stem, n] = [...counts.entries()]
+      .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))[0];
+    return n >= 2 ? stem : '';
   }
 
   /**
@@ -294,10 +301,51 @@
     const gap = (opts && opts.gap) || 8;
     const out = (points || []).map((p) => ({ x: p.x, y: p.y }));
     const box = (i) => sizes[i] || { w: 0, h: 0 };
+
+    // Only boxes that are near each other can overlap, so only those are
+    // compared. Comparing every box with every other one is 125,000 pairs per
+    // pass at the 500 facts the store holds, and the passes do not converge at
+    // that size because the boxes cannot all fit apart — measured at 3.2
+    // seconds, which is the map freezing the window as it opens.
+    //
+    // A box can only reach another whose centre is within its own half-width
+    // plus the other's plus the gap, so a grid of cells that wide means any
+    // collision is within the neighbouring nine, and candidates are visited in
+    // index order.
+    //
+    // The grid is built once per pass, from where the boxes were when the pass
+    // began. A box that moves into a new cell mid-pass is therefore judged
+    // against its old neighbourhood until the next pass rebuilds it — so this
+    // is not identical to comparing every pair, it converges on the same
+    // separation over the passes. What it is exactly is deterministic, which is
+    // the property the map needs and the checks hold it to.
+    let cell = 1;
+    for (let i = 0; i < out.length; i++) {
+      const b = box(i);
+      cell = Math.max(cell, b.w + gap, b.h + gap);
+    }
+    const key = (cx, cy) => cx + ',' + cy;
+
     for (let step = 0; step < iterations; step++) {
       let moved = false;
+      const grid = new Map();
       for (let i = 0; i < out.length; i++) {
-        for (let j = i + 1; j < out.length; j++) {
+        const k = key(Math.floor(out[i].x / cell), Math.floor(out[i].y / cell));
+        const bucket = grid.get(k);
+        if (bucket) bucket.push(i); else grid.set(k, [i]);
+      }
+      for (let i = 0; i < out.length; i++) {
+        const cx = Math.floor(out[i].x / cell);
+        const cy = Math.floor(out[i].y / cell);
+        const candidates = [];
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const bucket = grid.get(key(cx + dx, cy + dy));
+            if (bucket) for (const j of bucket) if (j > i) candidates.push(j);
+          }
+        }
+        candidates.sort((a, b) => a - b);
+        for (const j of candidates) {
           const bi = box(i), bj = box(j);
           const minX = (bi.w + bj.w) / 2 + gap;
           const minY = (bi.h + bj.h) / 2 + gap;
