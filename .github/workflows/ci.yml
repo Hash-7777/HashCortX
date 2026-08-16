@@ -117,6 +117,12 @@ jobs:
       - name: Fetch-address checks
         run: npm run check:url-safety
 
+      # How much of a fetched page the model is given, and whether it is told
+      # when there is more. A page cut without saying so is answered from its
+      # introduction.
+      - name: Page-text checks
+        run: npm run check:page-text
+
       # A provider endpoint outside connect-src is not a crash — it is a
       # blocked request the app reports as the provider being unreachable.
       - name: Cloud provider checks

@@ -67,6 +67,7 @@
     '/js/rag-search.js',
     '/js/rag-store.js',
     '/js/url-safety.js',
+    '/js/page-text.js',
     '/js/providers.js',
     '/js/markdown-safe.js',
     '/js/agent-shape.js',

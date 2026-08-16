@@ -5755,19 +5755,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (!isSafeExternalUrl(url)) return null;
     if (!hostnameOf(url)) return null;
 
-    const stripForAgent = (text) =>
-      String(text || "")
-        .replace(/<script[\s\S]*?<\/script>/gi, " ")
-        .replace(/<style[\s\S]*?<\/style>/gi, " ")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 3000);
-
     if (window.HC?.isTauri) {
       try {
         const out = await HC.invoke("net_fetch_text", { url });
-        if (out?.ok) return stripForAgent(out.text);
+        if (out?.ok) return HCPageText.stripHtml(out.text);
         console.warn("[fetch_url] refused:", out?.reason || "the page could not be read");
         return null;
       } catch (e) {
@@ -5784,7 +5775,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const text = await r.text();
-      return stripForAgent(text);
+      return HCPageText.stripHtml(text);
     } catch {
       return null;
     }
@@ -5866,7 +5857,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const content = await fetchUrl(u);
         if (content) {
           addToRAG(u, content, `fetch:${u}`);
-          pieces.push(`Page (${u}):\n${content}`);
+          const win = HCPageText.windowOf(content, 0, HCPageText.PASSIVE_LIMIT);
+          pieces.push(`Page (${u}):\n${win.text}${HCPageText.continuationNote(win, u)}`);
         }
       }
     }
@@ -5968,25 +5960,31 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     },
     fetch_url: {
-      description: "Fetch a public URL and return up to 3000 chars of readable text. Blocks private IPs.",
+      description: "Read a public web page and return its text. Long pages come back a section at a time — the reply says how much is left and the offset to continue from, so call again with that offset rather than answering from the first section. Blocks private IPs.",
       parameters: {
         type: "object",
-        properties: { url: { type: "string", description: "Absolute http(s) URL." } },
+        properties: { url: { type: "string", description: "Absolute http(s) URL." },
+          offset: { type: "integer", description: "Character to start reading from. Omit for the beginning; pass nextOffset from a previous reply to continue." } },
         required: ["url"]
       },
       statusLabel: a => `Reading page: ${(a.url || "").slice(0, 60)}`,
-      async execute({ url }) {
+      async execute({ url, offset }) {
         if (!url) return { error: "url is required" };
         // The address is the model's own, and a URL carries whatever is put in
-        // it, so reading one is also how this conversation could leave. The
-        // policy used to cap this at the connect-src hosts by accident; it now
-        // reaches the whole web. A link the user pasted is not this path.
+        // it, so reading one is also how this conversation could leave. The CSP
+        // capped this by accident; it now reaches the whole web. A pasted link
+        // is not this path.
         if (window.HC?.guard && !(await HC.guard.request("fetch", url, "Reading a web page")))
           return { error: "The user declined to read that page." };
         const text = await fetchUrl(url);
         if (!text) return { error: "Could not fetch (timeout, blocked private IP, or non-text page)." };
+        // The knowledge base gets the whole page; the model gets a window of it
+        // and is told where to continue, having previously got the first 3,000
+        // characters with nothing saying the rest existed.
         addToRAG(url, text, `fetch:${url}`);
-        return { url, text };
+        const win = HCPageText.windowOf(text, offset, HCPageText.DEFAULT_LIMIT);
+        return { url, offset: win.offset, total: win.total, nextOffset: win.nextOffset,
+          text: win.text + HCPageText.continuationNote(win, url) };
       }
     },
     pubmed_search: {
