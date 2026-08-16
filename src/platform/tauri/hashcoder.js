@@ -385,7 +385,7 @@
     },
     {
       name: 'execute_python',
-      description: 'Run Python in a sandbox that ships with the app, with pandas, numpy and matplotlib available. Use it for data work, quick calculations over a file, or generating a chart — it needs no Python installed on the machine and cannot touch the filesystem. To run the project\'s own Python, use shell_run instead.',
+      description: 'Run Python in a real CPython sandbox that ships with the app — no Python needed on the machine. Available: pandas, numpy, matplotlib, and reportlab, python-docx and openpyxl, so this is how you PRODUCE A DOCUMENT. Write it to /output/<name>.<ext> and the user is asked where to keep it; the result tells you which files were actually saved, so name a file as existing only for those. PDF: from reportlab.platypus import SimpleDocTemplate, Paragraph, Table; build to /output/x.pdf (use platypus for reports, not Canvas.drawString). Word: from docx import Document; doc.save(\'/output/x.docx\'). Excel: from openpyxl import Workbook; wb.save(\'/output/x.xlsx\'). It cannot see the project files — pass what it needs in the code, or read the file first. To run the project\'s own Python, use shell_run instead.',
       parameters: {
         code: { type: 'string', description: 'Python source. Stdout is captured. Files written to /output/<name> are offered to the user to save.' },
       },
@@ -577,6 +577,10 @@ TOOL ROUTING:
   documentation — do not answer from the snippet alone.
 • Data work, a calculation over a file, a chart → execute_python. It ships with
   the app and needs no Python installed. For the project's OWN python, shell_run.
+• A PDF, Word or Excel file the user asked for → execute_python, writing to
+  /output/. reportlab, python-docx and openpyxl are installed. Do not write the
+  file with shell_run or paste the code into the reply — call the tool, then say
+  a file exists only for the ones the result reports as saved.
 • Writing a date anywhere → current_datetime first. You do not know what day it is.
 • A number that ends up in code or in a message → calculate
 • A layout genuinely needs a photo → placeholder_images(seed, count). Prefer gradients, icons or inline SVG; never invent an image URL.
