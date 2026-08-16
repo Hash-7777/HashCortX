@@ -1,7 +1,12 @@
 <div class="terminal-alert-overlay" id="terminalAlertOverlay" aria-hidden="true">
   <div class="terminal-alert" role="dialog" aria-modal="true" aria-labelledby="terminalAlertTitle">
     <div class="terminal-alert-head">
-      <div class="terminal-alert-mark">!</div>
+      <div class="terminal-alert-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.3 3.9 1.8 18.4A2 2 0 0 0 3.5 21.4h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+          <path d="M12 9v4"/><path d="M12 17h.01"/>
+        </svg>
+      </div>
       <div class="terminal-alert-title" id="terminalAlertTitle">System Alert</div>
     </div>
     <div class="terminal-alert-body" id="terminalAlertBody"></div>

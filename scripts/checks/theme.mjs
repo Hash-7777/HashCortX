@@ -182,7 +182,12 @@ const BUDGET = {
   'styles.css': 26,
   'css/vars.css': 35,
   'modes/systems/mode.css': 131,
-  'css/modals.css': 56,
+  // 58, up from 56: the two dialog marks each state a colour for the icon
+  // they hold. They replaced an emoji and a text "!", which took their colour
+  // from the platform's emoji font and from nothing at all — neither matched
+  // the stroke language of every other icon in the app. Both literals already
+  // appear in this sheet; this is two more occurrences, not two new colours.
+  'css/modals.css': 58,
   'modes/virtual-os/mode.css': 52,
   'css/modes.css': 50,
   'css/main.css': 41,

@@ -2037,3 +2037,86 @@ body.intro-exiting #intro-screen .logo-glow {
 .hc-guard-banner.hc-guard-banner--danger {
   border-color: rgba(248,113,113,.4); color: #f87171;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   ONE POPUP LANGUAGE
+
+   The app had two dialogs that shared nothing but their job. The
+   permission card was cyan on near-black with a monospace title;
+   the alert was blue-slate with a system font. Both appeared
+   instantly — no entrance at all — which is what made them read
+   as system chrome rather than part of the app.
+
+   This is the shared half: one mark treatment, one backdrop, and
+   one entrance. Each dialog keeps its own accent, because the
+   permission card is a question about the machine and the alert
+   is a message from the app, and telling them apart at a glance
+   is worth more than making them identical.
+
+   The marks are inline SVG on `currentColor`. They were an emoji
+   and a text "!", which pick up whatever the platform's emoji
+   font decides and never match the stroke weight of every other
+   icon in the app.
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes hc-dialog-veil {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Settles rather than bounces: most of the travel happens early,
+   then it eases to rest. A spring overshoot on something asking
+   for permission reads as playful, which this is not. */
+@keyframes hc-dialog-rise {
+  from { opacity: 0; transform: translateY(10px) scale(.975); }
+  to   { opacity: 1; transform: none; }
+}
+
+#hc-perm-dialog.open,
+.terminal-alert-overlay.open {
+  animation: hc-dialog-veil 160ms ease-out both;
+}
+
+#hc-perm-dialog.open .hc-perm-card,
+.terminal-alert-overlay.open .terminal-alert {
+  animation: hc-dialog-rise 260ms cubic-bezier(.16, 1, .3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* The mark is a square plate holding a 1.6-weight icon, the same
+   language as every other icon in the chrome. */
+.hc-perm-icon,
+.terminal-alert-mark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.hc-perm-icon {
+  width: 30px; height: 30px;
+  border-radius: var(--radius-sm);
+  color: #22d3ee;
+  background: linear-gradient(180deg, rgba(34,211,238,0.16), rgba(34,211,238,0.045));
+  border: 1px solid rgba(34,211,238,0.28);
+  box-shadow: inset 0 1px 0 rgba(160,200,255,0.07);
+}
+.hc-perm-icon svg,
+.terminal-alert-mark svg { width: 17px; height: 17px; display: block; }
+
+/* An icon carries the meaning now, so the plate does not also need
+   to be a saturated blue block. */
+.terminal-alert-mark {
+  background: linear-gradient(180deg, rgba(80,140,220,0.18), rgba(80,140,220,0.08));
+  border: 1px solid rgba(80,140,220,0.32);
+  color: #c9d5ea;
+}
+
+/* An entrance is a nicety; motion sickness is not. Everything above
+   still arrives, it just arrives immediately. */
+@media (prefers-reduced-motion: reduce) {
+  #hc-perm-dialog.open,
+  .terminal-alert-overlay.open,
+  #hc-perm-dialog.open .hc-perm-card,
+  .terminal-alert-overlay.open .terminal-alert {
+    animation-duration: 1ms;
+  }
+}
