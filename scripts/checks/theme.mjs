@@ -277,5 +277,49 @@ console.log('\nA class can still hide an element:');
   if (offenders === 0) check('no display rule out-specifies a plain class', true);
 }
 
+// ── 7. A token used out of the scope that defines it ─────────────────────
+//
+// --set-1 … --set-pad are declared on `#settingsOverlay`, not on :root. Inside
+// any other overlay they do not exist, so `padding: var(--set-3) var(--set-4)`
+// is invalid at computed-value time and the padding computes to zero. Nothing
+// warns: the rule is well-formed, the sheet parses, and the panel simply has no
+// spacing. The memory map was rebuilt on them and opened with its bar, its
+// legend and its detail strip all flush against the edge.
+//
+// So a rule may only reach for a --set-* token if it is a Settings rule. Which
+// ones those are is decided by the Settings markup rather than by a list kept
+// here: the selector has to name a class or id that is actually in
+// core/settings/panel.html. A rule for something outside it has to use the
+// :root tokens in css/vars.css — --space-* is the same four steps.
+console.log('\nSpacing tokens are only used where they exist:');
+{
+  const settingsMarkup = readFileSync(join(srcDir, 'core', 'settings', 'panel.html'), 'utf8');
+  const inSettings = new Set([
+    ...[...settingsMarkup.matchAll(/class="([^"]+)"/g)].flatMap((m) => m[1].split(/\s+/)),
+    ...[...settingsMarkup.matchAll(/id="([^"]+)"/g)].map((m) => m[1]),
+    'settingsOverlay',
+  ].filter(Boolean));
+
+  let offenders = 0;
+  for (const file of SHEETS) {
+    const css = read(file).replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const [, selBlock, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      if (!/var\(\s*--set-/.test(body)) continue;
+      const named = [...selBlock.matchAll(/[.#]([a-zA-Z][\w-]*)/g)].map((m) => m[1]);
+      // The declaring rule itself, and anything Settings owns, are fine.
+      if (named.some((n) => inSettings.has(n))) continue;
+      offenders++;
+      check(`${file}: ${selBlock.trim().slice(0, 60)}`, false,
+        'uses a --set-* token outside #settingsOverlay, where it is not defined — the declaration computes to zero. Use --space-* from vars.css');
+    }
+  }
+  if (offenders === 0) check('no rule reaches for a --set-* token outside Settings', true);
+  // Both directions: if these ever move to :root the rule above is pointless,
+  // and somebody should delete it rather than leave a check that proves nothing.
+  check('--set-* is still scoped to #settingsOverlay',
+    /#settingsOverlay\s*\{[^{}]*--set-1:/.test(read('styles.css').replace(/\/\*[\s\S]*?\*\//g, '')),
+    'if it is on :root now, this section can go');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (one identity)`);
 process.exit(fail ? 1 : 0);

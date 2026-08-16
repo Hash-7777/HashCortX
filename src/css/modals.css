@@ -832,14 +832,14 @@
   /* The control row. Same button height and sentence case as the Memory
      pane's own toolbar, so the two read as one screen. */
   .mm-bar {
-    display: flex; align-items: center; gap: var(--set-2);
-    padding: var(--set-3) var(--set-4);
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--line);
   }
   .mm-bar-gap { flex: 1; }
   .mm-search { flex: 0 1 260px; min-width: 120px; }
   .mm-layout {
-    height: 30px; padding: 0 var(--set-3);
+    height: 30px; padding: 0 var(--space-3);
     display: inline-flex; align-items: center;
     letter-spacing: 0; text-transform: none; font-weight: 500;
     border-radius: var(--radius-sm);
@@ -848,7 +848,7 @@
   }
   .mm-layout:hover { color: var(--text); }
   .mm-layout.mm-on { color: var(--accent-2); border-color: var(--accent-line); background: var(--accent-soft); }
-  .mm-zoom { display: flex; gap: var(--set-1); }
+  .mm-zoom { display: flex; gap: var(--space-1); }
   .mm-zoom button {
     width: 30px; height: 30px; padding: 0;
     display: inline-flex; align-items: center; justify-content: center;
@@ -863,7 +863,7 @@
      picture can keep. */
   .mm-legend {
     margin: 0;
-    padding: 9px var(--set-4);
+    padding: 9px var(--space-4);
     border-bottom: 1px solid var(--line);
     color: var(--text-dim);
     font-size: 11.5px; line-height: 1.45;
@@ -959,7 +959,7 @@
 
   /* The strip along the bottom: what is selected, and what is nearest to it. */
   .mm-detail {
-    padding: 10px var(--set-4);
+    padding: 10px var(--space-4);
     border-top: 1px solid var(--line);
     background: var(--surface-raised);
     color: var(--text);
@@ -968,14 +968,14 @@
     max-height: 132px;
     overflow-y: auto;
   }
-  .mm-detail-head { display: flex; align-items: center; gap: var(--set-2); flex-wrap: wrap; }
+  .mm-detail-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
   .mm-detail-key { color: var(--gold); font-family: var(--mono); font-size: 11.5px; }
   .mm-detail-dim { color: var(--muted); font-size: 11px; }
   .mm-detail-value { margin-top: 3px; color: var(--text); word-break: break-word; }
   .mm-detail-value-inline { color: var(--text-dim); }
-  .mm-detail-actions { margin-left: auto; display: flex; gap: var(--set-1); }
+  .mm-detail-actions { margin-left: auto; display: flex; gap: var(--space-1); }
   .mm-detail-near {
-    margin-top: 6px; display: flex; align-items: center; gap: var(--set-1);
+    margin-top: 6px; display: flex; align-items: center; gap: var(--space-1);
     flex-wrap: wrap; color: var(--muted); font-size: 11px;
   }
   .mm-act, .mm-jump {
