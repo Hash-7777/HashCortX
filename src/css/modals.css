@@ -8,10 +8,9 @@
     display: none;
     align-items: center; justify-content: center;
     padding: 20px;
-    animation: fadeOverlay .2s ease-out;
+    animation: hc-dialog-veil 160ms ease-out both;
   }
   .modal-overlay.open { display: flex; }
-  @keyframes fadeOverlay { from { opacity: 0; } to { opacity: 1; } }
   .modal {
     width: 100%; max-width: 560px;
     max-height: calc(100vh - 40px);
@@ -2072,13 +2071,21 @@ body.intro-exiting #intro-screen .logo-glow {
   to   { opacity: 1; transform: none; }
 }
 
+/* Every overlay in the app fades the same way. .modal-overlay had its own
+   keyframe at its own duration, which is how two popups a second apart came
+   to feel like two different pieces of software. */
 #hc-perm-dialog.open,
 .terminal-alert-overlay.open {
   animation: hc-dialog-veil 160ms ease-out both;
 }
 
+/* And every card rises. The settings, memory-map and preview panels appeared
+   instantly inside a backdrop that was still fading in — the one part of the
+   motion nobody had written, and the part that reads as unfinished. */
 #hc-perm-dialog.open .hc-perm-card,
-.terminal-alert-overlay.open .terminal-alert {
+.terminal-alert-overlay.open .terminal-alert,
+.modal-overlay.open .modal,
+#previewModal.open .preview-box {
   animation: hc-dialog-rise 260ms cubic-bezier(.16, 1, .3, 1) both;
   will-change: transform, opacity;
 }
@@ -2116,7 +2123,9 @@ body.intro-exiting #intro-screen .logo-glow {
   #hc-perm-dialog.open,
   .terminal-alert-overlay.open,
   #hc-perm-dialog.open .hc-perm-card,
-  .terminal-alert-overlay.open .terminal-alert {
+  .terminal-alert-overlay.open .terminal-alert,
+  .modal-overlay.open .modal,
+  #previewModal.open .preview-box {
     animation-duration: 1ms;
   }
 }
