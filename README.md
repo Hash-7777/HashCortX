@@ -1,6 +1,5 @@
 <div align="center">
 
-<img src="docs/assets/hero.svg" alt="HashCortx — local-first AI workspace. Ten workspaces, twelve providers, zero telemetry." width="100%">
 
 # HashCortx
 
