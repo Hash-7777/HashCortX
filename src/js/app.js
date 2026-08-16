@@ -5752,38 +5752,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const { isSafeExternalUrl, hostnameOf } = window.HCUrlSafety;
 
   /**
-   * Two checks, because one is not enough.
+   * Read a page for the agent.
    *
-   * The first reads the address as written and refuses a literal private one.
-   * It cannot follow a hostname to where it leads — the renderer cannot
-   * resolve a name — so the second asks Rust to resolve it and refuses if any
-   * answer is on this machine or its private network. Without that, a public
-   * name pointing at a router or a metadata service walked straight through.
+   * The fetch happens in Rust (`net_fetch_text`), because the CSP stops this
+   * renderer reaching an ordinary address, and because a fetch made here would
+   * resolve the hostname a second time, after it was checked. The reasoning is
+   * in src-tauri/src/commands/net.rs. The address is still read as written
+   * first: that refuses a literal private one with no round trip, and in a
+   * browser build it is the only check there is.
    */
-  async function fetchUrlIsAllowed(url) {
-    if (!isSafeExternalUrl(url)) return false;
-    const host = hostnameOf(url);
-    if (!host) return false;
-    // Only Tauri can resolve. In a plain browser build the address check is
-    // all there is, and saying so here is better than pretending otherwise.
-    if (!window.HC?.isTauri) return true;
-    try {
-      const verdict = await HC.invoke("net_resolve_is_public", { host });
-      if (!verdict?.ok) {
-        console.warn("[fetch_url] refused:", verdict?.reason || "the address could not be checked");
-        return false;
-      }
-      return true;
-    } catch (e) {
-      // A failed check is a refusal. Treating an error as permission is how a
-      // gate stops being one.
-      console.warn("[fetch_url] address check failed:", e?.message || e);
-      return false;
-    }
-  }
-
   async function fetchUrl(url) {
-    if (!await fetchUrlIsAllowed(url)) return null;
+    if (!isSafeExternalUrl(url)) return null;
+    if (!hostnameOf(url)) return null;
+
     const stripForAgent = (text) =>
       String(text || "")
         .replace(/<script[\s\S]*?<\/script>/gi, " ")
@@ -5793,6 +5774,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         .trim()
         .slice(0, 3000);
 
+    if (window.HC?.isTauri) {
+      try {
+        const out = await HC.invoke("net_fetch_text", { url });
+        if (out?.ok) return stripForAgent(out.text);
+        console.warn("[fetch_url] refused:", out?.reason || "the page could not be read");
+        return null;
+      } catch (e) {
+        // A failed read is a refusal, never permission.
+        console.warn("[fetch_url] failed:", e?.message || e);
+        return null;
+      }
+    }
+    // Browser build: no Rust to fetch through, and no way to resolve a name.
     try {
       const r = await fetch(url, {
         referrerPolicy: "no-referrer",
@@ -5993,6 +5987,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       statusLabel: a => `Reading page: ${(a.url || "").slice(0, 60)}`,
       async execute({ url }) {
         if (!url) return { error: "url is required" };
+        // The address is the model's own, and a URL carries whatever is put in
+        // it, so reading one is also how this conversation could leave. The
+        // policy used to cap this at the connect-src hosts by accident; it now
+        // reaches the whole web. A link the user pasted is not this path.
+        if (window.HC?.guard && !(await HC.guard.request("fetch", url, "Reading a web page")))
+          return { error: "The user declined to read that page." };
         const text = await fetchUrl(url);
         if (!text) return { error: "Could not fetch (timeout, blocked private IP, or non-text page)." };
         addToRAG(url, text, `fetch:${url}`);

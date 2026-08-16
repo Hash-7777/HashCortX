@@ -15,7 +15,7 @@ use commands::{
         fs_read_file, fs_search_files, fs_write_file,
     },
     keychain::{keychain_delete, keychain_retrieve_bundle},
-    net::net_resolve_is_public,
+    net::net_fetch_text,
     notch::notch_activity_post,
     shell::{
         shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream,
@@ -78,8 +78,9 @@ pub fn run() {
             usage_log_append,
             // Hash D Island — "finished" live-activity ping
             notch_activity_post,
-            // Where a hostname actually leads, before the agent fetches it
-            net_resolve_is_public,
+            // Reading a web page: resolved, judged and fetched here, so the
+            // connection goes to the address that was checked.
+            net_fetch_text,
             // Undo — what a file held before the agent changed it.
             //
             // checkpoint_list is what makes the history readable at all: the

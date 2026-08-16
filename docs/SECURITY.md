@@ -58,7 +58,7 @@ Every filesystem and shell call the coding agent wants to make passes through `H
 | delete, shell | **asks** | **asks** |
 | fetch a web page | **asks** | **asks** |
 
-Reading a web page asks even though it touches no file. Chat does it without asking and that is defensible there; in Coder it is not. The agent can read every file in the project, the address comes from the model, and a URL carries whatever is put in it — so a fetch is a way for something just read to leave the machine. The address checks described further down stop it reaching your own network; they have no opinion about a public host, which is why this one is a question rather than a rule.
+Reading a web page asks even though it touches no file, and it asks in chat as well as in Coder. The address comes from the model, and a URL carries whatever is put in it — so a fetch is a way for something the agent has just read, whether a project file or your knowledge base, to leave the machine. The address checks described further down stop it reaching your own network; they have no opinion about a public host, which is why this one is a question rather than a rule. A link you paste yourself is not the model's choice and is read without a dialog.
 
 Reads outside the project folder used to be auto-approved with no dialog at all, on the reasoning that reading modifies nothing. That reasoning does not hold for an agent whose purpose is to send what it reads to a model provider — a prompt-injected model could have read any file you could and placed it in its next request, without you seeing a prompt. They now ask.
 
@@ -155,9 +155,11 @@ Two checks run before any fetch, and both must pass:
 
 The second check is new. Before it, only the first existed, and a perfectly ordinary-looking hostname pointing at a private address passed it — while a comment in the source claimed a server proxy performed the real address check. No server ships with this app, so nothing performed it.
 
-**Honest limit, and it is a real one.** The app resolves the name, and then the webview resolves it *again* when it makes the request. A name that answers differently between those two moments is not caught by this. Closing that gap means performing the fetch in Rust over a connection pinned to the address that was checked, which needs an HTTP stack the Rust side does not currently have. This narrows the hole considerably; it does not seal it.
+**The fetch itself now happens in Rust, and that is what makes the second check mean anything.** It used to be made by the web view, which resolved the hostname *again* to open the connection — so a name that answered with a public address when it was checked and a private one a moment later walked straight through. `net_fetch_text` resolves once, judges every address it gets, and pins the connection to those addresses. The certificate is still validated against the hostname, so pinning the address does not weaken TLS. Every redirect is a fresh address and goes through the whole check again, up to five hops. The reply must be a text-ish content type, is capped at 1 MB, and the request has a 20-second deadline.
 
-In a plain browser build there is no Rust to ask, so only the first check applies. The shipped desktop app runs both.
+Moving the fetch also removed an accidental limit worth naming: under the Content Security Policy the web view could only reach the hosts in `connect-src`, so `fetch_url` could read about twenty addresses and no others. That was never a designed protection — it also meant the tool could not read an ordinary web page — but while it held, a model could only fetch from that short list. Now that the whole web is reachable, **a fetch to an address the model chose asks you first**, in chat as well as in Coder, and a session grant covers that one host. A link you pasted yourself is read without a dialog.
+
+In a plain browser build there is no Rust to fetch through, so only the first check applies and the request is made by the web view. The shipped desktop app runs both.
 
 ### Audit log
 

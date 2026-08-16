@@ -143,6 +143,28 @@ chrono      = { version = "0.4", features = ["serde"] }
 dirs        = "5"
 shellexpand = "3"
 
+# ── ureq ─────────────────────────────────────────────────────
+# The HTTP client behind `net_fetch_text` (src/commands/net.rs), so the agent's
+# page reads happen here instead of in the web view.
+#
+# Why a client here at all: under the Content Security Policy the renderer may
+# only reach the hosts named in connect-src, so it could not read an ordinary
+# web page; and a renderer fetch resolves the hostname a SECOND time, after
+# this crate has checked where it leads. Fetching here lets the connection be
+# pinned to the address that was actually checked.
+#
+# Why ureq specifically: it exposes a Resolver trait, which is what makes that
+# pinning possible without hand-writing HTTP. It was already compiled during
+# every build of this project — ort-sys uses it to download ONNX Runtime — but
+# as a BUILD dependency, so this does add it to the shipped binary.
+#
+# default-features = false drops rustls; the native-tls feature uses the
+# platform's own TLS (Secure Transport, SChannel, OpenSSL) and is the same
+# feature set ort-sys already resolves, so no new TLS stack is introduced.
+# Deliberately without cookies, json, gzip or proxy support: the agent fetches
+# public documents and needs none of them, and each is more surface.
+ureq = { version = "3", default-features = false, features = ["native-tls"] }
+
 # ==============================================================
 # Platform-specific dependencies
 #

@@ -14,10 +14,12 @@
 // name is not something the renderer can do. A public name pointing at
 // 192.168.x.x passes this check.
 //
-// That is why it is only half the check. The other half is
-// `net_resolve_is_public` in src-tauri/src/commands/net.rs, which resolves the
-// name and refuses if any address it answers with is private. Both run before
-// a fetch. docs/SECURITY.md states what is still open after both.
+// That is why it is only half the check. The other half is `net_fetch_text` in
+// src-tauri/src/commands/net.rs, which resolves the name, refuses if any
+// address it answers with is private, and then makes the request itself over a
+// connection pinned to the addresses it just judged — so nothing gets to
+// resolve the name a second time and connect somewhere else. This runs first,
+// because refusing a literal private address needs no round trip.
 //
 // Pure: no DOM, no storage, no network.
 // Loaded before app.js and published as window.HCUrlSafety.

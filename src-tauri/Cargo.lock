@@ -1658,6 +1658,7 @@ dependencies = [
  "tauri-plugin-shell",
  "tauri-plugin-store",
  "tokenizers",
+ "ureq",
 ]
 
 [[package]]
