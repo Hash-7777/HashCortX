@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge",
+    "check": "npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:pdf-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge",
     "check:syntax": "node scripts/checks/syntax.mjs",
     "check:guard": "node scripts/checks/guard.mjs",
     "check:rag": "node scripts/checks/rag.mjs",
@@ -22,6 +22,7 @@
     "check:rag-store": "node scripts/checks/rag-store.mjs",
     "check:url-safety": "node scripts/checks/url-safety.mjs",
     "check:page-text": "node scripts/checks/page-text.mjs",
+    "check:pdf-text": "node scripts/checks/pdf-text.mjs",
     "check:providers": "node scripts/checks/providers.mjs",
     "check:imports": "node scripts/checks/imports.mjs",
     "check:markdown": "node scripts/checks/markdown-safe.mjs",

@@ -12,6 +12,25 @@
     async readFile(path) {
       const ok = await HC.guard.request('read', path, 'Reading file');
       if (!ok) throw new Error(`Permission denied: read ${path}`);
+      // A PDF is not text, so fs_read_file answers with a sentence describing
+      // it. That sentence used to be everything the agent could get: it could
+      // see the file existed and never read a word. The bytes come back
+      // instead and pdf.js turns them into the text they hold — the same
+      // extraction the app already did for a PDF attached to a chat.
+      if (/\.pdf$/i.test(path) && window.HCPdfText) {
+        try {
+          const file = await HC.invoke('fs_read_base64', { path });
+          const name = path.split(/[\\/]/).pop() || path;
+          const out = await HCPdfText.extractFromBase64(file.base64, name);
+          return `[PDF: ${name} · ${out.pages} page(s)]\n\n${out.text}`;
+        } catch (e) {
+          // Fall through to the plain read, which explains what the file is.
+          // A failure here is worth saying out loud rather than silently
+          // handing back a description of a file the agent asked to read.
+          return `[Could not read "${path}" as a PDF: ${e?.message || e}]\n\n` +
+                 (await HC.invoke('fs_read_file', { path }));
+        }
+      }
       return HC.invoke('fs_read_file', { path });
     },
 
@@ -204,7 +223,7 @@
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
-      description: 'Read a file\'s content. Handles text, code, config, and data files. Binary files return a metadata summary. Large files are truncated with a continuation hint.',
+      description: 'Read a file\'s content. Handles text, code, config and data files, and reads a PDF as its text — so a .pdf can be read directly, no shell tool needed. A scanned PDF says so rather than coming back empty. Other binary files return a metadata summary. Large files are truncated with a continuation hint.',
       parameters: {
         path: 'Absolute path to the file',
       },

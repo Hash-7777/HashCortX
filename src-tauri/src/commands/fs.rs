@@ -281,6 +281,76 @@ pub fn fs_delete_file(path: String) -> Result<(), String> {
     fs::remove_file(p).map_err(|e| e.to_string())
 }
 
+/// The raw bytes of a file, base64-encoded.
+///
+/// `fs_read_file` answers for a PDF or an image with a sentence describing it,
+/// because neither is text and returning the bytes as lossy UTF-8 would hand a
+/// model a screenful of noise. That sentence is all the agent could ever get:
+/// it could see that a PDF existed and never read a word of it.
+///
+/// This returns the bytes instead, so the renderer can do what it already does
+/// for an attached file — run a PDF through pdf.js for its text, or hand an
+/// image to a model that can look at one.
+///
+/// The same denylist applies as to every other read. The size cap is the point
+/// of difference: this is base64, which is a third larger again, and all of it
+/// crosses the IPC bridge as one string.
+#[tauri::command]
+pub fn fs_read_base64(path: String, max_bytes: Option<u64>) -> Result<FileBytes, String> {
+    guard_path(&path)?;
+    let p = Path::new(&path);
+
+    let meta = fs::metadata(p).map_err(|e| format!("Cannot access \"{path}\": {e}"))?;
+    if meta.is_dir() {
+        return Err(format!("\"{path}\" is a directory, not a file."));
+    }
+
+    let cap = max_bytes.unwrap_or(DEFAULT_BYTES_CAP).min(HARD_BYTES_CAP);
+    if meta.len() > cap {
+        // Refused rather than truncated. Half a PDF is not a shorter PDF, and
+        // half an image is not a smaller image — both simply fail to parse,
+        // which would read to the model as a corrupt file rather than a large
+        // one.
+        return Err(format!(
+            "\"{path}\" is {} MB, over the {} MB limit for reading a file whole.",
+            meta.len() / 1_000_000,
+            cap / 1_000_000
+        ));
+    }
+
+    let raw = fs::read(p).map_err(|e| format!("Cannot read \"{path}\": {e}"))?;
+    Ok(FileBytes {
+        bytes: raw.len() as u64,
+        base64: encode_base64(&raw),
+    })
+}
+
+/// What a file holds, for the formats that are not text.
+#[derive(Serialize, Debug)]
+pub struct FileBytes {
+    pub base64: String,
+    pub bytes: u64,
+}
+
+/// Default ceiling for reading a whole file across the bridge.
+const DEFAULT_BYTES_CAP: u64 = 12_000_000;
+/// A caller may ask for less than the default, never more than this.
+const HARD_BYTES_CAP: u64 = 25_000_000;
+
+fn encode_base64(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    for chunk in bytes.chunks(3) {
+        let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
+        let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
+        out.push(ALPHABET[(n >> 18) as usize & 63] as char);
+        out.push(ALPHABET[(n >> 12) as usize & 63] as char);
+        out.push(if chunk.len() > 1 { ALPHABET[(n >> 6) as usize & 63] as char } else { '=' });
+        out.push(if chunk.len() > 2 { ALPHABET[n as usize & 63] as char } else { '=' });
+    }
+    out
+}
+
 /// Move or rename a file.
 ///
 /// There was no way to do this except `shell_run mv`, which the undo system
@@ -738,6 +808,79 @@ mod containment_tests {
         ));
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn bytes_come_back_as_base64_that_decodes_to_the_file() {
+        let root = scratch("read-bytes");
+        let f = root.join("thing.bin");
+        // Every byte value, so a sign error or a masking mistake shows up.
+        let raw: Vec<u8> = (0u16..=255).map(|b| b as u8).collect();
+        fs::write(&f, &raw).unwrap();
+
+        let out = fs_read_base64(f.to_string_lossy().into_owned(), None).expect("a readable file");
+        assert_eq!(out.bytes, 256);
+        assert_eq!(decode(&out.base64), raw, "what came back must be the file");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn every_trailing_group_is_padded_correctly() {
+        // 0, 1 and 2 bytes past a group is where base64 padding is decided.
+        let root = scratch("read-bytes-pad");
+        for len in 0..=8usize {
+            let f = root.join(format!("f{len}"));
+            let raw: Vec<u8> = (0..len).map(|i| (i * 37 + 11) as u8).collect();
+            fs::write(&f, &raw).unwrap();
+            let out = fs_read_base64(f.to_string_lossy().into_owned(), None).unwrap();
+            assert_eq!(decode(&out.base64), raw, "length {len} did not survive");
+        }
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_file_over_the_cap_is_refused_rather_than_cut_short() {
+        // Half a PDF is not a shorter PDF — it fails to parse, which reads to
+        // a model as a corrupt file rather than a large one.
+        let root = scratch("read-bytes-cap");
+        let f = root.join("big.bin");
+        fs::write(&f, vec![7u8; 4096]).unwrap();
+        let err = fs_read_base64(f.to_string_lossy().into_owned(), Some(1024))
+            .expect_err("over the cap must be refused");
+        assert!(err.contains("limit"), "unexpected refusal: {err}");
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn reading_bytes_obeys_the_same_denylist_as_reading_text() {
+        let home = dirs::home_dir().expect("a home directory");
+        assert!(fs_read_base64(
+            home.join(".ssh").join("id_ed25519").to_string_lossy().into_owned(),
+            None
+        )
+        .is_err());
+    }
+
+    /// Base64 back to bytes, so the tests check a round trip rather than
+    /// re-stating whatever the encoder happened to produce.
+    fn decode(s: &str) -> Vec<u8> {
+        const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        let mut out = Vec::new();
+        let mut acc = 0u32;
+        let mut bits = 0u32;
+        for ch in s.bytes() {
+            if ch == b'=' {
+                break;
+            }
+            let v = ALPHABET.iter().position(|&a| a == ch).expect("base64 alphabet") as u32;
+            acc = (acc << 6) | v;
+            bits += 6;
+            if bits >= 8 {
+                bits -= 8;
+                out.push((acc >> bits) as u8);
+            }
+        }
+        out
     }
 
     #[test]

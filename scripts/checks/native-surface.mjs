@@ -116,11 +116,30 @@ console.log('\nThe agent tools are gated:');
   // Every HC.code.* tool must ask the guard before invoking anything. This is
   // the single most important line in the app: it is what stands between a
   // language model and the disk.
+  // Per method, not per file. Counting the whole file compares two totals,
+  // which passes a file holding five guarded calls and five unguarded ones —
+  // and fails a method that legitimately reaches Rust twice behind one
+  // question, which is what reading a PDF does: ask once, then either read the
+  // bytes or read the text. What matters is that no method touches Rust
+  // without having asked, and that is what this reads.
   const hashcoder = readFileSync(join(srcDir, 'platform', 'tauri', 'hashcoder.js'), 'utf8');
-  const invokes = (hashcoder.match(/HC\.invoke\(/g) || []).length;
-  const requests = (hashcoder.match(/HC\.guard\.request\(/g) || []).length;
-  check(`every native call has a guard request (${requests} guards / ${invokes} invokes)`,
-    requests >= invokes, 'a tool is reaching Rust without asking first');
+  const methods = [...hashcoder.matchAll(
+    /\n    (?:async )?([A-Za-z]\w*)\((?:[^)]*)\)\s*\{([\s\S]*?)\n    \},/g,
+  )];
+  check(`the tool methods are readable (${methods.length} found)`, methods.length > 5);
+  let unguarded = 0;
+  for (const [, name, body] of methods) {
+    if (!/HC\.invoke\(/.test(body)) continue;
+    const asks = /HC\.guard\.request\(/.test(body);
+    if (!asks) {
+      unguarded++;
+      check(`${name}() reaches Rust without asking first`, false,
+        'every tool must call HC.guard.request before HC.invoke');
+    }
+  }
+  if (unguarded === 0) {
+    check('every tool method asks the guard before it reaches Rust', true);
+  }
 }
 
 console.log('\nEvery command the renderer calls is registered, and every registered command is called:');

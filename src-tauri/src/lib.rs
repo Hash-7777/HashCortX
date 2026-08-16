@@ -12,7 +12,7 @@ use commands::{
     export::export_write_file,
     fs::{
         fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_move_file, fs_path_inside_root,
-        fs_read_file, fs_search_files, fs_write_file,
+        fs_read_base64, fs_read_file, fs_search_files, fs_write_file,
     },
     keychain::{keychain_delete, keychain_retrieve_bundle},
     net::net_fetch_text,
@@ -49,6 +49,7 @@ pub fn run() {
             audit_log_read,
             // Phase 4 — Filesystem
             fs_read_file,
+            fs_read_base64,
             fs_write_file,
             fs_list_dir,
             fs_delete_file,
