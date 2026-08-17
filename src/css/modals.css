@@ -1560,7 +1560,12 @@
     display: grid !important;
     grid-template-columns: repeat(2, minmax(76px, max-content)) !important;
     grid-auto-rows: 30px !important;
-    gap: 0 !important;
+    /* One step of the shared scale. At 0 the tokens-per-second reading and the
+       Export button sat edge to edge and read as one control — and this is the
+       rule that decides it, not the flex `gap` in main.css: that one is on
+       `.topbar .actions`, and this is `.app:not(…) .topbar .actions` with
+       !important, so it wins everywhere in chat mode. */
+    gap: var(--space-2) !important;
     align-items: stretch !important;
     justify-content: end !important;
     flex: 0 0 auto !important;

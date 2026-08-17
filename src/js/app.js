@@ -1134,7 +1134,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     setActiveTitle("New Conversation");
     render();
     renderChatList();
-    if (isNarrow()) app.classList.remove("open");
     input.focus();
   }
 
@@ -1162,7 +1161,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     render();
     renderChatList();
-    if (isNarrow()) app.classList.remove("open");
   }
 
   function deleteChat(id) {
@@ -1266,7 +1264,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       model: modelEl.value || chat?.model || "",
       exportedAt: new Date().toISOString(),
       agentId: state.activeAgentId || null,
-      agentName: (loadAgents().find(a => a.id === state.activeAgentId) || {}).name || undefined,
+      // NOT loadAgents(), which returns nothing and threw here, silently
+      // breaking every export. See scripts/checks/returns.mjs.
+      agentName: getActiveAgent()?.name || undefined,
       messages: state.messages
         .filter(m => !(state.streaming && m === state.messages[state.messages.length - 1] && m.role === "assistant" && !m.content))
         .map(m => ({
@@ -1484,11 +1484,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     e.stopPropagation();
     toggleExportMenu();
   });
-  exportMenu?.addEventListener("click", (e) => {
+  exportMenu?.addEventListener("click", async (e) => {
     const b = e.target.closest("button[data-export]");
     if (!b) return;
     toggleExportMenu(false);
-    exportConversation(b.dataset.export);
+    // Awaited and caught: unawaited, anything this threw became an unhandled
+    // rejection and the button silently did nothing.
+    try {
+      await exportConversation(b.dataset.export);
+    } catch (err) {
+      await themedAlert(`Could not export: ${err?.message || err}`, "Export");
+    }
   });
   document.addEventListener("click", (e) => {
     if (!exportMenu?.classList.contains("open")) return;

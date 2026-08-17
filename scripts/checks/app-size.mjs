@@ -62,7 +62,12 @@ function ratchet(label, actual, budget, whenOver) {
 // Only the files big enough to hide things in. A 300-line module does not need
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
-  'js/app.js': 7048,
+  // 7054, up from 7048. Raised deliberately, and for an error path rather than
+  // a feature: the export menu called an async function without awaiting or
+  // catching it, so when it threw the menu just closed and nothing happened.
+  // Six of these lines are the try/catch and the message that replaced that
+  // silence. Two dead lines calling a function that never existed came out.
+  'js/app.js': 7054,
   'modes/systems/mode.js': 4220,
   'modes/virtual-os/mode.js': 3808,
   'modes/forge/mode.js': 3756,

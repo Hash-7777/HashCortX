@@ -154,7 +154,8 @@ console.log('\nSelectors declared in more than one sheet go down, never up:');
 // how a stylesheet becomes unreadable. modals.css and styles.css hold 246 of
 // the 245-odd in the app between them, which is the shape of the problem.
 const IMPORTANT_BUDGET = {
-  'styles.css': 154,
+  // 153, not 154: one of these was a mention inside a comment.
+  'styles.css': 153,
   // 83, down from 92: the memory map's nine went with its own palette. Every
   // one of them was there to beat a rule the map itself had no need to fight —
   // it was forcing its width, its padding, its display mode and the stroke on
@@ -162,7 +163,8 @@ const IMPORTANT_BUDGET = {
   'css/modals.css': 83,
   'css/modes.css': 17,
   'modes/sandbox/mode.css': 14,
-  'modes/agent-maker/mode.css': 11,
+  // 10, not 11: one was a mention inside a comment.
+  'modes/agent-maker/mode.css': 10,
   'modes/virtual-os/mode.css': 11,
   'modes/code/mode.css': 11,
   'modes/systems/mode.css': 10,
@@ -186,7 +188,10 @@ console.log('\n!important counts go down, never up:');
     Object.keys(IMPORTANT_BUDGET).filter((f) => !SHEETS.includes(f)).join(', '));
 
   for (const file of SHEETS.filter((f) => f in IMPORTANT_BUDGET)) {
-    const n = (read(file).match(/!important/g) || []).length;
+    // Comments first. This counted the word, not the declaration, so a comment
+    // explaining why a rule needs !important read as another one — three sheets
+    // were each carrying a phantom. A note about the debt is not the debt.
+    const n = (read(file).replace(/\/\*[\s\S]*?\*\//g, '').match(/!important/g) || []).length;
     if (n > IMPORTANT_BUDGET[file]) {
       check(`${file}`, false, `${n} !important, budget ${IMPORTANT_BUDGET[file]} — delete the rule it is fighting instead`);
     } else if (n < IMPORTANT_BUDGET[file]) {
