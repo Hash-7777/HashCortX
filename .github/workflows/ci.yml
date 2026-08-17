@@ -6,9 +6,11 @@
 # before it reaches a user: the browser stops executing that script
 # and every feature after it silently disappears.
 #
-# So the gate is deliberately modest and entirely honest about what
-# it proves: the JavaScript parses, the Rust compiles, and the Rust
-# tests pass. It does NOT prove the app works. Only running it does.
+# So the gate is every check the repository has — the frontend suite
+# in `npm run check`, the Rust compile, and the Rust tests, on the three
+# platforms the app targets. Be clear about what that proves: the source
+# holds the properties the checks describe. It does NOT prove the app
+# works. Only running it does.
 #
 # The release pipeline is a separate concern — see docs/future/build.yml.
 # ============================================================
@@ -32,7 +34,7 @@ permissions:
 
 jobs:
   javascript:
-    name: Scripts parse and the Permission Guard behaves
+    name: Frontend checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,119 +43,25 @@ jobs:
         with:
           node-version: 20
 
-      # Every file the app actually loads. Vendored libraries under
-      # src/js/vendor/ are third-party minified builds and are checked
-      # too — a corrupt vendor file breaks the app just as thoroughly.
-      - name: Syntax-check every loaded script
-        run: npm run check:syntax
-
-      # Loads the real guard.js and asserts what it refuses, what it asks
-      # about, and what it lets through unprompted. It is the only thing
-      # between a language model and the user's disk.
-      - name: Permission Guard checks
-        run: npm run check:guard
-
-      # Retrieval fails quietly — nothing crashes when ranking gets worse, the
-      # answers just start missing the point. These pin the ordering rules.
-      - name: Knowledge-base retrieval checks
-        run: npm run check:rag
-
-      # What the model actually sees of a long agent run.
-      - name: Agent context-budgeting checks
-        run: npm run check:agent
-
-      # Export bugs are invisible until someone opens the file a week later.
-      - name: Export formatting checks
-        run: npm run check:export
-
-      # Batching must never reorder a write past a read.
-      - name: Agent loop policy checks
-        run: npm run check:policy
-
-      # Clipped text and wrapped labels are invisible until someone
-      # screenshots the app. These catch the two CSS mistakes that cause them.
-      - name: Layout checks
-        run: npm run check:layout
-
-      # Battery bugs never announce themselves — nothing fails, the laptop is
-      # just warm. These pin what stops when nobody is looking.
-      - name: Idle power checks
-        run: npm run check:power
-
-      # Which files may reach the machine at all. Turns ARCHITECTURE.md rule 1
-      # from prose into something that fails the build.
-      - name: Native surface checks
-        run: npm run check:native
-
-      # HashMeterAi reports this log as measured. That only holds if every
-      # path records, and records real counts.
-      - name: Usage-log checks
-        run: npm run check:usage
-
-      # getElementById returns null rather than throwing, so a control removed
-      # from the markup silently disables the code that reads it. This makes
-      # every such lookup a written-down decision instead of a surprise.
-      - name: Element-lookup checks
-        run: npm run check:dom
-
-      # The diff is what a user reads before deciding whether to keep a change
-      # the agent already made. One that drops a line is worse than none.
-      - name: Diff checks
-        run: npm run check:diff
-
-      # Undo decides whether a user's file gets written over. The case that
-      # matters is the one where nothing usable was saved: it has to refuse
-      # rather than write emptiness and report success.
-      - name: Undo checks
-        run: npm run check:undo
-
-      # Chunking has to cover the whole document. It did not, and half of every
-      # file added to the knowledge base was dropped without a sign.
-      - name: Knowledge-base chunking checks
-        run: npm run check:rag-store
-
-      # Where a language model may send the agent's fetch tool. This gate
-      # shipped with no tests at all.
-      - name: Fetch-address checks
-        run: npm run check:url-safety
-
-      # How much of a fetched page the model is given, and whether it is told
-      # when there is more. A page cut without saying so is answered from its
-      # introduction.
-      - name: Page-text checks
-        run: npm run check:page-text
-
-      # A provider endpoint outside connect-src is not a crash — it is a
-      # blocked request the app reports as the provider being unreachable.
-      - name: Cloud provider checks
-        run: npm run check:providers
-
-      # A vendored library that arrives without a file it imports parses fine
-      # and fails only when the feature is opened. three.js ships as two files
-      # and only one was copied, which took 3D Forge out entirely.
-      - name: Module-import checks
-        run: npm run check:imports
-
-      # The link sanitiser decides which links in a model's reply are safe to
-      # click, and an agent may be quoting a page it fetched.
-      - name: Markdown safety checks
-        run: npm run check:markdown
-
-      # How the conversation is described to each provider. Wrong here is not
-      # an error — it is a request that is accepted and answered badly.
-      - name: Agent request-shape checks
-        run: npm run check:shape
-
-      # Reading a model's identifier: which provider, what to call it, roughly
-      # how capable it is. A tier read too low sends a hard question to a small
-      # model, and the user blames the answer.
-      - name: Model-identifier checks
-        run: npm run check:model-names
-
-      # A fact extracted badly is repeated back for as long as it survives, and
-      # one that never ranks makes the model deny knowing what it was told.
-      - name: Memory checks
-        run: npm run check:memory
+      # One step, and deliberately so. This job used to name each check
+      # script in its own step, and every check written after those steps
+      # were typed ran on a developer's machine and nowhere else — a third
+      # of them, including the one that pins every host the content policy
+      # allows. `npm run check` is the list, so a check added to package.json
+      # gates a push here from the moment it exists.
+      #
+      # What it covers: every loaded script parses (src/ is served unbundled,
+      # so one syntax error silently removes every feature after it), the
+      # Permission Guard still refuses, asks about and permits exactly what it
+      # should, the content policy matches the hosts the source calls, the
+      # argument names on the Tauri bridge match the Rust signatures, retrieval
+      # ranking holds, every element lookup and every registered command is
+      # accounted for, and the stylesheets stay on the shared tokens.
+      #
+      # None of the check scripts import a package — they read the real source
+      # into a Node VM — so there is nothing to install before running them.
+      - name: Every check the repository has
+        run: npm run check
 
   rust:
     name: Rust — ${{ matrix.label }}

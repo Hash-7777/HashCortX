@@ -43,8 +43,8 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **License** | MIT |
 | **Latest release** | v2.5.0 (17 August 2026) — 43 MB DMG for Apple Silicon, 80 MB installed. 33 MB of that is the bundled embedding model, and most of the rest is the runtime that executes it |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~35,700 lines JS, ~4,460 Rust |
-| **Tests** | 89 Rust, 1,376 source checks, CI on Linux, macOS and Windows |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~35,700 lines JS, ~4,530 Rust |
+| **Tests** | 93 Rust tests, run by CI on Linux, macOS and Windows · 1,384 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.5.0 is what this page describes.** It carries 138 commits since v2.0.0 — the offline knowledge base, the security work, Windows and Linux support, and a long list of features that were advertised and did not run. [What changed](CHANGELOG.md#250--2026-08-17), including what is still open.
@@ -147,8 +147,8 @@ Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line T
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # scripts parse, guard, retrieval, agent context
-cargo test --manifest-path src-tauri/Cargo.toml   # 89 tests
+npm run check                                     # 1,384 checks over the real source
+cargo test --manifest-path src-tauri/Cargo.toml   # 93 tests
 ```
 
 ---
