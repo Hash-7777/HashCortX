@@ -74,20 +74,49 @@ console.log('\nLosing the drawing context is survivable:');
   check('the render loop itself checks too', /!mounted \|\| contextLost/.test(src));
 }
 
-console.log('\nA run that lost an agent does not report success:');
+console.log('\nA run that failed does not report success:');
 {
-  // The failure path must not mark the agent done. This is the line that made
-  // a partial model indistinguishable from a finished one.
-  check('a failed agent is marked failed, not done',
-    /catch \(err\) \{[\s\S]{0,600}setAgentState\(role, "failed"\)/.test(src));
-  check('failures are collected', /failedRoles\.push\(/.test(src));
-  check('the closing message reports them', /failedRoles\.length/.test(src));
-  check('"Forge complete" is only said when nothing failed',
-    /failedRoles\.length\)[\s\S]{0,700}Forge complete/.test(src),
-    'the success line must sit in the branch where no agent failed');
-  // Which pass is missing decides what the user does next: the surface pass is
-  // what shapes the silhouette, so losing it is not a detail.
-  check('the message names which agents did not run', /failedRoles\.join\(/.test(src));
+  // The property these used to hold — a partial run must not read as a
+  // finished one — still matters; what can be partial has changed. There is no
+  // three-pass pipeline to lose a pass from any more, so the equivalent is that
+  // the one design call failing ends the run as failed and says so.
+  check('a design that fails ends the run',
+    /failForgeRun\("Parameter Agent", "Model generation failed/.test(src) ||
+    /failForgeRun\([\s\S]{0,120}generation failed/i.test(src),
+    'the design call must route into failForgeRun, not fall through to the success line');
+  check('a plan that produced nothing ends the run',
+    /failForgeRun\([\s\S]{0,160}No model plan was produced/.test(src));
+  check('"Forge complete" is not claimed for an empty scene',
+    /partCount = renderableNodes\(plan\.nodes\)\.length/.test(src),
+    'the closing message must count what actually reached the viewport');
+
+  // The appending passes are gone on purpose. If one comes back, it should be a
+  // decision rather than a drift, so their absence is pinned.
+  check('the three appending passes stay gone',
+    !/ROLE_PIPELINE/.test(src) && !/askRoleAgentWithFailover/.test(src),
+    'Structure, Surface and Detail grew a pile rather than refining a model');
+  check('the Audit Agent stays gone', !/id: "audit"/.test(src));
+}
+
+console.log('\nThe measurements are done in code, not asked of a model:');
+{
+  check('the deterministic stage runs before anything is drawn',
+    /assembleDeterministically\(plan\)[\s\S]{0,200}buildPlan\(plan\)/.test(src));
+  check('it reports what it corrected', /log\("Assemble"/.test(src));
+  check('it never hands back an empty scene',
+    /if \(!out\.parts\.length\)[\s\S]{0,220}return plan;/.test(src));
+  check('one floor height, read from the constant',
+    /const FLOOR_Y = 0;/.test(src) && /grid\.position\.y = FLOOR_Y/.test(src) && /floor\.position\.y = FLOOR_Y/.test(src));
+}
+
+console.log('\nThe design prompt asks for a model, not a part count:');
+{
+  check('no node-count demand', !/\b24 to 56\b|\b38 to 86\b/.test(src),
+    'asking for dozens of parts is what produced a pile of shards');
+  check('symmetry is delegated to the app', /"mirror": true/.test(src));
+  check('audit markers are forbidden rather than requested',
+    /Do not add audit markers/.test(src));
+  check('few parts that read correctly is stated', /FEW PARTS THAT READ CORRECTLY/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/forge/mode.js)`);

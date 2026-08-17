@@ -9,10 +9,12 @@
   };
 
   const AGENTS = [
-    { id: "god",      name: "Parameter Agent", role: "one JSON geometry call",         color: "#e7fbf7" },
-    { id: "structure",name: "Structure Agent", role: "load-bearing / support parts",   color: "#9ff4e7" },
-    { id: "surface",  name: "Surface Agent",   role: "silhouette / material panels",   color: "#f5c97a" },
-    { id: "detail",   name: "Detail Agent",    role: "handles, bolts, seams, grooves", color: "#8fb7ff" },
+    { id: "god",      name: "Design",          role: "one call · designs the whole model", color: "#e7fbf7" },
+    // Structure, Surface and Detail stood here, each appending parts to the
+    // design the first call produced. Nothing owned the silhouette, so they
+    // grew a pile rather than refining a model — and cost three more calls and
+    // three more chances to hit a free-tier limit doing it. One design call,
+    // then measurement, then Improve when a person asks for it.
     // There was an Audit Agent here, asked for clearance, balance and symmetry.
     // Those are measurements, so they moved to src/js/model-plan.js, which does
     // them on every run for no tokens and cannot be rate-limited. It was also
@@ -1900,7 +1902,6 @@
     const prefs = forgePrefs();
     // Which refinement passes did not run. A run that lost one is not a run
     // that finished, and the difference has to reach the user.
-    const failedRoles = [];
     activeReferenceBrief = "";
     resetStages();
     updateStage("input", "done", "prompt locked");
@@ -1960,34 +1961,21 @@
 
     setAgentState("god", "done");
 
-    // ── Multi-agent refinement pipeline ───────────────────────────────
+    // ── One call designs the model ────────────────────────────────────
+    //
+    // There were three more here — Structure, Surface and Detail — each asked
+    // to append parts to the plan the first call produced. Nothing owned the
+    // silhouette, so they did not refine a model, they grew a pile: the run
+    // that prompted this rewrite ended with eighteen disconnected shards that
+    // did not read as a fish. Three extra calls, three more chances to hit a
+    // free-tier limit, and a worse object at the end of them.
+    //
+    // The design is one answer now. What those passes were reaching for —
+    // symmetry, contact, nothing floating — is measured in
+    // src/js/model-plan.js, and Improve exists for the times a person looks at
+    // the result and wants another pass.
     if (!useSample && routeBrief.route !== "organic_diffusion" && abortCtrl && !abortCtrl.signal.aborted) {
-      updateStage("refine", "active", "structure agent");
-      const ROLE_PIPELINE = ["structure", "surface", "detail"];
-      for (const role of ROLE_PIPELINE) {
-        if (abortCtrl.signal.aborted) break;
-        const agentMeta = AGENTS.find((a) => a.id === role);
-        setAgentState(role, "thinking");
-        updateStage("refine", "active", `${agentMeta?.name || role}`);
-        try {
-          const extraNodes = await askRoleAgentWithFailover(role, prompt, plan, activeReferenceBrief, prefs, abortCtrl.signal);
-          if (Array.isArray(extraNodes) && extraNodes.length) {
-            plan.nodes.push(...extraNodes);
-            log(agentMeta?.name || role, `Added ${extraNodes.length} ${role} part(s)`, "ok");
-          } else {
-            log(agentMeta?.name || role, `No ${role} additions needed`, "wait");
-          }
-          setAgentState(role, "done");
-        } catch (err) {
-          // An agent that could not run is not done. Marking it done and
-          // finishing with "Forge complete" is why a model missing its whole
-          // surface pass still looked like a finished run: the part that
-          // shapes the silhouette had dropped out, and nothing said so.
-          failedRoles.push(agentMeta?.name || role);
-          log(agentMeta?.name || role, `${role} failed: ${err.message || err}`, "warn");
-          setAgentState(role, "failed");
-        }
-      }
+      updateStage("refine", "active", "assembling");
 
       // Keep every agent contribution attached to one assembled subject.
       plan = enforceSingleMainModel(prompt, plan, prefs);
@@ -2007,21 +1995,12 @@
     saveCurrentProject(false);
     const partCount = renderableNodes(plan.nodes).length;
     const dot = $("frgTraceDot");
-    if (failedRoles.length) {
-      // Say which pass is missing. Each role contributes a different thing —
-      // losing the surface pass is why a model can come out as bare slabs —
-      // so "complete" over a partial run sends the user to the prompt to fix
-      // something that was never the problem.
-      log("Orchestrator",
-        `Forge finished with ${failedRoles.length} agent(s) failed · ${partCount} mesh part(s)`, "warn",
-        `${failedRoles.join(", ")} did not run — the model is missing that detail. Forge again to retry.`);
-      if (dot) dot.className = "frg-trace-dot error";
-      setStatus("Partial");
-    } else {
-      log("Orchestrator", `Forge complete · ${partCount} mesh part(s) exported`, "ok");
-      if (dot) dot.className = "frg-trace-dot done";
-      setStatus("Ready");
-    }
+    // There was a partial-run branch here, reporting which of the three
+    // appending passes had failed. With one call there is no partial run: the
+    // design either arrived or the run stopped at it and said so.
+    log("Orchestrator", `Forge complete · ${partCount} mesh part(s)`, "ok");
+    if (dot) dot.className = "frg-trace-dot done";
+    setStatus("Ready");
     updateStage("export", "active", `${(prefs.output || "glb").toUpperCase()} ready`);
   }
 
@@ -2071,41 +2050,6 @@
     throw lastError || new Error("all Forge planner routes failed");
   }
 
-  async function askRoleAgentWithFailover(role, prompt, plan, referenceBrief, prefs, signal) {
-    const agentName = AGENTS.find((a) => a.id === role)?.name || role;
-    const sel = $(`frgModel_${role}`);
-    const original = sel?.value || "";
-    const current = selectedModelFor(role);
-    const routes = providerModelsForForge(false)
-      .map(([provider, value, label]) => ({ provider, value, label }))
-      .filter((route) => route.value);
-    const candidates = [
-      { provider: providerFromValue(current), value: current, label: modelLabel(current) },
-      ...routes.filter((route) => route.value !== current),
-    ].filter((route, index, arr) => route.value && arr.findIndex((r) => r.value === route.value) === index);
-    let lastError = null;
-    for (let i = 0; i < Math.min(candidates.length, 4); i++) {
-      const candidate = candidates[i];
-      if (skipCoolingCandidate(candidate, candidates)) continue;
-      if (sel && Array.from(sel.options).some((o) => o.value === candidate.value)) sel.value = candidate.value;
-      if (i > 0) log("Router", `Retrying ${agentName} with ${candidate.label || modelLabel(candidate.value)}`, "warn");
-      let routedSignal = null;
-      try {
-        const timeoutMs = candidate.provider === "local" ? 75_000 : 35_000;
-        routedSignal = timeoutSignal(signal, timeoutMs);
-        return await askRoleAgent(role, prompt, plan, referenceBrief, prefs, routedSignal.signal);
-      } catch (err) {
-        if (signal?.aborted) throw err;
-        lastError = err;
-        markForgeProviderFailure(candidate.provider, err);
-        log(agentName, `${candidate.label || modelLabel(candidate.value)} failed · ${err.message || err}`, "warn");
-      } finally {
-        routedSignal?.cleanup();
-      }
-    }
-    if (sel && original && Array.from(sel.options).some((o) => o.value === original)) sel.value = original;
-    throw lastError || new Error(`all ${role} routes failed`);
-  }
 
   async function requestForgeKernelPlan(prompt, prefs, referenceBrief, routeBrief, signal) {
     const route = routeBrief?.route || "parametric";
@@ -2311,29 +2255,29 @@ Schema:
 }
 Mesh node params for real smooth structures:
 {"positions":[x,y,z,...],"indices":[a,b,c,...],"normals":[x,y,z,...],"uvs":[u,v,...],"subdivisions":1,"center":false}
-Rules:
-- Design the user's requested object, not a default chair.
-- Act like a reference-driven CAD/Blender procedural modeller: decompose the object into recognizable masses, profiles, cuts, rings, struts, panels, knobs, lenses, limbs, housings, and detail features.
-- Build the model yourself from the prompt and reference brief. Do not use a canned template or generic placeholder.
-- Treat Sketchfab/GrabCAD/Thingiverse/Printables/CGTrader/TurboSquid/Free3D/BlendSwap/Poly Haven/Blender modeling references as higher quality than social/video pages.
-- Main visible forms should be smooth mesh surfaces with positions+indices, lathe profiles, extruded profiles, capsules, or organic ellipsoid meshes. Boxes/cylinders are only allowed for small mechanical fixtures, never as the main form for animals, people, characters, vehicles, or sculptural objects.
-- Approximate any shape with custom mesh/extrude/lathe surface nodes first. Use boxes/cylinders only for hard mechanical sub-parts, not as the main body. Use 24 to 56 nodes for ordinary product/furniture/tool prompts and 38 to 86 for complex mechanical or anatomical objects.
-- Use visible scale. Center the model near origin.
-- Structure nodes first, then surface, detail, audit.
-- Prefer lathe over cylinder for ANY revolved or organic curved form (bowls, vases, heads, limbs, torsos, necks, fruit, bottles, lamp shades, knobs). Cylinder is only for straight mechanical shafts. Lathe profiles let you taper, bulge, and round shapes properly.
-- ALWAYS set "subdivisions":1 on every sphere, capsule, lathe, extrude, and mesh node that represents a smooth organic or sculptural surface. The renderer applies Loop-style smoothing so subdivided primitives look polished instead of faceted.
-- ALWAYS set "segments":64 (or higher) on every lathe, cylinder, cone, and capsule. Default segment counts are too low to look smooth at production quality.
-- Use cylinders/torus/spheres/cones/capsules for curved, mechanical, or organic parts, boxes for planar parts, lathe for rotational CAD profiles, and extrude for custom 2D outlines with depth.
+
+How to build it:
+- Design the object in the prompt. Decide its real proportions first, then place parts against them.
+- FEW PARTS THAT READ CORRECTLY. A shape a person recognises beats a pile of pieces. Most objects
+  are 6 to 16 parts. Add a part only when its absence would be noticed; never pad the count.
+- Reach for the shape that describes the form in one part instead of approximating it with several:
+  "extrude" for a silhouette with thickness (a fish body, a leaf, a bracket, a blade),
+  "lathe" for anything turned around an axis (a bowl, a bottle, a limb, a head, a knob),
+  "capsule" for rounded tubes (arms, legs, fingers, handles),
+  "mesh" with positions+indices for a surface none of those describe.
+  Boxes and cylinders are for genuinely boxy or cylindrical parts, not as a substitute for a curve.
+- Set "subdivisions":1 on every smooth organic surface and "segments":64 on lathes, cylinders,
+  cones and capsules. The defaults look faceted.
+- Symmetry: build ONE side and set "mirror": true on it. The app mirrors it exactly across x=0.
+  Do not hand-place a left and a right copy — they will never match, and the app will not fix it.
+- Every part must touch or overlap another. One object, nothing floating beside it.
+- Do not add audit markers, rings, reference planes, rulers or floor pads. The app measures
+  clearance, balance and floor contact itself, and anything like that becomes an unwanted part.
+- The app puts the model on the floor. Build it around the origin and do not compensate.
+- Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
-- For GLB/game output, keep separate named parts, clean pivots, no audit geometry unless it helps editing. For 3D print, make parts visually connected, grounded, and avoid tiny floating details.
-- For animals, people, products, vehicles, tools, symbols, architecture, furniture, machines, or abstract sculptures, build a recognizable primitive approximation.
-- For phones/smartphones, return a recognizable smartphone, not a plain slab: rounded frame, glass display, bezels/metal rails, camera bump/island, multiple lenses/rings, flash, speaker slots, charging port, side buttons, sensors, and UI/display details. Minimum 18 visible non-audit parts.
-- For animals, build a real quadruped model with smooth mesh surface nodes: horizontal torso mesh, chest/hip masses, neck, head mesh, muzzle, two ears, four legs with paws, and tail. Name those parts explicitly. Never return a mushroom, pedestal, humanoid, chair-like stack, or abstract mascot when the prompt asks for an animal.
-- For spoons or cutlery, build a recognizable utensil: a shallow concave oval bowl/scoop mesh, raised rim/lip, narrowed neck transition, long tapered handle mesh, rounded handle end, metal bevels/highlights, and polished steel/silver material. Never return a symbol, pentagon, plaque, ball, or generic primitive stack.
-- For people or humanoid characters, build a proportional anatomical body model, not a toy mannequin: head about 1/7.5 body height, ribcage narrower than shoulders, pelvis below abdomen, arms hanging beside torso, knees/ankles aligned, hands and feet sized correctly.
-- If the prompt specifically asks for a human skeleton, return only anatomical bones and joints. Do not add skin shells, clothing, rulers, audit rods, red rings, floor planes, or decorative markers.
-- ONE SUBJECT RULE: build exactly one primary object. Every non-audit part must touch, overlap, or visibly connect to that object. Do not add loose side pieces, floating decorative spheres, random orbit rings, unrelated markers, or a second mini-model beside the requested object.
-- Put audit markers last and only when they clarify floor contact, balance, symmetry, clearance, overhang, or wall thickness.
+- For 3D print, keep parts visibly connected and avoid tiny fragile details. For GLB, keep parts
+  separate and named with clean pivots.
 - Keep coordinates within roughly -3..3 unless needed.`;
     const user = `Design this as a complete 3D model, ready to preview and export.
 Prompt: ${prompt}
@@ -2353,45 +2297,6 @@ ${referenceBrief || "No external reference brief available; infer from general o
     }
   }
 
-  async function askRoleAgent(role, prompt, plan, referenceBrief, prefs, signal) {
-    const api = window._H;
-    const model = selectedModelFor(role);
-    if (!api?.ollamaChat || !model) throw new Error("no model bridge");
-    const existing = JSON.stringify({
-      name: plan.name,
-      nodes: plan.nodes.map((n) => ({ id: n.id, name: n.name, type: n.type, role: n.role, position: n.position, rotation: n.rotation, scale: n.scale, params: n.params })).slice(0, 42),
-    });
-    const system = `Return only JSON array, no markdown.
-You are the Forge ${role} agent. Add only ${role} nodes that make the requested 3D object more recognizable.
-Allowed node schema:
-{"id":"stable_unique_id","name":"part","type":"mesh|box|cylinder|capsule|sphere|cone|torus|lathe|extrude","role":"${role}","position":[x,y,z],"rotation":[x,y,z],"scale":[x,y,z],"params":{"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"subdivisions":0},"color":"#hex"}
-Return [] only if the current plan is already sufficient for your role and has clear object-specific named features.
-If the current plan is sparse, generic, or below 18 visible non-audit parts, add concrete attached parts for your role.
-Maximum ${prefs?.detail === "high" ? 14 : prefs?.detail === "fast" ? 5 : 9} nodes. Keep coordinates near the existing model.
-Use this style/output target: ${prefs?.style || "realistic"} / ${prefs?.output || "glb"}.
-Use the reference brief to add accurate object-specific parts, not generic decoration.
-Single subject rule: every new node must attach to an existing visible part as a surface, limb, support, panel, handle, fastener, seam, or material feature. Never add a freestanding object, loose sample primitive, second character, side prop, or detached mini-model. Return [] if your only idea would be separate from the main object.
-For phones, add only smartphone parts: rounded frame, screen glass, bezels, camera island, lens rings, flash, speaker slots, charging port, side buttons, sensors, and subtle UI tiles.
-For animals, add only anatomical quadruped parts: torso/chest/hips, head/muzzle, ears, legs, paws, tail, eyes, nose, whiskers, fur patches.
-For spoons, add only utensil parts: concave bowl/scoop, rim/lip, neck/shoulder transition, long tapered handle, end cap, bevels, polished metal highlights.
-Do not add floating decorations or abstract markers. Structure must add load-bearing/support parts; surface must refine silhouette/material panels; detail must add handles, bolts, seams, bevels, grooves, controls, or functional small parts; audit must add only clearance/balance/floor/symmetry review markers.`;
-    const text = await api.ollamaChat(model, [
-      { role: "system", content: system },
-      { role: "user", content: `User object: ${prompt}\nReference brief:\n${referenceBrief || "No reference brief."}\n\nCurrent plan: ${existing}` },
-    ], null, signal);
-    let arr = null;
-    try {
-      arr = parseJsonPayload(text, "array");
-    } catch (err) {
-      log(AGENTS.find((a) => a.id === role)?.name || role, `JSON repair pass · ${err.message || err}`, "warn");
-      arr = parseJsonPayload(await repairForgeJson("array", prompt, text, signal, model), "array");
-    }
-    if (!Array.isArray(arr)) return [];
-    return normalizePlan({ name: plan.name, nodes: arr }).nodes
-      .filter((node) => node.role === role)
-      .map((node, i) => ({ ...node, id: `${role}_${Date.now()}_${i}_${node.id}` }))
-      .slice(0, prefs?.detail === "high" ? 14 : prefs?.detail === "fast" ? 5 : 9);
-  }
 
   function parsePlan(text) {
     const parsed = parseJsonPayload(text, "object");

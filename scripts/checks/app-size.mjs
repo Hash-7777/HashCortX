@@ -90,7 +90,7 @@ const LINE_BUDGET = {
   // floor contact and unrenderable parts are settled in code before anything
   // is drawn, and the Audit Agent that used to be asked for them — and that
   // added marker geometry of its own — is gone from the pipeline.
-  'modes/forge/mode.js': 3872,
+  'modes/forge/mode.js': 3777,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
