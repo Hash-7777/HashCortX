@@ -1839,10 +1839,6 @@
     return /skeleton|bones|anatomy/.test(q) && !/person with|character with|with (skin|body|outer|muscle)/.test(q);
   }
 
-  function needsTemplateAuthority(prompt) {
-    return isKnifeLikePrompt(prompt) || isSwordLikePrompt(prompt) || isDroneLikePrompt(prompt) || isSpoonLikePrompt(prompt) || isPhonePrompt(prompt) || isLaptopPrompt(prompt);
-  }
-
   function isKnifeLikePrompt(prompt) {
     return /knife|dagger|scalpel/.test(String(prompt || "").toLowerCase());
   }
@@ -1859,14 +1855,6 @@
 
   function isDroneLikePrompt(prompt) {
     return /drone|quad\s?copter|quad\s?rotor|uav/.test(String(prompt || "").toLowerCase());
-  }
-
-  function isPhonePrompt(prompt) {
-    return /\b(iphone|phone|smartphone|mobile phone|handset)\b/i.test(String(prompt || ""));
-  }
-
-  function isLaptopPrompt(prompt) {
-    return /\b(laptop|macbook|notebook computer|ultrabook)\b/i.test(String(prompt || ""));
   }
 
   function classifyForgePrompt(prompt) {
@@ -1977,13 +1965,17 @@
     if (!useSample && routeBrief.route !== "organic_diffusion" && abortCtrl && !abortCtrl.signal.aborted) {
       updateStage("refine", "active", "assembling");
 
-      // Keep every agent contribution attached to one assembled subject.
+      // One subject, centred and grounded.
       plan = enforceSingleMainModel(prompt, plan, prefs);
 
-      // Enrich sparse plans with procedural fallback nodes — disabled to keep pure AI generation
-      plan = ensurePlanRichness(prompt, plan, false);
-
-      // Normalize and cap
+      // There was a padding pass here, topping a sparse plan up to a minimum
+      // node count — as many as forty parts — with pieces taken from the
+      // built-in template for the subject. Its only caller had already
+      // switched it off, so the body was unreachable while still reading like
+      // a live feature. It is gone rather than left as something to switch
+      // back on: the design prompt now asks for few parts that read
+      // correctly, and padding a good twelve-part model up to forty is the
+      // opposite of that.
       plan = normalizePlan(plan);
       plan.route = routeBrief.route;
     }
@@ -2313,118 +2305,6 @@ ${referenceBrief || "No external reference brief available; infer from general o
     return /\b(cat|kitten|dog|puppy|horse|lion|tiger|wolf|fox|bear|rabbit|deer|cow|bull|goat|sheep|elephant|giraffe|zebra|animal)\b/i.test(String(prompt || ""));
   }
 
-  function reconstructMeshStructure(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (!isAnimalPrompt(prompt)) return normalized;
-    const text = normalized.nodes.map((n) => `${n.id} ${n.name} ${n.type}`).join(" ").toLowerCase();
-    const hasMeshSkin = /\bmesh_skin\b|smooth .* mesh|torso_mesh|head_mesh/.test(text);
-    const meshCount = normalized.nodes.filter((n) => n.type === "mesh").length;
-    if (hasMeshSkin && meshCount >= 6) return normalized;
-    const q = String(prompt || "").toLowerCase();
-    const cat = /\bcat|kitten\b/.test(q);
-    const fur = cat ? "#9b7a46" : "#8f7654";
-    const dark = cat ? "#3d3024" : "#3f3428";
-    const light = cat ? "#d4b37a" : "#c9a77a";
-    const meshNodes = [
-      ellipsoidMesh("mesh_skin_torso", "Smooth torso mesh skin", "structure", [0, 0.05, 0], [1.18, 0.42, 0.46], fur),
-      ellipsoidMesh("mesh_skin_chest", "Smooth chest mesh mass", "structure", [0, 0.14, 0.48], [0.58, 0.43, 0.38], light),
-      ellipsoidMesh("mesh_skin_hips", "Smooth hip mesh mass", "structure", [0, 0.08, -0.48], [0.64, 0.38, 0.42], fur),
-      ellipsoidMesh("mesh_skin_neck", "Curved neck mesh", "structure", [0, 0.38, 0.72], [0.26, 0.34, 0.24], fur),
-      ellipsoidMesh("mesh_skin_head", "Smooth cat head mesh", "structure", [0, 0.68, 0.96], [0.43, 0.34, 0.36], fur),
-      ellipsoidMesh("mesh_skin_muzzle", "Projected muzzle mesh", "surface", [0, 0.62, 1.24], [0.22, 0.13, 0.16], light),
-      coneMesh("mesh_left_ear", "Left triangular ear mesh", "surface", [-0.23, 1.02, 0.96], [0.16, 0.32, 0.13], dark, [0, 0, -0.22]),
-      coneMesh("mesh_right_ear", "Right triangular ear mesh", "surface", [0.23, 1.02, 0.96], [0.16, 0.32, 0.13], dark, [0, 0, 0.22]),
-      tubeMesh("mesh_tail", "Curved raised tail mesh", "structure", [[0, 0.18, -0.9], [0.1, 0.42, -1.22], [0.16, 0.86, -1.38], [0.08, 1.1, -1.16]], 0.07, fur),
-    ];
-    [
-      ["front_left", -0.34, 0.42],
-      ["front_right", 0.34, 0.42],
-      ["hind_left", -0.36, -0.42],
-      ["hind_right", 0.36, -0.42],
-    ].forEach(([id, x, z]) => {
-      const front = String(id).startsWith("front");
-      const dz = front ? 0.16 : -0.08;
-      meshNodes.push(tubeMesh(`mesh_${id}_upper_leg`, `${id.replace(/_/g, " ")} upper leg mesh`, "structure", [[x, -0.04, z], [x * 1.04, -0.36, z + dz * 0.35], [x * 1.05, -0.58, z + dz * 0.55]], 0.085, fur));
-      meshNodes.push(tubeMesh(`mesh_${id}_lower_leg`, `${id.replace(/_/g, " ")} lower leg mesh`, "structure", [[x * 1.05, -0.56, z + dz * 0.55], [x * 1.08, -0.76, z + dz * 0.85], [x * 1.08, -0.9, z + dz]], 0.06, fur));
-      meshNodes.push(ellipsoidMesh(`mesh_${id}_paw`, `${id.replace(/_/g, " ")} paw mesh`, "surface", [x * 1.08, -0.94, z + dz + 0.04], [0.15, 0.055, 0.12], light));
-    });
-    meshNodes.push(
-      ellipsoidMesh("mesh_left_eye", "Left eye inset mesh", "detail", [-0.13, 0.72, 1.27], [0.035, 0.025, 0.018], "#050505"),
-      ellipsoidMesh("mesh_right_eye", "Right eye inset mesh", "detail", [0.13, 0.72, 1.27], [0.035, 0.025, 0.018], "#050505"),
-      ellipsoidMesh("mesh_nose", "Nose mesh", "detail", [0, 0.62, 1.38], [0.045, 0.03, 0.025], "#1b1110")
-    );
-    [-1, 1].forEach((side) => {
-      [-0.04, 0.02, 0.08].forEach((dy, i) => {
-        meshNodes.push(tubeMesh(`mesh_whisker_${side > 0 ? "right" : "left"}_${i}`, `${side > 0 ? "Right" : "Left"} whisker mesh ${i + 1}`, "detail", [[side * 0.08, 0.62 + dy, 1.38], [side * 0.42, 0.62 + dy + 0.03, 1.54]], 0.009, "#f1e4c8"));
-      });
-    });
-    [
-      ["front_left", -0.34, 0.62],
-      ["front_right", 0.34, 0.62],
-      ["hind_left", -0.36, -0.22],
-      ["hind_right", 0.36, -0.22],
-    ].forEach(([id, x, z]) => {
-      meshNodes.push(ellipsoidMesh(`mesh_${id}_toe_pad`, `${id.replace(/_/g, " ")} toe pad mesh`, "detail", [x, -0.93, z], [0.045, 0.018, 0.035], "#2a1d18"));
-    });
-    const next = {
-      ...normalized,
-      name: normalized.name || (cat ? "Mesh cat model" : "Mesh animal model"),
-      nodes: meshNodes.slice(0, MAX_FORGE_NODES),
-    };
-    log("Surface Agent", `Reconstructed organic mesh surface · ${meshNodes.length} mesh node(s)`, "ok");
-    return next;
-  }
-
-  function reconstructSkullStructure(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (!isSkullPrompt(prompt)) return normalized;
-    const text = normalized.nodes.map((n) => `${n.id} ${n.name} ${n.type}`).join(" ").toLowerCase();
-    const hasSkullMesh = /\bmesh_cranium\b|smooth cranium mesh|orbital socket mesh/.test(text);
-    if (hasSkullMesh && normalized.nodes.length >= 24) return normalized;
-    const bone = "#d8d2bd";
-    const shadow = "#6f6b60";
-    const dark = "#070807";
-    const nodes = [
-      ellipsoidMesh("mesh_cranium", "CT-like smooth cranium skull vault mesh", "structure", [0, 0.62, -0.04], [0.62, 0.72, 0.56], bone),
-      ellipsoidMesh("mesh_occipital_back", "Rounded occipital back skull mesh", "structure", [0, 0.5, -0.42], [0.5, 0.44, 0.28], bone),
-      ellipsoidMesh("mesh_forehead_frontal", "Sloped frontal bone forehead mesh", "surface", [0, 0.79, 0.38], [0.46, 0.27, 0.18], bone, [-0.12, 0, 0]),
-      ellipsoidMesh("mesh_left_parietal", "Left parietal bone mesh", "surface", [-0.39, 0.6, -0.04], [0.2, 0.43, 0.4], bone),
-      ellipsoidMesh("mesh_right_parietal", "Right parietal bone mesh", "surface", [0.39, 0.6, -0.04], [0.2, 0.43, 0.4], bone),
-      torus("mesh_left_orbital_rim", "Left eye socket orbital rim mesh", "structure", [-0.24, 0.4, 0.54], 0.16, 0.024, bone, [0, Math.PI / 2, 0]),
-      torus("mesh_right_orbital_rim", "Right eye socket orbital rim mesh", "structure", [0.24, 0.4, 0.54], 0.16, 0.024, bone, [0, Math.PI / 2, 0]),
-      ellipsoidMesh("mesh_left_eye_socket_void", "Left eye socket dark hollow mesh", "surface", [-0.24, 0.39, 0.57], [0.14, 0.105, 0.035], dark),
-      ellipsoidMesh("mesh_right_eye_socket_void", "Right eye socket dark hollow mesh", "surface", [0.24, 0.39, 0.57], [0.14, 0.105, 0.035], dark),
-      coneMesh("mesh_nasal_cavity", "Pear-shaped nasal cavity aperture mesh", "surface", [0, 0.18, 0.6], [0.14, 0.3, 0.07], dark, [Math.PI, 0, 0]),
-      ellipsoidMesh("mesh_nasal_bridge", "Nasal bridge bone mesh", "surface", [0, 0.33, 0.59], [0.07, 0.17, 0.055], bone),
-      tubeMesh("mesh_left_zygoma", "Left zygomatic cheekbone arch mesh", "structure", [[-0.16, 0.25, 0.52], [-0.36, 0.22, 0.45], [-0.52, 0.19, 0.24]], 0.045, bone),
-      tubeMesh("mesh_right_zygoma", "Right zygomatic cheekbone arch mesh", "structure", [[0.16, 0.25, 0.52], [0.36, 0.22, 0.45], [0.52, 0.19, 0.24]], 0.045, bone),
-      ellipsoidMesh("mesh_maxilla", "Upper jaw maxilla mesh", "structure", [0, 0.04, 0.46], [0.38, 0.18, 0.17], bone),
-      ellipsoidMesh("mesh_palate", "Hard palate underside mesh", "surface", [0, -0.07, 0.33], [0.28, 0.045, 0.16], shadow),
-      ellipsoidMesh("mesh_mandible", "Detached lower jaw mandible mesh", "structure", [0, -0.28, 0.34], [0.43, 0.16, 0.16], bone),
-      tubeMesh("mesh_left_mandible_ram", "Left mandible ramus mesh", "structure", [[-0.36, -0.2, 0.22], [-0.42, 0.02, 0.24], [-0.34, 0.18, 0.32]], 0.055, bone),
-      tubeMesh("mesh_right_mandible_ram", "Right mandible ramus mesh", "structure", [[0.36, -0.2, 0.22], [0.42, 0.02, 0.24], [0.34, 0.18, 0.32]], 0.055, bone),
-      ellipsoidMesh("mesh_chin", "Rounded chin mental protuberance mesh", "surface", [0, -0.34, 0.42], [0.18, 0.08, 0.09], bone),
-      ellipsoidMesh("mesh_left_temporal", "Left temporal bone depression mesh", "surface", [-0.5, 0.33, 0.08], [0.09, 0.18, 0.16], shadow),
-      ellipsoidMesh("mesh_right_temporal", "Right temporal bone depression mesh", "surface", [0.5, 0.33, 0.08], [0.09, 0.18, 0.16], shadow),
-    ];
-    for (let i = 0; i < 8; i++) {
-      const x = -0.245 + i * 0.07;
-      nodes.push(ellipsoidMesh(`mesh_upper_tooth_${i}`, `Upper tooth ${i + 1} mesh`, "detail", [x, -0.105, 0.565], [0.025, 0.07, 0.026], "#eee8d3"));
-      nodes.push(ellipsoidMesh(`mesh_lower_tooth_${i}`, `Lower tooth ${i + 1} mesh`, "detail", [x, -0.265, 0.54], [0.023, 0.055, 0.024], "#eee8d3"));
-    }
-    nodes.push(
-      tubeMesh("mesh_left_brow_ridge", "Left brow ridge mesh", "surface", [[-0.42, 0.51, 0.5], [-0.25, 0.55, 0.55], [-0.08, 0.5, 0.52]], 0.035, bone),
-      tubeMesh("mesh_right_brow_ridge", "Right brow ridge mesh", "surface", [[0.42, 0.51, 0.5], [0.25, 0.55, 0.55], [0.08, 0.5, 0.52]], 0.035, bone),
-      tubeMesh("mesh_sagittal_suture", "Sagittal skull suture mesh", "detail", [[0, 1.18, -0.18], [0, 1.1, 0.08], [0, 0.95, 0.36]], 0.012, shadow),
-      tubeMesh("mesh_coronal_suture_left", "Left coronal skull suture mesh", "detail", [[-0.44, 0.86, 0.18], [-0.22, 0.98, 0.28], [0, 1.02, 0.3]], 0.01, shadow),
-      tubeMesh("mesh_coronal_suture_right", "Right coronal skull suture mesh", "detail", [[0.44, 0.86, 0.18], [0.22, 0.98, 0.28], [0, 1.02, 0.3]], 0.01, shadow),
-      tubeMesh("mesh_left_dental_arcade", "Left dental arcade curve mesh", "surface", [[-0.33, -0.1, 0.48], [-0.2, -0.13, 0.58], [0, -0.14, 0.61]], 0.018, bone),
-      tubeMesh("mesh_right_dental_arcade", "Right dental arcade curve mesh", "surface", [[0.33, -0.1, 0.48], [0.2, -0.13, 0.58], [0, -0.14, 0.61]], 0.018, bone)
-    );
-    log("Surface Agent", `Reconstructed anatomical skull mesh · ${nodes.length} mesh node(s)`, "ok");
-    return { ...normalized, name: "Anatomical mesh skull", nodes: nodes.slice(0, MAX_FORGE_NODES) };
-  }
-
   function reconstructSpoonStructure(prompt, plan) {
     const normalized = normalizePlan(plan);
     if (!isSpoonLikePrompt(prompt)) return normalized;
@@ -2674,172 +2554,22 @@ ${referenceBrief || "No external reference brief available; infer from general o
     return genericPlan(prompt);
   }
 
-  function ensurePlanRichness(prompt, plan, allowLocalTemplates) {
-    const normalized = normalizePlan(plan);
-    if (!allowLocalTemplates) return normalized;
-    const q = String(prompt || "").toLowerCase();
-    const minNodes = ((/iphone|phone|smartphone|mobile/.test(q) || /laptop|macbook|notebook|computer/.test(q)) && /table|desk|workbench/.test(q)) ? 48 : /person|human|humanoid|character|man|woman|body|anatomy|skeleton/.test(q) ? 40 : /iphone|phone|smartphone|mobile|laptop|macbook|notebook|computer/.test(q) ? 22 : /table|desk|workbench|bench|dining/.test(q) ? 22 : needsTemplateAuthority(q) ? 18 : /long|complex|detailed|advanced|cad|blender|mechanism|machine/.test(q) ? 16 : 12;
-    if (normalized.nodes.length >= minNodes) return normalized;
-    const fallback = fallbackPlan(prompt);
-    const existingNames = new Set(normalized.nodes.map((n) => `${n.name}`.toLowerCase()));
-    const additions = fallback.nodes
-      .filter((node) => !existingNames.has(`${node.name}`.toLowerCase()))
-      .map((node, i) => ({ ...node, id: `local_${Date.now().toString(36)}_${i}_${node.id}` }))
-      .slice(0, minNodes - normalized.nodes.length);
-    if (additions.length) {
-      normalized.nodes = normalized.nodes.concat(additions);
-      log("Forge CAD", `Enriched sparse model plan with ${additions.length} procedural node(s)`, "ok", `${normalized.nodes.length} total`);
-    }
-    return normalized;
-  }
-
-  function isToolPlanSane(prompt, plan) {
-    const q = String(prompt || "").toLowerCase();
-    const normalized = normalizePlan(plan);
-    if (isDroneLikePrompt(q)) return isDronePlanSane(plan);
-    if (isSpoonLikePrompt(q)) return isSpoonPlanSane(plan);
-    if (!isKnifeLikePrompt(q) && !isSwordLikePrompt(q)) return true;
-    const nodes = renderableNodes(normalized.nodes);
-    const bladeNodes = nodes.filter((node) => /blade|edge|tip|spine|fuller/i.test(`${node.id} ${node.name}`));
-    const handleNodes = nodes.filter((node) => /handle|grip|guard|pommel|tang/i.test(`${node.id} ${node.name}`));
-    if (!bladeNodes.length || !handleNodes.length) return false;
-    const bladeBox = boundsForNodes(bladeNodes);
-    const allBox = boundsForNodes(nodes);
-    if (!bladeBox || !allBox) return false;
-    const bladeSize = [
-      bladeBox.max[0] - bladeBox.min[0],
-      bladeBox.max[1] - bladeBox.min[1],
-      bladeBox.max[2] - bladeBox.min[2],
-    ];
-    const allSize = [
-      allBox.max[0] - allBox.min[0],
-      allBox.max[1] - allBox.min[1],
-      allBox.max[2] - allBox.min[2],
-    ];
-    const longestBladeAxis = bladeSize.indexOf(Math.max(...bladeSize));
-    const longestAll = Math.max(...allSize);
-    const verticalDominance = allSize[1] > Math.max(allSize[0], allSize[2]) * 1.35;
-    const bladeTooChunky = Math.max(bladeSize[(longestBladeAxis + 1) % 3], bladeSize[(longestBladeAxis + 2) % 3]) > Math.max(bladeSize[longestBladeAxis] * 0.45, 0.45);
-    return longestAll >= 1.2 && !verticalDominance && !bladeTooChunky;
-  }
-
-  function isDronePlanSane(plan) {
-    const normalized = normalizePlan(plan);
-    const nodes = renderableNodes(normalized.nodes);
-    const rotorNodes = nodes.filter((node) => /rotor|prop|propeller|guard|motor/i.test(`${node.id} ${node.name}`));
-    const bodyNodes = nodes.filter((node) => /body|core|fuselage|avionics|camera|lens/i.test(`${node.id} ${node.name}`));
-    const guardNodes = nodes.filter((node) => /guard|halo/i.test(`${node.id} ${node.name}`));
-    const propNodes = nodes.filter((node) => /prop|propeller|blade/i.test(`${node.id} ${node.name}`));
-    const landingNodes = nodes.filter((node) => /landing|skid|strut/i.test(`${node.id} ${node.name}`));
-    if (rotorNodes.length < 12 || !bodyNodes.length || guardNodes.length < 4 || propNodes.length < 4 || !landingNodes.length) return false;
-    const allBox = boundsForNodes(nodes);
-    if (!allBox) return false;
-    const size = [
-      allBox.max[0] - allBox.min[0],
-      allBox.max[1] - allBox.min[1],
-      allBox.max[2] - allBox.min[2],
-    ];
-    return Math.max(size[0], size[2]) >= 1.8 && size[1] < Math.max(size[0], size[2]) * 0.75;
-  }
-
-  function isPhonePlanSane(plan) {
-    const normalized = normalizePlan(plan);
-    const nodes = renderableNodes(normalized.nodes);
-    if (nodes.length < 16) return false;
-    const text = nodes.map((node) => `${node.id} ${node.name} ${node.type}`).join(" ").toLowerCase();
-    const cameraNodes = nodes.filter((node) => /camera|lens|flash/i.test(`${node.id} ${node.name}`));
-    const controlNodes = nodes.filter((node) => /button|port|speaker|notch|sensor|bezel|rail|frame/i.test(`${node.id} ${node.name}`));
-    const hasBody = /\b(body|chassis|frame|case|shell)\b/.test(text);
-    const hasScreen = /\b(screen|display|glass|panel)\b/.test(text);
-    const box = boundsForNodes(nodes);
-    if (!box) return false;
-    const size = [box.max[0] - box.min[0], box.max[1] - box.min[1], box.max[2] - box.min[2]].sort((a, b) => a - b);
-    const thinEnough = size[0] <= Math.max(0.18, size[2] * 0.22);
-    const longEnough = size[2] >= size[1] * 1.35;
-    return hasBody && hasScreen && cameraNodes.length >= 3 && controlNodes.length >= 4 && thinEnough && longEnough;
-  }
-
-  function isLaptopPlanSane(plan) {
-    const normalized = normalizePlan(plan);
-    const nodes = renderableNodes(normalized.nodes);
-    if (nodes.length < 18) return false;
-    const text = nodes.map((node) => `${node.id} ${node.name} ${node.type}`).join(" ").toLowerCase();
-    return /base|chassis/.test(text) && /screen|display|lid/.test(text) && /keyboard|key/.test(text) && /trackpad|touchpad/.test(text) && /hinge/.test(text);
-  }
-
-  function reconstructPhoneStructure(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (isPhonePlanSane(normalized)) return normalized;
-    const rebuilt = phonePlan(prompt);
-    log("Geometry Kernel", `Rebuilt phone-specific product model · ${renderableNodes(rebuilt.nodes).length} part(s)`, "warn");
-    return rebuilt;
-  }
-
-  function reconstructLaptopStructure(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (isLaptopPlanSane(normalized)) return normalized;
-    const rebuilt = laptopPlan(prompt);
-    log("Geometry Kernel", `Rebuilt laptop-specific product model · ${renderableNodes(rebuilt.nodes).length} part(s)`, "warn");
-    return rebuilt;
-  }
-
-  function reconstructKnownObjectStructure(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (isDroneLikePrompt(prompt) && !isDronePlanSane(normalized)) {
-      const rebuilt = dronePlan(prompt);
-      log("Geometry Kernel", `Rebuilt drone-specific engineering model · ${renderableNodes(rebuilt.nodes).length} part(s)`, "warn");
-      return rebuilt;
-    }
-    if ((isKnifeLikePrompt(prompt) || isSwordLikePrompt(prompt)) && !isToolPlanSane(prompt, normalized)) {
-      const rebuilt = fallbackPlan(prompt);
-      log("Geometry Kernel", `Rebuilt tool-specific model · ${renderableNodes(rebuilt.nodes).length} part(s)`, "warn");
-      return rebuilt;
-    }
-    return normalized;
-  }
-
-  function isSpoonPlanSane(plan) {
-    return normalizePlan(plan).nodes.length > 0;
-  }
-
+  /**
+   * One subject, centred and grounded.
+   *
+   * Six branches used to sit here, each testing the generated plan against a
+   * hand-written idea of what a phone, a laptop, a drone, a knife, an animal
+   * or a skull should contain — and replacing it with built-in geometry when
+   * it disagreed. So the app asked a model to design something, paid for the
+   * answer, and then quietly served a template instead, logging it as a
+   * rebuild. It also made the design prompt untestable: a good generation and
+   * a substituted one looked the same on screen.
+   *
+   * The built-in plans still exist and are still reachable — Mock builds from
+   * them deliberately. What has gone is their power to overrule a real answer.
+   */
   function enforceSingleMainModel(prompt, plan) {
-    let normalized = normalizePlan(plan);
-    if (isPhonePrompt(prompt) && !isPhonePlanSane(normalized)) {
-      normalized = reconstructPhoneStructure(prompt, normalized);
-    }
-    if (isLaptopPrompt(prompt) && !isLaptopPlanSane(normalized)) {
-      normalized = reconstructLaptopStructure(prompt, normalized);
-    }
-    if (needsTemplateAuthority(prompt) && !isToolPlanSane(prompt, normalized)) {
-      normalized = reconstructKnownObjectStructure(prompt, normalized);
-    }
-    if (isAnimalPrompt(prompt) && !isAnimalPlanSane(prompt, normalized)) {
-      normalized = reconstructMeshStructure(prompt, normalized);
-    }
-    if (isSkullPrompt(prompt)) {
-      normalized = reconstructSkullStructure(prompt, normalized);
-    }
-    if (isSpoonLikePrompt(prompt)) {
-      normalized = reconstructSpoonStructure(prompt, normalized);
-    }
-    normalized = keepLargestConnectedModel(prompt, normalized);
-    return centerAndGroundPlan(normalized);
-  }
-
-  function isAnimalPlanSane(prompt, plan) {
-    if (!isAnimalPrompt(prompt)) return true;
-    const normalized = normalizePlan(plan);
-    const nodes = renderableNodes(normalized.nodes);
-    if (nodes.length < 14) return false;
-    const labels = nodes.map((node) => `${node.id} ${node.name} ${node.type}`).join(" ").toLowerCase();
-    const legNodes = nodes.filter((node) => /leg|paw|foot|hind|front/i.test(`${node.id} ${node.name}`));
-    const organicNodes = nodes.filter((node) => ["mesh", "lathe", "capsule", "sphere"].includes(node.type));
-    const hasTorso = /\b(torso|body|chest|hip|abdomen)\b/.test(labels);
-    const hasHead = /\b(head|muzzle|snout|face)\b/.test(labels);
-    const hasAnimalDetails = /\b(ear|tail)\b/.test(labels);
-    if (!hasTorso || !hasHead || !hasAnimalDetails || legNodes.length < 8 || organicNodes.length < 10) return false;
-    const stats = connectedModelStats(nodes);
-    return stats.clusterCount <= 1 || stats.largestCount >= nodes.length - 2;
+    return centerAndGroundPlan(keepLargestConnectedModel(prompt, normalizePlan(plan)));
   }
 
   function keepLargestConnectedModel(prompt, plan) {

@@ -109,6 +109,30 @@ console.log('\nThe measurements are done in code, not asked of a model:');
     /const FLOOR_Y = 0;/.test(src) && /grid\.position\.y = FLOOR_Y/.test(src) && /floor\.position\.y = FLOOR_Y/.test(src));
 }
 
+console.log('\nA generated model is not replaced by a built-in one:');
+{
+  // Six branches used to test a generated plan against a hand-written idea of
+  // the subject and serve a template when it disagreed — so the app paid for a
+  // design and then quietly substituted its own, which also made the design
+  // prompt impossible to judge.
+  check('the override chain is gone',
+    !/reconstructPhoneStructure|reconstructLaptopStructure|reconstructKnownObjectStructure/.test(src));
+  check('the animal and skull rebuilds are gone',
+    !/reconstructMeshStructure|reconstructSkullStructure/.test(src));
+  check('the plan-shape predicates that fed it are gone',
+    !/isAnimalPlanSane|isPhonePlanSane|isLaptopPlanSane|isDronePlanSane|isToolPlanSane/.test(src));
+  check('one subject is still enforced, and only that',
+    /function enforceSingleMainModel[\s\S]{0,900}centerAndGroundPlan\(keepLargestConnectedModel/.test(src),
+    'it should centre and ground a single subject, not rebuild it');
+  check('no padding pass tops a plan up to a node count',
+    !/ensurePlanRichness/.test(src),
+    'padding a good twelve-part model up to forty is the opposite of what the prompt asks for');
+
+  // Mock is a deliberate choice to build from a template, and stays.
+  check('the built-in plans are still reachable for Mock', /function fallbackPlan\(/.test(src));
+  check('Mock still routes to them', /frgMockBtn/.test(src));
+}
+
 console.log('\nThe design prompt asks for a model, not a part count:');
 {
   check('no node-count demand', !/\b24 to 56\b|\b38 to 86\b/.test(src),

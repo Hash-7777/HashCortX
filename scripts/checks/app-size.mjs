@@ -90,7 +90,10 @@ const LINE_BUDGET = {
   // floor contact and unrenderable parts are settled in code before anything
   // is drawn, and the Audit Agent that used to be asked for them — and that
   // added marker geometry of its own — is gone from the pipeline.
-  'modes/forge/mode.js': 3777,
+  // 3507, down from 3777. The six branches that replaced a generated model
+  // with built-in geometry are gone, along with the predicates that fed them
+  // and a padding pass whose only caller had already switched it off.
+  'modes/forge/mode.js': 3507,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
