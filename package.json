@@ -41,7 +41,8 @@
     "check:extraction": "node scripts/checks/extraction.mjs",
     "check:bridge": "node scripts/checks/bridge.mjs",
     "check:returns": "node scripts/checks/returns.mjs",
-    "check:undefined-names": "node scripts/checks/undefined-names.mjs"
+    "check:undefined-names": "node scripts/checks/undefined-names.mjs",
+    "sweep": "node scripts/sweep-controls.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

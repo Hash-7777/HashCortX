@@ -44,6 +44,11 @@ npm run tauri build
 - Keep PRs focused. One feature or one fix per PR.
 - Update `README.md` or `MODES_GUIDE.txt` if your change affects user-visible behavior.
 - Include a "How I tested this" section in the PR description.
+- Run `npm run check` (it reads the source) and, for anything that touches a
+  mode's controls, `npm run sweep` — which opens each mode in a headless browser,
+  clicks every control that is visible from a cold start, and reports whatever
+  throws. The checks cannot see a handler that fails only when it runs, and that
+  is where the defects here have actually been.
 - Expect review feedback. Drive-by PRs that ignore the architecture rules above will be closed.
 
 ## What I'm *not* looking for
