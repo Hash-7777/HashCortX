@@ -897,6 +897,17 @@ body.forge-studio-mode #app { display: none; }
 
 .frg-trace-btn:hover { background: rgba(75,210,190,0.09); }
 
+/* styles.css switches selection off for the whole application and grants it
+   back to a named list — inputs, chat bubbles, pre and code. The trace was on
+   neither side of that, so a run could be read and never taken: no selection,
+   no copy, and a rate-limit chain that could only be photographed. */
+.frg-trace-entries,
+.frg-trace-entries * {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
 .frg-trace-entries {
   flex: 1 1 0;
   min-height: 0;

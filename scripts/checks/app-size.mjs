@@ -81,7 +81,12 @@ const LINE_BUDGET = {
   // thrown away.
   'modes/systems/mode.js': 4246,
   'modes/virtual-os/mode.js': 3808,
-  'modes/forge/mode.js': 3756,
+  // 3820, up from 3756. The trace drawer could be read and never taken: no
+  // selection, no copy, no file. Most of these lines are the two handlers and
+  // the single reader that turns the entries into text for both. The rest is
+  // the observer that keeps the viewport's aspect when the drawer changes the
+  // canvas's height without the window resizing.
+  'modes/forge/mode.js': 3820,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

@@ -28,6 +28,7 @@
   let renderer = null;
   let scene = null;
   let camera = null;
+  let mountResizeObserver = null;
   let controls = null;
   let modelGroup = null;
   let particleGroup = null;
@@ -281,6 +282,22 @@
     if (summary) summary.textContent = `${label}: ${message}`;
     const dot = $("frgTraceDot");
     if (dot) dot.className = "frg-trace-dot " + traceKind(statusCls);
+  }
+
+  // The trace as plain text, in the order it happened. One reader for both the
+  // clipboard and the file, so the two can never drift apart.
+  function traceAsText() {
+    const host = $("frgTraceEntries");
+    if (!host) return "";
+    const lines = Array.from(host.querySelectorAll(".frg-trace-entry")).map((row) => {
+      const cell = (sel) => (row.querySelector(sel)?.textContent || "").trim();
+      const tokens = cell(".trace-tokens");
+      return [cell(".trace-time"), cell(".trace-agent"), cell(".trace-msg"), tokens]
+        .filter(Boolean).join("  ");
+    });
+    if (!lines.length) return "";
+    const header = `3D Forge trace  ·  ${new Date().toLocaleString()}`;
+    return [header, "=".repeat(header.length), "", ...lines, ""].join("\n");
   }
 
   function setAgentState(id, state) {
@@ -669,6 +686,22 @@
     scene.add(starField);
 
     window.addEventListener("resize", resize);
+
+    // The window is not the only thing that changes this canvas's size. The
+    // trace drawer animates from 32px to 200px, panels collapse, the inspector
+    // opens — none of those raise a window resize, so the camera kept an aspect
+    // ratio for a box it no longer occupied and the model came out stretched.
+    // Watching the mount catches every one of them, including the frames of a
+    // CSS transition, which is what keeps the picture honest while the drawer
+    // slides rather than only once it lands.
+    try {
+      const mount = $("frgCanvasMount");
+      if (mount && window.ResizeObserver) {
+        mountResizeObserver?.disconnect();
+        mountResizeObserver = new ResizeObserver(() => resize());
+        mountResizeObserver.observe(mount);
+      }
+    } catch {}
     wireContextLoss();
     resize();
     initialized = true;
@@ -3595,6 +3628,37 @@ Do not add floating decorations or abstract markers. Structure must add load-bea
       const open = !tc.classList.contains("expanded");
       tc.classList.toggle("expanded", open);
       tc.classList.toggle("collapsed", !open);
+    });
+    $("frgTraceCopyBtn")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const text = traceAsText();
+      const btn = e.currentTarget;
+      if (!text) { btn.textContent = "Empty"; setTimeout(() => { btn.textContent = "Copy"; }, 1200); return; }
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied";
+      } catch {
+        // No clipboard permission: select it instead, so the keyboard still works.
+        const host = $("frgTraceEntries");
+        if (host) {
+          const range = document.createRange();
+          range.selectNodeContents(host);
+          const sel = window.getSelection();
+          sel.removeAllRanges(); sel.addRange(range);
+        }
+        btn.textContent = "Selected";
+      }
+      setTimeout(() => { btn.textContent = "Copy"; }, 1400);
+    });
+    $("frgTraceExportBtn")?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const text = traceAsText();
+      const btn = e.currentTarget;
+      if (!text) { btn.textContent = "Empty"; setTimeout(() => { btn.textContent = "Export"; }, 1200); return; }
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      const ok = await downloadBlob(`forge-trace-${stamp}.txt`, new Blob([text], { type: "text/plain" }));
+      btn.textContent = ok ? "Saved" : "Export";
+      setTimeout(() => { btn.textContent = "Export"; }, 1400);
     });
     $("frgTraceClearBtn")?.addEventListener("click", (e) => {
       e.stopPropagation();
