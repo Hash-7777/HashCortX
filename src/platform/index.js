@@ -26,12 +26,12 @@ HC.usageLog = {
       : Promise.resolve(),
 };
 
-// Hash D Island ping — light up the notch "HashCortX finished" when a run
+// HashNotch ping — light up the notch "HashCortX finished" when a run
 // completes, like the iPhone Dynamic Island (the same feed Claude Code's
-// hook writes). Best-effort and metadata-only — a model label at most,
-// never message content. No-op in the browser or if Hash D Island isn't there.
+// hook writes). Best-effort and metadata-only — the title and nothing else,
+// never message content. No-op in the browser or if HashNotch isn't there.
 HC.notch = {
-  finished: (subtitle) => {
+  finished: () => {
     if (!HC.isTauri) return Promise.resolve();
     // A notice, not a countdown: this has already happened, so the notch shows
     // it briefly and drops it rather than ticking a timer down beside the word
@@ -47,8 +47,11 @@ HC.notch = {
         .toISOString()
         .replace(/\.\d+Z$/, "Z"),
     };
-    const sub = (subtitle || "").toString().trim();
-    if (sub) record.subtitle = sub.slice(0, 120);
+    // No subtitle. The notice used to carry the model that answered, which is
+    // read at a glance and after the work is already over: nothing to act on,
+    // and it crowds out the one word being looked for. It is also a detail
+    // about the user's work leaving this app for a file any process can read,
+    // for no benefit. The title is the whole message.
     return HC.invoke("notch_activity_post", { record }).catch(() => {});
   },
 };

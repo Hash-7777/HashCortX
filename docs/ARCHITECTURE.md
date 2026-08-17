@@ -98,7 +98,7 @@ HashCortX/
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      261   writes a file the user named in a save dialog
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
-│   │   │   ├── notch.rs        92   Hash D Island live-activity ping
+│   │   │   ├── notch.rs       160   HashNotch live-activity ping
 │   │   │   └── audit.rs        52   append-only audit log
 │   │   └── security/
 │   │       └── denylist.rs    648   hardcoded blocked paths and commands

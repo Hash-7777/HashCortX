@@ -8,8 +8,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet. See the open items at the end of 2.5.0 for what is known and not
-finished.
+### Changed
+
+- **The notch notice says "HashCortX finished" and nothing else.** It used to
+  carry the model that answered underneath it. That line is read at a glance,
+  after the work is already over, so it offers nothing to act on while crowding
+  the words being looked for — and it put a detail about the user's work into a
+  file any process on the machine can read, for no benefit.
+- **The notch app is called HashNotch, and its feed folder moved with it.** The
+  notice is written to whichever folder is already on the machine, preferring
+  `~/.hashnotch` and falling back to `~/.hashdisland`, so it lands where the
+  installed copy is looking whichever version that is. Only when neither exists
+  is the current one created.
+
+See the open items at the end of 2.5.0 for what is known and not finished.
 
 ---
 

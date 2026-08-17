@@ -5055,10 +5055,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     state.streaming = false;
     sendBtn.textContent = "Send";
-    // Light up Hash D Island — "HashCortX finished", like the iPhone island.
+    // Light up HashNotch — "HashCortX finished", like the iPhone island.
     // Once per chat turn, cloud or local. Coder mode has its own loop and
     // fires its own, at the end of startRun in modes/code/mode.js.
-    HC.notch?.finished((modelEl.value || "").split(":").pop());
+    HC.notch?.finished();
     if (tpsBtn && !assistant.tps) {
       tpsBtn.className = "ping-btn tps-btn";
       if (tpsVal) tpsVal.textContent = "— t/s";

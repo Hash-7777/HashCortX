@@ -77,7 +77,7 @@ pub fn run() {
             embed_available,
             // HashMeter ecosystem — token-usage log
             usage_log_append,
-            // Hash D Island — "finished" live-activity ping
+            // HashNotch — "finished" live-activity ping
             notch_activity_post,
             // Reading a web page: resolved, judged and fetched here, so the
             // connection goes to the address that was checked.
