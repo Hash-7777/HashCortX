@@ -32,7 +32,7 @@
 
 ## What this is
 
-Ten workspaces — chat, an autonomous coding agent, multi-agent swarms, nine specialist agents, a real Python sandbox, financial document analysis, a security scanner, 3D planning and a virtual project desktop — behind one window.
+Eight workspaces — chat, an autonomous coding agent, multi-agent swarms, financial document analysis, a security scanner, a business-app builder, 3D planning and a virtual project desktop — behind one window, with nine specialist agents and a real Python sandbox working inside them.
 
 Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and it runs with the network off — everything except the Python sandbox, which fetches its runtime on first use.
 
@@ -65,22 +65,22 @@ Every AI request goes straight from your machine to the provider whose key you e
 
 ---
 
-## The ten workspaces
+## The eight workspaces
 
-<img src="docs/assets/modes.svg" alt="The ten workspaces: Chats, Agents, Coder, Split, 3D Forge, Finance, Sandbox, ERP, Agent Swarm, Virtual OS" width="100%">
+<img src="docs/assets/modes.svg" alt="Eight workspaces: Chats, Coder, 3D Forge, Finance, Sandbox, ERP, Agent Swarm, Virtual OS — plus Agents and Split, which open inside chat" width="100%">
 
 | | Workspace | What it does |
 |---|---|---|
 | 01 | **Chats** | Multi-provider chat with projects, attachments, slash commands, full history |
-| 02 | **Agents** | Nine built-in specialists, plus a no-code builder for your own |
-| 03 | **Coder** | The coding agent: file tree, real file edits, shell access, browser panel |
-| 04 | **Split** | One prompt, two models, streamed side by side |
-| 05 | **3D Forge** | Structured node and mesh plans for game levels and spatial design |
-| 06 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
-| 07 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
-| 08 | **ERP** | Describe a workflow, get a working interactive prototype |
-| 09 | **Agent Swarm** | Chain mode, vote mode, automatic provider failover mid-run |
-| 10 | **Virtual OS** | A simulated project desktop an agent works inside |
+| 02 | **Coder** | The coding agent: file tree, real file edits, shell access, browser panel |
+| 03 | **3D Forge** | Structured node and mesh plans for game levels and spatial design |
+| 04 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
+| 05 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
+| 06 | **ERP** | Describe a workflow, get a working interactive prototype |
+| 07 | **Agent Swarm** | Chain mode, vote mode, automatic provider failover mid-run |
+| 08 | **Virtual OS** | A simulated project desktop an agent works inside |
+
+Two more surfaces are not workspaces and have no tab of their own: **Agents** — the nine built-in specialists and the builder for your own — opens as a menu over the message you are writing, and **Split** — one prompt, two models, streamed side by side — is a toggle inside chat.
 
 The nine agents, the Python sandbox and every workspace in detail: [MODES_GUIDE.txt](MODES_GUIDE.txt) · [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features)
 
@@ -203,7 +203,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 | Cloud providers | 11 | Limited | Anthropic only | Many | Many | Many | Several |
 | Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
 | Multi-agent swarms | Yes | No | No | No | No | No | No |
-| Workspaces beyond coding | 10 | No | No | No | No | No | No |
+| Workspaces beyond coding | 8 | No | No | No | No | No | No |
 | Built-in specialist agents | 9 | None | None | None | None | None | None |
 | Telemetry | None | Yes | Opt-out | Opt-in | None | None | Opt-in |
 
