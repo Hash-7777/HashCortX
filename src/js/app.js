@@ -4706,6 +4706,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return Math.max(1, Math.ceil(compact.length / 3.8));
   }
 
+  // Below this the window is too short to time a rate from. A reply delivered
+  // in one piece has a first-token moment a few milliseconds before it
+  // completes, and tokens divided by that prints a figure no model reaches.
+  const MIN_TPS_WINDOW_S = 0.35;
+
   function setTpsDisplay(tps) {
     if (!Number.isFinite(tps) || tps <= 0) return;
     const rounded = Math.max(1, Math.round(tps));
@@ -5001,7 +5006,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           assistant.generatedTokens = (assistant.generatedTokens || 0) + estimateGeneratedTokens(delta);
           assistant.tpsSource = "estimated";
           const elapsed = (Date.now() - assistant.firstTokenAt) / 1000;
-          if (elapsed > 0.35) {
+          if (elapsed >= MIN_TPS_WINDOW_S) {
             assistant.tps = Math.max(1, Math.round((assistant.generatedTokens || 0) / elapsed));
             setTpsDisplay(assistant.tps);
           }
@@ -5046,7 +5051,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (assistant.startedAt) assistant.durationMs = assistant.completedAt - assistant.startedAt;
     if ((assistant.tpsSource === "estimated" || !assistant.tps) && assistant.content) {
       const elapsed = ((assistant.completedAt || Date.now()) - (assistant.firstTokenAt || assistant.startedAt || Date.now())) / 1000;
-      if (elapsed > 0) {
+      if (elapsed >= MIN_TPS_WINDOW_S) {
         const tokens = assistant.generatedTokens || estimateGeneratedTokens(assistant.content);
         assistant.tps = Math.max(1, Math.round(tokens / elapsed));
         assistant.tpsSource = assistant.tpsSource || "estimated";
@@ -5163,7 +5168,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             branch.content += delta;
             branch.generatedTokens = (branch.generatedTokens || 0) + estimateGeneratedTokens(delta);
             const elapsed = (Date.now() - branch.firstTokenAt) / 1000;
-            if (elapsed > 0.35 && !branch.tpsSource) {
+            if (elapsed >= MIN_TPS_WINDOW_S && !branch.tpsSource) {
               branch.tps = Math.max(1, Math.round((branch.generatedTokens || 0) / elapsed));
               branch.tpsSource = "estimated";
               setSplitTpsDisplay(compareMsg.compare);
@@ -5297,7 +5302,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       assistant.generatedTokens = (assistant.generatedTokens || 0) + estimateGeneratedTokens(delta);
       assistant.tpsSource = "estimated";
       const elapsed = (Date.now() - assistant.firstTokenAt) / 1000;
-      if (elapsed > 0.35) {
+      if (elapsed >= MIN_TPS_WINDOW_S) {
         assistant.tps = Math.max(1, Math.round((assistant.generatedTokens || 0) / elapsed));
         setTpsDisplay(assistant.tps);
       }

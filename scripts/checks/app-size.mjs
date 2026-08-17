@@ -62,12 +62,12 @@ function ratchet(label, actual, budget, whenOver) {
 // Only the files big enough to hide things in. A 300-line module does not need
 // a ceiling; an 8,000-line one is where a dead branch survives for a year.
 const LINE_BUDGET = {
-  // 7054, up from 7048. Raised deliberately, and for an error path rather than
-  // a feature: the export menu called an async function without awaiting or
-  // catching it, so when it threw the menu just closed and nothing happened.
-  // Six of these lines are the try/catch and the message that replaced that
-  // silence. Two dead lines calling a function that never existed came out.
-  'js/app.js': 7054,
+  // 7059, up from 7054. Five lines, all of them a named constant and the
+  // comment explaining it: the shortest window a generation rate may be
+  // measured over. The final tokens-per-second pass divided by any elapsed
+  // time above zero, so a reply delivered in one piece printed a rate no
+  // model can reach.
+  'js/app.js': 7059,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
