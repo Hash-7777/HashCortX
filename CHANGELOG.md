@@ -8,26 +8,200 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Everything below has landed on `main` but is not yet in a tagged release or a DMG.
-
-### Added
-- Token usage log. Every model response appends one JSON line — timestamp, model id, token counts, and nothing else — to `~/.hashcortx/usage.jsonl`, so [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) can report HashCortx usage as measured rather than estimated. Counts come from the provider's response metadata; when a provider reports none, nothing is written.
-- Hash ecosystem section in the README and in the app's About pane.
-- Seven hand-drawn SVG diagrams in `docs/assets/`, and a rebuilt README.
-
-### Changed
-- **API keys moved out of the macOS Keychain** into a plain-text JSON bundle (`hc_api_bundle_v2`) in the app's own local store, keyed by bundle identifier. A Keychain item's access list is bound to the binary's code signature, so every unsigned rebuild re-prompted for every key. Existing Keychain keys migrate across once on first run, then the Keychain entry is deleted. This is weaker than Keychain storage and is documented as such in [docs/SECURITY.md](docs/SECURITY.md). It will be reverted once the build is signed.
-
-### Fixed
-- `docs/SECURITY.md` claimed keys were stored in the OS Keychain and that the JavaScript layer never sees a raw key. Both were the opposite of what the code does. It also documented a shell command allowlist, a prompt-injection filter, a Hardened Runtime and request rate limiting — none of which exist. Rewritten against the source.
-- `docs/ARCHITECTURE.md` described a `core/` directory, `ai.rs`, `allowlist.rs` and a CI workflow that were never written. Replaced with the real tree.
-- `docs/BRAND.md` specified a cyan primary that was never shipped, and described the brand mark as a `#`. The mark is the white brain; the colour situation is now documented honestly, including the three competing palettes.
-- `CONTRIBUTING.md` required contributors to store keys via `keychain.rs` and forbade localStorage, contradicting the shipping code.
-- README listed ten cloud providers (there are eleven — NVIDIA NIM was missing), eleven modes (there are ten workspace tabs), nine agent names that did not match `BUILTIN_AGENTS`, and one keyboard shortcut out of three. The Pyodide Python sandbox was undocumented.
-- README screenshots sat under the wrong headings — the Coder section showed Agent Swarm, the Agent Swarm section showed the About pane, and Finance and 3D Forge were swapped.
-- `scripts/gen-icon.py` draws a neon-green burst that is not the shipped icon. Flagged as legacy so nobody regenerates the wrong mark.
+Nothing yet. See the open items at the end of 2.5.0 for what is known and not
+finished.
 
 ---
+
+## [2.5.0] — 2026-08-17
+
+138 commits since 2.0.0. More stable and more capable than that release in every
+area, and honest about what is still open — the list at the end is part of the
+release, not an omission from it.
+
+The theme of this release is **features that looked like they worked and did
+not.** Most of what follows is not new functionality; it is functionality the app
+already advertised, now actually happening. Where something was never reachable
+in any shipped build, it says so.
+
+### Things the app claimed to do and never did
+
+- **Semantic search over your knowledge base had never run in any shipped
+  build.** The embedding model was imported from a CDN, which then fetched
+  weights from a host the content policy does not allow, and every call threw
+  into an empty catch. **bge-small-en-v1.5 (MIT, BAAI) is now compiled into the
+  binary** and runs natively in Rust — around a millisecond per passage.
+  Retrieval fuses keyword and vector rankings by position (Reciprocal Rank
+  Fusion) rather than comparing two scores that share no scale.
+- **Every export in the app wrote nothing.** Seventeen download links and the
+  Python sandbox's file writer. A download is a capability the host has to opt
+  into, and this one never did, so the webview cancelled each one outright —
+  raising no error, which is why every button looked like it worked. Saving now
+  goes through the native dialog and a checked write.
+- **The Python sandbox hung the agent for ever.** Its runtime fetch was refused
+  by the content policy, and the loader then neither resolved nor rejected, so
+  the first call hung and every later call awaited the same dead promise. It
+  runs in about three seconds now and produces real `.docx`, `.xlsx` and `.pdf`
+  files — the five pure-Python wheels are vendored rather than fetched.
+- **3D Forge could not start.** three.js ships as two files and only one was
+  vendored; the asset server answered the missing one with the app's own HTML,
+  so the failure arrived as a misleading MIME error naming no file. glTF import
+  and export were dead for the same reason.
+- **The knowledge base never reached an ordinary chat turn.** Retrieval sat
+  behind a condition that was always false, so the app reported injection as on
+  and retrieved nothing. It worked in the preview pane, which is why the store
+  itself always looked healthy.
+- **Adding a document to the knowledge base kept half of it.** The reader
+  advanced 1,200 characters and stored 600.
+- **Every tool result was cut to 800 characters** — including the file the
+  coding agent had just asked to read. This was the single largest reason the
+  agent felt weak.
+- **Coder's shell had been broken for two weeks.** Argument names are renamed
+  across the Rust/JavaScript bridge, and three calls used the Rust spelling;
+  required arguments meant the call was rejected outright. The agent could read
+  and patch but never run anything.
+- **Every call to Gemini with tools failed**, because the tools were handed over
+  in another provider's shape. Failing over *to* Gemini could never work either.
+- **Every image was labelled JPEG** in all four provider hand-offs. Anthropic
+  validates that, so every screenshot sent to Claude — from chat as well — was
+  refused, and read as a provider problem.
+- **Coder's Reject button did nothing.** The file was written before the row
+  appeared, and Reject only relabelled itself. It is Keep / Undo now, backed by
+  real content captured before the change.
+- **ERP never finished building.** Three modes sent an OpenAI-shaped body to
+  Anthropic, which fails every call, and the failover then walked the whole
+  provider list twice with no deadline.
+- **The Export menu opened off the screen**, because an ancestor with a filter
+  becomes the containing block for a fixed-position child. Once visible, its
+  items still called nothing: the function behind them threw on a loader used as
+  a getter, inside a promise nobody awaited.
+- Web search, PubMed search and Google search each called a host the content
+  policy did not grant.
+
+### Security
+
+Every item here was a boundary that looked enforced and was not. Full detail in
+[SECURITY.md](SECURITY.md).
+
+- **The shell never checked the command text against protected paths** — only the
+  working directory. Reading a private key through `cat` succeeded while the
+  file tool refused the identical path.
+- **A command naming a credential *directory* was allowed** — only spellings with
+  a filename after them were refused, so an archive or a copy of a whole key
+  store went through.
+- **Reads anywhere on disk were auto-approved with no dialog.** Reads are free
+  inside the project and asked about outside it now.
+- **The project boundary was a string comparison**, and a symlink is spelled
+  exactly like a folder, so a link inside the project pointing anywhere on disk
+  read as inside it. It is judged by where the path leads, resolved in Rust.
+- **The recursive file tools followed links out of the project**, and one of them
+  returns file contents, through a search that raises no dialog.
+- **A shell command's working directory was neither properly checked nor shown**,
+  though it decides what every relative path in the command means.
+- **A model's reply could reach the network before anyone read it**: a markdown
+  image became a request the moment the message was drawn. Remote images render
+  as links, and the policy no longer permits a remote image host at all.
+- **A move was approved once, for both paths joined into one string**, so a move
+  out of the project read as a move within it. One request per real path now.
+- **A session grant for one address covered every address**, because a path
+  function was used on a URL.
+- Web pages are fetched **in Rust**, over the connection that was checked —
+  resolve, refuse anything not public, pin the connection to that address, then
+  re-check every redirect by hand. This closes a resolve-then-refetch gap the
+  old documentation described as a known limit.
+- Command runs are bounded: a five-minute deadline, no inherited input, and a
+  cap on captured output.
+- The developer's own machine came out of the product — a LAN address that
+  shipped as a built-in preset, and a client that posted every knowledge chunk
+  to a server on it.
+- Four registered native commands had no caller and are gone, including one that
+  would have written a secret back into the Keychain.
+
+### Added
+
+- **An offline knowledge base**: import documents, and the agent retrieves from
+  them locally. Nothing is sent anywhere to make it work.
+- **Undo that outlives a restart.** Content captured before a change is written
+  inside the denylisted directory, so the agent cannot erase its own undo
+  history.
+- **The coding agent reads PDFs, looks at images, and runs Python** that produces
+  real documents.
+- **Chat reads a link you paste**, with or without an agent selected. It used to
+  answer from the address alone and invent the page.
+- **A page is read in windows** rather than its first three paragraphs — measured
+  on real documentation, 68% of the text where it used to show 14% and say
+  nothing about the rest.
+- **The memory map places facts by what they mean**, using the same bundled
+  model, with a second view that groups by key name. It states which layout is
+  live and how much of the difference between the facts a flat picture keeps.
+- **A token usage log** at `~/.hashcortx/usage.jsonl` — timestamp, model id and
+  counts, nothing else — so [HashMeterAi](https://github.com/Hash-7777/HashMeterAi)
+  reports measured usage rather than an estimate.
+- **A finished run lights up [Hash D Island](https://github.com/Hash-7777/Hash-D-Island)**
+  if it is installed. Metadata only.
+- **The agent is told which machine it is on**, so it stops suggesting macOS
+  tools on Windows and Linux.
+- **Windows and Linux support.** The shell is chosen in Rust rather than
+  hardcoded, and the path denylist understands Windows paths in both slash
+  directions. CI compiles and tests on all three systems.
+
+### Changed
+
+- **Coder is rebuilt around the run**: files left, run centre, saved chats right,
+  panels that can be moved, hidden and remembered, and a real diff.
+- **Settings is rebuilt around a section rail**, with a local-model walkthrough
+  whose steps check themselves against the machine.
+- **Chat is rebuilt around the message**, and agents are a choice inside a chat
+  rather than a workspace of their own.
+- **One visual identity.** Surfaces, lines, spacing, control heights, radii and
+  the colours that carry meaning live in one file; a mode declares its accent and
+  nothing else. Thirteen corner radii became five.
+- **The app icon** fills its tile — the mark stood at about 65% of the height and
+  now stands at 82% — with rounded corners and a neon edge. It is generated by a
+  script from the artwork, so it is reproducible.
+- **The structure was pulled apart**: `app.js` from 8,682 lines to 7,054, each
+  mode into its own folder with its own markup and stylesheet, the settings panes,
+  the memory store, the knowledge base and the map into files of their own.
+- API keys are stored in the app's own local directory, not the OS Keychain. A
+  Keychain item is bound to the binary's signature, so every unsigned rebuild
+  re-prompted for every key. This is **weaker than Keychain storage** and
+  documented as such; it goes back once the build is signed.
+
+### Verification
+
+- **1,376 source checks** where there were none, each loading the real code
+  rather than a copy of it. **89 Rust tests**, up from 2.
+- **A check that refuses a call to a name that does not exist.** One had been
+  called twice in the app and defined nowhere, throwing silently and taking the
+  next statement with it.
+- **A sweep that clicks every control in every mode** in a real browser and
+  reports what throws — `npm run sweep`. All seven modes are clean from a cold
+  start.
+- Checks that hold the pieces nothing else can see: that the content policy and
+  the code agree about every host, that every element a script looks up exists,
+  that no control exists which nothing touches, that hardcoded colours only ever
+  decrease, and that the bridge between the shell and the modes carries only what
+  is used.
+- A pre-commit hook that refuses secrets, private addresses and local notes.
+
+### Still open
+
+Stated because a release that lists only its wins is not much use.
+
+- **The build is unsigned and un-notarised.** Gatekeeper will refuse it on first
+  open; the steps are in the README and they are not optional.
+- **Linux and Windows are compiled and tested, not run.** CI proves they build
+  and the tests pass. Nobody has opened the app on either.
+- **ERP's repair path is fixed but unexercised.** Reaching it needs real provider
+  keys and a live rate limit.
+- **The regenerate diff is unreadable when a reply contains a table**, because it
+  compares raw markdown.
+- **The control sweep covers each mode from a cold start**, not states that need
+  content — a generated ERP system, a run in flight, a model loaded in Forge.
+- **`styles.css` is a second design system**, 1,425 lines in its own namespace,
+  loaded last. It no longer collides with the shared tokens, and it has not been
+  merged away.
+- 3D Forge has not been confirmed on a real machine since three.js was vendored.
 
 ## [2.0.0] — 2026-05-19
 

@@ -253,7 +253,7 @@ These are commonly assumed, and worth naming because an earlier version of this 
 - **No prompt-injection filter.** User input is not scanned for jailbreak or instruction-override patterns. (The `/inject` command toggles knowledge-base *injection into the prompt* — an unrelated feature with a confusingly similar name.)
 - **No request rate limiting.** There is no concurrency cap and no requests-per-minute cap. There is retry with backoff on `429` and `5xx`, and a Stop button that aborts a run.
 - **No shell command allowlist.** See above — it is a denylist.
-- **No Hardened Runtime, no notarisation, no code signature.** The v2.0.0 build is unsigned, so installing it requires a Gatekeeper bypass.
+- **No Hardened Runtime, no notarisation, no code signature.** The v2.5.0 build is unsigned, so installing it requires a Gatekeeper bypass.
 - **No encryption at rest** for API keys, chat history, or the audit log.
 - **No semantic search over anything you did not put there.** The knowledge base only contains what you ingested. See below for how it works.
 

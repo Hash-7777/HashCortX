@@ -16,7 +16,7 @@
 <img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 2.0.0" src="https://img.shields.io/badge/v2.0.0-2d333b?style=flat-square">
+<img alt="Version 2.5.0" src="https://img.shields.io/badge/v2.5.0-2d333b?style=flat-square">
 
 <br>
 
@@ -41,14 +41,13 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Type** | Native desktop app (Tauri v2) |
 | **Runs on** | macOS Apple Silicon — built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app there yet |
 | **License** | MIT |
-| **Latest release** | v2.0.0 (May 2026), 8 MB |
-| **Current `main`** | 41.2 MB — 7 MB app, 34 MB bundled embedding model. Not yet released |
+| **Latest release** | v2.5.0 (17 August 2026) — 43 MB DMG for Apple Silicon, 80 MB installed. 33 MB of that is the bundled embedding model, and most of the rest is the runtime that executes it |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~30,600 lines JS, ~1,820 Rust |
-| **Tests** | 34 Rust, 72 frontend checks, CI on Linux, macOS and Windows |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~35,700 lines JS, ~4,460 Rust |
+| **Tests** | 89 Rust, 1,376 source checks, CI on Linux, macOS and Windows |
 | **Telemetry · backend · accounts** | None · None · None |
 
-> **`main` is ahead of the release.** v2.0.0 predates the offline knowledge base, the security fixes and the cross-platform work described below. Build from source if you want what is written here.
+> **v2.5.0 is what this page describes.** It carries 138 commits since v2.0.0 — the offline knowledge base, the security work, Windows and Linux support, and a long list of features that were advertised and did not run. [What changed](CHANGELOG.md#250--2026-08-17), including what is still open.
 
 ---
 
@@ -121,7 +120,9 @@ Results are ranked by meaning and by keyword at once, then fused — so a rare e
 
 ## Install
 
-Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, drag HashCortx to `/Applications`. That release is v2.0.0 and predates the work described above — build from source for that.
+Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, drag HashCortx to `/Applications`.
+
+The DMG is built for **Apple Silicon**. On an Intel Mac, build from source.
 
 The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
 
@@ -147,7 +148,7 @@ Before pushing, run what CI runs:
 
 ```bash
 npm run check                                     # scripts parse, guard, retrieval, agent context
-cargo test --manifest-path src-tauri/Cargo.toml   # 34 tests
+cargo test --manifest-path src-tauri/Cargo.toml   # 89 tests
 ```
 
 ---
@@ -166,7 +167,7 @@ cargo test --manifest-path src-tauri/Cargo.toml   # 34 tests
 | **Python** | Pyodide (CPython on WebAssembly) with pandas, numpy, matplotlib, python-docx, openpyxl, reportlab |
 | **Vendored libs** | marked, highlight.js, DOMPurify, mermaid, pdf.js, jsPDF, three.js — all local, no CDN |
 
-No bundler is a deliberate constraint. It keeps the application itself around 7 MB and lets any reader follow a feature from the button that triggers it to the Rust function that performs it, without a source map.
+No bundler is a deliberate constraint. The interface is about 2.5 MB of source that ships as written, so any reader can follow a feature from the button that triggers it to the Rust function that performs it, without a source map. What makes the download large is the embedding model and the runtime that executes it, not the app.
 
 [ARCHITECTURE.md](docs/ARCHITECTURE.md) · [SECURITY.md](docs/SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md)
 
@@ -220,7 +221,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Are my API keys encrypted?** No — see above.
 
-**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the ten-workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
+**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
 
 More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
