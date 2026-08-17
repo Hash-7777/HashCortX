@@ -39,7 +39,18 @@ Use it white. Do not recolour it, do not add a glow, do not place it on a light 
               └────────┘└ cursor
 ```
 
-`scripts/gen-icon.py` draws a seven-ray neon-green burst and **does not produce the shipped icon.** It predates the brain mark. Do not run it expecting the current icon.
+### The app icon
+
+The icon is that mark on a rounded near-black tile: the brain standing at **82% of the tile's height**, corners rounded at **22% of the side** and left transparent so the platform's own background shows through them, and a **`#39ff81` edge at 1.9% of the side**. It used to sit at about 65%, which read as a small brain in a large black square — at the size an icon is actually seen, the padding was the most noticeable thing about it.
+
+`scripts/gen-icon.py` builds it, from the artwork above rather than from anything of its own:
+
+```
+python3 scripts/gen-icon.py
+npm run tauri icon "src-tauri/icons/icon-master.png"
+```
+
+Until recently that script drew a seven-ray burst the app has never shipped, under a header telling you not to run it — so the icon was not reproducible from this repository at all. If the fill, the corner or the edge is ever to change, change the three constants at the top of that script and run both commands; do not edit the PNGs.
 
 ## Colours
 
@@ -70,7 +81,7 @@ This is why the app reads as cool green-teal on screen even though the accent to
 
 ### 3. Terminal green in Coder
 
-`modes/code/mode.css` uses `#39ff81` — neon terminal green — for output and status text. That is the colour `scripts/gen-icon.py` was built around, and it survives only inside Coder.
+`modes/code/mode.css` uses `#39ff81` — neon terminal green — for output and status text, and it is Coder's declared accent in `vars.css`. Outside Coder it appears in exactly one other place: the edge of the app icon.
 
 ### Traps
 

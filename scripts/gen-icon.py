@@ -1,99 +1,85 @@
 """
-LEGACY — this does NOT generate the icon HashCortx ships.
+Builds the icon HashCortx ships, from the artwork it is drawn from.
 
-It draws a seven-ray neon-green burst. The shipped icon is the white brain
-mark (see docs/BRAND.md), authored as artwork and stored at
-logosss/new hashcortx logo no bg.png. Running this script will overwrite
-src/assets/icon-master.png with the wrong mark.
+    python3 scripts/gen-icon.py
+    npm run tauri icon src-tauri/icons/icon-master.png
 
-Kept for reference only. To regenerate platform icon sizes from the real
-artwork:
-  npm run tauri icon "logosss/new hashcortx logo no bg.png"
+The first command writes the 1024x1024 master; the second turns it into every
+size and container the platforms want (.icns, .ico, the Square*Logo set, and
+the mobile folders). Neither step invents anything: the brain is the artwork at
+logosss/new hashcortx logo no bg.png, composited unchanged.
 
---- original header ---
-HashCortx icon generator
-Run: python3 scripts/gen-icon.py
-Output: src/assets/icon-master.png  (1024x1024, used by `npm run tauri icon`)
+WHAT THIS FILE USED TO BE. It drew a seven-ray neon-green burst that the app has
+never shipped, under a header warning you not to run it. So the real icon was
+not reproducible from the repository at all — it existed only as the PNGs in
+src-tauri/icons/, and the only script named after the job made a different
+picture. That is the kind of gap where a rebuild quietly changes the product.
+
+THE THREE THINGS THAT ARE DECISIONS HERE, so they can be changed on purpose:
+
+  FILL. The mark stands at 82% of the tile's height. The icon it replaces sat at
+  about 65%, which read as a small brain in a large black square — the padding
+  was the most noticeable thing about it at the size an icon is actually seen.
+
+  CORNERS. A rounded square at 22% of the side, with the corners transparent, so
+  the platform's own background shows through them rather than a black box
+  sitting on top of it.
+
+  EDGE. A #39ff81 stroke at 1.9% of the side — the same neon green the app uses
+  for Coder's accent, not a new colour. It is drawn last and inset by half its
+  width, so the whole stroke lands inside the canvas instead of being clipped by
+  it.
+
+Everything is composited at four times the final size and scaled down once, so
+the corner and the stroke are smooth rather than stepped.
 """
 
-import math
-import sys
-import os
-from PIL import Image, ImageDraw, ImageFilter
+from pathlib import Path
 
-# ── Configuration ─────────────────────────────────────────────
-SIZE       = 1024          # master icon is 1024×1024
-BG_COLOR   = (4, 7, 4)    # --hc-bg: near-black green
-LINE_COLOR = (57, 255, 129)  # --hc-green: neon terminal green
-RADIUS_PCT = 0.370         # ray length as fraction of canvas size
-STROKE_PCT = 0.040         # line width as fraction of canvas size (bolder, matches reference)
+from PIL import Image, ImageDraw
 
-# 7 rays — bearing angles CW from 12 o'clock, derived by pixel-tracing the reference image.
-# Gap in upper-left quadrant (between 263° and 360°/0°) is intentional asymmetry.
-ANGLES = [0, 50, 95, 138, 192, 217, 263]
+ROOT = Path(__file__).resolve().parent.parent
+ART = ROOT / "logosss" / "new hashcortx logo no bg.png"
+OUT = ROOT / "src-tauri" / "icons" / "icon-master.png"
 
-# ── Drawing ───────────────────────────────────────────────────
-def draw_icon(size=SIZE):
-    cx, cy   = size // 2, size // 2
-    r        = int(size * RADIUS_PCT)
-    lw       = max(4, int(size * STROKE_PCT))  # sharp line width
-    glow_lw  = lw * 5                          # glow layer is wider + blurred
-
-    # Pre-compute ray endpoints
-    endpoints = []
-    for deg in ANGLES:
-        rad = math.radians(deg)
-        ex  = cx + r * math.sin(rad)
-        ey  = cy - r * math.cos(rad)
-        endpoints.append((ex, ey))
-
-    # ── Layer 1: outer glow (wide, very blurred) ──────────────
-    outer_glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(outer_glow)
-    for ex, ey in endpoints:
-        d.line([(cx, cy), (ex, ey)], fill=(*LINE_COLOR, 80), width=glow_lw * 2)
-        # Dot at origin and tip to round the caps visually
-        cap_r = glow_lw
-        d.ellipse([cx-cap_r, cy-cap_r, cx+cap_r, cy+cap_r], fill=(*LINE_COLOR, 80))
-        d.ellipse([ex-cap_r, ey-cap_r, ex+cap_r, ey+cap_r], fill=(*LINE_COLOR, 80))
-    outer_glow = outer_glow.filter(ImageFilter.GaussianBlur(radius=lw * 6))
-
-    # ── Layer 2: inner glow (narrower, medium blur) ───────────
-    inner_glow = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(inner_glow)
-    for ex, ey in endpoints:
-        d.line([(cx, cy), (ex, ey)], fill=(*LINE_COLOR, 140), width=glow_lw)
-        cap_r = glow_lw // 2
-        d.ellipse([cx-cap_r, cy-cap_r, cx+cap_r, cy+cap_r], fill=(*LINE_COLOR, 140))
-        d.ellipse([ex-cap_r, ey-cap_r, ex+cap_r, ey+cap_r], fill=(*LINE_COLOR, 140))
-    inner_glow = inner_glow.filter(ImageFilter.GaussianBlur(radius=lw * 2))
-
-    # ── Layer 3: sharp lines ──────────────────────────────────
-    sharp = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    d = ImageDraw.Draw(sharp)
-    for ex, ey in endpoints:
-        d.line([(cx, cy), (ex, ey)], fill=(*LINE_COLOR, 255), width=lw)
-        # Rounded caps via small filled circles
-        cap_r = lw // 2
-        d.ellipse([cx-cap_r, cy-cap_r, cx+cap_r, cy+cap_r], fill=(*LINE_COLOR, 255))
-        d.ellipse([ex-cap_r, ey-cap_r, ex+cap_r, ey+cap_r], fill=(*LINE_COLOR, 255))
-
-    # ── Composite: bg → outer_glow → inner_glow → sharp ──────
-    bg     = Image.new("RGBA", (size, size), (*BG_COLOR, 255))
-    result = Image.alpha_composite(bg, outer_glow)
-    result = Image.alpha_composite(result, inner_glow)
-    result = Image.alpha_composite(result, sharp)
-    return result.convert("RGB")
+SIZE = 1024
+SUPERSAMPLE = 4
+MARK_HEIGHT = 0.82      # share of the tile the mark stands at
+CORNER = 0.22           # corner radius, as a share of the side
+STROKE = 0.019          # neon edge width, as a share of the side
+TILE = (8, 9, 13, 255)  # near-black, the app's own ground
+NEON = (57, 255, 129, 255)  # #39ff81
 
 
-# ── Main ──────────────────────────────────────────────────────
-out_dir  = os.path.join(os.path.dirname(__file__), "..", "src", "assets")
-out_path = os.path.join(out_dir, "icon-master.png")
+def build() -> Image.Image:
+    s = SIZE * SUPERSAMPLE
+    radius = int(CORNER * s)
+    stroke = int(STROKE * s)
 
-os.makedirs(out_dir, exist_ok=True)
-img = draw_icon()
-img.save(out_path)
-print(f"Saved {out_path}  ({img.width}×{img.height})")
-print()
-print("Next step — generate all platform icon sizes:")
-print("  npm run tauri icon src/assets/icon-master.png")
+    tile = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    ImageDraw.Draw(tile).rounded_rectangle([0, 0, s - 1, s - 1], radius=radius, fill=TILE)
+
+    mark = Image.open(ART).convert("RGBA")
+    # The artwork sits in a much larger transparent canvas; the mark is what
+    # matters, so it is cropped to itself before being placed.
+    mark = mark.crop(mark.split()[3].getbbox())
+    height = int(MARK_HEIGHT * s)
+    width = round(height * mark.width / mark.height)
+    mark = mark.resize((width, height), Image.LANCZOS)
+    tile.alpha_composite(mark, ((s - width) // 2, (s - height) // 2))
+
+    half = stroke // 2
+    ImageDraw.Draw(tile).rounded_rectangle(
+        [half, half, s - 1 - half, s - 1 - half],
+        radius=radius - half, outline=NEON, width=stroke,
+    )
+    return tile.resize((SIZE, SIZE), Image.LANCZOS)
+
+
+if __name__ == "__main__":
+    if not ART.exists():
+        raise SystemExit(f"the artwork is missing: {ART}")
+    icon = build()
+    icon.save(OUT)
+    print(f"wrote {OUT.relative_to(ROOT)}  {icon.size[0]}x{icon.size[1]}")
+    print('next: npm run tauri icon "src-tauri/icons/icon-master.png"')
