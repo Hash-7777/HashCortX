@@ -86,7 +86,11 @@ const LINE_BUDGET = {
   // the single reader that turns the entries into text for both. The rest is
   // the observer that keeps the viewport's aspect when the drawer changes the
   // canvas's height without the window resizing.
-  'modes/forge/mode.js': 3820,
+  // 3872, up from 3820. The deterministic stage is now wired in: symmetry,
+  // floor contact and unrenderable parts are settled in code before anything
+  // is drawn, and the Audit Agent that used to be asked for them — and that
+  // added marker geometry of its own — is gone from the pipeline.
+  'modes/forge/mode.js': 3872,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

@@ -139,7 +139,7 @@ console.log('\nThe order of the steps holds:');
       { id: 'body', type: 'extrude', position: [0, 2, 0], scale: [3, 3, 3], params: { points: [[-1, -0.3], [1, -0.3], [1, 0.3], [-1, 0.3]], depth: 0.4 } },
       { id: 'fin', type: 'box', position: [0.6, 2.4, 0.3], scale: [0.6, 0.6, 0.2], params: { width: 1, height: 1, depth: 1 }, mirror: true },
     ],
-  });
+  }, { targetSize: 1 });
   ok('the plan keeps its name', out.name === 'fish');
   ok('the mirrored part exists', out.parts.length === 3);
   ok('scaling happened before the floor was found', near(P.boundsOf(out.parts)[1], 0, 1e-9));
@@ -148,6 +148,12 @@ console.log('\nThe order of the steps holds:');
   ok('mirroring is exact after every later step',
     near(out.parts[1].position[0], -out.parts[2].position[0]));
   ok('nothing is left floating in this plan', !out.issues.some((i) => i.code === 'detached'));
+}
+{
+  // Resizing is opt-in: without a target, a plan keeps the size it arrived at.
+  const asis = P.assemble({ nodes: [box('slab', { scale: [40, 8, 8] })] });
+  ok('no target size means no rescaling', asis.stats.scaleFactor === 1);
+  ok('but the floor is still found', near(P.boundsOf(asis.parts)[1], 0, 1e-9));
 }
 {
   const out = P.assemble(null);

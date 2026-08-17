@@ -13,7 +13,11 @@
     { id: "structure",name: "Structure Agent", role: "load-bearing / support parts",   color: "#9ff4e7" },
     { id: "surface",  name: "Surface Agent",   role: "silhouette / material panels",   color: "#f5c97a" },
     { id: "detail",   name: "Detail Agent",    role: "handles, bolts, seams, grooves", color: "#8fb7ff" },
-    { id: "audit",    name: "Audit Agent",     role: "clearance / balance / symmetry", color: "#ff8f8f" },
+    // There was an Audit Agent here, asked for clearance, balance and symmetry.
+    // Those are measurements, so they moved to src/js/model-plan.js, which does
+    // them on every run for no tokens and cannot be rate-limited. It was also
+    // the stage that ADDED geometry — audit rings and marker planes — to a model
+    // the user had asked for.
   ];
 
   let mounted = false;
@@ -56,7 +60,12 @@
   let transformMode = "translate";
   let snapEnabled = false;
   let underfloorTick = 0;
-  const FLOOR_Y = -1.15;
+  // Zero. The grid, the floor plane, "to floor" and the assembler in
+  // src/js/model-plan.js all measure against this, and the assembler puts a
+  // model's lowest point at zero — so any other value here would need every
+  // generated model translated on its way into the scene, which is a
+  // conversion nobody would remember to keep.
+  const FLOOR_Y = 0;
   const MAX_FORGE_NODES = 96;
   const PROJECT_STORE_KEY = "hashui_forge_projects";
   const FORGE_REFERENCE_SOURCES = [
@@ -662,7 +671,7 @@
     scene.add(new THREE.HemisphereLight(0xb0d9d2, 0x1a1410, 0.5));
 
     const grid = new THREE.GridHelper(18, 36, 0xffffff, 0xffffff);
-    grid.position.y = -1.15;
+    grid.position.y = FLOOR_Y;
     grid.material.transparent = true;
     grid.material.opacity = 0.34;
     scene.add(grid);
@@ -678,7 +687,7 @@
       })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -1.151;
+    floor.position.y = FLOOR_Y - 0.001;   // a hair under the grid, so the lines stay visible
     floor.receiveShadow = true;
     scene.add(floor);
 
@@ -1485,6 +1494,47 @@
     log("Editor", `Reset ${selectedMesh.userData.node?.name || selectedMesh.name || "part"}`, "wait");
   }
 
+  /**
+   * The deterministic stage — symmetry, floor contact and unrenderable parts.
+   *
+   * This is what the Audit Agent used to be asked to do. Doing it here costs
+   * nothing, cannot rate-limit, and produces symmetry that is exact rather than
+   * approximately what a model aimed for.
+   *
+   * Resizing is deliberately NOT requested. The camera, grid and lighting are
+   * tuned to the size plans already come out at, and normalising every model to
+   * a fixed size would be a change of appearance dressed as a correction. When
+   * there is a measurement to justify a target, pass targetSize here.
+   */
+  function assembleDeterministically(plan) {
+    const MP = window.HCModelPlan;
+    if (!MP || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return plan;
+    let out;
+    try {
+      out = MP.assemble(plan);
+    } catch (err) {
+      log("Assemble", `skipped: ${err?.message || err}`, "warn");
+      return plan;
+    }
+    // Never hand back an empty scene. If every part failed to measure, the
+    // original is still more useful than nothing, and the trace says so.
+    if (!out.parts.length) {
+      log("Assemble", "left the plan alone — nothing measurable to work with", "warn");
+      return plan;
+    }
+    const s = out.stats;
+    const notes = [];
+    if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
+    if (Math.abs(s.floorOffset) > 1e-3) notes.push(`grounded by ${s.floorOffset.toFixed(2)}`);
+    if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
+    log("Assemble", notes.length ? notes.join(" · ") : "already symmetric and grounded", "ok");
+    for (const issue of out.issues) {
+      if (issue.code === "detached") log("Assemble", `${issue.partId} does not connect to the main body`, "warn");
+      else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
+    }
+    return { ...plan, nodes: out.parts };
+  }
+
   function alignSelectedToFloor() {
     if (!selectedMesh || !THREE) return;
     const box = new THREE.Box3().setFromObject(selectedMesh);
@@ -1778,7 +1828,7 @@
   function resetView() {
     if (!camera || !controls) return;
     camera.position.set(6, 4.2, 8);
-    controls.target.set(0, 0.55, 0);
+    controls.target.set(0, 0.7, 0);
     controls.update();
   }
 
@@ -1913,7 +1963,7 @@
     // ── Multi-agent refinement pipeline ───────────────────────────────
     if (!useSample && routeBrief.route !== "organic_diffusion" && abortCtrl && !abortCtrl.signal.aborted) {
       updateStage("refine", "active", "structure agent");
-      const ROLE_PIPELINE = ["structure", "surface", "detail", "audit"];
+      const ROLE_PIPELINE = ["structure", "surface", "detail"];
       for (const role of ROLE_PIPELINE) {
         if (abortCtrl.signal.aborted) break;
         const agentMeta = AGENTS.find((a) => a.id === role);
@@ -1950,6 +2000,8 @@
       plan.route = routeBrief.route;
     }
     updateStage("refine", "done", plan.route === "anatomical" ? "sdf smoothed" : "post-process done");
+
+    plan = assembleDeterministically(plan);
 
     buildPlan(plan);
     saveCurrentProject(false);

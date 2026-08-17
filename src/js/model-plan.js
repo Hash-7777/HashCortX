@@ -320,7 +320,12 @@
     const source = plan && typeof plan === "object" ? plan : {};
     const cleaned = normaliseParts(source.nodes || source.parts, opts);
     const mirrored = expandMirrors(cleaned.parts, opts);
-    const scaled = normaliseScale(mirrored.parts, num(opts.targetSize, 1));
+    // Resizing is opt-in. A scene's camera, grid and lighting are tuned to the
+    // size its models already come out at, so quietly normalising every plan to
+    // one metre would be a change of appearance dressed up as a correction.
+    // Ask for it with targetSize when the caller knows what the scene expects.
+    const target = num(opts.targetSize, 0);
+    const scaled = target > 0 ? normaliseScale(mirrored.parts, target) : { parts: mirrored.parts, factor: 1 };
     const floored = snapToFloor(scaled.parts);
 
     const parts = floored.parts;
