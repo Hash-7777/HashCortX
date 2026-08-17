@@ -318,16 +318,23 @@ body.forge-studio-mode #app { display: none; }
   letter-spacing: .08em;
 }
 
+/* A rail down the side, not a sentence across the top. Thirteen labelled
+   buttons spanning the viewport were the single densest thing on this screen,
+   and they sat over the model they act on. Icons, grouped, with the shortcut
+   printed on the ones that have one — those shortcuts already existed and were
+   mentioned only in a caption nobody reads. */
 .frg-cad-toolbar {
-  top: 38px;
-  right: 12px;
-  left: auto;
+  top: 50%;
+  left: 12px;
+  right: auto;
+  transform: translateY(-50%);
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 5px;
-  max-width: min(720px, calc(100% - 32px));
+  gap: 3px;
+  max-height: calc(100% - 96px);
+  overflow-y: auto;
+  scrollbar-width: none;
   padding: 5px;
   border: 1px solid rgba(75,210,190,0.22);
   border-radius: var(--radius-md);
@@ -336,20 +343,43 @@ body.forge-studio-mode #app { display: none; }
   -webkit-backdrop-filter: blur(10px);
   pointer-events: auto;
 }
+.frg-cad-toolbar::-webkit-scrollbar { display: none; }
 
 .frg-cad-btn {
-  height: 24px;
-  padding: 0 8px;
-  border: 1px solid rgba(75,210,190,0.24);
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: rgba(75,210,190,0.07);
+  background: transparent;
   color: var(--accent);
-  font-family: var(--mono);
-  font-size: 8.5px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
   cursor: pointer;
+}
+
+.frg-cad-btn svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* The shortcut, small enough to be ignored until it is wanted. */
+.frg-cad-kbd {
+  position: absolute;
+  right: 2px;
+  bottom: 0;
+  font-family: var(--mono);
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(223,251,245,0.30);
+  pointer-events: none;
 }
 
 .frg-cad-btn:hover,
@@ -366,12 +396,15 @@ body.forge-studio-mode #app { display: none; }
 }
 
 .frg-cad-sep {
-  width: 1px;
-  height: 17px;
-  background: rgba(75,210,190,0.18);
+  width: 18px;
+  height: 1px;
+  margin: 3px 0;
+  background: rgba(75,210,190,0.20);
 }
 
 .frg-export-wrap {
+  position: relative;
+  display: block;
   position: relative;
   display: inline-flex;
   min-width: 0;
@@ -379,16 +412,19 @@ body.forge-studio-mode #app { display: none; }
 
 .frg-export-menu {
   position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 5;
+  left: calc(100% + 8px);
+  top: 50%;
+  transform: translateY(-50%);
   display: none;
-  min-width: 88px;
+  flex-direction: column;
+  gap: 3px;
   padding: 5px;
-  border: 1px solid rgba(75,210,190,0.26);
+  border: 1px solid rgba(75,210,190,0.28);
   border-radius: var(--radius-sm);
-  background: rgba(2,8,8,0.96);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.36);
+  background: rgba(2,10,10,0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 6;
 }
 
 .frg-export-wrap.open .frg-export-menu { display: grid; gap: 4px; }

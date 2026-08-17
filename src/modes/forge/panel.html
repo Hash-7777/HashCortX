@@ -90,35 +90,37 @@
         <span id="frgNodeCount">0 nodes</span>
       </div>
 
-      <!-- CAD toolbar (top-right of viewport) -->
+      <!-- Tool rail. Same data-frg-tool values as the row of labelled
+           buttons it replaces, so every handler is untouched: thirteen
+           words across the top of the viewport became icons down its
+           side, with the shortcut on the key that has one. -->
       <div class="frg-cad-toolbar" id="frgCadToolbar">
-        <button class="frg-cad-btn" data-frg-tool="selectObject" title="Select the whole object">Whole object</button>
+        <button class="frg-cad-btn" data-frg-tool="selectObject" title="Select the whole object (A)" aria-label="Select the whole object"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3l7 17 2.5-6.5L20 11z"/></svg><span class="frg-cad-kbd">A</span></button>
+        <button class="frg-cad-btn active" data-frg-tool="translate" title="Move selected part (W)" aria-label="Move selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg><span class="frg-cad-kbd">W</span></button>
+        <button class="frg-cad-btn" data-frg-tool="rotate" title="Rotate selected part (R)" aria-label="Rotate selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v6h-6"/></svg><span class="frg-cad-kbd">R</span></button>
+        <button class="frg-cad-btn" data-frg-tool="scale" title="Resize selected part (S)" aria-label="Resize selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20L20 4"/><path d="M14 4h6v6"/><path d="M4 14v6h6"/></svg><span class="frg-cad-kbd">S</span></button>
         <span class="frg-cad-sep"></span>
-        <button class="frg-cad-btn active" data-frg-tool="translate" title="Move selected part (W)">Move</button>
-        <button class="frg-cad-btn" data-frg-tool="rotate" title="Rotate selected part (R)">Rotate</button>
-        <button class="frg-cad-btn" data-frg-tool="scale" title="Resize selected part (S)">Resize</button>
+        <button class="frg-cad-btn" data-frg-tool="snap" title="Toggle snapping" aria-label="Toggle snapping"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
+        <button class="frg-cad-btn" data-frg-tool="duplicate" title="Duplicate selected part (D)" aria-label="Duplicate selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="frg-cad-kbd">D</span></button>
+        <button class="frg-cad-btn" data-frg-tool="floor" title="Drop selected part to the floor" aria-label="Drop selected part to the floor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M4 21h16"/></svg></button>
         <span class="frg-cad-sep"></span>
-        <button class="frg-cad-btn" data-frg-tool="snap" title="Toggle snapping">Snap</button>
-        <button class="frg-cad-btn" data-frg-tool="duplicate" title="Duplicate selected part (D)">Duplicate</button>
-        <button class="frg-cad-btn" data-frg-tool="floor" title="Align selected part to floor">To floor</button>
+        <button class="frg-cad-btn" data-frg-tool="focus" title="Frame the selection (F)" aria-label="Frame the selection"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3"/></svg><span class="frg-cad-kbd">F</span></button>
+        <button class="frg-cad-btn" data-frg-tool="camUp" title="Pan the camera up" aria-label="Pan the camera up"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20V7M7 12l5-5 5 5"/></svg></button>
+        <button class="frg-cad-btn" data-frg-tool="camDown" title="Pan the camera down" aria-label="Pan the camera down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v13M7 12l5 5 5-5"/></svg></button>
         <span class="frg-cad-sep"></span>
-        <button class="frg-cad-btn" data-frg-tool="focus" title="Focus camera on selected part">Focus</button>
-        <button class="frg-cad-btn" data-frg-tool="camUp" title="Pan camera up">Cam up</button>
-        <button class="frg-cad-btn" data-frg-tool="camDown" title="Pan camera down">Cam down</button>
-        <span class="frg-cad-sep"></span>
-        <button class="frg-cad-btn" data-frg-tool="import" title="Import a GLB or GLTF mesh asset">Import</button>
+        <button class="frg-cad-btn" data-frg-tool="import" title="Import a GLB or GLTF mesh" aria-label="Import a GLB or GLTF mesh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
         <span class="frg-export-wrap">
-          <button class="frg-cad-btn" data-frg-tool="exportMenu" title="Export model">Export</button>
+          <button class="frg-cad-btn" data-frg-tool="exportMenu" title="Export model" aria-label="Export model"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
           <span class="frg-export-menu" id="frgExportMenu">
             <button data-frg-export-kind="glb">GLB</button>
             <button data-frg-export-kind="obj">OBJ</button>
             <button data-frg-export-kind="stl">STL</button>
           </span>
         </span>
-        <button class="frg-cad-btn danger" data-frg-tool="delete" title="Delete selected part">Delete</button>
+        <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn danger" data-frg-tool="delete" title="Delete selected part (Del)" aria-label="Delete selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
         <input id="frgAssetImport" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
       </div>
-
       <!-- Keyboard hint -->
       <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove</div>
     </div><!-- /.frg-viewport -->
