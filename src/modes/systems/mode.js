@@ -1472,7 +1472,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           throw new Error("Model returned invalid SystemSpec JSON");
         }
         trace("SystemSpec JSON parsed", "ok");
-        const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal);
+        const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried);
         trace("SystemSpec validated and finance model linked", "ok");
         return spec;
       } catch (err) {
@@ -1543,7 +1543,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           if (!parsed) throw new Error("Specialist agents returned invalid JSON");
           trace("④ Validator confirming field/data consistency", "ok");
           trace("SystemSpec ready", "ok");
-          const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal);
+          const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried);
           trace("Finance model linked", "ok");
           return spec;
         } catch (err) {
@@ -1811,19 +1811,45 @@ Repair requirements:
 - Use realistic business data, not placeholder rows.`;
   }
 
-  async function finalizeOrRepairGeneratedSpec(modelValue, parsed, rawText, desc, signal) {
+  async function finalizeOrRepairGeneratedSpec(modelValue, parsed, rawText, desc, signal, tried = []) {
     try {
       return finalizeGeneratedSpec(parsed, desc, null);
     } catch (err) {
       if (!err.validationIssues) throw err;
+      // What is actually wrong with it. The run used to announce a repair pass
+      // and never say what it was repairing, so a run that ended without a
+      // system gave no clue whether to change the description or the model.
+      trace(`Spec is not renderable yet: ${err.validationIssues.slice(0, 3).join(" · ")}`, "warn");
       trace("Semantic SystemSpec repair pass...", "warn");
-      const repair = await callModel(modelValue, [
-        { role:"system", content: semanticRepairPrompt() },
-        { role:"user", content: `Business request:\n${desc}\n\nValidation issues:\n- ${err.validationIssues.join("\n- ")}\n\nInvalid JSON to repair:\n${String(rawText || JSON.stringify(parsed || {})).slice(0, 18000)}` }
-      ], signal, 0.25);
-      const repaired = parseSpecJson(repair?.content || "");
-      if (!repaired) throw new Error("Semantic repair returned invalid JSON.");
-      return finalizeGeneratedSpec(repaired, desc, null);
+
+      // The repair fails over on its own, and this is the point of it. The
+      // parsed spec is most of a run's work; when the repair call hit a
+      // free-tier rate limit, the whole attempt was abandoned and the next
+      // provider generated a brand new spec from nothing — throwing away a spec
+      // that only needed fixing, and spending another provider's quota to
+      // reach the same place. A refusal to answer one model is a reason to ask
+      // another the same question, not to start again.
+      const candidates = [modelValue, ...failoverModels(modelValue).filter(m => !tried.includes(m))];
+      let lastErr = null;
+      for (const model of candidates) {
+        try {
+          const repair = await callModel(model, [
+            { role:"system", content: semanticRepairPrompt() },
+            { role:"user", content: `Business request:\n${desc}\n\nValidation issues:\n- ${err.validationIssues.join("\n- ")}\n\nInvalid JSON to repair:\n${String(rawText || JSON.stringify(parsed || {})).slice(0, 18000)}` }
+          ], signal, 0.25);
+          const repaired = parseSpecJson(repair?.content || "");
+          if (!repaired) throw new Error("Semantic repair returned invalid JSON.");
+          return finalizeGeneratedSpec(repaired, desc, null);
+        } catch (e) {
+          // A stop is a stop, and the run budget is the whole point of having
+          // one — neither is something to work around by asking again.
+          if (e.name === "AbortError" || e.name === "BudgetExceeded") throw e;
+          lastErr = e;
+          if (!isFailoverError(e)) break;
+          trace(`Repair on ${modelTraceLabel(model)} failed — asking another model to repair the same spec`, "warn");
+        }
+      }
+      throw lastErr || new Error("Semantic repair failed");
     }
   }
 

@@ -68,7 +68,12 @@ const LINE_BUDGET = {
   // Six of these lines are the try/catch and the message that replaced that
   // silence. Two dead lines calling a function that never existed came out.
   'js/app.js': 7054,
-  'modes/systems/mode.js': 4220,
+  // 4246, up from 4220. The repair pass can now fail over to another model
+  // instead of the run abandoning a parsed spec and generating a fresh one from
+  // nothing, and it states which validation issues it is repairing. Both are in
+  // finalizeOrRepairGeneratedSpec, which is where the run's work was being
+  // thrown away.
+  'modes/systems/mode.js': 4246,
   'modes/virtual-os/mode.js': 3808,
   'modes/forge/mode.js': 3756,
   'modes/agent-maker/mode.js': 2980,
