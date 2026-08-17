@@ -5437,6 +5437,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   let _rafId = null;
   let _pendingBubbleText = "";
   function writeLastBubbleText() {
+    // Only while a reply is arriving. After that render() owns the bubble and
+    // has put formatted markdown in it; a paint landing later would replace
+    // that with the raw source.
+    if (!state.streaming) return;
     const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
     if (last) {
       last.classList.remove("thinking-bubble");
@@ -6722,7 +6726,7 @@ sys.stderr = _stderr
 
     // Stream the final text into the bubble so the UX feels live even though
     // the call itself was non-streaming.
-    if (finalText) typewriterIntoBubble(finalText, onFinalToken);
+    if (finalText) await typewriterIntoBubble(finalText, onFinalToken, signal);
     return finalText;
   }
 
@@ -6786,24 +6790,36 @@ sys.stderr = _stderr
 
   // Animated typewriter — writes the final non-streamed answer into the bubble
   // at ~120 chars/s so the UI still feels alive after the agent loop returns.
-  function typewriterIntoBubble(text, onToken) {
-    if (!text) return;
-    // For very long answers, skip the animation past 2000 chars.
+  // Answers a promise that settles when the last character has been typed, and
+  // the caller waits for it. It used to be fire-and-forget: the agent loop
+  // returned while the frames were still running, so the turn ended, render()
+  // replaced the bubble with formatted markdown, and the remaining ticks
+  // painted the raw source straight back over it — a finished reply sat there
+  // showing its asterisks until the next message forced another render. Past
+  // the cutoff there is no animation and nothing to wait for.
+  function typewriterIntoBubble(text, onToken, signal) {
+    if (!text) return Promise.resolve();
     const FAST_CUTOFF = 2000;
     if (text.length > FAST_CUTOFF) {
       onToken?.(text);
-      return;
+      return Promise.resolve();
     }
-    let i = 0;
-    const STEP = 8; // chars per tick
-    const tick = () => {
-      const slice = text.slice(i, i + STEP);
-      if (!slice) return;
-      onToken?.(slice);
-      i += STEP;
-      if (i < text.length) requestAnimationFrame(tick);
-    };
-    tick();
+    return new Promise((resolve) => {
+      let i = 0;
+      const STEP = 8; // chars per tick
+      const tick = () => {
+        // Stopped mid-answer: hand over what is left in one go rather than
+        // leaving the message truncated at whatever frame it reached.
+        if (signal?.aborted) { onToken?.(text.slice(i)); resolve(); return; }
+        const slice = text.slice(i, i + STEP);
+        if (!slice) { resolve(); return; }
+        onToken?.(slice);
+        i += STEP;
+        if (i < text.length) requestAnimationFrame(tick);
+        else resolve();
+      };
+      tick();
+    });
   }
 
 
