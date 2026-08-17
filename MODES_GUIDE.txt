@@ -1,6 +1,6 @@
 ══════════════════════════════════════════════════════════════
   HashCortX — Modes Guide
-  v2.0  ·  github.com/Hash-7777/HashCortX
+  v2.5.0  ·  github.com/Hash-7777/HashCortX
 ══════════════════════════════════════════════════════════════
 
 HashCortX has 11 modes, each built for a specific type of work.

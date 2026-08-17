@@ -221,7 +221,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Are my API keys encrypted?** No — see above.
 
-**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
+**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, and substantially more over the 138 commits since, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
 
 More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 

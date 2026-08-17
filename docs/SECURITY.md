@@ -1,6 +1,6 @@
 # HashCortx — Security Architecture
 
-This document describes what HashCortx **actually does** as of v2.0.0. Where a protection is weaker than you might expect, that is stated plainly rather than papered over. If you find a claim here that the code does not support, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) — a security document that flatters the code is worse than no security document.
+This document describes what HashCortx **actually does** as of v2.5.0. Where a protection is weaker than you might expect, that is stated plainly rather than papered over. If you find a claim here that the code does not support, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) — a security document that flatters the code is worse than no security document.
 
 ## Threat model
 
