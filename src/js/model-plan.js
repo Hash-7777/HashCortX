@@ -1,0 +1,355 @@
+// ============================================================
+// model-plan.js — turning a model's answer into geometry you can trust
+//
+// A generated 3D model arrives as a list of parts a language model wrote. Some
+// of what makes that list *look right* is judgement, and a model is good at it:
+// which parts a fish has, roughly where a fin sits. The rest is arithmetic —
+// is it symmetric, does it touch the floor, is it the right size, is any of it
+// degenerate — and a model is bad at that, expensive to ask, and cannot be held
+// to its answer.
+//
+// So the arithmetic lives here, in code, and runs on every plan. Symmetry is
+// produced by mirroring rather than requested in a prompt; the floor is found
+// by measuring; scale is normalised; parts that cannot be rendered are dropped
+// with a reason. What used to be an Audit Agent — a model call that reported on
+// clearance and balance, and sometimes added geometry of its own — is this file.
+//
+// Everything is pure: no THREE, no DOM, no network. Which is what lets
+// scripts/checks/model-plan.mjs load this exact source and hold it to its rules.
+// ============================================================
+(function () {
+  "use strict";
+
+  // Coordinates outside this are almost always a model losing track of scale —
+  // a part at z = 480 puts the camera in the next county and the object becomes
+  // an invisible speck. Clamped rather than dropped: the part is usually wanted,
+  // its position is what went wrong.
+  const COORD_LIMIT = 12;
+
+  // A part thinner than this in every axis renders as nothing at all.
+  const MIN_EXTENT = 1e-4;
+
+  const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  function triple(value, fallback) {
+    const src = Array.isArray(value) ? value : [];
+    return [0, 1, 2].map((i) => num(src[i], fallback[i]));
+  }
+
+  /**
+   * Half the size of a part on each axis, from whatever its type uses to
+   * describe itself. This is an estimate and says so: an extruded outline is
+   * measured from its points, a lathe from its profile, and anything that
+   * describes itself in no recognisable way falls back to a small cube so it
+   * still takes part in the bounds rather than silently counting as zero.
+   */
+  function halfExtents(part) {
+    const p = part.params || {};
+    const s = part.scale;
+    const byPoints = (points, axis) => {
+      if (!Array.isArray(points) || !points.length) return null;
+      let max = 0;
+      for (const pt of points) {
+        const v = Array.isArray(pt) ? num(pt[axis], 0) : 0;
+        max = Math.max(max, Math.abs(v));
+      }
+      return max || null;
+    };
+
+    let hx, hy, hz;
+    switch (part.type) {
+      case "box":
+        hx = num(p.width, 1) / 2; hy = num(p.height, 1) / 2; hz = num(p.depth, 1) / 2; break;
+      case "sphere":
+        hx = hy = hz = num(p.radius, 0.5); break;
+      case "capsule": {
+        const r = num(p.radius, 0.25);
+        hx = hz = r; hy = num(p.length, 0.5) / 2 + r; break;
+      }
+      case "cylinder":
+      case "cone": {
+        const r = num(p.radius, 0.5);
+        hx = hz = r; hy = num(p.height, 1) / 2; break;
+      }
+      case "torus": {
+        const r = num(p.radius, 0.5), tube = num(p.tube, 0.1);
+        hx = hz = r + tube; hy = tube; break;
+      }
+      case "extrude": {
+        hx = byPoints(p.points, 0) ?? 0.5;
+        hy = byPoints(p.points, 1) ?? 0.5;
+        hz = num(p.depth, num(p.length, 0.2)) / 2; break;
+      }
+      case "lathe": {
+        const r = byPoints(p.points, 0) ?? 0.5;
+        hx = hz = r;
+        hy = byPoints(p.points, 1) ?? num(p.height, 0.5); break;
+      }
+      case "mesh": {
+        const pos = Array.isArray(p.positions) ? p.positions : null;
+        if (pos && pos.length >= 3) {
+          let mx = 0, my = 0, mz = 0;
+          for (let i = 0; i + 2 < pos.length; i += 3) {
+            mx = Math.max(mx, Math.abs(num(pos[i], 0)));
+            my = Math.max(my, Math.abs(num(pos[i + 1], 0)));
+            mz = Math.max(mz, Math.abs(num(pos[i + 2], 0)));
+          }
+          hx = mx; hy = my; hz = mz;
+        } else { hx = hy = hz = 0.5; }
+        break;
+      }
+      default:
+        hx = hy = hz = 0.5;
+    }
+    return [Math.abs(hx * s[0]), Math.abs(hy * s[1]), Math.abs(hz * s[2])];
+  }
+
+  /** The box a single part occupies, as [minX,minY,minZ,maxX,maxY,maxZ]. */
+  function partBox(part) {
+    const [hx, hy, hz] = halfExtents(part);
+    const [x, y, z] = part.position;
+    return [x - hx, y - hy, z - hz, x + hx, y + hy, z + hz];
+  }
+
+  /** The box every part occupies together, or null when there are no parts. */
+  function boundsOf(parts) {
+    if (!parts.length) return null;
+    const b = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+    for (const part of parts) {
+      const pb = partBox(part);
+      for (let i = 0; i < 3; i++) b[i] = Math.min(b[i], pb[i]);
+      for (let i = 3; i < 6; i++) b[i] = Math.max(b[i], pb[i]);
+    }
+    return b;
+  }
+
+  const sizeOf = (box) => (box ? [box[3] - box[0], box[4] - box[1], box[5] - box[2]] : [0, 0, 0]);
+
+  /**
+   * Put a plan's parts into a shape the rest of the pipeline can rely on:
+   * every field present, every number finite, ids unique, coordinates inside a
+   * sane range, and nothing that renders to nothing.
+   *
+   * Returns the parts it kept and a note for every one it changed or dropped,
+   * because a part disappearing without explanation is how a model ends up
+   * missing a leg and nobody knows why.
+   */
+  function normaliseParts(nodes, opts = {}) {
+    const limit = num(opts.coordLimit, COORD_LIMIT);
+    const parts = [];
+    const issues = [];
+    const seen = new Set();
+
+    for (const raw of Array.isArray(nodes) ? nodes : []) {
+      if (!raw || typeof raw !== "object") {
+        issues.push({ code: "not-a-part", detail: "entry was not an object" });
+        continue;
+      }
+      let id = String(raw.id || raw.name || "part").trim() || "part";
+      if (seen.has(id)) {
+        let n = 2;
+        while (seen.has(`${id}_${n}`)) n++;
+        issues.push({ code: "duplicate-id", partId: id, detail: `renamed to ${id}_${n}` });
+        id = `${id}_${n}`;
+      }
+      seen.add(id);
+
+      const position = triple(raw.position, [0, 0, 0]).map((v) => {
+        const c = clamp(v, -limit, limit);
+        if (c !== v) issues.push({ code: "coordinate-clamped", partId: id, detail: `${v} → ${c}` });
+        return c;
+      });
+      const scale = triple(raw.scale, [1, 1, 1]).map((v) => (v === 0 ? 1 : v));
+
+      const part = {
+        id,
+        name: String(raw.name || id),
+        type: String(raw.type || "box"),
+        role: String(raw.role || "structure"),
+        position,
+        rotation: triple(raw.rotation, [0, 0, 0]),
+        scale,
+        params: raw.params && typeof raw.params === "object" ? raw.params : {},
+        color: typeof raw.color === "string" ? raw.color : undefined,
+        mirror: raw.mirror === true || /\b(left|right)\b/i.test(String(raw.name || "")) ? !!raw.mirror : false,
+      };
+
+      const [hx, hy, hz] = halfExtents(part);
+      if (hx < MIN_EXTENT && hy < MIN_EXTENT && hz < MIN_EXTENT) {
+        issues.push({ code: "degenerate", partId: id, detail: "no measurable size" });
+        continue;
+      }
+      if (![hx, hy, hz].every(Number.isFinite)) {
+        issues.push({ code: "not-a-number", partId: id, detail: "size did not resolve to a number" });
+        continue;
+      }
+      parts.push(part);
+    }
+    return { parts, issues };
+  }
+
+  /**
+   * Symmetry, made rather than requested.
+   *
+   * A part marked `mirror` is duplicated across x = 0 with its x position and
+   * x scale negated. Asking a model for "two fins, mirrored" gets two fins in
+   * roughly the right places; doing it here gets two fins that are exactly
+   * opposite, every time, for no tokens. A part already sitting on the axis is
+   * left alone — mirroring it would put a second copy inside the first.
+   */
+  function expandMirrors(parts, opts = {}) {
+    const epsilon = num(opts.epsilon, 1e-3);
+    const out = [];
+    const issues = [];
+    for (const part of parts) {
+      if (!part.mirror) { out.push(part); continue; }
+      if (Math.abs(part.position[0]) <= epsilon) {
+        issues.push({ code: "mirror-on-axis", partId: part.id, detail: "sits on the mirror plane; not duplicated" });
+        out.push({ ...part, mirror: false });
+        continue;
+      }
+      // The flag comes off the original as the copy is made. It is a request,
+      // and it has now been met — left on, a second pass over the same parts
+      // would mirror them again.
+      out.push({ ...part, mirror: false, hasMirror: true });
+      out.push({
+        ...part,
+        id: `${part.id}_mirrored`,
+        name: `${part.name} (mirrored)`,
+        position: [-part.position[0], part.position[1], part.position[2]],
+        rotation: [part.rotation[0], -part.rotation[1], -part.rotation[2]],
+        scale: [-part.scale[0], part.scale[1], part.scale[2]],
+        mirror: false,
+        mirroredFrom: part.id,
+      });
+    }
+    return { parts: out, issues };
+  }
+
+  /** Move everything so the lowest point rests on y = 0. */
+  function snapToFloor(parts) {
+    const box = boundsOf(parts);
+    if (!box) return { parts, offset: 0 };
+    const offset = -box[1];
+    if (Math.abs(offset) < 1e-6) return { parts, offset: 0 };
+    return {
+      parts: parts.map((p) => ({ ...p, position: [p.position[0], p.position[1] + offset, p.position[2]] })),
+      offset,
+    };
+  }
+
+  /**
+   * Scale the whole model so its longest axis measures `target`.
+   *
+   * The viewport's camera, grid and lighting are built for an object about a
+   * metre across. A plan that came back 40 units long is not wrong, it is in
+   * different units — and it arrives as a speck or as a wall.
+   */
+  function normaliseScale(parts, target = 1) {
+    const box = boundsOf(parts);
+    if (!box) return { parts, factor: 1 };
+    const longest = Math.max(...sizeOf(box));
+    if (!Number.isFinite(longest) || longest <= 0) return { parts, factor: 1 };
+    const factor = target / longest;
+    if (Math.abs(factor - 1) < 0.01) return { parts, factor: 1 };
+    return {
+      parts: parts.map((p) => ({
+        ...p,
+        position: p.position.map((v) => v * factor),
+        scale: p.scale.map((v) => v * factor),
+      })),
+      factor,
+    };
+  }
+
+  /**
+   * What is wrong with this model that a person would notice.
+   *
+   * Reported, not repaired: a detached part may be a deliberate second element,
+   * and deciding that is the caller's job. This is the list the Improve step is
+   * given, which is why each issue says what it is rather than just failing.
+   */
+  function findIssues(parts, opts = {}) {
+    const issues = [];
+    if (!parts.length) return [{ code: "empty", detail: "the plan produced no parts" }];
+
+    const gap = num(opts.gap, 0.06);
+    const boxes = parts.map(partBox);
+    const touches = (a, b) => (
+      a[0] - gap <= b[3] && b[0] - gap <= a[3] &&
+      a[1] - gap <= b[4] && b[1] - gap <= a[4] &&
+      a[2] - gap <= b[5] && b[2] - gap <= a[5]
+    );
+
+    // Anything not reachable from the largest part is floating beside the model.
+    const volume = (b) => Math.max(0, b[3] - b[0]) * Math.max(0, b[4] - b[1]) * Math.max(0, b[5] - b[2]);
+    let root = 0;
+    for (let i = 1; i < boxes.length; i++) if (volume(boxes[i]) > volume(boxes[root])) root = i;
+    const reached = new Set([root]);
+    const queue = [root];
+    while (queue.length) {
+      const i = queue.shift();
+      for (let j = 0; j < boxes.length; j++) {
+        if (reached.has(j) || !touches(boxes[i], boxes[j])) continue;
+        reached.add(j); queue.push(j);
+      }
+    }
+    parts.forEach((part, i) => {
+      if (!reached.has(i)) issues.push({ code: "detached", partId: part.id, detail: "does not connect to the main body" });
+    });
+
+    const box = boundsOf(parts);
+    const [w, h, d] = sizeOf(box);
+    if (Math.max(w, h, d) > 0 && Math.min(w, h, d) / Math.max(w, h, d) < 0.02) {
+      issues.push({ code: "flat", detail: "the model is essentially flat in one axis" });
+    }
+    if (Math.abs(box[1]) > 0.02) {
+      issues.push({ code: "off-floor", detail: `lowest point sits at y ${box[1].toFixed(3)}` });
+    }
+    return issues;
+  }
+
+  /**
+   * The whole deterministic stage, in the order the steps depend on each other:
+   * clean up, mirror, then measure — floor and scale have to come after
+   * mirroring, because a mirrored part changes where the bottom and the edges
+   * are.
+   */
+  function assemble(plan, opts = {}) {
+    const source = plan && typeof plan === "object" ? plan : {};
+    const cleaned = normaliseParts(source.nodes || source.parts, opts);
+    const mirrored = expandMirrors(cleaned.parts, opts);
+    const scaled = normaliseScale(mirrored.parts, num(opts.targetSize, 1));
+    const floored = snapToFloor(scaled.parts);
+
+    const parts = floored.parts;
+    return {
+      name: String(source.name || "model"),
+      parts,
+      issues: [...cleaned.issues, ...mirrored.issues, ...findIssues(parts, opts)],
+      stats: {
+        received: Array.isArray(source.nodes || source.parts) ? (source.nodes || source.parts).length : 0,
+        kept: cleaned.parts.length,
+        mirrored: parts.filter((p) => p.mirroredFrom).length,
+        scaleFactor: scaled.factor,
+        floorOffset: floored.offset,
+        size: sizeOf(boundsOf(parts)),
+      },
+    };
+  }
+
+  window.HCModelPlan = {
+    COORD_LIMIT,
+    halfExtents,
+    partBox,
+    boundsOf,
+    sizeOf,
+    normaliseParts,
+    expandMirrors,
+    snapToFloor,
+    normaliseScale,
+    findIssues,
+    assemble,
+  };
+})();
