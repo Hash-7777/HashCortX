@@ -68,7 +68,12 @@ const LINE_BUDGET = {
   // reply after the turn had ended. The added lines are the promise, an
   // abort branch so a stopped answer is not left truncated, and the note
   // saying why the wait matters.
-  'js/app.js': 7075,
+  // 7085, up from 7075. Ten lines of comment, no code: agent dispatch also
+  // required the context-injection toggle, which defaults to off, so a new
+  // install could select an agent and silently get plain chat. The condition
+  // is now the agent alone, and the note records why that toggle never had
+  // anything to say about it.
+  'js/app.js': 7085,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

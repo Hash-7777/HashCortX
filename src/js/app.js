@@ -4990,7 +4990,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // agent is explicitly selected. Without an agent, this is a plain chat
     // — no auto tools, no auto memory injection. That matches the user's
     // mental model: "agent mode = on" only when I pick one.
-    else if (activeAgent && injectionEnabled) {
+    //
+    // Selecting one is the whole condition. This also required context
+    // injection to be switched on, which defaults to off — so on a new
+    // install, picking any of the built-in agents put its name in the
+    // composer and then answered as plain chat, with no tools, no memory and
+    // not a word about it. That toggle governs what is added to a plain
+    // message: the knowledge base, and only for a local model. No agent has
+    // ever read the knowledge base — there is no tool for it and this branch
+    // retrieves nothing — so it had no business deciding whether an agent
+    // runs at all.
+    else if (activeAgent) {
       const ctrl = new AbortController();
       state.abort = ctrl;
       assistant.runTrace = beginAgentRun(activeAgent, seedText);
