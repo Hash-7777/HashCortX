@@ -70,18 +70,6 @@
   const FLOOR_Y = 0;
   const MAX_FORGE_NODES = 96;
   const PROJECT_STORE_KEY = "hashui_forge_projects";
-  const FORGE_REFERENCE_SOURCES = [
-    "sketchfab.com",
-    "grabcad.com",
-    "thingiverse.com",
-    "printables.com",
-    "cgtrader.com",
-    "turbosquid.com",
-    "free3d.com",
-    "blendswap.com",
-    "polyhaven.com",
-    "blenderartists.org",
-  ];
   const FORGE_BLOCKED_REFERENCE_DOMAINS = [
     "youtube.com",
     "youtu.be",
@@ -2127,7 +2115,7 @@
         if (!resultMap.has(url)) resultMap.set(url, result);
       });
     }
-    const results = Array.from(resultMap.values()).sort(referenceResultScore).slice(0, 8);
+    const results = Array.from(resultMap.values()).sort(referenceResultScore).slice(0, 5);
     if (!results.length && !answers.length) {
       log("Reference", "No usable web reference results; planning from prompt", "warn");
       return "";
@@ -2138,7 +2126,7 @@
       ...pinnedUrls.map((url) => ({ title: "Pinned anatomical reference", url })),
       ...results,
     ].filter((result, index, arr) => result.url && arr.findIndex((r) => r.url === result.url) === index);
-    for (const result of pageTargets.slice(0, 4)) {
+    for (const result of pageTargets.slice(0, 2)) {
       try {
         const pageRaw = await api.runOneTool("fetch_url", { url: result.url }, (msg) => log("Reference", msg, "run"));
         const page = safeJson(pageRaw);
@@ -2147,7 +2135,6 @@
     }
     const sourceText = [
       answers.length ? `Search answers:\n${answers.slice(0, 2).join("\n")}` : "",
-      `Preferred 3D/CAD sources: ${FORGE_REFERENCE_SOURCES.join(", ")}`,
       ...results.map((r, i) => `${i + 1}. ${r.title || "Reference"} (${r.url || "no url"}): ${r.snippet || ""}`),
       ...pages.map((p, i) => `Page ${i + 1} ${p.title}: ${p.text}`),
     ].filter(Boolean).join("\n\n").slice(0, 7000);
@@ -2156,36 +2143,29 @@
     return brief;
   }
 
+  /**
+   * What to ask the web for: proportions, not products.
+   *
+   * These queries used to filter TO the model marketplaces — Sketchfab,
+   * GrabCAD, Thingiverse and the rest — and ask for "3D model mesh CAD
+   * Blender". A real run therefore spent twenty-two of its twenty-seven
+   * seconds reading pages titled "top 10 websites to download free 3D models"
+   * and "model libraries", which cannot tell anyone how long a fish is
+   * relative to its depth. A marketplace listing is a place to buy a model,
+   * not a description of one.
+   *
+   * Two queries, both about measurements, because the design call needs
+   * numbers and names, and every extra query is seconds a person waits.
+   */
   function referenceSearchQueries(prompt, route) {
-    const q = String(prompt || "").toLowerCase();
-    const sourceFilter = "(Sketchfab OR GrabCAD OR Thingiverse OR Printables OR CGTrader OR TurboSquid OR Free3D OR BlendSwap)";
-    const blocked = "-youtube -facebook -instagram -pinterest -tiktok";
+    const blocked = "-youtube -facebook -instagram -pinterest -tiktok -download -\"for sale\" -buy";
     if (route === "anatomical") return [
-      `${prompt} anatomy orthographic dimensions medical diagram ${blocked}`,
-      `${prompt} 3D model anatomy GLB OBJ Sketchfab dimensions ${blocked}`,
-      `${prompt} labeled anatomy diagram dimensions site:edu ${blocked}`,
-      `${prompt} anatomical reference proportions front side view ${blocked}`,
-    ];
-    if (isAnimalPrompt(q)) return [
-      `${prompt} 3D model mesh topology Blender ${sourceFilter} ${blocked}`,
-      `${prompt} anatomy side front view proportions body parts tail legs ears paws ${blocked}`,
-      `${prompt} sculpt retopology smooth mesh reference Blender ${blocked}`,
-    ];
-    if (/skull|skeleton|bone|anatomy/.test(q)) return [
-      `The Anatomy of the Human Skull HannahNewey Sketchfab CT ZBrush cranium mandible teeth`,
-      `${prompt} 3D model mesh anatomy Blender ${sourceFilter} ${blocked}`,
-      `${prompt} anatomy reference proportions named parts front side view ${blocked}`,
-      `${prompt} CAD mesh STL OBJ GLB reference ${blocked}`,
-    ];
-    if (isSpoonLikePrompt(q)) return [
-      `${prompt} 3D model spoon mesh CAD Blender ${sourceFilter} ${blocked}`,
-      `${prompt} cutlery spoon concave bowl tapered handle STL OBJ GLB CAD reference ${blocked}`,
-      `${prompt} spoon orthographic top side view bowl rim neck handle proportions ${blocked}`,
+      `${prompt} anatomy proportions dimensions labelled diagram ${blocked}`,
+      `${prompt} average size length width height measurements ${blocked}`,
     ];
     return [
-      `${prompt} 3D model mesh CAD Blender dimensions orthographic ${sourceFilter} ${blocked}`,
-      `${prompt} OBJ GLB STL CAD model reference dimensions width height depth orthographic ${blocked}`,
-      `${prompt} shape materials proportions key part ratios dimensions CAD reference ${blocked}`,
+      `${prompt} typical proportions ratio length to height body parts named ${blocked}`,
+      `${prompt} average dimensions size cm mm specification ${blocked}`,
     ];
   }
 
@@ -2208,13 +2188,18 @@
   function referenceUrlScore(url) {
     const s = String(url || "").toLowerCase();
     let score = 0;
-    FORGE_REFERENCE_SOURCES.forEach((domain, i) => {
-      if (s.includes(domain)) score += 80 - i;
-    });
-    if (/\.(glb|gltf|obj|stl|fbx|blend)(\?|$)/.test(s)) score += 30;
-    if (/3d|model|mesh|cad|blender|stl|obj|gltf|glb/.test(s)) score += 10;
+    // Wanted: a page that states measurements. Wikipedia, an encyclopaedia, a
+    // species or spec page, a teaching site.
+    if (/wikipedia|britannica|\.edu|\.gov|encyclopedia|species|anatomy|dimensions|specification|datasheet/.test(s)) score += 60;
+    if (/proportion|ratio|measurement|size|length|weight/.test(s)) score += 25;
+    // Unwanted: somewhere to obtain a model. This used to be rewarded — any
+    // url containing "3d" or "model" scored — which is how a list of download
+    // sites came to be treated as a reference on fish anatomy.
+    if (/download|free-?3d|top-?\d|best-?\d|model-librar|marketplace|\/product\/|\/3d-models?\//.test(s)) score -= 80;
+    if (/sketchfab|turbosquid|cgtrader|thingiverse|printables|grabcad|blendswap|renderfarm/.test(s)) score -= 60;
     return score;
   }
+
 
   function summarizeReferenceBrief(prompt, sourceText) {
     const source = String(sourceText || "");
@@ -2242,7 +2227,7 @@
       dims.length ? `Detected dimension tokens: ${dims.join(", ")}` : "No exact dimensions detected; infer real-world scale from source titles/snippets.",
       ratioHints.length ? `Reference proportion hints: ${ratioHints.join(" | ")}` : "Extract key ratios from the object type: overall length/height/width/depth plus major part ratios.",
       primitiveHints.length ? `Primitive constraints: ${primitiveHints.join(" ")}` : "Primitive constraints: combine lathe, tube, extrude, sphere, box, and loft numerically.",
-      sourceUrls.length ? `Preferred 3D/CAD sources: ${sourceUrls.join(" | ")}` : `Preferred 3D/CAD sources: ${FORGE_REFERENCE_SOURCES.join(", ")}`,
+      sourceUrls.length ? `Sources read: ${sourceUrls.join(" | ")}` : "",
       "Do not copy any source model. Use references only for proportions, silhouettes, materials, and part ratios.",
     ];
     return lines.join("\n").slice(0, 2600);

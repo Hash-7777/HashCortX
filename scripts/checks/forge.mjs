@@ -133,6 +133,24 @@ console.log('\nA generated model is not replaced by a built-in one:');
   check('Mock still routes to them', /frgMockBtn/.test(src));
 }
 
+console.log('\nThe reference step looks for measurements, not marketplaces:');
+{
+  // A real run spent 22 of its 27 seconds reading "top 10 websites to download
+  // free 3D models" — because the scorer rewarded any url containing "3d" or
+  // "model", and the queries filtered TO the model marketplaces.
+  check('the queries no longer filter to model marketplaces',
+    !/Sketchfab OR GrabCAD/.test(src));
+  check('they ask about proportions and dimensions',
+    /typical proportions ratio length to height/.test(src) && /average dimensions size cm mm/.test(src));
+  check('download and marketplace pages are scored down',
+    /download\|free-\?3d\|top-\?/.test(src) && /score -= 80/.test(src));
+  check('pages that state measurements are scored up',
+    /wikipedia\|britannica/.test(src) && /score \+= 60/.test(src));
+  check('the brief no longer recommends marketplaces',
+    !/Preferred 3D\/CAD sources/.test(src));
+  check('at most two pages are read', /pageTargets\.slice\(0, 2\)/.test(src));
+}
+
 console.log('\nThe model is grounded once, by one estimator:');
 {
   check('the horizontal centring no longer touches height',
