@@ -73,7 +73,10 @@ const LINE_BUDGET = {
   // install could select an agent and silently get plain chat. The condition
   // is now the agent alone, and the note records why that toggle never had
   // anything to say about it.
-  'js/app.js': 7085,
+  // 7093, up eight. The chat fetch tool now says the page is being retrieved
+  // while it is: approving released the request and the wait that followed was
+  // silent, which read as the click having hung.
+  'js/app.js': 7093,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

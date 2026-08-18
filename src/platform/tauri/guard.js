@@ -170,6 +170,32 @@
    * resolves is wrong — silently allowing is unsafe, silently denying trains
    * them to expect failure.
    */
+  // The bar has two jobs and one body: it asks, and it reports what an answer
+  // set going. A question always wins — an unanswered request is the only thing
+  // that blocks — and the working state comes back when the question is gone.
+  let _asking = false;
+  let _busy = [];
+
+  function paintBar() {
+    const bar     = document.getElementById('hc-perm-bar');
+    const titleEl = document.getElementById('hc-perm-title');
+    const actEl   = document.getElementById('hc-perm-action');
+    const tgtEl   = document.getElementById('hc-perm-target');
+    const rsnEl   = document.getElementById('hc-perm-reason');
+    if (!bar) return;
+    if (_asking) return;                       // showDialog owns the fields
+    const job = _busy[_busy.length - 1];
+    if (!job) {
+      bar.classList.remove('open', 'working');
+      return;
+    }
+    bar.classList.add('open', 'working');
+    if (titleEl) titleEl.textContent = 'Working —';
+    if (actEl) { actEl.textContent = String(job.action || 'FETCH').toUpperCase(); actEl.className = 'hc-perm-badge ' + (job.action || 'fetch'); }
+    if (tgtEl) { tgtEl.textContent = job.label; tgtEl.title = job.label; }
+    if (rsnEl) rsnEl.textContent = 'You allowed this. It is running now.';
+  }
+
   function showDialog(action, target, reason) {
     return new Promise((resolve) => {
       const bar     = document.getElementById('hc-perm-bar');
@@ -182,6 +208,11 @@
       // No bar in the page is not permission. It is a refusal.
       if (!bar || !actEl || !onceBtn || !sessBtn || !denyBtn) { resolve('deny'); return; }
 
+      // The bar may have been reporting a fetch a moment ago; it is asking now.
+      // Without this the question kept the working headline and read as
+      // "Working — FETCH …" with Allow and Deny underneath it.
+      const titleEl = document.getElementById('hc-perm-title');
+      if (titleEl) titleEl.textContent = 'Allow HashCortX to';
       actEl.textContent = String(action).toUpperCase();
       actEl.className   = 'hc-perm-badge ' + action;
       // Long paths lose their middle, not their end: the filename is the part
@@ -190,10 +221,15 @@
       tgtEl.textContent = shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
       rsnEl.textContent = reason || '';
+      _asking = true;
+      bar.classList.remove('working');
       bar.classList.add('open');
 
       function cleanup(choice) {
+        _asking = false;
         bar.classList.remove('open');
+        // A fetch already running keeps the bar; otherwise it goes.
+        paintBar();
         onceBtn.removeEventListener('click', onOnce);
         sessBtn.removeEventListener('click', onSession);
         denyBtn.removeEventListener('click', onDeny);
@@ -407,6 +443,33 @@
         // allow-once — don't remember
         return true;
       });
+    },
+
+    /**
+     * Say that something the user allowed is now happening.
+     *
+     * Approving a fetch releases the request, and the page is then actually
+     * retrieved — which takes as long as it takes. Nothing said so, so the
+     * pause after clicking Allow read as the app hanging on the click. The bar
+     * stays up and says what it is doing instead.
+     *
+     * Returns a handle; call done() when the work finishes. Overlapping jobs
+     * are counted, so two fetches do not leave the bar up after one returns.
+     */
+    busy(label, action = 'fetch') {
+      const job = { label: String(label || ''), action };
+      _busy.push(job);
+      paintBar();
+      let settled = false;
+      return {
+        done() {
+          if (settled) return;
+          settled = true;
+          const at = _busy.indexOf(job);
+          if (at !== -1) _busy.splice(at, 1);
+          paintBar();
+        },
+      };
     },
 
     // Clear all session-remembered permissions (allow-session / deny).

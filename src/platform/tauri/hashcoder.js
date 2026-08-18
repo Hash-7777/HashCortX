@@ -380,7 +380,13 @@
         // public host. So the user is asked, and can grant the session.
         const ok = await HC.guard.request('fetch', url, p.reason || 'Reading a web page');
         if (!ok) throw new Error(`Permission denied: fetch ${url}`);
-        return viaChatTool('fetch_url', { url });
+        // Same reason as the chat path: the wait after Allow is the fetch.
+        const job = HC.guard.busy?.(url);
+        try {
+          return await viaChatTool('fetch_url', { url });
+        } finally {
+          job?.done();
+        }
       },
     },
     {

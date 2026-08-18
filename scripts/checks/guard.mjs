@@ -119,6 +119,19 @@ assert('the prompt is the bottom bar', /getElementById\('hc-perm-bar'\)/.test(sr
 assert('a missing bar denies rather than allows',
   /if \(!bar \|\| !actEl \|\| !onceBtn \|\| !sessBtn \|\| !denyBtn\) \{ resolve\('deny'\); return; \}/.test(src),
   'no way to ask must never mean permission');
+// The wait after "Allow" is the work itself. It used to be silent, so the pause
+// read as the click having hung.
+assert('the bar can report work as well as ask', /busy\(label, action = 'fetch'\)/.test(src));
+assert('overlapping jobs are counted, not toggled',
+  /_busy\.push\(job\)/.test(src) && /_busy\.splice\(at, 1\)/.test(src),
+  'two fetches must not leave the bar up after the first returns');
+assert('done is idempotent', /if \(settled\) return;/.test(src));
+assert('asking restores the question headline',
+  /titleEl\.textContent = 'Allow HashCortX to'/.test(src),
+  'a prompt after a fetch would otherwise still read "Working —"');
+assert('a question always wins over a report',
+  /if \(_asking\) return;/.test(src),
+  'an unanswered request is the only thing that blocks');
 assert('no key dismisses it', !/addEventListener\('key/.test(src),
   'a prompt that Escape closes is a prompt people close without reading');
 assert('only the three buttons are listened to',

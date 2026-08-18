@@ -2041,6 +2041,15 @@ body.intro-exiting #intro-screen .logo-glow {
 }
 .hc-perm-btn--deny:hover { background: rgba(248,113,113,.20); }
 
+/* Working: the same bar, reporting instead of asking. There are no buttons,
+   because there is nothing to decide — the decision was already made. */
+.hc-perm-bar.working .hc-perm-actions { display: none; }
+.hc-perm-bar.working .hc-perm-icon { animation: hcPermSpin 1.1s linear infinite; }
+@keyframes hcPermSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .hc-perm-bar.working .hc-perm-icon { animation: none; opacity: .7; }
+}
+
 @media (max-width: 720px) {
   .hc-perm-bar-inner { flex-wrap: wrap; }
   .hc-perm-actions { width: 100%; }

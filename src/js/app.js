@@ -6018,7 +6018,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // is not this path.
         if (window.HC?.guard && !(await HC.guard.request("fetch", url, "Reading a web page")))
           return { error: "The user declined to read that page." };
-        const text = await fetchUrl(url);
+        // Allowing releases the request; retrieving the page is the part that
+        // takes time. Say so, or the pause reads as the click having hung.
+        const job = window.HC?.guard?.busy?.(url);
+        let text;
+        try {
+          text = await fetchUrl(url);
+        } finally {
+          job?.done();
+        }
         if (!text) return { error: "Could not fetch (timeout, blocked private IP, or non-text page)." };
         // The knowledge base gets the whole page; the model gets a window of it
         // and is told where to continue, having previously got the first 3,000
