@@ -154,6 +154,13 @@ console.log('\nThe order of the steps holds:');
   const asis = P.assemble({ nodes: [box('slab', { scale: [40, 8, 8] })] });
   ok('no target size means no rescaling', asis.stats.scaleFactor === 1);
   ok('but the floor is still found', near(P.boundsOf(asis.parts)[1], 0, 1e-9));
+
+  // A caller that measures the real geometry grounds it itself.
+  const ungrounded = P.assemble({ nodes: [box('body', { position: [0, 5, 0] })] }, { ground: false });
+  ok('ground:false leaves the height alone', near(P.boundsOf(ungrounded.parts)[1], 4.5, 1e-9));
+  ok('and reports no offset', ungrounded.stats.floorOffset === 0);
+  ok('mirroring still happens without grounding',
+    P.assemble({ nodes: [box('fin', { position: [1, 2, 0], mirror: true })] }, { ground: false }).stats.mirrored === 1);
 }
 {
   const out = P.assemble(null);

@@ -90,12 +90,11 @@ const LINE_BUDGET = {
   // floor contact and unrenderable parts are settled in code before anything
   // is drawn, and the Audit Agent that used to be asked for them — and that
   // added marker geometry of its own — is gone from the pipeline.
-  // 3521. Down from 3777 when the six branches that replaced a generated
-  // model with built-in geometry came out, then up fourteen for the note
-  // explaining why the horizontal centring no longer grounds the model — two
-  // estimators were grounding it, disagreeing by a third of its height, and
-  // the second silently won.
-  'modes/forge/mode.js': 3521,
+  // 3552. The model is now set on the floor from the geometry that exists,
+  // measured once the meshes are built, rather than from a part's declared
+  // width and radius. A real run lifted a fish by 2.40 on the estimate and
+  // left it hanging above the grid.
+  'modes/forge/mode.js': 3562,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

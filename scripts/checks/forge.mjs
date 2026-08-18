@@ -153,6 +153,10 @@ console.log('\nThe design prompt asks for a model, not a part count:');
   check('audit markers are forbidden rather than requested',
     /Do not add audit markers/.test(src));
   check('few parts that read correctly is stated', /FEW PARTS THAT READ CORRECTLY/.test(src));
+  // A real run returned a fish standing on its tail. The prompt had never said
+  // which way is up, so the model had no reason to lay it down.
+  check('the axis convention is stated', /\+Y is up/.test(src));
+  check('length-wise objects are told to lie down', /HORIZONTAL axis/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/forge/mode.js)`);

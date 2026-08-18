@@ -326,7 +326,11 @@
     // Ask for it with targetSize when the caller knows what the scene expects.
     const target = num(opts.targetSize, 0);
     const scaled = target > 0 ? normaliseScale(mirrored.parts, target) : { parts: mirrored.parts, factor: 1 };
-    const floored = snapToFloor(scaled.parts);
+    // Grounding from declared parameters is an estimate: it ignores rotation
+    // and cannot know what a mesh's vertices do. A caller that will measure the
+    // built geometry itself should say so and skip this, rather than have two
+    // answers applied in turn.
+    const floored = opts.ground === false ? { parts: scaled.parts, offset: 0 } : snapToFloor(scaled.parts);
 
     const parts = floored.parts;
     return {

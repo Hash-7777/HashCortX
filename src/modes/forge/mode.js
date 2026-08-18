@@ -1160,6 +1160,7 @@
     activePlan = normalizePlan(plan);
     const nodes = renderableNodes(activePlan.nodes);
     nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
+    groundBuiltModel();
     updatePlanList(activePlan);
     if (plan._introLogo && camera && controls) {
       // Intimate framing for the intro logo — skip auto-zoom so the brand reads big
@@ -1170,6 +1171,34 @@
       frameModel();
     }
     log("Viewport", `Loaded ${nodes.length} mesh part(s) in the void.`);
+  }
+
+  /**
+   * Put the built model on the floor, measured from the geometry that exists.
+   *
+   * Everything before this point works from a part's declared parameters —
+   * width, radius, a profile's points — which is an estimate, ignores rotation,
+   * and cannot know what a mesh's vertices actually do. On a real run it lifted
+   * a fish by 2.40 and left it hanging above the grid.
+   *
+   * Here the meshes are built, so THREE can measure them exactly. The nodes
+   * move with them, or a save would store the ungrounded positions and the
+   * model would jump the next time it was opened.
+   */
+  function groundBuiltModel() {
+    if (!THREE || !modelGroup || !modelGroup.children.length) return;
+    modelGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(modelGroup);
+    if (box.isEmpty() || !Number.isFinite(box.min.y)) return;
+    const dy = FLOOR_Y - box.min.y;
+    if (!Number.isFinite(dy) || Math.abs(dy) < 1e-4) return;
+    modelGroup.children.forEach((child) => {
+      child.position.y += dy;
+      const node = child.userData?.node;
+      if (node && Array.isArray(node.position)) node.position[1] += dy;
+    });
+    modelGroup.updateMatrixWorld(true);
+    log("Assemble", `set on the floor from measured geometry · ${dy > 0 ? "+" : ""}${dy.toFixed(2)}`, "ok");
   }
 
   function selectableMeshes() {
@@ -1513,7 +1542,9 @@
     if (!MP || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return plan;
     let out;
     try {
-      out = MP.assemble(plan);
+      // Grounding is skipped here: buildPlan measures the meshes it actually
+      // creates and sets the model on the floor from that, which is exact.
+      out = MP.assemble(plan, { ground: false });
     } catch (err) {
       log("Assemble", `skipped: ${err?.message || err}`, "warn");
       return plan;
@@ -1527,9 +1558,9 @@
     const s = out.stats;
     const notes = [];
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
-    if (Math.abs(s.floorOffset) > 1e-3) notes.push(`grounded by ${s.floorOffset.toFixed(2)}`);
+
     if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
-    log("Assemble", notes.length ? notes.join(" · ") : "already symmetric and grounded", "ok");
+    log("Assemble", notes.length ? notes.join(" · ") : "nothing to correct", "ok");
     for (const issue of out.issues) {
       if (issue.code === "detached") log("Assemble", `${issue.partId} does not connect to the main body`, "warn");
       else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
@@ -2265,6 +2296,10 @@ How to build it:
 - Every part must touch or overlap another. One object, nothing floating beside it.
 - Do not add audit markers, rings, reference planes, rulers or floor pads. The app measures
   clearance, balance and floor contact itself, and anything like that becomes an unwanted part.
+- Axes: +Y is up, +X is right, +Z is towards the viewer. Orient the object the way it rests
+  in life: a fish, a car, a plane and an animal lie along a HORIZONTAL axis with their length
+  on X or Z, not standing on end. A bottle, a lamp or a person stands with its length on Y.
+  If the object has a front, face it towards +Z.
 - The app puts the model on the floor. Build it around the origin and do not compensate.
 - Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
@@ -3357,7 +3392,13 @@ ${referenceBrief || "No external reference brief available; infer from general o
       const btn = e.currentTarget;
       if (!text) { btn.textContent = "Empty"; setTimeout(() => { btn.textContent = "Export"; }, 1200); return; }
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-      const ok = await downloadBlob(`forge-trace-${stamp}.txt`, new Blob([text], { type: "text/plain" }));
+      let ok = false;
+      try {
+        const result = await window.HC.save.file(`forge-trace-${stamp}.txt`, new Blob([text], { type: "text/plain" }));
+        ok = !!result.saved;
+      } catch (err) {
+        log("Trace", `could not save: ${err?.message || err}`, "warn");
+      }
       btn.textContent = ok ? "Saved" : "Export";
       setTimeout(() => { btn.textContent = "Export"; }, 1400);
     });
