@@ -3445,6 +3445,38 @@ ${referenceBrief || "No external reference brief available; infer from general o
   function wireEvents() {
     if (eventsWired) return;
     eventsWired = true;
+    // Inspector tabs.
+    document.querySelectorAll("[data-frg-tab]").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const want = tab.dataset.frgTab;
+        document.querySelectorAll("[data-frg-tab]").forEach((t) => {
+          const on = t === tab;
+          t.classList.toggle("active", on);
+          t.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        document.querySelectorAll("[data-frg-pane]").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.frgPane === want);
+        });
+      });
+    });
+
+    // The header menu, and a click anywhere else closes it.
+    $("frgMoreBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const menu = $("frgMoreMenu");
+      if (!menu) return;
+      const open = menu.hidden;
+      menu.hidden = !open;
+      $("frgMoreBtn")?.setAttribute("aria-expanded", open ? "true" : "false");
+    });
+    document.addEventListener("click", (e) => {
+      const menu = $("frgMoreMenu");
+      if (!menu || menu.hidden) return;
+      if (e.target.closest(".frg-more-wrap")) return;
+      menu.hidden = true;
+      $("frgMoreBtn")?.setAttribute("aria-expanded", "false");
+    });
+
     $("frgGodBtn")?.addEventListener("click", () => runGodAgent(false));
     $("frgImproveBtn")?.addEventListener("click", () => void improveModel());
     $("frgMockBtn")?.addEventListener("click", () => runGodAgent(true));

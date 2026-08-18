@@ -31,49 +31,57 @@
       <button class="frg-btn primary" id="frgGodBtn">Generate</button>
     </div>
 
-    <!-- Gen controls: style / detail / output — display:contents so they slot into header grid -->
-    <div class="frg-gen-controls">
-      <label>
-        <span>Style</span>
-        <select id="frgStyle">
-          <option value="realistic">Realistic</option>
-          <option value="stylized">Stylized</option>
-          <option value="low-poly">Low-Poly</option>
-          <option value="wireframe">Wireframe</option>
-          <option value="cartoon">Cartoon</option>
-        </select>
-      </label>
-      <label>
-        <span>Detail</span>
-        <select id="frgDetail">
-          <option value="low">Low</option>
-          <option value="balanced" selected>Balanced</option>
-          <option value="high">High</option>
-        </select>
-      </label>
-      <label>
-        <span>Export as</span>
-        <select id="frgOutputTarget">
-          <option value="glb">GLB</option>
-          <option value="gltf">GLTF</option>
-          <option value="stl">STL</option>
-          <option value="obj">OBJ</option>
-        </select>
-      </label>
+    <!-- Style, detail and export target used to sit open across the bar. They
+         are answered once and then read, so they live behind a menu now. -->
+    <div class="frg-more-wrap">
+      <button class="frg-icon-btn" id="frgMoreBtn" title="Style, detail and export target" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" width="15" height="15"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+      </button>
+      <div class="frg-more-menu" id="frgMoreMenu" hidden>
+        <label>
+          <span>Style</span>
+          <select id="frgStyle">
+            <option value="realistic">Realistic</option>
+            <option value="stylized">Stylized</option>
+            <option value="low-poly">Low-Poly</option>
+            <option value="wireframe">Wireframe</option>
+            <option value="cartoon">Cartoon</option>
+          </select>
+        </label>
+        <label>
+          <span>Detail</span>
+          <select id="frgDetail">
+            <option value="low">Low</option>
+            <option value="balanced" selected>Balanced</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label>
+          <span>Export as</span>
+          <select id="frgOutputTarget">
+            <option value="glb">GLB</option>
+            <option value="gltf">GLTF</option>
+            <option value="stl">STL</option>
+            <option value="obj">OBJ</option>
+          </select>
+        </label>
+        <div class="frg-more-sep"></div>
+        <button class="frg-more-item" id="frgMockBtn">Load a sample model</button>
+        <button class="frg-more-item" id="frgAutoRouteBtn">Auto-assign the model route</button>
+      </div>
     </div>
 
-    <!-- Right: status + action buttons -->
     <div class="frg-header-right">
       <span class="frg-status" id="frgStatus">Idle</span>
-      <span id="frgParticleCount" style="font-family:var(--mono);font-size:9px;color:rgba(223,251,245,0.42);letter-spacing:.08em;"></span>
-      <button class="frg-btn" id="frgMockBtn">Mock</button>
-      <button class="frg-btn" id="frgAutoRouteBtn">Auto</button>
+      <span id="frgParticleCount" class="frg-particles"></span>
       <button class="frg-btn" id="frgSaveProjectBtn">Save</button>
       <button class="frg-btn" id="frgNewProjectBtn">New</button>
       <button class="frg-icon-btn" id="frgResetViewBtn" title="Reset camera">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
       </button>
-      <button class="frg-btn" id="frgBackBtn">&#8592; Back</button>
+      <button class="frg-icon-btn" id="frgBackBtn" title="Back to the app">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+      </button>
     </div>
 
   </div><!-- /.frg-header -->
@@ -125,11 +133,54 @@
       <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove</div>
     </div><!-- /.frg-viewport -->
 
-    <!-- Right side panel -->
+    <!-- Right inspector.
+         Five stacked sections used to compete for one column — agents,
+         pipeline, projects, plan and selection, all open at once. They answer
+         three different questions: what is this made of, what is selected, and
+         what did the run do. So they are three tabs. -->
     <div class="frg-panel">
+      <div class="frg-tabs" role="tablist">
+        <button class="frg-tab active" data-frg-tab="parts" role="tab" aria-selected="true">Parts</button>
+        <button class="frg-tab" data-frg-tab="properties" role="tab" aria-selected="false">Properties</button>
+        <button class="frg-tab" data-frg-tab="run" role="tab" aria-selected="false">Run</button>
+      </div>
 
-      <!-- Agents -->
-      <div class="frg-panel-section">
+      <div class="frg-tabpane active" data-frg-pane="parts">
+        <div class="frg-panel-section grow">
+        <div class="frg-panel-label">Plan</div>
+        <div class="frg-plan-list" id="frgPlanList">
+          <!-- Populated by JS: updatePlanList() -->
+        </div>
+      </div>
+
+      <!-- Selection inspector card -->
+        <div class="frg-panel-section">
+        <div class="frg-panel-label-row">
+          <span class="frg-panel-label" style="margin-bottom:0">Projects</span>
+        </div>
+        <div class="frg-project-list" id="frgProjectsList">
+          <!-- Populated by JS: renderForgeProjects() -->
+        </div>
+      </div>
+
+      <!-- Plan / nodes list -->
+      </div>
+
+      <div class="frg-tabpane" data-frg-pane="properties">
+        <div class="frg-panel-section">
+        <div class="frg-panel-label">Selection</div>
+        <div class="frg-selection-card" id="frgSelectionCard">
+          <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
+        </div>
+      </div>
+
+    <!-- /.frg-panel -->
+
+  <!-- /.frg-body -->
+      </div>
+
+      <div class="frg-tabpane" data-frg-pane="run">
+        <div class="frg-panel-section">
         <div class="frg-panel-label">Agents</div>
         <div class="frg-agent-list" id="frgAgents">
           <!-- Populated by JS: renderAgents() -->
@@ -144,7 +195,7 @@
       </div>
 
       <!-- Pipeline stage indicators -->
-      <div class="frg-panel-section">
+        <div class="frg-panel-section">
         <div class="frg-panel-label">Pipeline</div>
         <div class="frg-stage-list">
           <div class="frg-stage" data-frg-stage="input">
@@ -163,29 +214,6 @@
       </div>
 
       <!-- Projects -->
-      <div class="frg-panel-section">
-        <div class="frg-panel-label-row">
-          <span class="frg-panel-label" style="margin-bottom:0">Projects</span>
-        </div>
-        <div class="frg-project-list" id="frgProjectsList">
-          <!-- Populated by JS: renderForgeProjects() -->
-        </div>
-      </div>
-
-      <!-- Plan / nodes list -->
-      <div class="frg-panel-section grow">
-        <div class="frg-panel-label">Plan</div>
-        <div class="frg-plan-list" id="frgPlanList">
-          <!-- Populated by JS: updatePlanList() -->
-        </div>
-      </div>
-
-      <!-- Selection inspector card -->
-      <div class="frg-panel-section">
-        <div class="frg-panel-label">Selection</div>
-        <div class="frg-selection-card" id="frgSelectionCard">
-          <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
-        </div>
       </div>
 
     </div><!-- /.frg-panel -->

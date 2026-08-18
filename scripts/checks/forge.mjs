@@ -26,6 +26,7 @@ import { dirname, join } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
+const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'panel.html'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -131,6 +132,20 @@ console.log('\nA generated model is not replaced by a built-in one:');
   // Mock is a deliberate choice to build from a template, and stays.
   check('the built-in plans are still reachable for Mock', /function fallbackPlan\(/.test(src));
   check('Mock still routes to them', /frgMockBtn/.test(src));
+}
+
+console.log('\nThe inspector asks one question at a time:');
+{
+  check('three tabs', /data-frg-tab="parts"/.test(panel) && /data-frg-tab="properties"/.test(panel) && /data-frg-tab="run"/.test(panel));
+  check('the plan and projects are under Parts',
+    /data-frg-pane="parts"[\s\S]{0,900}id="frgPlanList"/.test(panel));
+  check('the selection is under Properties',
+    /data-frg-pane="properties"[\s\S]{0,600}id="frgSelectionCard"/.test(panel));
+  check('the agents and pipeline are under Run',
+    /data-frg-pane="run"[\s\S]{0,900}id="frgAgents"/.test(panel));
+  check('style, detail and export target moved into the menu',
+    /id="frgMoreMenu"[\s\S]{0,1400}id="frgOutputTarget"/.test(panel));
+  check('the menu closes on an outside click', /if \(e\.target\.closest\("\.frg-more-wrap"\)\) return;/.test(src));
 }
 
 console.log('\nImprove is a patch, not another design:');
