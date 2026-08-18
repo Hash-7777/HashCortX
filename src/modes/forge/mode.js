@@ -1150,6 +1150,7 @@
     nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
     groundBuiltModel();
     updatePlanList(activePlan);
+    syncImproveAvailability();
     if (plan._introLogo && camera && controls) {
       // Intimate framing for the intro logo — skip auto-zoom so the brand reads big
       camera.position.set(0, 0.35, 4.8);
@@ -1187,6 +1188,121 @@
     });
     modelGroup.updateMatrixWorld(true);
     log("Assemble", `set on the floor from measured geometry · ${dy > 0 ? "+" : ""}${dy.toFixed(2)}`, "ok");
+  }
+
+  /**
+   * What is measurably wrong with the model on screen, in words a model can act
+   * on. Nothing here is an opinion: every line comes from the built geometry or
+   * from the deterministic stage's own findings.
+   */
+  function describeBuiltModel() {
+    const MP = window.HCModelPlan;
+    const nodes = renderableNodes(activePlan?.nodes || []);
+    if (!nodes.length) return null;
+    const lines = [`The model currently has ${nodes.length} part(s): ${nodes.map((n) => n.name || n.id).join(", ")}.`];
+
+    if (THREE && modelGroup && modelGroup.children.length) {
+      const box = new THREE.Box3().setFromObject(modelGroup);
+      if (!box.isEmpty()) {
+        const size = box.getSize(new THREE.Vector3());
+        lines.push(`Measured size: width ${size.x.toFixed(2)}, height ${size.y.toFixed(2)}, depth ${size.z.toFixed(2)}.`);
+        const longest = Math.max(size.x, size.y, size.z);
+        if (longest > 0 && size.y === longest && size.y > Math.max(size.x, size.z) * 1.6) {
+          lines.push("The tallest axis is Y by a wide margin — if this object rests lengthwise in life, it is standing on end and should be laid down.");
+        }
+        const thinnest = Math.min(size.x, size.y, size.z);
+        if (longest > 0 && thinnest / longest < 0.05) lines.push("The model is nearly flat in one axis; it needs depth.");
+      }
+    }
+    if (MP) {
+      for (const issue of MP.findIssues(MP.normaliseParts(nodes).parts)) {
+        if (issue.code === "detached") lines.push(`"${issue.partId}" does not touch the rest of the model; move it so it connects, or remove it.`);
+      }
+    }
+    return lines.join("\n");
+  }
+
+  /**
+   * The second call. It is given the plan and what the built model measures,
+   * and asked for the smallest set of changes that fixes it — not a new design.
+   * Regenerating from the prompt is what Generate is for, and it throws away
+   * whatever was already right.
+   */
+  async function improveModel() {
+    // A generation in progress owns the scene; improving on top of it would
+    // apply a patch to a plan that is about to be replaced.
+    if (abortCtrl && !abortCtrl.signal.aborted) { log("Improve", "wait for the run to finish", "warn"); return; }
+    const api = window._H;
+    const model = selectedModelFor("god");
+    const observations = describeBuiltModel();
+    if (!api?.ollamaChat || !model) { log("Improve", "no model bridge", "err"); return; }
+    if (!observations) { log("Improve", "nothing built to improve yet", "warn"); return; }
+
+    const btn = $("frgImproveBtn");
+    if (btn) { btn.disabled = true; btn.textContent = "Improving…"; }
+    setStatus("Improving");
+    const ctrl = new AbortController();
+    try {
+      log("Improve", `Sending the model back to ${modelLabel(model)} with what is measurably wrong`, "run");
+      const system = `You are correcting an existing 3D model, not designing a new one.
+Return only JSON: {"remove":["id",...],"replace":[node,...],"add":[node,...]}
+A node has the same shape as the plan you are given: id, name, type, position, rotation, scale, params, color, mirror.
+Rules:
+- Change as little as possible. Keep every part that is not named as a problem.
+- "replace" swaps a part with the same id. "add" introduces new ones. "remove" deletes by id.
+- Do not restate parts you are not changing.
+- The app mirrors, grounds and centres the model itself. Do not compensate for those.
+- If nothing needs changing, return {"remove":[],"replace":[],"add":[]}.`;
+      const user = `Prompt the model was built for: ${$("frgPrompt")?.value || activePlan?.name || "model"}
+
+What the built model measures:
+${observations}
+
+The current plan:
+${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.nodes || []) }).slice(0, 12000)}`;
+      const text = await api.ollamaChat(model, [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ], null, ctrl.signal);
+
+      const patch = parseJsonPayload(text, "object") || {};
+      const removed = new Set((Array.isArray(patch.remove) ? patch.remove : []).map(String));
+      const replacements = new Map((Array.isArray(patch.replace) ? patch.replace : [])
+        .filter((n) => n && n.id).map((n) => [String(n.id), n]));
+      const added = (Array.isArray(patch.add) ? patch.add : []).filter((n) => n && typeof n === "object");
+
+      if (!removed.size && !replacements.size && !added.length) {
+        log("Improve", "the model reported nothing to change", "wait");
+        return;
+      }
+      const nodes = (activePlan?.nodes || [])
+        .filter((n) => !removed.has(String(n.id)))
+        .map((n) => (replacements.has(String(n.id)) ? { ...n, ...replacements.get(String(n.id)) } : n))
+        .concat(added);
+      log("Improve", `${replacements.size} changed · ${added.length} added · ${removed.size} removed`, "ok");
+
+      let plan = enforceSingleMainModel($("frgPrompt")?.value || "", { ...activePlan, nodes });
+      plan = assembleDeterministically(normalizePlan(plan));
+      buildPlan(plan);
+      saveCurrentProject(false);
+      setStatus("Ready");
+    } catch (err) {
+      log("Improve", `failed: ${err?.message || err}`, "err");
+      setStatus("Ready");
+    } finally {
+      if (btn) { btn.textContent = "Improve this model"; btn.disabled = false; }
+    }
+  }
+
+  /** Improve only means something once there is a model to improve. */
+  function syncImproveAvailability() {
+    const btn = $("frgImproveBtn");
+    const note = $("frgImproveNote");
+    const count = renderableNodes(activePlan?.nodes || []).length;
+    if (btn) btn.disabled = !count;
+    if (note) note.textContent = count
+      ? "One more call. Sends what the model measures, and applies only the corrections that come back."
+      : "Generate a model first.";
   }
 
   function selectableMeshes() {
@@ -3330,6 +3446,7 @@ ${referenceBrief || "No external reference brief available; infer from general o
     if (eventsWired) return;
     eventsWired = true;
     $("frgGodBtn")?.addEventListener("click", () => runGodAgent(false));
+    $("frgImproveBtn")?.addEventListener("click", () => void improveModel());
     $("frgMockBtn")?.addEventListener("click", () => runGodAgent(true));
     $("frgResetViewBtn")?.addEventListener("click", resetView);
     $("frgBackBtn")?.addEventListener("click", () => {

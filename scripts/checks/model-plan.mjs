@@ -71,6 +71,12 @@ console.log('\nA plan is made safe before anything is drawn:');
   ok('a part with no size is dropped', !ids.includes('flat'));
   ok('the drop says why', issues.some((i) => i.code === 'degenerate' && i.partId === 'flat'));
   ok('a zero scale is treated as one', P.normaliseParts([box('z', { scale: [0, 1, 1] })]).parts[0].scale[0] === 1);
+  // A real run returned leg_fl and leg_fr as separate parts. If a name could
+  // turn mirroring on, that chair would come back with six legs.
+  ok('a left/right name does not mirror on its own',
+    P.expandMirrors(P.normaliseParts([box('leg_fl', { name: 'left front leg', position: [0.4, 0, 0.4] })]).parts).parts.length === 1);
+  ok('an explicit flag still mirrors',
+    P.expandMirrors(P.normaliseParts([box('leg', { position: [0.4, 0, 0.4], mirror: true })]).parts).parts.length === 2);
 }
 
 // ── Symmetry, made not asked for ─────────────────────────────────────────────

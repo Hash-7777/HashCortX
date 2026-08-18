@@ -172,7 +172,12 @@
         scale,
         params: raw.params && typeof raw.params === "object" ? raw.params : {},
         color: typeof raw.color === "string" ? raw.color : undefined,
-        mirror: raw.mirror === true || /\b(left|right)\b/i.test(String(raw.name || "")) ? !!raw.mirror : false,
+        // Only an explicit flag. A name test used to sit in this expression —
+        // and could never change its result, because both branches ended at
+        // raw.mirror. Guessing from a name would be worse than dead anyway: a
+        // plan that already contains "leg_fl" and "leg_fr" would have each of
+        // them mirrored again, and the chair would arrive with six legs.
+        mirror: raw.mirror === true,
       };
 
       const [hx, hy, hz] = halfExtents(part);

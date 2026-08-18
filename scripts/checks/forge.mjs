@@ -133,6 +133,22 @@ console.log('\nA generated model is not replaced by a built-in one:');
   check('Mock still routes to them', /frgMockBtn/.test(src));
 }
 
+console.log('\nImprove is a patch, not another design:');
+{
+  check('it asks for a patch shape', /"remove":\[/.test(src) && /"replace":\[/.test(src) && /"add":\[/.test(src));
+  check('it is told to change as little as possible', /Change as little as possible/.test(src));
+  check('it is given what the model measures, not the prompt again',
+    /function describeBuiltModel/.test(src) && /Measured size: width/.test(src));
+  check('the measurements come from the built geometry',
+    /new THREE\.Box3\(\)\.setFromObject\(modelGroup\)[\s\S]{0,400}getSize/.test(src));
+  check('a patch that changes nothing is not applied',
+    /reported nothing to change/.test(src));
+  check('it refuses to run over a generation in progress',
+    /wait for the run to finish/.test(src));
+  check('the button is off until there is something to improve',
+    /function syncImproveAvailability[\s\S]{0,300}btn\.disabled = !count/.test(src));
+}
+
 console.log('\nThe reference step looks for measurements, not marketplaces:');
 {
   // A real run spent 22 of its 27 seconds reading "top 10 websites to download

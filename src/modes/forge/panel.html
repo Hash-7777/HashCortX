@@ -134,6 +134,13 @@
         <div class="frg-agent-list" id="frgAgents">
           <!-- Populated by JS: renderAgents() -->
         </div>
+        <!-- The second call, and the only one that is optional. It is given
+             what the built model actually measures, not the prompt again. -->
+        <button class="frg-btn frg-improve" id="frgImproveBtn" disabled
+                title="Send the model back with what is measurably wrong, and apply the corrections">
+          Improve this model
+        </button>
+        <div class="frg-improve-note" id="frgImproveNote">Generate a model first.</div>
       </div>
 
       <!-- Pipeline stage indicators -->

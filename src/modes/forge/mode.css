@@ -1046,3 +1046,19 @@ body.forge-studio-mode #app { display: none; }
     grid-template-columns: 1fr;
   }
 }
+
+/* Improve — one more call, only when a person asks for it. */
+.frg-improve {
+  width: 100%;
+  margin-top: 8px;
+  justify-content: center;
+}
+.frg-improve[disabled] { opacity: .38; cursor: default; }
+.frg-improve-note {
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1.5;
+  letter-spacing: .04em;
+  color: rgba(223,251,245,0.38);
+}
