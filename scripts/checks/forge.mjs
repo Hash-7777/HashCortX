@@ -122,8 +122,8 @@ console.log('\nA generated model is not replaced by a built-in one:');
   check('the plan-shape predicates that fed it are gone',
     !/isAnimalPlanSane|isPhonePlanSane|isLaptopPlanSane|isDronePlanSane|isToolPlanSane/.test(src));
   check('one subject is still enforced, and only that',
-    /function enforceSingleMainModel[\s\S]{0,900}centerAndGroundPlan\(keepLargestConnectedModel/.test(src),
-    'it should centre and ground a single subject, not rebuild it');
+    /function enforceSingleMainModel[\s\S]{0,900}centerPlanOnAxis\(keepLargestConnectedModel/.test(src),
+    'it should keep and centre a single subject, not rebuild it');
   check('no padding pass tops a plan up to a node count',
     !/ensurePlanRichness/.test(src),
     'padding a good twelve-part model up to forty is the opposite of what the prompt asks for');
@@ -131,6 +131,18 @@ console.log('\nA generated model is not replaced by a built-in one:');
   // Mock is a deliberate choice to build from a template, and stays.
   check('the built-in plans are still reachable for Mock', /function fallbackPlan\(/.test(src));
   check('Mock still routes to them', /frgMockBtn/.test(src));
+}
+
+console.log('\nThe model is grounded once, by one estimator:');
+{
+  check('the horizontal centring no longer touches height',
+    /function centerPlanOnAxis[\s\S]{0,900}\(node\.position\?\.\[1\] \|\| 0\),/.test(src),
+    'it used to ground to FLOOR_Y + 0.015 and then be overruled by the assembler');
+  check('nothing grounds twice', !/centerAndGroundPlan/.test(src));
+  check('grounding is left to the tested stage',
+    /assembleDeterministically/.test(src) &&
+    !/const dy = FLOOR_Y \+ 0\.015/.test(src),
+    'the second grounding must be gone from the code, not just from the comment');
 }
 
 console.log('\nThe design prompt asks for a model, not a part count:');

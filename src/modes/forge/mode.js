@@ -2569,7 +2569,7 @@ ${referenceBrief || "No external reference brief available; infer from general o
    * them deliberately. What has gone is their power to overrule a real answer.
    */
   function enforceSingleMainModel(prompt, plan) {
-    return centerAndGroundPlan(keepLargestConnectedModel(prompt, normalizePlan(plan)));
+    return centerPlanOnAxis(keepLargestConnectedModel(prompt, normalizePlan(plan)));
   }
 
   function keepLargestConnectedModel(prompt, plan) {
@@ -2646,20 +2646,34 @@ ${referenceBrief || "No external reference brief available; infer from general o
     };
   }
 
-  function centerAndGroundPlan(plan) {
+  /**
+   * Centre the model over the origin on X and Z. Height is deliberately not
+   * touched.
+   *
+   * This used to ground the model too, to FLOOR_Y + 0.015, using its own
+   * estimate of where the bottom is — and then the deterministic stage grounded
+   * it again to zero using a different estimate. Two approximations of the same
+   * quantity, both applied, the second silently winning: on the sample plan
+   * they disagreed by 0.30, which is a third of a model. Grounding now happens
+   * once, in src/js/model-plan.js, where it is the tested one.
+   *
+   * Both are still estimates from a part's declared parameters rather than its
+   * rendered geometry, and neither accounts for rotation. Grounding from the
+   * real bounds after the meshes exist is the honest fix and is not done yet.
+   */
+  function centerPlanOnAxis(plan) {
     const normalized = normalizePlan(plan);
     const nodes = renderableNodes(normalized.nodes);
     const box = boundsForNodes(nodes);
     if (!box) return normalized;
     const dx = -((box.min[0] + box.max[0]) / 2);
-    const dy = FLOOR_Y + 0.015 - box.min[1];
     const dz = -((box.min[2] + box.max[2]) / 2);
-    if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001 && Math.abs(dz) < 0.001) return normalized;
+    if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) return normalized;
     normalized.nodes = normalized.nodes.map((node) => ({
       ...node,
       position: [
         (node.position?.[0] || 0) + dx,
-        (node.position?.[1] || 0) + dy,
+        (node.position?.[1] || 0),
         (node.position?.[2] || 0) + dz,
       ],
     }));
