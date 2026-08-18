@@ -596,23 +596,22 @@
   </div>
 
   <!-- ── Phase 3: Permission Guard Dialog ─────────────────── -->
-  <div id="hc-perm-dialog" role="dialog" aria-modal="true" aria-labelledby="hc-perm-title">
-    <div class="hc-perm-card">
-      <div class="hc-perm-header">
-        <span class="hc-perm-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.4c0 4.3 3 8.3 7.5 9.6 4.5-1.3 7.5-5.3 7.5-9.6V6L12 3Z"/><path d="M12.6 8.4 10 12.6h2.6L11.4 16l3-4.4h-2.6l.8-3.2Z"/></svg></span>
-        <span id="hc-perm-title" class="hc-perm-title">HashCortX wants to:</span>
-      </div>
-      <div class="hc-perm-body">
-        <div class="hc-perm-row">
+  <!-- Permission bar — one for every mode, no dismiss. See guard.js. -->
+  <div id="hc-perm-bar" class="hc-perm-bar" role="alertdialog" aria-live="assertive" aria-labelledby="hc-perm-title">
+    <div class="hc-perm-bar-inner">
+      <span class="hc-perm-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v5.4c0 4.3 3 8.3 7.5 9.6 4.5-1.3 7.5-5.3 7.5-9.6V6L12 3Z"/><path d="M12.6 8.4 10 12.6h2.6L11.4 16l3-4.4h-2.6l.8-3.2Z"/></svg></span>
+      <div class="hc-perm-text">
+        <div class="hc-perm-line">
+          <span id="hc-perm-title" class="hc-perm-title">Allow HashCortX to</span>
           <span class="hc-perm-badge" id="hc-perm-action">WRITE</span>
           <code class="hc-perm-target" id="hc-perm-target"></code>
         </div>
         <p class="hc-perm-reason" id="hc-perm-reason"></p>
       </div>
       <div class="hc-perm-actions">
-        <button id="hc-perm-once"    class="hc-perm-btn hc-perm-btn--allow">Allow once</button>
-        <button id="hc-perm-session" class="hc-perm-btn hc-perm-btn--session">Allow for session</button>
         <button id="hc-perm-deny"    class="hc-perm-btn hc-perm-btn--deny">Deny</button>
+        <button id="hc-perm-session" class="hc-perm-btn hc-perm-btn--session">Allow for session</button>
+        <button id="hc-perm-once"    class="hc-perm-btn hc-perm-btn--allow">Allow once</button>
       </div>
     </div>
   </div>

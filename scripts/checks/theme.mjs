@@ -187,7 +187,9 @@ const BUDGET = {
   // centre node in Coder's neon green, and the two light-theme parchment
   // shades. None of it was a decision about this map; it predates the app
   // having tokens at all.
-  'css/modals.css': 50,
+  // 44, down from 50. The permission modal's own palette went with it when the
+  // prompt became a bar built from the shared tokens.
+  'css/modals.css': 44,
   'modes/virtual-os/mode.css': 52,
   'css/modes.css': 50,
   'css/main.css': 41,

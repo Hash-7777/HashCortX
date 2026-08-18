@@ -1968,72 +1968,84 @@ body.intro-exiting #intro-screen .logo-glow {
 }
 
 /* ── Phase 3: Permission Guard Dialog ────────────────────────── */
-#hc-perm-dialog {
+/* ── Permission bar ───────────────────────────────────────────────
+   A bar across the bottom of the window, not a card in the middle of
+   it. The decision belongs next to the work it interrupts, and the
+   same bar serves every mode — chat included, where a model can ask
+   to read a web page just as Coder can ask to touch a file. */
+.hc-perm-bar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 1400;
   display: none;
-  position: fixed; inset: 0; z-index: 19999;
-  background: rgba(0,0,0,.72);
-  backdrop-filter: blur(6px);
-  align-items: center; justify-content: center;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, var(--surface-1, rgba(8,12,16,.92)), var(--surface-0, rgba(6,9,12,.98)));
+  border-top: 1px solid rgba(34,211,238,.30);
+  box-shadow: 0 -18px 40px -24px rgba(0,0,0,.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: hcPermRise .16s ease-out;
 }
-#hc-perm-dialog.open { display: flex; }
+.hc-perm-bar.open { display: block; }
+@keyframes hcPermRise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .hc-perm-bar { animation: none; } }
 
-.hc-perm-card {
-  background: #0f1117;
-  border: 1px solid rgba(34,211,238,.22);
-  border-radius: var(--radius-md);
-  box-shadow: 0 0 40px rgba(34,211,238,.12), 0 24px 48px rgba(0,0,0,.6);
-  width: min(520px, 92vw);
-  font-family: var(--mono, 'JetBrains Mono', monospace);
-  overflow: hidden;
+.hc-perm-bar-inner {
+  display: flex; align-items: center; gap: 14px;
+  max-width: 1180px; margin: 0 auto;
 }
-.hc-perm-header {
-  display: flex; align-items: center; gap: 10px;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid rgba(34,211,238,.12);
-}
-.hc-perm-icon { font-size: 18px; }
-.hc-perm-title {
-  font-size: 13px; font-weight: 600;
-  color: rgba(199,230,240,.9); letter-spacing: .04em; text-transform: uppercase;
-}
-.hc-perm-body { padding: 18px 20px 12px; }
-.hc-perm-row  { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hc-perm-icon { flex: 0 0 auto; color: var(--accent); }
+.hc-perm-icon svg { width: 20px; height: 20px; display: block; }
+.hc-perm-text { flex: 1; min-width: 0; }
+.hc-perm-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.hc-perm-title { color: var(--text-dim); font-size: 12.5px; flex: 0 0 auto; }
 .hc-perm-badge {
-  font-size: 10px; font-weight: 700; letter-spacing: .08em;
-  padding: 3px 8px; border-radius: var(--radius-xs);
-  background: rgba(34,211,238,.15); color: #22d3ee;
-  border: 1px solid rgba(34,211,238,.3); flex-shrink: 0;
+  flex: 0 0 auto;
+  padding: 2px 8px; border-radius: 999px;
+  background: rgba(34,211,238,.14); border: 1px solid rgba(34,211,238,.34);
+  color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: .1em;
+}
+.hc-perm-badge.shell, .hc-perm-badge.delete {
+  background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.36); color: var(--danger);
 }
 .hc-perm-target {
-  font-size: 12px; color: #e2fde8; word-break: break-all;
-  background: rgba(255,255,255,.04); padding: 3px 7px; border-radius: var(--radius-xs);
+  flex: 1 1 auto; min-width: 0;
+  font-family: var(--mono);
+  font-size: 12px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .hc-perm-reason {
-  margin: 10px 0 0; font-size: 11px;
-  color: rgba(199,230,240,.55); font-style: italic; min-height: 16px;
+  margin: 3px 0 0;
+  font-size: 11.5px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.hc-perm-actions {
-  display: flex; gap: 8px; padding: 14px 20px 18px; flex-wrap: wrap;
-}
+.hc-perm-reason:empty { display: none; }
+.hc-perm-actions { flex: 0 0 auto; display: flex; gap: 8px; }
 .hc-perm-btn {
-  flex: 1; min-width: 100px; padding: 9px 14px;
-  border: 1px solid; border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  border: 1px solid; border-radius: var(--sys-radius-sm);
   font-family: inherit; font-size: 12px; font-weight: 600;
   cursor: pointer; transition: background .15s, transform .1s;
 }
 .hc-perm-btn:active { transform: scale(.97); }
 .hc-perm-btn--allow {
-  background: rgba(34,211,238,.12); border-color: rgba(34,211,238,.4); color: #22d3ee;
+  background: rgba(34,211,238,.16); border-color: rgba(34,211,238,.45); color: var(--accent);
 }
-.hc-perm-btn--allow:hover { background: rgba(34,211,238,.22); }
+.hc-perm-btn--allow:hover { background: rgba(34,211,238,.26); }
 .hc-perm-btn--session {
-  background: rgba(34,211,238,.10); border-color: rgba(34,211,238,.35); color: #22d3ee;
+  background: rgba(34,211,238,.08); border-color: rgba(34,211,238,.28); color: var(--accent);
 }
-.hc-perm-btn--session:hover { background: rgba(34,211,238,.20); }
+.hc-perm-btn--session:hover { background: rgba(34,211,238,.18); }
 .hc-perm-btn--deny {
-  background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.35); color: #f87171;
+  background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.35); color: var(--danger);
 }
 .hc-perm-btn--deny:hover { background: rgba(248,113,113,.20); }
+
+@media (max-width: 720px) {
+  .hc-perm-bar-inner { flex-wrap: wrap; }
+  .hc-perm-actions { width: 100%; }
+  .hc-perm-btn { flex: 1; }
+}
 
 /* Guard notification banner */
 .hc-guard-banner {
@@ -2088,7 +2100,6 @@ body.intro-exiting #intro-screen .logo-glow {
 /* Every overlay in the app fades the same way. .modal-overlay had its own
    keyframe at its own duration, which is how two popups a second apart came
    to feel like two different pieces of software. */
-#hc-perm-dialog.open,
 .terminal-alert-overlay.open {
   animation: hc-dialog-veil 160ms ease-out both;
 }
@@ -2096,7 +2107,6 @@ body.intro-exiting #intro-screen .logo-glow {
 /* And every card rises. The settings, memory-map and preview panels appeared
    instantly inside a backdrop that was still fading in — the one part of the
    motion nobody had written, and the part that reads as unfinished. */
-#hc-perm-dialog.open .hc-perm-card,
 .terminal-alert-overlay.open .terminal-alert,
 .modal-overlay.open .modal,
 #previewModal.open .preview-box {
@@ -2134,9 +2144,7 @@ body.intro-exiting #intro-screen .logo-glow {
 /* An entrance is a nicety; motion sickness is not. Everything above
    still arrives, it just arrives immediately. */
 @media (prefers-reduced-motion: reduce) {
-  #hc-perm-dialog.open,
   .terminal-alert-overlay.open,
-  #hc-perm-dialog.open .hc-perm-card,
   .terminal-alert-overlay.open .terminal-alert,
   .modal-overlay.open .modal,
   #previewModal.open .preview-box {

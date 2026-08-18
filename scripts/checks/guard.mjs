@@ -52,9 +52,9 @@ function el(id) {
       _s: new Set(),
       add(c) {
         this._s.add(c);
-        // The guard opens the dialog by adding 'open'. Answer it on the next
-        // microtask, the way a user clicking a button would.
-        if (c === 'open' && id === 'hc-perm-dialog') {
+        // The guard raises the permission bar by adding 'open'. Answer it on
+        // the next microtask, the way a person clicking a button would.
+        if (c === 'open' && id === 'hc-perm-bar') {
           dialogsShown++;
           openNow++;
           maxOpenAtOnce = Math.max(maxOpenAtOnce, openNow);
@@ -75,14 +75,13 @@ function el(id) {
 }
 
 const nodes = {};
-for (const id of ['hc-perm-dialog', 'hc-perm-action', 'hc-perm-target', 'hc-perm-reason',
+for (const id of ['hc-perm-bar', 'hc-perm-action', 'hc-perm-target', 'hc-perm-reason',
                   'hc-perm-once', 'hc-perm-session', 'hc-perm-deny', 'hc-guard-banner']) {
   nodes[id] = el(id);
 }
 
 const sandbox = {
   console, setTimeout, clearTimeout, queueMicrotask,
-  // cdrMessages is absent → the guard uses the modal, not the coder-mode strip.
   document: { getElementById: (id) => nodes[id] || null },
   HC: { isTauri: false, invoke: () => Promise.resolve() },
 };
@@ -106,6 +105,26 @@ async function check(label, fn, want) {
   if (ok) { pass++; console.log(`  ok    ${label}`); }
   else { fail++; console.log(`  FAIL  ${label} — wanted ${JSON.stringify(want)}, got ${JSON.stringify(got)}`); }
 }
+
+// ── One surface, and no way out of it but a choice ──────────────────────────
+//
+// There were two renderers: a strip inside Coder, a modal everywhere else,
+// picked by which panel happened to be visible. One question should not have
+// two shapes, and chat — where a model can ask to read a web page — got a
+// window over the conversation it was interrupting.
+assert('there is one renderer, not one per mode',
+  !/isCdrActive|showInlineAlert|showModal/.test(src),
+  'the guard must not choose its prompt by which panel is visible');
+assert('the prompt is the bottom bar', /getElementById\('hc-perm-bar'\)/.test(src));
+assert('a missing bar denies rather than allows',
+  /if \(!bar \|\| !actEl \|\| !onceBtn \|\| !sessBtn \|\| !denyBtn\) \{ resolve\('deny'\); return; \}/.test(src),
+  'no way to ask must never mean permission');
+assert('no key dismisses it', !/addEventListener\('key/.test(src),
+  'a prompt that Escape closes is a prompt people close without reading');
+assert('only the three buttons are listened to',
+  [...src.matchAll(/(\w+)\.addEventListener\('click'/g)].every(([, who]) =>
+    ['onceBtn', 'sessBtn', 'denyBtn'].includes(who)),
+  'a click anywhere else must not resolve a permission request');
 
 const R = '/Users/x/Desktop/project';
 const REFUSED = { allowed: false, asked: false };

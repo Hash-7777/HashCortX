@@ -154,74 +154,46 @@
     }
   }
 
-  // Returns true when coder mode panel is currently visible
-  function isCdrActive() {
-    const msgs = document.getElementById('cdrMessages');
-    return !!(msgs && msgs.offsetParent !== null);
-  }
-
-  // Inline alert shown above the coder mode textarea
-  function showInlineAlert(action, target, reason) {
+  /**
+   * One bar, at the bottom, wherever the request came from.
+   *
+   * There were two of these: a strip inside Coder and a modal everywhere else,
+   * chosen by whether Coder's message list happened to be visible. Two
+   * renderers for one decision meant the same question looked like two
+   * different things, and normal chat — where a model can also ask to read a
+   * web page — got a window over the conversation it was interrupting.
+   *
+   * The bar does not close itself, cannot be dismissed by clicking away, and
+   * has no default: nothing here resolves without the person choosing one of
+   * the three. Escape is deliberately not bound. A permission prompt that can
+   * be dismissed teaches people to dismiss it, and whichever way that dismissal
+   * resolves is wrong — silently allowing is unsafe, silently denying trains
+   * them to expect failure.
+   */
+  function showDialog(action, target, reason) {
     return new Promise((resolve) => {
-      // One strip, not two. This used to pick between the current strip and a
-      // "legacy alert" kept for compatibility — which was an empty div with
-      // display:none and no children at all, so every id on that branch
-      // resolved to null. The branch could never run, and the six element
-      // lookups behind it named nothing in the page.
-      const alert   = document.getElementById('cdrPermStrip');
-      const actEl   = document.getElementById('cdrPermAction2');
-      const tgtEl   = document.getElementById('cdrPermTarget2');
-      const rsnEl   = document.getElementById('cdrPermReason2');
-      const onceBtn = document.getElementById('cdrPermOnce2');
-      const sessBtn = document.getElementById('cdrPermSession2');
-      const denyBtn = document.getElementById('cdrPermDeny2');
-      if (!alert || !actEl || !onceBtn) { resolve('deny'); return; }
-
-      actEl.textContent = action.toUpperCase();
-      actEl.className   = 'cdr-perm-badge ' + action;
-      // Truncate long paths from the left so filename is always visible
-      tgtEl.textContent = target.length > 72 ? '…' + target.slice(-(72)) : target;
-      rsnEl.textContent = reason || '';
-      alert.classList.add('visible');
-
-      // Scroll composer into view so alert is visible
-      alert.scrollIntoView?.({ block: 'nearest' });
-
-      function cleanup(choice) {
-        alert.classList.remove('visible');
-        onceBtn.removeEventListener('click', onOnce);
-        sessBtn.removeEventListener('click', onSession);
-        denyBtn.removeEventListener('click', onDeny);
-        resolve(choice);
-      }
-      const onOnce    = () => cleanup('allow-once');
-      const onSession = () => cleanup('allow-session');
-      const onDeny    = () => cleanup('deny');
-      onceBtn.addEventListener('click', onOnce);
-      sessBtn.addEventListener('click', onSession);
-      denyBtn.addEventListener('click', onDeny);
-    });
-  }
-
-  // Modal fallback for non-coder-mode contexts
-  function showModal(action, target, reason) {
-    return new Promise((resolve) => {
-      const dlg     = document.getElementById('hc-perm-dialog');
+      const bar     = document.getElementById('hc-perm-bar');
       const actEl   = document.getElementById('hc-perm-action');
       const tgtEl   = document.getElementById('hc-perm-target');
       const rsnEl   = document.getElementById('hc-perm-reason');
       const onceBtn = document.getElementById('hc-perm-once');
       const sessBtn = document.getElementById('hc-perm-session');
       const denyBtn = document.getElementById('hc-perm-deny');
-      if (!dlg) { resolve('deny'); return; }
+      // No bar in the page is not permission. It is a refusal.
+      if (!bar || !actEl || !onceBtn || !sessBtn || !denyBtn) { resolve('deny'); return; }
 
-      actEl.textContent = action.toUpperCase();
-      tgtEl.textContent = target;
+      actEl.textContent = String(action).toUpperCase();
+      actEl.className   = 'hc-perm-badge ' + action;
+      // Long paths lose their middle, not their end: the filename is the part
+      // a person recognises.
+      const shown = String(target || '');
+      tgtEl.textContent = shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
+      tgtEl.title = shown;
       rsnEl.textContent = reason || '';
-      dlg.classList.add('open');
+      bar.classList.add('open');
 
       function cleanup(choice) {
-        dlg.classList.remove('open');
+        bar.classList.remove('open');
         onceBtn.removeEventListener('click', onOnce);
         sessBtn.removeEventListener('click', onSession);
         denyBtn.removeEventListener('click', onDeny);
@@ -234,13 +206,6 @@
       sessBtn.addEventListener('click', onSession);
       denyBtn.addEventListener('click', onDeny);
     });
-  }
-
-  // Route to inline alert (coder mode) or modal (everything else).
-  function showDialog(action, target, reason) {
-    return isCdrActive()
-      ? showInlineAlert(action, target, reason)
-      : showModal(action, target, reason);
   }
 
   // One decision at a time.
