@@ -324,11 +324,17 @@ body.forge-studio-mode #app { display: none; }
   letter-spacing: .08em;
 }
 
+/* A caption nobody can read is not a caption. The keys are the part worth
+   seeing, so they carry the contrast and the words around them recede. */
 .frg-help {
   bottom: 14px;
-  color: rgba(236,231,220,0.42);
-  font-size: 10px;
-  letter-spacing: .08em;
+  color: rgba(236,231,220,0.56);
+  font-size: 10.5px;
+  letter-spacing: .06em;
+}
+.frg-help b {
+  color: rgba(236,231,220,0.86);
+  font-weight: 600;
 }
 
 /* A rail down the side, not a sentence across the top. Thirteen labelled
@@ -1086,7 +1092,7 @@ body.forge-studio-mode #app { display: none; }
 }
 
 /* ── Inspector tabs ───────────────────────────────────────────────
-   Three questions, one at a time, instead of five sections competing
+   Four questions, one at a time, instead of five sections competing
    for the same column. */
 .frg-tabs {
   display: flex;
@@ -1109,10 +1115,12 @@ body.forge-studio-mode #app { display: none; }
   cursor: pointer;
 }
 .frg-tab:hover { color: var(--accent); }
+/* No wash behind the open tab. The accent on the word and the line under it
+   already say which one is open; a panel of colour behind it as well only
+   makes the tab look like a button that has been left pressed in. */
 .frg-tab.active {
   color: var(--accent);
   border-bottom-color: var(--accent);
-  background: rgba(201,169,110,0.05);
 }
 .frg-tabpane { display: none; min-height: 0; }
 .frg-tabpane.active {

@@ -1,10 +1,14 @@
 (function () {
   "use strict";
 
+  // What a part is made of, when the plan does not say. A model is the subject
+  // of this screen, so its parts are materials — bone, gold and a warm grey —
+  // and not a fourth palette arguing with the one the app uses. Audit keeps its
+  // red: it marks something wrong, and a warning that blends in is not one.
   const ROLE_COLORS = {
-    structure: 0x4bd2be,
-    surface: 0xf5c97a,
-    detail: 0x8fb7ff,
+    structure: 0xd9d3c7,
+    surface: 0xc9a96e,
+    detail: 0x9b958a,
     audit: 0xff8f8f,
   };
 
@@ -654,7 +658,7 @@
     particleGroup = new THREE.Group();
     scene.add(modelGroup, particleGroup);
 
-    const key = new THREE.DirectionalLight(0xdffbf5, 2.1);
+    const key = new THREE.DirectionalLight(0xf6efe3, 2.1);
     key.position.set(6, 8, 5);
     key.castShadow = true;
     key.shadow.mapSize.set(1024, 1024);
@@ -666,24 +670,29 @@
     key.shadow.camera.near = 0.1;
     key.shadow.camera.far = 40;
     scene.add(key);
-    const rim = new THREE.DirectionalLight(0x4bd2be, 1.2);
+    const rim = new THREE.DirectionalLight(0xc9a96e, 1.2);
     rim.position.set(-6, 3, -5);
     scene.add(rim);
-    scene.add(new THREE.AmbientLight(0x6a8f8a, 0.45));
-    scene.add(new THREE.HemisphereLight(0xb0d9d2, 0x1a1410, 0.5));
+    scene.add(new THREE.AmbientLight(0x8a857e, 0.45));
+    scene.add(new THREE.HemisphereLight(0xd6cfc2, 0x1a1410, 0.5));
 
-    const grid = new THREE.GridHelper(18, 36, 0xffffff, 0xffffff);
+    // The floor is a reference, not the subject. It was drawn in white at a
+    // third opacity across eighteen units, which put a bright lattice behind
+    // every model and left the two competing for attention. Gold, dimmer, and
+    // with the centre lines the only ones carrying any weight — the fog the
+    // scene already has takes the rest into the dark before the horizon.
+    const grid = new THREE.GridHelper(18, 36, 0xc9a96e, 0x8b6d2c);
     grid.position.y = FLOOR_Y;
     grid.material.transparent = true;
-    grid.material.opacity = 0.34;
+    grid.material.opacity = 0.22;
     scene.add(grid);
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 18, 36, 36),
       new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+        color: 0xc9a96e,
         transparent: true,
-        opacity: 0.035,
+        opacity: 0.022,
         side: THREE.DoubleSide,
         depthWrite: false,
       })
@@ -2164,11 +2173,11 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     updateStage("input", "done", "prompt locked");
     const traceEntries = $("frgTraceEntries");
     if (traceEntries) traceEntries.innerHTML = "";
-    const consoleEl = $("frgTraceConsole");
-    if (consoleEl) {
-      consoleEl.classList.remove("collapsed");
-      consoleEl.classList.add("expanded");
-    }
+    // The trace used to open itself over a third of the window on every run.
+    // Collapsed, its bar still names the latest line as the run makes it —
+    // every log line writes the summary — so nothing is hidden, and the model
+    // being built keeps the screen. It opens when it is asked to.
+
     AGENTS.forEach((a) => setAgentState(a.id, "idle"));
     setStatus("Forging");
     setAgentState("god", "thinking");

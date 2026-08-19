@@ -183,6 +183,21 @@ console.log('\nThe inspector asks one question at a time:');
     !/frgParticleCount/.test(panel));
   check('and nothing still looks for it',
     !/frgParticleCount/.test(src));
+  // The scene itself was lit mint — the rim light, the ambient and the sky —
+  // so a model came out tinted whatever colour it had been given.
+  check('the scene is not lit in a colour of its own',
+    /DirectionalLight\(0xf6efe3/.test(src) && /DirectionalLight\(0xc9a96e/.test(src) &&
+    /AmbientLight\(0x8a857e/.test(src) && !/0xdffbf5|0x6a8f8a|0xb0d9d2|0x4bd2be/.test(src));
+  check('parts are materials, not a fourth palette',
+    /ROLE_COLORS = \{[\s\S]{0,220}structure: 0xd9d3c7/.test(src));
+  check('the floor is a reference, not the subject',
+    /GridHelper\(18, 36, 0xc9a96e/.test(src) && /grid\.material\.opacity = 0\.22/.test(src));
+  check('a run does not throw the trace open over the model',
+    !/classList\.add\("expanded"\)/.test(src));
+  check('but the collapsed bar still names the latest line',
+    /frgTraceSummary[\s\S]{0,120}textContent = `\$\{label\}: \$\{message\}`/.test(src));
+  check('the keyboard caption carries the keys, not just the words',
+    /class="frg-help"[\s\S]{0,400}<b>W<\/b>/.test(panel) && /\.frg-help b \{/.test(css));
   check('the options menu is labelled, not three dots',
     /id="frgMoreBtn"[\s\S]{0,600}<span>Options<\/span>/.test(panel));
   check('style, detail and export target moved into the menu',
