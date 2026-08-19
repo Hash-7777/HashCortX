@@ -194,6 +194,14 @@ console.log('\nThe inspector asks one question at a time:');
     /GridHelper\(18, 36, 0xffffff, 0xffffff\)/.test(src) && /grid\.material\.opacity = 0\.16/.test(src));
   check('nothing decorative is left drifting behind the model',
     !/starField|makeStarField/.test(src));
+  check('the gathering is laid out by the tested module',
+    /HCAssemblyMotes/.test(src) && /planMotes\(/.test(src) && /moteAt\(/.test(src));
+  check('and it is sized to the part it is building',
+    /boundingSphere/.test(src) && /partReach/.test(src));
+  check('a mote lands within the part it belongs to appearing',
+    /total: revealMs/.test(src));
+  check('the old scatter-from-anywhere helper is gone',
+    !/randomSpherePoint/.test(src));
   check('the intro mark has no halo layer',
     !/hcx_teal_halo/.test(src));
   check('grounding moves the floating mark for good',

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:version && npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:pdf-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:vector-map && npm run check:model-plan && npm run check:reference-pick && npm run check:edit-history && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge && npm run check:returns && npm run check:undefined-names",
+    "check": "npm run check:version && npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:pdf-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:vector-map && npm run check:model-plan && npm run check:reference-pick && npm run check:edit-history && npm run check:assembly-motes && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge && npm run check:returns && npm run check:undefined-names",
     "check:syntax": "node scripts/checks/syntax.mjs",
     "check:guard": "node scripts/checks/guard.mjs",
     "check:rag": "node scripts/checks/rag.mjs",
@@ -33,6 +33,7 @@
     "check:model-plan": "node scripts/checks/model-plan.mjs",
     "check:reference-pick": "node scripts/checks/reference-pick.mjs",
     "check:edit-history": "node scripts/checks/edit-history.mjs",
+    "check:assembly-motes": "node scripts/checks/assembly-motes.mjs",
     "check:save": "node scripts/checks/save.mjs",
     "check:forge": "node scripts/checks/forge.mjs",
     "check:theme": "node scripts/checks/theme.mjs",

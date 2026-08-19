@@ -1117,8 +1117,19 @@
       mesh.userData.logoBaseY = mesh.position.y;
       logoMeshes.push(mesh);
     }
-    revealMeshes.push({ mesh, start: performance.now() + index * 90, duration: 760, targetOpacity: node.opacity ?? (node.type === "mesh" ? 0.98 : 0.86) });
-    spawnFlightsTo(mesh.position, node.role || "structure", Math.max(10, Math.floor(34 / Math.max(1, total / 8))));
+    const revealAt = performance.now() + index * 90;
+    const revealMs = 760;
+    revealMeshes.push({ mesh, start: revealAt, duration: revealMs, targetOpacity: node.opacity ?? (node.type === "mesh" ? 0.98 : 0.86) });
+    // The cloud is sized to the part and lands as the part finishes appearing,
+    // so the two read as one event instead of two that happen to overlap.
+    mesh.geometry?.computeBoundingSphere?.();
+    // Sized to the part, but held between two limits. Unbounded, a large flat
+    // part gathers from several units out, which puts its motes at the edge of
+    // the frame or outside it — near enough to nowhere, which is the thing
+    // this replaced. Too small and they start inside the part and never show.
+    const partRadius = (mesh.geometry?.boundingSphere?.radius || 0.5) * Math.max(...mesh.scale.toArray().map(Math.abs));
+    const partReach = Math.min(1.9, Math.max(0.45, partRadius * 1.6));
+    spawnFlightsTo(mesh.position, node.role || "structure", Math.max(8, Math.floor(26 / Math.max(1, total / 6))), partReach, revealMs);
   }
 
   function updateUnderfloorHighlights() {
@@ -2014,46 +2025,61 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       : fallback.slice();
   }
 
-  function randomSpherePoint(radius) {
-    const u = Math.random();
-    const v = Math.random();
-    const theta = 2 * Math.PI * u;
-    const phi = Math.acos(2 * v - 1);
-    return new THREE.Vector3(
-      radius * Math.sin(phi) * Math.cos(theta),
-      radius * Math.cos(phi),
-      radius * Math.sin(phi) * Math.sin(theta)
-    );
-  }
 
-  function spawnFlightsTo(target, role, count) {
+  /**
+   * Gather a cloud of motes onto the part being built.
+   *
+   * The layout and the flight are in src/js/assembly-motes.js, where they can
+   * be measured. What is here is the scene work: a mote is a small sphere, it
+   * is coloured like the part it is joining, and it is thrown away when it
+   * arrives. Sized to the part, so a small detail is gathered by a small cloud
+   * and a large body by a wide one — motes used to come from a sphere nine
+   * units across whatever they were building, which is why they read as
+   * weather rather than as assembly.
+   */
+  function spawnFlightsTo(target, role, count, reach, revealMs) {
     if (!THREE || !particleGroup) return;
+    const M = window.HCAssemblyMotes;
+    if (!M) return;
     const color = ROLE_COLORS[role] || ROLE_COLORS.structure;
-    const geo = new THREE.SphereGeometry(0.025, 8, 8);
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.95 });
+    const geo = new THREE.SphereGeometry(0.03, 6, 6);
+    // Added to the light already there rather than painted over it, so a mote
+    // reads as a spark rather than as a small grey ball, and two crossing do
+    // not cut holes in each other. Nothing behind them is occluded, which
+    // matters because they end up inside the part they are joining.
+    const mat = new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
     const now = performance.now();
-    const duration = role === "structure" ? 2800 : role === "surface" ? 2000 : role === "detail" ? 1400 : 3500;
-    for (let i = 0; i < count; i++) {
+    const plan = M.planMotes({
+      count,
+      radius: Math.max(0.35, reach || 0.9),
+      total: revealMs || 760,
+      seed: Math.floor(Math.random() * 1e9),
+    });
+    for (const mote of plan) {
       const mesh = new THREE.Mesh(geo, mat.clone());
-      const p0 = randomSpherePoint(7.8 + Math.random() * 2.2);
-      const p3 = target.clone();
-      const lift = role === "structure" ? 2.4 : role === "surface" ? 0.9 : role === "detail" ? 0.35 : 3.2;
-      const side = new THREE.Vector3(-p3.z, 0, p3.x).normalize().multiplyScalar(role === "surface" ? 1.5 : role === "audit" ? 2.7 : 0.7);
-      const p1 = p0.clone().multiplyScalar(0.62).add(new THREE.Vector3(0, lift, 0)).add(side);
-      const p2 = p3.clone().add(new THREE.Vector3(0, lift * 0.45, 0)).sub(side.multiplyScalar(0.55));
-      const curve = new THREE.CubicBezierCurve3(p0, p1, p2, p3);
-      mesh.position.copy(p0);
+      mesh.position.copy(target);
+      mesh.visible = false;
       particleGroup.add(mesh);
-      flights.push({ mesh, curve, start: now + i * 18, duration: duration * (0.78 + Math.random() * 0.34) });
+      flights.push({ mesh, mote, target: target.clone(), start: now + mote.delay, duration: mote.life });
     }
   }
 
   function updateFlights(now) {
+    const M = window.HCAssemblyMotes;
     for (let i = flights.length - 1; i >= 0; i--) {
       const f = flights[i];
+      // Before its turn a mote is not in the scene at all, rather than sitting
+      // at full brightness on the spot it is about to leave.
+      if (now < f.start) { f.mesh.visible = false; continue; }
       const t = Math.min(1, Math.max(0, (now - f.start) / f.duration));
-      f.mesh.position.copy(f.curve.getPoint(t));
-      f.mesh.material.opacity = 1 - Math.max(0, t - 0.72) / 0.28;
+      const at = M ? M.moteAt(f.mote, t) : { x: 0, y: 0, z: 0, opacity: 0, scale: 0 };
+      f.mesh.visible = true;
+      f.mesh.position.set(f.target.x + at.x, f.target.y + at.y, f.target.z + at.z);
+      f.mesh.material.opacity = at.opacity;
+      f.mesh.scale.setScalar(Math.max(0.0001, at.scale));
       if (t >= 1) {
         particleGroup.remove(f.mesh);
         f.mesh.geometry.dispose();
