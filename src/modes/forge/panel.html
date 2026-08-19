@@ -108,6 +108,9 @@
         <button class="frg-cad-btn" data-frg-tool="rotate" title="Rotate selected part (R)" aria-label="Rotate selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v6h-6"/></svg><span class="frg-cad-kbd">R</span></button>
         <button class="frg-cad-btn" data-frg-tool="scale" title="Resize selected part (S)" aria-label="Resize selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20L20 4"/><path d="M14 4h6v6"/><path d="M4 14v6h6"/></svg><span class="frg-cad-kbd">S</span></button>
         <span class="frg-cad-sep"></span>
+        <button class="frg-cad-btn" id="frgUndoBtn" data-frg-tool="undo" title="Nothing to undo" aria-label="Undo the last edit" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg><span class="frg-cad-kbd">Z</span></button>
+        <button class="frg-cad-btn" id="frgRedoBtn" data-frg-tool="redo" title="Nothing to redo" aria-label="Redo the last undone edit" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+        <span class="frg-cad-sep"></span>
         <button class="frg-cad-btn" data-frg-tool="snap" title="Toggle snapping" aria-label="Toggle snapping"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg></button>
         <button class="frg-cad-btn" data-frg-tool="duplicate" title="Duplicate selected part (D)" aria-label="Duplicate selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg><span class="frg-cad-kbd">D</span></button>
         <button class="frg-cad-btn" data-frg-tool="floor" title="Drop selected part to the floor" aria-label="Drop selected part to the floor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M4 21h16"/></svg></button>
@@ -130,7 +133,7 @@
         <input id="frgAssetImport" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
       </div>
       <!-- Keyboard hint -->
-      <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove</div>
+      <div class="frg-help">Click to select &middot; W/R/S transform &middot; A select-all &middot; D duplicate &middot; Del remove &middot; &#8984;Z undo &middot; &#8679;&#8984;Z redo</div>
     </div><!-- /.frg-viewport -->
 
     <!-- Right inspector.

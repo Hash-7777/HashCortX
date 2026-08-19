@@ -50,6 +50,14 @@
   let logoBobT = 0;
   let scanMesh = null;
   let abortCtrl = null;
+  // Hand edits are undoable, all the way back to the model as it was built.
+  // Each entry is the whole part list before and after one edit: transforms,
+  // deletions and duplications are then one mechanism rather than three, and
+  // a step replays exactly instead of being approximated.
+  const editHistory = window.HCEditHistory
+    ? window.HCEditHistory.create({ limit: 60, same: (a, b) => JSON.stringify(a) === JSON.stringify(b) })
+    : null;
+  let editBefore = null;
   let eventsWired = false;
   let traceStartTime = Date.now();
   let traceRunCount = 0;
@@ -625,6 +633,10 @@
     setSnapEnabled(false);
     transformControls.addEventListener("dragging-changed", (event) => {
       if (controls) controls.enabled = !event.value;
+      // One drag is one step, however many frames it took. Recording each
+      // frame would make undo walk back through the drag a pixel at a time.
+      if (event.value) beginEdit();
+      else commitEdit(`${transformMode === "translate" ? "move" : transformMode}`);
     });
     transformControls.addEventListener("objectChange", () => {
       syncSelectedNodeFromMesh();
@@ -1151,6 +1163,11 @@
     groundBuiltModel();
     updatePlanList(activePlan);
     syncImproveAvailability();
+    // A model that has just been built or opened is a new document. Undoing
+    // past it would take a person back to a model they were finished with.
+    editHistory?.clear();
+    editBefore = null;
+    syncEditHistoryButtons();
     if (plan._introLogo && camera && controls) {
       // Intimate framing for the intro logo — skip auto-zoom so the brand reads big
       camera.position.set(0, 0.35, 4.8);
@@ -1492,6 +1509,95 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     renderCadToolbar();
     renderSelection();
     log("Editor", snapEnabled ? "Snapping enabled" : "Snapping disabled", "wait");
+  }
+
+  /** The part list as it stands, detached from the scene so it cannot drift. */
+  function snapshotParts() {
+    return JSON.parse(JSON.stringify(activePlan?.nodes || []));
+  }
+
+  /**
+   * Take the "before" of an edit that is about to happen.
+   *
+   * Held rather than pushed, because a drag is not an edit until it ends —
+   * and a drag that ends where it started is not one at all.
+   */
+  function beginEdit() {
+    if (!editHistory) return;
+    editBefore = snapshotParts();
+  }
+
+  /** Close an edit, recording it only if the model actually changed. */
+  function commitEdit(label) {
+    if (!editHistory) return;
+    const before = editBefore || snapshotParts();
+    editBefore = null;
+    editHistory.push(label, before, snapshotParts());
+    syncEditHistoryButtons();
+  }
+
+  /** One edit, taken and closed around a change that happens immediately. */
+  function recordEdit(label, change) {
+    beginEdit();
+    const result = change();
+    commitEdit(label);
+    return result;
+  }
+
+  /**
+   * Put the model back to a recorded state.
+   *
+   * Deliberately not buildPlan: that grounds the model and reframes the
+   * camera, so undoing a nudge would also move everything onto the floor and
+   * swing the view — a step back that does not look like a step back. The
+   * meshes are rebuilt from the parts and nothing else is touched, and the
+   * arrival animation is landed at once rather than replayed.
+   */
+  function restoreParts(parts) {
+    if (!THREE || !modelGroup) return;
+    clearScene();
+    activePlan = { ...(activePlan || { name: "Forge object" }), nodes: JSON.parse(JSON.stringify(parts || [])) };
+    const nodes = renderableNodes(activePlan.nodes);
+    nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
+    revealMeshes.forEach((item) => {
+      const mat = item.mesh?.material;
+      if (mat && !Array.isArray(mat)) { mat.opacity = item.targetOpacity; mat.transparent = item.targetOpacity < 1; }
+    });
+    revealMeshes = [];
+    updatePlanList(activePlan);
+    renderSelection();
+    syncImproveAvailability();
+    queueProjectSave();
+  }
+
+  function undoEdit() {
+    if (!editHistory?.canUndo()) { log("Editor", "nothing left to undo", "wait"); return; }
+    const entry = editHistory.undo();
+    restoreParts(entry.before);
+    syncEditHistoryButtons();
+    log("Editor", `Undid ${entry.label}`, "ok");
+  }
+
+  function redoEdit() {
+    if (!editHistory?.canRedo()) { log("Editor", "nothing to redo", "wait"); return; }
+    const entry = editHistory.redo();
+    restoreParts(entry.after);
+    syncEditHistoryButtons();
+    log("Editor", `Redid ${entry.label}`, "ok");
+  }
+
+  /** A button that cannot do anything says so, rather than doing nothing. */
+  function syncEditHistoryButtons() {
+    const undoBtn = $("frgUndoBtn");
+    const redoBtn = $("frgRedoBtn");
+    if (undoBtn) {
+      undoBtn.disabled = !editHistory?.canUndo();
+      undoBtn.title = editHistory?.canUndo() ? `Undo (${editHistory.depth()} step(s) back)` : "Nothing to undo";
+    }
+    if (redoBtn) {
+      redoBtn.disabled = !editHistory?.canRedo();
+      redoBtn.title = editHistory?.canRedo() ? "Redo" : "Nothing to redo";
+    }
   }
 
   function syncSelectedNodeFromMesh() {
@@ -3607,9 +3713,11 @@ ${referenceBrief || "No external reference brief available; infer from general o
       if (!btn) return;
       const tool = btn.dataset.frgTool;
       if (tool === "selectObject") selectWholeObject();
-      else if (tool === "delete") deleteSelectedPart();
-      else if (tool === "duplicate") duplicateSelectedPart();
-      else if (tool === "floor") alignSelectedToFloor();
+      else if (tool === "undo") undoEdit();
+      else if (tool === "redo") redoEdit();
+      else if (tool === "delete") recordEdit("delete", deleteSelectedPart);
+      else if (tool === "duplicate") recordEdit("duplicate", duplicateSelectedPart);
+      else if (tool === "floor") recordEdit("drop to floor", alignSelectedToFloor);
       else if (tool === "snap") setSnapEnabled(!snapEnabled);
       else if (tool === "import") $("frgAssetImport")?.click();
       else if (tool === "focus") focusCameraOnSelection();
@@ -3653,9 +3761,23 @@ ${referenceBrief || "No external reference brief available; infer from general o
       if (!document.body.classList.contains("forge-studio-mode")) return;
       const tag = (e.target?.tagName || "").toLowerCase();
       if (tag === "input" || tag === "textarea" || tag === "select") return;
+      // Undo and redo before the single-letter tools, so the modifier wins.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redoEdit(); else undoEdit();
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redoEdit();
+        return;
+      }
+      // Every other shortcut here is a bare letter, so a held modifier means
+      // the press was meant for the browser or the app, not for the editor.
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
-        deleteSelectedPart();
+        recordEdit("delete", deleteSelectedPart);
       } else if (e.key.toLowerCase() === "a") {
         selectWholeObject();
       } else if (e.key.toLowerCase() === "w") {
@@ -3665,7 +3787,7 @@ ${referenceBrief || "No external reference brief available; infer from general o
       } else if (e.key.toLowerCase() === "s") {
         setTransformMode("scale");
       } else if (e.key.toLowerCase() === "d") {
-        duplicateSelectedPart();
+        recordEdit("duplicate", duplicateSelectedPart);
       } else if (e.key === "Escape") {
         selectMesh(null);
       }
@@ -3687,6 +3809,7 @@ ${referenceBrief || "No external reference brief available; infer from general o
     // with the viewport until some later click happened to refresh it.
     updatePlanList(activePlan);
     wireEvents();
+    syncEditHistoryButtons();
     const ok = await initThree();
     if (ok && !activePlan) buildPlan(hLogoPlan());
   }
