@@ -27,6 +27,7 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
 const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'panel.html'), 'utf8');
+const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.css'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -137,12 +138,33 @@ console.log('\nA generated model is not replaced by a built-in one:');
 console.log('\nThe inspector asks one question at a time:');
 {
   check('three tabs', /data-frg-tab="parts"/.test(panel) && /data-frg-tab="properties"/.test(panel) && /data-frg-tab="run"/.test(panel));
-  check('the plan and projects are under Parts',
-    /data-frg-pane="parts"[\s\S]{0,900}id="frgPlanList"/.test(panel));
+  // Each pane's own markup, so a check cannot be satisfied by something that
+  // happens to sit in the next one.
+  const paneOf = (name) => {
+    const parts = panel.split(/data-frg-pane="/).slice(1);
+    const found = parts.find((chunk) => chunk.startsWith(`${name}"`));
+    return found ? found.split(/data-frg-pane="/)[0] : '';
+  };
+  check('the parts of the model are under Parts',
+    /id="frgPlanList"/.test(paneOf('parts')));
+  check('and nothing else competes with them there',
+    !/id="frgProjectsList"/.test(paneOf('parts')));
+  check('saved models have a tab of their own',
+    /data-frg-tab="saved"/.test(panel) && /id="frgProjectsList"/.test(paneOf('saved')));
+  check('every tab has the pane it names',
+    (panel.match(/data-frg-tab="(\w+)"/g) || []).every((t) =>
+      panel.includes(t.replace('data-frg-tab=', 'data-frg-pane='))));
   check('the selection is under Properties',
-    /data-frg-pane="properties"[\s\S]{0,600}id="frgSelectionCard"/.test(panel));
+    /id="frgSelectionCard"/.test(paneOf('properties')));
   check('the agents and pipeline are under Run',
-    /data-frg-pane="run"[\s\S]{0,900}id="frgAgents"/.test(panel));
+    /id="frgAgents"/.test(paneOf('run')));
+  check('a list that grows without limit scrolls inside its own section',
+    /\.frg-plan-list,\s*\n\.frg-project-list \{[\s\S]{0,160}overflow-y: auto/.test(css));
+  check('panel rows are the height of what is in them',
+    /\.frg-plan-list \{[\s\S]{0,400}align-content: start/.test(css) ||
+    /align-content: start/.test(css.split('.frg-agent-list')[1] || ''));
+  check('the options menu is labelled, not three dots',
+    /id="frgMoreBtn"[\s\S]{0,600}<span>Options<\/span>/.test(panel));
   check('style, detail and export target moved into the menu',
     /id="frgMoreMenu"[\s\S]{0,1400}id="frgOutputTarget"/.test(panel));
   check('the menu closes on an outside click', /if \(e\.target\.closest\("\.frg-more-wrap"\)\) return;/.test(src));

@@ -34,8 +34,11 @@
     <!-- Style, detail and export target used to sit open across the bar. They
          are answered once and then read, so they live behind a menu now. -->
     <div class="frg-more-wrap">
-      <button class="frg-icon-btn" id="frgMoreBtn" title="Style, detail and export target" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" width="15" height="15"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+      <!-- Three dots said nothing about what they open. A control that has to
+           be clicked to find out what it is has not been labelled. -->
+      <button class="frg-btn frg-more-btn" id="frgMoreBtn" title="Style, detail and export target" aria-expanded="false" aria-label="Model options">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" width="14" height="14" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        <span>Options</span>
       </button>
       <div class="frg-more-menu" id="frgMoreMenu" hidden>
         <label>
@@ -137,49 +140,39 @@
     </div><!-- /.frg-viewport -->
 
     <!-- Right inspector.
-         Five stacked sections used to compete for one column — agents,
-         pipeline, projects, plan and selection, all open at once. They answer
-         three different questions: what is this made of, what is selected, and
-         what did the run do. So they are three tabs. -->
+         Each tab answers one question, and only the tab that is open takes up
+         room. Parts and Projects used to share the first one, which does not
+         work: the saved-project list grows with every model kept, it has no
+         reason to stop, and a stack of them pushed the list of parts down to
+         nothing. So the tab called Parts opened on a column of projects, and
+         the parts of the model on screen could not be seen at all. Saved
+         models are their own question and now have their own tab. -->
     <div class="frg-panel">
       <div class="frg-tabs" role="tablist">
         <button class="frg-tab active" data-frg-tab="parts" role="tab" aria-selected="true">Parts</button>
         <button class="frg-tab" data-frg-tab="properties" role="tab" aria-selected="false">Properties</button>
         <button class="frg-tab" data-frg-tab="run" role="tab" aria-selected="false">Run</button>
+        <button class="frg-tab" data-frg-tab="saved" role="tab" aria-selected="false">Saved</button>
       </div>
 
+      <!-- What this model is made of. -->
       <div class="frg-tabpane active" data-frg-pane="parts">
         <div class="frg-panel-section grow">
-        <div class="frg-panel-label">Plan</div>
-        <div class="frg-plan-list" id="frgPlanList">
-          <!-- Populated by JS: updatePlanList() -->
+          <div class="frg-panel-label">Parts of this model</div>
+          <div class="frg-plan-list" id="frgPlanList">
+            <!-- Populated by JS: updatePlanList() -->
+          </div>
         </div>
       </div>
 
-      <!-- Selection inspector card -->
-        <div class="frg-panel-section">
-        <div class="frg-panel-label-row">
-          <span class="frg-panel-label" style="margin-bottom:0">Projects</span>
-        </div>
-        <div class="frg-project-list" id="frgProjectsList">
-          <!-- Populated by JS: renderForgeProjects() -->
-        </div>
-      </div>
-
-      <!-- Plan / nodes list -->
-      </div>
-
+      <!-- What is selected. -->
       <div class="frg-tabpane" data-frg-pane="properties">
         <div class="frg-panel-section">
-        <div class="frg-panel-label">Selection</div>
-        <div class="frg-selection-card" id="frgSelectionCard">
-          <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
+          <div class="frg-panel-label">Selection</div>
+          <div class="frg-selection-card" id="frgSelectionCard">
+            <div class="frg-selection-empty">Click a mesh in the 3D viewport to inspect it.</div>
+          </div>
         </div>
-      </div>
-
-    <!-- /.frg-panel -->
-
-  <!-- /.frg-body -->
       </div>
 
       <div class="frg-tabpane" data-frg-pane="run">
@@ -216,7 +209,16 @@
         </div>
       </div>
 
-      <!-- Projects -->
+      </div>
+
+      <!-- Which model am I working on. -->
+      <div class="frg-tabpane" data-frg-pane="saved">
+        <div class="frg-panel-section grow">
+          <div class="frg-panel-label">Saved models</div>
+          <div class="frg-project-list" id="frgProjectsList">
+            <!-- Populated by JS: renderForgeProjects() -->
+          </div>
+        </div>
       </div>
 
     </div><!-- /.frg-panel -->

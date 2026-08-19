@@ -509,9 +509,18 @@ body.forge-studio-mode #app { display: none; }
 .frg-plan-list {
   display: grid;
   gap: 7px;
+  /* Rows take the height of what is in them. A grid told to fill its column
+     stretches its rows to do it, so three parts became three cards a third of
+     the panel tall each, holding one line of text apiece. */
+  align-content: start;
 }
 
-.frg-plan-list {
+/* A list whose length is decided by the model, or by how many models have
+   been kept, scrolls inside its own section. Left to size itself, it grows
+   past the panel and pushes whatever shares the column down to nothing —
+   which is what the saved-project list did to the list of parts. */
+.frg-plan-list,
+.frg-project-list {
   flex: 1 1 0;
   min-height: 0;
   overflow-y: auto;
@@ -1104,6 +1113,13 @@ body.forge-studio-mode #app { display: none; }
 /* ── The header menu ──────────────────────────────────────────────
    Style, detail and export target are answered once and then read. */
 .frg-more-wrap { position: relative; display: flex; align-items: center; }
+/* Labelled, so the control says what it opens rather than being found out. */
+.frg-more-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
 .frg-more-menu {
   position: absolute;
   top: calc(100% + 8px);
