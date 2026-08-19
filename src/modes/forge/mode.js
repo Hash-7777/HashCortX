@@ -2252,7 +2252,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const answers = [];
     const resultMap = new Map();
     for (const query of queries) {
-      log("Reference", `Searching reference objects: ${query.slice(0, 72)}`, "run");
+      log("Reference", `Searching reference objects: ${shortQuery(query)}`, "run");
       const raw = await api.runOneTool("web_search", { query }, (msg) => log("Reference", msg, "run"));
       const parsed = safeJson(raw);
       if (parsed?.answer) answers.push(parsed.answer);
@@ -2262,16 +2262,28 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         if (!resultMap.has(url)) resultMap.set(url, result);
       });
     }
-    const results = Array.from(resultMap.values()).sort(referenceResultScore).slice(0, 5);
+    // Ranked by whether the page is about the object, not by its address.
+    // Sorting on the domain alone is what sent a run for one short noun to
+    // read encyclopaedia articles on three unrelated senses of the word.
+    const RP = window.HCReferencePick;
+    const found = Array.from(resultMap.values());
+    const results = RP ? RP.pickReferences(found, prompt, { limit: 5 }) : found.slice(0, 5);
+    if (found.length && !results.length) {
+      log("Reference", `Nothing found about ${prompt.trim() || "the subject"} itself; planning from the prompt`, "warn");
+    }
     if (!results.length && !answers.length) {
       log("Reference", "No usable web reference results; planning from prompt", "warn");
       return "";
     }
     const pages = [];
     const pinnedUrls = pinnedReferenceUrls(prompt);
+    // Reading nothing beats reading a page about something else: the design
+    // call already knows what the object is, and a wrong measurement is worse
+    // than no measurement.
+    const onSubject = RP ? RP.pickPagesToRead(found, prompt, { limit: 2 }) : results;
     const pageTargets = [
       ...pinnedUrls.map((url) => ({ title: "Pinned anatomical reference", url })),
-      ...results,
+      ...onSubject,
     ].filter((result, index, arr) => result.url && arr.findIndex((r) => r.url === result.url) === index);
     for (const result of pageTargets.slice(0, 2)) {
       try {
@@ -2316,6 +2328,14 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     ];
   }
 
+  /** The query as a trace line: clipped at a word, never mid-word. */
+  function shortQuery(query) {
+    const q = String(query || "");
+    if (q.length <= 72) return q;
+    const cut = q.slice(0, 72);
+    return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 40)).trim()}…`;
+  }
+
   function pinnedReferenceUrls(prompt) {
     if (isSkullPrompt(prompt)) {
       return ["https://sketchfab.com/3d-models/the-anatomy-of-the-human-skull-baf6ac7b781a46218dca2b59dee58817"];
@@ -2326,25 +2346,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   function isUsefulReferenceUrl(url) {
     const s = String(url || "").toLowerCase();
     return !!s && !FORGE_BLOCKED_REFERENCE_DOMAINS.some((domain) => s.includes(domain));
-  }
-
-  function referenceResultScore(a, b) {
-    return referenceUrlScore(b.url) - referenceUrlScore(a.url);
-  }
-
-  function referenceUrlScore(url) {
-    const s = String(url || "").toLowerCase();
-    let score = 0;
-    // Wanted: a page that states measurements. Wikipedia, an encyclopaedia, a
-    // species or spec page, a teaching site.
-    if (/wikipedia|britannica|\.edu|\.gov|encyclopedia|species|anatomy|dimensions|specification|datasheet/.test(s)) score += 60;
-    if (/proportion|ratio|measurement|size|length|weight/.test(s)) score += 25;
-    // Unwanted: somewhere to obtain a model. This used to be rewarded — any
-    // url containing "3d" or "model" scored — which is how a list of download
-    // sites came to be treated as a reference on fish anatomy.
-    if (/download|free-?3d|top-?\d|best-?\d|model-librar|marketplace|\/product\/|\/3d-models?\//.test(s)) score -= 80;
-    if (/sketchfab|turbosquid|cgtrader|thingiverse|printables|grabcad|blendswap|renderfarm/.test(s)) score -= 60;
-    return score;
   }
 
 

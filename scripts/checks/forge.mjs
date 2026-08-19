@@ -197,10 +197,14 @@ console.log('\nThe reference step looks for measurements, not marketplaces:');
     !/Sketchfab OR GrabCAD/.test(src));
   check('they ask about proportions and dimensions',
     /typical proportions ratio length to height/.test(src) && /average dimensions size cm mm/.test(src));
-  check('download and marketplace pages are scored down',
-    /download\|free-\?3d\|top-\?/.test(src) && /score -= 80/.test(src));
-  check('pages that state measurements are scored up',
-    /wikipedia\|britannica/.test(src) && /score \+= 60/.test(src));
+  check('the mode no longer ranks references by address alone',
+    !/function referenceUrlScore/.test(src));
+  check('it asks the tested picker which pages are about the subject',
+    /HCReferencePick/.test(src) && /pickPagesToRead/.test(src));
+  check('and it says so when nothing found is about the subject',
+    /Nothing found about/.test(src));
+  check('the query in the trace is not clipped mid-word',
+    /function shortQuery/.test(src) && !/query\.slice\(0, 72\)/.test(src));
   check('the brief no longer recommends marketplaces',
     !/Preferred 3D\/CAD sources/.test(src));
   check('at most two pages are read', /pageTargets\.slice\(0, 2\)/.test(src));

@@ -97,7 +97,7 @@ const LINE_BUDGET = {
   // measured once the meshes are built, rather than from a part's declared
   // width and radius. A real run lifted a fish by 2.40 on the estimate and
   // left it hanging above the grid.
-  'modes/forge/mode.js': 3727,
+  'modes/forge/mode.js': 3728,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
