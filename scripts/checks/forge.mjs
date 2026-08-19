@@ -28,6 +28,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
 const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'panel.html'), 'utf8');
 const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.css'), 'utf8');
+const vars = readFileSync(join(here, '..', '..', 'src', 'css', 'vars.css'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -163,6 +164,16 @@ console.log('\nThe inspector asks one question at a time:');
   check('panel rows are the height of what is in them',
     /\.frg-plan-list \{[\s\S]{0,400}align-content: start/.test(css) ||
     /align-content: start/.test(css.split('.frg-agent-list')[1] || ''));
+  // Forge had a mint accent of its own, and a second off-white, and a second
+  // gold, and panel grounds tinted green — which is what made walking into it
+  // feel like leaving the app. The hues it used are named here so they cannot
+  // come back one rule at a time.
+  check('Forge is on the app accent, not a palette of its own',
+    /body\.forge-studio-mode \{[\s\S]{0,240}--accent: var\(--gold\)/.test(vars));
+  check('no mint is left in the mode stylesheet',
+    !/75,\s*210,\s*190|159,\s*244,\s*231|180,\s*255,\s*245|#9ff4e7|#4bd2be/.test(css));
+  check('and no second off-white or second gold',
+    !/223,\s*251,\s*245|245,\s*201,\s*122/.test(css));
   check('the options menu is labelled, not three dots',
     /id="frgMoreBtn"[\s\S]{0,600}<span>Options<\/span>/.test(panel));
   check('style, detail and export target moved into the menu',

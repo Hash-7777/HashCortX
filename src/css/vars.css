@@ -131,12 +131,14 @@
     --accent-ink: #04140a;
   }
 
+  /* Forge is the app, not a separate product. It was on a mint accent of its
+     own, which is what made walking into it feel like leaving. */
   body.forge-studio-mode {
-    --accent: #9ff4e7;
-    --accent-2: #4bd2be;
-    --accent-soft: rgba(159, 244, 231, 0.10);
-    --accent-line: rgba(159, 244, 231, 0.24);
-    --accent-ink: #05201c;
+    --accent: var(--gold);
+    --accent-2: var(--gold-2);
+    --accent-soft: rgba(201, 169, 110, 0.12);
+    --accent-line: rgba(201, 169, 110, 0.26);
+    --accent-ink: #14100a;
   }
 
   body.system-maker-mode {

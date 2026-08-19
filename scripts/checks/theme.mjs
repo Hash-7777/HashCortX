@@ -180,7 +180,7 @@ const BUDGET = {
   // Not in css/. A second design system in its own --hc-* namespace, linked
   // last so it has the final say; recorded here so it can shrink but not grow.
   'styles.css': 26,
-  'css/vars.css': 35,
+  'css/vars.css': 33,
   'modes/systems/mode.css': 131,
   // 50, down from 58: the memory map was rebuilt on the shared tokens. What
   // went was its own palette — a near-black canvas of its own, a gradient
