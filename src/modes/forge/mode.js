@@ -2007,6 +2007,17 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         params: node.params && typeof node.params === "object" ? node.params : {},
         color: node.color,
         opacity: Number.isFinite(node.opacity) ? node.opacity : undefined,
+        // Symmetry is asked of the model and made by the app: the design
+        // prompt tells it to build one side and mark the part mirrored. This
+        // function rebuilds every node from a fixed list of fields, and that
+        // flag was not on the list — so it was dropped on the way to the
+        // assembler and no generated model has ever been mirrored. What
+        // arrived was the half that was asked for: one wing, one fin.
+        mirror: node.mirror === true,
+        // The pairing the assembler writes back, so a saved model reopens as
+        // pairs rather than as parts that happen to face each other.
+        mirroredFrom: typeof node.mirroredFrom === "string" ? node.mirroredFrom : undefined,
+        hasMirror: node.hasMirror === true ? true : undefined,
       })),
     };
   }

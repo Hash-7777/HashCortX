@@ -205,6 +205,28 @@ console.log('\nThe inspector asks one question at a time:');
   check('the menu closes on an outside click', /if \(e\.target\.closest\("\.frg-more-wrap"\)\) return;/.test(src));
 }
 
+// The mode rebuilds every part from a fixed list of fields before handing it to
+// the assembler. A field missing from that list is not an error and not a
+// crash — it is silently dropped, and whatever depended on it stops happening.
+// That is how symmetry died: the design prompt asks the model to build one side
+// and mark the part mirrored, the model does, and the flag was thrown away on
+// the way through. Every generated model arrived as the half that was asked for.
+console.log('\nWhat the assembler reads survives being normalised:');
+{
+  const planSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
+  const body = bodyOf('normalizePlan');
+  // Fields the assembler takes off a part it is given.
+  const read = new Set([...planSrc.matchAll(/\b(?:raw|part)\.([a-zA-Z_]\w*)/g)].map((m) => m[1]));
+  // Fields the mode writes onto the part it hands over.
+  const written = new Set([...body.matchAll(/^\s{8}([a-zA-Z_]\w*):/gm)].map((m) => m[1]));
+  const ignore = new Set(['map', 'filter', 'slice', 'length', 'push', 'forEach', 'toFixed']);
+  const missing = [...read].filter((k) => !written.has(k) && !ignore.has(k));
+  check('every field the assembler reads is one the mode passes on',
+    missing.length === 0, `dropped: ${missing.join(', ')}`);
+  check('the mirror flag in particular', /mirror: node\.mirror === true/.test(body));
+  check('and the pairing the assembler writes back', /mirroredFrom/.test(body));
+}
+
 console.log('\nImprove is a patch, not another design:');
 {
   check('it asks for a patch shape', /"remove":\[/.test(src) && /"replace":\[/.test(src) && /"add":\[/.test(src));
