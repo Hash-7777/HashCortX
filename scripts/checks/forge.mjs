@@ -190,8 +190,16 @@ console.log('\nThe inspector asks one question at a time:');
     /AmbientLight\(0x8a857e/.test(src) && !/0xdffbf5|0x6a8f8a|0xb0d9d2|0x4bd2be/.test(src));
   check('parts are materials, not a fourth palette',
     /ROLE_COLORS = \{[\s\S]{0,220}structure: 0xd9d3c7/.test(src));
-  check('the floor is a reference, not the subject',
-    /GridHelper\(18, 36, 0xc9a96e/.test(src) && /grid\.material\.opacity = 0\.22/.test(src));
+  check('the floor is a faint neutral reference, not part of the palette',
+    /GridHelper\(18, 36, 0xffffff, 0xffffff\)/.test(src) && /grid\.material\.opacity = 0\.16/.test(src));
+  check('nothing decorative is left drifting behind the model',
+    !/starField|makeStarField/.test(src));
+  check('the intro mark has no halo layer',
+    !/hcx_teal_halo/.test(src));
+  check('grounding moves the floating mark for good',
+    /logoBaseY \+= dy/.test(src));
+  check('the menu styles its own controls',
+    /\.frg-more-menu select \{/.test(css));
   check('a run does not throw the trace open over the model',
     !/classList\.add\("expanded"\)/.test(src));
   check('but the collapsed bar still names the latest line',

@@ -42,7 +42,6 @@
   let controls = null;
   let modelGroup = null;
   let particleGroup = null;
-  let starField = null;
   let activePlan = null;
   let raf = 0;
   // True between the GPU taking the context away and giving it back. Nothing
@@ -681,18 +680,21 @@
     // every model and left the two competing for attention. Gold, dimmer, and
     // with the centre lines the only ones carrying any weight — the fog the
     // scene already has takes the rest into the dark before the horizon.
-    const grid = new THREE.GridHelper(18, 36, 0xc9a96e, 0x8b6d2c);
+    // White, and faint. A floor is a ruler: it should read as neutral against
+    // whatever colour the model is, and tinting it gold made the whole scene
+    // look lit through a filter.
+    const grid = new THREE.GridHelper(18, 36, 0xffffff, 0xffffff);
     grid.position.y = FLOOR_Y;
     grid.material.transparent = true;
-    grid.material.opacity = 0.22;
+    grid.material.opacity = 0.16;
     scene.add(grid);
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(18, 18, 36, 36),
       new THREE.MeshBasicMaterial({
-        color: 0xc9a96e,
+        color: 0xffffff,
         transparent: true,
-        opacity: 0.022,
+        opacity: 0.02,
         side: THREE.DoubleSide,
         depthWrite: false,
       })
@@ -702,8 +704,10 @@
     floor.receiveShadow = true;
     scene.add(floor);
 
-    starField = makeStarField();
-    scene.add(starField);
+    // A field of 900 twinkling points used to sit behind the model. It said
+    // nothing about the model, moved constantly in the corner of the eye, and
+    // made a modelling tool look like a screensaver. The room is empty now,
+    // which is what a workshop looks like.
 
     window.addEventListener("resize", resize);
 
@@ -782,28 +786,6 @@
     });
   }
 
-  function makeStarField() {
-    const count = 900;
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const r = 18 + Math.random() * 38;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      positions[i * 3 + 0] = r * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = r * Math.cos(phi);
-      positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    const mat = new THREE.PointsMaterial({
-      color: 0x9ff4e7,
-      size: 0.022,
-      transparent: true,
-      opacity: 0.45,
-      depthWrite: false,
-    });
-    return new THREE.Points(geo, mat);
-  }
 
   function resize() {
     const mount = $("frgCanvasMount");
@@ -850,7 +832,6 @@
     }
     raf = requestAnimationFrame(animate);
     controls?.update();
-    if (starField) starField.rotation.y += 0.00018;
     if (logoMeshes.length > 0) {
       logoBobT += 0.006;
       const bob  = Math.sin(logoBobT) * 0.16;
@@ -1211,6 +1192,11 @@
       child.position.y += dy;
       const node = child.userData?.node;
       if (node && Array.isArray(node.position)) node.position[1] += dy;
+      // The floating mark bobs, and every frame it is written back to the
+      // height it was given when its mesh was made — which is before this runs.
+      // Moving the mesh without moving that height meant the bob dragged the
+      // logo straight back down, through the floor it had just been set on.
+      if (Number.isFinite(child.userData?.logoBaseY)) child.userData.logoBaseY += dy;
     });
     modelGroup.updateMatrixWorld(true);
     log("Assemble", `set on the floor from measured geometry · ${dy > 0 ? "+" : ""}${dy.toFixed(2)}`, "ok");
@@ -3417,10 +3403,9 @@ ${referenceBrief || "No external reference brief available; infer from general o
       name: "HashCortx intro mark",
       _introLogo: true,
       nodes: [
-        { id: "hcx_teal_halo", name: "Teal halo layer", role: "structure", type: "logo_img",
-          position: [0.06, 0.2, -0.08], rotation: [0, 0, 0], scale: [1, 1, 1],
-          params: { width: 4.4, height: 2.86, src: "/assets/hashcortx-logo.png" },
-          color: "#4bd2be", opacity: 0.26 },
+        // A third copy of the mark used to sit behind these two, scaled up,
+        // offset and tinted teal, to give the logo a halo. It was the last
+        // teal in the app and it read as a smudge behind the artwork.
         { id: "hcx_main", name: "HashCortx logo", role: "surface", type: "logo_img",
           position: [0, 0.2, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
           params: { width: 4.0, height: 2.6, src: "/assets/hashcortx-logo.png" },
