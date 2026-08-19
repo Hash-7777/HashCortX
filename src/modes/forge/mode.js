@@ -1671,11 +1671,17 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const s = out.stats;
     const notes = [];
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
-
+    if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
     if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
-    log("Assemble", notes.length ? notes.join(" · ") : "nothing to correct", "ok");
+    // "nothing to correct" used to be printed above a list of parts the same
+    // step had just found adrift. It is only true when the list is empty.
+    if (notes.length) {
+      log("Assemble", notes.join(" · "), "ok", (out.moves || []).map((m) => `${m.partId} → ${m.to}`).join("\n"));
+    } else if (!out.issues.length) {
+      log("Assemble", "nothing to correct", "ok");
+    }
     for (const issue of out.issues) {
-      if (issue.code === "detached") log("Assemble", `${issue.partId} does not connect to the main body`, "warn");
+      if (issue.code === "detached") log("Assemble", `${issue.partId} sits too far from the body to place — left where the design put it`, "warn");
       else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
     }
     return { ...plan, nodes: out.parts };

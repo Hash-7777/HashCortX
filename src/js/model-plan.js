@@ -105,11 +105,44 @@
     return [Math.abs(hx * s[0]), Math.abs(hy * s[1]), Math.abs(hz * s[2])];
   }
 
-  /** The box a single part occupies, as [minX,minY,minZ,maxX,maxY,maxZ]. */
+  /**
+   * The rotation matrix three.js builds from a part's Euler angles.
+   *
+   * Written out rather than approximated because this module has to agree with
+   * what the viewport draws. The order is three.js's default, XYZ.
+   */
+  function rotationMatrix(rotation) {
+    const [x, y, z] = triple(rotation, [0, 0, 0]);
+    const a = Math.cos(x), b = Math.sin(x);
+    const c = Math.cos(y), d = Math.sin(y);
+    const e = Math.cos(z), f = Math.sin(z);
+    const ae = a * e, af = a * f, be = b * e, bf = b * f;
+    return [
+      [c * e, -c * f, d],
+      [af + be * d, ae - bf * d, -b * c],
+      [bf - ae * d, be + af * d, a * c],
+    ];
+  }
+
+  /**
+   * The box a single part occupies, as [minX,minY,minZ,maxX,maxY,maxZ].
+   *
+   * Rotation is part of the measurement. A fuselage is a cylinder turned on
+   * its side, and measured from its parameters alone it comes out as a tall
+   * column standing where a long body should lie — so everything downstream
+   * that asks where a part is, whether it touches its neighbour, and where the
+   * bottom of the model sits, was answering about a shape that is not on
+   * screen. Turning the part's half-extents by its own rotation and taking the
+   * enclosing box is the standard result, and it is exact for a box.
+   */
   function partBox(part) {
-    const [hx, hy, hz] = halfExtents(part);
+    const h = halfExtents(part);
+    const m = rotationMatrix(part.rotation);
     const [x, y, z] = part.position;
-    return [x - hx, y - hy, z - hz, x + hx, y + hy, z + hz];
+    const ext = [0, 1, 2].map((i) => (
+      Math.abs(m[i][0]) * h[0] + Math.abs(m[i][1]) * h[1] + Math.abs(m[i][2]) * h[2]
+    ));
+    return [x - ext[0], y - ext[1], z - ext[2], x + ext[0], y + ext[1], z + ext[2]];
   }
 
   /** The box every part occupies together, or null when there are no parts. */
@@ -269,6 +302,127 @@
   }
 
   /**
+   * Close the gaps that make a model read as a pile of parts.
+   *
+   * A design call places every part by naming coordinates, and it is placing
+   * them blind — it never sees the result. Small errors there are not small on
+   * screen: a wing sitting a tenth of a unit off the fuselage is a wing lying
+   * beside an aeroplane, and a run can measure that, report every detached
+   * part by name, and still hand over a pile.
+   *
+   * So the parts that do not reach the body are moved until they do. Each one
+   * takes the shortest translation that brings it into contact with the part
+   * it is already nearest to, which is the smallest change that can fix it:
+   * a part touching on two axes and adrift on the third moves only on the
+   * third, and nothing that already connects is touched at all.
+   *
+   * Two limits keep this a correction rather than a rearrangement:
+   *
+   *   · A part is only moved when the gap is small next to the model itself —
+   *     `reach` of its longest axis. A part further away than that is not a
+   *     misplaced wing, it is a second object or a mistake with an order of
+   *     magnitude in it, and dragging it across the model would replace a
+   *     visible defect with an inexplicable one. Those are left where they
+   *     are and reported, exactly as before.
+   *   · Mirrored pairs move together, and only when both are adrift. Fixing
+   *     one wing of a pair and not the other is worse than fixing neither,
+   *     and a pair where only one side is detached is not the symmetric case
+   *     this is for.
+   *
+   * One part moves per pass, nearest gap first, so a part can attach to
+   * something that only just attached itself — which is how a plan builds up
+   * from its body outwards rather than all at once.
+   */
+  function connectParts(parts, opts = {}) {
+    const gap = num(opts.gap, 0.06);
+    const reach = num(opts.reach, 0.35);
+    const moves = [];
+    if (!Array.isArray(parts) || parts.length < 2) return { parts: parts || [], moves };
+
+    const out = parts.map((p) => ({ ...p, position: [...p.position] }));
+    const span = Math.max(...sizeOf(boundsOf(out)));
+    if (!Number.isFinite(span) || span <= 0) return { parts: out, moves };
+    const maxShift = reach * span;
+
+    // Seat a part a hair INTO its neighbour rather than exactly against it.
+    // A move that lands precisely on the contact test's boundary is a move
+    // that rounding can leave a fraction short, and the pass would then pick
+    // the same part again, close a gap of 1e-17, and do it once per pass while
+    // every other detached part waited its turn.
+    const bite = Math.min(gap * 0.5, span * 0.005);
+
+    /**
+     * The shortest move that brings box `a` into contact with box `b`.
+     *
+     * Contact means touching, not "within the tolerance". `gap` is how far
+     * apart two parts may be and still count as connected — a detection
+     * allowance, and using it here as the target left every repaired part
+     * hanging exactly one tolerance away from the thing it was joined to,
+     * which is a seam a person can see.
+     */
+    const closingMove = (a, b) => {
+      const d = [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        if (a[k] > b[k + 3]) d[k] = -(a[k] - b[k + 3]) - bite;
+        else if (b[k] > a[k + 3]) d[k] = b[k] - a[k + 3] + bite;
+      }
+      return d;
+    };
+    const lengthOf = (d) => Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    const twinOf = (part) => out.findIndex((other) => (
+      other !== part && (other.mirroredFrom === part.id || (part.mirroredFrom && other.id === part.mirroredFrom))
+    ));
+
+    for (let pass = 0; pass < out.length; pass++) {
+      const boxes = out.map(partBox);
+      const volume = (b) => Math.max(0, b[3] - b[0]) * Math.max(0, b[4] - b[1]) * Math.max(0, b[5] - b[2]);
+      let root = 0;
+      for (let i = 1; i < boxes.length; i++) if (volume(boxes[i]) > volume(boxes[root])) root = i;
+
+      const touches = (a, b) => (
+        a[0] - gap <= b[3] && b[0] - gap <= a[3] &&
+        a[1] - gap <= b[4] && b[1] - gap <= a[4] &&
+        a[2] - gap <= b[5] && b[2] - gap <= a[5]
+      );
+      const reached = new Set([root]);
+      const queue = [root];
+      while (queue.length) {
+        const i = queue.shift();
+        for (let j = 0; j < boxes.length; j++) {
+          if (reached.has(j) || !touches(boxes[i], boxes[j])) continue;
+          reached.add(j); queue.push(j);
+        }
+      }
+      if (reached.size === boxes.length) break;
+
+      // The smallest gap anywhere, so the model grows outwards from its body.
+      let best = null;
+      for (let i = 0; i < out.length; i++) {
+        if (reached.has(i)) continue;
+        for (const j of reached) {
+          const d = closingMove(boxes[i], boxes[j]);
+          const dist = lengthOf(d);
+          if (dist <= bite) continue;
+          if (!best || dist < best.dist) best = { i, j, d, dist };
+        }
+      }
+      if (!best || best.dist > maxShift) break;
+
+      const part = out[best.i];
+      part.position = [part.position[0] + best.d[0], part.position[1] + best.d[1], part.position[2] + best.d[2]];
+      moves.push({ partId: part.id, to: out[best.j].id, by: [...best.d] });
+
+      const twin = twinOf(part);
+      if (twin >= 0 && !reached.has(twin)) {
+        const other = out[twin];
+        other.position = [other.position[0] - best.d[0], other.position[1] + best.d[1], other.position[2] + best.d[2]];
+        moves.push({ partId: other.id, to: out[best.j].id, by: [-best.d[0], best.d[1], best.d[2]], mirrored: true });
+      }
+    }
+    return { parts: out, moves };
+  }
+
+  /**
    * What is wrong with this model that a person would notice.
    *
    * Reported, not repaired: a detached part may be a deliberate second element,
@@ -335,17 +489,23 @@
     // and cannot know what a mesh's vertices do. A caller that will measure the
     // built geometry itself should say so and skip this, rather than have two
     // answers applied in turn.
-    const floored = opts.ground === false ? { parts: scaled.parts, offset: 0 } : snapToFloor(scaled.parts);
+    // Connecting comes before the floor, because moving a part changes where
+    // the bottom of the model is. Opt out with connect:false to see what a
+    // design call actually produced.
+    const joined = opts.connect === false ? { parts: scaled.parts, moves: [] } : connectParts(scaled.parts, opts);
+    const floored = opts.ground === false ? { parts: joined.parts, offset: 0 } : snapToFloor(joined.parts);
 
     const parts = floored.parts;
     return {
       name: String(source.name || "model"),
       parts,
       issues: [...cleaned.issues, ...mirrored.issues, ...findIssues(parts, opts)],
+      moves: joined.moves,
       stats: {
         received: Array.isArray(source.nodes || source.parts) ? (source.nodes || source.parts).length : 0,
         kept: cleaned.parts.length,
         mirrored: parts.filter((p) => p.mirroredFrom).length,
+        connected: joined.moves.length,
         scaleFactor: scaled.factor,
         floorOffset: floored.offset,
         size: sizeOf(boundsOf(parts)),
@@ -356,6 +516,7 @@
   window.HCModelPlan = {
     COORD_LIMIT,
     halfExtents,
+    rotationMatrix,
     partBox,
     boundsOf,
     sizeOf,
@@ -364,6 +525,7 @@
     snapToFloor,
     normaliseScale,
     findIssues,
+    connectParts,
     assemble,
   };
 })();

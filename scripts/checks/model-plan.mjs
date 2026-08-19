@@ -174,5 +174,161 @@ console.log('\nThe order of the steps holds:');
   ok('and it says the plan was empty', out.issues.some((i) => i.code === 'empty'));
 }
 
+// ── Parts that do not reach the body ─────────────────────────────────────────
+//
+// A real run produced six parts of an aeroplane with five of them adrift. The
+// stage measured every one, named it in the trace, and handed the pile over.
+// These hold the repair to being a repair: it closes small gaps, it leaves
+// alone anything that is either already attached or plainly not part of the
+// same object, and it never changes what the model is made of.
+// ── Rotation is part of a part's size ────────────────────────────────────────
+//
+// A fuselage is a cylinder turned on its side. Measured from its parameters
+// alone it comes out as a column standing where a long body should lie — so
+// every question asked of it afterwards (does this touch, where is the bottom,
+// how big is this model) was answered about a shape that is not on screen. In
+// a real run that reported five parts adrift, two of them were touching the
+// whole time.
+console.log('\nA part is measured as it is turned:');
+{
+  const long = { id: 'body', name: 'body', type: 'cylinder', position: [0, 0, 0],
+    rotation: [0, 0, 0], scale: [1, 1, 1], params: { radius: 0.2, height: 2 } };
+  const upright = P.partBox(long);
+  ok('upright, a tall cylinder is tall', near(upright[4] - upright[1], 2, 1e-9));
+  ok('and narrow', near(upright[3] - upright[0], 0.4, 1e-9));
+
+  const onItsSide = P.partBox({ ...long, rotation: [0, 0, Math.PI / 2] });
+  ok('turned on its side, it is long', near(onItsSide[3] - onItsSide[0], 2, 1e-9));
+  ok('and no longer tall', near(onItsSide[4] - onItsSide[1], 0.4, 1e-9));
+
+  const quarter = P.partBox({ ...long, rotation: [Math.PI / 2, 0, 0] });
+  ok('turned about x, its length is in z', near(quarter[5] - quarter[2], 2, 1e-9));
+
+  // A part rotated by a whole turn is where it started.
+  const full = P.partBox({ ...long, rotation: [0, 0, Math.PI * 2] });
+  ok('a full turn changes nothing', near(full[4] - full[1], 2, 1e-6));
+
+  // Two parts that touch once rotation is accounted for are not reported adrift.
+  const built = P.assemble({ nodes: [
+    { ...long, rotation: [0, 0, Math.PI / 2] },
+    { id: 'wing', name: 'wing', type: 'box', position: [0, 0, 0.4], rotation: [0, 0, 0],
+      scale: [1, 1, 1], params: { width: 1.2, height: 0.05, depth: 0.6 } },
+  ] }, { ground: false });
+  ok('a part touching a turned body is not called adrift',
+    !built.issues.some((i) => i.code === 'detached'));
+  ok('and it was not moved to get there', built.stats.connected === 0);
+}
+
+console.log('\nParts that do not reach the body are brought to it:');
+{
+  // A body with a panel floating a little way off it on one axis only.
+  const near1 = P.connectParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('panel', { position: [1.8, 0, 0], params: { width: 0.4, height: 0.4, depth: 0.4 } }),
+  ]);
+  ok('a small gap is closed', near1.moves.length === 1);
+  ok('the part that moved is the one adrift', near1.moves[0]?.partId === 'panel');
+  ok('and it moved along the axis it was adrift on',
+    near1.moves[0]?.by[1] === 0 && near1.moves[0]?.by[2] === 0);
+  ok('the body did not move',
+    near1.parts.find((p) => p.id === 'body').position.every((v) => v === 0));
+  ok('nothing is left detached afterwards',
+    !P.findIssues(near1.parts).some((i) => i.code === 'detached'));
+
+  // Already touching: nothing to do, and nothing may move.
+  const attached = P.connectParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('wing', { position: [1.2, 0, 0], params: { width: 0.6, height: 0.1, depth: 0.6 } }),
+  ]);
+  ok('a model that already connects is left exactly alone', attached.moves.length === 0);
+
+  // Far away: a second object, or an order of magnitude wrong. Not dragged in.
+  const far = P.connectParts([
+    box('body', { params: { width: 1, height: 1, depth: 1 } }),
+    box('stray', { position: [40, 0, 0] }),
+  ]);
+  ok('a part far outside the model is left where it is', far.moves.length === 0);
+  ok('and it is still reported as detached',
+    P.findIssues(far.parts).some((i) => i.code === 'detached' && i.partId === 'stray'));
+
+  // Symmetry survives the repair.
+  const pair = P.assemble({
+    nodes: [
+      box('fuselage', { params: { width: 2, height: 0.5, depth: 0.5 } }),
+      box('wing', { position: [1.4, 0, 0], mirror: true, params: { width: 0.5, height: 0.08, depth: 1.2 } }),
+    ],
+  }, { ground: false });
+  const left = pair.parts.find((p) => p.id === 'wing');
+  const right = pair.parts.find((p) => p.mirroredFrom === 'wing');
+  ok('a mirrored pair is still a pair after connecting', !!left && !!right);
+  ok('and it is still exactly opposite',
+    near(left.position[0], -right.position[0]) &&
+    near(left.position[1], right.position[1]) &&
+    near(left.position[2], right.position[2]));
+
+  // The repair never changes what the model is made of.
+  const plan = {
+    nodes: [
+      box('body', { params: { width: 2, height: 0.6, depth: 0.6 } }),
+      box('tail', { position: [-1.3, 0.3, 0], params: { width: 0.3, height: 0.3, depth: 0.2 } }),
+      box('fin', { position: [-1.25, 0.7, 0], params: { width: 0.2, height: 0.4, depth: 0.1 } }),
+    ],
+  };
+  const built = P.assemble(plan, { ground: false });
+  ok('the part count is unchanged', built.parts.length === 3);
+  ok('every id survives',
+    ['body', 'tail', 'fin'].every((id) => built.parts.some((p) => p.id === id)));
+  ok('the moves it made are reported', Array.isArray(built.moves));
+  ok('and counted', typeof built.stats.connected === 'number');
+
+  // Determinism: the same plan twice is the same model twice.
+  const a = P.assemble(plan, { ground: false });
+  const b = P.assemble(plan, { ground: false });
+  ok('the same plan assembles the same way twice',
+    JSON.stringify(a.parts) === JSON.stringify(b.parts));
+
+  // Opting out shows what the design call actually produced.
+  const raw = P.assemble(plan, { ground: false, connect: false });
+  ok('connect:false leaves every gap where it was', raw.stats.connected === 0);
+
+  // The pass terminates and does not re-move the same part to no effect.
+  const messy = P.connectParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('a', { position: [1.6, 0, 0], params: { width: 0.3, height: 0.3, depth: 0.3 } }),
+    box('b', { position: [0, 0.9, 0], params: { width: 0.3, height: 0.3, depth: 0.3 } }),
+    box('c', { position: [0, 0, 0.9], params: { width: 0.3, height: 0.3, depth: 0.3 } }),
+  ]);
+  const movedIds = messy.moves.map((m) => m.partId);
+  ok('no part is moved twice in one repair', movedIds.length === new Set(movedIds).size);
+  ok('every gap it accepted was actually closed',
+    !P.findIssues(messy.parts).some((i) => i.code === 'detached'));
+
+  // A repair closes the gap. It does not leave one tolerance of daylight —
+  // the tolerance says how far apart two parts may be and still count as
+  // joined, and aiming at it left every repaired part hanging visibly short of
+  // the thing it was joined to.
+  const seam = P.connectParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('cap', { position: [1.4, 0, 0], params: { width: 0.4, height: 0.4, depth: 0.4 } }),
+  ]);
+  {
+    const bodyBox = P.partBox(seam.parts.find((p) => p.id === 'body'));
+    const capBox = P.partBox(seam.parts.find((p) => p.id === 'cap'));
+    const daylight = capBox[0] - bodyBox[3];
+    ok('the repaired part actually meets the body', daylight <= 1e-9,
+      `left ${daylight.toFixed(4)} of daylight`);
+    ok('and is not buried in it', daylight > -0.05, `overlaps by ${(-daylight).toFixed(4)}`);
+  }
+
+  // A part can attach to something that only just attached itself.
+  const chain = P.connectParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('arm', { position: [1.7, 0, 0], params: { width: 0.4, height: 0.2, depth: 0.2 } }),
+    box('hand', { position: [2.3, 0, 0], params: { width: 0.3, height: 0.2, depth: 0.2 } }),
+  ]);
+  ok('a chain of parts is walked outwards from the body',
+    !P.findIssues(chain.parts).some((i) => i.code === 'detached'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);
 process.exit(fail ? 1 : 0);
