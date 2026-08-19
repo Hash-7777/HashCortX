@@ -164,6 +164,30 @@ console.log('\nImprove is a patch, not another design:');
     /function syncImproveAvailability[\s\S]{0,300}btn\.disabled = !count/.test(src));
 }
 
+// A run is "in flight" only while it is running. That sounds too obvious to
+// pin, and it is exactly what broke: the controller a run created was never
+// put back, so it answered "a run is happening" for the rest of the session
+// and Improve refused every time it was offered — button enabled, note
+// inviting the click, and not one call ever made.
+console.log('\nA finished run stops counting as one in flight:');
+{
+  const owner = bodyOf('runGodAgent');
+  const body = bodyOf('forgeRun');
+  const improve = bodyOf('improveModel');
+  check('the run puts the controller back when it ends',
+    /finally \{[\s\S]{0,120}abortCtrl = null/.test(owner));
+  check('and only while it is still its own',
+    /if \(abortCtrl === ctrl\) abortCtrl = null/.test(owner));
+  check('a superseded run does not read the controller that replaced it',
+    body.length > 0 && !/abortCtrl/.test(body));
+  check('Improve holds the controller while it is in flight',
+    /abortCtrl = ctrl/.test(improve));
+  check('Improve puts it back too',
+    /if \(abortCtrl === ctrl\) abortCtrl = null/.test(improve));
+  check('a patch is not applied over the run that replaced it',
+    /if \(abortCtrl !== ctrl\)[\s\S]{0,120}return;[\s\S]{0,200}parseJsonPayload/.test(improve));
+}
+
 console.log('\nThe reference step looks for measurements, not marketplaces:');
 {
   // A real run spent 22 of its 27 seconds reading "top 10 websites to download

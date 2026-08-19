@@ -1241,7 +1241,10 @@
     const btn = $("frgImproveBtn");
     if (btn) { btn.disabled = true; btn.textContent = "Improving…"; }
     setStatus("Improving");
+    // Improve is a run too, so it takes the controller. That is what lets a
+    // Generate started on top of it abort the call rather than race it.
     const ctrl = new AbortController();
+    abortCtrl = ctrl;
     try {
       log("Improve", `Sending the model back to ${modelLabel(model)} with what is measurably wrong`, "run");
       const system = `You are correcting an existing 3D model, not designing a new one.
@@ -1264,6 +1267,11 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         { role: "system", content: system },
         { role: "user", content: user },
       ], null, ctrl.signal);
+
+      // A generation started while this was in flight owns the scene now.
+      // Applying a patch built against the plan it replaced would overwrite a
+      // model the person is currently watching being built.
+      if (abortCtrl !== ctrl) { log("Improve", "superseded by a new run", "wait"); return; }
 
       const patch = parseJsonPayload(text, "object") || {};
       const removed = new Set((Array.isArray(patch.remove) ? patch.remove : []).map(String));
@@ -1288,8 +1296,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       setStatus("Ready");
     } catch (err) {
       log("Improve", `failed: ${err?.message || err}`, "err");
-      setStatus("Ready");
+      if (abortCtrl === ctrl) setStatus("Ready");
     } finally {
+      if (abortCtrl === ctrl) abortCtrl = null;
       if (btn) { btn.textContent = "Improve this model"; btn.disabled = false; }
     }
   }
@@ -2015,10 +2024,26 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     };
   }
 
+  /**
+   * A run owns the abort controller for exactly as long as it is in flight.
+   * Everything asking "is a run happening?" reads it, and nothing used to put
+   * it back — so a finished run answered yes for ever, and Improve refused
+   * every time it was offered. Released on every way out, and only while it is
+   * still ours: a second run replaces it before the first has unwound.
+   */
   async function runGodAgent(useSample) {
     if (!await initThree()) return;
     if (abortCtrl) abortCtrl.abort();
-    abortCtrl = new AbortController();
+    const ctrl = new AbortController();
+    abortCtrl = ctrl;
+    try {
+      await forgeRun(useSample, ctrl);
+    } finally {
+      if (abortCtrl === ctrl) abortCtrl = null;
+    }
+  }
+
+  async function forgeRun(useSample, ctrl) {
     traceRunCount += 1;
     traceStartTime = Date.now();
     const prompt = ($("frgPrompt")?.value || "").trim() || "a complex original 3D object";
@@ -2060,9 +2085,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     } else {
       try {
         updateStage("generate", "active", "references");
-        activeReferenceBrief = await gatherReferenceBrief(prompt, routeBrief.route, abortCtrl.signal);
+        activeReferenceBrief = await gatherReferenceBrief(prompt, routeBrief.route, ctrl.signal);
         updateStage("generate", "active", "parameter agent");
-        plan = await requestForgeKernelPlan(prompt, prefs, activeReferenceBrief, routeBrief, abortCtrl.signal);
+        plan = await requestForgeKernelPlan(prompt, prefs, activeReferenceBrief, routeBrief, ctrl.signal);
         if (plan) {
           plan.route = routeBrief.route;
           log(routeBrief.route === "anatomical" ? "SDF Kernel" : "Geometry Kernel", `Executed ${routeBrief.route} mesh plan · ${plan.nodes.length} mesh part(s)`, "ok");
@@ -2097,7 +2122,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     // symmetry, contact, nothing floating — is measured in
     // src/js/model-plan.js, and Improve exists for the times a person looks at
     // the result and wants another pass.
-    if (!useSample && routeBrief.route !== "organic_diffusion" && abortCtrl && !abortCtrl.signal.aborted) {
+    if (!useSample && routeBrief.route !== "organic_diffusion" && !ctrl.signal.aborted) {
       updateStage("refine", "active", "assembling");
 
       // One subject, centred and grounded.
