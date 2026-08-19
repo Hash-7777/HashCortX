@@ -2040,7 +2040,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       particleGroup.add(mesh);
       flights.push({ mesh, curve, start: now + i * 18, duration: duration * (0.78 + Math.random() * 0.34) });
     }
-    $("frgParticleCount").textContent = `${flights.length} particles`;
   }
 
   function updateFlights(now) {
@@ -2056,8 +2055,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         flights.splice(i, 1);
       }
     }
-    const pc = $("frgParticleCount");
-    if (pc) pc.textContent = `${flights.length} particles`;
   }
 
   function updateReveal(now) {

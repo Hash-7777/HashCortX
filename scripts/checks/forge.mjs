@@ -174,6 +174,15 @@ console.log('\nThe inspector asks one question at a time:');
     !/75,\s*210,\s*190|159,\s*244,\s*231|180,\s*255,\s*245|#9ff4e7|#4bd2be/.test(css));
   check('and no second off-white or second gold',
     !/223,\s*251,\s*245|245,\s*201,\s*122/.test(css));
+  check('the header is three groups, not six columns',
+    /grid-template-columns: auto minmax\(0, 1fr\) auto/.test(css));
+  check('the prompt, Generate and Options are one group',
+    /class="frg-command"[\s\S]{0,1200}id="frgGodBtn"/.test(panel) &&
+    /class="frg-command"[\s\S]{0,2000}id="frgMoreBtn"/.test(panel));
+  check('the particle count is gone from the bar',
+    !/frgParticleCount/.test(panel));
+  check('and nothing still looks for it',
+    !/frgParticleCount/.test(src));
   check('the options menu is labelled, not three dots',
     /id="frgMoreBtn"[\s\S]{0,600}<span>Options<\/span>/.test(panel));
   check('style, detail and export target moved into the menu',

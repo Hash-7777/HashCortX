@@ -24,22 +24,23 @@
       </div>
     </div>
 
-    <!-- Center: prompt + generate -->
-    <div class="frg-prompt-wrap">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input id="frgPrompt" type="text" placeholder="Describe a 3D model… e.g. 'a sleek futuristic chair'" autocomplete="off" />
+    <!-- The prompt is what this screen is for, so it is the middle of the bar
+         and the widest thing in it. Generate and Options act on what is typed
+         there, so they belong beside it rather than off in the corner. -->
+    <div class="frg-command">
+      <div class="frg-prompt-wrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input id="frgPrompt" type="text" placeholder="Describe a 3D model… e.g. 'a sleek futuristic chair'" autocomplete="off" />
+      </div>
       <button class="frg-btn primary" id="frgGodBtn">Generate</button>
-    </div>
 
-    <!-- Style, detail and export target used to sit open across the bar. They
-         are answered once and then read, so they live behind a menu now. -->
-    <div class="frg-more-wrap">
       <!-- Three dots said nothing about what they open. A control that has to
            be clicked to find out what it is has not been labelled. -->
-      <button class="frg-btn frg-more-btn" id="frgMoreBtn" title="Style, detail and export target" aria-expanded="false" aria-label="Model options">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" width="14" height="14" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-        <span>Options</span>
-      </button>
+      <div class="frg-more-wrap">
+        <button class="frg-btn frg-more-btn" id="frgMoreBtn" title="Style, detail and export target" aria-expanded="false" aria-label="Model options">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" width="14" height="14" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+          <span>Options</span>
+        </button>
       <div class="frg-more-menu" id="frgMoreMenu" hidden>
         <label>
           <span>Style</span>
@@ -72,13 +73,17 @@
         <button class="frg-more-item" id="frgMockBtn">Load a sample model</button>
         <button class="frg-more-item" id="frgAutoRouteBtn">Auto-assign the model route</button>
       </div>
+      </div>
     </div>
 
+    <!-- What the run is doing, then what to do with the result. The particle
+         count that sat here was a number from the animation; nobody has ever
+         needed to know it. -->
     <div class="frg-header-right">
       <span class="frg-status" id="frgStatus">Idle</span>
-      <span id="frgParticleCount" class="frg-particles"></span>
+      <span class="frg-header-sep" aria-hidden="true"></span>
       <button class="frg-btn" id="frgSaveProjectBtn">Save</button>
-      <button class="frg-btn" id="frgNewProjectBtn">New</button>
+      <button class="frg-btn ghost" id="frgNewProjectBtn">New</button>
       <button class="frg-icon-btn" id="frgResetViewBtn" title="Reset camera">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v6h6"/></svg>
       </button>
