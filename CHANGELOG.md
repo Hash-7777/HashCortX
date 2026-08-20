@@ -33,6 +33,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   listed in the trace. The run also says when a design came back as plain blocks
   and balls, which is the model's doing and used to look like the app's.
 
+### Removed
+
+- **The built-in subject templates in 3D Forge.** 760 lines of hand-written
+  geometry for a spoon, a knife, a sword, a table, a phone, a laptop, a drone, a
+  chair, a house, a tower, a rover, a human body and a skeleton, which no button
+  could reach: the only route in was a padding pass that had already been
+  switched off. The sample model the Options menu loads is unaffected.
+
 - **The notch notice says "HashCortX finished" and nothing else.** It used to
   carry the model that answered underneath it. That line is read at a glance,
   after the work is already over, so it offers nothing to act on while crowding

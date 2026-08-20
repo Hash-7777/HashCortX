@@ -31,7 +31,7 @@ HashCortX/
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,808  virtual project desktop
-│   │   ├── forge/            3,722  3D planning
+│   │   ├── forge/            2,962  3D planning
 │   │   ├── agent-maker/      2,980  chain / vote / failover
 │   │   ├── finance/          2,705  financial document analysis
 │   │   ├── code/             2,715  the Coder agent loop
