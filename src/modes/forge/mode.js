@@ -46,23 +46,24 @@
   let mountResizeObserver = null;
   let controls = null;
   let modelGroup = null;
-  let particleGroup = null;
   let activePlan = null;
   let raf = 0;
   // True between the GPU taking the context away and giving it back. Nothing
   // may draw in between: the render target no longer exists.
   let contextLost = false;
-  let flights = [];
   let revealMeshes = [];
   let logoMeshes = [];
   let logoBobT = 0;
-  let scanMesh = null;
-  // How a part arrives: the motes gather, the part fades in among them, and
-  // both finish together. It used to run in 760ms flat, which read as a flick
-  // rather than as something being assembled.
-  const GATHER_MS = 1250;
-  const GATHER_LEAD_MS = 420;
-  const GATHER_STAGGER_MS = 110;
+  // How a model arrives: it fades up, whole, in a quarter of a second.
+  //
+  // Parts used to be assembled on screen. Each one waited its turn, a cloud of
+  // motes gathered onto the spot it was going to occupy, and the part faded in
+  // among them — about two seconds of ceremony for a twelve-part model, in
+  // which the thing a person had asked for was the last thing to appear. It
+  // also said the wrong thing about the result: parts arriving one at a time,
+  // each trailing its own swarm, is a picture of an assembly of pieces, and the
+  // model is one object. The design finished before any of it started.
+  const REVEAL_MS = 260;
 
   let abortCtrl = null;
   // Hand edits are undoable, all the way back to the model as it was built.
@@ -655,8 +656,7 @@
     renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
 
     modelGroup = new THREE.Group();
-    particleGroup = new THREE.Group();
-    scene.add(modelGroup, particleGroup);
+    scene.add(modelGroup);
 
     const key = new THREE.DirectionalLight(0xf6efe3, 2.1);
     key.position.set(6, 8, 5);
@@ -845,7 +845,6 @@
       }
     }
     if (selectionBox && selectedMesh) selectionBox.update();
-    updateFlights(now || performance.now());
     updateReveal(now || performance.now());
     if (++underfloorTick % 8 === 0) updateUnderfloorHighlights();
     renderer.render(scene, camera);
@@ -853,17 +852,9 @@
 
   function clearScene() {
     selectMesh(null);
-    flights.forEach((f) => particleGroup.remove(f.mesh));
-    flights = [];
     revealMeshes = [];
     logoMeshes = [];
     logoBobT = 0;
-    if (scanMesh) {
-      scene?.remove(scanMesh);
-      scanMesh.geometry?.dispose();
-      scanMesh.material?.dispose();
-      scanMesh = null;
-    }
     if (modelGroup) {
       while (modelGroup.children.length) {
         const obj = modelGroup.children.pop();
@@ -872,13 +863,6 @@
           if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose?.());
           else child.material?.dispose?.();
         });
-      }
-    }
-    if (particleGroup) {
-      while (particleGroup.children.length) {
-        const obj = particleGroup.children.pop();
-        obj.geometry?.dispose?.();
-        obj.material?.dispose?.();
       }
     }
   }
@@ -1044,29 +1028,7 @@
     });
   }
 
-  function buildScanlineMesh(baseY) {
-    const canvas = document.createElement("canvas");
-    canvas.width = 4;
-    canvas.height = 128;
-    const ctx = canvas.getContext("2d");
-    const grad = ctx.createLinearGradient(0, 0, 0, 128);
-    grad.addColorStop(0,    "rgba(75,210,190,0)");
-    grad.addColorStop(0.38, "rgba(75,210,190,0)");
-    grad.addColorStop(0.5,  "rgba(75,210,190,0.85)");
-    grad.addColorStop(0.62, "rgba(75,210,190,0)");
-    grad.addColorStop(1,    "rgba(75,210,190,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 4, 128);
-    const tex = new THREE.CanvasTexture(canvas);
-    const geo = new THREE.PlaneGeometry(3.2, 0.22);
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(0, baseY, 0.02);
-    mesh.userData.scanBaseY = baseY;
-    return mesh;
-  }
-
-  function addNodeMesh(node, index, total) {
+  function addNodeMesh(node, revealStart) {
     const color = new THREE.Color(PRINT_COLOR);
     const mat = node.type === "logo"
       ? makeLogoMaterial(node)
@@ -1125,35 +1087,17 @@
       mesh.userData.logoBaseY = mesh.position.y;
       logoMeshes.push(mesh);
     }
-    // The motes gather first and the part appears among them, and the two
-    // finish together. Sized to the part, but held between two limits:
-    // unbounded, a large flat part gathers from several units out, which puts
-    // its motes at the edge of the frame — near enough to nowhere, which is
-    // the thing this replaced. Too small and they start inside the part.
-    mesh.geometry?.computeBoundingSphere?.();
-    const partRadius = (mesh.geometry?.boundingSphere?.radius || 0.5) * Math.max(...mesh.scale.toArray().map(Math.abs));
-    const startAt = performance.now() + index * GATHER_STAGGER_MS;
     revealMeshes.push({
       mesh,
-      start: startAt + GATHER_LEAD_MS,
-      duration: GATHER_MS - GATHER_LEAD_MS,
+      // Every part on the same clock. Staggering them was the last thing left
+      // saying "these are separate pieces".
+      start: revealStart,
+      duration: REVEAL_MS,
       // Solid. Parts used to arrive at 0.86, so the model was slightly
       // see-through and every part behind another showed through it — which
       // makes a single object impossible to read as one.
       targetOpacity: node.type === "logo" || node.type === "logo_img" ? (node.opacity ?? 1) : 1,
     });
-    // Recorded, not spawned. The cloud has to be planned around where the part
-    // ends up, and the model is not set on the floor until every mesh exists.
-    mesh.userData.gather = {
-      role: node.role || "structure",
-      count: Math.max(8, Math.floor(26 / Math.max(1, total / 6))),
-      // Wide enough to be outside the part it is building. A cloud gathering
-      // inside a large part's own silhouette is drawn behind it, or added over
-      // its bright face where it cannot be seen — which is what happened to
-      // the intro mark, a plane four units across gathered from under two.
-      reach: Math.min(3.2, Math.max(0.45, partRadius * 1.35)),
-      startAt,
-    };
   }
 
   function updateUnderfloorHighlights() {
@@ -1184,15 +1128,9 @@
     clearScene();
     activePlan = normalizePlan(plan);
     const nodes = renderableNodes(activePlan.nodes);
-    nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
+    const revealStart = performance.now();
+    nodes.forEach((node) => addNodeMesh(node, revealStart));
     groundBuiltModel();
-    // Now that every part is where it will stay, gather onto it.
-    modelGroup.children.forEach((mesh) => {
-      const g = mesh.userData?.gather;
-      if (!g) return;
-      spawnFlightsTo(mesh.position, g.role, g.count, g.reach, GATHER_MS, g.startAt);
-      delete mesh.userData.gather;
-    });
     updatePlanList(activePlan);
     syncImproveAvailability();
     // A model that has just been built or opened is a new document. Undoing
@@ -1599,7 +1537,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     clearScene();
     activePlan = { ...(activePlan || { name: "Forge object" }), nodes: JSON.parse(JSON.stringify(parts || [])) };
     const nodes = renderableNodes(activePlan.nodes);
-    nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
+    nodes.forEach((node) => addNodeMesh(node, performance.now()));
     revealMeshes.forEach((item) => {
       const mat = item.mesh?.material;
       if (mat && !Array.isArray(mat)) { mat.opacity = item.targetOpacity; mat.transparent = item.targetOpacity < 1; }
@@ -2064,73 +2002,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       : fallback.slice();
   }
 
-
-  /**
-   * Gather a cloud of motes onto the part being built.
-   *
-   * The layout and the flight are in src/js/assembly-motes.js, where they can
-   * be measured. What is here is the scene work: a mote is a small sphere, it
-   * is coloured like the part it is joining, and it is thrown away when it
-   * arrives. Sized to the part, so a small detail is gathered by a small cloud
-   * and a large body by a wide one — motes used to come from a sphere nine
-   * units across whatever they were building, which is why they read as
-   * weather rather than as assembly.
-   */
-  function spawnFlightsTo(target, role, count, reach, totalMs, startAt) {
-    if (!THREE || !particleGroup) return;
-    const M = window.HCAssemblyMotes;
-    if (!M) return;
-    const color = PRINT_COLOR;
-    const geo = new THREE.SphereGeometry(0.03, 6, 6);
-    // Added to the light already there rather than painted over it, so a mote
-    // reads as a spark rather than as a small grey ball, and two crossing do
-    // not cut holes in each other. Nothing behind them is occluded, which
-    // matters because they end up inside the part they are joining.
-    const mat = new THREE.MeshBasicMaterial({
-      color, transparent: true, opacity: 0,
-      blending: THREE.AdditiveBlending, depthWrite: false,
-    });
-    const now = Number.isFinite(startAt) ? startAt : performance.now();
-    const plan = M.planMotes({
-      count,
-      radius: Math.max(0.35, reach || 0.9),
-      total: totalMs || GATHER_MS,
-      // Fewer turns than the default: over a longer flight the same sweep
-      // becomes a spin, and a mote that circles reads as orbiting rather than
-      // as being drawn in.
-      turns: 0.85,
-      seed: Math.floor(Math.random() * 1e9),
-    });
-    for (const mote of plan) {
-      const mesh = new THREE.Mesh(geo, mat.clone());
-      mesh.position.copy(target);
-      mesh.visible = false;
-      particleGroup.add(mesh);
-      flights.push({ mesh, mote, target: target.clone(), start: now + mote.delay, duration: mote.life });
-    }
-  }
-
-  function updateFlights(now) {
-    const M = window.HCAssemblyMotes;
-    for (let i = flights.length - 1; i >= 0; i--) {
-      const f = flights[i];
-      // Before its turn a mote is not in the scene at all, rather than sitting
-      // at full brightness on the spot it is about to leave.
-      if (now < f.start) { f.mesh.visible = false; continue; }
-      const t = Math.min(1, Math.max(0, (now - f.start) / f.duration));
-      const at = M ? M.moteAt(f.mote, t) : { x: 0, y: 0, z: 0, opacity: 0, scale: 0 };
-      f.mesh.visible = true;
-      f.mesh.position.set(f.target.x + at.x, f.target.y + at.y, f.target.z + at.z);
-      f.mesh.material.opacity = at.opacity;
-      f.mesh.scale.setScalar(Math.max(0.0001, at.scale));
-      if (t >= 1) {
-        particleGroup.remove(f.mesh);
-        f.mesh.geometry.dispose();
-        f.mesh.material.dispose();
-        flights.splice(i, 1);
-      }
-    }
-  }
 
   function updateReveal(now) {
     for (const item of revealMeshes) {

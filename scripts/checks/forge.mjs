@@ -20,7 +20,7 @@
 //
 // Run with: npm run check:forge
 // ==============================================================
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -207,20 +207,19 @@ console.log('\nThe inspector asks one question at a time:');
     /GridHelper\(18, 36, 0xffffff, 0xffffff\)/.test(src) && /grid\.material\.opacity = 0\.16/.test(src));
   check('nothing decorative is left drifting behind the model',
     !/starField|makeStarField/.test(src));
-  check('the gathering is laid out by the tested module',
-    /HCAssemblyMotes/.test(src) && /planMotes\(/.test(src) && /moteAt\(/.test(src));
-  check('and it is sized to the part it is building',
-    /boundingSphere/.test(src) && /partRadius/.test(src));
-  check('the gathering is planned only once the part is where it will stay',
-    /groundBuiltModel\(\);[\s\S]{0,320}spawnFlightsTo\(mesh\.position/.test(src));
-  check('and nothing spawns it before that',
-    !/spawnFlightsTo\([^)]*\)/.test(bodyOf('addNodeMesh')));
-  check('it runs on its own, slower clock',
-    /GATHER_MS = 1250/.test(src) && /GATHER_LEAD_MS = 420/.test(src));
-  check('the part appears among the motes rather than before them',
-    /start: startAt \+ GATHER_LEAD_MS/.test(src));
-  check('a cloud clears the part it is building',
-    /Math\.min\(3\.2, Math\.max\(0\.45, partRadius \* 1\.35\)\)/.test(src));
+  // A twelve-part model spent about two seconds assembling itself on screen,
+  // part by part, each one trailing its own cloud of motes — a picture of an
+  // assembly of pieces, in front of the one object that had been asked for.
+  check('nothing is assembled on screen any more',
+    !/spawnFlightsTo|updateFlights|HCAssemblyMotes|particleGroup/.test(src));
+  check('and the module that laid the motes out is gone with it',
+    !existsSync(join(here, '..', '..', 'src', 'js', 'assembly-motes.js')));
+  check('the model fades up whole, in a quarter of a second',
+    /REVEAL_MS = 260/.test(src));
+  check('every part on the same clock, not one after another',
+    /start: revealStart/.test(src) && !/GATHER_STAGGER_MS/.test(src));
+  check('and that clock is read once, before the parts are made',
+    /const revealStart = performance\.now\(\);[\s\S]{0,120}addNodeMesh\(node, revealStart\)/.test(bodyOf('buildPlan')));
   check('the floating mark is not set on the floor',
     /if \(activePlan\?\._introLogo\) return;/.test(bodyOf('groundBuiltModel')));
   check('and the flag that says so survives being normalised',

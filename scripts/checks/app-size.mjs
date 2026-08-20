@@ -102,7 +102,10 @@ const LINE_BUDGET = {
   // each part carrying its own colour on top of a colour for its role. The
   // added lines are the note saying why the joins, not the colours, are what a
   // person reads shape from.
-  'modes/forge/mode.js': 3792,
+  // 3663. The parts are no longer assembled on screen: the mote flight, the
+  // scan line it was drawn with, and the per-part stagger are gone, and the
+  // model simply fades up whole.
+  'modes/forge/mode.js': 3663,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

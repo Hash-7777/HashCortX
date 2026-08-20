@@ -77,7 +77,6 @@
     '/js/vector-map.js',
     '/js/model-plan.js',
     '/js/edit-history.js',
-    '/js/assembly-motes.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',
 
