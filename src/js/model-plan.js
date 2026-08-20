@@ -423,6 +423,92 @@
   }
 
   /**
+   * Close the hairline seams, so the model reads as one piece.
+   *
+   * connectParts only moves a part the body cannot be reached from, and it
+   * counts a part as reached when it is within `gap` of another. That is the
+   * right test for "is this piece attached", and the wrong one for how the
+   * model looks: a fin sitting 0.05 from a body is attached by that test and
+   * still shows daylight through the join. On a model a few units across the
+   * eye reads that line as the edge of a separate object, which is exactly the
+   * pile-of-parts appearance the single material is meant to end.
+   *
+   * So every part that is near another without meeting it is seated a little
+   * way in, the way two pieces of a printed object are fused rather than
+   * balanced against each other. The smaller part moves — a fin joins a body,
+   * a body does not shuffle over to meet a fin — and a mirrored twin moves with
+   * it in the opposite direction across x, or closing one side would break the
+   * symmetry the mirror pass just guaranteed.
+   *
+   * Parts further apart than `gap` are left alone: that is a real separation
+   * and connectParts already had its say about it.
+   */
+  function seatParts(parts, opts = {}) {
+    const gap = num(opts.gap, 0.06);
+    const seams = [];
+    if (!Array.isArray(parts) || parts.length < 2) return { parts: parts || [], seams };
+
+    const out = parts.map((p) => ({ ...p, position: [...p.position] }));
+    const span = Math.max(...sizeOf(boundsOf(out)));
+    if (!Number.isFinite(span) || span <= 0) return { parts: out, seams };
+    const bite = Math.min(gap * 0.5, span * 0.01);
+
+    const boxes = out.map(partBox);
+    const volume = (b) => Math.max(0, b[3] - b[0]) * Math.max(0, b[4] - b[1]) * Math.max(0, b[5] - b[2]);
+    const overlaps = (a, b) => a[0] < b[3] && b[0] < a[3] && a[1] < b[4] && b[1] < a[4] && a[2] < b[5] && b[2] < a[5];
+    // How far apart two boxes are on each axis; zero where they already share
+    // that axis. The move that joins them closes every axis at once.
+    const separation = (a, b) => {
+      const d = [0, 0, 0];
+      for (let k = 0; k < 3; k++) {
+        if (a[k] > b[k + 3]) d[k] = -(a[k] - b[k + 3]) - bite;
+        else if (b[k] > a[k + 3]) d[k] = b[k] - a[k + 3] + bite;
+      }
+      return d;
+    };
+    const lengthOf = (d) => Math.sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+    const twinOf = (part) => out.findIndex((other) => (
+      other !== part && (other.mirroredFrom === part.id || (part.mirroredFrom && other.id === part.mirroredFrom))
+    ));
+
+    // Smallest first, so a detail is seated into the mass it belongs to before
+    // that mass is ever considered for moving into the detail.
+    const order = out.map((_, i) => i).sort((a, b) => volume(boxes[a]) - volume(boxes[b]));
+    const moved = new Set();
+    for (const i of order) {
+      if (moved.has(i)) continue;
+      let best = null;
+      for (let j = 0; j < out.length; j++) {
+        if (i === j) continue;
+        if (overlaps(boxes[i], boxes[j])) { best = null; break; }
+        if (volume(boxes[j]) < volume(boxes[i])) continue;
+        const d = separation(boxes[i], boxes[j]);
+        const dist = lengthOf(d);
+        // Already meeting, or far enough away to be a genuinely separate piece.
+        if (dist <= bite || dist > gap + bite) continue;
+        if (!best || dist < best.dist) best = { j, d, dist };
+      }
+      if (!best) continue;
+
+      const part = out[i];
+      part.position = [part.position[0] + best.d[0], part.position[1] + best.d[1], part.position[2] + best.d[2]];
+      boxes[i] = partBox(part);
+      moved.add(i);
+      seams.push({ partId: part.id, to: out[best.j].id, by: [...best.d] });
+
+      const twin = twinOf(part);
+      if (twin >= 0 && !moved.has(twin)) {
+        const other = out[twin];
+        other.position = [other.position[0] - best.d[0], other.position[1] + best.d[1], other.position[2] + best.d[2]];
+        boxes[twin] = partBox(other);
+        moved.add(twin);
+        seams.push({ partId: other.id, to: out[best.j].id, by: [-best.d[0], best.d[1], best.d[2]], mirrored: true });
+      }
+    }
+    return { parts: out, seams };
+  }
+
+  /**
    * What is wrong with this model that a person would notice.
    *
    * Reported, not repaired: a detached part may be a deliberate second element,
@@ -493,7 +579,10 @@
     // the bottom of the model is. Opt out with connect:false to see what a
     // design call actually produced.
     const joined = opts.connect === false ? { parts: scaled.parts, moves: [] } : connectParts(scaled.parts, opts);
-    const floored = opts.ground === false ? { parts: joined.parts, offset: 0 } : snapToFloor(joined.parts);
+    // Then the seams: parts that pass the contact test but still show a line
+    // between them are seated into their neighbour, so the model is one body.
+    const seated = opts.connect === false ? { parts: joined.parts, seams: [] } : seatParts(joined.parts, opts);
+    const floored = opts.ground === false ? { parts: seated.parts, offset: 0 } : snapToFloor(seated.parts);
 
     const parts = floored.parts;
     return {
@@ -501,11 +590,13 @@
       parts,
       issues: [...cleaned.issues, ...mirrored.issues, ...findIssues(parts, opts)],
       moves: joined.moves,
+      seams: seated.seams,
       stats: {
         received: Array.isArray(source.nodes || source.parts) ? (source.nodes || source.parts).length : 0,
         kept: cleaned.parts.length,
         mirrored: parts.filter((p) => p.mirroredFrom).length,
         connected: joined.moves.length,
+        seated: seated.seams.length,
         scaleFactor: scaled.factor,
         floorOffset: floored.offset,
         size: sizeOf(boundsOf(parts)),
@@ -526,6 +617,7 @@
     normaliseScale,
     findIssues,
     connectParts,
+    seatParts,
     assemble,
   };
 })();

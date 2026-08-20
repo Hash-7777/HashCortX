@@ -29,6 +29,7 @@ const src = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.j
 const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'panel.html'), 'utf8');
 const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.css'), 'utf8');
 const vars = readFileSync(join(here, '..', '..', 'src', 'css', 'vars.css'), 'utf8');
+const modelPlan = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -188,8 +189,20 @@ console.log('\nThe inspector asks one question at a time:');
   check('the scene is not lit in a colour of its own',
     /DirectionalLight\(0xf6efe3/.test(src) && /DirectionalLight\(0xc9a96e/.test(src) &&
     /AmbientLight\(0x8a857e/.test(src) && !/0xdffbf5|0x6a8f8a|0xb0d9d2|0x4bd2be/.test(src));
-  check('parts are materials, not a fourth palette',
-    /ROLE_COLORS = \{[\s\S]{0,220}structure: 0xd9d3c7/.test(src));
+  // A part used to be coloured by its role, over whatever colour the design
+  // call had picked for it. So a fish read as a beige body beside a gold fin
+  // beside a grey tail: the joins were the loudest thing on screen, and three
+  // objects stood where one animal was asked for.
+  check('every part of a model is the same material',
+    /PRINT_COLOR = 0xd7d2c8/.test(src) && !/ROLE_COLORS/.test(src));
+  check('and the design call cannot colour one of them',
+    !/node\.color \? new THREE\.Color\(node\.color\)/.test(src));
+  check('it is matte, so no part shines like a different material',
+    /roughness: 0\.72/.test(src) && /metalness: 0\.04/.test(src));
+  check('a finished part is solid, not slightly see-through',
+    !/targetOpacity: node\.opacity \?\? \(node\.type === "mesh" \? 0\.98 : 0\.86\)/.test(src));
+  check('and stops being drawn as glass once it has arrived',
+    /mat\.transparent = false/.test(bodyOf('updateReveal')));
   check('the floor is a faint neutral reference, not part of the palette',
     /GridHelper\(18, 36, 0xffffff, 0xffffff\)/.test(src) && /grid\.material\.opacity = 0\.16/.test(src));
   check('nothing decorative is left drifting behind the model',
@@ -316,6 +329,12 @@ console.log('\nThe model is grounded once, by one estimator:');
     /assembleDeterministically/.test(src) &&
     !/const dy = FLOOR_Y \+ 0\.015/.test(src),
     'the second grounding must be gone from the code, not just from the comment');
+  // Parts within the contact tolerance passed as connected and were never
+  // moved, so a fin could sit a visible line clear of the body it belonged to.
+  check('and the seams are closed by it too',
+    /seated: seated\.seams\.length/.test(modelPlan) && /seatParts\(joined\.parts, opts\)/.test(modelPlan));
+  check('the run says how many seams it closed',
+    /seam\(s\) closed/.test(bodyOf('assembleDeterministically')));
 }
 
 console.log('\nThe design prompt asks for a model, not a part count:');

@@ -97,7 +97,12 @@ const LINE_BUDGET = {
   // measured once the meshes are built, rather than from a part's declared
   // width and radius. A real run lifted a fish by 2.40 on the estimate and
   // left it hanging above the grid.
-  'modes/forge/mode.js': 3768,
+  // 3792, up from 3768. A model is drawn as one printed piece now — one
+  // material for every part, matte, and solid once it has arrived — instead of
+  // each part carrying its own colour on top of a colour for its role. The
+  // added lines are the note saying why the joins, not the colours, are what a
+  // person reads shape from.
+  'modes/forge/mode.js': 3792,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

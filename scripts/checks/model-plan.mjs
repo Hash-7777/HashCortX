@@ -330,5 +330,69 @@ console.log('\nParts that do not reach the body are brought to it:');
     !P.findIssues(chain.parts).some((i) => i.code === 'detached'));
 }
 
+console.log('\nParts that pass the contact test but still show a seam are seated in:');
+{
+  // 0.04 apart: inside the 0.06 tolerance, so connectParts calls this model
+  // connected and never touches it — and a person sees a line of floor
+  // through the join.
+  const before = [
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('fin', { position: [1.24, 0, 0], params: { width: 0.4, height: 0.6, depth: 0.1 } }),
+  ];
+  const gapBefore = P.partBox(before[1])[0] - P.partBox(before[0])[3];
+  ok('the case starts inside the contact tolerance', gapBefore > 0 && gapBefore < 0.06,
+    `gap was ${gapBefore.toFixed(4)}`);
+  ok('and connecting leaves it exactly there',
+    near(P.connectParts(before).parts[1].position[0], 1.24));
+
+  const seated = P.seatParts(before);
+  const bodyBox = P.partBox(seated.parts.find((p) => p.id === 'body'));
+  const finBox = P.partBox(seated.parts.find((p) => p.id === 'fin'));
+  ok('seating closes it', finBox[0] < bodyBox[3], `gap left: ${(finBox[0] - bodyBox[3]).toFixed(4)}`);
+  ok('into an overlap, not onto the boundary', bodyBox[3] - finBox[0] > 0);
+  ok('and not by more than a hair', bodyBox[3] - finBox[0] <= 0.06);
+  ok('the small part is the one that moved', !near(finBox[0], P.partBox(before[1])[0]));
+  ok('the body stayed where it was', near(seated.parts[0].position[0], 0));
+  ok('the move is reported', seated.seams.length === 1 && seated.seams[0].partId === 'fin');
+
+  // Two parts already sharing space have no seam to close.
+  const solid = P.seatParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('nose', { position: [1.0, 0, 0], params: { width: 0.4, height: 0.4, depth: 0.4 } }),
+  ]);
+  ok('a model that already overlaps is left alone', solid.seams.length === 0);
+
+  // A part standing well clear is a separate piece, and connectParts owns that
+  // decision. Seating must not quietly drag it in.
+  const apart = P.seatParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('spare', { position: [4, 0, 0] }),
+  ]);
+  ok('a part standing well clear is not dragged in', apart.seams.length === 0);
+
+  // Closing one side of a mirrored pair and not the other is how a symmetric
+  // model comes out lopsided.
+  const pair = P.seatParts([
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('finL', { position: [1.24, 0, 0], params: { width: 0.4, height: 0.6, depth: 0.1 } }),
+    box('finR', { position: [-1.24, 0, 0], params: { width: 0.4, height: 0.6, depth: 0.1 }, mirroredFrom: 'finL' }),
+  ]);
+  const L = pair.parts.find((p) => p.id === 'finL');
+  const R = pair.parts.find((p) => p.id === 'finR');
+  ok('a mirrored pair is seated on both sides', near(L.position[0], -R.position[0]));
+  ok('and both actually moved', !near(L.position[0], 1.24));
+
+  ok('every id survives seating', P.seatParts(before).parts.map((p) => p.id).join() === 'body,fin');
+  ok('seating the same plan twice gives the same answer',
+    JSON.stringify(P.seatParts(before).parts) === JSON.stringify(P.seatParts(before).parts));
+  ok('a seated model is stable under a second pass',
+    P.seatParts(seated.parts).seams.length === 0);
+
+  const full = P.assemble({ name: 'fish', nodes: before }, { ground: false });
+  ok('assemble runs the seating pass', full.stats.seated === 1);
+  ok('and connect:false switches it off too',
+    P.assemble({ name: 'fish', nodes: before }, { ground: false, connect: false }).stats.seated === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);
 process.exit(fail ? 1 : 0);

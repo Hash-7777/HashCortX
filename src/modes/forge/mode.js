@@ -1,16 +1,21 @@
 (function () {
   "use strict";
 
-  // What a part is made of, when the plan does not say. A model is the subject
-  // of this screen, so its parts are materials — bone, gold and a warm grey —
-  // and not a fourth palette arguing with the one the app uses. Audit keeps its
-  // red: it marks something wrong, and a warning that blends in is not one.
-  const ROLE_COLORS = {
-    structure: 0xd9d3c7,
-    surface: 0xc9a96e,
-    detail: 0x9b958a,
-    audit: 0xff8f8f,
-  };
+  // A finished model is one object, and it is drawn as one.
+  //
+  // Parts used to be coloured by their role — bone, gold, a warm grey — on top
+  // of whatever colour the design call had chosen for each of them. The result
+  // was that the joins were the loudest thing on screen: a fish read as a beige
+  // body next to a gold fin next to a grey tail, three objects standing
+  // together rather than one animal. Nothing about a model is per-part, and
+  // giving each part its own colour said the opposite.
+  //
+  // So every part is the same material, the way a piece off a 3D printer is one
+  // filament: light neutral, matte, fully opaque, no glow of its own. What
+  // separates one part from the next is the shading across the join, which is
+  // what a person actually reads shape from. The plan's own "color" is ignored
+  // for a real part, and no longer asked for.
+  const PRINT_COLOR = 0xd7d2c8;
 
   const AGENTS = [
     { id: "god",      name: "Design",          role: "one call · designs the whole model", color: "#e7fbf7" },
@@ -1062,23 +1067,30 @@
   }
 
   function addNodeMesh(node, index, total) {
-    const color = node.color ? new THREE.Color(node.color) : new THREE.Color(ROLE_COLORS[node.role] || ROLE_COLORS.structure);
+    const color = new THREE.Color(PRINT_COLOR);
     const mat = node.type === "logo"
       ? makeLogoMaterial(node)
       : node.type === "logo_img"
       ? makeImageLogoMaterial(node)
       : new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.42,
-        metalness: node.role === "detail" ? 0.55 : 0.28,
+        // Matte and unpolished. A metallic sheen puts a bright reflection on
+        // each part in a different place, which reads as different materials —
+        // the pile again, in one colour.
+        roughness: 0.72,
+        metalness: 0.04,
+        // Only so the model can fade in. It is turned off the moment the fade
+        // finishes, because a transparent surface is sorted rather than depth
+        // tested, and parts that overlap — which every part of a solid model
+        // does — show each other through the join.
         transparent: true,
         opacity: 0,
-        emissive: color,
-        emissiveIntensity: 0.08,
+        emissive: new THREE.Color(0x000000),
+        emissiveIntensity: 0,
       });
     if (mat.emissive) {
-      mat.userData.baseEmissive = color.clone();
-      mat.userData.baseEmissiveIntensity = 0.08;
+      mat.userData.baseEmissive = new THREE.Color(0x000000);
+      mat.userData.baseEmissiveIntensity = 0;
     }
     // Tier 2: auto-subdivide surface-role organic primitives when AI didn't specify
     let geoParams = node.params || {};
@@ -1125,7 +1137,10 @@
       mesh,
       start: startAt + GATHER_LEAD_MS,
       duration: GATHER_MS - GATHER_LEAD_MS,
-      targetOpacity: node.opacity ?? (node.type === "mesh" ? 0.98 : 0.86),
+      // Solid. Parts used to arrive at 0.86, so the model was slightly
+      // see-through and every part behind another showed through it — which
+      // makes a single object impossible to read as one.
+      targetOpacity: node.type === "logo" || node.type === "logo_img" ? (node.opacity ?? 1) : 1,
     });
     // Recorded, not spawned. The cloud has to be planned around where the part
     // ends up, and the model is not set on the floor until every mesh exists.
@@ -1154,7 +1169,7 @@
         mat.emissiveIntensity = 0.32;
         mesh.userData.underFloor = true;
       } else if (mesh.userData.underFloor) {
-        mat.emissive.copy(mat.userData.baseEmissive || new THREE.Color(ROLE_COLORS[mesh.userData.node?.role] || ROLE_COLORS.structure));
+        mat.emissive.copy(mat.userData.baseEmissive || new THREE.Color(0x000000));
         mat.emissiveIntensity = mat.userData.baseEmissiveIntensity ?? 0.08;
         mesh.userData.underFloor = false;
       }
@@ -1804,6 +1819,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const notes = [];
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
     if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
+    if (s.seated) notes.push(`${s.seated} seam(s) closed`);
     if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
     // "nothing to correct" used to be printed above a list of parts the same
     // step had just found adrift. It is only true when the list is empty.
@@ -2064,7 +2080,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (!THREE || !particleGroup) return;
     const M = window.HCAssemblyMotes;
     if (!M) return;
-    const color = ROLE_COLORS[role] || ROLE_COLORS.structure;
+    const color = PRINT_COLOR;
     const geo = new THREE.SphereGeometry(0.03, 6, 6);
     // Added to the light already there rather than painted over it, so a mote
     // reads as a spark rather than as a small grey ball, and two crossing do
@@ -2119,7 +2135,14 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   function updateReveal(now) {
     for (const item of revealMeshes) {
       const t = Math.min(1, Math.max(0, (now - item.start) / item.duration));
-      item.mesh.material.opacity = item.targetOpacity * easeOut(t);
+      const mat = item.mesh.material;
+      mat.opacity = item.targetOpacity * easeOut(t);
+      // Once it is fully there, stop treating it as glass. Left transparent, a
+      // solid model draws its own far side through its near side.
+      if (t >= 1 && mat.transparent && item.targetOpacity >= 1) {
+        mat.transparent = false;
+        mat.needsUpdate = true;
+      }
     }
   }
 
@@ -2429,8 +2452,7 @@ Schema:
       "position": [x,y,z],
       "rotation": [x,y,z],
       "scale": [x,y,z],
-      "params": {"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"segments":64,"subdivisions":1},
-      "color": "#4bd2be"
+      "params": {"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"segments":64,"subdivisions":1}
     }
   ],
   "edges": [],
@@ -2462,6 +2484,8 @@ How to build it:
   If the object has a front, face it towards +Z.
 - The app puts the model on the floor. Build it around the origin and do not compensate.
 - Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
+- Do not give parts colours. The model is shown as one printed piece in a single material, and
+  shape is the only thing that describes it. Spend the answer on geometry.
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
 - For 3D print, keep parts visibly connected and avoid tiny fragile details. For GLB, keep parts
   separate and named with clean pivots.
