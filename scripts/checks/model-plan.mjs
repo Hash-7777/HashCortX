@@ -394,5 +394,31 @@ console.log('\nParts that pass the contact test but still show a seam are seated
     P.assemble({ name: 'fish', nodes: before }, { ground: false, connect: false }).stats.seated === 0);
 }
 
+console.log('\nA shape the app does not have is read, not thrown away:');
+{
+  // Every one of these used to become a one-unit box, silently. A design that
+  // had described an egg, a pipe and a ring arrived as three identical cubes.
+  ok('a shape it knows is left alone', P.resolveType({ type: 'lathe' }).type === 'lathe');
+  ok('and reported as unchanged', P.resolveType({ type: 'lathe' }).from === null);
+  ok('an ellipsoid is a sphere', P.resolveType({ type: 'ellipsoid' }).type === 'sphere');
+  ok('a pipe is a cylinder', P.resolveType({ type: 'tube' }).type === 'cylinder');
+  ok('a ring is a torus', P.resolveType({ type: 'ring' }).type === 'torus');
+  ok('a pyramid is a cone', P.resolveType({ type: 'pyramid' }).type === 'cone');
+  ok('a revolve is a lathe', P.resolveType({ type: 'revolve' }).type === 'lathe');
+  ok('case and spacing do not matter', P.resolveType({ type: 'Rounded Box' }).type === 'box');
+  ok('a substitution says what it was', P.resolveType({ type: 'ellipsoid' }).from === 'ellipsoid');
+
+  // The part that carries its own geometry is the expensive one to lose.
+  ok('vertex positions mean a mesh',
+    P.resolveType({ type: 'fish_body', params: { positions: [0,0,0, 1,0,0, 0,1,0] } }).type === 'mesh');
+  ok('a list of two-number points means a silhouette',
+    P.resolveType({ type: 'fin_shape', params: { points: [[0,0],[1,0],[0,1]] } }).type === 'extrude');
+  ok('a part that says nothing usable is a box',
+    P.resolveType({ type: 'thingummy', params: {} }).type === 'box');
+  ok('and a missing type is one too', P.resolveType({}).type === 'box');
+  ok('every shape the app builds is accepted',
+    [...P.SHAPES].every((t) => P.resolveType({ type: t }).type === t));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);
 process.exit(fail ? 1 : 0);

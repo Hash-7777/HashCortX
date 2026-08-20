@@ -29,6 +29,56 @@
   // A part thinner than this in every axis renders as nothing at all.
   const MIN_EXTENT = 1e-4;
 
+  // The shapes the viewport can actually build.
+  const SHAPES = new Set([
+    "box", "cylinder", "capsule", "sphere", "cone", "torus",
+    "lathe", "extrude", "mesh", "logo", "logo_img",
+  ]);
+
+  // What a model calls a shape when it does not use the name in the schema.
+  // Every one of these was previously turned into a one-unit box without a
+  // word, which is how a design that had described an egg, a pipe and a ring
+  // arrived as three identical cubes — and why the answer looked like the app
+  // could not do curves, when the app had never been told to make one.
+  const SHAPE_ALIASES = {
+    cube: "box", rect: "box", rectangle: "box", block: "box", prism: "box",
+    plane: "box", panel: "box", slab: "box", "rounded_box": "box", roundedbox: "box",
+    ellipsoid: "sphere", ball: "sphere", oval: "sphere", spheroid: "sphere",
+    tube: "cylinder", pipe: "cylinder", rod: "cylinder", disc: "cylinder", disk: "cylinder",
+    pill: "capsule", stadium: "capsule",
+    ring: "torus", donut: "torus", torus_knot: "torus",
+    revolve: "lathe", revolution: "lathe", turned: "lathe", profile: "lathe",
+    polygon: "extrude", shape: "extrude", silhouette: "extrude", outline: "extrude",
+    custom: "mesh", geometry: "mesh", polymesh: "mesh", surface: "mesh", triangles: "mesh",
+    pyramid: "cone", spike: "cone",
+  };
+
+  /**
+   * Which shape a part is, when the plan does not name one the app knows.
+   *
+   * Falling back to a box loses the whole part: a silhouette written as a list
+   * of points becomes a cube, and nothing anywhere says so. So the name is
+   * checked, then the common synonyms, and then the part's own contents —
+   * vertex positions mean a mesh, a list of two-number points means a profile
+   * to extrude. Only a part that has said nothing usable becomes a box, and
+   * that is reported rather than assumed.
+   */
+  function resolveType(node) {
+    // Not "raw": the checks read every `raw.<field>` in this file as a field
+    // the mode must pass through, and a local of that name is a false alarm.
+    const named = String(node?.type || "").trim().toLowerCase();
+    if (SHAPES.has(named)) return { type: named, from: null };
+    const alias = SHAPE_ALIASES[named] || SHAPE_ALIASES[named.replace(/[\s-]+/g, "_")];
+    if (alias) return { type: alias, from: named };
+    const p = node?.params && typeof node.params === "object" ? node.params : {};
+    if (Array.isArray(p.positions) && p.positions.length >= 9) return { type: "mesh", from: named };
+    if (Array.isArray(p.points) && p.points.length >= 3
+        && p.points.every((pt) => Array.isArray(pt) && pt.length >= 2)) {
+      return { type: "extrude", from: named };
+    }
+    return { type: "box", from: named };
+  }
+
   const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
   const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
@@ -618,6 +668,8 @@
     findIssues,
     connectParts,
     seatParts,
+    resolveType,
+    SHAPES,
     assemble,
   };
 })();

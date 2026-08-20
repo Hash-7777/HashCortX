@@ -105,7 +105,12 @@ const LINE_BUDGET = {
   // 3663. The parts are no longer assembled on screen: the mote flight, the
   // scan line it was drawn with, and the per-part stagger are gone, and the
   // model simply fades up whole.
-  'modes/forge/mode.js': 3663,
+  // 3722, up from 3663. A part whose shape the app cannot build is now read as
+  // the nearest one it can — a design that wrote an egg, a pipe and a ring used
+  // to arrive as three identical cubes, silently. The run also says when a
+  // design came back as plain blocks and balls, which was the model's doing and
+  // looked like the app's.
+  'modes/forge/mode.js': 3722,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

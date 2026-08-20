@@ -94,6 +94,9 @@
   const FLOOR_Y = 0;
   const MAX_FORGE_NODES = 96;
   const PROJECT_STORE_KEY = "hashui_forge_projects";
+  // Only used if src/js/model-plan.js has not loaded, which would mean the whole
+  // deterministic stage is missing. It is the same list that module holds.
+  const SHAPE_NAMES = ["box", "cylinder", "capsule", "sphere", "cone", "torus", "lathe", "extrude", "logo", "logo_img", "mesh"];
   const FORGE_ALLOWED_MODEL_PROVIDERS = new Set(["groq", "gemini", "cerebras", "samba", "sambanova", "openrouter", "local"]);
   const FORGE_PROVIDER_COOLDOWNS = new Map();
   let forgeProjects = [];
@@ -1146,7 +1149,37 @@
     } else {
       frameModel();
     }
+    reportShapeQuality(activePlan, nodes);
     log("Viewport", `Loaded ${nodes.length} mesh part(s) in the void.`);
+  }
+
+  /**
+   * What the design actually answered with, said plainly.
+   *
+   * Both of these were invisible before. A part whose shape the app could not
+   * build was turned into a box in silence, and a design that answered every
+   * part with a plain block or a ball rendered without comment — so a result
+   * that was the model's doing looked like the app's.
+   *
+   * Neither is treated as an error. A crate really is boxes, and a substituted
+   * shape is usually the right one. They are stated, so the person looking at
+   * the screen knows which of the two they are looking at, and Improve is told
+   * the same thing when it is asked to have another go.
+   */
+  function reportShapeQuality(plan, nodes) {
+    const swapped = plan?.shapeSubstitutions || [];
+    if (swapped.length) {
+      log("Assemble", `${swapped.length} part(s) named a shape this app does not build — read as the nearest one`, "warn", swapped.join("\n"));
+    }
+    const plain = plainShapeCount(nodes);
+    if (nodes.length >= 3 && plain / nodes.length >= 0.7) {
+      log("Design", `${plain} of ${nodes.length} part(s) are plain boxes or balls. If the subject is not blocky, the model answered with stand-ins — press Improve, or design it with a stronger model.`, "warn");
+    }
+  }
+
+  /** Parts that carry no shape of their own: a box or a ball, nothing turned. */
+  function plainShapeCount(nodes) {
+    return (nodes || []).filter((node) => node.type === "box" || node.type === "sphere").length;
   }
 
   /**
@@ -1209,6 +1242,10 @@
         const thinnest = Math.min(size.x, size.y, size.z);
         if (longest > 0 && thinnest / longest < 0.05) lines.push("The model is nearly flat in one axis; it needs depth.");
       }
+    }
+    const plain = plainShapeCount(nodes);
+    if (nodes.length >= 3 && plain / nodes.length >= 0.7) {
+      lines.push(`${plain} of ${nodes.length} parts are plain boxes or spheres. Unless the subject really is blocky, replace them with shapes that carry the form: extrude for a silhouette, lathe for anything turned, capsule for a rounded limb.`);
     }
     if (MP) {
       for (const issue of MP.findIssues(MP.normaliseParts(nodes).parts)) {
@@ -1960,9 +1997,26 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   }
 
   function normalizePlan(plan) {
+    const MP = window.HCModelPlan;
     const src = plan && typeof plan === "object" ? plan : { name: "Empty model", nodes: [] };
     const nodes = Array.isArray(src.nodes) ? src.nodes : [];
+    // A shape the app cannot build used to become a one-unit box here, without
+    // a word. So a design that had written an egg, a pipe and a ring came back
+    // as three identical cubes, and the app looked incapable of a curve it had
+    // never been asked for. The nearest real shape is used instead, and every
+    // substitution is carried on the plan so the run can say it happened.
+    const substitutions = [];
+    const shapeOf = (node, i) => {
+      const resolved = MP?.resolveType
+        ? MP.resolveType(node)
+        : { type: SHAPE_NAMES.includes(node.type) ? node.type : "box", from: SHAPE_NAMES.includes(node.type) ? null : String(node.type || "") };
+      if (resolved.from) {
+        substitutions.push(`${String(node.name || node.id || `Node ${i + 1}`)}: "${resolved.from}" → ${resolved.type}`);
+      }
+      return resolved.type;
+    };
     return {
+      shapeSubstitutions: substitutions,
       name: src.name || "Forged model",
       // The intro mark floats and is framed by hand. Losing that flag here is
       // how it came to be set on the floor, out of the shot built for it.
@@ -1973,7 +2027,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
         id: String(node.id || `node_${i + 1}`),
         name: String(node.name || node.id || `Node ${i + 1}`),
-        type: ["box", "cylinder", "capsule", "sphere", "cone", "torus", "lathe", "extrude", "logo", "logo_img", "mesh"].includes(node.type) ? node.type : "box",
+        type: shapeOf(node, i),
         role: ["structure", "surface", "detail", "audit"].includes(node.role) ? node.role : "structure",
         position: vec3(node.position, [0, 0, 0]),
         rotation: vec3(node.rotation, [0, 0, 0]),
@@ -2342,6 +2396,11 @@ How to build it:
   "capsule" for rounded tubes (arms, legs, fingers, handles),
   "mesh" with positions+indices for a surface none of those describe.
   Boxes and cylinders are for genuinely boxy or cylindrical parts, not as a substitute for a curve.
+- The largest part carries the silhouette, and it is an "extrude", a "lathe" or a "mesh" unless the
+  object really is a crate or a pipe. A body, a head, a hull or a shell answered with a box or a
+  sphere is a placeholder, not a design, and it is what makes a result unusable.
+- Use only the type names in the schema. A name that is not one of them is read as the nearest shape
+  the app can build, and a part that says nothing usable becomes a plain box.
 - Set "subdivisions":1 on every smooth organic surface and "segments":64 on lathes, cylinders,
   cones and capsules. The defaults look faceted.
 - Symmetry: build ONE side and set "mirror": true on it. The app mirrors it exactly across x=0.

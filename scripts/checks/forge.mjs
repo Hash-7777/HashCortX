@@ -251,6 +251,41 @@ console.log('\nThe inspector asks one question at a time:');
 // That is how symmetry died: the design prompt asks the model to build one side
 // and mark the part mirrored, the model does, and the flag was thrown away on
 // the way through. Every generated model arrived as the half that was asked for.
+console.log('\nA shape the app cannot build is read, and said out loud:');
+{
+  const body = bodyOf('normalizePlan');
+  // The old line turned every unrecognised type into a one-unit box with no
+  // trace of it having happened.
+  check('a part takes its type from the resolver, not an inline list',
+    /type: shapeOf\(node, i\)/.test(body));
+  check('and the resolver is the tested one',
+    /MP\?\.resolveType/.test(body) && /function resolveType/.test(modelPlan));
+  check('and every substitution is carried on the plan',
+    /shapeSubstitutions/.test(body));
+  check('the run says how many parts were substituted',
+    /named a shape this app does not build/.test(src));
+  check('and lists which ones', /swapped\.join/.test(src));
+  // A design answered entirely in blocks and balls is the model's doing. Saying
+  // nothing about it made it look like the app's.
+  check('a design of plain blocks and balls is called out',
+    /plain boxes or balls/.test(bodyOf('reportShapeQuality')));
+  check('it is a warning, not a failure', /stand-ins/.test(src) && !/failForgeRun\("Design"/.test(src));
+  check('and Improve is told the same thing',
+    /plain boxes or spheres/.test(bodyOf('describeBuiltModel')));
+  check('the report runs on everything that reaches the screen',
+    /reportShapeQuality\(activePlan, nodes\)/.test(bodyOf('buildPlan')));
+}
+
+console.log('\nThe design prompt asks for shape, not stand-ins:');
+{
+  check('the biggest part must carry the silhouette',
+    /The largest part carries the silhouette/.test(src));
+  check('a body answered with a box is named as a placeholder',
+    /is a placeholder, not a design/.test(src));
+  check('and the type names are stated as a closed list',
+    /Use only the type names in the schema/.test(src));
+}
+
 console.log('\nWhat the assembler reads survives being normalised:');
 {
   const planSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
