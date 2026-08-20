@@ -197,9 +197,21 @@ console.log('\nThe inspector asks one question at a time:');
   check('the gathering is laid out by the tested module',
     /HCAssemblyMotes/.test(src) && /planMotes\(/.test(src) && /moteAt\(/.test(src));
   check('and it is sized to the part it is building',
-    /boundingSphere/.test(src) && /partReach/.test(src));
-  check('a mote lands within the part it belongs to appearing',
-    /total: revealMs/.test(src));
+    /boundingSphere/.test(src) && /partRadius/.test(src));
+  check('the gathering is planned only once the part is where it will stay',
+    /groundBuiltModel\(\);[\s\S]{0,320}spawnFlightsTo\(mesh\.position/.test(src));
+  check('and nothing spawns it before that',
+    !/spawnFlightsTo\([^)]*\)/.test(bodyOf('addNodeMesh')));
+  check('it runs on its own, slower clock',
+    /GATHER_MS = 1250/.test(src) && /GATHER_LEAD_MS = 420/.test(src));
+  check('the part appears among the motes rather than before them',
+    /start: startAt \+ GATHER_LEAD_MS/.test(src));
+  check('a cloud clears the part it is building',
+    /Math\.min\(3\.2, Math\.max\(0\.45, partRadius \* 1\.35\)\)/.test(src));
+  check('the floating mark is not set on the floor',
+    /if \(activePlan\?\._introLogo\) return;/.test(bodyOf('groundBuiltModel')));
+  check('and the flag that says so survives being normalised',
+    /_introLogo: src\._introLogo === true/.test(src));
   check('the old scatter-from-anywhere helper is gone',
     !/randomSpherePoint/.test(src));
   check('the intro mark has no halo layer',

@@ -52,6 +52,13 @@
   let logoMeshes = [];
   let logoBobT = 0;
   let scanMesh = null;
+  // How a part arrives: the motes gather, the part fades in among them, and
+  // both finish together. It used to run in 760ms flat, which read as a flick
+  // rather than as something being assembled.
+  const GATHER_MS = 1250;
+  const GATHER_LEAD_MS = 420;
+  const GATHER_STAGGER_MS = 110;
+
   let abortCtrl = null;
   // Hand edits are undoable, all the way back to the model as it was built.
   // Each entry is the whole part list before and after one edit: transforms,
@@ -1117,19 +1124,32 @@
       mesh.userData.logoBaseY = mesh.position.y;
       logoMeshes.push(mesh);
     }
-    const revealAt = performance.now() + index * 90;
-    const revealMs = 760;
-    revealMeshes.push({ mesh, start: revealAt, duration: revealMs, targetOpacity: node.opacity ?? (node.type === "mesh" ? 0.98 : 0.86) });
-    // The cloud is sized to the part and lands as the part finishes appearing,
-    // so the two read as one event instead of two that happen to overlap.
+    // The motes gather first and the part appears among them, and the two
+    // finish together. Sized to the part, but held between two limits:
+    // unbounded, a large flat part gathers from several units out, which puts
+    // its motes at the edge of the frame — near enough to nowhere, which is
+    // the thing this replaced. Too small and they start inside the part.
     mesh.geometry?.computeBoundingSphere?.();
-    // Sized to the part, but held between two limits. Unbounded, a large flat
-    // part gathers from several units out, which puts its motes at the edge of
-    // the frame or outside it — near enough to nowhere, which is the thing
-    // this replaced. Too small and they start inside the part and never show.
     const partRadius = (mesh.geometry?.boundingSphere?.radius || 0.5) * Math.max(...mesh.scale.toArray().map(Math.abs));
-    const partReach = Math.min(1.9, Math.max(0.45, partRadius * 1.6));
-    spawnFlightsTo(mesh.position, node.role || "structure", Math.max(8, Math.floor(26 / Math.max(1, total / 6))), partReach, revealMs);
+    const startAt = performance.now() + index * GATHER_STAGGER_MS;
+    revealMeshes.push({
+      mesh,
+      start: startAt + GATHER_LEAD_MS,
+      duration: GATHER_MS - GATHER_LEAD_MS,
+      targetOpacity: node.opacity ?? (node.type === "mesh" ? 0.98 : 0.86),
+    });
+    // Recorded, not spawned. The cloud has to be planned around where the part
+    // ends up, and the model is not set on the floor until every mesh exists.
+    mesh.userData.gather = {
+      role: node.role || "structure",
+      count: Math.max(8, Math.floor(26 / Math.max(1, total / 6))),
+      // Wide enough to be outside the part it is building. A cloud gathering
+      // inside a large part's own silhouette is drawn behind it, or added over
+      // its bright face where it cannot be seen — which is what happened to
+      // the intro mark, a plane four units across gathered from under two.
+      reach: Math.min(3.2, Math.max(0.45, partRadius * 1.35)),
+      startAt,
+    };
   }
 
   function updateUnderfloorHighlights() {
@@ -1162,6 +1182,13 @@
     const nodes = renderableNodes(activePlan.nodes);
     nodes.forEach((node, i) => addNodeMesh(node, i, nodes.length));
     groundBuiltModel();
+    // Now that every part is where it will stay, gather onto it.
+    modelGroup.children.forEach((mesh) => {
+      const g = mesh.userData?.gather;
+      if (!g) return;
+      spawnFlightsTo(mesh.position, g.role, g.count, g.reach, GATHER_MS, g.startAt);
+      delete mesh.userData.gather;
+    });
     updatePlanList(activePlan);
     syncImproveAvailability();
     // A model that has just been built or opened is a new document. Undoing
@@ -1194,6 +1221,10 @@
    */
   function groundBuiltModel() {
     if (!THREE || !modelGroup || !modelGroup.children.length) return;
+    // The intro mark is a brand mark hanging in the middle of the shot, not an
+    // object resting on a floor. Setting it down lifts it out of the framing
+    // written for it, which is a view from below of something too close.
+    if (activePlan?._introLogo) return;
     modelGroup.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(modelGroup);
     if (box.isEmpty() || !Number.isFinite(box.min.y)) return;
@@ -1990,6 +2021,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const nodes = Array.isArray(src.nodes) ? src.nodes : [];
     return {
       name: src.name || "Forged model",
+      // The intro mark floats and is framed by hand. Losing that flag here is
+      // how it came to be set on the floor, out of the shot built for it.
+      _introLogo: src._introLogo === true ? true : undefined,
       glbUrl: typeof src.glbUrl === "string" ? src.glbUrl : "",
       constraints: Array.isArray(src.constraints) ? src.constraints : [],
       edges: Array.isArray(src.edges) ? src.edges : [],
@@ -2037,7 +2071,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    * units across whatever they were building, which is why they read as
    * weather rather than as assembly.
    */
-  function spawnFlightsTo(target, role, count, reach, revealMs) {
+  function spawnFlightsTo(target, role, count, reach, totalMs, startAt) {
     if (!THREE || !particleGroup) return;
     const M = window.HCAssemblyMotes;
     if (!M) return;
@@ -2051,11 +2085,15 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       color, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
-    const now = performance.now();
+    const now = Number.isFinite(startAt) ? startAt : performance.now();
     const plan = M.planMotes({
       count,
       radius: Math.max(0.35, reach || 0.9),
-      total: revealMs || 760,
+      total: totalMs || GATHER_MS,
+      // Fewer turns than the default: over a longer flight the same sweep
+      // becomes a spin, and a mote that circles reads as orbiting rather than
+      // as being drawn in.
+      turns: 0.85,
       seed: Math.floor(Math.random() * 1e9),
     });
     for (const mote of plan) {
