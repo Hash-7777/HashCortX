@@ -76,7 +76,6 @@
     '/js/memory.js',
     '/js/vector-map.js',
     '/js/model-plan.js',
-    '/js/reference-pick.js',
     '/js/edit-history.js',
     '/js/assembly-motes.js',
     '/js/agent-context.js',

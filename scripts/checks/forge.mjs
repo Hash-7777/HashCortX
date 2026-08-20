@@ -295,26 +295,15 @@ console.log('\nA finished run stops counting as one in flight:');
     /if \(abortCtrl !== ctrl\)[\s\S]{0,120}return;[\s\S]{0,200}parseJsonPayload/.test(improve));
 }
 
-console.log('\nThe reference step looks for measurements, not marketplaces:');
+console.log('\nThe design call is the only network call a run makes:');
 {
-  // A real run spent 22 of its 27 seconds reading "top 10 websites to download
-  // free 3D models" — because the scorer rewarded any url containing "3d" or
-  // "model", and the queries filtered TO the model marketplaces.
-  check('the queries no longer filter to model marketplaces',
-    !/Sketchfab OR GrabCAD/.test(src));
-  check('they ask about proportions and dimensions',
-    /typical proportions ratio length to height/.test(src) && /average dimensions size cm mm/.test(src));
-  check('the mode no longer ranks references by address alone',
-    !/function referenceUrlScore/.test(src));
-  check('it asks the tested picker which pages are about the subject',
-    /HCReferencePick/.test(src) && /pickPagesToRead/.test(src));
-  check('and it says so when nothing found is about the subject',
-    /Nothing found about/.test(src));
-  check('the query in the trace is not clipped mid-word',
-    /function shortQuery/.test(src) && !/query\.slice\(0, 72\)/.test(src));
-  check('the brief no longer recommends marketplaces',
-    !/Preferred 3D\/CAD sources/.test(src));
-  check('at most two pages are read', /pageTargets\.slice\(0, 2\)/.test(src));
+  const body = bodyOf('forgeRun');
+  check('no reference brief is gathered', !/gatherReferenceBrief/.test(src));
+  check('the run runs no web search', !/web_search/.test(src));
+  check('the run fetches no page', !/fetch_url/.test(src));
+  check('and the design call is not handed one', !/referenceBrief/.test(src));
+  check('the run goes straight from the prompt to the design call',
+    /updateStage\("generate", "active", "parameter agent"\)[\s\S]{0,120}requestForgeKernelPlan/.test(body));
 }
 
 console.log('\nThe model is grounded once, by one estimator:');
