@@ -10,6 +10,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge no longer searches the web before designing a model.** Every
+  generation used to open with two searches and up to two page reads, scraped
+  into a list of stray measurements and pasted into the prompt — four tool calls
+  and most of the wait, for numbers that may have come from a page about
+  something else. A run now goes straight to the single design call. Forge makes
+  no network request of its own again.
+- **A finished model is drawn as one printed piece.** Parts used to be tinted by
+  their role over whatever colour the design had chosen for them, and settled
+  slightly see-through, so a fish read as a beige body beside a gold fin with the
+  far side showing through the near one. Every part is now the same matte
+  material, fully opaque, and parts that sat a hair apart are seated into each
+  other so no seam shows.
+- **The model arrives whole instead of being assembled on screen.** The mote
+  clouds and the per-part stagger are gone; a model fades up in a quarter of a
+  second.
+- **A shape the app cannot build is read rather than silently boxed.** A part
+  whose type was not one of the eleven in the schema became a one-unit box with
+  nothing written anywhere — so a design that wrote an egg, a pipe and a ring
+  arrived as three identical cubes. The nearest real shape is used, a part
+  carrying its own vertices or silhouette keeps them, and every substitution is
+  listed in the trace. The run also says when a design came back as plain blocks
+  and balls, which is the model's doing and used to look like the app's.
+
 - **The notch notice says "HashCortX finished" and nothing else.** It used to
   carry the model that answered underneath it. That line is read at a glance,
   after the work is already over, so it offers nothing to act on while crowding

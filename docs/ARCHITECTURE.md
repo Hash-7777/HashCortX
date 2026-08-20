@@ -27,13 +27,14 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── systems/          4,220  ERP prototype generator
-│   │   │                            (mode.js + mode.css + panel.html)
-│   │   ├── virtual-os/       3,836  virtual project desktop
-│   │   ├── forge/            3,756  3D planning
-│   │   ├── agent-maker/      3,025  chain / vote / failover
+│   │   ├── systems/          4,246  ERP prototype generator
+│   │   │                            (lines of mode.js; each folder also holds
+│   │   │                            mode.css and panel.html)
+│   │   ├── virtual-os/       3,808  virtual project desktop
+│   │   ├── forge/            3,722  3D planning
+│   │   ├── agent-maker/      2,980  chain / vote / failover
 │   │   ├── finance/          2,705  financial document analysis
-│   │   ├── code/             2,695  the Coder agent loop
+│   │   ├── code/             2,715  the Coder agent loop
 │   │   └── sandbox/            603  security scanner
 │   │
 │   ├── core/                        pieces taken out of app.js, each with
