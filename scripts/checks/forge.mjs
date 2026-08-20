@@ -132,8 +132,13 @@ console.log('\nA generated model is not replaced by a built-in one:');
     !/ensurePlanRichness/.test(src),
     'padding a good twelve-part model up to forty is the opposite of what the prompt asks for');
 
-  // Mock is a deliberate choice to build from a template, and stays.
-  check('the built-in plans are still reachable for Mock', /function fallbackPlan\(/.test(src));
+  // The comment here used to say the built-in subject templates stayed because
+  // Mock built from them. Mock loads the sample mark and always has; every one
+  // of those templates — spoons, swords, drones, a skeleton — was unreachable
+  // from any button while reading as a working feature.
+  check('Mock loads the sample mark', /if \(useSample\) \{[\s\S]{0,60}hLogoPlan\(\)/.test(src));
+  check('and the unreachable subject templates are gone',
+    !/function (fallbackPlan|genericPlan|spoonPlan|swordPlan|dronePlan|personPlan|humanSkeletonLibraryNodes)\(/.test(src));
   check('Mock still routes to them', /frgMockBtn/.test(src));
 }
 

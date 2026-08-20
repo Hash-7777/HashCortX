@@ -110,7 +110,11 @@ const LINE_BUDGET = {
   // to arrive as three identical cubes, silently. The run also says when a
   // design came back as plain blocks and balls, which was the model's doing and
   // looked like the app's.
-  'modes/forge/mode.js': 3722,
+  // 2962. 760 lines of hand-written subject geometry — spoons, knives, swords,
+  // a phone, a laptop, a drone, a house, a tower, a human skeleton — reachable
+  // from nothing. The only path to them was a padding pass whose caller had
+  // already been switched off.
+  'modes/forge/mode.js': 2962,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
