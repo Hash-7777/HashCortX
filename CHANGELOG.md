@@ -42,6 +42,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   whether two parts touch are fixed distances, so they only meant the same thing
   at one size — and models arrived anywhere from a fifth to twice as large as
   each other. Parts that should have been joined now are, whatever the object.
+- **A design can do arithmetic.** Any number in a model can now be written as a
+  sum — a wall thickness set once and used everywhere, a radius worked out from
+  a bore. The language is deliberately tiny: numbers, arithmetic, brackets and a
+  few functions, with no way to reach anything outside itself.
+- **A part that repeats is written once.** A ring of gear teeth, a row of fins, a
+  grille or a bolt circle is one part plus how many times and about which axis.
+  The app places every copy exactly and will not nudge a pattern out of true
+  afterwards — if a pattern does not reach the body it says so and leaves it,
+  rather than quietly bending a gear into something that is no longer round.
 
 ### Removed
 
