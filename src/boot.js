@@ -75,6 +75,7 @@
     '/js/model-names.js',
     '/js/memory.js',
     '/js/vector-map.js',
+    '/js/forge/expr.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
     '/js/edit-history.js',

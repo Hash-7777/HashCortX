@@ -119,7 +119,11 @@ const LINE_BUDGET = {
   // badge and in Properties, editable without rebuilding anything, and applied
   // when a file is written. The added lines are that lens and the note saying
   // why the scene span and the real size are deliberately two different things.
-  'modes/forge/mode.js': 3102,
+  // 3125, up from 3102. A design can do arithmetic and say "this part, twenty
+  // four times around Y" instead of writing out twenty-four positions. The
+  // added lines are the two fields that carry a repeat and the named values
+  // through, and the prompt that tells a model both exist.
+  'modes/forge/mode.js': 3125,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

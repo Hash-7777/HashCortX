@@ -26,6 +26,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'expr.js'), 'utf8'), sandbox, { filename: 'expr.js' });
 vm.runInContext(src, sandbox, { filename: 'model-plan.js' });
 const P = sandbox.window.HCModelPlan;
 
@@ -442,6 +443,102 @@ console.log('\nA pairing the plan already states survives:');
   ok('and assembling keeps the pairing',
     P.assemble({ nodes: paired }, { ground: false }).parts
       .find((p) => p.id === 'wingR').mirroredFrom === 'wingL');
+}
+
+console.log('\nOne part becomes many, placed exactly:');
+{
+  const hub = box('tooth', { position: [1, 0, 0], params: { width: 0.2, height: 0.2, depth: 0.2 } });
+
+  const around = P.expandRepeats([{ ...hub, repeat: { count: 4, about: 'y' } }]);
+  ok('a full turn makes the count asked for', around.parts.length === 4);
+  ok('the original does not move', near(around.parts[0].position[0], 1) && near(around.parts[0].position[2], 0));
+  // Four around a full turn is a quarter each. Divided by one less it would be
+  // a third, and the last copy would land on top of the first.
+  ok('a full turn divides by the count', near(around.parts[1].position[2], -1, 1e-9),
+    `got z ${around.parts[1].position[2]}`);
+  ok('and comes back round to the start', near(around.parts[3].position[2], 1, 1e-9));
+  ok('every copy is the same distance from the axis',
+    around.parts.every((p) => near(Math.hypot(p.position[0], p.position[2]), 1, 1e-9)));
+  ok('each copy is turned as well as moved', near(around.parts[1].rotation[1], Math.PI / 2));
+  ok('the copies are named apart', new Set(around.parts.map((p) => p.id)).size === 4);
+  ok('and each says what it came from', around.parts[3].repeatedFrom === 'tooth');
+  ok('the request does not survive, so a second pass does not repeat it',
+    P.expandRepeats(around.parts).parts.length === 4);
+
+  // A fan of blades: the last one should land ON the angle asked for.
+  const fan = P.expandRepeats([{ ...hub, repeat: { count: 3, about: 'y', angle: 180 } }]);
+  ok('a partial sweep divides by one less', near(fan.parts[2].position[0], -1, 1e-9),
+    `the last copy should sit at 180 degrees, got x ${fan.parts[2].position[0]}`);
+
+  const line = P.expandRepeats([{ ...hub, repeat: { count: 4, along: [0.5, 0, 0] } }]);
+  ok('a line steps by the step', near(line.parts[2].position[0], 2));
+  ok('and does not turn anything', near(line.parts[2].rotation[1], 0));
+
+  ok('turning about x moves the other two axes',
+    near(P.expandRepeats([{ ...box('a', { position: [0, 1, 0] }), repeat: { count: 4, about: 'x' } }]).parts[1].position[2], 1, 1e-9));
+  ok('turning about z likewise',
+    near(P.expandRepeats([{ ...box('a', { position: [1, 0, 0] }), repeat: { count: 4, about: 'z' } }]).parts[1].position[1], 1, 1e-9));
+
+  // Everything that can be asked for and should not be built.
+  ok('a count of one is not a repeat',
+    P.expandRepeats([{ ...hub, repeat: { count: 1, about: 'y' } }]).issues.some((i) => i.code === 'repeat-count'));
+  ok('a repeat with no axis is reported',
+    P.expandRepeats([{ ...hub, repeat: { count: 4 } }]).issues.some((i) => i.code === 'repeat-axis'));
+  ok('a step of nothing is reported rather than stacking copies',
+    P.expandRepeats([{ ...hub, repeat: { count: 4, along: [0, 0, 0] } }]).issues.some((i) => i.code === 'repeat-axis'));
+  ok('a part on the axis it turns about is reported',
+    P.expandRepeats([{ ...box('c', { position: [0, 0.5, 0] }), repeat: { count: 4, about: 'y' } }])
+      .issues.some((i) => i.code === 'repeat-on-axis'));
+  ok('a count past the limit is capped, not obeyed',
+    P.expandRepeats([{ ...hub, repeat: { count: 5000, about: 'y' } }]).parts.length === P.MAX_REPEAT);
+  ok('and the cap is reported',
+    P.expandRepeats([{ ...hub, repeat: { count: 5000, about: 'y' } }]).issues.some((i) => i.code === 'repeat-capped'));
+  ok('a part with no repeat is untouched',
+    P.expandRepeats([hub]).parts.length === 1 && P.expandRepeats([hub]).issues.length === 0);
+  ok('repeating is deterministic',
+    JSON.stringify(P.expandRepeats([{ ...hub, repeat: { count: 6, about: 'y' } }]).parts)
+      === JSON.stringify(P.expandRepeats([{ ...hub, repeat: { count: 6, about: 'y' } }]).parts));
+}
+
+console.log('\nThe assembler runs the arithmetic, then the repeats, then the mirrors:');
+{
+  const plan = {
+    vars: { teeth: 6, r: 1 },
+    nodes: [
+      box('hub', { params: { width: 1, height: 0.4, depth: 1 } }),
+      box('tooth', { position: ['r', 0, 0], params: { width: 0.3, height: 0.3, depth: 0.3 }, repeat: { count: 'teeth', about: 'y' } }),
+    ],
+  };
+  const out = P.assemble(plan, { ground: false });
+  ok('a count may itself be arithmetic', out.stats.repeated === 5, `made ${out.stats.repeated} extra`);
+  // The repair passes move one part at a time. Done to a ring, each member
+  // moves a different amount and the ring stops being a ring — the repair
+  // destroys the regularity that made it worth writing as a pattern.
+  const teeth = out.parts.filter((p) => p.id.startsWith('tooth'));
+  ok('a position may be a variable', teeth.length === 6);
+  ok('and repairing never deforms a pattern',
+    teeth.every((p) => near(Math.hypot(p.position[0], p.position[2]), 1, 1e-9)),
+    teeth.map((p) => Math.hypot(p.position[0], p.position[2]).toFixed(3)).join(' '));
+  ok('a pattern that does not reach the body is reported instead',
+    out.issues.some((i) => i.code === 'detached'),
+    'a silently deformed gear is not something anyone can fix');
+  ok('the repeated parts are counted separately from the ones received',
+    out.stats.received === 2 && out.parts.length === 7);
+
+  // Repeat before mirror: each copy gets a twin, not one twin of one copy.
+  const both = P.assemble({
+    nodes: [box('fin', { position: [0.8, 0, 0.5], repeat: { count: 2, along: [0, 0, -1] }, mirror: true })],
+  }, { ground: false });
+  ok('a part that repeats and mirrors gives a pair of each copy', both.parts.length === 4);
+
+  ok('a size written as arithmetic comes back worked out',
+    P.assemble({ sizeMm: 'd * 2', vars: { d: 24 }, nodes: [box('a')] }, { ground: false }).sizeMm === 48,
+    'the assembler is the only place arithmetic is resolved, so it has to hand this back');
+  ok('a size written as a number is untouched',
+    P.assemble({ sizeMm: 95, nodes: [box('a')] }, { ground: false }).sizeMm === 95);
+  ok('an expression that cannot be worked out is reported by the assembler',
+    P.assemble({ nodes: [box('a', { position: ['nope', 0, 0] })] }, { ground: false })
+      .issues.some((i) => i.code === 'bad-expression'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);

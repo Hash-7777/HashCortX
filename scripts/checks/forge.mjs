@@ -312,6 +312,28 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
 }
 
+console.log('\nA design may do arithmetic, and say a thing once:');
+{
+  const body = bodyOf('normalizePlan');
+  // Every field on this list was once missing from it, and each time the
+  // feature simply stopped happening without a word.
+  check('the named values survive normalising', /vars: src\.vars/.test(body));
+  check('and so does a request to repeat', /repeat: node\.repeat/.test(body));
+  check('and the pairing repeating leaves behind', /repeatedFrom: typeof node\.repeatedFrom/.test(body));
+  check('the run says how many parts a repeat made',
+    /part\(s\) made by repeating/.test(src));
+  check('the design is told it may write a sum instead of a number',
+    /Any number may be written as a sum/.test(src));
+  check('and told never to write a ring out by hand',
+    /NEVER write out a ring of teeth/.test(src));
+  check('a size written as arithmetic reaches the model',
+    /sizeMm: out\.sizeMm \?\? plan\.sizeMm/.test(bodyOf('assembleDeterministically')),
+    'the assembler is the only place arithmetic is resolved');
+  check('the arithmetic itself is not in this file',
+    !/function tokenise|function resolveVars/.test(src),
+    'it belongs in the tested module, not in the mode');
+}
+
 console.log('\nThe design prompt asks for shape, not stand-ins:');
 {
   check('the biggest part must carry the silhouette',

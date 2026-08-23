@@ -29,6 +29,17 @@
   // A part thinner than this in every axis renders as nothing at all.
   const MIN_EXTENT = 1e-4;
 
+  // How many copies one part may become. Sixty-four covers a fine gear, a
+  // grille or a bolt circle; past it the request is nearly always a decimal
+  // point or a model that has confused a count with a dimension, and the cost
+  // is a scene that will not draw.
+  const MAX_REPEAT = 64;
+
+  // And how large a plan may grow in total from repeating. A handful of parts
+  // each repeated sixty-four times is a quarter of a million triangles before
+  // anything is even joined.
+  const MAX_REPEATED_PARTS = 256;
+
   // The shapes the viewport can actually build.
   const SHAPES = new Set([
     "box", "cylinder", "capsule", "sphere", "cone", "torus",
@@ -268,6 +279,15 @@
         // pair was the one case neither of those could see. It also made the
         // pairing invisible to anything measuring the model afterwards.
         mirroredFrom: typeof raw.mirroredFrom === "string" ? raw.mirroredFrom : undefined,
+        // A request to repeat, and the pairing repeating leaves behind. Both
+        // are carried for the same reason the mirroring pair is: this function
+        // rebuilds every part from a fixed list of fields, so a field missing
+        // from the list is not an error and not a crash — it is dropped in
+        // silence, and whatever depended on it stops happening. That is how
+        // symmetry was lost for months, and a repeat dropped here would have
+        // been the same story with a different feature.
+        repeat: raw.repeat && typeof raw.repeat === "object" && !Array.isArray(raw.repeat) ? raw.repeat : undefined,
+        repeatedFrom: typeof raw.repeatedFrom === "string" ? raw.repeatedFrom : undefined,
       };
 
       const [hx, hy, hz] = halfExtents(part);
@@ -293,6 +313,127 @@
    * opposite, every time, for no tokens. A part already sitting on the axis is
    * left alone — mirroring it would put a second copy inside the first.
    */
+  /**
+   * One part, many times, placed exactly.
+   *
+   * Every number in a plan used to be a literal, so a design that wanted
+   * twenty-four teeth around a hub had to write out twenty-four positions and
+   * do the trigonometry itself, one part at a time. That is where a model's
+   * arithmetic goes wrong and where a plan turns into a pile — and it is
+   * arithmetic, which means it belongs here and not in a prompt.
+   *
+   * Two patterns, because they are the two that objects are actually made of:
+   * around an axis, and along a line. The original part is the first copy and
+   * does not move, so a design can be read without mentally running this.
+   *
+   * A full turn divides the circle by the count, because the last copy would
+   * otherwise land on top of the first. A partial sweep divides by one less, so
+   * the last copy lands on the angle that was asked for. That is the difference
+   * between a gear and a fan of blades, and getting it the other way round is
+   * visible immediately in both.
+   */
+  function expandRepeats(parts, opts = {}) {
+    const limit = Math.max(2, Math.min(MAX_REPEAT, num(opts.maxRepeat, MAX_REPEAT)));
+    const ceiling = Math.max(1, num(opts.maxParts, MAX_REPEATED_PARTS));
+    const out = [];
+    const issues = [];
+
+    for (const part of Array.isArray(parts) ? parts : []) {
+      const spec = part && typeof part.repeat === "object" && part.repeat ? part.repeat : null;
+      // The request comes off every copy as they are made. Left on, a second
+      // pass over the same parts would repeat the repeats.
+      const original = spec ? { ...part, repeat: undefined } : part;
+      if (!spec) { out.push(part); continue; }
+
+      const asked = Math.round(num(spec.count, 0));
+      if (!(asked > 1)) {
+        issues.push({ code: "repeat-count", partId: part.id, detail: "a repeat needs a count above one" });
+        out.push(original);
+        continue;
+      }
+      const count = Math.min(asked, limit);
+      if (count !== asked) {
+        issues.push({ code: "repeat-capped", partId: part.id, detail: `${asked} copies asked, ${count} made` });
+      }
+
+      const axis = typeof spec.about === "string" ? spec.about.trim().toLowerCase() : "";
+      const along = Array.isArray(spec.along) ? triple(spec.along, [0, 0, 0]) : null;
+      if (!["x", "y", "z"].includes(axis) && !along) {
+        issues.push({ code: "repeat-axis", partId: part.id, detail: "a repeat needs an axis to turn about or a step to move along" });
+        out.push(original);
+        continue;
+      }
+      if (along && !along.some((v) => Math.abs(v) > 1e-9)) {
+        issues.push({ code: "repeat-axis", partId: part.id, detail: "a repeat along a step of nothing would stack every copy in one place" });
+        out.push(original);
+        continue;
+      }
+
+      if (out.length + count > ceiling) {
+        issues.push({ code: "repeat-capped", partId: part.id, detail: "the plan is already as large as repeating may make it" });
+        out.push(original);
+        continue;
+      }
+
+      out.push(original);
+      if (along) {
+        for (let i = 1; i < count; i++) {
+          out.push({
+            ...original,
+            id: `${original.id}_r${i}`,
+            name: `${original.name} ${i + 1}`,
+            position: [
+              original.position[0] + along[0] * i,
+              original.position[1] + along[1] * i,
+              original.position[2] + along[2] * i,
+            ],
+            repeatedFrom: original.id,
+          });
+        }
+        continue;
+      }
+
+      const sweep = num(spec.angle, 360);
+      const full = Math.abs(Math.abs(sweep) - 360) < 1e-9;
+      const step = (full ? sweep / count : sweep / (count - 1)) * (Math.PI / 180);
+      // A part sitting on the axis turns in place: every copy lands inside the
+      // one before it. Worth saying, because on screen it looks like the repeat
+      // did nothing at all.
+      const radial = axis === "y"
+        ? Math.hypot(original.position[0], original.position[2])
+        : axis === "x"
+        ? Math.hypot(original.position[1], original.position[2])
+        : Math.hypot(original.position[0], original.position[1]);
+      if (radial < 1e-6) {
+        issues.push({ code: "repeat-on-axis", partId: part.id, detail: "sits on the axis it turns about, so the copies coincide" });
+      }
+      for (let i = 1; i < count; i++) {
+        const a = step * i;
+        const cos = Math.cos(a);
+        const sin = Math.sin(a);
+        const [px, py, pz] = original.position;
+        const [rx, ry, rz] = original.rotation;
+        const position = axis === "y"
+          ? [px * cos + pz * sin, py, -px * sin + pz * cos]
+          : axis === "x"
+          ? [px, py * cos - pz * sin, py * sin + pz * cos]
+          : [px * cos - py * sin, px * sin + py * cos, pz];
+        const rotation = axis === "y" ? [rx, ry + a, rz]
+          : axis === "x" ? [rx + a, ry, rz]
+          : [rx, ry, rz + a];
+        out.push({
+          ...original,
+          id: `${original.id}_r${i}`,
+          name: `${original.name} ${i + 1}`,
+          position,
+          rotation,
+          repeatedFrom: original.id,
+        });
+      }
+    }
+    return { parts: out, issues };
+  }
+
   function expandMirrors(parts, opts = {}) {
     const epsilon = num(opts.epsilon, 1e-3);
     const out = [];
@@ -390,8 +531,35 @@
    * something that only just attached itself — which is how a plan builds up
    * from its body outwards rather than all at once.
    */
+  /**
+   * Whether a part belongs to a pattern.
+   *
+   * The repair passes move one part at a time, by whatever distance closes its
+   * own gap. Done to a ring of gear teeth that is a little too wide, each tooth
+   * moves a different amount and the ring stops being a ring — the repair
+   * destroys exactly the regularity that made it worth writing as a pattern.
+   *
+   * So a pattern is left alone. If it does not touch the body, that is reported
+   * and stays reported, which a person can fix by changing one number. A
+   * silently deformed gear is not something anyone can fix, because nothing
+   * ever said it happened.
+   */
+  function inPattern(part, family) {
+    return !!part && (typeof part.repeatedFrom === "string" || family.has(part.id));
+  }
+
+  /** The ids that other parts were repeated from. */
+  function patternSources(parts) {
+    const out = new Set();
+    for (const part of Array.isArray(parts) ? parts : []) {
+      if (typeof part?.repeatedFrom === "string") out.add(part.repeatedFrom);
+    }
+    return out;
+  }
+
   function connectParts(parts, opts = {}) {
     const gap = num(opts.gap, 0.06);
+    const family = patternSources(parts);
     const reach = num(opts.reach, 0.35);
     const moves = [];
     if (!Array.isArray(parts) || parts.length < 2) return { parts: parts || [], moves };
@@ -455,7 +623,7 @@
       // The smallest gap anywhere, so the model grows outwards from its body.
       let best = null;
       for (let i = 0; i < out.length; i++) {
-        if (reached.has(i)) continue;
+        if (reached.has(i) || inPattern(out[i], family)) continue;
         for (const j of reached) {
           const d = closingMove(boxes[i], boxes[j]);
           const dist = lengthOf(d);
@@ -502,6 +670,7 @@
    */
   function seatParts(parts, opts = {}) {
     const gap = num(opts.gap, 0.06);
+    const family = patternSources(parts);
     const seams = [];
     if (!Array.isArray(parts) || parts.length < 2) return { parts: parts || [], seams };
 
@@ -533,7 +702,7 @@
     const order = out.map((_, i) => i).sort((a, b) => volume(boxes[a]) - volume(boxes[b]));
     const moved = new Set();
     for (const i of order) {
-      if (moved.has(i)) continue;
+      if (moved.has(i) || inPattern(out[i], family)) continue;
       let best = null;
       for (let j = 0; j < out.length; j++) {
         if (i === j) continue;
@@ -619,9 +788,18 @@
    * are.
    */
   function assemble(plan, opts = {}) {
-    const source = plan && typeof plan === "object" ? plan : {};
+    const raw = plan && typeof plan === "object" ? plan : {};
+    // Arithmetic first, because a count, a position and a shape's parameters may
+    // all be written in terms of a variable, and nothing downstream can work
+    // with a length that is still a sum.
+    const expr = typeof window !== "undefined" ? window.HCForgeExpr : null;
+    const evaluated = expr ? expr.resolvePlan(raw) : { plan: raw, issues: [] };
+    const source = evaluated.plan;
     const cleaned = normaliseParts(source.nodes || source.parts, opts);
-    const mirrored = expandMirrors(cleaned.parts, opts);
+    // Then repeating, before mirroring: a repeated part that is also mirrored
+    // should give a mirrored pair of each copy, not one copy of a mirrored pair.
+    const repeated = expandRepeats(cleaned.parts, opts);
+    const mirrored = expandMirrors(repeated.parts, opts);
     // Resizing is opt-in. A scene's camera, grid and lighting are tuned to the
     // size its models already come out at, so quietly normalising every plan to
     // one metre would be a change of appearance dressed up as a correction.
@@ -644,13 +822,19 @@
     const parts = floored.parts;
     return {
       name: String(source.name || "model"),
+      // Handed back because it may have been written as arithmetic, and this is
+      // the only place that arithmetic is resolved. Dropped here, a plan whose
+      // real size was a sum silently fell back to the default and every
+      // dimension the app showed and every file it wrote was the wrong size.
+      sizeMm: source.sizeMm,
       parts,
-      issues: [...cleaned.issues, ...mirrored.issues, ...findIssues(parts, opts)],
+      issues: [...(evaluated.issues || []), ...cleaned.issues, ...repeated.issues, ...mirrored.issues, ...findIssues(parts, opts)],
       moves: joined.moves,
       seams: seated.seams,
       stats: {
         received: Array.isArray(source.nodes || source.parts) ? (source.nodes || source.parts).length : 0,
         kept: cleaned.parts.length,
+        repeated: repeated.parts.length - cleaned.parts.length,
         mirrored: parts.filter((p) => p.mirroredFrom).length,
         connected: joined.moves.length,
         seated: seated.seams.length,
@@ -675,6 +859,8 @@
     findIssues,
     connectParts,
     seatParts,
+    expandRepeats,
+    MAX_REPEAT,
     resolveType,
     SHAPES,
     assemble,

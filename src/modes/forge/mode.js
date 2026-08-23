@@ -1908,6 +1908,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
     if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
     if (s.seated) notes.push(`${s.seated} seam(s) closed`);
+    if (s.repeated) notes.push(`${s.repeated} part(s) made by repeating`);
     if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
     // "nothing to correct" used to be printed above a list of parts the same
     // step had just found adrift. It is only true when the list is empty.
@@ -1920,7 +1921,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       if (issue.code === "detached") log("Assemble", `${issue.partId} sits too far from the body to place — left where the design put it`, "warn");
       else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
     }
-    return { ...plan, nodes: out.parts };
+    // The size may have been written as arithmetic, and the assembler is where
+    // arithmetic is resolved, so the resolved value has to come back with it.
+    return { ...plan, nodes: out.parts, sizeMm: out.sizeMm ?? plan.sizeMm };
   }
 
   function alignSelectedToFloor() {
@@ -2153,6 +2156,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       // inside it, so changing it re-labels the model rather than distorting it.
       sizeMm: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).mm : undefined,
       sizeStated: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).stated : false,
+      // The named values a design's arithmetic is written in terms of. Dropped
+      // here, every expression in the plan would resolve to nothing and the
+      // whole model would fall back to defaults without a word.
+      vars: src.vars && typeof src.vars === "object" && !Array.isArray(src.vars) ? src.vars : undefined,
       constraints: Array.isArray(src.constraints) ? src.constraints : [],
       edges: Array.isArray(src.edges) ? src.edges : [],
       nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
@@ -2177,6 +2184,11 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         // pairs rather than as parts that happen to face each other.
         mirroredFrom: typeof node.mirroredFrom === "string" ? node.mirroredFrom : undefined,
         hasMirror: node.hasMirror === true ? true : undefined,
+        // A request to repeat, and the pairing repeating leaves behind. On the
+        // same list for the same reason as the mirroring flag: a field missing
+        // from it is dropped in silence and the feature simply stops happening.
+        repeat: node.repeat && typeof node.repeat === "object" && !Array.isArray(node.repeat) ? node.repeat : undefined,
+        repeatedFrom: typeof node.repeatedFrom === "string" ? node.repeatedFrom : undefined,
       })),
     };
   }
@@ -2477,6 +2489,7 @@ Schema:
 {
   "name": "short model name",
   "sizeMm": 150,
+  "vars": {"wall": 2, "bore": 30},
   "nodes": [
     {
       "id": "stable_id",
@@ -2486,7 +2499,8 @@ Schema:
       "position": [x,y,z],
       "rotation": [x,y,z],
       "scale": [x,y,z],
-      "params": {"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"segments":64,"subdivisions":1}
+      "params": {"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"segments":64,"subdivisions":1},
+      "repeat": {"count": 8, "about": "y"}
     }
   ],
   "edges": [],
@@ -2512,6 +2526,15 @@ How to build it:
   the app can build, and a part that says nothing usable becomes a plain box.
 - Set "subdivisions":1 on every smooth organic surface and "segments":64 on lathes, cylinders,
   cones and capsules. The defaults look faceted.
+- Arithmetic. Any number may be written as a sum instead of a literal: "bore / 2 + wall". Names come
+  from "vars", which may themselves be written from each other. Available: + - * / % ^ ( ), and
+  min max abs sqrt sin cos tan atan2 floor ceil round sign pow hypot clamp rad deg, and pi and tau.
+  Angles are in radians, so use rad(30) when you are thinking in degrees.
+- Repetition: NEVER write out a ring of teeth, a row of ribs, a grille or a bolt circle part by part.
+  Write ONE part and give it "repeat". Around an axis: {"count": 24, "about": "y"} — a full turn, or
+  add "angle" in degrees for part of one. Along a line: {"count": 5, "along": [0, 0.2, 0]}. The app
+  places every copy exactly, and it will not nudge a pattern out of true afterwards — so put the one
+  part where it already touches the body, because a pattern that does not reach is reported and left.
 - Symmetry: build ONE side and set "mirror": true on it. The app mirrors it exactly across x=0.
   Do not hand-place a left and a right copy — they will never match, and the app will not fix it.
 - Every part must touch or overlap another. One object, nothing floating beside it.
