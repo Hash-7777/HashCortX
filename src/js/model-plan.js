@@ -105,73 +105,111 @@
    * describes itself in no recognisable way falls back to a small cube so it
    * still takes part in the bounds rather than silently counting as zero.
    */
-  function halfExtents(part) {
+  /**
+   * The box a part's geometry actually occupies, before it is placed or turned.
+   *
+   * This used to be half-extents alone, which quietly assumed every shape was
+   * built symmetrically about its own origin. Three of them are not. An
+   * extrusion runs from the profile plane FORWARDS, so it occupies z from zero
+   * to its depth. A profile — extruded or revolved — is a list of points that
+   * can sit anywhere, so taking the largest absolute value described a shape
+   * mirrored about the axis rather than the one that exists. And a supplied
+   * mesh is wherever its vertices are.
+   *
+   * The consequence was not subtle: a fin's box sat half its own thickness away
+   * from the fin, and every contact test, seating move, grounding measurement
+   * and score was taken against it.
+   *
+   * Measured against the real geometry the app builds — see
+   * scripts/checks/model-plan.mjs, which pins each of these to numbers read out
+   * of the actual meshes.
+   */
+  function localBounds(part) {
     const p = part.params || {};
-    const s = part.scale;
-    const byPoints = (points, axis) => {
+    const spanOf = (points, axis) => {
       if (!Array.isArray(points) || !points.length) return null;
-      let max = 0;
+      let lo = Infinity;
+      let hi = -Infinity;
       for (const pt of points) {
         const v = Array.isArray(pt) ? num(pt[axis], 0) : 0;
-        max = Math.max(max, Math.abs(v));
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
       }
-      return max || null;
+      return Number.isFinite(lo) ? [lo, hi] : null;
     };
+    const sym = (hx, hy, hz) => [-hx, -hy, -hz, hx, hy, hz];
 
-    let hx, hy, hz;
     switch (part.type) {
       case "box":
-        hx = num(p.width, 1) / 2; hy = num(p.height, 1) / 2; hz = num(p.depth, 1) / 2; break;
+        return sym(num(p.width, 1) / 2, num(p.height, 1) / 2, num(p.depth, 1) / 2);
       case "sphere":
-        hx = hy = hz = num(p.radius, 0.5); break;
+        return sym(num(p.radius, 0.5), num(p.radius, 0.5), num(p.radius, 0.5));
       case "capsule": {
         const r = num(p.radius, 0.25);
-        hx = hz = r; hy = num(p.length, 0.5) / 2 + r; break;
+        return sym(r, num(p.length, 0.5) / 2 + r, r);
       }
       case "cylinder":
       case "cone": {
         const r = num(p.radius, 0.5);
-        hx = hz = r; hy = num(p.height, 1) / 2; break;
+        return sym(r, num(p.height, 1) / 2, r);
       }
       case "torus": {
-        const r = num(p.radius, 0.5), tube = num(p.tube, 0.1);
-        hx = hz = r + tube; hy = tube; break;
+        // Drawn in the XY plane: wide across x and y, thin through z.
+        const r = num(p.radius, 0.5) + num(p.tube, 0.1);
+        return sym(r, r, num(p.tube, 0.1));
       }
       case "extrude": {
-        hx = byPoints(p.points, 0) ?? 0.5;
-        hy = byPoints(p.points, 1) ?? 0.5;
-        hz = num(p.depth, num(p.length, 0.2)) / 2; break;
+        const x = spanOf(p.points, 0) || [-0.5, 0.5];
+        const y = spanOf(p.points, 1) || [-0.5, 0.5];
+        const depth = num(p.depth, num(p.length, 0.2));
+        return [x[0], y[0], Math.min(0, depth), x[1], y[1], Math.max(0, depth)];
       }
       case "lathe": {
-        const r = byPoints(p.points, 0) ?? 0.5;
-        hx = hz = r;
-        hy = byPoints(p.points, 1) ?? num(p.height, 0.5); break;
+        // Revolved about Y, so the profile's radius reaches every direction in
+        // the plane, while its height is wherever the profile put it.
+        const x = spanOf(p.points, 0);
+        const r = x ? Math.max(Math.abs(x[0]), Math.abs(x[1])) : 0.5;
+        const y = spanOf(p.points, 1) || [-num(p.height, 0.5), num(p.height, 0.5)];
+        return [-r, y[0], -r, r, y[1], r];
       }
       case "mesh": {
         const pos = Array.isArray(p.positions) ? p.positions : null;
-        if (pos && pos.length >= 3) {
-          let mx = 0, my = 0, mz = 0;
-          for (let i = 0; i + 2 < pos.length; i += 3) {
-            mx = Math.max(mx, Math.abs(num(pos[i], 0)));
-            my = Math.max(my, Math.abs(num(pos[i + 1], 0)));
-            mz = Math.max(mz, Math.abs(num(pos[i + 2], 0)));
+        if (!pos || pos.length < 3) return sym(0.5, 0.5, 0.5);
+        const lo = [Infinity, Infinity, Infinity];
+        const hi = [-Infinity, -Infinity, -Infinity];
+        for (let i = 0; i + 2 < pos.length; i += 3) {
+          for (let k = 0; k < 3; k++) {
+            const v = num(pos[i + k], 0);
+            if (v < lo[k]) lo[k] = v;
+            if (v > hi[k]) hi[k] = v;
           }
-          hx = mx; hy = my; hz = mz;
-        } else { hx = hy = hz = 0.5; }
-        break;
+        }
+        return lo.every(Number.isFinite) ? [...lo, ...hi] : sym(0.5, 0.5, 0.5);
       }
       default:
-        hx = hy = hz = 0.5;
+        return sym(0.5, 0.5, 0.5);
     }
-    return [Math.abs(hx * s[0]), Math.abs(hy * s[1]), Math.abs(hz * s[2])];
+  }
+
+  /** Half the size of that box, scaled — what a part measures on each axis. */
+  function halfExtents(part) {
+    const b = localBounds(part);
+    const s = triple(part.scale, [1, 1, 1]);
+    return [0, 1, 2].map((i) => Math.abs(((b[i + 3] - b[i]) / 2) * s[i]));
   }
 
   /**
-   * The rotation matrix three.js builds from a part's Euler angles.
+   * Where that box's middle sits relative to the point the part is placed at.
    *
-   * Written out rather than approximated because this module has to agree with
-   * what the viewport draws. The order is three.js's default, XYZ.
+   * Zero for everything built about its own origin, which is most shapes. It is
+   * the extrusion and the off-centre profile that need it.
    */
+  function localOffset(part) {
+    const b = localBounds(part);
+    const s = triple(part.scale, [1, 1, 1]);
+    return [0, 1, 2].map((i) => ((b[i] + b[i + 3]) / 2) * s[i]);
+  }
+
   function rotationMatrix(rotation) {
     const [x, y, z] = triple(rotation, [0, 0, 0]);
     const a = Math.cos(x), b = Math.sin(x);
@@ -199,11 +237,19 @@
   function partBox(part) {
     const h = halfExtents(part);
     const m = rotationMatrix(part.rotation);
-    const [x, y, z] = part.position;
+    const off = localOffset(part);
+    // The offset turns with the part, or a fin rotated to lie along another
+    // axis would have its box left behind facing the way it started.
+    const centre = [0, 1, 2].map((i) => (
+      part.position[i] + m[i][0] * off[0] + m[i][1] * off[1] + m[i][2] * off[2]
+    ));
     const ext = [0, 1, 2].map((i) => (
       Math.abs(m[i][0]) * h[0] + Math.abs(m[i][1]) * h[1] + Math.abs(m[i][2]) * h[2]
     ));
-    return [x - ext[0], y - ext[1], z - ext[2], x + ext[0], y + ext[1], z + ext[2]];
+    return [
+      centre[0] - ext[0], centre[1] - ext[1], centre[2] - ext[2],
+      centre[0] + ext[0], centre[1] + ext[1], centre[2] + ext[2],
+    ];
   }
 
   /** The box every part occupies together, or null when there are no parts. */
@@ -848,6 +894,8 @@
   window.HCModelPlan = {
     COORD_LIMIT,
     halfExtents,
+    localBounds,
+    localOffset,
     rotationMatrix,
     partBox,
     boundsOf,

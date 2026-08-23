@@ -212,7 +212,7 @@
    * It is nearly always a pattern that has collapsed or a design that wrote the
    * same part twice, and it is never something anyone wanted.
    */
-  function duplicateCount(boxes, span) {
+  function duplicateCount(boxes, span, twins) {
     if (boxes.length < 2) return 0;
     const centre = (b) => [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
     const extent = (b) => [b[3] - b[0], b[4] - b[1], b[5] - b[2]];
@@ -228,6 +228,11 @@
           centres[i][2] - centres[j][2],
         );
         if (dc > nearBy) continue;
+        // A declared pair is two parts on purpose. Their boxes can sit almost
+        // on top of each other — a pair of fins whose shapes reach inward past
+        // the centre line does exactly that — and calling those a duplicate
+        // would report every such model for the one thing it got right.
+        if (twins && (twins.get(i) === j || twins.get(j) === i)) continue;
         const sameSize = [0, 1, 2].every((k) => {
           const a = Math.abs(extents[i][k]);
           const b = Math.abs(extents[j][k]);
@@ -393,7 +398,16 @@
     }
 
     // ── nothing hidden inside a copy of itself ─────────────────────────
-    const duplicates = duplicateCount(boxes, span);
+    const twinIndex = new Map();
+    {
+      const byId = new Map(parts.map((p, i) => [p.id, i]));
+      for (const [id, twinId] of pairing) {
+        const a = byId.get(id);
+        const b = byId.get(twinId);
+        if (a != null && b != null) { twinIndex.set(a, b); twinIndex.set(b, a); }
+      }
+    }
+    const duplicates = duplicateCount(boxes, span, twinIndex);
     facts.duplicates = duplicates;
     const distinct = 1 - duplicates / parts.length;
     if (duplicates) {

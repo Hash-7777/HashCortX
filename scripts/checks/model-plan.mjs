@@ -541,5 +541,60 @@ console.log('\nThe assembler runs the arithmetic, then the repeats, then the mir
       .issues.some((i) => i.code === 'bad-expression'));
 }
 
+console.log('\nA part\'s box is the box its geometry actually occupies:');
+{
+  // Every expected value below was READ OUT of the real geometry the app
+  // builds, in a browser, by constructing each shape the way the viewport
+  // constructs it and taking its bounding box. They are not derived from the
+  // same arithmetic they are checking — that would only prove it agrees with
+  // itself, and two of these were wrong for exactly that reason.
+  const boxOf = (type, params, extra = {}) => P.partBox({
+    id: 't', name: 't', type, role: 'structure',
+    position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], params, ...extra,
+  }).map((v) => Math.round(v * 1e4) / 1e4);
+  const same = (a, b, tol = 1e-3) => a.length === b.length && a.every((v, i) => Math.abs(v - b[i]) <= tol);
+
+  ok('a box', same(boxOf('box', { width: 1, height: 2, depth: 3 }), [-0.5, -1, -1.5, 0.5, 1, 1.5]));
+  ok('a sphere', same(boxOf('sphere', { radius: 0.7 }), [-0.7, -0.7, -0.7, 0.7, 0.7, 0.7]));
+  ok('a cylinder', same(boxOf('cylinder', { radius: 0.5, height: 1.6 }), [-0.5, -0.8, -0.5, 0.5, 0.8, 0.5]));
+  ok('a cone', same(boxOf('cone', { radius: 0.6, height: 1.2 }), [-0.6, -0.6, -0.6, 0.6, 0.6, 0.6]));
+  ok('a capsule is its length plus a cap at each end',
+    same(boxOf('capsule', { radius: 0.2, length: 1.0 }), [-0.2, -0.7, -0.2, 0.2, 0.7, 0.2]));
+
+  // A ring is drawn in the XY plane. This was the other way round, so every
+  // ring in the app reported a box at right angles to the shape on screen.
+  ok('a ring stands in the XY plane, thin through Z',
+    same(boxOf('torus', { radius: 0.8, tube: 0.15 }), [-0.95, -0.95, -0.15, 0.95, 0.95, 0.15]));
+
+  ok('a revolved profile reaches its radius all the way round',
+    same(boxOf('lathe', { points: [[0.2, -0.5], [0.5, 0], [0.2, 0.5]] }), [-0.5, -0.5, -0.5, 0.5, 0.5, 0.5]));
+  // A profile can sit anywhere. Taking the largest absolute value described a
+  // shape mirrored about the axis rather than the one that exists.
+  ok('and a profile that does not straddle the origin is not assumed to',
+    same(boxOf('lathe', { points: [[0.2, 0], [0.4, 0.5], [0.2, 1]] }), [-0.4, 0, -0.4, 0.4, 1, 0.4]));
+
+  // Extruding runs from the profile plane FORWARDS.
+  ok('an extrusion runs from the profile plane forwards, not half back',
+    same(boxOf('extrude', { points: [[-0.4, -0.3], [0.4, -0.3], [0, 0.5]], depth: 0.6 }),
+      [-0.4, -0.3, 0, 0.4, 0.5, 0.6]));
+  ok('and its profile is not assumed symmetric either',
+    same(boxOf('extrude', { points: [[0, 0], [1, 0], [1, 0.4]], depth: 0.2 }), [0, 0, 0, 1, 0.4, 0.2]));
+
+  ok('a supplied mesh is measured where its vertices are',
+    same(boxOf('mesh', { positions: [0, 0, 0, 2, 0, 0, 0, 1, 0] }), [0, 0, 0, 2, 1, 0]));
+
+  // The offset has to turn with the part, or a fin rotated onto another axis
+  // leaves its box behind facing the way it started.
+  const turned = boxOf('extrude', { points: [[-0.4, -0.4], [0.4, -0.4], [0, 0.4]], depth: 1 }, { rotation: [0, Math.PI / 2, 0] });
+  ok('an off-centre part turns its box with it', same(turned, [0, -0.4, -0.4, 1, 0.4, 0.4]),
+    `got ${turned.join(', ')}`);
+  ok('and scales it', same(
+    boxOf('extrude', { points: [[-0.4, -0.4], [0.4, -0.4], [0, 0.4]], depth: 1 }, { scale: [1, 1, 2] }),
+    [-0.4, -0.4, 0, 0.4, 0.4, 2]));
+
+  ok('a shape the app does not build is still given a size',
+    boxOf('mystery', {}).every(Number.isFinite));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);
 process.exit(fail ? 1 : 0);

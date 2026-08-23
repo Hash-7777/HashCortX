@@ -52,7 +52,11 @@ const box = (id, position, size, extra = {}) => part(id, {
 const goodModel = [
   part('body', { position: [0, 0, 0], scale: [2, 1, 1] }),
   part('head', { type: 'capsule', position: [1.1, 0.2, 0], params: { radius: 0.35, length: 0.5 } }),
-  part('tail', { type: 'extrude', position: [-1.1, 0, 0], params: { points: [[0, 0], [-0.4, 0.4], [-0.4, -0.4]], depth: 0.2 } }),
+  // Placed against the real extruded box: a profile that runs from 0 to -0.4 in
+  // x, and from the profile plane forwards in z. It sat at -1.1 while the boxes
+  // were still being computed as if an extrusion were centred, which put it
+  // clear of the body the moment they were corrected.
+  part('tail', { type: 'extrude', position: [-0.95, 0, 0], params: { points: [[0, 0], [-0.4, 0.4], [-0.4, -0.4]], depth: 0.2 } }),
   part('finL', { type: 'extrude', position: [0.1, -0.1, 0.28], params: { points: [[0, 0], [-0.3, 0.25], [-0.3, -0.1]], depth: 0.1 } }),
   part('finR', { type: 'extrude', position: [0.1, -0.1, -0.28], params: { points: [[0, 0], [-0.3, 0.25], [-0.3, -0.1]], depth: 0.1 } }),
   part('eye', { type: 'sphere', position: [1.2, 0.35, 0.12], params: { radius: 0.12 } }),

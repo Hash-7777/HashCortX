@@ -1,7 +1,7 @@
 {
   "id": "fish",
   "prompt": "a fish",
-  "note": "Organic, one turned body carrying the silhouette, a mirrored pair of fins. Laid along Z on purpose: mirroring is across x = 0, so an animal laid along X has its sides on an axis mirroring cannot reach.",
+  "note": "Organic, one turned body carrying the silhouette, a mirrored pair of fins. Laid along Z on purpose: mirroring is across x = 0, so an animal laid along X has its sides on an axis mirroring cannot reach. The fins point outward, which only reads correctly once an extrusion's box is measured from the profile plane forwards.",
   "plan": {
     "name": "Fish",
     "nodes": [
@@ -158,11 +158,11 @@
               0
             ],
             [
-              -0.3,
+              0.3,
               0.22
             ],
             [
-              -0.26,
+              0.26,
               -0.04
             ]
           ],
@@ -197,11 +197,11 @@
               0
             ],
             [
-              -0.3,
+              0.3,
               0.22
             ],
             [
-              -0.26,
+              0.26,
               -0.04
             ]
           ],
