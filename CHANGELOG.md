@@ -32,6 +32,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   carrying its own vertices or silhouette keeps them, and every substitution is
   listed in the trace. The run also says when a design came back as plain blocks
   and balls, which is the model's doing and used to look like the app's.
+- **A model has a real size, in millimetres.** It was "about two of something",
+  and the exported file inherited those somethings, so every print began by
+  guessing a scale. The size now shows on the badge and in Properties, can be
+  changed without rebuilding anything, and is written into the file — printing
+  formats in millimetres, the scene format in metres, because that is what each
+  is read in.
+- **Every model is built at one working scale.** The tolerances that decide
+  whether two parts touch are fixed distances, so they only meant the same thing
+  at one size — and models arrived anywhere from a fifth to twice as large as
+  each other. Parts that should have been joined now are, whatever the object.
 
 ### Removed
 
