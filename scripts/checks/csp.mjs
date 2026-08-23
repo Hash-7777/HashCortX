@@ -141,7 +141,6 @@ const NOT_A_REQUEST = new Map([
   ['doi.org', 'a link shown beside a search result for the user to open'],
   ['europepmc.org', 'a link shown beside a search result'],
   ['pubmed.ncbi.nlm.nih.gov', 'a link shown beside a search result'],
-  ['sketchfab.com', 'a reference link and a source-filter name in 3D Forge'],
   ['cdn.tailwindcss.com', 'written into the site the agent generates, not fetched by this app'],
   ['images.unsplash.com', 'an address handed to the model for a generated site'],
   ['loremflickr.com', 'an address handed to the model for a generated site'],

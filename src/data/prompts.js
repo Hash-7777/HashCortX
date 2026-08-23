@@ -106,72 +106,63 @@ If it's already fine, say so.`;
 - Each finding: verdict + rationale + suggested fix as code.
 - End with a 1-sentence ship/no-ship call.`;
 
-  const FORGE_ARCHITECT_PROMPT = `You are 3D Forge mode inside HashCortx.
-Goal: help build Forge, a React + Three.js architecture-first 3D agent swarm planner. Be concrete and implementation-focused.
+  // ── 3D Forge ────────────────────────────────────────────────────────
+  //
+  // What stood here described a different application: a React and TypeScript
+  // project with a state library, a physics package, a bundler config and a
+  // swarm of particles assembling parts on screen. None of it is true of this
+  // app, which is plain JavaScript served unbundled, and the parts it named
+  // had already been removed. It was the live system prompt for every message
+  // sent from Forge, so the model was told the app worked in a way it never
+  // has, and five buttons under the composer offered to scaffold that project
+  // for the user.
+  //
+  // This is what Forge actually is, written so the model can help with the
+  // thing on screen rather than with an architecture nobody is building.
 
-Core stack:
-- Vite + React + TypeScript.
-- Three.js 0.184, @react-three/fiber 9.6, drei 10.7, postprocessing 3.0.
-- Rapier and manifold-3d use WASM, so vite.config.ts needs wasm(), topLevelAwait(), COOP/COEP headers, and optimizeDeps.exclude for WASM packages.
-- Zustand + immer for state. No per-frame React re-renders.
+  const FORGE_ARCHITECT_PROMPT = `You are helping inside 3D Forge, where a description becomes a 3D model the person can look at, edit and export.
 
-Architecture rules:
-- Write /src/types/forge.ts and /src/types/geometry.ts before implementation.
-- AgentRole = structure | surface | detail | audit. Keep ROLE_COLORS centralized.
-- GeometryPlan is the AI output. It contains nodes, edges, surfaces, and constraints.
-- Data flow is one-way: prompt -> forgeAgent stream -> nodes arrive -> particles spawn -> density rises -> solidifyNode -> build mesh/CSG/check constraints -> fade opacity -> push snapshot.
-- Hot path lives in useStore.getState() inside useFrame. Do not put per-frame particle data in React state.
-- Particle trails use preallocated instancing and shader attributes, not per-frame DOM or React updates.
-- CSG and constraint checks fire once on solidification, never every frame.
+How the mode works, so your advice fits it:
+- One request to a model returns a design: a list of named parts, each a shape with a size, a position and a rotation.
+- The app then does the arithmetic itself — it mirrors anything marked symmetric, brings loose parts onto the body, closes the seams between them, sets the model on the floor and measures it. Do not tell the person to do those by hand.
+- Shapes available: a silhouette given thickness, a profile turned around an axis, a rounded tube, a sphere, a cone, a ring, a box, a cylinder, or a surface given as vertices.
+- The whole model is shown as one solid piece in a single material. Colour is not part of a design.
+- It exports as GLB, STL or OBJ.
 
-AI protocol:
-- Force exactly one tool call named generate_geometry_plan.
-- The schema requires 2-40 nodes, CSG edges, surface material hints, and constraints.
-- Stream tool-call argument deltas. Use bracket depth to emit node_added events as soon as complete node objects arrive.
-- System prompt must order nodes before edges.
+How to help:
+- Turn a vague idea into a description with real proportions and named parts. "A mug" is not a design; "a cylinder 95 mm tall and 80 mm across, wall 4 mm, with a handle" is.
+- Say which parts an object genuinely needs and which are noise. Fewer parts that read correctly beat many that do not.
+- When the person shows you a run that went wrong, name the part and the change, not the whole model.
+- For printing, talk about wall thickness, what rests on the bed and what overhangs.
+- Be specific and short. No preamble.`;
 
-Swarm math:
-- Spawn points are random points on a sphere radius 8.
-- Targets are node positions.
-- Use THREE.CubicBezierCurve3.getPoint(t).
-- Durations: structure 2800ms, surface 2000ms, detail 1400ms, audit 3500ms.
-- Solidification opacity = clamp(arrivedParticles / totalParticles / threshold, 0, 1).
+  const FORGE_DESCRIBE_PROMPT = `Turn what I describe below into one paragraph a 3D design tool can work from.
 
-Build order:
-1. Dark void + orbit controls.
-2. Prompt bar + mock 5-node chair GeometryPlan.
-3. Swarm particle system.
-4. Mesh emergence animation.
-5. Constraint overlay.
-6. Version scrubber.
-7. Export pipeline.
+Give it real proportions in millimetres, name every part, and say how the parts meet. Say which way up it rests and which way it faces. Keep it to the parts the object genuinely needs. If my description is missing something you cannot guess, pick a sensible value and say which ones you picked.
 
-Answer format:
-- For implementation requests, return exact file paths and full code or tight patches.
-- For planning requests, return phase, file order, acceptance criteria, and risks.
-- Keep performance budgets visible when touching SwarmParticles, meshBuilder, or useGeometry.`;
+Here it is:
+`;
 
-  const FORGE_SCAFFOLD_PROMPT = `Create the 3D Forge project scaffold.
-Use Vite React TypeScript and this exact dependency plan:
-- 3D: three@0.184.0, @react-three/fiber@9.6.1, @react-three/drei@10.7.7, @react-three/postprocessing@3.0.4, postprocessing@6.39.1, @types/three@0.184.0
-- Physics visuals: @dimforge/rapier3d-compat@0.19.3
-- Geometry: three-csg-ts@3.2.0, manifold-3d@3.4.1
-- State/AI/UI: zustand@5.0.13, immer@11.1.7, openai@6.36.0, @anthropic-ai/sdk@0.95.0, framer-motion@12.38.0, clsx@2.1.1, tailwind-merge@3.5.0, leva@0.10.1
-- Dev: tailwindcss@4.2.4, @tailwindcss/vite, vite-plugin-wasm@3.6.0, vite-plugin-top-level-await@1.6.0
-Deliver folder tree, commands, vite.config.ts with WASM plugins plus COOP/COEP headers, and the first runnable App.tsx.`;
+  const FORGE_PARTS_PROMPT = `Break the object below into the parts a 3D model of it actually needs.
 
-  const FORGE_TYPES_PROMPT = `Write Forge's TypeScript type system first.
-Deliver /src/types/forge.ts and /src/types/geometry.ts.
-Include AgentRole, ROLE_COLORS, ParticleState, BezierPath, SwarmParticle with trailPoints[32], AgentMessage, ConflictEntry, GeometrySnapshot, ExportOptions, all five Zustand slice interfaces, primitive discriminated unions, GeometryNode, GeometryEdge, GeometryPlan, VertexDensityMap, and ConstraintViolation.`;
+For each part: what it is called, roughly what shape it is, its size relative to the whole, and what it attaches to. Say which parts are mirrored pairs. At the end, name anything a person might expect that is deliberately not there, and why leaving it out reads better.
 
-  const FORGE_AGENT_PROMPT = `Design /src/agents/forgeAgent.ts.
-Implement the generate_geometry_plan tool schema, forced tool_choice, streaming argument accumulation, bracket-depth node extraction, node_added events, final plan validation, and the system prompt that orders nodes before edges. Include robust parsing failure behavior.`;
+The object:
+`;
 
-  const FORGE_SWARM_PROMPT = `Implement /src/canvas/SwarmParticles.tsx and the supporting store methods.
-Use instanced particles, CubicBezierCurve3 paths, role-specific arcs and durations, ring-buffer trailPoints[32], preallocated trail instancing, and no per-frame React state. Include dirty flags and activeCount-based draw counts.`;
+  const FORGE_FIX_PROMPT = `Below is what came out of a 3D model run — the parts it made, the measurements, or what went wrong.
 
-  const FORGE_PHASES_PROMPT = `Turn 3D Forge into a 7-phase implementation checklist.
-For each phase include deliverables, files touched, done criteria, tests/visual checks, and likely failure points. Preserve the critical file order: types, forgeAgent, SwarmParticles, meshBuilder, useGeometry.`;
+Tell me the smallest set of changes that fixes it. Name the part, say what the number should be instead, and say what that will change on screen. Do not redesign the whole thing. If something is fine, leave it alone and say so.
+
+Here it is:
+`;
+
+  const FORGE_PRINT_PROMPT = `I want to 3D print the model below.
+
+Cover, in this order: which way up it should sit on the bed and why; anything that overhangs far enough to need support; any wall or detail too thin to survive; and whether it needs to be hollow. Give thicknesses in millimetres. If it is fine as it is, say so plainly.
+
+The model:
+`;
 
   // ── The chat starter prompts ────────────────────────────────────────
   //
@@ -248,11 +239,10 @@ My question:
     debug: DEBUG_PROMPT,
     optimize: OPTIMIZE_PROMPT,
     codeReview: CODE_REVIEW_PROMPT,
-    forgeScaffold: FORGE_SCAFFOLD_PROMPT,
-    forgeTypes: FORGE_TYPES_PROMPT,
-    forgeAgent: FORGE_AGENT_PROMPT,
-    forgeSwarm: FORGE_SWARM_PROMPT,
-    forgePhases: FORGE_PHASES_PROMPT,
+    forgeDescribe: FORGE_DESCRIBE_PROMPT,
+    forgeParts: FORGE_PARTS_PROMPT,
+    forgeFix: FORGE_FIX_PROMPT,
+    forgePrint: FORGE_PRINT_PROMPT,
   };
 
   // Composer chip presets. Default = general-purpose, code = Claude-Code style.
@@ -278,11 +268,10 @@ My question:
       { preset: "freeRam",     label: `<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM`, accent: true, title: "Unload every model on the local host to free RAM and enable speed mode" },
     ],
     forge: [
-      { preset: "forgeScaffold", label: "Forge scaffold", title: "Generate the Vite/React/Three.js scaffold and dependency plan" },
-      { preset: "forgeTypes",    label: "Type system",    title: "Write the Forge geometry and swarm TypeScript types first" },
-      { preset: "forgeAgent",    label: "AI protocol",    title: "Design the generate_geometry_plan tool schema and streaming parser" },
-      { preset: "forgeSwarm",    label: "Swarm particles", title: "Implement Bezier particles, instanced trails, and solidification" },
-      { preset: "forgePhases",   label: "7 phases",       title: "Break Forge into the 7 build phases with done criteria" },
+      { preset: "forgeDescribe", label: "Describe it for me", title: "Turn a rough idea into a description with real sizes and named parts" },
+      { preset: "forgeParts",    label: "What parts?",        title: "Break an object into the parts it actually needs, with proportions" },
+      { preset: "forgeFix",      label: "Fix my model",       title: "Paste what the run said and get the specific changes to make" },
+      { preset: "forgePrint",    label: "Ready to print?",    title: "Wall thickness, which way up it sits, and what will need support" },
       { preset: "freeRam",       label: `<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="vertical-align:-1px"><polyline points="10,2 6,8.5 9.5,8.5 6,14"/></svg> Free RAM`, accent: true, title: "Unload every model on the local host to free RAM and enable speed mode" },
     ],
   };
