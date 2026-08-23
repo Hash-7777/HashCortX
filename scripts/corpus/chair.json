@@ -1,0 +1,168 @@
+{
+  "id": "chair",
+  "prompt": "a simple wooden chair",
+  "note": "Honest boxes \u2014 a crate-like object must not be punished for being blocky.",
+  "plan": {
+    "name": "Chair",
+    "nodes": [
+      {
+        "id": "seat",
+        "name": "seat",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.0,
+          "height": 0.09,
+          "depth": 1.0
+        }
+      },
+      {
+        "id": "legFL",
+        "name": "front left leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.42,
+          -0.34,
+          0.42
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.1
+        }
+      },
+      {
+        "id": "legFR",
+        "name": "front right leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.42,
+          -0.34,
+          0.42
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.1
+        },
+        "mirroredFrom": "legFL"
+      },
+      {
+        "id": "legBL",
+        "name": "back left leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.42,
+          -0.34,
+          -0.42
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.1
+        }
+      },
+      {
+        "id": "legBR",
+        "name": "back right leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.42,
+          -0.34,
+          -0.42
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.1
+        },
+        "mirroredFrom": "legBL"
+      },
+      {
+        "id": "back",
+        "name": "backrest",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          0,
+          0.5,
+          -0.46
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.0,
+          "height": 1.0,
+          "depth": 0.09
+        }
+      }
+    ]
+  }
+}

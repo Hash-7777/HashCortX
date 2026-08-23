@@ -1,0 +1,128 @@
+{
+  "id": "mug",
+  "prompt": "a coffee mug",
+  "note": "Turned body plus a ring handle. No bore yet \u2014 the hole is the thing the schema cannot say.",
+  "plan": {
+    "name": "Mug",
+    "nodes": [
+      {
+        "id": "body",
+        "name": "body",
+        "type": "lathe",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0.42,
+              -0.5
+            ],
+            [
+              0.44,
+              -0.2
+            ],
+            [
+              0.44,
+              0.4
+            ],
+            [
+              0.42,
+              0.5
+            ]
+          ],
+          "segments": 64
+        }
+      },
+      {
+        "id": "base",
+        "name": "base",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          -0.48,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.42,
+          "height": 0.06,
+          "segments": 48
+        }
+      },
+      {
+        "id": "handle",
+        "name": "handle",
+        "type": "torus",
+        "role": "surface",
+        "position": [
+          0.44,
+          0.02,
+          0
+        ],
+        "rotation": [
+          1.5708,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.24,
+          "tube": 0.06
+        }
+      },
+      {
+        "id": "rim",
+        "name": "rim",
+        "type": "torus",
+        "role": "detail",
+        "position": [
+          0,
+          0.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.43,
+          "tube": 0.03
+        }
+      }
+    ]
+  }
+}

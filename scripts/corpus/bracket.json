@@ -1,0 +1,126 @@
+{
+  "id": "bracket",
+  "prompt": "an L shaped mounting bracket",
+  "note": "Mechanical, deliberately boxy, and correct that way.",
+  "plan": {
+    "name": "Bracket",
+    "nodes": [
+      {
+        "id": "base",
+        "name": "base plate",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.2,
+          "height": 0.12,
+          "depth": 0.8
+        }
+      },
+      {
+        "id": "upright",
+        "name": "upright",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.54,
+          0.5,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.12,
+          "height": 1.0,
+          "depth": 0.8
+        }
+      },
+      {
+        "id": "gusset",
+        "name": "gusset",
+        "type": "extrude",
+        "role": "surface",
+        "position": [
+          -0.42,
+          0.06,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.5,
+              0
+            ],
+            [
+              0,
+              0.5
+            ]
+          ],
+          "depth": 0.1
+        }
+      },
+      {
+        "id": "boss",
+        "name": "boss",
+        "type": "cylinder",
+        "role": "detail",
+        "position": [
+          0.36,
+          0.06,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.16,
+          "height": 0.1,
+          "segments": 32
+        }
+      }
+    ]
+  }
+}

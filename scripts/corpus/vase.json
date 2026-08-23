@@ -1,0 +1,56 @@
+{
+  "id": "vase",
+  "prompt": "a tall ceramic vase",
+  "note": "One part. A model that is genuinely one turned shape, and the part-count band has to be fair to it.",
+  "plan": {
+    "name": "Vase",
+    "nodes": [
+      {
+        "id": "body",
+        "name": "body",
+        "type": "lathe",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0.3,
+              -0.9
+            ],
+            [
+              0.52,
+              -0.4
+            ],
+            [
+              0.44,
+              0.2
+            ],
+            [
+              0.22,
+              0.7
+            ],
+            [
+              0.3,
+              0.9
+            ]
+          ],
+          "segments": 64
+        }
+      }
+    ]
+  }
+}

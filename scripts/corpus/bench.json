@@ -1,0 +1,220 @@
+{
+  "id": "bench",
+  "prompt": "a park bench",
+  "note": "Repeated slats \u2014 what a repeat rule will one day write in one line.",
+  "plan": {
+    "name": "Bench",
+    "nodes": [
+      {
+        "id": "slat1",
+        "name": "seat slat",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0.3
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.8,
+          "height": 0.07,
+          "depth": 0.18
+        }
+      },
+      {
+        "id": "slat2",
+        "name": "seat slat",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.8,
+          "height": 0.07,
+          "depth": 0.18
+        }
+      },
+      {
+        "id": "slat3",
+        "name": "seat slat",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          -0.18
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.8,
+          "height": 0.07,
+          "depth": 0.18
+        }
+      },
+      {
+        "id": "legL",
+        "name": "left leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.78,
+          -0.34,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.6
+        }
+      },
+      {
+        "id": "legR",
+        "name": "right leg",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.78,
+          -0.34,
+          0.06
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.1,
+          "height": 0.7,
+          "depth": 0.6
+        },
+        "mirroredFrom": "legL"
+      },
+      {
+        "id": "backL",
+        "name": "back post",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          0.78,
+          0.42,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.09,
+          "height": 0.85,
+          "depth": 0.1
+        }
+      },
+      {
+        "id": "backR",
+        "name": "back post",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          -0.78,
+          0.42,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.09,
+          "height": 0.85,
+          "depth": 0.1
+        },
+        "mirroredFrom": "backL"
+      },
+      {
+        "id": "backSlat",
+        "name": "back slat",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          0,
+          0.7,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.8,
+          "height": 0.2,
+          "depth": 0.08
+        }
+      }
+    ]
+  }
+}

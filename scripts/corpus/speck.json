@@ -1,0 +1,88 @@
+{
+  "id": "speck",
+  "prompt": "a bolt",
+  "note": "A part hundreds of times smaller than the body: a decimal point in the wrong place.",
+  "plan": {
+    "name": "Speck",
+    "nodes": [
+      {
+        "id": "shank",
+        "name": "shank",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.12,
+          "height": 1.4,
+          "segments": 32
+        }
+      },
+      {
+        "id": "head",
+        "name": "head",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          0.76,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.24,
+          "height": 0.14,
+          "segments": 32
+        }
+      },
+      {
+        "id": "thread",
+        "name": "thread mark",
+        "type": "box",
+        "role": "detail",
+        "position": [
+          0.1,
+          -0.3,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.004,
+          "height": 0.004,
+          "depth": 0.004
+        }
+      }
+    ]
+  }
+}

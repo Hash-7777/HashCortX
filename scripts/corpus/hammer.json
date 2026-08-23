@@ -1,0 +1,129 @@
+{
+  "id": "hammer",
+  "prompt": "a claw hammer",
+  "note": "Two parts that must overlap, one turned one boxy.",
+  "plan": {
+    "name": "Hammer",
+    "nodes": [
+      {
+        "id": "handle",
+        "name": "handle",
+        "type": "capsule",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.08,
+          "length": 1.3
+        }
+      },
+      {
+        "id": "head",
+        "name": "head",
+        "type": "cylinder",
+        "role": "surface",
+        "position": [
+          0,
+          0.72,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.13,
+          "height": 0.5,
+          "segments": 32
+        }
+      },
+      {
+        "id": "face",
+        "name": "striking face",
+        "type": "cylinder",
+        "role": "detail",
+        "position": [
+          0.26,
+          0.72,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.15,
+          "height": 0.1,
+          "segments": 32
+        }
+      },
+      {
+        "id": "claw",
+        "name": "claw",
+        "type": "extrude",
+        "role": "surface",
+        "position": [
+          -0.26,
+          0.74,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0,
+              -0.12
+            ],
+            [
+              -0.3,
+              0.02
+            ],
+            [
+              -0.16,
+              0.16
+            ],
+            [
+              0,
+              0.12
+            ]
+          ],
+          "depth": 0.1
+        }
+      }
+    ]
+  }
+}

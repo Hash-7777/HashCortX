@@ -1,0 +1,191 @@
+{
+  "id": "drone",
+  "prompt": "a quadcopter drone",
+  "note": "Two mirrored pairs \u2014 the case symmetry has to get exactly right.",
+  "plan": {
+    "name": "Drone",
+    "nodes": [
+      {
+        "id": "body",
+        "name": "body",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.6,
+          "height": 0.16,
+          "depth": 0.6
+        }
+      },
+      {
+        "id": "armFL",
+        "name": "front left arm",
+        "type": "capsule",
+        "role": "structure",
+        "position": [
+          0.36,
+          0,
+          0.36
+        ],
+        "rotation": [
+          0,
+          0.7854,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.05,
+          "length": 0.5
+        }
+      },
+      {
+        "id": "armFR",
+        "name": "front right arm",
+        "type": "capsule",
+        "role": "structure",
+        "position": [
+          -0.36,
+          0,
+          0.36
+        ],
+        "rotation": [
+          0,
+          -0.7854,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.05,
+          "length": 0.5
+        },
+        "mirroredFrom": "armFL"
+      },
+      {
+        "id": "rotorFL",
+        "name": "front left rotor",
+        "type": "cylinder",
+        "role": "surface",
+        "position": [
+          0.56,
+          0.08,
+          0.56
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.28,
+          "height": 0.03,
+          "segments": 48
+        }
+      },
+      {
+        "id": "rotorFR",
+        "name": "front right rotor",
+        "type": "cylinder",
+        "role": "surface",
+        "position": [
+          -0.56,
+          0.08,
+          0.56
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.28,
+          "height": 0.03,
+          "segments": 48
+        },
+        "mirroredFrom": "rotorFL"
+      },
+      {
+        "id": "armBL",
+        "name": "back left arm",
+        "type": "capsule",
+        "role": "structure",
+        "position": [
+          0.36,
+          0,
+          -0.36
+        ],
+        "rotation": [
+          0,
+          -0.7854,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.05,
+          "length": 0.5
+        }
+      },
+      {
+        "id": "armBR",
+        "name": "back right arm",
+        "type": "capsule",
+        "role": "structure",
+        "position": [
+          -0.36,
+          0,
+          -0.36
+        ],
+        "rotation": [
+          0,
+          0.7854,
+          1.5708
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.05,
+          "length": 0.5
+        },
+        "mirroredFrom": "armBL"
+      }
+    ]
+  }
+}

@@ -1,0 +1,177 @@
+{
+  "id": "rocket",
+  "prompt": "a model rocket",
+  "note": "Mirrored fins around a turned body.",
+  "plan": {
+    "name": "Rocket",
+    "nodes": [
+      {
+        "id": "body",
+        "name": "body",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          0.9,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.28,
+          "height": 1.8,
+          "segments": 48
+        }
+      },
+      {
+        "id": "nose",
+        "name": "nose cone",
+        "type": "cone",
+        "role": "surface",
+        "position": [
+          0,
+          2.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.28,
+          "height": 0.6,
+          "segments": 48
+        }
+      },
+      {
+        "id": "finL",
+        "name": "fin",
+        "type": "extrude",
+        "role": "surface",
+        "position": [
+          0.26,
+          0.22,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.34,
+              -0.2
+            ],
+            [
+              0,
+              0.44
+            ]
+          ],
+          "depth": 0.05
+        }
+      },
+      {
+        "id": "finR",
+        "name": "fin",
+        "type": "extrude",
+        "role": "surface",
+        "position": [
+          -0.26,
+          0.22,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              -0.34,
+              -0.2
+            ],
+            [
+              0,
+              0.44
+            ]
+          ],
+          "depth": 0.05
+        },
+        "mirroredFrom": "finL"
+      },
+      {
+        "id": "finB",
+        "name": "fin",
+        "type": "extrude",
+        "role": "surface",
+        "position": [
+          0,
+          0.22,
+          -0.26
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0,
+              0
+            ],
+            [
+              0.34,
+              -0.2
+            ],
+            [
+              0,
+              0.44
+            ]
+          ],
+          "depth": 0.05
+        }
+      }
+    ]
+  }
+}

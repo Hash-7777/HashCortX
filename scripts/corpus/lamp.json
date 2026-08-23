@@ -1,0 +1,124 @@
+{
+  "id": "lamp",
+  "prompt": "a desk lamp",
+  "note": "Tall, turned, three shapes that carry the form.",
+  "plan": {
+    "name": "Lamp",
+    "nodes": [
+      {
+        "id": "base",
+        "name": "base",
+        "type": "lathe",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "points": [
+            [
+              0.55,
+              0
+            ],
+            [
+              0.5,
+              0.08
+            ],
+            [
+              0.12,
+              0.14
+            ]
+          ],
+          "segments": 64
+        }
+      },
+      {
+        "id": "stem",
+        "name": "stem",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          0.62,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.06,
+          "height": 1.1,
+          "segments": 32
+        }
+      },
+      {
+        "id": "shade",
+        "name": "shade",
+        "type": "cone",
+        "role": "surface",
+        "position": [
+          0,
+          1.32,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.5,
+          "height": 0.55,
+          "segments": 48
+        }
+      },
+      {
+        "id": "bulb",
+        "name": "bulb",
+        "type": "sphere",
+        "role": "detail",
+        "position": [
+          0,
+          1.2,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": 0.14
+        }
+      }
+    ]
+  }
+}

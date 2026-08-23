@@ -1,0 +1,166 @@
+{
+  "id": "blocks",
+  "prompt": "a fish",
+  "note": "Every part a plain box. The shape measurement must notice.",
+  "plan": {
+    "name": "Blocks",
+    "nodes": [
+      {
+        "id": "body",
+        "name": "body",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 1.6,
+          "height": 0.6,
+          "depth": 0.4
+        }
+      },
+      {
+        "id": "tail",
+        "name": "tail",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.95,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.5,
+          "height": 0.5,
+          "depth": 0.1
+        }
+      },
+      {
+        "id": "head",
+        "name": "head",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.85,
+          0.05,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.4,
+          "height": 0.4,
+          "depth": 0.35
+        }
+      },
+      {
+        "id": "finTop",
+        "name": "top fin",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0.4,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.5,
+          "height": 0.3,
+          "depth": 0.08
+        }
+      },
+      {
+        "id": "finL",
+        "name": "side fin",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.1,
+          -0.2,
+          0.22
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.4,
+          "height": 0.1,
+          "depth": 0.3
+        }
+      },
+      {
+        "id": "finR",
+        "name": "side fin",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.1,
+          -0.2,
+          -0.22
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.4,
+          "height": 0.1,
+          "depth": 0.3
+        }
+      }
+    ]
+  }
+}

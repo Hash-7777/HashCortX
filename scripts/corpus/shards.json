@@ -1,0 +1,478 @@
+{
+  "id": "shards",
+  "prompt": "a fish",
+  "note": "The historical failure: eighteen small pieces that never touch. Must score near the bottom.",
+  "plan": {
+    "name": "Shards",
+    "nodes": [
+      {
+        "id": "s0",
+        "name": "piece 0",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -2.2,
+          0.0,
+          -1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s1",
+        "name": "piece 1",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -1.3000000000000003,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s2",
+        "name": "piece 2",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.40000000000000013,
+          0.0,
+          1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s3",
+        "name": "piece 3",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.5,
+          0.0,
+          -0.7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s4",
+        "name": "piece 4",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          1.4,
+          0.0,
+          0.6999999999999997
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s5",
+        "name": "piece 5",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          2.3,
+          0.0,
+          -1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s6",
+        "name": "piece 6",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -2.2,
+          0.9,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s7",
+        "name": "piece 7",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -1.3000000000000003,
+          0.9,
+          1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s8",
+        "name": "piece 8",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.40000000000000013,
+          0.9,
+          -0.7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s9",
+        "name": "piece 9",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.5,
+          0.9,
+          0.6999999999999997
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s10",
+        "name": "piece 10",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          1.4,
+          0.9,
+          -1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s11",
+        "name": "piece 11",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          2.3,
+          0.9,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s12",
+        "name": "piece 12",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -2.2,
+          1.8,
+          1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s13",
+        "name": "piece 13",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -1.3000000000000003,
+          1.8,
+          -0.7
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s14",
+        "name": "piece 14",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          -0.40000000000000013,
+          1.8,
+          0.6999999999999997
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s15",
+        "name": "piece 15",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0.5,
+          1.8,
+          -1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s16",
+        "name": "piece 16",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          1.4,
+          1.8,
+          0.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      },
+      {
+        "id": "s17",
+        "name": "piece 17",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          2.3,
+          1.8,
+          1.4
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": 0.28,
+          "height": 0.28,
+          "depth": 0.28
+        }
+      }
+    ]
+  }
+}
