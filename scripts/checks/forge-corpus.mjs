@@ -36,7 +36,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const rel of [['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'units.js'], ['src', 'js', 'forge', 'measure.js']]) {
+for (const rel of [['src', 'js', 'forge', 'expr.js'], ['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'units.js'], ['src', 'js', 'forge', 'measure.js']]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel[rel.length - 1] });
 }
 const MP = sandbox.window.HCModelPlan;
@@ -45,28 +45,51 @@ const U = sandbox.window.HCForgeUnits;
 
 // ── The ratchet ───────────────────────────────────────────────────────
 //
-// Raise this when the mean rises, the way the file-size budgets are lowered
-// when a file shrinks, and say in the comment what earned it. Never lower it to
-// make a change pass: a change that drops the mean has made the models worse,
-// which is the entire thing this file exists to catch.
+// Held per entry, not on the mean.
 //
-// 90.9 — the first measurement. Fourteen plans: nine that should score well,
-// and five that are wrong in one named way each, so the number has somewhere to
-// move in both directions.
+// A mean was the obvious thing and it is wrong, because it is not comparable
+// with itself. Adding two new plans to the corpus dropped it by a tenth and the
+// gate reported that the models had got worse, when nothing had regressed at
+// all — the set had simply grown to include something below the old average.
+// A gate that cries wolf when the corpus grows is a gate that gets its floor
+// nudged down until it means nothing.
 //
-// It is high because the measurements that will pull it down do not exist yet.
-// Watertightness, wall thickness and overhangs cannot be measured until a model
-// is one solid, so today's score judges a plan's structure and nothing about
-// whether the object could be made. Expect this floor to FALL once when those
-// arrive, and to be re-set from the first honest reading — that is the one time
-// lowering it is right, and the comment must say so.
-// 91.7, up from 90.9. Every model is now normalised to one working span before
-// the assembler runs, so the contact tolerance is the same proportion of every
-// model instead of 1% of a big one and 5% of a small one. The plan that had
-// fallen into eighteen pieces came back with nine of them rejoined rather than
-// five — the assembler had always been able to do that and had been quietly
-// stricter with models that happened to arrive large.
-const MEAN_FLOOR = 91.7;
+// So every plan carries its own floor. A plan may not score less than it scored
+// before, and a plan with no line here is new and is reported rather than
+// failed. That catches a regression precisely — by name, with the amount — and
+// it says nothing when the corpus simply gains an entry.
+//
+// Raise a number when it rises, and say in the commit what earned it. Never
+// lower one to make a change pass: that is the entire thing this file exists to
+// prevent. The one legitimate fall is when a measurement is ADDED that could
+// not be taken before — watertightness, wall thickness, overhangs — and then
+// every floor is re-set from the first honest reading at once, deliberately,
+// and the commit says so. That has happened once, here: a measurement for
+// geometry hidden inside a copy of itself was added and the weights were
+// rebalanced to make room for it, so every floor below was re-read at the same
+// moment from the same code.
+const FLOOR = {
+  bench: 86.0,
+  blocks: 83.7,
+  bracket: 95.9,
+  chair: 86.0,
+  drone: 100.0,
+  fish: 100.0,
+  gear: 100.0,
+  halfbuilt: 100.0,
+  hammer: 100.0,
+  heatsink: 83.7,
+  lamp: 100.0,
+  mug: 100.0,
+  rocket: 100.0,
+  shards: 62.8,
+  speck: 86.9,
+  vase: 92.2,
+};
+
+// A score is kept to one decimal place, so anything below this is a float
+// landing differently and not a change in the model.
+const SLACK = 0.05;
 
 const dir = join(root, 'scripts', 'corpus');
 const entries = readdirSync(dir)
@@ -129,26 +152,40 @@ for (const m of M.MEASURES) {
     (scored.length < rows.length ? `  (${scored.length} of ${rows.length} plans)` : ''));
 }
 
-console.log('\nThe number:\n');
+// A score computed twice must be the same score, or a ratchet is noise.
+const twice = rows.filter((r) => M.score(assembled(entries.find((e) => e.id === r.id).plan)).score !== r.after.score);
+if (twice.length) {
+  console.log(`\n  FAIL  ${twice.map((r) => r.id).join(', ')} scored differently the second time — the scorer is not deterministic`);
+  fail++;
+}
+
+console.log('\nAgainst what each plan scored before:\n');
+const isNew = [];
+const risen = [];
+for (const row of [...rows].sort((a, b) => a.id.localeCompare(b.id))) {
+  const floor = FLOOR[row.id];
+  if (floor === undefined) { isNew.push(row); continue; }
+  const delta = row.after.score - floor;
+  if (delta < -SLACK) {
+    console.log(`  FAIL  ${row.id} fell from ${floor.toFixed(1)} to ${row.after.score.toFixed(1)} — this change made that model worse`);
+    fail++;
+  } else if (delta > SLACK) {
+    risen.push(`${row.id} ${floor.toFixed(1)} → ${row.after.score.toFixed(1)}`);
+  }
+}
+for (const id of Object.keys(FLOOR)) {
+  if (!rows.some((r) => r.id === id)) {
+    console.log(`  FAIL  ${id} has a floor but no plan — a corpus entry was removed rather than fixed`);
+    fail++;
+  }
+}
+if (risen.length) console.log(`  ok    risen, so raise the floor and say what earned it: ${risen.join(' · ')}`);
+if (isNew.length) console.log(`  ok    new, add a floor for: ${isNew.map((r) => `${r.id} ${r.after.score.toFixed(1)}`).join(' · ')}`);
+if (!risen.length && !isNew.length && !fail) console.log('  ok    every plan holds its score');
+
+console.log('\nFor information, not a gate:\n');
 console.log(`  as designed          ${meanBefore.toFixed(1)}`);
 console.log(`  after the assembler  ${mean.toFixed(1)}   (the deterministic stage is worth ${(mean - meanBefore).toFixed(1)})`);
-console.log(`  floor                ${MEAN_FLOOR.toFixed(1)}`);
-
-// A score computed twice must be the same score, or the ratchet is noise.
-const again = Math.round((entries.reduce((s, e) => s + M.score(assembled(e.plan)).score, 0) / entries.length) * 10) / 10;
-if (again !== mean) {
-  console.log(`\n  FAIL  scoring the corpus twice gave ${again} then ${mean} — the scorer is not deterministic`);
-  fail++;
-}
-
-if (mean < MEAN_FLOOR) {
-  console.log(`\n  FAIL  the corpus mean fell to ${mean.toFixed(1)}, floor is ${MEAN_FLOOR.toFixed(1)} — this change made the models worse`);
-  fail++;
-} else if (mean > MEAN_FLOOR) {
-  console.log(`\n  ok    the mean rose to ${mean.toFixed(1)} — good, now raise the floor to ${mean.toFixed(1)} and say what earned it`);
-} else {
-  console.log('\n  ok    the corpus holds its score');
-}
 
 console.log(`\n${entries.length} plans scored, ${fail} failure(s)  (scripts/corpus/)\n`);
 process.exit(fail ? 1 : 0);

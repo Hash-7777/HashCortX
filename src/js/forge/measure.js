@@ -69,14 +69,21 @@
    * measurement is dropped and the remaining weights are shared out again.
    */
   const MEASURES = [
-    { id: "oneBody",        weight: 25, label: "the parts form one body" },
-    { id: "joined",         weight: 15, label: "parts meet rather than approach" },
-    { id: "shaped",         weight: 15, label: "the shape is carried by more than blocks" },
-    { id: "symmetry",       weight: 15, label: "mirrored pairs are exactly opposite", whenApplicable: true },
-    { id: "partCount",      weight: 10, label: "the part count reads as a model" },
-    { id: "wellFormed",     weight: 10, label: "every part has a measurable size" },
-    { id: "scaleCoherence", weight: 10, label: "the parts belong to the same object" },
+    { id: "oneBody",        weight: 22, label: "the parts form one body" },
+    { id: "joined",         weight: 14, label: "parts meet rather than approach" },
+    { id: "shaped",         weight: 14, label: "the shape is carried by more than blocks" },
+    { id: "symmetry",       weight: 14, label: "mirrored pairs are exactly opposite", whenApplicable: true },
+    { id: "distinct",       weight: 9,  label: "no part is hidden inside another just like it" },
+    { id: "partCount",      weight: 9,  label: "the part count reads as a model" },
+    { id: "wellFormed",     weight: 9,  label: "every part has a measurable size" },
+    { id: "scaleCoherence", weight: 9,  label: "the parts belong to the same object" },
   ];
+
+  // Two parts count as the same part when their boxes sit on each other this
+  // closely: centres within a hundredth of the model's longest side, and sizes
+  // within a twentieth of each other.
+  const SAME_PLACE = 0.01;
+  const SAME_SIZE = 0.05;
 
   function plan3d() {
     const MP = typeof window !== "undefined" ? window.HCModelPlan : null;
@@ -193,6 +200,48 @@
   }
 
   /**
+   * Parts that are another part, in the same place.
+   *
+   * Nothing else here can see this. A ring of sixteen teeth whose spacing is
+   * divided the wrong way puts the last copy on top of the first, and every
+   * other measurement is perfectly happy: it is still one body, the parts still
+   * overlap, the shapes are still shapes. On screen it is a gear with a tooth
+   * missing, and the score said a hundred.
+   *
+   * So: geometry that is exactly where other geometry already is, is counted.
+   * It is nearly always a pattern that has collapsed or a design that wrote the
+   * same part twice, and it is never something anyone wanted.
+   */
+  function duplicateCount(boxes, span) {
+    if (boxes.length < 2) return 0;
+    const centre = (b) => [(b[0] + b[3]) / 2, (b[1] + b[4]) / 2, (b[2] + b[5]) / 2];
+    const extent = (b) => [b[3] - b[0], b[4] - b[1], b[5] - b[2]];
+    const nearBy = Math.max(1e-9, span * SAME_PLACE);
+    const centres = boxes.map(centre);
+    const extents = boxes.map(extent);
+    const duplicated = new Set();
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const dc = Math.hypot(
+          centres[i][0] - centres[j][0],
+          centres[i][1] - centres[j][1],
+          centres[i][2] - centres[j][2],
+        );
+        if (dc > nearBy) continue;
+        const sameSize = [0, 1, 2].every((k) => {
+          const a = Math.abs(extents[i][k]);
+          const b = Math.abs(extents[j][k]);
+          const scale = Math.max(a, b, 1e-9);
+          return Math.abs(a - b) / scale <= SAME_SIZE;
+        });
+        if (sameSize) { duplicated.add(i); duplicated.add(j); }
+      }
+    }
+    // One of a coincident pair is the part that was wanted; the rest are waste.
+    return Math.max(0, duplicated.size - (duplicated.size ? 1 : 0));
+  }
+
+  /**
    * Symmetry, measured against the pairs the plan itself declares.
    *
    * Only pairs are judged. A part sitting on the centre line is not asymmetric,
@@ -249,6 +298,27 @@
     }
 
     const boxes = parts.map(MP.partBox);
+
+    // Two of the measurements are about the DESIGN and the rest are about the
+    // object it produced, and a pattern is where those come apart. A gear
+    // written as one tooth repeated sixteen times is one decision about shape
+    // and one decision about how many parts an object needs — but it arrives as
+    // sixteen boxes, and counting them as sixteen marks the design down once for
+    // every copy of a choice it made once. It also pushed a clean twenty-four
+    // tooth gear past the count at which a model is called a pile.
+    //
+    // So shape and part count are judged over the families a design wrote.
+    // Everything else — whether it holds together, whether the parts meet,
+    // whether pairs match — is judged over the parts that actually exist,
+    // because those are properties of the object and not of how it was written.
+    const familyOf = (part) => (typeof part.repeatedFrom === "string" ? part.repeatedFrom : part.id);
+    const families = new Map();
+    parts.forEach((part) => {
+      const key = familyOf(part);
+      if (!families.has(key)) families.set(key, part);
+    });
+    const designParts = families.size;
+    const plainDesign = Array.from(families.values()).filter((p) => PLAIN_TYPES.has(p.type)).length;
     const bounds = MP.boundsOf(parts);
     const size = MP.sizeOf(bounds);
     const span = Math.max(...size);
@@ -257,6 +327,7 @@
     facts.size = size;
     facts.lowest = bounds[1];
     facts.plain = parts.filter((p) => PLAIN_TYPES.has(p.type)).length;
+    facts.designParts = designParts;
 
     // ── one body ───────────────────────────────────────────────────────
     const linked = connectedShare(boxes, gap);
@@ -274,10 +345,10 @@
     // ── carried by more than blocks ────────────────────────────────────
     // Full marks up to a third plain, then falling away. A crate is boxes and
     // should not be punished; a fish that is nine boxes should be.
-    const plainShare = facts.plain / parts.length;
+    const plainShare = plainDesign / designParts;
     const shaped = clamp01((1 - plainShare) / (1 - 1 / 3));
     if (plainShare >= 0.7) {
-      issues.push({ code: "placeholders", detail: `${facts.plain} of ${parts.length} part(s) are plain boxes or balls` });
+      issues.push({ code: "placeholders", detail: `${plainDesign} of ${designParts} designed part(s) are plain boxes or balls` });
     }
 
     // ── symmetry ───────────────────────────────────────────────────────
@@ -293,9 +364,17 @@
     // ── part count ─────────────────────────────────────────────────────
     // Inside the band, full marks. Outside it, falling off rather than
     // failing — nineteen parts is not a crime and neither is three.
+    // The two ends of this measurement ask different questions, so they count
+    // different things. Too few PARTS means the object was never articulated —
+    // a fish that is one sphere — and a pattern's copies are real articulation.
+    // Too many DESIGNED parts means a pile, and a pattern is the opposite of a
+    // pile: it is the same decision made once and placed exactly. Counting the
+    // copies at the top end would mark a clean twenty-four tooth gear down as
+    // a mess, and counting families at the bottom would mark a heatsink down
+    // for being written efficiently.
     let partCount = 1;
     if (parts.length < PART_FLOOR) partCount = clamp01(parts.length / PART_FLOOR);
-    else if (parts.length > PART_CEILING) partCount = clamp01(1 - (parts.length - PART_CEILING) / PART_CEILING);
+    else if (designParts > PART_CEILING) partCount = clamp01(1 - (designParts - PART_CEILING) / PART_CEILING);
 
     // ── every part has a size ──────────────────────────────────────────
     // Counted against what the plan asked for, not against what survived. A
@@ -313,8 +392,17 @@
       issues.push({ code: "scale-spread", detail: `the largest part is ${Math.round(spread)}× the smallest` });
     }
 
+    // ── nothing hidden inside a copy of itself ─────────────────────────
+    const duplicates = duplicateCount(boxes, span);
+    facts.duplicates = duplicates;
+    const distinct = 1 - duplicates / parts.length;
+    if (duplicates) {
+      issues.push({ code: "duplicates", detail: `${duplicates} part(s) sit on top of geometry just like them` });
+    }
+
     const values = {
       oneBody: linked.share,
+      distinct,
       joined,
       shaped,
       symmetry,

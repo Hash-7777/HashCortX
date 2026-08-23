@@ -140,8 +140,9 @@ console.log('\nSymmetry is judged only where the plan claims a pair:');
 
   const none = M.score([box('a', [0, 0, 0], [1, 1, 1]), box('b', [0.8, 0, 0], [1, 1, 1])]);
   ok('a model with no pair is not judged on symmetry', !measureOf(none, 'symmetry').applicable);
+  const symmetryWeight = M.MEASURES.find((m) => m.id === 'symmetry').weight;
   ok('and gets no free marks for it — the weight is shared out',
-    none.measures.filter((m) => m.applicable).reduce((s, m) => s + m.weight, 0) === 85);
+    none.measures.filter((m) => m.applicable).reduce((s, m) => s + m.weight, 0) === 100 - symmetryWeight);
 }
 
 console.log('\nThe part count reads as a model, or it does not:');
@@ -171,6 +172,32 @@ console.log('\nParts that cannot be built, and parts from another object:');
     measureOf(s, 'scaleCoherence').value < 1, `spread ${s.facts.scaleSpread.toFixed(1)}`);
   ok('and it is reported', hasIssue(s, 'scale-spread'));
   ok('the good model is coherent', measureOf(M.score(goodModel), 'scaleCoherence').value === 1);
+}
+
+console.log('\nGeometry hidden inside a copy of itself is counted:');
+{
+  // Nothing else notices this. A ring of teeth whose spacing is divided the
+  // wrong way puts the last copy on top of the first: still one body, parts
+  // still overlap, shapes still shapes — a gear with a tooth missing, scoring
+  // full marks.
+  const twin = [
+    box('body', [0, 0, 0], [2, 1, 1]),
+    box('lug', [1.0, 0, 0], [0.4, 0.4, 0.4]),
+    box('lug_copy', [1.0, 0, 0], [0.4, 0.4, 0.4]),
+  ];
+  const r = M.score(twin);
+  ok('a part sitting on top of one just like it is counted', r.facts.duplicates === 1);
+  ok('the measurement falls', measureOf(r, 'distinct').value < 1);
+  ok('and it is reported', hasIssue(r, 'duplicates'));
+  ok('the whole score falls with it', r.score < M.score(twin.slice(0, 2)).score);
+
+  ok('a part merely near another is not a duplicate',
+    M.score([box('body', [0, 0, 0], [2, 1, 1]), box('lug', [1.0, 0, 0], [0.4, 0.4, 0.4]),
+             box('other', [1.0, 0.5, 0], [0.4, 0.4, 0.4])]).facts.duplicates === 0);
+  ok('and neither is a part of a different size in the same place',
+    M.score([box('body', [0, 0, 0], [2, 1, 1]), box('lug', [0, 0, 0], [0.2, 0.2, 0.2])]).facts.duplicates === 0);
+  ok('a model with nothing duplicated scores full marks',
+    measureOf(M.score(goodModel), 'distinct').value === 1);
 }
 
 console.log('\nA corpus is scored as a whole, worst first:');

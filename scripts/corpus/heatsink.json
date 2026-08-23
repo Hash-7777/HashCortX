@@ -1,0 +1,77 @@
+{
+  "id": "heatsink",
+  "prompt": "an aluminium heatsink",
+  "note": "A row of fins from one fin. Also the linear pattern, and a wall thickness written once and used three times.",
+  "plan": {
+    "name": "Heatsink",
+    "sizeMm": 60,
+    "vars": {
+      "fins": 7,
+      "wall": 0.08,
+      "pitch": 0.3,
+      "span": "pitch * (fins - 1)"
+    },
+    "nodes": [
+      {
+        "id": "base",
+        "name": "base plate",
+        "type": "box",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": "span + pitch",
+          "height": 0.2,
+          "depth": 1.0
+        }
+      },
+      {
+        "id": "fin",
+        "name": "fin",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          "0 - span / 2",
+          0.45,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": "wall",
+          "height": 0.8,
+          "depth": 1.0
+        },
+        "repeat": {
+          "count": "fins",
+          "along": [
+            "pitch",
+            0,
+            0
+          ]
+        }
+      }
+    ]
+  }
+}

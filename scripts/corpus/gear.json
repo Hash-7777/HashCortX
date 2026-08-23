@@ -1,0 +1,99 @@
+{
+  "id": "gear",
+  "prompt": "a spur gear",
+  "note": "Sixteen teeth written once and repeated around the axis, with every number an expression. Written out by hand this is sixteen positions and sixteen rotations a model has to get right one at a time.",
+  "plan": {
+    "name": "Gear",
+    "sizeMm": "od * 2",
+    "vars": {
+      "teeth": 16,
+      "od": 24,
+      "hub": 1.0,
+      "tooth": 0.26
+    },
+    "nodes": [
+      {
+        "id": "hub",
+        "name": "hub",
+        "type": "cylinder",
+        "role": "structure",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": "hub",
+          "height": 0.3,
+          "segments": 64
+        }
+      },
+      {
+        "id": "tooth",
+        "name": "tooth",
+        "type": "box",
+        "role": "surface",
+        "position": [
+          "hub",
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "width": "tooth",
+          "height": 0.3,
+          "depth": 0.2
+        },
+        "repeat": {
+          "count": "teeth",
+          "about": "y"
+        }
+      },
+      {
+        "id": "boss",
+        "name": "boss",
+        "type": "cylinder",
+        "role": "detail",
+        "position": [
+          0,
+          0.16,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": "hub / 3",
+          "height": 0.16,
+          "segments": 48
+        }
+      }
+    ]
+  }
+}
