@@ -36,11 +36,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const rel of [['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'measure.js']]) {
+for (const rel of [['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'units.js'], ['src', 'js', 'forge', 'measure.js']]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel[rel.length - 1] });
 }
 const MP = sandbox.window.HCModelPlan;
 const M = sandbox.window.HCForgeMeasure;
+const U = sandbox.window.HCForgeUnits;
 
 // ── The ratchet ───────────────────────────────────────────────────────
 //
@@ -59,7 +60,13 @@ const M = sandbox.window.HCForgeMeasure;
 // whether the object could be made. Expect this floor to FALL once when those
 // arrive, and to be re-set from the first honest reading — that is the one time
 // lowering it is right, and the comment must say so.
-const MEAN_FLOOR = 90.9;
+// 91.7, up from 90.9. Every model is now normalised to one working span before
+// the assembler runs, so the contact tolerance is the same proportion of every
+// model instead of 1% of a big one and 5% of a small one. The plan that had
+// fallen into eighteen pieces came back with nine of them rejoined rather than
+// five — the assembler had always been able to do that and had been quietly
+// stricter with models that happened to arrive large.
+const MEAN_FLOOR = 91.7;
 
 const dir = join(root, 'scripts', 'corpus');
 const entries = readdirSync(dir)
@@ -76,9 +83,15 @@ if (!entries.length) {
   process.exit(1);
 }
 
-/** What the app actually builds: the design, then the deterministic stage. */
+/**
+ * What the app actually builds: the design, then the deterministic stage.
+ *
+ * The working span is passed exactly as the mode passes it. A gate that scored
+ * a pipeline the app does not run would be measuring a fiction, and the first
+ * change to diverge would sail through it.
+ */
 function assembled(plan) {
-  const out = MP.assemble(plan, { ground: false });
+  const out = MP.assemble(plan, { ground: false, targetSize: U.WORKING_SPAN });
   return { name: plan.name, nodes: out.parts };
 }
 

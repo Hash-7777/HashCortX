@@ -103,6 +103,10 @@
   let activeProjectId = null;
   let projectSaveTimer = 0;
   let activeForgeRoute = "parametric";
+  // What one scene unit is worth in millimetres, measured from the model that
+  // is actually on screen. Zero until something is built — a factor guessed
+  // before there is geometry would be a wrong number shown with confidence.
+  let mmPerUnit = 0;
 
   const $ = (id) => document.getElementById(id);
 
@@ -562,7 +566,12 @@
       </div>
     `).join("") : `<div class="frg-plan-item"><b>No mesh yet</b><span>Awaiting Parameter Agent</span></div>`;
     $("frgPlanName").textContent = plan?.name || "Void ready";
-    $("frgNodeCount").textContent = `${nodes.length} mesh part${nodes.length === 1 ? "" : "s"}`;
+    // The part count alone answers a question nobody asked. How big the thing
+    // is, is the first thing a person wants to know about an object they are
+    // going to make.
+    const measured = modelSizeMm();
+    $("frgNodeCount").textContent = `${nodes.length} part${nodes.length === 1 ? "" : "s"}`
+      + (measured ? ` · ${measured.text}` : "");
   }
 
   function renderableNodes(nodes) {
@@ -1134,7 +1143,15 @@
     const revealStart = performance.now();
     nodes.forEach((node) => addNodeMesh(node, revealStart));
     groundBuiltModel();
+    // Before anything shows a dimension. The badge and the panel both read the
+    // factor, so measuring after them labelled the first model with the scale
+    // of whatever had been on screen before it.
+    measureRealSize();
     updatePlanList(activePlan);
+    // The panel holds the whole model's size, and clearing the scene redraws it
+    // before the new plan exists — so without this it kept showing the size of
+    // the model that had just been replaced.
+    renderSelection();
     syncImproveAvailability();
     // A model that has just been built or opened is a new document. Undoing
     // past it would take a person back to a model they were finished with.
@@ -1151,6 +1168,67 @@
     }
     reportShapeQuality(activePlan, nodes);
     log("Viewport", `Loaded ${nodes.length} mesh part(s) in the void.`);
+  }
+
+  /** The units module, if it loaded. Everything here degrades without it. */
+  function U() {
+    return window.HCForgeUnits || null;
+  }
+
+  /**
+   * Work out what a scene unit is worth, from the model that exists.
+   *
+   * Measured rather than assumed. Normalising works from each part's declared
+   * width and radius — an estimate that ignores rotation and cannot know what a
+   * mesh's vertices do — so a model asked to be two units across arrives near
+   * two and not at it. Dividing the real size by the intended span instead of
+   * the measured one would put that error into every dimension this app ever
+   * showed or wrote, which is exactly the kind of wrongness nobody catches.
+   */
+  function measureRealSize() {
+    const units = U();
+    mmPerUnit = 0;
+    if (!units || !THREE || !modelGroup || !modelGroup.children.length) return;
+    modelGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(modelGroup);
+    if (box.isEmpty()) return;
+    const size = box.getSize(new THREE.Vector3());
+    const span = Math.max(size.x, size.y, size.z);
+    mmPerUnit = units.mmPerUnit(activePlan?.sizeMm ?? units.DEFAULT_SIZE_MM, span);
+    if (!mmPerUnit) return;
+    const stated = activePlan?.sizeStated;
+    log("Measure", `${units.formatSize([size.x, size.y, size.z], mmPerUnit)}`, "ok",
+      stated ? "longest side as the design asked" : `longest side defaulted to ${units.formatMm(units.DEFAULT_SIZE_MM)} — set it in Properties`);
+  }
+
+  /** The model's size in millimetres, for anything that needs to show it. */
+  function modelSizeMm() {
+    const units = U();
+    if (!units || !THREE || !modelGroup || !modelGroup.children.length || !mmPerUnit) return null;
+    modelGroup.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(modelGroup);
+    if (box.isEmpty()) return null;
+    const size = box.getSize(new THREE.Vector3());
+    return { size: [size.x, size.y, size.z], text: units.formatSize([size.x, size.y, size.z], mmPerUnit) };
+  }
+
+  /**
+   * Change what the model is the size of, without touching the model.
+   *
+   * Nothing is rebuilt and no part moves: the geometry is at the working span
+   * either way, and only the factor everything is read through changes. So
+   * forty millimetres to four hundred is instant and cannot distort anything.
+   */
+  function setModelSizeMm(mm) {
+    const units = U();
+    if (!units || !activePlan) return;
+    const asked = units.sizeMmOf({ sizeMm: mm });
+    activePlan.sizeMm = asked.mm;
+    activePlan.sizeStated = true;
+    measureRealSize();
+    updatePlanList(activePlan);
+    renderSelection();
+    queueProjectSave();
   }
 
   /**
@@ -1461,8 +1539,24 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   function renderSelection() {
     const card = $("frgSelectionCard");
     if (!card) return;
+    const units = U();
+    // With nothing selected the panel used to be a sentence telling you to
+    // select something. It is the natural home for the one property the whole
+    // model has, and a model whose size is a silent default is a model that
+    // prints at the wrong size.
     if (!selectedMesh) {
-      card.innerHTML = `<div class="frg-selection-empty">Click any part in the void to edit it.</div>`;
+      const measured = modelSizeMm();
+      const sizeMm = activePlan?.sizeMm ?? units?.DEFAULT_SIZE_MM ?? 0;
+      card.innerHTML = activePlan && units
+        ? `<div class="frg-edit-grid" aria-label="Model size" style="grid-template-columns:1fr">
+             <span class="frg-edit-field">
+               <label>Longest side (mm)</label>
+               <input data-frg-model-size type="number" min="${units.MIN_SIZE_MM}" max="${units.MAX_SIZE_MM}" step="1" value="${escapeHtml(String(Math.round(sizeMm)))}">
+             </span>
+           </div>
+           <div class="frg-selection-empty">${measured ? escapeHtml(measured.text) : "Nothing built yet"}${activePlan?.sizeStated ? "" : " · this size is a default until you set it"}</div>
+           <div class="frg-selection-empty">Click any part in the void to edit it.</div>`
+        : `<div class="frg-selection-empty">Click any part in the void to edit it.</div>`;
       return;
     }
     const node = selectedMesh.userData.node || {};
@@ -1487,7 +1581,14 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         <button class="frg-edit-btn${snapEnabled ? " active" : ""}" data-frg-edit="snap">Snap</button>
       </div>
       <div class="frg-edit-grid" aria-label="Position">
-        ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Pos ${axis.toUpperCase()}</label><input data-frg-pos="${axis}" type="number" step="0.05" value="${escapeHtml(pos[axis].toFixed(2))}"></span>`).join("")}
+        ${["x", "y", "z"].map((axis) => {
+          // Shown in millimetres when the model has a real size, because a
+          // position in scene units is a number with no meaning outside this
+          // window. The step follows: a millimetre, not a twentieth of nothing.
+          const mm = units && mmPerUnit;
+          const value = mm ? units.formatMm(units.toMm(pos[axis], mmPerUnit), { bare: true }) : pos[axis].toFixed(2);
+          return `<span class="frg-edit-field"><label>${mm ? "mm" : "Pos"} ${axis.toUpperCase()}</label><input data-frg-pos="${axis}" type="number" step="${mm ? 1 : 0.05}" value="${escapeHtml(value)}"></span>`;
+        }).join("")}
       </div>
       <div class="frg-edit-grid" aria-label="Scale" style="margin-top:6px">
         ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Scale ${axis.toUpperCase()}</label><input data-frg-scale="${axis}" type="number" step="0.05" min="0.02" value="${escapeHtml(scale[axis].toFixed(2))}"></span>`).join("")}
@@ -1648,7 +1749,12 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
 
   function updateSelectedPosition(axis, value) {
     if (!selectedMesh) return;
-    selectedMesh.position[axis] = Number(value) || 0;
+    const units = U();
+    // Read back through the same lens it was shown through, or a person typing
+    // the number they were just shown would move the part somewhere else.
+    selectedMesh.position[axis] = units && mmPerUnit
+      ? units.fromMm(Number(value) || 0, mmPerUnit)
+      : Number(value) || 0;
     syncSelectedNodeFromMesh();
     selectionBox?.update();
     updatePlanList(activePlan);
@@ -1779,7 +1885,14 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     try {
       // Grounding is skipped here: buildPlan measures the meshes it actually
       // creates and sets the model on the floor from that, which is exact.
-      out = MP.assemble(plan, { ground: false });
+      //
+      // The span is passed now. Every tolerance downstream — the contact gap,
+      // the seating bite, the smallest part that can be drawn — is an absolute
+      // number, and an absolute number is only correct at one scale. Models
+      // were arriving anywhere between 1.2 and 4.8 units across, so the same
+      // gap was 1% of one model and 5% of another and the assembler was
+      // quietly stricter with the big ones.
+      out = MP.assemble(plan, { ground: false, targetSize: U()?.WORKING_SPAN || 0 });
     } catch (err) {
       log("Assemble", `skipped: ${err?.message || err}`, "warn");
       return plan;
@@ -1835,10 +1948,24 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     }
   }
 
-  function exportableObject() {
+  /**
+   * The model as a file will see it: visible, opaque, and at its real size.
+   *
+   * The scene runs at a working span that has nothing to do with how big the
+   * object is, so a file written straight from it carries no size at all —
+   * which is why every export had to be rescaled by hand wherever it landed.
+   * The factor is applied to a copy, so nothing on screen moves.
+   */
+  function exportableObject(kind) {
     if (!modelGroup || !modelGroup.children.length) return null;
     syncSelectedNodeFromMesh();
     const clone = modelGroup.clone(true);
+    const units = U();
+    if (units && mmPerUnit) {
+      const factor = units.exportScale(kind, mmPerUnit);
+      if (factor > 0 && factor !== 1) clone.scale.multiplyScalar(factor);
+      clone.updateMatrixWorld(true);
+    }
     clone.traverse((obj) => {
       if (!obj.isMesh) return;
       obj.visible = true;
@@ -1857,7 +1984,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
 
   async function exportForgeAsset(kind) {
     if (!await initThree()) return;
-    const object = exportableObject();
+    const object = exportableObject(kind);
     if (!object) {
       log("Pipeline", "No model to export", "warn");
       return;
@@ -2022,6 +2149,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       // how it came to be set on the floor, out of the shot built for it.
       _introLogo: src._introLogo === true ? true : undefined,
       glbUrl: typeof src.glbUrl === "string" ? src.glbUrl : "",
+      // How big the object is in life. Carried beside the geometry and never
+      // inside it, so changing it re-labels the model rather than distorting it.
+      sizeMm: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).mm : undefined,
+      sizeStated: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).stated : false,
       constraints: Array.isArray(src.constraints) ? src.constraints : [],
       edges: Array.isArray(src.edges) ? src.edges : [],
       nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
@@ -2345,6 +2476,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
 Schema:
 {
   "name": "short model name",
+  "sizeMm": 150,
   "nodes": [
     {
       "id": "stable_id",
@@ -2390,6 +2522,10 @@ How to build it:
   on X or Z, not standing on end. A bottle, a lamp or a person stands with its length on Y.
   If the object has a front, face it towards +Z.
 - The app puts the model on the floor. Build it around the origin and do not compensate.
+- Set "sizeMm" to how long the real object's LONGEST side is, in millimetres. A mug is about 95,
+  a phone about 150, a chair about 900, a bolt about 40. This is what the exported file is measured
+  in, so a wrong number here prints at the wrong size. Build the geometry at whatever scale suits
+  the shape — the app resizes it — and only this number has to be true.
 - Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
 - Do not give parts colours. The model is shown as one printed piece in a single material, and
   shape is the only thing that describes it. Spend the answer on geometry.
@@ -2806,6 +2942,7 @@ Prompt: ${prompt}`;
       else setTransformMode(action);
     });
     $("frgSelectionCard")?.addEventListener("change", (e) => {
+      if (e.target.dataset.frgModelSize !== undefined) { setModelSizeMm(e.target.value); return; }
       const posAxis = e.target.dataset.frgPos;
       const scaleAxis = e.target.dataset.frgScale;
       const rotAxis = e.target.dataset.frgRot;
@@ -2933,6 +3070,9 @@ Prompt: ${prompt}`;
   function debugState() {
     return {
       nodeCount: activePlan?.nodes?.length || 0,
+      sizeMm: activePlan?.sizeMm ?? null,
+      sizeStated: activePlan?.sizeStated === true,
+      mmPerUnit,
       underfloorCount: selectableMeshes().filter((mesh) => mesh.userData?.underFloor).length,
       activeProjectId,
     };

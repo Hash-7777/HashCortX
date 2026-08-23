@@ -281,6 +281,37 @@ console.log('\nA shape the app cannot build is read, and said out loud:');
     /reportShapeQuality\(activePlan, nodes\)/.test(bodyOf('buildPlan')));
 }
 
+console.log('\nA model knows how big it is, and says so in millimetres:');
+{
+  const build = bodyOf('buildPlan');
+  // Every tolerance downstream is an absolute number, so it is only correct at
+  // one scale — and models were arriving between 1.2 and 4.8 units across.
+  check('the assembler is told what span the scene runs at',
+    /targetSize: U\(\)\?\.WORKING_SPAN/.test(src));
+  // Measured after the meshes exist, because normalising works from declared
+  // parameters and lands near the span rather than on it.
+  check('the size is measured from the built geometry',
+    /Box3\(\)\.setFromObject\(modelGroup\)/.test(bodyOf('measureRealSize')));
+  check('and measured before anything shows a dimension',
+    /measureRealSize\(\);[\s\S]{0,200}updatePlanList\(activePlan\)/.test(build),
+    'measuring after the badge labels the first model with the previous scale');
+  check('the panel is redrawn for the new model too',
+    /renderSelection\(\);/.test(build));
+  check('the badge carries the size, not only the part count',
+    /part\$\{nodes\.length === 1 \? "" : "s"\}`[\s\S]{0,80}measured\.text/.test(src));
+  check('the whole model size is editable where nothing is selected',
+    /data-frg-model-size/.test(src) && /function setModelSizeMm/.test(src));
+  check('changing it rebuilds nothing',
+    !/buildPlan\(/.test(bodyOf('setModelSizeMm')));
+  check('a part position is shown and read back in the same units',
+    /units\.toMm\(pos\[axis\], mmPerUnit\)/.test(src) && /units\.fromMm\(Number\(value\)/.test(src));
+  check('a written file carries the units its format is read in',
+    /units\.exportScale\(kind, mmPerUnit\)/.test(bodyOf('exportableObject')));
+  check('and the format is known before the copy is made',
+    /const object = exportableObject\(kind\)/.test(src));
+  check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
+}
+
 console.log('\nThe design prompt asks for shape, not stand-ins:');
 {
   check('the biggest part must carry the silhouette',

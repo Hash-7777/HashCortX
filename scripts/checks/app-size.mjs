@@ -114,7 +114,12 @@ const LINE_BUDGET = {
   // a phone, a laptop, a drone, a house, a tower, a human skeleton — reachable
   // from nothing. The only path to them was a padding pass whose caller had
   // already been switched off.
-  'modes/forge/mode.js': 2962,
+  // 3102, up from 2962. A model now knows how big it is in life: the size is
+  // measured from the geometry that exists rather than assumed, shown on the
+  // badge and in Properties, editable without rebuilding anything, and applied
+  // when a file is written. The added lines are that lens and the note saying
+  // why the scene span and the real size are deliberately two different things.
+  'modes/forge/mode.js': 3102,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
