@@ -261,6 +261,13 @@
         // plan that already contains "leg_fl" and "leg_fr" would have each of
         // them mirrored again, and the chair would arrive with six legs.
         mirror: raw.mirror === true,
+        // A pairing the plan already states, carried through rather than
+        // dropped. Mirroring produces this field on the twin it creates, and
+        // connecting reads it to move a pair together — but a design that
+        // arrived with both sides already paired lost the link here, so its
+        // pair was the one case neither of those could see. It also made the
+        // pairing invisible to anything measuring the model afterwards.
+        mirroredFrom: typeof raw.mirroredFrom === "string" ? raw.mirroredFrom : undefined,
       };
 
       const [hx, hy, hz] = halfExtents(part);

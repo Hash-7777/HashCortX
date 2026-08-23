@@ -420,5 +420,29 @@ console.log('\nA shape the app does not have is read, not thrown away:');
     [...P.SHAPES].every((t) => P.resolveType({ type: t }).type === t));
 }
 
+console.log('\nA pairing the plan already states survives:');
+{
+  // Mirroring writes this field on the twin it makes, and connecting reads it
+  // to move a pair together. A design that arrived already paired lost the
+  // link here, so its pair was the one case neither stage could see.
+  const paired = [
+    box('body', { params: { width: 2, height: 1, depth: 1 } }),
+    box('wingL', { position: [0.9, 0, 0.4] }),
+    box('wingR', { position: [-0.9, 0, 0.4], mirroredFrom: 'wingL' }),
+  ];
+  const kept = P.normaliseParts(paired).parts;
+  ok('the pairing is carried through normalising',
+    kept.find((p) => p.id === 'wingR').mirroredFrom === 'wingL');
+  ok('a part that states no pairing gets none',
+    kept.find((p) => p.id === 'wingL').mirroredFrom === undefined);
+  ok('a pairing that is not a name is ignored',
+    P.normaliseParts([box('a', { mirroredFrom: 7 })]).parts[0].mirroredFrom === undefined);
+  ok('an already-paired part is not mirrored again',
+    P.expandMirrors(kept).parts.length === kept.length);
+  ok('and assembling keeps the pairing',
+    P.assemble({ nodes: paired }, { ground: false }).parts
+      .find((p) => p.id === 'wingR').mirroredFrom === 'wingL');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/model-plan.js)\n`);
 process.exit(fail ? 1 : 0);
