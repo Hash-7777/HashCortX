@@ -123,6 +123,80 @@
   // ── one part, in its own space ───────────────────────────────────────
 
   /**
+   * A shape, worked out once, ready to be asked about a point.
+   *
+   * This used to read the part's parameters and rebuild its outline on every
+   * single call — and a field is asked about hundreds of thousands of points,
+   * so a model spent most of its time allocating the same array of profile
+   * points over and over. Everything that does not depend on the point is done
+   * here, once, and what is left is arithmetic.
+   */
+  function compileShape(part) {
+    const p = part.params || {};
+    switch (part.type) {
+      case "sphere": {
+        const r = num(p.radius, 0.5);
+        return (x, y, z) => Math.hypot(x, y, z) - r;
+      }
+      case "capsule": {
+        // A segment along Y with a radius: the distance to the segment, less
+        // the radius. The straight part is `length`; the caps add to each end.
+        const r = num(p.radius, 0.25);
+        const half = num(p.length, 0.5) / 2;
+        return (x, y, z) => {
+          const cy = Math.min(half, Math.max(-half, y));
+          return Math.hypot(x, y - cy, z) - r;
+        };
+      }
+      case "torus": {
+        // Drawn in the XY plane, so the ring runs round z.
+        const r = num(p.radius, 0.5);
+        const tube = num(p.tube, 0.1);
+        return (x, y, z) => Math.hypot(Math.hypot(x, y) - r, z) - tube;
+      }
+      case "extrude": {
+        const pts = Array.isArray(p.points) && p.points.length >= 3
+          ? p.points.map((pt) => [num(pt[0], 0), num(pt[1], 0)])
+          : [[-0.35, -0.25], [0.35, -0.25], [0.42, 0.2], [0, 0.45], [-0.42, 0.2]];
+        const depth = num(p.depth, num(p.length, 0.2));
+        const lo = Math.min(0, depth);
+        const hi = Math.max(0, depth);
+        // Runs from the profile plane forwards, not half back and half
+        // forwards — the same thing the bounding box had wrong.
+        return (x, y, z) => combine(polygonDistance(pts, x, y), Math.max(lo - z, z - hi));
+      }
+      case "box":
+      case "mesh":
+        return boxShape(part);
+      default: {
+        const profile = revolvedProfile(part);
+        if (!profile) return boxShape(part);
+        // The outline is closed back to the axis so that inside means
+        // something, and the axis is skipped as a surface because it is not
+        // one — a point on the axis of a solid cylinder is a radius INSIDE it.
+        return (x, y, z) => polygonDistance(profile, Math.hypot(x, z), y, SKIP_AXIS);
+      }
+    }
+  }
+
+  const SKIP_AXIS = { skipClosingEdge: true };
+
+  /** The box a part occupies, in the part's own space. */
+  function boxShape(part) {
+    const MP = plan3d();
+    const b = MP.localBounds(part);
+    const cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, cz = (b[2] + b[5]) / 2;
+    const hx = (b[3] - b[0]) / 2, hy = (b[4] - b[1]) / 2, hz = (b[5] - b[2]) / 2;
+    return (x, y, z) => {
+      const qx = Math.abs(x - cx) - hx;
+      const qy = Math.abs(y - cy) - hy;
+      const qz = Math.abs(z - cz) - hz;
+      const outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0));
+      return Math.min(Math.max(qx, Math.max(qy, qz)), 0) + outside;
+    };
+  }
+
+  /**
    * How far a point in a part's own space is from that part's surface.
    *
    * Exact for every shape except a supplied mesh, which is answered with the
@@ -131,76 +205,13 @@
    * costs more per sample than every other shape put together.
    */
   function localDistance(part, x, y, z) {
-    const p = part.params || {};
-    switch (part.type) {
-      case "sphere":
-        return Math.hypot(x, y, z) - num(p.radius, 0.5);
-
-      case "capsule": {
-        // A segment along Y with a radius: the distance to the segment, less
-        // the radius. The straight part is `length`; the caps add to each end.
-        const r = num(p.radius, 0.25);
-        const half = num(p.length, 0.5) / 2;
-        const cy = Math.min(half, Math.max(-half, y));
-        return Math.hypot(x, y - cy, z) - r;
-      }
-
-      case "torus": {
-        // Drawn in the XY plane, so the ring runs round z.
-        const r = num(p.radius, 0.5);
-        const tube = num(p.tube, 0.1);
-        const q = Math.hypot(x, y) - r;
-        return Math.hypot(q, z) - tube;
-      }
-
-      case "extrude": {
-        const pts = Array.isArray(p.points) && p.points.length >= 3
-          ? p.points.map((pt) => [num(pt[0], 0), num(pt[1], 0)])
-          : [[-0.35, -0.25], [0.35, -0.25], [0.42, 0.2], [0, 0.45], [-0.42, 0.2]];
-        const depth = num(p.depth, num(p.length, 0.2));
-        const lo = Math.min(0, depth);
-        const hi = Math.max(0, depth);
-        const flat = polygonDistance(pts, x, y);
-        // Runs from the profile plane forwards, not half back and half
-        // forwards — the same thing the bounding box had wrong.
-        const along = Math.max(lo - z, z - hi);
-        return combine(flat, along);
-      }
-
-      case "mesh":
-        return boxDistance(part, x, y, z);
-
-      case "box":
-        return boxDistance(part, x, y, z);
-
-      default: {
-        const profile = revolvedProfile(part);
-        // The outline is closed back to the axis so that inside means
-        // something, and the axis is skipped as a surface because it is not
-        // one — a point on the axis of a solid cylinder is a radius INSIDE it.
-        if (profile) return polygonDistance(profile, Math.hypot(x, z), y, { skipClosingEdge: true });
-        return boxDistance(part, x, y, z);
-      }
-    }
+    return compileShape(part)(x, y, z);
   }
 
   /** Two distances that must both be satisfied, joined the way a box is. */
   function combine(a, b) {
     const outside = Math.hypot(Math.max(a, 0), Math.max(b, 0));
     return Math.min(Math.max(a, b), 0) + outside;
-  }
-
-  /** The distance to the box a part occupies, in the part's own space. */
-  function boxDistance(part, x, y, z) {
-    const MP = plan3d();
-    const b = MP.localBounds(part);
-    const cx = (b[0] + b[3]) / 2, cy = (b[1] + b[4]) / 2, cz = (b[2] + b[5]) / 2;
-    const hx = (b[3] - b[0]) / 2, hy = (b[4] - b[1]) / 2, hz = (b[5] - b[2]) / 2;
-    const qx = Math.abs(x - cx) - hx;
-    const qy = Math.abs(y - cy) - hy;
-    const qz = Math.abs(z - cz) - hz;
-    const outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0));
-    return Math.min(Math.max(qx, Math.max(qy, qz)), 0) + outside;
   }
 
   /**
@@ -212,6 +223,7 @@
    */
   function prepare(part) {
     const MP = plan3d();
+    void MP;
     const m = MP.rotationMatrix(part.rotation);
     const s = [num(part.scale?.[0], 1) || 1, num(part.scale?.[1], 1) || 1, num(part.scale?.[2], 1) || 1];
     const pos = [num(part.position?.[0], 0), num(part.position?.[1], 0), num(part.position?.[2], 0)];
@@ -220,17 +232,34 @@
     // what a surface walk needs: it may take a shorter step than necessary, but
     // it can never step through the surface.
     const shrink = Math.min(Math.abs(s[0]), Math.abs(s[1]), Math.abs(s[2]));
+    const shape = compileShape(part);
+    // Where this part is in the world, as a plain box. A point outside that box
+    // cannot be closer to the part than it is to the box, which is three
+    // subtractions to work out and is what lets most parts be skipped entirely
+    // on most samples. On a gear, seventeen of eighteen parts are nowhere near
+    // any given point, and asking each of them properly is the whole cost.
+    const wb = MP.partBox({ ...part, rotation: part.rotation, scale: part.scale });
+    const bcx = (wb[0] + wb[3]) / 2, bcy = (wb[1] + wb[4]) / 2, bcz = (wb[2] + wb[5]) / 2;
+    const bhx = (wb[3] - wb[0]) / 2, bhy = (wb[4] - wb[1]) / 2, bhz = (wb[5] - wb[2]) / 2;
     return {
       part,
       op: OPS.has(part.op) ? part.op : "union",
       blend: Math.max(0, num(part.blend, 0)),
+      /** A floor on how far this part can possibly be. Never an overestimate. */
+      atLeast(x, y, z) {
+        const qx = Math.abs(x - bcx) - bhx;
+        const qy = Math.abs(y - bcy) - bhy;
+        const qz = Math.abs(z - bcz) - bhz;
+        if (qx <= 0 && qy <= 0 && qz <= 0) return Math.max(qx, qy, qz);
+        return Math.hypot(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0));
+      },
       distance(x, y, z) {
         const wx = x - pos[0], wy = y - pos[1], wz = z - pos[2];
         // Transposed rotation, then undo the scale.
         const lx = (m[0][0] * wx + m[1][0] * wy + m[2][0] * wz) / s[0];
         const ly = (m[0][1] * wx + m[1][1] * wy + m[2][1] * wz) / s[1];
         const lz = (m[0][2] * wx + m[1][2] * wy + m[2][2] * wz) / s[2];
-        return localDistance(part, lx, ly, lz) * shrink;
+        return shape(lx, ly, lz) * shrink;
       },
     };
   }
@@ -292,6 +321,21 @@
       let d = Infinity;
       for (let i = 0; i < prepared.length; i++) {
         const p = prepared[i];
+        // A part can be skipped when the nearest it could possibly be already
+        // cannot change the answer. Adding material: if the part is further
+        // away than what is already here, the smaller of the two is unchanged.
+        // Taking it away: if the part is at least that far outside, the point
+        // is not in the region being removed. Both are exact — the floor is
+        // never an overestimate, so this never skips a part that mattered.
+        //
+        // Keeping only what two shapes share cannot be skipped this way: the
+        // answer there needs the LARGER distance, and a floor says nothing
+        // about how large a value can be.
+        if (i > 0) {
+          const floor = p.atLeast(x, y, z);
+          if (p.op === "union" && floor > d + p.blend) continue;
+          if (p.op === "subtract" && floor >= -d) continue;
+        }
         const dp = p.distance(x, y, z);
         if (p.op === "subtract") d = Math.max(d, -dp);
         else if (p.op === "intersect") d = Math.max(d, dp);
@@ -300,10 +344,24 @@
       return d;
     };
 
+    // The thinnest thing anywhere in this model, which is what decides how
+    // closely it has to be looked at. A fin two hundredths thick needs cells
+    // smaller than that or both its faces fall in the same cell.
+    let minFeature = Infinity;
+    for (const p of prepared) {
+      const lb = MP.localBounds(p.part);
+      const sc = p.part.scale || [1, 1, 1];
+      for (let i = 0; i < 3; i++) {
+        const t = Math.abs((lb[i + 3] - lb[i]) * num(sc[i], 1));
+        if (t > 1e-9 && t < minFeature) minFeature = t;
+      }
+    }
+
     return {
       evaluate,
       bounds: padded,
       parts: prepared.length,
+      minFeature: Number.isFinite(minFeature) ? minFeature : 0,
       issues,
       /**
        * Which way the surface faces here, from the field either side.
@@ -313,10 +371,17 @@
        * noise, too large and a corner is rounded off.
        */
       normalAt(x, y, z, step) {
+        // Four samples at the corners of a tetrahedron rather than six along
+        // the axes. The same gradient to the same order, and a third less work
+        // in the pass that dominates a large model.
         const h = num(step, 1e-3);
-        const gx = evaluate(x + h, y, z) - evaluate(x - h, y, z);
-        const gy = evaluate(x, y + h, z) - evaluate(x, y - h, z);
-        const gz = evaluate(x, y, z + h) - evaluate(x, y, z - h);
+        const a = evaluate(x + h, y - h, z - h);
+        const b = evaluate(x - h, y - h, z + h);
+        const c = evaluate(x - h, y + h, z - h);
+        const e = evaluate(x + h, y + h, z + h);
+        const gx = a - b - c + e;
+        const gy = -a - b + c + e;
+        const gz = -a + b - c + e;
         const len = Math.hypot(gx, gy, gz);
         return len > 1e-12 ? [gx / len, gy / len, gz / len] : [0, 1, 0];
       },
