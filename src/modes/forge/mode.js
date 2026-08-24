@@ -1212,8 +1212,9 @@
 
     const started = performance.now();
     let mesh;
+    let field;
     try {
-      const field = FieldMod.buildField(nodes);
+      field = FieldMod.buildField(nodes);
       for (const issue of field.issues) log("Solid", `${issue.partId || "plan"}: ${issue.detail}`, "warn");
       mesh = SurfaceMod.extract(field, {});
     } catch (err) {
@@ -1230,17 +1231,14 @@
 
     showSolid(mesh);
     const info = SurfaceMod.inspect(mesh);
-    const units = U();
     const took = Math.round(performance.now() - started);
     // Volume in real units: a scene unit cubed is a millimetre cubed times the
     // factor cubed, and a millilitre is a thousand of those.
     const mm3 = mmPerUnit ? info.volume * mmPerUnit ** 3 : 0;
-    const size = modelSizeMm();
-    log("Solid", `one solid · ${info.triangles.toLocaleString()} triangles${size ? ` · ${size.text}` : ""}`, "ok",
+    log("Solid", `${info.triangles.toLocaleString()} triangles`, "ok",
       [
         mm3 ? `volume ${(mm3 / 1000).toFixed(1)} ml` : "",
         `walked in ${took} ms at ${mesh.stats.resolution} cells across`,
-        units ? "" : "",
       ].filter(Boolean).join("\n"));
     // Said plainly, because a person is about to print this. A count of nothing
     // is the only reading that means watertight, and it is never assumed.
@@ -1249,7 +1247,32 @@
     } else {
       log("Solid", "watertight · every edge has exactly two faces", "ok");
     }
+    reportPrintability(mesh, field);
     setStatus("Ready");
+  }
+
+  /**
+   * Whether the thing could actually be made, in one line and then the detail.
+   *
+   * The summary is read at a glance before pressing export, so it is one line.
+   * Everything behind it is a finding with the number it was judged against, so
+   * a person can disagree with the limit rather than only with the verdict.
+   */
+  function reportPrintability(mesh, field) {
+    const PrintMod = window.HCForgePrintable;
+    if (!PrintMod) return;
+    let out;
+    try {
+      out = PrintMod.assess(mesh, field, { mmPerUnit });
+    } catch (err) {
+      log("Print", `could not check it · ${err?.message || err}`, "warn");
+      return;
+    }
+    log("Print", PrintMod.summarise(out), out.ok ? "ok" : "warn");
+    for (const finding of out.findings) {
+      if (finding.level === "note") continue;
+      log("Print", finding.detail, finding.level === "stop" ? "err" : "warn");
+    }
   }
 
   /** Put the fused mesh on screen in place of the parts. */

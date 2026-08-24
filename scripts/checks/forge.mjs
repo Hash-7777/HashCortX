@@ -332,6 +332,14 @@ console.log('\nThe parts can be fused into one solid, and cut:');
     /await new Promise\(\(resolve\) => setTimeout\(resolve, 0\)\)/.test(fuse));
   check('what a part does to the material survives normalising',
     /op: node\.op === "subtract"/.test(bodyOf('normalizePlan')));
+  const print = bodyOf('reportPrintability');
+  check('the fuse says whether the thing could be made',
+    /HCForgePrintable/.test(print) && /summarise/.test(print));
+  check('and every finding carries the number it was judged against',
+    /finding\.detail/.test(print));
+  check('a note is not shouted about', /finding\.level === "note"/.test(print));
+  check('the printability rules are not in this file',
+    !/minWallMm|maxOverhangDegrees/.test(src), 'they belong in the tested module');
   check('the design is told how to cut a hole', /To take material away/.test(src));
   check('and that order matters when it does', /put the material in before cutting it/.test(src));
 }

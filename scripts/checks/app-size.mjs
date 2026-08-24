@@ -127,7 +127,10 @@ const LINE_BUDGET = {
   // Solidify action builds the field, walks it into a single skin, puts that on
   // screen in place of the parts and writes it instead of them. The added lines
   // are that action and the note saying why it is a snapshot rather than a mode.
-  'modes/forge/mode.js': 3254,
+  // 3277, up from 3254. The fuse now says whether the thing could be made:
+  // one line before export, then each finding with the number it was judged
+  // against, so a person can disagree with the limit and not only the verdict.
+  'modes/forge/mode.js': 3277,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

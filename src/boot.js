@@ -80,6 +80,7 @@
     '/js/forge/units.js',
     '/js/forge/field.js',
     '/js/forge/surface.js',
+    '/js/forge/printable.js',
     '/js/edit-history.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',

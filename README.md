@@ -73,7 +73,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 |---|---|---|
 | 01 | **Chats** | Multi-provider chat with projects, attachments, slash commands, full history |
 | 02 | **Coder** | The coding agent: file tree, real file edits, shell access, browser panel |
-| 03 | **3D Forge** | Structured node and mesh plans for game levels and spatial design |
+| 03 | **3D Forge** | Describe a part, get a dimensioned solid you can print. Fuses to one watertight body, cuts real holes, exports in millimetres |
 | 04 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
 | 05 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
 | 06 | **ERP** | Describe a workflow, get a working interactive prototype |
