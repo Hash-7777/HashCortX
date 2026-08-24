@@ -394,8 +394,11 @@ console.log('\nWhat the assembler reads survives being normalised:');
   const missing = [...read].filter((k) => !written.has(k) && !ignore.has(k));
   check('every field the assembler reads is one the mode passes on',
     missing.length === 0, `dropped: ${missing.join(', ')}`);
-  check('the mirror flag in particular', /mirror: node\.mirror === true/.test(body));
+  check('the mirror request in particular', /mirror: mirrorAxis\(node\.mirror\)/.test(body));
   check('and the pairing the assembler writes back', /mirroredFrom/.test(body));
+  // Without the plane, a repair pass moves a twin along x whatever it was
+  // mirrored across, which separates the pair it is meant to be protecting.
+  check('and the plane the pair was made across', /mirroredOn: mirrorAxis\(node\.mirroredOn\)/.test(body));
 }
 
 console.log('\nImprove is a patch, not another design:');
@@ -471,7 +474,12 @@ console.log('\nThe design prompt asks for a model, not a part count:');
 {
   check('no node-count demand', !/\b24 to 56\b|\b38 to 86\b/.test(src),
     'asking for dozens of parts is what produced a pile of shards');
-  check('symmetry is delegated to the app', /"mirror": true/.test(src));
+  check('symmetry is delegated to the app', /set "mirror" on it/.test(src));
+  // The prompt tells a design to lay an object along X or Z. Offering only the
+  // x plane meant every object laid along X had a symmetry that could be
+  // described and not asked for.
+  check('and any of the three planes can be named',
+    /"mirror": "x", "y" or "z"/.test(src));
   check('audit markers are forbidden rather than requested',
     /Do not add audit markers/.test(src));
   check('few parts that read correctly is stated', /FEW PARTS THAT READ CORRECTLY/.test(src));

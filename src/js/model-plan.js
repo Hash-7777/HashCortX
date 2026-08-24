@@ -312,12 +312,20 @@
         scale,
         params: raw.params && typeof raw.params === "object" ? raw.params : {},
         color: typeof raw.color === "string" ? raw.color : undefined,
-        // Only an explicit flag. A name test used to sit in this expression —
-        // and could never change its result, because both branches ended at
+        // Only an explicit request. A name test used to sit in this expression
+        // — and could never change its result, because both branches ended at
         // raw.mirror. Guessing from a name would be worse than dead anyway: a
         // plan that already contains "leg_fl" and "leg_fr" would have each of
         // them mirrored again, and the chair would arrive with six legs.
-        mirror: raw.mirror === true,
+        //
+        // `true` still means the x plane, so every plan written before this
+        // reads exactly as it did. A named axis names its own.
+        mirror: mirrorAxisOf(raw.mirror) || false,
+        // Which plane a pair was made across. Carried rather than recomputed:
+        // by the time a repair pass needs it, `mirror` has been cleared, and a
+        // twin moved along the wrong axis separates from its partner instead
+        // of following it.
+        mirroredOn: mirrorAxisOf(raw.mirroredOn) || undefined,
         // A pairing the plan already states, carried through rather than
         // dropped. Mirroring produces this field on the twin it creates, and
         // connecting reads it to move a pair together — but a design that
@@ -357,11 +365,17 @@
   /**
    * Symmetry, made rather than requested.
    *
-   * A part marked `mirror` is duplicated across x = 0 with its x position and
-   * x scale negated. Asking a model for "two fins, mirrored" gets two fins in
-   * roughly the right places; doing it here gets two fins that are exactly
-   * opposite, every time, for no tokens. A part already sitting on the axis is
-   * left alone — mirroring it would put a second copy inside the first.
+   * A part marked `mirror` is duplicated across a plane through the origin,
+   * with its position and scale on that axis negated. Asking a model for "two
+   * fins, mirrored" gets two fins in roughly the right places; doing it here
+   * gets two fins that are exactly opposite, every time, for no tokens. A part
+   * already sitting on the plane is left alone — mirroring it would put a
+   * second copy inside the first.
+   *
+   * The plane is x by default and may be named. It was x and only x for a
+   * long time, which meant an object laid out along X — where left and right
+   * are the z sides, or top and bottom the y ones — had a symmetry that could
+   * not be asked for at all, while the prompt invited it.
    */
   /**
    * One part, many times, placed exactly.
@@ -484,29 +498,59 @@
     return { parts: out, issues };
   }
 
+  /**
+   * Which plane a part asks to be mirrored across, or nothing.
+   *
+   * `true` means x, because that is what it has always meant and every plan
+   * written so far says it. A named axis means that axis. Anything else is not
+   * a request this can honour, and is read as no request at all rather than
+   * guessed at.
+   */
+  function mirrorAxisOf(value) {
+    if (value === true) return "x";
+    const name = String(value || "").trim().toLowerCase();
+    return name === "x" || name === "y" || name === "z" ? name : null;
+  }
+
+  const AXIS_INDEX = { x: 0, y: 1, z: 2 };
+
   function expandMirrors(parts, opts = {}) {
     const epsilon = num(opts.epsilon, 1e-3);
     const out = [];
     const issues = [];
     for (const part of parts) {
-      if (!part.mirror) { out.push(part); continue; }
-      if (Math.abs(part.position[0]) <= epsilon) {
-        issues.push({ code: "mirror-on-axis", partId: part.id, detail: "sits on the mirror plane; not duplicated" });
+      const axis = mirrorAxisOf(part.mirror);
+      if (!axis) { out.push(part); continue; }
+      const k = AXIS_INDEX[axis];
+      if (Math.abs(part.position[k]) <= epsilon) {
+        issues.push({ code: "mirror-on-axis", partId: part.id, detail: `sits on the ${axis} = 0 plane; not duplicated` });
         out.push({ ...part, mirror: false });
         continue;
       }
+      // Reflecting across a plane flips the position and the scale on the axis
+      // the plane is perpendicular to, and flips the two rotations that are
+      // NOT about that axis — a turn about the mirrored axis looks the same
+      // from either side, and the other two reverse.
+      const position = part.position.slice();
+      position[k] = -position[k];
+      const scale = part.scale.slice();
+      scale[k] = -scale[k];
+      const rotation = part.rotation.map((v, i) => (i === k ? v : -v));
       // The flag comes off the original as the copy is made. It is a request,
       // and it has now been met — left on, a second pass over the same parts
-      // would mirror them again.
-      out.push({ ...part, mirror: false, hasMirror: true });
+      // would mirror them again. The axis is recorded on both, because the
+      // repair passes move a twin by the opposite of its partner's move and
+      // cannot know which coordinate to reverse without being told.
+      out.push({ ...part, mirror: false, hasMirror: true, mirroredOn: axis });
       out.push({
         ...part,
         id: `${part.id}_mirrored`,
         name: `${part.name} (mirrored)`,
-        position: [-part.position[0], part.position[1], part.position[2]],
-        rotation: [part.rotation[0], -part.rotation[1], -part.rotation[2]],
-        scale: [-part.scale[0], part.scale[1], part.scale[2]],
+        position,
+        rotation,
+        scale,
         mirror: false,
+        mirroredOn: axis,
         mirroredFrom: part.id,
       });
     }
@@ -647,6 +691,14 @@
     const twinOf = (part) => out.findIndex((other) => (
       other !== part && (other.mirroredFrom === part.id || (part.mirroredFrom && other.id === part.mirroredFrom))
     ));
+    // A twin follows its partner by the same move with one coordinate
+    // reversed — the one perpendicular to the plane they were made across.
+    // Reversing x for a pair mirrored on y or z would push the twin sideways
+    // out of the symmetry the mirror pass had just guaranteed.
+    const twinMove = (part, d) => {
+      const k = AXIS_INDEX[mirrorAxisOf(part.mirroredOn) || "x"];
+      return d.map((v, i) => (i === k ? -v : v));
+    };
 
     for (let pass = 0; pass < out.length; pass++) {
       const boxes = out.map(partBox);
@@ -690,8 +742,9 @@
       const twin = twinOf(part);
       if (twin >= 0 && !reached.has(twin)) {
         const other = out[twin];
-        other.position = [other.position[0] - best.d[0], other.position[1] + best.d[1], other.position[2] + best.d[2]];
-        moves.push({ partId: other.id, to: out[best.j].id, by: [-best.d[0], best.d[1], best.d[2]], mirrored: true });
+        const by = twinMove(part, best.d);
+        other.position = other.position.map((v, i) => v + by[i]);
+        moves.push({ partId: other.id, to: out[best.j].id, by: [...by], mirrored: true });
       }
     }
     return { parts: out, moves };
@@ -746,6 +799,12 @@
     const twinOf = (part) => out.findIndex((other) => (
       other !== part && (other.mirroredFrom === part.id || (part.mirroredFrom && other.id === part.mirroredFrom))
     ));
+    // The same reversal as the connecting pass, for the same reason: the
+    // coordinate to flip is the one the pair was mirrored across.
+    const twinMove = (part, d) => {
+      const k = AXIS_INDEX[mirrorAxisOf(part.mirroredOn) || "x"];
+      return d.map((v, i) => (i === k ? -v : v));
+    };
 
     // Smallest first, so a detail is seated into the mass it belongs to before
     // that mass is ever considered for moving into the detail.
@@ -775,10 +834,11 @@
       const twin = twinOf(part);
       if (twin >= 0 && !moved.has(twin)) {
         const other = out[twin];
-        other.position = [other.position[0] - best.d[0], other.position[1] + best.d[1], other.position[2] + best.d[2]];
+        const by = twinMove(part, best.d);
+        other.position = other.position.map((v, i) => v + by[i]);
         boxes[twin] = partBox(other);
         moved.add(twin);
-        seams.push({ partId: other.id, to: out[best.j].id, by: [-best.d[0], best.d[1], best.d[2]], mirrored: true });
+        seams.push({ partId: other.id, to: out[best.j].id, by: [...by], mirrored: true });
       }
     }
     return { parts: out, seams };
@@ -907,6 +967,7 @@
     sizeOf,
     normaliseParts,
     expandMirrors,
+    mirrorAxisOf,
     snapToFloor,
     normaliseScale,
     findIssues,

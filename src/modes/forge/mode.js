@@ -2321,10 +2321,16 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         // flag was not on the list — so it was dropped on the way to the
         // assembler and no generated model has ever been mirrored. What
         // arrived was the half that was asked for: one wing, one fin.
-        mirror: node.mirror === true,
+        //
+        // The value may name its plane, and `true` still means x, so a plan
+        // written before this reads exactly as it did.
+        mirror: mirrorAxis(node.mirror) || false,
         // The pairing the assembler writes back, so a saved model reopens as
-        // pairs rather than as parts that happen to face each other.
+        // pairs rather than as parts that happen to face each other — and the
+        // plane it was made across, without which a repair pass moves a twin
+        // along the wrong axis and breaks the symmetry it is protecting.
         mirroredFrom: typeof node.mirroredFrom === "string" ? node.mirroredFrom : undefined,
+        mirroredOn: mirrorAxis(node.mirroredOn) || undefined,
         hasMirror: node.hasMirror === true ? true : undefined,
         // A request to repeat, and the pairing repeating leaves behind. On the
         // same list for the same reason as the mirroring flag: a field missing
@@ -2339,6 +2345,17 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         blend: Number.isFinite(Number(node.blend)) && Number(node.blend) > 0 ? Number(node.blend) : undefined,
       })),
     };
+  }
+
+  /**
+   * The mirror plane a node names, read through the assembler's own reader so
+   * the two cannot drift apart. Without model-plan loaded there is nothing to
+   * mirror with anyway, and the older spelling is still honoured.
+   */
+  function mirrorAxis(value) {
+    const P = window.HCModelPlan;
+    if (P && typeof P.mirrorAxisOf === "function") return P.mirrorAxisOf(value);
+    return value === true ? "x" : null;
   }
 
   function vec3(v, fallback) {
@@ -2692,7 +2709,10 @@ How to build it:
   add "angle" in degrees for part of one. Along a line: {"count": 5, "along": [0, 0.2, 0]}. The app
   places every copy exactly, and it will not nudge a pattern out of true afterwards — so put the one
   part where it already touches the body, because a pattern that does not reach is reported and left.
-- Symmetry: build ONE side and set "mirror": true on it. The app mirrors it exactly across x=0.
+- Symmetry: build ONE side and set "mirror" on it, naming the plane the two halves sit either
+  side of: "mirror": "x", "y" or "z". Pick it from how the object lies — one laid out along X
+  has its two sides on Z, so that one wants "z". ("mirror": true still means "x".) The app
+  mirrors it exactly, and moves a pair together afterwards so they stay matched.
   Do not hand-place a left and a right copy — they will never match, and the app will not fix it.
 - Every part must touch or overlap another. One object, nothing floating beside it.
 - Do not add audit markers, rings, reference planes, rulers or floor pads. The app measures

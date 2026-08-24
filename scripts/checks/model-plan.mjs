@@ -103,6 +103,79 @@ console.log('\nMirroring produces an exact opposite:');
   ok('and that is reported', issues.some((i) => i.code === 'mirror-on-axis'));
 }
 
+// ── The plane can be named ───────────────────────────────────────────────────
+//
+// The prompt tells a design to lay an object along X or Z. An object laid
+// along X has its two sides on Z, so for a long time the commonest symmetry in
+// the mode was the one that could not be asked for.
+console.log('\nMirroring works on whichever plane the halves sit either side of:');
+{
+  ok('true still means the x plane', P.mirrorAxisOf(true) === 'x');
+  ok('a named plane is taken', P.mirrorAxisOf('z') === 'z' && P.mirrorAxisOf('Y') === 'y');
+  ok('anything else is not a request', P.mirrorAxisOf('w') === null && P.mirrorAxisOf(1) === null
+    && P.mirrorAxisOf(false) === null && P.mirrorAxisOf(undefined) === null);
+
+  for (const [axis, k] of [['x', 0], ['y', 1], ['z', 2]]) {
+    const position = [0, 0, 0];
+    position[k] = 0.4;
+    const { parts } = P.expandMirrors(P.normaliseParts([
+      box('fin', { position, rotation: [0.2, 0.3, 0.4], mirror: axis }),
+    ]).parts);
+    ok(`a part marked ${axis} becomes a pair`, parts.length === 2);
+    const [one, other] = parts;
+    ok(`the ${axis} position is the one negated`,
+      near(other.position[k], -one.position[k])
+      && [0, 1, 2].every((i) => i === k || other.position[i] === one.position[i]));
+    ok(`the ${axis} scale is negated, so it faces the other way`, near(other.scale[k], -one.scale[k]));
+    // A turn about the mirrored axis looks the same from either side; the
+    // other two reverse. Getting this wrong gives a pair that is symmetric in
+    // position and visibly wrong in orientation.
+    ok(`the other two rotations flip and the ${axis} one does not`,
+      near(other.rotation[k], one.rotation[k])
+      && [0, 1, 2].every((i) => i === k || near(other.rotation[i], -one.rotation[i])));
+    ok('both halves record the plane they were made across',
+      one.mirroredOn === axis && other.mirroredOn === axis);
+  }
+
+  const onPlane = P.expandMirrors(P.normaliseParts([
+    box('spine', { position: [0.6, 0, 0], mirror: 'z' }),
+  ]).parts);
+  ok('a part sitting on the named plane is not duplicated onto itself', onPlane.parts.length === 1);
+  ok('and the report names the plane', onPlane.issues.some((i) => i.code === 'mirror-on-axis' && /z = 0/.test(i.detail)));
+}
+
+// A twin follows its partner by the same move with ONE coordinate reversed.
+// Reverse the wrong one and the pair comes apart along the axis it was
+// mirrored on — which is what happened to every non-x pair before the plane
+// was carried through.
+console.log('\nA repaired pair stays a pair, whichever plane it was made across:');
+{
+  for (const [axis, k] of [['x', 0], ['y', 1], ['z', 2]]) {
+    const away = [0, 0, 0];
+    away[k] = 0.9;
+    const built = P.assemble({
+      nodes: [
+        { id: 'body', type: 'box', position: [0, 0, 0], params: { width: 0.5, height: 0.5, depth: 0.5 } },
+        { id: 'fin', type: 'box', position: away, mirror: axis, params: { width: 0.2, height: 0.2, depth: 0.2 } },
+      ],
+    }, { ground: false, targetSize: 0 });
+    const one = built.parts.find((p) => p.id === 'fin');
+    const other = built.parts.find((p) => p.mirroredFrom === 'fin');
+    ok(`a pair mirrored on ${axis} survives the repair passes`, !!one && !!other);
+    // Without this the three checks below would pass on a fixture that was
+    // never touched, which is the shape of a test that proves nothing.
+    ok(`and the pass really did move it on ${axis}`,
+      built.moves.some((m) => m.partId === 'fin')
+      && built.moves.some((m) => m.mirrored && m.by[k] !== 0
+        && [0, 1, 2].every((i) => i === k || m.by[i] === 0)));
+    if (one && other) {
+      ok(`and is still exactly opposite on ${axis}`, near(other.position[k], -one.position[k], 1e-9));
+      ok(`and still shares its other two coordinates on ${axis}`,
+        [0, 1, 2].every((i) => i === k || near(other.position[i], one.position[i], 1e-9)));
+    }
+  }
+}
+
 // ── Floor and scale ──────────────────────────────────────────────────────────
 console.log('\nThe model sits on the floor at a usable size:');
 {

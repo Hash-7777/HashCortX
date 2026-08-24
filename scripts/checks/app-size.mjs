@@ -135,7 +135,12 @@ const LINE_BUDGET = {
   // harmless in a file, because the GLB writer copies opacity into the base
   // colour's alpha. The added lines are the note saying why the number has to
   // be 1 and not merely high.
-  'modes/forge/mode.js': 3283,
+  // 3303, up from 3283. Mirroring can name its plane now, so an object laid
+  // along X — which the prompt asks for — can have the symmetry it actually
+  // has. The added lines are the reader that turns a request into a plane,
+  // the plane carried onto both halves so a repair pass moves a twin the
+  // right way, and the prompt sentence that offers the choice.
+  'modes/forge/mode.js': 3303,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
