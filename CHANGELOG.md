@@ -64,6 +64,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   only when no edge is open and none is folded — a print is not the place to
   find out. The solid is what gets exported, so a printing file is one closed
   body rather than the overlapping shells it was made from.
+- **A printability report.** Fusing a model ends with one line before you
+  export: the size, whether it is one solid, the thinnest wall and how much of
+  it needs support — then each problem with the number it was measured against,
+  so you can disagree with the limit rather than only the verdict. Nothing is
+  ever refused; it tells you what is true and you decide.
 
 ### Removed
 
