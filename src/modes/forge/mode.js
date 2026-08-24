@@ -2112,7 +2112,13 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       if (obj.material) {
         const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
         mats.forEach((mat) => {
-          mat.opacity = Math.max(mat.opacity || 1, 0.86);
+          // Fully opaque, and it has to be the number 1 rather than merely a
+          // high one. `transparent = false` settles what the screen does and
+          // nothing else: the GLB writer puts `opacity` straight into the
+          // material's base colour as its alpha, so a part written while this
+          // carried a leftover from the reveal animation was described to
+          // every other program as not quite solid.
+          mat.opacity = 1;
           mat.transparent = false;
           mat.depthWrite = true;
         });

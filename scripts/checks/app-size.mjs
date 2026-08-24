@@ -130,7 +130,12 @@ const LINE_BUDGET = {
   // 3277, up from 3254. The fuse now says whether the thing could be made:
   // one line before export, then each finding with the number it was judged
   // against, so a person can disagree with the limit and not only the verdict.
-  'modes/forge/mode.js': 3277,
+  // 3283, up from 3277. The export path forced every material to an opacity
+  // of 0.86 — a leftover of the reveal animation, harmless on screen and not
+  // harmless in a file, because the GLB writer copies opacity into the base
+  // colour's alpha. The added lines are the note saying why the number has to
+  // be 1 and not merely high.
+  'modes/forge/mode.js': 3283,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

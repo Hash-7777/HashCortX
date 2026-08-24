@@ -309,6 +309,12 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /units\.exportScale\(kind, mmPerUnit\)/.test(bodyOf('exportableObject')));
   check('and the format is known before the copy is made',
     /const object = exportableObject\(kind\)/.test(src));
+  // The GLB writer copies `opacity` into the material's base colour as its
+  // alpha, so this is not a screen setting — anything under 1 describes a
+  // solid part, in the file, as not quite solid.
+  check('a written part is described as fully solid',
+    /mat\.opacity = 1;/.test(bodyOf('exportableObject'))
+    && !/Math\.max\(mat\.opacity/.test(src));
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
 }
 
