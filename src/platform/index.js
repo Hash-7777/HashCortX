@@ -26,6 +26,28 @@ HC.usageLog = {
       : Promise.resolve(),
 };
 
+// Saved 3D projects — the models a person has made, kept in a file at
+// ~/.hashcortx/forge/projects.json rather than in the renderer's localStorage,
+// which has a quota a plan can exhaust and is cleared with website data.
+//
+// The bridge lives here, and not in the mode, for the reason every mode's
+// native access lives here: a mode is driven by a language model's output, and
+// the rule is that it reaches the machine only through a named door somebody
+// wrote on purpose. This door takes no path and no options — one string in,
+// one string out, a fixed destination chosen in Rust — so there is nothing in
+// it to aim somewhere else.
+//
+// Unlike the two bridges below it, a failure here is NOT swallowed. A save
+// that quietly fails is the defect this replaced: the app said the project was
+// kept and it was not.
+HC.forgeProjects = {
+  read: () => (HC.isTauri ? HC.invoke("forge_projects_read") : Promise.resolve("")),
+  write: (content) =>
+    HC.isTauri
+      ? HC.invoke("forge_projects_write", { content })
+      : Promise.reject(new Error("Saving to a file needs the desktop app")),
+};
+
 // HashNotch ping — light up the notch "HashCortX finished" when a run
 // completes, like the iPhone Dynamic Island (the same feed Claude Code's
 // hook writes). Best-effort and metadata-only — the title and nothing else,

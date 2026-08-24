@@ -93,13 +93,19 @@
   // conversion nobody would remember to keep.
   const FLOOR_Y = 0;
   const MAX_FORGE_NODES = 96;
+  // Read once, to carry anything saved before the move to a file. Nothing is
+  // written here any more when the app is running as an app.
   const PROJECT_STORE_KEY = "hashui_forge_projects";
+  const MAX_SAVED_PROJECTS = 40;
   // Only used if src/js/model-plan.js has not loaded, which would mean the whole
   // deterministic stage is missing. It is the same list that module holds.
   const SHAPE_NAMES = ["box", "cylinder", "capsule", "sphere", "cone", "torus", "lathe", "extrude", "logo", "logo_img", "mesh"];
   const FORGE_ALLOWED_MODEL_PROVIDERS = new Set(["groq", "gemini", "cerebras", "samba", "sambanova", "openrouter", "local"]);
   const FORGE_PROVIDER_COOLDOWNS = new Map();
   let forgeProjects = [];
+  // False once a read has failed, so a save cannot write an empty list over a
+  // store that may hold everything a person has made.
+  let projectStoreWritable = true;
   let activeProjectId = null;
   let projectSaveTimer = 0;
   let activeForgeRoute = "parametric";
@@ -118,18 +124,74 @@
     return JSON.parse(JSON.stringify(value || null));
   }
 
-  function loadForgeProjects() {
+  /** Whatever is in a store, with anything that is not a project dropped. */
+  function readProjects(text) {
     try {
-      const raw = localStorage.getItem(PROJECT_STORE_KEY);
-      const parsed = raw ? JSON.parse(raw) : [];
-      forgeProjects = Array.isArray(parsed) ? parsed.filter((p) => p && Array.isArray(p.plan?.nodes)) : [];
+      const parsed = text ? JSON.parse(text) : [];
+      return Array.isArray(parsed) ? parsed.filter((p) => p && Array.isArray(p.plan?.nodes)) : [];
     } catch {
-      forgeProjects = [];
+      return [];
     }
   }
 
-  function persistForgeProjects() {
-    try { localStorage.setItem(PROJECT_STORE_KEY, JSON.stringify(forgeProjects.slice(0, 40))); } catch {}
+  /**
+   * Everything saved, from the file the app keeps them in — see
+   * src-tauri/src/commands/forge_projects.rs for why it is a file.
+   *
+   * Anything in the old localStorage key is from before the move, so it is
+   * carried across once and left there rather than deleted: a rolled-back
+   * version still looks for it where it was.
+   *
+   * A read that FAILS is not a read that found nothing. Nothing found is an
+   * ordinary first run; a failure means a store may exist and could not be
+   * opened — so writing is switched off, and the next save refuses instead of
+   * replacing a person's models with the empty list this was left holding.
+   */
+  async function loadForgeProjects() {
+    projectStoreWritable = true;
+    if (!window.HC?.isTauri) {
+      forgeProjects = readProjects(localStorage.getItem(PROJECT_STORE_KEY));
+      return;
+    }
+    try {
+      const text = await window.HC.forgeProjects.read();
+      if (text) { forgeProjects = readProjects(text); return; }
+      const carried = readProjects(localStorage.getItem(PROJECT_STORE_KEY));
+      forgeProjects = carried;
+      if (carried.length) {
+        const moved = await persistForgeProjects();
+        log("Projects", moved ? "Saved projects moved into a file" : "Saved projects could not be moved into a file",
+          moved ? "ok" : "warn", `${carried.length} project${carried.length === 1 ? "" : "s"}`);
+      }
+    } catch (err) {
+      forgeProjects = [];
+      projectStoreWritable = false;
+      log("Projects", "Saved projects could not be read — saving is off until this is fixed", "warn",
+        String(err?.message || err));
+    }
+  }
+
+  /**
+   * Write the store, and answer whether it was actually written.
+   *
+   * The old version ended in `catch {}`, so a full quota produced a panel
+   * saying the project was saved and nothing on disk — the app confidently
+   * wrong about the one thing a person cannot check for themselves. Every
+   * caller now takes this answer and says what really happened.
+   */
+  async function persistForgeProjects() {
+    const text = JSON.stringify(forgeProjects.slice(0, MAX_SAVED_PROJECTS));
+    if (!window.HC?.isTauri) {
+      try { localStorage.setItem(PROJECT_STORE_KEY, text); return true; } catch { return false; }
+    }
+    if (!projectStoreWritable) return false;
+    try {
+      await window.HC.forgeProjects.write(text);
+      return true;
+    } catch (err) {
+      log("Projects", "Not saved", "warn", String(err?.message || err));
+      return false;
+    }
   }
 
   function projectNameFromPrompt(prompt, plan) {
@@ -202,7 +264,7 @@
     `).join("");
   }
 
-  function saveCurrentProject(manual) {
+  async function saveCurrentProject(manual) {
     if (!activePlan?.nodes?.length) {
       if (manual) log("Projects", "No Forge object to save yet", "warn");
       return null;
@@ -225,9 +287,15 @@
     project.route = activePlan.route || activeForgeRoute || "parametric";
     project.routes = currentModelRoutes();
     project.name = project.name || projectNameFromPrompt(prompt, activePlan);
-    persistForgeProjects();
+    const written = await persistForgeProjects();
     renderForgeProjects();
-    if (manual) log("Projects", `Saved ${project.name}`, "ok", `${project.plan.nodes.length} mesh parts`);
+    // Said only when it is true. An automatic save that failed is worth a word
+    // too: the person is about to close a window believing the work is kept.
+    if (written) {
+      if (manual) log("Projects", `Saved ${project.name}`, "ok", `${project.plan.nodes.length} mesh parts`);
+    } else {
+      log("Projects", `${project.name} is NOT saved`, "warn", "the change is only on screen");
+    }
     return project;
   }
 
@@ -260,15 +328,15 @@
     log("Projects", `Opened ${project.name || "Forge Project"}`, "ok", `${project.plan.nodes.length} mesh parts`);
   }
 
-  function deleteForgeProject(id) {
+  async function deleteForgeProject(id) {
     const project = forgeProjects.find((p) => p.id === id);
     if (!project) return;
     if (!confirm(`Delete "${project.name || "Forge Project"}"?`)) return;
     forgeProjects = forgeProjects.filter((p) => p.id !== id);
     if (activeProjectId === id) activeProjectId = null;
-    persistForgeProjects();
+    const written = await persistForgeProjects();
     renderForgeProjects();
-    log("Projects", "Deleted Forge project", "warn");
+    log("Projects", written ? "Deleted Forge project" : "Deleted on screen only — the store was not written", "warn");
   }
 
   function escapeHtml(s) {
@@ -3249,7 +3317,7 @@ Prompt: ${prompt}`;
 
   async function mount() {
     mounted = true;
-    loadForgeProjects();
+    await loadForgeProjects();
     syncModelSelectors();
     renderForgeProjects();
     // Whatever is loaded, not nothing. Entering Forge a second time used to

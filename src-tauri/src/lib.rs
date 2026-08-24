@@ -10,6 +10,7 @@ use commands::{
     checkpoint::{checkpoint_drop, checkpoint_list, checkpoint_read, checkpoint_save},
     embed::{embed_available, embed_texts},
     export::export_write_file,
+    forge_projects::{forge_projects_read, forge_projects_write},
     fs::{
         fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_move_file, fs_path_inside_root,
         fs_read_base64, fs_read_file, fs_search_files, fs_write_file,
@@ -94,6 +95,12 @@ pub fn run() {
             checkpoint_drop,
             // Export — write a file the user named in a native save dialog
             export_write_file,
+            // Saved 3D projects. In a file rather than the renderer's
+            // localStorage, which has a quota a plan can exhaust and which is
+            // cleared with website data — and where a failed save was caught
+            // and thrown away, so the app said "saved" and had not.
+            forge_projects_read,
+            forge_projects_write,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");

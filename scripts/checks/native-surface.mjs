@@ -24,7 +24,7 @@ const srcDir = join(root, 'src');
 
 /** Files permitted to invoke a Tauri command, and why. */
 const ALLOWED = new Map([
-  ['platform/index.js', 'defines HC.invoke itself, plus the usage log and notch bridges'],
+  ['platform/index.js', 'defines HC.invoke itself, plus the usage log, notch and saved-projects bridges. Each takes a value and nothing else — no path, no options — and writes to a destination chosen in Rust, so a mode can use one without being able to aim it'],
   ['platform/tauri/guard.js', 'the Permission Guard; writes the audit log'],
   ['platform/tauri/undo.js', 'saves and restores what a file held before a change — no model can call it, every path starts with the user clicking Undo, and a restore still goes through fs_write_file and the denylist'],
   ['platform/tauri/save.js', 'writes an export to the disk — no model can call it, every path starts with the user clicking Export and naming a file in the native dialog, and the write still passes the denylist in export_write_file'],

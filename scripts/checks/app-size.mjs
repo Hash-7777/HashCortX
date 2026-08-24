@@ -140,7 +140,14 @@ const LINE_BUDGET = {
   // has. The added lines are the reader that turns a request into a plane,
   // the plane carried onto both halves so a repair pass moves a twin the
   // right way, and the prompt sentence that offers the choice.
-  'modes/forge/mode.js': 3303,
+  // 3371, up from 3303. Saved projects moved out of the renderer's
+  // localStorage and into a file. Most of the added lines are the difference
+  // between a save that could fail silently and one that cannot: reading and
+  // writing are now asynchronous, a store that could not be read switches
+  // writing off rather than letting an empty list overwrite it, projects saved
+  // by an older version are carried across once, and every caller says what
+  // actually happened instead of assuming it worked.
+  'modes/forge/mode.js': 3371,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

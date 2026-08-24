@@ -318,6 +318,39 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
 }
 
+console.log('\nSaved projects live in a file, and a save that fails says so:');
+{
+  const load = bodyOf('loadForgeProjects');
+  const save = bodyOf('persistForgeProjects');
+  const platform = readFileSync(join(here, '..', '..', 'src', 'platform', 'index.js'), 'utf8');
+
+  check('there is a named door for them in the platform layer',
+    /HC\.forgeProjects = \{/.test(platform)
+    && /forge_projects_read/.test(platform) && /forge_projects_write/.test(platform));
+  // The mode is driven by a language model's output, so it reaches the machine
+  // only through the platform layer — never by naming a command itself.
+  check('and the mode uses it rather than reaching Rust directly',
+    /HC\.forgeProjects\.read\(\)/.test(load) && /HC\.forgeProjects\.write\(/.test(save)
+    && !/HC\.invoke/.test(src));
+  check('the store is no longer written to browser storage in the app',
+    !/localStorage\.setItem\(PROJECT_STORE_KEY/.test(save.replace(/if \(!window\.HC\?\.isTauri\)[\s\S]*?\n    \}/, '')));
+
+  // The exact defect: `catch {}` around the write meant a full quota produced
+  // a panel saying "Saved" with nothing on disk.
+  check('a write answers whether it happened', /return true;/.test(save) && /return false;/.test(save));
+  check('and nothing about the failure is swallowed', !/catch \{\}/.test(save));
+  check('a save only claims success when it had it',
+    /const written = await persistForgeProjects\(\)/.test(bodyOf('saveCurrentProject'))
+    && /if \(written\)/.test(bodyOf('saveCurrentProject')));
+
+  // A read that failed is not a read that found nothing. Writing an empty list
+  // over a store that could not be opened would delete everything in it.
+  check('a store that could not be read is not overwritten',
+    /projectStoreWritable = false/.test(load) && /if \(!projectStoreWritable\) return false/.test(save));
+  check('projects saved by an older version are carried across',
+    /localStorage\.getItem\(PROJECT_STORE_KEY\)/.test(load) && /persistForgeProjects\(\)/.test(load));
+}
+
 console.log('\nThe parts can be fused into one solid, and cut:');
 {
   const fuse = bodyOf('solidifyModel');
