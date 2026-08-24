@@ -30,6 +30,7 @@ for (const rel of [
   ['src', 'js', 'forge', 'io', 'obj.js'],
   ['src', 'js', 'forge', 'io', 'zip.js'],
   ['src', 'js', 'forge', 'io', 'threemf.js'],
+  ['src', 'js', 'forge', 'io', 'step.js'],
 ]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
@@ -39,6 +40,7 @@ const STL = sandbox.window.HCForgeSTL;
 const OBJ = sandbox.window.HCForgeOBJ;
 const ZIP = sandbox.window.HCForgeZip;
 const TMF = sandbox.window.HCForge3MF;
+const STEP = sandbox.window.HCForgeSTEP;
 
 let pass = 0;
 let fail = 0;
@@ -323,6 +325,107 @@ console.log('\nA 3MF is welded, because it describes a solid and not a picture:'
   ok('still the same object', near(M.volume(back), 8000, 1e-6));
 }
 
+console.log('\nA STEP file is a solid, not a bag of faces:');
+{
+  const out = STEP.write(box);
+  const body = out.text;
+
+  ok('every triangle became a face', out.triangles === 12 && out.skipped === 0);
+  ok('the file opens and closes the way the standard says',
+    /^ISO-10303-21;/.test(body) && /END-ISO-10303-21;\n$/.test(body));
+  ok('it has a header and a data section',
+    /\nHEADER;\n/.test(body) && /\nDATA;\n/.test(body) && (body.match(/\nENDSEC;\n/g) || []).length === 2);
+  ok('the unit is declared as the millimetre', /SI_UNIT\(\.MILLI\.,\.METRE\.\)/.test(body));
+  ok('it says which schema it is written to', /AUTOMOTIVE_DESIGN/.test(body));
+  ok('and there is a product, so a reader reports a part rather than nothing',
+    /PRODUCT_RELATED_PRODUCT_CATEGORY\('part'/.test(body) && /SHAPE_DEFINITION_REPRESENTATION/.test(body));
+  ok('nothing depends on a clock, so the same model writes the same file',
+    STEP.write(box).text === body);
+
+  // ── Reference integrity ────────────────────────────────────────────────
+  //
+  // The commonest way a written STEP file is broken: an entity points at a
+  // number nothing defines. No reader recovers from it, and nothing about the
+  // text looks wrong.
+  const defined = new Set();
+  let duplicates = 0;
+  for (const m of body.matchAll(/^#(\d+)=/gm)) {
+    const id = Number(m[1]);
+    if (defined.has(id)) duplicates++;
+    defined.add(id);
+  }
+  const dangling = [];
+  for (const m of body.matchAll(/#(\d+)/g)) {
+    const id = Number(m[1]);
+    if (!defined.has(id)) dangling.push(id);
+  }
+  ok('every entity is defined exactly once', duplicates === 0);
+  ok('and every reference points at one that exists', dangling.length === 0, `${dangling.length} dangling`);
+  // Coordinates, directions and lengths are REALs in the schema and must carry
+  // a decimal point; `1` is not a real in this format and a strict reader
+  // refuses it. The counts and the schema year elsewhere in the file are
+  // genuinely integers, so this looks only where a real is required.
+  {
+    const wrong = [];
+    for (const m of body.matchAll(/^#\d+=(CARTESIAN_POINT|DIRECTION|VECTOR)\(([\s\S]*?)\);$/gm)) {
+      for (const n of m[2].matchAll(/(?<![#\w.])-?\d+(?![.\d])/g)) wrong.push(`${m[1]}: ${n[0]}`);
+    }
+    ok('every coordinate, direction and length carries a decimal point',
+      wrong.length === 0, wrong.slice(0, 3).join(', '));
+  }
+
+  // ── The property that makes it a body ─────────────────────────────────
+  //
+  // A closed solid's faces meet along shared edges: each edge belongs to
+  // exactly two faces, traversed one way by one and the other way by the
+  // other. Give every face its own edges and the file still reads, still
+  // draws, and is a pile of triangles a kernel will not thicken, fillet or
+  // cut. Nothing but this counts it.
+  const uses = new Map();
+  const directions = new Map();
+  for (const m of body.matchAll(/^#\d+=ORIENTED_EDGE\('',\*,\*,#(\d+),\.([TF])\.\);$/gm)) {
+    const edge = Number(m[1]);
+    uses.set(edge, (uses.get(edge) || 0) + 1);
+    directions.set(edge, (directions.get(edge) || []).concat(m[2]));
+  }
+  const edgeCount = (body.match(/^#\d+=EDGE_CURVE\(/gm) || []).length;
+  // A closed triangle mesh has three edges for every two faces.
+  ok('the edges are shared, not one per face', edgeCount === 18, `${edgeCount} edges for 12 faces`);
+  ok('every edge is used by exactly two faces',
+    uses.size === edgeCount && [...uses.values()].every((n) => n === 2));
+  ok('and traversed once each way, which is what closes the surface',
+    [...directions.values()].every((d) => d.length === 2 && d[0] !== d[1]));
+
+  // ── The geometry, read back out ────────────────────────────────────────
+  const back = STEP.read(body);
+  ok('reading it back gives the same triangles', M.triangleCount(back) === 12);
+  ok('with corners shared, as a solid has', M.vertexCount(back) === 8);
+  ok('the same size', M.size(back).every((v, i) => near(v, [40, 20, 10][i], 1e-6)));
+  ok('and the same way out', near(M.volume(back), 8000, 1e-6));
+  ok('the unit survives the trip', back.unit === 'millimetre');
+  ok('and so does the name', back.name === 'test box');
+  ok('and it says plainly that the body is faceted', back.faceted === true);
+}
+
+console.log('\nWhat STEP refuses, it refuses rather than writing a broken file:');
+{
+  ok('nothing to write is nothing written', STEP.write({ positions: [] }) === null);
+
+  // A triangle with no area has no direction for its plane, and a plane
+  // without one is a file a kernel rejects outright.
+  const withFlat = M.fromArrays({
+    positions: box.positions.concat([0, 0, 0, 1, 0, 0, 2, 0, 0]),
+    indices: box.indices.concat([8, 9, 10]),
+  });
+  const out = STEP.write(withFlat);
+  ok('a triangle with no area is dropped', out.triangles === 12);
+  ok('and counted rather than passed over in silence', out.skipped === 1);
+
+  const huge = { positions: new Array((STEP.MAX_TRIANGLES + 1) * 9).fill(0) };
+  ok('a model past the ceiling is refused instead of writing tens of megabytes',
+    STEP.write(huge) === null);
+}
+
 console.log('\nThe two text and binary formats agree with each other:');
 {
   // Written from the same mesh, they must describe the same object. A
@@ -330,15 +433,12 @@ console.log('\nThe two text and binary formats agree with each other:');
   const fromObj = OBJ.read(OBJ.write(box));
   const fromStl = STL.read(STL.write(box));
   const from3mf = TMF.read(TMF.write(box));
-  ok('the same triangle count',
-    M.triangleCount(fromObj) === M.triangleCount(fromStl)
-    && M.triangleCount(from3mf) === M.triangleCount(fromStl));
-  ok('the same size',
-    M.size(fromObj).every((v, i) => near(v, M.size(fromStl)[i], 1e-3))
-    && M.size(from3mf).every((v, i) => near(v, M.size(fromStl)[i], 1e-3)));
-  ok('the same volume',
-    near(M.volume(fromObj), M.volume(fromStl), 1e-2)
-    && near(M.volume(from3mf), M.volume(fromStl), 1e-2));
+  const fromStep = STEP.read(STEP.write(box).text);
+  const all = [fromObj, fromStl, from3mf, fromStep];
+  ok('the same triangle count', all.every((m) => M.triangleCount(m) === 12));
+  ok('the same size', all.every((m) => M.size(m).every((v, i) => near(v, [40, 20, 10][i], 1e-3))));
+  ok('the same volume', all.every((m) => near(M.volume(m), 8000, 1e-2)));
+  ok('and all four the same way out', all.every((m) => M.volume(m) > 0));
 }
 
 console.log('\nAn empty model writes a valid empty file rather than nothing:');

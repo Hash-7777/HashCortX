@@ -2247,6 +2247,17 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         if (!writer) throw new Error("the OBJ writer did not load");
         const text = writer.write(meshForExport(object, activePlan?.name));
         saved = await downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
+      } else if (kind === "step") {
+        const writer = window.HCForgeSTEP;
+        if (!writer) throw new Error("the STEP writer did not load");
+        const out = writer.write(meshForExport(object, activePlan?.name));
+        if (!out) throw new Error("this model is too large to write as a solid");
+        // Said every time, because the alternative is a person opening the file
+        // expecting to fillet a curve and finding a many-sided prism.
+        log("Pipeline", "STEP is written as a faceted solid", "wait",
+          `${out.triangles} flat face${out.triangles === 1 ? "" : "s"} — curves arrive as flats, not as curves`);
+        if (out.skipped) log("Pipeline", `${out.skipped} triangle(s) had no area and were left out`, "warn");
+        saved = await downloadBlob(`${base}.step`, new Blob([out.text], { type: "model/step" }));
       } else if (kind === "3mf") {
         // The only format here that states its own unit, so a part arrives at
         // the size it was designed at without anyone typing a scale.

@@ -313,6 +313,14 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /window\.HCForgeSTL/.test(bodyOf('exportForgeAsset')) && !/STLExporter/.test(src));
   check('and so is OBJ',
     /window\.HCForgeOBJ/.test(bodyOf('exportForgeAsset')) && !/OBJExporter/.test(src));
+  check('and 3MF, which is the one that states its own unit',
+    /window\.HCForge3MF/.test(bodyOf('exportForgeAsset')) && /data-frg-export-kind="3mf"/.test(panel));
+  check('and STEP, which is a solid rather than a surface',
+    /window\.HCForgeSTEP/.test(bodyOf('exportForgeAsset')) && /data-frg-export-kind="step"/.test(panel));
+  // A person opening a STEP expecting to fillet a curve and finding a
+  // many-sided prism is the over-claim this repository exists to prevent.
+  check('the faceted limitation is said plainly, in the panel and on every write',
+    /faceted solid/.test(bodyOf('exportForgeAsset')) && /Faces are flat/.test(panel));
   // The mode gathers; the placing, joining and mirrored-part winding are done
   // where they are plain arithmetic and can be measured.
   check('the scene is gathered here and merged there',

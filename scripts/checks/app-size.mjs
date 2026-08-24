@@ -157,7 +157,12 @@ const LINE_BUDGET = {
   // 3402, up seven. A part can be exported as 3MF, the one format that states
   // its own unit, so it opens at the size it was designed at without anyone
   // typing a scale. The branch and the note saying why it is worth having.
-  'modes/forge/mode.js': 3402,
+  // 3413, up eleven. A part can be exported as STEP: a solid a CAD program
+  // will edit, rather than a surface it will only look at. The added lines are
+  // the branch and the notice that says every time that the body is faceted,
+  // because the alternative is somebody opening the file expecting to fillet a
+  // curve and finding a many-sided prism.
+  'modes/forge/mode.js': 3413,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
