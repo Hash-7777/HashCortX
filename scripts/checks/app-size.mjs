@@ -147,7 +147,12 @@ const LINE_BUDGET = {
   // writing off rather than letting an empty list overwrite it, projects saved
   // by an older version are carried across once, and every caller says what
   // actually happened instead of assuming it worked.
-  'modes/forge/mode.js': 3371,
+  // 3397, up from 3371. Exports are written by this app now rather than by a
+  // generic mesh exporter, so the bytes can be read back and measured. The
+  // added lines are the collector that gathers the scene's meshes and their
+  // placements — the placing, joining and mirrored-part winding all happen in
+  // src/js/forge/io/scene.js, where they are plain arithmetic and are checked.
+  'modes/forge/mode.js': 3397,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

@@ -38,7 +38,6 @@
   let TransformControls = null;
   let GLTFLoader = null;
   let GLTFExporter = null;
-  let STLExporter = null;
   let OBJExporter = null;
   let renderer = null;
   let scene = null;
@@ -2145,11 +2144,34 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       ({ GLTFLoader } = await import("/js/vendor/three/examples/GLTFLoader.js"));
     } else if (kind === "gltfExporter" && !GLTFExporter) {
       ({ GLTFExporter } = await import("/js/vendor/three/examples/GLTFExporter.js"));
-    } else if (kind === "stlExporter" && !STLExporter) {
-      ({ STLExporter } = await import("/js/vendor/three/examples/STLExporter.js"));
     } else if (kind === "objExporter" && !OBJExporter) {
       ({ OBJExporter } = await import("/js/vendor/three/examples/OBJExporter.js"));
     }
+  }
+
+  /**
+   * Everything on screen as one triangle list, in whatever unit the object is
+   * already in — which for an export is millimetres, because
+   * `exportableObject` has applied the scale before this is called.
+   *
+   * Only the gathering happens here. The placing, the joining and the winding
+   * of a mirrored part are done in src/js/forge/io/scene.js, where they are
+   * arithmetic on plain numbers and can be measured.
+   */
+  function meshForExport(object, name) {
+    const parts = [];
+    object.updateMatrixWorld(true);
+    object.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry || obj.visible === false) return;
+      const pos = obj.geometry.getAttribute("position");
+      if (!pos) return;
+      parts.push({
+        positions: pos.array,
+        indices: obj.geometry.index ? obj.geometry.index.array : null,
+        matrix: obj.matrixWorld.elements,
+      });
+    });
+    return window.HCForgeSceneIO.merge(parts, name || activePlan?.name || "model");
   }
 
   /**
@@ -2228,9 +2250,13 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         const text = new OBJExporter().parse(object);
         saved = await downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
       } else if (kind === "stl") {
-        await ensurePipelineModule("stlExporter");
-        const result = new STLExporter().parse(object, { binary: true });
-        saved = await downloadBlob(`${base}.stl`, new Blob([result], { type: "model/stl" }));
+        // Written here rather than by the generic mesh exporter, so the bytes
+        // are ours to check: the same file this produces is read back and
+        // measured by npm run check:forge-io.
+        const writer = window.HCForgeSTL;
+        if (!writer) throw new Error("the STL writer did not load");
+        const bytes = writer.write(meshForExport(object, activePlan?.name));
+        saved = await downloadBlob(`${base}.stl`, new Blob([bytes], { type: "model/stl" }));
       }
       // Only claim it when it happened. The export used to be announced before
       // anything was written, and nothing ever was.

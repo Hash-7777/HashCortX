@@ -307,6 +307,15 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /units\.toMm\(pos\[axis\], mmPerUnit\)/.test(src) && /units\.fromMm\(Number\(value\)/.test(src));
   check('a written file carries the units its format is read in',
     /units\.exportScale\(kind, mmPerUnit\)/.test(bodyOf('exportableObject')));
+  // Our own writer, so the bytes a person gets are the bytes a check reads
+  // back — see scripts/checks/forge-io.mjs.
+  check('STL is written by this app rather than by a generic mesh exporter',
+    /window\.HCForgeSTL/.test(bodyOf('exportForgeAsset')) && !/STLExporter/.test(src));
+  // The mode gathers; the placing, joining and mirrored-part winding are done
+  // where they are plain arithmetic and can be measured.
+  check('the scene is gathered here and merged there',
+    /HCForgeSceneIO\.merge\(/.test(bodyOf('meshForExport'))
+    && !/determinant\(\)/.test(src));
   check('and the format is known before the copy is made',
     /const object = exportableObject\(kind\)/.test(src));
   // The GLB writer copies `opacity` into the material's base colour as its
