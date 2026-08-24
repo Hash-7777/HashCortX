@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "check": "npm run check:version && npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:pdf-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:vector-map && npm run check:model-plan && npm run check:forge-expr && npm run check:forge-field && npm run check:forge-surface && npm run check:forge-print && npm run check:forge-units && npm run check:forge-measure && npm run check:forge-corpus && npm run check:edit-history && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge && npm run check:returns && npm run check:undefined-names",
+    "check": "npm run check:version && npm run check:syntax && npm run check:guard && npm run check:rag && npm run check:agent && npm run check:export && npm run check:policy && npm run check:layout && npm run check:power && npm run check:native && npm run check:usage && npm run check:dom && npm run check:diff && npm run check:undo && npm run check:rag-store && npm run check:url-safety && npm run check:page-text && npm run check:pdf-text && npm run check:providers && npm run check:imports && npm run check:markdown && npm run check:shape && npm run check:model-names && npm run check:memory && npm run check:vector-map && npm run check:model-plan && npm run check:forge-expr && npm run check:forge-field && npm run check:forge-surface && npm run check:forge-print && npm run check:forge-subdivide && npm run check:forge-units && npm run check:forge-measure && npm run check:forge-corpus && npm run check:edit-history && npm run check:save && npm run check:forge && npm run check:theme && npm run check:controls && npm run check:csp && npm run check:modes && npm run check:css-layers && npm run check:app-size && npm run check:extraction && npm run check:bridge && npm run check:returns && npm run check:undefined-names",
     "check:syntax": "node scripts/checks/syntax.mjs",
     "check:guard": "node scripts/checks/guard.mjs",
     "check:rag": "node scripts/checks/rag.mjs",
@@ -35,6 +35,7 @@
     "check:forge-field": "node scripts/checks/forge-field.mjs",
     "check:forge-surface": "node scripts/checks/forge-surface.mjs",
     "check:forge-print": "node scripts/checks/forge-print.mjs",
+    "check:forge-subdivide": "node scripts/checks/forge-subdivide.mjs",
     "check:forge-units": "node scripts/checks/forge-units.mjs",
     "check:forge-measure": "node scripts/checks/forge-measure.mjs",
     "check:forge-corpus": "node scripts/checks/forge-corpus.mjs",

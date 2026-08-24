@@ -942,9 +942,7 @@
   function finalizeGeometry(geometry, params) {
     if (!geometry) return geometry;
     const p = params || {};
-    const subdivisions = Math.min(2, Math.max(0, Number(p.subdivisions) || 0));
-    let geo = geometry;
-    for (let i = 0; i < subdivisions; i++) geo = subdivideGeometry(geo);
+    let geo = subdivideGeometry(geometry, p.subdivisions);
     if (p.center) geo.center();
     geo.computeVertexNormals();
     geo.computeBoundingBox();
@@ -952,33 +950,35 @@
     return geo;
   }
 
-  function subdivideGeometry(source) {
-    const base = source.index ? source.toNonIndexed() : source.clone();
-    const pos = base.getAttribute("position");
-    if (!pos || pos.count > 12000) return base;
-    const next = [];
-    const a = new THREE.Vector3();
-    const b = new THREE.Vector3();
-    const c = new THREE.Vector3();
-    const ab = new THREE.Vector3();
-    const bc = new THREE.Vector3();
-    const ca = new THREE.Vector3();
-    const push = (v) => next.push(v.x, v.y, v.z);
-    for (let i = 0; i < pos.count; i += 3) {
-      a.fromBufferAttribute(pos, i);
-      b.fromBufferAttribute(pos, i + 1);
-      c.fromBufferAttribute(pos, i + 2);
-      ab.copy(a).lerp(b, 0.5);
-      bc.copy(b).lerp(c, 0.5);
-      ca.copy(c).lerp(a, 0.5);
-      push(a); push(ab); push(ca);
-      push(ab); push(b); push(bc);
-      push(ca); push(bc); push(c);
-      push(ab); push(bc); push(ca);
-    }
-    base.dispose?.();
+  /**
+   * Denser triangles for the same shape, through src/js/forge/subdivide.js —
+   * arithmetic on plain arrays, so the surface it produces can be measured
+   * rather than assumed, which a scene needing a GPU cannot be.
+   *
+   * The result is INDEXED, and that is the point: loose triangles left the
+   * normals computed a moment later with nothing to average across, so a shape
+   * asked to be smoother came back faceted, and the texture coordinates went
+   * with them. A mesh that was not split comes back exactly as it arrived.
+   */
+  function subdivideGeometry(source, times) {
+    const lib = window.HCForgeSubdivide;
+    const position = source?.getAttribute?.("position");
+    if (!lib || !position) return source;
+    const normal = source.getAttribute("normal");
+    const uv = source.getAttribute("uv");
+    const out = lib.subdivide({
+      positions: position.array,
+      normals: normal ? normal.array : null,
+      uvs: uv ? uv.array : null,
+      indices: source.index ? source.index.array : null,
+    }, times);
+    if (!out.applied) return source;
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(next, 3));
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(out.positions, 3));
+    if (out.normals) geo.setAttribute("normal", new THREE.Float32BufferAttribute(out.normals, 3));
+    if (out.uvs) geo.setAttribute("uv", new THREE.Float32BufferAttribute(out.uvs, 2));
+    geo.setIndex(out.indices);
+    source.dispose?.();
     return geo;
   }
 

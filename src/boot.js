@@ -78,6 +78,7 @@
     '/js/forge/expr.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
+    '/js/forge/subdivide.js',
     '/js/forge/field.js',
     '/js/forge/surface.js',
     '/js/forge/printable.js',
