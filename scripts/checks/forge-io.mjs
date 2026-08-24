@@ -28,6 +28,8 @@ for (const rel of [
   ['src', 'js', 'forge', 'io', 'scene.js'],
   ['src', 'js', 'forge', 'io', 'stl.js'],
   ['src', 'js', 'forge', 'io', 'obj.js'],
+  ['src', 'js', 'forge', 'io', 'zip.js'],
+  ['src', 'js', 'forge', 'io', 'threemf.js'],
 ]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
@@ -35,6 +37,8 @@ const M = sandbox.window.HCForgeMeshIO;
 const S = sandbox.window.HCForgeSceneIO;
 const STL = sandbox.window.HCForgeSTL;
 const OBJ = sandbox.window.HCForgeOBJ;
+const ZIP = sandbox.window.HCForgeZip;
+const TMF = sandbox.window.HCForge3MF;
 
 let pass = 0;
 let fail = 0;
@@ -256,15 +260,85 @@ console.log('\nThe reader handles what other writers really produce:');
   ok('an empty file reads as an empty model', M.triangleCount(OBJ.read('')) === 0);
 }
 
+console.log('\nThe zip container holds what was put in it:');
+{
+  const encode = (t) => new TextEncoder().encode(t);
+  const bytes = ZIP.store([
+    { name: 'first.txt', bytes: encode('hello') },
+    { name: 'nested/second.txt', bytes: encode('a longer member, with commas, and text') },
+  ]);
+  const back = ZIP.unstore(bytes);
+  ok('every member comes back', back.size === 2);
+  ok('by name, including a nested one', back.has('first.txt') && back.has('nested/second.txt'));
+  ok('with its bytes unchanged',
+    new TextDecoder().decode(back.get('first.txt')) === 'hello');
+  ok('and the longer one too',
+    new TextDecoder().decode(back.get('nested/second.txt')) === 'a longer member, with commas, and text');
+  // The checksum is what a reader uses to decide the file is intact. Written
+  // wrong, most readers refuse the archive outright.
+  ok('the checksum is the standard one', ZIP.crc32(encode('123456789')) === 0xcbf43926);
+  ok('an empty member is allowed', ZIP.unstore(ZIP.store([{ name: 'empty', bytes: [] }])).get('empty').length === 0);
+  ok('an empty archive is still a valid archive', ZIP.unstore(ZIP.store([])).size === 0);
+  ok('nothing that is not an archive comes back as one', ZIP.unstore(encode('not a zip')).size === 0);
+  // No clock anywhere in it, so the same model twice is the same bytes.
+  ok('the same input writes the same bytes',
+    ZIP.store([{ name: 'a', bytes: encode('x') }]).join() === ZIP.store([{ name: 'a', bytes: encode('x') }]).join());
+}
+
+console.log('\nA 3MF says what its numbers mean, which the other formats cannot:');
+{
+  const bytes = TMF.write(box);
+  const back = TMF.read(bytes);
+  ok('the three members a 3MF needs are there',
+    back.members.includes('[Content_Types].xml')
+    && back.members.includes('_rels/.rels')
+    && back.members.includes('3D/3dmodel.model'));
+  // The entire reason this format is worth a zip container underneath it.
+  ok('the unit is stated in the file', back.unit === 'millimeter');
+  ok('and the model is named', back.name === 'test box');
+  ok('the same triangles', M.triangleCount(back) === 12);
+  ok('the same size', M.size(back).every((v, i) => near(v, [40, 20, 10][i], 1e-6)));
+  ok('and the same way out', near(M.volume(back), 8000, 1e-6));
+}
+
+console.log('\nA 3MF is welded, because it describes a solid and not a picture:');
+{
+  // The scene hands over a corner per face so hard edges can be shaded. That
+  // is a screen concern; in a file about material it is a seam, and a reader
+  // checking for a closed surface calls the mesh open.
+  const loose = { positions: [], name: 'loose' };
+  for (let i = 0; i < M.triangleCount(box); i++) for (const p of M.triangle(box, i)) loose.positions.push(...p);
+  ok('the fixture really does arrive with a corner per face',
+    M.vertexCount(M.fromArrays(loose)) === 36);
+
+  const welded = TMF.weldByPosition(M.fromArrays(loose));
+  ok('and comes out with one corner per point', M.vertexCount(welded) === 8);
+  ok('with the triangles unchanged', M.triangleCount(welded) === 12);
+  ok('the same size', M.size(welded).every((v, i) => near(v, [40, 20, 10][i], 1e-9)));
+  ok('and the same volume, so nothing was pulled together that should not be',
+    near(M.volume(welded), 8000, 1e-9));
+
+  const back = TMF.read(TMF.write(loose));
+  ok('a loose mesh written as 3MF arrives welded', M.vertexCount(back) === 8);
+  ok('still the same object', near(M.volume(back), 8000, 1e-6));
+}
+
 console.log('\nThe two text and binary formats agree with each other:');
 {
   // Written from the same mesh, they must describe the same object. A
   // disagreement here is one of the two writers being wrong.
   const fromObj = OBJ.read(OBJ.write(box));
   const fromStl = STL.read(STL.write(box));
-  ok('the same triangle count', M.triangleCount(fromObj) === M.triangleCount(fromStl));
-  ok('the same size', M.size(fromObj).every((v, i) => near(v, M.size(fromStl)[i], 1e-3)));
-  ok('the same volume', near(M.volume(fromObj), M.volume(fromStl), 1e-2));
+  const from3mf = TMF.read(TMF.write(box));
+  ok('the same triangle count',
+    M.triangleCount(fromObj) === M.triangleCount(fromStl)
+    && M.triangleCount(from3mf) === M.triangleCount(fromStl));
+  ok('the same size',
+    M.size(fromObj).every((v, i) => near(v, M.size(fromStl)[i], 1e-3))
+    && M.size(from3mf).every((v, i) => near(v, M.size(fromStl)[i], 1e-3)));
+  ok('the same volume',
+    near(M.volume(fromObj), M.volume(fromStl), 1e-2)
+    && near(M.volume(from3mf), M.volume(fromStl), 1e-2));
 }
 
 console.log('\nAn empty model writes a valid empty file rather than nothing:');

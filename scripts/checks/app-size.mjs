@@ -154,7 +154,10 @@ const LINE_BUDGET = {
   // src/js/forge/io/scene.js, where they are plain arithmetic and are checked.
   // 3395, down two. OBJ is written by this app as well now, so the second
   // vendored exporter and the branch that loaded it are both gone.
-  'modes/forge/mode.js': 3395,
+  // 3402, up seven. A part can be exported as 3MF, the one format that states
+  // its own unit, so it opens at the size it was designed at without anyone
+  // typing a scale. The branch and the note saying why it is worth having.
+  'modes/forge/mode.js': 3402,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

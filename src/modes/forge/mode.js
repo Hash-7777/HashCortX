@@ -2247,6 +2247,13 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         if (!writer) throw new Error("the OBJ writer did not load");
         const text = writer.write(meshForExport(object, activePlan?.name));
         saved = await downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
+      } else if (kind === "3mf") {
+        // The only format here that states its own unit, so a part arrives at
+        // the size it was designed at without anyone typing a scale.
+        const writer = window.HCForge3MF;
+        if (!writer) throw new Error("the 3MF writer did not load");
+        const bytes = writer.write(meshForExport(object, activePlan?.name));
+        saved = await downloadBlob(`${base}.3mf`, new Blob([bytes], { type: "model/3mf" }));
       } else if (kind === "stl") {
         // Written here rather than by the generic mesh exporter, so the bytes
         // are ours to check: the same file this produces is read back and

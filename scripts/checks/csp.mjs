@@ -138,6 +138,12 @@ for (const [w, why] of ALLOWED_WILDCARDS) {
  */
 const NOT_A_REQUEST = new Map([
   ['www.w3.org', 'the SVG namespace handed to createElementNS, not an address'],
+  // A 3MF names its schemas by URL and nothing ever fetches them: they are
+  // written into the file as text, and a reader recognises the string. Adding
+  // them to connect-src would widen where a compromised prompt can send data
+  // in exchange for nothing at all.
+  ['schemas.microsoft.com', 'the 3MF namespace written into an exported file, not an address'],
+  ['schemas.openxmlformats.org', 'the package namespaces written into an exported file, not an address'],
   ['doi.org', 'a link shown beside a search result for the user to open'],
   ['europepmc.org', 'a link shown beside a search result'],
   ['pubmed.ncbi.nlm.nih.gov', 'a link shown beside a search result'],
