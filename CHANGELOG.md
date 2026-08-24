@@ -105,6 +105,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   - **STEP**, new: a solid a CAD program will edit rather than a surface it
     will only look at. Its faces are flat — a curve arrives as many flat sides
     — and the app says so on the control and again every time it writes one.
+- **A part's own dimensions can be changed.** Until now a part could be moved,
+  turned and stretched, and nothing else — its radius, its depth, its thickness
+  could only be changed by asking a model to design the whole object again.
+  Stretching is not the same thing: scaling a cylinder on two sides gives an
+  oval prism, while changing its radius gives a wider cylinder. Selecting a part
+  now lists the numbers that shape is actually made of, in millimetres, and
+  changing one rebuilds just that part — it keeps its place, its turn and the
+  selection, and the change can be undone like any other.
 - **A mirrored part is no longer exported inside out.** Mirroring is done by
   turning a part's scale negative, which reverses the way its triangles face.
   Nothing looked wrong: the corners were in the right places and the model
