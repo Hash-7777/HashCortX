@@ -162,7 +162,13 @@ const LINE_BUDGET = {
   // the branch and the notice that says every time that the body is faceted,
   // because the alternative is somebody opening the file expecting to fillet a
   // curve and finding a many-sided prism.
-  'modes/forge/mode.js': 3413,
+  // 3534, up from 3413. A part's own dimensions can be changed now — a
+  // cylinder's radius rather than a scale factor on two axes that turns it
+  // into an oval prism. Most of the added lines are the geometry asking
+  // src/js/forge/params.js for every fallback instead of writing its own, so
+  // the panel cannot show a number the part was not built with; the rest are
+  // the fields and the one-part rebuild behind them.
+  'modes/forge/mode.js': 3534,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

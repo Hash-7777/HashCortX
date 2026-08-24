@@ -949,29 +949,58 @@
     }
   }
 
+  /**
+   * The shape itself, built from the numbers the part carries.
+   *
+   * Every fallback comes from src/js/forge/params.js rather than being written
+   * here, because the panel shows those same numbers. Two copies of "how wide
+   * is a box that did not say" is a field that reads as the truth and is not:
+   * a person types back the number they were shown and the part changes shape.
+   */
   function primitiveGeometry(node) {
     const p = node.params || {};
+    // Falls back to reading the params directly when the table has not loaded,
+    // so a shape is still built rather than the whole model going missing.
+    const v = (key, whenAbsent) => {
+      const P = window.HCForgeParams;
+      const value = P ? P.valueOf(node, key) : undefined;
+      return value === undefined ? whenAbsent : value;
+    };
     switch (node.type) {
       case "logo":
       case "logo_img":
-        return new THREE.PlaneGeometry(p.width ?? 2.1, p.height ?? 2.1);
+        return new THREE.PlaneGeometry(v("width", p.width ?? 2.1), v("height", p.height ?? 2.1));
       case "mesh":
         return meshGeometryFromParams(p);
       case "cylinder":
-        return new THREE.CylinderGeometry(p.radiusTop ?? p.radius ?? 0.35, p.radiusBottom ?? p.radius ?? 0.35, p.height ?? 1, p.segments ?? 48);
+        return new THREE.CylinderGeometry(
+          v("radiusTop", p.radiusTop ?? p.radius ?? 0.35),
+          v("radiusBottom", p.radiusBottom ?? p.radius ?? 0.35),
+          v("height", p.height ?? 1),
+          v("segments", p.segments ?? 48));
       case "capsule":
-        return new THREE.CapsuleGeometry(p.radius ?? 0.12, p.length ?? p.height ?? 0.6, p.capSegments ?? 16, p.radialSegments ?? 32);
+        return new THREE.CapsuleGeometry(
+          v("radius", p.radius ?? 0.12),
+          v("length", p.length ?? p.height ?? 0.6),
+          v("capSegments", p.capSegments ?? 16),
+          v("radialSegments", p.radialSegments ?? 32));
       case "sphere":
-        return new THREE.SphereGeometry(p.radius ?? 0.45, p.widthSegments ?? 48, p.heightSegments ?? 32);
+        return new THREE.SphereGeometry(
+          v("radius", p.radius ?? 0.45),
+          v("widthSegments", p.widthSegments ?? 48),
+          v("heightSegments", p.heightSegments ?? 32));
       case "cone":
-        return new THREE.ConeGeometry(p.radius ?? 0.42, p.height ?? 1, p.segments ?? 48);
+        return new THREE.ConeGeometry(
+          v("radius", p.radius ?? 0.42),
+          v("height", p.height ?? 1),
+          v("segments", p.segments ?? 48));
       case "torus":
-        return new THREE.TorusGeometry(p.radius ?? 0.5, p.tube ?? 0.08, 24, 64);
+        return new THREE.TorusGeometry(v("radius", p.radius ?? 0.5), v("tube", p.tube ?? 0.08), 24, 64);
       case "lathe": {
         const pts = Array.isArray(p.points) && p.points.length >= 2
           ? p.points.map((pt) => new THREE.Vector2(Number(pt[0]) || 0.1, Number(pt[1]) || 0))
           : [new THREE.Vector2(0.18, -0.55), new THREE.Vector2(0.42, -0.2), new THREE.Vector2(0.34, 0.42), new THREE.Vector2(0.08, 0.65)];
-        return new THREE.LatheGeometry(pts, p.segments ?? 64);
+        return new THREE.LatheGeometry(pts, v("segments", p.segments ?? 64));
       }
       case "extrude": {
         const pts = Array.isArray(p.points) && p.points.length >= 3
@@ -981,10 +1010,16 @@
         shape.moveTo(pts[0][0], pts[0][1]);
         for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][1]);
         shape.closePath();
-        return new THREE.ExtrudeGeometry(shape, { depth: p.depth ?? 0.18, bevelEnabled: true, bevelSize: p.bevelSize ?? 0.025, bevelThickness: p.bevelThickness ?? 0.025, bevelSegments: p.bevelSegments ?? 2 });
+        return new THREE.ExtrudeGeometry(shape, {
+          depth: v("depth", p.depth ?? 0.18),
+          bevelEnabled: true,
+          bevelSize: v("bevelSize", p.bevelSize ?? 0.025),
+          bevelThickness: v("bevelThickness", p.bevelThickness ?? 0.025),
+          bevelSegments: v("bevelSegments", p.bevelSegments ?? 2),
+        });
       }
       default:
-        return new THREE.BoxGeometry(p.width ?? 1, p.height ?? 1, p.depth ?? 1);
+        return new THREE.BoxGeometry(v("width", p.width ?? 1), v("height", p.height ?? 1), v("depth", p.depth ?? 1));
     }
   }
 
@@ -1792,6 +1827,46 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       </div>
       <div class="frg-edit-grid" aria-label="Rotation" style="margin-top:6px">
         ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Rot ${axis.toUpperCase()}</label><input data-frg-rot="${axis}" type="number" step="5" value="${escapeHtml(Math.round(THREE.MathUtils.radToDeg(rot[axis])))}"></span>`).join("")}
+      </div>
+      ${shapeFieldsHtml(node)}`;
+  }
+
+  /**
+   * The part's own dimensions, which until now could not be changed at all.
+   *
+   * Resizing is not the same edit and cannot stand in for this: scaling a
+   * cylinder on two axes gives an oval prism, while changing its radius gives
+   * a wider cylinder, and only one of those is the part somebody meant.
+   *
+   * Lengths are shown in millimetres, through the same lens as a position,
+   * because a scene unit means nothing outside this window. Counts — how many
+   * sides a curve is drawn with — are plain whole numbers and stay that way.
+   */
+  function shapeFieldsHtml(node) {
+    const P = window.HCForgeParams;
+    if (!P || selectedObjectWhole) return "";
+    const fields = P.valuesOf(node);
+    if (!fields.length) {
+      // Said rather than left blank. A mesh is somebody else's vertices and has
+      // no radius to change; an empty space reads as a panel that failed.
+      return P.fieldsFor(node.type)
+        ? `<div class="frg-selection-empty" style="margin-top:8px">A ${escapeHtml(node.type || "part")} has no dimensions of its own to change — move, turn and resize it instead.</div>`
+        : "";
+    }
+    const units = U();
+    const mm = units && mmPerUnit;
+    return `
+      <div class="frg-edit-grid" aria-label="Shape" style="margin-top:6px">
+        ${fields.map((field) => {
+          const isLength = field.kind === "length";
+          const value = isLength && mm
+            ? units.formatMm(units.toMm(field.value, mmPerUnit), { bare: true })
+            : isLength ? Number(field.value).toFixed(3) : String(field.value);
+          const label = isLength && mm ? `${field.label} (mm)` : field.label;
+          const step = isLength ? (mm ? 1 : 0.01) : 1;
+          const min = isLength && mm ? 0 : field.min;
+          return `<span class="frg-edit-field"><label>${escapeHtml(label)}</label><input data-frg-param="${escapeHtml(field.key)}" type="number" step="${step}" min="${min}" value="${escapeHtml(value)}"></span>`;
+        }).join("")}
       </div>`;
   }
 
@@ -1956,6 +2031,48 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     syncSelectedNodeFromMesh();
     selectionBox?.update();
     updatePlanList(activePlan);
+  }
+
+  /**
+   * Change one of the part's own numbers and rebuild just that part.
+   *
+   * Only the geometry is replaced — the mesh keeps its place, its turn, its
+   * material and the selection — so changing a radius does not move anything
+   * or lose what was selected.
+   *
+   * The fused solid is dropped, because it was a snapshot of parts that have
+   * now changed shape and a stale solid on screen is worse than none. The
+   * model is measured again for the same reason: the badge would otherwise
+   * keep reporting the size the model was before the edit.
+   */
+  function updateSelectedParam(key, value) {
+    const P = window.HCForgeParams;
+    if (!selectedMesh || !P || selectedObjectWhole) return;
+    const node = selectedMesh.userData.node;
+    const field = P.fieldOf(node?.type, key);
+    if (!node || !field) return;
+    // Nothing typed yet is not an instruction. Clearing a field in order to
+    // retype it would otherwise rebuild the part at its default on the way
+    // past, which a person sees as the shape jumping while they type.
+    if (String(value).trim() === "") return;
+    const units = U();
+    // Read back through the lens it was shown through, or a person typing the
+    // number they were just shown would get a part of a different size.
+    const raw = field.kind === "length" && units && mmPerUnit
+      ? units.fromMm(Number(value) || 0, mmPerUnit)
+      : Number(value);
+    node.params = P.withValue(node, key, raw);
+
+    const geoParams = node.params;
+    const next = finalizeGeometry(primitiveGeometry(node), geoParams);
+    if (!next) return;
+    selectedMesh.geometry?.dispose?.();
+    selectedMesh.geometry = next;
+    dropSolid();
+    selectionBox?.update();
+    measureRealSize();
+    updatePlanList(activePlan);
+    queueProjectSave();
   }
 
   function updateSelectedRotation(axis, degrees) {
@@ -3256,9 +3373,13 @@ Prompt: ${prompt}`;
       const posAxis = e.target.dataset.frgPos;
       const scaleAxis = e.target.dataset.frgScale;
       const rotAxis = e.target.dataset.frgRot;
+      const paramKey = e.target.dataset.frgParam;
       if (posAxis) updateSelectedPosition(posAxis, e.target.value);
       if (scaleAxis) updateSelectedScale(scaleAxis, e.target.value);
       if (rotAxis) updateSelectedRotation(rotAxis, e.target.value);
+      // Recorded, so a dimension typed by mistake can be taken back the same
+      // way a move can. Every other edit on this panel already could be.
+      if (paramKey) recordEdit(`change ${paramKey}`, () => updateSelectedParam(paramKey, e.target.value));
     });
     $("frgCadToolbar")?.addEventListener("click", (e) => {
       const exportBtn = e.target.closest("[data-frg-export-kind]");

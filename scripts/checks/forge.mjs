@@ -335,6 +335,20 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /mat\.opacity = 1;/.test(bodyOf('exportableObject'))
     && !/Math\.max\(mat\.opacity/.test(src));
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
+  // Resizing is not the same edit: scaling a cylinder on two axes gives an
+  // oval prism, while changing its radius gives a wider cylinder.
+  check("a part's own dimensions can be changed, not only its size on screen",
+    /data-frg-param/.test(src) && /function updateSelectedParam/.test(src));
+  check('and only that part is rebuilt, so nothing moves or loses selection',
+    /selectedMesh\.geometry = next/.test(bodyOf('updateSelectedParam'))
+    && !/buildPlan\(/.test(bodyOf('updateSelectedParam')));
+  // A snapshot of parts that have since changed shape is worse than no
+  // snapshot, and the badge would otherwise report the size from before.
+  check('the fused solid is dropped and the model measured again',
+    /dropSolid\(\)/.test(bodyOf('updateSelectedParam'))
+    && /measureRealSize\(\)/.test(bodyOf('updateSelectedParam')));
+  check('a dimension typed by mistake can be taken back like any other edit',
+    /recordEdit\(`change \$\{paramKey\}`/.test(src));
 }
 
 console.log('\nSaved projects live in a file, and a save that fails says so:');
