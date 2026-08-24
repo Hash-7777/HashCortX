@@ -168,7 +168,12 @@ const LINE_BUDGET = {
   // src/js/forge/params.js for every fallback instead of writing its own, so
   // the panel cannot show a number the part was not built with; the rest are
   // the fields and the one-part rebuild behind them.
-  'modes/forge/mode.js': 3534,
+  // 3604, up from 3534. The parts list is an ordered build list now, not a
+  // flat set of labels: every part shows where it falls in the order, can be
+  // moved earlier or later, and can be renamed. Order is not decoration — the
+  // parts are folded into the solid in it, and cutting a bore then adding a
+  // boss is a different object from the reverse.
+  'modes/forge/mode.js': 3604,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

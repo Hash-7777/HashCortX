@@ -793,14 +793,53 @@ body.forge-studio-mode #app { display: none; }
   background: rgba(201,169,110,0.12);
 }
 
+/* Order, name, what it is, and the arrows that move it. The order column is
+   fixed so every number lines up down the list rather than shifting with the
+   width of the name beside it. */
 .frg-plan-item {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 18px 1fr auto auto;
+  align-items: center;
   gap: 6px;
   padding: 8px 9px;
   border: 1px solid rgba(201,169,110,0.16);
   border-radius: var(--radius-sm);
   background: rgba(201,169,110,0.045);
+}
+
+.frg-plan-order {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(201,169,110,0.62);
+  text-align: right;
+}
+
+.frg-plan-move {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.frg-plan-move button {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid rgba(201,169,110,0.22);
+  border-radius: var(--radius-xs);
+  background: rgba(0,0,0,0.2);
+  color: rgba(236,231,220,0.72);
+  font-size: 8px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.frg-plan-move button:hover:not(:disabled) {
+  border-color: rgba(201,169,110,0.6);
+  color: var(--warn);
+}
+
+.frg-plan-move button:disabled {
+  opacity: 0.25;
+  cursor: default;
 }
 
 .frg-plan-item b {
@@ -812,7 +851,7 @@ body.forge-studio-mode #app { display: none; }
   text-overflow: ellipsis;
 }
 
-.frg-plan-item span {
+.frg-plan-kind {
   font-family: var(--mono);
   font-size: 9px;
   color: rgba(236,231,220,0.48);

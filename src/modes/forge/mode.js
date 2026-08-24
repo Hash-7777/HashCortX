@@ -629,12 +629,21 @@
     const host = $("frgPlanList");
     if (!host) return;
     const nodes = renderableNodes(plan?.nodes || []);
-    host.innerHTML = nodes.length ? nodes.map((node) => `
+    // Numbered, because the order is not decoration: parts are folded into the
+    // solid in this order, and cutting a bore then adding a boss is a different
+    // object from adding the boss and cutting through it. It was impossible to
+    // see that order, let alone change it.
+    host.innerHTML = nodes.length ? nodes.map((node, i) => `
       <div class="frg-plan-item${selectedMesh?.userData?.nodeId === node.id ? " selected" : ""}" data-node-id="${escapeHtml(node.id || "")}">
+        <span class="frg-plan-order" aria-hidden="true">${i + 1}</span>
         <b>${escapeHtml(node.name || node.id || node.type)}</b>
-        <span>${escapeHtml(node.role || "structure")} · ${escapeHtml(node.type || "box")}</span>
+        <span class="frg-plan-kind">${escapeHtml(node.role || "structure")} · ${escapeHtml(node.type || "box")}</span>
+        <span class="frg-plan-move">
+          <button data-frg-node-move="up" data-node-id="${escapeHtml(node.id || "")}" title="Earlier in the order" aria-label="Move ${escapeHtml(node.name || "part")} earlier"${i === 0 ? " disabled" : ""}>&#9650;</button>
+          <button data-frg-node-move="down" data-node-id="${escapeHtml(node.id || "")}" title="Later in the order" aria-label="Move ${escapeHtml(node.name || "part")} later"${i === nodes.length - 1 ? " disabled" : ""}>&#9660;</button>
+        </span>
       </div>
-    `).join("") : `<div class="frg-plan-item"><b>No mesh yet</b><span>Awaiting Parameter Agent</span></div>`;
+    `).join("") : `<div class="frg-plan-item"><b>No mesh yet</b><span class="frg-plan-kind">Awaiting Parameter Agent</span></div>`;
     $("frgPlanName").textContent = plan?.name || "Void ready";
     // The part count alone answers a question nobody asked. How big the thing
     // is, is the first thing a person wants to know about an object they are
@@ -642,6 +651,36 @@
     const measured = modelSizeMm();
     $("frgNodeCount").textContent = `${nodes.length} part${nodes.length === 1 ? "" : "s"}`
       + (measured ? ` · ${measured.text}` : "");
+  }
+
+  /**
+   * Move one part earlier or later in the build order.
+   *
+   * Moved among ALL the nodes, not among the ones on screen. The list hides
+   * audit parts, so a swap made against the visible positions would move a
+   * part past something invisible and land it somewhere else than the arrow
+   * pointed.
+   *
+   * The scene is rebuilt rather than the meshes reshuffled, because order is
+   * the thing that changed and a mesh's place in the group is what carries it.
+   */
+  function moveNodeInOrder(id, delta) {
+    const nodes = activePlan?.nodes;
+    if (!Array.isArray(nodes)) return false;
+    const from = nodes.findIndex((node) => node && node.id === id);
+    if (from < 0) return false;
+    const visible = renderableNodes(nodes);
+    const among = visible.findIndex((node) => node.id === id);
+    const neighbour = visible[among + delta];
+    if (!neighbour) return false;
+    const to = nodes.indexOf(neighbour);
+    if (to < 0) return false;
+    nodes.splice(to, 0, nodes.splice(from, 1)[0]);
+    // A reorder changes what the fused solid would be, so the one on screen is
+    // a snapshot of an object that no longer exists.
+    restoreParts(nodes);
+    selectNodeById(id);
+    return true;
   }
 
   function renderableNodes(nodes) {
@@ -1800,6 +1839,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         <b title="${escapeHtml(selectedObjectWhole ? "Whole object" : node.name || selectedMesh.name || "Part")}">${escapeHtml(selectedObjectWhole ? "Whole object" : node.name || selectedMesh.name || "Part")}</b>
         <span>${escapeHtml(selectedObjectWhole ? "object" : node.role || "part")}</span>
       </div>
+      ${selectedObjectWhole ? "" : `<div class="frg-edit-grid" aria-label="Name" style="grid-template-columns:1fr">
+        <span class="frg-edit-field"><label>Name</label><input data-frg-name type="text" maxlength="60" value="${escapeHtml(node.name || node.id || "")}"></span>
+      </div>`}
       <div class="frg-edit-buttons">
         <button class="frg-edit-btn${transformMode === "translate" ? " active" : ""}" data-frg-edit="translate">Move</button>
         <button class="frg-edit-btn${transformMode === "rotate" ? " active" : ""}" data-frg-edit="rotate">Rotate</button>
@@ -2071,6 +2113,24 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     dropSolid();
     selectionBox?.update();
     measureRealSize();
+    updatePlanList(activePlan);
+    queueProjectSave();
+  }
+
+  /**
+   * Rename the selected part.
+   *
+   * The list is redrawn but the panel is not: redrawing it would replace the
+   * input being typed into and put the caret back at the start after every
+   * keystroke. An empty name falls back to the part's id, so a row can never
+   * become a blank line nothing identifies.
+   */
+  function renameSelectedPart(value) {
+    if (!selectedMesh || selectedObjectWhole) return;
+    const node = selectedMesh.userData.node;
+    if (!node) return;
+    node.name = String(value || "").trim().slice(0, 60) || node.id || "Part";
+    selectedMesh.name = node.name;
     updatePlanList(activePlan);
     queueProjectSave();
   }
@@ -3374,6 +3434,7 @@ Prompt: ${prompt}`;
       const scaleAxis = e.target.dataset.frgScale;
       const rotAxis = e.target.dataset.frgRot;
       const paramKey = e.target.dataset.frgParam;
+      if (e.target.hasAttribute("data-frg-name")) renameSelectedPart(e.target.value);
       if (posAxis) updateSelectedPosition(posAxis, e.target.value);
       if (scaleAxis) updateSelectedScale(scaleAxis, e.target.value);
       if (rotAxis) updateSelectedRotation(rotAxis, e.target.value);
@@ -3434,6 +3495,15 @@ Prompt: ${prompt}`;
       if (item) openForgeProject(item.dataset.frgProject);
     });
     $("frgPlanList")?.addEventListener("click", (e) => {
+      // The arrows sit inside the row, so they are answered first — otherwise
+      // every reorder would also be read as a click on the row behind it.
+      const move = e.target.closest("[data-frg-node-move]");
+      if (move) {
+        e.stopPropagation();
+        const delta = move.dataset.frgNodeMove === "up" ? -1 : 1;
+        recordEdit("reorder", () => moveNodeInOrder(move.dataset.nodeId, delta));
+        return;
+      }
       const item = e.target.closest("[data-node-id]");
       if (item) selectNodeById(item.dataset.nodeId);
     });

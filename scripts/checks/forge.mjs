@@ -351,6 +351,40 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /recordEdit\(`change \$\{paramKey\}`/.test(src));
 }
 
+console.log('\nThe parts list is the build order, and the order can be changed:');
+{
+  const list = bodyOf('updatePlanList');
+  const move = bodyOf('moveNodeInOrder');
+  check('every part shows where it falls in the order',
+    /frg-plan-order/.test(list) && /\$\{i \+ 1\}/.test(list));
+  check('and can be moved earlier or later',
+    /data-frg-node-move="up"/.test(list) && /data-frg-node-move="down"/.test(list));
+  check('the ends of the list offer no move that would do nothing',
+    /i === 0 \? " disabled"/.test(list) && /i === nodes\.length - 1 \? " disabled"/.test(list));
+  // The list hides audit parts. Swapping by visible position would move a part
+  // past something invisible and land it somewhere the arrow did not point.
+  check('a move is made among all the parts, not only the shown ones',
+    /const nodes = activePlan\?\.nodes/.test(move) && /renderableNodes\(nodes\)/.test(move)
+    && /nodes\.indexOf\(neighbour\)/.test(move));
+  check('the scene is rebuilt, because order is what changed',
+    /restoreParts\(nodes\)/.test(move));
+  check('and the part stays selected after it moves', /selectNodeById\(id\)/.test(move));
+  check('a reorder can be undone', /recordEdit\("reorder"/.test(src));
+  // The arrows sit inside the row, so without this every reorder is also read
+  // as a click on the row behind it.
+  check('pressing an arrow does not also count as clicking the row',
+    /const move = e\.target\.closest\("\[data-frg-node-move\]"\)[\s\S]{0,240}stopPropagation\(\)/.test(src));
+
+  const rename = bodyOf('renameSelectedPart');
+  check('a part can be renamed', /data-frg-name/.test(src) && !!rename);
+  // Redrawing the panel would replace the input being typed into and put the
+  // caret back at the start after every keystroke.
+  check('and renaming does not redraw the field being typed into',
+    /updatePlanList\(activePlan\)/.test(rename) && !/renderSelection\(\)/.test(rename));
+  check('an empty name falls back rather than leaving a blank row',
+    /\|\| node\.id \|\| "Part"/.test(rename));
+}
+
 console.log('\nSaved projects live in a file, and a save that fails says so:');
 {
   const load = bodyOf('loadForgeProjects');
