@@ -1,7 +1,7 @@
 {
   "id": "mug",
   "prompt": "a coffee mug",
-  "note": "Turned body plus a ring handle. No bore yet \u2014 the hole is the thing the schema cannot say.",
+  "note": "A turned body with a real bore cut through it, plus a ring handle. The bore is the first thing in the corpus that could not be expressed at all before subtraction existed \u2014 every mug the app made was a solid lump.",
   "plan": {
     "name": "Mug",
     "nodes": [
@@ -28,19 +28,19 @@
         "params": {
           "points": [
             [
-              0.42,
+              "outer - 0.02",
               -0.5
             ],
             [
-              0.44,
+              "outer",
               -0.2
             ],
             [
-              0.44,
+              "outer",
               0.4
             ],
             [
-              0.42,
+              "outer - 0.02",
               0.5
             ]
           ],
@@ -71,6 +71,33 @@
           "radius": 0.42,
           "height": 0.06,
           "segments": 48
+        }
+      },
+      {
+        "id": "bore",
+        "name": "bore",
+        "type": "cylinder",
+        "role": "structure",
+        "op": "subtract",
+        "position": [
+          0,
+          0.12,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "params": {
+          "radius": "outer - wall",
+          "height": 1.0,
+          "segments": 64
         }
       },
       {
@@ -123,6 +150,11 @@
           "tube": 0.03
         }
       }
-    ]
+    ],
+    "vars": {
+      "outer": 0.44,
+      "wall": 0.05
+    },
+    "sizeMm": 95
   }
 }

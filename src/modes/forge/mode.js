@@ -107,6 +107,10 @@
   // is actually on screen. Zero until something is built — a factor guessed
   // before there is geometry would be a wrong number shown with confidence.
   let mmPerUnit = 0;
+  // The one fused mesh, when it has been asked for. Null the rest of the time,
+  // because it is a snapshot: any edit to a part makes it out of date, and a
+  // stale solid on screen is worse than no solid.
+  let solidMesh = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -1138,6 +1142,7 @@
       return;
     }
     clearScene();
+    dropSolid();
     activePlan = normalizePlan(plan);
     const nodes = renderableNodes(activePlan.nodes);
     const revealStart = performance.now();
@@ -1173,6 +1178,109 @@
   /** The units module, if it loaded. Everything here degrades without it. */
   function U() {
     return window.HCForgeUnits || null;
+  }
+
+  /**
+   * Fuse every part into one solid, and cut whatever was marked to be cut.
+   *
+   * The parts on screen are separate shells sitting inside each other, which is
+   * why a join shows a seam and why nothing could ever be taken away. This asks
+   * the whole model as one question — for any point, is it inside — and walks
+   * the answer into a single skin. It is what makes a hole a hole.
+   *
+   * A snapshot rather than a mode: it is thrown away the moment anything is
+   * edited or rebuilt, because a solid that no longer matches its parts is a
+   * picture of a model that does not exist.
+   *
+   * Deliberately a button and not automatic. It takes about a second and a half
+   * on the largest model measured, which is nothing to wait for when it is
+   * asked for and far too much between every edit.
+   */
+  async function solidifyModel() {
+    const FieldMod = window.HCForgeField;
+    const SurfaceMod = window.HCForgeSurface;
+    if (!await initThree()) return;
+    if (!FieldMod || !SurfaceMod) { log("Solid", "the solid modeller did not load", "err"); return; }
+    const nodes = renderableNodes(activePlan?.nodes || []);
+    if (!nodes.length) { log("Solid", "there is no model to fuse", "warn"); return; }
+
+    setStatus("Fusing");
+    log("Solid", `Fusing ${nodes.length} part(s) into one`, "run");
+    // Yielded to the browser first, or the button never draws its pressed state
+    // and the window looks frozen for the whole walk.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const started = performance.now();
+    let mesh;
+    try {
+      const field = FieldMod.buildField(nodes);
+      for (const issue of field.issues) log("Solid", `${issue.partId || "plan"}: ${issue.detail}`, "warn");
+      mesh = SurfaceMod.extract(field, {});
+    } catch (err) {
+      log("Solid", `could not fuse the model · ${err?.message || err}`, "err");
+      setStatus("Ready");
+      return;
+    }
+    if (!mesh.stats.triangles) {
+      for (const issue of mesh.issues) log("Solid", issue.detail, "warn");
+      log("Solid", "nothing came out of the fuse — the parts may be thinner than the grid", "err");
+      setStatus("Ready");
+      return;
+    }
+
+    showSolid(mesh);
+    const info = SurfaceMod.inspect(mesh);
+    const units = U();
+    const took = Math.round(performance.now() - started);
+    // Volume in real units: a scene unit cubed is a millimetre cubed times the
+    // factor cubed, and a millilitre is a thousand of those.
+    const mm3 = mmPerUnit ? info.volume * mmPerUnit ** 3 : 0;
+    const size = modelSizeMm();
+    log("Solid", `one solid · ${info.triangles.toLocaleString()} triangles${size ? ` · ${size.text}` : ""}`, "ok",
+      [
+        mm3 ? `volume ${(mm3 / 1000).toFixed(1)} ml` : "",
+        `walked in ${took} ms at ${mesh.stats.resolution} cells across`,
+        units ? "" : "",
+      ].filter(Boolean).join("\n"));
+    // Said plainly, because a person is about to print this. A count of nothing
+    // is the only reading that means watertight, and it is never assumed.
+    if (info.boundaryEdges || info.nonManifoldEdges) {
+      log("Solid", `${info.boundaryEdges + info.nonManifoldEdges} edge(s) are not a clean join — a feature is thinner than the grid`, "warn");
+    } else {
+      log("Solid", "watertight · every edge has exactly two faces", "ok");
+    }
+    setStatus("Ready");
+  }
+
+  /** Put the fused mesh on screen in place of the parts. */
+  function showSolid(mesh) {
+    clearScene();
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(mesh.positions, 3));
+    geometry.setIndex(new THREE.BufferAttribute(mesh.indices, 1));
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    const material = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(PRINT_COLOR),
+      roughness: 0.72,
+      metalness: 0.04,
+    });
+    const solid = new THREE.Mesh(geometry, material);
+    solid.castShadow = true;
+    solid.receiveShadow = true;
+    solid.name = activePlan?.name || "Solid";
+    // Not selectable: it is one body, and the parts it came from are still the
+    // thing to edit. Selecting it would offer to move a snapshot.
+    solid.userData.selectable = false;
+    modelGroup.add(solid);
+    solidMesh = mesh;
+    frameModel();
+  }
+
+  /** Throw the snapshot away. Anything that changes the parts invalidates it. */
+  function dropSolid() {
+    solidMesh = null;
   }
 
   /**
@@ -1673,6 +1781,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   function restoreParts(parts) {
     if (!THREE || !modelGroup) return;
     clearScene();
+    dropSolid();
     activePlan = { ...(activePlan || { name: "Forge object" }), nodes: JSON.parse(JSON.stringify(parts || [])) };
     const nodes = renderableNodes(activePlan.nodes);
     nodes.forEach((node) => addNodeMesh(node, performance.now()));
@@ -1909,6 +2018,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
     if (s.seated) notes.push(`${s.seated} seam(s) closed`);
     if (s.repeated) notes.push(`${s.repeated} part(s) made by repeating`);
+    if (s.subtracted) notes.push(`${s.subtracted} part(s) cut away`);
     if (s.received !== s.kept) notes.push(`${s.received - s.kept} unrenderable part(s) dropped`);
     // "nothing to correct" used to be printed above a list of parts the same
     // step had just found adrift. It is only true when the list is empty.
@@ -1961,7 +2071,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    */
   function exportableObject(kind) {
     if (!modelGroup || !modelGroup.children.length) return null;
-    syncSelectedNodeFromMesh();
+    // When the model has been fused, that is the thing to write: one closed
+    // body rather than the overlapping shells it was made from. Printing
+    // formats care about the difference and so does anything that opens it.
+    if (!solidMesh) syncSelectedNodeFromMesh();
     const clone = modelGroup.clone(true);
     const units = U();
     if (units && mmPerUnit) {
@@ -2189,6 +2302,12 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         // from it is dropped in silence and the feature simply stops happening.
         repeat: node.repeat && typeof node.repeat === "object" && !Array.isArray(node.repeat) ? node.repeat : undefined,
         repeatedFrom: typeof node.repeatedFrom === "string" ? node.repeatedFrom : undefined,
+        // What this part does to the material already there. On the same list
+        // for the same reason as every other flag: a field missing from it is
+        // dropped in silence, and a hole that quietly stops being a hole is a
+        // solid lump nobody asked for.
+        op: node.op === "subtract" || node.op === "intersect" ? node.op : undefined,
+        blend: Number.isFinite(Number(node.blend)) && Number(node.blend) > 0 ? Number(node.blend) : undefined,
       })),
     };
   }
@@ -2496,6 +2615,7 @@ Schema:
       "name": "part name",
       "type": "mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder",
       "role": "structure|surface|detail|audit",
+      "op": "union|subtract|intersect",
       "position": [x,y,z],
       "rotation": [x,y,z],
       "scale": [x,y,z],
@@ -2526,6 +2646,14 @@ How to build it:
   the app can build, and a part that says nothing usable becomes a plain box.
 - Set "subdivisions":1 on every smooth organic surface and "segments":64 on lathes, cylinders,
   cones and capsules. The defaults look faceted.
+- HOLES. To take material away, write the part that IS the hole and set "op": "subtract" on it. A
+  mug's bore is a cylinder subtracted from the body; a vent is a box subtracted; a screw hole is a
+  cylinder; a hollow shell is the same shape a little smaller, subtracted. Put the cutting part where
+  the hole goes and make it longer than the material it passes through, so it comes out the other
+  side. "op": "intersect" keeps only what two parts share. Order matters — parts are applied in the
+  order you write them, so put the material in before cutting it.
+- "blend": 0.05 on a part rounds off the join where it meets what is already there. That is a fillet,
+  and it is what makes a bracket look made rather than assembled.
 - Arithmetic. Any number may be written as a sum instead of a literal: "bore / 2 + wall". Names come
   from "vars", which may themselves be written from each other. Available: + - * / % ^ ( ), and
   min max abs sqrt sin cos tan atan2 floor ceil round sign pow hypot clamp rad deg, and pi and tau.
@@ -2991,6 +3119,7 @@ Prompt: ${prompt}`;
       else if (tool === "floor") recordEdit("drop to floor", alignSelectedToFloor);
       else if (tool === "snap") setSnapEnabled(!snapEnabled);
       else if (tool === "import") $("frgAssetImport")?.click();
+      else if (tool === "solidify") solidifyModel();
       else if (tool === "focus") focusCameraOnSelection();
       else if (tool === "camUp") panCameraVertical(0.35);
       else if (tool === "camDown") panCameraVertical(-0.35);

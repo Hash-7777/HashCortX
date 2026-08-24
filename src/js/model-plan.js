@@ -334,6 +334,10 @@
         // been the same story with a different feature.
         repeat: raw.repeat && typeof raw.repeat === "object" && !Array.isArray(raw.repeat) ? raw.repeat : undefined,
         repeatedFrom: typeof raw.repeatedFrom === "string" ? raw.repeatedFrom : undefined,
+        // What this part does to the material already there. Nothing said means
+        // adding to it, which is what every plan written before this meant.
+        op: raw.op === "subtract" || raw.op === "intersect" ? raw.op : undefined,
+        blend: Number.isFinite(Number(raw.blend)) && Number(raw.blend) > 0 ? Number(raw.blend) : undefined,
       };
 
       const [hx, hy, hz] = halfExtents(part);
@@ -883,6 +887,7 @@
         repeated: repeated.parts.length - cleaned.parts.length,
         mirrored: parts.filter((p) => p.mirroredFrom).length,
         connected: joined.moves.length,
+        subtracted: parts.filter((p) => p.op === "subtract").length,
         seated: seated.seams.length,
         scaleFactor: scaled.factor,
         floorOffset: floored.offset,

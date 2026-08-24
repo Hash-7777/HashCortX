@@ -123,7 +123,11 @@ const LINE_BUDGET = {
   // four times around Y" instead of writing out twenty-four positions. The
   // added lines are the two fields that carry a repeat and the named values
   // through, and the prompt that tells a model both exist.
-  'modes/forge/mode.js': 3125,
+  // 3254, up from 3125. A model can be fused into one solid and cut: the
+  // Solidify action builds the field, walks it into a single skin, puts that on
+  // screen in place of the parts and writes it instead of them. The added lines
+  // are that action and the note saying why it is a snapshot rather than a mode.
+  'modes/forge/mode.js': 3254,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

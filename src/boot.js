@@ -78,6 +78,8 @@
     '/js/forge/expr.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
+    '/js/forge/field.js',
+    '/js/forge/surface.js',
     '/js/edit-history.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',

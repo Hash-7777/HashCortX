@@ -312,6 +312,30 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
 }
 
+console.log('\nThe parts can be fused into one solid, and cut:');
+{
+  const fuse = bodyOf('solidifyModel');
+  check('there is an action that fuses them', /data-frg-tool="solidify"/.test(panel) && /function solidifyModel/.test(src));
+  check('it asks the tested modules rather than doing geometry here',
+    /HCForgeField/.test(fuse) && /HCForgeSurface/.test(fuse) &&
+    !/function polygonDistance|function extractOnce/.test(src));
+  // A person is about to print this. A count of nothing is the only reading
+  // that means watertight, and it is never assumed.
+  check('it reports watertight only when nothing is open or folded',
+    /if \(info\.boundaryEdges \|\| info\.nonManifoldEdges\)[\s\S]{0,260}watertight/.test(fuse));
+  check('and it says the volume in something a person uses', /ml`/.test(fuse));
+  check('the fused mesh is a snapshot, thrown away when the parts change',
+    /dropSolid\(\)/.test(bodyOf('buildPlan')) && /dropSolid\(\)/.test(bodyOf('restoreParts')));
+  check('an export writes the solid when there is one',
+    /if \(!solidMesh\) syncSelectedNodeFromMesh\(\)/.test(bodyOf('exportableObject')));
+  check('the yield before walking is there, so the window does not look frozen',
+    /await new Promise\(\(resolve\) => setTimeout\(resolve, 0\)\)/.test(fuse));
+  check('what a part does to the material survives normalising',
+    /op: node\.op === "subtract"/.test(bodyOf('normalizePlan')));
+  check('the design is told how to cut a hole', /To take material away/.test(src));
+  check('and that order matters when it does', /put the material in before cutting it/.test(src));
+}
+
 console.log('\nA design may do arithmetic, and say a thing once:');
 {
   const body = bodyOf('normalizePlan');
