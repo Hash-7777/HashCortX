@@ -385,6 +385,40 @@ console.log('\nThe parts list is the build order, and the order can be changed:'
     /\|\| node\.id \|\| "Part"/.test(rename));
 }
 
+console.log('\nA person can make a hole, not only a design:');
+{
+  const html = bodyOf('materialRoleHtml');
+  const setRole = bodyOf('setSelectedMaterialRole');
+  const look = bodyOf('applyMaterialRoleLook');
+
+  check('a part can be told to cut away or to keep only what overlaps',
+    /data-frg-op/.test(src)
+    && /\["subtract", "Cuts away"\]/.test(html)
+    && /\["intersect", "Keeps only what overlaps"\]/.test(html));
+  check('and the choice reaches the part the fuse reads',
+    /node\.op = value === "subtract" \|\| value === "intersect"/.test(setRole));
+  // A number that does nothing is worse than no number: the blend is only
+  // read where a part adds.
+  check('the rounded join is offered only where it means something',
+    /op === "union" \? `/.test(html));
+  check('and is removed when a part becomes a cut, not left in the plan',
+    /delete node\.blend/.test(setRole));
+  // Otherwise a bore and a boss are identical on screen and the only way to
+  // tell them apart is to fuse the model and see what happened.
+  check('a cutting part is drawn as an outline rather than a lump',
+    /mat\.wireframe = cuts/.test(look) && /applyMaterialRoleLook\(mesh, node\)/.test(bodyOf('addNodeMesh')));
+  check('the fused solid is dropped, since it no longer describes this model',
+    /dropSolid\(\)/.test(setRole));
+  check('changing what a part does can be undone',
+    /recordEdit\("change what a part does"/.test(src));
+
+  // The file itself looks perfectly fine. It is simply not the object asked
+  // for, which is the only kind of wrong worth stopping someone about.
+  const exportBody = bodyOf('exportForgeAsset');
+  check('exporting cuts that were never fused says so before writing',
+    /has not been fused/.test(exportBody) && /press Solidify first/.test(exportBody));
+}
+
 console.log('\nSaved projects live in a file, and a save that fails says so:');
 {
   const load = bodyOf('loadForgeProjects');

@@ -1223,6 +1223,9 @@
       mesh.castShadow = true;
       mesh.receiveShadow = true;
     }
+    // A part that cuts is drawn as an outline, so a bore and a boss do not
+    // look identical until the model is fused.
+    applyMaterialRoleLook(mesh, node);
     const pos = node.position || [0, 0, 0];
     const rot = node.rotation || [0, 0, 0];
     const scale = node.scale || [1, 1, 1];
@@ -1870,7 +1873,98 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       <div class="frg-edit-grid" aria-label="Rotation" style="margin-top:6px">
         ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Rot ${axis.toUpperCase()}</label><input data-frg-rot="${axis}" type="number" step="5" value="${escapeHtml(Math.round(THREE.MathUtils.radToDeg(rot[axis])))}"></span>`).join("")}
       </div>
+      ${materialRoleHtml(node)}
       ${shapeFieldsHtml(node)}`;
+  }
+
+  /**
+   * What this part does to the material around it.
+   *
+   * A design could say a part cuts away rather than adds, and the fuse has
+   * honoured that since holes arrived — but a person could not say it. Making
+   * a hole meant asking a model to design the whole object again, which is a
+   * strange thing to need when the hole is a cylinder you can already place.
+   *
+   * The blend only means something where a part ADDS: it is how far the join
+   * with its neighbour is rounded off. Offering it beside a cut would be
+   * offering a number that does nothing.
+   */
+  function materialRoleHtml(node) {
+    if (selectedObjectWhole) return "";
+    const op = node.op === "subtract" || node.op === "intersect" ? node.op : "union";
+    const options = [
+      ["union", "Adds material"],
+      ["subtract", "Cuts away"],
+      ["intersect", "Keeps only what overlaps"],
+    ];
+    const units = U();
+    const blend = Number(node.blend) > 0 ? Number(node.blend) : 0;
+    const blendShown = units && mmPerUnit
+      ? units.formatMm(units.toMm(blend, mmPerUnit), { bare: true })
+      : blend.toFixed(3);
+    return `
+      <div class="frg-edit-grid" aria-label="What this part does" style="grid-template-columns:1fr; margin-top:6px">
+        <span class="frg-edit-field">
+          <label>What this part does</label>
+          <select data-frg-op>
+            ${options.map(([value, label]) => `<option value="${value}"${value === op ? " selected" : ""}>${label}</option>`).join("")}
+          </select>
+        </span>
+        ${op === "union" ? `<span class="frg-edit-field">
+          <label>Rounded join${units && mmPerUnit ? " (mm)" : ""}</label>
+          <input data-frg-blend type="number" min="0" step="${units && mmPerUnit ? 1 : 0.01}" value="${escapeHtml(blendShown)}">
+        </span>` : ""}
+      </div>`;
+  }
+
+  /**
+   * A part that cuts is drawn as an outline rather than as a lump.
+   *
+   * Otherwise a bore and a boss look exactly alike on screen, and the only way
+   * to tell which is which is to fuse the model and see what happened. Drawn
+   * as wireframe rather than made see-through, because a transparent surface
+   * is sorted instead of depth tested and every overlapping join in the model
+   * would show through itself.
+   */
+  function applyMaterialRoleLook(mesh, node) {
+    const mats = Array.isArray(mesh?.material) ? mesh.material : mesh?.material ? [mesh.material] : [];
+    const cuts = node?.op === "subtract" || node?.op === "intersect";
+    for (const mat of mats) {
+      if (!("wireframe" in mat)) continue;
+      mat.wireframe = cuts;
+      mat.needsUpdate = true;
+    }
+    if (mesh) mesh.castShadow = mesh.receiveShadow = !cuts && node?.type !== "logo" && node?.type !== "logo_img";
+  }
+
+  /** Change what the selected part does, and redraw it as that. */
+  function setSelectedMaterialRole(value) {
+    if (!selectedMesh || selectedObjectWhole) return;
+    const node = selectedMesh.userData.node;
+    if (!node) return;
+    node.op = value === "subtract" || value === "intersect" ? value : undefined;
+    // A blend has no meaning on a cut, and leaving one behind would put a
+    // number in the saved plan that nothing reads and that reappears if the
+    // part is ever made an addition again.
+    if (node.op) delete node.blend;
+    applyMaterialRoleLook(selectedMesh, node);
+    dropSolid();
+    updatePlanList(activePlan);
+    renderSelection();
+    queueProjectSave();
+  }
+
+  /** How far the join with a neighbour is rounded off, where this part adds. */
+  function setSelectedBlend(value) {
+    if (!selectedMesh || selectedObjectWhole) return;
+    const node = selectedMesh.userData.node;
+    if (!node || String(value).trim() === "") return;
+    const units = U();
+    const raw = units && mmPerUnit ? units.fromMm(Number(value) || 0, mmPerUnit) : Number(value) || 0;
+    const blend = Math.max(0, Math.min(1, raw));
+    if (blend > 0) node.blend = blend; else delete node.blend;
+    dropSolid();
+    queueProjectSave();
   }
 
   /**
@@ -2397,6 +2491,17 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (!object) {
       log("Pipeline", "No model to export", "warn");
       return;
+    }
+    // A cut is arithmetic done by the fuse. Until that has run, the parts on
+    // screen are still separate lumps and a file written from them holds the
+    // cutter as solid material rather than as a hole. Said before the file is
+    // written, because the file itself looks perfectly fine — it is simply not
+    // the object that was asked for.
+    const cutting = renderableNodes(activePlan?.nodes || [])
+      .filter((node) => node.op === "subtract" || node.op === "intersect").length;
+    if (cutting && !solidMesh) {
+      log("Pipeline", `${cutting} part(s) cut away, and this model has not been fused`, "warn",
+        "press Solidify first or the file will hold them as solid material, not as holes");
     }
     updateStage("export", "active", `writing ${kind.toUpperCase()}`);
     const base = safeFileName(activePlan?.name || $("frgPrompt")?.value || "3d-forge-model");
@@ -3435,6 +3540,14 @@ Prompt: ${prompt}`;
       const rotAxis = e.target.dataset.frgRot;
       const paramKey = e.target.dataset.frgParam;
       if (e.target.hasAttribute("data-frg-name")) renameSelectedPart(e.target.value);
+      if (e.target.hasAttribute("data-frg-op")) {
+        recordEdit("change what a part does", () => setSelectedMaterialRole(e.target.value));
+        return;
+      }
+      if (e.target.hasAttribute("data-frg-blend")) {
+        recordEdit("change a rounded join", () => setSelectedBlend(e.target.value));
+        return;
+      }
       if (posAxis) updateSelectedPosition(posAxis, e.target.value);
       if (scaleAxis) updateSelectedScale(scaleAxis, e.target.value);
       if (rotAxis) updateSelectedRotation(rotAxis, e.target.value);

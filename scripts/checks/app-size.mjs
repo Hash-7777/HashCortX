@@ -173,7 +173,14 @@ const LINE_BUDGET = {
   // moved earlier or later, and can be renamed. Order is not decoration — the
   // parts are folded into the solid in it, and cutting a bore then adding a
   // boss is a different object from the reverse.
-  'modes/forge/mode.js': 3604,
+  // 3717, up from 3604. A person can say what a part does to the material —
+  // adds, cuts away, or keeps only what overlaps — which until now only a
+  // design could say, so making a hole meant asking a model to produce the
+  // whole object again. The added lines are that control, the rounded join
+  // beside it, the outline a cutting part is drawn as so a bore and a boss do
+  // not look identical, and the notice before an export that cuts which have
+  // not been fused are written as solid material.
+  'modes/forge/mode.js': 3717,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
