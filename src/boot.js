@@ -80,6 +80,7 @@
     '/js/forge/units.js',
     '/js/forge/subdivide.js',
     '/js/forge/params.js',
+    '/js/forge/panel-html.js',
     '/js/forge/io/mesh.js',
     '/js/forge/io/scene.js',
     '/js/forge/io/stl.js',

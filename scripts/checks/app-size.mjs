@@ -173,14 +173,11 @@ const LINE_BUDGET = {
   // moved earlier or later, and can be renamed. Order is not decoration — the
   // parts are folded into the solid in it, and cutting a bore then adding a
   // boss is a different object from the reverse.
-  // 3717, up from 3604. A person can say what a part does to the material —
-  // adds, cuts away, or keeps only what overlaps — which until now only a
-  // design could say, so making a hole meant asking a model to produce the
-  // whole object again. The added lines are that control, the rounded join
-  // beside it, the outline a cutting part is drawn as so a bore and a boss do
-  // not look identical, and the notice before an export that cuts which have
-  // not been fused are written as solid material.
-  'modes/forge/mode.js': 3717,
+  // 3604, DOWN from 3717. The selection panel's markup moved to
+  // src/js/forge/panel-html.js, where it is a function from a plain
+  // description of the selection to a string — so what the panel says can be
+  // read in a check instead of matched against this file's source.
+  'modes/forge/mode.js': 3604,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

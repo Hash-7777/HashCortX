@@ -1810,111 +1810,36 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     log("Camera", amount > 0 ? "Panned camera up" : "Panned camera down", "wait");
   }
 
+  /**
+   * Draw the panel for whatever is selected.
+   *
+   * The markup itself lives in src/js/forge/panel-html.js, where it is a
+   * function from a plain description of the selection to a string, so a check
+   * can build a panel for a part that cuts, or one with no dimensions of its
+   * own, and read what it actually says. What stays here is the part that
+   * genuinely needs the scene: turning meshes and radians into plain numbers.
+   */
   function renderSelection() {
     const card = $("frgSelectionCard");
     if (!card) return;
-    const units = U();
-    // With nothing selected the panel used to be a sentence telling you to
-    // select something. It is the natural home for the one property the whole
-    // model has, and a model whose size is a silent default is a model that
-    // prints at the wrong size.
-    if (!selectedMesh) {
-      const measured = modelSizeMm();
-      const sizeMm = activePlan?.sizeMm ?? units?.DEFAULT_SIZE_MM ?? 0;
-      card.innerHTML = activePlan && units
-        ? `<div class="frg-edit-grid" aria-label="Model size" style="grid-template-columns:1fr">
-             <span class="frg-edit-field">
-               <label>Longest side (mm)</label>
-               <input data-frg-model-size type="number" min="${units.MIN_SIZE_MM}" max="${units.MAX_SIZE_MM}" step="1" value="${escapeHtml(String(Math.round(sizeMm)))}">
-             </span>
-           </div>
-           <div class="frg-selection-empty">${measured ? escapeHtml(measured.text) : "Nothing built yet"}${activePlan?.sizeStated ? "" : " · this size is a default until you set it"}</div>
-           <div class="frg-selection-empty">Click any part in the void to edit it.</div>`
-        : `<div class="frg-selection-empty">Click any part in the void to edit it.</div>`;
-      return;
-    }
-    const node = selectedMesh.userData.node || {};
-    const pos = selectedMesh.position;
-    const scale = selectedMesh.scale;
-    const rot = selectedMesh.rotation;
-    card.innerHTML = `
-      <div class="frg-selection-title">
-        <b title="${escapeHtml(selectedObjectWhole ? "Whole object" : node.name || selectedMesh.name || "Part")}">${escapeHtml(selectedObjectWhole ? "Whole object" : node.name || selectedMesh.name || "Part")}</b>
-        <span>${escapeHtml(selectedObjectWhole ? "object" : node.role || "part")}</span>
-      </div>
-      ${selectedObjectWhole ? "" : `<div class="frg-edit-grid" aria-label="Name" style="grid-template-columns:1fr">
-        <span class="frg-edit-field"><label>Name</label><input data-frg-name type="text" maxlength="60" value="${escapeHtml(node.name || node.id || "")}"></span>
-      </div>`}
-      <div class="frg-edit-buttons">
-        <button class="frg-edit-btn${transformMode === "translate" ? " active" : ""}" data-frg-edit="translate">Move</button>
-        <button class="frg-edit-btn${transformMode === "rotate" ? " active" : ""}" data-frg-edit="rotate">Rotate</button>
-        <button class="frg-edit-btn${transformMode === "scale" ? " active" : ""}" data-frg-edit="scale">Resize</button>
-        <button class="frg-edit-btn danger" data-frg-edit="delete">Delete</button>
-      </div>
-      <div class="frg-edit-buttons">
-        <button class="frg-edit-btn" data-frg-edit="duplicate">Duplicate</button>
-        <button class="frg-edit-btn" data-frg-edit="floor">To floor</button>
-        <button class="frg-edit-btn" data-frg-edit="reset">Reset</button>
-        <button class="frg-edit-btn${snapEnabled ? " active" : ""}" data-frg-edit="snap">Snap</button>
-      </div>
-      <div class="frg-edit-grid" aria-label="Position">
-        ${["x", "y", "z"].map((axis) => {
-          // Shown in millimetres when the model has a real size, because a
-          // position in scene units is a number with no meaning outside this
-          // window. The step follows: a millimetre, not a twentieth of nothing.
-          const mm = units && mmPerUnit;
-          const value = mm ? units.formatMm(units.toMm(pos[axis], mmPerUnit), { bare: true }) : pos[axis].toFixed(2);
-          return `<span class="frg-edit-field"><label>${mm ? "mm" : "Pos"} ${axis.toUpperCase()}</label><input data-frg-pos="${axis}" type="number" step="${mm ? 1 : 0.05}" value="${escapeHtml(value)}"></span>`;
-        }).join("")}
-      </div>
-      <div class="frg-edit-grid" aria-label="Scale" style="margin-top:6px">
-        ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Scale ${axis.toUpperCase()}</label><input data-frg-scale="${axis}" type="number" step="0.05" min="0.02" value="${escapeHtml(scale[axis].toFixed(2))}"></span>`).join("")}
-      </div>
-      <div class="frg-edit-grid" aria-label="Rotation" style="margin-top:6px">
-        ${["x", "y", "z"].map((axis) => `<span class="frg-edit-field"><label>Rot ${axis.toUpperCase()}</label><input data-frg-rot="${axis}" type="number" step="5" value="${escapeHtml(Math.round(THREE.MathUtils.radToDeg(rot[axis])))}"></span>`).join("")}
-      </div>
-      ${materialRoleHtml(node)}
-      ${shapeFieldsHtml(node)}`;
-  }
-
-  /**
-   * What this part does to the material around it.
-   *
-   * A design could say a part cuts away rather than adds, and the fuse has
-   * honoured that since holes arrived — but a person could not say it. Making
-   * a hole meant asking a model to design the whole object again, which is a
-   * strange thing to need when the hole is a cylinder you can already place.
-   *
-   * The blend only means something where a part ADDS: it is how far the join
-   * with its neighbour is rounded off. Offering it beside a cut would be
-   * offering a number that does nothing.
-   */
-  function materialRoleHtml(node) {
-    if (selectedObjectWhole) return "";
-    const op = node.op === "subtract" || node.op === "intersect" ? node.op : "union";
-    const options = [
-      ["union", "Adds material"],
-      ["subtract", "Cuts away"],
-      ["intersect", "Keeps only what overlaps"],
-    ];
-    const units = U();
-    const blend = Number(node.blend) > 0 ? Number(node.blend) : 0;
-    const blendShown = units && mmPerUnit
-      ? units.formatMm(units.toMm(blend, mmPerUnit), { bare: true })
-      : blend.toFixed(3);
-    return `
-      <div class="frg-edit-grid" aria-label="What this part does" style="grid-template-columns:1fr; margin-top:6px">
-        <span class="frg-edit-field">
-          <label>What this part does</label>
-          <select data-frg-op>
-            ${options.map(([value, label]) => `<option value="${value}"${value === op ? " selected" : ""}>${label}</option>`).join("")}
-          </select>
-        </span>
-        ${op === "union" ? `<span class="frg-edit-field">
-          <label>Rounded join${units && mmPerUnit ? " (mm)" : ""}</label>
-          <input data-frg-blend type="number" min="0" step="${units && mmPerUnit ? 1 : 0.01}" value="${escapeHtml(blendShown)}">
-        </span>` : ""}
-      </div>`;
+    const H = window.HCForgePanelHtml;
+    if (!H) return;
+    const toDegrees = (radians) => (THREE ? THREE.MathUtils.radToDeg(radians) : (radians * 180) / Math.PI);
+    card.innerHTML = H.card({
+      plan: activePlan,
+      measured: modelSizeMm(),
+      node: selectedMesh ? (selectedMesh.userData.node || {}) : null,
+      fallbackName: selectedMesh?.name,
+      wholeObject: selectedObjectWhole,
+      position: selectedMesh ? [selectedMesh.position.x, selectedMesh.position.y, selectedMesh.position.z] : null,
+      scale: selectedMesh ? [selectedMesh.scale.x, selectedMesh.scale.y, selectedMesh.scale.z] : null,
+      rotationDeg: selectedMesh
+        ? [selectedMesh.rotation.x, selectedMesh.rotation.y, selectedMesh.rotation.z].map(toDegrees)
+        : null,
+      transformMode,
+      snapEnabled,
+      mmPerUnit,
+    });
   }
 
   /**
@@ -1967,44 +1892,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     queueProjectSave();
   }
 
-  /**
-   * The part's own dimensions, which until now could not be changed at all.
-   *
-   * Resizing is not the same edit and cannot stand in for this: scaling a
-   * cylinder on two axes gives an oval prism, while changing its radius gives
-   * a wider cylinder, and only one of those is the part somebody meant.
-   *
-   * Lengths are shown in millimetres, through the same lens as a position,
-   * because a scene unit means nothing outside this window. Counts — how many
-   * sides a curve is drawn with — are plain whole numbers and stay that way.
-   */
-  function shapeFieldsHtml(node) {
-    const P = window.HCForgeParams;
-    if (!P || selectedObjectWhole) return "";
-    const fields = P.valuesOf(node);
-    if (!fields.length) {
-      // Said rather than left blank. A mesh is somebody else's vertices and has
-      // no radius to change; an empty space reads as a panel that failed.
-      return P.fieldsFor(node.type)
-        ? `<div class="frg-selection-empty" style="margin-top:8px">A ${escapeHtml(node.type || "part")} has no dimensions of its own to change — move, turn and resize it instead.</div>`
-        : "";
-    }
-    const units = U();
-    const mm = units && mmPerUnit;
-    return `
-      <div class="frg-edit-grid" aria-label="Shape" style="margin-top:6px">
-        ${fields.map((field) => {
-          const isLength = field.kind === "length";
-          const value = isLength && mm
-            ? units.formatMm(units.toMm(field.value, mmPerUnit), { bare: true })
-            : isLength ? Number(field.value).toFixed(3) : String(field.value);
-          const label = isLength && mm ? `${field.label} (mm)` : field.label;
-          const step = isLength ? (mm ? 1 : 0.01) : 1;
-          const min = isLength && mm ? 0 : field.min;
-          return `<span class="frg-edit-field"><label>${escapeHtml(label)}</label><input data-frg-param="${escapeHtml(field.key)}" type="number" step="${step}" min="${min}" value="${escapeHtml(value)}"></span>`;
-        }).join("")}
-      </div>`;
-  }
 
   function setTransformMode(mode) {
     transformMode = mode === "scale" ? "scale" : mode === "rotate" ? "rotate" : "translate";

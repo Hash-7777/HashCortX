@@ -30,6 +30,10 @@ const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'pane
 const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.css'), 'utf8');
 const vars = readFileSync(join(here, '..', '..', 'src', 'css', 'vars.css'), 'utf8');
 const modelPlan = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
+// The selection panel's markup lives here now. What it SAYS is checked in
+// forge-panel.mjs, against the strings it produces; this file only needs to
+// know that the field a handler here reads is still offered somewhere.
+const panelHtml = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'panel-html.js'), 'utf8');
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -299,12 +303,21 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /renderSelection\(\);/.test(build));
   check('the badge carries the size, not only the part count',
     /part\$\{nodes\.length === 1 \? "" : "s"\}`[\s\S]{0,80}measured\.text/.test(src));
+  // The markup itself is checked in forge-panel.mjs, against what it produces.
+  // What matters here is that this mode still wires it up.
   check('the whole model size is editable where nothing is selected',
-    /data-frg-model-size/.test(src) && /function setModelSizeMm/.test(src));
+    /data-frg-model-size/.test(panelHtml) && /function setModelSizeMm/.test(src)
+    && /dataset\.frgModelSize/.test(src));
   check('changing it rebuilds nothing',
     !/buildPlan\(/.test(bodyOf('setModelSizeMm')));
-  check('a part position is shown and read back in the same units',
-    /units\.toMm\(pos\[axis\], mmPerUnit\)/.test(src) && /units\.fromMm\(Number\(value\)/.test(src));
+  check('a part position is read back through the lens it was shown through',
+    /units\.fromMm\(Number\(value\) \|\| 0, mmPerUnit\)/.test(bodyOf('updateSelectedPosition')));
+  // The panel is a function from a plain description of the selection to a
+  // string now, so it can be built and read in a check rather than matched
+  // against its own source.
+  check('the panel markup lives where it can be checked',
+    /window\.HCForgePanelHtml/.test(bodyOf('renderSelection'))
+    && !/frg-edit-field/.test(src));
   check('a written file carries the units its format is read in',
     /units\.exportScale\(kind, mmPerUnit\)/.test(bodyOf('exportableObject')));
   // Our own writer, so the bytes a person gets are the bytes a check reads
@@ -338,7 +351,8 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   // Resizing is not the same edit: scaling a cylinder on two axes gives an
   // oval prism, while changing its radius gives a wider cylinder.
   check("a part's own dimensions can be changed, not only its size on screen",
-    /data-frg-param/.test(src) && /function updateSelectedParam/.test(src));
+    /data-frg-param/.test(panelHtml) && /function updateSelectedParam/.test(src)
+    && /dataset\.frgParam/.test(src));
   check('and only that part is rebuilt, so nothing moves or loses selection',
     /selectedMesh\.geometry = next/.test(bodyOf('updateSelectedParam'))
     && !/buildPlan\(/.test(bodyOf('updateSelectedParam')));
@@ -387,21 +401,18 @@ console.log('\nThe parts list is the build order, and the order can be changed:'
 
 console.log('\nA person can make a hole, not only a design:');
 {
-  const html = bodyOf('materialRoleHtml');
   const setRole = bodyOf('setSelectedMaterialRole');
   const look = bodyOf('applyMaterialRoleLook');
 
   check('a part can be told to cut away or to keep only what overlaps',
-    /data-frg-op/.test(src)
-    && /\["subtract", "Cuts away"\]/.test(html)
-    && /\["intersect", "Keeps only what overlaps"\]/.test(html));
+    /data-frg-op/.test(panelHtml) && /function setSelectedMaterialRole/.test(src)
+    && /hasAttribute\("data-frg-op"\)/.test(src));
   check('and the choice reaches the part the fuse reads',
     /node\.op = value === "subtract" \|\| value === "intersect"/.test(setRole));
-  // A number that does nothing is worse than no number: the blend is only
-  // read where a part adds.
-  check('the rounded join is offered only where it means something',
-    /op === "union" \? `/.test(html));
-  check('and is removed when a part becomes a cut, not left in the plan',
+  // A number that does nothing is worse than no number. Which fields appear is
+  // checked in forge-panel.mjs; what matters here is that a blend left behind
+  // on a cut does not sit in the saved plan waiting to reappear.
+  check('a blend is removed when a part becomes a cut, not left in the plan',
     /delete node\.blend/.test(setRole));
   // Otherwise a bore and a boss are identical on screen and the only way to
   // tell them apart is to fuse the model and see what happened.
