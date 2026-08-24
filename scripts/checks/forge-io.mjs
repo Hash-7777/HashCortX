@@ -27,12 +27,14 @@ for (const rel of [
   ['src', 'js', 'forge', 'io', 'mesh.js'],
   ['src', 'js', 'forge', 'io', 'scene.js'],
   ['src', 'js', 'forge', 'io', 'stl.js'],
+  ['src', 'js', 'forge', 'io', 'obj.js'],
 ]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
 const M = sandbox.window.HCForgeMeshIO;
 const S = sandbox.window.HCForgeSceneIO;
 const STL = sandbox.window.HCForgeSTL;
+const OBJ = sandbox.window.HCForgeOBJ;
 
 let pass = 0;
 let fail = 0;
@@ -206,11 +208,73 @@ console.log('\nThe format is decided by arithmetic, not by the leading word:');
     M.triangleCount(STL.read(encoder.encode(ascii.replace('   vertex 0 10 0\n', '')))) === 0);
 }
 
+console.log('\nAn OBJ is written, and reading it back gives the same object:');
+{
+  const text = OBJ.write(box);
+  const back = OBJ.read(text);
+  ok('the same triangles', M.triangleCount(back) === 12);
+  // The reason OBJ is worth having beside STL: a corner is written once.
+  ok('and the shared corners survive, unlike in STL',
+    M.vertexCount(back) === 8, `${M.vertexCount(back)} vertices`);
+  ok('the object is the same size', M.size(back).every((v, i) => near(v, [40, 20, 10][i], 1e-6)));
+  ok('and the same way out', near(M.volume(back), 8000, 1e-6));
+  ok('the size is written where a person can read it', /# size: 40 x 20 x 10 mm/.test(text));
+  ok('and the units are stated, since the format has no field for them',
+    /# units: millimetres/.test(text));
+  ok('the object is named', /^o test box$/m.test(text));
+  // Writing these from zero gives a file that opens with every triangle
+  // shifted by one corner — recognisable, and wrong everywhere.
+  ok('face indices are one-based', /^f 5 6 7$/m.test(text), 'the first face of the fixture');
+  ok('no coordinate is written as minus zero', !/ -0(\s|$)/m.test(text));
+}
+
+console.log('\nThe reader handles what other writers really produce:');
+{
+  // Corners named as vertex/texture/normal, which most modelling programs write.
+  const withSlashes = [
+    'v 0 0 0', 'v 10 0 0', 'v 0 10 0',
+    'f 1/1/1 2/2/2 3/3/3',
+  ].join('\n');
+  ok('a face naming texture and normal is read by its vertex',
+    M.triangleCount(OBJ.read(withSlashes)) === 1);
+
+  // Counted back from the end. Rare now, still out there, and silently wrong
+  // if a reader treats it as a forward index.
+  const negative = ['v 0 0 0', 'v 10 0 0', 'v 0 10 0', 'f -3 -2 -1'].join('\n');
+  const backwards = OBJ.read(negative);
+  ok('a negative index counts back from the end',
+    M.triangleCount(backwards) === 1 && backwards.indices.join() === '0,1,2');
+
+  // A square, which every reader fans from its first corner.
+  const quad = ['v 0 0 0', 'v 10 0 0', 'v 10 10 0', 'v 0 10 0', 'f 1 2 3 4'].join('\n');
+  ok('a four-cornered face becomes two triangles', M.triangleCount(OBJ.read(quad)) === 2);
+
+  ok('a face naming a vertex that is not there is dropped, not guessed',
+    M.triangleCount(OBJ.read(['v 0 0 0', 'f 1 2 3'].join('\n'))) === 0);
+  ok('a line that is not geometry is ignored',
+    M.triangleCount(OBJ.read(['# a comment', 'mtllib none.mtl', 'usemtl none', 'v 0 0 0', 'v 1 0 0', 'v 0 1 0', 'f 1 2 3'].join('\n'))) === 1);
+  ok('an empty file reads as an empty model', M.triangleCount(OBJ.read('')) === 0);
+}
+
+console.log('\nThe two text and binary formats agree with each other:');
+{
+  // Written from the same mesh, they must describe the same object. A
+  // disagreement here is one of the two writers being wrong.
+  const fromObj = OBJ.read(OBJ.write(box));
+  const fromStl = STL.read(STL.write(box));
+  ok('the same triangle count', M.triangleCount(fromObj) === M.triangleCount(fromStl));
+  ok('the same size', M.size(fromObj).every((v, i) => near(v, M.size(fromStl)[i], 1e-3)));
+  ok('the same volume', near(M.volume(fromObj), M.volume(fromStl), 1e-2));
+}
+
 console.log('\nAn empty model writes a valid empty file rather than nothing:');
 {
   const bytes = STL.write({ positions: [] });
   ok('the file is a header and a count of zero', bytes.length === 84);
   ok('and reads back as no triangles', M.triangleCount(STL.read(bytes)) === 0);
+  const text = OBJ.write({ positions: [] });
+  ok('the text file is a header and a name', /^o model$/m.test(text) && !/^f /m.test(text));
+  ok('and reads back as no triangles too', M.triangleCount(OBJ.read(text)) === 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/io/)\n`);

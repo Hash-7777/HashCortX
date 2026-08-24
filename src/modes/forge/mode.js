@@ -38,7 +38,6 @@
   let TransformControls = null;
   let GLTFLoader = null;
   let GLTFExporter = null;
-  let OBJExporter = null;
   let renderer = null;
   let scene = null;
   let camera = null;
@@ -2144,8 +2143,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       ({ GLTFLoader } = await import("/js/vendor/three/examples/GLTFLoader.js"));
     } else if (kind === "gltfExporter" && !GLTFExporter) {
       ({ GLTFExporter } = await import("/js/vendor/three/examples/GLTFExporter.js"));
-    } else if (kind === "objExporter" && !OBJExporter) {
-      ({ OBJExporter } = await import("/js/vendor/three/examples/OBJExporter.js"));
     }
   }
 
@@ -2246,8 +2243,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         });
         saved = await downloadBlob(`${base}.glb`, new Blob([result], { type: "model/gltf-binary" }));
       } else if (kind === "obj") {
-        await ensurePipelineModule("objExporter");
-        const text = new OBJExporter().parse(object);
+        const writer = window.HCForgeOBJ;
+        if (!writer) throw new Error("the OBJ writer did not load");
+        const text = writer.write(meshForExport(object, activePlan?.name));
         saved = await downloadBlob(`${base}.obj`, new Blob([text], { type: "text/plain" }));
       } else if (kind === "stl") {
         // Written here rather than by the generic mesh exporter, so the bytes

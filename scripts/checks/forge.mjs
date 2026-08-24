@@ -311,6 +311,8 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   // back — see scripts/checks/forge-io.mjs.
   check('STL is written by this app rather than by a generic mesh exporter',
     /window\.HCForgeSTL/.test(bodyOf('exportForgeAsset')) && !/STLExporter/.test(src));
+  check('and so is OBJ',
+    /window\.HCForgeOBJ/.test(bodyOf('exportForgeAsset')) && !/OBJExporter/.test(src));
   // The mode gathers; the placing, joining and mirrored-part winding are done
   // where they are plain arithmetic and can be measured.
   check('the scene is gathered here and merged there',

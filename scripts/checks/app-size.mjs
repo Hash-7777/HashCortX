@@ -152,7 +152,9 @@ const LINE_BUDGET = {
   // added lines are the collector that gathers the scene's meshes and their
   // placements — the placing, joining and mirrored-part winding all happen in
   // src/js/forge/io/scene.js, where they are plain arithmetic and are checked.
-  'modes/forge/mode.js': 3397,
+  // 3395, down two. OBJ is written by this app as well now, so the second
+  // vendored exporter and the branch that loaded it are both gone.
+  'modes/forge/mode.js': 3395,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

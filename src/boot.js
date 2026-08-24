@@ -82,6 +82,7 @@
     '/js/forge/io/mesh.js',
     '/js/forge/io/scene.js',
     '/js/forge/io/stl.js',
+    '/js/forge/io/obj.js',
     '/js/forge/field.js',
     '/js/forge/surface.js',
     '/js/forge/printable.js',
