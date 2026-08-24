@@ -52,6 +52,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   afterwards — if a pattern does not reach the body it says so and leaves it,
   rather than quietly bending a gear into something that is no longer round.
 
+### Added
+
+- **A model can have a hole.** Until now 3D Forge could only add material, so
+  there was no mug with a bore, no pipe, no vent and no screw hole — every
+  object it made was a solid lump. A part can now say that it cuts away instead
+  of adding, or that it keeps only what it shares with what is already there.
+- **Solidify.** One button fuses every part into a single body and cuts whatever
+  was marked to be cut, then tells you what it made: the size, the volume in
+  millilitres, and whether the result is watertight. That last one is reported
+  only when no edge is open and none is folded — a print is not the place to
+  find out. The solid is what gets exported, so a printing file is one closed
+  body rather than the overlapping shells it was made from.
+
 ### Removed
 
 - **The built-in subject templates in 3D Forge.** 760 lines of hand-written
