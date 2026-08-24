@@ -89,6 +89,37 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   installed copy is looking whichever version that is. Only when neither exists
   is the current one created.
 
+### Fixed
+
+- **Saved 3D models are kept in a file, and a save that fails now says so.** They
+  were in the browser storage the app's window runs on, which has a quota a
+  large model can exhaust and which is cleared along with website data — and
+  when the write failed, the failure was thrown away, so the panel said the
+  project was saved when nothing had been kept. They are now written to
+  `~/.hashcortx/forge/projects.json`, replaced in one step so a failure part way
+  through leaves the previous copy whole, and anything saved by an earlier
+  version is carried across the first time the mode opens. If a save cannot
+  happen, the run says so instead of claiming it did; and if the existing
+  projects cannot be read at all, saving switches off rather than writing an
+  empty list over them.
+- **A part can be mirrored across whichever plane its two halves sit either side
+  of.** Mirroring only ever worked across one, while the design prompt asks for
+  objects to be laid out along whichever axis they rest on in life — so the
+  commonest symmetry in the mode was one that could be described and not asked
+  for, and a design that tried came back as the half it had built. A request may
+  now name its plane, and a mirrored pair stays exactly opposite through the
+  passes that close gaps between parts.
+- **Asking for a smoother surface no longer makes a worse one.** Splitting a
+  part into more triangles took the mesh apart in the process, so no two
+  triangles shared a corner and the shading came out creased at every original
+  vertex — the opposite of what was asked for — and any lettering on the part
+  lost its placement entirely. The split now shares its new corners, keeps the
+  part exactly the size and shape it was, and keeps the lettering.
+- **An exported part is described as solid.** Every material written into a file
+  carried an opacity a little under full, left over from an animation that no
+  longer exists. It made no difference on screen and a real one in the file:
+  anything else opening the model was told the object is not quite solid.
+
 See the open items at the end of 2.5.0 for what is known and not finished.
 
 ---
