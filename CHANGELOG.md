@@ -89,6 +89,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   installed copy is looking whichever version that is. Only when neither exists
   is the current one created.
 
+- **Exported models are written by this app, and open clean.** Every export used
+  to be handed to a general-purpose mesh exporter, so the bytes a person
+  actually received were the one part nobody could check. All four printing and
+  CAD formats are now written here, and every one of them is read back and
+  measured before it ships.
+  - **STL** for slicers, with the part's real size recorded in the file's
+    header where a person can read it.
+  - **OBJ** for everything else, stating its units in a comment — the format
+    has no field for them — and keeping shared corners, so a file is about a
+    third smaller for the same object.
+  - **3MF**, new, and the only one of the four that carries its own unit as
+    part of the format. A part opens at the size it was designed at in any
+    program that reads it, with no scale to type in.
+  - **STEP**, new: a solid a CAD program will edit rather than a surface it
+    will only look at. Its faces are flat — a curve arrives as many flat sides
+    — and the app says so on the control and again every time it writes one.
+- **A mirrored part is no longer exported inside out.** Mirroring is done by
+  turning a part's scale negative, which reverses the way its triangles face.
+  Nothing looked wrong: the corners were in the right places and the model
+  measured correctly, but half its surface faced inwards, which a slicer reads
+  as a hole. Every symmetrical model exported before this had one half of it
+  turned outside in.
+
 ### Fixed
 
 - **Saved 3D models are kept in a file, and a save that fails now says so.** They
