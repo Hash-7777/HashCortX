@@ -22,25 +22,29 @@
 // near-degenerate intersection to fall over, which is the whole reason for
 // taking this route rather than cutting meshes against each other.
 //
-// WHAT IT DOES NOT GUARANTEE, because saying otherwise would be a lie a person
-// could print. One vertex per cell means a feature thinner than a cell has both
-// of its sides passing through the same cell, and the single vertex there joins
-// two sheets that should never have met. The mesh stays closed — no edge is
-// left with one triangle — but an edge can end up with more than two, which is
-// a fold rather than a hole. Measured on a real model: a ring whose tube is
-// about two and a half cells across produced seven such edges, and the same
-// model at four cells across the tube produced none.
+// TWO SHEETS THROUGH ONE CELL. Placing one vertex per cell is the simple
+// version of this and it is wrong wherever two separate pieces of surface pass
+// through the same cell — a wall thinner than a cell, or two parts nearly
+// touching. The single vertex joins sheets that should never have met, and the
+// mesh comes out closed but folded: edges carrying four faces instead of two.
+// Nothing about the topology complains, and only a slicer or a volume ever
+// notices.
 //
-// Measured across sixteen models: thirteen come out with every edge shared by
-// exactly two triangles. The other three have between two and eleven folded
-// edges out of tens of thousands. Refining does NOT reliably fix them — counted
-// at seven resolutions on one of them the folds went 0, 0, 0, 2, 0, 11, 2 — so
-// nothing here pretends to fix it by looking closer.
+// So a cell's crossings are grouped into the sheets that actually pass through
+// it, and each sheet gets its own vertex. Two crossings on the same face of the
+// cell are two ends of the same piece of surface, which is what does the
+// grouping; a face crossed on all four of its edges is the one ambiguous case,
+// and the field at the centre of that face says which pair is joined.
 //
-// The real fix is one vertex per surface COMPONENT within a cell rather than
-// one per cell, which is a known piece of work and is not done. Until it is,
-// every mesh is counted and the count is handed back, and **nothing may claim
-// this output is watertight without reading that count first.**
+// Measured over sixteen models: fifteen come out with every edge shared by
+// exactly two triangles. Before the split it was twelve, and two slabs a third
+// of a cell apart could not be separated at all. The one that remains has two
+// parts overlapping by a corner a fifth of a cell across — a neck thinner than
+// the grid, which is a property of that model rather than of this file, and it
+// is reported rather than hidden.
+//
+// Every mesh carries its own count of open and folded edges, and **nothing may
+// claim this output is watertight without reading that count first.**
 //
 // SHARP EDGES. Placing each cell's vertex at the average of its crossings is
 // simple and gives a smooth surface — and rounds off every corner, which for a
@@ -215,7 +219,10 @@
     // Held in a map rather than an array the size of the grid, because on any
     // real model the surface touches a small fraction of the cells and the
     // array would be almost entirely empty.
-    const cellVertex = new Map();
+    // Keyed by cell AND by which of its twelve edges, because a cell may now
+    // hold more than one vertex and a quad has to pick the one belonging to the
+    // sheet it is part of.
+    const edgeVertex = new Map();
     const positions = [];
     const cellIndex = (i, j, k) => (k * dims[1] + j) * dims[0] + i;
 
@@ -271,51 +278,131 @@
       return { base, axis };
     });
 
+    // The six faces of a cell: its four corners in a ring, and the four edges
+    // between them in the same order. Two crossings on a face are two ends of
+    // the same piece of surface, which is what groups a cell's crossings into
+    // the sheets that actually pass through it.
+    const FACES = [
+      { corners: [0, 1, 2, 3], edges: [0, 1, 2, 3] },
+      { corners: [4, 5, 6, 7], edges: [4, 5, 6, 7] },
+      { corners: [0, 1, 5, 4], edges: [0, 9, 4, 8] },
+      { corners: [3, 2, 6, 7], edges: [2, 10, 6, 11] },
+      { corners: [0, 3, 7, 4], edges: [3, 11, 7, 8] },
+      { corners: [1, 2, 6, 5], edges: [1, 10, 5, 9] },
+    ];
+
     for (let k = 0; k < dims[2]; k++) {
       for (let j = 0; j < dims[1]; j++) {
         for (let i = 0; i < dims[0]; i++) {
+          const corner = new Array(8);
           let negatives = 0;
           for (let c = 0; c < 8; c++) {
-            if (values[at(i + CORNERS[c][0], j + CORNERS[c][1], k + CORNERS[c][2])] < 0) negatives++;
+            const v = values[at(i + CORNERS[c][0], j + CORNERS[c][1], k + CORNERS[c][2])];
+            corner[c] = v;
+            if (v < 0) negatives++;
           }
           if (negatives === 0 || negatives === 8) continue;
 
-          const points = [];
-          const normals = [];
-          for (const e of LOCAL_EDGES) {
-            const hit = crossings.get(edgeKey(i + e.base[0], j + e.base[1], k + e.base[2], e.axis));
-            if (!hit) continue;
-            points.push(hit.p);
-            normals.push(hit.n);
+          // Which of this cell's twelve edges the surface crosses.
+          const hits = new Array(12).fill(null);
+          let any = false;
+          for (let e = 0; e < 12; e++) {
+            const le = LOCAL_EDGES[e];
+            const hit = crossings.get(edgeKey(i + le.base[0], j + le.base[1], k + le.base[2], le.axis));
+            if (hit) { hits[e] = hit; any = true; }
           }
-          if (!points.length) continue;
+          if (!any) continue;
 
-          // Start at the middle of the crossings, then walk downhill against
-          // the planes through them. On a flat face nothing moves; on an edge
-          // it slides onto the crease; at a corner it lands on the corner.
-          let vx = 0, vy = 0, vz = 0;
-          for (const p of points) { vx += p[0]; vy += p[1]; vz += p[2]; }
-          vx /= points.length; vy /= points.length; vz /= points.length;
-          for (let pass = 0; pass < SHARPEN_PASSES; pass++) {
-            let dx = 0, dy = 0, dz = 0;
-            for (let n = 0; n < points.length; n++) {
-              const p = points[n];
-              const nrm = normals[n];
-              const away = nrm[0] * (vx - p[0]) + nrm[1] * (vy - p[1]) + nrm[2] * (vz - p[2]);
-              dx -= away * nrm[0]; dy -= away * nrm[1]; dz -= away * nrm[2];
+          // ── which crossings belong to the same sheet ────────────────
+          //
+          // One vertex per cell is the simple version, and it is wrong wherever
+          // two separate pieces of surface pass through one cell — a wall
+          // thinner than a cell, or two parts nearly touching. The single
+          // vertex joins sheets that should never have met, and the mesh comes
+          // out closed but folded, with edges carrying more than two faces.
+          //
+          // Two crossings on the same face of the cell are two ends of the same
+          // piece of surface, so joining them face by face separates the sheets
+          // exactly. A face crossed on all four of its edges is the one
+          // ambiguous case: the surface either pinches through the middle or
+          // passes either side of it, and the two readings connect different
+          // pairs. The field at the centre of that face says which.
+          const group = new Int8Array(12).fill(-1);
+          const parent = new Int8Array(12);
+          for (let e = 0; e < 12; e++) parent[e] = e;
+          const find = (e) => { while (parent[e] !== e) { parent[e] = parent[parent[e]]; e = parent[e]; } return e; };
+          const join = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) parent[ra] = rb; };
+
+          for (const face of FACES) {
+            const crossed = face.edges.filter((e) => hits[e]);
+            if (crossed.length === 2) { join(crossed[0], crossed[1]); continue; }
+            if (crossed.length !== 4) continue;
+            // A saddle. The corners alternate in sign; the middle decides which
+            // diagonal pair is joined through this face.
+            const c0 = face.corners[0];
+            const mid = [0, 1, 2].map((axis) => {
+              let sum = 0;
+              for (const c of face.corners) sum += CORNERS[c][axis];
+              return sum / 4;
+            });
+            const centre = field.evaluate(
+              lo[0] + (i + mid[0]) * cell,
+              lo[1] + (j + mid[1]) * cell,
+              lo[2] + (k + mid[2]) * cell,
+            );
+            if ((centre < 0) === (corner[c0] < 0)) {
+              // The first corner's diagonal is joined through the middle, so
+              // the crossings pair up around it and around the far corner.
+              join(face.edges[3], face.edges[0]);
+              join(face.edges[1], face.edges[2]);
+            } else {
+              join(face.edges[0], face.edges[1]);
+              join(face.edges[2], face.edges[3]);
             }
-            const step = 0.7 / points.length;
-            vx += dx * step; vy += dy * step; vz += dz * step;
           }
-          // Held inside its own cell. A vertex that wanders into a neighbour's
-          // cell folds the mesh over itself, and no amount of care elsewhere
-          // recovers from that.
-          vx = Math.min(lo[0] + (i + 1) * cell, Math.max(lo[0] + i * cell, vx));
-          vy = Math.min(lo[1] + (j + 1) * cell, Math.max(lo[1] + j * cell, vy));
-          vz = Math.min(lo[2] + (k + 1) * cell, Math.max(lo[2] + k * cell, vz));
 
-          cellVertex.set(cellIndex(i, j, k), positions.length / 3);
-          positions.push(vx, vy, vz);
+          // ── one vertex for each sheet ───────────────────────────────
+          const seen = new Map();
+          for (let e = 0; e < 12; e++) {
+            if (!hits[e]) continue;
+            const root = find(e);
+            if (!seen.has(root)) seen.set(root, []);
+            seen.get(root).push(e);
+          }
+          for (const members of seen.values()) {
+            const points = members.map((e) => hits[e].p);
+            const normals = members.map((e) => hits[e].n);
+
+            // Start at the middle of the crossings, then walk downhill against
+            // the planes through them. On a flat face nothing moves; on an edge
+            // it slides onto the crease; at a corner it lands on the corner.
+            let vx = 0, vy = 0, vz = 0;
+            for (const pt of points) { vx += pt[0]; vy += pt[1]; vz += pt[2]; }
+            vx /= points.length; vy /= points.length; vz /= points.length;
+            for (let pass = 0; pass < SHARPEN_PASSES; pass++) {
+              let dx = 0, dy = 0, dz = 0;
+              for (let n = 0; n < points.length; n++) {
+                const pt = points[n];
+                const nrm = normals[n];
+                const away = nrm[0] * (vx - pt[0]) + nrm[1] * (vy - pt[1]) + nrm[2] * (vz - pt[2]);
+                dx -= away * nrm[0]; dy -= away * nrm[1]; dz -= away * nrm[2];
+              }
+              const step = 0.7 / points.length;
+              vx += dx * step; vy += dy * step; vz += dz * step;
+            }
+            // Held inside its own cell. A vertex that wanders into a
+            // neighbour's cell folds the mesh over itself, and no amount of
+            // care elsewhere recovers from that.
+            vx = Math.min(lo[0] + (i + 1) * cell, Math.max(lo[0] + i * cell, vx));
+            vy = Math.min(lo[1] + (j + 1) * cell, Math.max(lo[1] + j * cell, vy));
+            vz = Math.min(lo[2] + (k + 1) * cell, Math.max(lo[2] + k * cell, vz));
+
+            const index = positions.length / 3;
+            positions.push(vx, vy, vz);
+            const base = cellIndex(i, j, k) * 12;
+            for (const e of members) edgeVertex.set(base + e, index);
+            void group;
+          }
         }
       }
     }
@@ -365,6 +452,19 @@
     // which came out at exactly a third of the truth, the two consistent
     // families minus the inconsistent one. A mesh like that looks right,
     // measures wrong, and confuses anything that asks which side is inside.
+    // For a grid edge along each axis, which of the four surrounding cells'
+    // twelve local edges IS that grid edge. A cell can hold more than one
+    // vertex now, so a quad has to ask for the vertex belonging to the sheet
+    // this particular edge is part of, not simply for the cell's vertex.
+    const cornerIndexOf = (c) => CORNERS.findIndex((k) => k[0] === c[0] && k[1] === c[1] && k[2] === c[2]);
+    const localEdgeFor = (axis, offset) => {
+      const a = [-offset[0], -offset[1], -offset[2]];
+      const b = [a[0] + STEP[axis][0], a[1] + STEP[axis][1], a[2] + STEP[axis][2]];
+      const ia = cornerIndexOf(a);
+      const ib = cornerIndexOf(b);
+      return EDGES.findIndex(([x, y]) => (x === ia && y === ib) || (x === ib && y === ia));
+    };
+
     const AROUND = [
       [[0, -1, -1], [0, 0, -1], [0, 0, 0], [0, -1, 0]],
       [[-1, 0, -1], [-1, 0, 0], [0, 0, 0], [0, 0, -1]],
@@ -386,7 +486,8 @@
             for (const c of corners) {
               const ci = i + c[0], cj = j + c[1], ck = k + c[2];
               if (ci < 0 || cj < 0 || ck < 0 || ci >= dims[0] || cj >= dims[1] || ck >= dims[2]) { complete = false; break; }
-              const idx = cellVertex.get(cellIndex(ci, cj, ck));
+              const local = localEdgeFor(axis, c);
+              const idx = edgeVertex.get(cellIndex(ci, cj, ck) * 12 + local);
               if (idx === undefined) { complete = false; break; }
               v.push(idx);
             }

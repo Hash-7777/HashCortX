@@ -177,6 +177,31 @@ console.log('\nIt behaves the same way every time, and says when it cannot:');
     emptyPlan.stats.triangles === 0 && emptyPlan.issues.length > 0);
 }
 
+console.log('\nTwo sheets through one cell are two sheets:');
+{
+  // The case one vertex per cell cannot do. Two slabs a third of a cell apart
+  // both pass through the cells in the gap; a single vertex there welds them
+  // together and the mesh comes out closed, folded, and the wrong volume.
+  const slab = (id, z) => part('box', { width: 2, height: 2, depth: 0.4 }, { id, position: [0, 0, z] });
+  for (const gap of [0.02, 0.05, 0.1]) {
+    const { mesh, info } = solidOf([slab('a', -gap / 2 - 0.2), slab('b', gap / 2 + 0.2)], { resolution: 32 });
+    ok(`two slabs ${gap} apart stay two slabs`, info.nonManifoldEdges === 0,
+      `cell is about ${mesh.stats.cell.toFixed(3)}, ${info.nonManifoldEdges} folded`);
+    ok('  and the gap between them is really empty', within(info.volume, 2 * 2 * 0.4 * 2, 0.05),
+      `${info.volume.toFixed(3)} against ${(2 * 2 * 0.4 * 2).toFixed(3)}`);
+  }
+
+  // A cell can now hold more than one vertex, so a quad has to ask for the one
+  // belonging to the sheet its own edge is part of. Asking for "the cell's
+  // vertex" would join the wrong sheets and is what the lookup by edge exists
+  // to prevent.
+  const source = readFileSync(join(root, 'src', 'js', 'forge', 'surface.js'), 'utf8');
+  ok('a vertex is found by cell AND edge, not by cell alone',
+    /edgeVertex\.get\(cellIndex\(ci, cj, ck\) \* 12 \+ local\)/.test(source));
+  ok('and the ambiguous face is settled by the field, not by a guess',
+    /field\.evaluate\([\s\S]{0,200}mid\[0\]/.test(source));
+}
+
 console.log('\nWhat it does not guarantee, said out loud:');
 {
   const source = readFileSync(join(root, 'src', 'js', 'forge', 'surface.js'), 'utf8');
@@ -218,10 +243,10 @@ console.log('\nWhat it does not guarantee, said out loud:');
   ok('and the resolution is not driven by the thinnest part either',
     !source.includes('CELLS_PER_FEATURE'), 'it made every model slower and fixed none of them');
 
-  ok('the module says plainly that it is not yet guaranteed manifold',
-    /nothing may claim[\s\S]{0,20}this output is watertight without reading that count/.test(source));
-  ok('and names what would actually fix it',
-    /one vertex per surface COMPONENT/.test(source));
+  ok('the module still refuses to let anything claim watertight on its word',
+    /nothing may[\s\S]{0,30}claim this output is watertight without reading that count/.test(source));
+  ok('and says what is left rather than implying nothing is',
+    /a neck thinner than[\s\S]{0,40}the grid/.test(source));
 }
 
 console.log('\nThe module reaches nothing outside itself:');
