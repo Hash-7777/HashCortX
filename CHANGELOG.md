@@ -113,6 +113,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   now lists the numbers that shape is actually made of, in millimetres, and
   changing one rebuilds just that part — it keeps its place, its turn and the
   selection, and the change can be undone like any other.
+- **You can make a hole yourself.** The app has understood cuts for a while, but
+  only a design could ask for one — a person looking at a cylinder sitting
+  through a block had no way to say it was a bore, and making a hole meant
+  asking a model to produce the whole object again. A selected part now says
+  what it does to the material around it: adds, cuts away, or keeps only what
+  overlaps. A part that cuts is drawn as an outline so it does not look like a
+  lump, and exporting a model whose cuts have not been fused now warns that the
+  file will hold them as solid material rather than as holes.
+- **The parts list is the build order, and you can change it.** Parts are
+  combined in the order they are listed — cutting a bore and then adding a boss
+  gives a different object from adding the boss and cutting through it — and
+  that order was invisible and fixed. Every part now shows its place in the
+  order, can be moved earlier or later, and can be given a name of its own.
 - **A mirrored part is no longer exported inside out.** Mirroring is done by
   turning a part's scale negative, which reverses the way its triangles face.
   Nothing looked wrong: the corners were in the right places and the model
