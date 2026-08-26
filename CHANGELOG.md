@@ -113,6 +113,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   now lists the numbers that shape is actually made of, in millimetres, and
   changing one rebuilds just that part — it keeps its place, its turn and the
   selection, and the change can be undone like any other.
+- **An imported model keeps its shape when you fuse it.** Every other shape the
+  app makes is described by arithmetic, but an imported mesh is just a pile of
+  triangles — so fusing one used to replace it with the box it sat inside, and
+  importing a model and pressing Solidify gave you a crate. It is now measured
+  from its own triangles. Two things imported files really do are handled and
+  reported: a model wound inside out is turned the right way round, and a
+  surface with a hole in it still gives distances but is flagged, because which
+  side of an open surface you are on is a guess.
 - **You can make a hole yourself.** The app has understood cuts for a while, but
   only a design could ask for one — a person looking at a cylinder sitting
   through a block had no way to say it was a bore, and making a hole meant
