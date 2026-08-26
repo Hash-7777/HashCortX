@@ -113,6 +113,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   now lists the numbers that shape is actually made of, in millimetres, and
   changing one rebuilds just that part — it keeps its place, its turn and the
   selection, and the change can be undone like any other.
+- **A part you exported can be opened again.** Forge writes STL, OBJ, 3MF and
+  STEP and could open only a scene file, so exporting a part and wanting it back
+  was a dead end. All four now open. A file's numbers are millimetres while the
+  scene works at its own scale, so the part is brought to that scale with its
+  real size remembered beside it — it comes back the size it went out. It is
+  centred as it arrives, and it sets the model's size only when it is the whole
+  model, so adding a part to an existing design does not restate that design's
+  size.
 - **An imported model keeps its shape when you fuse it.** Every other shape the
   app makes is described by arithmetic, but an imported mesh is just a pile of
   triangles — so fusing one used to replace it with the box it sat inside, and
