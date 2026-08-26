@@ -182,6 +182,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A file path written with a double slash no longer grows an extra folder.**
+  In the Virtual OS, a path like `src//main.js` — which is what you get when two
+  pieces of a path are joined together — created a folder called "untitled"
+  between the two halves, and a path of nothing but slashes became a file called
+  that.
 - **A generated business system no longer arrives missing fields it needs.** The
   records the app falls back on when a model is unavailable — staff, products, a
   restaurant table, a hotel room, an appointment, a patient, a housekeeping job
