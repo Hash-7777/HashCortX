@@ -90,7 +90,12 @@ const LINE_BUDGET = {
   // due dates, sample figures — moved to src/js/systems/money.js. Asking one
   // of those functions a question in four time zones is what found that every
   // generated date had been a day early for everyone east of Greenwich.
-  'modes/systems/mode.js': 4112,
+  // 3552, down from 4112 and from 4246 where this began. Six hundred lines of
+  // the app's own opinion about business software — which industry a
+  // description belongs to and what a record in it should carry — moved to
+  // src/js/systems/domain.js. Asking that opinion whether it satisfies this
+  // mode's OWN validation gate found six kinds of record that did not.
+  'modes/systems/mode.js': 3552,
   'modes/virtual-os/mode.js': 3808,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
