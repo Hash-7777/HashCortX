@@ -113,6 +113,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   now lists the numbers that shape is actually made of, in millimetres, and
   changing one rebuilds just that part — it keeps its place, its turn and the
   selection, and the change can be undone like any other.
+- **A model can be hollowed out.** Fusing a model can leave a wall of a stated
+  thickness and take out the middle — a real wall the geometry has, rather than
+  the lattice a slicer fills a solid part with. The object stays exactly the
+  size it was; the wall goes inwards. The report says a hollow part is one solid
+  with a space inside it, where it used to call it two separate pieces and warn
+  it would come off the bed in two.
+- **The app says which of your models can do geometry, before you run.**
+  Designing a part is not chatting, and plenty of models that write well hand
+  back a pile of disconnected boxes. The Agents panel now says how many of your
+  models should manage it, which is the best of them, and why — and says plainly
+  that it is judging from the model's name rather than from trying it.
+- **A run that stops looks stopped.** A failed run used to leave three stages lit
+  in the working colour, one reading "failed" and two reading "blocked" — honest
+  words, misleading picture. The stage that failed now looks failed, the ones
+  after it read "not started", and the run says whether what is on screen is the
+  new object or the one that was already there.
+- **A generated model remembers what it was asked for**, which model answered,
+  and under what settings — kept with the model, so it survives closing and
+  reopening the project. It does not offer to make the thing again, because a
+  language model asked the same question twice does not answer the same way.
+- **Reordering a part is instant.** It used to rebuild every part in the model,
+  which took about two seconds on a model of two dozen and threw away what you
+  had selected.
 - **A part you exported can be opened again.** Forge writes STL, OBJ, 3MF and
   STEP and could open only a scene file, so exporting a part and wanting it back
   was a dead end. All four now open. A file's numbers are millimetres while the
