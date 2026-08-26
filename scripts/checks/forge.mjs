@@ -332,6 +332,20 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /window\.HCForgeSTEP/.test(bodyOf('exportForgeAsset')) && /data-frg-export-kind="step"/.test(panel));
   // A person opening a STEP expecting to fillet a curve and finding a
   // many-sided prism is the over-claim this repository exists to prevent.
+  // Writing four formats and being able to open only a scene file is a dead
+  // end for anyone who exports a part and wants it back.
+  check('the formats this app writes, it can also open',
+    /HCForgeImportIO/.test(bodyOf('meshNodeFromOwnFormat'))
+    && /accept="[^"]*\.stl[^"]*\.obj[^"]*\.3mf[^"]*\.step/.test(panel));
+  check('and its own reader is tried before the scene loader', (() => {
+    const body = bodyOf('importForgeAsset');
+    const ours = body.indexOf('meshNodeFromOwnFormat(file)');
+    const loader = body.indexOf('ensurePipelineModule("gltfLoader")');
+    return ours >= 0 && loader > ours;
+  })());
+  // A part added to a model that already states a size must not restate it.
+  check('an opened file sets the model size only when it is the whole model',
+    /current\.nodes\.length === 1 && own\.sizeMm > 0/.test(bodyOf('importForgeAsset')));
   check('the faceted limitation is said plainly, in the panel and on every write',
     /faceted solid/.test(bodyOf('exportForgeAsset')) && /Faces are flat/.test(panel));
   // The mode gathers; the placing, joining and mirrored-part winding are done

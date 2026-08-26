@@ -31,6 +31,8 @@ for (const rel of [
   ['src', 'js', 'forge', 'io', 'zip.js'],
   ['src', 'js', 'forge', 'io', 'threemf.js'],
   ['src', 'js', 'forge', 'io', 'step.js'],
+  ['src', 'js', 'forge', 'units.js'],
+  ['src', 'js', 'forge', 'io', 'import.js'],
 ]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
@@ -41,6 +43,7 @@ const OBJ = sandbox.window.HCForgeOBJ;
 const ZIP = sandbox.window.HCForgeZip;
 const TMF = sandbox.window.HCForge3MF;
 const STEP = sandbox.window.HCForgeSTEP;
+const IMPORT = sandbox.window.HCForgeImportIO;
 
 let pass = 0;
 let fail = 0;
@@ -449,6 +452,63 @@ console.log('\nAn empty model writes a valid empty file rather than nothing:');
   const text = OBJ.write({ positions: [] });
   ok('the text file is a header and a name', /^o model$/m.test(text) && !/^f /m.test(text));
   ok('and reads back as no triangles too', M.triangleCount(OBJ.read(text)) === 0);
+}
+
+// ── Out and back again ───────────────────────────────────────────────────
+console.log('\nA file this app wrote can be opened by it again:');
+{
+  ok('a name says which format it is',
+    IMPORT.formatOf('part.stl') === 'stl' && IMPORT.formatOf('part.OBJ') === 'obj'
+    && IMPORT.formatOf('part.3mf') === '3mf'
+    && IMPORT.formatOf('part.step') === 'step' && IMPORT.formatOf('part.stp') === 'step');
+  ok('and anything else is left to the scene loader',
+    IMPORT.formatOf('part.glb') === null && IMPORT.formatOf('part') === null);
+
+  // The round trip that makes the whole export story real: a part written out
+  // and opened again has to be the same object, at the same size.
+  const written = {
+    stl: STL.write(box),
+    obj: new TextEncoder().encode(OBJ.write(box)),
+    '3mf': TMF.write(box),
+    step: new TextEncoder().encode(STEP.write(box).text),
+  };
+  for (const [kind, bytes] of Object.entries(written)) {
+    const mesh = IMPORT.readAs(kind, bytes);
+    ok(`${kind} comes back as the same object`,
+      M.triangleCount(mesh) === 12 && near(M.volume(mesh), 8000, 1e-2),
+      `${M.triangleCount(mesh)} triangles, volume ${M.volume(mesh)}`);
+
+    const built = IMPORT.nodeFrom(mesh, `${kind} part`, { workingSpan: 2 });
+    ok(`and becomes a part that remembers it is 40 mm across`, near(built.sizeMm, 40, 1e-3));
+    // The scene runs at one span whatever the object is, so the geometry has
+    // to arrive at that span rather than at its size in millimetres.
+    const span = M.size(M.fromArrays(built.node.params));
+    ok(`with its geometry brought to the working span`, near(Math.max(...span), 2, 1e-6), `${span}`);
+    ok(`in proportion, not squashed to fit`,
+      near(span[1] / span[0], 20 / 40, 1e-6) && near(span[2] / span[0], 10 / 40, 1e-6));
+    // A file may hold an object anywhere; a part arriving far from the origin
+    // reads as the import having failed.
+    const box2 = M.bounds(M.fromArrays(built.node.params));
+    ok(`and centred where the scene expects it`,
+      [0, 1, 2].every((k) => near(box2[0][k] + box2[1][k], 0, 1e-9)));
+    ok(`and it is a mesh part the fuse can measure`, built.node.type === 'mesh');
+  }
+
+  // An object written far from the origin still arrives centred.
+  const moved = M.fromArrays({
+    positions: box.positions.map((v, i) => (i % 3 === 0 ? v + 500 : v)),
+    indices: box.indices,
+  });
+  const back = IMPORT.nodeFrom(STL.read(STL.write(moved)), 'moved', { workingSpan: 2 });
+  const movedBox = M.bounds(M.fromArrays(back.node.params));
+  ok('an object written far from the origin arrives centred',
+    [0, 1, 2].every((k) => Math.abs(movedBox[0][k] + movedBox[1][k]) < 1e-4));
+  ok('and still measures what it did', near(back.sizeMm, 40, 1e-2));
+
+  ok('a file with nothing in it makes no part rather than an empty one',
+    IMPORT.nodeFrom(STL.read(STL.write({ positions: [] })), 'empty', {}) === null);
+  ok('and a name that would break a file is cleaned on the way in',
+    !/[<>"']/.test(IMPORT.nodeFrom(STL.read(STL.write(box)), '<script>x</script>', {}).node.name));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/io/)\n`);

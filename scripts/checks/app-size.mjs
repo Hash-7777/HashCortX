@@ -182,7 +182,12 @@ const LINE_BUDGET = {
   // other, and the two can be separated when they really should differ.
   // Widening one fin and leaving the other thin did not read as an edit, it
   // read as the app having lost the symmetry it made, and nothing said so.
-  'modes/forge/mode.js': 3684,
+  // 3722, up from 3684. The four formats this app writes can be opened by it
+  // again — somebody who exported a part and wanted it back had been handed a
+  // dead end. The reading, the centring and the change of lens from
+  // millimetres to the scene's span are all in src/js/forge/io/import.js;
+  // what is here is the branch that prefers it over the scene loader.
+  'modes/forge/mode.js': 3722,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

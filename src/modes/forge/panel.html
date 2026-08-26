@@ -128,7 +128,7 @@
         <button class="frg-cad-btn" data-frg-tool="camDown" title="Pan the camera down" aria-label="Pan the camera down"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v13M7 12l5 5 5-5"/></svg></button>
         <span class="frg-cad-sep"></span>
         <button class="frg-cad-btn" data-frg-tool="solidify" title="Fuse the parts into one solid, and cut any holes" aria-label="Fuse the parts into one solid"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 12l9-5M12 12v10M12 12L3 7"/><circle cx="12" cy="12" r="2.6"/></svg></button>
-        <button class="frg-cad-btn" data-frg-tool="import" title="Import a GLB or GLTF mesh" aria-label="Import a GLB or GLTF mesh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
+        <button class="frg-cad-btn" data-frg-tool="import" title="Open a model: STL, OBJ, 3MF, STEP, GLB or GLTF" aria-label="Open a model file"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
         <span class="frg-export-wrap">
           <button class="frg-cad-btn" data-frg-tool="exportMenu" title="Export model" aria-label="Export model"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M8 11l4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
           <span class="frg-export-menu" id="frgExportMenu">
@@ -141,7 +141,7 @@
         </span>
         <span class="frg-cad-sep"></span>
         <button class="frg-cad-btn danger" data-frg-tool="delete" title="Delete selected part (Del)" aria-label="Delete selected part"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
-        <input id="frgAssetImport" type="file" accept=".glb,.gltf,model/gltf-binary,model/gltf+json" hidden />
+        <input id="frgAssetImport" type="file" accept=".stl,.obj,.3mf,.step,.stp,.glb,.gltf,model/stl,model/3mf,model/step,model/gltf-binary,model/gltf+json" hidden />
       </div>
       <!-- Keyboard hint -->
       <div class="frg-help">Click a part to select &nbsp;&middot;&nbsp; <b>W</b> move &nbsp;<b>R</b> rotate &nbsp;<b>S</b> resize &nbsp;<b>D</b> duplicate &nbsp;<b>Del</b> remove &nbsp;<b>&#8984;Z</b> undo &nbsp;<b>&#8679;&#8984;Z</b> redo</div>

@@ -2533,9 +2533,47 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     }
   }
 
+  /**
+   * One part built from a file this app can read itself.
+   *
+   * The reading, the centring and the change of lens from millimetres to the
+   * scene's working span all happen in src/js/forge/io/import.js, where they
+   * are arithmetic on plain arrays and are checked by round-tripping a written
+   * file back through them.
+   */
+  async function meshNodeFromOwnFormat(file) {
+    const I = window.HCForgeImportIO;
+    const kind = I ? I.formatOf(file.name) : null;
+    if (!kind) return null;
+    const mesh = I.readAs(kind, await file.arrayBuffer());
+    const built = I.nodeFrom(mesh, file.name.replace(/\.[^.]+$/, ""), { workingSpan: U()?.WORKING_SPAN });
+    return built ? { ...built, kind } : null;
+  }
+
   async function importForgeAsset(file) {
     if (!file || !await initThree()) return;
     try {
+      // Our own formats first, because they need no library and carry a real
+      // size. A scene file still goes through the loader below it.
+      const own = await meshNodeFromOwnFormat(file);
+      if (own) {
+        const current = activePlan?.nodes?.length
+          ? normalizePlan(activePlan)
+          : { name: `Imported ${own.node.name}`, nodes: [] };
+        current.nodes = current.nodes.concat([own.node]).slice(0, MAX_FORGE_NODES);
+        current.name = current.name || `Imported ${own.node.name}`;
+        // Only when this is the whole model. Adding a part to something that
+        // already has a stated size must not silently restate that size.
+        if (current.nodes.length === 1 && own.sizeMm > 0) {
+          current.sizeMm = own.sizeMm;
+          current.sizeStated = true;
+        }
+        buildPlan(current);
+        saveCurrentProject(false);
+        log("Pipeline", `Imported ${own.kind.toUpperCase()} · ${own.triangles.toLocaleString()} triangles`, "ok",
+          own.sizeMm > 0 ? `${Math.round(own.sizeMm)} mm along its longest side` : "");
+        return;
+      }
       await ensurePipelineModule("gltfLoader");
       const url = URL.createObjectURL(file);
       const loader = new GLTFLoader();
