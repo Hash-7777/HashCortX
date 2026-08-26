@@ -76,7 +76,13 @@ const LINE_BUDGET = {
   // 7093, up eight. The chat fetch tool now says the page is being retrieved
   // while it is: approving released the request and the wait that followed was
   // silent, which read as the click having hung.
-  'js/app.js': 7093,
+  // 7037, DOWN from 7093 — the first time this file has ever gone down.
+  // Reading a provider's answer moved to src/js/providers.js, beside the rest
+  // of what this app knows about providers: how many tokens it says it used,
+  // which are the figures a separate application reads out of the usage log,
+  // and what to tell somebody when a request failed, which is almost all of
+  // what they see on a bad day.
+  'js/app.js': 7037,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

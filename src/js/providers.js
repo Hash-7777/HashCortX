@@ -1,5 +1,5 @@
 // ==============================================================
-// Where each cloud provider lives, and how its key becomes a header
+// Where each cloud provider lives, what it needs, and what comes back
 //
 // These facts were written out twice, in two twelve-branch if/else chains —
 // one for streaming chat, one for the agent loop — with the endpoint and the
@@ -12,6 +12,13 @@
 // scripts/checks/providers.mjs holds the part no reviewer reliably catches:
 // every endpoint below must be inside the connect-src list in
 // tauri.conf.json, or it cannot work in the shipped app at all.
+//
+// The two functions at the end are the other direction: what a provider sent
+// BACK. How many tokens it says it used — four different spellings across the
+// providers, and the numbers that end up in the usage log another application
+// reads — and what to tell a person when a request failed. That second one is
+// almost all of what somebody sees on a bad day, and none of it could be read
+// by a check while it sat inside an seven-thousand-line file.
 //
 // Pure: no DOM, no storage, no network. Bodies stay with their callers — the
 // providers genuinely disagree about those, and pretending otherwise would
@@ -267,11 +274,112 @@
     return [...out];
   }
 
+  // ── What came back ──────────────────────────────────────────────────────
+
+  /**
+   * How many tokens a provider says it used, whichever way it says it.
+   *
+   * Four spellings: the OpenAI one that most follow, Anthropic's, Gemini's,
+   * and the pair Ollama puts on its final object. Read in that order because
+   * that is the order they are common in, and a response only ever uses one.
+   *
+   * These numbers are written into the usage log that a separate application
+   * reads, so a shape read wrongly here is a wrong figure in something else
+   * entirely — and nothing in either app would say so.
+   *
+   * Null when a response does not report usage at all, which is a different
+   * thing from reporting zero and has to stay different: a provider that says
+   * nothing must not be recorded as having cost nothing.
+   */
+  function usageFrom(data) {
+    if (!data || typeof data !== "object") return null;
+    // OpenAI-compatible, which most providers follow.
+    if (data.usage) {
+      const u = data.usage;
+      if (u.prompt_tokens != null || u.completion_tokens != null) {
+        return { input: u.prompt_tokens, output: u.completion_tokens };
+      }
+      // Anthropic.
+      if (u.input_tokens != null || u.output_tokens != null) {
+        return { input: u.input_tokens, output: u.output_tokens };
+      }
+    }
+    // Gemini.
+    if (data.usageMetadata) {
+      return {
+        input: data.usageMetadata.promptTokenCount,
+        output: data.usageMetadata.candidatesTokenCount,
+      };
+    }
+    // Ollama reports these on the final object.
+    if (data.prompt_eval_count != null || data.eval_count != null) {
+      return { input: data.prompt_eval_count, output: data.eval_count };
+    }
+    return null;
+  }
+
+  /**
+   * What to tell somebody when a request failed.
+   *
+   * Almost all of what a person sees on a bad day. Each case says what
+   * happened, and where to go about it — a rate limit is not a broken key, and
+   * being told the wrong one sends somebody to regenerate a key that was
+   * working.
+   *
+   * The free-tier note on a rate limit is there because it is the single most
+   * confusing thing about these providers: a request that FAILED still counts
+   * against the quota, so somebody retrying a failure is spending the budget
+   * they are trying to get back.
+   */
+  function cloudHttpError(provider, status, body, retryAfter) {
+    const PROVIDER_LABELS = {
+      groq: "Groq", gemini: "Google Gemini", openrouter: "OpenRouter",
+      cerebras: "Cerebras", samba: "SambaNova",
+      openai: "OpenAI", anthropic: "Anthropic", moonshot: "Moonshot (Kimi)",
+      deepseek: "DeepSeek", mistral: "Mistral AI",
+    };
+    const providerLabel = PROVIDER_LABELS[provider] || provider;
+    const hints = {
+      groq:        { key: "console.groq.com → API Keys",            quota: "console.groq.com → Usage" },
+      gemini:      { key: "aistudio.google.com → Get API key",      quota: "ai.google.dev/gemini-api/docs/quota" },
+      openrouter:  { key: "openrouter.ai → Keys",                   quota: "openrouter.ai/activity" },
+      cerebras:    { key: "cloud.cerebras.ai → API Keys (free)",    quota: "cloud.cerebras.ai → Usage" },
+      samba:       { key: "cloud.sambanova.ai → API Keys (free)",   quota: "cloud.sambanova.ai → Usage" },
+      openai:      { key: "platform.openai.com → API Keys",         quota: "platform.openai.com/usage" },
+      anthropic:   { key: "console.anthropic.com → API Keys",       quota: "console.anthropic.com/settings/plans" },
+      moonshot:    { key: "platform.kimi.ai or platform.kimi.com → API Keys", quota: "platform.kimi.ai / platform.kimi.com" },
+      deepseek:    { key: "platform.deepseek.com → API Keys",       quota: "platform.deepseek.com" },
+      mistral:     { key: "console.mistral.ai → API Keys",          quota: "console.mistral.ai" },
+    }[provider] || { key: "provider dashboard", quota: "provider dashboard" };
+    if (status === 429) {
+      const wait = retryAfter ? ` Try again in ${retryAfter}s.` : " Wait ~60s and try again, or switch to a different model.";
+      return `${providerLabel} rate limit — free-tier quota exceeded (failed requests count too).${wait}\nCheck usage: ${hints.quota}`;
+    }
+    if (status === 401 || status === 403) {
+      const serverDetail = (body || "").replace(/\s+/g, " ").trim().slice(0, 200);
+      const detailLine = serverDetail ? `\nServer said: ${serverDetail}` : "";
+      return `${providerLabel} rejected the API key (HTTP ${status}). Check it was generated on the matching platform — ${hints.key} — and that API access is enabled on your project.${detailLine}`;
+    }
+    if (status === 404) {
+      return `${providerLabel} model not found.\nThe model may have been renamed or retired.`;
+    }
+    if (status === 503 || status === 529) {
+      return `${providerLabel} is overloaded right now. Try again in a few seconds.`;
+    }
+    if (status >= 500) {
+      return `${providerLabel} server error (${status}). Try again shortly.`;
+    }
+    const detail = (body || "").slice(0, 120);
+    return `${providerLabel} error ${status}${detail ? ": " + detail : ""}`;
+  }
+
   window.HCProviders = {
     PROVIDERS, get, headersFor, requestFor, allHosts,
     // Moonshot answers on four hosts across two account systems.
     MOONSHOT_API_BASES, KIMI_ANTHROPIC_BASES, MOONSHOT_MODEL_ORDER,
     isKimiCodeKey, moonshotEndpointLabel, orderedMoonshotBases,
+    // What came back, rather than what was sent.
+    usageFrom, cloudHttpError,
     shouldTryNextMoonshotEndpoint, sortMoonshotModelIds, buildKimiAnthropicBody,
   };
 })();

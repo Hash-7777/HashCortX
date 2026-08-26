@@ -8,23 +8,27 @@
 // local Ollama and every Coder-mode turn were not. The total was quietly short
 // and nothing looked wrong.
 //
-// These load the real usageFrom() out of app.js and feed it each provider's
-// actual response shape.
+// These load the real usageFrom() and feed it each provider's actual response
+// shape. It lives in src/js/providers.js — beside the rest of what this app
+// knows about providers — rather than being lifted out of app.js by matching
+// its text, which broke the moment it moved.
 //
 // Run with: npm run check:usage
 // ==============================================================
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const appjs = readFileSync(process.argv[2] || join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+const root = join(here, '..', '..');
+const appjs = readFileSync(process.argv[2] || join(root, 'src', 'js', 'app.js'), 'utf8');
 
-// Lift the real function out rather than reimplementing it.
-const start = appjs.indexOf('  function usageFrom(data) {');
-const end = appjs.indexOf('\n  }\n', start) + 4;
-if (start < 0 || end < 4) { console.error('could not locate usageFrom in app.js'); process.exit(1); }
-const usageFrom = new Function(appjs.slice(start, end) + '; return usageFrom;')();
+const sandbox = { window: {} };
+vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(root, 'src', 'js', 'providers.js'), 'utf8'), sandbox, { filename: 'providers.js' });
+const usageFrom = sandbox.window.HCProviders?.usageFrom;
+if (typeof usageFrom !== 'function') { console.error('providers.js does not publish usageFrom'); process.exit(1); }
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {

@@ -240,5 +240,89 @@ console.log('\nAn OpenAI-style conversation becomes the Anthropic body Kimi expe
   ok('undefined messages is safe', P.buildKimiAnthropicBody('m', undefined, {}).messages.length === 0);
 }
 
+// ── What came back ───────────────────────────────────────────────────────
+console.log('\nHow many tokens a provider says it used, whichever way it says it:');
+{
+  const U = P.usageFrom;
+  // The OpenAI spelling, which most providers follow.
+  ok('the common spelling is read',
+    JSON.stringify(U({ usage: { prompt_tokens: 12, completion_tokens: 5 } })) === '{"input":12,"output":5}');
+  ok("Anthropic's is read too",
+    JSON.stringify(U({ usage: { input_tokens: 7, output_tokens: 3 } })) === '{"input":7,"output":3}');
+  ok("Gemini's is read too",
+    JSON.stringify(U({ usageMetadata: { promptTokenCount: 9, candidatesTokenCount: 4 } })) === '{"input":9,"output":4}');
+  ok("and the pair Ollama puts on its final object",
+    JSON.stringify(U({ prompt_eval_count: 20, eval_count: 6 })) === '{"input":20,"output":6}');
+
+  // These numbers go into a log a SEPARATE application reads. A response that
+  // does not report usage must not be recorded as having cost nothing —
+  // silence and zero are different, and only one of them is a measurement.
+  ok('a response that says nothing about usage reports nothing', U({ choices: [] }) === null);
+  ok('and so does an answer that is not an object at all',
+    U(null) === null && U('text') === null && U(undefined) === null);
+  ok('a genuine zero is still a zero, not silence',
+    JSON.stringify(U({ usage: { prompt_tokens: 0, completion_tokens: 0 } })) === '{"input":0,"output":0}');
+  // An empty usage object is a provider saying nothing in a longer way.
+  ok('an empty usage object falls through rather than reporting nothing used',
+    U({ usage: {}, usageMetadata: { promptTokenCount: 3, candidatesTokenCount: 1 } }) !== null);
+  ok('half an answer is still read', JSON.stringify(U({ usage: { completion_tokens: 4 } })) === '{"output":4}');
+}
+
+console.log('\nWhat somebody is told when a request failed:');
+{
+  const E = P.cloudHttpError;
+  // Almost all of what a person sees on a bad day. A rate limit is not a
+  // broken key, and being told the wrong one sends them to regenerate a key
+  // that was working.
+  const limited = E('groq', 429, '', null);
+  ok('a rate limit is named as one', /rate limit/i.test(limited));
+  // The single most confusing thing about these providers: a request that
+  // FAILED still counts, so retrying a failure spends the budget.
+  ok('and says that failed requests count against the quota too',
+    /failed requests count/i.test(limited));
+  ok('with somewhere to go and look', /console\.groq\.com/.test(limited));
+  ok('a stated wait is used when the provider gave one',
+    /Try again in 30s/.test(E('groq', 429, '', 30)));
+  ok('and a sensible one when it did not', /~60s/.test(E('groq', 429, '', null)));
+
+  const rejected = E('gemini', 401, 'invalid key', null);
+  ok('a rejected key says the key was rejected', /rejected the API key/i.test(rejected));
+  ok('and does not call it a rate limit', !/rate limit/i.test(rejected));
+  ok('and points at where that provider makes keys', /aistudio\.google\.com/.test(rejected));
+  ok('what the server said is passed on', /invalid key/.test(rejected));
+  ok('403 is treated the same as 401', /rejected the API key/i.test(E('gemini', 403, '', null)));
+
+  ok('a missing model says the model is missing', /model not found/i.test(E('openrouter', 404, '', null)));
+  ok('an overloaded provider is not called broken', /overloaded/i.test(E('anthropic', 529, '', null)));
+  ok('a server fault is named as theirs', /server error/i.test(E('samba', 500, '', null)));
+  ok('and anything else still says which provider and what code',
+    /Cerebras error 418/.test(E('cerebras', 418, '', null)));
+
+  // Every provider the app can talk to must have a name a person recognises
+  // and somewhere to look, or the message is worse than no message.
+  const named = ['groq', 'gemini', 'openrouter', 'cerebras', 'samba', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral'];
+  ok('every provider has a readable name',
+    named.every((p) => !new RegExp(`^${p} `).test(E(p, 500, '', null))),
+    named.filter((p) => new RegExp(`^${p} `).test(E(p, 500, '', null))).join(', '));
+  ok('and somewhere to check its quota',
+    named.every((p) => /\w+\.\w+/.test(E(p, 429, '', null))));
+  // A provider nobody listed still produces a message rather than "undefined"
+  // — it is named by its own identifier, which is worse than a proper label
+  // and far better than nothing.
+  ok('a provider nobody listed is still named in its message',
+    E('something', 500, '', null).startsWith('something')
+    && E('something', 418, '', null).startsWith('something'));
+  // Every message must name the provider and then say something — either what
+  // went wrong or, for a code nobody has a sentence for, the code itself.
+  ok('and every status says the provider and then something more',
+    [429, 401, 404, 503, 500, 418].every((code) => {
+      const message = E('something', code, '', null);
+      return message.startsWith('something ') && message.length > 'something '.length + 5;
+    }));
+  // A wall of provider HTML in an error box helps nobody.
+  ok('a long server response is cut down',
+    E('groq', 400, 'x'.repeat(5000), null).length < 300);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/providers.js)`);
 process.exit(fail ? 1 : 0);

@@ -2381,6 +2381,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const HCProviders = window.HCProviders;
 
+  // Reading a provider's answer — how many tokens it says it used, and what to
+  // say when it failed — lives beside the rest of what this app knows about
+  // providers, in src/js/providers.js, where it can be handed a response.
+  // Written as declarations rather than as consts so they hoist: both are
+  // called from code that sits above this line, and a const would be a dead
+  // zone until execution reached here.
+  function usageFrom(data) { return HCProviders.usageFrom(data); }
+  function cloudHttpError(provider, status, body, retryAfter) {
+    return HCProviders.cloudHttpError(provider, status, body, retryAfter);
+  }
+
   // Reading facts out of a message, and finding them again afterwards. In
   // js/memory.js: a fact extracted badly is repeated back for as long as it
   // survives, and one that never ranks makes the model deny knowing something
@@ -3760,47 +3771,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Keys are read from the DOM (localStorage-backed) at call time, never cached.
   // Human-readable error messages for common cloud API HTTP status codes.
   // `retryAfter` is the value of the Retry-After header (seconds) when present.
-  function cloudHttpError(provider, status, body, retryAfter) {
-    const PROVIDER_LABELS = {
-      groq: "Groq", gemini: "Google Gemini", openrouter: "OpenRouter",
-      cerebras: "Cerebras", samba: "SambaNova",
-      openai: "OpenAI", anthropic: "Anthropic", moonshot: "Moonshot (Kimi)",
-      deepseek: "DeepSeek", mistral: "Mistral AI",
-    };
-    const providerLabel = PROVIDER_LABELS[provider] || provider;
-    const hints = {
-      groq:        { key: "console.groq.com → API Keys",            quota: "console.groq.com → Usage" },
-      gemini:      { key: "aistudio.google.com → Get API key",      quota: "ai.google.dev/gemini-api/docs/quota" },
-      openrouter:  { key: "openrouter.ai → Keys",                   quota: "openrouter.ai/activity" },
-      cerebras:    { key: "cloud.cerebras.ai → API Keys (free)",    quota: "cloud.cerebras.ai → Usage" },
-      samba:       { key: "cloud.sambanova.ai → API Keys (free)",   quota: "cloud.sambanova.ai → Usage" },
-      openai:      { key: "platform.openai.com → API Keys",         quota: "platform.openai.com/usage" },
-      anthropic:   { key: "console.anthropic.com → API Keys",       quota: "console.anthropic.com/settings/plans" },
-      moonshot:    { key: "platform.kimi.ai or platform.kimi.com → API Keys", quota: "platform.kimi.ai / platform.kimi.com" },
-      deepseek:    { key: "platform.deepseek.com → API Keys",       quota: "platform.deepseek.com" },
-      mistral:     { key: "console.mistral.ai → API Keys",          quota: "console.mistral.ai" },
-    }[provider] || { key: "provider dashboard", quota: "provider dashboard" };
-    if (status === 429) {
-      const wait = retryAfter ? ` Try again in ${retryAfter}s.` : " Wait ~60s and try again, or switch to a different model.";
-      return `${providerLabel} rate limit — free-tier quota exceeded (failed requests count too).${wait}\nCheck usage: ${hints.quota}`;
-    }
-    if (status === 401 || status === 403) {
-      const serverDetail = (body || "").replace(/\s+/g, " ").trim().slice(0, 200);
-      const detailLine = serverDetail ? `\nServer said: ${serverDetail}` : "";
-      return `${providerLabel} rejected the API key (HTTP ${status}). Check it was generated on the matching platform — ${hints.key} — and that API access is enabled on your project.${detailLine}`;
-    }
-    if (status === 404) {
-      return `${providerLabel} model not found.\nThe model may have been renamed or retired.`;
-    }
-    if (status === 503 || status === 529) {
-      return `${providerLabel} is overloaded right now. Try again in a few seconds.`;
-    }
-    if (status >= 500) {
-      return `${providerLabel} server error (${status}). Try again shortly.`;
-    }
-    const detail = (body || "").slice(0, 120);
-    return `${providerLabel} error ${status}${detail ? ": " + detail : ""}`;
-  }
 
   // Image generation via Gemini (Nano Banana = gemini-3.1-flash-image-preview).
   // Non-streaming — returns { text, images: ["data:image/png;base64,..."] }.
@@ -4114,32 +4084,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   /** Pull counts out of whatever shape this provider answered with. */
-  function usageFrom(data) {
-    if (!data || typeof data !== "object") return null;
-    // OpenAI-compatible, which most providers follow.
-    if (data.usage) {
-      const u = data.usage;
-      if (u.prompt_tokens != null || u.completion_tokens != null) {
-        return { input: u.prompt_tokens, output: u.completion_tokens };
-      }
-      // Anthropic.
-      if (u.input_tokens != null || u.output_tokens != null) {
-        return { input: u.input_tokens, output: u.output_tokens };
-      }
-    }
-    // Gemini.
-    if (data.usageMetadata) {
-      return {
-        input: data.usageMetadata.promptTokenCount,
-        output: data.usageMetadata.candidatesTokenCount,
-      };
-    }
-    // Ollama reports these on the final object.
-    if (data.prompt_eval_count != null || data.eval_count != null) {
-      return { input: data.prompt_eval_count, output: data.eval_count };
-    }
-    return null;
-  }
 
   let loadModelsSeq = 0;
   async function loadModels() {
