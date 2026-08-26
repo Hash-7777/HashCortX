@@ -182,6 +182,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A generated business system no longer arrives missing fields it needs.** The
+  records the app falls back on when a model is unavailable — staff, products, a
+  restaurant table, a hotel room, an appointment, a patient, a housekeeping job
+  — were missing either a date or an amount, which are the two things the app
+  itself insists every record has. Each now carries the one it was missing: a
+  start date on an employee, a seating time on a table, a fee on an appointment,
+  a balance on a patient.
+- **A software or startup system is named as one.** Describing a SaaS business
+  was recognised, and then furnished as a nameless generic business, because
+  that industry had a finance profile but no configuration. It now has its own
+  modules and its own name.
 - **Dates in a generated business system are no longer a day early.** If your
   computer's clock is set east of Greenwich — Cairo, Athens, Dubai, Delhi,
   Tokyo — every due date, invoice date and delivery date the ERP mode produced
