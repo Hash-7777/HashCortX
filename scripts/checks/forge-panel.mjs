@@ -82,6 +82,25 @@ console.log('\nWith nothing selected, the panel holds the size of the whole mode
   ok('a wall that is set says what fusing will do',
     has(H.card(state({ node: null, plan: { sizeMm: 100, hollowMm: 2 } })), 'leave a 2 mm wall'));
   ok('a part is not asked about it', !has(H.card(state()), 'data-frg-hollow'));
+  // A record, not a recipe: a model asked the same question twice does not
+  // answer the same way, so this must not promise to make the thing again.
+  const made = { prompt: 'a bracket', label: 'Main model', style: 'realistic', detail: 'balanced', at: '2026-08-24T10:00:00Z' };
+  const withMade = H.card(state({ node: null, plan: { sizeMm: 100, sizeStated: true, madeBy: made } }));
+  ok('a generated model says what it was asked for', has(withMade, 'a bracket'));
+  ok('and which model answered', has(withMade, 'Main model'));
+  ok('and the settings it was asked under', has(withMade, 'realistic'));
+  ok('and says plainly that asking again gives a different answer',
+    has(withMade, 'does not repeat itself'));
+  ok('and never offers to make it again, which it cannot do',
+    !/make (it|that) again/i.test(withMade));
+  // The intro mark and anything opened from a file have no answer to give.
+  ok('a model nobody generated shows no such heading',
+    !has(H.card(state({ node: null })), 'Asked for'));
+  ok('nor one with a record that lost its question',
+    !has(H.card(state({ node: null, plan: { sizeMm: 100, madeBy: { label: 'x' } } })), 'Answered by'));
+  ok('a prompt that would break the page is escaped',
+    !has(H.card(state({ node: null, plan: { sizeMm: 100, madeBy: { prompt: '<img src=x>' } } })), '<img src=x>'));
+
   ok('with no model at all it says what to do',
     H.card({ node: null }).includes('Click any part in the void'));
 }

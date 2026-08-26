@@ -108,8 +108,14 @@ console.log('\nA run that failed does not report success:');
 
 console.log('\nThe measurements are done in code, not asked of a model:');
 {
-  check('the deterministic stage runs before anything is drawn',
-    /assembleDeterministically\(plan\)[\s\S]{0,200}buildPlan\(plan\)/.test(src));
+  // An ordering, stated as one. Counting characters between the two made this
+  // fail the moment anything was written in the gap, which says nothing about
+  // whether the order is still right.
+  check('the deterministic stage runs before anything is drawn', (() => {
+    const run = bodyOf('forgeRun');
+    return run.indexOf('assembleDeterministically(plan)') >= 0
+      && run.indexOf('buildPlan(plan)') > run.indexOf('assembleDeterministically(plan)');
+  })());
   check('it reports what it corrected', /log\("Assemble"/.test(src));
   check('it never hands back an empty scene',
     /if \(!out\.parts\.length\)[\s\S]{0,220}return plan;/.test(src));
@@ -362,6 +368,17 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /mat\.opacity = 1;/.test(bodyOf('exportableObject'))
     && !/Math\.max\(mat\.opacity/.test(src));
   check('the design is asked for a real size', /Set "sizeMm" to how long/.test(src));
+  // The run log is cleared on the next run; a saved project outlives it.
+  check('a generated model records what made it',
+    /plan\.madeBy = \{/.test(bodyOf('forgeRun')) && /data-frg-hollow|Asked for/.test(panelHtml));
+  check('and the record survives the rebuilder',
+    /madeBy: src\.madeBy/.test(bodyOf('normalizePlan')));
+  // A model asked the same question twice does not answer the same way, and
+  // the providers offering a seed call it best effort rather than a promise.
+  check('and nothing anywhere offers to make it again',
+    !/make (it|that) again/i.test(src) && !/make (it|that) again/i.test(panelHtml));
+  check('a sample model records nothing, having been asked for by nobody',
+    /if \(!useSample\) \{[\s\S]{0,400}plan\.madeBy/.test(bodyOf('forgeRun')));
   // Resizing is not the same edit: scaling a cylinder on two axes gives an
   // oval prism, while changing its radius gives a wider cylinder.
   check("a part's own dimensions can be changed, not only its size on screen",

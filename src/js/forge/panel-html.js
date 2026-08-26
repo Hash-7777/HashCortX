@@ -53,8 +53,35 @@
              </span>
            </div>
            ${hollowField(state)}
+           ${madeByNote(state)}
            <div class="frg-selection-empty">${measured}${stated}</div>
            ${nothing}`;
+  }
+
+  /**
+   * Where this model came from.
+   *
+   * A RECORD, not a recipe. A language model asked the same question twice
+   * does not answer the same way, so this cannot promise to repeat a model —
+   * what it offers is the question, the model that answered it and the
+   * settings, which is what somebody needs to ask again themselves.
+   *
+   * Nothing is shown for a model nobody generated: the intro mark and anything
+   * opened from a file have no answer to give, and an empty heading reads as
+   * something failing to load.
+   */
+  function madeByNote(state) {
+    const made = state.plan && state.plan.madeBy;
+    if (!made || !made.prompt) return "";
+    const when = made.at ? String(made.at).slice(0, 10) : "";
+    const settings = [made.style, made.detail].filter(Boolean).join(" · ");
+    return `<div class="frg-selection-empty" style="margin-top:8px">
+        <b>Asked for:</b> ${escapeHtml(made.prompt)}<br>
+        ${made.label ? `<b>Answered by:</b> ${escapeHtml(made.label)}<br>` : ""}
+        ${settings ? `<b>Settings:</b> ${escapeHtml(settings)}<br>` : ""}
+        ${when ? `<b>On:</b> ${escapeHtml(when)}<br>` : ""}
+        Asking again gives a different answer — a model does not repeat itself.
+      </div>`;
   }
 
   /**

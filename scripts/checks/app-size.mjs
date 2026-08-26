@@ -207,7 +207,11 @@ const LINE_BUDGET = {
   // two reading "blocked" — the words were honest and the picture said the app
   // was still going. It also says what is left on screen, because a failed run
   // leaves the previous model there.
-  'modes/forge/mode.js': 3919,
+  // 3947, up from 3919. A generated model records what it was asked for, which
+  // model answered, and under what settings — kept with the model rather than
+  // in the run log, because the log is cleared on the next run and a saved
+  // project outlives every trace.
+  'modes/forge/mode.js': 3947,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

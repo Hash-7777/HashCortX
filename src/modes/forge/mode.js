@@ -2827,6 +2827,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       // every other field for the same reason: one missing here is dropped in
       // silence, and a person who asked for a hollow part gets a solid one.
       hollowMm: Number(src.hollowMm) > 0 ? Math.min(50, Number(src.hollowMm)) : undefined,
+      // What produced this model. On the same list for the same reason as
+      // every other field: one missing here is dropped in silence, and a
+      // saved project would forget where it came from the moment it reopened.
+      madeBy: src.madeBy && typeof src.madeBy === "object" && !Array.isArray(src.madeBy) ? src.madeBy : undefined,
       constraints: Array.isArray(src.constraints) ? src.constraints : [],
       edges: Array.isArray(src.edges) ? src.edges : [],
       nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
@@ -3063,6 +3067,30 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     updateStage("refine", "done", plan.route === "anatomical" ? "sdf smoothed" : "post-process done");
 
     plan = assembleDeterministically(plan);
+
+    // ── What made this ────────────────────────────────────────────────
+    //
+    // Kept with the model rather than in the run log, because the log is
+    // cleared on the next run and a saved project outlives every trace.
+    //
+    // It is a RECORD, not a recipe. A language model asked the same question
+    // twice does not answer the same way, and the providers that offer a seed
+    // describe it as best effort rather than a promise. A control promising to
+    // repeat a model would be claiming something the machinery cannot do — so
+    // what is kept is the question, the model that answered it, and the
+    // settings, which is what a person needs to ask again themselves.
+    if (!useSample) {
+      const used = selectedModelFor("god");
+      plan.madeBy = {
+        model: used || undefined,
+        label: used ? modelLabel(used) : undefined,
+        prompt,
+        style: prefs?.style,
+        detail: prefs?.detail,
+        route: plan.route,
+        at: new Date().toISOString(),
+      };
+    }
 
     buildPlan(plan);
     saveCurrentProject(false);
