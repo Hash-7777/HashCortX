@@ -77,6 +77,7 @@
     '/js/vector-map.js',
     '/js/forge/expr.js',
     '/js/systems/spec.js',
+    '/js/systems/money.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
     '/js/forge/subdivide.js',

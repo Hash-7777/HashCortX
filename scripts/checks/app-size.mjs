@@ -86,7 +86,11 @@ const LINE_BUDGET = {
   // spec it holds is usable moved to src/js/systems/spec.js — the two
   // judgements everything in this mode rests on, and neither could be reached
   // by a check while it sat in here. This file had none at all before.
-  'modes/systems/mode.js': 4132,
+  // 4112, down again. The arithmetic under every generated record — totals,
+  // due dates, sample figures — moved to src/js/systems/money.js. Asking one
+  // of those functions a question in four time zones is what found that every
+  // generated date had been a day early for everyone east of Greenwich.
+  'modes/systems/mode.js': 4112,
   'modes/virtual-os/mode.js': 3808,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and

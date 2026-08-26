@@ -116,6 +116,20 @@ const SystemMaker = (() => {
     : ["dashboard","list","kanban","report","split","cards","timeline","calendar","metric","feed"];
 
   const slug = (raw, fallback = "item") => SPEC().slug(raw, fallback);
+
+  // ── The arithmetic under every generated record ─────────────────────────
+  //
+  // Totals, due dates and sample figures, in src/js/forge-sized pieces at
+  // src/js/systems/money.js so each can be asked a question. Moving `addDays`
+  // out is what found that it had been returning a date a day early for
+  // everyone east of Greenwich.
+  const MONEY = () => window.HCSystemsMoney;
+  const seededRand = (seed, idx) => MONEY().seededRand(seed, idx);
+  const roundMoney = (n) => MONEY().roundMoney(n);
+  const addDays = (iso, days) => MONEY().addDays(iso, days);
+  const recentMonths = (count = 12) => MONEY().recentMonths(count);
+  const uniqueModuleId = (spec, raw) =>
+    MONEY().uniqueModuleId((spec?.modules || []).map((m) => m.id), raw, slug);
   const structuredCloneSafe = (obj) => SPEC().cloneSafe(obj);
   const rawEntityMap = (entities) => SPEC().entityMap(entities);
   const parseSpecJson = (raw) => SPEC().parseJson(raw);
@@ -795,12 +809,6 @@ const SystemMaker = (() => {
   }
 
   // Seeded pseudo-random so each entity+field combo gets different but stable values
-  function seededRand(seed, idx) {
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) h = (Math.imul(31, h) + seed.charCodeAt(i)) | 0;
-    h = (h + idx * 2654435761) | 0;
-    return Math.min(0.999999, Math.abs(h) / 2147483647);
-  }
 
   function sampleValue(field, idx, entitySeed = "") {
     const r = seededRand(entitySeed + field.id, idx);
@@ -1819,29 +1827,8 @@ Repair requirements:
     return spec;
   }
 
-  function roundMoney(n) {
-    return Math.round((Number(n) || 0) * 100) / 100;
-  }
 
-  function addDays(iso, days) {
-    const d = new Date(`${iso}T00:00:00`);
-    d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
-  }
 
-  function recentMonths(count = 12) {
-    const out = [];
-    const d = new Date();
-    d.setDate(1);
-    d.setMonth(d.getMonth() - count + 1);
-    for (let i = 0; i < count; i++) {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      out.push({ key:`${y}-${m}`, date:`${y}-${m}-15` });
-      d.setMonth(d.getMonth() + 1);
-    }
-    return out;
-  }
 
   function financeProfile(spec, desc) {
     const domain = spec.domain || detectDomain(desc || spec.description || "");
@@ -1977,13 +1964,6 @@ Repair requirements:
     });
   }
 
-  function uniqueModuleId(spec, raw) {
-    const base = slug(raw, "module");
-    let id = base;
-    let i = 2;
-    while (spec.modules.some(m => m.id === id)) id = `${base}_${i++}`;
-    return id;
-  }
 
   function ensureFinancialModules(spec) {
     const financeText = m => `${m.name || ""} ${m.entity || ""}`.toLowerCase();
