@@ -76,6 +76,7 @@
     '/js/memory.js',
     '/js/vector-map.js',
     '/js/forge/expr.js',
+    '/js/systems/spec.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
     '/js/forge/subdivide.js',

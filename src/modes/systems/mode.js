@@ -103,7 +103,30 @@ const SystemMaker = (() => {
     'Use "cards" for people/products, "timeline" for activity, "metric" for KPIs — skip tables entirely.',
   ];
 
-  const VALID_SCREENS = ["dashboard","list","kanban","report","split","cards","timeline","calendar","metric","feed"];
+  // ── Reading and judging a generated spec ────────────────────────────────
+  //
+  // These decide whether a model's answer can be read at all and whether what
+  // it says is complete enough to build from — everything below rests on
+  // them. They live in src/js/systems/spec.js so they can be handed an input
+  // and asked what they decide, which is not something a four-thousand-line
+  // mode file allows. The wrappers here are what the rest of this file calls.
+  const SPEC = () => window.HCSystemsSpec;
+  const VALID_SCREENS = SPEC()
+    ? SPEC().VALID_SCREENS
+    : ["dashboard","list","kanban","report","split","cards","timeline","calendar","metric","feed"];
+
+  const slug = (raw, fallback = "item") => SPEC().slug(raw, fallback);
+  const structuredCloneSafe = (obj) => SPEC().cloneSafe(obj);
+  const rawEntityMap = (entities) => SPEC().entityMap(entities);
+  const parseSpecJson = (raw) => SPEC().parseJson(raw);
+  const validateRawGeneratedSpec = (raw) => SPEC().validate(raw);
+  // The panel's own state is passed in rather than reached for, which is what
+  // makes the searching, filtering and sorting checkable at all.
+  const prepareRecords = (rows) => SPEC().prepareRecords(rows, {
+    search: searchQuery,
+    filters: filterRules,
+    sort: sortState,
+  });
 
   const FALLBACK_SCREENS = ["kanban","split","cards","report","timeline","list","feed","calendar","metric","list"];
 
@@ -362,13 +385,7 @@ const SystemMaker = (() => {
     try { localStorage.removeItem(dataKey(spec.id)); } catch {}
   }
 
-  function structuredCloneSafe(obj) {
-    try { return structuredClone(obj); } catch { return JSON.parse(JSON.stringify(obj || {})); }
-  }
 
-  function slug(raw, fallback = "item") {
-    return String(raw || fallback).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || fallback;
-  }
 
   function threeWords(str) {
     return String(str || "").trim().split(/\s+/).slice(0, 3).join(" ");
@@ -1597,73 +1614,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     }, desc, null);
   }
 
-  function parseSpecJson(raw) {
-    if (!raw) return null;
-    const text = String(raw).trim();
-    // 1. Direct parse
-    try { return JSON.parse(text); } catch {}
-    // 2. Strip all markdown fences and parse what remains
-    const stripped = text.replace(/```[\s\S]*?```/g, (m) => {
-      const inner = m.match(/```(?:json)?\s*([\s\S]*?)```/);
-      return inner ? " " + inner[1] + " " : " ";
-    });
-    try { return JSON.parse(stripped.trim()); } catch {}
-    // 3. Find every {…} block by bracket matching
-    const opens = [];
-    for (let i = 0; i < text.length; i++) if (text[i] === "{") opens.push(i);
-    let best = null;
-    let bestLen = 0;
-    for (const start of opens) {
-      let depth = 0;
-      for (let i = start; i < text.length; i++) {
-        if (text[i] === "{") depth++;
-        else if (text[i] === "}") depth--;
-        if (depth === 0) {
-          try {
-            const candidate = text.slice(start, i + 1);
-            const parsed = JSON.parse(candidate);
-            if (typeof parsed === "object" && candidate.length > bestLen) {
-              best = parsed;
-              bestLen = candidate.length;
-            }
-          } catch {}
-          break;
-        }
-      }
-    }
-    if (best) return best;
-    // 4. Last resort: strip trailing commas and retry the largest block
-    const clean = text.replace(/,\s*([}\]])/g, "$1").replace(/\/\/.*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
-    const s2 = clean.indexOf("{");
-    const e2 = clean.lastIndexOf("}");
-    if (s2 !== -1 && e2 !== -1 && e2 > s2) {
-      for (let start = s2; start < Math.min(s2 + 60, clean.length); start++) {
-        for (let end = e2; end > Math.max(e2 - 60, start); end--) {
-          try {
-            const parsed = JSON.parse(clean.slice(start, end + 1));
-            if (typeof parsed === "object") return parsed;
-          } catch {}
-        }
-      }
-    }
-    return null;
-  }
 
-  function rawEntityMap(entities) {
-    const map = {};
-    if (entities && typeof entities === "object" && !Array.isArray(entities)) {
-      Object.entries(entities).forEach(([key, entity]) => {
-        const id = slug(entity?.id || key);
-        if (id) map[id] = entity || {};
-      });
-    } else if (Array.isArray(entities)) {
-      entities.forEach(entity => {
-        const id = slug(entity?.id || entity?.name);
-        if (id) map[id] = entity || {};
-      });
-    }
-    return map;
-  }
 
   function canonicalFinanceEntityForModule(module) {
     const text = `${module?.name || ""} ${module?.entity || ""}`.toLowerCase();
@@ -1761,40 +1712,6 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     return prepared;
   }
 
-  function validateRawGeneratedSpec(raw) {
-    const issues = [];
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return ["Top-level SystemSpec must be a JSON object."];
-
-    const modules = Array.isArray(raw.modules) ? raw.modules : [];
-    const entities = rawEntityMap(raw.entities);
-    if (!String(raw.name || "").trim()) issues.push("Missing non-empty name.");
-    if (modules.length < 5) issues.push("modules must include at least 5 business modules.");
-    if (Object.keys(entities).length < 3) issues.push("entities must define at least 3 entity schemas.");
-
-    const screens = new Set();
-    modules.forEach((module, idx) => {
-      if (!String(module?.name || "").trim()) issues.push(`modules[${idx}] is missing name.`);
-      if (!String(module?.entity || "").trim()) issues.push(`modules[${idx}] is missing entity.`);
-      if (!VALID_SCREENS.includes(module?.screen)) issues.push(`modules[${idx}] has invalid or missing screen.`);
-      if (module?.screen) screens.add(module.screen);
-      const entity = entities[slug(module?.entity || "")];
-      if (!entity) {
-        issues.push(`Entity "${module?.entity || "(missing)"}" referenced by module "${module?.name || idx}" is not defined.`);
-        return;
-      }
-      const fields = Array.isArray(entity.fields) ? entity.fields : [];
-      if (fields.length < 3) issues.push(`Entity "${module.entity}" must include at least 3 fields.`);
-      if (!fields.some(f => ["number"].includes(f?.type) || /amount|total|price|cost|revenue|salary|qty|quantity|balance|value/i.test(f?.id || f?.label || ""))) {
-        issues.push(`Entity "${module.entity}" needs at least one numeric/business value field.`);
-      }
-      if (!fields.some(f => f?.type === "date" || /date|time|due|created|updated/i.test(f?.id || f?.label || ""))) {
-        issues.push(`Entity "${module.entity}" needs at least one date/time field.`);
-      }
-    });
-
-    if (modules.length >= 5 && screens.size < 4) issues.push("Use at least 4 different screen types across modules.");
-    return [...new Set(issues)].slice(0, 14);
-  }
 
   function semanticRepairPrompt() {
     return `You repair invalid ERP SystemSpec JSON.
@@ -2679,37 +2596,6 @@ Repair requirements:
     ].join(";");
   }
 
-  function prepareRecords(rows, entity) {
-    let records = Array.isArray(rows) ? [...rows] : [];
-    const q = searchQuery.trim().toLowerCase();
-    if (q) {
-      records = records.filter(r => Object.values(r).some(v => String(v ?? "").toLowerCase().includes(q)));
-    }
-    for (const rule of filterRules) {
-      if (!rule.field || rule.value === "") continue;
-      records = records.filter(r => {
-        const cell = String(r[rule.field] ?? "").toLowerCase();
-        const val  = rule.value.toLowerCase();
-        switch (rule.op) {
-          case "eq":     return cell === val;
-          case "neq":    return cell !== val;
-          case "starts": return cell.startsWith(val);
-          case "gt":     return Number(r[rule.field]) > Number(rule.value);
-          case "lt":     return Number(r[rule.field]) < Number(rule.value);
-          default:       return cell.includes(val);
-        }
-      });
-    }
-    if (sortState.field) {
-      records.sort((a, b) => {
-        const av = a[sortState.field], bv = b[sortState.field];
-        const n = Number(av) - Number(bv);
-        const cmp = Number.isFinite(n) && !Number.isNaN(n) ? n : String(av ?? "").localeCompare(String(bv ?? ""));
-        return sortState.dir === "desc" ? -cmp : cmp;
-      });
-    }
-    return records;
-  }
 
   function renderKpis(records, entity, module = null) {
     const fields = entity?.fields || [];

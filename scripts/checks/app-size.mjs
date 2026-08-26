@@ -82,7 +82,11 @@ const LINE_BUDGET = {
   // nothing, and it states which validation issues it is repairing. Both are in
   // finalizeOrRepairGeneratedSpec, which is where the run's work was being
   // thrown away.
-  'modes/systems/mode.js': 4246,
+  // 4132, DOWN from 4246. Reading a model's answer and judging whether the
+  // spec it holds is usable moved to src/js/systems/spec.js — the two
+  // judgements everything in this mode rests on, and neither could be reached
+  // by a check while it sat in here. This file had none at all before.
+  'modes/systems/mode.js': 4132,
   'modes/virtual-os/mode.js': 3808,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
