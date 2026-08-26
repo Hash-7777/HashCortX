@@ -51,7 +51,7 @@ const part = (type, params, extra = {}) => ({
   position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], params, ...extra,
 });
 const report = (parts, opts = {}) => {
-  const field = F.buildField(parts);
+  const field = F.buildField(parts, opts.hollow ? { hollow: opts.hollow } : {});
   const mesh = S.extract(field, { resolution: opts.resolution || 48 });
   return { mesh, field, report: P.assess(mesh, field, { mmPerUnit: opts.mmPerUnit ?? 10, ...opts }) };
 };
@@ -124,6 +124,38 @@ console.log('\nOne object, or several pretending to be one:');
     part('box', { width: 2, height: 1, depth: 1 }, { id: 'b', position: [1.5, 0, 0] }),
   ]);
   ok('two that overlap are one', touching.report.facts.shells === 1);
+  ok('and neither has a sealed space in it',
+    one.report.facts.voids === 0 && apart.report.facts.voids === 0 && touching.report.facts.voids === 0);
+}
+
+// ── A hollow part is one piece, not two ──────────────────────────────────
+console.log('\nA sealed void is not a second object:');
+{
+  // Hollow something and it grows a second surface — the inside of the wall.
+  // Nothing about the topology tells that apart from a second object: a cavity
+  // is as closed and as manifold as the shell around it. Which way each
+  // surface faces is what distinguishes them.
+  const solid = report([part('box', { width: 2, height: 1.4, depth: 1 })], { resolution: 56 });
+  const walled = report([part('box', { width: 2, height: 1.4, depth: 1 })], { resolution: 56, hollow: 0.16 });
+
+  ok('the solid one is one piece with nothing inside it',
+    solid.report.facts.shells === 1 && solid.report.facts.voids === 0);
+  ok('the hollow one really did grow a second surface',
+    walled.report.facts.shells + walled.report.facts.voids === 2);
+  ok('but it is reported as one piece', walled.report.facts.shells === 1);
+  ok('with one sealed space inside it', walled.report.facts.voids === 1);
+  // Telling somebody their hollow box will come off the bed in two parts is a
+  // false alarm about the very feature they asked for.
+  ok('and nobody is told it will come off the bed in two',
+    !walled.report.findings.some((f) => f.code === 'loose-pieces'));
+  ok('the one-line summary says it is hollow', /hollow inside/.test(P.summarise(walled.report)));
+  ok('and still says it is one solid', /one solid/.test(P.summarise(walled.report)));
+  // Two genuinely separate objects must still be reported as two.
+  const apartAgain = report([
+    part('box', { width: 1, height: 1, depth: 1 }, { id: 'a', position: [-2, 0, 0] }),
+    part('box', { width: 1, height: 1, depth: 1 }, { id: 'b', position: [2, 0, 0] }),
+  ]);
+  ok('and two real pieces are still two', apartAgain.report.facts.shells === 2);
 }
 
 console.log('\nNothing is refused, and nothing is guessed:');

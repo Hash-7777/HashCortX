@@ -552,6 +552,14 @@ console.log('\nThe parts can be fused into one solid, and cut:');
   check('it reports watertight only when nothing is open or folded',
     /if \(info\.boundaryEdges \|\| info\.nonManifoldEdges\)[\s\S]{0,260}watertight/.test(fuse));
   check('and it says the volume in something a person uses', /ml`/.test(fuse));
+  // A wall the geometry has, rather than a lattice a slicer was asked for.
+  check('a model can be hollowed to a wall when it is fused',
+    /function setHollowMm/.test(src) && /data-frg-hollow/.test(panelHtml)
+    && /hollow: wall/.test(fuse));
+  check('and the number is turned into scene units first, not passed as millimetres',
+    /units\.fromMm\(Number\(activePlan\.hollowMm\), mmPerUnit\)/.test(fuse));
+  check('the wall survives the rebuilder rather than being dropped in silence',
+    /hollowMm: Number\(src\.hollowMm\)/.test(bodyOf('normalizePlan')));
   check('the fused mesh is a snapshot, thrown away when the parts change',
     /dropSolid\(\)/.test(bodyOf('buildPlan')) && /dropSolid\(\)/.test(bodyOf('restoreParts')));
   check('an export writes the solid when there is one',

@@ -193,7 +193,11 @@ const LINE_BUDGET = {
   // 3840, up from 3757. A part can be dragged to a new place in the build
   // order. The arrows stay: they are the only way to do it from a keyboard,
   // and a long list is faster to nudge than to drag.
-  'modes/forge/mode.js': 3840,
+  // 3868, up from 3840. A model can be hollowed to a wall thickness when it
+  // is fused — a real wall the geometry has, rather than a lattice a slicer
+  // was asked for. The lines are the control, the millimetre conversion, and
+  // carrying the number through the rebuilder so it is not dropped in silence.
+  'modes/forge/mode.js': 3868,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

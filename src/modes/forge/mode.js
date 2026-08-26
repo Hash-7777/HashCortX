@@ -1386,7 +1386,14 @@
     let mesh;
     let field;
     try {
-      field = FieldMod.buildField(nodes);
+      // In scene units, because that is what the field works in — the number
+      // a person typed is millimetres.
+      const units = U();
+      const wall = Number(activePlan?.hollowMm) > 0 && units && mmPerUnit
+        ? units.fromMm(Number(activePlan.hollowMm), mmPerUnit)
+        : 0;
+      field = FieldMod.buildField(nodes, wall > 0 ? { hollow: wall } : {});
+      if (wall > 0) log("Solid", `Leaving a ${activePlan.hollowMm} mm wall`, "wait", "the middle is taken out");
       for (const issue of field.issues) log("Solid", `${issue.partId || "plan"}: ${issue.detail}`, "warn");
       mesh = SurfaceMod.extract(field, {});
     } catch (err) {
@@ -2249,6 +2256,22 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    * keystroke. An empty name falls back to the part's id, so a row can never
    * become a blank line nothing identifies.
    */
+  /**
+   * How thick a wall the fuse should leave, in millimetres. Zero is solid.
+   *
+   * Nothing is rebuilt: hollowing happens when the parts are fused, so the
+   * only thing that goes stale is a solid already on screen.
+   */
+  function setHollowMm(value) {
+    if (!activePlan) return;
+    if (String(value).trim() === "") return;
+    const wall = Math.max(0, Math.min(50, Number(value) || 0));
+    if (wall > 0) activePlan.hollowMm = wall; else delete activePlan.hollowMm;
+    dropSolid();
+    renderSelection();
+    queueProjectSave();
+  }
+
   function renameSelectedPart(value) {
     if (!selectedMesh || selectedObjectWhole) return;
     const node = selectedMesh.userData.node;
@@ -2762,6 +2785,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       // here, every expression in the plan would resolve to nothing and the
       // whole model would fall back to defaults without a word.
       vars: src.vars && typeof src.vars === "object" && !Array.isArray(src.vars) ? src.vars : undefined,
+      // How thick a wall to leave when this is fused. On the same list as
+      // every other field for the same reason: one missing here is dropped in
+      // silence, and a person who asked for a hollow part gets a solid one.
+      hollowMm: Number(src.hollowMm) > 0 ? Math.min(50, Number(src.hollowMm)) : undefined,
       constraints: Array.isArray(src.constraints) ? src.constraints : [],
       edges: Array.isArray(src.edges) ? src.edges : [],
       nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
@@ -3604,6 +3631,7 @@ Prompt: ${prompt}`;
     });
     $("frgSelectionCard")?.addEventListener("change", (e) => {
       if (e.target.dataset.frgModelSize !== undefined) { setModelSizeMm(e.target.value); return; }
+      if (e.target.hasAttribute("data-frg-hollow")) { setHollowMm(e.target.value); return; }
       const posAxis = e.target.dataset.frgPos;
       const scaleAxis = e.target.dataset.frgScale;
       const rotAxis = e.target.dataset.frgRot;

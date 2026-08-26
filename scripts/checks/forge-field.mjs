@@ -183,6 +183,35 @@ console.log('\nA rounded join, which is a fillet by another name:');
     round.evaluate(1, 1.1, 0) < sharp.evaluate(1, 1.1, 0));
 }
 
+console.log('\nA model can be hollowed, and the wall goes inwards:');
+{
+  const box = () => field([part('box', { width: 1, height: 0.6, depth: 0.4 })]);
+  const solid = box();
+  const walled = field([part('box', { width: 1, height: 0.6, depth: 0.4 })], { hollow: 0.06 });
+  ok('a model with no wall asked for is unchanged', solid.hollow === 0);
+  ok('and one with a wall says so', walled.hollow === 0.06);
+
+  // Deep inside a solid is material; deep inside a hollow one is air.
+  ok('the middle of a solid is inside it', solid.evaluate(0, 0, 0) < 0);
+  ok('and the middle of a hollow one is not', walled.evaluate(0, 0, 0) > 0);
+  // Just inside the surface is wall in both.
+  ok('just under the skin is material either way',
+    solid.evaluate(0, 0, 0.17) < 0 && walled.evaluate(0, 0, 0.17) < 0);
+
+  // THE ONE THAT MATTERS. The other obvious spelling of this centres the wall
+  // ON the surface, which grows the object by half a wall in every direction —
+  // the sort of thing nobody notices until the part does not fit.
+  ok('hollowing does not make the object any bigger',
+    Math.abs(walled.evaluate(0, 0, 0.21) - solid.evaluate(0, 0, 0.21)) < 1e-9,
+    'a point outside must measure the same either way');
+  ok('and the outside surface is in the same place',
+    Math.abs(walled.evaluate(0, 0, 0.2)) < 1e-9 && Math.abs(solid.evaluate(0, 0, 0.2)) < 1e-9);
+
+  ok('a wall of nothing leaves the model solid', field([part('box', { width: 1 })], { hollow: 0 }).evaluate(0, 0, 0) < 0);
+  ok('and a wall thicker than the part leaves it solid rather than inside out',
+    field([part('box', { width: 1, height: 0.6, depth: 0.4 })], { hollow: 5 }).evaluate(0, 0, 0) < 0);
+}
+
 console.log('\nWhat it will not pretend to know:');
 {
   // This file deliberately does NOT load src/js/forge/meshfield.js, so what is

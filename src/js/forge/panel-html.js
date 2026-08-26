@@ -52,8 +52,29 @@
                <input data-frg-model-size type="number" min="${U.MIN_SIZE_MM}" max="${U.MAX_SIZE_MM}" step="1" value="${escapeHtml(String(Math.round(sizeMm)))}">
              </span>
            </div>
+           ${hollowField(state)}
            <div class="frg-selection-empty">${measured}${stated}</div>
            ${nothing}`;
+  }
+
+  /**
+   * How thick a wall to leave when the model is fused, or nothing for solid.
+   *
+   * A model-level number rather than a per-part one: it is a property of the
+   * object being made, and hollowing one part of a fused body is not a thing
+   * that means anything. Zero is written as zero rather than hidden, because
+   * "solid" is a choice a person should see they have made.
+   */
+  function hollowField(state) {
+    const U = units();
+    const inMm = U && state.mmPerUnit;
+    const wall = Number(state.plan && state.plan.hollowMm) > 0 ? Number(state.plan.hollowMm) : 0;
+    return `<div class="frg-edit-grid" aria-label="Hollow" style="grid-template-columns:1fr">
+             ${field("Wall thickness when fused (mm)", `data-frg-hollow type="number" min="0" max="50" step="0.5"`, wall)}
+           </div>
+           <div class="frg-selection-empty">${wall > 0
+             ? `Fusing will leave a ${wall} mm wall and take out the middle.`
+             : "Fusing makes a solid part. Set a wall to hollow it out."}${inMm ? "" : ""}</div>`;
   }
 
   /** A row of three numbers, one per axis. */

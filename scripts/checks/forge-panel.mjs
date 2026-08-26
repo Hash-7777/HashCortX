@@ -72,6 +72,16 @@ console.log('\nWith nothing selected, the panel holds the size of the whole mode
     has(H.card(state({ node: null, plan: { sizeMm: 100, sizeStated: false } })), 'this size is a default'));
   ok('a stated size does not',
     !has(H.card(state({ node: null })), 'this size is a default'));
+  // A property of the object being made, so it lives with the model rather
+  // than with a part: hollowing one part of a fused body means nothing.
+  ok('a wall thickness is offered for the whole model', has(H.card(state({ node: null })), 'data-frg-hollow'));
+  ok('and reads zero until somebody sets one',
+    valueOf(H.card(state({ node: null })), 'data-frg-hollow') === '0');
+  ok('with solid said out loud rather than left blank',
+    has(H.card(state({ node: null })), 'Fusing makes a solid part'));
+  ok('a wall that is set says what fusing will do',
+    has(H.card(state({ node: null, plan: { sizeMm: 100, hollowMm: 2 } })), 'leave a 2 mm wall'));
+  ok('a part is not asked about it', !has(H.card(state()), 'data-frg-hollow'));
   ok('with no model at all it says what to do',
     H.card({ node: null }).includes('Click any part in the void'));
 }

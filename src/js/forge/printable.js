@@ -127,16 +127,28 @@
   }
 
   /**
-   * How many separate objects a mesh actually is.
+   * How many separate objects a mesh is, and how many sealed voids are in them.
    *
    * Walked over shared vertices. A model that looks like one thing and arrives
-   * as three is a common and completely invisible failure: it slices, it prints,
-   * and the pieces fall apart on the bed.
+   * as three is a common and completely invisible failure: it slices, it
+   * prints, and the pieces fall apart on the bed.
+   *
+   * NOT EVERY SEPARATE SURFACE IS A SEPARATE OBJECT. Hollow something and it
+   * grows a second surface — the inside of the wall — which is one solid with
+   * a void in it and not two pieces. Telling somebody their hollow box will
+   * come off the bed in two parts is a false alarm about the feature they just
+   * asked for.
+   *
+   * The two are told apart by which way each surface faces, measured as the
+   * volume it encloses. A surface wrapping material encloses a positive
+   * volume; a surface wrapping a void is inside out by comparison and encloses
+   * a negative one. Nothing about the topology distinguishes them — a cavity is
+   * as closed and as manifold as the shell around it.
    */
   function shells(mesh) {
     const idx = mesh?.indices;
     const count = mesh?.positions ? mesh.positions.length / 3 : 0;
-    if (!idx || !count) return 0;
+    if (!idx || !count) return { pieces: 0, voids: 0 };
     const parent = new Int32Array(count);
     for (let i = 0; i < count; i++) parent[i] = i;
     const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
@@ -145,12 +157,26 @@
       join(idx[t], idx[t + 1]);
       join(idx[t + 1], idx[t + 2]);
     }
-    const roots = new Set();
-    // Only vertices a triangle actually uses; an unused one is not an object.
-    const used = new Uint8Array(count);
-    for (let i = 0; i < idx.length; i++) used[idx[i]] = 1;
-    for (let i = 0; i < count; i++) if (used[i]) roots.add(find(i));
-    return roots.size;
+    const volumes = new Map();
+    const at = (v) => [mesh.positions[v * 3], mesh.positions[v * 3 + 1], mesh.positions[v * 3 + 2]];
+    for (let t = 0; t + 2 < idx.length; t += 3) {
+      const root = find(idx[t]);
+      const a = at(idx[t]);
+      const b = at(idx[t + 1]);
+      const c = at(idx[t + 2]);
+      const v = (
+        a[0] * (b[1] * c[2] - b[2] * c[1])
+        - a[1] * (b[0] * c[2] - b[2] * c[0])
+        + a[2] * (b[0] * c[1] - b[1] * c[0])
+      ) / 6;
+      volumes.set(root, (volumes.get(root) || 0) + v);
+    }
+    let pieces = 0;
+    let voids = 0;
+    for (const volume of volumes.values()) {
+      if (volume < 0) voids++; else pieces++;
+    }
+    return { pieces, voids };
   }
 
   /**
@@ -168,6 +194,7 @@
     const facts = {
       triangles: 0,
       shells: 0,
+      voids: 0,
       minWallMm: null,
       overhangShare: 0,
       sizeMm: [0, 0, 0],
@@ -191,7 +218,9 @@
     if (foldedEdges > 0) {
       findings.push({ code: "folded", level: "warn", detail: `${foldedEdges} edge(s) are pinched, where a feature is thinner than the grid` });
     }
-    facts.shells = shells(mesh);
+    const surfaces = shells(mesh);
+    facts.shells = surfaces.pieces;
+    facts.voids = surfaces.voids;
     if (facts.shells > 1) {
       findings.push({
         code: "loose-pieces", level: "warn",
@@ -306,6 +335,9 @@
       bits.push(f.sizeMm.map((v) => (v < 10 ? v.toFixed(1) : Math.round(v))).join(" × ") + " mm");
     }
     bits.push(f.shells === 1 ? "one solid" : `${f.shells} separate pieces`);
+    // Said, because a sealed void is a thing a person should know they have:
+    // it cannot be drained, and a slicer will not fill it.
+    if (f.voids > 0) bits.push(f.voids === 1 ? "hollow inside" : `${f.voids} sealed spaces inside`);
     if (f.minWallMm != null && f.hasUnits) bits.push(`${f.minWallMm.toFixed(1)} mm thinnest wall`);
     bits.push(f.overhangShare > 0.02
       ? `${Math.round(f.overhangShare * 100)}% needs support`

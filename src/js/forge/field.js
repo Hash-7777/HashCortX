@@ -365,6 +365,27 @@
     const pad = num(opts.pad, 0);
     const padded = [bounds[0] - pad, bounds[1] - pad, bounds[2] - pad, bounds[3] + pad, bounds[4] + pad, bounds[5] + pad];
 
+    /**
+     * Hollowing, as arithmetic on the finished solid.
+     *
+     * A printed part is mostly air already — a slicer fills it with a lattice —
+     * but a lattice is not a wall, and a part that has to be light, or has to
+     * have something pass through it, wants a real one. Asking the fuse for it
+     * is the difference between a wall the geometry has and a wall the slicer
+     * was asked for.
+     *
+     * `max(d, -(d + t))` keeps what is within `t` INSIDE the surface: the
+     * material stays where it was and the middle is taken out. The other
+     * obvious spelling, `abs(d) - t/2`, centres the wall ON the surface, which
+     * grows the object by half a wall in every direction and is the sort of
+     * thing nobody notices until the part does not fit.
+     *
+     * Nothing is said here about whether the hollow can be drained. The
+     * printability report is where a person is told about what they have made.
+     */
+    const wall = Math.max(0, num(opts.hollow, 0));
+    const hollow = (d) => (wall > 0 ? Math.max(d, -(d + wall)) : d);
+
     const evaluate = (x, y, z) => {
       let d = Infinity;
       for (let i = 0; i < prepared.length; i++) {
@@ -389,7 +410,7 @@
         else if (p.op === "intersect") d = Math.max(d, dp);
         else d = i === 0 ? dp : softMin(d, dp, p.blend);
       }
-      return d;
+      return hollow(d);
     };
 
     // The thinnest thing anywhere in this model, which is what decides how
@@ -409,6 +430,7 @@
       evaluate,
       bounds: padded,
       parts: prepared.length,
+      hollow: wall,
       minFeature: Number.isFinite(minFeature) ? minFeature : 0,
       issues,
       /**
