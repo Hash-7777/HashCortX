@@ -108,7 +108,12 @@ const LINE_BUDGET = {
   // 3640, down again. Whether anything usable comes out of a generation —
   // four ways of finding a file's path in a model's answer, tried in order of
   // how much each assumes — moved to src/js/vos/answer.js.
-  'modes/virtual-os/mode.js': 3640,
+  // 3563, down from 3808 where this began. The terminal's own workings —
+  // splitting a command when arguments are quoted, resolving a path against
+  // where you are standing, finding a name in a tree — moved to
+  // src/js/vos/shell.js. It runs nothing and never did; what it has to get
+  // right is behaving like the thing it imitates.
+  'modes/virtual-os/mode.js': 3563,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

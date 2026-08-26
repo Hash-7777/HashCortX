@@ -231,6 +231,22 @@ const VoidStudio = (() => {
   // src/js/vos/answer.js: four ways of finding a file's path in an answer,
   // tried in order of how much each assumes. Somewhere it can be handed a
   // real answer and asked what it found.
+  // ── A terminal that runs nothing ────────────────────────────────────────
+  //
+  // No shell underneath and no process anywhere: `ls` reads a list of objects
+  // in memory and `grep` runs a regular expression over strings. That is what
+  // makes it safe to hand a model a terminal without handing it a machine —
+  // and the places a shell goes wrong are all in src/js/vos/shell.js, where
+  // each one takes the file list rather than reaching for it.
+  const SHELL = () => window.HCVosShell;
+  const termResolve = (p) => SHELL().resolvePath(termCwd, p);
+  const termFindItem = (absPath) => SHELL().findItem(visibleProjectFiles(), absPath, ROOT_ID);
+  const termFindCmd = (rootPath, pattern) => SHELL().findByName(visibleProjectFiles(), rootPath, pattern);
+  const aosLs = (path) => SHELL().listDir(visibleProjectFiles(), path, ROOT_ID);
+  const aosGrep = (pattern, searchPath) => SHELL().grep(visibleProjectFiles(), pattern, searchPath);
+  const aosRead = (path, startLine, endLine) => SHELL().readFile(visibleProjectFiles(), path, startLine, endLine);
+  const fmtBytes = (n) => SHELL().fmtBytes(n);
+
   const ANSWER = () => window.HCVosAnswer;
   const extractFiles = (text) => ANSWER().extractFiles(text);
   const inferProjectName = (prompt) => ANSWER().inferProjectName(prompt);
@@ -2086,60 +2102,8 @@ SPEED — avoid these time-wasting patterns:
     try { return JSON.parse(m[1]); } catch { return null; }
   }
 
-  function aosLs(path) {
-    const files = visibleProjectFiles();
-    const clean = String(path || "/").replace(/^\/+/, "");
-    let items;
-    if (!clean || clean === "/") {
-      items = files.filter(f => f.parentId === ROOT_ID);
-      if (!items.length) return "(empty root — no files yet)";
-      return items.map(f => f.type === "folder" ? `${f.name}/` : `${f.name}  [${fmtBytes(String(f.content||"").length)}]`).sort().join("\n");
-    }
-    const folder = files.find(f => f.path === clean && f.type === "folder");
-    if (!folder) {
-      const file = files.find(f => f.path === clean && f.type === "file");
-      if (file) return `${file.name}  [file · ${fmtBytes(String(file.content||"").length)}]`;
-      return `Error: not found: /${clean}`;
-    }
-    items = files.filter(f => f.parentId === folder.id);
-    if (!items.length) return "(empty folder)";
-    return items.map(f => f.type === "folder" ? `${f.name}/` : `${f.name}  [${fmtBytes(String(f.content||"").length)}]`).sort().join("\n");
-  }
 
-  function aosRead(path, startLine, endLine) {
-    const clean = String(path || "").replace(/^\/+/, "");
-    const item = visibleProjectFiles().find(f => f.path === clean && f.type === "file");
-    if (!item) return `Error: file not found: /${clean}`;
-    const content = String(item.content || "");
-    if (startLine == null && endLine == null) {
-      if (content.length > 8000) return content.slice(0, 8000) + `\n\n[truncated — ${content.length - 8000} more bytes; use start_line/end_line to read further]`;
-      return content || "(empty file)";
-    }
-    const lines = content.split("\n");
-    const s = Math.max(0, (Number(startLine) || 1) - 1);
-    const e = Math.min(lines.length, Number(endLine) || lines.length);
-    return lines.slice(s, e).map((l, i) => `${s + i + 1}: ${l}`).join("\n");
-  }
 
-  function aosGrep(pattern, searchPath) {
-    const files = visibleProjectFiles().filter(f => f.type === "file");
-    const root = String(searchPath || "/").replace(/^\/+/, "");
-    const scope = root ? files.filter(f => f.path.startsWith(root)) : files;
-    const results = [];
-    let re;
-    try { re = new RegExp(pattern, "gi"); } catch { return `Error: invalid regex: ${pattern}`; }
-    for (const file of scope) {
-      const lines = String(file.content || "").split("\n");
-      lines.forEach((line, i) => {
-        re.lastIndex = 0;
-        if (re.test(line)) results.push(`/${file.path}:${i + 1}: ${line.trim().slice(0, 120)}`);
-      });
-    }
-    if (!results.length) return `No matches for "${pattern}"`;
-    const shown = results.slice(0, 60);
-    if (results.length > 60) shown.push(`… (${results.length - 60} more matches)`);
-    return shown.join("\n");
-  }
 
   async function aosPatch(path, search, replace) {
     const clean = String(path || "").replace(/^\/+/, "");
@@ -2417,59 +2381,18 @@ SPEED — avoid these time-wasting patterns:
     }
   }
 
-  function fmtBytes(n) {
-    if (n < 1024) return n + " B";
-    if (n < 1048576) return (n / 1024).toFixed(1) + " KB";
-    return (n / 1048576).toFixed(1) + " MB";
-  }
 
   // ============================================================================
   // VIRTUAL TERMINAL — sandboxed shell over the IndexedDB virtual filesystem
   // ============================================================================
 
-  function termResolve(p) {
-    if (!p || p === "~") return termCwd;
-    if (p === "/") return "/";
-    const base = p.startsWith("/") ? "" : termCwd === "/" ? "" : termCwd;
-    const raw  = base + "/" + p;
-    const parts = raw.split("/").filter(Boolean);
-    const out = [];
-    for (const part of parts) {
-      if (part === "..") out.pop();
-      else if (part !== ".") out.push(part);
-    }
-    return "/" + out.join("/");
-  }
 
-  function termFindItem(absPath) {
-    if (!absPath || absPath === "/") return { id: ROOT_ID, type: "folder", name: "/" };
-    const parts = absPath.replace(/^\//, "").split("/").filter(Boolean);
-    const files = visibleProjectFiles();
-    let parentId = ROOT_ID;
-    let item = null;
-    for (const part of parts) {
-      item = files.find(f => f.parentId === parentId && f.name === part);
-      if (!item) return null;
-      parentId = item.id;
-    }
-    return item;
-  }
 
-  function termFindCmd(rootPath, pattern) {
-    const files = visibleProjectFiles();
-    const cleanRoot = rootPath === "/" ? "" : rootPath.replace(/^\//, "");
-    const scope = cleanRoot ? files.filter(f => f.path && f.path.startsWith(cleanRoot)) : files;
-    const re = new RegExp("^" + pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
-    const matches = scope.filter(f => re.test(f.name));
-    if (!matches.length) return "(no matches)";
-    return matches.map(f => `/${f.path}${f.type === "folder" ? "/" : ""}`).join("\n");
-  }
 
   function termExec(cmd) {
     const cmdStr = String(cmd || "").trim();
     if (!cmdStr) return "";
-    const args = cmdStr.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
-    const argv = args.map(a => a.replace(/^["']|["']$/g, ""));
+    const argv = SHELL().splitArgs(cmdStr);
     const name = argv[0] || "";
     const rest = argv.slice(1);
 
