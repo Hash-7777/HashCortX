@@ -634,7 +634,7 @@
     // object from adding the boss and cutting through it. It was impossible to
     // see that order, let alone change it.
     host.innerHTML = nodes.length ? nodes.map((node, i) => `
-      <div class="frg-plan-item${selectedMesh?.userData?.nodeId === node.id ? " selected" : ""}" data-node-id="${escapeHtml(node.id || "")}">
+      <div class="frg-plan-item${selectedMesh?.userData?.nodeId === node.id ? " selected" : ""}" draggable="true" data-node-id="${escapeHtml(node.id || "")}">
         <span class="frg-plan-order" aria-hidden="true">${i + 1}</span>
         <b>${escapeHtml(node.name || node.id || node.type)}</b>
         <span class="frg-plan-kind">${escapeHtml(node.role || "structure")} · ${escapeHtml(node.type || "box")}</span>
@@ -679,6 +679,35 @@
     // A reorder changes what the fused solid would be, so the one on screen is
     // a snapshot of an object that no longer exists.
     restoreParts(nodes);
+    selectNodeById(id);
+    return true;
+  }
+
+  /**
+   * Put one part at a given place in the build order.
+   *
+   * `before` is the part it should land in front of, or null to send it to the
+   * end. Counted among ALL the nodes for the same reason a single step is: the
+   * list hides audit parts, so a position taken from the visible rows would
+   * land somewhere else entirely.
+   */
+  function moveNodeBefore(id, beforeId) {
+    const nodes = activePlan?.nodes;
+    if (!Array.isArray(nodes) || id === beforeId) return false;
+    const from = nodes.findIndex((node) => node && node.id === id);
+    if (from < 0) return false;
+    const moving = nodes[from];
+    const rest = nodes.filter((node) => node !== moving);
+    const at = beforeId ? rest.findIndex((node) => node && node.id === beforeId) : -1;
+    if (beforeId && at < 0) return false;
+    // Dropping a part back where it already was is not an edit, and recording
+    // one would put a step into the history that undoes to the same thing.
+    const landing = at < 0 ? rest.length : at;
+    if (rest.indexOf(moving) === -1 && nodes.indexOf(moving) === landing) return false;
+    rest.splice(landing, 0, moving);
+    if (rest.every((node, i) => node === nodes[i])) return false;
+    activePlan.nodes = rest;
+    restoreParts(rest);
     selectNodeById(id);
     return true;
   }
@@ -3647,7 +3676,61 @@ Prompt: ${prompt}`;
       const item = e.target.closest("[data-frg-project]");
       if (item) openForgeProject(item.dataset.frgProject);
     });
-    $("frgPlanList")?.addEventListener("click", (e) => {
+    // ── Dragging a part to a new place in the order ──────────────────────
+    //
+    // The arrows are kept: they are the only way to do this from a keyboard,
+    // and a list of two dozen parts is faster to nudge than to drag.
+    let draggingNodeId = null;
+    const planList = $("frgPlanList");
+    planList?.addEventListener("dragstart", (e) => {
+      const row = e.target.closest("[data-node-id]");
+      if (!row) return;
+      draggingNodeId = row.dataset.nodeId;
+      row.classList.add("dragging");
+      // Firefox refuses to start a drag at all without something set here.
+      e.dataTransfer?.setData("text/plain", draggingNodeId);
+      if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+    });
+    planList?.addEventListener("dragover", (e) => {
+      if (!draggingNodeId) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      const row = e.target.closest("[data-node-id]");
+      planList.querySelectorAll(".drop-before, .drop-after")
+        .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+      if (!row || row.dataset.nodeId === draggingNodeId) return;
+      // Which half of the row the pointer is over decides which side of it the
+      // part lands, so a drop does what the line under the cursor showed.
+      const box = row.getBoundingClientRect();
+      row.classList.add(e.clientY < box.top + box.height / 2 ? "drop-before" : "drop-after");
+    });
+    const endDrag = () => {
+      draggingNodeId = null;
+      planList?.querySelectorAll(".dragging, .drop-before, .drop-after")
+        .forEach((el) => el.classList.remove("dragging", "drop-before", "drop-after"));
+    };
+    planList?.addEventListener("dragend", endDrag);
+    planList?.addEventListener("drop", (e) => {
+      e.preventDefault();
+      const moving = draggingNodeId;
+      const marked = planList.querySelector(".drop-before, .drop-after");
+      if (!moving || !marked) { endDrag(); return; }
+      // READ THE MARKER BEFORE CLEARING IT. Tidying up first leaves `marked`
+      // pointing at an element whose classes have just been stripped, so which
+      // side of the row the drop was on always reads as "before" and a part
+      // dragged below another lands above it instead.
+      const target = marked.dataset.nodeId;
+      const after = marked.classList.contains("drop-after");
+      // The ROWS, not everything carrying a node id — the move arrows inside a
+      // row carry one too, so a plain attribute selector returns each part
+      // three times and the part after the target reads as the target itself.
+      const shown = [...planList.querySelectorAll(".frg-plan-item[data-node-id]")].map((el) => el.dataset.nodeId);
+      const beforeId = after ? shown[shown.indexOf(target) + 1] || null : target;
+      endDrag();
+      recordEdit("reorder", () => moveNodeBefore(moving, beforeId));
+    });
+
+    planList?.addEventListener("click", (e) => {
       // The arrows sit inside the row, so they are answered first — otherwise
       // every reorder would also be read as a click on the row behind it.
       const move = e.target.closest("[data-frg-node-move]");

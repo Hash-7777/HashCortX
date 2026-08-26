@@ -402,6 +402,36 @@ console.log('\nThe parts list is the build order, and the order can be changed:'
     /restoreParts\(nodes\)/.test(move));
   check('and the part stays selected after it moves', /selectNodeById\(id\)/.test(move));
   check('a reorder can be undone', /recordEdit\("reorder"/.test(src));
+
+  const before = bodyOf('moveNodeBefore');
+  check('a part can also be dragged to a new place',
+    /draggable="true"/.test(list) && /addEventListener\("dragstart"/.test(src)
+    && /addEventListener\("drop"/.test(src));
+  // The arrows are the only way to do this from a keyboard, and a long list is
+  // faster to nudge than to drag.
+  check('and the arrows are kept rather than replaced',
+    /data-frg-node-move="up"/.test(list));
+  check('a drop lands among all the parts, not among the shown ones',
+    /const nodes = activePlan\?\.nodes/.test(before) && /rest\.findIndex/.test(before));
+  // Dropping a part back where it was would otherwise put a step into the
+  // history that undoes to the same thing.
+  check('and a drop that changes nothing is not recorded as an edit',
+    /rest\.every\(\(node, i\) => node === nodes\[i\]\)/.test(before));
+  check('which half of a row the pointer is over decides where it lands',
+    /e\.clientY < box\.top \+ box\.height \/ 2 \? "drop-before" : "drop-after"/.test(src));
+  // The move arrows inside a row carry a node id too, so a plain attribute
+  // selector returns each part three times and the part after the target
+  // reads as the target itself.
+  check('the drop reads the rows, not everything carrying a node id',
+    /querySelectorAll\("\.frg-plan-item\[data-node-id\]"\)/.test(src));
+  // Tidying up first leaves the marker element with its classes stripped, so
+  // which side of the row the drop was on always reads as "before" and a part
+  // dragged below another lands above it.
+  check('and reads which side it was on before clearing the marker', (() => {
+    const drop = src.slice(src.indexOf('planList?.addEventListener("drop"'));
+    const body = drop.slice(0, drop.indexOf('\n    });'));
+    return body.indexOf('classList.contains("drop-after")') < body.lastIndexOf('endDrag()');
+  })());
   // The arrows sit inside the row, so without this every reorder is also read
   // as a click on the row behind it.
   check('pressing an arrow does not also count as clicking the row',

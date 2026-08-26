@@ -190,7 +190,10 @@ const LINE_BUDGET = {
   // 3757, up from 3722. A mirrored pair follows a move, a turn and a resize as
   // well as a change of size — dragging one fin forward and leaving the other
   // back was the same defect as widening one and leaving the other thin.
-  'modes/forge/mode.js': 3757,
+  // 3840, up from 3757. A part can be dragged to a new place in the build
+  // order. The arrows stay: they are the only way to do it from a keyboard,
+  // and a long list is faster to nudge than to drag.
+  'modes/forge/mode.js': 3840,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

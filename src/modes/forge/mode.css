@@ -807,6 +807,25 @@ body.forge-studio-mode #app { display: none; }
   background: rgba(201,169,110,0.045);
 }
 
+/* Dragged rows and where a drop would land. A line rather than a gap, so the
+   list does not jump about under the cursor while a part is being carried. */
+.frg-plan-item[draggable="true"] {
+  cursor: grab;
+}
+
+.frg-plan-item.dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.frg-plan-item.drop-before {
+  box-shadow: inset 0 2px 0 0 var(--warn);
+}
+
+.frg-plan-item.drop-after {
+  box-shadow: inset 0 -2px 0 0 var(--warn);
+}
+
 .frg-plan-order {
   font-family: var(--mono);
   font-size: 10px;
