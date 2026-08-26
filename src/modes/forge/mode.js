@@ -676,11 +676,40 @@
     const to = nodes.indexOf(neighbour);
     if (to < 0) return false;
     nodes.splice(to, 0, nodes.splice(from, 1)[0]);
-    // A reorder changes what the fused solid would be, so the one on screen is
-    // a snapshot of an object that no longer exists.
-    restoreParts(nodes);
-    selectNodeById(id);
+    applyNewOrder(id);
     return true;
+  }
+
+  /**
+   * Take the new order without rebuilding anything.
+   *
+   * Nothing about the parts changed — only the order they are folded in — so
+   * every mesh on screen is still correct. Rebuilding them anyway took about
+   * two seconds on a model of two dozen parts, which is a long time to wait
+   * for a list to move by one line, and it threw away the selection and
+   * replayed the arrival on the way.
+   *
+   * The scene's own children are put in step too. Nothing draws differently
+   * for it — depth decides what is in front — but a group whose order
+   * disagrees with the plan it came from is a trap for the next thing that
+   * walks it.
+   */
+  function applyNewOrder(keepSelectedId) {
+    const nodes = activePlan?.nodes || [];
+    if (modelGroup) {
+      const place = new Map(nodes.map((node, i) => [node.id, i]));
+      modelGroup.children.sort((a, b) => (
+        (place.has(a.userData?.nodeId) ? place.get(a.userData.nodeId) : Infinity)
+        - (place.has(b.userData?.nodeId) ? place.get(b.userData.nodeId) : Infinity)
+      ));
+    }
+    // The fused solid was a snapshot of parts folded in the old order, and
+    // subtracting a bore before adding a boss is a different object from the
+    // other way round — so it no longer describes this model.
+    dropSolid();
+    updatePlanList(activePlan);
+    if (keepSelectedId) renderSelection();
+    queueProjectSave();
   }
 
   /**
@@ -707,8 +736,7 @@
     rest.splice(landing, 0, moving);
     if (rest.every((node, i) => node === nodes[i])) return false;
     activePlan.nodes = rest;
-    restoreParts(rest);
-    selectNodeById(id);
+    applyNewOrder(id);
     return true;
   }
 

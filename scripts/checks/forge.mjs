@@ -398,9 +398,17 @@ console.log('\nThe parts list is the build order, and the order can be changed:'
   check('a move is made among all the parts, not only the shown ones',
     /const nodes = activePlan\?\.nodes/.test(move) && /renderableNodes\(nodes\)/.test(move)
     && /nodes\.indexOf\(neighbour\)/.test(move));
-  check('the scene is rebuilt, because order is what changed',
-    /restoreParts\(nodes\)/.test(move));
-  check('and the part stays selected after it moves', /selectNodeById\(id\)/.test(move));
+  // Nothing about the parts changed, only the order they are folded in, so
+  // every mesh on screen is still correct. Rebuilding them anyway took about
+  // two seconds on a model of two dozen parts.
+  const applyOrder = bodyOf('applyNewOrder');
+  check('a reorder rebuilds nothing, because nothing about the parts changed',
+    /applyNewOrder\(id\)/.test(move) && !/restoreParts/.test(move)
+    && !/addNodeMesh/.test(applyOrder) && !/clearScene/.test(applyOrder));
+  check('the scene is put in the same order as the plan',
+    /modelGroup\.children\.sort/.test(applyOrder));
+  // A snapshot of parts folded in the old order is not this model.
+  check('and the fused solid is dropped', /dropSolid\(\)/.test(applyOrder));
   check('a reorder can be undone', /recordEdit\("reorder"/.test(src));
 
   const before = bodyOf('moveNodeBefore');

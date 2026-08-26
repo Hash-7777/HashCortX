@@ -197,7 +197,12 @@ const LINE_BUDGET = {
   // is fused — a real wall the geometry has, rather than a lattice a slicer
   // was asked for. The lines are the control, the millimetre conversion, and
   // carrying the number through the rebuilder so it is not dropped in silence.
-  'modes/forge/mode.js': 3868,
+  // 3896, up from 3868. Reordering a part no longer rebuilds the scene. It
+  // took about two seconds on a model of two dozen parts — a long time to wait
+  // for a list to move by one line — and threw the selection away and replayed
+  // the arrival while it was at it. Nothing about the parts changes when only
+  // the order does.
+  'modes/forge/mode.js': 3896,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
