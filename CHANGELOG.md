@@ -121,6 +121,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   overlaps. A part that cuts is drawn as an outline so it does not look like a
   lump, and exporting a model whose cuts have not been fused now warns that the
   file will hold them as solid material rather than as holes.
+- **A mirrored pair stays a pair when you edit one half.** The app makes
+  symmetry and then lost it at the first change: a part and its mirrored twin
+  are two separate entries, so widening one fin left the other thin, and nothing
+  said the symmetry had gone. Changing what a part *is* — its dimensions, what
+  it does to the material — now follows to its twin. Changing where it *is* does
+  not, since dragging one of a pair is something you are watching yourself do.
+  The panel says which is which on any part that has a twin, and two halves that
+  really should differ can be separated.
 - **The parts list is the build order, and you can change it.** Parts are
   combined in the order they are listed — cutting a bore and then adding a boss
   gives a different object from adding the boss and cutting through it — and
