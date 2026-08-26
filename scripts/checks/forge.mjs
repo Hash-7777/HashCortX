@@ -353,8 +353,12 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   check("a part's own dimensions can be changed, not only its size on screen",
     /data-frg-param/.test(panelHtml) && /function updateSelectedParam/.test(src)
     && /dataset\.frgParam/.test(src));
-  check('and only that part is rebuilt, so nothing moves or loses selection',
-    /selectedMesh\.geometry = next/.test(bodyOf('updateSelectedParam'))
+  // Only the geometry is replaced — never the mesh — so a part keeps its place,
+  // its turn, its material and the selection. A whole-plan rebuild here would
+  // move the model onto the floor and swing the camera on every keystroke.
+  check('only the geometry is replaced, so nothing moves or loses selection',
+    /mesh\.geometry = next/.test(bodyOf('rebuildMeshGeometry'))
+    && /rebuildMeshGeometry\(selectedMesh\)/.test(bodyOf('updateSelectedParam'))
     && !/buildPlan\(/.test(bodyOf('updateSelectedParam')));
   // A snapshot of parts that have since changed shape is worse than no
   // snapshot, and the badge would otherwise report the size from before.
@@ -422,6 +426,27 @@ console.log('\nA person can make a hole, not only a design:');
     /dropSolid\(\)/.test(setRole));
   check('changing what a part does can be undone',
     /recordEdit\("change what a part does"/.test(src));
+
+  const twin = bodyOf('applyToTwin');
+  const param = bodyOf('updateSelectedParam');
+  check('a mirrored pair can find its other half from either side',
+    /n\.mirroredFrom === node\.id \|\| \(twinId && n\.id === twinId\)/.test(bodyOf('twinMeshOf')));
+  // A pair whose two halves have different radii is not a pair, and nothing
+  // anywhere would say the symmetry had been lost.
+  check("changing what a part IS follows to its twin",
+    /applyToTwin\(selectedMesh/.test(param)
+    && /applyToTwin\(selectedMesh/.test(setRole)
+    && /applyToTwin\(selectedMesh/.test(bodyOf('setSelectedBlend')));
+  check('and the twin is rebuilt and redrawn, not only edited in the plan',
+    /rebuildMeshGeometry\(twin\)/.test(twin) && /applyMaterialRoleLook\(twin/.test(twin));
+  // Dragging one of a pair is something a person watches themselves do; the
+  // other moving in sympathy would be the surprise.
+  check('but moving one does not move the other',
+    !/applyToTwin/.test(bodyOf('updateSelectedPosition')));
+  check('a pair can be separated when the halves really should differ',
+    /function separateSelectedFromTwin/.test(src) && /recordEdit\("separate a mirrored pair"/.test(src));
+  check('and separating clears the link on both halves',
+    /for \(const n of \[node, twin\.userData\.node\]\)/.test(bodyOf('separateSelectedFromTwin')));
 
   // The file itself looks perfectly fine. It is simply not the object asked
   // for, which is the only kind of wrong worth stopping someone about.

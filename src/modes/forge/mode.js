@@ -1839,6 +1839,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       transformMode,
       snapEnabled,
       mmPerUnit,
+      hasTwin: !!(selectedMesh && !selectedObjectWhole && twinMeshOf(selectedMesh)),
     });
   }
 
@@ -1873,6 +1874,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     // part is ever made an addition again.
     if (node.op) delete node.blend;
     applyMaterialRoleLook(selectedMesh, node);
+    applyToTwin(selectedMesh, (twin) => {
+      twin.op = node.op;
+      if (twin.op) delete twin.blend;
+    });
     dropSolid();
     updatePlanList(activePlan);
     renderSelection();
@@ -1888,6 +1893,9 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const raw = units && mmPerUnit ? units.fromMm(Number(value) || 0, mmPerUnit) : Number(value) || 0;
     const blend = Math.max(0, Math.min(1, raw));
     if (blend > 0) node.blend = blend; else delete node.blend;
+    applyToTwin(selectedMesh, (twin) => {
+      if (blend > 0) twin.blend = blend; else delete twin.blend;
+    });
     dropSolid();
     queueProjectSave();
   }
@@ -2068,6 +2076,79 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    * model is measured again for the same reason: the badge would otherwise
    * keep reporting the size the model was before the edit.
    */
+  /**
+   * The other half of a mirrored pair, if this part is one of a pair.
+   *
+   * The link is recorded in both directions when the pair is made — one half
+   * carries `mirroredFrom` naming the other — so either can find its partner.
+   */
+  function twinMeshOf(mesh) {
+    const node = mesh?.userData?.node;
+    if (!node?.id) return null;
+    const twinId = node.mirroredFrom;
+    return selectableMeshes().find((other) => {
+      if (other === mesh) return false;
+      const n = other.userData?.node;
+      if (!n) return false;
+      return n.mirroredFrom === node.id || (twinId && n.id === twinId);
+    }) || null;
+  }
+
+  /**
+   * Rebuild a part's shape from the numbers it now carries.
+   *
+   * Only the geometry is replaced, so the part keeps its place, its turn, its
+   * material and — if it is the selected one — the selection.
+   */
+  function rebuildMeshGeometry(mesh) {
+    const node = mesh?.userData?.node;
+    if (!node) return false;
+    const next = finalizeGeometry(primitiveGeometry(node), node.params || {});
+    if (!next) return false;
+    mesh.geometry?.dispose?.();
+    mesh.geometry = next;
+    return true;
+  }
+
+  /**
+   * The same change, made to the other half of a mirrored pair.
+   *
+   * A mirrored pair is one part drawn twice. Widening one fin and leaving the
+   * other thin does not read as an edit — it reads as the app having lost the
+   * symmetry it made, and nothing anywhere would say so. So a change to what a
+   * part IS follows to its twin.
+   *
+   * A change to where a part IS does not: dragging one of a pair is something
+   * a person is watching themselves do, and moving the other in sympathy would
+   * be the surprise instead. The pair can be separated outright when the two
+   * halves really are meant to differ.
+   */
+  function applyToTwin(mesh, change) {
+    const twin = twinMeshOf(mesh);
+    if (!twin?.userData?.node) return false;
+    change(twin.userData.node);
+    rebuildMeshGeometry(twin);
+    applyMaterialRoleLook(twin, twin.userData.node);
+    return true;
+  }
+
+  /** Stop treating two parts as one part drawn twice. */
+  function separateSelectedFromTwin() {
+    if (!selectedMesh || selectedObjectWhole) return;
+    const twin = twinMeshOf(selectedMesh);
+    const node = selectedMesh.userData.node;
+    if (!twin || !node) { log("Editor", "this part is not one of a mirrored pair", "wait"); return; }
+    for (const n of [node, twin.userData.node]) {
+      delete n.mirroredFrom;
+      delete n.mirroredOn;
+      delete n.hasMirror;
+    }
+    renderSelection();
+    updatePlanList(activePlan);
+    queueProjectSave();
+    log("Editor", "The pair is two separate parts now", "ok", "changes to one no longer follow to the other");
+  }
+
   function updateSelectedParam(key, value) {
     const P = window.HCForgeParams;
     if (!selectedMesh || !P || selectedObjectWhole) return;
@@ -2085,12 +2166,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       ? units.fromMm(Number(value) || 0, mmPerUnit)
       : Number(value);
     node.params = P.withValue(node, key, raw);
-
-    const geoParams = node.params;
-    const next = finalizeGeometry(primitiveGeometry(node), geoParams);
-    if (!next) return;
-    selectedMesh.geometry?.dispose?.();
-    selectedMesh.geometry = next;
+    if (!rebuildMeshGeometry(selectedMesh)) return;
+    // The other half of a mirrored pair is the same part, so it gets the same
+    // number. A pair whose two halves have different radii is not a pair.
+    applyToTwin(selectedMesh, (twin) => { twin.params = P.withValue(twin, key, raw); });
     dropSolid();
     selectionBox?.update();
     measureRealSize();
@@ -3418,6 +3497,7 @@ Prompt: ${prompt}`;
       else if (action === "floor") alignSelectedToFloor();
       else if (action === "reset") resetSelectedPart();
       else if (action === "snap") setSnapEnabled(!snapEnabled);
+      else if (action === "unmirror") recordEdit("separate a mirrored pair", separateSelectedFromTwin);
       else setTransformMode(action);
     });
     $("frgSelectionCard")?.addEventListener("change", (e) => {

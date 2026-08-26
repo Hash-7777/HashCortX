@@ -142,6 +142,19 @@ console.log('\nWhat a part does to the material, and what follows from it:');
   ok('but can still be moved and turned', has(whole, 'data-frg-pos="x"') && has(whole, 'data-frg-rot="x"'));
 }
 
+console.log('\nA part that is half of a mirrored pair says so:');
+{
+  const alone = H.card(state());
+  const paired = H.card(state({ hasTwin: true }));
+  ok('an ordinary part says nothing about pairs', !has(alone, 'mirrored pair'));
+  // The rule is not obvious, and a rule discovered by surprise is a bug report.
+  ok('a paired part says what follows to the other one', has(paired, 'mirrored pair'));
+  ok('and what does not', has(paired, 'Moving it does not'));
+  ok('and offers a way out of the arrangement', has(paired, 'data-frg-edit="unmirror"'));
+  ok('the whole object is never described as one of a pair',
+    !has(H.card(state({ hasTwin: true, wholeObject: true })), 'mirrored pair'));
+}
+
 console.log('\nAnything a person or a model wrote is escaped:');
 {
   // A part's name comes from a prompt by way of a language model, and a model

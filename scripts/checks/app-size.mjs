@@ -177,7 +177,12 @@ const LINE_BUDGET = {
   // src/js/forge/panel-html.js, where it is a function from a plain
   // description of the selection to a string — so what the panel says can be
   // read in a check instead of matched against this file's source.
-  'modes/forge/mode.js': 3604,
+  // 3684, up from 3604. A mirrored pair stays a pair: changing what one half
+  // IS — its dimensions, what it does to the material — now follows to the
+  // other, and the two can be separated when they really should differ.
+  // Widening one fin and leaving the other thin did not read as an edit, it
+  // read as the app having lost the symmetry it made, and nothing said so.
+  'modes/forge/mode.js': 3684,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

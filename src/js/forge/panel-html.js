@@ -136,6 +136,10 @@
    * `state` carries plain values only — arrays of numbers rather than scene
    * objects, degrees rather than radians — so that everything here can be
    * built and read in a check without a browser.
+   *
+   * `hasTwin` says this part is one half of a mirrored pair. It is said out
+   * loud because the rule is not obvious and would otherwise be discovered by
+   * surprise: what a part IS follows to its twin, where it IS does not.
    */
   function card(state) {
     const s = state || {};
@@ -181,6 +185,12 @@
         field(`Scale ${axis.toUpperCase()}`, `data-frg-scale="${axis}" type="number" step="0.05" min="0.02"`, Number(scale[i]).toFixed(2))), "margin-top:6px")}
       ${axisGrid("Rotation", AXES.map((axis, i) =>
         field(`Rot ${axis.toUpperCase()}`, `data-frg-rot="${axis}" type="number" step="5"`, Math.round(Number(rot[i])))), "margin-top:6px")}
+      ${s.wholeObject || !s.hasTwin ? "" : `
+      <div class="frg-selection-empty" style="margin-top:8px">
+        One of a mirrored pair — changing what this part <b>is</b> changes the other one too.
+        Moving it does not.
+        <button class="frg-edit-btn" data-frg-edit="unmirror" style="margin-top:6px">Make them separate</button>
+      </div>`}
       ${s.wholeObject ? "" : materialRole(node, s.mmPerUnit)}
       ${s.wholeObject ? "" : shapeFields(node, s.mmPerUnit)}`;
   }
