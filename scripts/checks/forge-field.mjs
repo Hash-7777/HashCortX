@@ -185,8 +185,14 @@ console.log('\nA rounded join, which is a fillet by another name:');
 
 console.log('\nWhat it will not pretend to know:');
 {
+  // This file deliberately does NOT load src/js/forge/meshfield.js, so what is
+  // tested here is the fallback: with no mesh field available a supplied mesh
+  // is answered by the box it occupies, and says so. What happens when the
+  // mesh field IS there — the mesh answered from its own triangles — is
+  // checked in forge-meshfield.mjs, which loads both.
+  ok('the mesh field really is absent here', !sandbox.window.HCForgeMeshField);
   const meshy = field([part('mesh', { positions: [0, 0, 0, 1, 0, 0, 0, 1, 0] })]);
-  ok('a supplied mesh is answered with its box', meshy.parts === 1);
+  ok('a supplied mesh is then answered with its box', meshy.parts === 1);
   ok('and says so rather than implying it was measured',
     meshy.issues.some((i) => i.code === 'mesh-approximated'));
   ok('a flat mark is not part of a solid at all',

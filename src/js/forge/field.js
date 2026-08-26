@@ -165,8 +165,17 @@
         // forwards — the same thing the bounding box had wrong.
         return (x, y, z) => combine(polygonDistance(pts, x, y), Math.max(lo - z, z - hi));
       }
+      case "mesh": {
+        // A mesh is answered by its own triangles when they can be, and by the
+        // box it occupies when they cannot — too many of them, or nothing
+        // usable in the part at all. Which of those happened is reported by
+        // whatever built the field, because a crate where a model should be is
+        // not a thing to discover after pressing print.
+        const built = meshFieldFor(part);
+        if (built) return (x, y, z) => built.distance(x, y, z);
+        return boxShape(part);
+      }
       case "box":
-      case "mesh":
         return boxShape(part);
       default: {
         const profile = revolvedProfile(part);
@@ -180,6 +189,26 @@
   }
 
   const SKIP_AXIS = { skipClosingEdge: true };
+
+  /**
+   * The mesh distance field for a part, built once and kept.
+   *
+   * Building one walks every triangle and fills a grid, and the fuse asks a
+   * part for a distance a quarter of a million times. Doing that per sample
+   * would be the difference between a second and an afternoon, so the answer
+   * is remembered against the part's own parameters — a new object every time
+   * the part is rebuilt, which is exactly when the field should be rebuilt too.
+   */
+  const meshFields = new WeakMap();
+  function meshFieldFor(part) {
+    const MF = typeof window !== "undefined" ? window.HCForgeMeshField : null;
+    const p = part && part.params;
+    if (!MF || !p || typeof p !== "object") return null;
+    if (meshFields.has(p)) return meshFields.get(p);
+    const built = MF.build({ positions: p.positions, indices: p.indices });
+    meshFields.set(p, built);
+    return built;
+  }
 
   /** The box a part occupies, in the part's own space. */
   function boxShape(part) {
@@ -199,10 +228,11 @@
   /**
    * How far a point in a part's own space is from that part's surface.
    *
-   * Exact for every shape except a supplied mesh, which is answered with the
-   * box it occupies — an approximation, reported by whatever built the field,
-   * because a mesh is an arbitrary pile of triangles and answering it properly
-   * costs more per sample than every other shape put together.
+   * Exact for every shape. A supplied mesh is answered from its own triangles
+   * through src/js/forge/meshfield.js — it used to be answered with the box it
+   * occupied, so importing a model and fusing it turned it into a crate. It
+   * still falls back to the box when the mesh is too large to be worth a grid
+   * or holds nothing usable, and says which of those happened.
    */
   function localDistance(part, x, y, z) {
     return compileShape(part)(x, y, z);
@@ -289,7 +319,17 @@
 
     for (const part of list) {
       if (part.type === "mesh") {
-        issues.push({ code: "mesh-approximated", partId: part.id, detail: "answered with the box it occupies" });
+        const built = meshFieldFor(part);
+        if (!built) {
+          issues.push({ code: "mesh-approximated", partId: part.id, detail: "too large or unreadable; answered with the box it occupies" });
+        } else if (!built.closed) {
+          // Inside and outside are not defined for a surface with a hole in
+          // it. The distance is still right; which side of it you are on is a
+          // guess, and a guess is not something to fuse a printed part from.
+          issues.push({ code: "mesh-open", partId: part.id, detail: `answered from its own ${built.triangles} triangles, but the surface is not closed` });
+        } else if (built.inverted) {
+          issues.push({ code: "mesh-inverted", partId: part.id, detail: "was wound inside out and has been turned the right way" });
+        }
       }
       if (part.type === "logo" || part.type === "logo_img") continue;
       prepared.push(prepare(part));
