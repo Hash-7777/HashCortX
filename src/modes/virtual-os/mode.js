@@ -204,13 +204,6 @@ const VoidStudio = (() => {
     rebuildPaths();
   }
 
-  function safeName(name) {
-    return String(name || "")
-      .replace(/[\\/:*?"<>|]+/g, "-")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120) || "untitled";
-  }
 
   /**
    * A folder as a zip a person can download.
@@ -223,6 +216,28 @@ const VoidStudio = (() => {
    * A directory is a member with a trailing slash and no bytes, which is how
    * a zip says "folder" and what keeps an empty one in the download.
    */
+  // ── The rules of a filesystem that is not one ───────────────────────────
+  //
+  // This mode looks like a filesystem and is not one, which is what makes it
+  // safe to let a model write into it — and also why these rules are the whole
+  // of its safety, since there is no operating system underneath to refuse
+  // anything. They live in src/js/vos/tree.js, where they can be asked what
+  // they decide: what a file may be called, where it sits, and whether a
+  // folder may be dropped somewhere that would make a loop.
+  const TREE = () => window.HCVosTree;
+  const safeName = (name) => TREE().safeName(name);
+  const normalizeVirtualPath = (path) => TREE().normalizePath(path);
+  const descendantIds = (rootId) => TREE().descendantIds(activeProject?.files || [], rootId);
+  const canMoveToParent = (item, parentId) =>
+    TREE().canMoveToParent(activeProject?.files || [], item, parentId, ROOT_ID);
+
+  /** Write every item's path back onto it, from where it now sits. */
+  function rebuildPaths() {
+    if (!activeProject) return;
+    const paths = TREE().pathsFor(activeProject.files, ROOT_ID);
+    activeProject.files.forEach((item) => { item.path = paths.get(item.id) || item.name; });
+  }
+
   function makeZip(entries) {
     const encoder = new TextEncoder();
     const bytes = window.HCZip.store((entries || []).map((entry) => {
@@ -233,16 +248,6 @@ const VoidStudio = (() => {
     return new Blob([bytes], { type: "application/zip" });
   }
 
-  function normalizeVirtualPath(path) {
-    const clean = String(path || "")
-      .replace(/\\/g, "/")
-      .replace(/^\/+/, "")
-      .split("/")
-      .map(p => safeName(p))
-      .filter(p => p && p !== "." && p !== "..")
-      .join("/");
-    return clean || "index.html";
-  }
 
   function getItem(id) {
     if (!activeProject) return null;
@@ -275,20 +280,6 @@ const VoidStudio = (() => {
     return (activeProject?.files || []).filter(f => f.deletedAt);
   }
 
-  function descendantIds(rootId) {
-    const ids = new Set([rootId]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const item of activeProject?.files || []) {
-        if (ids.has(item.parentId) && !ids.has(item.id)) {
-          ids.add(item.id);
-          changed = true;
-        }
-      }
-    }
-    return ids;
-  }
 
   function parentPath(parentId) {
     if (!parentId || parentId === ROOT_ID) return "";
@@ -303,18 +294,6 @@ const VoidStudio = (() => {
     return item?.type === "folder" && !item.deletedAt ? item.id : ROOT_ID;
   }
 
-  function rebuildPaths() {
-    if (!activeProject) return;
-    const byId = new Map(activeProject.files.map(f => [f.id, f]));
-    const pathFor = (item, stack = new Set()) => {
-      if (!item || stack.has(item.id)) return item?.name || "";
-      if (item.parentId === ROOT_ID || !byId.has(item.parentId)) return item.name;
-      stack.add(item.id);
-      const p = byId.get(item.parentId);
-      return `${pathFor(p, stack)}/${item.name}`;
-    };
-    activeProject.files.forEach(item => { item.path = normalizeVirtualPath(pathFor(item)); });
-  }
 
   function ensureFolderPath(folderPath, baseParent = ROOT_ID) {
     const parts = normalizeVirtualPath(folderPath || "").split("/").filter(Boolean);
@@ -421,20 +400,6 @@ const VoidStudio = (() => {
     return true;
   }
 
-  function canMoveToParent(item, parentId) {
-    if (!item) return false;
-    if (item.deletedAt) return false;
-    if (!parentId || parentId === ROOT_ID) return true;
-    const target = getItem(parentId);
-    if (!target || target.deletedAt || target.type !== "folder" || target.id === item.id) return false;
-    let parent = target;
-    while (parent) {
-      if (parent.id === item.id) return false;
-      if (parent.parentId === ROOT_ID) break;
-      parent = getItem(parent.parentId);
-    }
-    return true;
-  }
 
   async function moveItemToParent(itemId, parentId = ROOT_ID, desktopPosition = null) {
     const item = getItem(itemId);

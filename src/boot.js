@@ -90,6 +90,7 @@
     '/js/forge/io/stl.js',
     '/js/forge/io/obj.js',
     '/js/io/zip.js',
+    '/js/vos/tree.js',
     '/js/forge/io/threemf.js',
     '/js/forge/io/step.js',
     '/js/forge/io/import.js',

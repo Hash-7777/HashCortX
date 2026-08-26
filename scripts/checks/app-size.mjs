@@ -100,7 +100,12 @@ const LINE_BUDGET = {
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
   // against a real archive tool. There is one now, at src/js/io/zip.js.
-  'modes/virtual-os/mode.js': 3766,
+  // 3731, down again. What a file may be called, where it sits, and whether a
+  // folder may be dropped somewhere that would make a loop — the whole of this
+  // mode's safety, since nothing real is underneath it — moved to
+  // src/js/vos/tree.js. Asking those rules a question found that a double
+  // slash in a path grew a folder called "untitled" between the two halves.
+  'modes/virtual-os/mode.js': 3731,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is
