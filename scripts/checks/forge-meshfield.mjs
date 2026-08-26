@@ -102,6 +102,32 @@ function boxDistance(h, x, y, z) {
   return Math.min(Math.max(q[0], Math.max(q[1], q[2])), 0) + outside;
 }
 
+console.log('\nThe fast inner loop computes what the readable one does:');
+{
+  // The distance search runs a version written to avoid allocating, and the
+  // readable statement of the same arithmetic sits beside it. Two ways of
+  // saying one thing is two ways for one of them to be wrong.
+  const random = rng(424242);
+  let worstPoint = 0;
+  let featureMismatch = 0;
+  for (let i = 0; i < 3000; i++) {
+    const p = [0, 1, 2].map(() => (random() - 0.5) * 4);
+    const tri = [0, 1, 2].map(() => [0, 1, 2].map(() => (random() - 0.5) * 2));
+    const readable = F.closestOnTriangle(p, tri[0], tri[1], tri[2]);
+    const out = { x: 0, y: 0, z: 0, feature: 6 };
+    const squared = F.closestSquaredInto(p[0], p[1], p[2], ...tri[0], ...tri[1], ...tri[2], out);
+    worstPoint = Math.max(worstPoint,
+      Math.hypot(out.x - readable.point[0], out.y - readable.point[1], out.z - readable.point[2]));
+    if (out.feature !== readable.feature) featureMismatch++;
+    const truth = Math.hypot(p[0] - readable.point[0], p[1] - readable.point[1], p[2] - readable.point[2]);
+    worstPoint = Math.max(worstPoint, Math.abs(Math.sqrt(squared) - truth));
+  }
+  ok('they find the same point', worstPoint < 1e-12, `worst ${worstPoint}`);
+  // The feature is what decides the sign later, so a disagreement here would
+  // be invisible in the distance and wrong at every edge.
+  ok('and agree about which part of the triangle it sits on', featureMismatch === 0, `${featureMismatch} differed`);
+}
+
 console.log('\nA mesh has to be closed and small enough to be worth it:');
 {
   const built = F.build(sphereMesh(1, 12, 16));
@@ -262,6 +288,37 @@ console.log('\nA mesh wound the wrong way is put right rather than answered back
   }
   ok('so the reversed one measures exactly like the ordinary one', worst < 1e-9, `worst ${worst}`);
   ok('and its inside still reads as inside', b.distance(0, 0, 0) < 0);
+}
+
+console.log('\nA cell that cannot hold anything nearer is skipped whole:');
+{
+  // This is the difference between a mesh fusing in three seconds and in
+  // seven. Without it a sample tested every triangle in every cell the search
+  // reached — eight hundred of them on a mesh of thirty thousand — when a
+  // handful of cells could hold anything nearer. The saving is only worth
+  // having if the answer is unchanged, so that is what is checked.
+  const built = F.build(sphereMesh(0.5, 24, 36));
+  const random = rng(1234567);
+  let worst = 0;
+  for (let i = 0; i < 3000; i++) {
+    const p = [0, 1, 2].map(() => (random() - 0.5) * 4);
+    const truth = Math.hypot(...p) - 0.5;
+    worst = Math.max(worst, Math.abs(built.distance(...p) - truth));
+  }
+  ok('a skipped cell never changes an answer', worst < 0.004, `worst ${worst.toFixed(5)}`);
+  // Points far outside are where a search can most easily stop too early.
+  ok('and a point well outside is still measured exactly',
+    Math.abs(built.distance(0, 9, 0) - 8.5) < 0.004);
+  ok('as is one well inside', Math.abs(built.distance(0, 0, 0) + 0.5) < 0.004);
+}
+
+console.log('\nA mesh it cannot measure says which of the reasons it was:');
+{
+  ok('nothing there is said as nothing there', /holds no triangles/.test(F.whyNot({ positions: [] })));
+  ok('too many is said with the numbers',
+    /past the 60,000 this can measure/.test(F.whyNot({ positions: new Array((F.MAX_TRIANGLES + 1) * 9).fill(0) })));
+  ok('and a mesh it can measure gives no reason at all',
+    F.whyNot(cubeMesh(0.5)) === null);
 }
 
 console.log('\nThe grid finds the nearest triangle, not merely a near one:');

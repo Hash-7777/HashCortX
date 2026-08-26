@@ -321,7 +321,15 @@
       if (part.type === "mesh") {
         const built = meshFieldFor(part);
         if (!built) {
-          issues.push({ code: "mesh-approximated", partId: part.id, detail: "too large or unreadable; answered with the box it occupies" });
+          const MF = typeof window !== "undefined" ? window.HCForgeMeshField : null;
+          const why = MF && MF.whyNot ? MF.whyNot(part.params || {}) : null;
+          issues.push({
+            code: "mesh-approximated",
+            partId: part.id,
+            // Named rather than lumped together. "Too big to measure" and "there
+            // is nothing here" are different problems with different answers.
+            detail: `${why || "it could not be measured"}; answered with the box it occupies`,
+          });
         } else if (!built.closed) {
           // Inside and outside are not defined for a surface with a hole in
           // it. The distance is still right; which side of it you are on is a

@@ -57,8 +57,79 @@
   const lengthOf = (a) => Math.hypot(a[0], a[1], a[2]);
 
   /**
+   * The same answer as `closestOnTriangle` below, written to avoid allocating.
+   *
+   * This is the innermost loop in the whole mode: it runs once per triangle per
+   * bucket per sample, which for a fuse is a few million times. The readable
+   * version allocates half a dozen small arrays each call, and a few million
+   * times that is seconds of collecting garbage rather than of arithmetic — an
+   * imported mesh took seven seconds to fuse, and almost all of it was this.
+   *
+   * The result goes into `out`, which the caller reuses, and the distance comes
+   * back SQUARED because the caller is only comparing them and a square root
+   * per triangle is a square root wasted.
+   */
+  function closestSquaredInto(px, py, pz, ax, ay, az, bx, by, bz, cx, cy, cz, out) {
+    const abx = bx - ax, aby = by - ay, abz = bz - az;
+    const acx = cx - ax, acy = cy - ay, acz = cz - az;
+    const apx = px - ax, apy = py - ay, apz = pz - az;
+    const d1 = abx * apx + aby * apy + abz * apz;
+    const d2 = acx * apx + acy * apy + acz * apz;
+
+    let qx, qy, qz, feature;
+    if (d1 <= 0 && d2 <= 0) {
+      qx = ax; qy = ay; qz = az; feature = 0;
+    } else {
+      const bpx = px - bx, bpy = py - by, bpz = pz - bz;
+      const d3 = abx * bpx + aby * bpy + abz * bpz;
+      const d4 = acx * bpx + acy * bpy + acz * bpz;
+      if (d3 >= 0 && d4 <= d3) {
+        qx = bx; qy = by; qz = bz; feature = 1;
+      } else {
+        const vc = d1 * d4 - d3 * d2;
+        const cpx = px - cx, cpy = py - cy, cpz = pz - cz;
+        const d5 = abx * cpx + aby * cpy + abz * cpz;
+        const d6 = acx * cpx + acy * cpy + acz * cpz;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+          const v = d1 / (d1 - d3);
+          qx = ax + abx * v; qy = ay + aby * v; qz = az + abz * v; feature = 3;
+        } else if (d6 >= 0 && d5 <= d6) {
+          qx = cx; qy = cy; qz = cz; feature = 2;
+        } else {
+          const vb = d5 * d2 - d1 * d6;
+          if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+            const w = d2 / (d2 - d6);
+            qx = ax + acx * w; qy = ay + acy * w; qz = az + acz * w; feature = 5;
+          } else {
+            const va = d3 * d6 - d5 * d4;
+            if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+              const w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+              qx = bx + (cx - bx) * w; qy = by + (cy - by) * w; qz = bz + (cz - bz) * w; feature = 4;
+            } else {
+              const denom = 1 / (va + vb + vc);
+              const v = vb * denom;
+              const w = vc * denom;
+              qx = ax + abx * v + acx * w;
+              qy = ay + aby * v + acy * w;
+              qz = az + abz * v + acz * w;
+              feature = 6;
+            }
+          }
+        }
+      }
+    }
+    const dx = px - qx, dy = py - qy, dz = pz - qz;
+    out.x = qx; out.y = qy; out.z = qz; out.feature = feature;
+    return dx * dx + dy * dy + dz * dz;
+  }
+
+  /**
    * The point on a triangle nearest to `p`, and which part of the triangle it
    * sits on.
+   *
+   * The readable statement of what `closestSquaredInto` computes, kept because
+   * it is what the checks read and what anyone reasoning about the arithmetic
+   * should look at. The two are checked against each other.
    *
    * `feature` is what decides the sign later: 0-2 mean the corner of that
    * index, 3-5 mean the edge starting at that corner, and 6 means the face
@@ -121,6 +192,22 @@
    * simply not meaningful — but it is reported so the caller can say the shape
    * is being approximated instead of implying it is exact.
    */
+  /**
+   * Why a mesh could not be answered from its own triangles, or null when it
+   * can be. Said separately from `build` so a caller can report the reason
+   * rather than "something went wrong".
+   */
+  function whyNot(source) {
+    const positions = source && source.positions ? source.positions.length : 0;
+    if (positions < 9) return "it holds no triangles";
+    const indices = source && source.indices ? source.indices.length : positions / 3;
+    const triangles = Math.floor(indices / 3);
+    if (triangles > MAX_TRIANGLES) {
+      return `it has ${triangles.toLocaleString()} triangles, past the ${MAX_TRIANGLES.toLocaleString()} this can measure`;
+    }
+    return null;
+  }
+
   function build(source) {
     const positions = source && source.positions ? Array.from(source.positions, Number) : [];
     const vertexCount = Math.floor(positions.length / 3);
@@ -174,6 +261,22 @@
     indices = live;
     const triangleCount = Math.floor(indices.length / 3);
     if (!triangleCount || triangleCount > MAX_TRIANGLES) return null;
+
+    // Every triangle's nine coordinates, laid out flat.
+    //
+    // The inner loop reads these millions of times, and reaching them through
+    // two levels of indirection — an index into a vertex list, then three
+    // reads off it — was a measurable part of the cost. A typed array read
+    // straight through is the same numbers with none of the chasing.
+    const corner = new Float64Array(triangleCount * 9);
+    for (let t = 0; t < triangleCount; t++) {
+      for (let c = 0; c < 3; c++) {
+        const v = indices[t * 3 + c];
+        corner[t * 9 + c * 3] = positions[v * 3];
+        corner[t * 9 + c * 3 + 1] = positions[v * 3 + 1];
+        corner[t * 9 + c * 3 + 2] = positions[v * 3 + 2];
+      }
+    }
 
     const normals = new Array(triangleCount);
     const cornerAngles = new Array(triangleCount);
@@ -294,11 +397,17 @@
      * wrong: a triangle one ring further out can be nearer than one that
      * merely shares a bucket.
      */
+    const cellLo = (i, k) => lo[k] + i * step[k];
+    const cellHi = (i, k) => lo[k] + (i + 1) * step[k];
+
+    // Reused across every sample, so the inner loop allocates nothing at all.
+    const hit = { x: 0, y: 0, z: 0, feature: 6 };
+
     function distance(x, y, z) {
-      const p = [x, y, z];
-      const home = [0, 1, 2].map((k) => clampIndex(p[k], k));
+      const home = [clampIndex(x, 0), clampIndex(y, 1), clampIndex(z, 2)];
       let best = Infinity;
-      let bestPoint = null;
+      let bestX = 0, bestY = 0, bestZ = 0;
+      let found = false;
       let bestTriangle = -1;
       let bestFeature = 6;
       const reach = Math.max(dims[0], dims[1], dims[2]);
@@ -307,7 +416,7 @@
       for (let ring = 0; ring <= reach; ring++) {
         // Everything in this ring is at least this far away, so once the best
         // so far beats it, no further ring can help.
-        if (bestPoint && Math.sqrt(best) <= (ring - 1) * smallestStep) break;
+        if (found && Math.sqrt(best) <= (ring - 1) * smallestStep) break;
         const iLo = Math.max(0, home[0] - ring), iHi = Math.min(dims[0] - 1, home[0] + ring);
         const jLo = Math.max(0, home[1] - ring), jHi = Math.min(dims[1] - 1, home[1] + ring);
         const kLo = Math.max(0, home[2] - ring), kHi = Math.min(dims[2] - 1, home[2] + ring);
@@ -323,18 +432,33 @@
               if (!onShell) continue;
               const list = buckets.get(keyOf(i, j, k));
               if (!list) continue;
-              for (const t of list) {
-                const v = [indices[t * 3], indices[t * 3 + 1], indices[t * 3 + 2]];
-                const hit = closestOnTriangle(p, at(v[0]), at(v[1]), at(v[2]));
-                const dx = p[0] - hit.point[0];
-                const dy = p[1] - hit.point[1];
-                const dz = p[2] - hit.point[2];
-                const squared = dx * dx + dy * dy + dz * dz;
+              // How near could anything in THIS cell possibly be? If the
+              // nearest thing found already beats that, the whole cell is
+              // skipped without touching a triangle in it.
+              //
+              // This is where nearly all the time was. Without it a sample
+              // tested every triangle in every cell the rings reached — eight
+              // hundred of them on a mesh of thirty thousand — when a handful
+              // of cells could hold anything nearer.
+              const gx = x < cellLo(i, 0) ? cellLo(i, 0) - x : (x > cellHi(i, 0) ? x - cellHi(i, 0) : 0);
+              const gy = y < cellLo(j, 1) ? cellLo(j, 1) - y : (y > cellHi(j, 1) ? y - cellHi(j, 1) : 0);
+              const gz = z < cellLo(k, 2) ? cellLo(k, 2) - z : (z > cellHi(k, 2) ? z - cellHi(k, 2) : 0);
+              if (gx * gx + gy * gy + gz * gz >= best) continue;
+              for (let n = 0; n < list.length; n++) {
+                const t = list[n];
+                const squared = closestSquaredInto(
+                  x, y, z,
+                  corner[t * 9], corner[t * 9 + 1], corner[t * 9 + 2],
+                  corner[t * 9 + 3], corner[t * 9 + 4], corner[t * 9 + 5],
+                  corner[t * 9 + 6], corner[t * 9 + 7], corner[t * 9 + 8],
+                  hit,
+                );
                 if (squared < best) {
                   best = squared;
-                  bestPoint = hit.point;
+                  bestX = hit.x; bestY = hit.y; bestZ = hit.z;
                   bestTriangle = t;
                   bestFeature = hit.feature;
+                  found = true;
                 }
               }
             }
@@ -342,14 +466,14 @@
         }
       }
 
-      if (!bestPoint) return Infinity;
+      if (!found) return Infinity;
       const d = Math.sqrt(best);
-      const n = normalAt(bestTriangle, bestFeature);
-      const away = [p[0] - bestPoint[0], p[1] - bestPoint[1], p[2] - bestPoint[2]];
       // Exactly on the surface: no direction to judge by, and zero is the
       // right answer either way.
       if (d < 1e-12) return 0;
-      return dot(away, n) * facing < 0 ? -d : d;
+      const n = normalAt(bestTriangle, bestFeature);
+      const side = (x - bestX) * n[0] + (y - bestY) * n[1] + (z - bestZ) * n[2];
+      return side * facing < 0 ? -d : d;
     }
 
     return {
@@ -364,5 +488,5 @@
     };
   }
 
-  window.HCForgeMeshField = { build, closestOnTriangle, MAX_TRIANGLES };
+  window.HCForgeMeshField = { build, whyNot, closestOnTriangle, closestSquaredInto, MAX_TRIANGLES };
 })();
