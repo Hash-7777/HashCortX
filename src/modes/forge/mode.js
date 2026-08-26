@@ -404,6 +404,31 @@
     if (el) el.textContent = state;
   }
 
+  /**
+   * Say which of the person's own models are worth expecting geometry from.
+   *
+   * Before a run, not after one. Designing a part is not chatting: plenty of
+   * models that write good prose hand back a pile of disconnected boxes here,
+   * and somebody watching that has no way to tell whether the model or the app
+   * let them down.
+   *
+   * The judgement is made from the model's NAME and nothing else, and it says
+   * so, because it is a guess and dressing a guess up as a measurement is the
+   * thing this repository's rules exist to stop.
+   */
+  function renderModelFitness() {
+    const host = $("frgModelFitness");
+    const cap = window.HCForgeCapability;
+    if (!host || !cap) return;
+    const survey = cap.surveyOf(
+      providerModelsForForge(true).map(([, value, label]) => ({ value, label })),
+    );
+    const best = survey.best;
+    host.innerHTML = `${escapeHtml(survey.note)}${best
+      ? ` Best of them for this: <b>${escapeHtml(best.label || modelLabel(best.value))}</b> — ${escapeHtml(best.why)}.`
+      : ""} <span style="opacity:0.7">Judged from the model's name, not from trying it.</span>`;
+  }
+
   function renderAgents() {
     const host = $("frgAgents");
     if (!host) return;
@@ -446,40 +471,29 @@
         sel.value = old[agent.id];
       }
     });
+    renderModelFitness();
   }
 
+  // The three judgements below are made from a model's NAME and nothing else,
+  // and they live in src/js/forge/capability.js so that guess can be read and
+  // checked rather than buried here. These are the thin wrappers the rest of
+  // the mode calls, and they fall back to the old answers if the module is
+  // missing so a run is never blocked by it.
+  const CAP = () => window.HCForgeCapability;
+
   function isFreeModel(value, label) {
-    return /:free|\bfree\b/.test(`${value || ""} ${label || ""}`.toLowerCase());
+    const c = CAP();
+    return c ? c.isFree(value, label) : /:free|\bfree\b/.test(`${value || ""} ${label || ""}`.toLowerCase());
   }
 
   function modelSizeScore(value, label) {
-    const s = `${value || ""} ${label || ""}`.toLowerCase();
-    let best = 0;
-    for (const match of s.matchAll(/(\d+(?:\.\d+)?)\s*b\b/g)) {
-      best = Math.max(best, Number(match[1]) || 0);
-    }
-    if (/gpt[-_\s]?oss.*120|120.*gpt[-_\s]?oss/.test(s)) best = Math.max(best, 120);
-    if (/405b|480b|671b/.test(s)) best = Math.max(best, Number((s.match(/(405|480|671)b/) || [0, 0])[1]) || 0);
-    return best;
+    const c = CAP();
+    return c ? c.sizeOf(value, label) : 0;
   }
 
   function modelStrengthScore(value, label, bigTask) {
-    const s = `${value || ""} ${label || ""}`.toLowerCase();
-    let score = 0;
-    const size = modelSizeScore(value, label);
-    if (/gpt[-_\s]?oss/.test(s)) score += 95;
-    if (/pro|opus|sonnet|gpt-4|gpt-5|o3|o4|r1|v3|405b|235b|120b|70b|large|max|maverick|nemotron|hermes|qwen3|deepseek/.test(s)) score += 70;
-    if (size >= 120) score += 52;
-    else if (size >= 100) score += 38;
-    else if (size >= 70) score += bigTask ? 12 : 18;
-    if (size > 0 && size < 70) score -= bigTask ? 18 : 8;
-    if (/coder|code|dev|reason|thinking|instruct|chat/.test(s)) score += 18;
-    if (/vision|vl|multi/.test(s)) score += 10;
-    if (/flash|lite|mini|small|tiny|1b|1.5b|3b|7b|8b|instant/.test(s)) score -= bigTask ? 35 : 12;
-    if (isFreeModel(value, label)) score -= bigTask ? 28 : 10;
-    if (/local/.test(s)) score -= bigTask ? 12 : 0;
-    if (/nvidia|samba|openrouter|gemini|groq|cerebras/.test(s)) score += 8;
-    return score;
+    const c = CAP();
+    return c ? c.strengthOf(value, label, bigTask) : 0;
   }
 
   function bestModelForProvider(options, bigTask) {

@@ -400,6 +400,27 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /recordEdit\(`change \$\{paramKey\}`/.test(src));
 }
 
+console.log('\nThe app says which models can do geometry, before the run:');
+{
+  const fitness = bodyOf('renderModelFitness');
+  // Designing a part is not chatting. Plenty of models that write good prose
+  // hand back a pile of disconnected boxes, and somebody watching that has no
+  // way to tell whether the model or the app let them down.
+  check('the panel has somewhere to say it', /id="frgModelFitness"/.test(panel));
+  check('and it is filled from the capability module',
+    /HCForgeCapability/.test(fitness) && /surveyOf\(/.test(fitness));
+  check('it is said before a run, not after a disappointing one',
+    /renderModelFitness\(\)/.test(bodyOf('syncModelSelectors')));
+  // Dressing a guess up as a measurement is the thing these rules exist to
+  // stop. There is no capability list to query and no benchmark being run.
+  check('and it says the judgement comes from the name rather than from trying it',
+    /Judged from the model's name, not from trying it/.test(fitness));
+  // The heuristics themselves moved somewhere they can be read and checked.
+  check('the judgements live where they can be checked',
+    /window\.HCForgeCapability/.test(src)
+    && !/score \+= 95/.test(src) && !/:free\|\\bfree/.test(bodyOf('modelStrengthScore')));
+}
+
 console.log('\nA run that stops looks stopped:');
 {
   const fail = bodyOf('failForgeRun');

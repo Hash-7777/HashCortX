@@ -211,7 +211,12 @@ const LINE_BUDGET = {
   // model answered, and under what settings — kept with the model rather than
   // in the run log, because the log is cleared on the next run and a saved
   // project outlives every trace.
-  'modes/forge/mode.js': 3947,
+  // 3961, up from 3947 — but the three model-judging heuristics moved OUT to
+  // src/js/forge/capability.js, where they can be read and checked instead of
+  // being a silent preference nobody could see. What is left here is the line
+  // that says which of a person's own models should manage geometry, before a
+  // run rather than after a disappointing one.
+  'modes/forge/mode.js': 3961,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,
