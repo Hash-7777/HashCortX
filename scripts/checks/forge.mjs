@@ -383,6 +383,30 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /recordEdit\(`change \$\{paramKey\}`/.test(src));
 }
 
+console.log('\nA run that stops looks stopped:');
+{
+  const fail = bodyOf('failForgeRun');
+  const stage = bodyOf('updateStage');
+  // A stage used to have two looks: working, or done. A failed run was left in
+  // the working colour with the word "failed" in it, and the picture beat the
+  // words.
+  check('a stage can say it failed, not only that it is busy',
+    /classList\.toggle\("failed", state === "failed"\)/.test(stage)
+    && /\.frg-stage\.failed/.test(css));
+  check('and being busy means being busy, not merely not-done',
+    /classList\.toggle\("active", state === "active"\)/.test(stage));
+  check('the stage that failed says so', /updateStage\("generate", "failed"/.test(fail));
+  // Lighting the later stages as though they were waiting their turn is the
+  // half state this is here to prevent.
+  check('and the ones after it are not left looking like they are waiting',
+    /updateStage\("refine", "idle", "not started"\)/.test(fail)
+    && /updateStage\("export", "idle", "not started"\)/.test(fail));
+  // A failed run leaves the previous model on screen, and somebody who has
+  // just watched one fail needs telling which object they are looking at.
+  check('and the run says what is left on screen',
+    /the ones that were there before/.test(fail) && /nothing was built/.test(fail));
+}
+
 console.log('\nThe parts list is the build order, and the order can be changed:');
 {
   const list = bodyOf('updatePlanList');

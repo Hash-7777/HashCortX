@@ -549,6 +549,15 @@ body.forge-studio-mode #app { display: none; }
 
 .frg-stage.done span { color: rgba(134,239,172,0.78); }
 
+/* Something stopped has to LOOK stopped. A failed run used to be left in the
+   working colour with the word "failed" in it, which reads as still going. */
+.frg-stage.failed {
+  border-color: rgba(248,113,113,0.42);
+  background: rgba(239,68,68,0.09);
+}
+
+.frg-stage.failed span { color: rgba(248,113,113,0.82); }
+
 .frg-project-card {
   position: relative;
   display: grid;

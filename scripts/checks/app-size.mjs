@@ -202,7 +202,12 @@ const LINE_BUDGET = {
   // for a list to move by one line — and threw the selection away and replayed
   // the arrival while it was at it. Nothing about the parts changes when only
   // the order does.
-  'modes/forge/mode.js': 3896,
+  // 3919, up from 3896. A run that stops now looks stopped. A failed one was
+  // left with three stages lit in the working colour, one reading "failed" and
+  // two reading "blocked" — the words were honest and the picture said the app
+  // was still going. It also says what is left on screen, because a failed run
+  // leaves the previous model there.
+  'modes/forge/mode.js': 3919,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

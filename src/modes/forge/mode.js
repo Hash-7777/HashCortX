@@ -212,12 +212,22 @@
     return { style, detail, output };
   }
 
+  /**
+   * Say where a run has got to, including when it has stopped.
+   *
+   * A stage used to have two looks: doing something, or done. A run that
+   * failed was left with three stages lit in the doing-something colour, one
+   * reading "failed" and two reading "blocked" — the words were honest and the
+   * picture said the app was still working. Something stopped has to LOOK
+   * stopped, or a person sits waiting for a run that ended a minute ago.
+   */
   function updateStage(stage, state, text) {
     document.querySelectorAll("[data-frg-stage]").forEach((el) => {
       const isTarget = el.dataset.frgStage === stage;
       if (isTarget) {
-        el.classList.toggle("active", state !== "done");
+        el.classList.toggle("active", state === "active");
         el.classList.toggle("done", state === "done");
+        el.classList.toggle("failed", state === "failed");
         const label = el.querySelector("span");
         if (label) label.textContent = text || state || "waiting";
       } else if (state === "active") {
@@ -3067,15 +3077,28 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     updateStage("export", "active", `${(prefs.output || "glb").toUpperCase()} ready`);
   }
 
+  /**
+   * Stop, and leave nothing that looks like it is still going.
+   *
+   * The stage that failed says so and looks it; the ones after it are simply
+   * not started rather than lit as though they were waiting their turn. What
+   * is on screen is said out loud too, because the run leaves the previous
+   * model there and somebody who has just watched a run fail needs telling
+   * whether they are looking at the new object or the old one.
+   */
   function failForgeRun(label, message) {
     log(label || "Forge", message || "Generation failed", "err");
     setStatus("Failed");
-    updateStage("generate", "active", "failed");
-    updateStage("refine", "active", "blocked");
-    updateStage("export", "active", "blocked");
+    updateStage("generate", "failed", "failed");
+    updateStage("refine", "idle", "not started");
+    updateStage("export", "idle", "not started");
     AGENTS.forEach((a) => setAgentState(a.id, a.id === "god" ? "failed" : "blocked"));
     const dot = $("frgTraceDot");
     if (dot) dot.className = "frg-trace-dot error";
+    const parts = renderableNodes(activePlan?.nodes || []).length;
+    log("Orchestrator", "Run stopped", "err", parts
+      ? `nothing was changed — the ${parts} part${parts === 1 ? "" : "s"} on screen are the ones that were there before`
+      : "nothing was built, and nothing is on screen");
   }
 
   async function askGodPlanWithFailover(prompt, prefs, signal) {
