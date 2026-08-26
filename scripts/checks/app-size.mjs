@@ -105,7 +105,10 @@ const LINE_BUDGET = {
   // mode's safety, since nothing real is underneath it — moved to
   // src/js/vos/tree.js. Asking those rules a question found that a double
   // slash in a path grew a folder called "untitled" between the two halves.
-  'modes/virtual-os/mode.js': 3731,
+  // 3640, down again. Whether anything usable comes out of a generation —
+  // four ways of finding a file's path in a model's answer, tried in order of
+  // how much each assumes — moved to src/js/vos/answer.js.
+  'modes/virtual-os/mode.js': 3640,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

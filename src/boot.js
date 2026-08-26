@@ -91,6 +91,7 @@
     '/js/forge/io/obj.js',
     '/js/io/zip.js',
     '/js/vos/tree.js',
+    '/js/vos/answer.js',
     '/js/forge/io/threemf.js',
     '/js/forge/io/step.js',
     '/js/forge/io/import.js',
