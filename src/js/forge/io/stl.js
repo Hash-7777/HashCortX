@@ -99,6 +99,10 @@
    * them here would be reporting a vertex count the file does not contain.
    */
   function read(bytes) {
+    // Nothing to read is an empty model, not an exception. Every other reader
+    // here answers that way, and a caller handed one file that came back empty
+    // and another that threw has two paths to write for one situation.
+    if (!bytes || typeof bytes.length !== "number") return { ...M().fromArrays({ positions: [] }), format: null };
     if (isBinary(bytes)) return readBinary(bytes);
     return readAscii(new TextDecoder().decode(bytes));
   }

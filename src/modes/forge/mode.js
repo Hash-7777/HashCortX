@@ -2039,6 +2039,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     node.position = [selectedMesh.position.x, selectedMesh.position.y, selectedMesh.position.z];
     node.rotation = [selectedMesh.rotation.x, selectedMesh.rotation.y, selectedMesh.rotation.z];
     node.scale = [selectedMesh.scale.x, selectedMesh.scale.y, selectedMesh.scale.z];
+    // Every path that moves, turns or resizes one part comes through here —
+    // the panel's own fields and the handles in the scene alike — so a pair
+    // stays a pair whichever of them was used.
+    mirrorTransformToTwin(selectedMesh);
     queueProjectSave();
   }
 
@@ -2111,17 +2115,48 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
   }
 
   /**
+   * Put the twin where the mirror of this part says it should be.
+   *
+   * A mirrored pair is one part drawn twice, so it moves, turns and resizes as
+   * one: the twin takes the same transform with the mirrored axis reversed.
+   * Position and scale flip on that axis; the two rotations that are NOT about
+   * it flip, because a turn about the mirror axis looks the same from either
+   * side.
+   *
+   * Dragging one fin forward and leaving the other back was the same defect as
+   * widening one and leaving the other thin — symmetry the app made and then
+   * lost, with nothing to say so. A pair that really should differ is
+   * separated outright instead.
+   */
+  function mirrorTransformToTwin(mesh) {
+    const node = mesh?.userData?.node;
+    const twin = twinMeshOf(mesh);
+    const twinNode = twin?.userData?.node;
+    if (!node || !twinNode) return false;
+    const P = window.HCModelPlan;
+    const axis = (P && P.mirrorAxisOf(node.mirroredOn || twinNode.mirroredOn)) || "x";
+    const k = { x: 0, y: 1, z: 2 }[axis];
+    const position = [mesh.position.x, mesh.position.y, mesh.position.z];
+    const scale = [mesh.scale.x, mesh.scale.y, mesh.scale.z];
+    position[k] = -position[k];
+    scale[k] = -scale[k];
+    const rotation = [mesh.rotation.x, mesh.rotation.y, mesh.rotation.z].map((v, i) => (i === k ? v : -v));
+    twin.position.set(position[0], position[1], position[2]);
+    twin.rotation.set(rotation[0], rotation[1], rotation[2]);
+    twin.scale.set(scale[0], scale[1], scale[2]);
+    twinNode.position = position;
+    twinNode.rotation = rotation;
+    twinNode.scale = scale;
+    return true;
+  }
+
+  /**
    * The same change, made to the other half of a mirrored pair.
    *
    * A mirrored pair is one part drawn twice. Widening one fin and leaving the
    * other thin does not read as an edit — it reads as the app having lost the
    * symmetry it made, and nothing anywhere would say so. So a change to what a
-   * part IS follows to its twin.
-   *
-   * A change to where a part IS does not: dragging one of a pair is something
-   * a person is watching themselves do, and moving the other in sympathy would
-   * be the surprise instead. The pair can be separated outright when the two
-   * halves really are meant to differ.
+   * part IS follows to its twin, and so does where it is.
    */
   function applyToTwin(mesh, change) {
     const twin = twinMeshOf(mesh);

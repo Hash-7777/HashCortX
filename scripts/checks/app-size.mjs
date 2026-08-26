@@ -187,7 +187,10 @@ const LINE_BUDGET = {
   // dead end. The reading, the centring and the change of lens from
   // millimetres to the scene's span are all in src/js/forge/io/import.js;
   // what is here is the branch that prefers it over the scene loader.
-  'modes/forge/mode.js': 3722,
+  // 3757, up from 3722. A mirrored pair follows a move, a turn and a resize as
+  // well as a change of size — dragging one fin forward and leaving the other
+  // back was the same defect as widening one and leaving the other thin.
+  'modes/forge/mode.js': 3757,
   'modes/agent-maker/mode.js': 2980,
   'modes/finance/mode.js': 2705,
   'modes/code/mode.js': 2715,

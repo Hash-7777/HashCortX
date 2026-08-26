@@ -149,7 +149,7 @@ console.log('\nA part that is half of a mirrored pair says so:');
   ok('an ordinary part says nothing about pairs', !has(alone, 'mirrored pair'));
   // The rule is not obvious, and a rule discovered by surprise is a bug report.
   ok('a paired part says what follows to the other one', has(paired, 'mirrored pair'));
-  ok('and what does not', has(paired, 'Moving it does not'));
+  ok('and that it follows everything, not only some of it', has(paired, 'follows everything you do here'));
   ok('and offers a way out of the arrangement', has(paired, 'data-frg-edit="unmirror"'));
   ok('the whole object is never described as one of a pair',
     !has(H.card(state({ hasTwin: true, wholeObject: true })), 'mirrored pair'));

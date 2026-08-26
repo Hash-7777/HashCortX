@@ -444,6 +444,17 @@ console.log('\nThe two text and binary formats agree with each other:');
   ok('and all four the same way out', all.every((m) => M.volume(m) > 0));
 }
 
+console.log('\nA reader handed nothing answers with nothing, never an exception:');
+{
+  // A caller with one file that comes back empty and another that throws has
+  // two paths to write for one situation.
+  ok('STL reads nothing as no triangles', M.triangleCount(STL.read(null)) === 0);
+  ok('and undefined the same way', M.triangleCount(STL.read(undefined)) === 0);
+  ok('OBJ too', M.triangleCount(OBJ.read(null)) === 0);
+  ok('3MF too', M.triangleCount(TMF.read(null)) === 0);
+  ok('and STEP too', M.triangleCount(STEP.read(null)) === 0);
+}
+
 console.log('\nAn empty model writes a valid empty file rather than nothing:');
 {
   const bytes = STL.write({ positions: [] });

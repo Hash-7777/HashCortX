@@ -453,10 +453,18 @@ console.log('\nA person can make a hole, not only a design:');
     && /applyToTwin\(selectedMesh/.test(bodyOf('setSelectedBlend')));
   check('and the twin is rebuilt and redrawn, not only edited in the plan',
     /rebuildMeshGeometry\(twin\)/.test(twin) && /applyMaterialRoleLook\(twin/.test(twin));
-  // Dragging one of a pair is something a person watches themselves do; the
-  // other moving in sympathy would be the surprise.
-  check('but moving one does not move the other',
-    !/applyToTwin/.test(bodyOf('updateSelectedPosition')));
+  // Every path that moves, turns or resizes a part goes through the one sync,
+  // so the handles in the scene and the panel's fields behave the same.
+  const mirrorTransform = bodyOf('mirrorTransformToTwin');
+  check('and so does where it sits, through the one place every move goes',
+    /mirrorTransformToTwin\(selectedMesh\)/.test(bodyOf('syncSelectedNodeFromMesh')));
+  check('the twin is placed at the mirror of the part, not at the same spot',
+    /position\[k\] = -position\[k\]/.test(mirrorTransform) && /scale\[k\] = -scale\[k\]/.test(mirrorTransform));
+  // A turn about the mirror axis looks the same from either side; the other
+  // two reverse. Getting this wrong gives a pair that is placed symmetrically
+  // and visibly wrong in orientation.
+  check('and the two rotations that are not about that axis are the ones that flip',
+    /\(i === k \? v : -v\)/.test(mirrorTransform));
   check('a pair can be separated when the halves really should differ',
     /function separateSelectedFromTwin/.test(src) && /recordEdit\("separate a mirrored pair"/.test(src));
   check('and separating clears the link on both halves',

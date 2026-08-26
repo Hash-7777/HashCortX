@@ -138,8 +138,8 @@
    * built and read in a check without a browser.
    *
    * `hasTwin` says this part is one half of a mirrored pair. It is said out
-   * loud because the rule is not obvious and would otherwise be discovered by
-   * surprise: what a part IS follows to its twin, where it IS does not.
+   * loud because a person editing one part and seeing two change should be
+   * told why, and told how to stop it.
    */
   function card(state) {
     const s = state || {};
@@ -187,8 +187,8 @@
         field(`Rot ${axis.toUpperCase()}`, `data-frg-rot="${axis}" type="number" step="5"`, Math.round(Number(rot[i])))), "margin-top:6px")}
       ${s.wholeObject || !s.hasTwin ? "" : `
       <div class="frg-selection-empty" style="margin-top:8px">
-        One of a mirrored pair — changing what this part <b>is</b> changes the other one too.
-        Moving it does not.
+        One of a mirrored pair — the other one follows everything you do here,
+        mirrored: its size, what it does to the material, and where it sits.
         <button class="frg-edit-btn" data-frg-edit="unmirror" style="margin-top:6px">Make them separate</button>
       </div>`}
       ${s.wholeObject ? "" : materialRole(node, s.mmPerUnit)}
