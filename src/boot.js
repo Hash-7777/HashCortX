@@ -89,7 +89,7 @@
     '/js/forge/io/scene.js',
     '/js/forge/io/stl.js',
     '/js/forge/io/obj.js',
-    '/js/forge/io/zip.js',
+    '/js/io/zip.js',
     '/js/forge/io/threemf.js',
     '/js/forge/io/step.js',
     '/js/forge/io/import.js',

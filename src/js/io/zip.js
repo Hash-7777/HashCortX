@@ -1,9 +1,13 @@
 // ============================================================
 // io/zip.js — a zip container, stored rather than compressed
 //
-// 3MF is a zip file with three XML members inside it. That is the only reason
-// this exists, and it is why it does the smallest possible thing: every member
-// is STORED, not deflated.
+// Written for 3MF, which is a zip with three XML members inside it, and used by
+// anything here that has to hand somebody an archive. It sat under the 3D mode
+// for a while and a second, separate implementation grew in the Virtual OS —
+// two ways of writing the same format, one of them checked. A zip container is
+// not a feature of either mode, so it lives on its own now and both use it.
+//
+// It does the smallest possible thing: every member is STORED, not deflated.
 //
 // WHY NO COMPRESSION. Deflate is a few hundred lines of state machine that
 // must be exactly right, and a subtly wrong one produces a file that opens in
@@ -23,7 +27,7 @@
 // same model written twice produces the same bytes. A file that differs only
 // by the second it was written cannot be compared with a previous one.
 //
-// Run the checks with: npm run check:forge-io
+// Run the checks with: npm run check:zip
 // ============================================================
 (function () {
   "use strict";
@@ -174,5 +178,5 @@
     return out;
   }
 
-  window.HCForgeZip = { store, unstore, crc32 };
+  window.HCZip = { store, unstore, crc32 };
 })();

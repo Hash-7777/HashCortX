@@ -31,7 +31,7 @@
   "use strict";
 
   const M = () => window.HCForgeMeshIO;
-  const Z = () => window.HCForgeZip;
+  const Z = () => window.HCZip;
 
   const NS = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02";
   const MODEL_PART = "3D/3dmodel.model";

@@ -28,7 +28,7 @@ for (const rel of [
   ['src', 'js', 'forge', 'io', 'scene.js'],
   ['src', 'js', 'forge', 'io', 'stl.js'],
   ['src', 'js', 'forge', 'io', 'obj.js'],
-  ['src', 'js', 'forge', 'io', 'zip.js'],
+  ['src', 'js', 'io', 'zip.js'],
   ['src', 'js', 'forge', 'io', 'threemf.js'],
   ['src', 'js', 'forge', 'io', 'step.js'],
   ['src', 'js', 'forge', 'units.js'],
@@ -40,7 +40,6 @@ const M = sandbox.window.HCForgeMeshIO;
 const S = sandbox.window.HCForgeSceneIO;
 const STL = sandbox.window.HCForgeSTL;
 const OBJ = sandbox.window.HCForgeOBJ;
-const ZIP = sandbox.window.HCForgeZip;
 const TMF = sandbox.window.HCForge3MF;
 const STEP = sandbox.window.HCForgeSTEP;
 const IMPORT = sandbox.window.HCForgeImportIO;
@@ -263,31 +262,6 @@ console.log('\nThe reader handles what other writers really produce:');
   ok('a line that is not geometry is ignored',
     M.triangleCount(OBJ.read(['# a comment', 'mtllib none.mtl', 'usemtl none', 'v 0 0 0', 'v 1 0 0', 'v 0 1 0', 'f 1 2 3'].join('\n'))) === 1);
   ok('an empty file reads as an empty model', M.triangleCount(OBJ.read('')) === 0);
-}
-
-console.log('\nThe zip container holds what was put in it:');
-{
-  const encode = (t) => new TextEncoder().encode(t);
-  const bytes = ZIP.store([
-    { name: 'first.txt', bytes: encode('hello') },
-    { name: 'nested/second.txt', bytes: encode('a longer member, with commas, and text') },
-  ]);
-  const back = ZIP.unstore(bytes);
-  ok('every member comes back', back.size === 2);
-  ok('by name, including a nested one', back.has('first.txt') && back.has('nested/second.txt'));
-  ok('with its bytes unchanged',
-    new TextDecoder().decode(back.get('first.txt')) === 'hello');
-  ok('and the longer one too',
-    new TextDecoder().decode(back.get('nested/second.txt')) === 'a longer member, with commas, and text');
-  // The checksum is what a reader uses to decide the file is intact. Written
-  // wrong, most readers refuse the archive outright.
-  ok('the checksum is the standard one', ZIP.crc32(encode('123456789')) === 0xcbf43926);
-  ok('an empty member is allowed', ZIP.unstore(ZIP.store([{ name: 'empty', bytes: [] }])).get('empty').length === 0);
-  ok('an empty archive is still a valid archive', ZIP.unstore(ZIP.store([])).size === 0);
-  ok('nothing that is not an archive comes back as one', ZIP.unstore(encode('not a zip')).size === 0);
-  // No clock anywhere in it, so the same model twice is the same bytes.
-  ok('the same input writes the same bytes',
-    ZIP.store([{ name: 'a', bytes: encode('x') }]).join() === ZIP.store([{ name: 'a', bytes: encode('x') }]).join());
 }
 
 console.log('\nA 3MF says what its numbers mean, which the other formats cannot:');
