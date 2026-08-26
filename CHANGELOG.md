@@ -182,6 +182,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Dates in a generated business system are no longer a day early.** If your
+  computer's clock is set east of Greenwich — Cairo, Athens, Dubai, Delhi,
+  Tokyo — every due date, invoice date and delivery date the ERP mode produced
+  came out one day earlier than it should have. It was correct in London and
+  wrong almost everywhere else, and it looked deliberate rather than broken.
+
 - **Saved 3D models are kept in a file, and a save that fails now says so.** They
   were in the browser storage the app's window runs on, which has a quota a
   large model can exhaust and which is cleared along with website data — and
