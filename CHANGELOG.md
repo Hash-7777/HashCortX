@@ -182,6 +182,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Money written the way an accountant writes it is read correctly.** In
+  Finance, a debit in brackets — `(500)`, which is how every ledger and bank
+  export writes one — was read as *positive* five hundred, so money going out
+  could be counted as money coming in. Figures written `1.234,56` rather than
+  `1,234.56` were also read a thousand times too small. Both are read properly
+  now.
 - **A file path written with a double slash no longer grows an extra folder.**
   In the Virtual OS, a path like `src//main.js` — which is what you get when two
   pieces of a path are joined together — created a folder called "untitled"
