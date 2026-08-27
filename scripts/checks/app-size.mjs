@@ -82,7 +82,12 @@ const LINE_BUDGET = {
   // which are the figures a separate application reads out of the usage log,
   // and what to tell somebody when a request failed, which is almost all of
   // what they see on a bad day.
-  'js/app.js': 7037,
+  // 7009, down again. What the model is told and what it costs — packing
+  // attachments into a message, reckoning its size, naming the conversation —
+  // moved to src/js/chat/context.js. Asking the first of those a question
+  // found that the attachment budget was not one: past about fifteen files
+  // every one got the floor and the total went straight through the cap.
+  'js/app.js': 7009,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

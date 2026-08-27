@@ -70,6 +70,7 @@
     '/js/page-text.js',
     '/js/pdf-text.js',
     '/js/providers.js',
+    '/js/chat/context.js',
     '/js/markdown-safe.js',
     '/js/agent-shape.js',
     '/js/model-names.js',

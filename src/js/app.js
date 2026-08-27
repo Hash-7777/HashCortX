@@ -1067,12 +1067,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     setActiveTitle(chat ? chat.title : "New Conversation");
   }
 
-  function deriveTitle(messages) {
-    const first = messages.find(m => m.role === "user" && m.content);
-    if (!first) return "New chat";
-    const words = first.content.trim().replace(/\s+/g, " ").split(" ");
-    return words.length > 3 ? words.slice(0, 3).join(" ") + "…" : words.join(" ");
-  }
 
   function persistCurrentChat() {
     // Save the live conversation into state.chats, creating a record if needed.
@@ -2381,6 +2375,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const HCProviders = window.HCProviders;
 
+  // What the model is told and what it costs — packing attachments into a
+  // message, reckoning its size, and naming the conversation — lives in
+  // src/js/chat/context.js. Declarations rather than constants because all
+  // three are called from above this line.
+  function buildAttachedFileContext(files, maxChars) {
+    return window.HCChatContext.buildAttachedFileContext(files, maxChars);
+  }
+  function estimatePromptTokens(messages) {
+    return window.HCChatContext.estimatePromptTokens(messages);
+  }
+  function deriveTitle(messages) { return window.HCChatContext.deriveTitle(messages); }
+
   // Reading a provider's answer — how many tokens it says it used, and what to
   // say when it failed — lives beside the rest of what this app knows about
   // providers, in src/js/providers.js, where it can be handed a response.
@@ -3059,32 +3065,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7Z"/><path d="M14 2v5h5"/><path d="M8 13h8"/><path d="M8 17h6"/></svg>`;
   }
 
-  function buildAttachedFileContext(files, maxChars = 28000) {
-    if (!files?.length) return "";
-    const perFileBudget = Math.max(1800, Math.floor(maxChars / files.length));
-    const sections = files.map((f, i) => {
-      const raw = String(f.text || "").trim() || "[No extracted text available for this attachment.]";
-      const clipped = raw.length > perFileBudget;
-      const text = clipped
-        ? raw.slice(0, perFileBudget) + `\n\n[Attachment truncated for context: ${raw.length - perFileBudget} chars omitted.]`
-        : raw;
-      const meta = [
-        `name: ${f.name || `attachment-${i + 1}`}`,
-        `kind: ${f.kind || "file"}`,
-        f.pages ? `pages: ${f.pages}` : "",
-        `extracted_chars: ${raw.length}`,
-        clipped ? `sent_chars: ${perFileBudget}` : "",
-      ].filter(Boolean).join(", ");
-      return `--- Attachment ${i + 1} (${meta}) ---\n${text}`;
-    });
-    return [
-      "",
-      "[ATTACHED FILES - use this content when answering]",
-      "The user attached the following file text. Treat it as part of the current user message.",
-      sections.join("\n\n"),
-      "[END ATTACHED FILES]",
-    ].join("\n");
-  }
 
   async function handleFiles(fileList) {
     for (const f of fileList) {
@@ -5585,14 +5565,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return String(Math.max(0, Math.round(n)));
   }
 
-  function estimatePromptTokens(messages) {
-    const chars = JSON.stringify(messages.map(m => ({
-      role: m.role,
-      content: m.content || "",
-      images: m.images ? `[${m.images.length} image(s)]` : undefined,
-    }))).length;
-    return Math.ceil(chars / 3.8);
-  }
 
   function currentPendingModelContent() {
     const text = input.value.trim();
