@@ -39,6 +39,26 @@ const SwarmMaker = (() => {
   let _polishedHtmlCache = "";
 
   // ── Themed dialogs ─────────────────────────────────────────────────
+  // ── Keeping a swarm finite ──────────────────────────────────────────────
+  //
+  // Agents wired to each other are a directed graph, and the one thing it must
+  // never contain is a loop — not because the answer would be wrong but
+  // because the run would never finish, spending a person's quota until they
+  // noticed and stopped it. A blueprint written by a model can easily contain
+  // one: "the reviewer checks the writer" and "the writer revises after
+  // review" are both sensible sentences.
+  //
+  // In src/js/swarm/graph.js, where it can be handed a blueprint and asked.
+  const GRAPH = () => window.HCSwarmGraph;
+  const hasCycle = (agents, edges) => GRAPH().hasCycle(agents, edges);
+  const breakCycles = (agents, edges) => GRAPH().breakCycles(agents, edges);
+
+  function autoLayoutBlueprint(bp) {
+    nodePositions = GRAPH().positions(bp.agents || [], bp.dag?.edges || [], {
+      nodeW: NODE_W, nodeH: NODE_H, gapX: H_GAP, gapY: V_GAP,
+    });
+  }
+
   function _amkDialog({ msg, showInput, inputDefault, showCancel }) {
     return new Promise(resolve => {
       const overlay  = document.getElementById("amkDialog");
@@ -307,65 +327,8 @@ const SwarmMaker = (() => {
   }
 
   // ── DAG cycle detection ────────────────────────────────────────────
-  function hasCycle(agents, edges) {
-    const visited = {}, stack = {};
-    function dfs(id) {
-      if (stack[id]) return true;
-      if (visited[id]) return false;
-      visited[id] = stack[id] = true;
-      for (const e of edges) {
-        if (e.from === id && dfs(e.to)) return true;
-      }
-      stack[id] = false;
-      return false;
-    }
-    return agents.some(a => dfs(a.id));
-  }
 
   // ── Auto-layout (topological sort → layered positions) ────────────
-  function autoLayoutBlueprint(bp) {
-    const agents = bp.agents || [];
-    const edges  = bp.dag?.edges || [];
-    if (!agents.length) { nodePositions = {}; return; }
-
-    const children  = Object.fromEntries(agents.map(a => [a.id, []]));
-    const inDegree  = Object.fromEntries(agents.map(a => [a.id, 0]));
-    for (const e of edges) {
-      if (children[e.from]) children[e.from].push(e.to);
-      if (inDegree[e.to] !== undefined) inDegree[e.to]++;
-    }
-
-    const layers = [];
-    const queue  = agents.filter(a => inDegree[a.id] === 0).map(a => a.id);
-    const placed = new Set();
-
-    while (queue.length) {
-      const layer = queue.splice(0);
-      layers.push(layer);
-      layer.forEach(nid => {
-        placed.add(nid);
-        (children[nid] || []).forEach(cid => {
-          inDegree[cid]--;
-          if (inDegree[cid] === 0 && !placed.has(cid)) queue.push(cid);
-        });
-      });
-    }
-
-    // Any nodes not in layers (isolated) get their own layer
-    const unlayered = agents.filter(a => !layers.flat().includes(a.id));
-    if (unlayered.length) layers.push(unlayered.map(a => a.id));
-
-    const SVG_H = 480;
-    nodePositions = {};
-    for (let li = 0; li < layers.length; li++) {
-      const layer = layers[li];
-      const totalH = layer.length * NODE_H + (layer.length - 1) * V_GAP;
-      const startY = Math.max(24, (SVG_H - totalH) / 2);
-      layer.forEach((nid, i) => {
-        nodePositions[nid] = { x: 40 + li * (NODE_W + H_GAP), y: startY + i * (NODE_H + V_GAP) };
-      });
-    }
-  }
 
   // ── LLM call dispatcher ────────────────────────────────────────────
   async function callAgentLLM(modelValue, messages, signal, temperature) {
@@ -738,21 +701,6 @@ const SwarmMaker = (() => {
   }
 
   // Remove back-edges from a cycle by DFS; returns a cycle-free edge list
-  function breakCycles(agents, edges) {
-    const visited = {}, onStack = {};
-    const safe = new Set(edges);
-    function dfs(id) {
-      onStack[id] = visited[id] = true;
-      for (const e of edges) {
-        if (e.from !== id) continue;
-        if (onStack[e.to]) { safe.delete(e); continue; }
-        if (!visited[e.to]) dfs(e.to);
-      }
-      onStack[id] = false;
-    }
-    agents.forEach(a => { if (!visited[a.id]) dfs(a.id); });
-    return [...safe];
-  }
 
   // ── DAG execution engine (Promise.allSettled parallel lanes) ──────
   async function runDAG(bp, task, signal) {

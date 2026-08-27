@@ -253,7 +253,13 @@ const LINE_BUDGET = {
   // that says which of a person's own models should manage geometry, before a
   // run rather than after a disappointing one.
   'modes/forge/mode.js': 3961,
-  'modes/agent-maker/mode.js': 2980,
+  // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
+  // open one that does, and where each agent is drawn all moved to
+  // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
+  // that never finishes, spending a person's quota until they stop it — and it
+  // is now held to a property rather than an example: for any wiring at all,
+  // what comes back has none left.
+  'modes/agent-maker/mode.js': 2928,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

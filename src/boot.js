@@ -77,6 +77,7 @@
     '/js/vector-map.js',
     '/js/forge/expr.js',
     '/js/finance/amounts.js',
+    '/js/swarm/graph.js',
     '/js/systems/spec.js',
     '/js/systems/money.js',
     '/js/systems/domain.js',
