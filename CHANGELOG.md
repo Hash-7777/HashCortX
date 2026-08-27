@@ -182,6 +182,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Attaching a lot of files no longer sends far more than intended.** Each
+  attachment gets a share of a character allowance, with a minimum so a share
+  never becomes too small to be useful — but past about fifteen files that
+  minimum won and the total went well beyond the allowance, six times over at a
+  hundred files. That is a refused request on some models and a larger bill on
+  all of them. Fewer files are sent now instead of a bigger message, and the
+  ones left out are named so the model can tell you if the answer depended on
+  them.
 - **Money written the way an accountant writes it is read correctly.** In
   Finance, a debit in brackets — `(500)`, which is how every ledger and bank
   export writes one — was read as *positive* five hundred, so money going out
