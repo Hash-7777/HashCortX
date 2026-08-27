@@ -182,6 +182,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **When a model fails, the app no longer falls back to a worse one than it
+  should.** Candidates were ranked by name, and the family name was read before
+  the variant — so `gpt-4o-mini` was ranked alongside `gpt-4o`, and
+  `gemini-2.5-flash-lite` alongside `gemini-2.5-flash`. A failover would reach
+  for the small, cheap version ahead of a genuinely large model, and the answer
+  came back worse for no visible reason. Newer models such as GPT-5 were also
+  unrecognised and tried last. The model you picked yourself is still always
+  tried first.
 - **Attaching a lot of files no longer sends far more than intended.** Each
   attachment gets a share of a character allowance, with a minimum so a share
   never becomes too small to be useful — but past about fifteen files that
