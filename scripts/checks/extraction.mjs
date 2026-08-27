@@ -135,19 +135,73 @@ function check(label, condition, detail = '') {
 /** Every .js file under the folders app.js is being split into. */
 function modules() {
   const out = [];
-  const walk = (dir) => {
+  const walk = (dir, publishersOnly) => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'vendor') continue;
       const full = join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith('.js')) out.push(relative(srcDir, full).split('\\').join('/'));
+      if (entry.isDirectory()) { walk(full, publishersOnly); continue; }
+      if (!entry.name.endsWith('.js')) continue;
+      // Under src/js the folder holds app.js and its libraries side by side,
+      // so only the files that actually publish something are modules. Under
+      // core and data everything is one.
+      if (publishersOnly && !/window\.HC[A-Za-z_$][\w$]*\s*=/.test(readFileSync(full, 'utf8'))) continue;
+      out.push(relative(srcDir, full).split('\\').join('/'));
     }
   };
   for (const folder of ['core', 'data']) {
+    try { if (statSync(join(srcDir, folder)).isDirectory()) walk(join(srcDir, folder), false); }
+    catch { /* folder does not exist yet */ }
+  }
+  return out.sort();
+}
+
+/**
+ * Every file anywhere under src/ that publishes a window.HC object.
+ *
+ * A wider net than `modules()`, and used only by the load-order rule below.
+ * The rules after that one — which names moved, which are free variables —
+ * were written against src/core and src/data, where a file is a module and
+ * nothing else. Under src/js the libraries sit beside app.js itself and share
+ * its habits, so those heuristics report a regular expression's "$1" and a
+ * loop's "m" as names that escaped from app.js. Being loaded at all is a
+ * different question, and it holds everywhere.
+ */
+function publishers() {
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (entry.name === 'vendor') continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith('.js')) continue;
+      const text = readFileSync(full, 'utf8');
+      if (!/window\.HC[A-Za-z_$][\w$]*\s*=/.test(text)) continue;
+      const rel = relative(srcDir, full).split('\\').join('/');
+      if (CHECK_TIME_ONLY.has(rel)) continue;
+      out.push(rel);
+    }
+  };
+  // The library layer only. Mode files publish objects too and are loaded
+  // AFTER app.js on purpose — a mode registers itself into a registry app.js
+  // defines — so holding them to "before app.js" would be holding them to the
+  // opposite of how they work.
+  for (const folder of ['js', 'core', 'data']) {
     try { if (statSync(join(srcDir, folder)).isDirectory()) walk(join(srcDir, folder)); }
     catch { /* folder does not exist yet */ }
   }
   return out.sort();
 }
+
+/**
+ * Modules the app deliberately does not load.
+ *
+ * `forge/measure.js` scores a generated plan against eight weighted
+ * measurements. It is loaded by the corpus checks, which is where the score is
+ * used to hold the headline numbers, and by nothing in the app — the app shows
+ * what a model measures, not what it scores. Named here rather than quietly
+ * skipped, so the next person meets the decision instead of the omission.
+ */
+const CHECK_TIME_ONLY = new Set(['js/forge/measure.js']);
 
 const GLOBALS = publishedGlobals(srcDir);
 
@@ -161,8 +215,8 @@ console.log('\nEvery split-out module is loaded before app.js:');
   const appAt = order.indexOf('js/app.js');
   check('app.js is in the load order', appAt !== -1);
 
-  const found = modules();
-  check('there are modules to check', found.length > 0, 'src/core and src/data are both empty');
+  const found = publishers();
+  check('there are modules to check', found.length > 0, 'nothing under src/ publishes a window.HC object');
 
   for (const file of found) {
     const at = order.indexOf(file);
