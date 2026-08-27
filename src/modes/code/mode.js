@@ -36,6 +36,18 @@
   const toolVerb = (name) => TOOL_VERBS[name] || String(name || '').toUpperCase();
 
   /** The one argument worth showing beside the verb. */
+  // ── Which model to try when one will not answer ─────────────────────────
+  //
+  // Whether a failure is worth moving on from, and which model to reach for.
+  // In src/js/chat/failover.js, where the ranking can be handed a name — which
+  // is how it was found that a family name was matching before the variant, so
+  // every "-mini" and "-lite" was ranked alongside the model it is the cheap
+  // version of.
+  const FAILOVER = () => window.HCChatFailover;
+  const classifyRouterError = (err) => FAILOVER().classifyError(err);
+  const isRoutableError = (err) => FAILOVER().isRoutable(err);
+  const sortChainByQuality = (chain) => FAILOVER().orderChain(chain, _routerStreaks);
+
   function toolObject(name, args) {
     const a = args || {};
     if (name === 'shell_run') {
@@ -227,10 +239,6 @@
     return chain;
   }
 
-  function isRoutableError(err) {
-    const msg = String(err?.message || '');
-    return /rate.?limit|429|quota.?exceed|too.?many.?request|overload|529|not.?found|renamed.?or.?retired|404|model.*unavailable|no.?such.?model|invalid.?model|key.?missing|key.?invalid|401|403/i.test(msg);
-  }
 
   function setRouterChip(label, state) {
     const chip = document.getElementById('cdrRouterChip');
@@ -251,15 +259,6 @@
   // transient: retry SAME model (network / 5xx / timeout)
   // routable:  try NEXT model (quota / auth / 404 / unavailable)
   // fatal:     stop chain immediately (4xx bad request shape)
-  function classifyRouterError(err) {
-    if (!err) return 'fatal';
-    const msg = String(err.message || err);
-    if (err.name === 'AbortError') return 'fatal';
-    if (/timeout|timed out|network|fetch failed|ECONN|socket|disconnected/i.test(msg)) return 'transient';
-    if (/\b5\d\d\b|server error|overload|529|503|502/i.test(msg)) return 'transient';
-    if (/rate.?limit|429|quota.?exceed|too.?many.?request|key.?invalid|key.?missing|401|403|404|not.?found|unavailable|no.?such.?model|invalid.?model|renamed|retired/i.test(msg)) return 'routable';
-    return 'routable'; // default to try-next when unsure (safer than fatal)
-  }
 
   // Session-scoped failure streak counter — models that fail 3x get demoted.
   const _routerStreaks = new Map();
@@ -320,28 +319,6 @@
   }
 
   // Tier ordering — keep quality high during failover.
-  function sortChainByQuality(chain) {
-    const TIER = { frontier: 4, large: 3, medium: 2, small: 1 };
-    function tierFor(m) {
-      const s = (m.model || '').toLowerCase();
-      if (/gpt-4o|claude-(opus|4|5)|gemini-2\.5-pro|kimi-k2|deepseek-v3|llama-4|400b|405b/i.test(s)) return 'frontier';
-      if (/70b|72b|sonnet|gemini-2\.5-flash|qwen2\.5/i.test(s)) return 'large';
-      if (/8b|9b|13b|34b|haiku|mini|flash-lite|3\.2/i.test(s)) return 'medium';
-      return 'small';
-    }
-    return chain
-      .map((m, i) => ({ m, i, t: TIER[tierFor(m)] || 0, fails: _routerStreaks.get(m.label + ':' + m.model) || 0 }))
-      .sort((a, b) => {
-        // Primary (i===0) is the user's explicit choice — never demote it.
-        if (a.i === 0) return -1;
-        if (b.i === 0) return 1;
-        // Among fallbacks, demote heavy-failers.
-        if (a.fails >= 3 && b.fails < 3) return 1;
-        if (b.fails >= 3 && a.fails < 3) return -1;
-        return b.t - a.t;
-      })
-      .map(x => x.m);
-  }
 
   async function legacyRun(assistant, { signal, onStatus }) {
     const H = window._H;

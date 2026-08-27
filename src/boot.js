@@ -71,6 +71,7 @@
     '/js/pdf-text.js',
     '/js/providers.js',
     '/js/chat/context.js',
+    '/js/chat/failover.js',
     '/js/markdown-safe.js',
     '/js/agent-shape.js',
     '/js/model-names.js',

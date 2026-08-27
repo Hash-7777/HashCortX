@@ -270,7 +270,15 @@ const LINE_BUDGET = {
   // debit written the way every ledger writes one — in brackets — was being
   // read as positive, so money going out was counted as money coming in.
   'modes/finance/mode.js': 2582,
-  'modes/code/mode.js': 2715,
+  // 2692, down from 2715 — the first time this file has moved. Deciding which
+  // model to try when one will not answer went to src/js/chat/failover.js.
+  //
+  // Worth recording about this file: legacyRun is a single function of about
+  // two thousand one hundred lines, which is four fifths of what is here. It
+  // is not a terminal wrapper that happens to be long; it is one function that
+  // grew. Splitting it is a real piece of work rather than an extraction, and
+  // it has not been attempted.
+  'modes/code/mode.js': 2692,
 };
 
 console.log('\nFile sizes go down, never up:');
