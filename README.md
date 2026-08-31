@@ -15,8 +15,9 @@
 <a href="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
+<img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows%2010%20%26%2011-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 2.5.0" src="https://img.shields.io/badge/v2.5.0-2d333b?style=flat-square">
+<img alt="Version 2.6.0" src="https://img.shields.io/badge/v2.6.0-2d333b?style=flat-square">
 
 <br>
 
@@ -39,7 +40,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | | |
 |---|---|
 | **Type** | Native desktop app (Tauri v2) |
-| **Runs on** | macOS Apple Silicon — built and used daily. Linux and Windows compile and pass their tests in CI, but nobody has run the app there yet |
+| **Runs on** | macOS Apple Silicon — built and used daily. **Windows — tested on Windows 10**, with an installer in the release. Linux compiles and passes its tests in CI, but nobody has run the app there yet |
 | **License** | MIT |
 | **Latest release** | v2.5.0 (17 August 2026) — 43 MB DMG for Apple Silicon, 80 MB installed. 33 MB of that is the bundled embedding model, and most of the rest is the runtime that executes it |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
@@ -124,7 +125,7 @@ Download the DMG from the [latest release](https://github.com/Hash-7777/HashCort
 
 The DMG is built for **Apple Silicon**. On an Intel Mac, build from source.
 
-On Windows and Linux there is no prebuilt download — build from source (below). Check your processor first: the default build needs AVX2 and BMI2, and there is a build that does not. See [Older processors](#older-processors-without-avx2).
+On **Windows** there is an installer in the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest). It is the build made without local embeddings, so it starts on a processor of any age and searches the knowledge base by keyword rather than by meaning; for search by meaning on an AVX2 processor, build with the default features (below). On **Linux** there is no prebuilt download — build from source (below). Check your processor first: the default build needs AVX2 and BMI2, and there is a build that does not. See [Older processors](#older-processors-without-avx2).
 
 The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
 
@@ -262,7 +263,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet.
 
-**Which systems?** macOS Apple Silicon is built and used daily. The code compiles and passes its tests on Linux and Windows, and CI runs all three on every push. The app has now been built and launched on Windows 10 once, which is the whole of the evidence for that platform — treat Windows and Linux as buildable rather than supported.
+**Which systems?** macOS Apple Silicon is built and used daily. **Windows runs — tested on Windows 10**, where the app has been built, installed and used; that release carries a Windows installer. Linux compiles and passes its tests in CI on every push, but nobody has launched it there, so treat Linux as buildable rather than supported.
 
 **What processor does it need?** On x86-64 — every Windows and Linux machine, and Intel Macs — the default build needs **AVX2 and BMI2**: Intel Haswell (2013) or AMD Excavator (2015) and newer. That is not the app itself but the ONNX Runtime it links to run the embedding model, which is compiled for those instructions and starts up before any of the app's own code. On an older processor the app cannot start at all, and because the failure happens during loading there is no window and no message — a double-click that appears to do nothing. Building with `--no-default-features` removes that runtime and produces an app that starts on any x86-64 machine; see [Older processors](#older-processors-without-avx2). Apple Silicon is unaffected.
 

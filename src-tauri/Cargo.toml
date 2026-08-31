@@ -14,7 +14,7 @@
 
 [package]
 name        = "hashcortx"
-version     = "2.5.0"
+version     = "2.6.0"
 description = "HashCortx — Local-first AI coding agents"
 authors     = ["HashCortx"]
 edition     = "2021"   # Use Rust 2021 edition (latest stable feature set)
