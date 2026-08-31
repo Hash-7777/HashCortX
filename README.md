@@ -137,6 +137,7 @@ Then open **Settings → API keys**, add a key, press **Test**. Or skip keys ent
 ### Build from source
 
 ```bash
+cd ~                   # start in your own folder, not wherever the shell opened
 git clone https://github.com/Hash-7777/HashCortX.git
 cd HashCortX
 npm install
@@ -146,13 +147,23 @@ npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
 
 Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line Tools · **Linux**: Ubuntu 24.04+ and the Tauri v2 system libraries (glibc 2.38+ is required to link the bundled ONNX Runtime) · **Windows**: MSVC build tools and WebView2.
 
-**On Windows, do not put the clone under `C:\Windows\System32`.** The installer
-tools Tauri uses are 32-bit, and a 32-bit process reading that path is redirected
-by Windows to `SysWOW64`, where the checkout does not exist — so the Rust build
-succeeds and then the bundling step fails saying it cannot find a file that is
-plainly there. A folder created there also inherits the System32 permissions and
-cannot be moved or deleted afterwards without an administrator. Clone somewhere
-ordinary, such as your Desktop.
+**On Windows, run `cd ~` before cloning — the line above is not decoration.**
+PowerShell opened as an administrator starts in `C:\Windows\System32`, so a
+pasted `git clone` lands inside Windows' own system folder. The prerequisite
+installers want an administrator window; the build itself does not, and a normal
+PowerShell already starts somewhere sensible.
+
+A checkout under `System32` fails in a way that points nowhere near the cause.
+The WiX tools Tauri bundles with are 32-bit, and a 32-bit process reading that
+path is redirected by Windows to `SysWOW64`, where the checkout does not exist —
+so the Rust build succeeds and bundling then fails saying it cannot find a file
+that is plainly there. The folder also inherits System32's permissions, so
+getting rid of it afterwards needs an administrator:
+
+```powershell
+robocopy C:\Windows\System32\HashCortX $HOME\HashCortX /E /XD target
+Remove-Item -LiteralPath C:\Windows\System32\HashCortX -Recurse -Force
+```
 
 ### Older processors (without AVX2)
 
