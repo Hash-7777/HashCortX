@@ -172,7 +172,22 @@ keyring = "3"
 # static linking means its start-up code runs before main(), so on an older
 # processor the app cannot even reach the point of drawing a window. See the
 # feature comment for the whole story.
-ort        = { version = "2.0.0-rc.10", features = ["download-binaries"], optional = true }
+#
+# ort is pinned EXACTLY, with the `=`, and that is deliberate. A plain version
+# requirement on a pre-release means "this or any later pre-release of 2.0.0",
+# so asking for rc.10 quietly built rc.13 instead — three releases and fourteen
+# months of drift between what this file said and what every build actually
+# used. Two reasons that matters more here than for an ordinary dependency:
+#
+#   • These are release candidates. The API moves between them, and so does the
+#     prebuilt binary that gets linked in.
+#   • Which processors the app will start on is a property of THAT binary, and
+#     the README now states it. A silent bump could change the answer and turn
+#     a documented requirement into a false one, on machines nobody here has.
+#
+# Moving it is therefore a decision, not a side effect: raise the number, build
+# it, and check the claims in README.md still hold.
+ort        = { version = "=2.0.0-rc.13", features = ["download-binaries"], optional = true }
 tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
 
 # ── chrono ───────────────────────────────────────────────────
