@@ -55,6 +55,38 @@ tauri-build = { version = "2", features = ["config-json5"] }
 # ⚠ Only add plugins you actively use. Each plugin expands the
 #   attack surface — unused plugins are unnecessary risk.
 # ==============================================================
+[features]
+default = ["local-embeddings"]
+
+# ── local-embeddings ─────────────────────────────────────────
+# Semantic search over the knowledge base, run on this machine: the
+# bge-small-en-v1.5 weights and the ONNX Runtime that executes them are both
+# compiled into the binary.
+#
+# WHY THIS IS A FEATURE AND NOT SIMPLY ALWAYS ON
+# ----------------------------------------------
+# The prebuilt ONNX Runtime that `ort`'s download-binaries fetches is built
+# for x86-64 processors with AVX2 and BMI2 — Intel Haswell (2013) and AMD
+# Excavator (2015) and newer. It is linked statically, so its C++ start-up
+# code runs while the process is still loading, before main(). On an older
+# processor that code executes an instruction the CPU does not implement and
+# Windows kills the process with STATUS_ILLEGAL_INSTRUCTION.
+#
+# The failure is invisible: no window, no error, no log — a double-click that
+# appears to do nothing at all. It cannot be avoided by leaving the feature
+# unused in the interface, because nothing of ours has run yet by the time it
+# happens.
+#
+# Building without this feature produces an app that starts on any x86-64
+# machine. The knowledge base then finds passages by keyword rather than by
+# meaning, `embed_available` reports false, and the interface says so instead
+# of pretending. Nothing else changes, and the binary is around 60 MB smaller
+# because neither the runtime nor the weights are compiled in.
+#
+#   cargo build --release --no-default-features
+#   npm run tauri build -- --no-default-features
+local-embeddings = ["dep:ort", "dep:tokenizers"]
+
 [dependencies]
 
 # ── Core Tauri framework ──────────────────────────────────────
@@ -130,8 +162,14 @@ keyring = "3"
 # tokenizers is built without default features: the defaults pull a progress
 # bar and HTTP model downloading, neither of which belongs in this app. The
 # vocabulary is loaded from bytes compiled into the binary.
-ort        = { version = "2.0.0-rc.10", features = ["download-binaries"] }
-tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
+#
+# Both are OPTIONAL, behind the `local-embeddings` feature below. That prebuilt
+# ONNX Runtime is compiled for x86-64 processors that have AVX2 and BMI2, and
+# static linking means its start-up code runs before main(), so on an older
+# processor the app cannot even reach the point of drawing a window. See the
+# feature comment for the whole story.
+ort        = { version = "2.0.0-rc.10", features = ["download-binaries"], optional = true }
+tokenizers = { version = "0.21", default-features = false, features = ["onig"], optional = true }
 
 # ── chrono ───────────────────────────────────────────────────
 # Date/time for audit log timestamps (Phase 3).

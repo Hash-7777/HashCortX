@@ -92,7 +92,7 @@ HashCortX/
 │   │   ├── commands/
 │   │   │   ├── shell.rs       469   process execution: denylist, timeout,
 │   │   │   │                        closed stdin, output cap
-│   │   │   ├── embed.rs       288   sentence embeddings, run natively
+│   │   │   ├── embed.rs       374   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  538   what a file held before the agent changed it
 │   │   │   ├── net.rs         229   resolves a hostname and refuses private ones
 │   │   │   ├── fs.rs          815   filesystem bridge, applies the denylist

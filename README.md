@@ -108,7 +108,7 @@ Chain mode hands each agent's output to the next. Vote mode runs one prompt acro
 
 ## The knowledge base
 
-Anything you ingest becomes searchable by **meaning**, not just by matching words — `bge-small-en-v1.5` (MIT) ships inside the app and runs natively in Rust. It is inference-only: a sentence encoder, not a language model.
+Anything you ingest becomes searchable by **meaning**, not just by matching words — `bge-small-en-v1.5` (MIT) ships inside the app and runs natively in Rust. It is inference-only: a sentence encoder, not a language model. On an x86-64 machine without AVX2 the app is built without it and searches by keyword instead; see [Older processors](#older-processors-without-avx2).
 
 - **Nothing is fetched.** No first-run download, no cache to warm. It works offline on first launch.
 - **Nothing is sent.** What you index never crosses a network boundary.
@@ -123,6 +123,8 @@ Results are ranked by meaning and by keyword at once, then fused — so a rare e
 Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, drag HashCortx to `/Applications`.
 
 The DMG is built for **Apple Silicon**. On an Intel Mac, build from source.
+
+On Windows and Linux there is no prebuilt download — build from source (below). Check your processor first: the default build needs AVX2 and BMI2, and there is a build that does not. See [Older processors](#older-processors-without-avx2).
 
 The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
 
@@ -144,11 +146,32 @@ npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
 
 Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line Tools · **Linux**: Ubuntu 24.04+ and the Tauri v2 system libraries (glibc 2.38+ is required to link the bundled ONNX Runtime) · **Windows**: MSVC build tools and WebView2.
 
+### Older processors (without AVX2)
+
+The default build links a prebuilt ONNX Runtime for the embedding model. It is
+compiled for x86-64 processors with **AVX2 and BMI2** — Intel Haswell (2013),
+AMD Excavator (2015) and newer — and it is linked statically, so its start-up
+code runs before `main()`. On an older processor it executes an instruction the
+CPU does not have and the process is killed while it is still loading: no
+window, no error, nothing on screen.
+
+Build without it, and the app starts on any x86-64 machine:
+
+```bash
+npm run tauri build -- --no-default-features
+```
+
+That build has no embedding model in it. The knowledge base still works and
+still searches, by keyword rather than by meaning; `embed_available` reports
+false so the interface can say so rather than quietly returning worse results.
+The binary is also around 60 MB smaller, since neither the model nor the
+runtime is compiled in. Apple Silicon is unaffected either way.
+
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # 1,384 checks over the real source
-cargo test --manifest-path src-tauri/Cargo.toml   # 93 tests
+npm run check                                     # 2,968 checks over the real source
+cargo test --manifest-path src-tauri/Cargo.toml   # 97 tests
 ```
 
 ---
@@ -215,7 +238,9 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet.
 
-**Which systems?** macOS Apple Silicon is built and used daily. The code compiles and passes its tests on Linux and Windows, and CI runs all three on every push — but nobody has launched the app there, so treat those as buildable rather than supported. If you try it, an issue saying what happened would genuinely help.
+**Which systems?** macOS Apple Silicon is built and used daily. The code compiles and passes its tests on Linux and Windows, and CI runs all three on every push. The app has now been built and launched on Windows 10 once, which is the whole of the evidence for that platform — treat Windows and Linux as buildable rather than supported.
+
+**What processor does it need?** On x86-64 — every Windows and Linux machine, and Intel Macs — the default build needs **AVX2 and BMI2**: Intel Haswell (2013) or AMD Excavator (2015) and newer. That is not the app itself but the ONNX Runtime it links to run the embedding model, which is compiled for those instructions and starts up before any of the app's own code. On an older processor the app cannot start at all, and because the failure happens during loading there is no window and no message — a double-click that appears to do nothing. Building with `--no-default-features` removes that runtime and produces an app that starts on any x86-64 machine; see [Older processors](#older-processors-without-avx2). Apple Silicon is unaffected.
 
 **Does it send my code anywhere?** Only to the provider you configured, when you send a message. There is no HashCortx server.
 

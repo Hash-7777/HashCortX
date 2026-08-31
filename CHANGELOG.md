@@ -182,6 +182,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The app can be built to start on a processor without AVX2.** The prebuilt
+  ONNX Runtime that runs the embedding model is compiled for x86-64 processors
+  with AVX2 and BMI2, and it is linked statically, so its start-up code runs
+  before `main()`. On anything older than Intel Haswell or AMD Excavator the
+  process was killed while it was still loading: no window, no message, a
+  double-click that appeared to do nothing. Leaving the feature unused in the
+  interface could not have avoided it, because nothing of ours had run yet.
+  Local embeddings are now a Cargo feature, on by default and unchanged for
+  everyone whose machine can run them; `--no-default-features` builds an app
+  that starts on any x86-64 machine, ranks the knowledge base by keyword, and
+  reports `embed_available` as false so the interface can say so instead of
+  quietly returning weaker results. The processor requirement, and the failure
+  it causes when it is not met, are now written in the README.
+
 - **When a model fails, the app no longer falls back to a worse one than it
   should.** Candidates were ranked by name, and the family name was read before
   the variant — so `gpt-4o-mini` was ranked alongside `gpt-4o`, and

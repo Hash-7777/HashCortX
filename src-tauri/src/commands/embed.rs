@@ -29,40 +29,73 @@
 // JS call:
 //   invoke("embed_texts", { texts: [...], kind: "query" | "passage" })
 //   → [[f32; 384], …]  L2-normalised, so cosine similarity is a dot product
+//
+// BUILDS WITHOUT THIS
+// -------------------
+// Everything that touches the model sits behind the `local-embeddings`
+// feature, which is on by default. It exists because the prebuilt ONNX
+// Runtime is built for x86-64 processors with AVX2 and BMI2 and is linked
+// statically, so on an older processor the app dies during loading, before
+// main() and before any window — see the feature comment in Cargo.toml.
+//
+// Both commands are registered either way, and the pair below answers
+// honestly when the feature is off: `embed_available` returns false and
+// `embed_texts` fails with a reason rather than being missing entirely. The
+// contract the web view calls does not change, so the knowledge base falls
+// back to keyword search on its existing path instead of meeting an
+// unknown-command error.
 // ==============================================================
 
+#[cfg(feature = "local-embeddings")]
 use ort::session::{builder::GraphOptimizationLevel, Session};
+#[cfg(feature = "local-embeddings")]
 use ort::value::Tensor;
+#[cfg(feature = "local-embeddings")]
 use std::sync::{Mutex, OnceLock};
+#[cfg(feature = "local-embeddings")]
 use tokenizers::Tokenizer;
 
 /// Weights and vocabulary, baked into the binary. See models/…/PROVENANCE.md.
+#[cfg(feature = "local-embeddings")]
 const MODEL_ONNX: &[u8] = include_bytes!("../../models/bge-small-en-v1.5/model_quantized.onnx");
+#[cfg(feature = "local-embeddings")]
 const TOKENIZER_JSON: &[u8] = include_bytes!("../../models/bge-small-en-v1.5/tokenizer.json");
 
 /// Output width. Stored vectors are meaningless across a change to this.
+///
+/// Kept in both builds on purpose: it is the width already written into
+/// everybody's stored vectors, so it stays part of the contract even where
+/// nothing in this build produces one.
+#[cfg_attr(not(feature = "local-embeddings"), allow(dead_code))]
 pub const EMBED_DIM: usize = 384;
 
 /// What the model was trained to accept; longer text is truncated by the tokenizer.
+#[cfg(feature = "local-embeddings")]
 const MAX_TOKENS: usize = 512;
 
 /// BGE is an asymmetric retriever: the QUERY side is embedded with this
 /// instruction and passages are embedded bare. Embedding both the same way
 /// measurably costs recall, so this is not decoration.
+#[cfg(feature = "local-embeddings")]
 const QUERY_INSTRUCTION: &str = "Represent this sentence for searching relevant passages: ";
 
 /// Caps, so a runaway caller cannot exhaust memory. A batch of this size takes
 /// well under a second; anything larger is a caller bug, not a workload.
+#[cfg(feature = "local-embeddings")]
 const MAX_BATCH: usize = 64;
+#[cfg(feature = "local-embeddings")]
 const MAX_CHARS: usize = 8_000;
 
+#[cfg(feature = "local-embeddings")]
 struct Embedder {
     session: Session,
     tokenizer: Tokenizer,
 }
 
+#[cfg(feature = "local-embeddings")]
 static EMBEDDER: OnceLock<Result<Mutex<Embedder>, String>> = OnceLock::new();
 
+#[cfg(feature = "local-embeddings")]
 fn embedder() -> Result<&'static Mutex<Embedder>, String> {
     EMBEDDER
         .get_or_init(|| {
@@ -98,6 +131,7 @@ fn embedder() -> Result<&'static Mutex<Embedder>, String> {
 }
 
 /// Embed a batch. `kind` selects whether the query instruction is applied.
+#[cfg(feature = "local-embeddings")]
 fn embed_batch(texts: &[String], is_query: bool) -> Result<Vec<Vec<f32>>, String> {
     if texts.is_empty() {
         return Ok(Vec::new());
@@ -185,6 +219,7 @@ fn embed_batch(texts: &[String], is_query: bool) -> Result<Vec<Vec<f32>>, String
     Ok(out)
 }
 
+#[cfg(feature = "local-embeddings")]
 #[tauri::command]
 pub async fn embed_texts(texts: Vec<String>, kind: Option<String>) -> Result<Vec<Vec<f32>>, String> {
     let is_query = kind.as_deref() == Some("query");
@@ -197,12 +232,63 @@ pub async fn embed_texts(texts: Vec<String>, kind: Option<String>) -> Result<Vec
 
 /// Whether embedding is usable, so the UI can say so rather than silently
 /// falling back to keyword search the way the old CDN version did.
+#[cfg(feature = "local-embeddings")]
 #[tauri::command]
 pub fn embed_available() -> bool {
     embedder().is_ok()
 }
 
-#[cfg(test)]
+// ── built without local-embeddings ────────────────────────────
+// The same two commands, so the web view calls exactly what it always calls
+// and gets a truthful answer instead of an unknown-command error.
+
+/// Why this build cannot embed. Shown to whoever asks rather than logged and
+/// swallowed, because "semantic search is off" is a thing a person needs to be
+/// told, not left to infer from worse results.
+#[cfg(not(feature = "local-embeddings"))]
+const NO_EMBEDDINGS: &str =
+    "This build has local embeddings switched off, so the knowledge base matches on keywords \
+     rather than on meaning. It is built this way to run on processors without AVX2 and BMI2, \
+     where the bundled model runtime cannot start at all.";
+
+#[cfg(not(feature = "local-embeddings"))]
+#[tauri::command]
+pub async fn embed_texts(
+    _texts: Vec<String>,
+    _kind: Option<String>,
+) -> Result<Vec<Vec<f32>>, String> {
+    Err(NO_EMBEDDINGS.to_string())
+}
+
+#[cfg(not(feature = "local-embeddings"))]
+#[tauri::command]
+pub fn embed_available() -> bool {
+    false
+}
+
+#[cfg(all(test, not(feature = "local-embeddings")))]
+mod without_model_tests {
+    use super::*;
+
+    /// The point of the stub: the command exists and says no, rather than the
+    /// web view meeting an unknown command.
+    #[test]
+    fn reports_itself_unavailable_rather_than_being_absent() {
+        assert!(!embed_available());
+    }
+
+    /// The refusal has to be readable by whoever sees it, not a bare code.
+    /// Driven through Tauri's own runtime rather than adding a test-only async
+    /// runtime to the dependency list for one assertion.
+    #[test]
+    fn refuses_with_a_reason_a_person_can_read() {
+        let err = tauri::async_runtime::block_on(embed_texts(vec!["anything".into()], None))
+            .unwrap_err();
+        assert!(err.contains("keywords"), "the reason should say what happens instead");
+    }
+}
+
+#[cfg(all(test, feature = "local-embeddings"))]
 mod tests {
     use super::*;
 

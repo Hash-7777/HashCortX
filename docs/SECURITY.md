@@ -236,6 +236,8 @@ What you ingest is indexed twice: by keyword, and as a vector produced by a sent
 
 **The model is inside the app.** `bge-small-en-v1.5` (MIT, from BAAI) ships with HashCortx and runs through ONNX Runtime in the Rust process. It is inference-only — a fixed, pre-trained sentence encoder, not a language model, and it cannot generate text.
 
+**It is not in every build.** That ONNX Runtime is compiled for x86-64 processors with AVX2 and BMI2, and linked statically, so on an older processor the app cannot start at all. Building with `--no-default-features` leaves the model and its runtime out entirely: the knowledge base then ranks by keyword only, and `embed_available` returns false so the interface can say so. Nothing in this section changes for such a build — there is simply no embedding step, rather than one that silently fails, which is exactly what the CDN implementation described below used to do.
+
 This matters for the privacy claim above, so it is worth being precise about:
 
 - **Nothing is downloaded.** The weights are compiled into the binary. There is no first-run fetch, no cache to warm, and no host to reach.
