@@ -146,6 +146,14 @@ npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
 
 Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line Tools · **Linux**: Ubuntu 24.04+ and the Tauri v2 system libraries (glibc 2.38+ is required to link the bundled ONNX Runtime) · **Windows**: MSVC build tools and WebView2.
 
+**On Windows, do not put the clone under `C:\Windows\System32`.** The installer
+tools Tauri uses are 32-bit, and a 32-bit process reading that path is redirected
+by Windows to `SysWOW64`, where the checkout does not exist — so the Rust build
+succeeds and then the bundling step fails saying it cannot find a file that is
+plainly there. A folder created there also inherits the System32 permissions and
+cannot be moved or deleted afterwards without an administrator. Clone somewhere
+ordinary, such as your Desktop.
+
 ### Older processors (without AVX2)
 
 The default build links a prebuilt ONNX Runtime for the embedding model. It is
