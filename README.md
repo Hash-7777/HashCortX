@@ -166,8 +166,12 @@ window, no error, nothing on screen.
 Build without it, and the app starts on any x86-64 machine:
 
 ```bash
-npm run tauri build -- --no-default-features
+npx tauri build -- --no-default-features
 ```
+
+The `--` matters: the Tauri CLI has no such flag of its own and passes
+everything after it to cargo. Through an npm script it takes two, because npm
+eats the first one — `npm run tauri build -- -- --no-default-features`.
 
 That build has no embedding model in it. The knowledge base still works and
 still searches, by keyword rather than by meaning; `embed_available` reports

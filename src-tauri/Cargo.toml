@@ -84,7 +84,11 @@ default = ["local-embeddings"]
 # because neither the runtime nor the weights are compiled in.
 #
 #   cargo build --release --no-default-features
-#   npm run tauri build -- --no-default-features
+#   npx tauri build -- --no-default-features
+#
+# Note the separator: the Tauri CLI has no --no-default-features of its own,
+# it forwards what follows `--` to cargo. Through npm that needs two, because
+# npm consumes the first: npm run tauri build -- -- --no-default-features
 local-embeddings = ["dep:ort", "dep:tokenizers"]
 
 [dependencies]
