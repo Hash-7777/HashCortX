@@ -172,8 +172,9 @@ npm run tauri build -- --no-default-features
 That build has no embedding model in it. The knowledge base still works and
 still searches, by keyword rather than by meaning; `embed_available` reports
 false so the interface can say so rather than quietly returning worse results.
-The binary is also around 60 MB smaller, since neither the model nor the
-runtime is compiled in. Apple Silicon is unaffected either way.
+The binary is also far smaller — about 20 MB against about 80 MB, measured on
+Apple Silicon — since neither the model nor the runtime is compiled in. Apple
+Silicon is unaffected either way.
 
 Before pushing, run what CI runs:
 
