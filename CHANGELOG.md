@@ -10,18 +10,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [2.6.0] — 2026-09-01
 
-### Added
-
-- **HashCortx runs on Windows, and there is a Windows download.** It had always
-  compiled and passed its tests there, but nobody had launched it — the README
-  said so. It has now been built and run on a Windows 10 machine. The release
-  carries the installer from that build, so Windows no longer means building
-  from source first. That installer is the one made without local embeddings,
-  which is what runs on a processor of any age: it searches the knowledge base
-  by keyword rather than by meaning, and says so rather than quietly returning
-  weaker results. Building with the default features gives the full app on a
-  processor with AVX2, and the README says how.
-
 ### Changed
 
 - **3D Forge no longer searches the web before designing a model.** Every
@@ -67,6 +55,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   rather than quietly bending a gear into something that is no longer round.
 
 ### Added
+
+- **HashCortx runs on Windows, and there is a Windows download.** It had always
+  compiled and passed its tests there, but nobody had launched it — the README
+  said so. It has now been built and run on a Windows 10 machine. The release
+  carries the installer from that build, so Windows no longer means building
+  from source first. That installer is the one made without local embeddings,
+  which is what runs on a processor of any age: it searches the knowledge base
+  by keyword rather than by meaning, and says so rather than quietly returning
+  weaker results. Building with the default features gives the full app on a
+  processor with AVX2, and the README says how.
 
 - **A model can have a hole.** Until now 3D Forge could only add material, so
   there was no mug with a bore, no pipe, no vent and no screw hole — every
