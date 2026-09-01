@@ -1,7 +1,7 @@
 // ==============================================================
-// Whether this machine draws with a GPU — checks
+// The two facts about this machine that the first frame depends on — checks
 //
-// Loads the REAL src/js/render-profile.js. Two things are worth holding here,
+// Loads the REAL src/js/host-profile.js. Two things are worth holding here,
 // and the second matters more than the first.
 //
 // One: the names a software rasterizer goes by are recognised, and an
@@ -17,7 +17,7 @@
 // That is the failure this file exists to prevent, so it is pinned in the
 // markup and in main.js rather than left to be remembered.
 //
-// Run with: npm run check:render-profile
+// Run with: npm run check:host-profile
 // ==============================================================
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -32,14 +32,15 @@ const src = (...p) => readFileSync(join(root, 'src', ...p), 'utf8');
 const madeCanvas = { getContext: () => null };
 const sandbox = {
   window: {},
+  navigator: { platform: 'MacIntel', userAgent: 'Mozilla/5.0 (Macintosh)' },
   document: {
     createElement: () => madeCanvas,
     documentElement: { classList: { add() {}, remove() {}, contains: () => false } },
   },
 };
 vm.createContext(sandbox);
-vm.runInContext(src('js', 'render-profile.js'), sandbox, { filename: 'render-profile.js' });
-const P = sandbox.window.HCRenderProfile;
+vm.runInContext(src('js', 'host-profile.js'), sandbox, { filename: 'host-profile.js' });
+const P = sandbox.window.HCHost;
 
 let pass = 0;
 let fail = 0;
@@ -102,7 +103,7 @@ console.log('\nNot knowing is not the same as knowing it is bad:');
 console.log('\nIt runs before the first frame:');
 {
   const html = src('index.html');
-  const tag = '<script src="/js/render-profile.js"></script>';
+  const tag = '<script src="/js/host-profile.js"></script>';
   ok('the page loads it', html.includes(tag));
   // Before the stylesheets, or the first frame is composed without the class
   // and the whole point is lost.
@@ -110,7 +111,7 @@ console.log('\nIt runs before the first frame:');
   ok('before the first stylesheet', html.indexOf(tag) < firstSheet);
   // A classic script with no async/defer, so parsing stops until it has run.
   ok('synchronously, not deferred',
-    !/<script[^>]*render-profile\.js[^>]*(defer|async)/.test(html));
+    !/<script[^>]*host-profile\.js[^>]*(defer|async)/.test(html));
 }
 
 console.log('\nIt decides WHEN the cheap mode starts, never whether:');
@@ -124,11 +125,11 @@ console.log('\nIt decides WHEN the cheap mode starts, never whether:');
   if (line) {
     const before = main.slice(Math.max(0, line.index - 400), line.index);
     ok('and does it unconditionally',
-      !/if\s*\([^)]*(?:HCRenderProfile|software|low-gpu)[^)]*\)\s*$/.test(before.trimEnd()),
+      !/if\s*\([^)]*(?:HCHost|software|low-gpu)[^)]*\)\s*$/.test(before.trimEnd()),
       'this line must not be guarded by the renderer probe');
   }
   ok('the probe itself only ever adds the class, never removes it',
-    !/classList\.remove\(\s*['"]low-gpu/.test(src('js', 'render-profile.js')));
+    !/classList\.remove\(\s*['"]low-gpu/.test(src('js', 'host-profile.js')));
   // Both forms exist for every rule, which is what lets the class land on
   // <html> this early and still mean the same thing.
   const styles = src('styles.css');
@@ -144,7 +145,7 @@ console.log('\nThe 3D viewport asks the flag, not the class:');
   const setup = forge.slice(forge.indexOf('new THREE.WebGLRenderer') - 1200,
                             forge.indexOf('mount.appendChild(renderer.domElement)'));
 
-  ok('it reads the renderer judgement', /HCRenderProfile\s*&&\s*window\.HCRenderProfile\.software/.test(setup));
+  ok('it reads the renderer judgement', /HCHost\s*&&\s*window\.HCHost\.software/.test(setup));
   // The trap this replaces. `low-gpu` is on for everyone after the intro, so a
   // viewport keyed to it would drop the shadows on every machine, including
   // the ones that were drawing them for free.
@@ -166,5 +167,37 @@ console.log('\nThe 3D viewport asks the flag, not the class:');
     io.every((f) => !/\brenderer\b/.test(f)));
 }
 
-console.log(`\n${pass} passed, ${fail} failed  (is there a GPU here)`);
+console.log('\nWhich desktop this is:');
+{
+  const ua = (platform, userAgent, uaData) => P.osFrom({ platform, userAgent, userAgentData: uaData });
+  ok('macOS by platform', ua('MacIntel', '') === 'mac');
+  ok('macOS by user agent', ua('', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)') === 'mac');
+  ok('Windows by platform', ua('Win32', '') === 'windows');
+  ok('Windows by user agent', ua('', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)') === 'windows');
+  ok('Linux', ua('Linux x86_64', '') === 'linux');
+  // userAgentData is the one that is not deprecated, so it is consulted first.
+  ok('the modern field wins when it is there',
+    ua('MacIntel', 'Macintosh', { platform: 'Windows' }) === 'windows');
+  // Same rule as the renderer: a question you could not ask is not answered.
+  ok('nothing recognisable is not guessed at', ua('', '') === '');
+  ok('and an absent navigator does not throw', P.osFrom(undefined) === '');
+}
+
+console.log('\nThe toolbar reserves space only where something is drawn in it:');
+{
+  const styles = src('styles.css');
+  ok('the strip is still 72px by default',
+    /\.hc-toolbar-left\s*\{[^}]*width:\s*72px/.test(styles),
+    'that space is needed where the traffic lights ARE drawn');
+  ok('and collapses where they are not',
+    /html\.is-windows\s+\.hc-toolbar-left[^{]*\{[^}]*width:\s*0/.test(styles));
+  // If the class never reaches the page the rule above is decoration.
+  ok('the platform class is stamped on the root element',
+    /classList\.add\('is-'\s*\+\s*profile\.os\)/.test(src('js', 'host-profile.js')));
+  ok('and only when the platform was actually recognised',
+    /if\s*\(profile\.os\)\s*document\.documentElement\.classList\.add/.test(src('js', 'host-profile.js')),
+    'an empty answer must not produce an `is-` class');
+}
+
+console.log(`\n${pass} passed, ${fail} failed  (what this machine is)`);
 process.exit(fail ? 1 : 0);

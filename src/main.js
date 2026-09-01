@@ -326,7 +326,7 @@
       // animations (pcb-traces, drones, circuit-spots) are already frozen when
       // the cross-fade begins. Without this they'd run for ~980ms.
       //
-      // Unconditional, and it stays that way. src/js/render-profile.js may
+      // Unconditional, and it stays that way. src/js/host-profile.js may
       // already have put this class on <html> before the first frame, but only
       // when it found a software renderer; that probe answers WHEN the cheap
       // mode starts, not whether. Making this line conditional on it would

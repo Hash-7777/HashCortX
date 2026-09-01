@@ -272,7 +272,7 @@ const LINE_BUDGET = {
   // whose driver is too old for hardware compositing. Only the lighting
   // changes; the geometry and the exported file do not, which is the sentence
   // the comment there exists to make, along with why the judgement is read
-  // from the render-profile flag and never from the low-gpu class.
+  // from the host-profile flag and never from the low-gpu class.
   'modes/forge/mode.js': 3975,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to

@@ -148,12 +148,24 @@ select option {
 }
 
 /* Left zone — 72 px keeps macOS traffic lights from overlapping the title.
-   Empty strip → must be a drag region, not no-drag. */
+   Empty strip → must be a drag region, not no-drag.
+
+   It is 72px of nothing anywhere the traffic lights are not drawn, which is
+   everywhere except macOS: the strip stays and the centred logo sits 72px off
+   centre. Collapsed rather than removed, because the space is genuinely needed
+   where the buttons ARE drawn, and the class is stamped on <html> before the
+   stylesheets so the bar is the right shape in the first frame instead of
+   settling into it. An unrecognised platform keeps the strip — that is the
+   answer that was already shipping, and guessing wrong about window chrome is
+   worse than leaving it be. */
 .hc-toolbar-left {
   width: 72px;
   flex-shrink: 0;
   -webkit-app-region: drag;   /* empty strip — drag here */
 }
+
+html.is-windows .hc-toolbar-left,
+html.is-linux .hc-toolbar-left { width: 0; }
 
 /* Center — logo + app name.
    The content here is purely decorative (img + spans, no buttons).

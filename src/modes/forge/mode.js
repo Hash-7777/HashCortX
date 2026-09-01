@@ -809,7 +809,7 @@
     //
     // The flag, never the `low-gpu` class: that class is on for everyone after
     // the intro, so it would take the shadows off every Mac too.
-    const soft = !!(window.HCRenderProfile && window.HCRenderProfile.software);
+    const soft = !!(window.HCHost && window.HCHost.software);
     renderer = new THREE.WebGLRenderer({
       antialias: !soft, alpha: false,
       powerPreference: soft ? "default" : "high-performance",
