@@ -1093,13 +1093,21 @@ body.forge-studio-mode #app { display: none; }
   justify-content: center;
 }
 .frg-improve[disabled] { opacity: .38; cursor: default; }
+/* This is where the model-fitness sentence is printed — including the one
+   that says none of your models look big enough for geometry. It was the
+   least readable text in the panel: 9.5px at 38% opacity measures 3.0:1
+   against --bg-0, under the 4.5:1 floor, and the trailing "judged from the
+   model's name, not from trying it" was dimmer still. So the one line a
+   person needs in order to understand the verdict was the one line they
+   could not read, and the verdict looked like a fault instead of a guess.
+   --muted is the token for secondary label text and measures 5.4:1. */
 .frg-improve-note {
   margin-top: 6px;
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 11px;
   line-height: 1.5;
   letter-spacing: .04em;
-  color: rgba(236,231,220,0.38);
+  color: var(--muted);
 }
 
 /* ── Inspector tabs ───────────────────────────────────────────────

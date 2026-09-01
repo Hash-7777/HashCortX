@@ -426,7 +426,7 @@
     const best = survey.best;
     host.innerHTML = `${escapeHtml(survey.note)}${best
       ? ` Best of them for this: <b>${escapeHtml(best.label || modelLabel(best.value))}</b> — ${escapeHtml(best.why)}.`
-      : ""} <span style="opacity:0.7">Judged from the model's name, not from trying it.</span>`;
+      : ""} Judged from the model's name, not from trying it.`;
   }
 
   function renderAgents() {
