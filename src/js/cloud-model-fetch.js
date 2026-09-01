@@ -69,14 +69,22 @@
     );
     if (!r.ok) throw new Error(`Gemini /models ${r.status}`);
     const j = await r.json();
-    // Only Gemini 2.x models are on the free tier; 1.x is deprecated.
-    // Exclude non-chat models. Preserve imageGen flag for image-generation variants.
+    // Keep the models that can hold a conversation, and drop the generation
+    // that is deprecated.
+    //
+    // This used to admit `gemini-2.` and nothing else. That reads as "the
+    // current generation" and behaves as "this one generation forever": the
+    // day Google ships the next number, every model in it is filtered out
+    // here and the menu quietly stops offering anything new, while the fetch
+    // still reports success. Naming what is gone rather than what is current
+    // is the version of this rule that does not need editing on a schedule.
     const ids = (j.models || [])
       .filter(m => Array.isArray(m.supportedGenerationMethods) &&
                    m.supportedGenerationMethods.includes("generateContent"))
       .map(m => String(m.name || "").replace(/^models\//, ""))
       .filter(id => id &&
-        /^gemini-2\./i.test(id) &&
+        /^gemini-/i.test(id) &&
+        !/^gemini-1\./i.test(id) &&
         !/embedding|aqa|tts|deep-research|veo|learnlm|exp-/i.test(id))
       .sort();
     // Text models first, image-gen models last
@@ -174,11 +182,37 @@
     }));
   }
 
+  // Anthropic was the one provider still answering from the hand-written
+  // catalogue: this used to return it unconditionally, with a comment saying
+  // no public /models endpoint existed. One does, and has for a while, so
+  // Claude was the only list in the app that could never learn a new model —
+  // which is the worst place for that to be true, because the names carry
+  // dates and go stale on a schedule.
+  //
+  // The list is ordered newest first. Anthropic returns it oldest first, and
+  // a person opening this menu is far more often after the model that just
+  // came out than the one from two years ago.
   async function fetchAnthropicModels(apiKey) {
     if (!apiKey) return seedModelsFor("anthropic");
-    // Anthropic does not expose a public /models endpoint as of mid-2025.
-    // We return the fallback list; users can still enter custom model IDs manually.
-    return seedModelsFor("anthropic");
+    const r = await fetch("https://api.anthropic.com/v1/models?limit=1000", {
+      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
+    });
+    if (!r.ok) throw new Error(`Anthropic /models ${r.status}`);
+    const j = await r.json();
+    const list = (j.data || [])
+      .filter(m => m && typeof m.id === "string")
+      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
+    return list.map(m => {
+      // display_name is what Anthropic calls the model in its own console.
+      // Falling back to the prettified id keeps a brand-new model readable on
+      // the day it ships, before the field is populated.
+      const name = m.display_name || prettifyModelId(m.id);
+      return {
+        value: `cloud:anthropic:${m.id}`,
+        label: `${name} · Anthropic`,
+        shortLabel: name,
+      };
+    });
   }
 
   async function fetchMoonshotModels(apiKey) {

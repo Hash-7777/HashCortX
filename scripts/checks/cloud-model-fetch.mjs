@@ -4,10 +4,14 @@
 // Loads the REAL src/js/cloud-model-fetch.js and runs every one of the ten
 // fetchers against a recorded answer, with no network and no app around them.
 //
-// What is worth checking here is not that a request is made — it is that each
-// provider's answer is decoded into the same shape, that the ones which speak
-// their own dialect are read correctly, and that a provider having a bad day
-// reports the failure rather than answering with an empty menu.
+// What is worth checking here is not that a request is made. It is that the
+// answer is decoded correctly, and — the part that actually goes wrong — that
+// a decoder does not quietly stop returning models when a provider moves on.
+// A filter written as "the current generation" is a filter that empties itself
+// the day the next one ships, and it fails silently: the fetch still succeeds,
+// the list is just missing everything new. That is the defect this file exists
+// to catch, so every fetcher is asked about a model from a generation that
+// does not exist yet.
 //
 // Run with: npm run check:cloud-model-fetch
 // ==============================================================
@@ -87,6 +91,52 @@ console.log('\nGoogle\'s shape is read, and the prefix stripped:');
     !ids(got).some((v) => v.includes('embedding')));
 }
 
+console.log('\nA generation that does not exist yet is still offered:');
+{
+  // The whole point. Each of these is a model from a future generation, and a
+  // decoder that admits only what exists today would drop it silently.
+  answer({ models: [
+    { name: 'models/gemini-9.0-pro', supportedGenerationMethods: ['generateContent'] },
+  ]});
+  const gem = await F.gemini('k');
+  ok('a future Gemini generation survives the filter',
+    ids(gem).includes('cloud:gemini:gemini-9.0-pro'),
+    'the filter names a current generation instead of the deprecated one');
+
+  answer({ data: [{ id: 'gpt-9-turbo' }] });
+  ok('a future GPT survives', ids(await F.openai('k')).includes('cloud:openai:gpt-9-turbo'));
+
+  answer({ data: [{ id: 'claude-fictional-9-20990101', display_name: 'Claude Fictional 9' }] });
+  ok('a future Claude survives', ids(await F.anthropic('k')).includes('cloud:anthropic:claude-fictional-9-20990101'));
+
+  answer({ data: [{ id: 'llama-99-enormous' }] });
+  ok('a future Llama survives on Cerebras', ids(await F.cerebras('k')).includes('cloud:cerebras:llama-99-enormous'));
+  ok('and on SambaNova', ids(await F.samba('k')).includes('cloud:samba:llama-99-enormous'));
+
+  answer({ data: [{ id: 'deepseek-v9' }] });
+  ok('a future DeepSeek survives', ids(await F.deepseek('k')).includes('cloud:deepseek:deepseek-v9'));
+
+  answer({ data: [{ id: 'mistral-enormous-2099' }] });
+  ok('a future Mistral survives', ids(await F.mistral('k')).includes('cloud:mistral:mistral-enormous-2099'));
+}
+
+console.log('\nAnthropic is asked, not assumed:');
+{
+  answer({ data: [
+    { id: 'claude-old-1', display_name: 'Claude Old', created_at: '2024-01-01T00:00:00Z' },
+    { id: 'claude-new-1', display_name: 'Claude New', created_at: '2026-08-01T00:00:00Z' },
+  ]});
+  const got = await F.anthropic('k');
+  ok('the answer is used rather than the catalogue',
+    !ids(got).includes('cloud:seed:from-the-catalogue'),
+    'this provider used to return the hand-written list unconditionally');
+  ok('the newest model is first', ids(got)[0] === 'cloud:anthropic:claude-new-1');
+  ok("the provider's own display name is used", got[0].shortLabel === 'Claude New');
+  answer({ data: [{ id: 'claude-unnamed-1' }] });
+  const unnamed = await F.anthropic('k');
+  ok('a model with no display name falls back to its id', unnamed[0].shortLabel === 'claude-unnamed-1');
+}
+
 console.log('\nOpenRouter is cut down to the free models:');
 {
   answer({ data: [
@@ -102,9 +152,7 @@ console.log('\nOpenRouter is cut down to the free models:');
 console.log('\nA provider having a bad day does not empty the menu:');
 {
   answer({}, { ok: false, status: 500 });
-  // Anthropic is absent: it does not reach the network at all, it answers
-  // from the hand-written catalogue.
-  for (const p of ['groq', 'gemini', 'openrouter', 'openai']) {
+  for (const p of ['groq', 'gemini', 'openrouter', 'openai', 'anthropic']) {
     let threw = false;
     try { await F[p]('k'); } catch { threw = true; }
     // Throwing is correct: loadCloudModelsFor catches it and seeds the list.
