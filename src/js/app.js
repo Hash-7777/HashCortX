@@ -3173,9 +3173,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const _cloudFetchInflight   = { groq: null, gemini: null, openrouter: null, cerebras: null, samba: null, openai: null, anthropic: null, moonshot: null, deepseek: null, mistral: null };
   let _cloudModelsFetchedOnce = false;
 
-  /** What a provider's list starts as, until the live fetch answers. */
-  function fallbackFor(provider) {
-    return (CLOUD_FALLBACK[provider] || []).slice();
+  // What each provider last answered is remembered across launches, so a fresh
+  // launch starts from the real list rather than from the catalogue written by
+  // hand. That logic lives in its own module so it can be checked.
+  const _modelMemory = window.HCCloudModelMemory;
+
+  /** What a provider's list starts as: what it last said, else the catalogue. */
+  function seedModelsFor(provider) {
+    return _modelMemory.seed(provider, CLOUD_FALLBACK[provider] || []);
   }
 
   // Asking each provider for its own list is the whole point, and the ten
@@ -3188,7 +3193,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const CLOUD_FETCHERS = window.HCCloudModelFetch.create({
     prettify: prettifyModelId,
     isExcluded: isExcludedCloudModel,
-    seed: (provider) => (CLOUD_FALLBACK[provider] || []).slice(),
+    seed: seedModelsFor,
     moonshotApi: fetchMoonshotApi,
     sortMoonshotIds: sortMoonshotModelIds,
   });
@@ -3199,26 +3204,27 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const apiKey = (keyEl?.value || "").trim();
     // OpenRouter doesn't strictly require a key for /models; everything else does.
     if (!apiKey && provider !== "openrouter") {
-      return fallbackFor(provider);
+      return seedModelsFor(provider);
     }
     if (_cloudModelCache[provider] && _cloudModelKeyAtFetch[provider] === apiKey) {
       return _cloudModelCache[provider];
     }
     if (_cloudFetchInflight[provider]) return _cloudFetchInflight[provider];
     const fetcher = CLOUD_FETCHERS[provider];
-    if (!fetcher) return fallbackFor(provider);
+    if (!fetcher) return seedModelsFor(provider);
     const p = (async () => {
       try {
         const models = visibleCloudModels(await fetcher(apiKey));
         if (Array.isArray(models) && models.length) {
           _cloudModelCache[provider] = models;
           _cloudModelKeyAtFetch[provider] = apiKey;
+          _modelMemory.remember(provider, models);
           return models;
         }
-        return fallbackFor(provider);
+        return seedModelsFor(provider);
       } catch (err) {
         console.warn(`[cloud] ${provider} fetch failed:`, err);
-        return fallbackFor(provider);
+        return seedModelsFor(provider);
       } finally {
         _cloudFetchInflight[provider] = null;
       }
@@ -3228,16 +3234,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   const CLOUD_MODELS = [
-    { group: "Groq  —  Free · Fast Inference",    keyEl: () => groqKeyEl,       provider: "groq",       models: fallbackFor("groq") },
-    { group: "Google Gemini  —  Free",            keyEl: () => geminiKeyEl,     provider: "gemini",     models: fallbackFor("gemini") },
-    { group: "OpenAI  —  Paid · Frontier",        keyEl: () => openaiKeyEl,     provider: "openai",     models: fallbackFor("openai") },
-    { group: "Anthropic Claude  —  Paid · Strong Reasoning", keyEl: () => anthropicKeyEl, provider: "anthropic", models: fallbackFor("anthropic") },
-    { group: "Moonshot (Kimi)  —  Paid · 256K Context", keyEl: () => moonshotKeyEl, provider: "moonshot", models: fallbackFor("moonshot") },
-    { group: "DeepSeek  —  Paid · Reasoning",     keyEl: () => deepseekKeyEl,   provider: "deepseek",   models: fallbackFor("deepseek") },
-    { group: "Mistral AI  —  Paid · European",    keyEl: () => mistralKeyEl,    provider: "mistral",    models: fallbackFor("mistral") },
-    { group: "Cerebras  —  Free · Ultra-Fast",    keyEl: () => cerebrasKeyEl,   provider: "cerebras",   models: fallbackFor("cerebras") },
-    { group: "SambaNova  —  Free · Mega-Scale",   keyEl: () => sambaKeyEl,      provider: "samba",      models: fallbackFor("samba") },
-    { group: "OpenRouter  —  Free Models",        keyEl: () => openRouterKeyEl, provider: "openrouter", models: fallbackFor("openrouter") },
+    { group: "Groq  —  Free · Fast Inference",    keyEl: () => groqKeyEl,       provider: "groq",       models: seedModelsFor("groq") },
+    { group: "Google Gemini  —  Free",            keyEl: () => geminiKeyEl,     provider: "gemini",     models: seedModelsFor("gemini") },
+    { group: "OpenAI  —  Paid · Frontier",        keyEl: () => openaiKeyEl,     provider: "openai",     models: seedModelsFor("openai") },
+    { group: "Anthropic Claude  —  Paid · Strong Reasoning", keyEl: () => anthropicKeyEl, provider: "anthropic", models: seedModelsFor("anthropic") },
+    { group: "Moonshot (Kimi)  —  Paid · 256K Context", keyEl: () => moonshotKeyEl, provider: "moonshot", models: seedModelsFor("moonshot") },
+    { group: "DeepSeek  —  Paid · Reasoning",     keyEl: () => deepseekKeyEl,   provider: "deepseek",   models: seedModelsFor("deepseek") },
+    { group: "Mistral AI  —  Paid · European",    keyEl: () => mistralKeyEl,    provider: "mistral",    models: seedModelsFor("mistral") },
+    { group: "Cerebras  —  Free · Ultra-Fast",    keyEl: () => cerebrasKeyEl,   provider: "cerebras",   models: seedModelsFor("cerebras") },
+    { group: "SambaNova  —  Free · Mega-Scale",   keyEl: () => sambaKeyEl,      provider: "samba",      models: seedModelsFor("samba") },
+    { group: "OpenRouter  —  Free Models",        keyEl: () => openRouterKeyEl, provider: "openrouter", models: seedModelsFor("openrouter") },
   ];
 
   // Parse "cloud:provider:modelId" — modelId may contain colons (OpenRouter paths).
