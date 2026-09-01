@@ -42,13 +42,13 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Type** | Native desktop app (Tauri v2) |
 | **Runs on** | macOS Apple Silicon — built and used daily. **Windows — tested on Windows 10**, with an installer in the release. Linux compiles and passes its tests in CI, but nobody has run the app there yet |
 | **License** | MIT |
-| **Latest release** | v2.5.0 (17 August 2026) — 43 MB DMG for Apple Silicon, 80 MB installed. 33 MB of that is the bundled embedding model, and most of the rest is the runtime that executes it |
+| **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~35,700 lines JS, ~4,530 Rust |
 | **Tests** | 93 Rust tests, run by CI on Linux, macOS and Windows · 1,384 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
-> **v2.5.0 is what this page describes.** It carries 138 commits since v2.0.0 — the offline knowledge base, the security work, Windows and Linux support, and a long list of features that were advertised and did not run. [What changed](CHANGELOG.md#250--2026-08-17), including what is still open.
+> **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
 
 ---
 
@@ -271,7 +271,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Are my API keys encrypted?** No — see above.
 
-**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, and substantially more over the 138 commits since, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
+**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, and substantially more over the 253 commits since, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
 
 More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
