@@ -88,6 +88,32 @@ input, textarea, [contenteditable="true"],
 ::-webkit-scrollbar-thumb:hover { background:var(--hc-border-strong); }
 ::selection { background:rgba(34,211,238,0.18); color:var(--hc-green); }
 
+/* ── A dropdown's list has to be opaque ──────────────────────
+   Nearly every select in this app is drawn with a translucent
+   background, because it sits on a dark panel and is meant to
+   pick the panel up. The control itself is fine. The list it
+   opens is not.
+
+   On Windows the popup is drawn by the browser rather than by
+   the OS, and the author's background is composited over white.
+   A near-white text colour over a 24%-black fill lands around
+   1.4:1 — the list reads as blank until a row is hovered. macOS
+   hands the popup to the native menu path and ignores these
+   colours entirely, so the whole class of defect is invisible
+   here and every one of them shipped.
+
+   Four selects had been given their own opaque `option` rule,
+   one at a time, as somebody hit the problem. That is the same
+   decision written four times and missed nine, so it is written
+   once instead. A mode that genuinely wants a different list
+   colour still wins on specificity — a class beats an element —
+   and the four that already do keep their own.
+   ──────────────────────────────────────────────────────────── */
+select option {
+  background: var(--bg-1);
+  color: var(--text);
+}
+
 /* ── iOS-style toolbar / drag handle ─────────────────────────
    Always sits at the very top, above every other layer.
    The whole bar is a Tauri drag region (move the window by

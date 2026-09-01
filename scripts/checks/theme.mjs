@@ -323,5 +323,58 @@ console.log('\nSpacing tokens are only used where they exist:');
     'if it is on :root now, this section can go');
 }
 
+// ── 8. A dropdown's list stays opaque ────────────────────────────────────
+//
+// A select drawn with a translucent background is right: it sits on a dark
+// panel and picks it up. The list it opens is a different surface, and on
+// Windows the browser draws that popup itself and composites the author's
+// background over WHITE. Near-white text over a 24%-black fill lands near
+// 1.4:1 and the list reads as blank until a row is hovered.
+//
+// macOS hands the popup to the native menu path and ignores these colours, so
+// none of it is visible on the machine this app is developed on. Thirteen
+// selects across seven modes had the defect and four had been fixed one at a
+// time, each by whoever happened to hit it.
+//
+// styles.css now carries one `select option` rule for the whole app. This
+// pins it in both directions: the rule has to still be there, and nothing may
+// give an option a see-through background and put the defect back. A mode
+// that wants its own list colour still wins on specificity — that is allowed,
+// and four modes do it — it just has to be opaque.
+console.log('\nA dropdown list is opaque:');
+{
+  const stripped = (f) => read(f).replace(/\/\*[\s\S]*?\*\//g, '');
+
+  check('styles.css declares one `select option` background for the app',
+    /(^|[},])\s*select\s+option\s*\{[^{}]*background\s*:/m.test(stripped('styles.css')),
+    'without it every translucent select is unreadable on Windows');
+
+  // A colour is see-through if it is an rgba/hsla with alpha under 1, or the
+  // keyword `transparent`. Anything else — a hex, a named colour, a var() —
+  // is taken as opaque, because a token that resolves to a translucent value
+  // would be a bug in vars.css and section 2 is what covers that.
+  const seeThrough = (value) =>
+    /\btransparent\b/.test(value) ||
+    /\b(?:rgba|hsla)\([^)]*,\s*(?:0?\.\d+|0)\s*\)/.test(value);
+
+  let offenders = 0;
+  for (const file of SHEETS) {
+    for (const [, selBlock, body] of stripped(file).matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      // Only the rules whose SUBJECT is the option — `.x option { … }`, not
+      // `.x option + .y` and not a rule that merely mentions one.
+      const subjects = selBlock.split(',')
+        .map((part) => part.trim().replace(/\([^()]*\)/g, '').split(/[\s>+~]+/).filter(Boolean).pop() || '');
+      if (!subjects.some((sub) => /^option\b/.test(sub.replace(/:[\w-]+/g, '')))) continue;
+      for (const [, value] of body.matchAll(/background(?:-color)?\s*:\s*([^;]+)/g)) {
+        if (!seeThrough(value)) continue;
+        offenders++;
+        check(`${file}: ${selBlock.trim().slice(0, 60)}`, false,
+          'gives a dropdown list a see-through background — on Windows that composites over white and the list becomes unreadable');
+      }
+    }
+  }
+  if (offenders === 0) check('no rule makes a dropdown list see-through again', true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (one identity)`);
 process.exit(fail ? 1 : 0);
