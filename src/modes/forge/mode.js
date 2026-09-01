@@ -801,12 +801,26 @@
     camera = new THREE.PerspectiveCamera(48, 1, 0.1, 120);
     camera.position.set(6, 4.2, 8);
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Without a hardware renderer this viewport is the most expensive thing in
+    // the app: multisampling, filmic tone mapping and percentage-closer soft
+    // shadows, all resolved per frame in software. Only the lighting degrades
+    // — geometry, dimensions and the exported file are identical either way,
+    // so a part designed on such a machine is the same part.
+    //
+    // The flag, never the `low-gpu` class: that class is on for everyone after
+    // the intro, so it would take the shadows off every Mac too.
+    const soft = !!(window.HCRenderProfile && window.HCRenderProfile.software);
+    renderer = new THREE.WebGLRenderer({
+      antialias: !soft, alpha: false,
+      powerPreference: soft ? "default" : "high-performance",
+    });
+    renderer.setPixelRatio(soft ? 1 : Math.min(window.devicePixelRatio || 1, 2));
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
-    renderer.shadowMap.enabled = true;
+    if (!soft) {
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.12;
+    }
+    renderer.shadowMap.enabled = !soft;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     mount.innerHTML = "";
     mount.appendChild(renderer.domElement);

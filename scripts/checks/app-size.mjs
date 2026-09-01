@@ -266,7 +266,14 @@ const LINE_BUDGET = {
   // being a silent preference nobody could see. What is left here is the line
   // that says which of a person's own models should manage geometry, before a
   // run rather than after a disappointing one.
-  'modes/forge/mode.js': 3961,
+  // 3975, up fourteen. The viewport drops multisampling, soft shadows and
+  // filmic tone mapping when there is no hardware renderer to resolve them —
+  // the difference between a usable viewport and a slideshow on a machine
+  // whose driver is too old for hardware compositing. Only the lighting
+  // changes; the geometry and the exported file do not, which is the sentence
+  // the comment there exists to make, along with why the judgement is read
+  // from the render-profile flag and never from the low-gpu class.
+  'modes/forge/mode.js': 3975,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

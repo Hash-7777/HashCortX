@@ -138,5 +138,33 @@ console.log('\nIt decides WHEN the cheap mode starts, never whether:');
     onHtml > 0 && onHtml === onBody, `${onHtml} html, ${onBody} body`);
 }
 
+console.log('\nThe 3D viewport asks the flag, not the class:');
+{
+  const forge = readFileSync(join(root, 'src', 'modes', 'forge', 'mode.js'), 'utf8');
+  const setup = forge.slice(forge.indexOf('new THREE.WebGLRenderer') - 1200,
+                            forge.indexOf('mount.appendChild(renderer.domElement)'));
+
+  ok('it reads the renderer judgement', /HCRenderProfile\s*&&\s*window\.HCRenderProfile\.software/.test(setup));
+  // The trap this replaces. `low-gpu` is on for everyone after the intro, so a
+  // viewport keyed to it would drop the shadows on every machine, including
+  // the ones that were drawing them for free.
+  ok('and NOT the low-gpu class',
+    !/classList\.contains\(\s*['"]low-gpu/.test(setup),
+    'that class is on for everyone after launch — it cannot answer whether a machine can draw');
+
+  // What is allowed to degrade is how the part is lit. What it IS may not.
+  ok('multisampling follows the judgement', /antialias:\s*!soft/.test(setup));
+  ok('shadows follow the judgement', /shadowMap\.enabled\s*=\s*!soft/.test(setup));
+  ok('the pixel ratio follows it', /setPixelRatio\(\s*soft\s*\?/.test(setup));
+  ok('tone mapping follows it', /if\s*\(!soft\)/.test(setup));
+
+  // The claim in the comment above it: only lighting changes. The exporters
+  // read geometry and never touch the renderer, so this stays true.
+  const io = ['mesh', 'stl', 'obj', 'scene', 'threemf', 'step']
+    .map((f) => readFileSync(join(root, 'src', 'js', 'forge', 'io', f + '.js'), 'utf8'));
+  ok('no exporter reads the renderer, so a part is the same part either way',
+    io.every((f) => !/\brenderer\b/.test(f)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (is there a GPU here)`);
 process.exit(fail ? 1 : 0);
