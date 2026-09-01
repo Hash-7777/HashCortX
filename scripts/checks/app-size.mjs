@@ -306,7 +306,13 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // not content the shell is carrying, and in Stage 3 they stop being written by
 // hand at all. What is counted is markup: the shell's own structure, plus the
 // mode panels that should not be in it. That number may only fall.
-const SHELL_MARKUP_BUDGET = 625;
+// 627, up two from 625. A comment line and the blank after it, for the one
+// script that has to be loaded before the stylesheets rather than by boot.js:
+// it decides whether the app's cheap drawing mode is already on for the first
+// frame, so loading it late would be the same as not loading it. The tag
+// itself is an asset line and was never counted; what is counted is the
+// sentence saying why it cannot move, which is the part a reader needs.
+const SHELL_MARKUP_BUDGET = 627;
 
 console.log('\nThe shell holds no more markup than it did:');
 {

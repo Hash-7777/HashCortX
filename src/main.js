@@ -325,6 +325,13 @@
       // Apply low-gpu NOW — before mainApp becomes visible — so its background
       // animations (pcb-traces, drones, circuit-spots) are already frozen when
       // the cross-fade begins. Without this they'd run for ~980ms.
+      //
+      // Unconditional, and it stays that way. src/js/render-profile.js may
+      // already have put this class on <html> before the first frame, but only
+      // when it found a software renderer; that probe answers WHEN the cheap
+      // mode starts, not whether. Making this line conditional on it would
+      // hand every machine with a working GPU the expensive mode for the rest
+      // of the session, which is not what either piece is for.
       document.body.classList.add('low-gpu');
       // Fade the entire intro-screen (stage + rings + drones + sparks all together).
       // Previously only .stage faded, leaving background elements visible through it.
