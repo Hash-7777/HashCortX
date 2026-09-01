@@ -356,9 +356,28 @@
       }
     }, 250);
 
-    // After the intro fade completes, remove it from the render tree.
+    // After the intro fade completes, take it out of the document.
+    //
+    // It used to be hidden instead, and hidden is not gone. `visibility:
+    // hidden` stops an element being painted and changes nothing else: it
+    // keeps its box, it keeps its compositor layers, and every animation on it
+    // keeps running. So the launch screen went on animating for the entire
+    // life of the app — four rings, three drone orbits, the logo float, the
+    // glow, the sonar dots and sixteen SMIL animations — behind the window a
+    // person was actually using. Eight of the nine CSS animations still
+    // running after launch belonged to a screen nobody could see.
+    //
+    // The splash clock was caught by the same thing. It stops itself when
+    // `!el.isConnected || !el.offsetParent`, which reads as "when my element
+    // has left the screen" and means nothing of the sort while the element is
+    // merely invisible: `offsetParent` is only null for `display: none`. It
+    // ticked once a second, forever, writing a timestamp into an element with
+    // no audience. Removing the screen is what makes that guard true.
+    //
+    // Nothing shows the intro again — this is a launch screen, and boot.js
+    // already removes it outright on the failure path.
     setTimeout(() => {
-      if (screen) { screen.style.visibility = 'hidden'; screen.style.pointerEvents = 'none'; }
+      if (screen) screen.remove();
       document.body.classList.remove('transitioning', 'intro-exiting');
       setTimeout(() => document.getElementById('input')?.focus(), 100);
     }, 980);

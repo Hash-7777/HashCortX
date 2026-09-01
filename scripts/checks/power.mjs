@@ -134,5 +134,33 @@ console.log('\nSubscribers:');
   fire(docListeners, 'visibilitychange');
 }
 
+console.log('\nThe launch screen is taken out of the document, not just hidden:');
+{
+  // Hidden is not gone. `visibility: hidden` stops an element being painted
+  // and changes nothing else — it keeps its box, its compositor layers, and
+  // every animation on it keeps running. The launch screen therefore animated
+  // for the life of the app behind the window somebody was using: eight of
+  // the nine CSS animations still running after launch, plus sixteen SMIL
+  // ones, belonged to a screen nobody could see.
+  //
+  // It also silently defeated the splash clock, which stops itself on
+  // `!el.isConnected || !el.offsetParent`. That reads as "when my element has
+  // left the screen" and is false while the element is merely invisible —
+  // `offsetParent` is only null for `display: none`. The clock ticked once a
+  // second forever. Removing the screen is what makes that guard true, so the
+  // two are checked together.
+  const main = readFileSync(join(here, '..', '..', 'src', 'main.js'), 'utf8');
+  const exit = main.slice(main.indexOf('After the intro fade completes'),
+                          main.indexOf("classList.remove('transitioning'"));
+
+  check('the intro screen is removed once it has faded', /screen\.remove\(\)/.test(exit));
+  check('and not merely made invisible',
+    !/screen\.style\.visibility\s*=\s*['"]hidden/.test(exit),
+    'hiding it leaves every animation on it running for the life of the app');
+  check('the splash clock still stops itself when its element goes',
+    /!el\.isConnected\s*\|\|\s*!el\.offsetParent/.test(main),
+    'this is the guard that removing the screen makes true');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/power.js)`);
 process.exit(fail ? 1 : 0);
