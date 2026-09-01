@@ -125,6 +125,41 @@ html.hc-power-idle .circuit-spot {
   will-change: auto;
 }
 
+/* ══════════════════════════════════════════════════════════════
+   Quiet — the window is visible but not focused, on a machine with
+   no hardware renderer. There the decorations are not free: the
+   drone rotors alone spin better than once a second, for as long as
+   the window is open behind somebody else's.
+
+   This names what may stop rather than what must keep going. Pausing
+   everything and exempting the important things would put every
+   spinner written from now on one forgotten class away from freezing
+   in front of a person. Named this way, the worst mistake is an
+   ornament that keeps moving.
+
+   The same list is in js/power.js, which pauses the SMIL inside these
+   — CSS cannot reach it — and scripts/checks/power.mjs fails if the
+   two ever drift apart.
+   ══════════════════════════════════════════════════════════════ */
+html.hc-power-quiet .drone-bg,
+html.hc-power-quiet .drone-bg *,
+html.hc-power-quiet .drone-inline,
+html.hc-power-quiet .drone-inline *,
+html.hc-power-quiet .brand-drone,
+html.hc-power-quiet .brand-drone *,
+html.hc-power-quiet .crest-logo-img,
+html.hc-power-quiet .crest-logo-img *,
+html.hc-power-quiet .pcb-traces,
+html.hc-power-quiet .pcb-traces *,
+html.hc-power-quiet .circuit-spot,
+html.hc-power-quiet .circuit-spot * {
+  /* No !important. Nothing sets `animation` on these at higher specificity
+     than this rule carries, and the two that are clamped under low-gpu are
+     already stopped outright — there is nothing left to fight. Verified by
+     reading the computed play state back out of the running app. */
+  animation-play-state: paused;
+}
+
 /* The system setting is a request, not a suggestion. Decorative motion stops;
    anything that communicates progress is left alone, because a frozen spinner
    reads as a hang. */

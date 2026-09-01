@@ -29,6 +29,10 @@ function fakeSvg(name) {
   };
 }
 const svgs = [fakeSvg('a'), fakeSvg('b')];
+// 'a' stands for a drone; 'b' stands for a spinner. Only 'a' may ever be
+// paused while the window is on screen.
+const ornamentalSvgs = [svgs[0]];
+let lastQuery = '';
 
 const docListeners = {};
 const winListeners = {};
@@ -46,12 +50,16 @@ const sandbox = {
       },
     },
     getElementsByTagName: () => svgs,
+    querySelectorAll: (sel) => { lastQuery = sel; return ornamentalSvgs; },
     addEventListener: (ev, fn) => { (docListeners[ev] ||= []).push(fn); },
   },
 };
 sandbox.window = {
   addEventListener: (ev, fn) => { (winListeners[ev] ||= []).push(fn); },
   matchMedia: () => ({ matches: reduced }),
+  // Set per test. Absent means a machine that can draw, which is the case the
+  // third state must never fire on.
+  HCHost: undefined,
 };
 sandbox.window.window = sandbox.window;
 vm.createContext(sandbox);
@@ -132,6 +140,71 @@ console.log('\nSubscribers:');
   offBad(); offGood();
   sandbox.document.hidden = false;
   fire(docListeners, 'visibilitychange');
+}
+
+console.log('\nBlurred on a machine that draws in software — ornament rests, nothing else:');
+{
+  // The state only exists where every pixel is charged to the processor.
+  sandbox.window.HCHost = { software: true };
+  svgCalls.length = 0;
+  fire(winListeners, 'blur');
+
+  check('it is reported as quiet', power.isQuiet() === true);
+  check('the window is still counted as visible', power.isVisible() === true);
+  check('the quiet class is set', rootClasses.has('hc-power-quiet'));
+  check('the idle class is NOT — that one is for a window nobody can see',
+    !rootClasses.has('hc-power-idle'));
+  check('decorative loops are told to rest', power.shouldAnimate() === false);
+  check('and listeners are told about it', power.state().quiet === true);
+
+  // The half CSS cannot do. Only the SMIL inside a decoration.
+  check('only the ornamental SVG is paused',
+    svgCalls.includes('pause:a') && !svgCalls.includes('pause:b'),
+    svgCalls.join(','));
+  check('the other one is left running', svgCalls.includes('unpause:b'));
+  check('and it asked for the decorations by name, not for every svg',
+    /drone-bg svg/.test(lastQuery) && /,/.test(lastQuery), lastQuery);
+
+  fire(winListeners, 'focus');
+  check('focus ends it', power.isQuiet() === false);
+  check('the class comes off', !rootClasses.has('hc-power-quiet'));
+  check('decorative loops may run again', power.shouldAnimate() === true);
+  sandbox.window.HCHost = undefined;
+}
+
+console.log('\nBlurred on a machine that can draw — nothing changes at all:');
+{
+  // The existing promise, and the one most easily broken by adding a state:
+  // a window you can still see must not freeze just because it lost focus.
+  sandbox.window.HCHost = { software: false };
+  svgCalls.length = 0;
+  fire(winListeners, 'blur');
+  check('not quiet', power.isQuiet() === false);
+  check('no quiet class', !rootClasses.has('hc-power-quiet'));
+  check('motion keeps running', power.shouldAnimate() === true);
+  check('no SVG is paused', !svgCalls.some((c) => c.startsWith('pause:')), svgCalls.join(','));
+  fire(winListeners, 'focus');
+  sandbox.window.HCHost = undefined;
+}
+
+console.log('\nWhat may be stopped is named, and named in one place:');
+{
+  const base = readFileSync(join(here, '..', '..', 'src', 'css', 'base.css'), 'utf8');
+  const inCss = [...base.matchAll(/html\.hc-power-quiet\s+(\.[\w-]+)\s*(?:,|\{)/g)]
+    .map((m) => m[1]);
+  const unique = [...new Set(inCss)];
+  check('the stylesheet pauses the same list the module does',
+    JSON.stringify(unique) === JSON.stringify(power.DECORATIVE),
+    `css: ${unique.join(' ')} | js: ${power.DECORATIVE.join(' ')}`);
+
+  // The rule that keeps this safe. If anything that reports progress ever
+  // appears in the list, a person watching it would see it freeze.
+  const MEANS_SOMETHING = /spin|pulse|progress|load|bar|stream|typing|wait|busy/i;
+  const offenders = power.DECORATIVE.filter((sel) => MEANS_SOMETHING.test(sel));
+  check('nothing in it reports progress or state', offenders.length === 0, offenders.join(' '));
+  check('and it is not a wildcard',
+    power.DECORATIVE.every((sel) => /^\.[\w-]+$/.test(sel)),
+    'pausing by wildcard is what catches a spinner');
 }
 
 console.log('\nThe launch screen is taken out of the document, not just hidden:');
