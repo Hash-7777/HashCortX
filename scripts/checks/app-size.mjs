@@ -87,7 +87,14 @@ const LINE_BUDGET = {
   // moved to src/js/chat/context.js. Asking the first of those a question
   // found that the attachment budget was not one: past about fifteen files
   // every one got the floor and the total went straight through the cap.
-  'js/app.js': 7009,
+  // 6820, down again. Asking each provider what models it has moved to
+  // src/js/cloud-model-fetch.js, and what each one last answered to
+  // src/js/cloud-model-memory.js. These decode ten different answers to one
+  // question and go out of date on their own as providers retire models, so
+  // they are the last code that should have been sitting where no check could
+  // run them. Moving them is what let the Anthropic list start being fetched
+  // at all rather than read from a table written by hand.
+  'js/app.js': 6820,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

@@ -75,6 +75,7 @@
     '/js/markdown-safe.js',
     '/js/agent-shape.js',
     '/js/model-names.js',
+    '/js/cloud-model-fetch.js',
     '/js/memory.js',
     '/js/vector-map.js',
     '/js/forge/expr.js',
