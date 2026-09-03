@@ -133,7 +133,7 @@ const LINE_BUDGET = {
   // where you are standing, finding a name in a tree — moved to
   // src/js/vos/shell.js. It runs nothing and never did; what it has to get
   // right is behaving like the thing it imitates.
-  'modes/virtual-os/mode.js': 3563,
+  'modes/virtual-os/mode.js': 3545,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

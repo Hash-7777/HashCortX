@@ -165,45 +165,27 @@ const VoidStudio = (() => {
     return { id: uid("project"), name: name || "Untitled Project", createdAt: t, updatedAt: t, files: [], systemIconPositions: {} };
   }
 
+  /**
+   * Put a stored workspace into the shape this mode expects.
+   *
+   * The rules are in src/js/vos/project.js, where they can be handed a broken
+   * record and asked what they did with it. What they repair is said out loud
+   * rather than done quietly: this runs on the way in from the database and
+   * again on the way back out, so a workspace that changed shape here would
+   * otherwise change under the person using it, with the old copy already
+   * written over.
+   */
   function normalizeProject(project) {
-    project.files = Array.isArray(project.files) ? project.files.filter(Boolean) : [];
-    project.systemIconPositions = project.systemIconPositions && typeof project.systemIconPositions === "object"
-      ? project.systemIconPositions
-      : {};
-    for (const id of [SYSTEM_ICON_FINDER, SYSTEM_ICON_SETTINGS, SYSTEM_ICON_TRASH]) {
-      const pos = project.systemIconPositions[id];
-      if (!pos || !Number.isFinite(Number(pos.x)) || !Number.isFinite(Number(pos.y))) {
-        delete project.systemIconPositions[id];
-      } else {
-        project.systemIconPositions[id] = { x: Number(pos.x), y: Number(pos.y) };
-      }
-    }
-    const seen = new Set();
-    project.files = project.files.filter(item => {
-      if (!item.id || seen.has(item.id)) return false;
-      seen.add(item.id);
-      item.type = item.type === "folder" ? "folder" : "file";
-      item.parentId = item.parentId || ROOT_ID;
-      item.name = safeName(item.name || (item.type === "folder" ? "folder" : "file.txt"));
-      item.updatedAt = item.updatedAt || nowIso();
-      if (item.deletedAt) {
-        item.deletedAt = String(item.deletedAt);
-        item.trashParentId = item.trashParentId || item.parentId || ROOT_ID;
-        item.trashPath = item.trashPath || item.path || item.name;
-        item.trashRoot = !!item.trashRoot;
-      } else {
-        delete item.deletedAt;
-        delete item.trashParentId;
-        delete item.trashPath;
-        delete item.trashRoot;
-      }
-      if (item.type === "folder") item.content = "";
-      else item.content = String(item.content ?? "");
-      return true;
+    const { repairs } = window.HCVosProject.normalizeProject(project, {
+      rootId: ROOT_ID,
+      systemIconIds: [SYSTEM_ICON_FINDER, SYSTEM_ICON_SETTINGS, SYSTEM_ICON_TRASH],
+      safeName,
+      nowIso,
+      newId: uid,
     });
+    for (const repair of repairs) log(repair, "warn");
     rebuildPaths();
   }
-
 
   /**
    * A folder as a zip a person can download.
