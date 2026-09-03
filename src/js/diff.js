@@ -167,5 +167,57 @@
     return out;
   }
 
-  window.HCDiff = { diffLines, countChanges, collapseUnchanged, MAX_MATCHED_LINES };
+
+  /**
+   * Above this many words on either side, the diff covers only the first 260
+   * and reports itself as cut short, so a long edit cannot build an O(n×m)
+   * table big enough to stall the message list.
+   */
+  const MAX_DIFFED_WORDS = 260;
+
+  /**
+   * Word-level diff of two pieces of text, used when a message is edited or
+   * regenerated so the reader can see what actually changed rather than two
+   * walls of prose.
+   *
+   * Returns { parts, truncated }. Each part is { type: 'same' | 'del' | 'add',
+   * word }. Nothing here escapes or marks up anything: the caller renders, so
+   * escaping stays in one place in the view and this stays checkable.
+   *
+   * `truncated` says the words ran past MAX_DIFFED_WORDS and the tail is not
+   * described. It used to be worked out by joining the dropped words and
+   * asking whether the join contained a space, which answered "no" when
+   * exactly one word was dropped: a 261-word edit was cut short and said it
+   * was complete. It now compares the counts.
+   */
+  function diffWords(oldText, newText) {
+    const words = (text) => String(text == null ? '' : text).trim().split(/\s+/).filter(Boolean);
+    const oldAll = words(oldText);
+    const newAll = words(newText);
+    const truncated = oldAll.length > MAX_DIFFED_WORDS || newAll.length > MAX_DIFFED_WORDS;
+    const a = oldAll.slice(0, MAX_DIFFED_WORDS);
+    const b = newAll.slice(0, MAX_DIFFED_WORDS);
+    if (!a.length && !b.length) return { parts: [], truncated: false };
+
+    const n = a.length, m = b.length;
+    const dp = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = m - 1; j >= 0; j--) {
+        dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+
+    const parts = [];
+    let i = 0, j = 0;
+    while (i < n && j < m) {
+      if (a[i] === b[j]) { parts.push({ type: 'same', word: b[j] }); i++; j++; }
+      else if (dp[i + 1][j] >= dp[i][j + 1]) { parts.push({ type: 'del', word: a[i] }); i++; }
+      else { parts.push({ type: 'add', word: b[j] }); j++; }
+    }
+    while (i < n) parts.push({ type: 'del', word: a[i++] });
+    while (j < m) parts.push({ type: 'add', word: b[j++] });
+    return { parts, truncated };
+  }
+
+  window.HCDiff = { diffLines, countChanges, collapseUnchanged, diffWords, MAX_MATCHED_LINES, MAX_DIFFED_WORDS };
 })();

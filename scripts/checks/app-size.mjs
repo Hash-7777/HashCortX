@@ -96,7 +96,7 @@ const LINE_BUDGET = {
   // launches, so a launch starts from the real list rather than from the
   // catalogue written by hand. The six lines are the seed and the storing;
   // the rest is in src/js/cloud-model-memory.js.
-  'js/app.js': 6826,
+  'js/app.js': 6806,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

@@ -131,5 +131,45 @@ console.log('\nNothing is collapsed away when everything changed:');
   ok('all four rows kept', collapsed.length === 4);
 }
 
+console.log('\nWord diff — what changed when a message is edited:');
+{
+  const { parts, truncated } = D.diffWords('the quick brown fox', 'the slow brown fox');
+  ok('unchanged words kept once', parts.filter(p => p.type === 'same').map(p => p.word).join(' ') === 'the brown fox');
+  ok('the replaced word is marked removed', parts.some(p => p.type === 'del' && p.word === 'quick'));
+  ok('the new word is marked added', parts.some(p => p.type === 'add' && p.word === 'slow'));
+  ok('a short edit is not called cut short', truncated === false);
+  ok('reading the added and same words back gives the new text',
+    parts.filter(p => p.type !== 'del').map(p => p.word).join(' ') === 'the slow brown fox');
+  ok('reading the removed and same words back gives the old text',
+    parts.filter(p => p.type !== 'add').map(p => p.word).join(' ') === 'the quick brown fox');
+}
+
+{
+  ok('two identical texts produce no marked words',
+    D.diffWords('same text', 'same text').parts.every(p => p.type === 'same'));
+  ok('empty on both sides produces nothing', D.diffWords('', '').parts.length === 0);
+  ok('null and undefined are treated as empty', D.diffWords(null, undefined).parts.length === 0);
+  ok('runs of whitespace do not become empty words',
+    D.diffWords('a  \n  b', 'a b').parts.every(p => p.word.trim().length > 0));
+}
+
+console.log('\nA diff cut short says so — including when exactly one word is dropped:');
+{
+  const words = (n) => Array.from({ length: n }, (_, i) => 'w' + i).join(' ');
+  const max = D.MAX_DIFFED_WORDS;
+  ok(`exactly ${max} words is complete`, D.diffWords(words(max), words(max)).truncated === false);
+  ok(`${max + 1} words says cut short`, D.diffWords(words(max + 1), words(max)).truncated === true);
+  ok('a long side on the right also says cut short', D.diffWords(words(max), words(max + 1)).truncated === true);
+  ok(`no more than ${max} words are compared`, D.diffWords(words(400), words(400)).parts.length <= max);
+
+  // Control: the test this replaced joined the dropped words and asked whether
+  // the join held a space. One dropped word has no space, so it answered "no".
+  // If this control ever passes, the old mistake is back.
+  const oldTest = (a, b) => /\s/.test(String(a).trim().split(/\s+/).slice(max).join(' ')) ||
+    /\s/.test(String(b).trim().split(/\s+/).slice(max).join(' '));
+  ok('control: the join-and-look-for-a-space test misses a single dropped word',
+    oldTest(words(max + 1), words(max)) === false);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/diff.js)`);
 process.exit(fail ? 1 : 0);

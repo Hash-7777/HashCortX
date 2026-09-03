@@ -4047,35 +4047,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   function diffWordsHtml(oldText, newText) {
-    const oldWords = String(oldText || "").trim().split(/\s+/).filter(Boolean).slice(0, 260);
-    const newWords = String(newText || "").trim().split(/\s+/).filter(Boolean).slice(0, 260);
-    if (!oldWords.length && !newWords.length) return "";
-    const n = oldWords.length, m = newWords.length;
-    const dp = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
-    for (let i = n - 1; i >= 0; i--) {
-      for (let j = m - 1; j >= 0; j--) {
-        dp[i][j] = oldWords[i] === newWords[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-      }
-    }
-    const out = [];
-    let i = 0, j = 0;
-    while (i < n && j < m) {
-      if (oldWords[i] === newWords[j]) {
-        out.push(escapeHtml(newWords[j]));
-        i++; j++;
-      } else if (dp[i + 1][j] >= dp[i][j + 1]) {
-        out.push(`<span class="diff-del">${escapeHtml(oldWords[i])}</span>`);
-        i++;
-      } else {
-        out.push(`<span class="diff-add">${escapeHtml(newWords[j])}</span>`);
-        j++;
-      }
-    }
-    while (i < n) out.push(`<span class="diff-del">${escapeHtml(oldWords[i++])}</span>`);
-    while (j < m) out.push(`<span class="diff-add">${escapeHtml(newWords[j++])}</span>`);
-    const truncated = /\s/.test(String(oldText).trim().split(/\s+/).slice(260).join(" ")) ||
-      /\s/.test(String(newText).trim().split(/\s+/).slice(260).join(" "));
-    return out.join(" ") + (truncated ? ` <span class="diff-add">…</span>` : "");
+    const { parts, truncated } = window.HCDiff.diffWords(oldText, newText);
+    if (!parts.length) return "";
+    const html = parts.map((part) => {
+      const word = escapeHtml(part.word);
+      if (part.type === "del") return `<span class="diff-del">${word}</span>`;
+      if (part.type === "add") return `<span class="diff-add">${word}</span>`;
+      return word;
+    });
+    return html.join(" ") + (truncated ? ` <span class="diff-add">…</span>` : "");
   }
 
   function diffBlockHtml(oldText, newText, live = false) {
