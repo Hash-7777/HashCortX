@@ -89,6 +89,7 @@
     '/js/forge/units.js',
     '/js/forge/subdivide.js',
     '/js/forge/params.js',
+    '/js/forge/plan-normalize.js',
     '/js/forge/capability.js',
     '/js/forge/panel-html.js',
     '/js/forge/io/mesh.js',

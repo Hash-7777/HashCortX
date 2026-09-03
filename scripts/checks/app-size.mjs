@@ -273,7 +273,7 @@ const LINE_BUDGET = {
   // changes; the geometry and the exported file do not, which is the sentence
   // the comment there exists to make, along with why the judgement is read
   // from the host-profile flag and never from the low-gpu class.
-  'modes/forge/mode.js': 3975,
+  'modes/forge/mode.js': 3891,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

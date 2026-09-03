@@ -34,6 +34,9 @@ const modelPlan = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.j
 // forge-panel.mjs, against the strings it produces; this file only needs to
 // know that the field a handler here reads is still offered somewhere.
 const panelHtml = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'panel-html.js'), 'utf8');
+const normalizeSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'plan-normalize.js'), 'utf8');
+/** Forge code that used to sit in mode.js and now has its own file. */
+const extractedForgeSources = [normalizeSrc];
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -42,11 +45,23 @@ function check(label, condition, detail = '') {
 }
 
 /** The body of a named function, to the matching closing brace at its indent. */
+/**
+ * The body of a Forge function, wherever it now lives.
+ *
+ * Functions keep moving out of mode.js into js/forge/*.js, and a search of
+ * mode.js alone returns nothing once one has moved — which reads as "the code
+ * is gone" and failed fourteen checks at once the first time it happened.
+ * Falling through to the extracted modules keeps these checks pointed at the
+ * code rather than at where the code used to be.
+ */
 function bodyOf(name) {
-  const start = src.search(new RegExp(`^  (?:async )?function ${name}\\(`, 'm'));
-  if (start < 0) return '';
-  const end = src.indexOf('\n  }\n', start);
-  return end < 0 ? src.slice(start) : src.slice(start, end);
+  for (const text of [src, ...extractedForgeSources]) {
+    const start = text.search(new RegExp(`^  (?:async )?function ${name}\\(`, 'm'));
+    if (start < 0) continue;
+    const end = text.indexOf('\n  }\n', start);
+    return end < 0 ? text.slice(start) : text.slice(start, end);
+  }
+  return '';
 }
 
 console.log('\nThe panel is seeded from what is actually loaded:');
@@ -238,7 +253,7 @@ console.log('\nThe inspector asks one question at a time:');
   check('the floating mark is not set on the floor',
     /if \(activePlan\?\._introLogo\) return;/.test(bodyOf('groundBuiltModel')));
   check('and the flag that says so survives being normalised',
-    /_introLogo: src\._introLogo === true/.test(src));
+    /_introLogo: src\._introLogo === true/.test(normalizeSrc));
   check('the old scatter-from-anywhere helper is gone',
     !/randomSpherePoint/.test(src));
   check('the intro mark has no halo layer',
@@ -268,11 +283,12 @@ console.log('\nThe inspector asks one question at a time:');
 // the way through. Every generated model arrived as the half that was asked for.
 console.log('\nA shape the app cannot build is read, and said out loud:');
 {
-  const body = bodyOf('normalizePlan');
+  const body = normalizeSrc;
   // The old line turned every unrecognised type into a one-unit box with no
   // trace of it having happened.
   check('a part takes its type from the resolver, not an inline list',
-    /type: shapeOf\(node, i\)/.test(body));
+    /type: resolved\.type/.test(body) && !/type: SHAPE_NAMES\.includes\(node\.type\) \? node\.type/.test(
+      body.replace(/const resolved[\s\S]*?\n    \};/, '')));
   check('and the resolver is the tested one',
     /MP\?\.resolveType/.test(body) && /function resolveType/.test(modelPlan));
   check('and every substitution is carried on the plan',
@@ -372,7 +388,7 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
   check('a generated model records what made it',
     /plan\.madeBy = \{/.test(bodyOf('forgeRun')) && /data-frg-hollow|Asked for/.test(panelHtml));
   check('and the record survives the rebuilder',
-    /madeBy: src\.madeBy/.test(bodyOf('normalizePlan')));
+    /madeBy: src\.madeBy/.test(normalizeSrc));
   // A model asked the same question twice does not answer the same way, and
   // the providers offering a seed call it best effort rather than a promise.
   check('and nothing anywhere offers to make it again',
@@ -629,7 +645,7 @@ console.log('\nThe parts can be fused into one solid, and cut:');
   check('and the number is turned into scene units first, not passed as millimetres',
     /units\.fromMm\(Number\(activePlan\.hollowMm\), mmPerUnit\)/.test(fuse));
   check('the wall survives the rebuilder rather than being dropped in silence',
-    /hollowMm: Number\(src\.hollowMm\)/.test(bodyOf('normalizePlan')));
+    /hollowMm: Number\(src\.hollowMm\)/.test(normalizeSrc));
   check('the fused mesh is a snapshot, thrown away when the parts change',
     /dropSolid\(\)/.test(bodyOf('buildPlan')) && /dropSolid\(\)/.test(bodyOf('restoreParts')));
   check('an export writes the solid when there is one',
@@ -637,7 +653,7 @@ console.log('\nThe parts can be fused into one solid, and cut:');
   check('the yield before walking is there, so the window does not look frozen',
     /await new Promise\(\(resolve\) => setTimeout\(resolve, 0\)\)/.test(fuse));
   check('what a part does to the material survives normalising',
-    /op: node\.op === "subtract"/.test(bodyOf('normalizePlan')));
+    /op: node\.op === ['"]subtract['"]/.test(normalizeSrc));
   const print = bodyOf('reportPrintability');
   check('the fuse says whether the thing could be made',
     /HCForgePrintable/.test(print) && /summarise/.test(print));
@@ -652,7 +668,7 @@ console.log('\nThe parts can be fused into one solid, and cut:');
 
 console.log('\nA design may do arithmetic, and say a thing once:');
 {
-  const body = bodyOf('normalizePlan');
+  const body = normalizeSrc;
   // Every field on this list was once missing from it, and each time the
   // feature simply stopped happening without a word.
   check('the named values survive normalising', /vars: src\.vars/.test(body));
@@ -685,11 +701,11 @@ console.log('\nThe design prompt asks for shape, not stand-ins:');
 console.log('\nWhat the assembler reads survives being normalised:');
 {
   const planSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.js'), 'utf8');
-  const body = bodyOf('normalizePlan');
+  const body = normalizeSrc;
   // Fields the assembler takes off a part it is given.
   const read = new Set([...planSrc.matchAll(/\b(?:raw|part)\.([a-zA-Z_]\w*)/g)].map((m) => m[1]));
   // Fields the mode writes onto the part it hands over.
-  const written = new Set([...body.matchAll(/^\s{8}([a-zA-Z_]\w*):/gm)].map((m) => m[1]));
+  const written = new Set([...body.matchAll(/^\s{4,}([a-zA-Z_]\w*):/gm)].map((m) => m[1]));
   const ignore = new Set(['map', 'filter', 'slice', 'length', 'push', 'forEach', 'toFixed']);
   const missing = [...read].filter((k) => !written.has(k) && !ignore.has(k));
   check('every field the assembler reads is one the mode passes on',

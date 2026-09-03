@@ -90,14 +90,14 @@
   // generated model translated on its way into the scene, which is a
   // conversion nobody would remember to keep.
   const FLOOR_Y = 0;
-  const MAX_FORGE_NODES = 96;
+  const MAX_FORGE_NODES = window.HCForgePlanNormalize.MAX_FORGE_NODES;
   // Read once, to carry anything saved before the move to a file. Nothing is
   // written here any more when the app is running as an app.
   const PROJECT_STORE_KEY = "hashui_forge_projects";
   const MAX_SAVED_PROJECTS = 40;
   // Only used if src/js/model-plan.js has not loaded, which would mean the whole
   // deterministic stage is missing. It is the same list that module holds.
-  const SHAPE_NAMES = ["box", "cylinder", "capsule", "sphere", "cone", "torus", "lathe", "extrude", "logo", "logo_img", "mesh"];
+  const SHAPE_NAMES = window.HCForgePlanNormalize.SHAPE_NAMES;
   const FORGE_ALLOWED_MODEL_PROVIDERS = new Set(["groq", "gemini", "cerebras", "samba", "sambanova", "openrouter", "local"]);
   const FORGE_PROVIDER_COOLDOWNS = new Map();
   let forgeProjects = [];
@@ -2817,102 +2817,18 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (mesh) selectMesh(mesh);
   }
 
+  /**
+   * The one gate every design passes through, in js/forge/plan-normalize.js.
+   * It rebuilds each node from a fixed list of fields, so a field missing from
+   * that list is dropped without a word — read the header there before
+   * changing it.
+   */
   function normalizePlan(plan) {
-    const MP = window.HCModelPlan;
-    const src = plan && typeof plan === "object" ? plan : { name: "Empty model", nodes: [] };
-    const nodes = Array.isArray(src.nodes) ? src.nodes : [];
-    // A shape the app cannot build used to become a one-unit box here, without
-    // a word. So a design that had written an egg, a pipe and a ring came back
-    // as three identical cubes, and the app looked incapable of a curve it had
-    // never been asked for. The nearest real shape is used instead, and every
-    // substitution is carried on the plan so the run can say it happened.
-    const substitutions = [];
-    const shapeOf = (node, i) => {
-      const resolved = MP?.resolveType
-        ? MP.resolveType(node)
-        : { type: SHAPE_NAMES.includes(node.type) ? node.type : "box", from: SHAPE_NAMES.includes(node.type) ? null : String(node.type || "") };
-      if (resolved.from) {
-        substitutions.push(`${String(node.name || node.id || `Node ${i + 1}`)}: "${resolved.from}" → ${resolved.type}`);
-      }
-      return resolved.type;
-    };
-    return {
-      shapeSubstitutions: substitutions,
-      name: src.name || "Forged model",
-      // The intro mark floats and is framed by hand. Losing that flag here is
-      // how it came to be set on the floor, out of the shot built for it.
-      _introLogo: src._introLogo === true ? true : undefined,
-      glbUrl: typeof src.glbUrl === "string" ? src.glbUrl : "",
-      // How big the object is in life. Carried beside the geometry and never
-      // inside it, so changing it re-labels the model rather than distorting it.
-      sizeMm: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).mm : undefined,
-      sizeStated: window.HCForgeUnits ? window.HCForgeUnits.sizeMmOf(src).stated : false,
-      // The named values a design's arithmetic is written in terms of. Dropped
-      // here, every expression in the plan would resolve to nothing and the
-      // whole model would fall back to defaults without a word.
-      vars: src.vars && typeof src.vars === "object" && !Array.isArray(src.vars) ? src.vars : undefined,
-      // How thick a wall to leave when this is fused. On the same list as
-      // every other field for the same reason: one missing here is dropped in
-      // silence, and a person who asked for a hollow part gets a solid one.
-      hollowMm: Number(src.hollowMm) > 0 ? Math.min(50, Number(src.hollowMm)) : undefined,
-      // What produced this model. On the same list for the same reason as
-      // every other field: one missing here is dropped in silence, and a
-      // saved project would forget where it came from the moment it reopened.
-      madeBy: src.madeBy && typeof src.madeBy === "object" && !Array.isArray(src.madeBy) ? src.madeBy : undefined,
-      constraints: Array.isArray(src.constraints) ? src.constraints : [],
-      edges: Array.isArray(src.edges) ? src.edges : [],
-      nodes: nodes.slice(0, MAX_FORGE_NODES).map((node, i) => ({
-        id: String(node.id || `node_${i + 1}`),
-        name: String(node.name || node.id || `Node ${i + 1}`),
-        type: shapeOf(node, i),
-        role: ["structure", "surface", "detail", "audit"].includes(node.role) ? node.role : "structure",
-        position: vec3(node.position, [0, 0, 0]),
-        rotation: vec3(node.rotation, [0, 0, 0]),
-        scale: vec3(node.scale, [1, 1, 1]),
-        params: node.params && typeof node.params === "object" ? node.params : {},
-        color: node.color,
-        opacity: Number.isFinite(node.opacity) ? node.opacity : undefined,
-        // Symmetry is asked of the model and made by the app: the design
-        // prompt tells it to build one side and mark the part mirrored. This
-        // function rebuilds every node from a fixed list of fields, and that
-        // flag was not on the list — so it was dropped on the way to the
-        // assembler and no generated model has ever been mirrored. What
-        // arrived was the half that was asked for: one wing, one fin.
-        //
-        // The value may name its plane, and `true` still means x, so a plan
-        // written before this reads exactly as it did.
-        mirror: mirrorAxis(node.mirror) || false,
-        // The pairing the assembler writes back, so a saved model reopens as
-        // pairs rather than as parts that happen to face each other — and the
-        // plane it was made across, without which a repair pass moves a twin
-        // along the wrong axis and breaks the symmetry it is protecting.
-        mirroredFrom: typeof node.mirroredFrom === "string" ? node.mirroredFrom : undefined,
-        mirroredOn: mirrorAxis(node.mirroredOn) || undefined,
-        hasMirror: node.hasMirror === true ? true : undefined,
-        // A request to repeat, and the pairing repeating leaves behind. On the
-        // same list for the same reason as the mirroring flag: a field missing
-        // from it is dropped in silence and the feature simply stops happening.
-        repeat: node.repeat && typeof node.repeat === "object" && !Array.isArray(node.repeat) ? node.repeat : undefined,
-        repeatedFrom: typeof node.repeatedFrom === "string" ? node.repeatedFrom : undefined,
-        // What this part does to the material already there. On the same list
-        // for the same reason as every other flag: a field missing from it is
-        // dropped in silence, and a hole that quietly stops being a hole is a
-        // solid lump nobody asked for.
-        op: node.op === "subtract" || node.op === "intersect" ? node.op : undefined,
-        blend: Number.isFinite(Number(node.blend)) && Number(node.blend) > 0 ? Number(node.blend) : undefined,
-      })),
-    };
+    return window.HCForgePlanNormalize.normalizePlan(plan);
   }
 
-  /**
-   * The mirror plane a node names, read through the assembler's own reader so
-   * the two cannot drift apart. Without model-plan loaded there is nothing to
-   * mirror with anyway, and the older spelling is still honoured.
-   */
   function mirrorAxis(value) {
-    const P = window.HCModelPlan;
-    if (P && typeof P.mirrorAxisOf === "function") return P.mirrorAxisOf(value);
-    return value === true ? "x" : null;
+    return window.HCForgePlanNormalize.mirrorAxis(value);
   }
 
   function vec3(v, fallback) {
