@@ -199,5 +199,71 @@ console.log('\nThe toolbar reserves space only where something is drawn in it:')
     'an empty answer must not produce an `is-` class');
 }
 
+console.log('\nThe window is not opened larger than the screen:');
+{
+  const main = src('main.js');
+  const block = main.slice(main.indexOf('The largest the window may be'),
+                           main.indexOf('Restore saved position'));
+
+  ok('there is a cap taken from the display work area',
+    /screen\?\.availWidth/.test(block) && /screen\?\.availHeight/.test(block),
+    'without it the configured size opens off the edge of a 1366x768 panel');
+  ok('the window size is held to it', /Math\.min\(wanted\.width/.test(block));
+
+  // THE TRAP. inner_size and set_size are physical pixels; screen.avail* is
+  // CSS pixels. On a device pixel ratio of two they differ by a factor of two,
+  // so comparing them raw would halve the window on every Retina display —
+  // a regression for every existing user, to fix a machine none of them have.
+  ok('the screen is converted to the units set_size speaks',
+    /devicePixelRatio/.test(block),
+    'comparing physical window pixels to CSS screen pixels halves the window on a Retina display');
+  ok('and converted UP, so the comparison stays in device pixels',
+    /availWidth\s*\|\|\s*0\)\s*\*\s*ratio/.test(block),
+    'dividing the window down instead would round away real pixels');
+
+  // A size saved on an external display and reopened on the laptop alone is
+  // the case that reaches people who are not on their first launch.
+  ok('a restored size is capped too, not only the opening one',
+    /savedSize && finite\(savedSize\.width\)/.test(block) && /Math\.min\(wanted\.width/.test(block));
+
+  // No screen to measure is not a reason to guess at one.
+  ok('an unmeasurable screen leaves the window alone',
+    /return null;/.test(block) && /cap\s*\?/.test(block));
+  ok('and a size that already fits is not re-set',
+    /if \(differs\)/.test(block),
+    'a set_size matching the current size is a needless frame');
+
+  // Regex over source proves the shape, not the arithmetic. So the REAL
+  // function is lifted out of main.js and run against real displays — a
+  // retyped copy here would only prove that the copy works.
+  const fn = /const workAreaCap = \(\) => \{[\s\S]*?\n    \};/.exec(main);
+  ok('the cap function can be read out of main.js', !!fn);
+  if (fn) {
+    const capOn = (availWidth, availHeight, devicePixelRatio) => {
+      const box = { window: { screen: { availWidth, availHeight }, devicePixelRatio } };
+      vm.createContext(box);
+      return vm.runInContext(`(() => { ${fn[0]} return workAreaCap(); })()`, box);
+    };
+    // The machine the report came from: 1366x768 panel, a taskbar, no scaling.
+    const dell = capOn(1366, 728, 1);
+    ok('a 1366x768 laptop caps at its own panel', dell.w === 1366 && dell.h === 728,
+      JSON.stringify(dell));
+    ok('and the configured 1380x860 window is cut down to fit it',
+      Math.min(1380, dell.w) === 1366 && Math.min(860, dell.h) === 728);
+
+    // A Retina Mac. The window is already smaller than the cap, so this must
+    // change nothing — which is only true if the ratio was applied.
+    const mac = capOn(1512, 944, 2);
+    ok('a Retina display caps in device pixels, not CSS pixels',
+      mac.w === 3024 && mac.h === 1888, JSON.stringify(mac));
+    ok('so a window that already fits a Mac is untouched',
+      Math.min(2760, mac.w) === 2760 && Math.min(1720, mac.h) === 1720,
+      'if the ratio were missing this would clamp to 1512 and halve the window');
+
+    ok('a screen that reports nothing produces no cap', capOn(0, 0, 1) === null);
+    ok('and a missing screen does not throw', capOn(undefined, undefined, undefined) === null);
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (what this machine is)`);
 process.exit(fail ? 1 : 0);

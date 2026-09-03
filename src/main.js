@@ -41,20 +41,66 @@
       try { await invoke('plugin:window|show'); } catch (_) {}
     };
 
+    // The largest the window may be, in the units set_size speaks.
+    //
+    // tauri.conf.json opens at 1380 x 860, which is larger than a 1366 x 768
+    // laptop panel — a size that is entirely ordinary and still sold. On a
+    // fresh profile there is no saved size to correct it, so the first window
+    // a person ever sees does not fit on their screen. It is easy to miss
+    // because the second launch restores whatever the first one was squeezed
+    // to, so it only ever happens once, to somebody who has never used the app
+    // before.
+    //
+    // The same cap is applied to a restored size, for the case that reaches
+    // everyone: a size saved on an external display, then reopened on the
+    // laptop alone.
+    //
+    // UNITS. `inner_size` and `set_size` are PHYSICAL pixels; `screen.avail*`
+    // is CSS pixels. On a display with a device pixel ratio of two those
+    // differ by a factor of two, and comparing them directly would halve every
+    // window on every Retina Mac. The screen is converted up rather than the
+    // window converted down, so the arithmetic stays in whole device pixels.
+    const workAreaCap = () => {
+      try {
+        const ratio = window.devicePixelRatio || 1;
+        const w = Math.floor((window.screen?.availWidth || 0) * ratio);
+        const h = Math.floor((window.screen?.availHeight || 0) * ratio);
+        return (w > 0 && h > 0) ? { w, h } : null;
+      } catch (_) {
+        // No screen to measure means no opinion: leave the window as it is.
+        return null;
+      }
+    };
+
     try {
       // Restore size before position so the OS does not visibly re-place the frame.
+      // Whatever the size comes from — storage, or the size the window opened
+      // at — it is held to what the display can actually show.
       const savedSize = readSavedWindowValue('hc_win_size');
-      if (savedSize && finite(savedSize.width) && finite(savedSize.height)) {
-        try {
-          await invoke('plugin:window|set_size', {
-            value: {
-              Physical: {
-                width: Math.round(Number(savedSize.width)),
-                height: Math.round(Number(savedSize.height))
-              }
-            }
-          });
-        } catch (_) {}
+      let current = null;
+      try { current = await invoke('plugin:window|inner_size'); } catch (_) {}
+
+      const wanted = (savedSize && finite(savedSize.width) && finite(savedSize.height))
+        ? { width: Math.round(Number(savedSize.width)), height: Math.round(Number(savedSize.height)) }
+        : (current && finite(current.width) && finite(current.height))
+          ? { width: Math.round(Number(current.width)), height: Math.round(Number(current.height)) }
+          : null;
+
+      if (wanted) {
+        const cap = workAreaCap();
+        const target = cap
+          ? { width: Math.min(wanted.width, cap.w), height: Math.min(wanted.height, cap.h) }
+          : wanted;
+        // Only ask for a change when there is one. A set_size that matches the
+        // current size is a needless round trip and a needless frame.
+        const differs = !current ||
+          target.width !== Math.round(Number(current.width)) ||
+          target.height !== Math.round(Number(current.height));
+        if (differs) {
+          try {
+            await invoke('plugin:window|set_size', { value: { Physical: target } });
+          } catch (_) {}
+        }
       }
 
       // Restore saved position, or center once after the restored size is known.
