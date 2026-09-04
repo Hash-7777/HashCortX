@@ -85,6 +85,7 @@
     '/js/systems/spec.js',
     '/js/systems/money.js',
     '/js/systems/domain.js',
+    '/js/systems/ledger.js',
     '/js/model-plan.js',
     '/js/forge/units.js',
     '/js/forge/subdivide.js',
