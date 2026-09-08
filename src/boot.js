@@ -81,6 +81,7 @@
     '/js/vector-map.js',
     '/js/forge/expr.js',
     '/js/finance/amounts.js',
+    '/js/finance/charts.js',
     '/js/swarm/graph.js',
     '/js/swarm/schedule.js',
     '/js/swarm/output.js',

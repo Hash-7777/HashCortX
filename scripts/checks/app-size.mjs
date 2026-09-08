@@ -285,7 +285,7 @@ const LINE_BUDGET = {
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
   // read as positive, so money going out was counted as money coming in.
-  'modes/finance/mode.js': 2582,
+  'modes/finance/mode.js': 2378,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //
