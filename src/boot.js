@@ -71,6 +71,7 @@
     '/js/page-text.js',
     '/js/pdf-text.js',
     '/js/providers.js',
+    '/js/stream/sse.js',
     '/js/chat/context.js',
     '/js/chat/failover.js',
     '/js/markdown-safe.js',

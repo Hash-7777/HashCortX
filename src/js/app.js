@@ -3524,42 +3524,24 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // Shared SSE parser for OpenAI-compatible streams (Groq, OpenRouter)
+  /**
+   * An OpenAI-shaped stream, as text.
+   *
+   * The reading of bytes into lines and lines into events is in
+   * src/js/stream/sse.js, shared with every other provider. What an event
+   * means stays here, because that is the part that differs.
+   */
   async function* parseOpenAISSE(body, onUsage) {
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    function parseLine(line) {
-      const s = line.trim();
-      if (!s.startsWith("data:")) return null;
-      const payload = s.slice(5).trim();
-      if (!payload || payload === "[DONE]") return null;
-      try {
-        const evt = JSON.parse(payload);
-        // Final usage chunk (stream_options.include_usage) — real token counts.
-        if (evt.usage && onUsage) {
-          onUsage({ inputTokens: evt.usage.prompt_tokens || 0, outputTokens: evt.usage.completion_tokens || 0 });
-        }
-        return evt.choices?.[0]?.delta?.content || null;
-      } catch {
-        return null;
+    const SSE = window.HCStreamSSE;
+    for await (const line of SSE.sseLines(body)) {
+      const evt = SSE.eventFromLine(line);
+      if (!evt) continue;
+      // The final chunk carries the real token counts, for the usage ledger.
+      if (evt.usage && onUsage) {
+        onUsage({ inputTokens: evt.usage.prompt_tokens || 0, outputTokens: evt.usage.completion_tokens || 0 });
       }
-    }
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop() || "";
-        for (const line of lines) {
-          const delta = parseLine(line);
-          if (delta) yield delta;
-        }
-      }
-      const delta = parseLine(buf);
-      if (delta) yield delta;
-    } finally {
-      try { reader.releaseLock(); } catch {}
+      const text = SSE.openAIText(evt);
+      if (text !== null) yield text;
     }
   }
 
@@ -3661,22 +3643,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal }
       );
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("gemini", res.status, txt, res.headers.get("Retry-After"))); }
-      const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "";
-      const parseGeminiLine = (line) => {
-        const s = line.trim(); if (!s.startsWith("data:")) return;
-        const payload = s.slice(5).trim(); if (!payload) return;
-        try {
-          const evt = JSON.parse(payload);
-          if (evt.usageMetadata) captured = { inputTokens: evt.usageMetadata.promptTokenCount || 0, outputTokens: evt.usageMetadata.candidatesTokenCount || 0 };
-          // Collect text from all parts (Gemini can return multiple text parts)
-          const parts = evt.candidates?.[0]?.content?.parts || [];
-          parts.forEach(p => { if (p.text) onToken(p.text); });
-        } catch {}
-      };
-      try {
-        while (true) { const { value, done } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop() || ""; for (const line of lines) parseGeminiLine(line); }
-        parseGeminiLine(buf);
-      } finally { try { reader.releaseLock(); } catch {} }
+      for await (const line of window.HCStreamSSE.sseLines(res.body)) {
+        const evt = window.HCStreamSSE.eventFromLine(line);
+        if (!evt) continue;
+        if (evt.usageMetadata) captured = { inputTokens: evt.usageMetadata.promptTokenCount || 0, outputTokens: evt.usageMetadata.candidatesTokenCount || 0 };
+        // Gemini can split one reply across several parts in a single event.
+        for (const text of window.HCStreamSSE.geminiTexts(evt)) onToken(text);
+      }
 
     } else if (provider === "openrouter") {
       const key = (openRouterKeyEl.value || "").trim();
@@ -3762,23 +3735,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       });
       if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("anthropic", res.status, txt, res.headers.get("Retry-After"))); }
       // Anthropic SSE format is similar to OpenAI but uses event: content_block_delta
-      const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "";
-      const parseAnthropicLine = (line) => {
-        const s = line.trim(); if (!s.startsWith("data:")) return;
-        const payload = s.slice(5).trim(); if (!payload || payload === "[DONE]") return;
-        try {
-          const evt = JSON.parse(payload);
-          if (evt.type === "message_start" && evt.message?.usage)
-            captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
-          if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
-            captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
-          if (evt.type === "content_block_delta" && evt.delta?.text) onToken(evt.delta.text);
-        } catch {}
-      };
-      try {
-        while (true) { const { value, done } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop() || ""; for (const line of lines) parseAnthropicLine(line); }
-        parseAnthropicLine(buf);
-      } finally { try { reader.releaseLock(); } catch {} }
+      for await (const line of window.HCStreamSSE.sseLines(res.body)) {
+        const evt = window.HCStreamSSE.eventFromLine(line);
+        if (!evt) continue;
+        if (evt.type === "message_start" && evt.message?.usage)
+          captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
+        if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
+          captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
+        const text = window.HCStreamSSE.anthropicText(evt);
+        if (text !== null) onToken(text);
+      }
 
     } else if (provider === "moonshot") {
       const key = (moonshotKeyEl.value || "").trim();
@@ -3795,23 +3761,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           signal,
         }));
         if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))); }
-        const reader = res.body.getReader(); const decoder = new TextDecoder(); let buf = "";
-        const parseLine = (line) => {
-          const s = line.trim(); if (!s.startsWith("data:")) return;
-          const payload = s.slice(5).trim(); if (!payload || payload === "[DONE]") return;
-          try {
-            const evt = JSON.parse(payload);
-            if (evt.type === "message_start" && evt.message?.usage)
-              captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
-            if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
-              captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
-            if (evt.type === "content_block_delta" && evt.delta?.text) onToken(evt.delta.text);
-          } catch {}
-        };
-        try {
-          while (true) { const { value, done } = await reader.read(); if (done) break; buf += decoder.decode(value, { stream: true }); const lines = buf.split("\n"); buf = lines.pop() || ""; for (const line of lines) parseLine(line); }
-          parseLine(buf);
-        } finally { try { reader.releaseLock(); } catch {} }
+        for await (const line of window.HCStreamSSE.sseLines(res.body)) {
+          const evt = window.HCStreamSSE.eventFromLine(line);
+          if (!evt) continue;
+          if (evt.type === "message_start" && evt.message?.usage)
+            captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
+          if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
+            captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
+          const text = window.HCStreamSSE.anthropicText(evt);
+          if (text !== null) onToken(text);
+        }
       } else {
         // Legacy sk-... keys from platform.moonshot.ai/.cn use OpenAI-compatible API
         const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
@@ -5296,21 +5255,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       signal,
     });
     if (!resp.ok) throw new Error("Ollama error: " + resp.status);
-    const reader = resp.body.getReader();
-    const dec = new TextDecoder();
+    // Read through src/js/stream/sse.js, which gathers whole lines across
+    // chunk boundaries. This loop used to decode and split each chunk on its
+    // own with nothing carried between them, so a line that straddled a
+    // boundary became two fragments that both failed to parse and were both
+    // swallowed by the catch. Whole words went missing from an answer, and
+    // with small enough chunks the whole answer did.
     let full = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      for (const line of dec.decode(value).split("\n")) {
-        if (!line.trim()) continue;
-        try {
-          const obj = JSON.parse(line);
-          const tok = obj.message?.content || "";
-          full += tok;
-          if (onToken) onToken(tok, full);
-        } catch {}
-      }
+    for await (const obj of window.HCStreamSSE.jsonLines(resp.body)) {
+      const tok = obj.message?.content || "";
+      if (!tok) continue;
+      full += tok;
+      if (onToken) onToken(tok, full);
     }
     return full;
   }
