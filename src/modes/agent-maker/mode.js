@@ -424,80 +424,14 @@ const SwarmMaker = (() => {
 
   // Detects and wraps raw unfenced code blocks in an agent's text output.
   // Handles: full-document HTML, inline raw tag blocks, and common code patterns.
+  /**
+   * Fence the raw code in an agent's answer, in src/js/swarm/output.js.
+   *
+   * English and code open with the same words, so the rules there are written
+   * to leave a sentence alone and can be handed one to prove it.
+   */
   function normaliseAgentOutput(text) {
-    if (!text) return text;
-
-    // Already fully fenced — nothing to do
-    const hasFence = /```[\w]*\n[\s\S]*?```/.test(text);
-
-    // Split text into lines and scan for contiguous raw-code regions
-    const lines = text.split("\n");
-    const out   = [];
-    let   block = null; // { lang, lines[] }
-
-    const flushBlock = () => {
-      if (!block) return;
-      out.push("```" + block.lang);
-      out.push(...block.lines);
-      out.push("```");
-      block = null;
-    };
-
-    // Patterns that signal the start of a raw code line
-    const HTML_LINE   = /^\s*(<(!DOCTYPE|html|head|body|div|section|header|footer|nav|main|article|aside|span|p|h[1-6]|ul|ol|li|a|img|input|button|form|table|tr|td|th|script|style|link|meta|title)[^>]*>|<\/\w+>|<!--)/i;
-    const PY_LINE     = /^\s*(import |from |def |class |if __name__|#!\/usr\/bin\/env python)/;
-    const JS_LINE     = /^\s*(const |let |var |function |class |import |export |\/\/|=>|async |await )/;
-    const CSS_LINE    = /^\s*([.#]?[\w-]+\s*\{|@media|@keyframes|:root\s*\{)/;
-    const JSON_START  = /^\s*[\[{]/;
-    const BASH_LINE   = /^\s*(#!\/bin\/|apt |npm |pip |curl |wget |echo |export |cd |mkdir |chmod )/;
-
-    function detectLang(line) {
-      if (HTML_LINE.test(line)) return "html";
-      if (PY_LINE.test(line))   return "python";
-      if (JS_LINE.test(line))   return "javascript";
-      if (CSS_LINE.test(line))  return "css";
-      if (BASH_LINE.test(line)) return "bash";
-      return null;
-    }
-
-    // If the whole output looks like a single language document, wrap it all
-    if (!hasFence) {
-      const trimmed = text.trim();
-      if (/^<!DOCTYPE\s+html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed)) {
-        return "```html\n" + text.trim() + "\n```";
-      }
-      const nonEmpty = lines.filter(l => l.trim());
-      if (nonEmpty.length > 3) {
-        const htmlRatio = nonEmpty.filter(l => HTML_LINE.test(l)).length / nonEmpty.length;
-        const pyRatio   = nonEmpty.filter(l => PY_LINE.test(l) || /^\s{4}/.test(l)).length / nonEmpty.length;
-        const jsRatio   = nonEmpty.filter(l => JS_LINE.test(l)).length / nonEmpty.length;
-        if (htmlRatio > 0.45) return "```html\n" + text.trim() + "\n```";
-        if (pyRatio   > 0.45) return "```python\n" + text.trim() + "\n```";
-        if (jsRatio   > 0.45) return "```javascript\n" + text.trim() + "\n```";
-      }
-    }
-
-    if (hasFence) return text; // already has fences, trust them
-
-    // Mixed content: scan line-by-line for raw code islands
-    for (const line of lines) {
-      if (line.startsWith("```")) { flushBlock(); out.push(line); continue; }
-      const lang = detectLang(line);
-      if (lang) {
-        if (!block) block = { lang, lines: [] };
-        else if (block.lang !== lang) { flushBlock(); block = { lang, lines: [] }; }
-        block.lines.push(line);
-      } else {
-        if (block && line.trim() === "") {
-          block.lines.push(line); // allow blank lines inside a block
-        } else {
-          flushBlock();
-          out.push(line);
-        }
-      }
-    }
-    flushBlock();
-    return out.join("\n");
+    return window.HCSwarmOutput.normaliseAgentOutput(text);
   }
 
   // ── Execute a single agent (with tool-calling loop) ────────────────
@@ -716,11 +650,16 @@ const SwarmMaker = (() => {
     }
 
     traceAdd("Orchestrator", `Topology: ${bp.topology || "pipeline"} · ${agents.length} agents · ${edges.length} edges`, "boss");
-    const depMap = Object.fromEntries(agents.map(a => [a.id, []]));
-    for (const e of edges) { if (depMap[e.to]) depMap[e.to].push(e.from); }
+    // Scheduling decisions live in src/js/swarm/schedule.js, where they can be
+    // asked what they would do without running an agent.
+    const SCHED = window.HCSwarmSchedule;
+    const depMap = SCHED.dependencyMap(agents, edges);
+    // Agents may share a name, and dependency results are handed over under
+    // one, so each gets a label that is unique across the blueprint.
+    const labels = SCHED.labelsFor(agents);
     agents.forEach(a => {
-      const deps = depMap[a.id].map(id => agents.find(x => x.id === id)?.name || id);
-      traceAdd("Orchestrator", `${a.name} dependencies: ${deps.length ? deps.join(", ") : "none"}`, "wait");
+      const deps = depMap[a.id].map(id => labels[id] || id);
+      traceAdd("Orchestrator", `${labels[a.id]} dependencies: ${deps.length ? deps.join(", ") : "none"}`, "wait");
     });
 
     const results   = {};
@@ -735,45 +674,53 @@ const SwarmMaker = (() => {
       finalOutputAgentId: bp.finalOutputAgentId || "",
     };
 
+    /**
+     * Mark every agent that can no longer run, and say why.
+     *
+     * Left unmarked they are neither done nor failed: absent from the results
+     * and from the answer, with nothing saying a branch of the work was
+     * dropped. Returns how many were marked.
+     */
+    const markStranded = (because) => {
+      const stranded = SCHED.strandedAgents(agents, depMap, completed, failed);
+      for (const { agent: a, blockedBy } of stranded) {
+        const names = blockedBy.map(id => labels[id] || id).join(", ");
+        failed.add(a.id);
+        results[a.id] = `Skipped: dependency failed (${names})`;
+        updateNodeStatus(a.id, "error");
+        traceAdd("Orchestrator", `${labels[a.id]} ${because} ${names} failed`, "err");
+      }
+      return stranded.length;
+    };
+
     while (completed.size + failed.size < agents.length && stepCount++ < maxSteps) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       traceAdd("Orchestrator", `Scheduler step ${stepCount}/${maxSteps} · complete ${completed.size}/${agents.length} · failed ${failed.size}`, "boss");
 
-      if (strictDependencies) {
-        const blockedByFailure = agents.filter(a =>
-          !completed.has(a.id) &&
-          !failed.has(a.id) &&
-          depMap[a.id].some(d => failed.has(d))
-        );
-        blockedByFailure.forEach(a => {
-          const failedDeps = depMap[a.id]
-            .filter(d => failed.has(d))
-            .map(id => agents.find(x => x.id === id)?.name || id);
-          failed.add(a.id);
-          results[a.id] = `Skipped: dependency failed (${failedDeps.join(", ")})`;
-          updateNodeStatus(a.id, "error");
-          traceAdd("Orchestrator", `${a.name} skipped because dependency failed: ${failedDeps.join(", ")}`, "err");
-        });
-        if (blockedByFailure.length) updateProgress(completed.size / agents.length);
+      if (strictDependencies && markStranded("skipped because")) {
+        updateProgress(completed.size / agents.length);
       }
 
-      const ready = agents.filter(a =>
-        !completed.has(a.id) &&
-        !failed.has(a.id) &&
-        depMap[a.id].every(d => completed.has(d))
-      );
+      const ready = SCHED.readyAgents(agents, depMap, completed, failed);
       const blocked = agents.filter(a =>
         !completed.has(a.id) &&
         !failed.has(a.id) &&
         !ready.includes(a)
       );
       blocked.forEach(a => {
-        const waiting = depMap[a.id]
-          .filter(d => !completed.has(d) && !failed.has(d))
-          .map(id => agents.find(x => x.id === id)?.name || id);
-        traceAdd("Orchestrator", `${a.name} waiting on ${waiting.length ? waiting.join(", ") : "scheduler"}`, "wait");
+        const { pending, broken } = SCHED.waitingOn(a, depMap, agents, completed, failed, labels);
+        if (broken.length) {
+          traceAdd("Orchestrator", `${labels[a.id]} cannot run: ${broken.join(", ")} failed`, "err");
+        } else {
+          traceAdd("Orchestrator", `${labels[a.id]} waiting on ${pending.length ? pending.join(", ") : "scheduler"}`, "wait");
+        }
       });
       if (!ready.length) {
+        // Nothing can run. Anything still waiting is waiting on something that
+        // failed, and used to be left neither done nor failed: absent from the
+        // results and from the answer, with nothing saying a branch had been
+        // dropped.
+        markStranded("never ran because");
         traceAdd("Orchestrator", "No runnable agents remain at this step", "warn");
         break;
       }
@@ -781,11 +728,7 @@ const SwarmMaker = (() => {
       traceAdd("Orchestrator", `Dispatching ${ready.length} agent(s) in parallel: ${ready.map(a => a.name).join(", ")}`, "boss");
 
       const settled = await Promise.allSettled(ready.map(agent => {
-        const depResults = {};
-        for (const depId of depMap[agent.id]) {
-          const dep = agents.find(a => a.id === depId);
-          if (dep && results[depId]) depResults[dep.name] = results[depId];
-        }
+        const depResults = SCHED.dependencyResults(agent, depMap, agents, results, labels);
         traceAdd("Orchestrator", `${agent.name} received ${Object.keys(depResults).length} dependency result(s)`, "wait");
         updateNodeStatus(agent.id, "running");
         const t0 = Date.now();
