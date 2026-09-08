@@ -294,7 +294,7 @@ const LINE_BUDGET = {
   // is not a terminal wrapper that happens to be long; it is one function that
   // grew. Splitting it is a real piece of work rather than an extraction, and
   // it has not been attempted.
-  'modes/code/mode.js': 2692,
+  'modes/code/mode.js': 2675,
 };
 
 console.log('\nFile sizes go down, never up:');

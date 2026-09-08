@@ -1391,33 +1391,16 @@
     }
 
     // Simple ANSI-to-HTML: covers basic 8 colors + bold/dim/reset
+    /**
+     * Terminal colour turned into HTML, in src/js/code/ansi.js.
+     *
+     * This is the output of a real command, so it is escaped there, and the
+     * colours are tracked as a running style rather than nested tags — a
+     * terminal's colours replace one another, and treating them as nesting
+     * grew the markup without limit down a long build log.
+     */
     function ansiToHtml(text) {
-      if (!text || !text.includes('\x1b[')) return esc(text);
-      const colors = {
-        '30': '#6b6b78', '31': '#d98a85', '32': '#5fb88a', '33': '#f5c97a',
-        '34': '#6ab4ff', '35': '#c084fc', '36': '#4bd2be', '37': '#e8e8ec',
-        '90': '#4a4a55', '91': '#ff8f8f', '92': '#7dd3a8', '93': '#fde68a',
-        '94': '#93c5fd', '95': '#d8b4fe', '96': '#99f6e4', '97': '#ffffff',
-      };
-      let out = '';
-      const re = /\x1b\[([0-9;]*)m/g;
-      let last = 0;
-      let m;
-      const stack = [];
-      while ((m = re.exec(text)) !== null) {
-        out += esc(text.slice(last, m.index));
-        const codes = m[1].split(';').filter(Boolean);
-        for (const c of codes) {
-          if (c === '0') { while (stack.length) out += '</span>'; stack.length = 0; }
-          else if (c === '1') { out += '<span style="font-weight:600">'; stack.push('span'); }
-          else if (c === '2') { out += '<span style="opacity:0.6">'; stack.push('span'); }
-          else if (colors[c]) { out += `<span style="color:${colors[c]}">`; stack.push('span'); }
-        }
-        last = re.lastIndex;
-      }
-      out += esc(text.slice(last));
-      while (stack.length) out += '</span>';
-      return out;
+      return window.HCCodeAnsi.ansiToHtml(text);
     }
 
     // ── Execution trace ───────────────────────────────────────

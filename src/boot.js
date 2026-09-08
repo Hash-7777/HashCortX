@@ -63,6 +63,7 @@
 
     '/js/power.js',
     '/js/diff.js',
+    '/js/code/ansi.js',
     '/js/export-format.js',
     '/js/rag-search.js',
     '/js/rag-store.js',
