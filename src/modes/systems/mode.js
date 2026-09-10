@@ -441,6 +441,8 @@ const SystemMaker = (() => {
     });
 
     spec.entities = normalizeEntities(spec.entities, spec.modules);
+    // A link to an entity the system does not have is plain text.
+    Object.values(spec.entities).forEach(e => { e.fields = e.fields.map(f => REL().usableField(f, Object.keys(spec.entities))); });
     // Which entities the model wrote no records for, so they can be asked for;
     // kept off the saved spec.
     const standIns = [];
@@ -487,9 +489,11 @@ const SystemMaker = (() => {
     return {
       id,
       label: f?.label || f?.name || titleCase(id),
-      type: ["text","number","date","select","textarea"].includes(f?.type) ? f.type : fieldType("", id),
+      type: ["text","number","date","select","textarea","link"].includes(f?.type) ? f.type : fieldType("", id),
       options: Array.isArray(f?.options) && f.options.length ? f.options : undefined,
       required: !!f?.required,
+      ...(f?.type === "link" && f?.entity ? { entity: slug(f.entity) } : {}),
+      ...(typeof f?.formula === "string" && f.formula.trim() ? { formula: f.formula.trim() } : {}),
     };
   }
 
@@ -537,7 +541,7 @@ const SystemMaker = (() => {
         ?? undefined;
       out[f.id] = val !== undefined ? val : window.HCSystemsSamples.sampleValue(f, idx, entity.id, todayIso());
     });
-    return out;
+    return REL().computeRecord(out, entity).record;
   }
 
   function titleCase(raw) {
@@ -607,6 +611,8 @@ ENTITIES & FIELDS:
 • Field ids must exactly match mockData record property names
 • Give each entity the fields THIS business really keeps for it — not a generic set. A supplier list may have no date; a staff list may have no amount.
 • What a screen needs: a "kanban" entity needs a select field of 3-6 real stages (with options); a "calendar" or "timeline" entity needs a date field; a "dashboard", "report" or "metric" entity needs a number field.
+• A field that points at a record of another entity (an order's customer, a booking's room) is {"type":"link","entity":"<that entity's id>"}; its mockData value is that record's name exactly as written there.
+• A number worked out from others on the same record carries "formula", e.g. {"id":"line_total","type":"number","formula":"quantity * unit_price"} — field ids, numbers and + - * / ( ) only.
 
 MOCK DATA (realistic, not placeholder):
 • 5-7 records per entity
@@ -777,6 +783,8 @@ ENTITIES & FIELDS:
 • Field ids must exactly match mockData record property names
 • Give each entity the fields THIS business really keeps for it — not a generic set. A supplier list may have no date; a staff list may have no amount.
 • What a screen needs: a "kanban" entity needs a select field of 3-6 real stages (with options); a "calendar" or "timeline" entity needs a date field; a "dashboard", "report" or "metric" entity needs a number field.
+• A field that points at a record of another entity (an order's customer, a booking's room) is {"type":"link","entity":"<that entity's id>"}; its mockData value is that record's name exactly as written there.
+• A number worked out from others on the same record carries "formula", e.g. {"id":"line_total","type":"number","formula":"quantity * unit_price"} — field ids, numbers and + - * / ( ) only.
 
 MOCK DATA (domain-realistic, not generic):
 • 8-12 records per entity with real-sounding names, actual amounts, ISO dates (YYYY-MM-DD)
@@ -1031,9 +1039,12 @@ Repair requirements:
     trace(`Writing records for ${names(ids)}…`, "data");
     let got = null;
     try {
-      const shapes = ids.map(id => ({ id, name: spec.entities[id].name, fields: spec.entities[id].fields.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}) })) }));
+      // A link is written as the name of a record it points at; the names that
+      // exist already are given, so what comes back can be followed.
+      const namesOf = (eid) => spec.standIns?.includes(eid) ? [] : REL().choices(spec.mockData[eid] || [], spec.entities[eid]).slice(0, 30);
+      const shapes = ids.map(id => ({ id, name: spec.entities[id].name, fields: spec.entities[id].fields.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}), ...(f.type === "link" ? { entity: f.entity, names: namesOf(f.entity) } : {}), ...(f.formula ? { formula: f.formula } : {}) })) }));
       const r = await callModel(model, [
-        { role:"system", content: `You write sample records for a business system. Return ONLY one JSON object: each key is an entity id, each value an array of 8 records. A record uses exactly the given field ids. Every value must fit this business and where it is: real-sounding names, the things this business really sells or handles, prices and quantities right for its size. A select value must be one of its options. Dates are YYYY-MM-DD between ${window.HCSystemsSamples.daysBefore(todayIso(), 180)} and ${todayIso()}. No placeholder text.` },
+        { role:"system", content: `You write sample records for a business system. Return ONLY one JSON object: each key is an entity id, each value an array of 8 records. A record uses exactly the given field ids. Every value must fit this business and where it is: real-sounding names, the things this business really sells or handles, prices and quantities right for its size. A select value must be one of its options. A link value is the name of a record of its entity — one of its "names" when given. Leave a formula field out; it is worked out. Dates are YYYY-MM-DD between ${window.HCSystemsSamples.daysBefore(todayIso(), 180)} and ${todayIso()}. No placeholder text.` },
         { role:"user", content: `Business: ${desc}\nSystem: ${spec.name} — ${spec.description}\n\nEntities:\n${JSON.stringify(shapes)}` },
       ], signal, 0.7);
       got = parseSpecJson(r?.content || "");
@@ -1374,6 +1385,7 @@ Repair requirements:
     const entity = spec.entities[module?.entity] || Object.values(spec.entities)[0];
     activeEntityId = entity?.id || "";
     viewCurrency = VIEW().currencyOf(spec);
+    linkCache = new Map();
     const data = getRuntimeData(spec);
     const records = prepareRecords(data[activeEntityId] || [], entity);
     const selected = records.find(r => r.id === selectedRecordId) || records[0] || null;
@@ -1559,6 +1571,16 @@ Repair requirements:
   // measured; a trend now compares two named months, or is not shown.
   const FIG = () => window.HCSystemsFigures;
   const STAGES = () => window.HCSystemsStages;
+  const REL = () => window.HCSystemsRelations;
+  // Each linked entity's records, indexed once per drawing of the screen.
+  let linkCache = new Map();
+  function linkedRecord(field, value) {
+    const spec = getActive();
+    const target = spec?.entities?.[field.entity];
+    if (!target) return null;
+    if (!linkCache.has(target.id)) linkCache.set(target.id, REL().indexOf(getRuntimeData(spec)[target.id] || [], target));
+    return REL().resolve(value, linkCache.get(target.id));
+  }
 
   /**
    * Put a record at a stage: from a board's drag or arrows, or the detail
@@ -2341,6 +2363,26 @@ Repair requirements:
           </select>
         </div>`;
       }
+      if (f.type === "link") {
+        const spec = getActive();
+        const target = spec?.entities?.[f.entity];
+        const names = target ? REL().choices(getRuntimeData(spec)[target.id] || [], target) : [];
+        if (value && !names.some(n => n.toLowerCase() === String(value).toLowerCase())) names.unshift(String(value));
+        return `<div class="sys-form-group">
+          <label class="sys-form-label">${esc(f.label)}${star}</label>
+          <select class="sys-form-input" data-sys-field="${esc(f.id)}" ${req}>
+            <option value="">—</option>
+            ${names.map(n => `<option value="${esc(n)}" ${String(value).toLowerCase() === n.toLowerCase() ? "selected" : ""}>${esc(n)}</option>`).join("")}
+          </select>
+        </div>`;
+      }
+      if (f.formula) {
+        return `<div class="sys-form-group">
+          <label class="sys-form-label">${esc(f.label)}</label>
+          <input class="sys-form-input" type="text" value="${esc(value)}" readonly title="Worked out: ${esc(f.formula)}" />
+          <span class="sys-form-hint">Worked out: ${esc(f.formula)}</span>
+        </div>`;
+      }
       if (f.type === "textarea") {
         return `<div class="sys-form-group sys-form-group--full">
           <label class="sys-form-label">${esc(f.label)}${star}</label>
@@ -2369,23 +2411,27 @@ Repair requirements:
     if (!valid) return;
     const data = getRuntimeData(spec);
     data[activeEntityId] = data[activeEntityId] || [];
+    // A blank number stays blank: it used to be saved as 0, and counted as one.
+    const read = (inp) => {
+      const field = entity.fields.find(f => f.id === inp.dataset.sysField);
+      return field?.type === "number" ? (inp.value.trim() === "" || !Number.isFinite(Number(inp.value)) ? "" : Number(inp.value)) : inp.value;
+    };
     if (recordModalIsNew) {
-      const rec = { id: `${activeEntityId}_${Date.now().toString(36)}` };
-      inputs.forEach(inp => {
-        const field = entity.fields.find(f => f.id === inp.dataset.sysField);
-        rec[inp.dataset.sysField] = field?.type === "number" ? Number(inp.value || 0) : inp.value;
-      });
+      let rec = { id: `${activeEntityId}_${Date.now().toString(36)}` };
+      inputs.forEach(inp => { rec[inp.dataset.sysField] = read(inp); });
+      rec = REL().computeRecord(rec, entity).record;
       data[activeEntityId].unshift(rec);
       selectedRecordId = rec.id;
-      trace(`Added record to ${entity.name}`, "ok");
+      trace(`Added ${recordLabel(rec, entity)} to ${entity.name}`, "ok");
     } else {
-      const rec = data[activeEntityId].find(r => r.id === selectedRecordId);
-      if (!rec) { closeRecordModal(); return; }
-      inputs.forEach(inp => {
-        const field = entity.fields.find(f => f.id === inp.dataset.sysField);
-        rec[inp.dataset.sysField] = field?.type === "number" ? Number(inp.value || 0) : inp.value;
-      });
-      trace(`Saved ${entity.name} record`, "ok");
+      const idx = data[activeEntityId].findIndex(r => r.id === selectedRecordId);
+      if (idx === -1) { closeRecordModal(); return; }
+      const before = recordLabel(data[activeEntityId][idx], entity);
+      const rec = { ...data[activeEntityId][idx] };
+      inputs.forEach(inp => { rec[inp.dataset.sysField] = read(inp); });
+      data[activeEntityId][idx] = REL().computeRecord(rec, entity).record;
+      const renamed = REL().renameLinks(data, spec.entities, activeEntityId, before, recordLabel(rec, entity));
+      trace(`Saved ${recordLabel(rec, entity)}${renamed ? ` · ${renamed} link${renamed === 1 ? "" : "s"} to it renamed` : ""}`, "ok");
     }
     saveRuntimeData(spec, data);
     closeRecordModal();
@@ -2513,9 +2559,9 @@ Repair requirements:
         if (!fieldId) return;
         const field = entity.fields.find(f => f.id === fieldId);
         const val = row[Number(colIdx)] || "";
-        rec[fieldId] = field?.type === "number" ? (Number(val) || 0) : val;
+        rec[fieldId] = field?.type === "number" ? (String(val).trim() === "" || !Number.isFinite(Number(val)) ? "" : Number(val)) : val;
       });
-      return rec;
+      return REL().computeRecord(rec, entity).record;
     });
     data[activeEntityId] = [...imported, ...data[activeEntityId]];
     saveRuntimeData(spec, data);
@@ -2618,6 +2664,13 @@ Repair requirements:
   }
 
   function formatCell(v, field) {
+    if (field?.type === "link") {
+      // A link that names a record can be followed; one that names nothing is shown as written.
+      const rec = v === "" || v == null ? null : linkedRecord(field, v);
+      return rec
+        ? `<button type="button" class="sys-link" data-action="open-link" data-entity="${esc(field.entity)}" data-record-id="${esc(rec.id)}">${esc(String(v))}</button>`
+        : `<span class="sys-link-missing" title="${v ? "No such record" : ""}">${esc(String(v ?? ""))}</span>`;
+    }
     const value = formatValue(v);
     if (field?.type === "select" || /status|stage|priority/i.test(field?.id || "")) {
       const statusKey = String(value).toLowerCase();
@@ -2912,6 +2965,15 @@ Repair requirements:
           const field = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
           const rec = (getRuntimeData(spec)[activeEntityId] || []).find(r => r.id === rid);
           moveRecord(rid, action === "stage-next" ? STAGES().nextStage(field, rec?.[field?.id]) : STAGES().previousStage(field, rec?.[field?.id]));
+        } else if (action === "open-link") {
+          // Follow a link to its record, on the screen that lists that entity.
+          const order = ["split", "list", "cards", "kanban", "timeline", "feed", "calendar", "dashboard", "report", "metric"];
+          const target = (spec?.modules || []).filter(m => m.entity === actionBtn.dataset.entity)
+            .sort((x, y) => order.indexOf(x.screen) - order.indexOf(y.screen))[0];
+          if (target) {
+            activeModuleId = target.id; selectedRecordId = rid; searchQuery = ""; filterRules = []; selectedIds.clear(); calendarMonth = "";
+            renderPreview(); renderDataEditor();
+          }
         } else if (action === "open-stage") {
           // A workflow's stage opens the list of records standing at it.
           const order = ["list", "split", "kanban", "cards", "timeline", "feed", "calendar", "dashboard", "report", "metric"];

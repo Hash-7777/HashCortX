@@ -133,7 +133,11 @@ const LINE_BUDGET = {
   // workflow shows its stage counts in place of a Run button that did nothing.
   // The rules for stages are in js/systems/stages.js.
   // 3182: a theme's colours are worked out in js/systems/theme.js.
-  'modes/systems/mode.js': 3182,
+  // 3244, up from 3182: records link to each other — a link is shown as
+  // something to follow and set from the target's records — and numbers can
+  // be worked out from others on the record. The rules are in
+  // js/systems/relations.js; drawing and saving them is here.
+  'modes/systems/mode.js': 3244,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
