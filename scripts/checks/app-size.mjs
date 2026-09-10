@@ -132,7 +132,8 @@ const LINE_BUDGET = {
   // drag and step between columns, a detail panel moves its record on, and a
   // workflow shows its stage counts in place of a Run button that did nothing.
   // The rules for stages are in js/systems/stages.js.
-  'modes/systems/mode.js': 3243,
+  // 3182: a theme's colours are worked out in js/systems/theme.js.
+  'modes/systems/mode.js': 3182,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
