@@ -302,7 +302,9 @@ const LINE_BUDGET = {
   // are the run itself taking a run to continue instead of the top bar's task.
   // 2357, down from 2437. Reading what kind of task a swarm was given, and
   // what that asks of a team, moved to src/js/swarm/task-kind.js unchanged.
-  'modes/agent-maker/mode.js': 2357,
+  // 2356: a run applies the website rules to a copy of the team, not to the
+  // saved team.
+  'modes/agent-maker/mode.js': 2356,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

@@ -72,6 +72,19 @@ const plainBudget = K.budgetControlsForTask('Write a poem');
 ok('a build passes more between agents', codeBudget.maxContextCharsPerDependency > plainBudget.maxContextCharsPerDependency);
 ok('and does not reach for tools by default', codeBudget.allowToolUseByDefault === false && plainBudget.allowToolUseByDefault === true);
 
+console.log('\nA run never rewrites the saved team:');
+{
+  // A task read as a website build runs with the website rules. They used to
+  // be written into the saved team, so one question about CSS took a research
+  // team's web search away, added an agent and rewrote every agent's
+  // instructions, for good.
+  const run = /async function runSwarm\([\s\S]*?\n  \}\n/.exec(mode)?.[0] || '';
+  ok('the rules are applied to a copy', /hardenGodBlueprint\(structuredClone\(bp\), task, \[\]\)/.test(run));
+  ok('and never to the team itself', !/hardenGodBlueprint\(bp\b/.test(run));
+  ok('the copy is what runs and what the run records', /runDAG\(runBp,/.test(run) && /aggregateResults\(runBp,/.test(run) && /startRun\(runBp, task\)/.test(run));
+  ok('and the trace says the saved team is unchanged', /the saved team is unchanged/.test(run));
+}
+
 console.log('\nThe Agent Swarm reads these from one place:');
 ok('it takes them from js/swarm/task-kind.js', /\} = window\.HCSwarmTaskKind;/.test(mode));
 ok('and keeps no copy of its own', !/function (isCodeBuildTask|isBigAssignment|classifyTask|artifactContractsForTask)\(/.test(mode));

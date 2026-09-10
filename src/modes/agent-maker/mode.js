@@ -788,12 +788,11 @@ const SwarmMaker = (() => {
     if (progressBar) progressBar.style.display = "";
     updateProgress(0);
 
-    if (isCodeBuildTask(task)) {
-      hardenGodBlueprint(bp, task, []);
-      saveBlueprints();
-      renderDAG();
-      traceAdd("Orchestrator", "Applied website/code quality hardening before execution", "wait");
-    }
+    // A website build runs with the website rules on a copy. Written into the
+    // saved team, they took a research team's web search away for good.
+    const runBp = isCodeBuildTask(task) ? hardenGodBlueprint(structuredClone(bp), task, []) : bp;
+    const added = runBp.agents.filter(a => !bp.agents.some(b => b.id === a.id)).map(a => a.name);
+    if (runBp !== bp) traceAdd("Orchestrator", `Website rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
 
     // Reset all node statuses
     nodeStatuses = {};
@@ -803,18 +802,18 @@ const SwarmMaker = (() => {
     // Kept as a conversation of its own (src/js/swarm/runs.js); started after
     // any hardening above, so it records the agents that ran.
     const run = again
-      ? window.HCSwarmRuns.continueRun(again.run, { blueprint: bp, message: again.message, now: Date.now() })
-      : window.HCSwarmRuns.startRun(bp, task);
+      ? window.HCSwarmRuns.continueRun(again.run, { blueprint: runBp, message: again.message, now: Date.now() })
+      : window.HCSwarmRuns.startRun(runBp, task);
 
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
-      const rawResults = await runDAG(bp, work, signal);
+      const rawResults = await runDAG(runBp, work, signal);
       traceAdd("Orchestrator", "DAG returned raw results · entering aggregation", "boss");
-      const finalOutput = await aggregateResults(bp, rawResults, work, signal);
+      const finalOutput = await aggregateResults(runBp, rawResults, work, signal);
       traceAdd("Orchestrator", `Aggregation returned final output · ${String(finalOutput || "").length} chars`, "ok");
 
-      traceAdd("Orchestrator", `Swarm complete — ${bp.agents.length} agents, task done`, "ok");
-      setRunStatus("done", `Done · ${bp.agents.length} agents`);
+      traceAdd("Orchestrator", `Swarm complete — ${runBp.agents.length} agents, task done`, "ok");
+      setRunStatus("done", `Done · ${runBp.agents.length} agents`);
       updateTraceDot("done");
       updateProgress(1);
 

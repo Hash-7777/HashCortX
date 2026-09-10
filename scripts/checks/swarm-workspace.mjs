@@ -285,7 +285,7 @@ console.log('\nAnother pass by the whole team:');
   ok('a pass asked of an earlier version is made to that version', R.currentFiles(r3)['index.html'].content === '<h1>Warm</h1>' && R.currentFiles(r3)['styles.css'].content === 'h1{}');
 
   ok('the mode reads the run to continue, not the top bar', /again \? window\.HCSwarmTalk\.teamTask\(again\.run, again\.feedback, again\.base\) : task/.test(mode)
-    && /runDAG\(bp, work, signal\)/.test(mode) && /aggregateResults\(bp, rawResults, work, signal\)/.test(mode));
+    && /runDAG\(runBp, work, signal\)/.test(mode) && /aggregateResults\(runBp, rawResults, work, signal\)/.test(mode));
   ok('and keeps the pass in the same run', /again\s*\? window\.HCSwarmRuns\.continueRun\(again\.run/.test(mode) && /finishRun\(run, \{[^}]*base: again\?\.base, named: !!again \}\)/.test(mode));
   ok('the Run button does not hand its click to the run as a run to continue', !/addEventListener\("click", runSwarm\)/.test(mode));
   ok('the Workspace waits for the pass and opens again on the same run', /await deps\.runTeam\(\{[^}]*\}\)[\s\S]*?await open\(blueprint, run\.id\)/.test(ws));
