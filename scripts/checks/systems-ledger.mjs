@@ -200,5 +200,17 @@ console.log('\nThe currency follows what was asked for:');
   ok('anything else is in dollars', build({ description: 'plain invoicing' }).currency === 'USD');
 }
 
+console.log('\nWho an invoice is for:');
+{
+  // The names are gathered from the system's own records by the mode; what
+  // the ledger asks for is decided here. A bare "name" also matched dishes and
+  // products, so a restaurant's invoices went to "Lamb Chops".
+  let asked = null;
+  buildFinancialData({ id: 's', name: 'Saffron', description: 'restaurant', entities: [] }, 'restaurant',
+    { collectBusinessNames: (spec, re) => { asked = re; return []; } });
+  ok('it asks for the fields that hold who is billed', ['customer_name', 'client', 'guest_name', 'company'].every((id) => asked.test(id)));
+  ok('not for dishes, products or rooms', ['dish_name', 'item_name', 'product_name', 'room_name', 'name'].every((id) => !asked.test(id)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/ledger.js)`);
 process.exit(fail ? 1 : 0);

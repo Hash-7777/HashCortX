@@ -50,7 +50,9 @@
     const profile = financeProfile(spec, desc);
     const currency = /egp|egypt|cairo/i.test(`${desc} ${spec.description}`) ? "EGP" : /eur|euro/i.test(`${desc} ${spec.description}`) ? "EUR" : "USD";
     const seed = `${spec.id}|${spec.name}|${profile.domain}`;
-    const customers = [...new Set([...collectBusinessNames(spec, /customer|client|guest|patient|member|student|company|name/i), ...profile.customers])].slice(0, 18);
+    // Only fields that hold who is billed. A bare "name" also matched dishes,
+    // products and rooms, so a restaurant's invoices went to "Lamb Chops".
+    const customers = [...new Set([...collectBusinessNames(spec, /customer|client|guest|patient|member|student|company|buyer|tenant|account_name/i), ...profile.customers])].slice(0, 18);
     const vendors = [...new Set(profile.vendors)].slice(0, 12);
     const months = recentMonths(12);
     const items = ["Core service", "Premium package", "Implementation", "Monthly retainer", "Usage fees", "Support plan"];
