@@ -791,6 +791,10 @@ const SwarmMaker = (() => {
     (bp.agents || []).forEach(a => updateNodeStatus(a.id, "idle"));
     traceAdd("Orchestrator", "Node statuses reset to idle", "wait");
 
+    // Kept as a conversation of its own (src/js/swarm/runs.js); started after
+    // any hardening above, so it records the agents that ran.
+    const run = window.HCSwarmRuns.startRun(bp, task);
+
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
       const rawResults = await runDAG(bp, task, signal);
@@ -807,6 +811,9 @@ const SwarmMaker = (() => {
       // Persist output with blueprint so it survives page refresh
       bp.lastOutput = lastSwarmOutput;
       bp.lastRun    = Date.now();
+      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput });
+      if (kept.run) bp.lastRunId = kept.run.id;
+      traceAdd("Orchestrator", kept.run ? `Kept the run · ${kept.run.turns.length} turns` : `Could not keep the run: ${kept.error}`, kept.run ? "ok" : "warn");
       saveBlueprints();
       traceAdd("Orchestrator", "Saved output to active blueprint", "ok");
       // The result stays in the Swarm tab. It used to be pushed into the

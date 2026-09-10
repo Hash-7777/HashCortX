@@ -280,7 +280,11 @@ const LINE_BUDGET = {
   // that never finishes, spending a person's quota until they stop it — and it
   // is now held to a property rather than an example: for any wiring at all,
   // what comes back has none left.
-  'modes/agent-maker/mode.js': 2710,
+  // 2717, up seven from 2710 after the starter templates moved out to
+  // src/data/swarm-templates.js. A finished run is now kept as a conversation
+  // with versions of its files (src/js/swarm/runs.js); starting one and keeping
+  // it are the only lines that had to be in the mode.
+  'modes/agent-maker/mode.js': 2717,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
@@ -289,11 +293,13 @@ const LINE_BUDGET = {
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //
-  // Worth recording about this file: legacyRun is a single function of about
-  // two thousand one hundred lines, which is four fifths of what is here. It
-  // is not a terminal wrapper that happens to be long; it is one function that
-  // grew. Splitting it is a real piece of work rather than an extraction, and
-  // it has not been attempted.
+  // Worth recording about this file: most of it is CoderMode, one closure of
+  // about two thousand lines holding the Coder's screen code and its shared
+  // state. legacyRun, which an earlier note here named instead, is about fifty
+  // lines; that figure came from measuring to the next top-level function
+  // rather than parsing. The closure's separable pieces — terminal colour,
+  // export, file names — have moved out; splitting the rest is restructuring,
+  // not extraction.
   'modes/code/mode.js': 2631,
 };
 
