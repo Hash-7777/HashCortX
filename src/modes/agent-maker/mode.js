@@ -8,9 +8,7 @@ const runOneTool                  = (...a) => window._H.runOneTool(...a);
 const appendAssistantToolCallTurn = (...a) => window._H.appendAssistantToolCallTurn(...a);
 const appendToolResult            = (...a) => window._H.appendToolResult(...a);
 const extractPythonFence          = (...a) => window._H.extractPythonFence(...a);
-const persistCurrentChat          = (...a) => window._H.persistCurrentChat(...a);
 const setTab                      = (...a) => window._H.setTab(...a);
-const render                      = (...a) => window._H.render(...a);
 const buildOpenAITools            = (...a) => window._H.buildOpenAITools(...a);
 const buildGeminiTools            = (...a) => window._H.buildGeminiTools(...a);
 const buildOllamaTools            = (...a) => window._H.buildOllamaTools(...a);
@@ -915,20 +913,8 @@ const SwarmMaker = (() => {
       bp.lastRun    = Date.now();
       saveBlueprints();
       traceAdd("Orchestrator", "Saved output to active blueprint", "ok");
-
-      // Push result back to main chat as assistant message
-      if (window._H?.state) {
-        traceAdd("Orchestrator", "Publishing swarm result to chat history", "wait");
-        window._H.state.messages.push({
-          role: "assistant",
-          content: lastSwarmOutput,
-          id: Date.now().toString(36),
-          ts: Date.now()
-        });
-        if (typeof render === "function") render();
-        if (typeof persistCurrentChat === "function") persistCurrentChat();
-        traceAdd("Orchestrator", "Chat history persisted", "ok");
-      }
+      // The result stays in the Swarm tab. It used to be pushed into the
+      // normal chat as well — into whichever chat happened to be open.
     } catch (err) {
       if (err.name !== "AbortError") {
         traceAdd("Orchestrator", `Fatal error: ${err.message}`, "err");

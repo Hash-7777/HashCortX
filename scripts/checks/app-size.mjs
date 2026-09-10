@@ -96,7 +96,7 @@ const LINE_BUDGET = {
   // launches, so a launch starts from the real list rather than from the
   // catalogue written by hand. The six lines are the seed and the storing;
   // the rest is in src/js/cloud-model-memory.js.
-  'js/app.js': 6732,
+  'js/app.js': 6730,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -280,7 +280,7 @@ const LINE_BUDGET = {
   // that never finishes, spending a person's quota until they stop it — and it
   // is now held to a property rather than an example: for any wiring at all,
   // what comes back has none left.
-  'modes/agent-maker/mode.js': 2828,
+  'modes/agent-maker/mode.js': 2814,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

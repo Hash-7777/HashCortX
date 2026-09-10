@@ -6704,9 +6704,7 @@ sys.stderr = _stderr
     // Puts an image the agent opened in front of the model — see view_image.
     visionMessage,
     extractPythonFence,
-    persistCurrentChat,
     setTab,
-    render,
     ollamaChat,
     escapeHtml,
     selectedModel: () => modelEl.value,
