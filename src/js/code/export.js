@@ -18,7 +18,8 @@
 //
 // Pure: takes messages, returns text. No DOM, no storage, no network.
 //
-// Loaded before the Coder mode and published as window.HCCodeExport.
+// Loaded after js/code/paths.js, before the Coder mode, and published as
+// window.HCCodeExport.
 // Checked by scripts/checks/code-export.mjs.
 // ==============================================================
 
@@ -144,8 +145,9 @@
    * was offered, and a path ending in a slash gave no name at all.
    */
   function exportBaseName(projectRoot) {
-    const parts = String(projectRoot || '').split(/[\\/]+/).filter(Boolean);
-    const last = parts.length ? parts[parts.length - 1] : '';
+    // The folder's name is read by the same helper the rest of the Coder uses,
+    // so there is one rule for what a path's last part is.
+    const last = projectRoot ? window.HCCodePaths.baseName(projectRoot) : '';
     const clean = last.replace(BAD_IN_NAME, '').replace(/^\.+/, '').trim();
     return clean || 'chat';
   }

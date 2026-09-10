@@ -24,6 +24,7 @@ sandbox.globalThis = sandbox;
 sandbox.self = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'vendor', 'marked.min.js'), sandbox, { filename: 'marked.min.js' });
+vm.runInContext(src('js', 'code', 'paths.js'), sandbox, { filename: 'paths.js' });
 vm.runInContext(src('js', 'code', 'export.js'), sandbox, { filename: 'export.js' });
 const marked = sandbox.marked || sandbox.window.marked;
 const X = sandbox.window.HCCodeExport;

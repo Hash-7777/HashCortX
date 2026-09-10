@@ -77,14 +77,13 @@
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // Names and places of files, with either separator: src/js/code/paths.js.
   function baseName(path) {
-    return String(path || '').split('/').filter(Boolean).pop() || String(path || '');
+    return window.HCCodePaths.baseName(path);
   }
 
   function relativeFromRoot(path) {
-    const raw = String(path || '');
-    const root = String(sharedState.projectRoot || '').replace(/\/$/, '');
-    return root && raw.startsWith(root + '/') ? raw.slice(root.length + 1) : raw;
+    return window.HCCodePaths.relativeFromRoot(path, sharedState.projectRoot);
   }
 
   function setExplorerRootLabel(path) {
@@ -674,7 +673,7 @@
       const sub = $('cdrProjectSub');
       if (!sub) return;
       const root = sharedState.projectRoot;
-      sub.textContent = root ? root.split('/').slice(-1)[0] : 'No project open';
+      sub.textContent = root ? baseName(root) : 'No project open';
       sub.title = root || '';
     }
 
@@ -682,7 +681,7 @@
       sharedState.activeFile = path;
       const sub = $('cdrProjectSub');
       if (sub && path) {
-        sub.textContent = path.split('/').slice(-1)[0] || path;
+        sub.textContent = baseName(path);
         sub.title = path;
       }
     }
@@ -992,7 +991,7 @@
       section.className = 'cdr-symbols-section';
       section.innerHTML = `<div class="cdr-sidebar-title" style="margin:12px 6px 4px">Symbols</div>`;
       for (const [path, items] of Object.entries(syms)) {
-        const fileName = path.split('/').pop();
+        const fileName = baseName(path);
         const fileDiv = document.createElement('div');
         fileDiv.style.margin = '2px 6px';
         fileDiv.innerHTML = `<div style="font-size:10px;color:var(--cdr-text-muted);margin-bottom:2px">${esc(fileName)}</div>`;
@@ -1795,7 +1794,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       group.innerHTML = `<div class="cdr-change-group-title">${pending.length} change${pending.length === 1 ? '' : 's'} from your last session \u2014 keep or undo</div>`;
 
       for (const summary of pending) {
-        const name = String(summary.path || '').split('/').pop() || summary.path;
+        const name = baseName(summary.path);
         const canUndo = !summary.unrestorable;
         // The same shape as a step in a live run. A change from last session is
         // the same kind of thing as one from this one, so it should not arrive
@@ -2140,7 +2139,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
             const toolEl = appendToolBlock(contentEl, call.name, call.arguments);
             const pathHint = call.arguments?.path || call.arguments?.dir || call.arguments?.command || '';
-            cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + String(pathHint).split('/').pop() : ''), 'run');
+            cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + baseName(pathHint) : ''), 'run');
             const t0 = performance.now();
             let resultStr, ok = true;
             try {
@@ -2157,12 +2156,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
             if (call.name === 'write_file' || call.name === 'patch_file') {
               const fp = call.arguments?.path || '';
-              addChangeEntry(fp.split('/').slice(-1)[0] || fp, fp, 'write',
+              addChangeEntry(baseName(fp), fp, 'write',
                 call.arguments?.content || call.arguments?.patch || resultStr);
               if (ok && fp) addAIFileToExplorer(fp, 'write');
             } else if (call.name === 'delete_file') {
               const fp = call.arguments?.path || '';
-              addChangeEntry(fp.split('/').slice(-1)[0] || fp, fp, 'delete', '(file deleted)');
+              addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)');
               if (ok && fp) addAIFileToExplorer(fp, 'delete');
             }
             results.set(call, resultStr);
