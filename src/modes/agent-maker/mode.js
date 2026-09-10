@@ -2435,16 +2435,14 @@ function _polishToast(text, isError) {
       return _peekCodeBlock(idx, rawLang, text);
     }
 
-    // Split on fenced code blocks
-    const parts = [];
-    const re = /```(\w*)\n?([\s\S]*?)```/g;
-    let last = 0, m;
-    while ((m = re.exec(text)) !== null) {
-      if (m.index > last) parts.push({ type: "md", content: text.slice(last, m.index) });
-      parts.push({ type: "code", lang: m[1] || "text", content: m[2] });
-      last = m.index + m[0].length;
-    }
-    if (last < text.length) parts.push({ type: "md", content: text.slice(last) });
+    // Split on fenced code blocks, read by src/js/fences.js the way the chat
+    // draws them. A pattern of its own used to stand here that read a language
+    // as letters only and made the newline after it optional, so a C++ block
+    // was labelled "c" and its code began with "++", and a fence's title
+    // became the first line of the code.
+    const parts = window.HCFences.splitFences(text).map((p) => p.type === "code"
+      ? { type: "code", lang: p.lang || "text", content: p.code }
+      : { type: "md", content: p.text });
 
     return parts.map((p, i) => {
       if (p.type === "md") {

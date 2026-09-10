@@ -280,7 +280,7 @@ const LINE_BUDGET = {
   // that never finishes, spending a person's quota until they stop it — and it
   // is now held to a property rather than an example: for any wiring at all,
   // what comes back has none left.
-  'modes/agent-maker/mode.js': 2871,
+  'modes/agent-maker/mode.js': 2869,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
