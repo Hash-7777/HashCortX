@@ -116,17 +116,6 @@ console.log('\nThe PDF writer frames code and leaves prose as prose:');
     !!oldFirst && oldFirst[2].includes('Then run it.'));
 }
 
-console.log('\nThe Agent Swarm output panel reads fences through this reader:');
-{
-  // Its own pattern read a language as letters only with an optional newline
-  // after it, so a C++ block was labelled "c" and its code began with "++".
-  const am = src('modes', 'agent-maker', 'mode.js');
-  const start = am.indexOf('function _peekRenderContent(');
-  const body = am.slice(start, am.indexOf('\n  }\n', start));
-  ok('the panel splits its output with the shared reader', /HCFences\.splitFences\(/.test(body));
-  ok('and has no fence pattern of its own', !/`{3}\(/.test(body));
-}
-
 console.log('\nNothing else in the app writes its own fence pattern:');
 {
   // Every hand-written pattern for finding code in an answer turned out to be
@@ -141,7 +130,7 @@ console.log('\nNothing else in the app writes its own fence pattern:');
   const ALLOWED = {
     'js/agent-shape.js': 1,        // Python out of a reply, for the sandbox
     'js/systems/spec.js': 2,       // a system spec's JSON, with repair after
-    'modes/agent-maker/mode.js': 2, // a blueprint's JSON; and "is any fence present"
+    'modes/agent-maker/mode.js': 1, // a blueprint's JSON
     'modes/finance/mode.js': 1,    // the analysis JSON, with repair after
     'modes/forge/mode.js': 1,      // a plan's JSON, with repair after
   };

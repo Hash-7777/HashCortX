@@ -29,12 +29,9 @@ const SwarmMaker = (() => {
   let shiftSelectFrom   = null; // agent id we started edge-drawing from
   let mounted           = false;
   let tplPanelOpen      = false;
-  let lastSwarmOutput   = "";
 
   const STORE_KEY = "hashui_swarm_blueprints";
   const NODE_W = 164, NODE_H = 74, H_GAP = 64, V_GAP = 44;
-
-  let _polishedHtmlCache = "";
 
   // ── Themed dialogs ─────────────────────────────────────────────────
   // ── Keeping a swarm finite ──────────────────────────────────────────────
@@ -807,15 +804,16 @@ const SwarmMaker = (() => {
       updateTraceDot("done");
       updateProgress(1);
 
-      lastSwarmOutput = `**Swarm Result — ${bp.name}**\n\n*Task: ${task}*\n\n---\n\n${normaliseAgentOutput(finalOutput)}`;
-      // Persist output with blueprint so it survives page refresh
-      bp.lastOutput = lastSwarmOutput;
-      bp.lastRun    = Date.now();
-      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput });
-      if (kept.run) bp.lastRunId = kept.run.id;
+      const result = normaliseAgentOutput(finalOutput);
+      bp.lastRun = Date.now();
+      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput: result });
+      // The blueprint holds only the run's id; the result is copied into it
+      // (localStorage, beside the keys) only when the run could not be kept.
+      if (kept.run) { bp.lastRunId = kept.run.id; delete bp.lastOutput; }
+      else { delete bp.lastRunId; bp.lastOutput = `**Swarm Result — ${bp.name}**\n\n*Task: ${task}*\n\n---\n\n${result}`; }
       traceAdd("Orchestrator", kept.run ? `Kept the run · ${kept.run.turns.length} turns` : `Could not keep the run: ${kept.error}`, kept.run ? "ok" : "warn");
       saveBlueprints();
-      traceAdd("Orchestrator", "Saved output to active blueprint", "ok");
+      window.HCSwarmWorkspace.open(bp, kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
       // normal chat as well — into whichever chat happened to be open.
     } catch (err) {
@@ -2085,41 +2083,6 @@ ${modelListStr}`;
     if (genBtn)     genBtn.disabled = false;
   }
 
-  // ── Chat Peek Panel ────────────────────────────────────────────────
-
-  // Code store — keeps raw code out of attributes (avoids quote/encoding bugs)
-  const _peekCodeStore = {};
-
-  // ── Web Project support ────────────────────────────────────────────
-  let _projectFiles = null; // Map<filename, {lang, content}> | null
-
-  function _fileTypeIcon(filename) {
-    const ext = (filename.split(".").pop() || "").toLowerCase();
-    const s = (p, extra="") => `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" ${extra}>${p}</svg>`;
-    const icons = {
-      html: s(`<path d="M2 3l1 8 4 1.5L11 11l1-8"/><path d="M4.5 6h5M5 9h4"/>`),
-      htm:  s(`<path d="M2 3l1 8 4 1.5L11 11l1-8"/><path d="M4.5 6h5M5 9h4"/>`),
-      css:  s(`<path d="M2.5 2.5l1 9 3.5 1 3.5-1 1-9z"/><path d="M4.5 6h5M5 9h4"/>`),
-      js:   s(`<rect x="1.5" y="1.5" width="11" height="11" rx="2"/><path d="M5.5 9.5V5.5M8.5 5.5v3a1.5 1.5 0 0 1-3 0"/>`),
-      ts:   s(`<rect x="1.5" y="1.5" width="11" height="11" rx="2"/><path d="M4.5 6h5M7 6v4"/>`),
-      jsx:  s(`<rect x="1.5" y="1.5" width="11" height="11" rx="2"/><path d="M5.5 9.5V5.5M8.5 5.5v3a1.5 1.5 0 0 1-3 0"/>`),
-      tsx:  s(`<rect x="1.5" y="1.5" width="11" height="11" rx="2"/><path d="M4.5 6h5M7 6v4"/>`),
-      json: s(`<path d="M4.5 2C3 2 2.5 2.5 2.5 3.5v2c0 .7-.5 1-.5 1s.5.3.5 1v2c0 1 .5 1.5 2 1.5M9.5 2c1.5 0 2 .5 2 1.5v2c0 .7.5 1 .5 1s-.5.3-.5 1v2c0 1-.5 1.5-2 1.5"/>`),
-      py:   s(`<path d="M5 2C3 2 2 3 2 4.5V6h5v1H3c-1 0-1.5.8-1.5 2.5S2 12 4 12h1v-1.5c0-1 .7-1.5 2-1.5H10c1 0 2-.8 2-2V4.5C12 3 11 2 9 2H5z"/><circle cx="5" cy="4" r=".7" fill="currentColor" stroke="none"/><circle cx="9" cy="10" r=".7" fill="currentColor" stroke="none"/>`),
-      md:   s(`<rect x="1.5" y="2.5" width="11" height="9" rx="1.5"/><path d="M4 9.5V5l2 2.5L8 5v4.5M11 7H9.5"/>`),
-      svg:  s(`<rect x="1.5" y="1.5" width="11" height="11" rx="1.5"/><circle cx="4.5" cy="4.5" r="1.2"/><path d="M1.5 10l3-3.5 2.5 3 2-2.5L12 11"/>`),
-      sh:   s(`<rect x="1.5" y="2" width="11" height="10" rx="1.5"/><path d="M4 8.5l2-2.5-2-2M7.5 8.5h3"/>`),
-    };
-    return icons[ext] || s(`<path d="M8 1.5H3.5A1.5 1.5 0 0 0 2 3v8A1.5 1.5 0 0 0 3.5 12.5h7A1.5 1.5 0 0 0 12 11V5.5L8 1.5z"/><path d="M8 1.5V5.5H12"/><path d="M4.5 8h5M4.5 10h3"/>`);
-  }
-
-  // Named files in a swarm's answer, for the preview and the site download:
-  // src/js/swarm/project-files.js.
-  function _extractProjectFiles(text) {
-    return window.HCSwarmProjectFiles.extractProjectFiles(text);
-  }
-
-
 
   function _buildPreviewHTML(files) {
     const entry = files.get("index.html") || files.get("index.htm") ||
@@ -2180,9 +2143,6 @@ ${modelListStr}`;
     return html;
   }
 
-  let _previewHtmlCache = "";
-
-  // Build a compact code-only payload from raw swarm text.
 function _polishToast(text, isError) {
     let t = document.getElementById("amkPolishToast");
     if (!t) {
@@ -2216,206 +2176,6 @@ function _polishToast(text, isError) {
     }
   }
 
-  async function _polisherDownload() {
-    // Build merged HTML fresh from swarm output every time
-    const source = lastSwarmOutput;
-    const statusEl = document.getElementById("amkPolisherStatus");
-    const setStatus = (text, cls) => {
-      if (statusEl) { statusEl.textContent = text; statusEl.className = "amk-polisher-status " + (cls || ""); }
-    };
-
-    if (!source) {
-      _polishToast("Run an Agent Swarm first — nothing to download yet.", true);
-      return;
-    }
-
-    try {
-      const files  = _extractProjectFiles(source);
-      const merged = files.size > 0 ? _buildPreviewHTML(files) : null;
-      if (!merged) throw new Error("No HTML file found in swarm output.");
-      _polishedHtmlCache = merged;
-    } catch (err) {
-      setStatus(err.message, "error");
-      _polishToast(err.message, true);
-      return;
-    }
-
-    setStatus("Saving…", "running");
-    if (!await swarmSave("site.html", _polishedHtmlCache, "text/html;charset=utf-8")) {
-      setStatus("", "");
-      return;
-    }
-    setStatus("Saved ✓", "done");
-    setTimeout(() => setStatus("", ""), 3000);
-  }
-
-
-  function _showProjectFile(filename) {
-    if (!_projectFiles) return;
-    const file = _projectFiles.get(filename.toLowerCase());
-    if (!file) return;
-    document.querySelectorAll(".amk-peek-file-tab").forEach(t =>
-      t.classList.toggle("active", t.dataset.filename === filename));
-    const el = document.getElementById("amkPeekFileContent");
-    if (el) el.innerHTML = _peekCodeBlock("pf_" + filename.replace(/\W/g, "_"), file.lang, file.content);
-  }
-
-  // Detect raw unfenced code only when text has NO fences at all
-  function _detectRawCode(text) {
-    if (/```/.test(text)) return null; // already has fences — don't re-detect
-    const t = text.trim();
-    if (/^<!DOCTYPE\s+html/i.test(t) || /^<html[\s>]/i.test(t)) return "html";
-    const lines = t.split("\n").filter(l => l.trim());
-    if (lines.length > 4) {
-      const tagLines = lines.filter(l => /^\s*</.test(l)).length;
-      if (tagLines / lines.length > 0.55) return "html";
-    }
-    return null;
-  }
-
-  function _peekRenderContent(text) {
-    if (!text) return "";
-
-    // Only treat as raw block if there are zero fences in the text
-    const rawLang = _detectRawCode(text);
-    if (rawLang) {
-      const idx = "raw_" + Date.now();
-      return _peekCodeBlock(idx, rawLang, text);
-    }
-
-    // Split on fenced code blocks, read by src/js/fences.js the way the chat
-    // draws them. A pattern of its own used to stand here that read a language
-    // as letters only and made the newline after it optional, so a C++ block
-    // was labelled "c" and its code began with "++", and a fence's title
-    // became the first line of the code.
-    const parts = window.HCFences.splitFences(text).map((p) => p.type === "code"
-      ? { type: "code", lang: p.lang || "text", content: p.code }
-      : { type: "md", content: p.text });
-
-    return parts.map((p, i) => {
-      if (p.type === "md") {
-        const segLang = _detectRawCode(p.content);
-        if (segLang) return _peekCodeBlock("seg_" + i, segLang, p.content);
-        const trimmed = p.content.trim();
-        if (!trimmed) return "";
-        // Use marked directly (global CDN) so we're not dependent on formatContent scope
-        let rendered;
-        try {
-          rendered = window.HCMarkdown.renderUntrusted(trimmed, { marked: window.marked, purify: window.DOMPurify });
-        } catch(e) {
-          rendered = `<pre>${escHtml(trimmed)}</pre>`;
-        }
-        return `<div class="amk-peek-md-segment">${rendered}</div>`;
-      }
-      return _peekCodeBlock("blk_" + i, p.lang || "text", p.content);
-    }).join("");
-  }
-
-  function _peekCodeBlock(idx, lang, code) {
-    _peekCodeStore[idx] = code;
-    const safeCode = escHtml(code);
-    const safeLang = escHtml(lang || "text");
-    return `<div class="amk-peek-code-block" data-peek-idx="${idx}">
-      <div class="amk-peek-code-header">
-        <span class="amk-peek-code-lang">${safeLang}</span>
-        <div class="amk-peek-code-btns">
-          <button class="amk-peek-code-btn" onclick="SwarmMaker._peekCopyCode('${idx}')">
-            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" width="11" height="11"><rect x="4" y="4" width="8" height="8" rx="1.2"/><path d="M2 10V2h8"/></svg>
-            Copy
-          </button>
-        </div>
-      </div>
-      <pre class="amk-peek-pre">${safeCode}</pre>
-    </div>`;
-  }
-
-  function _renderPeekBody(body) {
-    const bp = getActive();
-
-    if (!lastSwarmOutput) {
-      _projectFiles = null;
-      const bpName = bp?.name || "this blueprint";
-      body.innerHTML = `<div class="amk-peek-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" width="38" height="38" style="opacity:.4"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 13h4"/></svg>
-        <p>No output for <b>${escHtml(bpName)}</b></p>
-        <span>Run this swarm to see results here</span>
-      </div>`;
-      return;
-    }
-
-    const files = _extractProjectFiles(lastSwarmOutput);
-    _projectFiles = files.size > 0 ? files : null;
-    const hasHtml = files.has("index.html") || files.has("index.htm") ||
-      [...files.values()].some(f => f.lang === "html");
-
-    const runTime = bp?.lastRun
-      ? new Date(bp.lastRun).toLocaleString([], { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" })
-      : "";
-
-    const polisherBar = `
-    <div class="amk-polisher-bar">
-      <div class="amk-polisher-left">
-        <svg class="amk-polisher-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" width="14" height="14">
-          <polygon points="8,1 10,6 15,6 11,9.5 12.5,14.5 8,11.5 3.5,14.5 5,9.5 1,6 6,6" fill="currentColor" opacity=".2"/>
-          <polygon points="8,1 10,6 15,6 11,9.5 12.5,14.5 8,11.5 3.5,14.5 5,9.5 1,6 6,6"/>
-        </svg>
-        <span class="amk-polisher-label">Download Site</span>
-      </div>
-      <button class="amk-polish-btn" onclick="SwarmMaker._polisherDownload()">
-        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12">
-          <path d="M7 1v8M4 6l3 3 3-3M2 11h10"/>
-        </svg>
-        Download
-      </button>
-      <span id="amkPolisherStatus" class="amk-polisher-status"></span>
-    </div>`;
-
-    const hdr = `<div class="amk-peek-output-hdr">
-      <span class="amk-peek-output-name">${escHtml(bp?.name || "Swarm")}</span>
-      ${runTime ? `<span class="amk-peek-run-badge">${runTime}</span>` : ""}
-    </div>${polisherBar}`;
-
-    if (files.size > 1) {
-      // ── Multi-file project view ──
-      const sorted = [...files.entries()].sort(([a],[b]) => {
-        const rank = n => n==="index.html"?0 : n.endsWith(".html")?1 : n.endsWith(".css")?2 : n.endsWith(".js")?3 : 4;
-        return rank(a) - rank(b);
-      });
-      const tabs = `<div class="amk-peek-file-tabs">` +
-        sorted.map(([name], i) =>
-          `<button class="amk-peek-file-tab${i===0?" active":""}" data-filename="${escHtml(name)}"
-            onclick="SwarmMaker._showProjectFile('${escHtml(name)}')">
-            <span class="amk-peek-file-type-icon">${_fileTypeIcon(name)}</span>${escHtml(name)}
-          </button>`
-        ).join("") +
-        `</div>`;
-      const first = sorted[0];
-      const firstBlock = _peekCodeBlock("pf_" + first[0].replace(/\W/g,"_"), first[1].lang, first[1].content);
-      body.innerHTML = hdr + tabs + `<div id="amkPeekFileContent" class="amk-peek-file-content">${firstBlock}</div>`;
-    } else {
-      // ── Normal text / single-file output ──
-      body.innerHTML = hdr + `<div class="amk-peek-output-body">${_peekRenderContent(lastSwarmOutput)}</div>`;
-    }
-
-    setTimeout(() => { body.scrollTop = 0; }, 20);
-  }
-
-  function openChatPeek() {
-    const panel = document.getElementById("amkChatPeek");
-    const body  = document.getElementById("amkChatPeekBody");
-    if (!panel || !body) return;
-    _renderPeekBody(body);
-    panel.classList.add("open");
-  }
-
-  function closeChatPeek() {
-    document.getElementById("amkChatPeek")?.classList.remove("open");
-  }
-
-  function _peekCopyCode(idx) {
-    const code = _peekCodeStore[idx] || "";
-    navigator.clipboard.writeText(code).catch(() => {});
-  }
 
 
   // ── Public API (exposed on window for inline onclick) ──────────────
@@ -2424,11 +2184,7 @@ function _polishToast(text, isError) {
     const bp = getActive();
     const taskEl = document.getElementById("amkTaskInput");
     if (taskEl) taskEl.value = bp?.task || "";
-    lastSwarmOutput = bp?.lastOutput || "";
-    // Live-refresh panel content if it's already open
-    const panel = document.getElementById("amkChatPeek");
-    const body  = document.getElementById("amkChatPeekBody");
-    if (panel?.classList.contains("open") && body) _renderPeekBody(body);
+    if (window.HCSwarmWorkspace.isOpen()) window.HCSwarmWorkspace.open(bp);
   }
   async function _deleteBp(id)  { if (await amkConfirm("Delete this blueprint?")) { deleteBlueprint(id); renderAll(); } }
   function _toggleTpl() { tplPanelOpen = !tplPanelOpen; renderBlueprintList(); }
@@ -2612,18 +2368,9 @@ function _polishToast(text, isError) {
       if (bp) { bp.task = document.getElementById("amkTaskInput").value; saveBlueprints(); renderBlueprintList(); }
     });
 
-    // Chat peek
-    document.getElementById("amkViewChatBtn")?.addEventListener("click", openChatPeek);
-    document.getElementById("amkChatPeekClose")?.addEventListener("click", closeChatPeek);
-    document.getElementById("amkPeekCopyBtn")?.addEventListener("click", () => {
-      if (lastSwarmOutput) navigator.clipboard.writeText(lastSwarmOutput).catch(() => {});
-    });
-    document.getElementById("amkPeekExportBtn")?.addEventListener("click", async () => {
-      if (!lastSwarmOutput) return;
-      const bp = getActive();
-      const stem = (bp?.name || "swarm-output").replace(/\s+/g, "-").toLowerCase();
-      await swarmSave(`${stem}-${Date.now()}.md`, lastSwarmOutput, "text/markdown;charset=utf-8");
-    });
+    // The Workspace: src/js/swarm/workspace.js, given what only this mode has.
+    window.HCSwarmWorkspace.init({ saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave });
+    document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));
 
     // Trace console toggle
     document.getElementById("amkTraceToggle")?.addEventListener("click", () => {
@@ -2698,8 +2445,6 @@ function _polishToast(text, isError) {
     mount,
     render: renderAll,
     _selectBp, _deleteBp, _loadTemplate, _renameBp, _toggleTpl,
-    _peekCopyCode, _showProjectFile,
-    _polisherDownload
   };
 
 })();

@@ -194,7 +194,7 @@ const BUDGET = {
   'css/modes.css': 50,
   'css/main.css': 41,
   'modes/code/mode.css': 26,
-  'modes/agent-maker/mode.css': 24,
+  'modes/agent-maker/mode.css': 9,
   'modes/finance/mode.css': 27,
   'css/tabs.css': 18,
   'css/sidebar.css': 9,

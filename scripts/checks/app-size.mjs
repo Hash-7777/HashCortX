@@ -284,7 +284,11 @@ const LINE_BUDGET = {
   // src/data/swarm-templates.js. A finished run is now kept as a conversation
   // with versions of its files (src/js/swarm/runs.js); starting one and keeping
   // it are the only lines that had to be in the mode.
-  'modes/agent-maker/mode.js': 2717,
+  // 2462, down from 2717. The output drawer, its file tabs and its site
+  // download gave way to the Swarm Workspace (src/js/swarm/workspace.js and
+  // workspace-view.js), which shows a kept run as a conversation beside its
+  // files and renders agent text only through the shared sanitising renderer.
+  'modes/agent-maker/mode.js': 2462,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

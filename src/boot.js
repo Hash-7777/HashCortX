@@ -92,6 +92,8 @@
     '/js/swarm/output.js',
     '/js/swarm/project-files.js',
     '/js/swarm/runs.js',
+    '/js/swarm/workspace-view.js',
+    '/js/swarm/workspace.js',
     '/js/systems/spec.js',
     '/js/systems/money.js',
     '/js/systems/domain.js',

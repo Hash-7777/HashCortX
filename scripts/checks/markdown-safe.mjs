@@ -149,6 +149,16 @@ console.log('\nWhat a model wrote is rendered without becoming markup:');
   ok('it is offered as a link instead', /\[image: chart\]/.test(img));
   ok('an image the app made itself is shown', /<img src="data:image\/png/.test(render('![p](data:image/png;base64,AAAA)')));
 
+  // Code is escaped once, not twice: a < in a code block reads as <.
+  const B = '`'.repeat(3);
+  const code = render(`${B}html\n<h1>Leaf & Kettle</h1>\n${B}`);
+  ok('code in a block shows its own characters', code.includes('&lt;h1&gt;Leaf &amp; Kettle&lt;/h1&gt;') && !code.includes('&amp;lt;'));
+  ok('and is still text, not markup', !/<h1>/.test(code));
+  ok('a code block keeps its language', code.includes('class="language-html"'));
+  ok('a language cannot break out of its attribute', !/class="language-[^"]*"[^>]*on/i.test(render(`${B}x" onmouseover="y\nz\n${B}`)));
+  const inline = render('Use `<div> & x` here');
+  ok('inline code shows its own characters', inline.includes('<code>&lt;div&gt; &amp; x</code>'));
+
   // Without the sanitiser, nothing is guessed: plain escaped text.
   const bare = M.renderUntrusted('<img src=x onerror=alert(1)>\n**x**', { marked });
   ok('with no sanitiser it falls back to plain text', bare.startsWith('<div class="md-plain">'));

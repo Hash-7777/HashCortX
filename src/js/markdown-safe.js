@@ -173,6 +173,19 @@
     const renderer = new marked.Renderer();
     renderer.link = (...args) => { const a = extractMarkedLinkArgs(args); return safeLinkHtml(a.href, a.title, a.text); };
     renderer.image = (...args) => { const a = extractMarkedLinkArgs(args); return safeImageHtml(a.href, a.title, a.text); };
+    // Code arrives carrying the escaping done below, once; it is undone and
+    // done again exactly once, or every < in a code block reads as &lt;.
+    renderer.code = (...args) => {
+      const { text, lang } = extractMarkedCodeArgs(args);
+      const label = String(lang || '').trim().split(/\s+/)[0].replace(/[^\w+#.-]/g, '');
+      const cls = label ? ` class="language-${escapeHtml(label)}"` : '';
+      return `<pre><code${cls}>${escapeHtml(decodeHtmlEntities(text).replace(/\n$/, ''))}</code></pre>`;
+    };
+    renderer.codespan = (...args) => {
+      const first = args[0];
+      const text = first && typeof first === 'object' ? first.text : first;
+      return `<code>${escapeHtml(decodeHtmlEntities(text))}</code>`;
+    };
     const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const html = marked.parse(escaped, { gfm: true, breaks: true, silent: true, renderer });
     return purify.sanitize(html, { ADD_ATTR: ['target', 'rel'], FORBID_TAGS, FORBID_ATTR: ['style'] });

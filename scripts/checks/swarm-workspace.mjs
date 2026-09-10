@@ -18,10 +18,12 @@ const mode = src('modes', 'agent-maker', 'mode.js');
 const code = mode.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
-for (const f of [['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js']]) {
+for (const f of [['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js'], ['js', 'swarm', 'workspace-view.js']]) {
   vm.runInContext(src(...f), sandbox, { filename: f.join('/') });
 }
 const R = sandbox.window.HCSwarmRuns;
+const V = sandbox.window.HCSwarmWorkspaceView;
+const ws = src('js', 'swarm', 'workspace.js');
 
 let pass = 0;
 let fail = 0;
@@ -102,8 +104,48 @@ console.log('\nWhat an agent wrote is never rendered as live markup:');
   // security policy permits inline script, so it is escaped and sanitised on
   // the way to HTML by the shared renderer — never by the markdown library
   // alone.
-  ok('the Swarm does not call the markdown library directly', !/marked\.parse\(/.test(code));
-  ok('it renders agent text through the shared renderer', /HCMarkdown\.renderUntrusted\(/.test(code));
+  ok('the Swarm does not call the markdown library directly', !/marked\.parse\(/.test(code) && !/marked\.parse\(/.test(ws));
+  ok('the Workspace renders agent text through the shared renderer', /HCMarkdown\.renderUntrusted\(/.test(ws));
+  // A file's contents are code, shown as text — never parsed as a page.
+  ok('the Workspace sets a file\'s contents only as text', /pre\.textContent = file\.content/.test(ws));
+  ok('and writes markup in one place, for rendered agent text', (ws.match(/\.innerHTML\s*=/g) || []).length === 1);
+}
+
+console.log('\nWhat the Workspace shows:');
+{
+  const run = {
+    agents: [{ id: 'a1', name: 'Planner', icon: 'P', role: 'analyst' }, { id: 'a2', name: 'Coder', icon: '', role: 'coder' }],
+    turns: [
+      { who: 'you', text: 'Build it', status: 'ok' },
+      { who: 'a1', text: 'plan', status: 'ok' },
+      { who: 'a2', text: 'Skipped: dependency failed (Planner)', status: 'skipped' },
+      { who: 'ghost', text: 'from an agent since removed', status: 'ok' },
+      { who: 'team', text: 'result', status: 'ok' },
+    ],
+    versions: [{ rev: 1, by: 'team', changed: ['index.html', 'styles.css'] }, { rev: 2, by: 'a2', changed: ['index.html'] }],
+  };
+  const t = V.turnsView(run);
+  ok('your turn reads as yours', t[0].kind === 'you' && t[0].name === 'You');
+  ok('an agent\'s turn carries its name, icon and role', t[1].name === 'Planner' && t[1].icon === 'P' && t[1].role === 'analyst');
+  ok('an agent that did not run says so', t[2].statusLabel === 'Did not run');
+  ok('a turn from an agent no longer in the run still has a name', t[3].name === 'ghost');
+  ok('the team\'s result is labelled as the result', t[4].kind === 'team' && t[4].name === 'Team result');
+
+  ok('file tabs start with the page, then styles, then scripts',
+    V.fileOrder(['z.txt', 'app.js', 'styles.css', 'about.html', 'index.html']).join() === 'index.html,about.html,styles.css,app.js,z.txt');
+  ok('a set of files with a page can be previewed', V.hasPage({ 'index.html': { lang: 'html', content: '' } }));
+  ok('one with no page cannot', !V.hasPage({ 'app.py': { lang: 'python', content: '' } }));
+  ok('a version is named by who made it and how many files it touched', V.versionLabel(run, run.versions[1]) === 'v2 · Coder · 1 file');
+  ok('the first version is the team\'s', V.versionLabel(run, run.versions[0]) === 'v1 · the team · 2 files');
+
+  const now = 1_800_000_000_000;
+  ok('a moment ago', V.timeAgo(now - 10_000, now) === 'just now');
+  ok('minutes', V.timeAgo(now - 5 * 60_000, now) === '5 min ago');
+  ok('hours', V.timeAgo(now - 3 * 3_600_000, now) === '3 h ago');
+  ok('one day', V.timeAgo(now - 86_400_000, now) === '1 day ago');
+  ok('older is a date', /^\d{4}-\d{2}-\d{2}$/.test(V.timeAgo(now - 30 * 86_400_000, now)));
+  ok('a long task is shortened in the run list', V.runLabel({ task: 'x'.repeat(80), startedAt: now }, now).startsWith('x'.repeat(47) + '…'));
+  ok('a long turn starts folded', V.startsFolded('line\n'.repeat(40)) && !V.startsFolded('short'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
