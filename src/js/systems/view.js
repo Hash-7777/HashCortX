@@ -66,11 +66,18 @@
     return MONEY_WORDS.test(text);
   }
 
-  /** A sum of money in the system's currency, with its cents. */
-  function formatMoney(value, currency = 'USD') {
+  /**
+   * A sum of money in the system's currency, with its cents. `short` writes
+   * six figures and more as $676.5K, for a tile too narrow for the whole
+   * amount — which it cut off at "$676,539.0".
+   */
+  function formatMoney(value, currency = 'USD', { short = false } = {}) {
     const n = Number(value);
     if (!Number.isFinite(n)) return '—';
     try {
+      if (short && Math.abs(n) >= 100000) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(n);
+      }
       return new Intl.NumberFormat('en-US', { style: 'currency', currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
     } catch {
       return `${currency} ${n.toFixed(2)}`;

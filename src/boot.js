@@ -99,6 +99,7 @@
     '/js/swarm/workspace.js',
     '/js/systems/spec.js',
     '/js/systems/view.js',
+    '/js/systems/figures.js',
     '/js/systems/money.js',
     '/js/systems/domain.js',
     '/js/systems/ledger.js',

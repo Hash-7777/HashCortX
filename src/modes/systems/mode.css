@@ -1332,7 +1332,9 @@ body.system-maker-mode #app { display: none; }
 }
 .sys-metric-tile:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
 .sys-metric-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--sys-app-muted, #64748b); }
-.sys-metric-value { font-size: 32px; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+/* Sized to the tile, so a figure is never cut off at its last digit. */
+.sys-metric-tile { container-type: inline-size; }
+.sys-metric-value { font-size: clamp(18px, 15cqi, 32px); font-weight: 900; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .sys-metric-spark { display: block; margin: 4px 0 2px; opacity: .7; }
 .sys-metric-sub { font-size: 10.5px; color: var(--sys-app-muted, #64748b); }
 .sys-metric-breakdown {

@@ -1740,52 +1740,64 @@ Repair requirements:
   }
 
 
+  // Every figure below is worked out from the records by src/js/systems/
+  // figures.js. The tiles used to carry trends and sparklines nobody had
+  // measured; a trend now compares two named months, or is not shown.
+  const FIG = () => window.HCSystemsFigures;
+  const todayIso = () => new Date().toISOString().slice(0, 10);
+
+  function showFigure(value, field, short = false) {
+    if (value == null) return "—";
+    return VIEW().isMoneyField(field) ? VIEW().formatMoney(value, viewCurrency, { short }) : VIEW().formatNumber(value);
+  }
+
   function renderKpis(records, entity, module = null) {
+    const F = FIG();
     const fields = entity?.fields || [];
     const numField = fields.find(f => f.type === "number");
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const total = numField ? records.reduce((sum, r) => sum + (Number(r[numField.id]) || 0), 0) : records.length;
-    const open = statusField ? records.filter(r => !/closed|done|approved/i.test(String(r[statusField.id] || ""))).length : Math.ceil(records.length * .4);
-    const pct = records.length ? Math.round(((records.length - open) / records.length) * 100) : 0;
+    const dateField = F.dateFieldOf(entity);
 
-    let kpis;
-    if (Array.isArray(module?.kpis) && module.kpis.length) {
-      kpis = module.kpis.map((k, i) => {
-        const fld = fields.find(f => f.id === k.field || f.label?.toLowerCase() === k.field?.toLowerCase());
-        const show = (n) => VIEW().isMoneyField(fld) ? VIEW().formatMoney(n, viewCurrency) : VIEW().formatNumber(n);
-        let val;
-        if (k.aggregate === "sum") val = show(records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0));
-        else if (k.aggregate === "avg") val = show(records.length ? records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0) / records.length : 0);
-        else if (k.aggregate === "max") val = show(VIEW().safeMax(records.map(r => r[fld?.id])));
-        else val = records.length;
-        return { label: k.label, value: val, trend: k.trend || "+5%", up: !String(k.trend || "").startsWith("-"), icon: KPI_ICONS[i % KPI_ICONS.length], accent: ACCENT_PALETTE[i % ACCENT_PALETTE.length] };
-      });
-    } else {
-      kpis = [
-        { label: "Total Records", value: records.length, trend: "+12%", up: true, icon: KPI_ICONS[0], accent: ACCENT_PALETTE[0] },
-        { label: numField ? `Total ${numField.label}` : "Active Work", value: formatValue(total), trend: "+8%", up: true, icon: KPI_ICONS[1], accent: ACCENT_PALETTE[1] },
-        { label: "Open Items", value: open, trend: "-3%", up: false, icon: KPI_ICONS[2], accent: ACCENT_PALETTE[2] },
-        { label: "Completion", value: `${pct}%`, trend: "+5%", up: true, icon: KPI_ICONS[3], accent: ACCENT_PALETTE[3] },
-      ];
+    const defs = Array.isArray(module?.kpis) && module.kpis.length
+      ? module.kpis.map(d => F.kpiFrom(d, fields)).filter(Boolean)
+      : [{ label: "Records", field: null, how: "count" }, ...(numField ? [{ label: `Total ${numField.label}`, field: numField, how: "sum" }] : [])];
+
+    const kpis = defs.map((d) => {
+      const value = F.aggregate(records, d.field?.id, d.how);
+      return {
+        label: d.label,
+        ...(d.how === "count" ? { value: VIEW().formatNumber(value), exact: "" } : { value: showFigure(value, d.field, true), exact: showFigure(value, d.field) }),
+        trend: F.monthTrend(records, dateField?.id, d.field?.id, d.how, todayIso()),
+        series: F.monthlySeries(records, dateField?.id, d.field?.id, d.how, todayIso()),
+      };
+    });
+    // Open and finished work, only where records say what state they are in.
+    if (statusField && !module?.kpis?.length) {
+      const live = records.filter(r => !F.isDropped(r[statusField.id]));
+      const done = live.filter(r => F.isFinished(r[statusField.id])).length;
+      kpis.push({ label: "Open", value: VIEW().formatNumber(live.length - done), trend: null, series: [] });
+      kpis.push({ label: "Finished", value: live.length ? `${Math.round((done / live.length) * 100)}%` : "—", trend: null, series: [] });
     }
+
     return `<div class="sys-kpi-grid">${kpis.map((k, ki) => {
-      const seeds = [55,72,48,85,61,90,68];
-      const bars = seeds.map((h, bi) => {
-        const v = ((h + ki * 17 + bi * 11) % 16) + 4;
-        return `<rect x="${bi * 6}" y="${20 - v}" width="4" height="${v}" rx="1" fill="${k.accent}" opacity="${bi === seeds.length - 1 ? "1" : "0.4"}"/>`;
+      const accent = ACCENT_PALETTE[ki % ACCENT_PALETTE.length];
+      const top = VIEW().safeMax(k.series.map(p => p.value)) || 1;
+      const bars = k.series.map((p, bi) => {
+        const v = Math.max(1, Math.round((Math.max(0, p.value) / top) * 18));
+        return `<rect x="${bi * 6}" y="${20 - v}" width="4" height="${v}" rx="1" fill="${accent}" opacity="${bi === k.series.length - 1 ? "1" : "0.4"}"><title>${esc(p.label)}</title></rect>`;
       }).join("");
       return `
-      <div class="sys-kpi-card" style="--kpi-accent:${k.accent}">
-        <div class="sys-kpi-icon" style="color:${k.accent};background:${k.accent}18">${k.icon}</div>
+      <div class="sys-kpi-card" style="--kpi-accent:${accent}">
+        <div class="sys-kpi-icon" style="color:${accent};background:${accent}18">${KPI_ICONS[ki % KPI_ICONS.length]}</div>
         <div class="sys-kpi-body">
           <div class="sys-kpi-label">${esc(k.label)}</div>
-          <div class="sys-kpi-value">${esc(String(k.value))}</div>
-          <svg class="sys-sparkline" viewBox="0 0 46 20" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+          <div class="sys-kpi-value"${k.exact && k.exact !== k.value ? ` title="${esc(k.exact)}"` : ""}>${esc(String(k.value))}</div>
+          ${bars ? `<svg class="sys-sparkline" viewBox="0 0 ${k.series.length * 6 - 2} 20" preserveAspectRatio="none" role="img" aria-label="${esc(k.label)} by month">${bars}</svg>` : ""}
         </div>
-        <div class="sys-kpi-trend ${k.up ? "up" : "down"}">
-          <svg viewBox="0 0 10 10" fill="currentColor" width="9" height="9"><polygon points="${k.up ? "5,2 9,8 1,8" : "5,8 9,2 1,2"}"/></svg>
-          ${esc(k.trend)}
-        </div>
+        ${k.trend ? `<div class="sys-kpi-trend ${k.trend.up ? "up" : "down"}" title="${esc(`${k.trend.current} compared with ${k.trend.previous}`)}">
+          <svg viewBox="0 0 10 10" fill="currentColor" width="9" height="9"><polygon points="${k.trend.up ? "5,2 9,8 1,8" : "5,8 9,2 1,2"}"/></svg>
+          ${esc(k.trend.text)} vs ${esc(k.trend.previous)}
+        </div>` : ""}
       </div>`;
     }).join("")}</div>`;
   }
@@ -1894,33 +1906,40 @@ Repair requirements:
     </div>`;
   }
 
+  /**
+   * One bar per record that has a figure in `field`, largest drawn full.
+   * Records with no figure are left out rather than given one: a bar of 10,
+   * 20, 30 for a blank used to sit among the real ones.
+   */
+  function figureBars(records, entity, field, limit, labelLength) {
+    const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
+    const rows = records.filter(r => r[field.id] !== "" && r[field.id] != null && Number.isFinite(Number(r[field.id]))).slice(0, limit);
+    const top = VIEW().safeMax(rows.map(r => Math.abs(Number(r[field.id])))) || 1;
+    return rows.map((r, idx) => {
+      const value = Number(r[field.id]);
+      const pct = Math.max(2, Math.round((Math.abs(value) / top) * 100));
+      return `<div class="sys-bar-row">
+        <span class="sys-bar-label">${esc(VIEW().recordLabel(r, entity).slice(0, labelLength))}</span>
+        <div class="sys-bar-track"><div class="sys-bar-fill" style="width:${pct}%;background:${barColors[idx % barColors.length]}"></div></div>
+        <span class="sys-bar-val">${showFigure(value, field)}</span>
+      </div>`;
+    }).join("");
+  }
+
   function renderSideWidgets(records, entity, selected, spec) {
     const numField = entity?.fields?.find(f => f.type === "number");
-    const chartRows = records.slice(0, 6);
-    const max = Math.max(...chartRows.map(r => Number(r[numField?.id]) || 1), 1);
     const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6"];
+    const bars = numField ? figureBars(records, entity, numField, 6, 16) : "";
     return `<div class="sys-side-col">
-      <div class="sys-widget">
+      ${bars ? `<div class="sys-widget">
         <div class="sys-widget-head">
           <div class="sys-widget-head-left">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><path d="M3 13V3M3 13h10"/><path d="M5.5 10V7M8 10V4M10.5 10V6"/></svg>
-            <span class="sys-widget-title">Performance</span>
+            <span class="sys-widget-title">${esc(numField.label)}</span>
           </div>
-          <span class="sys-badge">Live</span>
         </div>
-        <div class="sys-widget-body"><div class="sys-bars">
-          ${chartRows.map((r, idx) => {
-            const label = VIEW().recordLabel(r, entity);
-            const value = Number(r[numField?.id]) || (idx + 1) * 10;
-            const pct = Math.max(6, Math.round((value / max) * 100));
-            return `<div class="sys-bar-row">
-              <span class="sys-bar-label">${esc(String(label)).slice(0, 16)}</span>
-              <div class="sys-bar-track"><div class="sys-bar-fill" style="width:${pct}%;background:${barColors[idx % barColors.length]}"></div></div>
-              <span class="sys-bar-val">${esc(formatValue(value))}</span>
-            </div>`;
-          }).join("")}
-        </div></div>
-      </div>
+        <div class="sys-widget-body"><div class="sys-bars">${bars}</div></div>
+      </div>` : ""}
 
       <div class="sys-widget">
         <div class="sys-widget-head">
@@ -2031,8 +2050,7 @@ Repair requirements:
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
 
-    const chartRows = records.slice(0, 8);
-    const max = Math.max(...chartRows.map(r => Number(r[numField?.id]) || 1), 1);
+    const bars = numField ? figureBars(records, entity, numField, 8, 20) : "";
 
     const breakdown = statusField ? (() => {
       const groups = {};
@@ -2043,27 +2061,15 @@ Repair requirements:
     return `
       ${renderKpis(records, entity, module)}
       <div class="sys-report-grid">
-        <div class="sys-widget sys-report-chart">
+        ${bars ? `<div class="sys-widget sys-report-chart">
           <div class="sys-widget-head">
             <div class="sys-widget-head-left">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><path d="M3 13V3M3 13h10"/><path d="M5.5 10V7M8 10V4M10.5 10V6"/></svg>
-              <span class="sys-widget-title">${numField ? esc(numField.label) + " by Record" : "Record Distribution"}</span>
+              <span class="sys-widget-title">${esc(numField.label)} by ${esc(VIEW().titleField(entity)?.label || "record")}</span>
             </div>
-            <span class="sys-badge">Chart</span>
           </div>
-          <div class="sys-widget-body"><div class="sys-bars sys-bars--report">
-            ${chartRows.map((r, idx) => {
-              const label = VIEW().recordLabel(r, entity);
-              const value = Number(r[numField?.id]) || (idx + 1) * 10;
-              const pct = Math.max(6, Math.round((value / max) * 100));
-              return `<div class="sys-bar-row">
-                <span class="sys-bar-label">${esc(label.slice(0, 20))}</span>
-                <div class="sys-bar-track"><div class="sys-bar-fill" style="width:${pct}%;background:${barColors[idx % barColors.length]}"></div></div>
-                <span class="sys-bar-val">${esc(formatValue(value))}</span>
-              </div>`;
-            }).join("")}
-          </div></div>
-        </div>
+          <div class="sys-widget-body"><div class="sys-bars sys-bars--report">${bars}</div></div>
+        </div>` : ""}
         ${breakdown.length ? `<div class="sys-widget sys-report-breakdown">
           <div class="sys-widget-head">
             <div class="sys-widget-head-left">
@@ -2324,18 +2330,10 @@ Repair requirements:
     const primary = spec?.theme?.primary || "#2563eb";
     const tileColors = [primary, accent, "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
 
-    const kpiDefs = module?.kpis?.length ? module.kpis : numFields.map(f => ({ label: f.label, field: f.id, aggregate: "sum" }));
-
-    const computeKpi = (def) => {
-      if (!def) return 0;
-      const { field, aggregate } = def;
-      if (aggregate === "count" || !field) return records.length;
-      const vals = records.map(r => Number(r[field]) || 0);
-      if (aggregate === "sum") return vals.reduce((a,b) => a+b, 0);
-      if (aggregate === "avg") return vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : 0;
-      if (aggregate === "max") return Math.max(...vals, 0);
-      return records.length;
-    };
+    const F = FIG();
+    const dateField = F.dateFieldOf(entity);
+    const kpiDefs = (module?.kpis?.length ? module.kpis : numFields.map(f => ({ label: f.label, field: f.id, aggregate: "sum" })))
+      .map(d => F.kpiFrom(d, fields)).filter(Boolean);
 
     // status breakdown donut-style
     const breakdown = statusField ? (() => {
@@ -2344,24 +2342,25 @@ Repair requirements:
       return Object.entries(groups).sort((a,b) => b[1]-a[1]).slice(0,6);
     })() : [];
 
-    // mini sparkline from num data
-    const sparkSvg = (field, color) => {
-      const vals = records.slice(-12).map(r => Number(r[field]) || 0);
-      if (vals.length < 2) return "";
-      const mx = Math.max(...vals, 1);
-      const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * 80},${20 - (v / mx) * 18}`).join(" ");
-      return `<svg viewBox="0 0 80 20" width="80" height="20" class="sys-metric-spark"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
+    // A line through the figure month by month — it used to follow the
+    // records in whatever order the list was sorted, which is not a trend.
+    const sparkSvg = (series, color) => {
+      if (series.length < 2) return "";
+      const mx = VIEW().safeMax(series.map(p => p.value)) || 1;
+      const pts = series.map((p, i) => `${(i / (series.length - 1)) * 80},${20 - (Math.max(0, p.value) / mx) * 18}`).join(" ");
+      return `<svg viewBox="0 0 80 20" width="80" height="20" class="sys-metric-spark" role="img" aria-label="${esc(`${series[0].label} to ${series[series.length - 1].label}`)}"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round"/></svg>`;
     };
 
     const tiles = kpiDefs.slice(0, 6).map((def, idx) => {
-      const val = computeKpi(def);
+      const val = F.aggregate(records, def.field?.id, def.how);
       const color = tileColors[idx % tileColors.length];
-      const formatted = def.aggregate === "sum" || def.aggregate === "avg" ? formatValue(val) : val.toLocaleString();
+      const [formatted, exact] = def.how === "count" ? [VIEW().formatNumber(val), ""] : [showFigure(val, def.field, true), showFigure(val, def.field)];
+      const trend = F.monthTrend(records, dateField?.id, def.field?.id, def.how, todayIso());
       return `<div class="sys-metric-tile" style="--tile-color:${color}">
         <div class="sys-metric-label">${esc(def.label)}</div>
-        <div class="sys-metric-value" style="color:var(--tile-color)">${esc(formatted)}</div>
-        ${numFields[idx] ? sparkSvg(numFields[idx]?.id || def.field, color) : ""}
-        <div class="sys-metric-sub">${records.length} record${records.length !== 1 ? "s" : ""}</div>
+        <div class="sys-metric-value" style="color:var(--tile-color)"${exact && exact !== formatted ? ` title="${esc(exact)}"` : ""}>${esc(formatted)}</div>
+        ${sparkSvg(F.monthlySeries(records, dateField?.id, def.field?.id, def.how, todayIso()), color)}
+        <div class="sys-metric-sub">${trend ? `${esc(trend.text)} ${esc(trend.current)} vs ${esc(trend.previous)} · ` : ""}${records.length} record${records.length !== 1 ? "s" : ""}</div>
       </div>`;
     });
 

@@ -65,6 +65,8 @@ console.log('\nMoney:');
   ok('in the system\'s own currency', V.formatMoney(1200, 'EUR') === '€1,200.00');
   ok('a figure that is not a number is a dash, not NaN', V.formatMoney('abc') === '—' && V.formatNumber(undefined) === '—');
   ok('a plain figure is grouped', V.formatNumber(12345.678) === '12,345.68');
+  ok('on a tile, six figures and more are written short', V.formatMoney(676539.04, 'USD', { short: true }) === '$676.5K');
+  ok('and less than that keeps its cents', V.formatMoney(29160.31, 'USD', { short: true }) === '$29,160.31');
   ok('the currency comes from the system', V.currencyOf({ financialModel: { currency: 'egp' } }) === 'EGP' && V.currencyOf({}) === 'USD');
   ok('a malformed currency falls back rather than breaking the formatter', V.currencyOf({ currency: 'dollars' }) === 'USD');
 }
