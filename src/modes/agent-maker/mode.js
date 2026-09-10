@@ -2094,64 +2094,11 @@ ${modelListStr}`;
   }
 
 
+  // The site as one page, in src/js/swarm/site.js.
   function _buildPreviewHTML(files) {
-    const entry = files.get("index.html") || files.get("index.htm") ||
-      [...files.values()].find(f => f.lang === "html");
-    if (!entry) return null;
-    let html = entry.content;
-    const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const inlined = new Set();
-
-    for (const [name, f] of files) {
-      if (f === entry) continue;
-      if (name.endsWith(".css")) {
-        const before = html;
-        html = html.replace(
-          new RegExp(`<link[^>]+href=["'](?:\\./)?${esc(name)}["'][^>]*/?>`, "gi"),
-          `<style>/* ${name} */\n${f.content}\n</style>`
-        );
-        if (html !== before) inlined.add(name);
-      } else if (name.endsWith(".js")) {
-        const before = html;
-        html = html.replace(
-          new RegExp(`<script[^>]+src=["'](?:\\./)?${esc(name)}["'][^>]*></script>`, "gi"),
-          `<script>/* ${name} */\n${f.content}\n</script>`
-        );
-        if (html !== before) inlined.add(name);
-      }
-    }
-
-    // Inject any CSS/JS that wasn't matched by a link/script tag — always inject, don't drop
-    const extraCss = [], extraJs = [];
-    for (const [name, f] of files) {
-      if (f === entry || inlined.has(name)) continue;
-      if (name.endsWith(".css")) extraCss.push(`/* ${name} */\n${f.content}`);
-      else if (name.endsWith(".js")) extraJs.push(`/* ${name} */\n${f.content}`);
-    }
-    if (extraCss.length) {
-      const tag = `<style>\n${extraCss.join("\n\n")}\n</style>`;
-      html = /<\/head>/i.test(html)
-        ? html.replace(/<\/head>/i, `${tag}\n</head>`)
-        : tag + "\n" + html;
-    }
-    if (extraJs.length) {
-      const tag = `<script>\n${extraJs.join("\n\n")}\n</script>`;
-      html = /<\/body>/i.test(html)
-        ? html.replace(/<\/body>/i, `${tag}\n</body>`)
-        : html + "\n" + tag;
-    }
-
-    // Force-inject Tailwind CDN if Tailwind classes are present but CDN is missing
-    const hasTailwindClasses = /class="[^"]*(?:bg-|text-|flex|grid|p-|m-|rounded|shadow|border|w-|h-|gap-|space-)[^"]*"/i.test(html);
-    const hasTailwindScript = /cdn\.tailwindcss\.com|tailwind\.config/i.test(html);
-    if (hasTailwindClasses && !hasTailwindScript) {
-      const inject = '<script src="https://cdn.tailwindcss.com"></script>';
-      html = /<\/head>/i.test(html)
-        ? html.replace(/<\/head>/i, `${inject}\n</head>`)
-        : inject + "\n" + html;
-    }
-    return html;
+    return window.HCSwarmSite.buildSite(files);
   }
+
 
 function _polishToast(text, isError) {
     let t = document.getElementById("amkPolishToast");
