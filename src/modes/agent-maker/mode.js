@@ -1931,7 +1931,7 @@ ${modelListStr}`;
       <div class="amk-form-group">
         <label>Role Icon</label>
         <div class="amk-icon-row" id="amkIconRow" style="flex-wrap:wrap;gap:5px;">
-          ${ROLE_SVG_ORDER.map(r => `<button class="amk-role-svg-btn${agentRoleIcon===r?" selected":""}" data-ic="${r}" title="${r.charAt(0).toUpperCase()+r.slice(1)}" onclick="this.parentElement.querySelectorAll('.amk-role-svg-btn').forEach(b=>b.classList.remove('selected'));this.classList.add('selected');document.getElementById('amkFIcon').dataset.val=this.dataset.ic;document.getElementById('amkFRole').value=this.dataset.ic;">${ROLE_SVGS[r]||ROLE_SVGS.custom}</button>`).join("")}
+          ${ROLE_SVG_ORDER.map(r => `<button class="amk-role-svg-btn${agentRoleIcon===r?" selected":""}" data-ic="${r}" title="${r.charAt(0).toUpperCase()+r.slice(1)}" type="button">${ROLE_SVGS[r]||ROLE_SVGS.custom}</button>`).join("")}
         </div>
         <input type="hidden" id="amkFIcon" data-val="${escHtml(agentRoleIcon)}">
       </div>
@@ -1964,8 +1964,7 @@ ${modelListStr}`;
       <div class="amk-form-group">
         <label>Temperature <span id="amkTempVal" style="color:var(--amk-bright)">${(agent.temperature||0.7).toFixed(1)}</span></label>
         <div class="amk-slider-row">
-          <input type="range" id="amkFTemp" min="0" max="1" step="0.1" value="${agent.temperature||0.7}"
-            oninput="document.getElementById('amkTempVal').textContent=parseFloat(this.value).toFixed(1)">
+          <input type="range" id="amkFTemp" min="0" max="1" step="0.1" value="${agent.temperature||0.7}">
         </div>
       </div>
       <div class="amk-form-group">
@@ -1994,6 +1993,17 @@ ${modelListStr}`;
           <span style="color:rgba(124,106,245,0.6);font-size:10px">Shift-click two nodes to connect them · dbl-click edge to remove</span>
         </div>
       </div>`;
+    // Listeners, not markup handlers, which a release never runs.
+    body.querySelector("#amkIconRow")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".amk-role-svg-btn");
+      if (!btn) return;
+      body.querySelectorAll(".amk-role-svg-btn").forEach(b => b.classList.toggle("selected", b === btn));
+      document.getElementById("amkFIcon").dataset.val = btn.dataset.ic;
+      document.getElementById("amkFRole").value = btn.dataset.ic;
+    });
+    body.querySelector("#amkFTemp")?.addEventListener("input", (e) => {
+      document.getElementById("amkTempVal").textContent = parseFloat(e.target.value).toFixed(1);
+    });
   }
 
   // ── Blueprint list ─────────────────────────────────────────────────

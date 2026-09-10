@@ -288,7 +288,10 @@ const LINE_BUDGET = {
   // download gave way to the Swarm Workspace (src/js/swarm/workspace.js and
   // workspace-view.js), which shows a kept run as a conversation beside its
   // files and renders agent text only through the shared sanitising renderer.
-  'modes/agent-maker/mode.js': 2462,
+  // 2472, up from 2462. The agent editor's role icons and temperature readout
+  // were wired with handlers written into the markup, which a release never
+  // runs; the listeners that replace them take a few more lines.
+  'modes/agent-maker/mode.js': 2472,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

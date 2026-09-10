@@ -19,7 +19,7 @@
 //
 // Run with: npm run check:production-policy
 // ==============================================================
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -69,6 +69,27 @@ console.log('\nWhat a release does with scripts:');
   // are hashed, so 'unsafe-inline' in script-src has no effect in a release.
   // Inline script, an onclick="" written as markup included, does not run there.
   ok('a release adds hashes to script-src, so its \'unsafe-inline\' does not apply', released.scriptNonceOrHash);
+
+  // So a handler written into markup — onclick="", oninput="" — is dead in
+  // every release, however well it works in development. The agent editor's
+  // role icons and its temperature readout were both wired that way.
+  const HANDLER = /\son(click|dblclick|change|input|error|load|submit|mouse[a-z]+|key[a-z]+|focus|blur|pointer[a-z]+)\s*=\s*["']/i;
+  const src = join(root, 'src');
+  const offenders = [];
+  (function walk(dir) {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (name === 'vendor') continue;
+      if (statSync(full).isDirectory()) { walk(full); continue; }
+      if (!/\.(js|html)$/.test(name)) continue;
+      readFileSync(full, 'utf8').split('\n').forEach((line, i) => {
+        if (/^\s*(\/\/|\*|<!--)/.test(line)) return;
+        if (HANDLER.test(line)) offenders.push(`${full.slice(src.length + 1)}:${i + 1}`);
+      });
+    }
+  })(src);
+  ok('no event handler is written into markup anywhere in the app', offenders.length === 0, offenders.join(', '));
+  ok('control: the pattern finds one', HANDLER.test('<button onclick="x()">'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (the released app's policy)`);
