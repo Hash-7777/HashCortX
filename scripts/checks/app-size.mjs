@@ -121,7 +121,9 @@ const LINE_BUDGET = {
   // 3271: the dashboards' figures come from src/js/systems/figures.js.
   // 3261: a generated entity keeps the model's fields instead of taking the
   // app's template for its kind of business on top.
-  'modes/systems/mode.js': 3261,
+  // 3196: stand-in values moved to src/js/systems/samples.js, without the
+  // lists of other businesses' dishes, rooms and products.
+  'modes/systems/mode.js': 3196,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

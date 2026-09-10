@@ -480,7 +480,11 @@ const SystemMaker = (() => {
     });
 
     spec.entities = normalizeEntities(spec.entities, spec.modules);
-    spec.mockData = normalizeData(spec.mockData, spec.entities, previousSpec);
+    // Which entities the model wrote no records for, so they can be asked for;
+    // kept off the saved spec.
+    const standIns = [];
+    spec.mockData = normalizeData(spec.mockData, spec.entities, previousSpec, standIns);
+    Object.defineProperty(spec, "standIns", { value: standIns, enumerable: false, configurable: true });
     spec.screens = Array.isArray(spec.screens) ? spec.screens : [];
     spec.workflows = Array.isArray(spec.workflows) && spec.workflows.length ? spec.workflows : [
       { id:"approval_flow", name:"Approval Flow", stages:["Draft","Review","Approved","Closed"] },
@@ -528,7 +532,7 @@ const SystemMaker = (() => {
     };
   }
 
-  function normalizeData(input, entities, previousSpec) {
+  function normalizeData(input, entities, previousSpec, standIns = []) {
     const data = {};
     const oldRuntime = previousSpec ? getRuntimeData(previousSpec) : null;
     Object.values(entities).forEach(entity => {
@@ -552,9 +556,10 @@ const SystemMaker = (() => {
           if (match && Array.isArray(input[match])) rows = input[match];
         }
       }
+      if (!(Array.isArray(rows) && rows.length)) standIns.push(entity.id);
       data[entity.id] = Array.isArray(rows) && rows.length
         ? rows.map((r, idx) => normalizeRecord(r, entity, idx))
-        : generateRows(entity, entity.id);
+        : Array.from({ length: 8 }, (_, idx) => normalizeRecord({}, entity, idx));
     });
     return data;
   }
@@ -569,113 +574,9 @@ const SystemMaker = (() => {
         ?? row?.[slug(f.label)]
         ?? row?.[f.id.replace(/_/g,"")]
         ?? undefined;
-      out[f.id] = val !== undefined ? val : sampleValue(f, idx, entity.id);
+      out[f.id] = val !== undefined ? val : window.HCSystemsSamples.sampleValue(f, idx, entity.id, todayIso());
     });
     return out;
-  }
-
-  function generateRows(entity, seed = "") {
-    return Array.from({ length: 8 }, (_, idx) => normalizeRecord({}, entity, idx));
-  }
-
-  // Seeded pseudo-random so each entity+field combo gets different but stable values
-
-  function sampleValue(field, idx, entitySeed = "") {
-    const r = seededRand(entitySeed + field.id, idx);
-    const ri = n => Math.floor(r * n);
-
-    if (field.type === "number") {
-      const base = seededRand(field.id, 0);
-      if (/salary|wage|pay/i.test(field.id)) return Math.round(45000 + base * 155000 + idx * 8000);
-      if (/hourly_rate|hourly/i.test(field.id)) return Math.round(14 + r * 46 + idx);
-      if (/price|cost|amount|total|revenue|value/i.test(field.id)) {
-        if (/menu|food|dish|meal|item_price/i.test(entitySeed)) return +(8 + r * 42).toFixed(2);
-        return Math.round(50 + r * 4950 + idx * 200);
-      }
-      if (/fee|rate|nightly/i.test(field.id)) return Math.round(80 + r * 920 + idx * 50);
-      if (/monthly_fee/i.test(field.id)) return Math.round(29 + r * 171 + idx * 10);
-      if (/budget/i.test(field.id)) return Math.round(50000 + r * 950000);
-      if (/qty|quantity|stock|count|units/i.test(field.id)) return Math.round(1 + r * 499 + idx * 12);
-      if (/guests|capacity|enrolled|seats|people/i.test(field.id)) return Math.round(1 + r * 11 + (idx % 4));
-      if (/floor|room_number/i.test(field.id)) return Math.floor(1 + r * 12) * 100 + Math.floor(r * 20) + 1;
-      if (/prep_time|duration|minutes/i.test(field.id)) return [5,8,10,12,15,20,25,30][ri(8)];
-      if (/visits|stays|orders_count/i.test(field.id)) return Math.round(1 + r * 49);
-      if (/score|rate|percent|rating/i.test(field.id)) return Math.round(60 + r * 40);
-      if (/age/i.test(field.id)) return Math.round(22 + r * 43);
-      if (/weight|kg|lbs/i.test(field.id)) return +(5 + r * 295).toFixed(1);
-      if (/area|sqft|sqm/i.test(field.id)) return Math.round(400 + r * 4600);
-      if (/bedrooms/i.test(field.id)) return [1,2,2,3,3,4,5][ri(7)];
-      return Math.round(100 + r * 9900 + idx * 300);
-    }
-    if (field.type === "date") {
-      const months = ["2025-08","2025-09","2025-10","2025-11","2025-12","2026-01","2026-02","2026-03","2026-04","2026-05"];
-      const m = months[ri(months.length)];
-      const d = String(Math.floor(r * 27) + 1).padStart(2, "0");
-      return `${m}-${d}`;
-    }
-    if (field.type === "select") {
-      const opts = field.options?.length ? field.options : ["Active","Pending","Closed"];
-      return opts[ri(opts.length)];
-    }
-
-    const firstNames = ["Sarah","James","Aisha","Carlos","Mei","Omar","Priya","Lucas","Fatima","David","Yuna","Ravi","Elena","Marcus","Layla","Tom","Zara","Kofi","Ana","Ethan"];
-    const lastNames  = ["Chen","Osei","Patel","Müller","Santos","Kim","Reyes","Ali","Johnson","Okafor","Nakamura","Singh","Cohen","Williams","Dubois","García","Yamamoto","Mensah","Brown","Andersen"];
-    const companies  = ["Meridian Co.","Stellar Inc.","Cascade Corp.","Ironvault Ltd.","Nexar Group","BluePeak","Solvex","Quorra","Crestfield","Lumina Tech","Arion Partners","Veltrix","Helix Solutions","Norwood & Co.","Solara","Drakenberg","Pinnacle","Trident","Epsilon","Zephyr"];
-    const cities     = ["New York","London","Dubai","Singapore","Tokyo","Paris","Toronto","Sydney","Berlin","Mumbai","Seoul","São Paulo","Amsterdam","Chicago","Zurich"];
-    const depts      = ["Engineering","Finance","Operations","Sales","Marketing","HR","Legal","Product","Customer Success","Procurement","IT","Logistics"];
-    const statuses   = ["Active","In Progress","Pending","Approved","Closed","On Hold"];
-
-    // Domain-specific text pools
-    const menuItems  = ["Margherita Pizza","BBQ Chicken Burger","Caesar Salad","Grilled Salmon","Spaghetti Bolognese","Beef Tacos","Veggie Wrap","Tiramisu","Cheesecake Slice","Garlic Bread","Mushroom Risotto","Fish & Chips","Chicken Wings","Penne Arrabbiata","Brownie Sundae","Lamb Chops","Club Sandwich","Onion Rings","Lemon Tart","Truffle Fries"];
-    const waiters    = ["Marco R.","Sophie L.","Tariq M.","Anna K.","Diego P.","Fatima H.","James O.","Lily C.","Rami A.","Claire D."];
-    const roomTypes  = ["Standard King","Deluxe Twin","Ocean Suite","Family Suite","Studio Room","Executive King","Penthouse","Garden View"];
-    const guestNames = ["Emily Watson","Hamid Al-Rashid","Yuki Tanaka","David Osei","Isabella Rossi","Arjun Sharma","Nour Mansour","Li Wei","Sara Johansson","Carlos Mendez","Priya Nair","Ahmed Hassan"];
-    const addresses  = ["14 Maple Street","270 Riverside Ave","Apt 5B, 88 Oak Lane","Unit 3, 45 Park Blvd","12 Harbor View","Suite 200, 310 Commerce St","7 Hillside Close","22 Cedar Road"];
-    const trackingNos = () => `TRK-${Date.now().toString(36).toUpperCase().slice(-4)}-${String(1000+ri(8999))}`;
-
-    if (/table_number|table_no|table#/i.test(field.id)) return `T${String(idx + 1).padStart(2, "0")}`;
-    if (/room_number|room#|room_no/i.test(field.id)) return `${Math.floor(1 + r * 5)}${String(Math.floor(r * 20) + 1).padStart(2,"0")}`;
-    if (/tracking|track_no/i.test(field.id)) return `TRK-${entitySeed.slice(0,3).toUpperCase()}${String(1000 + idx * 37 + ri(500)).padStart(4,"0")}`;
-    if (/order_number|order#|order_no/i.test(field.id)) return `ORD-${String(10000 + idx * 73 + ri(900)).padStart(5,"0")}`;
-    if (/sku|code|ref|serial|barcode/i.test(field.id)) return `${entitySeed.slice(0,3).toUpperCase()}-${String(1000 + ri(8999)).padStart(4,"0")}`;
-    if (/item_name|dish|meal|food_name/i.test(field.id)) return menuItems[ri(menuItems.length)];
-    if (/waiter|server|attendant/i.test(field.id)) return waiters[ri(waiters.length)];
-    if (/guest_name|guest/i.test(field.id) && !/count/.test(field.id)) return guestNames[ri(guestNames.length)];
-    if (/room_type|room_kind/i.test(field.id)) return roomTypes[ri(roomTypes.length)];
-    if (/address|street|property_address/i.test(field.id)) return addresses[ri(addresses.length)];
-    if (/items_ordered|items|dishes/i.test(field.id)) return `${menuItems[ri(menuItems.length)]}, ${menuItems[ri(menuItems.length)]}`;
-    if (/section|zone/i.test(field.id)) return ["Indoor","Outdoor","Bar","Private","Terrace"][ri(5)];
-    if (/unit/i.test(field.id)) return ["kg","L","pcs","box","bag","dozen","oz","g"][ri(8)];
-    if (/nationality|country/i.test(field.id)) return ["UAE","USA","UK","France","Germany","India","Australia","Canada","Japan","Italy"][ri(10)];
-    if (/loyalty|tier|level/i.test(field.id)) return ["Bronze","Silver","Gold","Platinum"][ri(4)];
-    if (/source/i.test(field.id)) return ["LinkedIn","Referral","Job Board","Agency","Direct","University"][ri(6)];
-    if (/channel/i.test(field.id)) return ["Online","In-Store","Mobile","Marketplace"][ri(4)];
-    if (/view/i.test(field.id)) return ["City","Ocean","Garden","Pool","Mountain"][ri(5)];
-    if (/origin|from/i.test(field.id)) return cities[ri(cities.length)];
-    if (/destination|to/i.test(field.id)) return cities[ri(cities.length)];
-    if (/driver|carrier/i.test(field.id)) return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    if (/supplier|vendor/i.test(field.id)) return companies[ri(companies.length)];
-    if (/machine|equipment/i.test(field.id)) return ["CNC-A1","Press-04","Lathe-B2","Mixer-07","Welder-03","Cutter-12"][ri(6)];
-    if (/product_name|product/i.test(field.id) && !/sku/.test(field.id)) return ["Hydraulic Valve","Steel Bracket","Circuit Board","Aluminum Sheet","Polymer Casing","LED Module","Drive Shaft","Sensor Array"][ri(8)];
-    if (/material/i.test(field.id)) return ["Steel","Aluminum","Copper","Polymer","Resin","Carbon Fiber","Rubber","Glass"][ri(8)];
-    if (/class_name|class/i.test(field.id)) return ["Advanced Yoga","HIIT Blast","Spin Class","Power Pilates","CrossFit WOD","Aqua Aerobics","Zumba Gold","Boxing Basics"][ri(8)];
-    if (/trainer|coach/i.test(field.id)) return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    if (/membership_type|plan/i.test(field.id)) return ["Basic","Standard","Premium","VIP","Student"][ri(5)];
-    if (/housekeeper/i.test(field.id)) return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    if (/^(name|full_name|employee_name|customer_name|client_name|contact_name|patient_name|candidate_name|person)$/i.test(field.id)) {
-      return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    }
-    if (/company|organization|client|customer|vendor/i.test(field.id)) return companies[ri(companies.length)];
-    if (/email/i.test(field.id)) { const fn = firstNames[ri(firstNames.length)].toLowerCase(); return `${fn}@${companies[ri(companies.length)].split(" ")[0].toLowerCase()}.com`; }
-    if (/phone|tel/i.test(field.id)) return `+1 (${300+ri(699)}) ${100+ri(899)}-${1000+ri(8999)}`;
-    if (/city|location|region/i.test(field.id)) return cities[ri(cities.length)];
-    if (/department|dept|division/i.test(field.id)) return depts[ri(depts.length)];
-    if (/role|title|position|job/i.test(field.id)) return ["Senior Manager","Analyst","Specialist","Director","Lead","Coordinator","Consultant","Engineer"][ri(8)];
-    if (/owner|assigned|manager|lead/i.test(field.id)) return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    if (/note|comment|description|detail|remark/i.test(field.id)) return ["Awaiting review","High priority","Follow-up needed","Documentation complete","Approved by management","Escalated to team lead","On track","Needs clarification"][ri(8)];
-    if (/name/i.test(field.id)) return `${firstNames[ri(firstNames.length)]} ${lastNames[ri(lastNames.length)]}`;
-    if (/status|stage|state/i.test(field.id)) return statuses[ri(statuses.length)];
-    return `${titleCase(field.label)} ${idx + 1}`;
   }
 
   function moduleIcon(name) {
@@ -983,7 +884,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     trace("AI generating full SystemSpec…", "run");
     const messages = [
       { role:"system", content: systemPrompt() },
-      { role:"user", content: `Create a complete SystemSpec for:\n${desc}\n\nCREATIVE DIRECTIVE: ${creativeDirective}\n[run-id:${Date.now().toString(36)}]` }
+      { role:"user", content: `Create a complete SystemSpec for:\n${desc}\n\nToday is ${todayIso()}; date records in the months before it.\nCREATIVE DIRECTIVE: ${creativeDirective}\n[run-id:${Date.now().toString(36)}]` }
     ];
     for (let attempt = 1; attempt <= 4; attempt++) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -1006,7 +907,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           throw new Error("Model returned invalid SystemSpec JSON");
         }
         trace("SystemSpec JSON parsed", "ok");
-        const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried);
+        const spec = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried), desc, signal, active);
         trace("SystemSpec validated and finance model linked", "ok");
         return spec;
       } catch (err) {
@@ -1058,7 +959,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
       trace("③ Specialist agents building full SystemSpec…", "run");
       const specMessages = [
         { role:"system", content: specialistPrompt(brief) },
-        { role:"user", content: `Build the complete SystemSpec now. Every module must have matching entity fields and mock data.\nCREATIVE DIRECTIVE: ${creativeDirective}` },
+        { role:"user", content: `Build the complete SystemSpec now. Every module must have matching entity fields and mock data.\nToday is ${todayIso()}; date records in the months before it.\nCREATIVE DIRECTIVE: ${creativeDirective}` },
       ];
       for (let attempt = 1; attempt <= 3; attempt++) {
         if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -1077,7 +978,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           if (!parsed) throw new Error("Specialist agents returned invalid JSON");
           trace("④ Validator confirming field/data consistency", "ok");
           trace("SystemSpec ready", "ok");
-          const spec = await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried);
+          const spec = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried), desc, signal, active);
           trace("Finance model linked", "ok");
           return spec;
         } catch (err) {
@@ -1199,6 +1100,40 @@ Repair requirements:
 - Include real finance structure: invoices or sales, payments, expenses or bills, cash/bank, and monthly financial summary.
 - mockData keys must match entity ids and record property names must match field ids.
 - Use realistic business data, not placeholder rows.`;
+  }
+
+  /**
+   * Ask the model for the records of entities it left empty. They used to be
+   * filled from the app's own lists — a Lebanese restaurant's menu came out
+   * as pizza and cheesecake. If this request fails, the stand-ins stay, and
+   * the run says which entities they are.
+   */
+  async function writeMissingRecords(spec, desc, signal, model) {
+    const finance = new Set(Object.values(DOMAIN().FINANCE_ENTITY_IDS));
+    const ids = (spec.standIns || []).filter(id => !finance.has(id) && spec.entities[id]);
+    if (!ids.length) return spec;
+    const names = (list) => list.map(id => spec.entities[id].name).join(", ");
+    trace(`Writing records for ${names(ids)}…`, "data");
+    let got = null;
+    try {
+      const shapes = ids.map(id => ({ id, name: spec.entities[id].name, fields: spec.entities[id].fields.map(f => ({ id: f.id, label: f.label, type: f.type, ...(f.options ? { options: f.options } : {}) })) }));
+      const r = await callModel(model, [
+        { role:"system", content: `You write sample records for a business system. Return ONLY one JSON object: each key is an entity id, each value an array of 8 records. A record uses exactly the given field ids. Every value must fit this business and where it is: real-sounding names, the things this business really sells or handles, prices and quantities right for its size. A select value must be one of its options. Dates are YYYY-MM-DD between ${window.HCSystemsSamples.daysBefore(todayIso(), 180)} and ${todayIso()}. No placeholder text.` },
+        { role:"user", content: `Business: ${desc}\nSystem: ${spec.name} — ${spec.description}\n\nEntities:\n${JSON.stringify(shapes)}` },
+      ], signal, 0.7);
+      got = parseSpecJson(r?.content || "");
+    } catch (err) {
+      if (err.name === "AbortError") throw err;
+      trace(`Could not get records written: ${String(err.message || err).slice(0, 90)}`, "warn");
+    }
+    const left = ids.filter(id => {
+      const rows = Array.isArray(got?.[id]) ? got[id].filter(r => r && typeof r === "object") : [];
+      if (rows.length) spec.mockData[id] = rows.slice(0, 12).map((row, i) => normalizeRecord(row, spec.entities[id], i));
+      return !rows.length;
+    });
+    if (left.length) trace(`Records for ${names(left)} are stand-ins made up by the app, not written for this business`, "warn");
+    else trace(`Records written for ${names(ids)}`, "ok");
+    return spec;
   }
 
   async function finalizeOrRepairGeneratedSpec(modelValue, parsed, rawText, desc, signal, tried = []) {
@@ -1734,7 +1669,7 @@ Repair requirements:
   // figures.js. The tiles used to carry trends and sparklines nobody had
   // measured; a trend now compares two named months, or is not shown.
   const FIG = () => window.HCSystemsFigures;
-  const todayIso = () => new Date().toISOString().slice(0, 10);
+  const todayIso = () => window.HCSystemsSamples.localDay(new Date());
 
   function showFigure(value, field, short = false) {
     if (value == null) return "—";
