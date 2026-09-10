@@ -12,7 +12,7 @@
 //
 // Run with: npm run check:stream-sse
 // ==============================================================
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
@@ -158,6 +158,28 @@ console.log('\nAn empty or immediately-closed stream is not an error:');
   ok('only the closing marker', (await collect(S.openAIStream(bodyOf([enc.encode('data: [DONE]\n')])))).length === 0);
   ok('a last line with no newline still arrives',
     (await collect(S.sseLines(bodyOf([enc.encode('data: a\ndata: b')])))).length === 2);
+}
+
+console.log('\nThere is one stream reader in the app, and it is this one:');
+{
+  // The gathering was once written out five times, and one copy was missing the
+  // buffer the others had — which is how a local model's answer came to lose
+  // words. A reader written anywhere else is a sixth copy waiting to drift, so
+  // this fails the moment one appears. Vendored libraries are not ours.
+  const root = join(here, '..', '..', 'src');
+  const files = [];
+  (function walk(dir) {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (name === 'vendor') continue;
+      if (statSync(full).isDirectory()) walk(full);
+      else if (name.endsWith('.js')) files.push(full);
+    }
+  })(root);
+  const readers = files.filter((f) => /\.getReader\(\)/.test(readFileSync(f, 'utf8')))
+    .map((f) => f.slice(root.length + 1));
+  ok('only src/js/stream/sse.js reads a stream itself', readers.length === 1 && readers[0] === join('js', 'stream', 'sse.js'));
+  if (readers.length !== 1) console.log(`          readers found in: ${readers.join(', ')}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js)`);

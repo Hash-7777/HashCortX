@@ -5065,13 +5065,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           signal: ctrl.signal,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        const parseOllamaLine = (line) => {
-          if (!line.trim()) return;
-          try {
-            const evt = JSON.parse(line);
+        // Lines are gathered across chunk boundaries by src/js/stream/sse.js,
+        // the same reader every other provider uses.
+        for await (const evt of window.HCStreamSSE.jsonLines(res.body)) {
             if (evt.message?.content) {
               if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
               assistant.content += evt.message.content;
@@ -5091,17 +5087,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               assistant.outputTokens = evt.eval_count || assistant.outputTokens;
               recordUsage(modelEl.value || "ollama", evt.prompt_eval_count, evt.eval_count);
             }
-          } catch {}
-        };
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buf += decoder.decode(value, { stream: true });
-          const lines = buf.split("\n");
-          buf = lines.pop() || "";
-          for (const line of lines) parseOllamaLine(line);
         }
-        parseOllamaLine(buf);
       }
     } catch (err) {
       if (err.name !== "AbortError") showError(err);
@@ -5207,26 +5193,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       signal,
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = "";
-    const parseLine = (line) => {
-      if (!line.trim()) return;
-      try {
-        const evt = JSON.parse(line);
-        if (evt.message?.content) onToken(evt.message.content);
-        if (evt.done && typeof onStats === "function") onStats(evt);
-      } catch {}
-    };
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() || "";
-      for (const line of lines) parseLine(line);
+    for await (const evt of window.HCStreamSSE.jsonLines(res.body)) {
+      if (evt.message?.content) onToken(evt.message.content);
+      if (evt.done && typeof onStats === "function") onStats(evt);
     }
-    parseLine(buf);
   }
 
   // A whole reply in one call, for the places that do not stream into the
