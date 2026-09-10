@@ -1275,7 +1275,9 @@ body.system-maker-mode #app { display: none; }
   padding: 14px 20px 10px; flex-shrink: 0;
   border-bottom: 1px solid var(--sys-border, rgba(148,163,184,.12));
 }
-.sys-cal-month-label { font-size: 13px; font-weight: 600; color: var(--sys-primary, #2563eb); margin-left: 4px; }
+.sys-cal-month-label { font-size: 13px; font-weight: 600; color: var(--sys-primary, #2563eb); min-width: 118px; text-align: center; }
+.sys-cal-nav { display: flex; align-items: center; gap: 6px; flex: 1; flex-wrap: wrap; }
+.sys-cal-nav [data-cal-nav="-1"], .sys-cal-nav [data-cal-nav="1"] { min-width: 30px; justify-content: center; font-size: 15px; }
 .sys-calendar { flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 12px 16px 16px; gap: 8px; }
 .sys-cal-header { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .sys-cal-day-name { font-size: 10px; font-weight: 700; text-align: center; color: var(--sys-app-muted, #64748b); text-transform: uppercase; letter-spacing: .06em; padding: 4px 0; }
@@ -1294,6 +1296,7 @@ body.system-maker-mode #app { display: none; }
 .sys-cal-day-num.today { color: var(--sys-primary, #2563eb); font-weight: 800; }
 .sys-cal-chips { display: flex; flex-direction: column; gap: 2px; }
 .sys-cal-chip {
+  display: block; width: 100%; text-align: left; border: 0; font-family: inherit;
   font-size: 9.5px; font-weight: 500; padding: 2px 5px;
   border-radius: var(--radius-xs); white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; cursor: pointer;

@@ -51,6 +51,9 @@ console.log('What a record is called:');
   ok('a record is labelled with it', V.recordLabel({ id: 'orders_1', order_number: 'ORD-1001' }, orders) === 'ORD-1001');
   ok('never with its internal id', V.recordLabel({ id: 'orders_1', order_number: '' }, orders) === 'Untitled order');
   ok('an entity with no fields still gives a label', V.recordLabel({ id: 'x' }, { name: 'Things', fields: [] }) === 'Untitled thing');
+  ok('one of an entity is named in the singular', V.singularName({ name: 'Menu Items' }) === 'menu item'
+    && V.singularName({ name: 'Categories' }) === 'category' && V.singularName({ id: 'branches' }) === 'branch');
+  ok('the edit window names the record, and a new one the kind', /Edit \$\{VIEW\(\)\.recordLabel\(record, entity\)\}/.test(mode) && /New \$\{VIEW\(\)\.singularName\(entity\)\}/.test(mode));
 }
 
 console.log('\nMoney:');

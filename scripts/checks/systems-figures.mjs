@@ -87,6 +87,19 @@ ok('paid, served and done are finished', ['Paid', 'Served', 'done'].every(F.isFi
 ok('cooking and booked are not', !F.isFinished('Cooking') && !F.isFinished('Booked'));
 ok('cancelled and no-show are dropped, not finished', F.isDropped('Cancelled') && F.isDropped('No-show') && !F.isFinished('Cancelled'));
 
+console.log('\nWhere a calendar opens:');
+{
+  const d = (date) => ({ date });
+  ok('on this month when anything falls in it', F.calendarStart([d('2026-07-01'), d('2026-09-20')], 'date', today) === '2026-09');
+  ok('else on the latest month the records reach', F.calendarStart([d('2026-05-01'), d('2026-07-09')], 'date', today) === '2026-07');
+  ok('and when everything lies ahead, on the first of those months', F.calendarStart([d('2026-12-01'), d('2026-11-03')], 'date', today) === '2026-11');
+  ok('with no dates at all, on this month', F.calendarStart([{ date: '' }], 'date', today) === '2026-09');
+  ok('the calendar can be moved', /data-cal-nav="-1"/.test(mode) && /data-cal-nav="1"/.test(mode) && /data-cal-nav="today"/.test(mode));
+  ok('it says how many records lie in other months', /in other months/.test(mode));
+  ok('an entry on it opens its record', /class="sys-cal-chip"[^>]*data-action="edit"/.test(mode));
+  ok('records with no date say so instead of showing an empty month', /no date to place on a calendar/.test(mode));
+}
+
 console.log('\nNo screen makes a figure up:');
 ok('no trend is written into the screens', !/trend: "[+-]\d+%"|trend \|\| "\+5%"/.test(mode));
 ok('no sparkline is drawn from fixed numbers', !/const seeds = \[/.test(mode));

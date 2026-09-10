@@ -27,6 +27,7 @@ const SystemMaker = (() => {
   let selectedIds = new Set();
   let importState = null;
   let recordModalIsNew = false;
+  let calendarMonth = "";
 
   const $ = (id) => document.getElementById(id);
 
@@ -2181,60 +2182,71 @@ Repair requirements:
 
   // ── Calendar screen ───────────────────────────────────────────────
   function renderCalendar(records, entity) {
+    const F = FIG();
     const fields = entity?.fields || [];
-    const dateField = fields.find(f => f.type === "date");
+    const dateField = F.dateFieldOf(entity);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const statusColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
+    // A chip's colour says its status: the same status is the same colour.
+    const statuses = statusField ? VIEW().boardColumns(records, statusField) : [];
+    const colorOf = (r) => statusColors[Math.max(0, statuses.indexOf(VIEW().boardColumnOf(r, statusField))) % statusColors.length];
+    const toolbar = (middle) => `<div class="sys-calendar-toolbar">
+        <span class="sys-widget-title">${esc(entity?.name || "Calendar")}</span>
+        ${middle}
+        <button class="sys-action-btn primary" id="sysAddRecordBtn2">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M8 3v10M3 8h10"/></svg>
+          Add
+        </button>
+      </div>`;
+    if (!dateField) {
+      return `<div class="sys-calendar-screen">${toolbar("")}<div class="sys-empty-hint"><span>These records have no date to place on a calendar.</span></div></div>`;
+    }
 
-    // find most populated month from data, fallback to current month
-    const allDates = records.map(r => String(r[dateField?.id] || "")).filter(d => /^\d{4}-\d{2}/.test(d));
-    const monthCounts = {};
-    allDates.forEach(d => { const m = d.slice(0,7); monthCounts[m] = (monthCounts[m]||0)+1; });
-    const pivot = Object.keys(monthCounts).sort((a,b) => monthCounts[b]-monthCounts[a])[0] || new Date().toISOString().slice(0,7);
-    const [yr, mo] = pivot.split("-").map(Number);
+    const month = calendarMonth || F.calendarStart(records, dateField.id, todayIso());
+    const [yr, mo] = month.split("-").map(Number);
     const firstDay = new Date(yr, mo - 1, 1).getDay();
     const daysInMonth = new Date(yr, mo, 0).getDate();
-    const monthName = new Date(yr, mo - 1).toLocaleString("default", { month:"long" });
+    const monthName = new Date(yr, mo - 1).toLocaleString("en-US", { month:"long" });
     const dayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 
     const byDay = {};
-    records.forEach((r, i) => {
-      const d = String(r[dateField?.id] || "");
-      if (d.startsWith(pivot)) {
-        const day = parseInt(d.slice(8,10));
-        if (!byDay[day]) byDay[day] = [];
-        byDay[day].push({ r, color: statusColors[i % statusColors.length] });
-      }
+    let here = 0;
+    records.forEach(r => {
+      const d = String(r[dateField.id] || "");
+      if (F.monthOf(d) !== month) return;
+      here++;
+      const day = parseInt(d.slice(8,10), 10) || 1;
+      (byDay[day] = byDay[day] || []).push(r);
     });
+    const elsewhere = records.filter(r => F.monthOf(r[dateField.id])).length - here;
 
-    const now = new Date();
-    const todayD = now.getDate(), todayMo = now.getMonth() + 1, todayYr = now.getFullYear();
+    const today = todayIso();
     const cells = [];
     for (let i = 0; i < firstDay; i++) cells.push(`<div class="sys-cal-cell sys-cal-cell--empty"></div>`);
     for (let d = 1; d <= daysInMonth; d++) {
-      const today = todayD === d && todayMo === mo && todayYr === yr;
+      const isToday = today === `${month}-${String(d).padStart(2, "0")}`;
       const dayRecords = byDay[d] || [];
-      cells.push(`<div class="sys-cal-cell${today ? " sys-cal-cell--today" : ""}">
-        <span class="sys-cal-day-num${today ? " today" : ""}">${d}</span>
+      cells.push(`<div class="sys-cal-cell${isToday ? " sys-cal-cell--today" : ""}">
+        <span class="sys-cal-day-num${isToday ? " today" : ""}">${d}</span>
         <div class="sys-cal-chips">
-          ${dayRecords.slice(0, 3).map(({r, color}) => {
+          ${dayRecords.slice(0, 3).map(r => {
             const name = VIEW().recordLabel(r, entity);
-            return `<div class="sys-cal-chip" style="background:${color}22;border-left:3px solid ${color}" data-record-id="${esc(r.id)}" title="${esc(name)}">${esc(name.slice(0,16))}</div>`;
+            const color = colorOf(r);
+            return `<button type="button" class="sys-cal-chip" style="background:${color}22;border-left:3px solid ${color}" data-action="edit" data-record-id="${esc(r.id)}" title="${esc(name)}">${esc(name.slice(0,16))}</button>`;
           }).join("")}
-          ${dayRecords.length > 3 ? `<div class="sys-cal-chip-more">+${dayRecords.length - 3} more</div>` : ""}
+          ${dayRecords.length > 3 ? `<div class="sys-cal-chip-more" title="${esc(dayRecords.slice(3).map(r => VIEW().recordLabel(r, entity)).join(", "))}">+${dayRecords.length - 3} more</div>` : ""}
         </div>
       </div>`);
     }
 
     return `<div class="sys-calendar-screen">
-      <div class="sys-calendar-toolbar">
-        <span class="sys-widget-title">${esc(entity?.name || "Calendar")}</span>
-        <span class="sys-cal-month-label">${esc(monthName)} ${yr}</span>
-        <button class="sys-action-btn primary" id="sysAddRecordBtn2">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M8 3v10M3 8h10"/></svg>
-          Add
-        </button>
-      </div>
+      ${toolbar(`<div class="sys-cal-nav">
+          <button type="button" class="sys-action-btn" data-cal-nav="-1" aria-label="Previous month">‹</button>
+          <span class="sys-cal-month-label">${esc(monthName)} ${yr}</span>
+          <button type="button" class="sys-action-btn" data-cal-nav="1" aria-label="Next month">›</button>
+          <button type="button" class="sys-action-btn" data-cal-nav="today">Today</button>
+          <span class="sys-record-count">${here} this month${elsewhere ? ` · ${elsewhere} in other months` : ""}</span>
+        </div>`)}
       <div class="sys-calendar">
         <div class="sys-cal-header">
           ${dayNames.map(d => `<div class="sys-cal-day-name">${d}</div>`).join("")}
@@ -2383,7 +2395,7 @@ Repair requirements:
   function showRecordModal(record, entity, isNew) {
     if (!entity) return;
     recordModalIsNew = isNew;
-    $("sysRecordModalTitle").textContent = isNew ? `Add ${entity.name}` : `Edit ${entity.name}`;
+    $("sysRecordModalTitle").textContent = isNew ? `New ${VIEW().singularName(entity)}` : `Edit ${VIEW().recordLabel(record, entity)}`;
     $("sysRecordModalForm").innerHTML = renderRecordFormModal(record || {}, entity);
     $("sysRecordModal").classList.add("open");
     setTimeout(() => $("sysRecordModalForm")?.querySelector("input,select,textarea")?.focus(), 60);
@@ -2959,6 +2971,17 @@ Repair requirements:
         return;
       }
 
+      // Calendar months
+      const calNav = e.target.closest("[data-cal-nav]");
+      if (calNav) {
+        const entity = spec?.entities?.[activeEntityId];
+        const dateField = FIG().dateFieldOf(entity);
+        const current = calendarMonth || FIG().calendarStart(getRuntimeData(spec)[activeEntityId] || [], dateField?.id, todayIso());
+        calendarMonth = calNav.dataset.calNav === "today" ? todayIso().slice(0, 7) : FIG().shiftMonth(current, Number(calNav.dataset.calNav));
+        renderPreview();
+        return;
+      }
+
       // Add Record
       if (e.target.closest("#sysAddRecordBtn2")) {
         const entity = spec?.entities?.[activeEntityId];
@@ -3076,7 +3099,7 @@ Repair requirements:
       const mod = e.target.closest("[data-module-id]");
       if (mod) {
         activeModuleId = mod.dataset.moduleId;
-        selectedRecordId = ""; searchQuery = ""; sortState = { field:"", dir:"asc" };
+        selectedRecordId = ""; searchQuery = ""; sortState = { field:"", dir:"asc" }; calendarMonth = "";
         filterRules = []; filterPanelOpen = false; selectedIds.clear();
         renderPreview(); renderDataEditor();
         return;

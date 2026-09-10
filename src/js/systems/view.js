@@ -46,13 +46,19 @@
       || null;
   }
 
+  /** One of an entity, in words: "Menu Items" is a menu item, "Categories" a category. */
+  function singularName(entity) {
+    const words = String((entity && (entity.name || entity.id)) || 'record').replace(/_/g, ' ').trim().toLowerCase().split(/\s+/);
+    words[words.length - 1] = singular(words[words.length - 1]);
+    return words.join(' ');
+  }
+
   /** What a record is called, for headings, chart labels and chips. */
   function recordLabel(record, entity) {
     const f = titleField(entity);
     const value = f && record ? record[f.id] : '';
     if (value != null && String(value).trim()) return String(value).trim();
-    const noun = String((entity && entity.name) || 'record').replace(/s$/i, '').toLowerCase();
-    return `Untitled ${noun}`;
+    return `Untitled ${singularName(entity)}`;
   }
 
   const MONEY_WORDS = /price|amount|total|cost|revenue|salary|wage|fee|balance|subtotal|tax|profit|payment|paid|budget|income|expense|spend|debit|credit|cash|receivable|payable|invoiced|owed|due_amount/i;
@@ -131,7 +137,7 @@
   }
 
   window.HCSystemsView = {
-    titleField, recordLabel, isMoneyField, formatMoney, formatNumber, currencyOf,
+    titleField, recordLabel, singularName, isMoneyField, formatMoney, formatNumber, currencyOf,
     boardColumns, boardColumnOf, safeMax, NO_STATUS,
   };
 })();

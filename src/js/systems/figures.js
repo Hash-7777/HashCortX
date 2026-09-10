@@ -133,6 +133,19 @@
   }
 
   /**
+   * The month a calendar opens on: this month if anything falls in it, else
+   * the latest month the records reach, else the first month they have at
+   * all — bookings can all lie ahead — else this month. It used to open on
+   * whichever month held the most records, with no way to move from it.
+   */
+  function calendarStart(records, dateFieldId, today) {
+    const now = monthOf(today);
+    const months = (records || []).map((r) => monthOf(r && r[dateFieldId])).filter(Boolean);
+    if (months.includes(now)) return now;
+    return latestMonth(records, dateFieldId, today) || months.sort()[0] || now;
+  }
+
+  /**
    * A figure the model asked for — { label, field, aggregate } — read against
    * the entity's fields, or null when it names a field the entity does not
    * have. Such a figure used to be shown as 0.
@@ -154,6 +167,6 @@
 
   window.HCSystemsFigures = {
     aggregate, numbers, monthOf, shiftMonth, dateFieldOf, latestMonth, monthlySeries, monthTrend,
-    kpiFrom, isFinished, isDropped,
+    kpiFrom, isFinished, isDropped, calendarStart,
   };
 })();
