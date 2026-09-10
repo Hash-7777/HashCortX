@@ -87,7 +87,7 @@ console.log('\nEntities are read as a map or as a list, because models send both
 
 // ── The gate ─────────────────────────────────────────────────────────────
 const field = (id, type) => ({ id, label: id, type });
-const goodEntity = (id) => ({ id, fields: [field('name', 'text'), field('amount', 'number'), field('due_date', 'date')] });
+const goodEntity = (id) => ({ id, fields: [field('name', 'text'), field('amount', 'number'), field('due_date', 'date'), { id: 'status', label: 'Status', type: 'select', options: ['Booked', 'Seen'] }] });
 const goodSpec = () => ({
   name: 'Clinic',
   modules: [
@@ -132,7 +132,7 @@ console.log('\nAn incomplete one says everything that is wrong, not the first th
   }).length <= 14);
 }
 
-console.log('\nA record with nothing countable or nothing dated is not a business record:');
+console.log('\nA record carries what the screen it is shown on needs:');
 {
   const noNumber = goodSpec();
   noNumber.entities.patients = { id: 'patients', fields: [field('name', 'text'), field('notes', 'text'), field('due_date', 'date')] };
@@ -150,10 +150,38 @@ console.log('\nA record with nothing countable or nothing dated is not a busines
   noDate.entities.visits = { id: 'visits', fields: [field('name', 'text'), field('amount', 'number'), field('notes', 'text')] };
   ok('an entity with no date is named', S.validate(noDate).some((i) => /date\/time field/.test(i)));
 
+  ok('and says which screen needs it', S.validate(noDate).some((i) => /is shown as a calendar/.test(i)));
+
+  // A list, split, cards or feed screen draws neither figures nor time, so a
+  // supplier list with no amount or date is fine as it is — it used to be
+  // handed "Business Value" and "Updated".
+  const plainList = goodSpec();
+  plainList.modules.push({ name: 'Suppliers', entity: 'suppliers', screen: 'split' });
+  plainList.entities.suppliers = { id: 'suppliers', fields: [field('name', 'text'), field('phone', 'text'), field('country', 'text')] };
+  ok('an entity only listed needs no figure and no date', S.validate(plainList).length === 0);
+
+  const noStages = goodSpec();
+  noStages.entities.visits = { id: 'visits', fields: [field('name', 'text'), field('amount', 'number'), field('due_date', 'date')] };
+  ok('a board with no stages is named', S.validate(noStages).some((i) => /kanban, so it needs a select field of stages/.test(i)));
+  const oneStage = goodSpec();
+  oneStage.entities.visits.fields[3] = { id: 'status', label: 'Status', type: 'select', options: ['Only'] };
+  ok('and one stage is not a board', S.validate(oneStage).some((i) => /select field of stages/.test(i)));
+
   const oneScreen = goodSpec();
   oneScreen.modules = oneScreen.modules.map((m) => ({ ...m, screen: 'list' }));
   ok('five modules all on one screen is named',
     S.validate(oneScreen).some((i) => /at least 4 different screen types/.test(i)));
+}
+
+console.log('\nThe model\'s fields are the entity:');
+{
+  const mode = readFileSync(join(root, 'src', 'modes', 'systems', 'mode.js'), 'utf8');
+  const fill = /function ensureGeneratedEntityFields[\s\S]*?\n  \}\n/.exec(mode)?.[0] || '';
+  ok('the app\'s template stands in only for an entity left nearly empty', /\.length < 3\) entity\.fields = mergeGeneratedFields\(entity\.fields, defaultFields\(/.test(fill));
+  ok('and is not appended to one the model defined', (fill.match(/defaultFields\(/g) || []).length === 1);
+  ok('no generic field is invented for a missing figure, date or status', !/id:\s*"business_value"|label:\s*"Business Value"|id:\s*"updated"/.test(mode));
+  ok('the model is told what each screen needs, not to give every entity a number and a date',
+    /a "kanban" entity needs a select field/.test(mode) && !/Include at least one date field per entity/.test(mode));
 }
 
 console.log('\nA table shows what was searched, filtered and sorted for:');

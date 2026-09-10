@@ -145,6 +145,13 @@
    * next. Capped, because a spec that is wrong in thirty ways is not going to
    * be argued into shape and the list stops being readable long before then.
    */
+  /** What a screen needs its records to carry. */
+  const SCREEN_NEEDS = {
+    dashboard: { figure: true }, report: { figure: true }, metric: { figure: true },
+    calendar: { date: true }, timeline: { date: true },
+    kanban: { stage: true },
+  };
+
   function validate(raw) {
     const issues = [];
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return ["Top-level SystemSpec must be a JSON object."];
@@ -168,14 +175,23 @@
       }
       const fields = Array.isArray(entity.fields) ? entity.fields : [];
       if (fields.length < 3) issues.push(`Entity "${module.entity}" must include at least 3 fields.`);
-      // A business record with nothing countable on it is a list of labels.
-      // The name is checked as well as the type, because a model that writes
-      // an amount as text has still understood the job.
-      if (!fields.some((f) => ["number"].includes(f?.type) || /amount|total|price|cost|revenue|salary|qty|quantity|balance|value/i.test(f?.id || f?.label || ""))) {
-        issues.push(`Entity "${module.entity}" needs at least one numeric/business value field.`);
+      // What a record must carry depends on the screen it is shown on. Every
+      // entity used to need a figure and a date, and when a model left one out
+      // the app added "Business Value" and "Updated" — the same two fields on
+      // a staff list, a supplier list and a menu. Now only a screen that draws
+      // figures needs one, only a screen laid out in time needs a date, and
+      // only a board needs a stage; the model is asked to add a field that
+      // fits, not handed a generic one. The name is read as well as the type,
+      // because a model that writes an amount as text has understood the job.
+      const needs = SCREEN_NEEDS[module?.screen] || {};
+      if (needs.figure && !fields.some((f) => ["number"].includes(f?.type) || /amount|total|price|cost|revenue|salary|qty|quantity|balance|value/i.test(f?.id || f?.label || ""))) {
+        issues.push(`Entity "${module.entity}" is shown as a ${module.screen}, so it needs at least one numeric/business value field.`);
       }
-      if (!fields.some((f) => f?.type === "date" || /date|time|due|created|updated/i.test(f?.id || f?.label || ""))) {
-        issues.push(`Entity "${module.entity}" needs at least one date/time field.`);
+      if (needs.date && !fields.some((f) => f?.type === "date" || /date|time|due|created|updated/i.test(f?.id || f?.label || ""))) {
+        issues.push(`Entity "${module.entity}" is shown as a ${module.screen}, so it needs at least one date/time field.`);
+      }
+      if (needs.stage && !fields.some((f) => f?.type === "select" && Array.isArray(f.options) && f.options.length >= 2)) {
+        issues.push(`Entity "${module.entity}" is shown as a kanban, so it needs a select field of stages with their options.`);
       }
     });
 
@@ -228,5 +244,5 @@
     return records;
   }
 
-  window.HCSystemsSpec = { VALID_SCREENS, slug, cloneSafe, entityMap, parseJson, validate, prepareRecords };
+  window.HCSystemsSpec = { VALID_SCREENS, SCREEN_NEEDS, slug, cloneSafe, entityMap, parseJson, validate, prepareRecords };
 })();

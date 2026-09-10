@@ -789,9 +789,8 @@ ENTITIES & FIELDS:
 • Each entity: {id, name, fields[]}
 • Fields: {id, label, type, required?, options?} — type: "text"|"number"|"date"|"select"|"textarea"
 • Field ids must exactly match mockData record property names
-• Include a "status" select field with 3-5 meaningful stage options per entity
-• Include at least one number field (amount, quantity, score, etc.) per entity
-• Include at least one date field per entity
+• Give each entity the fields THIS business really keeps for it — not a generic set. A supplier list may have no date; a staff list may have no amount.
+• What a screen needs: a "kanban" entity needs a select field of 3-6 real stages (with options); a "calendar" or "timeline" entity needs a date field; a "dashboard", "report" or "metric" entity needs a number field.
 
 MOCK DATA (realistic, not placeholder):
 • 5-7 records per entity
@@ -960,8 +959,8 @@ ENTITIES & FIELDS:
 • Each entity matches a module's entity id from the brief
 • Fields: {id, label, type, required?, options?} — type: "text"|"number"|"date"|"select"|"textarea"
 • Field ids must exactly match mockData record property names
-• Include a "status" select field with 3-5 meaningful domain-specific options
-• Include at least one number field and one date field per entity
+• Give each entity the fields THIS business really keeps for it — not a generic set. A supplier list may have no date; a staff list may have no amount.
+• What a screen needs: a "kanban" entity needs a select field of 3-6 real stages (with options); a "calendar" or "timeline" entity needs a date field; a "dashboard", "report" or "metric" entity needs a number field.
 
 MOCK DATA (domain-realistic, not generic):
 • 8-12 records per entity with real-sounding names, actual amounts, ISO dates (YYYY-MM-DD)
@@ -1135,27 +1134,18 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     return fields;
   }
 
+  // The fields a model gives an entity are the entity. The app's template for
+  // its kind of business used to be appended to every one — a model's menu
+  // also got "Item Name", "Description", "Availability" and "Prep Time", which
+  // it had no records for, so the app filled them from its own lists, and a
+  // Lebanese restaurant's lamb chops were listed as "Dish: Cheesecake Slice" —
+  // with "Business Value", "Updated" and "Status" added wherever one was
+  // missing. The template now stands in only for an entity the model left
+  // nearly empty; a finance entity still takes the fields its books need.
   function ensureGeneratedEntityFields(entity, entityId, desc) {
-    const domain = detectDomain(desc || "");
-    const financePack = financeFields(/egp|egypt|cairo/i.test(desc || "") ? "EGP" : /eur|euro/i.test(desc || "") ? "EUR" : "USD");
-    const financeSchema = financePack[entityId] || null;
-    entity.fields = mergeGeneratedFields(entity.fields, financeSchema || defaultFields(entity.name || entityId, domain));
-    const hasNumber = entity.fields.some(f => f.type === "number" || /amount|total|price|cost|revenue|salary|qty|quantity|balance|value|profit|margin|count|rate/i.test(`${f.id} ${f.label}`));
-    const hasDate = entity.fields.some(f => f.type === "date" || /date|time|due|created|updated|month|period/i.test(`${f.id} ${f.label}`));
-    const hasStatus = entity.fields.some(f => f.type === "select" || /status|stage|state|type|category/i.test(`${f.id} ${f.label}`));
-    if (!hasNumber) {
-      entity.fields = mergeGeneratedFields(entity.fields, [{ id:"business_value", label:"Business Value", type:"number" }]);
-    }
-    if (!hasDate) {
-      const dateField = entityId === FINANCE_ENTITY_IDS.summary ? { id:"month", label:"Month", type:"date", required:true } : { id:"updated", label:"Updated", type:"date" };
-      entity.fields = mergeGeneratedFields(entity.fields, [dateField]);
-    }
-    if (!hasStatus) {
-      entity.fields = mergeGeneratedFields(entity.fields, [{ id:"status", label:"Status", type:"select", options:["New","Active","Review","Closed"] }]);
-    }
-    if (entity.fields.length < 3) {
-      entity.fields = mergeGeneratedFields(entity.fields, defaultFields(entity.name || entityId, domain));
-    }
+    const financeSchema = financeFields(/egp|egypt|cairo/i.test(desc || "") ? "EGP" : /eur|euro/i.test(desc || "") ? "EUR" : "USD")[entityId];
+    if (financeSchema) entity.fields = mergeGeneratedFields(entity.fields, financeSchema);
+    if ((entity.fields || []).length < 3) entity.fields = mergeGeneratedFields(entity.fields, defaultFields(entity.name || entityId, detectDomain(desc || "")));
     return entity;
   }
 
@@ -1205,7 +1195,7 @@ Repair requirements:
 - Do not replace the system with a generic ready-made template.
 - Include 5-8 modules, at least 4 different screen types, and valid module.entity references.
 - Every referenced entity must exist and include fields[].
-- Every entity must include a number field, a date field, and a status/stage select field when business-appropriate.
+- Give each entity the fields this business really keeps. A kanban entity needs a select field of stages; a calendar or timeline entity needs a date field; a dashboard, report or metric entity needs a number field. Add a field that fits the business, never a generic one such as "Business Value".
 - Include real finance structure: invoices or sales, payments, expenses or bills, cash/bank, and monthly financial summary.
 - mockData keys must match entity ids and record property names must match field ids.
 - Use realistic business data, not placeholder rows.`;
