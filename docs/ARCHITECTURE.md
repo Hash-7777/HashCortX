@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **35,700 lines of JavaScript** (plus ~19,000 more in vendored libraries) and **4,460 lines of Rust**.
+Roughly **44,500 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **4,800 lines of Rust**. The sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -13,7 +13,7 @@ Roughly **35,700 lines of JavaScript** (plus ~19,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html              643  the shell: the intro screen, the sidebar
+│   ├── index.html              645  the shell: the intro screen, the sidebar
 │   │                                and the chat column. Nothing else.
 │   ├── boot.js                      puts the hidden panels in, then runs
 │   │                                every script in order
@@ -27,14 +27,14 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── systems/          4,246  ERP prototype generator
+│   │   ├── forge/            3,891  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
-│   │   ├── virtual-os/       3,808  virtual project desktop
-│   │   ├── forge/            2,962  3D planning
-│   │   ├── agent-maker/      2,980  chain / vote / failover
-│   │   ├── finance/          2,705  financial document analysis
-│   │   ├── code/             2,715  the Coder agent loop
+│   │   ├── virtual-os/       3,545  virtual project desktop
+│   │   ├── systems/          3,341  ERP prototype generator
+│   │   ├── agent-maker/      2,871  chain / vote / failover
+│   │   ├── code/             2,634  the Coder agent loop
+│   │   ├── finance/          2,378  financial document analysis
 │   │   └── sandbox/            603  security scanner
 │   │
 │   ├── core/                        pieces taken out of app.js, each with
@@ -55,23 +55,49 @@ HashCortX/
 │   │                                does not permit. See PROVENANCE.md
 │   │
 │   ├── data/                        content, not behaviour
-│   │   ├── prompts.js          292  every preset prompt and chip row
+│   │   ├── prompts.js          281  every preset prompt and chip row
 │   │   └── cloud-models.js     108  the fallback model catalogue
 │   │
-│   ├── js/
-│   │   ├── app.js            7,042  core: state, chat, agents, tools, providers
+│   ├── js/                          app.js, and the pieces taken out of it and
+│   │   │                            out of the modes. Each piece is pure where
+│   │   │                            it can be and has a check file of its own
+│   │   ├── app.js            6,732  core: state, chat, agents, tools, providers
+│   │   ├── providers.js        385  each provider's endpoint and auth, plus
+│   │   │                            Moonshot's four hosts and two account systems
+│   │   ├── cloud-model-fetch.js 292 asking each provider what models it has
+│   │   ├── cloud-model-memory.js 122 the model list a provider gave last time
+│   │   ├── model-names.js      216  provider, display name, size class, failover
+│   │   ├── agent-shape.js      316  images, tools and tool results per provider
+│   │   ├── agent-context.js    136  what the model sees of a long agent run
+│   │   ├── agent-policy.js     221  what may run together, and when to stop
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
-│   │   │                              cosine, rank fusion — pure, tested
+│   │   │                            cosine, rank fusion
 │   │   ├── rag-store.js        123  how a document becomes passages —
-│   │   │                              chunking must cover the whole text
-│   │   ├── url-safety.js        93  addresses the fetch tool may reach
-│   │   ├── providers.js        277  each provider's endpoint and auth, plus
-│   │                                Moonshot's four hosts and two account systems
-│   │   ├── markdown-safe.js    134  link sanitiser, entity decoding, escaping
-│   │   ├── agent-shape.js      225  images, tools and tool results per provider
-│   │   ├── model-names.js      190  provider, display name, size class, failover
+│   │   │                            chunking must cover the whole text
 │   │   ├── memory.js           276  reading facts from a message, ranking them
-│   │   ├── diff.js             171  line diff behind the Coder change view
+│   │   ├── vector-map.js       404  placing memory vectors on a flat picture
+│   │   ├── url-safety.js        95  addresses the fetch tool may reach
+│   │   ├── page-text.js        107  a fetched web page, as text a model can read
+│   │   ├── pdf-text.js         123  a PDF, as text
+│   │   ├── markdown-safe.js    134  link sanitiser, entity decoding, escaping
+│   │   ├── export-format.js    343  the shared half of every export
+│   │   ├── diff.js             223  line and word diffs behind the change views
+│   │   ├── edit-history.js      90  undo and redo for hand edits
+│   │   ├── model-plan.js       982  a generated 3D model's parts, made trustworthy
+│   │   ├── power.js            183  stops work nobody can see
+│   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
+│   │   │                            known before the first frame
+│   │   ├── stream/             146  reading a streamed answer off the wire —
+│   │   │                            the one place a response body is read
+│   │   ├── chat/               249  what a model is told, and which to try next
+│   │   ├── code/               364  Coder: terminal colour, export, file names
+│   │   ├── swarm/              455  Agent Swarm: layout, scheduling, fencing
+│   │   ├── forge/            4,917  Forge: fields, surfaces, units, the plan
+│   │   │                            gate, and io/ — STL, OBJ, 3MF and STEP
+│   │   ├── systems/          1,323  ERP: spec, money, domain, the generated books
+│   │   ├── finance/            502  Finance: reading amounts, drawing charts
+│   │   ├── vos/                587  Virtual OS: tree, shell, answers, saved project
+│   │   ├── io/zip.js           182  a stored zip, used by 3MF and downloads
 │   │   └── vendor/                  marked, highlight.js, DOMPurify, mermaid,
 │   │                                pdf.js, jsPDF, SheetJS, and three/ —
 │   │                                core + module + add-ons + utils, r184,
@@ -94,10 +120,11 @@ HashCortX/
 │   │   │   │                        closed stdin, output cap
 │   │   │   ├── embed.rs       374   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  538   what a file held before the agent changed it
-│   │   │   ├── net.rs         229   resolves a hostname and refuses private ones
-│   │   │   ├── fs.rs          815   filesystem bridge, applies the denylist
+│   │   │   ├── net.rs         795   resolves a hostname and refuses private ones
+│   │   │   ├── fs.rs          985   filesystem bridge, applies the denylist
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      261   writes a file the user named in a save dialog
+│   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
 │   │   │   ├── notch.rs       160   HashNotch live-activity ping
 │   │   │   └── audit.rs        52   append-only audit log
@@ -110,8 +137,8 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 1,384 of
-│   │                                them, all loading the real source
+├── scripts/checks/                  the automated frontend checks — 76 files,
+│   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
 │   │                                asks about, and lets through
@@ -228,9 +255,10 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 7,054-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, and two settings panes. The send pipeline, the agent tools, the Python sandbox and persistence are the next slices, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 6,732-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 1,384 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, and functions used as values. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 3,629 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

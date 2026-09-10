@@ -6,10 +6,11 @@
 // network puts them, are gathered into whole lines, and each line carries one
 // JSON event. Only what each event MEANS differs between providers.
 //
-// That reading was written out four times, once per provider family, each with
-// its own copy of the chunk gathering. A fault found in one copy would have
-// been fixed in one copy. The gathering is here now, once; the meaning of an
-// event stays with the provider that sends it.
+// That reading was written out once per provider family, and the local model
+// path alone had three copies of it, each doing its own chunk gathering. A
+// fault found in one copy would have been fixed in one copy, and one of them
+// had already lost the buffer the others kept. The gathering is here now,
+// once; the meaning of an event stays with the provider that sends it.
 //
 // This is the path every answer travels, so the parts that can be checked are
 // separated from the parts that need a network: a line reader that takes any

@@ -162,10 +162,11 @@ console.log('\nAn empty or immediately-closed stream is not an error:');
 
 console.log('\nThere is one stream reader in the app, and it is this one:');
 {
-  // The gathering was once written out five times, and one copy was missing the
-  // buffer the others had — which is how a local model's answer came to lose
-  // words. A reader written anywhere else is a sixth copy waiting to drift, so
-  // this fails the moment one appears. Vendored libraries are not ours.
+  // The gathering was once written out in several places, and one copy was
+  // missing the buffer the others had — which is how a local model's answer
+  // came to lose words. A reader written anywhere else is another copy waiting
+  // to drift, so this fails the moment one appears. Vendored libraries are not
+  // ours.
   const root = join(here, '..', '..', 'src');
   const files = [];
   (function walk(dir) {
