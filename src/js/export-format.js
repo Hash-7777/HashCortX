@@ -108,15 +108,30 @@
    * markers. Everything else loses its syntax rather than showing it raw.
    */
   function markdownToPlainText(markdown) {
-    let text = String(markdown || '');
+    // Code blocks are found by src/js/fences.js, which reads a fence the way
+    // the chat's renderer does. A pattern of its own used to stand here and
+    // missed a block in C#, one whose fence carried a title, or a tilde fence
+    // — and a missed block's closing fence was then taken for an opening one,
+    // so everything after it came out inside out: prose framed as code, code
+    // left as prose.
+    //
+    // The prose rules below also used to run across the code itself, taking
+    // the asterisks out of a multiplication and the backticks out of a
+    // template string. They now run over prose only.
+    const pieces = window.HCFences.splitFences(String(markdown || ''));
+    const text = pieces.map((piece) => {
+      if (piece.type === 'code') {
+        const label = piece.lang ? `[code: ${piece.lang}]` : '[code]';
+        const indented = piece.code.split('\n').map(l => '    ' + l).join('\n');
+        return `\n${label}\n${indented}\n[end code]\n`;
+      }
+      return flattenProse(piece.text);
+    }).join('');
+    return text.replace(/\n{3,}/g, '\n\n').trim();
+  }
 
-    // Fenced code: keep the body, mark the boundaries, protect the indentation.
-    text = text.replace(/```[ \t]*([\w+-]*)[ \t]*\r?\n([\s\S]*?)```/g, (_m, lang, body) => {
-      const label = lang ? `[code: ${lang}]` : '[code]';
-      const indented = body.replace(/\r?\n$/, '').split('\n').map(l => '    ' + l).join('\n');
-      return `\n${label}\n${indented}\n[end code]\n`;
-    });
-
+  /** Markdown syntax taken off prose, keeping what it said. */
+  function flattenProse(text) {
     return text
       .replace(/`([^`]+)`/g, '$1')
       .replace(/^\s{0,3}(#{1,6})\s+/gm, '')
@@ -125,9 +140,7 @@
       .replace(/!\[([^\]]*)\]\([^)]*\)/g, '[image: $1]')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
       .replace(/^\s{0,3}>\s?/gm, '')
-      .replace(/^\s{0,3}[-*_]{3,}\s*$/gm, '---')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
+      .replace(/^\s{0,3}[-*_]{3,}\s*$/gm, '---');
   }
 
   // ── Filenames ────────────────────────────────────────────────────────────

@@ -63,6 +63,7 @@
 
     '/js/power.js',
     '/js/diff.js',
+    '/js/fences.js',
     '/js/code/ansi.js',
     '/js/code/paths.js',
     '/js/code/export.js',

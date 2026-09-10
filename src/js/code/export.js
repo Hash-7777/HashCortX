@@ -13,81 +13,25 @@
 // endings all showed as code on screen and were missing from the export. A
 // conversation whose only code was C++ was told it had no code at all.
 //
-// Fences are read here line by line, the way the renderer reads them, so the
-// export and the screen agree.
+// Fences are read by src/js/fences.js, line by line the way the renderer
+// reads them, so the export and the screen agree.
 //
 // Pure: takes messages, returns text. No DOM, no storage, no network.
 //
-// Loaded after js/code/paths.js, before the Coder mode, and published as
-// window.HCCodeExport.
+// Loaded after js/fences.js and js/code/paths.js, before the Coder mode, and
+// published as window.HCCodeExport.
 // Checked by scripts/checks/code-export.mjs.
 // ==============================================================
 
 (function () {
   'use strict';
 
-  /** An opening fence: up to three spaces, three or more backticks or tildes, then the info line. */
-  const OPEN = /^( {0,3})(`{3,}|~{3,})(.*)$/;
-  const CLOSE = /^ {0,3}(`{3,}|~{3,})[ \t]*$/;
-
   /**
-   * The fenced code blocks in a piece of markdown, in order.
-   *
-   * Follows the same rules as the renderer that draws the chat: a fence is
-   * three or more backticks or tildes; the language is the first word of what
-   * follows them; a block is closed by a fence of the same character that is
-   * at least as long, with nothing after it but spaces; and a backtick fence's
-   * info line may not itself contain a backtick. An indented backtick fence
-   * takes its indentation off the lines inside it that have that much. A
-   * block left open — a reply
-   * stopped part way through its code — runs to the end of the message, which
-   * is also how it is drawn.
+   * The fenced code blocks in a piece of markdown, in order, read by
+   * src/js/fences.js to the same rules as the renderer that draws the chat.
    */
   function codeBlocks(text) {
-    const lines = String(text == null ? '' : text).split(/\r?\n/);
-    const blocks = [];
-    let open = null;
-    // A backtick run that could not open a fence opens an inline code span
-    // instead, and the same run later in the paragraph closes it. Without this
-    // the closing run was read as a new fence and an empty block appeared that
-    // the chat never drew.
-    let span = 0;
-    for (const line of lines) {
-      if (!open) {
-        if (!line.trim()) { span = 0; continue; }
-        if (span) {
-          if (new RegExp('(^|[^`])`{' + span + '}(?!`)').test(line)) span = 0;
-          continue;
-        }
-        const m = OPEN.exec(line);
-        if (!m) continue;
-        const fence = m[2];
-        const info = m[3];
-        if (fence[0] === '`' && info.includes('`')) {
-          // The run closes on this same line if it appears again; otherwise the
-          // span carries on into the lines that follow.
-          if (!new RegExp('(^|[^`])`{' + fence.length + '}(?!`)').test(info)) span = fence.length;
-          continue;
-        }
-        open = { char: fence[0], size: fence.length, indent: m[1].length, lang: info.trim().split(/\s+/)[0] || '', body: [] };
-        continue;
-      }
-      const close = CLOSE.exec(line);
-      if (close && close[1][0] === open.char && close[1].length >= open.size) {
-        blocks.push({ lang: open.lang, code: open.body.join('\n') });
-        open = null;
-        continue;
-      }
-      // An indented backtick fence takes its own indentation off the lines
-      // inside it that have at least that much, and leaves shallower lines and
-      // tilde fences alone. That is what the chat's renderer does rather than
-      // what the spec says, and matching the screen is the point.
-      const lead = /^\s*/.exec(line)[0].length;
-      const strip = open.char === '`' && open.indent && lead >= open.indent;
-      open.body.push(strip ? line.slice(open.indent) : line);
-    }
-    if (open) blocks.push({ lang: open.lang, code: open.body.join('\n') });
-    return blocks;
+    return window.HCFences.codeBlocks(text).map(({ lang, code }) => ({ lang, code }));
   }
 
   /** Messages that belong in an export: what the person and the agent said. */

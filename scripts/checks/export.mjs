@@ -19,6 +19,7 @@ const target = process.argv[2] || join(here, '..', '..', 'src', 'js', 'export-fo
 const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'fences.js'), 'utf8'), sandbox, { filename: 'fences.js' });
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'export-format.js' });
 
 const {
