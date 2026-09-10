@@ -236,6 +236,14 @@ ok("script-src permits 'wasm-unsafe-eval'", scriptSrc.includes("'wasm-unsafe-eva
 ok("script-src does NOT permit 'unsafe-eval'", !scriptSrc.includes("'unsafe-eval'"),
   'that would allow eval() and new Function() as well — the sandbox does not need them');
 
+// A release hashes index.html's own inline scripts into script-src, and a hash
+// makes the browser ignore 'unsafe-inline' — so it was listed and did nothing.
+// Left there, it would start to apply the moment those inline scripts left the
+// page, and a handler written into markup would run in a release for the
+// first time. The page's two inline scripts are allowed by their hashes.
+ok("script-src does NOT permit 'unsafe-inline'", !scriptSrc.includes("'unsafe-inline'"),
+  "inline script must never run in the app — index.html's own inline scripts are allowed by the hashes a release adds");
+
 ok('docs/SECURITY.md does not name a CDN the policy dropped',
   !/cdnjs\.cloudflare\.com|cdn\.sheetjs\.com/.test(securityDoc),
   'both are vendored now; the document still lists them as permitted');
