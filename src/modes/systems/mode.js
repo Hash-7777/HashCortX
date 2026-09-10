@@ -733,42 +733,6 @@ const SystemMaker = (() => {
     return DOMAIN_CONFIG[domain]?.name || "Business Operating System";
   }
 
-  function fallbackSystem(desc = "business system", previousSpec = null) {
-    const domain = detectDomain(desc);
-    const cfg = DOMAIN_CONFIG[domain] || DOMAIN_CONFIG.generic;
-    // Pick a random shell from domain options
-    const shellPool = DOMAIN_SHELL_OPTIONS[domain] || DOMAIN_SHELL_OPTIONS.generic;
-    const shell = pickRandom(shellPool);
-
-    const entities = {};
-    cfg.modules.forEach(m => {
-      const id = slug(m.entity);
-      if (!entities[id]) entities[id] = { id, name: titleCase(m.entity), fields: defaultFields(m.entity, domain) };
-    });
-
-    return normalizeSpec({
-      id: previousSpec?.id || uid("system"),
-      name: previousSpec?.name || inferName(desc),
-      description: `Interactive prototype for ${String(desc || "a business system").slice(0, 120)}`,
-      theme: previousSpec?.theme || { ...cfg.theme, density:"comfortable", radius:10 },
-      layout: previousSpec?.layout || { nav:"sidebar", shell },
-      modules: cfg.modules.map((m, idx) => ({
-        id: slug(m.name),
-        name: m.name,
-        icon: moduleIcon(m.name),
-        entity: slug(m.entity),
-        screen: idx === 0 ? "dashboard" : (m.screen || FALLBACK_SCREENS[idx % FALLBACK_SCREENS.length]),
-        color: ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
-        kpis: cfg.kpis?.[m.entity] || null,
-      })),
-      entities,
-      mockData: previousSpec ? getRuntimeData(previousSpec) : {},
-      workflows: cfg.workflows || [],
-      interactions: ["navigation","search","filter","sort","add/edit/delete records","import/export","localStorage persistence"],
-      revisionHistory: previousSpec?.revisionHistory || [],
-    }, desc, previousSpec);
-  }
-
   function systemPrompt() {
     return `You are a world-class ERP architect. Return ONLY valid JSON for a SystemSpec. No markdown, no prose, no code fences.
 
@@ -1130,41 +1094,6 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     // No silent deterministic fallback: the app should not show ready-made ERP templates as if AI designed them.
     throw new Error("AI generation failed before a valid ERP SystemSpec was created. No template was inserted; check the selected model or API key.");
   }
-
-  function fallbackFromBrief(brief, desc) {
-    const domain = brief.domain || detectDomain(desc);
-    const cfg = DOMAIN_CONFIG[domain] || DOMAIN_CONFIG.generic;
-    const modules = (Array.isArray(brief.modules) && brief.modules.length ? brief.modules : cfg.modules)
-      .map((m, idx) => ({
-        id: slug(m.name || m.entity || `module_${idx}`),
-        name: m.name || titleCase(m.entity || `Module ${idx + 1}`),
-        icon: moduleIcon(m.name || ""),
-        entity: slug(m.entity || m.name || `entity_${idx}`),
-        screen: VALID_SCREENS.includes(m.screen) ? m.screen : (idx === 0 ? "dashboard" : FALLBACK_SCREENS[idx % FALLBACK_SCREENS.length]),
-        color: m.color || ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
-        kpis: cfg.kpis?.[m.entity] || null,
-      }));
-    const entities = {};
-    modules.forEach(m => {
-      const id = m.entity;
-      if (!entities[id]) entities[id] = { id, name: titleCase(id), fields: defaultFields(id, domain) };
-    });
-    return normalizeSpec({
-      id: uid("system"),
-      name: brief.name || cfg.name,
-      description: brief.description || `Interactive ERP for ${desc}`,
-      theme: { ...(brief.theme || cfg.theme), density:"comfortable", radius:10 },
-      layout: brief.layout || { nav:"sidebar" },
-      modules,
-      entities,
-      mockData: {},
-      workflows: cfg.workflows || [],
-      interactions: ["navigation","search","filter","sort","add/edit/delete records","import/export","localStorage persistence"],
-      revisionHistory: [],
-    }, desc, null);
-  }
-
-
 
   function canonicalFinanceEntityForModule(module) {
     const text = `${module?.name || ""} ${module?.entity || ""}`.toLowerCase();

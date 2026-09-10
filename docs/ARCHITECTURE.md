@@ -31,7 +31,7 @@ HashCortX/
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,545  virtual project desktop
-│   │   ├── systems/          3,341  ERP prototype generator
+│   │   ├── systems/          3,270  ERP prototype generator
 │   │   ├── agent-maker/      2,356  chain / vote / failover
 │   │   ├── code/             2,631  the Coder agent loop
 │   │   ├── finance/          2,378  financial document analysis
