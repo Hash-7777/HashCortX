@@ -60,6 +60,17 @@ const counts = S.stageCounts([{ status: 'New' }, { status: 'cooking' }, { status
 ok('in the workflow\'s order', counts.map((c) => c.stage).join() === 'New,Cooking,Served');
 ok('counted from the records', counts.map((c) => c.count).join() === '1,2,0');
 
+console.log('\nOnly records that move through steps are offered the next one:');
+{
+  const invoices = { id: 'invoices', fields: [sel('status', ['Draft', 'Sent', 'Paid', 'Overdue'])] };
+  const spec = (modules, workflows = []) => ({ entities: { orders, invoices }, modules, workflows });
+  ok('an entity shown as a board moves through its stages', S.pipelineField('orders', spec([{ entity: 'orders', screen: 'kanban' }]))?.id === 'status');
+  ok('so does one a workflow is about', S.pipelineField('orders', spec([{ entity: 'orders', screen: 'list' }], [{ stages: ['New', 'Cooking', 'Served'] }]))?.id === 'status');
+  ok('an invoice listed with its states does not: Paid is not a step before Overdue', S.pipelineField('invoices', spec([{ entity: 'invoices', screen: 'split' }])) === null);
+  ok('an entity with no stage field never does', S.pipelineField('x', { entities: { x: { id: 'x', fields: [] } }, modules: [{ entity: 'x', screen: 'kanban' }] }) === null);
+  ok('the detail panel asks this before offering a move', /function nextStageButton[\s\S]*?STAGES\(\)\.pipelineField\(entity\?\.id, getActive\(\)\)/.test(mode));
+}
+
 console.log('\nThe screens move records for real:');
 ok('a board card can be dragged, and dropped on a column', /class="sys-kanban-card"[^>]*draggable="true"/.test(mode) && /class="sys-kanban-col" data-stage=/.test(mode) && /addEventListener\("drop"/.test(mode));
 ok('and moved a stage either way with its arrows', /data-action="stage-prev"/.test(mode) && /data-action="stage-next"/.test(mode));

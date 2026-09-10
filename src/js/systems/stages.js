@@ -74,5 +74,23 @@
     }));
   }
 
-  window.HCSystemsStages = { stageField, nextStage, previousStage, workflowTarget, stageCounts };
+  /**
+   * The stage field of an entity whose records really move through stages —
+   * one shown as a board, or the subject of a workflow — or null. An invoice's
+   * Paid and Overdue are states, not steps, and a paid invoice was offered
+   * "Move to Overdue".
+   */
+  function pipelineField(entityId, spec) {
+    const entity = spec && spec.entities && spec.entities[entityId];
+    const field = stageField(entity);
+    if (!field) return null;
+    const onBoard = ((spec && spec.modules) || []).some((m) => m.entity === entityId && m.screen === 'kanban');
+    const inWorkflow = ((spec && spec.workflows) || []).some((w) => {
+      const t = workflowTarget(w, spec.entities);
+      return t && t.entityId === entityId && t.field.id === field.id;
+    });
+    return onBoard || inWorkflow ? field : null;
+  }
+
+  window.HCSystemsStages = { stageField, nextStage, previousStage, workflowTarget, stageCounts, pipelineField };
 })();

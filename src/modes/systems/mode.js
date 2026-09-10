@@ -1759,9 +1759,9 @@ Repair requirements:
     }).join("");
   }
 
-  /** "Move to Served" on a record's detail panel, while it has a stage to go on to. */
+  /** "Move to Served" on a record's detail panel, where records move through stages. */
   function nextStageButton(record, entity) {
-    const field = STAGES().stageField(entity);
+    const field = STAGES().pipelineField(entity?.id, getActive());
     const next = record && field ? STAGES().nextStage(field, record[field.id]) : null;
     return next == null ? "" : `<button type="button" class="sys-mini-btn sys-detail-next" data-action="stage-next" data-record-id="${esc(record.id)}">Move to ${esc(next)}</button>`;
   }
