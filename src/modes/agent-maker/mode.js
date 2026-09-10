@@ -2204,13 +2204,6 @@ ${modelListStr}`;
   // ── Web Project support ────────────────────────────────────────────
   let _projectFiles = null; // Map<filename, {lang, content}> | null
 
-  function _guessLang(filename) {
-    const ext = (filename.split(".").pop() || "").toLowerCase();
-    return { html:"html", htm:"html", css:"css", js:"javascript", ts:"typescript",
-             jsx:"javascript", tsx:"typescript", json:"json", py:"python",
-             md:"markdown", svg:"svg", sh:"bash" }[ext] || "text";
-  }
-
   function _fileTypeIcon(filename) {
     const ext = (filename.split(".").pop() || "").toLowerCase();
     const s = (p, extra="") => `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" ${extra}>${p}</svg>`;
@@ -2231,47 +2224,13 @@ ${modelListStr}`;
     return icons[ext] || s(`<path d="M8 1.5H3.5A1.5 1.5 0 0 0 2 3v8A1.5 1.5 0 0 0 3.5 12.5h7A1.5 1.5 0 0 0 12 11V5.5L8 1.5z"/><path d="M8 1.5V5.5H12"/><path d="M4.5 8h5M4.5 10h3"/>`);
   }
 
-  // Extract named code blocks — supports ```lang:filename and ```lang filename.ext
+  // Named files in a swarm's answer, for the preview and the site download:
+  // src/js/swarm/project-files.js.
   function _extractProjectFiles(text) {
-    const files = new Map();
-    // Primary: ```lang filename.ext  (space/tab separator)
-    // Last-wins: QA agent corrections overwrite original agent outputs
-    const re = /```([\w-]*)[ \t]+([^\s`'"`]+\.[\w]{1,8})\n([\s\S]*?)```/g;
-    let m;
-    while ((m = re.exec(text)) !== null) {
-      const fname = m[2].replace(/^["']|["']$/g, "").toLowerCase();
-      files.set(fname, { lang: m[1] || _guessLang(fname), content: m[3] });
-    }
-    // Secondary: ```lang:filename.ext  (last-wins)
-    const re2 = /```([\w-]+):([\w./\-]+\.[\w]{1,8})\n([\s\S]*?)```/g;
-    while ((m = re2.exec(text)) !== null) {
-      const fname = m[2].toLowerCase();
-      files.set(fname, { lang: m[1] || _guessLang(fname), content: m[3] });
-    }
-    // Tertiary: // file: comment  (last-wins)
-    const re3 = /```(\w*)\n(?:(?:\/\/|#|<!--)\s*file:\s*([^\s\n*]+?)(?:\s*-->)?\n)([\s\S]*?)```/g;
-    while ((m = re3.exec(text)) !== null) {
-      const fname = m[2].toLowerCase();
-      files.set(fname, { lang: m[1] || _guessLang(fname), content: m[3] });
-    }
-    // Fallback: plain ```html block → index.html
-    if (!files.has("index.html")) {
-      const h = /```html\n([\s\S]*?)```/.exec(text);
-      if (h) files.set("index.html", { lang: "html", content: h[1] });
-    }
-    // Fallback: plain ```css block → styles.css
-    if (!files.has("styles.css") && !files.has("style.css")) {
-      const c = /```css\n([\s\S]*?)```/.exec(text);
-      if (c) files.set("styles.css", { lang: "css", content: c[1] });
-    }
-    // Fallback: plain ```js / ```javascript block → app.js
-    const hasJs = [...files.keys()].some(k => k.endsWith(".js"));
-    if (!hasJs) {
-      const j = /```(?:javascript|js)\n([\s\S]*?)```/.exec(text);
-      if (j) files.set("app.js", { lang: "javascript", content: j[1] });
-    }
-    return files;
+    return window.HCSwarmProjectFiles.extractProjectFiles(text);
   }
+
+
 
   function _buildPreviewHTML(files) {
     const entry = files.get("index.html") || files.get("index.htm") ||

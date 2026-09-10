@@ -90,6 +90,7 @@
     '/js/swarm/graph.js',
     '/js/swarm/schedule.js',
     '/js/swarm/output.js',
+    '/js/swarm/project-files.js',
     '/js/systems/spec.js',
     '/js/systems/money.js',
     '/js/systems/domain.js',
