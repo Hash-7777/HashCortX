@@ -3,8 +3,10 @@
 //
 // The Workspace draws a kept run (src/js/swarm/runs.js) as a conversation and
 // a set of files. Deciding who each turn is from, what its status reads as,
-// the order the file tabs come in and how long ago something happened is
-// kept here, apart from the drawing, so it can be checked on its own.
+// the order the file tabs come in, how long ago something happened and what
+// changed in a file between two versions is kept here, apart from the
+// drawing, so it can be checked on its own. Line differences come from
+// src/js/diff.js, the same diff the Coder shows.
 //
 // Pure: takes a run, returns plain values. No DOM, no storage, no network.
 //
@@ -79,5 +81,25 @@
     return t.length > 1400 || t.split('\n').length > 24;
   }
 
-  window.HCSwarmWorkspaceView = { turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded };
+  /** The versions the one on screen can be compared with: every other, newest first. */
+  function compareChoices(run, rev) {
+    return (run?.versions || []).filter((v) => v.rev !== rev).slice().reverse()
+      .map((v) => ({ rev: v.rev, label: `Compare with ${versionLabel(run, v)}` }));
+  }
+
+  /**
+   * What changed in one file from one version to another: the lines, with
+   * long unchanged stretches folded, and how many were added and removed. A
+   * file a version does not have compares as empty, so all of it reads as new.
+   */
+  function fileChanges(beforeFile, afterFile) {
+    const D = window.HCDiff;
+    const rows = D.diffLines(beforeFile ? beforeFile.content : '', afterFile ? afterFile.content : '');
+    const { added, removed } = D.countChanges(rows);
+    return { rows: D.collapseUnchanged(rows, 3), added, removed, missingBefore: !beforeFile, missingAfter: !afterFile };
+  }
+
+  window.HCSwarmWorkspaceView = {
+    turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded, compareChoices, fileChanges,
+  };
 })();

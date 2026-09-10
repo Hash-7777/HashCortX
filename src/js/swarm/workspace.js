@@ -40,7 +40,7 @@
 
   let deps = null;
   let wired = false;
-  const state = { blueprint: null, runs: [], run: null, rev: 0, file: '', returnFocus: null, asking: null };
+  const state = { blueprint: null, runs: [], run: null, rev: 0, file: '', compare: 0, returnFocus: null, asking: null };
 
   function init(d) {
     deps = d;
@@ -107,6 +107,7 @@
     state.run = state.runs.find((r) => r.id === wanted) || state.runs[0] || null;
     state.rev = state.run?.versions.length ? state.run.versions[state.run.versions.length - 1].rev : 0;
     state.file = '';
+    state.compare = 0;
     draw();
     $('amkWsClose')?.focus();
   }
@@ -136,6 +137,7 @@
     state.run = state.runs.find((r) => r.id === id) || null;
     state.rev = state.run?.versions.length ? state.run.versions[state.run.versions.length - 1].rev : 0;
     state.file = '';
+    state.compare = 0;
     draw();
   }
 
@@ -291,18 +293,74 @@
     const bar = document.createElement('div');
     bar.className = 'amk-ws-filebar';
     const lines = String(file.content).split('\n').length;
-    bar.textContent = `${state.file} · ${file.lang || 'text'} · ${lines} line${lines === 1 ? '' : 's'}`;
+    const about = document.createElement('span');
+    about.textContent = `${state.file} · ${file.lang || 'text'} · ${lines} line${lines === 1 ? '' : 's'}`;
+    bar.append(about, comparePicker());
     const copy = document.createElement('button');
     copy.type = 'button';
     copy.className = 'amk-ws-btn';
     copy.textContent = 'Copy file';
     copy.addEventListener('click', () => copyText(file.content, `Copied ${state.file}`));
     bar.append(copy);
-    const pre = document.createElement('pre');
-    pre.className = 'amk-ws-code';
-    pre.textContent = file.content;
-    pane.replaceChildren(bar, pre);
+    if (state.compare) {
+      pane.replaceChildren(bar, ...changesView(file));
+    } else {
+      const pre = document.createElement('pre');
+      pre.className = 'amk-ws-code';
+      pre.textContent = file.content;
+      pane.replaceChildren(bar, pre);
+    }
     drawHeader();
+  }
+
+  /** The picker that turns the file view into what changed since another version. */
+  function comparePicker() {
+    const V = VIEW();
+    const choices = V.compareChoices(state.run, state.rev);
+    if (!choices.some((c) => c.rev === state.compare)) state.compare = 0;
+    const pick = document.createElement('select');
+    pick.className = 'amk-ws-compare';
+    pick.setAttribute('aria-label', 'Compare this file with another version');
+    pick.append(new Option('The file as it is', '0', false, !state.compare),
+      ...choices.map((c) => new Option(c.label, String(c.rev), false, c.rev === state.compare)));
+    pick.disabled = !choices.length;
+    pick.addEventListener('change', () => { state.compare = Number(pick.value); drawFiles(); });
+    return pick;
+  }
+
+  /** What changed in the open file between the compared version and the one on screen. */
+  function changesView(file) {
+    const other = state.run.versions.find((v) => v.rev === state.compare);
+    const c = VIEW().fileChanges(other.files[state.file], file);
+    const summary = document.createElement('div');
+    summary.className = 'amk-ws-diff-summary';
+    summary.textContent = c.missingBefore
+      ? `Not in v${state.compare}: all ${c.added} line${c.added === 1 ? '' : 's'} are new in v${state.rev}`
+      : c.added || c.removed
+        ? `From v${state.compare} to v${state.rev}: ${c.added} line${c.added === 1 ? '' : 's'} added, ${c.removed} removed`
+        : `No change between v${state.compare} and v${state.rev}`;
+    const list = document.createElement('div');
+    list.className = 'amk-ws-diff';
+    list.setAttribute('role', 'list');
+    for (const row of c.rows) {
+      const line = document.createElement('div');
+      line.setAttribute('role', 'listitem');
+      if (row.type === 'gap') {
+        line.className = 'amk-ws-diff-row gap';
+        line.textContent = `… ${row.hidden} unchanged line${row.hidden === 1 ? '' : 's'}`;
+      } else {
+        line.className = `amk-ws-diff-row ${row.type}`;
+        const sign = document.createElement('span');
+        sign.className = 'amk-ws-diff-sign';
+        sign.textContent = row.type === 'add' ? '+' : row.type === 'del' ? '−' : ' ';
+        sign.setAttribute('aria-label', row.type === 'add' ? 'added' : row.type === 'del' ? 'removed' : 'unchanged');
+        const text = document.createElement('span');
+        text.textContent = row.text;
+        line.append(sign, text);
+      }
+      list.append(line);
+    }
+    return [summary, list];
   }
 
   function onTabKey(e) {

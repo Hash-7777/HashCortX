@@ -18,7 +18,7 @@ const mode = src('modes', 'agent-maker', 'mode.js');
 const code = mode.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
-for (const f of [['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js'], ['js', 'swarm', 'workspace-view.js'], ['js', 'swarm', 'talk.js']]) {
+for (const f of [['js', 'diff.js'], ['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js'], ['js', 'swarm', 'workspace-view.js'], ['js', 'swarm', 'talk.js']]) {
   vm.runInContext(src(...f), sandbox, { filename: f.join('/') });
 }
 const R = sandbox.window.HCSwarmRuns;
@@ -305,6 +305,34 @@ console.log('\nThe message box:');
   })());
   ok('Stop cancels the request', /state\.asking\?\.controller\.abort\(\)/.test(ws) && /controller\.signal\)/.test(ws));
   ok('the answer is kept against the run it was asked of', /state\.runs = state\.runs\.map\(\(r\) => \(r\.id === next\.id \? next : r\)\)/.test(ws));
+}
+
+console.log('\nComparing two versions:');
+{
+  const run = {
+    agents: [{ id: 'a2', name: 'Builder' }],
+    versions: [
+      { rev: 1, by: 'team', changed: ['index.html'], files: {} },
+      { rev: 2, by: 'a2', changed: ['styles.css'], files: {} },
+      { rev: 3, by: 'a2', changed: ['index.html'], files: {} },
+    ],
+  };
+  const c = V.compareChoices(run, 2);
+  ok('every other version can be compared with, newest first', c.map((x) => x.rev).join() === '3,1');
+  ok('each named the way the version picker names it', c[0].label === 'Compare with v3 · Builder · 1 file');
+  ok('a run with one version has nothing to compare with', V.compareChoices({ versions: [{ rev: 1, changed: [] }] }, 1).length === 0);
+
+  const f = (content) => ({ lang: 'css', content });
+  const one = V.fileChanges(f('a\nb\nc'), f('a\nB\nc\nd'));
+  ok('it counts the lines added and removed', one.added === 2 && one.removed === 1);
+  ok('and lists them in order', one.rows.map((r) => r.type).join() === 'same,del,add,same,add');
+  const none = V.fileChanges(f('same'), f('same'));
+  ok('a file that did not change says so', none.added === 0 && none.removed === 0);
+  const fresh = V.fileChanges(undefined, f('x\ny'));
+  ok('a file the other version did not have reads as all new', fresh.missingBefore && fresh.added === 2 && fresh.removed === 0);
+  const long = V.fileChanges(f(Array.from({ length: 40 }, (_, i) => `l${i}`).join('\n')), f(Array.from({ length: 40 }, (_, i) => (i === 20 ? 'changed' : `l${i}`)).join('\n')));
+  ok('long unchanged stretches are folded, with how many lines', long.rows.some((r) => r.type === 'gap' && r.hidden === 17) && long.rows.length < 12);
+  ok('the Workspace draws changes as text only', /text\.textContent = row\.text/.test(ws) && (ws.match(/\.innerHTML\s*=/g) || []).length === 1);
 }
 
 console.log('\nA site opens in the browser, never inside the app:');

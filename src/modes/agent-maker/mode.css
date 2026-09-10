@@ -922,6 +922,20 @@ img.amk-empty-logo {
   background: var(--bg-0); border-bottom: 1px solid var(--amk-line);
 }
 .amk-ws-filebar .amk-ws-btn { margin-left: auto; }
+.amk-ws-compare {
+  height: var(--control-h-sm); max-width: 280px; padding: 0 6px;
+  background: var(--surface-0); color: var(--text);
+  border: 1px solid var(--amk-line); border-radius: var(--radius-xs); font-size: 11px;
+}
+.amk-ws-diff-summary { padding: 8px 14px; font-size: 11.5px; color: var(--text-dim); border-bottom: 1px solid var(--amk-line); }
+.amk-ws-diff { min-width: 100%; width: max-content; box-sizing: border-box; padding: 6px 0 12px; font-family: var(--mono); font-size: 12px; line-height: 1.55; }
+.amk-ws-diff-row { display: flex; padding: 0 14px; white-space: pre; color: var(--text-dim); }
+.amk-ws-diff-row.add { background: var(--ok-soft); color: var(--text); }
+.amk-ws-diff-row.del { background: var(--danger-soft); color: var(--text); }
+.amk-ws-diff-row.gap { padding: 4px 14px; font-family: inherit; font-size: 11px; color: var(--muted); font-style: italic; }
+.amk-ws-diff-sign { width: 1.5em; flex-shrink: 0; user-select: none; color: var(--muted); }
+.amk-ws-diff-row.add .amk-ws-diff-sign { color: var(--ok); }
+.amk-ws-diff-row.del .amk-ws-diff-sign { color: var(--danger); }
 .amk-ws-code { margin: 0; padding: 12px 14px; font-family: var(--mono); font-size: 12px; line-height: 1.55; color: var(--text); white-space: pre; tab-size: 2; }
 .amk-ws-empty { padding: var(--space-6); text-align: center; font-size: 12.5px; color: var(--muted); }
 
