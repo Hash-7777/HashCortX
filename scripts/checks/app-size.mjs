@@ -329,7 +329,9 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // frame, so loading it late would be the same as not loading it. The tag
 // itself is an asset line and was never counted; what is counted is the
 // sentence saying why it cannot move, which is the part a reader needs.
-const SHELL_MARKUP_BUDGET = 627;
+// 618, down from 627: the launch background's style block left the page for
+// base.css — see production-policy.mjs.
+const SHELL_MARKUP_BUDGET = 618;
 
 console.log('\nThe shell holds no more markup than it did:');
 {

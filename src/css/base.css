@@ -1,5 +1,12 @@
   * { box-sizing: border-box; }
   html, body { height: 100%; margin: 0; }
+  /* The window's own background, and no scrolling at the page level. This
+     used to be a style block in index.html; a production build puts a nonce
+     on every one, which makes the browser ignore 'unsafe-inline' for styles
+     and dropped every style attribute in the app. Every stylesheet here loads
+     in the page head, before anything paints, so it belongs here instead —
+     see scripts/checks/production-policy.mjs. */
+  html { background: var(--bg-0); overflow: hidden; }
   body {
     font-family: var(--sans);
     color: var(--text);
