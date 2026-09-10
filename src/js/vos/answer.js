@@ -41,52 +41,86 @@
       out.push({ path: p, content: String(content || "").replace(/^\n+|\n+$/g, "") });
     }
 
-    // ── Tier 1: ``\`lang path/to/file.ext  (intended format) ────────────
-    const t1 = /```([A-Za-z0-9_+\-.]*)[ \t]+([^\n`\r]{3,120}?\.[A-Za-z0-9_\-]{1,12})[ \t]*\r?\n([\s\S]*?)```/g;
-    let m;
-    while ((m = t1.exec(src)) !== null) add(m[2], m[3]);
-    if (out.length) return out;
+    // Blocks are found by src/js/fences.js, which reads a fence the way the
+    // chat draws it. The tiers below used patterns of their own that missed a
+    // block in C#, a tilde fence, and a fence whose language was followed by
+    // a title — so a project written correctly came back short of files.
+    const pieces = window.HCFences.splitFences(src);
+    const blocks = [];
+    pieces.forEach((piece, i) => {
+      if (piece.type !== "code") return;
+      const before = pieces[i - 1];
+      // The line directly above the fence, if there is one; a blank line
+      // between a label and its fence means the label is not its name.
+      const tail = before && before.type === "text" ? before.text.replace(/\r?\n$/, "") : "";
+      const above = tail.slice(tail.lastIndexOf("\n") + 1).replace(/\r$/, "");
+      blocks.push({ lang: piece.lang, rawInfo: piece.rawInfo, code: piece.code, above });
+    });
+    const PATH = /^([^\n`\r]{3,120}?\.[A-Za-z0-9_\-]{1,12})[ \t]*$/;
 
-    // ── Tier 2: path comment as FIRST line inside fence ─────────────────
-    // e.g. ```html\n// apple-clone/index.html\ncontent\n```
-    // or   ```html\n<!-- styles.css -->\ncontent\n```
-    const t2 = /```[A-Za-z0-9_+\-. ]*\r?\n[ \t]*(?:\/\/[ \t]*|<!--[ \t]*|#[ \t]*|\/\*[ \t]*)?([^\n`\r]{3,120}?\.[A-Za-z0-9_\-]{1,12})(?:[ \t]*-->|[ \t]*\*\/)?[ \t]*\r?\n([\s\S]*?)```/g;
-    while ((m = t2.exec(src)) !== null) {
-      const cand = m[1].trim();
-      if (/^[\w.\-/]+$/.test(cand)) add(cand, m[2]);
+    // ── Tiers 1–3: a name the model gave the block ──────────────────────
+    // Each block is named by the most specific label it carries, so no block
+    // is read twice under two names. These used to be tried across the whole
+    // answer in turn, the first to find anything winning — which meant that
+    // once some files were named on their fence line, a file named in a
+    // comment or a heading was dropped without a word.
+    const FIRST = /^[ \t]*(?:\/\/[ \t]*|<!--[ \t]*|#[ \t]*|\/\*[ \t]*)?(?:file:[ \t]*)?([^\n`\r]{3,120}?\.[A-Za-z0-9_\-]{1,12})(?:[ \t]*-->|[ \t]*\*\/)?[ \t]*$/i;
+    const LABEL = /^[ \t]*(?:#{1,6}[ \t]+|\*{1,2}|`)?([^\n`\r*#]{2,120}?\.[A-Za-z0-9_\-]{1,12})(?:`|\*{0,2})?[ \t]*$/;
+    function labelled(b) {
+      // 1: ```lang path/to/file.ext, ```lang:path, or a path where the
+      //    language would be.
+      const info = b.rawInfo || "";
+      const joined = /^[\w+#.-]+:(\S+)$/.exec(info.trim());
+      const rest = joined ? joined[1] : /^\s/.test(info) ? info.trim() : info.trim().replace(/^\S+\s*/, "");
+      const onFence = PATH.exec(rest);
+      if (onFence) return { path: onFence[1], content: b.code };
+      // 2: a path in a comment on the first line, which is then not part of
+      //    the file — // path, <!-- path -->, # path, /* file: path */.
+      const nl = b.code.indexOf("\n");
+      const first = FIRST.exec(nl === -1 ? b.code : b.code.slice(0, nl));
+      if (first && /^[\w.\-/]+$/.test(first[1].trim())) {
+        return { path: first[1].trim(), content: nl === -1 ? "" : b.code.slice(nl + 1) };
+      }
+      // 3: a label on the line directly above the fence — **path**, ### path.
+      const above = LABEL.exec(b.above);
+      if (above) {
+        const cand = above[1].trim();
+        if (/^[\w.\-/ ]+$/.test(cand) && !/\s{2,}/.test(cand)) return { path: cand, content: b.code };
+      }
+      return null;
     }
-    if (out.length) return out;
-
-    // ── Tier 3: filename label on the line ABOVE a fence ────────────────
-    // e.g. **apple-clone/index.html**\n```html\ncontent\n```
-    // or   ### index.html\n```html\ncontent\n```
-    const t3 = /(?:^|\r?\n)[ \t]*(?:#{1,6}[ \t]+|\*{1,2}|`)?([^\n`\r*#]{2,120}?\.[A-Za-z0-9_\-]{1,12})(?:`|\*{0,2})?[ \t]*\r?\n[ \t]*```[^\n]*\r?\n([\s\S]*?)```/gm;
-    while ((m = t3.exec(src)) !== null) {
-      const cand = m[1].trim();
-      if (/^[\w.\-/ ]+$/.test(cand) && !/\s{2,}/.test(cand)) add(cand, m[2]);
+    for (const b of blocks) {
+      const f = labelled(b);
+      if (f) add(f.path, f.content);
     }
+    // Once the model has named its files, a block it did not name is an
+    // example in the explanation, not a file.
     if (out.length) return out;
 
-    // ── Tier 4: last-resort — extract ALL fences, auto-name by language ─
+    // ── Tier 4: last-resort — every block, named by its language ─────────
     // If the model completely ignored the path format, still recover the code.
     const extMap = {
       html:"index.html", htm:"index.html", css:"styles.css", scss:"styles.scss",
       js:"app.js", javascript:"app.js", mjs:"app.mjs",
       ts:"app.ts", typescript:"app.ts", jsx:"App.jsx", tsx:"App.tsx",
       py:"main.py", python:"main.py", rb:"main.rb",
+      "c#":"Program.cs", cs:"Program.cs", csharp:"Program.cs",
+      "c++":"main.cpp", cpp:"main.cpp", c:"main.c", go:"main.go", rust:"main.rs", rs:"main.rs",
+      java:"Main.java", swift:"main.swift", php:"index.php",
       json:"config.json", yaml:"config.yaml", yml:"config.yaml",
       sh:"run.sh", bash:"run.sh", sql:"schema.sql",
       xml:"config.xml", md:"README.md", txt:"notes.txt"
     };
     const counter = {};
-    const t4 = /```([A-Za-z0-9_+\-.]*)\r?\n([\s\S]*?)```/g;
-    while ((m = t4.exec(src)) !== null) {
-      if (!m[2].trim()) continue;
-      const lang = (m[1] || "").toLowerCase();
-      const base = extMap[lang] || (lang ? `file.${lang}` : "file.txt");
+    for (const b of blocks) {
+      if (!b.code.trim()) continue;
+      const lang = (b.lang || "").toLowerCase();
+      // A language that is not a plain word would put its punctuation in the
+      // file name; those that are not known get a plain text name instead.
+      const base = extMap[lang] || (/^[a-z0-9]{1,12}$/.test(lang) ? `file.${lang}` : "file.txt");
       counter[base] = (counter[base] || 0) + 1;
       const name = counter[base] === 1 ? base : base.replace(/(\.[^.]+)$/, `${counter[base] - 1}$1`);
-      add(name, m[2]);
+      add(name, b.code);
     }
 
     return out;

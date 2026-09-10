@@ -61,7 +61,7 @@
     const bare = (line) => line.replace(/\r?\n$/, '');
     const flushProse = () => { if (prose) { pieces.push({ type: 'text', text: prose }); prose = ''; } };
     const closeBlock = () => {
-      pieces.push({ type: 'code', lang: open.lang, info: open.info, code: open.body.join('\n') });
+      pieces.push({ type: 'code', lang: open.lang, info: open.info, rawInfo: open.rawInfo, code: open.body.join('\n') });
       open = null;
     };
 
@@ -91,7 +91,7 @@
         continue;
       }
       flushProse();
-      open = { char: fence[0], size: fence.length, indent: m[1].length, info: info.trim(), lang: info.trim().split(/\s+/)[0] || '', body: [] };
+      open = { char: fence[0], size: fence.length, indent: m[1].length, info: info.trim(), rawInfo: info, lang: info.trim().split(/\s+/)[0] || '', body: [] };
     }
     if (open) closeBlock();
     flushProse();

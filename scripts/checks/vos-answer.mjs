@@ -22,7 +22,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const rel of [['src', 'js', 'vos', 'tree.js'], ['src', 'js', 'vos', 'answer.js']]) {
+for (const rel of [['src', 'js', 'fences.js'], ['src', 'js', 'vos', 'tree.js'], ['src', 'js', 'vos', 'answer.js']]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
 const A = sandbox.window.HCVosAnswer;
@@ -97,7 +97,12 @@ console.log('\nCode with no name at all is still recovered:');
     numbered.every((f) => f.path.endsWith('.css')), paths(numbered));
 
   ok('a language nobody mapped still becomes a file',
-    A.extractFiles(`${F}rust\nfn main(){}\n${F}`)[0]?.path === 'file.rust');
+    A.extractFiles(`${F}elixir\nIO.puts 1\n${F}`)[0]?.path === 'file.elixir');
+  ok('a mapped language gets its usual file name', A.extractFiles(`${F}rust\nfn main(){}\n${F}`)[0]?.path === 'main.rs');
+  // A language with punctuation in it would put that punctuation in the name.
+  ok('C# is named as a C# file, not file.c#', A.extractFiles(`${F}c#\nclass P {}\n${F}`)[0]?.path === 'Program.cs');
+  ok('an unknown language with punctuation becomes a text file',
+    A.extractFiles(`${F}objective-c++\nx\n${F}`)[0]?.path === 'file.txt');
   ok('and no language at all still does',
     A.extractFiles(`${F}\nplain text\n${F}`)[0]?.path === 'file.txt');
   ok('an empty fence is not a file', A.extractFiles(`${F}js\n\n${F}`).length === 0);
@@ -154,6 +159,63 @@ console.log('\nA file says what kind of thing it is:');
   ok('something unknown is still described', A.kindLabel({ type: 'file', name: 'a.xyz' }) === 'Document');
   ok('a file with no extension is too', A.kindLabel({ type: 'file', name: 'LICENSE' }) === 'Document');
   ok('and nothing is nothing', A.kindLabel(null) === '');
+}
+
+console.log('\nA file is not lost to the way its fence is written:');
+{
+  // Blocks are found by js/fences.js now. The tiers used patterns of their
+  // own that missed each of these, and a project written correctly came back
+  // short of files.
+  const T = '~'.repeat(3);
+  const one = (text) => A.extractFiles(text).map((f) => `${f.path}=${f.content}`).join(' | ');
+  ok('a C# block with its file name', one(`${F}c# Program.cs\nclass P {}\n${F}`) === 'Program.cs=class P {}');
+  ok('a C++ block with its file name', one(`${F}c++ main.cpp\nint main() {}\n${F}`) === 'main.cpp=int main() {}');
+  ok('a tilde fence with its file name', one(`${T}html index.html\n<p>x</p>\n${T}`) === 'index.html=<p>x</p>');
+  ok('the language:path form', one(`${F}js:src/app.js\nconst a = 1;\n${F}`) === 'src/app.js=const a = 1;');
+  ok('a "file:" marker on the first line names the file and is not left in it',
+    one(`${F}css\n/* file: styles/main.css */\nbody {}\n${F}`) === 'styles/main.css=body {}');
+  ok('Windows line endings do not leave carriage returns in the file',
+    one(`${F}html index.html\r\n<p>x</p>\r\n<p>y</p>\r\n${F}\r\n`) === 'index.html=<p>x</p>\n<p>y</p>');
+  ok('a name keeps its capitals', one(`${F}jsx App.jsx\nexport default 1;\n${F}`).startsWith('App.jsx='));
+  ok('a label above a fence still names it',
+    one(`**src/index.html**\n${F}html\n<p>x</p>\n${F}`) === 'src/index.html=<p>x</p>');
+  ok('a label with a blank line before the fence does not',
+    !one(`**src/index.html**\n\n${F}html\n<p>x</p>\n${F}`).startsWith('src/index.html'));
+
+  // Control: the first tier's old pattern, which had no room for a "#".
+  const oldT1 = /```([A-Za-z0-9_+\-.]*)[ \t]+([^\n`\r]{3,120}?\.[A-Za-z0-9_\-]{1,12})[ \t]*\r?\n([\s\S]*?)```/g;
+  ok('control: the old first tier misses a C# block named on its fence',
+    oldT1.exec(`${F}c# Program.cs\nclass P {}\n${F}`) === null);
+}
+
+console.log('\nEvery file the model named is kept, however it named it:');
+{
+  // The tiers were tried across the whole answer and the first to find
+  // anything won, so a file named in a comment was dropped as soon as another
+  // file had been named on its fence line.
+  const mixed = [
+    `${F}html index.html`, '<p>x</p>', F,
+    `${F}css`, '/* styles/main.css */', 'body {}', F,
+    '**src/app.js**', `${F}js`, 'const a = 1;', F,
+  ].join('\n');
+  const got = A.extractFiles(mixed).map((f) => f.path);
+  ok('a file named on its fence is kept', got.includes('index.html'));
+  ok('a file named in a comment beside it is kept', got.includes('styles/main.css'));
+  ok('a file named in a label above its fence is kept', got.includes('src/app.js'));
+  ok('each arrives once', got.length === 3, got.join());
+  ok('in the order they were written', got.join() === 'index.html,styles/main.css,src/app.js');
+
+  // Once files are named, an unnamed block is an example, not a file.
+  const withSnippet = `${F}html index.html\n<p>x</p>\n${F}\n\nThen run:\n\n${F}bash\nnpm start\n${F}`;
+  const names = A.extractFiles(withSnippet).map((f) => f.path);
+  ok('an unnamed example beside named files does not become a file', names.join() === 'index.html');
+  ok('with nothing named at all, blocks are still named by language',
+    A.extractFiles(`${F}bash\nnpm start\n${F}`)[0]?.path === 'run.sh');
+
+  // Control: the whole-answer order, where the first tier that finds anything wins.
+  const tier1Only = [...mixed.matchAll(/```[^\s`]+[ \t]+(\S+\.\w+)\n/g)].map((x) => x[1]);
+  ok('control: stopping at the first tier keeps only the file named on its fence',
+    tier1Only.join() === 'index.html');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/vos/answer.js)\n`);
