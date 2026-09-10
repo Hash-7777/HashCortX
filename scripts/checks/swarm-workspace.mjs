@@ -242,6 +242,57 @@ console.log('\nWhat an answer does to the run:');
   ok('a change asked of an earlier version is made to that version', R.currentFiles(onV1.run)['styles.css'].content === 'h1{}' && R.currentFiles(onV1.run)['index.html'].content === '<h1>Big</h1>');
 }
 
+console.log('\nAnother pass by the whole team:');
+{
+  const B = '`'.repeat(3);
+  const agents = [{ id: 'a1', name: 'Designer' }, { id: 'a2', name: 'Builder' }];
+  const run = { agents, leadAgentId: 'a2', edges: [], turns: [], versions: [] };
+  const t = T.addressee(run, '@team make it warmer');
+  ok('@team sends it to the whole team', t.team === true && t.text === 'make it warmer');
+  ok('so do @all and @everyone', T.addressee(run, '@all: go').team && T.addressee(run, '@Everyone go').team);
+  ok('but an agent called Team is still that agent', (() => {
+    const w = T.addressee({ ...run, agents: [...agents, { id: 'a3', name: 'Team' }] }, '@team hi'); return !w.team && w.agentId === 'a3';
+  })());
+  ok('@teammate is not the team', T.addressee(run, '@teammate hi').team === false);
+  ok('a message to one agent is not to the team', T.addressee(run, '@Builder hi').team === false && T.addressee(run, 'hi').team === false);
+
+  const files = { 'index.html': { lang: 'html', content: '<h1>Hi</h1>' } };
+  const task = T.teamTask({ task: 'Build a tea page' }, 'make it warmer', files);
+  ok('the team is given the task it was first asked', task.startsWith('Build a tea page'));
+  ok('the feedback', task.includes('Feedback:\nmake it warmer'));
+  ok('and the files as they are on screen', task.includes(`${B}html index.html\n<h1>Hi</h1>\n${B}`));
+  ok('and told to keep what the feedback does not mention', /keep what the feedback does not mention/.test(task));
+  ok('a run with no recorded task still gives the team something to read', T.teamTask({ task: '' }, 'x', {}).startsWith('(The original task'));
+
+  const blueprint = { id: 'bp', finalOutputAgentId: 'a2', dag: { edges: [{ from: 'a1', to: 'a2' }] },
+    agents: [{ id: 'a1', name: 'Designer v2', systemPrompt: 'new' }, { id: 'a4', name: 'Tester' }, { id: 'a2', name: 'Builder' }] };
+  let r0 = R.newRun({ id: 'r', blueprint: { id: 'bp', agents: [...agents, { id: 'a3', name: 'Gone' }] }, task: 'Build', now: 1 });
+  r0 = R.withVersion(r0, { by: 'team', at: 1, changed: { 'index.html': { lang: 'html', content: '<h1>Hi</h1>' }, 'styles.css': { lang: 'css', content: 'h1{}' } } });
+  const r1 = R.continueRun(r0, { blueprint, message: '@team make it warmer', now: 2 });
+  ok('the pass carries on the same run', r1.id === r0.id && r1.turns.length === r0.turns.length + 1);
+  ok('with your message as the next turn', r1.turns[r1.turns.length - 1].who === 'you' && r1.turns[r1.turns.length - 1].text === '@team make it warmer');
+  ok('an agent changed since is asked as it is now', r1.agents.find((a) => a.id === 'a1').name === 'Designer v2');
+  ok('an agent added since takes part', r1.agents.some((a) => a.id === 'a4'));
+  ok('one removed since keeps its name for the turns it has', r1.agents.find((a) => a.id === 'a3')?.name === 'Gone');
+  ok('the run it was given is not changed', r0.turns.length === 1 && r0.agents[0].name === 'Designer');
+  // The example comes after the labelled file, so it would win if it counted.
+  const results = { a1: `${B}css styles.css\nh1{color:brown}\n${B}`, a2: `For instance:\n\n${B}css\nh1{color:orange}\n${B}` };
+  const r2 = R.recordRun(r1, { results, finalOutput: 'Done.', at: 3, named: true });
+  ok('its work is added under each agent\'s name', r2.turns.slice(-3).map((x) => x.who).join() === 'a1,a2,team');
+  ok('the files it names become a new version', r2.versions.length === 2 && R.currentFiles(r2)['styles.css'].content === 'h1{color:brown}');
+  ok('and an unlabelled example in the pass replaces nothing', !Object.values(R.currentFiles(r2)).some((f) => /orange/.test(f.content)));
+  const r3 = R.recordRun(r1, { results: { a2: `${B}html index.html\n<h1>Warm</h1>\n${B}` }, finalOutput: '', at: 3, named: true, base: r0.versions[0].files });
+  ok('a pass asked of an earlier version is made to that version', R.currentFiles(r3)['index.html'].content === '<h1>Warm</h1>' && R.currentFiles(r3)['styles.css'].content === 'h1{}');
+
+  ok('the mode reads the run to continue, not the top bar', /again \? window\.HCSwarmTalk\.teamTask\(again\.run, again\.feedback, again\.base\) : task/.test(mode)
+    && /runDAG\(bp, work, signal\)/.test(mode) && /aggregateResults\(bp, rawResults, work, signal\)/.test(mode));
+  ok('and keeps the pass in the same run', /again\s*\? window\.HCSwarmRuns\.continueRun\(again\.run/.test(mode) && /finishRun\(run, \{[^}]*base: again\?\.base, named: !!again \}\)/.test(mode));
+  ok('the Run button does not hand its click to the run as a run to continue', !/addEventListener\("click", runSwarm\)/.test(mode));
+  ok('the Workspace waits for the pass and opens again on the same run', /await deps\.runTeam\(\{[^}]*\}\)[\s\S]*?await open\(blueprint, run\.id\)/.test(ws));
+  ok('and clears the message only if the team\'s work was kept', /if \(kept\) \{\s*\$\('amkWsMessage'\)\.value = '';/.test(ws));
+  ok('a pass is refused while the swarm is already running', /if \(deps\.teamBusy\(\)\)/.test(ws));
+}
+
 console.log('\nThe message box:');
 {
   ok('the Workspace asks through what the mode hands it', /deps\.askAgent\(agent, T\.messagesFor\(/.test(ws));

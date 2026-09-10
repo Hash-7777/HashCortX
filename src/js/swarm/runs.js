@@ -52,6 +52,25 @@
     };
   }
 
+  /**
+   * The run carried on for another pass by the whole team, with the person's
+   * message as its next turn. The agents are taken from the blueprint as it
+   * is now, so an agent changed since is asked as it is now; one since
+   * removed keeps its name for the turns it already has.
+   */
+  function continueRun(run, { blueprint, message, now }) {
+    const bp = blueprint || {};
+    const current = (bp.agents || []).map(snapshotAgent);
+    const ids = new Set(current.map((a) => a.id));
+    return {
+      ...run,
+      leadAgentId: bp.finalOutputAgentId || '',
+      edges: Array.isArray(bp.dag?.edges) ? bp.dag.edges.map((e) => ({ from: e.from, to: e.to })) : [],
+      agents: [...current, ...run.agents.filter((a) => !ids.has(a.id))],
+      turns: [...run.turns, { who: 'you', text: String(message ?? ''), at: now, status: 'ok' }],
+    };
+  }
+
   /** The run with one more turn on the end. */
   function withTurn(run, { who, text, at, status = 'ok' }) {
     return { ...run, turns: [...run.turns, { who: String(who), text: String(text ?? ''), at, status }] };
@@ -108,8 +127,13 @@
    * conversation shows the whole run and not only what succeeded. The files
    * are gathered from each agent's work in that order, then from the final
    * result on top, so a later correction replaces what it corrects.
+   *
+   * For another pass over files that already exist, `named` keeps only the
+   * files an answer names, as a reply in the Workspace does, and `base` is
+   * the version the pass was asked of.
    */
-  function recordRun(run, { results, finalOutput, at }) {
+  function recordRun(run, { results, finalOutput, at, base, named = false }) {
+    const read = (text) => filesFromText(text, named ? { guess: false } : undefined);
     let r = run;
     let files = {};
     for (const agent of r.agents) {
@@ -117,13 +141,13 @@
       const text = String(results[agent.id] ?? '');
       const status = /^Skipped: /.test(text) ? 'skipped' : /^Error: /.test(text) ? 'error' : 'ok';
       r = withTurn(r, { who: agent.id, text, at, status });
-      if (status === 'ok') files = { ...files, ...filesFromText(text) };
+      if (status === 'ok') files = { ...files, ...read(text) };
     }
     if (finalOutput != null) {
       r = withTurn(r, { who: 'team', text: String(finalOutput), at, status: 'ok' });
-      files = { ...files, ...filesFromText(finalOutput) };
+      files = { ...files, ...read(finalOutput) };
     }
-    return Object.keys(files).length ? withVersion(r, { by: 'team', at, changed: files }) : r;
+    return Object.keys(files).length ? withVersion(r, { by: 'team', at, changed: files, base }) : r;
   }
 
   /**
@@ -203,8 +227,8 @@
    * that could not be kept must not undo the work it recorded, so a storage
    * failure comes back as `error` for the caller to report.
    */
-  async function finishRun(run, { results, finalOutput }) {
-    const done = recordRun(run, { results, finalOutput, at: Date.now() });
+  async function finishRun(run, { results, finalOutput, base, named }) {
+    const done = recordRun(run, { results, finalOutput, at: Date.now(), base, named });
     try {
       await saveRun(done);
       return { run: done, error: null };
@@ -215,7 +239,7 @@
 
   window.HCSwarmRuns = {
     startRun, finishRun,
-    newRun, withTurn, withVersion, currentFiles, filesFromText, recordRun, fromLegacyOutput,
+    newRun, continueRun, withTurn, withVersion, currentFiles, filesFromText, recordRun, fromLegacyOutput,
     snapshotAgent, makeRunId,
     saveRun, getRun, runsFor, deleteRun,
   };

@@ -46,7 +46,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~45,500 lines JS, ~4,900 Rust |
-| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 3,874 source checks, every one of them run by CI on every push |
+| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 3,900 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
@@ -104,7 +104,7 @@ Every command is bounded: a five-minute timeout, closed stdin, a 512 KB output c
 
 Chain mode hands each agent's output to the next. Vote mode runs one prompt across several models and has a judge score the answers. If a provider rate-limits or dies mid-run, the swarm swaps to another one you configured and carries on with the same context.
 
-When a run finishes it opens in the Swarm Workspace: each agent's part as a conversation beside the files the run made, every version of those files kept, and past runs a click away. Ask for a change in the message box and the run's lead agent answers, or name another agent with @; the files it changes become a new version, so any change can be undone. A site the agents built opens in your browser, where it runs as written, or downloads as one page.
+When a run finishes it opens in the Swarm Workspace: each agent's part as a conversation beside the files the run made, every version of those files kept, and past runs a click away. Ask for a change in the message box and the run's lead agent answers, or name another agent with @. For a bigger change, send it to the whole team for another pass, which carries on the same conversation. The files each change touches become a new version, so any change can be undone. A site the agents built opens in your browser, where it runs as written, or downloads as one page.
 
 ![Agent Swarm blueprint canvas with a live orchestrator trace](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
 
@@ -198,7 +198,7 @@ Silicon is unaffected either way.
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # 3,874 checks over the real source
+npm run check                                     # 3,900 checks over the real source
 cargo test --manifest-path src-tauri/Cargo.toml   # 102 tests
 ```
 

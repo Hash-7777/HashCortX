@@ -753,12 +753,19 @@ const SwarmMaker = (() => {
   }
 
   // ── Main run entry point ───────────────────────────────────────────
-  async function runSwarm() {
-    const bp   = getActive();
-    const task = document.getElementById("amkTaskInput")?.value?.trim();
+  // Runs the active blueprint on the task in the top bar. Given `again` —
+  // { run, message, feedback, base } from the Workspace — it runs that run's
+  // team another pass with the feedback, carrying on the same conversation,
+  // and returns what became of it for the Workspace to say.
+  async function runSwarm(again = null) {
+    const bp   = again ? blueprints.find(b => b.id === again.run.blueprintId) : getActive();
+    const task = again ? again.run.task : document.getElementById("amkTaskInput")?.value?.trim();
+    if (again && !bp?.agents.length) return { error: "This run's blueprint was deleted or has no agents, so its team cannot run again." };
     if (!bp)   { await amkAlert("Select or create a blueprint first."); return; }
-    if (!task) { await amkAlert("Enter a task in the top bar before running."); return; }
+    if (!task && !again) { await amkAlert("Enter a task in the top bar before running."); return; }
     if (!bp.agents.length) { await amkAlert("Add at least one agent to the blueprint."); return; }
+    const work = again ? window.HCSwarmTalk.teamTask(again.run, again.feedback, again.base) : task;
+    if (again && getActive() !== bp) _selectBp(bp.id);   // so the graph shows the team that is working
 
     swarmAbortCtrl = new AbortController();
     const signal   = swarmAbortCtrl.signal;
@@ -767,7 +774,7 @@ const SwarmMaker = (() => {
     setRunStatus("running", "Swarm running…");
     updateTraceDot("running");
     openTraceConsole();
-    traceAdd("Orchestrator", `Starting swarm — "${task}"`, "boss");
+    traceAdd("Orchestrator", again ? `Running the team again on "${task}" with feedback` : `Starting swarm — "${task}"`, "boss");
     traceAdd("Orchestrator", `Run ${traceRunCount} · blueprint ${bp.name || "Untitled"} · aggregation ${bp.aggregation || "synthesis"}`, "boss");
 
     document.getElementById("amkRunBtn").style.display  = "none";
@@ -790,13 +797,15 @@ const SwarmMaker = (() => {
 
     // Kept as a conversation of its own (src/js/swarm/runs.js); started after
     // any hardening above, so it records the agents that ran.
-    const run = window.HCSwarmRuns.startRun(bp, task);
+    const run = again
+      ? window.HCSwarmRuns.continueRun(again.run, { blueprint: bp, message: again.message, now: Date.now() })
+      : window.HCSwarmRuns.startRun(bp, task);
 
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
-      const rawResults = await runDAG(bp, task, signal);
+      const rawResults = await runDAG(bp, work, signal);
       traceAdd("Orchestrator", "DAG returned raw results · entering aggregation", "boss");
-      const finalOutput = await aggregateResults(bp, rawResults, task, signal);
+      const finalOutput = await aggregateResults(bp, rawResults, work, signal);
       traceAdd("Orchestrator", `Aggregation returned final output · ${String(finalOutput || "").length} chars`, "ok");
 
       traceAdd("Orchestrator", `Swarm complete — ${bp.agents.length} agents, task done`, "ok");
@@ -806,16 +815,17 @@ const SwarmMaker = (() => {
 
       const result = normaliseAgentOutput(finalOutput);
       bp.lastRun = Date.now();
-      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput: result });
+      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput: result, base: again?.base, named: !!again });
       // The blueprint holds only the run's id; the result is copied into it
       // (localStorage, beside the keys) only when the run could not be kept.
       if (kept.run) { bp.lastRunId = kept.run.id; delete bp.lastOutput; }
       else { delete bp.lastRunId; bp.lastOutput = `**Swarm Result — ${bp.name}**\n\n*Task: ${task}*\n\n---\n\n${result}`; }
       traceAdd("Orchestrator", kept.run ? `Kept the run · ${kept.run.turns.length} turns` : `Could not keep the run: ${kept.error}`, kept.run ? "ok" : "warn");
       saveBlueprints();
-      window.HCSwarmWorkspace.open(bp, kept.run?.id);
+      if (!again) window.HCSwarmWorkspace.open(bp, kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
       // normal chat as well — into whichever chat happened to be open.
+      return { run: kept.run, error: kept.error };
     } catch (err) {
       if (err.name !== "AbortError") {
         traceAdd("Orchestrator", `Fatal error: ${err.message}`, "err");
@@ -827,6 +837,7 @@ const SwarmMaker = (() => {
         updateTraceDot("idle");
       }
       (bp.agents || []).forEach(a => { if (nodeStatuses[a.id] === "running") updateNodeStatus(a.id, "idle"); });
+      return err.name === "AbortError" ? { stopped: true } : { error: err.message };
     } finally {
       swarmAbortCtrl = null;
       document.getElementById("amkRunBtn").style.display  = "";
@@ -2255,7 +2266,8 @@ function _polishToast(text, isError) {
     });
 
     // Run swarm
-    document.getElementById("amkRunBtn")?.addEventListener("click", runSwarm);
+    // Not `runSwarm` itself: the click would arrive as `again`.
+    document.getElementById("amkRunBtn")?.addEventListener("click", () => runSwarm());
 
     // Stop swarm
     document.getElementById("amkStopBtn")?.addEventListener("click", () => {
@@ -2331,6 +2343,7 @@ function _polishToast(text, isError) {
       openInBrowser: (html) => window.HC.swarmSite.open(html),
       // A reply to a change request is the agent's answer alone: no tools.
       askAgent: async (agent, messages, signal) => (await callAgentLLM(agent.model, messages, signal, agent.temperature))?.content || "",
+      runTeam: (again) => runSwarm(again), teamBusy: () => !!swarmAbortCtrl, stopTeam: () => swarmAbortCtrl?.abort(),
     });
     document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));
 

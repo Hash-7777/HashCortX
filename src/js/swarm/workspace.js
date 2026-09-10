@@ -10,6 +10,9 @@
 // Under the conversation is a message box. A message goes to the run's lead
 // agent, or to whoever it names with @; the answer joins the conversation, and
 // any files it changes become a new version made from the version on screen.
+// Sent to the whole team, it runs the team another pass with the message as
+// feedback: the Workspace steps aside so the graph can show them working, and
+// comes back with their work added to the same conversation.
 // Who a message is for and what the agent is sent are decided in
 // src/js/swarm/talk.js.
 //
@@ -19,9 +22,9 @@
 // src/js/swarm/runs.js.
 //
 // The Agent Swarm hands this the few things only it has — the active
-// blueprint, a way to save blueprints, the site builder, the save dialog and
-// a way to ask one of its agents — through init(), so the mode keeps only its
-// wiring.
+// blueprint, a way to save blueprints, the site builder, the save dialog, a
+// way to ask one of its agents and a way to run its team again — through
+// init(), so the mode keeps only its wiring.
 //
 // Loaded before the Agent Swarm and published as window.HCSwarmWorkspace.
 // ==============================================================
@@ -33,6 +36,7 @@
   const RUNS = () => window.HCSwarmRuns;
   const VIEW = () => window.HCSwarmWorkspaceView;
   const TALK = () => window.HCSwarmTalk;
+  const TEAM = '*team';
 
   let deps = null;
   let wired = false;
@@ -223,13 +227,15 @@
       }
       return el;
     }));
-    if (state.asking && state.asking.runId === run.id) box.append(pendingTurn(state.asking.agentId));
+    if (state.asking && state.asking.runId === run.id) box.append(pendingTurn(state.asking));
     box.scrollTop = box.scrollHeight;
   }
 
   /** The line that stands for an answer on its way. */
-  function pendingTurn(agentId) {
-    const agent = state.run.agents.find((a) => a.id === agentId) || { name: agentId };
+  function pendingTurn(asking) {
+    const agent = asking.team
+      ? { name: 'The team', icon: '' }
+      : state.run.agents.find((a) => a.id === asking.agentId) || { name: asking.agentId };
     const el = document.createElement('article');
     el.className = 'amk-ws-turn agent pending';
     el.setAttribute('aria-busy', 'true');
@@ -244,7 +250,7 @@
     name.textContent = agent.name;
     const note = document.createElement('span');
     note.className = 'amk-ws-working';
-    note.textContent = 'Working on it…';
+    note.textContent = asking.team ? 'Working on it. Follow them on the graph.' : 'Working on it…';
     head.append(avatar, name, note);
     el.append(head);
     return el;
@@ -333,6 +339,7 @@
     to.replaceChildren(
       new Option(leadName ? `${leadName} (lead)` : 'The lead agent', ''),
       ...(run?.agents || []).filter((a) => a.id !== lead).map((a) => new Option(a.name, a.id)),
+      ...(run?.agents.length ? [new Option('The whole team (another pass)', TEAM)] : []),
     );
     to.value = [...to.options].some((o) => o.value === chosen) ? chosen : '';
     const busy = !!state.asking;
@@ -361,7 +368,9 @@
     if (!run || !raw || state.asking) return;
     const T = TALK();
     const who = T.addressee(run, raw);
-    const agentId = who.named ? who.agentId : ($('amkWsTo').value || who.agentId);
+    const picked = $('amkWsTo').value;
+    if (who.named ? who.team : picked === TEAM) { await sendToTeam(run, raw, who.text); return; }
+    const agentId = who.named ? who.agentId : (picked || who.agentId);
     const agent = run.agents.find((a) => a.id === agentId);
     if (!agent) { note('This run has no agents to ask.', 'err'); return; }
     if (!who.text) { note(`Say what you would like ${agent.name} to do.`, 'err'); return; }
@@ -394,6 +403,42 @@
       state.asking = null;
       draw();
       if (isOpen()) box.focus();
+    }
+  }
+
+  /**
+   * Run the whole team another pass with the message as feedback.
+   *
+   * The Workspace closes so the graph and the trace can show the team at
+   * work, and opens again on the same run when they finish, stop or fail —
+   * with the message still in the box unless their work was kept.
+   */
+  async function sendToTeam(run, message, feedback) {
+    if (!feedback) { note('Say what you would like the team to change.', 'err'); return; }
+    if (deps.teamBusy()) { note('The swarm is already running. Try again when it finishes.', 'err'); return; }
+    const blueprint = state.blueprint;
+    const before = latestRev(run);
+    state.asking = { runId: run.id, team: true, controller: { abort: () => deps.stopTeam() } };
+    close();
+    let result;
+    try {
+      result = await deps.runTeam({ run, message, feedback, base: currentFiles() });
+    } catch (err) {
+      result = { error: String(err?.message || err) };
+    }
+    state.asking = null;
+    await open(blueprint, run.id);
+    const kept = result?.run;
+    if (kept) {
+      $('amkWsMessage').value = '';
+      const rev = latestRev(kept);
+      const changed = rev > before ? kept.versions[kept.versions.length - 1].changed : [];
+      if (changed.length) { state.file = changed[0]; drawFiles(); }
+      note(changed.length ? `The team changed ${changed.join(', ')}: now v${rev}` : 'The team finished; no files changed', changed.length ? 'ok' : '');
+    } else if (result?.stopped) {
+      note('Stopped. Your message is still in the box.');
+    } else {
+      note(`The team could not finish: ${result?.error || 'the run did not start'}`, 'err');
     }
   }
 

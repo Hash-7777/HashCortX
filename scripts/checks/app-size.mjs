@@ -296,7 +296,11 @@ const LINE_BUDGET = {
   // 2424, up from 2419. The Workspace can now ask one of the run's agents for
   // a change (src/js/swarm/talk.js); handing it the way to call an agent is
   // the only line that had to be in the mode.
-  'modes/agent-maker/mode.js': 2424,
+  // 2437, up from 2424. A kept run's team can run another pass with feedback
+  // from the Workspace, carrying on the same conversation. What the team is
+  // told and how its work is kept are in talk.js and runs.js; the lines here
+  // are the run itself taking a run to continue instead of the top bar's task.
+  'modes/agent-maker/mode.js': 2437,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

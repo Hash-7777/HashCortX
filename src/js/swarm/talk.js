@@ -9,7 +9,8 @@
 //
 // A message that names nobody goes to the run's lead agent: the one the
 // blueprint says produces the final output, or failing that its supervisor,
-// or the agent at the end of the chain.
+// or the agent at the end of the chain. One addressed to @team goes to the
+// whole team, which runs another pass with it as feedback.
 //
 // What an agent is given is bounded. The conversation and the files are
 // trimmed to budgets, most recent first, with a note wherever something was
@@ -44,8 +45,9 @@
    * Who a message is for, and what it says once the name is taken off.
    *
    * "@Name" at the start picks an agent, matching the longest name so "@Code
-   * Reviewer" is not read as "@Code". An @ that matches nobody is left in the
-   * text and the message goes to the lead.
+   * Reviewer" is not read as "@Code". "@team", "@all" or "@everyone" picks the
+   * whole team, unless an agent has that name. An @ that matches nobody is
+   * left in the text and the message goes to the lead.
    */
   function addressee(run, text) {
     const raw = String(text || '').trim();
@@ -57,13 +59,15 @@
           if (rest.toLowerCase().startsWith(label.toLowerCase())) {
             const after = rest.slice(label.length);
             if (after === '' || /^[\s,:]/.test(after)) {
-              return { agentId: a.id, text: after.replace(/^[\s,:]+/, '').trim(), named: true };
+              return { agentId: a.id, text: after.replace(/^[\s,:]+/, '').trim(), named: true, team: false };
             }
           }
         }
       }
+      const all = /^(team|all|everyone)(?=$|[\s,:])[\s,:]*/i.exec(rest);
+      if (all) return { agentId: '', text: rest.slice(all[0].length).trim(), named: true, team: true };
     }
-    return { agentId: leadAgentId(run), text: raw, named: false };
+    return { agentId: leadAgentId(run), text: raw, named: false, team: false };
   }
 
   const clip = (s, n) => (s.length > n ? s.slice(0, n) + `\n[… ${s.length - n} more characters left out]` : s);
@@ -126,6 +130,23 @@
   }
 
   /**
+   * The task the whole team is given for another pass: what it was first
+   * asked, the person's feedback, and the files as they are on screen. The
+   * run keeps the original task; this is only what the agents read.
+   */
+  function teamTask(run, feedback, files) {
+    return [
+      run.task || '(The original task was not recorded.)',
+      '---',
+      'This is another pass over work the team has already done. Improve it as the feedback below asks, '
+        + 'and keep what the feedback does not mention. Give every file you change complete, in a fenced code '
+        + 'block labelled with its language and path, like ```html index.html. Only a labelled block changes a file.',
+      `Feedback:\n${String(feedback)}`,
+      `The files as they are now:\n${fileContext(files)}`,
+    ].join('\n\n');
+  }
+
+  /**
    * The run with the person's message and the agent's answer added, and a new
    * version if the answer changed any files. `base` is the version the person
    * was looking at, so a change asked of v1 is made to v1.
@@ -147,5 +168,5 @@
     return { run: r, changed, unnamedCode };
   }
 
-  window.HCSwarmTalk = { leadAgentId, addressee, messagesFor, withReply, transcript, fileContext, BUDGET };
+  window.HCSwarmTalk = { leadAgentId, addressee, messagesFor, teamTask, withReply, transcript, fileContext, BUDGET };
 })();
