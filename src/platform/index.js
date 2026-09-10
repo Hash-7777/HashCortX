@@ -48,6 +48,20 @@ HC.forgeProjects = {
       : Promise.reject(new Error("Saving to a file needs the desktop app")),
 };
 
+// A site the Agent Swarm built, opened in the system's browser. The desktop
+// app writes it to one fixed file and opens that (src-tauri/src/commands/
+// swarm_site.rs); the caller names no path. In a plain browser it opens in a
+// new tab instead.
+HC.swarmSite = {
+  open: (html) => {
+    if (HC.isTauri) return HC.invoke("swarm_site_open", { html });
+    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+    window.open(url, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return Promise.resolve();
+  },
+};
+
 // HashNotch ping — light up the notch "HashCortX finished" when a run
 // completes, like the iPhone Dynamic Island (the same feed Claude Code's
 // hook writes). Best-effort and metadata-only — the title and nothing else,

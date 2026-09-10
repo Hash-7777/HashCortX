@@ -148,5 +148,23 @@ console.log('\nWhat the Workspace shows:');
   ok('a long turn starts folded', V.startsFolded('line\n'.repeat(40)) && !V.startsFolded('short'));
 }
 
+console.log('\nA site opens in the browser, never inside the app:');
+{
+  // A page drawn inside the app inherits the app's policy, which in a release
+  // runs none of its inline styles or scripts, so the site is opened where it
+  // can run as written. The native side writes one fixed file; the caller
+  // names no path.
+  const platform = src('platform', 'index.js');
+  const call = /HC\.invoke\("swarm_site_open",\s*(\{[^}]*\})\)/.exec(platform);
+  ok('the platform layer is what opens it', !!call);
+  ok('and it hands over the page and nothing else', call && call[1].replace(/\s/g, '') === '{html}');
+  ok('the Workspace opens the version on screen', /async function openInBrowser\(\)[\s\S]*?currentFiles\(\)/.test(ws));
+  ok('through what the mode hands it, not the platform directly', /deps\.openInBrowser\(/.test(ws) && !/HC\.invoke|swarm_site_open/.test(ws));
+  ok('the Workspace never builds a frame to preview in', !/iframe|srcdoc/i.test(ws));
+  const rust = readFileSync(join(here, '..', '..', 'src-tauri', 'src', 'commands', 'swarm_site.rs'), 'utf8');
+  ok('the command takes the page as its only argument', /pub fn swarm_site_open\(html: String\)/.test(rust));
+  ok('and writes under ~/.hashcortx, which the agent cannot touch', /\.join\("\.hashcortx"\)\.join\("swarm"\)\.join\("site\.html"\)/.test(rust));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);

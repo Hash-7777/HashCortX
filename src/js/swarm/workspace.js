@@ -40,6 +40,7 @@
     $('amkWsCopy')?.addEventListener('click', copyResult);
     $('amkWsExport')?.addEventListener('click', exportResult);
     $('amkWsDownload')?.addEventListener('click', downloadSite);
+    $('amkWsOpen')?.addEventListener('click', openInBrowser);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); } });
   }
@@ -139,6 +140,7 @@
     $('amkWsCopy').disabled = !resultText();
     $('amkWsExport').disabled = !resultText();
     $('amkWsDownload').disabled = !V.hasPage(files);
+    $('amkWsOpen').disabled = !V.hasPage(files);
   }
 
   function drawTurns() {
@@ -293,6 +295,23 @@
     status('Saving…');
     if (await deps.saveFile('site.html', html, 'text/html;charset=utf-8')) status(`Saved site.html (v${state.rev})`, 'ok');
     else status('');
+  }
+
+  /**
+   * The version on screen, opened where it can run as written. A preview
+   * inside the app would inherit the app's security policy, which in a
+   * release lets none of a page's inline styles or scripts run.
+   */
+  async function openInBrowser() {
+    const html = deps.buildSite(new Map(Object.entries(currentFiles())));
+    if (!html) { status('These files have no page to open.', 'err'); return; }
+    status('Opening…');
+    try {
+      await deps.openInBrowser(html);
+      status(`Opened v${state.rev} in the browser`, 'ok');
+    } catch (err) {
+      status(`Could not open it: ${err?.message || err}`, 'err');
+    }
   }
 
   window.HCSwarmWorkspace = { init, open, close, isOpen };

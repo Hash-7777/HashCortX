@@ -21,6 +21,7 @@ use commands::{
     shell::{
         shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream,
     },
+    swarm_site::swarm_site_open,
     usage_log::usage_log_append,
 };
 
@@ -101,6 +102,10 @@ pub fn run() {
             // and thrown away, so the app said "saved" and had not.
             forge_projects_read,
             forge_projects_write,
+            // The Agent Swarm Workspace's Open in browser: one fixed file under
+            // ~/.hashcortx, opened in the system browser. The caller names no
+            // path. See src/commands/swarm_site.rs.
+            swarm_site_open,
         ])
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");

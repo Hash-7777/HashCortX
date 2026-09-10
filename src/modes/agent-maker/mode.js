@@ -2379,7 +2379,7 @@ function _polishToast(text, isError) {
     });
 
     // The Workspace: src/js/swarm/workspace.js, given what only this mode has.
-    window.HCSwarmWorkspace.init({ saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave });
+    window.HCSwarmWorkspace.init({ saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave, openInBrowser: (html) => window.HC.swarmSite.open(html) });
     document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));
 
     // Trace console toggle
