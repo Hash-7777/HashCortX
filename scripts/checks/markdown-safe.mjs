@@ -115,5 +115,50 @@ console.log('\nA reply quote is shown once, not twice:');
   ok('empty input is safe', M.stripReplyPrelude('') === '' && M.stripReplyPrelude(null) === '');
 }
 
+console.log('\nWhat a model wrote is rendered without becoming markup:');
+{
+  // The app's security policy permits inline script, so the one thing model
+  // text must never become is live HTML. The Agent Swarm's output panel used
+  // to render agent text with the markdown library alone. The real library is
+  // loaded here; the sanitiser needs a page, so a stand-in records what would
+  // reach it, and the browser check covers the real one.
+  const lib = { window: {}, self: {} };
+  lib.globalThis = lib; lib.self = lib;
+  vm.createContext(lib);
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'vendor', 'marked.min.js'), 'utf8'), lib, { filename: 'marked.min.js' });
+  const marked = lib.marked || lib.window.marked;
+  const seen = [];
+  const purify = { sanitize: (html, opts) => { seen.push({ html, opts }); return html; } };
+  const render = (t) => M.renderUntrusted(t, { marked, purify });
+
+  const tagged = render('Hello <img src=x onerror=alert(1)> and <script>alert(1)</script> <b>bold</b>');
+  ok('raw HTML in the text reaches the page as text, not as a tag', !/<(img|script|b)[\s>]/i.test(tagged), tagged);
+  ok('it is still readable', tagged.includes('&lt;script&gt;'));
+  ok('markdown still becomes formatting', /<strong>x<\/strong>/.test(render('**x**')));
+  ok('every render passes through the sanitiser', seen.length === 2);
+  ok('which is told to drop script, frames, forms and styles',
+    ['script', 'iframe', 'form', 'style', 'object', 'embed', 'svg'].every((t) => seen[0].opts.FORBID_TAGS.includes(t)));
+
+  const js = render('[click](javascript:alert(1))');
+  ok('a link that would run script is not a link', !/href=/.test(js) && js.includes('md-link-blocked'));
+  const web = render('[site](https://example.com/page)');
+  ok('an ordinary link is a link', /<a href="https:\/\/example\.com\/page"/.test(web));
+  ok('which opens outside the app', /target="_blank" rel="noopener noreferrer"/.test(web));
+  const img = render('![chart](https://tracker.example/?data=1)');
+  ok('an image from another site is not fetched', !/<img/.test(img));
+  ok('it is offered as a link instead', /\[image: chart\]/.test(img));
+  ok('an image the app made itself is shown', /<img src="data:image\/png/.test(render('![p](data:image/png;base64,AAAA)')));
+
+  // Without the sanitiser, nothing is guessed: plain escaped text.
+  const bare = M.renderUntrusted('<img src=x onerror=alert(1)>\n**x**', { marked });
+  ok('with no sanitiser it falls back to plain text', bare.startsWith('<div class="md-plain">'));
+  ok('and nothing in it is markup', !/<img|<strong/.test(bare));
+  ok('with no markdown library either', M.renderUntrusted('<b>x</b>', {}).includes('&lt;b&gt;'));
+
+  // Control: the library alone, as the panel used it.
+  ok('control: the markdown library alone turns a tag in the text into a tag',
+    /<img src="?x"? onerror/i.test(marked.parse('Hello <img src=x onerror=alert(1)>')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/markdown-safe.js)`);
 process.exit(fail ? 1 : 0);

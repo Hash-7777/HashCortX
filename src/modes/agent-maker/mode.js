@@ -1920,7 +1920,7 @@ ${modelListStr}`;
 
     const modelOptions = (() => {
       const sel = document.getElementById("model");
-      if (!sel) return `<option value="">${agent.model || "default"}</option>`;
+      if (!sel) return `<option value="">${escHtml(agent.model || "default")}</option>`;
       const defaultOpt = `<option value="" ${!agent.model ? "selected" : ""}>— Default (main model) —</option>`;
       const rest = Array.from(sel.options).map(o =>
         `<option value="${escHtml(o.value)}" ${o.value === agent.model ? "selected" : ""}>${escHtml(o.text)}</option>`
@@ -2301,7 +2301,7 @@ function _polishToast(text, isError) {
         // Use marked directly (global CDN) so we're not dependent on formatContent scope
         let rendered;
         try {
-          rendered = window.marked ? window.marked.parse(trimmed) : `<pre>${escHtml(trimmed)}</pre>`;
+          rendered = window.HCMarkdown.renderUntrusted(trimmed, { marked: window.marked, purify: window.DOMPurify });
         } catch(e) {
           rendered = `<pre>${escHtml(trimmed)}</pre>`;
         }

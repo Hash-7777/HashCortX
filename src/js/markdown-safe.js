@@ -122,7 +122,66 @@
     return escapeHtml(text).replace(/\n/g, '<br>');
   }
 
+  // ── Rendering what a model wrote ──────────────────────────────────────
+
+  /** A link a model wrote: http(s) only, opened outside the app. */
+  function safeLinkHtml(href, title, text) {
+    const resolved = safeMarkdownHref(href);
+    const label = escapeHtml(text || href || '');
+    if (!resolved) return `<span class="md-link-blocked" title="Only http(s) links are allowed">${label}</span>`;
+    const t = title ? ` title="${escapeHtml(title)}"` : '';
+    return `<a href="${escapeHtml(resolved)}" target="_blank" rel="noopener noreferrer"${t}>${label}</a>`;
+  }
+
+  /**
+   * An image a model wrote. The app's own images — data: and blob: — are
+   * shown; one from another site becomes a link, because fetching it would be
+   * a request the app makes on the model's behalf before anyone has read the
+   * reply, with a URL the model chose.
+   */
+  function safeImageHtml(href, title, text) {
+    const label = escapeHtml(text || title || 'image');
+    if (/^(?:data:image\/|blob:)/i.test(String(href || '').trim())) {
+      return `<img src="${escapeHtml(href)}" alt="${label}" loading="lazy">`;
+    }
+    const resolved = safeMarkdownHref(href);
+    if (!resolved) return `<span class="md-link-blocked" title="Only http(s) images are allowed">${label}</span>`;
+    return `<a href="${escapeHtml(resolved)}" target="_blank" rel="noopener noreferrer">[image: ${label}]</a>`;
+  }
+
+  /** What the sanitiser removes whatever else it would allow. */
+  const FORBID_TAGS = ['style', 'script', 'iframe', 'object', 'embed', 'form', 'input', 'meta', 'link', 'base', 'svg', 'math'];
+
+  /**
+   * Model output as HTML that cannot run anything, for anywhere that is not
+   * the chat, which has its own renderer for code blocks.
+   *
+   * The app's security policy permits inline script, so markup is the one
+   * thing text from a model must never become. Raw HTML in the text is
+   * escaped before the markdown library sees it, so it is shown rather than
+   * built; links and images go through the rules above; and the result is
+   * passed through the sanitiser as a last line. With either library missing
+   * this does not guess — the text comes back escaped, as plain text.
+   *
+   * `marked` and `purify` are handed in so this stays free of the page.
+   */
+  function renderUntrusted(text, { marked, purify } = {}) {
+    const src = String(text == null ? '' : text);
+    if (!marked || !purify || typeof purify.sanitize !== 'function') {
+      return `<div class="md-plain">${escapeHtml(src).replace(/\n/g, '<br>')}</div>`;
+    }
+    const renderer = new marked.Renderer();
+    renderer.link = (...args) => { const a = extractMarkedLinkArgs(args); return safeLinkHtml(a.href, a.title, a.text); };
+    renderer.image = (...args) => { const a = extractMarkedLinkArgs(args); return safeImageHtml(a.href, a.title, a.text); };
+    const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const html = marked.parse(escaped, { gfm: true, breaks: true, silent: true, renderer });
+    return purify.sanitize(html, { ADD_ATTR: ['target', 'rel'], FORBID_TAGS, FORBID_ATTR: ['style'] });
+  }
+
   window.HCMarkdown = {
+    renderUntrusted,
+    safeLinkHtml,
+    safeImageHtml,
     escapeHtml,
     safeMarkdownHref,
     extractMarkedLinkArgs,

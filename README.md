@@ -46,7 +46,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~44,500 lines JS, ~4,800 Rust |
-| **Tests** | 97 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 3,742 source checks, every one of them run by CI on every push |
+| **Tests** | 97 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 3,759 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
@@ -196,7 +196,7 @@ Silicon is unaffected either way.
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # 3,742 checks over the real source
+npm run check                                     # 3,759 checks over the real source
 cargo test --manifest-path src-tauri/Cargo.toml   # 97 tests
 ```
 

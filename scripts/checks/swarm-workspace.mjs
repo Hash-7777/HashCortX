@@ -96,5 +96,15 @@ console.log('\nA run is kept as a conversation:');
   ok('run ids are plain and unique per moment', /^run_[a-z0-9]+_[a-z0-9]+$/.test(R.makeRunId(1789000000000, 'ab/c1!2')));
 }
 
+console.log('\nWhat an agent wrote is never rendered as live markup:');
+{
+  // Agent output can carry text from any page an agent read, and the app's
+  // security policy permits inline script, so it is escaped and sanitised on
+  // the way to HTML by the shared renderer — never by the markdown library
+  // alone.
+  ok('the Swarm does not call the markdown library directly', !/marked\.parse\(/.test(code));
+  ok('it renders agent text through the shared renderer', /HCMarkdown\.renderUntrusted\(/.test(code));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);
