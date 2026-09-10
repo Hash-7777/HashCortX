@@ -2974,12 +2974,13 @@ Repair requirements:
       if (e.target.closest("#sysBulkDeleteBtn")) {
         if (!spec || selectedIds.size === 0) return;
         const data = getRuntimeData(spec);
+        const count = selectedIds.size;
         data[activeEntityId] = (data[activeEntityId] || []).filter(r => !selectedIds.has(r.id));
         selectedIds.clear();
         selectedRecordId = data[activeEntityId][0]?.id || "";
         saveRuntimeData(spec, data);
         renderPreview(); renderDataEditor();
-        trace(`Deleted ${selectedIds.size || "bulk"} records`, "warn");
+        trace(`Deleted ${count} record${count === 1 ? "" : "s"}`, "warn");
         return;
       }
 
@@ -3049,13 +3050,19 @@ Repair requirements:
         return;
       }
 
-      // Row selection — surgical: just toggle the CSS class, avoid full re-render
+      // Row selection: a detail panel follows the row, the list keeps its scroll.
+      // `host` is named: bare, it was the settings' <input id="host">.
       const row = e.target.closest("tr[data-record-id]");
       if (row && !e.target.closest(".sys-td-actions") && !e.target.closest(".sys-td-check")) {
+        const host = $("sysAppHost");
         selectedRecordId = row.dataset.recordId;
-        host.querySelectorAll("tr[data-record-id]").forEach(r => {
-          r.classList.toggle("selected", r.dataset.recordId === selectedRecordId);
-        });
+        const wrap = host.querySelector(".sys-table-wrap");
+        const [top, left] = [wrap?.scrollTop || 0, wrap?.scrollLeft || 0];
+        if (host.querySelector(".sys-detail-list")) {
+          renderPreview();
+          const again = host.querySelector(".sys-table-wrap");
+          if (again) { again.scrollTop = top; again.scrollLeft = left; }
+        } else host.querySelectorAll("tr[data-record-id]").forEach(r => r.classList.toggle("selected", r.dataset.recordId === selectedRecordId));
         renderDataEditor();
         return;
       }

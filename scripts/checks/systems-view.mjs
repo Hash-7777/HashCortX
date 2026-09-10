@@ -98,5 +98,16 @@ ok('the open module in the sidebar is not painted the sidebar\'s own colour',
   !/\.sys-shell-sidebar \.sys-module-btn\.active \{ background: var\(--sys-primary\)/.test(css));
 ok('card rows grow to their content instead of being squeezed', /\.sys-cards-grid \{[^}]*grid-auto-rows: max-content/.test(css));
 
+console.log('\nClicking a row shows that record:');
+{
+  const handler = /const row = e\.target\.closest\("tr\[data-record-id\]"\);[\s\S]*?\n        return;\n      \}/.exec(mode)?.[0] || '';
+  // Bare, `host` was the global the browser makes of the settings field
+  // <input id="host">, so the handler searched a text box for table rows and
+  // no click ever moved the highlight or the detail panel.
+  ok('the handler names the preview itself', /const host = \$\("sysAppHost"\);/.test(handler));
+  ok('and a screen with a detail panel is drawn again for the row clicked', /querySelector\("\.sys-detail-list"\)\) \{\s*renderPreview\(\);/.test(handler));
+  ok('keeping the list where it was scrolled', /again\.scrollTop = top/.test(handler));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/view.js)`);
 process.exit(fail ? 1 : 0);
