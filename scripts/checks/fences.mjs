@@ -116,6 +116,47 @@ console.log('\nThe PDF writer frames code and leaves prose as prose:');
     !!oldFirst && oldFirst[2].includes('Then run it.'));
 }
 
+console.log('\nThe Python in a reply, for the sandbox:');
+{
+  const reply = `Here is the JavaScript version:\n${B}js\nlet a = 1\n${B}\nThen run this.\n${B}python\nprint(1)\n${B}\n`;
+  const py = F.blocksIn(reply, ['python', 'py', 'python3', '']);
+  ok('only the Python is taken, after a block in another language', py.join('|') === 'print(1)');
+  const old = []; const re = /```(?:python|py)?\s*\n([\s\S]*?)```/gi; let m;
+  while ((m = re.exec(reply)) !== null) old.push(m[1]);
+  ok('control: the pattern that stood in agent-shape.js ran the sentence in between as the program', old.join('|') === 'Then run this.\n');
+  ok('py, python3 and an unlabelled block count', F.blocksIn(`${B}py\na\n${B}\n${B}python3\nb\n${B}\n${B}\nc\n${B}`, ['python', 'py', 'python3', '']).join() === 'a,b,c');
+  ok('languages are matched without regard to case', F.blocksIn(`${B}Python\nx\n${B}`, ['python']).join() === 'x');
+  ok('a block in another language is not', F.blocksIn(`${B}bash\nls\n${B}`, ['python', '']).length === 0);
+}
+
+console.log('\nThe JSON in a reply:');
+{
+  const plan = '{"name":"Plan","nodes":[]}';
+  // The JavaScript is the longer block, so only the label can pick the JSON.
+  const reply = `First the helper:\n${B}js\nconst x = 1; // a helper longer than the plan below it\n${B}\n${B}json\n${plan}\n${B}`;
+  ok('the block labelled json is taken, not the first block', F.jsonBlock(reply) === plan);
+  const old = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
+  ok('control: the pattern that stood in four places took the first block, language and all', old[1].startsWith('js\nconst x = 1;'));
+  const example = `For example:\n${B}json\n{"a":1}\n${B}\nThe real one:\n${B}json\n{"name":"Plan","nodes":[{"id":"n1"}]}\n${B}`;
+  ok('of several json blocks, the longest — an example comes before the answer', F.jsonBlock(example) === '{"name":"Plan","nodes":[{"id":"n1"}]}');
+  ok('with none labelled json, an unlabelled block', F.jsonBlock(`${B}bash\nls\n${B}\n${B}\n{"a":1}\n${B}`) === '{"a":1}');
+  ok('then a block in any language — JSON labelled javascript is still JSON', F.jsonBlock(`${B}javascript\n{"a":1}\n${B}`) === '{"a":1}');
+  ok('json5 and jsonc count as json', F.jsonBlock(`${B}\nx\n${B}\n${B}jsonc\n{}\n${B}`) === '{}' && F.jsonBlock(`${B}JSON5\n{}\n${B}`) === '{}');
+  ok('a reply with no block has none', F.jsonBlock('{"a":1}') === null && F.jsonBlock('') === null);
+  ok('a fence written in the middle of a line is not a block, as in the chat', F.jsonBlock(`Here: ${B}json {"a":1}${B}`) === null);
+
+  // Each caller keeps its own rescue for when the block does not parse, so
+  // what matters is that they all start from this one.
+  const sites = {
+    'js/systems/spec.js': src('js', 'systems', 'spec.js'),
+    'modes/agent-maker/mode.js': src('modes', 'agent-maker', 'mode.js'),
+    'modes/finance/mode.js': src('modes', 'finance', 'mode.js'),
+    'modes/forge/mode.js': src('modes', 'forge', 'mode.js'),
+  };
+  for (const [name, text] of Object.entries(sites)) ok(`${name} reads its JSON through jsonBlock`, /window\.HCFences\.jsonBlock\(/.test(text));
+  ok('js/agent-shape.js reads its Python through blocksIn', /window\.HCFences\.blocksIn\(text, \['python', 'py', 'python3', ''\]\)/.test(src('js', 'agent-shape.js')));
+}
+
 console.log('\nNothing else in the app writes its own fence pattern:');
 {
   // Every hand-written pattern for finding code in an answer turned out to be
@@ -123,17 +164,9 @@ console.log('\nNothing else in the app writes its own fence pattern:');
   // Windows line endings somewhere. So a new one fails here until it is either
   // moved onto this reader or added below with its reason.
   //
-  // The ones allowed pull a machine-readable reply — JSON, or Python for the
-  // sandbox — out of a single fence, and each has its own way of recovering
-  // when the fence is not what it expected. They are the next to move, not a
-  // settled exception.
-  const ALLOWED = {
-    'js/agent-shape.js': 1,        // Python out of a reply, for the sandbox
-    'js/systems/spec.js': 2,       // a system spec's JSON, with repair after
-    'modes/agent-maker/mode.js': 1, // a blueprint's JSON
-    'modes/finance/mode.js': 1,    // the analysis JSON, with repair after
-    'modes/forge/mode.js': 1,      // a plan's JSON, with repair after
-  };
+  // The list is empty: the last five, which pulled JSON or Python out of a
+  // reply, now use jsonBlock and blocksIn.
+  const ALLOWED = {};
   const root = join(here, '..', '..', 'src');
   const found = {};
   (function walk(dir) {

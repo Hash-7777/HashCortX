@@ -1180,10 +1180,10 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
   /* Extract the JSON object from a raw model response.
      Uses proper bracket-depth tracking so trailing text after } is never included. */
   function extractJson(text) {
-    /* 1 — try explicit markdown fence */
-    const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenceMatch) {
-      const candidate = fenceMatch[1].trim();
+    /* 1 — a code block, found by src/js/fences.js */
+    const block = window.HCFences.jsonBlock(text);
+    if (block != null) {
+      const candidate = block.trim();
       try { JSON.parse(candidate); return candidate; } catch { /* fall through */ }
     }
     /* 2 — find first { then walk to matching } using bracket depth */

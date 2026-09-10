@@ -906,8 +906,8 @@ const SwarmMaker = (() => {
   function parseBlueprintJson(raw) {
     if (!raw) return null;
     try { return JSON.parse(raw.trim()); } catch {}
-    const m = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (m) try { return JSON.parse(m[1].trim()); } catch {}
+    const block = window.HCFences.jsonBlock(raw);
+    if (block != null) try { return JSON.parse(block.trim()); } catch {}
     const s = raw.indexOf("{"), e = raw.lastIndexOf("}");
     if (s !== -1 && e !== -1) try { return JSON.parse(raw.slice(s, e + 1)); } catch {}
     return null;

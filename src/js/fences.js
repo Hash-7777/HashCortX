@@ -20,6 +20,9 @@
 //
 // Pure: takes text, returns pieces of it. No DOM, no network.
 //
+// Two readings are shared here too, so no caller writes its own pattern for
+// them: the JSON block in an answer, and the blocks in a given language.
+//
 // Loaded before everything that reads code out of text, and published as
 // window.HCFences.
 // ==============================================================
@@ -103,5 +106,34 @@
     return splitFences(text).filter((p) => p.type === 'code').map(({ lang, info, code }) => ({ lang, info, code }));
   }
 
-  window.HCFences = { splitFences, codeBlocks };
+  /**
+   * The code of every block in one of `langs`, in order. Languages are
+   * compared in lower case, and '' stands for a block with no language.
+   */
+  function blocksIn(text, langs) {
+    return codeBlocks(text).filter((b) => langs.includes(b.lang.toLowerCase())).map((b) => b.code);
+  }
+
+  /**
+   * The code of the block most likely to be the JSON a model was asked for,
+   * or null when the text has no block.
+   *
+   * Blocks labelled json come first, then blocks with no language, then any
+   * block at all — a model asked for JSON sometimes labels it javascript.
+   * Within that, the longest wins: a model explaining itself often shows a
+   * small example before the real answer. Whether it parses is the caller's
+   * to find out; each caller has its own rescue for when it does not.
+   */
+  function jsonBlock(text) {
+    const blocks = codeBlocks(text);
+    const group = [
+      blocks.filter((b) => /^json[5c]?$/i.test(b.lang)),
+      blocks.filter((b) => !b.lang),
+      blocks,
+    ].find((g) => g.length);
+    if (!group) return null;
+    return group.reduce((best, b) => (b.code.length > best.code.length ? b : best)).code;
+  }
+
+  window.HCFences = { splitFences, codeBlocks, blocksIn, jsonBlock };
 })();

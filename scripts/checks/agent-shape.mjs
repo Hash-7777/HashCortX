@@ -20,6 +20,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(join(here, '..', '..', 'src', 'js', 'agent-shape.js'), 'utf8');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+// Code blocks are found by the shared reader, loaded before it as in the app.
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'fences.js'), 'utf8'), sandbox, { filename: 'fences.js' });
 vm.runInContext(src, sandbox, { filename: 'agent-shape.js' });
 const A = sandbox.window.HCAgentShape;
 

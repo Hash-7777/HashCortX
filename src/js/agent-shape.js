@@ -230,13 +230,15 @@
    * auto-linking turns `wb.save(...)` into `[wb.save](http://wb.save)`, and
    * smart quotes arrive instead of straight ones. Both make the code fail to
    * run for a reason that has nothing to do with the code.
+   *
+   * Blocks are found by src/js/fences.js. The pattern that stood here took the
+   * closing fence of a block in another language for an opening one, so a
+   * reply that showed some JavaScript and then the Python ran the sentence in
+   * between as the program and dropped the Python.
    */
   function extractPythonFence(text) {
     if (!text) return '';
-    const fences = [];
-    const re = /```(?:python|py)?\s*\n([\s\S]*?)```/gi;
-    let m;
-    while ((m = re.exec(text)) !== null) fences.push(m[1]);
+    const fences = window.HCFences.blocksIn(text, ['python', 'py', 'python3', '']);
     if (!fences.length) return '';
     let code = fences.join('\n\n');
     code = code.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');

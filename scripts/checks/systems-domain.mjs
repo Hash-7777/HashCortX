@@ -22,7 +22,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {}, structuredClone };
 vm.createContext(sandbox);
-for (const rel of [['src', 'js', 'systems', 'domain.js'], ['src', 'js', 'systems', 'spec.js']]) {
+for (const rel of [['src', 'js', 'fences.js'], ['src', 'js', 'systems', 'domain.js'], ['src', 'js', 'systems', 'spec.js']]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel.at(-1) });
 }
 const D = sandbox.window.HCSystemsDomain;

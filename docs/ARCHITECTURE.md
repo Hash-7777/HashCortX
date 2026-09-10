@@ -68,7 +68,7 @@ HashCortX/
 │   │   ├── cloud-model-fetch.js 292 asking each provider what models it has
 │   │   ├── cloud-model-memory.js 122 the model list a provider gave last time
 │   │   ├── model-names.js      216  provider, display name, size class, failover
-│   │   ├── agent-shape.js      316  images, tools and tool results per provider
+│   │   ├── agent-shape.js      318  images, tools and tool results per provider
 │   │   ├── agent-context.js    136  what the model sees of a long agent run
 │   │   ├── agent-policy.js     221  what may run together, and when to stop
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
@@ -82,7 +82,7 @@ HashCortX/
 │   │   ├── pdf-text.js         123  a PDF, as text
 │   │   ├── markdown-safe.js    206  link sanitiser, escaping, and the renderer
 │   │   │                            for text a model wrote
-│   │   ├── fences.js           107  code fences, read as the chat draws them —
+│   │   ├── fences.js           139  code fences, read as the chat draws them —
 │   │   │                            everything that looks for code uses it
 │   │   ├── export-format.js    343  the shared half of every export
 │   │   ├── diff.js             223  line and word diffs behind the change views
@@ -271,7 +271,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,730-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 3,940 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 3,960 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

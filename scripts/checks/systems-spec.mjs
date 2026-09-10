@@ -23,6 +23,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {}, structuredClone };
 vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(root, 'src', 'js', 'fences.js'), 'utf8'), sandbox, { filename: 'fences.js' });
 vm.runInContext(readFileSync(join(root, 'src', 'js', 'systems', 'spec.js'), 'utf8'), sandbox, { filename: 'spec.js' });
 const S = sandbox.window.HCSystemsSpec;
 
@@ -53,6 +54,9 @@ console.log('\nThe answer is read however the model wrapped it:');
   const withExample = 'For example a module looks like {"name":"Example","screen":"list"} — '
     + 'and here is the full system: ' + json;
   ok('a worked example before the answer does not win', S.parseJson(withExample).name === 'Clinic');
+  ok('nor one in a code block, with the answer written outside it',
+    S.parseJson('For example:\n```json\n{"a":1}\n```\nHere is the spec: ' + json).name === 'Clinic');
+  ok('of two blocks and nothing else, the answer is the longer', S.parseJson('```json\n{"a":1}\n```\n\n```json\n' + json + '\n```').name === 'Clinic');
 
   ok('nothing at all is nothing, not an exception', S.parseJson('') === null);
   ok('prose with no JSON in it is nothing',

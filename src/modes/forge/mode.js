@@ -3268,8 +3268,8 @@ Prompt: ${prompt}`;
 
   function parseJsonPayload(text, expected) {
     const raw = String(text || "").trim();
-    const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-    const source = fenced ? fenced[1] : raw;
+    const fenced = window.HCFences.jsonBlock(raw);   // the JSON block, not just the first one
+    const source = fenced != null ? fenced : raw;
     const candidates = [];
     const primary = extractJsonSpan(source, expected);
     if (primary) candidates.push(primary);

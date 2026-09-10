@@ -82,12 +82,12 @@
     // 1. It is JSON, which is the usual case.
     try { return JSON.parse(text); } catch {}
 
-    // 2. It is JSON in a code fence, possibly with prose around it.
-    const stripped = text.replace(/```[\s\S]*?```/g, (m) => {
-      const inner = m.match(/```(?:json)?\s*([\s\S]*?)```/);
-      return inner ? ` ${inner[1]} ` : " ";
-    });
-    try { return JSON.parse(stripped.trim()); } catch {}
+    // 2. It is JSON in a code block and nothing else, found by src/js/fences.js.
+    //    With prose beside the block, step 3 weighs everything, so a small
+    //    example in a block cannot win over the real answer written outside one.
+    const onlyBlocks = window.HCFences.splitFences(text).every((p) => p.type === "code" || !p.text.trim());
+    const block = onlyBlocks ? window.HCFences.jsonBlock(text) : null;
+    if (block != null) try { return JSON.parse(block.trim()); } catch {}
 
     // 3. There is an object in there somewhere. Every `{` is tried as a start
     //    and matched to its closing brace, and the LARGEST thing that parses
