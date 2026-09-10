@@ -293,7 +293,10 @@ const LINE_BUDGET = {
   // runs; the listeners that replace them take a few more lines.
   // 2419, down from 2472: building a site into one page moved to
   // src/js/swarm/site.js, which inserts files as written.
-  'modes/agent-maker/mode.js': 2419,
+  // 2424, up from 2419. The Workspace can now ask one of the run's agents for
+  // a change (src/js/swarm/talk.js); handing it the way to call an agent is
+  // the only line that had to be in the mode.
+  'modes/agent-maker/mode.js': 2424,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

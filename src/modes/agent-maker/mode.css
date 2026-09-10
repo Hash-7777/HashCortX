@@ -850,8 +850,8 @@ img.amk-empty-logo {
 .amk-ws-status.err { color: var(--danger); }
 
 .amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 40%) 1fr; }
-.amk-ws-convo { min-height: 0; overflow-y: auto; padding: var(--space-3) var(--space-4); border-right: 1px solid var(--amk-line); }
-.amk-ws-turns { display: flex; flex-direction: column; gap: var(--space-3); }
+.amk-ws-convo { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); }
+.amk-ws-turns { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .amk-ws-turn { border: 1px solid var(--amk-line); border-radius: var(--radius-sm); background: var(--surface-0); }
 .amk-ws-turn.you { background: var(--amk-dim); }
 .amk-ws-turn.team { border-color: var(--amk-ui); }
@@ -880,6 +880,30 @@ img.amk-empty-logo {
   background: transparent; color: var(--text-dim); cursor: pointer;
 }
 .amk-ws-fold:hover { background: var(--amk-dim); color: var(--text); }
+.amk-ws-turn.pending .amk-ws-turn-head { border-bottom: none; }
+.amk-ws-working { font-size: 11px; color: var(--muted); animation: dot-blink 1.4s ease-in-out infinite; }
+
+.amk-ws-composer {
+  flex-shrink: 0; display: flex; flex-direction: column; gap: 6px;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--amk-line); background: var(--surface-1);
+}
+.amk-ws-composer-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.amk-ws-composer-row .amk-ws-btn { flex-shrink: 0; }
+.amk-ws-composer-row .amk-ws-btn[hidden] { display: none; }
+.amk-ws-base { font-size: 11px; color: var(--amk-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-hint { margin-right: auto; min-width: 0; font-size: 11px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
+.amk-ws-hint.ok { color: var(--ok); }
+.amk-ws-hint.err { color: var(--danger); }
+.amk-ws-message {
+  width: 100%; min-height: 52px; max-height: 160px; resize: vertical; box-sizing: border-box;
+  padding: 8px 10px; font: inherit; font-size: 12.5px; line-height: 1.5;
+  background: var(--surface-0); color: var(--text);
+  border: 1px solid var(--amk-line); border-radius: var(--radius-xs);
+}
+.amk-ws-message:focus { outline: none; border-color: var(--amk-ui); }
+.amk-ws-message:disabled { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { .amk-ws-working { animation: none; } }
 
 .amk-ws-work { min-height: 0; display: flex; flex-direction: column; }
 .amk-ws-tabs { display: flex; gap: 2px; padding: 6px 10px 0; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--amk-line); }

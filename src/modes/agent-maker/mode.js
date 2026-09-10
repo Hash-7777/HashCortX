@@ -2326,7 +2326,12 @@ function _polishToast(text, isError) {
     });
 
     // The Workspace: src/js/swarm/workspace.js, given what only this mode has.
-    window.HCSwarmWorkspace.init({ saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave, openInBrowser: (html) => window.HC.swarmSite.open(html) });
+    window.HCSwarmWorkspace.init({
+      saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave,
+      openInBrowser: (html) => window.HC.swarmSite.open(html),
+      // A reply to a change request is the agent's answer alone: no tools.
+      askAgent: async (agent, messages, signal) => (await callAgentLLM(agent.model, messages, signal, agent.temperature))?.content || "",
+    });
     document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));
 
     // Trace console toggle

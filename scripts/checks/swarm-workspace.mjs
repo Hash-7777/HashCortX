@@ -18,11 +18,12 @@ const mode = src('modes', 'agent-maker', 'mode.js');
 const code = mode.split('\n').filter((l) => !/^\s*(\/\/|\*)/.test(l)).join('\n');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
-for (const f of [['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js'], ['js', 'swarm', 'workspace-view.js']]) {
+for (const f of [['js', 'fences.js'], ['js', 'swarm', 'project-files.js'], ['js', 'swarm', 'runs.js'], ['js', 'swarm', 'workspace-view.js'], ['js', 'swarm', 'talk.js']]) {
   vm.runInContext(src(...f), sandbox, { filename: f.join('/') });
 }
 const R = sandbox.window.HCSwarmRuns;
 const V = sandbox.window.HCSwarmWorkspaceView;
+const T = sandbox.window.HCSwarmTalk;
 const ws = src('js', 'swarm', 'workspace.js');
 
 let pass = 0;
@@ -85,6 +86,18 @@ console.log('\nA run is kept as a conversation:');
   ok('it records who made it and what it changed', run2.versions[1].by === 'a2' && run2.versions[1].changed.join() === 'index.html');
   ok('a reply that changes nothing makes no version',
     R.withVersion(run2, { by: 'a2', at: 4000, changed: { 'index.html': { lang: 'html', content: '<h1>Hello</h1>' } } }).versions.length === 2);
+  ok('a version lists only the files that really changed', (() => {
+    const v = R.withVersion(run2, { by: 'a2', at: 5, changed: { 'index.html': { lang: 'html', content: '<h1>Hello</h1>' }, 'styles.css': { lang: 'css', content: 'h1{color:green}' } } });
+    return v.versions.length === 3 && v.versions[2].changed.join() === 'styles.css';
+  })());
+  ok('a change made to an earlier version builds on that version', (() => {
+    const v = R.withVersion(run2, { by: 'a1', at: 5, base: run2.versions[0].files, changed: { 'styles.css': { lang: 'css', content: 'h1{color:green}' } } });
+    const f = R.currentFiles(v);
+    return v.versions.length === 3 && f['index.html'].content === '<h1>Hi</h1>' && f['styles.css'].content === 'h1{color:green}'
+      && R.currentFiles(run2)['index.html'].content === '<h1>Hello</h1>';
+  })());
+  ok('going back to a version and changing nothing makes no version',
+    R.withVersion(run2, { by: 'a1', at: 5, base: run2.versions[0].files, changed: {} }).versions.length === 2);
   ok('a run with no files has no version', R.recordRun(run0, { results: { a1: 'just words' }, finalOutput: 'still words', at: 1 }).versions.length === 0);
 
   console.log('\nA result saved before runs existed becomes a run:');
@@ -146,6 +159,101 @@ console.log('\nWhat the Workspace shows:');
   ok('older is a date', /^\d{4}-\d{2}-\d{2}$/.test(V.timeAgo(now - 30 * 86_400_000, now)));
   ok('a long task is shortened in the run list', V.runLabel({ task: 'x'.repeat(80), startedAt: now }, now).startsWith('x'.repeat(47) + '…'));
   ok('a long turn starts folded', V.startsFolded('line\n'.repeat(40)) && !V.startsFolded('short'));
+}
+
+console.log('\nWho a message is for:');
+{
+  const agents = [
+    { id: 'a1', name: 'Code', role: 'coder' },
+    { id: 'a2', name: 'Code Reviewer', role: 'critic' },
+    { id: 'a3', name: 'Writer', role: 'writer' },
+  ];
+  const run = { agents, leadAgentId: 'a3', edges: [{ from: 'a1', to: 'a2' }, { from: 'a2', to: 'a3' }], turns: [], versions: [] };
+  ok('with no name, it goes to the lead agent', T.addressee(run, 'make it blue').agentId === 'a3');
+  ok('and says so', T.addressee(run, 'make it blue').named === false && T.addressee(run, 'make it blue').text === 'make it blue');
+  const named = T.addressee(run, '@Code make it blue');
+  ok('@Name sends it to that agent', named.agentId === 'a1' && named.named);
+  ok('and the name is taken off the message', named.text === 'make it blue');
+  ok('the longest name wins, so @Code Reviewer is not read as @Code', T.addressee(run, '@Code Reviewer: check it').agentId === 'a2');
+  ok('names are matched without regard to case', T.addressee(run, '@writer tidy up').agentId === 'a3');
+  ok('an agent can be named by its id', T.addressee(run, '@a1 hi').agentId === 'a1');
+  ok('a name must end where a word ends', T.addressee(run, '@Codex hi').named === false);
+  ok('an @ that names nobody stays in the message and goes to the lead', (() => {
+    const w = T.addressee(run, '@Nobody hi'); return w.agentId === 'a3' && w.text === '@Nobody hi';
+  })());
+  ok('a name with nothing after it is a message with nothing in it', T.addressee(run, '@Writer').text === '');
+
+  ok('the lead is the agent the blueprint names', T.leadAgentId(run) === 'a3');
+  ok('if that agent is gone, the supervisor', T.leadAgentId({ ...run, leadAgentId: 'gone', agents: [...agents, { id: 's', name: 'Boss', role: 'supervisor' }] }) === 's');
+  ok('failing that, the agent at the end of the chain', T.leadAgentId({ ...run, leadAgentId: '', edges: [{ from: 'a3', to: 'a1' }, { from: 'a2', to: 'a1' }] }) === 'a1');
+  ok('and a run with no agents has no lead', T.leadAgentId({ agents: [] }) === '');
+}
+
+console.log('\nWhat the agent is given:');
+{
+  const B = '`'.repeat(3);
+  const run = {
+    task: 'Build a page',
+    agents: [{ id: 'a1', name: 'Coder', role: 'coder', systemPrompt: 'You write tidy HTML.' }],
+    turns: [{ who: 'you', text: 'Build a page', status: 'ok' }, { who: 'a1', text: 'Done', status: 'ok' }],
+    versions: [],
+  };
+  const files = { 'index.html': { lang: 'html', content: '<h1>Hi</h1>' } };
+  const m = T.messagesFor(run, 'a1', 'make it blue', files);
+  ok('its own instructions come first', m[0].role === 'system' && m[0].content.startsWith('You write tidy HTML.'));
+  ok('and it is told to label only whole files it changes', /labelled with its language and path/.test(m[0].content) && /never label an example/.test(m[0].content));
+  ok('then one message: the task, the conversation, the files and the request', m.length === 2 && m[1].role === 'user'
+    && /Build a page/.test(m[1].content) && /Coder:\nDone/.test(m[1].content) && m[1].content.includes(`${B}html index.html\n<h1>Hi</h1>\n${B}`));
+  ok('the request is last, where it cannot be lost', m[1].content.trimEnd().endsWith('The request:\nmake it blue'));
+  ok('nothing is put in the agent\'s mouth', !m.some((x) => x.role === 'assistant'));
+
+  const long = { ...run, turns: Array.from({ length: 40 }, (_, i) => ({ who: 'you', text: `turn ${i} ` + 'x'.repeat(1500), status: 'ok' })) };
+  const t = T.transcript(long);
+  ok('a long conversation keeps its newest turns', t.includes('turn 39 ') && !t.includes('turn 0 '));
+  ok('and says how many earlier turns were left out', /^\[\d+ earlier turns left out\]/.test(t));
+  ok('and stays inside its budget', t.length < T.BUDGET.conversationChars + 200);
+  ok('a single long turn is cut, and says so', /more characters left out/.test(T.transcript({ ...run, turns: [{ who: 'you', text: 'y'.repeat(5000), status: 'ok' }] })));
+  const big = { 'index.html': { lang: 'html', content: 'a'.repeat(50000) }, 'app.js': { lang: 'javascript', content: 'b'.repeat(20000) } };
+  const fc = T.fileContext(big);
+  ok('files that do not fit are named, not dropped without a word', fc.includes('index.html\n') && /not shown here to save space: app\.js/.test(fc));
+  ok('a project with no files says so', T.fileContext({}) === 'There are no files yet.');
+}
+
+console.log('\nWhat an answer does to the run:');
+{
+  const B = '`'.repeat(3);
+  let run = R.newRun({ id: 'r', blueprint: { id: 'b', agents: [{ id: 'a1', name: 'Coder' }] }, task: 'Build', now: 1 });
+  run = R.withVersion(run, { by: 'team', at: 1, changed: { 'index.html': { lang: 'html', content: '<h1>Hi</h1>' }, 'styles.css': { lang: 'css', content: 'h1{}' } } });
+  const reply = `Made it blue.\n\n${B}css styles.css\nh1{color:blue}\n${B}`;
+  const a = T.withReply(run, { agentId: 'a1', message: '@Coder make it blue', reply, at: 2 });
+  ok('your message and the answer join the conversation', a.run.turns.slice(-2).map((x) => x.who).join() === 'you,a1');
+  ok('the file it changed becomes a new version, made by that agent', a.run.versions.length === 2 && a.run.versions[1].by === 'a1' && a.changed.join() === 'styles.css');
+  ok('the files it did not touch carry over', R.currentFiles(a.run)['index.html'].content === '<h1>Hi</h1>');
+  ok('the run it was given is not changed', run.turns.length === 1 && run.versions.length === 1);
+
+  const example = T.withReply(run, { agentId: 'a1', message: 'how?', reply: `You could write:\n\n${B}css\nh1{color:red}\n${B}`, at: 2 });
+  ok('an unlabelled example does not replace a whole file', example.run.versions.length === 1 && R.currentFiles(example.run)['styles.css'].content === 'h1{}');
+  ok('and the person is told why nothing changed', example.unnamedCode === true);
+  const words = T.withReply(run, { agentId: 'a1', message: 'why?', reply: 'Because it reads better.', at: 2 });
+  ok('an answer with no code changes nothing and is not mistaken for one', words.run.versions.length === 1 && !words.unnamedCode && words.changed.length === 0);
+  const page = T.withReply(run, { agentId: 'a1', message: 'redo', reply: `${B}html\n<!DOCTYPE html>\n<html><body>new</body></html>\n${B}`, at: 2 });
+  ok('a complete page is taken as the page even unlabelled', page.changed.join() === 'index.html');
+  const onV1 = T.withReply(a.run, { agentId: 'a1', message: 'bigger', reply: `${B}html index.html\n<h1>Big</h1>\n${B}`, at: 3, base: a.run.versions[0].files });
+  ok('a change asked of an earlier version is made to that version', R.currentFiles(onV1.run)['styles.css'].content === 'h1{}' && R.currentFiles(onV1.run)['index.html'].content === '<h1>Big</h1>');
+}
+
+console.log('\nThe message box:');
+{
+  ok('the Workspace asks through what the mode hands it', /deps\.askAgent\(agent, T\.messagesFor\(/.test(ws));
+  ok('the mode asks the agent with no tools', /askAgent: async \(agent, messages, signal\) => \(await callAgentLLM\(agent\.model, messages, signal, agent\.temperature\)\)/.test(mode));
+  ok('the change is made to the version on screen', /const base = currentFiles\(\);[\s\S]*?T\.withReply\(run, \{[^}]*base \}\)/.test(ws));
+  ok('the message is cleared only once the answer is kept', (() => {
+    const body = /async function send\(\)[\s\S]*?\n  \}\n/.exec(ws)?.[0] || '';
+    const saved = body.indexOf('saveRun(next)'); const cleared = body.indexOf("box.value = ''");
+    return saved > 0 && cleared > saved;
+  })());
+  ok('Stop cancels the request', /state\.asking\?\.controller\.abort\(\)/.test(ws) && /controller\.signal\)/.test(ws));
+  ok('the answer is kept against the run it was asked of', /state\.runs = state\.runs\.map\(\(r\) => \(r\.id === next\.id \? next : r\)\)/.test(ws));
 }
 
 console.log('\nA site opens in the browser, never inside the app:');

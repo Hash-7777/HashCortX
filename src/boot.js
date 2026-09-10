@@ -94,6 +94,7 @@
     '/js/swarm/site.js',
     '/js/swarm/runs.js',
     '/js/swarm/workspace-view.js',
+    '/js/swarm/talk.js',
     '/js/swarm/workspace.js',
     '/js/systems/spec.js',
     '/js/systems/money.js',

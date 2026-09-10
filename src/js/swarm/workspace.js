@@ -7,14 +7,21 @@
 // the files. It replaces the output drawer, and keeps what that did: copy
 // and export the result, and download the site as one page.
 //
+// Under the conversation is a message box. A message goes to the run's lead
+// agent, or to whoever it names with @; the answer joins the conversation, and
+// any files it changes become a new version made from the version on screen.
+// Who a message is for and what the agent is sent are decided in
+// src/js/swarm/talk.js.
+//
 // Everything an agent wrote is rendered through HCMarkdown.renderUntrusted;
 // file contents are only ever set as text. What each part shows is decided in
 // src/js/swarm/workspace-view.js; the run itself comes from
 // src/js/swarm/runs.js.
 //
 // The Agent Swarm hands this the few things only it has — the active
-// blueprint, a way to save blueprints, the site builder and the save dialog —
-// through init(), so the mode keeps only its wiring.
+// blueprint, a way to save blueprints, the site builder, the save dialog and
+// a way to ask one of its agents — through init(), so the mode keeps only its
+// wiring.
 //
 // Loaded before the Agent Swarm and published as window.HCSwarmWorkspace.
 // ==============================================================
@@ -25,10 +32,11 @@
   const $ = (id) => document.getElementById(id);
   const RUNS = () => window.HCSwarmRuns;
   const VIEW = () => window.HCSwarmWorkspaceView;
+  const TALK = () => window.HCSwarmTalk;
 
   let deps = null;
   let wired = false;
-  const state = { blueprint: null, runs: [], run: null, rev: 0, file: '', returnFocus: null };
+  const state = { blueprint: null, runs: [], run: null, rev: 0, file: '', returnFocus: null, asking: null };
 
   function init(d) {
     deps = d;
@@ -36,12 +44,17 @@
     wired = true;
     $('amkWsClose')?.addEventListener('click', close);
     $('amkWsRuns')?.addEventListener('change', (e) => selectRun(e.target.value));
-    $('amkWsVersions')?.addEventListener('change', (e) => { state.rev = Number(e.target.value); state.file = ''; drawFiles(); });
+    $('amkWsVersions')?.addEventListener('change', (e) => { state.rev = Number(e.target.value); state.file = ''; drawFiles(); drawComposer(); });
     $('amkWsCopy')?.addEventListener('click', copyResult);
     $('amkWsExport')?.addEventListener('click', exportResult);
     $('amkWsDownload')?.addEventListener('click', downloadSite);
     $('amkWsOpen')?.addEventListener('click', openInBrowser);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
+    $('amkWsSend')?.addEventListener('click', send);
+    $('amkWsStop')?.addEventListener('click', () => state.asking?.controller.abort());
+    $('amkWsMessage')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
+    });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); } });
   }
 
@@ -51,7 +64,17 @@
     const el = $('amkWsStatus');
     if (!el) return;
     el.textContent = text;
+    el.title = text;
     el.className = 'amk-ws-status' + (kind ? ' ' + kind : '');
+  }
+
+  /** What happened to the last message, told beside the message box. */
+  const HINT = 'Enter to send, Shift+Enter for a new line';
+  function note(text, kind = '') {
+    const el = $('amkWsNote');
+    if (!el) return;
+    el.textContent = text || HINT;
+    el.className = 'amk-ws-hint' + (kind ? ' ' + kind : '');
   }
 
   /**
@@ -68,6 +91,7 @@
     state.returnFocus = document.activeElement;
     root.hidden = false;
     status('');
+    note('');
     try {
       await ensureKept(blueprint);
       state.runs = blueprint ? await RUNS().runsFor(blueprint.id) : [];
@@ -104,6 +128,7 @@
   }
 
   function selectRun(id) {
+    note('');
     state.run = state.runs.find((r) => r.id === id) || null;
     state.rev = state.run?.versions.length ? state.run.versions[state.run.versions.length - 1].rev : 0;
     state.file = '';
@@ -116,6 +141,7 @@
     drawHeader();
     drawTurns();
     drawFiles();
+    drawComposer();
   }
 
   function drawHeader() {
@@ -129,12 +155,12 @@
 
     const runs = $('amkWsRuns');
     runs.replaceChildren(...state.runs.map((r) => new Option(V.runLabel(r, now), r.id, false, r === run)));
-    runs.disabled = state.runs.length < 2;
+    runs.disabled = state.runs.length < 2 || !!state.asking;
 
     const versions = $('amkWsVersions');
     const list = run?.versions || [];
     versions.replaceChildren(...list.slice().reverse().map((v) => new Option(V.versionLabel(run, v), String(v.rev), false, v.rev === state.rev)));
-    versions.disabled = list.length < 2;
+    versions.disabled = list.length < 2 || !!state.asking;
 
     const files = currentFiles();
     $('amkWsCopy').disabled = !resultText();
@@ -197,6 +223,31 @@
       }
       return el;
     }));
+    if (state.asking && state.asking.runId === run.id) box.append(pendingTurn(state.asking.agentId));
+    box.scrollTop = box.scrollHeight;
+  }
+
+  /** The line that stands for an answer on its way. */
+  function pendingTurn(agentId) {
+    const agent = state.run.agents.find((a) => a.id === agentId) || { name: agentId };
+    const el = document.createElement('article');
+    el.className = 'amk-ws-turn agent pending';
+    el.setAttribute('aria-busy', 'true');
+    const head = document.createElement('div');
+    head.className = 'amk-ws-turn-head';
+    const avatar = document.createElement('span');
+    avatar.className = 'amk-ws-avatar';
+    avatar.textContent = agent.icon || agent.name.slice(0, 1).toUpperCase();
+    avatar.setAttribute('aria-hidden', 'true');
+    const name = document.createElement('span');
+    name.className = 'amk-ws-name';
+    name.textContent = agent.name;
+    const note = document.createElement('span');
+    note.className = 'amk-ws-working';
+    note.textContent = 'Working on it…';
+    head.append(avatar, name, note);
+    el.append(head);
+    return el;
   }
 
   function currentFiles() {
@@ -265,6 +316,85 @@
     d.className = 'amk-ws-empty';
     d.textContent = text;
     return d;
+  }
+
+  // ── Talking to the agents ───────────────────────────────────────────────
+
+  function latestRev(run) {
+    return run?.versions.length ? run.versions[run.versions.length - 1].rev : 0;
+  }
+
+  function drawComposer() {
+    const run = state.run;
+    const to = $('amkWsTo');
+    const lead = run ? TALK().leadAgentId(run) : '';
+    const leadName = run?.agents.find((a) => a.id === lead)?.name || '';
+    const chosen = to.value;
+    to.replaceChildren(
+      new Option(leadName ? `${leadName} (lead)` : 'The lead agent', ''),
+      ...(run?.agents || []).filter((a) => a.id !== lead).map((a) => new Option(a.name, a.id)),
+    );
+    to.value = [...to.options].some((o) => o.value === chosen) ? chosen : '';
+    const busy = !!state.asking;
+    to.disabled = !run || busy;
+    $('amkWsMessage').disabled = !run || busy;
+    $('amkWsSend').hidden = busy;
+    $('amkWsSend').disabled = !run;
+    $('amkWsStop').hidden = !busy;
+    const base = $('amkWsBase');
+    base.textContent = run && state.rev && state.rev !== latestRev(run)
+      ? `Changes will be made to v${state.rev}, the version on screen`
+      : '';
+  }
+
+  /**
+   * Send the message to the agent it is for, and keep what comes back.
+   *
+   * The message stays in the box until an answer is kept, so a failure or a
+   * Stop loses nothing and needs no retyping. The answer is kept against the
+   * run it was asked of, even if the Workspace was closed while it was coming.
+   */
+  async function send() {
+    const run = state.run;
+    const box = $('amkWsMessage');
+    const raw = box.value.trim();
+    if (!run || !raw || state.asking) return;
+    const T = TALK();
+    const who = T.addressee(run, raw);
+    const agentId = who.named ? who.agentId : ($('amkWsTo').value || who.agentId);
+    const agent = run.agents.find((a) => a.id === agentId);
+    if (!agent) { note('This run has no agents to ask.', 'err'); return; }
+    if (!who.text) { note(`Say what you would like ${agent.name} to do.`, 'err'); return; }
+    const base = currentFiles();
+    const rev = state.rev;
+    state.asking = { runId: run.id, agentId, controller: new AbortController() };
+    note(`Asking ${agent.name}…`);
+    draw();
+    try {
+      const reply = String(await deps.askAgent(agent, T.messagesFor(run, agentId, who.text, base), state.asking.controller.signal) || '').trim();
+      if (!reply) throw new Error(`${agent.name} sent back an empty answer`);
+      const { run: next, changed, unnamedCode } = T.withReply(run, { agentId, message: raw, reply, at: Date.now(), base });
+      await RUNS().saveRun(next);
+      state.runs = state.runs.map((r) => (r.id === next.id ? next : r));
+      if (state.run?.id === next.id) {
+        state.run = next;
+        box.value = '';
+        if (changed.length) { state.rev = latestRev(next); state.file = changed[0]; }
+      }
+      note(changed.length
+        ? `${agent.name} changed ${changed.join(', ')}: now v${latestRev(next)}`
+        : unnamedCode
+          ? `${agent.name}'s answer has code that names no file, so no file was changed. Ask for the whole file, labelled with its name.`
+          : `${agent.name} answered; no files changed${rev ? ` (still v${rev})` : ''}`,
+      changed.length ? 'ok' : unnamedCode ? 'err' : '');
+    } catch (err) {
+      const stopped = err?.name === 'AbortError' || state.asking?.controller.signal.aborted;
+      note(stopped ? 'Stopped. Your message is still in the box.' : `${agent.name} could not answer: ${err?.message || err}`, stopped ? '' : 'err');
+    } finally {
+      state.asking = null;
+      draw();
+      if (isOpen()) box.focus();
+    }
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────

@@ -64,27 +64,37 @@
   }
 
   /**
-   * The run with a new version: the latest files with `changed` laid over the
-   * top. A change that alters nothing makes no version, so the history is a
-   * list of real changes rather than of every reply.
+   * The run with a new version: `changed` laid over the files it was made
+   * from — the latest, or `base` when a change is made to an earlier version,
+   * so going back to v1 and asking for a change builds on v1. A change that
+   * alters nothing makes no version, so the history is a list of real changes
+   * rather than of every reply, and `changed` lists only what really changed.
    */
-  function withVersion(run, { by, at, changed }) {
-    const before = currentFiles(run);
-    const after = { ...before };
-    let different = false;
+  function withVersion(run, { by, at, changed, base }) {
+    const latest = currentFiles(run);
+    const from = base || latest;
+    const after = { ...from };
+    const names = [];
     for (const [name, file] of Object.entries(changed || {})) {
-      const prev = before[name];
-      if (!prev || prev.content !== file.content || prev.lang !== file.lang) different = true;
-      after[name] = { lang: file.lang || '', content: String(file.content ?? '') };
+      const next = { lang: file.lang || '', content: String(file.content ?? '') };
+      const prev = from[name];
+      if (!prev || prev.content !== next.content || prev.lang !== next.lang) names.push(name);
+      after[name] = next;
     }
-    if (!different) return run;
+    if (!names.length || sameFiles(after, latest)) return run;
     const rev = (run.versions[run.versions.length - 1]?.rev || 0) + 1;
-    return { ...run, versions: [...run.versions, { rev, by: String(by), at, files: after, changed: Object.keys(changed) }] };
+    return { ...run, versions: [...run.versions, { rev, by: String(by), at, files: after, changed: names }] };
   }
 
-  /** Named files found in a piece of an answer, as a plain object. */
-  function filesFromText(text) {
-    const found = window.HCSwarmProjectFiles.extractProjectFiles(text || '');
+  function sameFiles(a, b) {
+    const names = Object.keys(a);
+    return names.length === Object.keys(b).length
+      && names.every((n) => b[n] && b[n].content === a[n].content && b[n].lang === a[n].lang);
+  }
+
+  /** Files found in a piece of an answer, as a plain object. */
+  function filesFromText(text, options) {
+    const found = window.HCSwarmProjectFiles.extractProjectFiles(text || '', options);
     const out = {};
     for (const [name, file] of found) out[name] = { lang: file.lang || '', content: file.content };
     return out;

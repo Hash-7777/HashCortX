@@ -57,6 +57,15 @@ ok('names are kept in lower case, which is how the preview looks them up',
 ok('a file with no language takes one from its extension', P.extractProjectFiles(`${B} page.html\n<p>x</p>\n${B}`).get('page.html').lang === 'html');
 ok('prose with no code gives no files', P.extractProjectFiles('Nothing to build.').size === 0);
 ok('nothing gives no files', P.extractProjectFiles('').size === 0 && P.extractProjectFiles(null).size === 0);
+console.log('\nA reply to a change request changes only the files it names:');
+const named = (text) => [...P.extractProjectFiles(text, { guess: false })].map(([k, v]) => `${k}=${v.content}`);
+ok('a named file is found', named(`${B}css styles.css\nh1{}\n${B}`).join() === 'styles.css=h1{}');
+ok('a plain css example is not taken for the stylesheet', named(`${B}css\nh1{}\n${B}`).length === 0);
+ok('nor a plain js example for the script', named(`${B}js\nlet a;\n${B}`).length === 0);
+ok('nor a fragment of html for the page', named(`${B}html\n<p>x</p>\n${B}`).length === 0);
+ok('a complete page is taken for the page', named(`${B}html\n<!doctype html>\n<html></html>\n${B}`).join() === 'index.html=<!doctype html>\n<html></html>');
+ok('but never over a page it names', named(`${B}html index.html\n<p>named</p>\n${B}\n${B}html\n<html></html>\n${B}`).join() === 'index.html=<p>named</p>');
+
 ok('the module has no fence pattern of its own', !/`{3}\(/.test(src('js', 'swarm', 'project-files.js')));
 
 // Control: the primary pattern that stood in the mode before.

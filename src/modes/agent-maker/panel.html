@@ -200,7 +200,6 @@
     </div>
   </div>
 
-  <!-- Chat/output peek side panel -->
   <!-- The Swarm Workspace: a kept run's conversation beside its files.
        Drawn by src/js/swarm/workspace.js. -->
   <div class="amk-ws" id="amkWorkspace" role="dialog" aria-modal="true" aria-labelledby="amkWsTitle" hidden>
@@ -223,6 +222,19 @@
     <div class="amk-ws-body">
       <section class="amk-ws-convo" aria-label="Conversation">
         <div class="amk-ws-turns" id="amkWsTurns"></div>
+        <div class="amk-ws-composer">
+          <div class="amk-ws-composer-row">
+            <label class="amk-ws-pick"><span>To</span><select id="amkWsTo" aria-label="Which agent to ask"></select></label>
+            <span class="amk-ws-base" id="amkWsBase"></span>
+          </div>
+          <textarea class="amk-ws-message" id="amkWsMessage" rows="2" aria-label="Message the team"
+            placeholder="Ask for a change. Start with @Name to ask a particular agent."></textarea>
+          <div class="amk-ws-composer-row">
+            <span class="amk-ws-hint" id="amkWsNote" role="status" aria-live="polite">Enter to send, Shift+Enter for a new line</span>
+            <button class="amk-ws-btn" id="amkWsStop" type="button" hidden>Stop</button>
+            <button class="amk-ws-btn amk-ws-primary" id="amkWsSend" type="button">Send</button>
+          </div>
+        </div>
       </section>
       <section class="amk-ws-work" aria-label="Files">
         <div class="amk-ws-tabs" id="amkWsTabs" role="tablist" aria-label="Files"></div>

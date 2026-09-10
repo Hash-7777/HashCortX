@@ -32,7 +32,13 @@
              md:"markdown", svg:"svg", sh:"bash" }[ext] || "text";
   }
 
-  function extractProjectFiles(text) {
+  /**
+   * `guess: false` keeps only files the answer names, for a reply to a change
+   * request: there an unnamed block is as likely an example as a file, and
+   * standing it in for styles.css would replace a whole stylesheet with it.
+   * A complete page is the one exception, since it can only be the page.
+   */
+  function extractProjectFiles(text, { guess = true } = {}) {
     const files = new Map();
     const blocks = window.HCFences.splitFences(text || "").filter(p => p.type === "code");
     const NAME = /^[^\s`'"]+\.\w{1,8}$/;
@@ -57,6 +63,11 @@
       const nl = b.code.indexOf("\n");
       const m = /^(?:\/\/|#|<!--)\s*file:\s*([^\s*]+?)(?:\s*-->)?\s*$/.exec(nl === -1 ? b.code : b.code.slice(0, nl));
       if (m) put(m[1], b.lang, nl === -1 ? "" : b.code.slice(nl + 1));
+    }
+    if (!guess) {
+      const page = blocks.find(b => b.lang.toLowerCase() === "html" && /^\s*<(!doctype\s+html|html[\s>])/i.test(b.code));
+      if (page && !files.has("index.html")) files.set("index.html", { lang: "html", content: page.code });
+      return files;
     }
     // Fallbacks for the preview: a plain html, css or js block.
     const firstOf = (...langs) => blocks.find(b => langs.includes(b.lang.toLowerCase()));
