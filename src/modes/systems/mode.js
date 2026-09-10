@@ -1436,7 +1436,12 @@ Repair requirements:
         <span class="sys-module-icon">${iconSvg(m.icon)}</span><span>${esc(m.name)}</span>
       </button>`).join("");
 
-    const screenDiv = `<div class="sys-screen sys-screen--${esc(screen)}">${screenHtml}</div>`;
+    // A filter set from outside the table — a workflow's stage — is said on
+    // screens with no filter panel, so records do not seem to have gone.
+    const shown = filterRules.filter(r => r.field && r.value !== "");
+    const filterNote = shown.length && !["dashboard", "list", "split"].includes(screen)
+      ? `<div class="sys-filter-note">Showing only ${shown.map(r => `${esc(entity?.fields?.find(f => f.id === r.field)?.label || r.field)}: ${esc(r.value)}`).join(", ")} <button type="button" class="sys-action-btn" id="sysClearFilters">Show all</button></div>` : "";
+    const screenDiv = `<div class="sys-screen sys-screen--${esc(screen)}">${filterNote}${screenHtml}</div>`;
 
     switch (shell) {
 
@@ -1614,6 +1619,25 @@ Repair requirements:
   // figures.js. The tiles used to carry trends and sparklines nobody had
   // measured; a trend now compares two named months, or is not shown.
   const FIG = () => window.HCSystemsFigures;
+  const STAGES = () => window.HCSystemsStages;
+
+  /**
+   * Put a record at a stage: from a board's drag or arrows, or the detail
+   * panel's next-stage button. "No status" clears it.
+   */
+  function moveRecord(recordId, value) {
+    const spec = getActive();
+    const entity = spec?.entities?.[activeEntityId];
+    const field = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
+    const data = getRuntimeData(spec);
+    const rec = (data[activeEntityId] || []).find(r => r.id === recordId);
+    if (!field || !rec || value == null) return;
+    rec[field.id] = value === VIEW().NO_STATUS ? "" : value;
+    saveRuntimeData(spec, data);
+    trace(`${recordLabel(rec, entity)} moved to ${rec[field.id] || VIEW().NO_STATUS}`, "ok");
+    selectedRecordId = recordId;
+    renderPreview(); renderDataEditor();
+  }
   const todayIso = () => window.HCSystemsSamples.localDay(new Date());
 
   function showFigure(value, field, short = false) {
@@ -1796,6 +1820,13 @@ Repair requirements:
     }).join("");
   }
 
+  /** "Move to Served" on a record's detail panel, while it has a stage to go on to. */
+  function nextStageButton(record, entity) {
+    const field = STAGES().stageField(entity);
+    const next = record && field ? STAGES().nextStage(field, record[field.id]) : null;
+    return next == null ? "" : `<button type="button" class="sys-mini-btn sys-detail-next" data-action="stage-next" data-record-id="${esc(record.id)}">Move to ${esc(next)}</button>`;
+  }
+
   function renderSideWidgets(records, entity, selected, spec) {
     const numField = entity?.fields?.find(f => f.type === "number");
     const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6"];
@@ -1817,6 +1848,7 @@ Repair requirements:
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h3"/></svg>
             <span class="sys-widget-title">Record Detail</span>
           </div>
+          ${nextStageButton(selected, entity)}
           ${selected ? `<button class="sys-mini-btn" data-action="edit" data-record-id="${esc(selected.id)}">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="11" height="11"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>
             Edit
@@ -1844,18 +1876,22 @@ Repair requirements:
           </div>
         </div>
         <div class="sys-widget-body">
-          <div class="sys-activity">${(spec.workflows || []).slice(0, 4).map((w, i) => `
-            <div class="sys-activity-item">
+          <div class="sys-activity">${(spec.workflows || []).slice(0, 4).map((w, i) => {
+            // How many records stand at each stage, each a way into that list.
+            // There used to be a Run button that only wrote to the log.
+            const target = STAGES().workflowTarget(w, spec.entities);
+            const rows = target ? getRuntimeData(spec)[target.entityId] || [] : [];
+            const stages = target ? STAGES().stageCounts(rows, target.field, w.stages).map(c =>
+              `<button type="button" class="sys-stage-chip" data-action="open-stage" data-entity="${esc(target.entityId)}" data-field="${esc(target.field.id)}" data-stage="${esc(c.stage)}">${esc(c.stage)} <b>${c.count}</b></button>`).join("")
+              : `<span class="sys-activity-stages">${esc((w.stages || []).join(" → "))}</span>`;
+            return `<div class="sys-activity-item">
               <div class="sys-activity-dot" style="background:${barColors[i % barColors.length]}"></div>
               <div class="sys-activity-content">
                 <span class="sys-activity-name">${esc(w.name)}</span>
-                <span class="sys-activity-stages">${esc((w.stages || []).join(" → "))}</span>
+                <div class="sys-stage-chips">${stages}</div>
               </div>
-              <button class="sys-mini-btn" data-action="run-workflow" data-workflow="${esc(w.name)}">
-                <svg viewBox="0 0 12 12" fill="currentColor" width="9" height="9"><polygon points="2,1 10,6 2,11"/></svg>
-                Run
-              </button>
-            </div>`).join("")}
+            </div>`;
+          }).join("")}
           </div>
         </div>
       </div>` : ""}
@@ -1869,7 +1905,7 @@ Repair requirements:
   }
 
   function renderKanban(records, entity, spec) {
-    const statusField = entity?.fields?.find(f => f.id === "status" || f.type === "select");
+    const statusField = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
     const nameField = VIEW().titleField(entity);
     const numField = entity?.fields?.find(f => f.type === "number");
     const colColors = ["#6366f1","#f59e0b","#10b981","#3b82f6","#ec4899","#8b5cf6"];
@@ -1889,18 +1925,20 @@ Repair requirements:
       <div class="sys-kanban-board">
         ${columns.map((col, ci) => {
           const colRecords = records.filter(r => VIEW().boardColumnOf(r, statusField) === col);
-          return `<div class="sys-kanban-col">
+          return `<div class="sys-kanban-col" data-stage="${esc(col)}">
             <div class="sys-kanban-col-head" style="border-top-color:${colColors[ci % colColors.length]}">
               <span class="sys-kanban-col-name">${esc(col)}</span>
               <span class="sys-kanban-col-count">${colRecords.length}</span>
             </div>
             <div class="sys-kanban-cards">
               ${colRecords.map(r => `
-                <div class="sys-kanban-card" data-record-id="${esc(r.id)}">
+                <div class="sys-kanban-card" data-record-id="${esc(r.id)}" draggable="true">
                   <div class="sys-kanban-card-name">${esc(VIEW().recordLabel(r, entity))}</div>
                   ${numField ? `<div class="sys-kanban-card-meta">${esc(numField.label)}: <b>${formatCell(r[numField.id], numField)}</b></div>` : ""}
                   ${entity?.fields?.filter(f => f.id !== nameField?.id && f.id !== statusField?.id && f.id !== numField?.id).slice(0, 2).map(f => `<div class="sys-kanban-card-meta">${esc(f.label)}: ${formatCell(r[f.id], f)}</div>`).join("")}
                   <div class="sys-kanban-card-actions">
+                    ${STAGES().previousStage(statusField, r[statusField?.id]) != null ? `<button class="sys-row-btn" data-action="stage-prev" data-record-id="${esc(r.id)}" title="Back to ${esc(STAGES().previousStage(statusField, r[statusField.id]))}" aria-label="Back a stage">‹</button>` : ""}
+                    ${STAGES().nextStage(statusField, r[statusField?.id]) != null ? `<button class="sys-row-btn" data-action="stage-next" data-record-id="${esc(r.id)}" title="On to ${esc(STAGES().nextStage(statusField, r[statusField.id]))}" aria-label="On a stage">›</button>` : ""}
                     <button class="sys-row-btn" data-action="edit" data-record-id="${esc(r.id)}" title="Edit">
                       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="11" height="11"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>
                     </button>
@@ -1991,6 +2029,7 @@ Repair requirements:
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h3"/></svg>
             <span class="sys-widget-title">${selected ? esc(VIEW().recordLabel(selected, entity)) : "Record Detail"}</span>
           </div>
+          ${nextStageButton(selected, entity)}
           ${selected ? `<button class="sys-mini-btn" data-action="edit" data-record-id="${esc(selected.id)}">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="11" height="11"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>
             Edit
@@ -2890,6 +2929,26 @@ Repair requirements:
       if (card) restoreVersion(Number(card.dataset.versionIndex));
     });
 
+    // ── Dragging a card to another stage ───────────────────────────
+    const appHost = $("sysAppHost");
+    const colOf = (e) => e.target.closest?.(".sys-kanban-col");
+    appHost?.addEventListener("dragstart", e => {
+      const card = e.target.closest?.(".sys-kanban-card");
+      if (!card) return;
+      e.dataTransfer.setData("text/plain", card.dataset.recordId);
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
+    });
+    appHost?.addEventListener("dragend", e => e.target.closest?.(".sys-kanban-card")?.classList.remove("dragging"));
+    appHost?.addEventListener("dragover", e => { const col = colOf(e); if (!col) return; e.preventDefault(); col.classList.add("drop-target"); });
+    appHost?.addEventListener("dragleave", e => { const col = colOf(e); if (col && !col.contains(e.relatedTarget)) col.classList.remove("drop-target"); });
+    appHost?.addEventListener("drop", e => {
+      const col = colOf(e);
+      if (!col || !e.dataTransfer.getData("text/plain")) return;
+      e.preventDefault();
+      moveRecord(e.dataTransfer.getData("text/plain"), col.dataset.stage);
+    });
+
     // ── App host (delegated) ────────────────────────────────────────
     $("sysAppHost")?.addEventListener("click", e => {
       const spec = getActive();
@@ -2909,8 +2968,22 @@ Repair requirements:
         } else if (action === "delete") {
           selectedRecordId = rid;
           deleteRecord();
-        } else if (action === "run-workflow") {
-          trace(`Workflow "${actionBtn.dataset.workflow}" triggered`, "run");
+        } else if (action === "stage-next" || action === "stage-prev") {
+          const entity = spec?.entities?.[activeEntityId];
+          const field = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
+          const rec = (getRuntimeData(spec)[activeEntityId] || []).find(r => r.id === rid);
+          moveRecord(rid, action === "stage-next" ? STAGES().nextStage(field, rec?.[field?.id]) : STAGES().previousStage(field, rec?.[field?.id]));
+        } else if (action === "open-stage") {
+          // A workflow's stage opens the list of records standing at it.
+          const order = ["list", "split", "kanban", "cards", "timeline", "feed", "calendar", "dashboard", "report", "metric"];
+          const target = (spec?.modules || []).filter(m => m.entity === actionBtn.dataset.entity)
+            .sort((x, y) => order.indexOf(x.screen) - order.indexOf(y.screen))[0];
+          if (target) {
+            activeModuleId = target.id; selectedRecordId = ""; searchQuery = ""; selectedIds.clear(); calendarMonth = "";
+            filterRules = [{ id: uid("f"), field: actionBtn.dataset.field, op: "eq", value: actionBtn.dataset.stage }];
+            filterPanelOpen = true;
+            renderPreview(); renderDataEditor();
+          }
         }
         return;
       }

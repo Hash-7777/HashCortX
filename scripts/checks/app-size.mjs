@@ -128,7 +128,11 @@ const LINE_BUDGET = {
   // 3163: the icons and which module gets which moved to js/systems/icons.js.
   // 3170, up from 3163: clicking a row redraws a screen that has a detail
   // panel, so the panel shows that row, and puts the list back where it was.
-  'modes/systems/mode.js': 3170,
+  // 3243, up from 3170: records move through their stages — a board's cards
+  // drag and step between columns, a detail panel moves its record on, and a
+  // workflow shows its stage counts in place of a Run button that did nothing.
+  // The rules for stages are in js/systems/stages.js.
+  'modes/systems/mode.js': 3243,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

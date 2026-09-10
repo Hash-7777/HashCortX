@@ -1604,3 +1604,19 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
   .sys-app-search { width: 100%; }
   .sys-kpi-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Moving records through stages ─────────────────────────────── */
+.sys-kanban-card[draggable="true"] { cursor: grab; }
+.sys-kanban-card.dragging { opacity: .45; }
+.sys-kanban-col.drop-target { outline: 2px dashed var(--sys-primary); outline-offset: -2px; }
+.sys-kanban-card-actions .sys-row-btn { font-size: 14px; line-height: 1; }
+.sys-stage-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.sys-stage-chip {
+  border: 1px solid var(--sys-border); border-radius: 999px; padding: 2px 8px;
+  background: transparent; color: var(--sys-app-sub); font: 500 10.5px var(--sans); cursor: pointer;
+}
+.sys-stage-chip b { color: var(--sys-app-text); margin-left: 3px; }
+.sys-stage-chip:hover { border-color: var(--sys-primary); color: var(--sys-app-text); }
+.sys-detail-next { margin-left: 6px; }
+.sys-filter-note { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 6px 10px; font-size: 12px; color: var(--sys-app-sub); background: var(--sys-primary-fade); border-radius: var(--sys-radius-sm); }
+.sys-filter-note .sys-action-btn { margin-left: auto; }
