@@ -124,6 +124,7 @@
 
     '/data/prompts.js',
     '/data/cloud-models.js',
+    '/data/swarm-templates.js',
     '/core/memory/store.js',
     '/core/memory/map.js',
     '/core/settings/local-model.js',
