@@ -167,7 +167,7 @@ const IMPORTANT_BUDGET = {
   'modes/agent-maker/mode.css': 10,
   'modes/virtual-os/mode.css': 11,
   'modes/code/mode.css': 11,
-  'modes/systems/mode.css': 10,
+  'modes/systems/mode.css': 8,
   'css/base.css': 8,
   'modes/finance/mode.css': 4,
   'css/main.css': 3,

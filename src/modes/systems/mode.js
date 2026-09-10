@@ -146,6 +146,10 @@ const SystemMaker = (() => {
   const financeFields = (currency) => DOMAIN().financeFields(currency);
 
   const MONEY = () => window.HCSystemsMoney;
+  // How a record is named, a figure shown and a board divided — one answer
+  // for every screen, in src/js/systems/view.js.
+  const VIEW = () => window.HCSystemsView;
+  let viewCurrency = "USD";
   const seededRand = (seed, idx) => MONEY().seededRand(seed, idx);
   const roundMoney = (n) => MONEY().roundMoney(n);
   const addDays = (iso, days) => MONEY().addDays(iso, days);
@@ -1529,6 +1533,7 @@ Repair requirements:
     const module = spec.modules.find(m => m.id === activeModuleId) || spec.modules[0];
     const entity = spec.entities[module?.entity] || Object.values(spec.entities)[0];
     activeEntityId = entity?.id || "";
+    viewCurrency = VIEW().currencyOf(spec);
     const data = getRuntimeData(spec);
     const records = prepareRecords(data[activeEntityId] || [], entity);
     const selected = records.find(r => r.id === selectedRecordId) || records[0] || null;
@@ -1747,10 +1752,11 @@ Repair requirements:
     if (Array.isArray(module?.kpis) && module.kpis.length) {
       kpis = module.kpis.map((k, i) => {
         const fld = fields.find(f => f.id === k.field || f.label?.toLowerCase() === k.field?.toLowerCase());
+        const show = (n) => VIEW().isMoneyField(fld) ? VIEW().formatMoney(n, viewCurrency) : VIEW().formatNumber(n);
         let val;
-        if (k.aggregate === "sum") val = formatValue(records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0));
-        else if (k.aggregate === "avg") val = formatValue(records.length ? records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0) / records.length : 0);
-        else if (k.aggregate === "max") val = formatValue(Math.max(...records.map(r => Number(r[fld?.id]) || 0)));
+        if (k.aggregate === "sum") val = show(records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0));
+        else if (k.aggregate === "avg") val = show(records.length ? records.reduce((s, r) => s + (Number(r[fld?.id]) || 0), 0) / records.length : 0);
+        else if (k.aggregate === "max") val = show(VIEW().safeMax(records.map(r => r[fld?.id])));
         else val = records.length;
         return { label: k.label, value: val, trend: k.trend || "+5%", up: !String(k.trend || "").startsWith("-"), icon: KPI_ICONS[i % KPI_ICONS.length], accent: ACCENT_PALETTE[i % ACCENT_PALETTE.length] };
       });
@@ -1904,7 +1910,7 @@ Repair requirements:
         </div>
         <div class="sys-widget-body"><div class="sys-bars">
           ${chartRows.map((r, idx) => {
-            const label = r.name || r.ingredient_name || Object.values(r).find(v => typeof v === "string") || `Item ${idx + 1}`;
+            const label = VIEW().recordLabel(r, entity);
             const value = Number(r[numField?.id]) || (idx + 1) * 10;
             const pct = Math.max(6, Math.round((value / max) * 100));
             return `<div class="sys-bar-row">
@@ -1975,13 +1981,13 @@ Repair requirements:
 
   function renderKanban(records, entity, spec) {
     const statusField = entity?.fields?.find(f => f.id === "status" || f.type === "select");
-    const nameField = entity?.fields?.find(f => f.type === "text") || entity?.fields?.[0];
+    const nameField = VIEW().titleField(entity);
     const numField = entity?.fields?.find(f => f.type === "number");
     const colColors = ["#6366f1","#f59e0b","#10b981","#3b82f6","#ec4899","#8b5cf6"];
 
-    const columns = statusField?.options?.length
-      ? statusField.options
-      : [...new Set(records.map(r => String(r[statusField?.id] || "Other")))];
+    // Every record is on the board: a status that is not one of the field's
+    // options gets a column of its own instead of vanishing.
+    const columns = VIEW().boardColumns(records, statusField);
 
     return `<div class="sys-kanban">
       <div class="sys-kanban-toolbar">
@@ -1993,7 +1999,7 @@ Repair requirements:
       </div>
       <div class="sys-kanban-board">
         ${columns.map((col, ci) => {
-          const colRecords = records.filter(r => String(r[statusField?.id] || "Other") === col);
+          const colRecords = records.filter(r => VIEW().boardColumnOf(r, statusField) === col);
           return `<div class="sys-kanban-col">
             <div class="sys-kanban-col-head" style="border-top-color:${colColors[ci % colColors.length]}">
               <span class="sys-kanban-col-name">${esc(col)}</span>
@@ -2002,9 +2008,9 @@ Repair requirements:
             <div class="sys-kanban-cards">
               ${colRecords.map(r => `
                 <div class="sys-kanban-card" data-record-id="${esc(r.id)}">
-                  <div class="sys-kanban-card-name">${esc(String(r[nameField?.id] || r.name || r.id || ""))}</div>
-                  ${numField ? `<div class="sys-kanban-card-meta">${esc(numField.label)}: <b>${esc(formatValue(r[numField.id]))}</b></div>` : ""}
-                  ${entity?.fields?.filter(f => f.id !== nameField?.id && f.id !== statusField?.id && f.id !== numField?.id).slice(0, 2).map(f => `<div class="sys-kanban-card-meta">${esc(f.label)}: ${esc(formatCell(r[f.id], f))}</div>`).join("")}
+                  <div class="sys-kanban-card-name">${esc(VIEW().recordLabel(r, entity))}</div>
+                  ${numField ? `<div class="sys-kanban-card-meta">${esc(numField.label)}: <b>${formatCell(r[numField.id], numField)}</b></div>` : ""}
+                  ${entity?.fields?.filter(f => f.id !== nameField?.id && f.id !== statusField?.id && f.id !== numField?.id).slice(0, 2).map(f => `<div class="sys-kanban-card-meta">${esc(f.label)}: ${formatCell(r[f.id], f)}</div>`).join("")}
                   <div class="sys-kanban-card-actions">
                     <button class="sys-row-btn" data-action="edit" data-record-id="${esc(r.id)}" title="Edit">
                       <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="11" height="11"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>
@@ -2047,7 +2053,7 @@ Repair requirements:
           </div>
           <div class="sys-widget-body"><div class="sys-bars sys-bars--report">
             ${chartRows.map((r, idx) => {
-              const label = String(r.name || r.ingredient_name || Object.values(r).find(v => typeof v === "string") || `Item ${idx + 1}`);
+              const label = VIEW().recordLabel(r, entity);
               const value = Number(r[numField?.id]) || (idx + 1) * 10;
               const pct = Math.max(6, Math.round((value / max) * 100));
               return `<div class="sys-bar-row">
@@ -2107,7 +2113,7 @@ Repair requirements:
         <div class="sys-widget-head">
           <div class="sys-widget-head-left">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" width="14" height="14"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 8h6M5 5h6M5 11h3"/></svg>
-            <span class="sys-widget-title">${selected ? esc(String(selected.name || selected.id || "Selected Record")) : "Record Detail"}</span>
+            <span class="sys-widget-title">${selected ? esc(VIEW().recordLabel(selected, entity)) : "Record Detail"}</span>
           </div>
           ${selected ? `<button class="sys-mini-btn" data-action="edit" data-record-id="${esc(selected.id)}">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="11" height="11"><path d="M9.5 2.5l2 2L4 12H2v-2L9.5 2.5z"/></svg>
@@ -2133,7 +2139,7 @@ Repair requirements:
   // ── Cards screen ─────────────────────────────────────────────────
   function renderCards(records, entity) {
     const fields = entity?.fields || [];
-    const nameField = fields.find(f => f.type === "text" && /name|title|item|product|guest|client|subject/i.test(f.id)) || fields[0];
+    const nameField = VIEW().titleField(entity);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const numField = fields.find(f => f.type === "number");
     const dateField = fields.find(f => f.type === "date");
@@ -2157,7 +2163,7 @@ Repair requirements:
       <div class="sys-cards-grid">
         ${records.map((r, idx) => {
           const color = palette[idx % palette.length];
-          const name = String(r[nameField?.id] || r.name || r.id || "");
+          const name = VIEW().recordLabel(r, entity);
           const status = statusField ? String(r[statusField.id] || "") : "";
           return `<div class="sys-card" data-record-id="${esc(r.id)}">
             <div class="sys-card-accent" style="background:${color}"></div>
@@ -2173,9 +2179,9 @@ Repair requirements:
                 </button>
               </div>
               <div class="sys-card-fields">
-                ${numField ? `<div class="sys-card-stat"><span class="sys-card-stat-val" style="color:${color}">${esc(formatValue(r[numField.id]))}</span><span class="sys-card-stat-label">${esc(numField.label)}</span></div>` : ""}
+                ${numField ? `<div class="sys-card-stat"><span class="sys-card-stat-val" style="color:${color}">${esc(VIEW().isMoneyField(numField) ? VIEW().formatMoney(r[numField.id], viewCurrency) : VIEW().formatNumber(r[numField.id]))}</span><span class="sys-card-stat-label">${esc(numField.label)}</span></div>` : ""}
                 ${dateField ? `<div class="sys-card-field"><span class="sys-card-field-label">${esc(dateField.label)}</span><span>${esc(String(r[dateField.id] || "—"))}</span></div>` : ""}
-                ${secondaryFields.map(f => `<div class="sys-card-field"><span class="sys-card-field-label">${esc(f.label)}</span><span>${esc(formatCell(r[f.id], f))}</span></div>`).join("")}
+                ${secondaryFields.map(f => `<div class="sys-card-field"><span class="sys-card-field-label">${esc(f.label)}</span><span>${formatCell(r[f.id], f)}</span></div>`).join("")}
               </div>
             </div>
           </div>`;
@@ -2189,7 +2195,7 @@ Repair requirements:
   function renderTimeline(records, entity) {
     const fields = entity?.fields || [];
     const dateField = fields.find(f => f.type === "date");
-    const nameField = fields.find(f => f.type === "text") || fields[0];
+    const nameField = VIEW().titleField(entity);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const descField = fields.find(f => f.type === "textarea" || /note|comment|description|detail/i.test(f.id));
     const extraFields = fields.filter(f => f !== nameField && f !== dateField && f !== statusField && f !== descField).slice(0, 3);
@@ -2211,7 +2217,7 @@ Repair requirements:
         ${sorted.map((r, idx) => {
           const status = String(r[statusField?.id] || "");
           const color = getStatusColor(status);
-          const name = String(r[nameField?.id] || r.name || "Event");
+          const name = VIEW().recordLabel(r, entity);
           const date = String(r[dateField?.id] || "");
           const desc = descField ? String(r[descField.id] || "") : "";
           return `<div class="sys-tl-item" data-record-id="${esc(r.id)}">
@@ -2232,7 +2238,7 @@ Repair requirements:
               </div>
               ${desc ? `<p class="sys-tl-desc">${esc(desc)}</p>` : ""}
               <div class="sys-tl-meta">
-                ${extraFields.map(f => `<span class="sys-tl-meta-item"><b>${esc(f.label)}:</b> ${esc(formatCell(r[f.id], f))}</span>`).join("")}
+                ${extraFields.map(f => `<span class="sys-tl-meta-item"><b>${esc(f.label)}:</b> ${formatCell(r[f.id], f)}</span>`).join("")}
               </div>
             </div>
           </div>`;
@@ -2246,7 +2252,6 @@ Repair requirements:
   function renderCalendar(records, entity) {
     const fields = entity?.fields || [];
     const dateField = fields.find(f => f.type === "date");
-    const nameField = fields.find(f => f.type === "text") || fields[0];
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const statusColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
 
@@ -2282,7 +2287,7 @@ Repair requirements:
         <span class="sys-cal-day-num${today ? " today" : ""}">${d}</span>
         <div class="sys-cal-chips">
           ${dayRecords.slice(0, 3).map(({r, color}) => {
-            const name = String(r[nameField?.id] || r.name || "Event");
+            const name = VIEW().recordLabel(r, entity);
             return `<div class="sys-cal-chip" style="background:${color}22;border-left:3px solid ${color}" data-record-id="${esc(r.id)}" title="${esc(name)}">${esc(name.slice(0,16))}</div>`;
           }).join("")}
           ${dayRecords.length > 3 ? `<div class="sys-cal-chip-more">+${dayRecords.length - 3} more</div>` : ""}
@@ -2398,7 +2403,7 @@ Repair requirements:
   // ── Feed screen ───────────────────────────────────────────────────
   function renderFeed(records, entity) {
     const fields = entity?.fields || [];
-    const nameField = fields.find(f => f.type === "text" && /name|title|subject|from|sender/i.test(f.id)) || fields.find(f => f.type === "text") || fields[0];
+    const nameField = VIEW().titleField(entity);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const dateField = fields.find(f => f.type === "date");
     const bodyField = fields.find(f => f.type === "textarea" || /note|body|desc|message|detail|comment/i.test(f.id));
@@ -2423,7 +2428,7 @@ Repair requirements:
       </div>
       <div class="sys-feed">
         ${sorted.map((r, idx) => {
-          const name = String(r[nameField?.id] || r.name || "Entry");
+          const name = VIEW().recordLabel(r, entity);
           const status = statusField ? String(r[statusField.id] || "") : "";
           const date = dateField ? String(r[dateField.id] || "") : "";
           const body = bodyField ? String(r[bodyField.id] || "") : "";
@@ -2440,7 +2445,7 @@ Repair requirements:
                 </button>
               </div>
               ${body ? `<p class="sys-feed-body">${esc(body)}</p>` : ""}
-              ${metaFields.length ? `<div class="sys-feed-meta">${metaFields.map(f => `<span class="sys-feed-meta-item"><b>${esc(f.label)}:</b> ${esc(formatCell(r[f.id], f))}</span>`).join("")}</div>` : ""}
+              ${metaFields.length ? `<div class="sys-feed-meta">${metaFields.map(f => `<span class="sys-feed-meta-item"><b>${esc(f.label)}:</b> ${formatCell(r[f.id], f)}</span>`).join("")}</div>` : ""}
             </div>
           </div>`;
         }).join("")}
@@ -2760,9 +2765,9 @@ Repair requirements:
       const statusKey = String(value).toLowerCase();
       return `<span class="sys-pill" data-status="${esc(statusKey)}">${esc(value)}</span>`;
     }
-    if (field?.type === "number" || /amount|total|price|cost|revenue|salary/i.test(field?.id || "")) {
-      const n = Number(v);
-      if (!isNaN(n) && n > 0) return `<span class="sys-num">${Number.isInteger(n) ? n.toLocaleString() : n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</span>`;
+    if (field?.type === "number" && v !== "" && v != null && Number.isFinite(Number(v))) {
+      const shown = VIEW().isMoneyField(field) ? VIEW().formatMoney(v, viewCurrency) : VIEW().formatNumber(v);
+      return `<span class="sys-num">${esc(shown)}</span>`;
     }
     return esc(value);
   }
@@ -2799,10 +2804,7 @@ Repair requirements:
     `;
   }
 
-  function recordLabel(record, entity) {
-    const nameField = entity.fields.find(f => /name|title|customer|item/i.test(f.id)) || entity.fields[0];
-    return record?.[nameField?.id] || record?.id || "Record";
-  }
+  const recordLabel = (record, entity) => VIEW().recordLabel(record, entity);
 
   function renderRecordForm(record, entity) {
     return (entity.fields || []).map(f => {

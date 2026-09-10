@@ -409,7 +409,10 @@ body.system-maker-mode #app { display: none; }
   display: flex; align-items: center;
 }
 .sys-shell-sidebar .sys-module-btn:hover { background: rgba(255,255,255,.09); color: #fff; }
-.sys-shell-sidebar .sys-module-btn.active { background: var(--sys-primary); color: #fff; }
+/* The sidebar is painted in the primary colour, so the open module is marked
+   with a lighter band and a bar in its own colour — filled with the primary it
+   was invisible, and its label, in the module colour, sat on the same brown. */
+.sys-shell-sidebar .sys-module-btn.active { background: rgba(255,255,255,.18); color: #fff; box-shadow: inset 3px 0 0 var(--mod-color, var(--sys-accent)); font-weight: 600; }
 .sys-shell-sidebar .sys-module-icon { width: 22px; height: 22px; display: grid; place-items: center; flex-shrink: 0; }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1055,11 +1058,6 @@ body.system-maker-mode #app { display: none; }
   vertical-align: middle;
 }
 
-/* ── Module color accent ─────────────────────────────────────────── */
-.sys-module-btn[style*="--mod-color"].active {
-  border-left-color: var(--mod-color) !important;
-  color: var(--mod-color) !important;
-}
 
 .sys-list-wrap {
   display: flex;
@@ -1197,6 +1195,9 @@ body.system-maker-mode #app { display: none; }
   flex: 1; overflow-y: auto; padding: 18px 20px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  /* A card clips its overflow, so it offers the grid no minimum height, and
+     auto rows were squeezed to fit the screen — every card cut to its name. */
+  grid-auto-rows: max-content;
   gap: 16px; align-content: start;
 }
 .sys-card {

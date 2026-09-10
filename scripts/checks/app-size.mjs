@@ -116,7 +116,9 @@ const LINE_BUDGET = {
   // src/js/systems/domain.js. Asking that opinion whether it satisfies this
   // mode's OWN validation gate found six kinds of record that did not.
   // 3270: two ERP builders that nothing called were removed.
-  'modes/systems/mode.js': 3270,
+  // 3272: every screen now names records, shows money and divides a board
+  // through src/js/systems/view.js; reaching it takes two lines here.
+  'modes/systems/mode.js': 3272,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
