@@ -300,7 +300,9 @@ const LINE_BUDGET = {
   // from the Workspace, carrying on the same conversation. What the team is
   // told and how its work is kept are in talk.js and runs.js; the lines here
   // are the run itself taking a run to continue instead of the top bar's task.
-  'modes/agent-maker/mode.js': 2437,
+  // 2357, down from 2437. Reading what kind of task a swarm was given, and
+  // what that asks of a team, moved to src/js/swarm/task-kind.js unchanged.
+  'modes/agent-maker/mode.js': 2357,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
