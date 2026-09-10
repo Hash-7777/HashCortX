@@ -19,6 +19,7 @@ import vm from 'node:vm';
 const here = dirname(fileURLToPath(import.meta.url));
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'fences.js'), 'utf8'), sandbox, { filename: 'fences.js' });
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'swarm', 'output.js'), 'utf8'),
   sandbox, { filename: 'output.js' });
 const { normaliseAgentOutput, detectLang } = sandbox.window.HCSwarmOutput;
@@ -156,6 +157,21 @@ console.log('\nNothing surprising happens to odd input:');
   })());
   ok('trailing blank lines are not swallowed into a block',
     normaliseAgentOutput('const a = 1;\n\n').endsWith('\n'));
+}
+
+console.log('\nAn answer already fenced is not fenced again, however its fence is written:');
+{
+  // "Already fenced?" was asked with a pattern of its own that did not see
+  // these as fenced, so the whole answer was fenced again around them.
+  const B = '`'.repeat(3);
+  const cases = {
+    'a C# block': ['Here:', '', B + 'c#', 'public class A {', '  public int X = 1;', '}', B, '', 'Done.'].join('\n'),
+    'Windows line endings': ['Here:', '', B + 'js', 'const a = 1;', 'let b = 2;', B].join('\r\n'),
+    'a titled fence': ['Here:', '', B + 'js title="a.js"', 'const a = 1;', 'const b = 2;', B].join('\n'),
+  };
+  for (const [name, text] of Object.entries(cases)) ok(`${name} comes back unchanged`, normaliseAgentOutput(text) === text);
+  const old = /```[\w]*\n[\s\S]*?```/;
+  ok('control: the old test did not see a C# block as fenced', !old.test(cases['a C# block']));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/output.js)`);

@@ -33,7 +33,7 @@ HashCortX/
 │   │   ├── virtual-os/       3,545  virtual project desktop
 │   │   ├── systems/          3,341  ERP prototype generator
 │   │   ├── agent-maker/      2,828  chain / vote / failover
-│   │   ├── code/             2,634  the Coder agent loop
+│   │   ├── code/             2,631  the Coder agent loop
 │   │   ├── finance/          2,378  financial document analysis
 │   │   └── sandbox/            603  security scanner
 │   │
@@ -93,7 +93,7 @@ HashCortX/
 │   │   │                            the one place a response body is read
 │   │   ├── chat/               249  what a model is told, and which to try next
 │   │   ├── code/               364  Coder: terminal colour, export, file names
-│   │   ├── swarm/             534  Agent Swarm: layout, scheduling, fencing,
+│   │   ├── swarm/             537  Agent Swarm: layout, scheduling, fencing,
 │   │   │                            and the files a site is made of
 │   │   ├── forge/            4,917  Forge: fields, surfaces, units, the plan
 │   │   │                            gate, and io/ — STL, OBJ, 3MF and STEP
@@ -261,7 +261,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,732-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 3,706 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 3,712 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

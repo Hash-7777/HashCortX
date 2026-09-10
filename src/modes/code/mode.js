@@ -1711,15 +1711,12 @@
             color: m.role === 'user' ? '#1e7d4a' : '#1d6a99'
           });
           const text = m.content || '';
-          // Split fenced code blocks vs prose so we render them mono
-          const re = /```(?:\w*\n)?([\s\S]*?)```/g;
-          let last = 0, match;
-          while ((match = re.exec(text)) !== null) {
-            if (match.index > last) write(text.slice(last, match.index).trim());
-            write(match[1].replace(/\n$/, ''), { mono: true, size: 8.5, color: '#222' });
-            last = match.index + match[0].length;
+          // Prose and code, split by src/js/fences.js so a block's language
+          // line is never printed as the first line of its code.
+          for (const piece of window.HCFences.splitFences(text)) {
+            if (piece.type === 'code') write(piece.code, { mono: true, size: 8.5, color: '#222' });
+            else if (piece.text.trim()) write(piece.text.trim());
           }
-          if (last < text.length) write(text.slice(last).trim());
         }
         // Not pdf.save() — jsPDF saves through <a download>, the route this
         // webview cancels, so the status said "Exported" over nothing.

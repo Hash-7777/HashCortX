@@ -12,7 +12,7 @@
 //
 // Run with: npm run check:fences
 // ==============================================================
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
@@ -125,6 +125,47 @@ console.log('\nThe Agent Swarm output panel reads fences through this reader:');
   const body = am.slice(start, am.indexOf('\n  }\n', start));
   ok('the panel splits its output with the shared reader', /HCFences\.splitFences\(/.test(body));
   ok('and has no fence pattern of its own', !/`{3}\(/.test(body));
+}
+
+console.log('\nNothing else in the app writes its own fence pattern:');
+{
+  // Every hand-written pattern for finding code in an answer turned out to be
+  // narrower than the renderer — each missed C#, titled fences, tildes or
+  // Windows line endings somewhere. So a new one fails here until it is either
+  // moved onto this reader or added below with its reason.
+  //
+  // The ones allowed pull a machine-readable reply — JSON, or Python for the
+  // sandbox — out of a single fence, and each has its own way of recovering
+  // when the fence is not what it expected. They are the next to move, not a
+  // settled exception.
+  const ALLOWED = {
+    'js/agent-shape.js': 1,        // Python out of a reply, for the sandbox
+    'js/systems/spec.js': 2,       // a system spec's JSON, with repair after
+    'modes/agent-maker/mode.js': 2, // a blueprint's JSON; and "is any fence present"
+    'modes/finance/mode.js': 1,    // the analysis JSON, with repair after
+    'modes/forge/mode.js': 1,      // a plan's JSON, with repair after
+  };
+  const root = join(here, '..', '..', 'src');
+  const found = {};
+  (function walk(dir) {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (name === 'vendor') continue;
+      if (statSync(full).isDirectory()) { walk(full); continue; }
+      if (!name.endsWith('.js')) continue;
+      const rel = full.slice(root.length + 1).split('\\').join('/');
+      if (rel === 'js/fences.js') continue;
+      const count = readFileSync(full, 'utf8').split('\n')
+        .filter((line) => !/^\s*(\/\/|\*)/.test(line) && /\/[^/\n]*`{3}[^/\n]*\/[gimsuy]*/.test(line)).length;
+      if (count) found[rel] = count;
+    }
+  })(root);
+  const unexpected = Object.entries(found).filter(([f, n]) => n > (ALLOWED[f] || 0));
+  ok('no fence pattern exists outside js/fences.js beyond the listed ones', unexpected.length === 0);
+  if (unexpected.length) console.log(`          ${unexpected.map(([f, n]) => `${f} (${n})`).join(', ')}`);
+  const shrunk = Object.entries(ALLOWED).filter(([f, n]) => (found[f] || 0) < n);
+  ok('and the list is kept exact — one moved off it is taken off it', shrunk.length === 0);
+  if (shrunk.length) console.log(`          no longer there: ${shrunk.map(([f]) => f).join(', ')}`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/fences.js)`);

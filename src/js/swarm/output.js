@@ -18,7 +18,8 @@
 //
 // Pure: takes text, returns text. No DOM, no network.
 //
-// Loaded before the Agent Maker and published as window.HCSwarmOutput.
+// Loaded after js/fences.js, before the Agent Maker, and published as
+// window.HCSwarmOutput.
 // Checked by scripts/checks/swarm-output.mjs.
 // ==============================================================
 
@@ -115,8 +116,10 @@
   function normaliseAgentOutput(text) {
     if (!text) return text;
     // Already fenced somewhere: trust what the agent wrote rather than fencing
-    // inside its own fences.
-    if (/```[\w]*\n[\s\S]*?```/.test(text)) return text;
+    // inside its own fences. Asked of src/js/fences.js, because a pattern of
+    // its own here did not see a C# block, a titled fence or Windows line
+    // endings as fenced, and fenced the whole answer again around them.
+    if (window.HCFences.codeBlocks(text).length) return text;
 
     const whole = wholeDocumentLang(text);
     if (whole) return '```' + whole + '\n' + text.trim() + '\n```';
