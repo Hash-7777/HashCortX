@@ -102,6 +102,7 @@
     '/js/systems/icons.js',
     '/js/systems/stages.js',
     '/js/systems/relations.js',
+    '/js/systems/forms.js',
     '/js/systems/figures.js',
     '/js/systems/money.js',
     '/js/systems/samples.js',

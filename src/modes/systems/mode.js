@@ -2349,53 +2349,14 @@ Repair requirements:
     $("sysRecordModal")?.classList.remove("open");
   }
 
+  // The form's controls: js/systems/forms.js. A link offers the target's records.
   function renderRecordFormModal(record, entity) {
-    return (entity.fields || []).map(f => {
-      const value = record[f.id] ?? "";
-      const req = f.required ? `required` : "";
-      const star = f.required ? `<span class="sys-required">*</span>` : "";
-      if (f.type === "select") {
-        const opts = f.options || [];
-        return `<div class="sys-form-group">
-          <label class="sys-form-label">${esc(f.label)}${star}</label>
-          <select class="sys-form-input" data-sys-field="${esc(f.id)}" ${req}>
-            ${opts.map(o => `<option value="${esc(o)}" ${String(value) === String(o) ? "selected" : ""}>${esc(o)}</option>`).join("")}
-          </select>
-        </div>`;
-      }
-      if (f.type === "link") {
-        const spec = getActive();
-        const target = spec?.entities?.[f.entity];
-        const names = target ? REL().choices(getRuntimeData(spec)[target.id] || [], target) : [];
-        if (value && !names.some(n => n.toLowerCase() === String(value).toLowerCase())) names.unshift(String(value));
-        return `<div class="sys-form-group">
-          <label class="sys-form-label">${esc(f.label)}${star}</label>
-          <select class="sys-form-input" data-sys-field="${esc(f.id)}" ${req}>
-            <option value="">—</option>
-            ${names.map(n => `<option value="${esc(n)}" ${String(value).toLowerCase() === n.toLowerCase() ? "selected" : ""}>${esc(n)}</option>`).join("")}
-          </select>
-        </div>`;
-      }
-      if (f.formula) {
-        return `<div class="sys-form-group">
-          <label class="sys-form-label">${esc(f.label)}</label>
-          <input class="sys-form-input" type="text" value="${esc(value)}" readonly title="Worked out: ${esc(f.formula)}" />
-          <span class="sys-form-hint">Worked out: ${esc(f.formula)}</span>
-        </div>`;
-      }
-      if (f.type === "textarea") {
-        return `<div class="sys-form-group sys-form-group--full">
-          <label class="sys-form-label">${esc(f.label)}${star}</label>
-          <textarea class="sys-form-input" data-sys-field="${esc(f.id)}" rows="3" ${req}>${esc(value)}</textarea>
-        </div>`;
-      }
-      const inputType = f.type === "number" ? "number" : f.type === "date" ? "date" : "text";
-      return `<div class="sys-form-group">
-        <label class="sys-form-label">${esc(f.label)}${star}</label>
-        <input class="sys-form-input" data-sys-field="${esc(f.id)}" type="${inputType}" value="${esc(value)}" ${req} />
-      </div>`;
-    }).join("");
+    const spec = getActive();
+    return window.HCSystemsForms.formHtml(record, entity, {
+      linkNames: (f) => spec?.entities?.[f.entity] ? REL().choices(getRuntimeData(spec)[f.entity] || [], spec.entities[f.entity]) : [],
+    });
   }
+
 
   function saveRecordFromModal() {
     const spec = getActive();
