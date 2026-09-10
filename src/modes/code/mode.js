@@ -1634,7 +1634,7 @@
 
     async function doExport(fmt) {
       const ts = Date.now();
-      const proj = sharedState.projectRoot ? sharedState.projectRoot.split('/').slice(-1)[0] : 'chat';
+      const proj = window.HCCodeExport.exportBaseName(sharedState.projectRoot);
 
       if (fmt === 'txt') {
         const out = buildPlainText();
@@ -1651,53 +1651,13 @@
       }
     }
 
-    function buildMarkdown() {
-      const lines = [];
-      lines.push(`# HashCortx Coder — Chat Export`);
-      lines.push(`Date: ${new Date().toLocaleString()}`);
-      if (sharedState.projectRoot) lines.push(`Project: ${sharedState.projectRoot}`);
-      lines.push('');
-      for (const m of conversationMsgs) {
-        if (m.role === 'system') continue;
-        const role = m.role === 'user' ? '## User' : '## Agent';
-        lines.push(role); lines.push('');
-        lines.push(m.content || ''); lines.push('');
-      }
-      return lines.join('\n');
-    }
-
-    function buildPlainText() {
-      const lines = [];
-      lines.push(`HashCortx Coder — Chat Export`);
-      lines.push(`Date: ${new Date().toLocaleString()}`);
-      if (sharedState.projectRoot) lines.push(`Project: ${sharedState.projectRoot}`);
-      lines.push('═'.repeat(60));
-      for (const m of conversationMsgs) {
-        if (m.role === 'system') continue;
-        lines.push('');
-        lines.push((m.role === 'user' ? '>>> USER' : '<<< AGENT') + ' ' + '─'.repeat(40));
-        lines.push(m.content || '');
-      }
-      return lines.join('\n');
-    }
-
-    function buildCodeOnly() {
-      const out = [];
-      const fence = /```(\w*)\n([\s\S]*?)```/g;
-      let n = 0;
-      for (const m of conversationMsgs) {
-        if (!m.content || m.role === 'system') continue;
-        let match;
-        while ((match = fence.exec(m.content)) !== null) {
-          n++;
-          const lang = match[1] || 'text';
-          out.push(`/* ── block ${n} · ${lang} ── */`);
-          out.push(match[2].trimEnd());
-          out.push('');
-        }
-      }
-      return out.join('\n');
-    }
+    // The export text is written by src/js/code/export.js, which reads code
+    // fences the same way the chat's renderer does, so the code-only export
+    // holds every block the person saw.
+    const exportOpts = () => ({ projectRoot: sharedState.projectRoot });
+    function buildMarkdown()  { return window.HCCodeExport.buildMarkdown(conversationMsgs, exportOpts()); }
+    function buildPlainText() { return window.HCCodeExport.buildPlainText(conversationMsgs, exportOpts()); }
+    function buildCodeOnly()  { return window.HCCodeExport.buildCodeOnly(conversationMsgs); }
 
     // Goes through HC.save: the old <a download> is cancelled outright by
     // this webview (see platform/tauri/save.js), so this reported "Exported"
