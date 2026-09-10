@@ -79,6 +79,8 @@ ok('every move is saved', /function moveRecord[\s\S]*?saveRuntimeData\(spec, dat
 ok('a workflow shows its stage counts and opens each stage\'s list', /data-action="open-stage"/.test(mode) && /op: "eq", value: actionBtn\.dataset\.stage/.test(mode));
 ok('a stage opens the entity\'s list, not a dashboard built on it', /const order = \["list", "split", "kanban"/.test(mode));
 ok('a screen with no filter panel says what it is showing, and can show all', /Showing only \$\{/.test(mode) && /id="sysClearFilters">Show all/.test(mode));
+ok('no system is handed workflows its model did not design', !/name:"Approval Flow"|name:"Fulfillment"/.test(mode));
+ok('the model is asked to tie each workflow to an entity and its stages', (mode.match(/each \{id, name, entity, stages\}/g) || []).length === 2);
 ok('and no button pretends to run it', !/run-workflow|>\s*Run\s*</.test(mode));
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/stages.js)`);

@@ -447,10 +447,10 @@ const SystemMaker = (() => {
     spec.mockData = normalizeData(spec.mockData, spec.entities, previousSpec, standIns);
     Object.defineProperty(spec, "standIns", { value: standIns, enumerable: false, configurable: true });
     spec.screens = Array.isArray(spec.screens) ? spec.screens : [];
-    spec.workflows = Array.isArray(spec.workflows) && spec.workflows.length ? spec.workflows : [
-      { id:"approval_flow", name:"Approval Flow", stages:["Draft","Review","Approved","Closed"] },
-      { id:"fulfillment", name:"Fulfillment", stages:["Requested","Assigned","In Progress","Done"] },
-    ];
+    // Only the model's workflows; with none, every system got the same two.
+    spec.workflows = (Array.isArray(spec.workflows) ? spec.workflows : [])
+      .filter(w => w && String(w.name || "").trim() && Array.isArray(w.stages) && w.stages.filter(x => String(x || "").trim()).length >= 2)
+      .map(w => ({ ...w, stages: w.stages.map(String).filter(x => x.trim()) }));
     spec.interactions = Array.isArray(spec.interactions) && spec.interactions.length ? spec.interactions : [
       "module navigation", "search", "sort", "row selection", "add record", "edit record", "delete record", "localStorage persistence"
     ];
@@ -623,8 +623,8 @@ FINANCIAL MODEL:
 • Data must feel linked and plausible for the business size; do not output isolated random numbers.
 
 WORKFLOWS:
-• 2-3 workflows per system
-• stages array: 4-6 meaningful steps that reflect real process progression
+• 1-3 workflows, each {id, name, entity, stages}: the entity whose records move through it, and stages that are exactly that entity's status options, in order
+• only real processes this business runs (an order being cooked and served, a booking being confirmed) — none for records that do not move
 
 Build a complete, production-realistic system. Impress with depth and realism.`;
   }
@@ -785,7 +785,7 @@ MOCK DATA (domain-realistic, not generic):
 • Finance records must be internally plausible: invoices, payments, expenses, and summaries should support revenue, cost, profit, cash, AR, and AP.
 
 WORKFLOWS:
-• 2-3 workflows, 4-6 stages each, matching the domain's real process flow
+• 1-3 workflows, each {id, name, entity, stages}: the entity whose records move through it, and stages that are exactly that entity's status options, in order
 
 CRITICAL: Implement the exact modules and screen types from the God Agent brief. Do NOT substitute "list" for screens the brief specified. Preserve every layout.shell choice, every module.color, every screen type exactly as given. Be thorough, realistic, and domain-specific. No placeholder data.`;
   }
