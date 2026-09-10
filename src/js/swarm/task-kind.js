@@ -19,8 +19,30 @@
 (function () {
   'use strict';
 
+  // Whether a task asks for something to be built for the web.
+  //
+  // It used to look for a word — html, css, javascript, backend — anywhere in
+  // the task, so "What is the difference between HTML and CSS?" and a report
+  // on the JavaScript market were read as website builds, while "A one-page
+  // site for a tea shop" and "a to-do app in React" were not. It now asks:
+  // is the task a question or a piece of writing, which is never a build; and
+  // is the thing to be made — or the thing the task names — built for the web.
+  // "Design a logo for my website" mentions a website but makes a logo.
+  const THING = "(web\\s*sites?|web\\s*pages?|webpages?|web\\s*apps?|landing\\s*pages?|home\\s*pages?|one-page|single-page|sites?|apps?|front-?ends?|back-?ends?|dashboards?|portfolios?|storefronts?|online\\s+(shop|store)s?|games?|forms?|calculators?|widgets?|html|css|javascript|react|vue|svelte)\\b";
+  // Up to three words between the verb and the thing, none of them a word
+  // like "for" or "about" that moves on to something else.
+  const FILLER = "((?!(about|on|of|for|with|in|to|from|by|like)\\s)[\\w'’-]+\\s+){0,3}";
+  const SAYS_SO = /\b(code only|output code|full working)\b/i;
+  const ASKS = /^\s*(what|why|how|when|where|who|which|whose|explain|describe|compare|summari[sz]e|research|analy[sz]e|review|list|tell me|teach me|is|are|was|were|does|do|did)\b/i;
+  const WRITES = /\b(write|make|create|draft|prepare|produce|generate)\s+(me\s+)?(an?\s+|the\s+|some\s+|my\s+|our\s+)?([\w-]+\s+){0,2}(reports?|essays?|articles?|blog\s*posts?|summar(y|ies)|guides?|tutorials?|overviews?|proposals?|plans?|strateg(y|ies)|emails?|letters?|poems?|stor(y|ies)|papers?|outlines?|presentations?|slides|pitch(es)?|analys[ie]s|comparisons?|lists?|tables?|spreadsheets?|schedules?|recipes?|itinerar(y|ies)|budgets?|checklists?|resumes?|cvs?)\b/i;
+  const MAKES_IT = new RegExp(`\\b(build|make|create|code|develop|design|generate|write|implement|set\\s*up|scaffold|rebuild|redo|redesign|need|want)\\s+(me\\s+|us\\s+)?(an?\\s+|the\\s+|my\\s+|our\\s+|some\\s+)?${FILLER}${THING}`, "i");
+  const NAMES_IT = new RegExp(`^\\s*((an?|my|our)\\s+${FILLER}${THING}|(web\\s*sites?|web\\s*pages?|landing\\s*pages?|web\\s*apps?|portfolios?|dashboards?|online\\s+(shop|store)s?)\\b)`, "i");
+
   function isCodeBuildTask(desc) {
-    return /\b(code only|website|web\s*site|webpage|web app|landing page|frontend|front-end|backend|back-end|html|css|javascript|full working|output code)\b/i.test(desc || "");
+    const d = String(desc || "");
+    if (SAYS_SO.test(d)) return true;
+    if (ASKS.test(d) || WRITES.test(d)) return false;
+    return MAKES_IT.test(d) || NAMES_IT.test(d);
   }
 
   function isBigAssignment(desc) {

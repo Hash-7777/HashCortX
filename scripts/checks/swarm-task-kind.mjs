@@ -42,6 +42,48 @@ ok('case does not matter', K.classifyTask('BUILD A LANDING PAGE') === 'code_buil
 ok('a build is always a big assignment', K.isBigAssignment('Build a landing page'));
 ok('a short poem is not', !K.isBigAssignment('Write a poem'));
 
+console.log('\nWhether it is a website build:');
+{
+  // A task read as a build runs with the website rules: code-only output, no
+  // reports, a page, a stylesheet and a script owed. So a question about the
+  // web must not be read as one, and a site asked for in plain words must.
+  const builds = [
+    'Build a landing page for my bakery', 'Make me a website for my dentist clinic', 'A one-page site for a tea shop',
+    'Create a portfolio site', 'Build a to-do app in React', 'Code only: a calculator in HTML, CSS and JavaScript',
+    'Write the HTML and CSS for a signup form', 'Design and build an online shop with a cart', 'Can you make a landing page for my gym?',
+    'Could you build me a simple game in JavaScript?', 'Generate a dashboard web app for sales data', 'I need a website for my photography business',
+    'Create a frontend for my API', 'Build a backend with login and a database for my store', "Rebuild my restaurant's website with a menu page",
+    'Full working snake game', 'A personal blog website with dark mode', 'Make a responsive web page about coffee with a gallery',
+    'Please build a site for my band', 'Help me build a website for my school club', 'Make a landing page with a pricing plan section',
+    'website for a yoga studio', 'Develop a booking website for a barber', 'Set up a simple storefront for my candles',
+    'I want an app that tracks my workouts', 'Code a calculator', 'Make a quiz game for kids', 'Our bakery website, with online orders',
+  ];
+  const not = [
+    'What is the difference between HTML and CSS?', 'Explain how a backend works',
+    'Research the JavaScript framework market in 2026 and write a report', 'Summarize this CSS spec',
+    'Write a report about building web apps', 'Compare React and Vue for a new project', 'How do I build a website?',
+    'Write a blog post about CSS grid', "Review my website's copy and suggest improvements", "Analyze my site's traffic data",
+    'Write a poem', 'Plan a product launch for our app', 'Fix the login bug in my app', 'Is JavaScript single-threaded?',
+    'List the best landing page practices', 'Tell me about the history of the web', 'Write a cover letter for a frontend developer job',
+    'Create a marketing plan for my website', 'Write an email announcing our new app', 'Make a list of apps for budgeting',
+    'Recommend some games for my kids', 'Make a game plan for the season', 'Find sites that sell loose-leaf tea',
+    'Why does my website load slowly?', "Give me ideas for my app's name", 'Translate my website text into French',
+    'Write a tweet about our new site', 'Design a logo for my website', 'A report about websites', 'Draft terms of service for my web app',
+  ];
+  const missed = builds.filter((t) => !K.isCodeBuildTask(t));
+  const wrong = not.filter((t) => K.isCodeBuildTask(t));
+  ok(`every one of ${builds.length} ways of asking for a site or app is a build`, missed.length === 0);
+  if (missed.length) console.log(`          missed: ${missed.join(' | ')}`);
+  ok(`none of ${not.length} questions, pieces of writing and other tasks is`, wrong.length === 0);
+  if (wrong.length) console.log(`          read as builds: ${wrong.join(' | ')}`);
+  // Control: the rule that stood here looked for a word anywhere in the task.
+  const old = (d) => /\b(code only|website|web\s*site|webpage|web app|landing page|frontend|front-end|backend|back-end|html|css|javascript|full working|output code)\b/i.test(d);
+  ok('control: the old rule read a question about HTML and CSS as a build', old('What is the difference between HTML and CSS?'));
+  ok('control: and missed a one-page site and an app in React', !old('A one-page site for a tea shop') && !old('Build a to-do app in React'));
+  ok('a question about building is a question', !K.isCodeBuildTask('How do I build a website?'));
+  ok('saying so settles it', K.isCodeBuildTask('code only please'));
+}
+
 console.log('\nHow big a team it gets:');
 const bounds = ['Build a landing page', 'Write a complete essay', 'Write a poem'].map(K.recommendedAgentBounds);
 ok('a build gets the largest team', bounds[0].target === 6);
