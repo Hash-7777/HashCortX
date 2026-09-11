@@ -129,7 +129,7 @@ const SystemMaker = (() => {
 
 
   // Icons: which one a module gets, and the drawings — js/systems/icons.js.
-  const { KPI_ICONS, moduleIcon, iconSvg } = window.HCSystemsIcons;
+  const { KPI_ICONS, moduleIcon } = window.HCSystemsIcons;
 
   function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
@@ -1411,12 +1411,6 @@ Repair requirements:
     const screen = module.screen || "dashboard";
     const searchInput = `<input class="sys-app-search" id="sysAppSearch" value="${esc(searchQuery)}" placeholder="Search ${esc(entity?.name || "")}…" />`;
 
-    const moduleNav = (btnClass = "sys-module-btn") => spec.modules.map(m => `
-      <button class="${btnClass} ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}"
-        ${m.color ? `style="--mod-color:${esc(m.color)}"` : ""}>
-        <span class="sys-module-icon">${iconSvg(m.icon)}</span><span>${esc(m.name)}</span>
-      </button>`).join("");
-
     // A filter set from outside the table — a workflow's stage — is said on
     // screens with no filter panel, so records do not seem to have gone.
     const shown = filterRules.filter(r => r.field && r.value !== "");
@@ -1424,142 +1418,7 @@ Repair requirements:
       ? `<div class="sys-filter-note">Showing only ${shown.map(r => `${esc(entity?.fields?.find(f => f.id === r.field)?.label || r.field)}: ${esc(r.value)}`).join(", ")} <button type="button" class="sys-action-btn" id="sysClearFilters">Show all</button></div>` : "";
     const screenDiv = `<div class="sys-screen sys-screen--${esc(screen)}">${filterNote}${screenHtml}</div>`;
 
-    switch (shell) {
-
-      // ── Shell: SIDEBAR ───────────────────────────────────────────
-      case "sidebar":
-      default:
-        host.innerHTML = `
-          <div class="sys-app sys-shell-sidebar ${cls}" style="${vars}">
-            <nav class="sys-nav-sidebar">
-              <div class="sys-nav-brand">
-                <div class="sys-nav-logo" style="background:var(--sys-primary)">${esc(spec.name[0])}</div>
-                <div><div class="sys-nav-title">${esc(spec.name)}</div><div class="sys-nav-sub">${esc(spec.description)}</div></div>
-              </div>
-              <div class="sys-module-list">${moduleNav()}</div>
-            </nav>
-            <section class="sys-app-main">
-              <header class="sys-app-topbar">
-                <div>
-                  <div class="sys-breadcrumb">${esc(spec.name)} / ${esc(module.name)}</div>
-                  <div class="sys-screen-title">${esc(module.name)}<span class="sys-screen-badge">${esc(screen)}</span></div>
-                </div>
-                ${searchInput}
-              </header>
-              ${screenDiv}
-            </section>
-          </div>`;
-        break;
-
-      // ── Shell: TOP TABS ──────────────────────────────────────────
-      case "top":
-        host.innerHTML = `
-          <div class="sys-app sys-shell-top ${cls}" style="${vars}">
-            <header class="sys-topnav">
-              <div class="sys-topnav-brand">
-                <div class="sys-topnav-dot" style="background:var(--sys-primary)"></div>
-                <span class="sys-topnav-name">${esc(spec.name)}</span>
-              </div>
-              <div class="sys-topnav-tabs">
-                ${spec.modules.map(m => `
-                  <button class="sys-topnav-tab ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}">
-                    <span class="sys-module-icon">${iconSvg(m.icon)}</span>${esc(m.name)}
-                  </button>`).join("")}
-              </div>
-              <div class="sys-topnav-right">${searchInput}</div>
-            </header>
-            <div class="sys-shell-body">
-              <div class="sys-top-breadcrumb">
-                <span>${esc(module.name)}</span><span class="sys-screen-badge">${esc(screen)}</span>
-              </div>
-              ${screenDiv}
-            </div>
-          </div>`;
-        break;
-
-      // ── Shell: ICON DOCK ─────────────────────────────────────────
-      case "dock":
-        host.innerHTML = `
-          <div class="sys-app sys-shell-dock ${cls}" style="${vars}">
-            <nav class="sys-dock">
-              <div class="sys-dock-logo" style="background:var(--sys-primary)">${esc(spec.name[0])}</div>
-              <div class="sys-dock-divider"></div>
-              ${spec.modules.map(m => `
-                <button class="sys-dock-btn ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}" title="${esc(m.name)}">
-                  <span class="sys-module-icon">${iconSvg(m.icon)}</span>
-                  <span class="sys-dock-tooltip">${esc(m.name)}</span>
-                </button>`).join("")}
-            </nav>
-            <section class="sys-app-main">
-              <header class="sys-dock-topbar">
-                <div class="sys-dock-breadcrumb">
-                  <span class="sys-dock-module-name">${esc(module.name)}</span>
-                  <span class="sys-screen-badge">${esc(screen)}</span>
-                </div>
-                ${searchInput}
-              </header>
-              ${screenDiv}
-            </section>
-          </div>`;
-        break;
-
-      // ── Shell: CARD PICKER ───────────────────────────────────────
-      case "cards-nav":
-        host.innerHTML = `
-          <div class="sys-app sys-shell-cardsnav ${cls}" style="${vars}">
-            <header class="sys-cardsnav-header">
-              <div class="sys-cardsnav-brand">
-                <div class="sys-cardsnav-logo" style="background:var(--sys-primary)">${esc(spec.name[0])}</div>
-                <div>
-                  <div class="sys-cardsnav-title">${esc(spec.name)}</div>
-                  <div class="sys-cardsnav-desc">${esc(spec.description)}</div>
-                </div>
-              </div>
-              ${searchInput}
-            </header>
-            <div class="sys-cardsnav-modules">
-              ${spec.modules.map(m => `
-                <button class="sys-cardsnav-module-btn ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}"
-                  style="${m.color ? `--mod-color:${esc(m.color)}` : `--mod-color:var(--sys-primary)`}">
-                  <span class="sys-cardsnav-icon">${iconSvg(m.icon)}</span>
-                  <span class="sys-cardsnav-label">${esc(m.name)}</span>
-                </button>`).join("")}
-            </div>
-            <div class="sys-cardsnav-content">
-              ${screenDiv}
-            </div>
-          </div>`;
-        break;
-
-      // ── Shell: COMMAND (VS Code style) ───────────────────────────
-      case "command":
-        host.innerHTML = `
-          <div class="sys-app sys-shell-command ${cls}" style="${vars}">
-            <div class="sys-cmd-bar">
-              <div class="sys-cmd-brand">
-                <span class="sys-cmd-logo" style="background:var(--sys-primary)">${esc(spec.name[0])}</span>
-                <span class="sys-cmd-name">${esc(spec.name)}</span>
-                <span class="sys-cmd-sep">›</span>
-                <span class="sys-cmd-module">${esc(module.name)}</span>
-              </div>
-              ${searchInput}
-            </div>
-            <div class="sys-cmd-body">
-              <nav class="sys-cmd-sidebar">
-                ${spec.modules.map(m => `
-                  <button class="sys-cmd-nav-btn ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}">
-                    <span class="sys-module-icon">${iconSvg(m.icon)}</span>
-                    <span class="sys-cmd-nav-label">${esc(m.name)}</span>
-                    ${m.id === activeModuleId ? `<span class="sys-screen-badge" style="margin-left:auto">${esc(screen)}</span>` : ""}
-                  </button>`).join("")}
-              </nav>
-              <main class="sys-cmd-main">
-                ${screenDiv}
-              </main>
-            </div>
-          </div>`;
-        break;
-    }
+    host.innerHTML = window.HCSystemsShells.shellHtml({ shell, spec, module, screen, screenDiv, searchInput, cls, vars, activeModuleId, esc });
   }
 
 

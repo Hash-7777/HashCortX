@@ -100,6 +100,7 @@
     '/js/systems/spec.js',
     '/js/systems/view.js',
     '/js/systems/icons.js',
+    '/js/systems/shells.js',
     '/js/systems/stages.js',
     '/js/systems/relations.js',
     '/js/systems/forms.js',

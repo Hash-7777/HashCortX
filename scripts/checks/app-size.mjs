@@ -144,7 +144,8 @@ const LINE_BUDGET = {
   // 3250, up from 3202: the opening dashboard has three layouts — the table
   // beside its charts, records by stage, one figure over twelve months — and
   // a new system's differs from the last one's.
-  'modes/systems/mode.js': 3250,
+  // 3109: the five shells a system is framed in moved to js/systems/shells.js.
+  'modes/systems/mode.js': 3109,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
