@@ -149,7 +149,10 @@ const LINE_BUDGET = {
   // model's answer built on the system as it was, and the version kept. What
   // it is shown, what of the design is kept and what changed are in
   // js/systems/revise.js.
-  'modes/systems/mode.js': 3182,
+  // 3193, up from 3182: a system's books come from its own sales and follow
+  // them on every save, read-only; one with no sales gets none. Where the
+  // sales are and which are billed is in js/systems/books.js.
+  'modes/systems/mode.js': 3193,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

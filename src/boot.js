@@ -110,6 +110,7 @@
     '/js/systems/samples.js',
     '/js/systems/domain.js',
     '/js/systems/theme.js',
+    '/js/systems/books.js',
     '/js/systems/ledger.js',
     '/js/model-plan.js',
     '/js/forge/units.js',

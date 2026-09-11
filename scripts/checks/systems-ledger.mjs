@@ -2,7 +2,7 @@
 // Generated-books checks
 //
 // Loads the REAL src/js/systems/ledger.js with the money and domain rules
-// beside it, generates a company's year, and adds it up.
+// beside it, bills a year of a company's sales, and adds it up.
 //
 // A generated ERP is judged on whether its numbers hold together, and these
 // are the sums an accountant does first: does each journal entry balance, does
@@ -28,7 +28,28 @@ const { buildFinancialData } = sandbox.window.HCSystemsLedger;
 const ID = sandbox.window.HCSystemsDomain.FINANCE_ENTITY_IDS;
 
 const money = (n) => Math.round(n * 100) / 100;
-const build = (over = {}) => {
+const TODAY = '2026-09-11';
+// A year of sales, as js/systems/books.js hands them over: eight to twelve a
+// month, older ones settled, a few of the last two months still owed.
+const SALES = (() => {
+  const out = [];
+  const who = ['Rania Khoury', 'Karim Nassar', 'Lina Aoun', '', 'Omar Fares'];
+  for (let m = 0; m < 12; m++) {
+    const y = m < 3 ? 2025 : 2026;   // October 2025 to September 2026
+    const mm = String(((m + 9) % 12) + 1).padStart(2, '0');
+    const n = 8 + (m % 5);
+    for (let j = 0; j < n; j++) {
+      const k = m * 13 + j;
+      out.push({
+        ref: `ORD-${1000 + k}`, customer: who[k % who.length], date: `${y}-${mm}-${String(2 + j * 2).padStart(2, '0')}`,
+        total: money(40 + ((k * 37) % 400) + 0.5), description: `Order ${k}`, settled: m < 10 || j % 3 !== 0,
+      });
+    }
+  }
+  // books.js never hands over a sale still to come.
+  return out.filter((e) => e.date <= TODAY);
+})();
+const build = (over = {}, sales = SALES) => {
   const spec = {
     id: 'sys_check',
     name: 'Acme Trading',
@@ -36,7 +57,7 @@ const build = (over = {}) => {
     entities: [],
     ...over,
   };
-  const pack = buildFinancialData(spec, over.desc || 'accounting system', { collectBusinessNames: () => [] });
+  const pack = buildFinancialData(spec, over.desc || 'accounting system', { sales, today: TODAY });
   return {
     currency: pack.currency,
     accounts: pack.data[ID.accounts],
@@ -121,7 +142,8 @@ console.log('\nThe bank statement and the reported cash are the same number:');
   ok('every bank row carries the running balance after it',
     books.bank.every((row, i) => i === 0 || money(books.bank[i - 1].balance + row.amount) === row.balance));
   ok('money in is positive and money out is negative',
-    books.bank.every((r) => (r.type === 'Deposit' ? r.amount > 0 : r.amount < 0)));
+    books.bank.every((r) => (r.type === 'Deposit' || r.type === 'Opening' ? r.amount > 0 : r.amount < 0)));
+  ok('the statement opens with its opening balance, so its running balance can be followed', books.bank[0].type === 'Opening' && books.bank[0].amount === books.bank[0].balance);
 
   // Control: a second running total, opening elsewhere and subtracting unpaid
   // expenses too, is what disagreed with the statement.
@@ -138,6 +160,12 @@ console.log('\nThe bank statement and the reported cash are the same number:');
 console.log('\nAn invoice equals the parts it is made of:');
 {
   ok('there are invoices', books.invoices.length > 10);
+  ok('one for each sale', books.invoices.length === SALES.length);
+  ok('each for what the sale came to, tax included', books.invoices.every((i, k) => i.total === SALES[k].total && i.source === SALES[k].ref));
+  ok('to the sale\'s customer, or a walk-in customer when it names none', books.invoices.every((i, k) => i.customer === (SALES[k].customer || 'Walk-in customer')));
+  ok('a settled sale is paid and one that is not is owed', books.invoices.every((i, k) => (SALES[k].settled ? i.balance === 0 : i.paid === 0)));
+  ok('an unpaid invoice past its due date is overdue', books.invoices.filter((i) => i.balance > 0).every((i) => (i.due_date < TODAY ? i.status === 'Overdue' : i.status === 'Sent')));
+  ok('no payment is dated after today', books.payments.every((p) => p.payment_date <= TODAY));
   ok('subtotal and tax make the total', books.invoices.every((i) => money(i.subtotal + i.tax) === i.total));
   ok('what is paid and what is left make the total', books.invoices.every((i) => money(i.paid + i.balance) === i.total));
   ok('nothing is paid more than it is worth', books.invoices.every((i) => i.paid <= i.total + 0.001));
@@ -184,6 +212,24 @@ console.log('\nThe company the books describe could exist:');
     books.summary.every((m) => money(m.revenue - m.cost_of_sales) === m.gross_profit));
 }
 
+console.log('\nWhat the records do not say is marked as an estimate:');
+{
+  ok('every cost is marked an estimate', books.expenses.length > 0 && books.expenses.every((e) => e.status === 'Estimate'));
+  ok('and so is every journal entry that records one', books.journal.filter((r) => /estimate/.test(r.source)).every((r) => r.status === 'Estimate'));
+  ok('costs follow the month\'s revenue, not a size made up for the business', books.summary.every((m) => m.revenue === 0 || (m.cost_of_sales + m.operating_expenses) < m.revenue));
+  const acct = (name) => books.accounts.find((a) => a.name === name).balance;
+  ok('the tax owed is the tax billed', acct('Sales Tax Payable') === money(books.invoices.reduce((a, i) => a + i.tax, 0)));
+  ok('the owner\'s equity is the opening balance the business began with', acct('Owner Equity') === books.bank[0].balance);
+}
+
+console.log('\nWith no sales there are no books:');
+{
+  ok('none are made up', buildFinancialData({ id: 'x', name: 'X', description: 'a roster' }, 'volunteer roster', { sales: [] }) === null);
+  ok('and sales with no amount do not count', buildFinancialData({ id: 'x', name: 'X', description: '' }, '', { sales: [{ ref: 'A', date: '2026-01-01', total: 0 }] }) === null);
+  const two = build({}, [{ ref: 'ORD-1001', customer: 'Rania Khoury', date: '2026-09-08', total: 42.5, description: 'Hummus', settled: true }, { ref: 'ORD-1002', customer: '', date: '2026-09-08', total: 14, description: 'Fattoush', settled: false }]);
+  ok('two small orders are two small invoices, not fifty of ten thousand', two.invoices.length === 2 && two.invoices.map((i) => i.total).join() === '42.5,14');
+}
+
 console.log('\nThe same system always gets the same books:');
 {
   const again = build();
@@ -198,18 +244,6 @@ console.log('\nThe currency follows what was asked for:');
   ok('a system described for Egypt is in pounds', build({ description: 'accounting for a Cairo business' }).currency === 'EGP');
   ok('one described in euros is in euros', build({ description: 'euro invoicing' }).currency === 'EUR');
   ok('anything else is in dollars', build({ description: 'plain invoicing' }).currency === 'USD');
-}
-
-console.log('\nWho an invoice is for:');
-{
-  // The names are gathered from the system's own records by the mode; what
-  // the ledger asks for is decided here. A bare "name" also matched dishes and
-  // products, so a restaurant's invoices went to "Lamb Chops".
-  let asked = null;
-  buildFinancialData({ id: 's', name: 'Saffron', description: 'restaurant', entities: [] }, 'restaurant',
-    { collectBusinessNames: (spec, re) => { asked = re; return []; } });
-  ok('it asks for the fields that hold who is billed', ['customer_name', 'client', 'guest_name', 'company'].every((id) => asked.test(id)));
-  ok('not for dishes, products or rooms', ['dish_name', 'item_name', 'product_name', 'room_name', 'name'].every((id) => !asked.test(id)));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/ledger.js)`);

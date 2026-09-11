@@ -1670,3 +1670,6 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 .sys-dash-hero-bar span { display: block; width: 100%; max-width: 34px; background: var(--sys-primary); border-radius: var(--sys-radius-sm) var(--sys-radius-sm) 0 0; opacity: .85; }
 .sys-dash-hero-bar em { font-style: normal; font-size: 10px; color: var(--sys-app-muted); }
 @media (max-width: 900px) { .sys-dash-grid { grid-template-columns: 1fr; } }
+
+/* ── Books worked out from the sales: read, not edited ─────────── */
+.sys-derived :is(#sysAddRecordBtn2, #sysImportBtn, #sysBulkDeleteBtn, #sysSelectAll, .sys-row-check, .sys-th-check, .sys-td-check, [data-action="edit"], [data-action="delete"], [data-action^="stage-"], .sys-detail-next) { display: none; }

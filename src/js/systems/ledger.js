@@ -7,9 +7,19 @@
 // a payment must move the same amount out of receivables as it moves into
 // cash, and every journal entry must balance.
 //
-// Pure: takes a spec, returns records. No DOM, no storage, no network. The
-// figures are seeded from the spec, so the same system always gets the same
-// books.
+// What is billed is the system's own sales (js/systems/books.js): each sale
+// is one invoice for what it came to, tax included, and a settled one is paid.
+// The invoices used to be made up from a size profile for the kind of
+// business, so a restaurant with two small orders showed fifty invoices of
+// ten thousand dollars. With no sales there are no books.
+//
+// Costs are the one thing the records do not say, so they are estimated from
+// the revenue at the margins usual for the kind of business, and every cost
+// row says it is an estimate.
+//
+// Pure: takes a spec and its sales, returns records. No DOM, no storage, no
+// network. Anything not in the sales is seeded from the spec, so the same
+// records always give the same books.
 //
 // Loaded before the Systems mode and published as window.HCSystemsLedger.
 // Checked by scripts/checks/systems-ledger.mjs.
@@ -23,7 +33,6 @@
   const seededRand = (seed, idx) => MONEY().seededRand(seed, idx);
   const roundMoney = (n) => MONEY().roundMoney(n);
   const addDays = (iso, days) => MONEY().addDays(iso, days);
-  const recentMonths = (count = 12) => MONEY().recentMonths(count);
   const financeProfile = (spec, desc) => DOMAIN().financeProfile(spec, desc);
   const financeFields = (currency) => DOMAIN().financeFields(currency);
   const FINANCE_ENTITY_IDS = () => DOMAIN().FINANCE_ENTITY_IDS;
@@ -42,20 +51,30 @@
     return out;
   }
 
+  /** Every month from the first to the last, as { key, date }, at most the last twelve. */
+  function monthsBetween(first, last) {
+    const out = [];
+    let [y, m] = first.split("-").map(Number);
+    const [ly, lm] = last.split("-").map(Number);
+    while (y < ly || (y === ly && m <= lm)) {
+      const key = `${y}-${String(m).padStart(2, "0")}`;
+      out.push({ key, date: `${key}-15` });
+      m += 1; if (m > 12) { m = 1; y += 1; }
+    }
+    return out.slice(-12);
+  }
+
   function buildFinancialData(spec, desc, deps) {
-    const collectBusinessNames = deps && deps.collectBusinessNames
-      ? deps.collectBusinessNames
-      : () => [];
+    const sales = (deps && Array.isArray(deps.sales) ? deps.sales : []).filter((e) => e && e.total > 0 && /^\d{4}-\d{2}/.test(e.date));
+    if (!sales.length) return null;
+    const today = (deps && deps.today) || "";
     const ENTITY = FINANCE_ENTITY_IDS();
     const profile = financeProfile(spec, desc);
     const currency = /egp|egypt|cairo/i.test(`${desc} ${spec.description}`) ? "EGP" : /eur|euro/i.test(`${desc} ${spec.description}`) ? "EUR" : "USD";
     const seed = `${spec.id}|${spec.name}|${profile.domain}`;
-    // Only fields that hold who is billed. A bare "name" also matched dishes,
-    // products and rooms, so a restaurant's invoices went to "Lamb Chops".
-    const customers = [...new Set([...collectBusinessNames(spec, /customer|client|guest|patient|member|student|company|buyer|tenant|account_name/i), ...profile.customers])].slice(0, 18);
     const vendors = [...new Set(profile.vendors)].slice(0, 12);
-    const months = recentMonths(12);
-    const items = ["Core service", "Premium package", "Implementation", "Monthly retainer", "Usage fees", "Support plan"];
+    const months = monthsBetween(sales[0].date.slice(0, 7), sales[sales.length - 1].date.slice(0, 7));
+    const billed = sales.filter((e) => e.date.slice(0, 7) >= months[0].key);
     const invoices = [];
     const invoiceLines = [];
     const payments = [];
@@ -68,7 +87,11 @@
     const invoiceTotals = {};
     const paymentTotals = {};
     const expenseTotals = {};
-    let runningBank = roundMoney(profile.baseRevenue * (0.38 + seededRand(seed, 1) * 0.32));
+    // An opening balance, shown as the statement's first line so the running
+    // balance can be followed from it: half a month's takings.
+    const monthly = billed.reduce((s, e) => s + e.total, 0) / months.length;
+    let runningBank = roundMoney(monthly * (0.4 + seededRand(seed, 1) * 0.2));
+    bank.push({ id: "bank_1", transaction_id: "BNK-00001", transaction_date: `${months[0].key}-01`, description: "Opening balance", type: "Opening", amount: runningBank, balance: runningBank, status: "Reconciled" });
 
     // One entry per transaction, whatever it takes to record it.
     //
@@ -98,45 +121,31 @@
     };
 
     months.forEach((month, mi) => {
-      const season = 0.82 + seededRand(seed + "season", mi) * 0.44;
-      const invoiceCount = 3 + Math.floor(seededRand(seed + "invoice-count", mi) * 3);
       invoiceTotals[month.key] = 0;
       paymentTotals[month.key] = 0;
       expenseTotals[month.key] = 0;
 
-      for (let j = 0; j < invoiceCount; j++) {
+      billed.filter((e) => e.date.startsWith(month.key)).forEach((sale, j) => {
         const idx = invoices.length;
-        const issueDate = `${month.key}-${String(4 + j * 6).padStart(2, "0")}`;
+        const issueDate = sale.date;
         const invoiceNumber = `INV-${month.key.replace("-", "")}-${String(j + 1).padStart(3, "0")}`;
-        const subtotal = roundMoney((profile.baseRevenue * season / invoiceCount) * (0.72 + seededRand(seed + "invoice", idx) * 0.68));
-        const tax = roundMoney(subtotal * profile.taxRate);
-        const total = roundMoney(subtotal + tax);
-        // How much of this invoice has been collected, by how old it is.
-        //
-        // Every invoice used to draw from the same table whatever its age, and
-        // a quarter of that table is never paid at all — so a quarter of a
-        // year's billing stayed uncollected for ever while expenses went out
-        // in full. The company then showed a profit every month and ran its
-        // cash down to a large negative all the same, with receivables growing
-        // without limit: a set of books that reads as broken to anyone who
-        // knows what they are looking at. Older invoices now settle, and only
-        // recent ones are still outstanding.
-        const monthsAgo = months.length - 1 - mi;
-        const paidRatio = monthsAgo >= 2
-          ? 1
-          : monthsAgo === 1
-            ? [1, 1, 1, 0.65][Math.floor(seededRand(seed + "paid", idx) * 4)]
-            : [1, 1, 0.65, 0][Math.floor(seededRand(seed + "paid", idx) * 4)];
-        const paid = roundMoney(total * paidRatio);
+        // The sale's amount is what the customer pays, so it is the invoice's
+        // total, and the tax is the part of it that is tax.
+        const total = roundMoney(sale.total);
+        const subtotal = roundMoney(total / (1 + profile.taxRate));
+        const tax = roundMoney(total - subtotal);
+        const dueDate = addDays(issueDate, 30);
+        const paid = sale.settled ? total : 0;
         const balance = roundMoney(total - paid);
-        const status = balance <= 0 ? "Paid" : paid > 0 ? "Partially Paid" : mi < months.length - 1 ? "Overdue" : "Sent";
-        const customer = customers[idx % customers.length] || "Business Customer";
+        const status = balance <= 0 ? "Paid" : today && dueDate < today ? "Overdue" : "Sent";
+        const customer = sale.customer || "Walk-in customer";
         invoices.push({
           id:`invoice_${idx + 1}`,
           invoice_number:invoiceNumber,
+          source:sale.ref,
           customer,
           issue_date:issueDate,
-          due_date:addDays(issueDate, 30),
+          due_date:dueDate,
           subtotal,
           tax,
           total,
@@ -145,21 +154,15 @@
           status,
         });
         invoiceTotals[month.key] += subtotal;
-
-        const lineA = roundMoney(subtotal * (0.58 + seededRand(seed + "line-a", idx) * 0.14));
-        const lineB = roundMoney(subtotal - lineA);
-        [lineA, lineB].forEach((lineTotal, li) => {
-          const quantity = 1 + Math.floor(seededRand(seed + "qty", idx + li) * 4);
-          invoiceLines.push({
-            id:`line_${invoiceLines.length + 1}`,
-            invoice_number:invoiceNumber,
-            item:items[(idx + li) % items.length],
-            quantity,
-            unit_price:roundMoney(lineTotal / quantity),
-            line_total:lineTotal,
-            status:"Billed",
-            date:issueDate,
-          });
+        invoiceLines.push({
+          id:`line_${invoiceLines.length + 1}`,
+          invoice_number:invoiceNumber,
+          item:sale.description,
+          quantity:1,
+          unit_price:subtotal,
+          line_total:subtotal,
+          status:"Billed",
+          date:issueDate,
         });
 
         postEntry(issueDate, invoiceNumber, [
@@ -169,14 +172,15 @@
         ]);
 
         if (paid > 0) {
-          const paymentDate = addDays(issueDate, 8 + Math.floor(seededRand(seed + "paydate", idx) * 24));
+          const later = addDays(issueDate, Math.floor(seededRand(seed + "paydate", idx) * 4));
+          const paymentDate = today && later > today ? issueDate : later;
           payments.push({
             id:`payment_${payments.length + 1}`,
             payment_number:`PAY-${month.key.replace("-", "")}-${String(payments.length + 1).padStart(3, "0")}`,
             invoice_number:invoiceNumber,
             customer,
             payment_date:paymentDate,
-            method:["Bank Transfer","Card","ACH","Check"][Math.floor(seededRand(seed + "method", idx) * 4)],
+            method:["Card","Cash","Bank Transfer","Card"][Math.floor(seededRand(seed + "method", idx) * 4)],
             amount:paid,
             status:"Reconciled",
           });
@@ -197,26 +201,30 @@
             ["Accounts Receivable", 0, paid],
           ]);
         }
-      }
+      });
 
+      // Costs, estimated from the month's revenue at the margins usual for
+      // the kind of business: the records say what was sold, not what it
+      // cost. Every row says it is an estimate.
       const revenue = invoiceTotals[month.key];
+      if (revenue <= 0) { bankAtMonthEnd[month.key] = runningBank; return; }
       const cogs = roundMoney(revenue * (1 - profile.grossMargin));
       const operating = [
         ["COGS", vendors[0] || "Supplier", cogs],
-        ["Payroll", "Payroll Processor", revenue * (0.16 + seededRand(seed + "payroll", mi) * 0.06)],
-        ["Rent", "Facilities Vendor", profile.baseRevenue * 0.055],
-        ["Marketing", "Growth Channel", revenue * (0.035 + seededRand(seed + "mkt", mi) * 0.03)],
-        ["Software", "Cloud Services", profile.baseRevenue * 0.025],
-        ["Utilities", "Utility Provider", profile.baseRevenue * 0.018],
+        ["Payroll", "Payroll", revenue * 0.2],
+        ["Rent", vendors[3] || "Landlord", revenue * 0.07],
+        ["Marketing", "Marketing", revenue * 0.04],
+        ["Utilities", vendors[2] || "Utilities", revenue * 0.025],
       ];
       operating.forEach(([category, vendor, rawAmount], ei) => {
         const amount = roundMoney(rawAmount);
-        const expenseDate = `${month.key}-${String(6 + ei * 3).padStart(2, "0")}`;
-        // Billed but not yet paid: the last month leaves a few open, so the
+        if (amount <= 0) return;
+        const expenseDate = `${month.key}-${String(6 + ei * 4).padStart(2, "0")}`;
+        // Billed but not yet paid: the last month leaves one open, so the
         // payables figure is not always zero. Named once because it decides
         // three separate things — how the expense reads, whether it leaves the
         // bank, and which account the entry credits.
-        const accrued = ei % 5 === 0 && mi === months.length - 1;
+        const accrued = ei === 0 && mi === months.length - 1;
         expenses.push({
           id:`expense_${expenses.length + 1}`,
           expense_number:`EXP-${month.key.replace("-", "")}-${String(ei + 1).padStart(3, "0")}`,
@@ -225,7 +233,7 @@
           expense_date:expenseDate,
           amount,
           payment_status:accrued ? "Accrued" : "Paid",
-          status:accrued ? "Approved" : "Paid",
+          status:"Estimate",
         });
         expenseTotals[month.key] += amount;
         if (!accrued) {
@@ -234,17 +242,17 @@
             id:`bank_${bank.length + 1}`,
             transaction_id:`BNK-${String(bank.length + 1).padStart(5, "0")}`,
             transaction_date:expenseDate,
-            description:`${category} - ${vendor}`,
+            description:`${category} - ${vendor} (estimate)`,
             type:"Withdrawal",
             amount:-amount,
             balance:runningBank,
             status:"Reconciled",
           });
         }
-        postEntry(expenseDate, category, [
+        postEntry(expenseDate, `${category} (estimate)`, [
           [category === "COGS" ? "Cost of Sales" : `${category} Expense`, amount, 0],
           [accrued ? "Accounts Payable" : "Cash", 0, amount],
-        ]);
+        ], "Estimate");
       });
       bankAtMonthEnd[month.key] = runningBank;
     });
@@ -298,13 +306,17 @@
       ["1000","Cash","Asset",last.cash_balance || 0],
       ["1100","Accounts Receivable","Asset",last.accounts_receivable || 0],
       ["2000","Accounts Payable","Liability",last.accounts_payable || 0],
-      ["2100","Sales Tax Payable","Liability",roundMoney(invoices.reduce((s, i) => s + i.tax, 0) * .08)],
-      ["3000","Owner Equity","Equity",roundMoney((last.cash_balance || 0) * .45)],
+      // The tax billed is owed until it is paid over, and the business began
+      // with its opening balance. Both were made up: 8% of the tax, and 45%
+      // of whatever cash happened to be left.
+      ["2100","Sales Tax Payable","Liability",roundMoney(invoices.reduce((s, i) => s + i.tax, 0))],
+      ["3000","Owner Equity","Equity",bank[0].balance],
       ["4000","Revenue","Revenue",roundMoney(summary.reduce((s, m) => s + m.revenue, 0))],
       ["5000","Cost of Sales","Cost of Sales",roundMoney(summary.reduce((s, m) => s + m.cost_of_sales, 0))],
       ["6100","Payroll Expense","Expense",roundMoney(expenses.filter(e => e.category === "Payroll").reduce((s, e) => s + e.amount, 0))],
       ["6200","Rent Expense","Expense",roundMoney(expenses.filter(e => e.category === "Rent").reduce((s, e) => s + e.amount, 0))],
       ["6300","Marketing Expense","Expense",roundMoney(expenses.filter(e => e.category === "Marketing").reduce((s, e) => s + e.amount, 0))],
+      ["6400","Utilities Expense","Expense",roundMoney(expenses.filter(e => e.category === "Utilities").reduce((s, e) => s + e.amount, 0))],
     ].map(([code, name, type, balance], idx) => ({
       id:`acct_${code}`,
       account_code:code,
@@ -312,7 +324,7 @@
       type,
       balance:roundMoney(balance),
       status:"Active",
-      updated:months[months.length - 1]?.date || new Date().toISOString().slice(0, 10),
+      updated:months[months.length - 1].date,
     }));
 
     return {

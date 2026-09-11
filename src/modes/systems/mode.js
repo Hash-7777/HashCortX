@@ -97,7 +97,6 @@ const SystemMaker = (() => {
     has: (_, key) => key in DOMAIN().DOMAIN_CONFIG,
   });
   const defaultFields = (entityName, domain = "") => DOMAIN().defaultFields(entityName, domain);
-  const financeProfile = (desc) => DOMAIN().financeProfile(desc);
   const financeFields = (currency) => DOMAIN().financeFields(currency);
 
   const MONEY = () => window.HCSystemsMoney;
@@ -105,10 +104,7 @@ const SystemMaker = (() => {
   // for every screen, in src/js/systems/view.js.
   const VIEW = () => window.HCSystemsView;
   let viewCurrency = "USD";
-  const seededRand = (seed, idx) => MONEY().seededRand(seed, idx);
-  const roundMoney = (n) => MONEY().roundMoney(n);
   const addDays = (iso, days) => MONEY().addDays(iso, days);
-  const recentMonths = (count = 12) => MONEY().recentMonths(count);
   const uniqueModuleId = (spec, raw) =>
     MONEY().uniqueModuleId((spec?.modules || []).map((m) => m.id), raw, slug);
   const structuredCloneSafe = (obj) => SPEC().cloneSafe(obj);
@@ -354,6 +350,11 @@ const SystemMaker = (() => {
 
   function saveRuntimeData(spec, data) {
     if (!spec) return;
+    // The books follow the sales they are worked out from, whatever changed them.
+    if (spec.financialModel?.basis === "derived-from-records" && data) {
+      const pack = booksFor(spec, data, spec.description);
+      for (const id of financeIds()) if (spec.entities[id]) data[id] = pack?.data[id] || [];
+    }
     try { localStorage.setItem(dataKey(spec.id), JSON.stringify(data || {})); } catch {}
   }
 
@@ -609,10 +610,8 @@ MOCK DATA (realistic, not placeholder):
 • Number fields: realistic ranges (salaries $45k-$200k, order amounts $50-$50000, etc.)
 
 FINANCIAL MODEL:
-• Every ERP must include finance as a first-class operating area, not a cosmetic report.
-• Include at least one finance/accounting module using "metric", "report", or "split".
-• Include entities for invoices or sales, payments or receipts, expenses or bills, and monthly financial summary.
-• Include enough financial fields to support revenue, cost, gross profit, net profit, cash balance, AR, AP, and payment status.
+• Finance only if the business sells something. Then its sales entity — orders, bookings, appointments, jobs, subscriptions — must carry a money field for what each sale came to, a date, the customer, and a status whose last stages mean paid or done. The app builds the invoices, payments and books from those records itself: do NOT write invoice, payment, expense, ledger or financial-summary entities.
+• A business that sells nothing (a roster, a timetable, an internal tracker) has no finance at all.
 • Data must feel linked and plausible for the business size; do not output isolated random numbers.
 
 WORKFLOWS:
@@ -713,7 +712,6 @@ Required keys:
   "agent_assignments": [
     "UX Agent: owns modules [name, name] with screen types [type, type] — rationale",
     "Data Agent: owns entities [entity, entity] — will generate realistic records",
-    "Finance Agent: owns invoices, payments, expenses, and monthly financial summary — rationale",
     "Workflow Agent: designing [workflow name] for [entity] spanning N stages"
   ]
 }
@@ -730,7 +728,7 @@ Rules:
   restaurant→ "#92400e"/"#f59e0b" light; fitness→ "#7c3aed"/"#4ade80" dark; logistics→ "#0369a1"/"#38bdf8" dark;
   legal→ "#1c1917"/"#d97706" light; saas→ "#0f172a"/"#38bdf8" dark; retail→ "#be185d"/"#f472b6" light
 - modules[].color: REQUIRED on every module — give each a distinct hex accent, making the nav a multi-color spectrum
-- Include at least one finance/accounting module and the financial entities needed for revenue, expenses, cash, AR/AP, and margin
+- Finance only if the business sells something: give its sales entity (orders, bookings...) an amount, a date, a customer and a status; the app builds the books from those records. No invoice or payment entities of your own.
 - agent_assignments: write 3 specific delegation lines reflecting actual screen and entity choices
 - Follow the CREATIVE DIRECTIVE in the user message — it overrides defaults`;
   }
@@ -745,7 +743,7 @@ ${JSON.stringify(brief, null, 2)}
 YOUR ASSIGNED ROLES:
 ① UX ARCHITECT — implement the exact modules and screen types from the brief. Keep nav and theme.
 ② DATA ENGINEER — for each entity in the modules, define realistic fields and 8-12 records of real data.
-③ FINANCE AGENT — create realistic finance entities: invoices/sales, payments, expenses/bills, cash/bank, and monthly financial summary.
+③ SALES AGENT — if the business sells something, give its sales entity an amount, a date, a customer and a status; the app builds the books from them.
 ④ WORKFLOW DESIGNER — design 2-3 workflows with meaningful stage progressions.
 ⑤ VALIDATOR — verify all mockData keys match field ids exactly. No placeholder text.
 
@@ -777,7 +775,8 @@ MOCK DATA (domain-realistic, not generic):
 • 8-12 records per entity with real-sounding names, actual amounts, ISO dates (YYYY-MM-DD)
 • Status values must exactly match the field's options array
 • For restaurants: table numbers, dish names, prices; for hotels: room numbers, guest names; etc.
-• Finance records must be internally plausible: invoices, payments, expenses, and summaries should support revenue, cost, profit, cash, AR, and AP.
+• Finance only if the business sells something. Then its sales entity — orders, bookings, appointments, jobs, subscriptions — must carry a money field for what each sale came to, a date, the customer, and a status whose last stages mean paid or done. The app builds the invoices, payments and books from those records itself: do NOT write invoice, payment, expense, ledger or financial-summary entities.
+• A business that sells nothing (a roster, a timetable, an internal tracker) has no finance at all.
 
 WORKFLOWS:
 • 1-3 workflows, each {id, name, entity, stages}: the entity whose records move through it, and stages that are exactly that entity's status options, in order
@@ -824,7 +823,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
         }
         trace("SystemSpec JSON parsed", "ok");
         const spec = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried), desc, signal, active);
-        trace("SystemSpec validated and finance model linked", "ok");
+        trace(spec.financialModel ? `Books worked out from ${spec.entities[spec.financialModel.source]?.name || "the sales"}` : "No sales records, so no books", "ok");
         return spec;
       } catch (err) {
         if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
@@ -895,7 +894,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
           trace("④ Validator confirming field/data consistency", "ok");
           trace("SystemSpec ready", "ok");
           const spec = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(active, parsed, raw, desc, signal, tried), desc, signal, active);
-          trace("Finance model linked", "ok");
+          trace(spec.financialModel ? `Books worked out from ${spec.entities[spec.financialModel.source]?.name || "the sales"}` : "No sales records, so no books", "ok");
           return spec;
         } catch (err) {
           if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
@@ -1013,7 +1012,7 @@ Repair requirements:
 - Include 5-8 modules, at least 4 different screen types, and valid module.entity references.
 - Every referenced entity must exist and include fields[].
 - Give each entity the fields this business really keeps. A kanban entity needs a select field of stages; a calendar or timeline entity needs a date field; a dashboard, report or metric entity needs a number field. Add a field that fits the business, never a generic one such as "Business Value".
-- Include real finance structure: invoices or sales, payments, expenses or bills, cash/bank, and monthly financial summary.
+- If the business sells something, its sales entity carries an amount, a date, a customer and a status; the app builds the books. Do not add invoice or payment entities.
 - mockData keys must match entity ids and record property names must match field ids.
 - Use realistic business data, not placeholder rows.`;
   }
@@ -1151,20 +1150,7 @@ Repair requirements:
 
 
 
-  function collectBusinessNames(spec, regex) {
-    const out = [];
-    Object.entries(spec.entities || {}).forEach(([entityId, entity]) => {
-      const rows = spec.mockData?.[entityId] || [];
-      const fields = (entity.fields || []).filter(f => regex.test(`${f.id} ${f.label}`));
-      rows.slice(0, 20).forEach(row => {
-        fields.forEach(f => {
-          const value = String(row[f.id] || "").trim();
-          if (value.length >= 3 && value.length <= 48 && !/^\d{4}-\d{2}-\d{2}$/.test(value)) out.push(value);
-        });
-      });
-    });
-    return [...new Set(out)].slice(0, 12);
-  }
+
 
   function mergeFinanceEntity(spec, id, name, fields) {
     const current = spec.entities[id];
@@ -1225,19 +1211,31 @@ Repair requirements:
   }
 
   /**
-   * The books a generated business system is shown with.
-   *
-   * In src/js/systems/ledger.js, where the figures can be generated and added
-   * up: an invoice against its tax, a payment against the receivable it
-   * clears, and every journal entry against itself.
+   * The books of a system, worked out from its own sales (js/systems/books.js)
+   * by the ledger (js/systems/ledger.js), or null when it has no sales.
    */
-  function buildFinancialData(spec, desc) {
-    return window.HCSystemsLedger.buildFinancialData(spec, desc, { collectBusinessNames });
+  function booksFor(spec, data, desc) {
+    const src = window.HCSystemsBooks.salesSource(spec, data, financeIds());
+    if (!src) return null;
+    const sales = window.HCSystemsBooks.salesEvents(src, spec, data, todayIso());
+    const pack = window.HCSystemsLedger.buildFinancialData(spec, desc, { sales, today: todayIso() });
+    return pack && { ...pack, source: src.entityId };
   }
 
+  // The books' entity ids. FINANCE_ENTITY_IDS above answers one name at a time
+  // and has no keys of its own, so Object.values() of it is empty.
+  const financeIds = () => Object.values(DOMAIN().FINANCE_ENTITY_IDS);
+
+  /** Whether an entity is one of the books, worked out rather than kept. */
+  const isDerived = (spec, entityId) => spec?.financialModel?.basis === "derived-from-records" && financeIds().includes(entityId);
+
+  // A system's books come from its own sales, and a system with none gets
+  // none. Every system used to be handed a Finance and an Invoices module and
+  // a year of invoices made up for its kind of business.
   function enrichFinancialCore(spec, desc) {
     if (!spec || !spec.entities) return spec;
-    const pack = buildFinancialData(spec, desc);
+    const pack = booksFor(spec, spec.mockData, desc);
+    if (!pack) { spec.financialModel = null; return spec; }
     const names = {
       [FINANCE_ENTITY_IDS.accounts]: "Chart of Accounts",
       [FINANCE_ENTITY_IDS.invoices]: "Invoices",
@@ -1252,11 +1250,15 @@ Repair requirements:
     spec.mockData = spec.mockData || {};
     Object.entries(pack.data).forEach(([id, rows]) => { spec.mockData[id] = rows; });
     ensureFinancialModules(spec);
+    // An invoice links to the sale it bills.
+    const forField = spec.entities[FINANCE_ENTITY_IDS.invoices]?.fields.find(f => f.id === "source");
+    if (forField) Object.assign(forField, { type: "link", entity: pack.source });
     spec.financialModel = {
       currency: pack.currency,
-      basis: "generated-linked-ledger",
+      basis: "derived-from-records",
+      source: pack.source,
       generatedAt: new Date().toISOString(),
-      entities: Object.values(FINANCE_ENTITY_IDS),
+      entities: financeIds(),
     };
     spec.interactions = [...new Set([...(spec.interactions || []), "financial dashboards", "linked invoices/payments/expenses", "ledger exports"])];
     return spec;
@@ -1486,7 +1488,9 @@ Repair requirements:
     const shown = filterRules.filter(r => r.field && r.value !== "");
     const filterNote = shown.length && !["dashboard", "list", "split"].includes(screen)
       ? `<div class="sys-filter-note">Showing only ${shown.map(r => `${esc(entity?.fields?.find(f => f.id === r.field)?.label || r.field)}: ${esc(r.value)}`).join(", ")} <button type="button" class="sys-action-btn" id="sysClearFilters">Show all</button></div>` : "";
-    const screenDiv = `<div class="sys-screen sys-screen--${esc(screen)}">${filterNote}${screenHtml}</div>`;
+    const derived = isDerived(spec, entity?.id);
+    const derivedNote = derived ? `<div class="sys-filter-note">Worked out from ${esc(spec.entities[spec.financialModel.source]?.name || "the sales")} — change those and this follows. Costs are estimates.</div>` : "";
+    const screenDiv = `<div class="sys-screen sys-screen--${esc(screen)}${derived ? " sys-derived" : ""}">${derivedNote}${filterNote}${screenHtml}</div>`;
 
     host.innerHTML = window.HCSystemsShells.shellHtml({ shell, spec, module, screen, screenDiv, searchInput, cls, vars, activeModuleId, esc });
   }
@@ -1520,7 +1524,7 @@ Repair requirements:
     const field = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
     const data = getRuntimeData(spec);
     const rec = (data[activeEntityId] || []).find(r => r.id === recordId);
-    if (!field || !rec || value == null) return;
+    if (!field || !rec || value == null || refuseDerived(spec)) return;
     rec[field.id] = value === VIEW().NO_STATUS ? "" : value;
     saveRuntimeData(spec, data);
     trace(`${recordLabel(rec, entity)} moved to ${rec[field.id] || VIEW().NO_STATUS}`, "ok");
@@ -2310,8 +2314,15 @@ Repair requirements:
 
   // ── Record Modal ──────────────────────────────────────────────────
 
+  /** The books are worked out from the sales, so they are changed there. */
+  function refuseDerived(spec) {
+    if (!isDerived(spec, activeEntityId)) return false;
+    trace(`${spec.entities[activeEntityId]?.name || "These"} are worked out from ${spec.entities[spec.financialModel.source]?.name || "the sales"} — change those and this follows`, "warn");
+    return true;
+  }
+
   function showRecordModal(record, entity, isNew) {
-    if (!entity) return;
+    if (!entity || refuseDerived(getActive())) return;
     recordModalIsNew = isNew;
     $("sysRecordModalTitle").textContent = isNew ? `New ${VIEW().singularName(entity)}` : `Edit ${VIEW().recordLabel(record, entity)}`;
     $("sysRecordModalForm").innerHTML = renderRecordFormModal(record || {}, entity);
@@ -2377,7 +2388,7 @@ Repair requirements:
   // ── CSV Import ────────────────────────────────────────────────────
 
   function showImportModal(entity) {
-    if (!entity) return;
+    if (!entity || refuseDerived(getActive())) return;
     importState = null;
     $("sysImportTitle").textContent = `Import CSV → ${entity.name}`;
     $("sysImportBody").innerHTML = renderImportDropZone();
@@ -2706,7 +2717,7 @@ Repair requirements:
 
   function deleteRecord() {
     const spec = getActive();
-    if (!spec || !activeEntityId || !selectedRecordId) return;
+    if (!spec || !activeEntityId || !selectedRecordId || refuseDerived(spec)) return;
     const data = getRuntimeData(spec);
     data[activeEntityId] = (data[activeEntityId] || []).filter(r => r.id !== selectedRecordId);
     selectedRecordId = data[activeEntityId][0]?.id || "";
@@ -2984,7 +2995,7 @@ Repair requirements:
 
       // Bulk delete
       if (e.target.closest("#sysBulkDeleteBtn")) {
-        if (!spec || selectedIds.size === 0) return;
+        if (!spec || selectedIds.size === 0 || refuseDerived(spec)) return;
         const data = getRuntimeData(spec);
         const count = selectedIds.size;
         data[activeEntityId] = (data[activeEntityId] || []).filter(r => !selectedIds.has(r.id));

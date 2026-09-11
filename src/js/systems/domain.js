@@ -576,6 +576,7 @@
       ],
       [FINANCE_ENTITY_IDS.invoices]: [
         { id:"invoice_number", label:"Invoice #", type:"text", required:true },
+        { id:"source", label:"For", type:"text" },
         { id:"customer", label:"Customer", type:"text", required:true },
         { id:"issue_date", label:"Issue Date", type:"date" },
         { id:"due_date", label:"Due Date", type:"date" },
@@ -611,7 +612,7 @@
         { id:"expense_date", label:"Expense Date", type:"date" },
         { id:"amount", label:money("Amount"), type:"number" },
         { id:"payment_status", label:"Payment Status", type:"select", options:["Accrued","Approved","Paid","Disputed"] },
-        { id:"status", label:"Status", type:"select", options:["Submitted","Approved","Paid","Rejected"] },
+        { id:"status", label:"Status", type:"select", options:["Estimate","Submitted","Approved","Paid","Rejected"] },
       ],
       [FINANCE_ENTITY_IDS.journal]: [
         { id:"journal_id", label:"Journal ID", type:"text", required:true },
@@ -620,7 +621,7 @@
         { id:"source", label:"Source", type:"text" },
         { id:"debit", label:money("Debit"), type:"number" },
         { id:"credit", label:money("Credit"), type:"number" },
-        { id:"status", label:"Status", type:"select", options:["Draft","Posted","Reviewed"] },
+        { id:"status", label:"Status", type:"select", options:["Draft","Posted","Reviewed","Estimate"] },
       ],
       [FINANCE_ENTITY_IDS.bank]: [
         { id:"transaction_id", label:"Transaction ID", type:"text", required:true },
