@@ -335,10 +335,28 @@
    * is still cut off.
    */
   function routeModelTurn(request, fns, deps) {
-    const first = routeOnce(request, fns, deps);
+    const first = routeLearning(request, fns, deps);
     if (!request.untilFinished || !first || typeof first.then !== 'function') return first;
     const again = (messages) => routeOnce({ ...request, messages }, fns, deps);
     return first.then((turn) => (turn && turn.cutOff ? finishCutOff(again, request.messages, turn) : turn));
+  }
+
+  /**
+   * A refusal that names a limit — a per-minute budget, a longest answer, a
+   * parameter the model will not take — is learnt (js/model-limits.js) and the
+   * request sent once more, sized by it. Only when what is left still holds
+   * the question and an answer of `request.need` tokens; otherwise the error
+   * stands and the job goes to another model.
+   */
+  function routeLearning(request, fns, deps) {
+    const call = routeOnce(request, fns, deps);
+    const L = typeof window !== 'undefined' && window.HCModelLimits;
+    if (!L || !call || typeof call.then !== 'function') return call;
+    return call.catch((err) => {
+      const value = err && err.model;
+      if (!value || !L.learn(value, err, L.estimateTokens([request.messages, request.tools]), request.need || 0).retry) throw err;
+      return routeOnce(request, fns, deps);
+    });
   }
 
   function routeOnce({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {

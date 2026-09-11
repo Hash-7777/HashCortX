@@ -27,7 +27,7 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── forge/            3,873  offline parametric part generator
+│   │   ├── forge/            3,855  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,545  virtual project desktop
@@ -40,6 +40,7 @@ HashCortX/
 │   ├── core/                        pieces taken out of app.js, each with
 │   │   │                            its own markup beside it
 │   │   ├── settings/  panel.html + memory-pane.js + local-model.js
+│   │   │              + model-lists.js (Update model lists)
 │   │   ├── memory/    store.js + map-panel.html
 │   │   ├── agents/    panel.html
 │   │   ├── rag/       knowledge-base.js
@@ -62,16 +63,23 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,725  core: state, chat, agents, tools, providers
-│   │   ├── providers.js        385  each provider's endpoint and auth, plus
-│   │   │                            Moonshot's four hosts and two account systems
-│   │   ├── cloud-model-fetch.js 292 asking each provider what models it has
-│   │   ├── cloud-model-memory.js 142 the model list a provider gave last time,
+│   │   ├── app.js            6,713  core: state, chat, agents, tools, providers
+│   │   ├── providers.js        399  each provider's endpoint and auth, plus
+│   │   │                            Moonshot's four hosts and two account systems,
+│   │   │                            and the two that refuse requests from the app
+│   │   ├── cloud-model-fetch.js 259 asking each provider what models it has,
+│   │   │                            with each model's limits
+│   │   ├── cloud-catalogue.js  113  keeping those lists, and what each provider
+│   │   │                            answered last time
+│   │   ├── model-limits.js     268  how long an answer each request asks for, and
+│   │   │                            the limits a provider names when it refuses
+│   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
 │   │   ├── model-names.js      216  provider, display name, size class, failover
-│   │   ├── model-routes.js     201  which model a run asks next, by why the last
-│   │   │                            one failed; models a provider says are gone
-│   │   ├── agent-shape.js      381  images, tools and tool results per provider,
+│   │   ├── model-routes.js     248  which model a run asks next, by why the last
+│   │   │                            one failed and what it can hold; models a
+│   │   │                            provider says are gone; waiting on a stream
+│   │   ├── agent-shape.js      399  images, tools and tool results per provider,
 │   │   │                            and carrying on an answer that was cut off
 │   │   ├── agent-context.js    136  what the model sees of a long agent run
 │   │   ├── agent-policy.js     221  what may run together, and when to stop
@@ -159,7 +167,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 97 files,
+├── scripts/checks/                  the automated frontend checks — 99 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -277,10 +285,10 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 6,725-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 6,713-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 4,477 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 4,579 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

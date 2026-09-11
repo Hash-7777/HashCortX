@@ -15,7 +15,7 @@ import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
-const sandbox = { window: {} };
+const sandbox = { window: {}, AbortController };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'chat', 'failover.js'), sandbox, { filename: 'failover.js' });
 vm.runInContext(src('js', 'providers.js'), sandbox, { filename: 'providers.js' });
@@ -144,6 +144,57 @@ console.log('\nOne run keeps what it has learnt:');
   ok('a provider cooling down is left alone while another can answer', cooling.next('cloud:groq:openai/gpt-oss-120b', E('Agent timeout after 90s')) === 'cloud:groq:openai/gpt-oss-20b');
   const allCooling = R.createRun({ options: () => opts.filter((o) => !o.value.startsWith('cloud:groq:')), shut: () => ['gemini', 'openrouter'], store: memory() });
   ok('... but every provider cooling is no reason to stop', !!allCooling.next('cloud:gemini:gemini-2.5-pro', E('Agent timeout after 90s')));
+}
+
+console.log('\nA model that cannot hold the job is not asked while one that can is left:');
+{
+  const small = (v) => v !== 'cloud:groq:openai/gpt-oss-120b' && v !== 'cloud:groq:openai/gpt-oss-20b';
+  const next = R.nextRoutes({ failed: 'cloud:gemini:gemini-2.5-pro', kind: 'retired', options: opts, fits: small, store: memory() });
+  ok('the routes leave out models that cannot hold it', !next.some((v) => v.startsWith('cloud:groq:')) && next.length > 0);
+  const notes = [];
+  const run = R.createRun({ options: () => opts, fits: small, note: (m) => notes.push(m), store: memory() });
+  ok('a run chosen on a model that cannot hold the job starts on one that can', !run.start('cloud:groq:openai/gpt-oss-120b').startsWith('cloud:groq:'));
+  ok('... and says why', notes.some((n) => /cannot hold this job/.test(n)));
+  const only = R.createRun({ options: () => opts.filter((o) => o.value.startsWith('cloud:groq:')), fits: small, store: memory() });
+  ok('when nothing can hold it, the run still goes on with what answers', only.next('cloud:groq:openai/gpt-oss-120b', E('x', {})) === 'cloud:groq:openai/gpt-oss-20b');
+}
+
+console.log('\nA streamed answer is waited on while it keeps arriving:');
+{
+  // A clock the check moves by hand.
+  let now = 0;
+  const due = new Map();
+  let seq = 0;
+  const timers = { set: (fn, ms) => { const id = ++seq; due.set(id, { at: now + ms, fn }); return id; }, clear: (id) => due.delete(id) };
+  const pass = (ms) => { now += ms; for (const [id, t] of [...due]) if (t.at <= now) { due.delete(id); t.fn(); } };
+  const q = R.quietSignal(null, { first: 90, between: 30 }, timers);
+  pass(80);
+  ok('nothing is cut off before the first piece is due', !q.signal.aborted);
+  q.tick();
+  for (let i = 0; i < 20; i++) { pass(25); q.tick(); }
+  ok('an answer that keeps arriving is never cut off, however long it takes', !q.signal.aborted && now > 500 && q.heard());
+  pass(31);
+  ok('an answer that stops arriving is dropped', q.signal.aborted);
+  const silent = R.quietSignal(null, { first: 90, between: 30 }, timers);
+  pass(91);
+  ok('a model that never starts is dropped, and it can be told apart', silent.signal.aborted && !silent.heard());
+  const parent = new AbortController();
+  const child = R.quietSignal(parent.signal, { first: 90, between: 30 }, timers);
+  parent.abort();
+  ok('a stop from the person stops it at once', child.signal.aborted);
+  const done = R.quietSignal(null, { first: 90, between: 30 }, timers);
+  done.cleanup();
+  pass(1000);
+  ok('a finished answer leaves no timer behind', !done.signal.aborted);
+  // With no timers passed it uses the real ones, called the way a browser
+  // demands — this sandbox's setTimeout refuses any other `this`, as a browser's does.
+  const strict = { setTimeout(fn, ms) { if (this !== undefined && this !== sandbox && this !== globalThis) throw new TypeError('Illegal invocation'); return setTimeout(fn, ms); } };
+  sandbox.setTimeout = strict.setTimeout;
+  sandbox.clearTimeout = clearTimeout;
+  let real = null;
+  try { real = R.quietSignal(null, { first: 50, between: 50 }); real.cleanup(); } catch (e) { real = e; }
+  ok('the real timers are called as themselves, not as another object\'s methods', real && !(real instanceof Error));
+  ok('the Forge waits this way for its plan', /window\.HCModelRoutes\.quietSignal\(signal, quiet\)/.test(src('modes', 'forge', 'mode.js')) && /askModelForPlan\(prompt, prefs, routedSignal\.signal, routedSignal\.tick\)/.test(src('modes', 'forge', 'mode.js')));
 }
 
 console.log('\nThe hand-written catalogue drops what its providers shut down:');

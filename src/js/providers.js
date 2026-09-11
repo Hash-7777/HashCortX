@@ -60,15 +60,21 @@
       chatUrl: 'https://api.cerebras.ai/v1/chat/completions',
       auth: 'bearer',
     },
+    // These two do not answer a request from a web page: their servers send no
+    // permission for one, so the browser inside the app stops every request
+    // before it is sent. Their models are not offered, rather than offered and
+    // always failing. Using them would take a native path in the app.
     samba: {
       label: 'SambaNova',
       chatUrl: 'https://api.sambanova.ai/v1/chat/completions',
       auth: 'bearer',
+      browserBlocked: true,
     },
     nvidia: {
       label: 'NVIDIA',
       chatUrl: 'https://integrate.api.nvidia.com/v1/chat/completions',
       auth: 'bearer',
+      browserBlocked: true,
     },
     deepseek: {
       label: 'DeepSeek',
@@ -250,10 +256,18 @@
     else if (p.auth === 'anthropic') {
       headers['x-api-key'] = key;
       headers['anthropic-version'] = '2023-06-01';
+      // Anthropic refuses a request from a web page — which this app is, to
+      // the server — unless it says it knows. Without this header the
+      // browser's preflight is turned away, so every call and every model
+      // list failed before it was sent. The key stays on this machine either way.
+      headers['anthropic-dangerous-direct-browser-access'] = 'true';
     }
     // 'query' providers carry the key in the URL and need nothing here.
     return Object.assign(headers, p.extraHeaders || {});
   }
+
+  /** Whether a provider refuses every request made from inside the app. */
+  const isBrowserBlocked = (provider) => !!(PROVIDERS[provider] && PROVIDERS[provider].browserBlocked);
 
   /** The endpoint and headers for a chat request, ready to fetch. */
   function requestFor(provider, key) {
@@ -374,7 +388,7 @@
   }
 
   window.HCProviders = {
-    PROVIDERS, get, headersFor, requestFor, allHosts,
+    PROVIDERS, get, headersFor, requestFor, allHosts, isBrowserBlocked,
     // Moonshot answers on four hosts across two account systems.
     MOONSHOT_API_BASES, KIMI_ANTHROPIC_BASES, MOONSHOT_MODEL_ORDER,
     isKimiCodeKey, moonshotEndpointLabel, orderedMoonshotBases,

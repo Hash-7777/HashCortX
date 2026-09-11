@@ -652,7 +652,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     }
     window.HCAgentPolicy.chargeRunBudget(runBudget);
     const mv = modelValue || $("model")?.value || "llama3.2";
-    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true }); // a cut-off spec is carried on
+    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true, need: SPEC_NEED }); // a cut-off spec is carried on
   }
 
   function modelTraceLabel(modelValue) {
@@ -692,9 +692,9 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
       .sort((a, b) => modelScore(b.value, b.label) - modelScore(a.value, a.label));
   }
 
-  // Where a run goes when a model fails: js/model-routes.js. This used to take
-  // one model of each other provider, so a retired model's provider was never asked again.
-  const newRoutes = () => window.HCModelRoutes.createRun({ options: availableModels, strength: (o) => modelScore(o.value, o.label), note: (m) => trace(m, "warn"), label: modelTraceLabel });
+  // Where a run goes when a model fails (js/model-routes.js), skipping any that cannot hold the instructions and a whole spec (js/model-limits.js).
+  const SPEC_NEED = 6000;
+  const newRoutes = () => window.HCModelRoutes.createRun({ options: availableModels, strength: (o) => modelScore(o.value, o.label), note: (m) => trace(m, "warn"), label: modelTraceLabel, fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([systemPrompt()]), SPEC_NEED) });
 
   function godAgentPrompt() {
     return `You are the God Agent — a senior ERP architect who assigns specialist agents.

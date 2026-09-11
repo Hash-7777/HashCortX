@@ -2331,7 +2331,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         if (res.ok) return { res, baseUrl: base };
         const txt = await res.text().catch(() => "");
         const enriched = `${cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))}\nEndpoint tried: ${fullUrl}`;
-        lastError = new Error(enriched);
+        lastError = Object.assign(new Error(enriched), { status: res.status, body: txt });
         if (res.status !== 401 && res.status !== 403 && res.status !== 404) return Promise.reject(lastError);
       } catch (err) {
         if (err?.name === "AbortError") throw err;
@@ -2352,7 +2352,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           return { res, baseUrl };
         }
         const txt = await res.text().catch(() => "");
-        lastError = new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After")));
+        lastError = Object.assign(new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))), { status: res.status, body: txt });
         if (!shouldTryNextMoonshotEndpoint(res.status)) return Promise.reject(lastError);
       } catch (err) {
         if (err?.name === "AbortError") throw err;
@@ -2396,6 +2396,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function usageFrom(data) { return HCProviders.usageFrom(data); }
   function cloudHttpError(provider, status, body, retryAfter) {
     return HCProviders.cloudHttpError(provider, status, body, retryAfter);
+  }
+
+  // Every request body sized for its model — the longest answer that fits,
+  // and nothing the model has refused (js/model-limits.js).
+  const fitRequest = (shape, provider, modelId, body) => window.HCModelLimits.fitBody(shape, `cloud:${provider}:${modelId}`, body);
+
+  // A refused request as an error that keeps everything the provider said.
+  // The message is for a person and is cut short; the limits a provider names
+  // in its reply are read from the whole body (js/model-limits.js).
+  async function httpFailure(provider, res) {
+    const body = await res.text().catch(() => "");
+    return Object.assign(new Error(cloudHttpError(provider, res.status, body, res.headers.get("Retry-After"))), { status: res.status, body });
   }
 
   // Reading facts out of a message, and finding them again afterwards. In
@@ -2495,6 +2507,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   async function testProviderConnection(provider) {
     const key = ($(provider.keyId)?.value || "").trim();
     if (!key) return { ok: false, error: "No API key entered" };
+    if (HCProviders.isBrowserBlocked(provider.id)) return { ok: false, error: "its servers refuse requests from inside apps like this one" };
     if (provider.auth === "moonshot") {
       try {
         // sk-ki keys (Kimi for Code) require the Anthropic-compatible path —
@@ -2531,6 +2544,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   function renderApisPane() {
+    window.HCSettingsModelLists?.render();
     for (const p of API_PROVIDERS) {
       const input = $(p.keyId);
       if (!input) continue;
@@ -3166,74 +3180,33 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // that changes whenever a provider adds or retires a model.
   const { CLOUD_FALLBACK } = window.HCCloudModels;
 
-  // In-memory cache of fetched model lists (cleared on reload).
-  // Keyed by provider; invalidated when the API key changes.
-  const _cloudModelCache      = { groq: null, gemini: null, openrouter: null, cerebras: null, samba: null, openai: null, anthropic: null, moonshot: null, deepseek: null, mistral: null };
-  const _cloudModelKeyAtFetch = { groq: "",   gemini: "",   openrouter: "",   cerebras: "",   samba: "",   openai: "",   anthropic: "",   moonshot: "",   deepseek: "",   mistral: "" };
-  const _cloudFetchInflight   = { groq: null, gemini: null, openrouter: null, cerebras: null, samba: null, openai: null, anthropic: null, moonshot: null, deepseek: null, mistral: null };
-
   // What each provider last answered is remembered across launches, so a fresh
   // launch starts from the real list rather than from the catalogue written by
   // hand. That logic lives in its own module so it can be checked.
   const _modelMemory = window.HCCloudModelMemory;
 
-  /** What a provider's list starts as: what it last said, else the catalogue. */
-  function seedModelsFor(provider) {
-    return _modelMemory.seed(provider, CLOUD_FALLBACK[provider] || []);
-  }
-
-  // Asking each provider for its own list is the whole point, and the ten
-  // functions that do it are where a provider's answer shape is decoded. They
-  // live in their own module: they are the part most likely to need changing
-  // when a provider changes, and inside this file nothing could check them.
-  //
-  // What they need from here is passed in rather than reached for, so the
-  // checks can run them against a recorded answer with no app around them.
-  const CLOUD_FETCHERS = window.HCCloudModelFetch.create({
-    prettify: prettifyModelId,
-    isExcluded: isExcludedCloudModel,
-    seed: seedModelsFor,
-    moonshotApi: fetchMoonshotApi,
-    sortMoonshotIds: sortMoonshotModelIds,
+  // Asking each provider for its own list, and keeping the answer for its key,
+  // is js/cloud-catalogue.js; decoding each provider's answer, with every
+  // model's limits, is js/cloud-model-fetch.js. What they need from here is
+  // passed in, so the checks run them against recorded answers.
+  const _catalogue = window.HCCloudCatalogue.create({
+    fetchers: window.HCCloudModelFetch.create({
+      prettify: prettifyModelId,
+      isExcluded: isExcludedCloudModel,
+      moonshotApi: fetchMoonshotApi,
+      sortMoonshotIds: sortMoonshotModelIds,
+      kimiCodeKey: isKimiCodeKey,
+    }),
+    memory: _modelMemory,
+    fallback: CLOUD_FALLBACK,
+    visible: visibleCloudModels,
+    isBlocked: (provider) => HCProviders.isBrowserBlocked(provider),
+    limits: window.HCModelLimits,
   });
-
-  // Load + cache the live model list for one provider. Returns the fallback
-  // list on any error so the UI never shows an empty cloud group.
-  async function loadCloudModelsFor(provider, keyEl) {
-    const apiKey = (keyEl?.value || "").trim();
-    // OpenRouter doesn't strictly require a key for /models; everything else does.
-    if (!apiKey && provider !== "openrouter") {
-      return seedModelsFor(provider);
-    }
-    if (_cloudModelCache[provider] && _cloudModelKeyAtFetch[provider] === apiKey) {
-      return _cloudModelCache[provider];
-    }
-    if (_cloudFetchInflight[provider]) return _cloudFetchInflight[provider];
-    if (_modelMemory.failedRecently(provider, apiKey)) return seedModelsFor(provider);
-    const fetcher = CLOUD_FETCHERS[provider];
-    if (!fetcher) return seedModelsFor(provider);
-    const p = (async () => {
-      try {
-        const models = visibleCloudModels(await fetcher(apiKey));
-        if (Array.isArray(models) && models.length) {
-          _cloudModelCache[provider] = models;
-          _cloudModelKeyAtFetch[provider] = apiKey;
-          _modelMemory.remember(provider, models);
-          return models;
-        }
-        _modelMemory.noteFailure(provider, apiKey);
-        return seedModelsFor(provider);
-      } catch (err) {
-        console.warn(`[cloud] ${provider} fetch failed:`, err);
-        _modelMemory.noteFailure(provider, apiKey);
-        return seedModelsFor(provider);
-      } finally {
-        _cloudFetchInflight[provider] = null;
-      }
-    })();
-    _cloudFetchInflight[provider] = p;
-    return p;
-  }
+  const seedModelsFor = (provider) => _catalogue.seed(provider);
+  const loadCloudModelsFor = (provider, keyEl, options) => _catalogue.load(provider, keyEl?.value, options);
+  // The models a provider offers, less any its provider has said are gone.
+  const offeredModels = (models) => visibleCloudModels(models).filter(m => !window.HCModelRoutes.isRetired(m.value));
 
   const CLOUD_MODELS = [
     { group: "Groq  —  Free · Fast Inference",    keyEl: () => groqKeyEl,       provider: "groq",       models: seedModelsFor("groq") },
@@ -3378,15 +3351,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     CLOUD_MODELS.forEach(grp => {
       const hasKey = !!(grp.keyEl().value || "").trim();
-      // Skip providers without a key entirely — clean dropdown, no clutter
-      if (!hasKey) return;
+      // Skip providers without a key, or with nothing that can be used — clean dropdown, no clutter
+      const models = offeredModels(grp.models);
+      if (!hasKey || !models.length) return;
       const group = document.createElement("optgroup");
       group.dataset.cloud = "1";
       group.dataset.provider = grp.provider;
       group.dataset.baseLabel = grp.group;
       group.dataset.missingKey = "0";
       group.label = grp.group;
-      visibleCloudModels(grp.models).forEach(m => {
+      models.forEach(m => {
         const opt = document.createElement("option");
         opt.value = m.value;
         opt.dataset.cloudOption = "1";
@@ -3410,8 +3384,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const sel = modelEl.value;
     const hasKey = !!(grp.keyEl().value || "").trim();
     const existing = modelEl.querySelector(`optgroup[data-cloud][data-provider='${grp.provider}']`);
-    // If key was removed, remove the optgroup entirely
-    if (!hasKey) {
+    // If key was removed, or nothing it lists can be used, remove the optgroup entirely
+    if (!hasKey || !offeredModels(grp.models).length) {
       if (existing) existing.remove();
       // Also remove separator if no cloud keys remain
       const hasAnyCloudKey = CLOUD_MODELS.some(g => !!(g.keyEl().value || "").trim());
@@ -3428,8 +3402,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     newGrp.dataset.baseLabel = grp.group;
     newGrp.dataset.missingKey = "0";
     newGrp.label = grp.group;
-    grp.models.forEach(m => {
-      if (isExcludedCloudModel(m)) return;
+    offeredModels(grp.models).forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.value;
       opt.dataset.cloudOption = "1";
@@ -3458,14 +3431,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   // Fetch live model list for every provider that has a key (or is keyless like OpenRouter).
   // Safe to call repeatedly — loadCloudModelsFor caches by key and deduplicates inflight fetches.
-  async function refreshCloudModelsFromAPIs() {
+  async function refreshCloudModelsFromAPIs(options) {
     await Promise.all(CLOUD_MODELS.map(async (grp) => {
       try {
-        const live = await loadCloudModelsFor(grp.provider, grp.keyEl());
-        if (!Array.isArray(live) || !live.length) return;
+        const live = await loadCloudModelsFor(grp.provider, grp.keyEl(), options);
+        if (!Array.isArray(live)) return;
         const before = grp.models.map(m => m.value).join("|");
         const after  = live.map(m => m.value).join("|");
-        if (before === after) return;
+        if (before === after && !(options && options.force)) return;
         grp.models = live;
         _replaceProviderOptgroup(grp);
       } catch (e) {
@@ -3474,6 +3447,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }));
     updateCloudModelVisualState();
     syncCompareModelOptions();
+  }
+
+  // Update model lists in Settings: ask every provider again now, and forget
+  // the limits learnt from earlier refusals, since an account's budget changes
+  // with the account. Returns what each provider said.
+  async function refreshModelLists() {
+    window.HCModelLimits.forgetLearned();
+    await refreshCloudModelsFromAPIs({ force: true });
+    return _catalogue.report();
   }
 
   function syncCompareModelOptions() {
@@ -3566,11 +3548,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       { method: "POST", referrerPolicy: "no-referrer",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal }
     );
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      const retry = res.headers.get("Retry-After");
-      throw new Error(cloudHttpError("gemini", res.status, txt, retry));
-    }
+    if (!res.ok) throw await httpFailure("gemini", res);
     const data = await res.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
     let text = "";
@@ -3587,7 +3565,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // Convert Ollama-format messages (images: [base64...]) to OpenAI vision format.
+  // A refusal that names a limit is learnt and the request sent once more,
+  // sized by it — before any of the answer has arrived (js/model-limits.js).
   async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal) {
+    let started = false;
+    const tell = (t) => { started = true; onToken(t); };
+    try {
+      return await streamCloudModelOnce(provider, modelId, messages, temperature, tell, signal);
+    } catch (err) {
+      if (started || !window.HCModelLimits.learn(`cloud:${provider}:${modelId}`, err, window.HCModelLimits.estimateTokens([messages]), 1500).retry) throw err;
+      return streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal);
+    }
+  }
+
+  async function streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal) {
     const temp = typeof temperature === "number" ? temperature : 0.7;
     // Text-only fallback (for providers that don't support vision)
     const textMessages = messages.map(m => ({ role: m.role, content: m.content || "" }));
@@ -3606,10 +3597,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: groqMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "groq", modelId, { model: modelId, messages: groqMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("groq", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("groq", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "gemini") {
@@ -3625,16 +3616,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           if (m.images?.length) m.images.forEach(b64 => parts.push({ inlineData: { mimeType: HCAgentShape.imageMimeFromBase64(b64), data: b64 } }));
           return { role: m.role === "assistant" ? "model" : "user", parts: parts.length ? parts : [{ text: "" }] };
         });
-      const body = {
+      const body = fitRequest("gemini", "gemini", modelId, {
         contents: geminiContents,
         generationConfig: { temperature: temp },
         ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
-      };
+      });
       const res = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
         { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal }
       );
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("gemini", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("gemini", res);
       for await (const line of window.HCStreamSSE.sseLines(res.body)) {
         const evt = window.HCStreamSSE.eventFromLine(line);
         if (!evt) continue;
@@ -3652,10 +3643,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: orMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "openrouter", modelId, { model: modelId, messages: orMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("openrouter", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("openrouter", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "cerebras") {
@@ -3665,10 +3656,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "cerebras", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("cerebras", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("cerebras", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "samba") {
@@ -3678,10 +3669,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "samba", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("samba", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("samba", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "openai") {
@@ -3692,10 +3683,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: oaMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "openai", modelId, { model: modelId, messages: oaMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("openai", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("openai", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "anthropic") {
@@ -3713,11 +3704,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const body = {
         model: modelId,
         messages: anthropicMessages,
-        max_tokens: 4096,
         stream: true,
         ...(systemMsg ? { system: systemMsg.content } : {}),
       };
       if (typeof temperature === "number") body.temperature = temperature;
+      fitRequest("anthropic", "anthropic", modelId, body);
       const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("anthropic", key);
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
@@ -3725,7 +3716,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         body: JSON.stringify(body),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("anthropic", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("anthropic", res);
       // Anthropic SSE format is similar to OpenAI but uses event: content_block_delta
       for await (const line of window.HCStreamSSE.sseLines(res.body)) {
         const evt = window.HCStreamSSE.eventFromLine(line);
@@ -3745,14 +3736,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // sk-ki keys are from the new Kimi for Code platform (kimi.com) — they only
       // accept the Anthropic-compatible protocol at api.moonshot.{ai,cn}/anthropic.
       if (isKimiCodeKey(key)) {
-        const body = buildKimiAnthropicBody(modelId, textMessages, { temperature: temp, stream: true });
+        const body = fitRequest("anthropic", "moonshot", modelId, buildKimiAnthropicBody(modelId, textMessages, { temperature: temp, stream: true }));
         const { res } = await fetchKimiAnthropic("/v1/messages", key, () => ({
           method: "POST", referrerPolicy: "no-referrer",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" },
           body: JSON.stringify(body),
           signal,
         }));
-        if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))); }
+        if (!res.ok) throw await httpFailure("moonshot", res);
         for await (const line of window.HCStreamSSE.sseLines(res.body)) {
           const evt = window.HCStreamSSE.eventFromLine(line);
           if (!evt) continue;
@@ -3768,10 +3759,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
           method: "POST", referrerPolicy: "no-referrer",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-          body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+          body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
           signal,
         }));
-        if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))); }
+        if (!res.ok) throw await httpFailure("moonshot", res);
         for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
       }
 
@@ -3782,10 +3773,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "deepseek", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("deepseek", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("deepseek", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "mistral") {
@@ -3795,10 +3786,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const res = await fetch(epUrl, {
         method: "POST", referrerPolicy: "no-referrer",
         headers: epHeaders,
-        body: JSON.stringify({ model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } }),
+        body: JSON.stringify(fitRequest("openai", "mistral", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       });
-      if (!res.ok) { const txt = await res.text().catch(() => ""); throw new Error(cloudHttpError("mistral", res.status, txt, res.headers.get("Retry-After"))); }
+      if (!res.ok) throw await httpFailure("mistral", res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else {
@@ -5951,7 +5942,7 @@ sys.stderr = _stderr
       // sk-ki keys (Kimi for Code / kimi.com platform) use the Anthropic protocol.
       // Short-circuit here — convert OpenAI-style payload → Anthropic and return.
       if (isKimiCodeKey(key)) {
-        const body = buildKimiAnthropicBody(model, messages, { temperature, maxTokens: 4096 });
+        const body = buildKimiAnthropicBody(model, messages, { temperature });
         if (tools && tools.length) {
           body.tools = tools.map(t => ({
             name: t.function.name,
@@ -5959,16 +5950,14 @@ sys.stderr = _stderr
             input_schema: t.function.parameters || { type: "object", properties: {} },
           }));
         }
+        fitRequest("anthropic", "moonshot", model, body);
         const { res } = await fetchKimiAnthropic("/v1/messages", key, () => ({
           method: "POST", referrerPolicy: "no-referrer",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" },
           body: JSON.stringify(body),
           signal,
         }));
-        if (!res.ok) {
-          const txt = await res.text().catch(() => "");
-          throw new Error(cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After")));
-        }
+        if (!res.ok) throw await httpFailure("moonshot", res);
         const data = await res.json();
         const contentBlocks = data.content || [];
         let text = "";
@@ -6004,6 +5993,7 @@ sys.stderr = _stderr
       stream: false
     };
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
+    fitRequest("openai", provider, model, body);
     let r;
     if (provider === "moonshot") {
       ({ res: r } = await fetchMoonshotApi("/chat/completions", moonshotKeyForRequest, () => ({
@@ -6015,10 +6005,7 @@ sys.stderr = _stderr
     } else {
       r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers, body: JSON.stringify(body), signal });
     }
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      throw new Error(cloudHttpError(provider, r.status, txt, r.headers.get("Retry-After")));
-    }
+    if (!r.ok) throw await httpFailure(provider, r);
     const data = await r.json();
     const msg = data.choices?.[0]?.message || {};
     const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls.map((c, i) => ({
@@ -6071,7 +6058,6 @@ sys.stderr = _stderr
     const body = {
       model,
       messages: anthropicMessages,
-      max_tokens: 4096,
       ...(systemMsg ? { system: systemMsg.content } : {}),
       ...(typeof temperature === "number" ? { temperature } : {}),
     };
@@ -6082,6 +6068,7 @@ sys.stderr = _stderr
         input_schema: t.function.parameters || { type: "object", properties: {} }
       }));
     }
+    fitRequest("anthropic", "anthropic", model, body);
     const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("anthropic", key);
     const r = await fetch(epUrl, {
       method: "POST", referrerPolicy: "no-referrer",
@@ -6089,10 +6076,7 @@ sys.stderr = _stderr
       body: JSON.stringify(body),
       signal
     });
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      throw new Error(cloudHttpError("anthropic", r.status, txt, r.headers.get("Retry-After")));
-    }
+    if (!r.ok) throw await httpFailure("anthropic", r);
     const data = await r.json();
     const contentBlocks = data.content || [];
     let text = "";
@@ -6156,18 +6140,15 @@ sys.stderr = _stderr
         parts: parts.length ? parts : [{ text: "" }]
       });
     }
-    const body = {
+    const body = fitRequest("gemini", "gemini", model, {
       contents,
       generationConfig: { temperature: typeof temperature === "number" ? temperature : 0.7 },
       ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
       ...(tools.length ? { tools } : {})
-    };
+    });
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
     const r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
-    if (!r.ok) {
-      const txt = await r.text().catch(() => "");
-      throw new Error(cloudHttpError("gemini", r.status, txt, r.headers.get("Retry-After")));
-    }
+    if (!r.ok) throw await httpFailure("gemini", r);
     const data = await r.json();
     const parts = data.candidates?.[0]?.content?.parts || [];
     let textOut = "";
@@ -6707,6 +6688,13 @@ sys.stderr = _stderr
     // One dispatcher for every mode. Modes that picked a client themselves
     // got Anthropic wrong; there is now one copy of that decision.
     runModelTurn,
+    // Settings → Update model lists, and what each provider said last time.
+    refreshModelLists,
+    // Every model the providers list for the keys set, less the ones gone. The
+    // Coder's fallback chain asked for this and, finding nothing, fell back to
+    // model names written into its code.
+    getAvailableCloudModels,
+    modelListReport: () => _catalogue.report(),
     buildOpenAITools,
     buildGeminiTools,
     buildOllamaTools,

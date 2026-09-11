@@ -181,6 +181,22 @@
     <!-- APIs pane -->
     <div class="modal-body settings-pane" id="apisPane" style="display:none" hidden>
       <input class="control lm-search" id="apiSearch" placeholder="Find a provider…" spellcheck="false" autocomplete="off" />
+      <div class="set-sec" data-api-group>Model lists</div>
+      <div class="field model-lists" id="modelLists">
+        <p class="lm-note">The model menu offers what each provider lists for your key, with each
+          model's own limits. The lists are asked for when the app starts and when a key changes.
+          <b>Update model lists</b> asks every provider again now, and forgets the limits learnt
+          from earlier refusals.</p>
+        <div class="model-lists-row">
+          <button class="ghost lm-test" type="button" id="modelListsUpdate">Update model lists</button>
+          <span class="lm-note" id="modelListsWhen"></span>
+        </div>
+        <ul class="model-lists-report" id="modelListsReport" aria-live="polite"></ul>
+        <p class="lm-note model-lists-gone" id="modelListsGone" hidden>
+          <span id="modelListsGoneText"></span>
+          <button class="ghost lm-test" type="button" id="modelListsForgetGone">Offer them again</button>
+        </p>
+      </div>
       <div class="set-sec" data-api-group>Model providers</div>
       <div class="field">
         <label for="groqKey">Groq API key <span class="field-note">— free at <b>console.groq.com</b></span></label>
@@ -199,7 +215,7 @@
         <input class="control" id="anthropicKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="moonshotKey">Moonshot (Kimi) API key <span class="field-note">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context</span></label>
+        <label for="moonshotKey">Moonshot (Kimi) API key <span class="field-note">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context · Kimi for Code keys (sk-ki…) are refused from inside apps like this one</span></label>
         <input class="control" id="moonshotKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
@@ -215,7 +231,7 @@
         <input class="control" id="cerebrasKey" type="password" placeholder="csk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="sambaKey">SambaNova API key <span class="field-note">— free at <b>cloud.sambanova.ai</b></span></label>
+        <label for="sambaKey">SambaNova API key <span class="field-note">— its servers refuse requests from inside apps like this one, so its models are not offered</span></label>
         <input class="control" id="sambaKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
@@ -223,7 +239,7 @@
         <input class="control" id="openRouterKey" type="password" placeholder="sk-or-v1-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="nvidiaKey">NVIDIA NIM key <span class="field-note">— free big models at <b>build.nvidia.com</b></span></label>
+        <label for="nvidiaKey">NVIDIA NIM key <span class="field-note">— its servers refuse requests from inside apps like this one, so its models are not offered</span></label>
         <input class="control" id="nvidiaKey" type="password" placeholder="nvapi-…" spellcheck="false" autocomplete="off" />
       </div>
 

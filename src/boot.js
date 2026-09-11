@@ -83,6 +83,8 @@
     '/js/agent-shape.js',
     '/js/model-names.js',
     '/js/cloud-model-memory.js',
+    '/js/model-limits.js',
+    '/js/cloud-catalogue.js',
     '/js/cloud-model-fetch.js',
     '/js/memory.js',
     '/js/vector-map.js',
@@ -150,6 +152,7 @@
     '/core/memory/map.js',
     '/core/settings/local-model.js',
     '/core/settings/memory-pane.js',
+    '/core/settings/model-lists.js',
     '/core/rag/knowledge-base.js',
     '/core/sandbox/pyodide.js',
 

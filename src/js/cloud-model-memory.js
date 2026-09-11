@@ -58,8 +58,10 @@
     }
   }
 
+  const count = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined);
+
   /**
-   * A model record, reduced to the fields the dropdown actually uses.
+   * A model record, reduced to the fields the dropdown and the request sizing use.
    *
    * Anything without a `cloud:` value cannot become an option, so it is
    * dropped rather than stored — one malformed record must not cost the list.
@@ -73,6 +75,12 @@
         label: typeof m.label === 'string' ? m.label : m.value,
         shortLabel: typeof m.shortLabel === 'string' ? m.shortLabel : undefined,
         ...(m.imageGen ? { imageGen: true } : {}),
+        // The limits a provider's list gave, so a request made before the
+        // next list arrives is still sized by them (js/model-limits.js).
+        ...(count(m.ctx) ? { ctx: count(m.ctx) } : {}),
+        ...(count(m.out) ? { out: count(m.out) } : {}),
+        ...(typeof m.tools === 'boolean' ? { tools: m.tools } : {}),
+        ...(m.free ? { free: true } : {}),
       }));
   }
 

@@ -100,7 +100,11 @@ const LINE_BUDGET = {
   // src/js/model-routes.js for every mode, and when to ask a provider for its
   // list again after a failure is in cloud-model-memory.js; comments left
   // behind by functions that had already moved out went too.
-  'js/app.js': 6725,
+  // 6713, down from 6725. Asking the providers for their model lists and
+  // keeping the answers moved to src/js/cloud-catalogue.js; every refused
+  // request now keeps the provider's whole reply through one helper instead of
+  // each call site reading it itself.
+  'js/app.js': 6713,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -325,7 +329,9 @@ const LINE_BUDGET = {
   // 3874, down from 3891: copying the trace goes through the shared
   // src/js/trace-copy.js, which the Agent Swarm and the Systems run log use too.
   // 3873, down one: the planner's failover goes through src/js/model-routes.js.
-  'modes/forge/mode.js': 3873,
+  // 3855, down from 3873: waiting on a model while its plan keeps arriving is
+  // src/js/model-routes.js's quietSignal, not a fixed limit of its own.
+  'modes/forge/mode.js': 3855,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

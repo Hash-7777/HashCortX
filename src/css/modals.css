@@ -2160,3 +2160,16 @@ body.intro-exiting #intro-screen .logo-glow {
     animation-duration: 1ms;
   }
 }
+
+  /* Settings → API keys → Model lists: what each provider answered last time. */
+  .model-lists { display: flex; flex-direction: column; gap: var(--set-2); }
+  .model-lists p { margin: 0; line-height: 1.6; }
+  .model-lists-row { display: flex; align-items: center; gap: var(--set-3); flex-wrap: wrap; }
+  .model-lists-report { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .model-lists-report li { display: flex; gap: var(--set-2); align-items: baseline; line-height: 1.5; color: var(--text-dim); }
+  .model-lists-report b { color: var(--text); font-weight: 600; flex: 0 0 auto; }
+  .model-lists-report .ml-state { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+  .model-lists-report .ml-ok .ml-state { color: var(--ok); }
+  .model-lists-report .ml-bad .ml-state { color: var(--danger); }
+  .model-lists-report .ml-off .ml-state { color: var(--muted); }
+  .model-lists-report .ml-why { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }

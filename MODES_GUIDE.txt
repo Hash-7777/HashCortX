@@ -11,8 +11,9 @@ They all share your API keys and model picker — switch freely.
 ──────────────────────────────────────────────────────────────
 Your main conversation workspace. Talk to any model you have
 an API key for — Groq, Gemini, OpenAI, Anthropic, Cerebras,
-SambaNova, DeepSeek, Moonshot, Mistral, or a local model via
-Ollama. Supports file attachments, chat history, and projects 
+DeepSeek, Moonshot, Mistral, OpenRouter, or a local model via
+Ollama. The model menu is each provider's own list for your
+key; Settings → API keys → Update model lists asks again. Supports file attachments, chat history, and projects 
 to keep conversations organised. 
 Use /commands in the input bar to access shortcuts.
 
@@ -48,8 +49,8 @@ tab and run them here.
 A full coding agent that reads, writes, and edits files using
 real tools — not just text suggestions. It has its own chat
 history separate from the main Chats tab, its own file explorer, 
-its own model picker, and an auto-router that tries up to 
-10 providers automatically,
+its own model picker, and an auto-router that tries the other
+providers you have keys for automatically,
 if one rate-limits or fails. Supports all cloud providers and
 local models. Use it to write features, debug, refactor, or
 explain any codebase.
@@ -162,9 +163,9 @@ configured through the UI.
     modes unless a mode has its own picker (Code and Finance AI
     do). Set it to a model you have access to.
 
-  • The auto-router in Coder mode will fall back through up to
-    10 providers automatically — so even if one API rate-limits
-    you mid-session, the work keeps going.
+  • The auto-router in Coder mode will fall back through the
+    other providers you have keys for — so even if one API
+    rate-limits you mid-session, the work keeps going.
 
   • All data and chat history stays on your machine. Nothing
     is sent anywhere except the API call to your chosen

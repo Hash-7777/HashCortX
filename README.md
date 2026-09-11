@@ -44,9 +44,9 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Runs on** | macOS Apple Silicon — built and used daily. **Windows — tested on Windows 10**, with an installer in the release. Linux compiles and passes its tests in CI, but nobody has run the app there yet |
 | **License** | MIT |
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
-| **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
+| **AI providers** | 9 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, OpenRouter) + Ollama. SambaNova and NVIDIA keys can be saved, but their servers refuse requests from inside the app, so their models are not offered |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~45,500 lines JS, ~4,900 Rust |
-| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,477 source checks, every one of them run by CI on every push |
+| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,579 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
@@ -57,7 +57,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 
 **Nothing phones home.** No analytics, no crash reporting, no update pings. The only outbound connections are to providers you configured yourself.
 
-**Your keys, your models.** Eleven cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run.
+**Your keys, your models.** Nine cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run. The model menu is each provider's own list for your key — Settings → API keys → Update model lists asks them again — and every request asks for the longest answer that model can write, sized so the question and the answer fit.
 
 **The agent asks before it acts.** File and shell calls hit a Rust permission gate and a compiled denylist that no prompt can talk its way past.
 
@@ -198,7 +198,7 @@ Silicon is unaffected either way.
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # 4,477 checks over the real source
+npm run check                                     # 4,579 checks over the real source
 cargo test --manifest-path src-tauri/Cargo.toml   # 102 tests
 ```
 
@@ -251,7 +251,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 | Type | Native app | VS Code fork | CLI | Extension | Terminal CLI | Extension | Native editor |
 | License | MIT | Proprietary | Proprietary | Apache 2.0 | Apache 2.0 | Apache 2.0 | GPL/AGPL |
 | Free | Bring your own key | Subscription | Subscription or API | Yes | Yes | Yes | Yes |
-| Cloud providers | 11 | Limited | Anthropic only | Many | Many | Many | Several |
+| Cloud providers | 9 | Limited | Anthropic only | Many | Many | Many | Several |
 | Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
 | Multi-agent swarms | Yes | No | No | No | No | No | No |
 | Workspaces beyond coding | 8 | No | No | No | No | No | No |
@@ -325,7 +325,7 @@ They interlock, through files on your disk rather than a service:
 
 <br>
 
-**HashCortx** · One window · Twelve providers · Zero data leak · Local-first · MIT
+**HashCortx** · One window · Ten providers · Zero data leak · Local-first · MIT
 
 [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 

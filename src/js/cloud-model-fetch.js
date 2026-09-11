@@ -1,292 +1,259 @@
 // ==============================================================
 // Asking each provider what models it has
 //
-// Ten providers, ten different answers to the same question. Most speak the
-// OpenAI shape and return `{ data: [{ id }] }`; Google returns `{ models:
-// [{ name: "models/gemini-…" }] }` and needs the prefix stripped; OpenRouter
-// returns every model on the internet and has to be cut down to the free ones;
-// Anthropic returns a display name worth using instead of a prettified id.
+// Every provider answers the same question differently. Most speak the
+// OpenAI shape, `{ data: [{ id }] }`; Google returns `{ models: [...] }` a page
+// at a time and names each model "models/…"; Anthropic pages too, and needs
+// a header before a web page may ask it anything; OpenRouter lists hundreds
+// of models, of which a key without credit can use only the free ones.
 //
-// This is the part of the app that goes out of date without anyone touching
-// it. Providers add and retire models continuously, so these functions are
-// what keeps the menu honest — and they sat inside a seven-thousand-line file
-// where no check could reach them, which is precisely backwards for the code
-// most likely to need changing.
+// What the lists say beyond a name is the point of reading them. Most say
+// how much each model can read and how long an answer it can write, and some
+// say whether it can call tools. Those limits were thrown away here, so
+// every request went out without knowing them and answers were cut off at
+// whatever a provider defaulted to. They are kept now, on each model:
 //
-// The four things they need from the app are passed in, not reached for:
+//   ctx    how many tokens it reads — the question and the answer together
+//   out    the longest answer it can write
+//   tools  whether it can call tools, when the list says
+//   free   whether it costs nothing, when the list says
 //
-//   prettify      a raw model id turned into something readable
-//   isExcluded    the app's own list of models not worth offering
-//   seed          what to answer with when a provider gives nothing usable
-//   moonshotApi   Moonshot's request helper, which handles its several hosts
-//   sortMoonshotIds  Moonshot's own ordering, which lives with the providers
+// A list is also cut down to what can hold a conversation — no speech,
+// embedding, image-only or safety-classifier models — and to what answers the
+// chat interface this app uses, rather than to a hand-picked few.
 //
-// That is what lets scripts/checks/cloud-model-fetch.mjs run every one of them
-// against a recorded answer, with no app and no network in the way.
+// A fetcher that cannot get a list throws, with the provider's own reason;
+// js/cloud-catalogue.js decides what the menu shows instead and records why.
 //
-// Loaded before app.js and published as window.HCCloudModelFetch.
+// Two providers have no fetcher: SambaNova and NVIDIA refuse every request
+// made from inside the app (js/providers.js), so there is no list to read.
+//
+// What the fetchers need from the app is passed in, so
+// scripts/checks/cloud-model-fetch.mjs runs every one of them against a
+// recorded answer. Published as window.HCCloudModelFetch.
 // ==============================================================
 
 (function () {
   'use strict';
 
-  /**
-   * The ten fetchers, bound to the app's own helpers.
-   *
-   * Returns the map `loadCloudModelsFor` indexes by provider id.
-   */
-  function create(deps) {
-    const prettifyModelId    = deps.prettify;
-    const isExcludedCloudModel = deps.isExcluded;
-    const seedModelsFor      = deps.seed;
-    const fetchMoonshotApi   = deps.moonshotApi;
-    const sortMoonshotModelIds = deps.sortMoonshotIds;
-
-  // Pretty-print a raw model id into a label.
-  // "llama-3.3-70b-versatile"  → "Llama 3.3 70B Versatile"
-  // "openai/gpt-oss-120b:free" → "GPT OSS 120B (free)" with provider suffix added later
-  async function fetchGroqModels(apiKey) {
-    const r = await fetch("https://api.groq.com/openai/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`Groq /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .filter(m => m.active !== false && (m.object === "model" || !m.object))
-      .map(m => m.id)
-      .filter(id => !/whisper|tts|guard|embed|orpheus|allam|speech|safeguard|prompt-guard|compound/i.test(id))
-      .sort();
-    return list.map(id => ({
-      value: `cloud:groq:${id}`,
-      label: `${prettifyModelId(id)} · Groq`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  async function fetchGeminiModels(apiKey) {
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
-    );
-    if (!r.ok) throw new Error(`Gemini /models ${r.status}`);
-    const j = await r.json();
-    // Keep the models that can hold a conversation, and drop the generation
-    // that is deprecated.
-    //
-    // This used to admit `gemini-2.` and nothing else. That reads as "the
-    // current generation" and behaves as "this one generation forever": the
-    // day Google ships the next number, every model in it is filtered out
-    // here and the menu quietly stops offering anything new, while the fetch
-    // still reports success. Naming what is gone rather than what is current
-    // is the version of this rule that does not need editing on a schedule.
-    const ids = (j.models || [])
-      .filter(m => Array.isArray(m.supportedGenerationMethods) &&
-                   m.supportedGenerationMethods.includes("generateContent"))
-      .map(m => String(m.name || "").replace(/^models\//, ""))
-      .filter(id => id &&
-        /^gemini-/i.test(id) &&
-        !/^gemini-1\./i.test(id) &&
-        !/embedding|aqa|tts|deep-research|veo|learnlm|exp-/i.test(id))
-      .sort();
-    // Text models first, image-gen models last
-    const textIds  = ids.filter(id => !/image-generation/i.test(id));
-    const imageIds = ids.filter(id => /image-generation/i.test(id));
-    return [
-      ...textIds.map(id => ({
-        value: `cloud:gemini:${id}`,
-        label: `${prettifyModelId(id)} · Google`,
-        shortLabel: prettifyModelId(id),
-      })),
-      ...imageIds.map(id => ({
-        value: `cloud:gemini:${id}`,
-        label: `${prettifyModelId(id)} · Google`,
-        shortLabel: `${prettifyModelId(id)} ✦`,
-        imageGen: true,
-      })),
-    ];
-  }
-
-  async function fetchOpenRouterModels(apiKey) {
-    const headers = {};
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-    const r = await fetch("https://openrouter.ai/api/v1/models", { headers });
-    if (!r.ok) throw new Error(`OpenRouter /models ${r.status}`);
-    const j = await r.json();
-    const isFree = (m) => /:free$/i.test(String(m.id || ""));
-    const list = (j.data || [])
-      .filter(isFree)
-      .map(m => ({ id: m.id, name: m.name || m.id }))
-      .filter(m => m.id.includes("/") && !/embedding|moderation|rerank|ocr|tts|whisper|venice|thudm\/glm|glm-z/i.test(m.id))
-      .filter(m => !isExcludedCloudModel(m))
-      .sort((a, b) => a.id.localeCompare(b.id));
-    return list.map(m => ({
-      value: `cloud:openrouter:${m.id}`,
-      label: `${m.name.replace(/\s*\(free\)\s*$/i, "")} (free) · OpenRouter`,
-      shortLabel: `${m.name.replace(/\s*\(free\)\s*$/i, "")} (free)`,
-    }));
-  }
-
-  async function fetchCerebrasModels(apiKey) {
-    if (!apiKey) return seedModelsFor("cerebras");
-    const r = await fetch("https://api.cerebras.ai/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`Cerebras /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .map(m => m.id)
-      .filter(id => id && !/embedding|guard|tts|whisper|vision|glm|zai/i.test(id))
-      .sort();
-    if (!list.length) return seedModelsFor("cerebras");
-    return list.map(id => ({
-      value: `cloud:cerebras:${id}`,
-      label: `${prettifyModelId(id)} · Cerebras`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  async function fetchSambaModels(apiKey) {
-    if (!apiKey) return seedModelsFor("samba");
-    const r = await fetch("https://api.sambanova.ai/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`SambaNova /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .map(m => m.id)
-      .filter(id => id && !/embedding|guard|tts|audio/i.test(id))
-      .sort();
-    if (!list.length) return seedModelsFor("samba");
-    return list.map(id => ({
-      value: `cloud:samba:${id}`,
-      label: `${prettifyModelId(id)} · SambaNova`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  async function fetchOpenAIModels(apiKey) {
-    if (!apiKey) return seedModelsFor("openai");
-    const r = await fetch("https://api.openai.com/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`OpenAI /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .map(m => m.id)
-      .filter(id => id && /^gpt-|^[oO][0-9]/.test(id) && !/embedding|tts|whisper|dall|moderation|instruct/i.test(id))
-      .sort();
-    if (!list.length) return seedModelsFor("openai");
-    return list.map(id => ({
-      value: `cloud:openai:${id}`,
-      label: `${prettifyModelId(id)} · OpenAI`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  // Anthropic was the one provider still answering from the hand-written
-  // catalogue: this used to return it unconditionally, with a comment saying
-  // no public /models endpoint existed. One does, and has for a while, so
-  // Claude was the only list in the app that could never learn a new model —
-  // which is the worst place for that to be true, because the names carry
-  // dates and go stale on a schedule.
-  //
-  // The list is ordered newest first. Anthropic returns it oldest first, and
-  // a person opening this menu is far more often after the model that just
-  // came out than the one from two years ago.
-  async function fetchAnthropicModels(apiKey) {
-    if (!apiKey) return seedModelsFor("anthropic");
-    const r = await fetch("https://api.anthropic.com/v1/models?limit=1000", {
-      headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-    });
-    if (!r.ok) throw new Error(`Anthropic /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .filter(m => m && typeof m.id === "string")
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")));
-    return list.map(m => {
-      // display_name is what Anthropic calls the model in its own console.
-      // Falling back to the prettified id keeps a brand-new model readable on
-      // the day it ships, before the field is populated.
-      const name = m.display_name || prettifyModelId(m.id);
-      return {
-        value: `cloud:anthropic:${m.id}`,
-        label: `${name} · Anthropic`,
-        shortLabel: name,
-      };
-    });
-  }
-
-  async function fetchMoonshotModels(apiKey) {
-    if (!apiKey) return seedModelsFor("moonshot");
-    const { res } = await fetchMoonshotApi("/models", apiKey, () => ({
-      method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}` },
-    }));
-    const j = await res.json();
-    const list = sortMoonshotModelIds((j.data || [])
-      .map(m => m.id)
-      .filter(id => id && !/embedding|tts|image/i.test(id))
-    );
-    if (!list.length) return seedModelsFor("moonshot");
-    return list.map(id => ({
-      value: `cloud:moonshot:${id}`,
-      label: `${prettifyModelId(id)} · Kimi`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  async function fetchDeepSeekModels(apiKey) {
-    if (!apiKey) return seedModelsFor("deepseek");
-    const r = await fetch("https://api.deepseek.com/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`DeepSeek /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .map(m => m.id)
-      .filter(id => id && !/embedding|image/i.test(id))
-      .sort();
-    if (!list.length) return seedModelsFor("deepseek");
-    return list.map(id => ({
-      value: `cloud:deepseek:${id}`,
-      label: `${prettifyModelId(id)} · DeepSeek`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  async function fetchMistralModels(apiKey) {
-    if (!apiKey) return seedModelsFor("mistral");
-    const r = await fetch("https://api.mistral.ai/v1/models", {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-    if (!r.ok) throw new Error(`Mistral /models ${r.status}`);
-    const j = await r.json();
-    const list = (j.data || [])
-      .map(m => m.id)
-      .filter(id => id && !/embed/i.test(id))
-      .sort();
-    if (!list.length) return seedModelsFor("mistral");
-    return list.map(id => ({
-      value: `cloud:mistral:${id}`,
-      label: `${prettifyModelId(id)} · Mistral`,
-      shortLabel: prettifyModelId(id),
-    }));
-  }
-
-  const CLOUD_FETCHERS = {
-    groq: fetchGroqModels,
-    gemini: fetchGeminiModels,
-    openrouter: fetchOpenRouterModels,
-    cerebras: fetchCerebrasModels,
-    samba: fetchSambaModels,
-    openai: fetchOpenAIModels,
-    anthropic: fetchAnthropicModels,
-    moonshot: fetchMoonshotModels,
-    deepseek: fetchDeepSeekModels,
-    mistral: fetchMistralModels,
+  const NAMES = {
+    groq: 'Groq', gemini: 'Google', openrouter: 'OpenRouter', cerebras: 'Cerebras', openai: 'OpenAI',
+    anthropic: 'Anthropic', moonshot: 'Kimi', deepseek: 'DeepSeek', mistral: 'Mistral',
   };
 
-    return CLOUD_FETCHERS;
+  /** Models that do not hold a conversation, by the words their names use. */
+  const NOT_CHAT = /embed|whisper|\btts\b|-tts|transcri|speech|orpheus|playai|guard|safety|moderation|rerank|\bclip\b|dall-e|imagen|\bveo\b|native-audio|realtime/i;
+
+  const count = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined);
+
+  /** A menu entry for a model, with whatever limits its list gave. */
+  function entry(provider, id, name, extra = {}) {
+    const m = { value: `cloud:${provider}:${id}`, label: `${name} · ${NAMES[provider]}`, shortLabel: name };
+    const ctx = count(extra.ctx);
+    const out = count(extra.out);
+    if (ctx) m.ctx = ctx;
+    if (out) m.out = out;
+    if (typeof extra.tools === 'boolean') m.tools = extra.tools;
+    if (extra.free) m.free = true;
+    if (extra.imageGen) m.imageGen = true;
+    return m;
   }
 
-  window.HCCloudModelFetch = { create };
+  /** The reason a provider gave for refusing, in a few words. */
+  async function refusal(label, res) {
+    let reason = '';
+    try {
+      const text = await res.text();
+      try {
+        const j = JSON.parse(text);
+        reason = (j.error && (j.error.message || j.error)) || j.message || j.detail || '';
+      } catch { reason = text; }
+    } catch { /* no body */ }
+    reason = String(typeof reason === 'string' ? reason : JSON.stringify(reason)).replace(/\s+/g, ' ').trim().slice(0, 160);
+    return new Error(`${label} would not list its models (HTTP ${res.status})${reason ? `: ${reason}` : ''}`);
+  }
+
+  function create(deps) {
+    const prettify = deps.prettify;
+    const isExcluded = deps.isExcluded;
+    const moonshotApi = deps.moonshotApi;
+    const sortMoonshotIds = deps.sortMoonshotIds;
+
+    async function getJson(label, url, headers = {}) {
+      const res = await fetch(url, { headers, referrerPolicy: 'no-referrer' });
+      if (!res.ok) throw await refusal(label, res);
+      return res.json();
+    }
+
+    const byName = (a, b) => a.value.localeCompare(b.value);
+
+    async function fetchGroqModels(apiKey) {
+      const j = await getJson('Groq', 'https://api.groq.com/openai/v1/models', { Authorization: `Bearer ${apiKey}` });
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && m.active !== false && !NOT_CHAT.test(m.id))
+        .map((m) => entry('groq', m.id, prettify(m.id), { ctx: m.context_window, out: m.max_completion_tokens }))
+        .sort(byName);
+    }
+
+    // Google returns fifty models to a page unless asked for more, and every
+    // page after the first used to be ignored.
+    async function fetchGeminiModels(apiKey) {
+      const models = [];
+      let token = '';
+      for (let page = 0; page < 20; page++) {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${encodeURIComponent(apiKey)}${token ? `&pageToken=${encodeURIComponent(token)}` : ''}`;
+        const j = await getJson('Google', url);
+        models.push(...(j.models || []));
+        token = j.nextPageToken || '';
+        if (!token) break;
+      }
+      const list = models
+        .filter((m) => m && Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+        .map((m) => ({ m, id: String(m.name || '').replace(/^models\//, '') }))
+        // The 1.x generation is retired; naming what is gone rather than what
+        // is current means a new generation is never filtered out.
+        .filter(({ id }) => /^(gemini|gemma)-/i.test(id) && !/^gemini-1\./i.test(id) && !NOT_CHAT.test(id) && !/aqa|live|computer-use|robotics|learnlm|deep-research/i.test(id))
+        .map(({ m, id }) => entry('gemini', id, m.displayName || prettify(id), {
+          ctx: m.inputTokenLimit,
+          out: m.outputTokenLimit,
+          // Gemma on this API takes no tools and no system instruction.
+          tools: !/^gemma-/i.test(id),
+          imageGen: /image/i.test(id),
+        }))
+        .sort(byName);
+      // Text models first, image models last.
+      return [...list.filter((m) => !m.imageGen), ...list.filter((m) => m.imageGen)];
+    }
+
+    // Every model OpenRouter lists, not only the free ones — when this key has
+    // credit to pay for them. A key without credit gets the free models only,
+    // since every paid one would be refused.
+    async function fetchOpenRouterModels(apiKey) {
+      const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+      const [j, key] = await Promise.all([
+        getJson('OpenRouter', 'https://openrouter.ai/api/v1/models', headers),
+        apiKey ? getJson('OpenRouter', 'https://openrouter.ai/api/v1/key', headers).catch(() => null) : null,
+      ]);
+      const account = key && key.data;
+      const canPay = !!account && account.is_free_tier === false && (account.limit_remaining == null || account.limit_remaining > 0);
+      const now = Date.now();
+      const list = (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && m.id.includes('/') && !m.id.startsWith('~'))
+        .filter((m) => ((m.architecture && m.architecture.output_modalities) || ['text']).includes('text'))
+        .filter((m) => !m.expiration_date || !(Date.parse(m.expiration_date) <= now))
+        .filter((m) => !NOT_CHAT.test(m.id) && !/venice|thudm\/glm|glm-z/i.test(m.id) && !isExcluded(m))
+        .map((m) => {
+          const p = m.pricing || {};
+          const free = /:free$/i.test(m.id) || (String(p.prompt) === '0' && String(p.completion) === '0');
+          const name = String(m.name || m.id).replace(/\s*\(free\)\s*$/i, '');
+          const top = m.top_provider || {};
+          return entry('openrouter', m.id, free ? `${name} (free)` : name, {
+            ctx: top.context_length || m.context_length,
+            out: top.max_completion_tokens,
+            tools: Array.isArray(m.supported_parameters) ? m.supported_parameters.includes('tools') : undefined,
+            free,
+          });
+        })
+        .filter((m) => m.free || canPay)
+        .sort((a, b) => (b.free ? 1 : 0) - (a.free ? 1 : 0) || byName(a, b));
+      list.note = canPay ? 'paid models included — this key has credit'
+        : apiKey ? 'free models only — this key has no credit for paid ones'
+          : 'free models only — add a key to see paid ones';
+      return list;
+    }
+
+    async function fetchCerebrasModels(apiKey) {
+      const j = await getJson('Cerebras', 'https://api.cerebras.ai/v1/models', { Authorization: `Bearer ${apiKey}` });
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id))
+        .map((m) => entry('cerebras', m.id, prettify(m.id), { ctx: m.context_length || m.context_window, out: m.max_completion_tokens }))
+        .sort(byName);
+    }
+
+    // Everything that answers the Chat Completions interface. The models that
+    // only answer OpenAI's Responses interface — the "pro", codex, deep-research
+    // and computer-use models — and the audio, image, search and embedding
+    // models are left out, since this app could not use them.
+    async function fetchOpenAIModels(apiKey) {
+      const j = await getJson('OpenAI', 'https://api.openai.com/v1/models', { Authorization: `Bearer ${apiKey}` });
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && /^(gpt-|o\d|chatgpt-)/i.test(m.id))
+        .filter((m) => !NOT_CHAT.test(m.id) && !/instruct|audio|transcribe|search|image|codex|computer-use|deep-research|(^|-)pro(-|$)/i.test(m.id))
+        .sort((a, b) => (b.created || 0) - (a.created || 0) || String(a.id).localeCompare(String(b.id)))
+        .map((m) => entry('openai', m.id, prettify(m.id), { tools: true }));
+    }
+
+    // Newest first, as Anthropic lists them. Each model says how much it reads
+    // and the longest answer it can write.
+    async function fetchAnthropicModels(apiKey) {
+      const headers = { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
+      const models = [];
+      let after = '';
+      for (let page = 0; page < 20; page++) {
+        const j = await getJson('Anthropic', `https://api.anthropic.com/v1/models?limit=1000${after ? `&after_id=${encodeURIComponent(after)}` : ''}`, headers);
+        models.push(...(j.data || []));
+        if (!j.has_more || !j.last_id) break;
+        after = j.last_id;
+      }
+      return models
+        .filter((m) => m && typeof m.id === 'string')
+        .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+        .map((m) => entry('anthropic', m.id, m.display_name || prettify(m.id), { ctx: m.max_input_tokens, out: m.max_tokens, tools: true }));
+    }
+
+    async function fetchMoonshotModels(apiKey) {
+      // A Kimi for Code key only works on Kimi's Claude-style servers, and
+      // those refuse every request made from inside an app like this one.
+      if (deps.kimiCodeKey && deps.kimiCodeKey(apiKey)) throw new Error('Kimi for Code keys (sk-ki…) are refused from inside apps like this one — a platform key from platform.kimi.ai works');
+      const { res } = await moonshotApi('/models', apiKey, () => ({
+        method: 'GET',
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }));
+      if (!res.ok) throw await refusal('Kimi', res);
+      const j = await res.json();
+      const byId = new Map((j.data || []).filter((m) => m && typeof m.id === 'string').map((m) => [m.id, m]));
+      return sortMoonshotIds([...byId.keys()].filter((id) => !NOT_CHAT.test(id) && !/image/i.test(id)))
+        .map((id) => entry('moonshot', id, prettify(id), { ctx: byId.get(id).context_length }));
+    }
+
+    async function fetchDeepSeekModels(apiKey) {
+      const j = await getJson('DeepSeek', 'https://api.deepseek.com/v1/models', { Authorization: `Bearer ${apiKey}` });
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id) && !/image/i.test(m.id))
+        .map((m) => entry('deepseek', m.id, prettify(m.id)))
+        .sort(byName);
+    }
+
+    // Mistral says of each model whether it chats, whether it calls tools,
+    // how much it reads, and when it is being retired.
+    async function fetchMistralModels(apiKey) {
+      const j = await getJson('Mistral', 'https://api.mistral.ai/v1/models', { Authorization: `Bearer ${apiKey}` });
+      const now = Date.now();
+      const seen = new Set();
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id) && !/ocr/i.test(m.id))
+        .filter((m) => !m.archived && !(m.capabilities && m.capabilities.completion_chat === false))
+        .filter((m) => !m.deprecation || !(Date.parse(m.deprecation) <= now))
+        .filter((m) => (seen.has(m.id) ? false : seen.add(m.id)))
+        .map((m) => entry('mistral', m.id, prettify(m.id), {
+          ctx: m.max_context_length,
+          tools: m.capabilities ? m.capabilities.function_calling === true : undefined,
+        }))
+        .sort(byName);
+    }
+
+    return {
+      groq: fetchGroqModels,
+      gemini: fetchGeminiModels,
+      openrouter: fetchOpenRouterModels,
+      cerebras: fetchCerebrasModels,
+      openai: fetchOpenAIModels,
+      anthropic: fetchAnthropicModels,
+      moonshot: fetchMoonshotModels,
+      deepseek: fetchDeepSeekModels,
+      mistral: fetchMistralModels,
+    };
+  }
+
+  window.HCCloudModelFetch = { create, NOT_CHAT };
 })();

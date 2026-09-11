@@ -3064,10 +3064,10 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       : "nothing was built, and nothing is on screen");
   }
 
-  // How long a model gets to write a plan before the run moves on. A cloud
-  // model had 45 s, which a free model writing a whole plan often needs more
-  // than; it was cut off and reported only as "Fetch is aborted".
-  const PLAN_MS = { cloud: 90_000, local: 120_000 };
+  // A model is waited on while its plan keeps arriving and dropped when it goes
+  // quiet. A fixed limit (45 s) cut slow models off mid-plan and reported only
+  // "Fetch is aborted"; a longer one just waits longer on a model that stalled.
+  const QUIET_MS = { cloud: { first: 90_000, between: 30_000 }, local: { first: 180_000, between: 60_000 } };
 
   async function askGodPlanWithFailover(prompt, prefs, signal) {
     const sel = $("frgModel_god");
@@ -3080,7 +3080,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     const routes = window.HCModelRoutes.createRun({
       options, strength: (o) => modelStrengthScore(o.value, o.label, true), label: modelLabel,
       shut: () => [...new Set(options().map((o) => providerFromValue(o.value)))].filter((p) => forgeProviderCooldown(p)),
-      note: (m) => log("Router", m, "warn"),
+      note: (m) => log("Router", m, "warn"), fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([prompt]) + 3500, 3000), // a model that cannot hold the plan is not asked
     });
     let current = routes.start(selectedModelFor("god") || providerModelsForForge(true)[0]?.[1] || "");
     let lastError = null;
@@ -3088,13 +3088,13 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       const provider = providerFromValue(current);
       if (sel && Array.from(sel.options).some((o) => o.value === current)) sel.value = current;
       if (i > 0) log("Router", `Retrying God Agent with ${modelLabel(current)}`, "warn");
-      const ms = provider === "local" ? PLAN_MS.local : PLAN_MS.cloud;
-      const routedSignal = timeoutSignal(signal, ms);
+      const quiet = QUIET_MS[provider === "local" ? "local" : "cloud"];
+      const routedSignal = window.HCModelRoutes.quietSignal(signal, quiet);
       try {
-        return await askModelForPlan(prompt, prefs, routedSignal.signal);
+        return await askModelForPlan(prompt, prefs, routedSignal.signal, routedSignal.tick);
       } catch (caught) {
         if (signal?.aborted) throw caught;
-        const err = routedSignal.signal.aborted ? Object.assign(new Error(`no answer within ${ms / 1000} s`), { timedOut: true }) : caught;
+        const err = routedSignal.signal.aborted ? Object.assign(new Error(routedSignal.heard() ? `stopped answering for ${quiet.between / 1000} s` : `no answer within ${quiet.first / 1000} s`), { timedOut: true }) : caught;
         lastError = err;
         log("God Agent", `${modelLabel(current)} failed · ${err.message || err}`, "warn");
         if (window.HCModelRoutes.failureKind(err) !== "retired") markForgeProviderFailure(provider, err);
@@ -3121,25 +3121,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     return plan;
   }
 
-  function timeoutSignal(parentSignal, ms) {
-    const ctrl = new AbortController();
-    let cleaned = false;
-    const abort = () => {
-      if (!ctrl.signal.aborted) ctrl.abort();
-    };
-    if (parentSignal?.aborted) abort();
-    else parentSignal?.addEventListener?.("abort", abort, { once: true });
-    const timer = setTimeout(abort, Math.max(5000, Number(ms) || 45_000));
-    return {
-      signal: ctrl.signal,
-      cleanup() {
-        if (cleaned) return;
-        cleaned = true;
-        clearTimeout(timer);
-        parentSignal?.removeEventListener?.("abort", abort);
-      },
-    };
-  }
 
   /**
    * The one call that designs the model.
@@ -3154,7 +3135,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    *
    * Forge is now offline again, which is what docs/SECURITY.md always said.
    */
-  async function askModelForPlan(prompt, prefs, signal) {
+  async function askModelForPlan(prompt, prefs, signal, onToken = null) {
     const api = window._H;
     const model = selectedModelFor("god");
     if (!api?.ollamaChat || !model) throw new Error("no model bridge");
@@ -3247,12 +3228,13 @@ Prompt: ${prompt}`;
     const text = await api.ollamaChat(model, [
       { role: "system", content: system },
       { role: "user", content: user },
-    ], null, signal);
+    ], onToken, signal);
     try {
       return parsePlan(text);
     } catch (err) {
       log("God Agent", `JSON repair pass · ${err.message || err}`, "warn");
-      const repaired = await repairForgeJson("object", prompt, text, signal, model);
+      onToken?.();
+      const repaired = await repairForgeJson("object", prompt, text, signal, model, onToken);
       return parsePlan(repaired);
     }
   }
@@ -3285,7 +3267,7 @@ Prompt: ${prompt}`;
     throw new Error("could not parse JSON " + expected);
   }
 
-  async function repairForgeJson(expected, prompt, badText, signal, modelValue) {
+  async function repairForgeJson(expected, prompt, badText, signal, modelValue, onToken = null) {
     const api = window._H;
     const model = modelValue || selectedModelFor("god");
     if (!api?.ollamaChat || !model) throw new Error("no JSON repair model");
@@ -3301,7 +3283,7 @@ Prompt: ${prompt}`;
         role: "user",
         content: `Prompt: ${prompt}\n\nMalformed model output to repair:\n${String(badText || "").slice(0, 9000)}`,
       },
-    ], null, signal);
+    ], onToken, signal);
   }
 
   function extractJsonSpan(text, expected) {

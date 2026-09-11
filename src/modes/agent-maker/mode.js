@@ -236,7 +236,7 @@ const SwarmMaker = (() => {
       messages,
       temperature: temp,
       signal,
-      untilFinished: true,
+      untilFinished: true, need: agentObj?.need || 0,
       tools: (kind) => {
         if (!agentObj) return [];
         if (kind === "gemini") return buildGeminiTools(agentObj);
@@ -327,12 +327,12 @@ const SwarmMaker = (() => {
     const providerRetries = {};   // provider → number of retries already done
     const MAX_ATTEMPTS = 6;
     let attemptNo = 0;
-    // What this agent has asked, and where to go next when a model fails — js/model-routes.js.
-    const routes = window.HCModelRoutes.createRun({ options: menuModels, note: (m) => traceAdd(agent.name, m, "warn"), label: modelTraceLabel });
+    // Where to go when a model fails, skipping any that cannot hold this job — js/model-routes.js, model-limits.js.
+    const need = execOptions.codeBuild ? 6000 : 1500;
+    const routes = window.HCModelRoutes.createRun({ options: menuModels, note: (m) => traceAdd(agent.name, m, "warn"), label: modelTraceLabel, fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([messages]), need) });
     activeModel = routes.start(activeModel);
 
-    // outer loop: try each model in the failover chain
-    while (true) {
+    while (true) { // try each model in the failover chain
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
       attemptNo++;
       traceAdd(agent.name, `Attempt ${attemptNo} using ${modelTraceLabel(activeModel)}`, "run");
@@ -341,7 +341,7 @@ const SwarmMaker = (() => {
         for (let round = 0; round < maxToolRounds; round++) {
           traceAdd(agent.name, `LLM round ${round + 1}/${maxToolRounds} · sending ${messages.length} message(s)`, "run");
           const result = await Promise.race([
-            callAgentLLM(activeModel, messages, signal, agent.temperature, { ...agent, model: activeModel }),
+            callAgentLLM(activeModel, messages, signal, agent.temperature, { ...agent, model: activeModel, need }),
             new Promise((_, rej) => setTimeout(() => rej(new Error(`Agent timeout after ${agent.timeout}s`)), timeoutMs))
           ]);
           if (result.tool_calls && result.tool_calls.length) {

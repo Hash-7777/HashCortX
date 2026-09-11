@@ -216,11 +216,11 @@
     const chain = [primary];
 
     // Fetch live available models so fallback IDs never go stale.
-    const liveModels = (typeof H?.getAvailableCloudModels === 'function') ? H.getAvailableCloudModels() : [];
+    const liveModels = (typeof window._H?.getAvailableCloudModels === 'function') ? window._H.getAvailableCloudModels() : [];
 
     for (const fb of ROUTER_FALLBACKS) {
       const key = (document.getElementById(fb.keyId)?.value || '').trim();
-      if (!key) continue;
+      if (!key || window.HCProviders?.isBrowserBlocked(fb.provider)) continue;
       if (primary.kind === 'openai' && primary.provider === fb.provider) continue;
 
       // Pick the best live model for this provider instead of a hardcoded ID.

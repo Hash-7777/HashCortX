@@ -52,7 +52,11 @@ check('null and undefined', usageFrom(null) === null && usageFrom(undefined) ===
 check('a non-object', usageFrom('nope') === null);
 
 console.log('\nEvery path that finishes a model turn records:');
-const paths = ['streamCloudModel', 'streamChat', 'agentTurnOllama', 'agentTurnOpenAI',
+// streamCloudModel is a wrapper that sends a refused request once more; the
+// turn itself, and its recording, is streamCloudModelOnce.
+check('streamCloudModel sends every request through the turn that records',
+  (appjs.slice(appjs.indexOf('async function streamCloudModel('), appjs.indexOf('async function streamCloudModelOnce(')).match(/streamCloudModelOnce\(/g) || []).length === 2);
+const paths = ['streamCloudModelOnce', 'streamChat', 'agentTurnOllama', 'agentTurnOpenAI',
                'agentTurnAnthropic', 'agentTurnGemini'];
 for (const name of paths) {
   const s = appjs.indexOf(`function ${name}(`);

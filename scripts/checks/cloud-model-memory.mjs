@@ -193,8 +193,9 @@ console.log('\nA list that did not arrive is asked for again:');
   M.remember('gemini', [model('a')], fakeStore());
   ok('a list that arrives clears the failure', !M.failedRecently('gemini', 'k1', t0 + 1000));
   const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
-  ok('the app waits out a recent failure before asking again', /if \(_modelMemory\.failedRecently\(provider, apiKey\)\) return seedModelsFor\(provider\);/.test(app));
-  ok('the app records both kinds of failure', (app.match(/_modelMemory\.noteFailure\(provider, apiKey\)/g) || []).length === 2);
+  const cat = readFileSync(join(root, 'src', 'js', 'cloud-catalogue.js'), 'utf8');
+  ok('the catalogue waits out a recent failure before asking again', /if \(!options\.force && deps\.memory\.failedRecently\(provider, key\)\) return seed\(provider\);/.test(cat));
+  ok('the catalogue records both kinds of failure', (cat.match(/deps\.memory\.noteFailure\(provider, key\)/g) || []).length === 2);
   ok('the lists are no longer asked for only once per launch', !/_cloudModelsFetchedOnce/.test(app));
 }
 

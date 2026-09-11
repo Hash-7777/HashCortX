@@ -94,6 +94,11 @@
     return typeof until === 'number' && until > now;
   }
 
+  /** Every model reported gone within the last two weeks. */
+  function listRetired(now = Date.now(), store = defaultStore()) {
+    return Object.entries(readRetired(store)).filter(([, until]) => typeof until === 'number' && until > now).map(([value]) => value);
+  }
+
   /** Forget every model marked gone. */
   function forgetRetired(store = defaultStore()) {
     try { store && store.removeItem(RETIRED_KEY); } catch { /* nothing to undo */ }
@@ -109,15 +114,16 @@
    * first. `options` is what a person can run — `{ value, label }` — and
    * `tried` what this run has already asked. A retired model is never offered,
    * and neither is any model of a provider in `avoid` — the accounts this run
-   * has already found out of quota or refusing the key. `strength` may be
-   * passed to rank by a mode's own judgement instead of the shared one.
+   * has already found out of quota or refusing the key — or one `fits` says
+   * cannot hold the job (js/model-limits.js). `strength` may be passed to rank
+   * by a mode's own judgement instead of the shared one.
    */
-  function nextRoutes({ failed, kind = 'other', options = [], tried = [], avoid = [], strength, now = Date.now(), store = defaultStore() } = {}) {
+  function nextRoutes({ failed, kind = 'other', options = [], tried = [], avoid = [], strength, fits, now = Date.now(), store = defaultStore() } = {}) {
     const score = strength || ((o) => rankOf(o.value, o.label));
     const skip = new Set([failed, ...tried].filter(Boolean));
     const shut = new Set(avoid);
     if (kind === 'limit' || kind === 'key') shut.add(providerOf(failed));
-    const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store));
+    const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)));
     const byStrength = (a, b) => score(b) - score(a);
     const from = providerOf(failed);
     const same = usable.filter((o) => providerOf(o.value) === from).sort(byStrength);
@@ -145,6 +151,9 @@
    *   strength   a mode's own ranking, or the shared one
    *   shut()     providers to leave alone for the moment (a cooldown); ignored
    *              when leaving them out would leave nothing to ask
+   *   fits(v)    whether a model can hold this job — the question and an answer
+   *              long enough — as js/model-limits.js knows it; a model that
+   *              cannot is not asked while one that can is left
    *   note(msg)  where to say that a model is gone
    *   label(v)   how a model is named in that message
    */
@@ -153,7 +162,7 @@
     const shut = opts.shut || (() => []);
     const note = opts.note || (() => {});
     const label = opts.label || ((v) => v);
-    const { strength } = opts;
+    const { strength, fits } = opts;
     const store = opts.store || defaultStore();
     const tried = [];
     const avoid = [];
@@ -161,9 +170,11 @@
       tried,
       /** The chosen model, unless its provider has said it is gone. */
       start(value) {
-        if (!value || !isRetired(value, Date.now(), store)) return value;
-        const next = nextRoutes({ failed: value, kind: 'retired', options: options(), strength, store })[0];
-        if (next) note(`${label(value)} was reported gone — using ${label(next)}`);
+        if (!value) return value;
+        const gone = isRetired(value, Date.now(), store);
+        if (!gone && (!fits || fits(value))) return value;
+        const next = nextRoutes({ failed: value, kind: gone ? 'retired' : 'other', options: options(), strength, fits, store })[0];
+        if (next) note(gone ? `${label(value)} was reported gone — using ${label(next)}` : `${label(value)} cannot hold this job on this account — using ${label(next)}`);
         return next || value;
       },
       /**
@@ -180,8 +191,44 @@
         }
         if (kind === 'limit' || kind === 'key') avoid.push(providerOf(culprit));
         for (const m of [failed, culprit]) if (m && !tried.includes(m)) tried.push(m);
-        const ask = (extra) => nextRoutes({ failed: culprit, kind, options: options(), tried, avoid: [...avoid, ...extra], strength, store })[0];
-        return ask(shut()) || ask([]) || null;
+        const ask = (extra, fit) => nextRoutes({ failed: culprit, kind, options: options(), tried, avoid: [...avoid, ...extra], strength, fits: fit, store })[0];
+        // A model that can hold the job first; failing that, any that answers.
+        return ask(shut(), fits) || ask([], fits) || ask(shut()) || ask([]) || null;
+      },
+    };
+  }
+
+  /**
+   * An abort that fires when nothing has arrived for too long, for a model
+   * whose answer is streamed: `first` to begin, then `between` pieces — call
+   * `tick` on each. A model still writing is never cut off, however long its
+   * answer; one that has stalled is not waited on. A fixed limit did both
+   * wrong: it cut slow models off mid-answer, and a longer one only waited
+   * longer on a model that had stopped.
+   */
+  // The browser's timers must be called as themselves: taken off `window` and
+  // called as a method of another object, they throw "Illegal invocation".
+  const REAL_TIMERS = { set: (fn, ms) => setTimeout(fn, ms), clear: (id) => clearTimeout(id) };
+
+  function quietSignal(parentSignal, { first, between }, timers = REAL_TIMERS) {
+    const ctrl = new AbortController();
+    let timer = null;
+    let cleaned = false;
+    let heard = false;
+    const abort = () => { if (!ctrl.signal.aborted) ctrl.abort(); };
+    const arm = (ms) => { timers.clear(timer); timer = timers.set(abort, ms); };
+    if (parentSignal && parentSignal.aborted) abort();
+    else if (parentSignal && parentSignal.addEventListener) parentSignal.addEventListener('abort', abort, { once: true });
+    arm(first);
+    return {
+      signal: ctrl.signal,
+      tick: () => { heard = true; if (!cleaned) arm(between); },
+      heard: () => heard,
+      cleanup() {
+        if (cleaned) return;
+        cleaned = true;
+        timers.clear(timer);
+        if (parentSignal && parentSignal.removeEventListener) parentSignal.removeEventListener('abort', abort);
       },
     };
   }
@@ -197,5 +244,5 @@
     }[kind] || 'it failed';
   }
 
-  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, forgetRetired, nextRoutes, createRun, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
+  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
 })();
