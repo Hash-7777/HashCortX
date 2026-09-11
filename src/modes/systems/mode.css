@@ -1678,3 +1678,10 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
    The file runs this panel; only the system and its own controls show. */
 .sys-standalone :is(.sys-header, .sys-library, .sys-trace-console, #sysToggleLibraryBtn, #sysPreviewImportBtn, [data-preview-export="app"]) { display: none; }
 .sys-standalone #system-maker-wrap { height: 100vh; padding-top: 0; top: 0; }
+
+/* styles.css switches selection off for the whole application; a run log has
+   to be granted it back, or a failed run can be read and never copied. */
+.sys-trace,
+.sys-trace *,
+.sys-trace-entries,
+.sys-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }

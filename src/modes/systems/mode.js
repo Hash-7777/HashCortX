@@ -2817,6 +2817,7 @@ Repair requirements:
       tc.classList.toggle("collapsed", !isCollapsed);
       tc.classList.toggle("expanded", isCollapsed);
     });
+    window.HCTraceCopy.wire($("sysTraceCopyBtn"), { host: () => $("sysTraceConsole")?.querySelector(".sys-trace-entries"), rowSelector: ".sys-trace-entry", title: "Systems run log" });
     $("sysTraceClearBtn")?.addEventListener("click", (e) => {
       e.stopPropagation();
       clearTrace();

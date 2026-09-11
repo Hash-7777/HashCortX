@@ -78,6 +78,7 @@
     '/js/chat/context.js',
     '/js/chat/failover.js',
     '/js/markdown-safe.js',
+    '/js/trace-copy.js',
     '/js/agent-shape.js',
     '/js/model-names.js',
     '/js/cloud-model-memory.js',

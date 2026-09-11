@@ -3594,26 +3594,9 @@ Prompt: ${prompt}`;
       tc.classList.toggle("expanded", open);
       tc.classList.toggle("collapsed", !open);
     });
-    $("frgTraceCopyBtn")?.addEventListener("click", async (e) => {
+    $("frgTraceCopyBtn")?.addEventListener("click", (e) => {
       e.stopPropagation();
-      const text = traceAsText();
-      const btn = e.currentTarget;
-      if (!text) { btn.textContent = "Empty"; setTimeout(() => { btn.textContent = "Copy"; }, 1200); return; }
-      try {
-        await navigator.clipboard.writeText(text);
-        btn.textContent = "Copied";
-      } catch {
-        // No clipboard permission: select it instead, so the keyboard still works.
-        const host = $("frgTraceEntries");
-        if (host) {
-          const range = document.createRange();
-          range.selectNodeContents(host);
-          const sel = window.getSelection();
-          sel.removeAllRanges(); sel.addRange(range);
-        }
-        btn.textContent = "Selected";
-      }
-      setTimeout(() => { btn.textContent = "Copy"; }, 1400);
+      window.HCTraceCopy.copy(e.currentTarget, traceAsText(), $("frgTraceEntries"));
     });
     $("frgTraceExportBtn")?.addEventListener("click", async (e) => {
       e.stopPropagation();

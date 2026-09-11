@@ -156,7 +156,9 @@ const LINE_BUDGET = {
   // any browser, running this mode's own code; opening on that one system
   // under its own key is here, building the file in js/systems/export-app.js.
   // 3225, down one: a close button that could never be shown is gone.
-  'modes/systems/mode.js': 3225,
+  // 3226, up one: the run log's Copy button is wired here; reading the log
+  // out as text is in src/js/trace-copy.js.
+  'modes/systems/mode.js': 3226,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
@@ -314,7 +316,9 @@ const LINE_BUDGET = {
   // changes; the geometry and the exported file do not, which is the sentence
   // the comment there exists to make, along with why the judgement is read
   // from the host-profile flag and never from the low-gpu class.
-  'modes/forge/mode.js': 3891,
+  // 3874, down from 3891: copying the trace goes through the shared
+  // src/js/trace-copy.js, which the Agent Swarm and the Systems run log use too.
+  'modes/forge/mode.js': 3874,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
@@ -345,7 +349,8 @@ const LINE_BUDGET = {
   // what that asks of a team, moved to src/js/swarm/task-kind.js unchanged.
   // 2356: a run applies the website rules to a copy of the team, not to the
   // saved team.
-  'modes/agent-maker/mode.js': 2356,
+  // 2352, down from 2356: section headers left behind by code that moved out.
+  'modes/agent-maker/mode.js': 2352,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

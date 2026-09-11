@@ -1763,3 +1763,7 @@ body.virtual-os-mode #app { display: none; }
   min-width: 0;
 }
 .void-term-input::placeholder { color: rgba(255,255,255,0.18); }
+/* styles.css switches selection off for the whole application; the trace has
+   to be granted it back, or a run can be read and never copied. */
+.void-trace-entries,
+.void-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }

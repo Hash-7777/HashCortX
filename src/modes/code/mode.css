@@ -1862,3 +1862,8 @@ body.coder-mode #app { display: none; }
 .cdr-trace-stage.run,.cdr-trace-icon.run,.cdr-trace-msg.run   { color: #60a5fa; }
 .cdr-trace-stage.warn,.cdr-trace-icon.warn,.cdr-trace-msg.warn{ color: var(--cdr-gold); }
 .cdr-trace-stage.err,.cdr-trace-icon.err,.cdr-trace-msg.err   { color: var(--cdr-error); }
+
+/* styles.css switches selection off for the whole application; the trace has
+   to be granted it back, or a run can be read and never copied. */
+.cdr-trace-entries,
+.cdr-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }

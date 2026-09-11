@@ -985,3 +985,8 @@ img.amk-empty-logo {
   from { opacity: 0; transform: scale(0.98); }
   to   { opacity: 1; transform: scale(1); }
 }
+
+/* styles.css switches selection off for the whole application; a trace has
+   to be granted it back, or a run can be read and never copied. */
+.amk-trace-entries,
+.amk-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }

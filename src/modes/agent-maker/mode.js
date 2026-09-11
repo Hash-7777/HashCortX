@@ -222,10 +222,6 @@ const SwarmMaker = (() => {
     saveBlueprints();
   }
 
-  // ── DAG cycle detection ────────────────────────────────────────────
-
-  // ── Auto-layout (topological sort → layered positions) ────────────
-
   // ── LLM call dispatcher ────────────────────────────────────────────
   async function callAgentLLM(modelValue, messages, signal, temperature) {
     const mv = modelValue || document.getElementById("model")?.value || "llama3.2";
@@ -529,8 +525,6 @@ const SwarmMaker = (() => {
       }
     }
   }
-
-  // Remove back-edges from a cycle by DFS; returns a cycle-free edge list
 
   // ── DAG execution engine (Promise.allSettled parallel lanes) ──────
   async function runDAG(bp, task, signal) {
@@ -2275,8 +2269,10 @@ function _polishToast(text, isError) {
       tc.classList.toggle("expanded", !exp);
     });
 
-    // Trace clear
-    document.getElementById("amkTraceClearBtn")?.addEventListener("click", () => {
+    window.HCTraceCopy.wire(document.getElementById("amkTraceCopyBtn"), { host: () => document.getElementById("amkTraceEntries"), rowSelector: ".amk-trace-entry", title: "Agent Swarm trace" });
+    // Trace clear. Its header opens and closes the trace, so the click stops here.
+    document.getElementById("amkTraceClearBtn")?.addEventListener("click", (e) => {
+      e.stopPropagation();
       const entries = document.getElementById("amkTraceEntries");
       if (entries) entries.innerHTML = "";
       const summary = document.getElementById("amkTraceSummary");
