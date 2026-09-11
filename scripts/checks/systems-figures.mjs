@@ -87,6 +87,14 @@ ok('paid, served and done are finished', ['Paid', 'Served', 'done'].every(F.isFi
 ok('cooking and booked are not', !F.isFinished('Cooking') && !F.isFinished('Booked'));
 ok('cancelled and no-show are dropped, not finished', F.isDropped('Cancelled') && F.isDropped('No-show') && !F.isFinished('Cancelled'));
 
+console.log('\nThe latest records:');
+{
+  const L = F.latest(orders, 'date', today, 3);
+  ok('newest first', L.map((r) => r.date).join() === '2026-09-05,2026-09-02,2026-08-21');
+  ok('none still to come', !F.latest(orders, 'date', today, 10).some((r) => r.date > today));
+  ok('with no date field, the first few as they are', F.latest(orders, null, today, 2).length === 2);
+}
+
 console.log('\nWhere a calendar opens:');
 {
   const d = (date) => ({ date });

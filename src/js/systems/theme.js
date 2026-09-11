@@ -162,8 +162,22 @@
     return out;
   }
 
+  /**
+   * How a system's opening dashboard is laid out: the table beside its charts
+   * ("operational"), its records by stage ("pipeline", which needs a stage
+   * field), or one headline figure over the months ("focus"). Unset, it is
+   * whichever of these the last system did not use and this one can show.
+   */
+  const DASHBOARDS = ['operational', 'pipeline', 'focus'];
+  function dashboardFor(chosen, previous, canPipeline, pick) {
+    const can = DASHBOARDS.filter((d) => d !== 'pipeline' || canPipeline);
+    if (can.includes(chosen)) return chosen;
+    const fresh = can.filter((d) => d !== previous);
+    return pick(fresh.length ? fresh : can);
+  }
+
   /** The typeface stack for a design's font. */
   const fontStack = (font) => FONTS[font] || FONTS.sans;
 
-  window.HCSystemsTheme = { themeVars, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack };
+  window.HCSystemsTheme = { themeVars, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
 })();

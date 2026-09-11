@@ -132,6 +132,15 @@
     };
   }
 
+  /** The latest records by their date, newest first, not counting any yet to come. */
+  function latest(records, dateFieldId, today, count = 6) {
+    if (!dateFieldId) return (records || []).slice(0, count);
+    return (records || [])
+      .filter((r) => { const d = String((r && r[dateFieldId]) || ''); return d && (!today || d.slice(0, 10) <= today); })
+      .sort((a, b) => String(b[dateFieldId]).localeCompare(String(a[dateFieldId])))
+      .slice(0, count);
+  }
+
   /**
    * The month a calendar opens on: this month if anything falls in it, else
    * the latest month the records reach, else the first month they have at
@@ -167,6 +176,6 @@
 
   window.HCSystemsFigures = {
     aggregate, numbers, monthOf, shiftMonth, dateFieldOf, latestMonth, monthlySeries, monthTrend,
-    kpiFrom, isFinished, isDropped, calendarStart,
+    kpiFrom, isFinished, isDropped, calendarStart, latest,
   };
 })();

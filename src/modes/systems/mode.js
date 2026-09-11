@@ -399,7 +399,7 @@ const SystemMaker = (() => {
       nav: spec.layout?.nav === "top" ? "top" : "sidebar",
       // A missing shell is picked, to suit the business, when the system is made.
       shell: window.HCSystemsTheme.DESIGN.shell.includes(spec.layout?.shell) ? spec.layout.shell : undefined,
-      dashboardStyle: spec.layout?.dashboardStyle || "operational",
+      dashboardStyle: window.HCSystemsTheme.DASHBOARDS.includes(spec.layout?.dashboardStyle) ? spec.layout.dashboardStyle : undefined,
     };
 
     const moduleNames = Array.isArray(spec.modules) && spec.modules.length
@@ -1288,8 +1288,10 @@ Repair requirements:
       // typeface, density and surface; its colours stay its industry's.
       const d = window.HCSystemsTheme.varyFrom(window.HCSystemsTheme.designOf(systems[0]), window.HCSystemsTheme.designOf(spec), pickRandom, spec.domain);
       Object.assign(spec.theme, { font: d.font, density: d.density, surface: d.surface });
-      spec.layout = { ...spec.layout, shell: d.shell, nav: d.shell === "top" ? "top" : "sidebar" };
-      trace(`Design: ${d.shell} layout · ${d.font} type · ${d.density} · ${d.surface} cards`, "data");
+      const home = spec.entities[spec.modules[0]?.entity];
+      const dashboardStyle = window.HCSystemsTheme.dashboardFor(spec.layout?.dashboardStyle, systems[0]?.layout?.dashboardStyle, !!STAGES().stageField(home), pickRandom);
+      spec.layout = { ...spec.layout, shell: d.shell, nav: d.shell === "top" ? "top" : "sidebar", dashboardStyle };
+      trace(`Design: ${d.shell} layout · ${d.font} type · ${d.density} · ${d.surface} cards · ${dashboardStyle} dashboard`, "data");
       systems.unshift(spec);
       activeId = spec.id;
       activeModuleId = spec.modules[0]?.id || "";
@@ -1399,7 +1401,7 @@ Repair requirements:
         case "calendar": return renderCalendar(records, entity);
         case "metric":   return renderMetric(records, entity, module, spec);
         case "feed":     return renderFeed(records, entity);
-        default:         return `${renderKpis(records, entity, module)}<div class="sys-content-grid">${renderTable(records, entity)}${renderSideWidgets(records, entity, selected, spec)}</div>`;
+        default:         return renderDashboard(records, entity, selected, spec, module);
       }
     })();
 
@@ -1783,6 +1785,52 @@ Repair requirements:
     const field = STAGES().pipelineField(entity?.id, getActive());
     const next = record && field ? STAGES().nextStage(field, record[field.id]) : null;
     return next == null ? "" : `<button type="button" class="sys-mini-btn sys-detail-next" data-action="stage-next" data-record-id="${esc(record.id)}">Move to ${esc(next)}</button>`;
+  }
+
+  /**
+   * The opening dashboard, in the layout the system was given: the table
+   * beside its charts, its records by stage, or one headline figure over the
+   * months. Every system used to open on the first.
+   */
+  function renderDashboard(records, entity, selected, spec, module) {
+    const style = spec.layout?.dashboardStyle || "operational";
+    const F = FIG();
+    const stage = STAGES().stageField(entity);
+    const dateField = F.dateFieldOf(entity);
+    if (style === "operational" || (style === "pipeline" && !stage)) {
+      return `${renderKpis(records, entity, module)}<div class="sys-content-grid">${renderTable(records, entity)}${renderSideWidgets(records, entity, selected, spec)}</div>`;
+    }
+    const recent = F.latest(records, dateField?.id, todayIso(), 6);
+    const recentPanel = `<div class="sys-widget"><div class="sys-widget-head"><span class="sys-widget-title">Latest</span></div>
+      <div class="sys-widget-body sys-dash-list">${recent.length ? recent.map(r => `<button type="button" class="sys-dash-row" data-action="edit" data-record-id="${esc(r.id)}">
+        <span>${esc(VIEW().recordLabel(r, entity))}</span>
+        <span class="sys-dash-row-meta">${stage ? formatCell(r[stage.id], stage) : ""} ${dateField ? esc(String(r[dateField.id] || "")) : ""}</span></button>`).join("") : `<div class="sys-empty-hint"><span>No records yet.</span></div>`}</div></div>`;
+    if (style === "pipeline") {
+      const cols = VIEW().boardColumns(records, stage);
+      return `${renderKpis(records, entity, module)}<div class="sys-dash-grid">
+        <div class="sys-widget"><div class="sys-widget-head"><span class="sys-widget-title">By ${esc(stage.label)}</span></div>
+          <div class="sys-widget-body sys-dash-stages">${cols.map(c => {
+            const here = records.filter(r => VIEW().boardColumnOf(r, stage) === c);
+            return `<div class="sys-dash-stage"><div class="sys-dash-stage-head"><span>${esc(c)}</span><b>${here.length}</b></div>
+              ${here.slice(0, 3).map(r => `<button type="button" class="sys-dash-chip" data-action="edit" data-record-id="${esc(r.id)}">${esc(VIEW().recordLabel(r, entity))}</button>`).join("")}
+              ${here.length > 3 ? `<span class="sys-dash-more">+${here.length - 3} more</span>` : ""}</div>`;
+          }).join("")}</div></div>
+        ${recentPanel}</div>`;
+    }
+    // focus: the first figure, large, month by month.
+    const numField = entity?.fields?.find(f => f.type === "number");
+    const def = (module?.kpis || []).map(k => F.kpiFrom(k, entity?.fields || [])).find(Boolean) || (numField ? { label: `Total ${numField.label}`, field: numField, how: "sum" } : { label: "Records", field: null, how: "count" });
+    const value = F.aggregate(records, def.field?.id, def.how);
+    const series = F.monthlySeries(records, dateField?.id, def.field?.id, def.how, todayIso(), 12);
+    const top = VIEW().safeMax(series.map(p => p.value)) || 1;
+    const trend = F.monthTrend(records, dateField?.id, def.field?.id, def.how, todayIso());
+    return `<div class="sys-dash-hero sys-widget">
+        <div class="sys-dash-hero-label">${esc(def.label)}</div>
+        <div class="sys-dash-hero-value">${esc(def.how === "count" ? VIEW().formatNumber(value) : showFigure(value, def.field))}</div>
+        ${trend ? `<div class="sys-dash-hero-trend ${trend.up ? "up" : "down"}">${esc(trend.text)} ${esc(trend.current)} vs ${esc(trend.previous)}</div>` : ""}
+        ${series.length ? `<div class="sys-dash-hero-bars" role="img" aria-label="${esc(def.label)} by month">${series.map(p => `<div class="sys-dash-hero-bar"><span style="height:${Math.max(2, Math.round((Math.max(0, p.value) / top) * 100))}%" title="${esc(`${p.label}: ${def.how === "count" ? p.value : showFigure(p.value, def.field)}`)}"></span><em>${esc(p.label)}</em></div>`).join("")}</div>` : ""}
+      </div>
+      <div class="sys-dash-grid">${recentPanel}${renderSideWidgets(records, entity, selected, spec)}</div>`;
   }
 
   function renderSideWidgets(records, entity, selected, spec) {
