@@ -46,7 +46,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, SambaNova, OpenRouter, NVIDIA NIM) + Ollama |
 | **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~45,500 lines JS, ~4,900 Rust |
-| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,320 source checks, every one of them run by CI on every push |
+| **Tests** | 102 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,347 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
@@ -78,7 +78,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | 03 | **3D Forge** | Describe a part, get a dimensioned solid you can print. Fuses to one watertight body, cuts real holes, exports in millimetres |
 | 04 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
 | 05 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
-| 06 | **ERP** | Describe a business, get a working prototype with linked records, stages you can move them through, and books worked out from its own sales; change it by asking, every version kept |
+| 06 | **ERP** | Describe a business, get a working prototype with linked records, stages you can move them through, and books worked out from its own sales; change it by asking, every version kept, and save it as one file that runs in any browser |
 | 07 | **Agent Swarm** | Chain mode, vote mode, automatic provider failover mid-run |
 | 08 | **Virtual OS** | A simulated project desktop an agent works inside |
 
@@ -198,7 +198,7 @@ Silicon is unaffected either way.
 Before pushing, run what CI runs:
 
 ```bash
-npm run check                                     # 4,320 checks over the real source
+npm run check                                     # 4,347 checks over the real source
 cargo test --manifest-path src-tauri/Cargo.toml   # 102 tests
 ```
 

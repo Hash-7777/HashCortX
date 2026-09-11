@@ -1673,3 +1673,8 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 
 /* ── Books worked out from the sales: read, not edited ─────────── */
 .sys-derived :is(#sysAddRecordBtn2, #sysImportBtn, #sysBulkDeleteBtn, #sysSelectAll, .sys-row-check, .sys-th-check, .sys-td-check, [data-action="edit"], [data-action="delete"], [data-action^="stage-"], .sys-detail-next) { display: none; }
+
+/* ── Exported as its own app (js/systems/export-app.js) ─────────────
+   The file runs this panel; only the system and its own controls show. */
+.sys-standalone :is(.sys-header, .sys-library, .sys-trace-console, #sysToggleLibraryBtn, #sysPreviewImportBtn, [data-preview-export="app"]) { display: none; }
+.sys-standalone #system-maker-wrap { height: 100vh; padding-top: 0; top: 0; }

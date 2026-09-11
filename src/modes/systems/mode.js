@@ -3,7 +3,10 @@
 // ════════════════════════════════════════════════════════════════════
 
 const SystemMaker = (() => {
-  const STORE_KEY = "hashui_system_specs_v1";
+  // Run as an exported file (js/systems/export-app.js): one system, kept under
+  // a key of its own, since every local file shares the browser's storage.
+  const STANDALONE = window.HCSystemStandalone || null;
+  const STORE_KEY = STANDALONE ? `hcx_app_${STANDALONE.spec.id}` : "hashui_system_specs_v1";
   const DATA_KEY_PREFIX = "hashui_system_data_";
   const UI_STORE_KEY = "hashui_system_ui_v1";
   const MAX_HISTORY = 12;
@@ -317,6 +320,15 @@ const SystemMaker = (() => {
   }
 
   function loadSystems() {
+    // An exported file opens on its own system; a newer export of it replaces
+    // what the browser kept of an older one.
+    if (STANDALONE && localStorage.getItem(`${STORE_KEY}_exported`) !== String(STANDALONE.exportedAt)) {
+      try {
+        localStorage.setItem(STORE_KEY, JSON.stringify([STANDALONE.spec]));
+        localStorage.setItem(dataKey(STANDALONE.spec.id), JSON.stringify(STANDALONE.data || {}));
+        localStorage.setItem(`${STORE_KEY}_exported`, String(STANDALONE.exportedAt));
+      } catch {}
+    }
     try {
       systems = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
       if (!Array.isArray(systems)) systems = [];
@@ -2557,6 +2569,26 @@ Repair requirements:
     trace(`Exported ${entity?.name} as CSV`, "ok");
   }
 
+  /**
+   * The system as one HTML file that runs in any browser: the mode's own
+   * scripts and styles, fetched from the app, around the system and its
+   * records (js/systems/export-app.js).
+   */
+  async function exportApp(spec) {
+    try {
+      trace("Building the app file…", "run");
+      const read = async (path) => {
+        const r = await fetch(path, { cache: "no-store" });
+        if (!r.ok) throw new Error(`${path} returned ${r.status}`);
+        return r.text();
+      };
+      const html = await window.HCSystemsExportApp.build(read, { spec, data: getRuntimeData(spec), exportedAt: Date.now() });
+      if (await saveExport(`${slug(spec.name)}.html`, html, "text/html")) trace(`Saved ${spec.name} as an app that opens in any browser`, "ok");
+    } catch (err) {
+      trace(`Could not build the app file: ${err?.message || err}`, "err");
+    }
+  }
+
   async function exportAllEntitiesCSV(spec) {
     const data = getRuntimeData(spec);
     const entities = Object.values(spec.entities || {});
@@ -2826,6 +2858,7 @@ Repair requirements:
       const spec = getActive();
       if (spec && btn.dataset.previewExport === "json") exportJSON(spec);
       if (spec && btn.dataset.previewExport === "csv") exportCSV(spec, activeEntityId);
+      if (spec && btn.dataset.previewExport === "app") exportApp(spec);
       setPreviewExportMenuOpen(false);
     });
     document.addEventListener("click", (e) => {
@@ -3165,7 +3198,7 @@ Repair requirements:
   }
 
   function mount() {
-    syncModelSelect();
+    if (!STANDALONE) syncModelSelect();
     if (!mounted) {
       mounted = true;
       loadUiState();

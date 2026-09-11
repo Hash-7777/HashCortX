@@ -152,7 +152,10 @@ const LINE_BUDGET = {
   // 3193, up from 3182: a system's books come from its own sales and follow
   // them on every save, read-only; one with no sales gets none. Where the
   // sales are and which are billed is in js/systems/books.js.
-  'modes/systems/mode.js': 3193,
+  // 3226, up from 3193: a system can be saved as one HTML file that runs it in
+  // any browser, running this mode's own code; opening on that one system
+  // under its own key is here, building the file in js/systems/export-app.js.
+  'modes/systems/mode.js': 3226,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

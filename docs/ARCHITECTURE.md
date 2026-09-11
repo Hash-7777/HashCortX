@@ -31,7 +31,7 @@ HashCortX/
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,545  virtual project desktop
-│   │   ├── systems/          3,193  ERP prototype generator
+│   │   ├── systems/          3,226  ERP prototype generator
 │   │   ├── agent-maker/      2,356  chain / vote / failover
 │   │   ├── code/             2,631  the Coder agent loop
 │   │   ├── finance/          2,378  financial document analysis
@@ -106,7 +106,7 @@ HashCortX/
 │   │   │                            file compared
 │   │   ├── forge/            4,917  Forge: fields, surfaces, units, the plan
 │   │   │                            gate, and io/ — STL, OBJ, 3MF and STEP
-│   │   ├── systems/          2,691  ERP: spec, money, domain, the generated books,
+│   │   ├── systems/          2,824  ERP: spec, money, domain, the generated books,
 │   │   │                            how every screen shows a record, the
 │   │   │                            figures its dashboards are worked out from,
 │   │   │                            and stand-ins for values a model left out
@@ -153,7 +153,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 93 files,
+├── scripts/checks/                  the automated frontend checks — 94 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -274,7 +274,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,730-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 4,320 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 4,347 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
