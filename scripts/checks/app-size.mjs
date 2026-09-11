@@ -96,7 +96,11 @@ const LINE_BUDGET = {
   // launches, so a launch starts from the real list rather than from the
   // catalogue written by hand. The six lines are the seed and the storing;
   // the rest is in src/js/cloud-model-memory.js.
-  'js/app.js': 6730,
+  // 6725, down from 6730. Which model to try after a failure is decided in
+  // src/js/model-routes.js for every mode, and when to ask a provider for its
+  // list again after a failure is in cloud-model-memory.js; comments left
+  // behind by functions that had already moved out went too.
+  'js/app.js': 6725,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -158,7 +162,9 @@ const LINE_BUDGET = {
   // 3225, down one: a close button that could never be shown is gone.
   // 3226, up one: the run log's Copy button is wired here; reading the log
   // out as text is in src/js/trace-copy.js.
-  'modes/systems/mode.js': 3226,
+  // 3220, down six. Which model to ask after a failure moved to
+  // src/js/model-routes.js, which also tries a retired model's provider again.
+  'modes/systems/mode.js': 3220,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
@@ -318,7 +324,8 @@ const LINE_BUDGET = {
   // from the host-profile flag and never from the low-gpu class.
   // 3874, down from 3891: copying the trace goes through the shared
   // src/js/trace-copy.js, which the Agent Swarm and the Systems run log use too.
-  'modes/forge/mode.js': 3874,
+  // 3873, down one: the planner's failover goes through src/js/model-routes.js.
+  'modes/forge/mode.js': 3873,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
@@ -350,7 +357,10 @@ const LINE_BUDGET = {
   // 2356: a run applies the website rules to a copy of the team, not to the
   // saved team.
   // 2352, down from 2356: section headers left behind by code that moved out.
-  'modes/agent-maker/mode.js': 2352,
+  // 2277, down from 2352. The per-role provider tables and the failover that
+  // took the first model of each provider in menu order gave way to
+  // src/js/model-routes.js, shared with the Systems builder and the Forge.
+  'modes/agent-maker/mode.js': 2277,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

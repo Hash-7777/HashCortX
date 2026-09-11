@@ -281,6 +281,19 @@
    * because each client takes a different tool shape and Swarm builds them
    * per call.
    */
+  /**
+   * A failed call says which model failed. A run can ask several models in
+   * turn, and js/model-routes.js retires the model an error names — blaming
+   * the wrong one retires a model that works.
+   */
+  function tagged(result, model) {
+    if (!result || typeof result.then !== 'function') return result;
+    return result.catch((err) => {
+      if (err && typeof err === 'object' && !err.model) err.model = model;
+      throw err;
+    });
+  }
+
   function routeModelTurn({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
@@ -289,10 +302,11 @@
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
     const base = { model: route.model, messages, tools: shaped, temperature, signal };
-    if (route.kind === 'ollama') return fns.ollama(base);
-    if (route.kind === 'gemini') return fns.gemini(base);
-    if (route.kind === 'anthropic') return fns.anthropic(base);
-    if (route.kind === 'openai') return fns.openai({ ...base, provider: route.provider });
+    const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
+    if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
+    if (route.kind === 'gemini') return tagged(fns.gemini(base), who);
+    if (route.kind === 'anthropic') return tagged(fns.anthropic(base), who);
+    if (route.kind === 'openai') return tagged(fns.openai({ ...base, provider: route.provider }), who);
     // Never fall through to the OpenAI client. That default is exactly what
     // sent Anthropic the wrong body: a provider nobody routed became one
     // silently shaped like OpenAI, and the failure looked like a bad key.

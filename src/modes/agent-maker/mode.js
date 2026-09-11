@@ -252,12 +252,6 @@ const SwarmMaker = (() => {
     return `${provider || "cloud"}:${model || "default"}`;
   }
 
-  // Returns whether an error looks like a rate-limit / quota / availability failure
-  function isRateLimitError(err) {
-    const msg = (err?.message || "").toLowerCase();
-    return /rate.?limit|quota|429|too many|capacity|overloaded|unavailable|timeout|timed.?out|not respond|network|failed to fetch/i.test(msg);
-  }
-
   // Hard incompatibility errors — provider / model can't run this request at all.
   // Treat like a provider failure: failover immediately, no wait.
   function isHardProviderError(err) {
@@ -265,44 +259,12 @@ const SwarmMaker = (() => {
     return /tool.{0,10}call(ing)?.{0,10}(not supported|unsupported|unavailable|disabled)|function.{0,10}call(ing)?.{0,10}not supported|does not support.{0,10}tool|tools?.{0,10}not.{0,10}supported|invalid_request_error|jsondecodeerror|expecting property name enclosed in double quotes|invalid.{0,20}(tool|function).{0,20}(json|arguments)|context.{0,10}length|maximum.{0,10}token|model.{0,10}not.{0,10}found|no such model/i.test(msg);
   }
 
-  // Provider priority per agent role — best fit first
-  const ROLE_PROVIDER_PRIORITY = {
-    researcher:  ["groq","openrouter","gemini","samba","cerebras"],
-    analyst:     ["groq","samba","openrouter","gemini","cerebras"],
-    coder:       ["openrouter","samba","groq","gemini","cerebras"],
-    writer:      ["gemini","openrouter","samba","groq","cerebras"],
-    critic:      ["openrouter","samba","gemini","groq","cerebras"],
-    validator:   ["cerebras","groq","openrouter","gemini","samba"],
-    supervisor:  ["samba","gemini","openrouter","groq","cerebras"],
-    custom:      ["groq","gemini","openrouter","samba","cerebras"],
-  };
-
-  // Build a role-prioritised list of fallback models, one per untried provider.
-  function getFailoverModels(currentModel, triedModels, role) {
-    const tried = new Set(triedModels);
-    tried.add(currentModel);
-    const triedProviders = new Set([...tried].map(v => v?.startsWith("cloud:") ? v.split(":")[1] : "local"));
-
-    // One model per provider from the dropdown
-    const opts = Array.from(document.getElementById("model")?.options || []).map(o => o.value).filter(v => v);
-    const providerMap = {};
-    for (const v of opts) {
-      const prov = v.startsWith("cloud:") ? v.split(":")[1] : "local";
-      if (!providerMap[prov]) providerMap[prov] = v;
-    }
-
-    const priority = ROLE_PROVIDER_PRIORITY[role] || ROLE_PROVIDER_PRIORITY.custom;
-    const pool = [];
-    // Add in role-priority order first
-    for (const prov of priority) {
-      if (!triedProviders.has(prov) && providerMap[prov]) pool.push(providerMap[prov]);
-    }
-    // Then any remaining providers not in the priority list
-    for (const [prov, v] of Object.entries(providerMap)) {
-      if (!triedProviders.has(prov) && !pool.includes(v)) pool.push(v);
-    }
-    return pool;
-  }
+  // What a person can run, for js/model-routes.js to choose the next one from.
+  // It orders by strength and by why the last one failed; this used to take
+  // the FIRST model of each other provider in menu order, whatever it was.
+  const menuModels = () => Array.from(document.getElementById("model")?.options || [])
+    .filter(o => o.value && !o.disabled)
+    .map(o => ({ value: o.value, label: o.textContent || o.value }));
 
   // Extract any useful partial progress from message history before switching models.
   // Returns a concise summary string or "" if nothing found.
@@ -359,11 +321,14 @@ const SwarmMaker = (() => {
 
     // Failover state
     let activeModel      = agent.model;
-    const triedModels    = [];
     let   failoverLog    = [];   // [{from, to, reason}] — passed to aggregator
     const RETRY_WAIT_MS  = 2000; // wait before same-provider retry (2 s)
     const providerRetries = {};   // provider → number of retries already done
+    const MAX_ATTEMPTS = 6;
     let attemptNo = 0;
+    // What this agent has asked, and where to go next when a model fails — js/model-routes.js.
+    const routes = window.HCModelRoutes.createRun({ options: menuModels, note: (m) => traceAdd(agent.name, m, "warn"), label: modelTraceLabel });
+    activeModel = routes.start(activeModel);
 
     // outer loop: try each model in the failover chain
     while (true) {
@@ -449,79 +414,38 @@ const SwarmMaker = (() => {
         if (err.name === "AbortError" || signal?.aborted) throw err;
         traceAdd(agent.name, `Attempt ${attemptNo} error · ${err.message.slice(0, 120)}`, "warn");
 
-        if (isRateLimitError(err)) {
-          const failedProv = activeModel?.startsWith("cloud:") ? activeModel.split(":")[1] : activeModel;
-
-          // Opt. 3 — retry same provider once after short wait if it's a transient rate-limit
-          const isQuota = /quota|free.?tier|insufficient.?credits|billing|exceeded/i.test(err.message || "");
-          const isTransient = !isQuota && /rate.?limit|429|too many|capacity|overloaded|temporar|try again/i.test(err.message || "");
-          providerRetries[failedProv] = (providerRetries[failedProv] || 0);
-          if (isTransient && providerRetries[failedProv] < 1) {
-            providerRetries[failedProv]++;
-            traceAdd(agent.name, `Rate limit on ${failedProv} — waiting 2 s before retry…`, "wait");
-            await new Promise(r => setTimeout(r, RETRY_WAIT_MS));
-            if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-            traceAdd(agent.name, `Retrying ${failedProv}…`, "wait");
-            continue;
-          }
-
-          // Opt. 1 — summarise partial progress before switching
-          triedModels.push(activeModel);
-          const progressSummary = summariseProgress(messages);
-          traceAdd(agent.name, progressSummary ? "Captured partial progress before failover" : "No partial progress captured before failover", "wait");
-
-          // Opt. 2 — pick next model ranked by role priority
-          const fallbacks = getFailoverModels(activeModel, triedModels, agent.role);
-          traceAdd(agent.name, fallbacks.length ? `Failover candidates: ${fallbacks.map(modelTraceLabel).join(", ")}` : "No failover candidates available", fallbacks.length ? "wait" : "err");
-          if (fallbacks.length) {
-            const next     = fallbacks[0];
-            const nextProv = next.startsWith("cloud:") ? next.split(":")[1] : next;
-            failoverLog.push({ from: failedProv, to: nextProv, reason: err.message.slice(0, 80) });
-            traceAdd(agent.name, `${failedProv} failed — switching to ${nextProv} (role priority)`, "wait");
-
-            activeModel = next;
-            // Reset message history to clean state, injecting progress summary so new model isn't cold
-            const sysMsg  = messages.find(m => m.role === "system");
-            const userMsg = messages.find(m => m.role === "user");
-            messages.length = 0;
-            if (sysMsg)  messages.push(sysMsg);
-            if (progressSummary) messages.push({ role: "system", content: progressSummary });
-            if (userMsg) messages.push(userMsg);
-            traceAdd(agent.name, `Rebuilt transcript for ${nextProv} · ${messages.length} message(s)`, "wait");
-            continue;
-          }
-
-          // All providers exhausted
-          traceAdd(agent.name, "All providers exhausted — giving up", "err");
+        // What to try next depends on why this one failed — js/model-routes.js.
+        const ROUTES = window.HCModelRoutes;
+        const kind = ROUTES.failureKind(err);
+        const failedProv = ROUTES.providerOf(activeModel);
+        // A short burst limit or an overloaded server can clear in seconds, so
+        // the same model gets one more try first. A spent quota does not clear.
+        const burst = kind === "busy" || (kind === "limit" && !/quota|free.?tier|credits|billing|exceeded|per day/i.test(err.message || ""));
+        if (burst && !providerRetries[failedProv]) {
+          providerRetries[failedProv] = 1;
+          traceAdd(agent.name, `${failedProv} is busy — waiting 2 s before one retry…`, "wait");
+          await new Promise(r => setTimeout(r, RETRY_WAIT_MS));
+          if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+          continue;
+        }
+        if (kind === "other" && !isHardProviderError(err)) throw err; // truly unexpected error — propagate
+        const progressSummary = summariseProgress(messages);
+        const next = attemptNo < MAX_ATTEMPTS ? routes.next(activeModel, err) : null;
+        if (!next) {
+          traceAdd(agent.name, "No other model left to try — giving up", "err");
           throw new Error(`All providers failed for agent "${agent.name}". Last error: ${err.message}`);
         }
-
-        // Hard provider incompatibility (tool calling not supported, model not found, etc.)
-        // Don't retry the same provider — failover immediately like a rate-limit switch.
-        if (isHardProviderError(err)) {
-          const failedProv = activeModel?.startsWith("cloud:") ? activeModel.split(":")[1] : activeModel;
-          triedModels.push(activeModel);
-          const fallbacks = getFailoverModels(activeModel, triedModels, agent.role);
-          traceAdd(agent.name, fallbacks.length ? `Compatibility failover candidates: ${fallbacks.map(modelTraceLabel).join(", ")}` : "No compatible failover candidates available", fallbacks.length ? "wait" : "err");
-          if (fallbacks.length) {
-            const next     = fallbacks[0];
-            const nextProv = next.startsWith("cloud:") ? next.split(":")[1] : next;
-            failoverLog.push({ from: failedProv, to: nextProv, reason: err.message.slice(0, 80) });
-            traceAdd(agent.name, `${failedProv} incompatible (${err.message.slice(0,60)}) — switching to ${nextProv}`, "wait");
-            activeModel = next;
-            // Keep messages intact (no partial work to summarise — the model failed before producing anything)
-            const sysMsg  = messages.find(m => m.role === "system");
-            const userMsg = messages.find(m => m.role === "user");
-            messages.length = 0;
-            if (sysMsg)  messages.push(sysMsg);
-            if (userMsg) messages.push(userMsg);
-            traceAdd(agent.name, `Rebuilt transcript for compatible provider · ${messages.length} message(s)`, "wait");
-            continue;
-          }
-          throw new Error(`No compatible provider found for agent "${agent.name}". Last error: ${err.message}`);
-        }
-
-        throw err; // truly unexpected error — propagate
+        failoverLog.push({ from: failedProv, to: ROUTES.providerOf(next), reason: err.message.slice(0, 80) });
+        traceAdd(agent.name, `Switching to ${modelTraceLabel(next)} — ${ROUTES.reasonText(kind)}`, "wait");
+        activeModel = next;
+        // A clean transcript for the next model, carrying any partial work so it is not cold.
+        const sysMsg  = messages.find(m => m.role === "system");
+        const userMsg = messages.find(m => m.role === "user");
+        messages.length = 0;
+        if (sysMsg)  messages.push(sysMsg);
+        if (progressSummary) messages.push({ role: "system", content: progressSummary });
+        if (userMsg) messages.push(userMsg);
+        continue;
       }
     }
   }
@@ -1241,7 +1165,8 @@ const SwarmMaker = (() => {
     const bigTask = isBigAssignment(desc);
     const allOpts = Array.from(document.getElementById("model")?.options || [])
       .map(o => ({ value: o.value, label: o.textContent || o.label || o.value }))
-      .filter(o => o.value && !o.disabled && !o.value.startsWith("─"));
+      // A model a provider has said is gone is not offered to a new team.
+      .filter(o => o.value && !o.disabled && !o.value.startsWith("─") && !window.HCModelRoutes.isRetired(o.value));
     const providerOptions = {};   // provider → [{ value, label }]
     allOpts.forEach(o => {
       const provider = o.value.startsWith("cloud:") ? o.value.split(":")[1] : "local";

@@ -182,6 +182,22 @@ console.log('\nForgetting works:');
   ok('forgetting an empty storage does not throw', (() => { M.forget(fakeStore()); return true; })());
 }
 
+console.log('\nA list that did not arrive is asked for again:');
+{
+  const t0 = 5_000_000;
+  M.noteFailure('gemini', 'k1', t0);
+  ok('not again within moments of failing', M.failedRecently('gemini', 'k1', t0 + 1000));
+  ok('again once the pause is over', !M.failedRecently('gemini', 'k1', t0 + M.RETRY_MS + 1));
+  ok('at once for a new key', !M.failedRecently('gemini', 'k2', t0 + 1000));
+  ok('another provider is not held back', !M.failedRecently('groq', 'k1', t0 + 1000));
+  M.remember('gemini', [model('a')], fakeStore());
+  ok('a list that arrives clears the failure', !M.failedRecently('gemini', 'k1', t0 + 1000));
+  const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
+  ok('the app waits out a recent failure before asking again', /if \(_modelMemory\.failedRecently\(provider, apiKey\)\) return seedModelsFor\(provider\);/.test(app));
+  ok('the app records both kinds of failure', (app.match(/_modelMemory\.noteFailure\(provider, apiKey\)/g) || []).length === 2);
+  ok('the lists are no longer asked for only once per launch', !/_cloudModelsFetchedOnce/.test(app));
+}
+
 console.log('\nThe app reaches for it, and loads it in time:');
 {
   const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');

@@ -22,6 +22,7 @@ const SystemMaker = (() => {
   let runAbort = null;
   // Ceiling for one generation — see runBudgetExceeded in js/agent-policy.js.
   let runBudget = null;
+  let runRoutes = null;   // what this run has asked, and which accounts it found shut
   let traceStart = Date.now();
   let libraryCollapsed = false;
   let inspectorCollapsed = true;
@@ -666,6 +667,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     // hand the run straight to the next provider, which is the behaviour it
     // exists to stop.
     if (err?.name === "BudgetExceeded" || err?.name === "AbortError") return false;
+    if (!["other", "stopped"].includes(window.HCModelRoutes.failureKind(err))) return true;
     return /rate.?limit|quota|429|too many|capacity|overloaded|unavailable|timeout|timed.?out|failed to fetch|jsondecodeerror|invalid_request_error|invalid ai systemspec|semantic repair|tool|function|model.{0,12}not.{0,12}found|context/i.test(err?.message || "");
   }
 
@@ -686,22 +688,13 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     if (!src) return [];
     return Array.from(src.options)
       .map(o => ({ value:o.value, label:o.textContent || o.label || o.value, disabled:o.disabled }))
-      .filter(o => o.value && !o.disabled)
+      .filter(o => o.value && !o.disabled && !window.HCModelRoutes.isRetired(o.value))
       .sort((a, b) => modelScore(b.value, b.label) - modelScore(a.value, a.label));
   }
 
-  function failoverModels(active) {
-    const activeProvider = active?.startsWith("cloud:") ? active.split(":")[1] : "local";
-    const seen = new Set([activeProvider]);
-    const out = [];
-    for (const opt of availableModels()) {
-      const provider = opt.value.startsWith("cloud:") ? opt.value.split(":")[1] : "local";
-      if (seen.has(provider)) continue;
-      seen.add(provider);
-      out.push(opt.value);
-    }
-    return out;
-  }
+  // Where a run goes when a model fails: js/model-routes.js. This used to take
+  // one model of each other provider, so a retired model's provider was never asked again.
+  const newRoutes = () => window.HCModelRoutes.createRun({ options: availableModels, strength: (o) => modelScore(o.value, o.label), note: (m) => trace(m, "warn"), label: modelTraceLabel });
 
   function godAgentPrompt() {
     return `You are the God Agent — a senior ERP architect who assigns specialist agents.
@@ -803,7 +796,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
   }
 
   async function generateWithModel(desc, signal) {
-    let active = $("sysModelSelect")?.value || $("model")?.value || "";
+    let active = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
     const tried = [];
     const creativeDirective = pickRandom(CREATIVE_DIRECTIVES);
 
@@ -840,9 +833,8 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
       } catch (err) {
         if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
         trace(`${modelTraceLabel(active)} failed: ${String(err.message || err).slice(0, 90)}`, "warn");
-        tried.push(active);
-        if (!isFailoverError(err)) break;
-        const next = failoverModels(active).find(m => !tried.includes(m));
+        if (!isFailoverError(err)) { tried.push(active); break; }
+        const next = runRoutes.next(active, err);
         if (!next) break;
         active = next;
         trace(`Switching to ${modelTraceLabel(active)}`, "run");
@@ -868,8 +860,8 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
       } catch (err) {
         if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
         trace(`God Agent brief attempt ${attempt} failed: ${String(err.message).slice(0,70)}`, "warn");
-        const next = failoverModels(active).find(m => !tried.includes(m));
-        if (next) { tried.push(active); active = next; trace(`→ switching to ${modelTraceLabel(active)}`, "run"); }
+        const next = isFailoverError(err) && runRoutes.next(active, err);
+        if (next) { active = next; trace(`→ switching to ${modelTraceLabel(active)}`, "run"); }
         else break;
       }
     }
@@ -911,9 +903,8 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
         } catch (err) {
           if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
           trace(`Specialist attempt ${attempt} failed: ${String(err.message).slice(0,70)}`, "warn");
-          tried.push(active);
-          if (!isFailoverError(err)) break;
-          const next = failoverModels(active).find(m => !tried.includes(m));
+          if (!isFailoverError(err)) { tried.push(active); break; }
+          const next = runRoutes.next(active, err);
           if (!next) break;
           active = next;
           trace(`→ switching to ${modelTraceLabel(active)}`, "run");
@@ -1084,9 +1075,9 @@ Repair requirements:
       // that only needed fixing, and spending another provider's quota to
       // reach the same place. A refusal to answer one model is a reason to ask
       // another the same question, not to start again.
-      const candidates = [modelValue, ...failoverModels(modelValue).filter(m => !tried.includes(m))];
+      let model = modelValue;
       let lastErr = null;
-      for (const model of candidates) {
+      for (let asked = 0; model && asked < 5; asked++) {
         try {
           const repair = await callModel(model, [
             { role:"system", content: semanticRepairPrompt() },
@@ -1101,7 +1092,9 @@ Repair requirements:
           if (e.name === "AbortError" || e.name === "BudgetExceeded") throw e;
           lastErr = e;
           if (!isFailoverError(e)) break;
-          trace(`Repair on ${modelTraceLabel(model)} failed — asking another model to repair the same spec`, "warn");
+          const failed = model;
+          model = runRoutes.next(failed, e);
+          trace(`Repair on ${modelTraceLabel(failed)} failed (${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(e))})${model ? ` — asking ${modelTraceLabel(model)} to repair the same spec` : ""}`, "warn");
         }
       }
       throw lastErr || new Error("Semantic repair failed");
@@ -1295,6 +1288,7 @@ Repair requirements:
     setStatus("Running", "running");
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
+    runRoutes = newRoutes();
     updateCreateButtonState();
     try {
       trace("Planning business modules", "plan");
@@ -1354,13 +1348,14 @@ Repair requirements:
     setStatus("Changing", "running");
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
+    runRoutes = newRoutes();
     updateCreateButtonState();
     const signal = runAbort.signal;
     const R = window.HCSystemsRevise;
     try {
       const data = getRuntimeData(spec);
       const tried = [];
-      let model = $("sysModelSelect")?.value || $("model")?.value || "";
+      let model = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
       let next = null;
       for (let attempt = 1; attempt <= 3 && !next; attempt++) {
         trace(`Changing ${spec.name} — ${modelTraceLabel(model)}`, "run");
@@ -1377,8 +1372,7 @@ Repair requirements:
         } catch (err) {
           if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
           trace(`${modelTraceLabel(model)} could not make the change: ${String(err.message || err).slice(0, 90)}`, "warn");
-          tried.push(model);
-          const other = isFailoverError(err) && failoverModels(model).find(m => !tried.includes(m));
+          const other = isFailoverError(err) && runRoutes.next(model, err);
           if (!other) throw err;
           model = other;
         }

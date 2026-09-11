@@ -331,5 +331,19 @@ console.log('\nGemini gets the tool shape Gemini takes:');
   ok('and leaves every other provider alone', untouched === openAi);
 }
 
+console.log('\nA failed call names the model that failed:');
+{
+  const failing = (kind) => ({ [kind]: () => Promise.reject(new Error('boom')) });
+  const seen = await A.routeModelTurn({ modelValue: 'cloud:groq:llama', messages: [] }, failing('openai'),
+    { parseCloudModel: (v) => ({ provider: v.split(':')[1], modelId: v.split(':').slice(2).join(':') }), providers: { get: () => ({}) } })
+    .catch((e) => e);
+  ok('the error carries the model it came from', seen.message === 'boom' && seen.model === 'cloud:groq:llama');
+  const given = await A.routeModelTurn({ adapter: { kind: 'anthropic', provider: 'anthropic', model: 'opus' }, messages: [] }, failing('anthropic'), {}).catch((e) => e);
+  ok('... also when a ready adapter was handed over', given.model === 'cloud:anthropic:opus');
+  const own = Object.assign(new Error('from a repair'), { model: 'cloud:gemini:x' });
+  const kept = await A.routeModelTurn({ adapter: { kind: 'gemini', model: 'y' }, messages: [] }, { gemini: () => Promise.reject(own) }, {}).catch((e) => e);
+  ok('... and a model already named is not overwritten', kept.model === 'cloud:gemini:x');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

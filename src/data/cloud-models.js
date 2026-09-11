@@ -24,20 +24,19 @@
 
   const CLOUD_FALLBACK = {
     // Groq — free, ultra-fast inference. IDs are the raw model slugs from console.groq.com/docs/models
+    // Two Groq models and two Gemini 2.0 models were taken out of these lists
+    // after their providers' deprecation pages listed them as shut down.
     groq: [
       { value: "cloud:groq:openai/gpt-oss-120b",           label: "GPT OSS 120B · Groq",            shortLabel: "GPT OSS 120B" },
       { value: "cloud:groq:openai/gpt-oss-20b",            label: "GPT OSS 20B · Groq",             shortLabel: "GPT OSS 20B (fast)" },
       { value: "cloud:groq:llama-3.3-70b-versatile",       label: "Llama 3.3 70B · Groq",           shortLabel: "Llama 3.3 70B" },
-      { value: "cloud:groq:deepseek-r1-distill-llama-70b", label: "DeepSeek R1 Distill 70B · Groq", shortLabel: "DeepSeek R1 Distill 70B" },
-      { value: "cloud:groq:qwen-qwq-32b",                  label: "Qwen QwQ 32B · Groq",            shortLabel: "Qwen QwQ 32B" },
       { value: "cloud:groq:llama-3.1-8b-instant",          label: "Llama 3.1 8B · Groq",            shortLabel: "Llama 3.1 8B (fast)" },
     ],
     // Gemini — generous free tier. Stable non-preview model IDs only.
     gemini: [
       { value: "cloud:gemini:gemini-2.5-flash",                          label: "Gemini 2.5 Flash · Google",     shortLabel: "Gemini 2.5 Flash" },
       { value: "cloud:gemini:gemini-2.5-pro",                            label: "Gemini 2.5 Pro · Google",       shortLabel: "Gemini 2.5 Pro" },
-      { value: "cloud:gemini:gemini-2.0-flash",                          label: "Gemini 2.0 Flash · Google",     shortLabel: "Gemini 2.0 Flash" },
-      { value: "cloud:gemini:gemini-2.0-flash-lite",                     label: "Gemini 2.0 Flash Lite · Google",shortLabel: "Gemini 2.0 Flash Lite (fast)" },
+      { value: "cloud:gemini:gemini-2.5-flash-lite",                     label: "Gemini 2.5 Flash Lite · Google",shortLabel: "Gemini 2.5 Flash Lite (fast)" },
       { value: "cloud:gemini:gemini-2.0-flash-preview-image-generation", label: "Gemini Image Gen · Google",     shortLabel: "Gemini Image Gen ✦", imageGen: true },
     ],
     // OpenRouter — only confirmed :free models with provider/model format

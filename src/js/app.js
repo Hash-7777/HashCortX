@@ -3171,7 +3171,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const _cloudModelCache      = { groq: null, gemini: null, openrouter: null, cerebras: null, samba: null, openai: null, anthropic: null, moonshot: null, deepseek: null, mistral: null };
   const _cloudModelKeyAtFetch = { groq: "",   gemini: "",   openrouter: "",   cerebras: "",   samba: "",   openai: "",   anthropic: "",   moonshot: "",   deepseek: "",   mistral: "" };
   const _cloudFetchInflight   = { groq: null, gemini: null, openrouter: null, cerebras: null, samba: null, openai: null, anthropic: null, moonshot: null, deepseek: null, mistral: null };
-  let _cloudModelsFetchedOnce = false;
 
   // What each provider last answered is remembered across launches, so a fresh
   // launch starts from the real list rather than from the catalogue written by
@@ -3210,6 +3209,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       return _cloudModelCache[provider];
     }
     if (_cloudFetchInflight[provider]) return _cloudFetchInflight[provider];
+    if (_modelMemory.failedRecently(provider, apiKey)) return seedModelsFor(provider);
     const fetcher = CLOUD_FETCHERS[provider];
     if (!fetcher) return seedModelsFor(provider);
     const p = (async () => {
@@ -3221,9 +3221,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           _modelMemory.remember(provider, models);
           return models;
         }
+        _modelMemory.noteFailure(provider, apiKey);
         return seedModelsFor(provider);
       } catch (err) {
         console.warn(`[cloud] ${provider} fetch failed:`, err);
+        _modelMemory.noteFailure(provider, apiKey);
         return seedModelsFor(provider);
       } finally {
         _cloudFetchInflight[provider] = null;
@@ -3246,11 +3248,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { group: "OpenRouter  —  Free Models",        keyEl: () => openRouterKeyEl, provider: "openrouter", models: seedModelsFor("openrouter") },
   ];
 
-  // Parse "cloud:provider:modelId" — modelId may contain colons (OpenRouter paths).
-  // Guards against malformed values: returns empty strings instead of undefined.
-  // True when the selected cloud model generates images instead of text.
-  // ── Model tier system for quality-aware failover ────────────────
-  // Build a flat list of all currently-available cloud models with their keys set.
   function seedSavedModelDropdown() {
     const savedModel = SAVED.model || "";
     if (!savedModel || isExcludedCloudModel({ value: savedModel, label: savedModel, shortLabel: savedModel })) {
@@ -3272,15 +3269,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const key = (grp.keyEl().value || "").trim();
       if (!key) continue;
       for (const m of grp.models) {
+        if (window.HCModelRoutes.isRetired(m.value)) continue;
         available.push({ ...m, provider: grp.provider, tier: getModelTier(m.value, m.label) });
       }
     }
     return available;
   }
 
-  // Pick the best failover model when `currentModel` fails.
-  // Prefers same or higher tier, then falls back one tier at a time.
-  // Returns null if nothing usable is available.
   function rememberLocalModels(names) {
     trackedLocalModels.clear();
     (names || []).forEach(name => {
@@ -3404,13 +3399,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     });
     updateCloudModelVisualState();
     syncCompareModelOptions();
-    // Kick off live fetches only once on app boot.
-    // Each provider only fetches if a key is present (or is keyless like OpenRouter).
-    // Results are cached by key so repeat calls are cheap.
-    if (!_cloudModelsFetchedOnce) {
-      _cloudModelsFetchedOnce = true;
-      refreshCloudModelsFromAPIs();
-    }
+    // Cheap on every rebuild: a list that arrived is kept for its key and one
+    // that failed waits before it is asked again. This ran once per launch, so
+    // a key added or changed later never got its provider's own list.
+    refreshCloudModelsFromAPIs();
   }
 
   // Rebuild one provider's optgroup in-place with live model data, preserving selection.
@@ -5036,7 +5028,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           } catch (err) {
             if (err.name === "AbortError") throw err;
             const msg = err?.message || String(err);
-            const isRetriable = /rate limit|overloaded|server error|429|503|529|5\d\d/.test(msg);
+            // A model its provider says is gone is not offered again (js/model-routes.js).
+            const retired = window.HCModelRoutes.failureKind(err) === "retired";
+            if (retired) window.HCModelRoutes.markRetired(currentModelValue);
+            const isRetriable = retired || /rate limit|overloaded|server error|429|503|529|5\d\d/.test(msg);
             if (!isRetriable) throw err;
             triedModels.add(currentModelValue);
             const fallback = getBestFailoverModel(currentModelValue, triedModels);

@@ -549,22 +549,13 @@
     log("Router", `Cooling down ${providerDisplayName(provider)} for ${Math.ceil(ms / 1000)}s`, "warn", reason);
   }
 
-  function skipCoolingCandidate(candidate, candidates) {
-    const healthyExists = candidates.some((route) => route?.provider && !forgeProviderCooldown(route.provider));
-    const cooldown = candidate?.provider ? forgeProviderCooldown(candidate.provider) : null;
-    if (!healthyExists || !cooldown) return false;
-    const seconds = Math.max(1, Math.ceil((cooldown.until - Date.now()) / 1000));
-    log("Router", `Skipping ${providerDisplayName(candidate.provider)} route (${seconds}s cooldown)`, "wait", cooldown.reason || "");
-    return true;
-  }
-
   function providerModelsForForge(bigTask, options = {}) {
     const includeCooling = !!options.includeCooling;
     const allOpts = Array.from(document.getElementById("model")?.options || [])
       .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
       .filter((o) => {
         const provider = providerFromValue(o.value);
-        return o.value && !o.disabled && !o.value.startsWith("─") && (includeCooling || !forgeProviderCooldown(provider));
+        return o.value && !o.disabled && !o.value.startsWith("─") && !window.HCModelRoutes.isRetired(o.value) && (includeCooling || !forgeProviderCooldown(provider));
       });
     const providerOptions = {};
     allOpts.forEach((o) => {
@@ -3073,35 +3064,43 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       : "nothing was built, and nothing is on screen");
   }
 
+  // How long a model gets to write a plan before the run moves on. A cloud
+  // model had 45 s, which a free model writing a whole plan often needs more
+  // than; it was cut off and reported only as "Fetch is aborted".
+  const PLAN_MS = { cloud: 90_000, local: 120_000 };
+
   async function askGodPlanWithFailover(prompt, prefs, signal) {
     const sel = $("frgModel_god");
     const original = sel?.value || "";
-    const current = selectedModelFor("god");
-    const routes = providerModelsForForge(true)
-      .map(([provider, value, label]) => ({ provider, value, label }))
-      .filter((route) => route.value);
-    const candidates = [
-      current ? { provider: providerFromValue(current), value: current, label: modelLabel(current) } : null,
-      ...routes.filter((route) => route.value !== current),
-    ].filter((route, index, arr) => route?.value && arr.findIndex((r) => r?.value === route.value) === index);
+    // Every model a person can run, not one per provider: when a provider says
+    // a model is gone, its others are the next to ask — js/model-routes.js.
+    const options = () => Array.from(document.getElementById("model")?.options || [])
+      .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
+      .filter((o) => o.value && !o.value.startsWith("─"));
+    const routes = window.HCModelRoutes.createRun({
+      options, strength: (o) => modelStrengthScore(o.value, o.label, true), label: modelLabel,
+      shut: () => [...new Set(options().map((o) => providerFromValue(o.value)))].filter((p) => forgeProviderCooldown(p)),
+      note: (m) => log("Router", m, "warn"),
+    });
+    let current = routes.start(selectedModelFor("god") || providerModelsForForge(true)[0]?.[1] || "");
     let lastError = null;
-    for (let i = 0; i < Math.min(candidates.length, 5); i++) {
-      const candidate = candidates[i];
-      if (skipCoolingCandidate(candidate, candidates)) continue;
-      if (sel && Array.from(sel.options).some((o) => o.value === candidate.value)) sel.value = candidate.value;
-      if (i > 0) log("Router", `Retrying God Agent with ${candidate.label || modelLabel(candidate.value)}`, "warn");
-      let routedSignal = null;
+    for (let i = 0; current && i < 6; i++) {
+      const provider = providerFromValue(current);
+      if (sel && Array.from(sel.options).some((o) => o.value === current)) sel.value = current;
+      if (i > 0) log("Router", `Retrying God Agent with ${modelLabel(current)}`, "warn");
+      const ms = provider === "local" ? PLAN_MS.local : PLAN_MS.cloud;
+      const routedSignal = timeoutSignal(signal, ms);
       try {
-        const timeoutMs = candidate.provider === "local" ? 90_000 : 45_000;
-        routedSignal = timeoutSignal(signal, timeoutMs);
         return await askModelForPlan(prompt, prefs, routedSignal.signal);
-      } catch (err) {
-        if (signal?.aborted) throw err;
+      } catch (caught) {
+        if (signal?.aborted) throw caught;
+        const err = routedSignal.signal.aborted ? Object.assign(new Error(`no answer within ${ms / 1000} s`), { timedOut: true }) : caught;
         lastError = err;
-        markForgeProviderFailure(candidate.provider, err);
-        log("God Agent", `${candidate.label || modelLabel(candidate.value)} failed · ${err.message || err}`, "warn");
+        log("God Agent", `${modelLabel(current)} failed · ${err.message || err}`, "warn");
+        if (window.HCModelRoutes.failureKind(err) !== "retired") markForgeProviderFailure(provider, err);
+        current = routes.next(current, err);
       } finally {
-        routedSignal?.cleanup();
+        routedSignal.cleanup();
       }
     }
     if (sel && original && Array.from(sel.options).some((o) => o.value === original)) sel.value = original;

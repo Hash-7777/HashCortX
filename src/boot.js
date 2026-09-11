@@ -77,6 +77,7 @@
     '/js/stream/sse.js',
     '/js/chat/context.js',
     '/js/chat/failover.js',
+    '/js/model-routes.js',
     '/js/markdown-safe.js',
     '/js/trace-copy.js',
     '/js/agent-shape.js',

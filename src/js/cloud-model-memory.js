@@ -89,6 +89,7 @@
     if (!store || !provider) return false;
     const cleaned = clean(models);
     if (!cleaned.length) return false;
+    failures.delete(provider);
     try {
       const all = readAll(store);
       all[provider] = { at: Date.now(), models: cleaned };
@@ -113,10 +114,29 @@
     return recall(provider, store) || (Array.isArray(fallback) ? fallback.slice() : []);
   }
 
+  // When a provider's list last FAILED to arrive, and for which key — kept in
+  // memory, not storage. A failed list used to be asked for once per launch
+  // and never again, so a key added in Settings, or a provider rate-limiting
+  // at launch, left the menu on the hand-written catalogue — retired models
+  // and all — for the whole session. Now it is asked again after a pause.
+  const RETRY_MS = 2 * 60 * 1000;
+  const failures = new Map();
+
+  /** A provider's list did not arrive for this key. */
+  function noteFailure(provider, key, now = Date.now()) {
+    failures.set(provider, { key: key || '', at: now });
+  }
+
+  /** Whether asking again now would repeat a failure from moments ago. A new key is asked at once. */
+  function failedRecently(provider, key, now = Date.now()) {
+    const f = failures.get(provider);
+    return !!f && f.key === (key || '') && now - f.at < RETRY_MS;
+  }
+
   /** Drop everything remembered. Used when a person clears their settings. */
   function forget(store = defaultStore()) {
     try { store && store.removeItem(KEY); } catch { /* nothing to undo */ }
   }
 
-  window.HCCloudModelMemory = { KEY, MAX_BYTES, recall, remember, seed, forget };
+  window.HCCloudModelMemory = { KEY, MAX_BYTES, recall, remember, seed, forget, noteFailure, failedRecently, RETRY_MS };
 })();
