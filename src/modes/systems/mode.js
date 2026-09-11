@@ -38,23 +38,7 @@ const SystemMaker = (() => {
   // Colours: a theme turned into CSS variables — js/systems/theme.js.
   const { themeVars } = window.HCSystemsTheme;
 
-  // Per-domain shell pools — picks randomly so each generation gets a fresh shape
-  const DOMAIN_SHELL_OPTIONS = {
-    restaurant:    ["cards-nav","top","sidebar"],
-    hotel:         ["cards-nav","sidebar","command"],
-    healthcare:    ["command","sidebar","dock"],
-    education:     ["top","sidebar","cards-nav"],
-    fitness:       ["cards-nav","dock","command"],
-    realestate:    ["sidebar","cards-nav","top"],
-    retail:        ["cards-nav","top","sidebar"],
-    logistics:     ["dock","sidebar","command"],
-    manufacturing: ["dock","command","sidebar"],
-    hr:            ["command","sidebar","top"],
-    legal:         ["command","sidebar"],
-    jewelry:       ["cards-nav","sidebar","top"],
-    saas:          ["top","sidebar","command"],
-    generic:       ["sidebar","top","dock","cards-nav","command"],
-  };
+
 
   // Creative directives injected randomly into AI prompts to force variety
   const CREATIVE_DIRECTIVES = [
@@ -405,18 +389,16 @@ const SystemMaker = (() => {
       mode: spec.theme?.mode === "dark" ? "dark" : "light",
       primary: spec.theme?.primary || "#2563eb",
       accent: spec.theme?.accent || "#10b981",
-      density: ["compact","comfortable","spacious"].includes(spec.theme?.density) ? spec.theme.density : "comfortable",
+      density: ["compact","comfortable","spacious"].includes(spec.theme?.density) ? spec.theme.density : undefined,
       radius: Number(spec.theme?.radius || 10),
+      font: window.HCSystemsTheme.DESIGN.font.includes(spec.theme?.font) ? spec.theme.font : undefined,
+      surface: window.HCSystemsTheme.DESIGN.surface.includes(spec.theme?.surface) ? spec.theme.surface : undefined,
     };
-    const VALID_SHELLS = ["sidebar","top","dock","cards-nav","command"];
     spec.domain = spec.domain || detectDomain(desc);
-    const defaultShell = (() => {
-      const pool = DOMAIN_SHELL_OPTIONS[spec.domain] || DOMAIN_SHELL_OPTIONS.generic;
-      return pickRandom(pool);
-    })();
     spec.layout = {
       nav: spec.layout?.nav === "top" ? "top" : "sidebar",
-      shell: VALID_SHELLS.includes(spec.layout?.shell) ? spec.layout.shell : defaultShell,
+      // A missing shell is picked, to suit the business, when the system is made.
+      shell: window.HCSystemsTheme.DESIGN.shell.includes(spec.layout?.shell) ? spec.layout.shell : undefined,
       dashboardStyle: spec.layout?.dashboardStyle || "operational",
     };
 
@@ -604,6 +586,9 @@ THEME (industry-appropriate colors — never use default blue for all domains):
 • Jewelry/Luxury      → primary "#b45309", accent "#fbbf24",  mode "dark"   (deep gold + amber)
 • Tech/SaaS           → primary "#0f172a", accent "#38bdf8",  mode "dark"   (near-black + electric blue)
 • theme.radius: 6-8 for corporate/legal, 10-12 for standard, 14-16 for retail/consumer-facing
+• theme.font: "sans" | "serif" | "rounded" | "humanist" | "mono" — the character of the business (a law firm or a hotel may be serif, a gym rounded, a logistics desk mono)
+• theme.density: "compact" for dense operations, "comfortable", "spacious" for calm consumer-facing work
+• theme.surface: "flat" | "outlined" | "elevated" — how cards sit on the page
 
 ENTITIES & FIELDS:
 • Each entity: {id, name, fields[]}
@@ -798,6 +783,12 @@ WORKFLOWS:
 CRITICAL: Implement the exact modules and screen types from the God Agent brief. Do NOT substitute "list" for screens the brief specified. Preserve every layout.shell choice, every module.color, every screen type exactly as given. Be thorough, realistic, and domain-specific. No placeholder data.`;
   }
 
+  /** Tells the model the last system's look, so it chooses another. */
+  function lastDesignNote() {
+    const d = window.HCSystemsTheme.designOf(systems[0]);
+    return d && d.shell ? `The last system used a ${d.shell} layout, ${d.font || "sans"} type, ${d.density || "comfortable"} density and ${d.surface || "outlined"} cards — choose a different look.\n` : "";
+  }
+
   async function generateWithModel(desc, signal) {
     let active = $("sysModelSelect")?.value || $("model")?.value || "";
     const tried = [];
@@ -807,7 +798,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     trace("AI generating full SystemSpec…", "run");
     const messages = [
       { role:"system", content: systemPrompt() },
-      { role:"user", content: `Create a complete SystemSpec for:\n${desc}\n\nToday is ${todayIso()}; date records in the months before it.\nCREATIVE DIRECTIVE: ${creativeDirective}\n[run-id:${Date.now().toString(36)}]` }
+      { role:"user", content: `Create a complete SystemSpec for:\n${desc}\n\nToday is ${todayIso()}; date records in the months before it.\n${lastDesignNote()}CREATIVE DIRECTIVE: ${creativeDirective}\n[run-id:${Date.now().toString(36)}]` }
     ];
     for (let attempt = 1; attempt <= 4; attempt++) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
@@ -1293,6 +1284,12 @@ Repair requirements:
       const spec = await generateWithModel(desc, runAbort.signal);
       if (runAbort.signal?.aborted) throw new DOMException("Aborted", "AbortError");
       trace("Normalising modules, data, and interactions", "data");
+      // Its design differs from the last system's on at least two of shell,
+      // typeface, density and surface; its colours stay its industry's.
+      const d = window.HCSystemsTheme.varyFrom(window.HCSystemsTheme.designOf(systems[0]), window.HCSystemsTheme.designOf(spec), pickRandom, spec.domain);
+      Object.assign(spec.theme, { font: d.font, density: d.density, surface: d.surface });
+      spec.layout = { ...spec.layout, shell: d.shell, nav: d.shell === "top" ? "top" : "sidebar" };
+      trace(`Design: ${d.shell} layout · ${d.font} type · ${d.density} · ${d.surface} cards`, "data");
       systems.unshift(spec);
       activeId = spec.id;
       activeModuleId = spec.modules[0]?.id || "";
@@ -1407,7 +1404,7 @@ Repair requirements:
     })();
 
     const shell = spec.layout?.shell || "sidebar";
-    const cls = spec.theme.mode === "dark" ? "dark" : "";
+    const cls = `${spec.theme.mode === "dark" ? "dark" : ""} density-${esc(spec.theme.density || "comfortable")} surface-${esc(spec.theme.surface || "outlined")}`;
     const vars = themeVars(spec);
     const screen = module.screen || "dashboard";
     const searchInput = `<input class="sys-app-search" id="sysAppSearch" value="${esc(searchQuery)}" placeholder="Search ${esc(entity?.name || "")}…" />`;

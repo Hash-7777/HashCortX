@@ -1626,3 +1626,24 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 .sys-link:hover { text-decoration-color: currentColor; }
 .sys-link-missing { color: var(--sys-app-muted); }
 .sys-form-hint { display: block; margin-top: 3px; font-size: 10.5px; color: var(--sys-app-muted); }
+
+/* ── Design beyond colour: density and surface ────────────────────
+   Chosen per system (js/systems/theme.js), so two systems for different
+   businesses do not share one spacing and one card style. */
+.sys-app { font-family: var(--sans); }
+.sys-app.density-compact .sys-table th, .sys-app.density-compact .sys-table td { padding: 6px 10px; }
+.sys-app.density-compact .sys-kpi-card { min-height: 70px; padding: 10px 12px; }
+.sys-app.density-compact .sys-widget-body { padding: 8px; }
+.sys-app.density-compact .sys-screen { padding: 12px; }
+.sys-app.density-spacious .sys-table th, .sys-app.density-spacious .sys-table td { padding: 14px 16px; }
+.sys-app.density-spacious .sys-kpi-card { min-height: 100px; padding: 18px 20px; }
+.sys-app.density-spacious .sys-widget-body { padding: 18px; }
+.sys-app.density-spacious .sys-screen { padding: 26px; }
+.sys-app.surface-flat :is(.sys-widget, .sys-kpi-card, .sys-card, .sys-metric-tile, .sys-kanban-card, .sys-kanban-col) {
+  border-color: transparent; background: var(--sys-surface); box-shadow: none;
+}
+.sys-app.surface-flat :is(.sys-widget, .sys-card):hover { box-shadow: none; }
+.sys-app.surface-elevated :is(.sys-widget, .sys-kpi-card, .sys-card, .sys-metric-tile, .sys-kanban-card) {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(var(--sys-primary-rgb), .08), 0 8px 24px rgba(var(--sys-primary-rgb), .10);
+}

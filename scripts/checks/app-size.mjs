@@ -138,7 +138,10 @@ const LINE_BUDGET = {
   // be worked out from others on the record. The rules are in
   // js/systems/relations.js; drawing and saving them is here.
   // 3205: the record form is drawn by js/systems/forms.js.
-  'modes/systems/mode.js': 3205,
+  // 3202: a system's design goes beyond colour — typeface, density, surface —
+  // differs from the last one's, and suits its business; which shells suit
+  // which business moved into js/systems/theme.js with the rest.
+  'modes/systems/mode.js': 3202,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

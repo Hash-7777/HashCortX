@@ -3,7 +3,14 @@
 //
 // A system's theme — its primary and accent, light or dark, and corner radius
 // — turned into the CSS variables its screens read, over a background tone
-// chosen for its kind of business. Moved out of the Systems mode unchanged.
+// chosen for its kind of business.
+//
+// And its design beyond colour: typeface, density and surface, alongside the
+// shell it is laid out in. Every generated system used to share one typeface,
+// one spacing and one card style, whatever it was for, so two systems told
+// apart only by their colours looked like one; density was even stored and
+// never applied. A new system's design now differs from the one before it on
+// at least two of those four, and the colours stay those of its industry.
 //
 // Pure: a spec in, a style string out. No DOM, no storage.
 //
@@ -77,7 +84,86 @@
       `--sys-radius:${radius}px`,
       `--sys-radius-sm:${Math.max(4, radius - 4)}px`,
       `--sys-radius-lg:${Math.min(20, radius + 6)}px`,
+      // The generated app's controls read the app's own --sans; inside it,
+      // that is the system's typeface.
+      `--sans:${fontStack(spec.theme.font)}`,
     ].join(";");
   }
-  window.HCSystemsTheme = { themeVars, shadeHex, hexToRgb, DOMAIN_BG };
+  // Typefaces already on the machine — nothing is fetched. Names are in single
+  // quotes because the variables are written into a double-quoted style attribute.
+  const FONTS = {
+    sans: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    serif: "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif",
+    rounded: "ui-rounded, 'SF Pro Rounded', 'Arial Rounded MT Bold', 'Segoe UI', sans-serif",
+    humanist: "Seravek, 'Gill Sans Nova', 'Gill Sans', Ubuntu, Calibri, sans-serif",
+    mono: "ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace",
+  };
+  const DESIGN = {
+    shell: ['sidebar', 'top', 'dock', 'cards-nav', 'command'],
+    font: Object.keys(FONTS),
+    density: ['compact', 'comfortable', 'spacious'],
+    surface: ['flat', 'outlined', 'elevated'],
+  };
+
+  /** A system's design, read from its spec: shell, typeface, density and surface. */
+  function designOf(spec) {
+    if (!spec) return null;
+    return {
+      shell: spec.layout && spec.layout.shell,
+      font: spec.theme && spec.theme.font,
+      density: spec.theme && spec.theme.density,
+      surface: spec.theme && spec.theme.surface,
+    };
+  }
+
+  /**
+   * The choices that suit a kind of business, for when the app picks: a
+   * restaurant is not set in a terminal's typeface, nor a dispatch desk spaced
+   * like a boutique. A kind not listed may take any.
+   */
+  const FIT = {
+    restaurant: { shell: ['cards-nav', 'top', 'sidebar'], font: ['serif', 'rounded', 'humanist'] },
+    hotel: { shell: ['cards-nav', 'sidebar', 'command'], font: ['serif', 'humanist', 'sans'], density: ['comfortable', 'spacious'] },
+    healthcare: { shell: ['command', 'sidebar', 'dock'], font: ['sans', 'humanist', 'rounded'] },
+    education: { shell: ['top', 'sidebar', 'cards-nav'], font: ['rounded', 'humanist', 'sans'] },
+    fitness: { shell: ['cards-nav', 'dock', 'command'], font: ['rounded', 'sans'], density: ['comfortable', 'spacious'] },
+    realestate: { shell: ['sidebar', 'cards-nav', 'top'], font: ['serif', 'sans', 'humanist'] },
+    retail: { shell: ['cards-nav', 'top', 'sidebar'], font: ['rounded', 'humanist', 'serif'], density: ['comfortable', 'spacious'] },
+    logistics: { shell: ['dock', 'sidebar', 'command'], font: ['mono', 'sans'], density: ['compact', 'comfortable'] },
+    manufacturing: { shell: ['dock', 'command', 'sidebar'], font: ['mono', 'sans'], density: ['compact', 'comfortable'] },
+    hr: { shell: ['command', 'sidebar', 'top'], font: ['humanist', 'sans', 'rounded'] },
+    legal: { shell: ['command', 'sidebar'], font: ['serif', 'sans'] },
+    jewelry: { shell: ['cards-nav', 'sidebar', 'top'], font: ['serif', 'humanist'], density: ['comfortable', 'spacious'] },
+    saas: { shell: ['top', 'sidebar', 'command'], font: ['sans', 'mono'], density: ['compact', 'comfortable'] },
+  };
+  function suited(domain, key, list) {
+    const fit = (FIT[domain] || {})[key];
+    const both = fit ? list.filter((v) => fit.includes(v)) : list;
+    return both.length ? both : list;
+  }
+
+  const sameCount = (a, b) => Object.keys(DESIGN).filter((k) => a[k] === b[k]).length;
+
+  /**
+   * A design that differs from the one before on at least two of its four
+   * choices. Any choice missing or unknown is picked; then, while three or
+   * more match the last system's, the matching ones are changed in turn —
+   * typeface first, shell last, since a model's choice of shell is the one
+   * most worth keeping. `pick(list)` chooses; the mode passes a random one.
+   */
+  function varyFrom(previous, design, pick, domain = '') {
+    const out = { ...design };
+    for (const k of Object.keys(DESIGN)) if (!DESIGN[k].includes(out[k])) out[k] = pick(suited(domain, k, DESIGN[k]));
+    if (!previous) return out;
+    for (const k of ['font', 'surface', 'density', 'shell']) {
+      if (sameCount(previous, out) <= 2) break;
+      if (out[k] === previous[k]) out[k] = pick(suited(domain, k, DESIGN[k].filter((v) => v !== previous[k])));
+    }
+    return out;
+  }
+
+  /** The typeface stack for a design's font. */
+  const fontStack = (font) => FONTS[font] || FONTS.sans;
+
+  window.HCSystemsTheme = { themeVars, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack };
 })();
