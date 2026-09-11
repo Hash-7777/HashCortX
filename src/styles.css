@@ -854,13 +854,16 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 
 /* Production-safe ERP button reset. Keeps Tauri release/DMG WebKit from
-   falling back to native button geometry while staying scoped to ERP only. */
+   falling back to native button geometry while staying scoped to ERP only.
+   The id already outranks every other rule a button meets. `display` used to
+   be !important as well, which also beat a button's own display:none — so a
+   close button meant to stay hidden stood in the toolbar doing nothing. */
 #system-maker-wrap .sys-btn,
 #system-maker-wrap .sys-icon-btn {
   -webkit-appearance: none;
   appearance: none;
   box-sizing: border-box;
-  display: inline-flex !important;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;

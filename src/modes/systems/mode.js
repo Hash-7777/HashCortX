@@ -2809,7 +2809,6 @@ Repair requirements:
     $("sysToggleInspectorBtn")?.addEventListener("click", () => setInspectorCollapsed(!inspectorCollapsed));
     $("sysToggleLibraryBtn")?.addEventListener("click", () => setLibraryCollapsed(!libraryCollapsed));
     $("sysCloseLibraryBtn")?.addEventListener("click", () => setLibraryCollapsed(true));
-    $("sysCloseInspectorBtn")?.addEventListener("click", () => setInspectorCollapsed(true));
     $("sysInspectorCloseBtn")?.addEventListener("click", () => setInspectorCollapsed(true));
     $("sysTraceToggle")?.addEventListener("click", () => {
       const tc = $("sysTraceConsole");
