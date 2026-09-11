@@ -104,7 +104,9 @@ const LINE_BUDGET = {
   // keeping the answers moved to src/js/cloud-catalogue.js; every refused
   // request now keeps the provider's whole reply through one helper instead of
   // each call site reading it itself.
-  'js/app.js': 6713,
+  // 6712, down one. The bridge gained the five members the Coder was
+  // calling and never had; comments left by code that had moved out went.
+  'js/app.js': 6712,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -385,7 +387,9 @@ const LINE_BUDGET = {
   // rather than parsing. The closure's separable pieces — terminal colour,
   // export, file names — have moved out; splitting the rest is restructuring,
   // not extraction.
-  'modes/code/mode.js': 2631,
+  // 2630, down one: the context meter reads the model's own context from
+  // js/model-limits.js instead of a comment promising it one day.
+  'modes/code/mode.js': 2630,
 };
 
 console.log('\nFile sizes go down, never up:');

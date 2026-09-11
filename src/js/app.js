@@ -2596,7 +2596,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     themedAlert, themedConfirm, themedPrompt,
   });
 
-  // Memory depth — declared here so applyMemoryDepth() can assign it before buildOllamaMessages
   // Memory depth — declared here so applyMemoryDepth() can assign it before buildOllamaMessages.
   // parseInt with radix 10; guard against NaN (corrupted localStorage → use default 20).
   let HISTORY_LIMIT = (v => (Number.isFinite(v) && v >= 0 ? v : 20))(
@@ -3519,12 +3518,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
   }
 
-  // Route a streaming chat request to the right cloud API.
-  // Images are stripped — all free cloud tiers are text-only.
-  // Keys are read from the DOM (localStorage-backed) at call time, never cached.
-  // Human-readable error messages for common cloud API HTTP status codes.
-  // `retryAfter` is the value of the Retry-After header (seconds) when present.
-
   // Image generation via Gemini (Nano Banana = gemini-3.1-flash-image-preview).
   // Non-streaming — returns { text, images: ["data:image/png;base64,..."] }.
   // The response modality is TEXT + IMAGE so any caption/description text is
@@ -3564,7 +3557,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return { text: text.trim(), images };
   }
 
-  // Convert Ollama-format messages (images: [base64...]) to OpenAI vision format.
   // A refusal that names a limit is learnt and the request sent once more,
   // sized by it — before any of the answer has arrived (js/model-limits.js).
   async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal) {
@@ -3578,6 +3570,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
   }
 
+  // One streaming chat request, routed to its provider. Keys are read at call time, never cached.
   async function streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal) {
     const temp = typeof temperature === "number" ? temperature : 0.7;
     // Text-only fallback (for providers that don't support vision)
@@ -6667,9 +6660,15 @@ sys.stderr = _stderr
     // endpoint, which returns nothing for most developer queries.
     tavilySearch,
     runOneTool,
-    // The knowledge base, for modes that are not chat.
+    // The knowledge base, for modes that are not chat. The Coder called the
+    // last two of these, and the three after them, before the bridge had them.
     ragSearch: (query) => queryRAGMerged(String(query || "")),
     ragIsOn: () => ragEnabled,
+    ragSetOn: (on) => { ragEnabled = !!on; document.getElementById("ragToggle")?.classList.toggle("on", ragEnabled); saveSettings(); },
+    ragSize: () => { const all = loadRAG(); return { passages: all.length, sources: new Set(all.map(c => c.source)).size }; },
+    estimatePromptTokens,
+    buildOllamaMessages,
+    updateLastBubble,
     // Long-term memory. The three names below are what the Coder agent's
     // remember_fact and recall_facts tools have always called.
     memAdd,

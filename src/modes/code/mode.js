@@ -1323,10 +1323,9 @@
       const H = window._H;
       const box = $('cdrContext');
       if (box && H?.estimatePromptTokens) {
-        // The window a model actually has is far larger than chat's own cap, and
-        // a Coder run is long. Until the model list carries a real figure this
-        // is one honest number rather than a guessed one per provider.
-        const MAX = 64000;
+        // The model's own context, from its provider's list (js/model-limits.js);
+        // one honest number when the list does not say.
+        const MAX = window.HCModelLimits?.infoOf(H.selectedModel?.() || '')?.ctx || 64000;
         const used = H.estimatePromptTokens(conversationMsgs) || 0;
         const pct = Math.min(100, Math.round((used / MAX) * 100));
         const pctEl = $('cdrContextPct'), fillEl = $('cdrContextFill'), cntEl = $('cdrContextCount');

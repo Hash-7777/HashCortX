@@ -92,13 +92,40 @@ for (const m of body.matchAll(/^ {4}(?:get\s+)?([A-Za-z_$][\w$]*)\s*[:(,]|^ {4}(
 }
 
 // ── Read what actually calls it ──────────────────────────────────────────
+/**
+ * Every bridge member a file calls. A file may hold the bridge under a name
+ * of its own — `const H = window._H` — and call it through that. Those calls
+ * were invisible here, which is how the Coder called five members the bridge
+ * never had and nothing said so. Only a name given the bridge itself counts —
+ * `const H = window._H;` or `const api = window._H || {};`, not
+ * `const x = window._H.something` — and not after a dot, a slash or a colon:
+ * `api.duckduckgo.com` in an address is not a call.
+ */
+function callsIn(src) {
+  const aliases = [...src.matchAll(/(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*window\._H\s*(?:;|\|\|)/g)].map((m) => m[1]);
+  const seen = [...src.matchAll(/_H\??\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  for (const alias of aliases) {
+    for (const m of src.matchAll(new RegExp(`(?<![\\w$./:])${alias.replace(/\$/g, '\\$')}\\??\\.([A-Za-z_$][\\w$]*)`, 'g'))) seen.push(m[1]);
+  }
+  return seen;
+}
+
 const called = new Map(); // member → files
 for (const file of consumers()) {
-  const src = readFileSync(join(srcDir, file), 'utf8');
-  for (const m of src.matchAll(/_H\??\.([A-Za-z_$][\w$]*)/g)) {
-    if (!called.has(m[1])) called.set(m[1], new Set());
-    called.get(m[1]).add(file);
+  for (const name of callsIn(readFileSync(join(srcDir, file), 'utf8'))) {
+    if (!called.has(name)) called.set(name, new Set());
+    called.get(name).add(file);
   }
+}
+
+console.log('\nCalls are found however the bridge is named:');
+{
+  const sample = `const H = window._H;\nH.alpha(); H?.beta?.();\nconst api = window._H || {};\napi.gamma();\nfetch("https://api.delta.com/x");\nconst parsed = window._H?.parse?.(v);\nparsed.epsilon;\nwindow._H.zeta();`;
+  const got = new Set(callsIn(sample));
+  check('through an alias', got.has('alpha') && got.has('beta') && got.has('gamma'));
+  check('and directly', got.has('zeta') && got.has('parse'));
+  check('not a web address that happens to start with the alias', !got.has('delta'));
+  check('not a value merely taken from the bridge', !got.has('epsilon'));
 }
 
 console.log('\nThe bridge exists and is readable:');
