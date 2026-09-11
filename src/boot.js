@@ -60,6 +60,7 @@
     '/platform/tauri/undo.js',
     '/platform/tauri/save.js',
     '/platform/tauri/hashcoder.js',
+    '/platform/tauri/provider-bridge.js',
 
     '/js/power.js',
     '/js/diff.js',

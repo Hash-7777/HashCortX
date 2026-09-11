@@ -39,7 +39,7 @@ Reading that bundle and deleting it are the only two Keychain commands the app r
 - Keys sit on disk **in plain text**, inside a directory only this app writes to.
 - They are protected by your macOS user account and filesystem permissions, **not by encryption**.
 - Any process running as your user can read them. That is the same exposure as a `.env` file, and weaker than the Keychain.
-- The JavaScript layer **does** hold the raw key in memory, and the renderer makes the HTTPS call to the provider directly. The key does not round-trip through Rust.
+- The JavaScript layer **does** hold the raw key in memory, and for most providers the renderer makes the HTTPS call directly. The exceptions are SambaNova, NVIDIA and a Kimi Code key, whose servers refuse a web page: for those the key is handed to Rust for that one request, put into one header to one fixed host, and neither logged nor kept (see *Three providers are called from Rust* below).
 
 Code signing is on the roadmap. Once the build is signed, Keychain storage becomes practical again and this section will change.
 
@@ -183,7 +183,7 @@ Format: `TIMESTAMP [scope] action target`. It is append-only from the app's pers
 
 Defined in `src-tauri/tauri.conf.json`, and checked by `scripts/checks/csp.mjs` so a rule cannot be widened without a test failing.
 
-`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, Europe PMC, DuckDuckGo), the jsDelivr CDN that serves the Python runtime, and Ollama.
+`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, Europe PMC, DuckDuckGo), the jsDelivr CDN that serves the Python runtime, and Ollama. It does not list SambaNova, NVIDIA or Kimi Code: the page never calls them (see *Three providers are called from Rust* below), and `providers.mjs` fails if one of their hosts is added. `api.kimi.com` and `api.kimi.ai` used to be listed for Moonshot; neither answers a Moonshot request, and both are gone.
 
 ### The policy and the code have to name the same host
 
@@ -221,9 +221,22 @@ Most third-party libraries are vendored into `src/js/vendor/` and load from disk
 
 ---
 
+### Three providers are called from Rust
+
+A browser asks a server's permission before sending a request from a web page, and SambaNova, NVIDIA and Kimi Code answer without granting it. Inside the app every request is a web page's request, so theirs were never sent. `src-tauri/src/commands/provider.rs` sends them instead, through `HC.providerBridge` in `src/platform/tauri/provider-bridge.js`.
+
+This does not give the page a way onto the network, and it is built so that it cannot become one:
+
+- **The caller names a provider and a route, never an address.** The six endpoints — chat and model list for each of the three — are written in one table in Rust. No host, path, query or header comes from the renderer, so nothing the renderer sends can aim the request anywhere else. A test fails if the table gains a host.
+- **What goes out is checked.** The key must be visible ASCII and of a plausible length, so it cannot carry a second header. A chat request must be one JSON object of bounded size; a model-list request carries no body.
+- **What comes back is bounded.** No redirect is followed. The reply is capped, the connection has a deadline, TLS is the platform's own and checks the certificate against the fixed host, and at most sixteen of these requests can be open at once.
+- **It runs off the main thread,** so a long answer does not freeze the window, and a stopped request is dropped at its next read.
+
+What it cannot do: it does not hide the key from the renderer, which already holds it, and it cannot stop a compromised page from spending your quota at those three providers — the same as it could at any other.
+
 ## Network behaviour
 
-- **No backend server.** Every AI request goes from the renderer straight to the provider you configured. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
+- **No backend server.** Every AI request goes to the provider you configured, from the renderer or — for the three above — from the app itself. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
 - **No telemetry.** No analytics, no usage reporting, no crash reporting.
 - **No accounts.** Nothing to sign up for.
 - **No auto-updater.** The app never reaches out on its own.

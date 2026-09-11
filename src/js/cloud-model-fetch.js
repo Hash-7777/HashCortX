@@ -25,8 +25,9 @@
 // A fetcher that cannot get a list throws, with the provider's own reason;
 // js/cloud-catalogue.js decides what the menu shows instead and records why.
 //
-// Two providers have no fetcher: SambaNova and NVIDIA refuse every request
-// made from inside the app (js/providers.js), so there is no list to read.
+// SambaNova, NVIDIA and a Kimi Code key refuse every request made from a web
+// page, so their lists are asked for through the app (deps.bridge, which is
+// platform/tauri/provider-bridge.js) and read here like any other.
 //
 // What the fetchers need from the app is passed in, so
 // scripts/checks/cloud-model-fetch.mjs runs every one of them against a
@@ -39,10 +40,18 @@
   const NAMES = {
     groq: 'Groq', gemini: 'Google', openrouter: 'OpenRouter', cerebras: 'Cerebras', openai: 'OpenAI',
     anthropic: 'Anthropic', moonshot: 'Kimi', deepseek: 'DeepSeek', mistral: 'Mistral',
+    samba: 'SambaNova', nvidia: 'NVIDIA',
   };
 
   /** Models that do not hold a conversation, by the words their names use. */
   const NOT_CHAT = /embed|whisper|\btts\b|-tts|transcri|speech|orpheus|playai|guard|safety|moderation|rerank|\bclip\b|dall-e|imagen|\bveo\b|native-audio|realtime/i;
+
+  /**
+   * What NVIDIA also lists that holds no conversation: scoring, detection,
+   * document-reading, translation and search models sit beside the chat ones,
+   * all in the same shape.
+   */
+  const NVIDIA_NOT_CHAT = /reward|detector|parse|deplot|kosmos|clip|\bvila\b|neva|fuyu|calibration|translate|retriever|diffusion|topic-control/i;
 
   const count = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined);
 
@@ -201,10 +210,38 @@
         .map((m) => entry('anthropic', m.id, m.display_name || prettify(m.id), { ctx: m.max_input_tokens, out: m.max_tokens, tools: true }));
     }
 
+    /** A list from a provider that refuses a web page, asked for by the app. */
+    async function bridgedJson(label, provider, apiKey) {
+      const res = await deps.bridge(provider, 'models', apiKey);
+      if (!res.ok) throw await refusal(label, res);
+      return res.json();
+    }
+
+    async function fetchSambaModels(apiKey) {
+      const j = await bridgedJson('SambaNova', 'samba', apiKey);
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id))
+        .map((m) => entry('samba', m.id, prettify(m.id), { ctx: m.context_length, out: m.max_completion_tokens }))
+        .sort(byName);
+    }
+
+    async function fetchNvidiaModels(apiKey) {
+      const j = await bridgedJson('NVIDIA', 'nvidia', apiKey);
+      return (j.data || [])
+        .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id) && !NVIDIA_NOT_CHAT.test(m.id))
+        .map((m) => entry('nvidia', m.id, prettify(m.id)))
+        .sort(byName);
+    }
+
     async function fetchMoonshotModels(apiKey) {
-      // A Kimi for Code key only works on Kimi's Claude-style servers, and
-      // those refuse every request made from inside an app like this one.
-      if (deps.kimiCodeKey && deps.kimiCodeKey(apiKey)) throw new Error('Kimi for Code keys (sk-ki…) are refused from inside apps like this one — a platform key from platform.kimi.ai works');
+      // A Kimi Code key works only at api.kimi.com/coding, which refuses a
+      // web page; the app asks there instead.
+      if (deps.kimiCodeKey && deps.kimiCodeKey(apiKey)) {
+        const j = await bridgedJson('Kimi Code', 'kimi-code', apiKey);
+        return (j.data || [])
+          .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id))
+          .map((m) => entry('moonshot', m.id, m.display_name || prettify(m.id), { ctx: m.context_length }));
+      }
       const { res } = await moonshotApi('/models', apiKey, () => ({
         method: 'GET',
         headers: { Authorization: `Bearer ${apiKey}` },
@@ -252,6 +289,8 @@
       moonshot: fetchMoonshotModels,
       deepseek: fetchDeepSeekModels,
       mistral: fetchMistralModels,
+      samba: fetchSambaModels,
+      nvidia: fetchNvidiaModels,
     };
   }
 

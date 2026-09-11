@@ -106,7 +106,11 @@ const LINE_BUDGET = {
   // each call site reading it itself.
   // 6712, down one. The bridge gained the five members the Coder was
   // calling and never had; comments left by code that had moved out went.
-  'js/app.js': 6712,
+  // 6541, down from 6712. Seven copies of the same OpenAI-shaped request
+  // became one, which is also what sends SambaNova, NVIDIA and Kimi Code
+  // through the app; the Kimi path aimed at four hosts that never answered
+  // a Kimi Code key went with it.
+  'js/app.js': 6541,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

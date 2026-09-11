@@ -62,19 +62,18 @@
     },
     // These two do not answer a request from a web page: their servers send no
     // permission for one, so the browser inside the app stops every request
-    // before it is sent. Their models are not offered, rather than offered and
-    // always failing. Using them would take a native path in the app.
+    // before it is sent. The app sends theirs itself, to an address fixed in
+    // src-tauri/src/commands/provider.rs — so there is no chat URL here for
+    // the page to fetch, and neither host is in the page's connect-src.
     samba: {
       label: 'SambaNova',
-      chatUrl: 'https://api.sambanova.ai/v1/chat/completions',
       auth: 'bearer',
-      browserBlocked: true,
+      bridge: 'samba',
     },
     nvidia: {
       label: 'NVIDIA',
-      chatUrl: 'https://integrate.api.nvidia.com/v1/chat/completions',
       auth: 'bearer',
-      browserBlocked: true,
+      bridge: 'nvidia',
     },
     deepseek: {
       label: 'DeepSeek',
@@ -101,12 +100,10 @@
     },
     moonshot: {
       label: 'Moonshot (Kimi)',
-      // Moonshot answers on several hosts and the app fails over between them,
-      // so its base list stays with the failover logic that uses it. Recorded
-      // here so the provider is not silently missing from this table.
+      // Two hosts for two separate account systems, tried in turn. A Kimi
+      // Code key belongs to neither and goes through the app instead — see
+      // bridgeFor below.
       hosts: [
-        'https://api.kimi.com',
-        'https://api.kimi.ai',
         'https://api.moonshot.ai',
         'https://api.moonshot.cn',
       ],
@@ -117,43 +114,51 @@
   // ── Moonshot / Kimi ─────────────────────────────────────────────────────
   //
   // Moonshot is the one provider that does not answer at a single address.
-  // The same company runs four hosts, and — this is the part that costs
-  // people an afternoon — kimi.com and the older Moonshot platforms are
+  // It runs two platforms — platform.kimi.ai, whose API is api.moonshot.ai,
+  // and platform.kimi.com, whose API is api.moonshot.cn — and they are
   // SEPARATE account systems. A key minted on one returns 401 on the other,
-  // which reads exactly like a wrong key. So a request sweeps the candidates
-  // rather than trusting the first refusal.
+  // which reads exactly like a wrong key. So a request tries the second
+  // before trusting the first refusal.
+  //
+  // api.kimi.com/v1 and api.kimi.ai/v1 were tried first here for a long time.
+  // Neither exists: both answer 404, and their servers refuse a web page, so
+  // every request began with two failures before reaching a real host.
 
   /** OpenAI-compatible bases, in the order they are tried. */
   const MOONSHOT_API_BASES = [
-    'https://api.kimi.com/v1',
-    'https://api.kimi.ai/v1',
     'https://api.moonshot.ai/v1',
     'https://api.moonshot.cn/v1',
   ];
 
   /**
-   * Anthropic-protocol bases used by the Kimi for Code platform.
-   * Keys minted at kimi.com/code/console start with `sk-ki` and work only here.
+   * A Kimi Code key — the kind a Kimi Code membership issues, starting sk-kimi.
+   *
+   * It works only at api.kimi.com/coding, which speaks the OpenAI shape and
+   * refuses a web page, so these requests go through the app. The model it
+   * serves is listed there too.
    */
-  const KIMI_ANTHROPIC_BASES = [
-    'https://api.moonshot.ai/anthropic',
-    'https://api.moonshot.cn/anthropic',
-    'https://api.kimi.com/anthropic',
-    'https://api.kimi.ai/anthropic',
-  ];
-
-  /** A Kimi for Code key, which speaks the Anthropic protocol, not OpenAI's. */
   function isKimiCodeKey(key) {
     return typeof key === 'string' && key.trim().toLowerCase().startsWith('sk-ki');
   }
 
-  /** Which of the four hosts an address belongs to, for showing the user. */
+  /**
+   * Which of the app's own routes a request to this provider takes, or null
+   * when the page sends it itself.
+   *
+   * SambaNova and NVIDIA always go through the app. Moonshot does only for a
+   * Kimi Code key; a platform key is called from the page like any other.
+   */
+  function bridgeFor(provider, key) {
+    const p = PROVIDERS[provider];
+    if (!p) return null;
+    if (p.bridge) return p.bridge;
+    if (provider === 'moonshot' && isKimiCodeKey(key)) return 'kimi-code';
+    return null;
+  }
+
+  /** Which of the two hosts an address belongs to, for showing the user. */
   function moonshotEndpointLabel(baseUrl) {
-    const s = String(baseUrl || '');
-    if (s.includes('kimi.com')) return 'api.kimi.com';
-    if (s.includes('kimi.ai')) return 'api.kimi.ai';
-    if (s.includes('.cn')) return 'api.moonshot.cn';
-    return 'api.moonshot.ai';
+    return String(baseUrl || '').includes('.cn') ? 'api.moonshot.cn' : 'api.moonshot.ai';
   }
 
   /**
@@ -205,38 +210,6 @@
     });
   }
 
-  /**
-   * Convert an OpenAI-style conversation into the Anthropic body Kimi for Code
-   * expects: the system prompt lifted out to its own field, and every message
-   * carrying a content array rather than a string.
-   */
-  function buildKimiAnthropicBody(model, messages, opts) {
-    const list = messages || [];
-    const systemMsg = list.find((m) => m.role === 'system');
-    const anthropicMessages = list
-      .filter((m) => m.role !== 'system')
-      .map((m) => {
-        const content = [];
-        if (m.content) content.push({ type: 'text', text: m.content });
-        if (m.images?.length) {
-          m.images.forEach((b64) => content.push({
-            type: 'image',
-            source: { type: 'base64', media_type: 'image/jpeg', data: b64 },
-          }));
-        }
-        // Anthropic rejects an empty content array, and only knows two roles.
-        return {
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: content.length ? content : [{ type: 'text', text: '' }],
-        };
-      });
-    const body = { model, messages: anthropicMessages, max_tokens: (opts && opts.maxTokens) || 4096 };
-    if (systemMsg) body.system = systemMsg.content;
-    if (opts && typeof opts.temperature === 'number') body.temperature = opts.temperature;
-    if (opts && opts.stream) body.stream = true;
-    return body;
-  }
-
   /** Everything known about one provider, or null. */
   function get(provider) {
     return PROVIDERS[provider] || null;
@@ -266,18 +239,16 @@
     return Object.assign(headers, p.extraHeaders || {});
   }
 
-  /** Whether a provider refuses every request made from inside the app. */
-  const isBrowserBlocked = (provider) => !!(PROVIDERS[provider] && PROVIDERS[provider].browserBlocked);
-
   /** The endpoint and headers for a chat request, ready to fetch. */
   function requestFor(provider, key) {
     const p = PROVIDERS[provider];
     if (!p) throw new Error(`Unknown cloud provider: ${provider}`);
+    if (p.bridge) throw new Error(`${p.label} is reached through the app, not from the page — use bridgeFor`);
     if (!p.chatUrl) throw new Error(`${p.label} builds its own URL — use its own path`);
     return { url: p.chatUrl, headers: headersFor(provider, key) };
   }
 
-  /** Every host this table can reach, for checking against the CSP. */
+  /** Every host the page itself reaches, for checking against the CSP. */
   function allHosts() {
     const out = new Set();
     for (const p of Object.values(PROVIDERS)) {
@@ -286,6 +257,37 @@
       for (const h of p.hosts || []) out.add(new URL(h).origin);
     }
     return [...out];
+  }
+
+  /** Where each provider's keys and usage live, for telling someone where to go. */
+  const HINTS = {
+    groq:        { key: "console.groq.com → API Keys",            quota: "console.groq.com → Usage" },
+    gemini:      { key: "aistudio.google.com → Get API key",      quota: "ai.google.dev/gemini-api/docs/quota" },
+    openrouter:  { key: "openrouter.ai → Keys",                   quota: "openrouter.ai/activity" },
+    cerebras:    { key: "cloud.cerebras.ai → API Keys (free)",    quota: "cloud.cerebras.ai → Usage" },
+    samba:       { key: "cloud.sambanova.ai → API Keys (free)",   quota: "cloud.sambanova.ai → Usage" },
+    openai:      { key: "platform.openai.com → API Keys",         quota: "platform.openai.com/usage" },
+    anthropic:   { key: "console.anthropic.com → API Keys",       quota: "console.anthropic.com/settings/plans" },
+    moonshot:    { key: "platform.kimi.ai or platform.kimi.com → API Keys, or kimi.com/code for a Kimi Code key", quota: "platform.kimi.ai / platform.kimi.com" },
+    nvidia:      { key: "build.nvidia.com → Get API Key",          quota: "build.nvidia.com" },
+    deepseek:    { key: "platform.deepseek.com → API Keys",       quota: "platform.deepseek.com" },
+    mistral:     { key: "console.mistral.ai → API Keys",          quota: "console.mistral.ai" },
+  };
+
+  /** What to say when a request is made with no key saved for its provider. */
+  function keyMissing(provider) {
+    const label = (PROVIDERS[provider] && PROVIDERS[provider].label) || provider;
+    const where = HINTS[provider] ? ` — get one at ${HINTS[provider].key}` : '';
+    return `${label} API key missing.\nAdd it in Settings → APIs${where}`;
+  }
+
+  /**
+   * Whether a request to this model may carry pictures in the OpenAI shape.
+   * Others are sent the words alone; Gemini and Anthropic have their own shapes.
+   */
+  function readsImages(provider, modelId) {
+    if (provider === 'openai' || provider === 'openrouter' || provider === 'nvidia') return true;
+    return provider === 'groq' && /vision/i.test(String(modelId || ''));
   }
 
   // ── What came back ──────────────────────────────────────────────────────
@@ -348,23 +350,12 @@
   function cloudHttpError(provider, status, body, retryAfter) {
     const PROVIDER_LABELS = {
       groq: "Groq", gemini: "Google Gemini", openrouter: "OpenRouter",
-      cerebras: "Cerebras", samba: "SambaNova",
+      cerebras: "Cerebras", samba: "SambaNova", nvidia: "NVIDIA",
       openai: "OpenAI", anthropic: "Anthropic", moonshot: "Moonshot (Kimi)",
       deepseek: "DeepSeek", mistral: "Mistral AI",
     };
     const providerLabel = PROVIDER_LABELS[provider] || provider;
-    const hints = {
-      groq:        { key: "console.groq.com → API Keys",            quota: "console.groq.com → Usage" },
-      gemini:      { key: "aistudio.google.com → Get API key",      quota: "ai.google.dev/gemini-api/docs/quota" },
-      openrouter:  { key: "openrouter.ai → Keys",                   quota: "openrouter.ai/activity" },
-      cerebras:    { key: "cloud.cerebras.ai → API Keys (free)",    quota: "cloud.cerebras.ai → Usage" },
-      samba:       { key: "cloud.sambanova.ai → API Keys (free)",   quota: "cloud.sambanova.ai → Usage" },
-      openai:      { key: "platform.openai.com → API Keys",         quota: "platform.openai.com/usage" },
-      anthropic:   { key: "console.anthropic.com → API Keys",       quota: "console.anthropic.com/settings/plans" },
-      moonshot:    { key: "platform.kimi.ai or platform.kimi.com → API Keys", quota: "platform.kimi.ai / platform.kimi.com" },
-      deepseek:    { key: "platform.deepseek.com → API Keys",       quota: "platform.deepseek.com" },
-      mistral:     { key: "console.mistral.ai → API Keys",          quota: "console.mistral.ai" },
-    }[provider] || { key: "provider dashboard", quota: "provider dashboard" };
+    const hints = HINTS[provider] || { key: "provider dashboard", quota: "provider dashboard" };
     if (status === 429) {
       const wait = retryAfter ? ` Try again in ${retryAfter}s.` : " Wait ~60s and try again, or switch to a different model.";
       return `${providerLabel} rate limit — free-tier quota exceeded (failed requests count too).${wait}\nCheck usage: ${hints.quota}`;
@@ -388,12 +379,12 @@
   }
 
   window.HCProviders = {
-    PROVIDERS, get, headersFor, requestFor, allHosts, isBrowserBlocked,
-    // Moonshot answers on four hosts across two account systems.
-    MOONSHOT_API_BASES, KIMI_ANTHROPIC_BASES, MOONSHOT_MODEL_ORDER,
+    PROVIDERS, get, headersFor, requestFor, allHosts, bridgeFor, keyMissing, readsImages,
+    // Moonshot answers on two hosts across two account systems.
+    MOONSHOT_API_BASES, MOONSHOT_MODEL_ORDER,
     isKimiCodeKey, moonshotEndpointLabel, orderedMoonshotBases,
     // What came back, rather than what was sent.
     usageFrom, cloudHttpError,
-    shouldTryNextMoonshotEndpoint, sortMoonshotModelIds, buildKimiAnthropicBody,
+    shouldTryNextMoonshotEndpoint, sortMoonshotModelIds,
   };
 })();

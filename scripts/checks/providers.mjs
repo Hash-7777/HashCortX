@@ -4,8 +4,9 @@
 // Loads the REAL src/js/providers.js, and reads the real Content Security
 // Policy out of src-tauri/tauri.conf.json.
 //
-// The check that earns this file: every endpoint the app can call must be
-// inside the CSP's connect-src list. If it is not, the request is blocked by
+// The check that earns this file: every endpoint the page calls must be
+// inside the CSP's connect-src list — and the three the app sends for itself
+// must not be. If it is not, the request is blocked by
 // the webview — not with an error naming the policy, but as a failed fetch
 // that the app reports as the provider being unreachable. That is a very
 // convincing way to look broken, and nothing else in the repository would
@@ -89,8 +90,63 @@ console.log('\nEvery entry in the table is complete:');
 for (const [id, p] of Object.entries(P.PROVIDERS)) {
   ok(`${id} has a label`, typeof p.label === 'string' && p.label.length > 0);
   ok(`${id} says how it authenticates`, ['bearer', 'anthropic', 'query'].includes(p.auth), `got ${p.auth}`);
-  ok(`${id} names somewhere to reach it`, !!(p.chatUrl || p.host || (p.hosts && p.hosts.length)));
+  ok(`${id} names somewhere to reach it`, !!(p.chatUrl || p.host || (p.hosts && p.hosts.length) || p.bridge));
   if (p.chatUrl) ok(`${id} uses https`, new URL(p.chatUrl).protocol === 'https:');
+}
+
+// ── The providers the app sends for itself ───────────────────────────────
+// Their servers refuse a web page, so src-tauri/src/commands/provider.rs sends
+// their requests to a fixed table of addresses. The page must have no way to
+// build one of those requests itself, and the policy must not grant their
+// hosts: the page never calls them, and a granted host with no caller is reach
+// for no feature.
+const rust = readFileSync(join(root, 'src-tauri', 'src', 'commands', 'provider.rs'), 'utf8');
+const rustRows = [...rust.matchAll(/\("([a-z-]+)", "([a-z]+)"\) => Some\("(https:\/\/[^"]+)"\)/g)]
+  .map((m) => ({ provider: m[1], route: m[2], url: m[3] }));
+console.log('\nThe providers the app sends for itself:');
+{
+  ok('the fixed table was read out of provider.rs', rustRows.length >= 6, `${rustRows.length} rows`);
+  const bridged = Object.entries(P.PROVIDERS).filter(([, p]) => p.bridge);
+  ok('SambaNova and NVIDIA are among them', bridged.map(([id]) => id).sort().join() === 'nvidia,samba');
+  const inRust = new Set(rustRows.map((r) => r.provider));
+  for (const [id, p] of bridged) {
+    ok(`${id} names a route the app really has`, inRust.has(p.bridge) &&
+      rustRows.some((r) => r.provider === p.bridge && r.route === 'chat') &&
+      rustRows.some((r) => r.provider === p.bridge && r.route === 'models'));
+    ok(`${id} gives the page no address to fetch`, !p.chatUrl && !p.host && !p.hosts);
+    let threw = false;
+    try { P.requestFor(id, 'k'); } catch { threw = true; }
+    ok(`${id} cannot be turned into a page request by mistake`, threw);
+  }
+  // Every route the Rust table has is one something here asks for.
+  const asked = new Set([...bridged.map(([, p]) => p.bridge), P.bridgeFor('moonshot', 'sk-kimi-x')]);
+  ok('every provider in the Rust table is one the app sends for', [...inRust].every((r) => asked.has(r)),
+    [...inRust].filter((r) => !asked.has(r)).join(', '));
+  for (const row of rustRows) {
+    ok(`not granted to the page: ${new URL(row.url).origin}`, !cspAllows(new URL(row.url).origin),
+      'the page never calls this host; remove it from connect-src');
+  }
+  ok('SambaNova always goes through the app', P.bridgeFor('samba', 'anything') === 'samba');
+  ok('NVIDIA always goes through the app', P.bridgeFor('nvidia', '') === 'nvidia');
+  ok('a Kimi Code key goes through the app', P.bridgeFor('moonshot', 'sk-kimi-abc') === 'kimi-code');
+  ok('a Moonshot platform key does not', P.bridgeFor('moonshot', 'sk-abcdef') === null);
+  ok('nor does any other provider', ['groq', 'openai', 'anthropic', 'gemini', 'openrouter', 'mistral', 'deepseek', 'cerebras']
+    .every((p) => P.bridgeFor(p, 'sk-kimi-abc') === null));
+  ok('nor one nobody knows', P.bridgeFor('nope', 'k') === null);
+}
+
+console.log('\nA request with no key says whose key and where to get one:');
+{
+  ok('it names the provider', /^Groq API key missing/.test(P.keyMissing('groq')));
+  ok('and where its keys are made', /console\.groq\.com/.test(P.keyMissing('nvidia') + P.keyMissing('groq')) && /build\.nvidia\.com/.test(P.keyMissing('nvidia')));
+  ok('a provider nobody listed is still named', /^nope API key missing/.test(P.keyMissing('nope')));
+}
+
+console.log('\nPictures go only to models that read them in this shape:');
+{
+  ok('OpenAI, OpenRouter and NVIDIA do', ['openai', 'openrouter', 'nvidia'].every((p) => P.readsImages(p, 'any')));
+  ok('a Groq model only when it is a vision model', P.readsImages('groq', 'llama-vision-x') && !P.readsImages('groq', 'llama-3.3-70b'));
+  ok('the rest are sent the words alone', ['cerebras', 'samba', 'deepseek', 'mistral', 'moonshot'].every((p) => !P.readsImages(p, 'vision-model')));
 }
 
 console.log('\nHeaders carry the key the way each provider expects:');
@@ -134,16 +190,16 @@ console.log('\nA ready-made request has both halves:');
   ok('it has the headers', r.headers.Authorization === 'Bearer KEY123');
 }
 
-console.log('\nMoonshot answers on four hosts, and the order matters:');
+console.log('\nMoonshot answers on two hosts, and the order matters:');
 {
-  ok('the OpenAI-compatible bases are all listed', P.MOONSHOT_API_BASES.length === 4);
-  ok('and the Anthropic-protocol ones too', P.KIMI_ANTHROPIC_BASES.length === 4);
-  ok('every base is https', [...P.MOONSHOT_API_BASES, ...P.KIMI_ANTHROPIC_BASES]
-    .every((b) => b.startsWith('https://')));
-  ok('all of them are inside connect-src',
-    [...P.MOONSHOT_API_BASES, ...P.KIMI_ANTHROPIC_BASES].every((b) => cspAllows(new URL(b).origin)));
+  ok('both OpenAI-compatible bases are listed', P.MOONSHOT_API_BASES.length === 2);
+  ok('every base is https', P.MOONSHOT_API_BASES.every((b) => b.startsWith('https://')));
+  ok('all of them are inside connect-src', P.MOONSHOT_API_BASES.every((b) => cspAllows(new URL(b).origin)));
+  // api.kimi.com/v1 and api.kimi.ai/v1 answer 404 and refuse a page; they sat
+  // at the front of this list, so every request began with two failures.
+  ok('neither host that has no API is tried', !P.MOONSHOT_API_BASES.some((b) => /kimi\.(com|ai)/.test(b)));
 
-  const base = P.MOONSHOT_API_BASES[2];
+  const base = P.MOONSHOT_API_BASES[1];
   const ordered = P.orderedMoonshotBases(base);
   ok('a base that worked before is tried first', ordered[0] === base);
   ok('and the rest still follow it', ordered.length === P.MOONSHOT_API_BASES.length);
@@ -169,9 +225,10 @@ console.log('\nA key refused by the wrong platform is not treated as a bad key:'
   ok('200 does not', P.shouldTryNextMoonshotEndpoint(200) === false);
 }
 
-console.log('\nA Kimi for Code key is recognised, since it speaks another protocol:');
+console.log('\nA Kimi Code key is recognised, since it works at another address:');
 {
-  ok('sk-ki is recognised', P.isKimiCodeKey('sk-ki-abc123') === true);
+  ok('sk-kimi is recognised', P.isKimiCodeKey('sk-kimi-abc123') === true);
+  ok('as is the shorter prefix the app has always accepted', P.isKimiCodeKey('sk-ki-abc123') === true);
   ok('whatever the case', P.isKimiCodeKey('SK-KI-ABC') === true);
   ok('and with stray spaces', P.isKimiCodeKey('  sk-ki-abc  ') === true);
   ok('an ordinary Moonshot key is not', P.isKimiCodeKey('sk-abcdef') === false);
@@ -180,12 +237,10 @@ console.log('\nA Kimi for Code key is recognised, since it speaks another protoc
 
 console.log('\nEach host is named the way a user would recognise it:');
 {
-  ok('kimi.com', P.moonshotEndpointLabel('https://api.kimi.com/v1') === 'api.kimi.com');
-  ok('kimi.ai', P.moonshotEndpointLabel('https://api.kimi.ai/v1') === 'api.kimi.ai');
   ok('moonshot.cn', P.moonshotEndpointLabel('https://api.moonshot.cn/v1') === 'api.moonshot.cn');
   ok('moonshot.ai', P.moonshotEndpointLabel('https://api.moonshot.ai/v1') === 'api.moonshot.ai');
-  ok('every base maps to a label',
-    P.MOONSHOT_API_BASES.every((b) => P.moonshotEndpointLabel(b).startsWith('api.')));
+  ok('every base maps to its own label',
+    new Set(P.MOONSHOT_API_BASES.map((b) => P.moonshotEndpointLabel(b))).size === P.MOONSHOT_API_BASES.length);
 }
 
 console.log('\nMoonshot models are offered newest first, and none is dropped:');
@@ -205,39 +260,6 @@ console.log('\nMoonshot models are offered newest first, and none is dropped:');
   })());
   ok('an empty list is safe', P.sortMoonshotModelIds([]).length === 0);
   ok('undefined is safe', P.sortMoonshotModelIds(undefined).length === 0);
-}
-
-console.log('\nAn OpenAI-style conversation becomes the Anthropic body Kimi expects:');
-{
-  const body = P.buildKimiAnthropicBody('kimi-k2.6', [
-    { role: 'system', content: 'be brief' },
-    { role: 'user', content: 'hello' },
-    { role: 'assistant', content: 'hi' },
-  ], { temperature: 0.4, maxTokens: 100 });
-
-  ok('the system prompt is lifted out', body.system === 'be brief');
-  ok('and is not left among the messages', body.messages.every((m) => m.role !== 'system'));
-  ok('content becomes an array', Array.isArray(body.messages[0].content));
-  ok('the text survives', body.messages[0].content[0].text === 'hello');
-  ok('roles are preserved', body.messages[1].role === 'assistant');
-  ok('max_tokens is set', body.max_tokens === 100);
-  ok('temperature is passed', body.temperature === 0.4);
-  ok('streaming is off unless asked', body.stream === undefined);
-
-  // Anthropic rejects an empty content array outright.
-  const empty = P.buildKimiAnthropicBody('m', [{ role: 'user', content: '' }], {});
-  ok('an empty message still carries one block', empty.messages[0].content.length === 1);
-  ok('max_tokens has a default', empty.max_tokens === 4096);
-
-  const withImage = P.buildKimiAnthropicBody('m', [{ role: 'user', content: 'see', images: ['AAA'] }], {});
-  ok('an image becomes a base64 block', withImage.messages[0].content[1].source.data === 'AAA');
-  ok('alongside the text', withImage.messages[0].content[0].type === 'text');
-
-  // Anthropic knows only user and assistant.
-  const toolish = P.buildKimiAnthropicBody('m', [{ role: 'tool', content: 'result' }], {});
-  ok('an unknown role becomes user', toolish.messages[0].role === 'user');
-  ok('no messages is safe', P.buildKimiAnthropicBody('m', [], {}).messages.length === 0);
-  ok('undefined messages is safe', P.buildKimiAnthropicBody('m', undefined, {}).messages.length === 0);
 }
 
 // ── What came back ───────────────────────────────────────────────────────
@@ -300,7 +322,7 @@ console.log('\nWhat somebody is told when a request failed:');
 
   // Every provider the app can talk to must have a name a person recognises
   // and somewhere to look, or the message is worse than no message.
-  const named = ['groq', 'gemini', 'openrouter', 'cerebras', 'samba', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral'];
+  const named = ['groq', 'gemini', 'openrouter', 'cerebras', 'samba', 'nvidia', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral'];
   ok('every provider has a readable name',
     named.every((p) => !new RegExp(`^${p} `).test(E(p, 500, '', null))),
     named.filter((p) => new RegExp(`^${p} `).test(E(p, 500, '', null))).join(', '));

@@ -2319,28 +2319,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   // ── APIs pane: status dots + test buttons ──────────────────────────────
 
-  async function fetchKimiAnthropic(path, key, initFactory) {
-    let lastError = null;
-    let lastUrl = "";
-    for (const base of KIMI_ANTHROPIC_BASES) {
-      const fullUrl = `${base}${path}`;
-      lastUrl = fullUrl;
-      try {
-        const init = typeof initFactory === "function" ? initFactory(base) : {};
-        const res = await fetch(fullUrl, { referrerPolicy: "no-referrer", ...init });
-        if (res.ok) return { res, baseUrl: base };
-        const txt = await res.text().catch(() => "");
-        const enriched = `${cloudHttpError("moonshot", res.status, txt, res.headers.get("Retry-After"))}\nEndpoint tried: ${fullUrl}`;
-        lastError = Object.assign(new Error(enriched), { status: res.status, body: txt });
-        if (res.status !== 401 && res.status !== 403 && res.status !== 404) return Promise.reject(lastError);
-      } catch (err) {
-        if (err?.name === "AbortError") throw err;
-        lastError = err;
-      }
-    }
-    throw lastError || new Error(`Kimi (Anthropic-compat) request failed. Last endpoint: ${lastUrl}`);
-  }
-
   async function fetchMoonshotApi(path, apiKey, initFactory) {
     let lastError = null;
     for (const baseUrl of orderedMoonshotBases(apiKey)) {
@@ -2410,6 +2388,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return Object.assign(new Error(cloudHttpError(provider, res.status, body, res.headers.get("Retry-After"))), { status: res.status, body });
   }
 
+  // One chat request. Most providers are fetched from the page; SambaNova,
+  // NVIDIA and a Kimi Code key refuse a page, so the app sends theirs to an
+  // address fixed in Rust (platform/tauri/provider-bridge.js). Same Response.
+  function providerPost(provider, key, body, signal) {
+    const via = HCProviders.bridgeFor(provider, key);
+    if (via) return HC.providerBridge.request(via, "chat", { key, body: JSON.stringify(body), signal });
+    const { url, headers } = HCProviders.requestFor(provider, key);
+    return fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers, body: JSON.stringify(body), signal });
+  }
+
   // Reading facts out of a message, and finding them again afterwards. In
   // js/memory.js: a fact extracted badly is repeated back for as long as it
   // survives, and one that never ranks makes the model deny knowing something
@@ -2417,12 +2405,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   const HCMemory = window.HCMemory;
 
 
-  // Moonshot answers on four hosts across two separate account systems, so its
+  // Moonshot answers on two hosts for two separate account systems, so its
   // endpoint knowledge lives with the other provider facts in js/providers.js.
   // Only the memory of which base last worked stays here.
   const {
-    MOONSHOT_API_BASES, KIMI_ANTHROPIC_BASES, isKimiCodeKey, moonshotEndpointLabel,
-    shouldTryNextMoonshotEndpoint, sortMoonshotModelIds, buildKimiAnthropicBody,
+    isKimiCodeKey, moonshotEndpointLabel, shouldTryNextMoonshotEndpoint, sortMoonshotModelIds,
   } = window.HCProviders;
   const _moonshotApiBaseByKey = new Map();
   const orderedMoonshotBases = (apiKey) =>
@@ -2499,27 +2486,28 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { id: "deepseek",   name: "DeepSeek",    keyId: "deepseekKey",   testUrl: "https://api.deepseek.com/v1/models",             auth: "bearer" },
     { id: "mistral",    name: "Mistral",     keyId: "mistralKey",    testUrl: "https://api.mistral.ai/v1/models",               auth: "bearer" },
     { id: "cerebras",   name: "Cerebras",    keyId: "cerebrasKey",   testUrl: "https://api.cerebras.ai/v1/models",              auth: "bearer" },
-    { id: "samba",      name: "SambaNova",   keyId: "sambaKey",      testUrl: "https://api.sambanova.ai/v1/models",             auth: "bearer" },
+    { id: "samba",      name: "SambaNova",   keyId: "sambaKey",      testUrl: null,                                             auth: "bridge" },
     { id: "openrouter", name: "OpenRouter",  keyId: "openRouterKey", testUrl: "https://openrouter.ai/api/v1/auth/key",          auth: "bearer" },
-    { id: "nvidia",     name: "NVIDIA NIM",  keyId: "nvidiaKey",     testUrl: null,                                             auth: null }, // tested via route, not here
+    { id: "nvidia",     name: "NVIDIA NIM",  keyId: "nvidiaKey",     testUrl: null,                                             auth: "bridge" },
   ];
 
   async function testProviderConnection(provider) {
     const key = ($(provider.keyId)?.value || "").trim();
     if (!key) return { ok: false, error: "No API key entered" };
-    if (HCProviders.isBrowserBlocked(provider.id)) return { ok: false, error: "its servers refuse requests from inside apps like this one" };
+    // SambaNova and NVIDIA publish their lists to anyone, so a list proves the
+    // app can reach them and says nothing about the key; the first chat does.
+    const via = HCProviders.bridgeFor(provider.id, key);
+    if (via) {
+      try {
+        const r = await HC.providerBridge.request(via, "models", { key, signal: makeSignal(8000) });
+        if (!r.ok) return { ok: false, error: cloudHttpError(provider.id, r.status, await r.text().catch(() => "")) };
+        return via === "kimi-code" ? { ok: true, note: "Connected to Kimi Code" } : { ok: true, note: "Reachable — the key is checked by the first chat" };
+      } catch (e) {
+        return { ok: false, error: e?.message || "Network error" };
+      }
+    }
     if (provider.auth === "moonshot") {
       try {
-        // sk-ki keys (Kimi for Code) require the Anthropic-compatible path —
-        // /v1/models exists there too on Moonshot's hybrid backend.
-        if (isKimiCodeKey(key)) {
-          const { baseUrl } = await fetchKimiAnthropic("/v1/models", key, () => ({
-            method: "GET",
-            headers: { "Authorization": `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" },
-            signal: makeSignal(8000),
-          }));
-          return { ok: true, note: `Connected via ${baseUrl.replace(/^https?:\/\//, "")}` };
-        }
         const { baseUrl } = await fetchMoonshotApi("/models", key, () => ({
           method: "GET",
           headers: { Authorization: `Bearer ${key}` },
@@ -3195,11 +3183,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       moonshotApi: fetchMoonshotApi,
       sortMoonshotIds: sortMoonshotModelIds,
       kimiCodeKey: isKimiCodeKey,
+      bridge: (provider, route, key) => HC.providerBridge.request(provider, route, { key }),
     }),
     memory: _modelMemory,
     fallback: CLOUD_FALLBACK,
     visible: visibleCloudModels,
-    isBlocked: (provider) => HCProviders.isBrowserBlocked(provider),
+    // Only outside the desktop app, where there is no app to send them.
+    isBlocked: (provider) => !HC.isTauri && !!HCProviders.get(provider)?.bridge,
     limits: window.HCModelLimits,
   });
   const seedModelsFor = (provider) => _catalogue.seed(provider);
@@ -3217,6 +3207,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { group: "Mistral AI  —  Paid · European",    keyEl: () => mistralKeyEl,    provider: "mistral",    models: seedModelsFor("mistral") },
     { group: "Cerebras  —  Free · Ultra-Fast",    keyEl: () => cerebrasKeyEl,   provider: "cerebras",   models: seedModelsFor("cerebras") },
     { group: "SambaNova  —  Free · Mega-Scale",   keyEl: () => sambaKeyEl,      provider: "samba",      models: seedModelsFor("samba") },
+    { group: "NVIDIA  —  Many Open Models",       keyEl: () => nvidiaKeyEl,    provider: "nvidia",     models: seedModelsFor("nvidia") },
     { group: "OpenRouter  —  Free Models",        keyEl: () => openRouterKeyEl, provider: "openrouter", models: seedModelsFor("openrouter") },
   ];
 
@@ -3581,22 +3572,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     let captured = null;
     const onUsage = (u) => { captured = u; };
 
-    if (provider === "groq") {
-      const key = (groqKeyEl.value || "").trim();
-      if (!key) throw new Error("Groq API key missing.\nAdd it in Settings → Cloud Models — free at console.groq.com");
-      // Vision models accept image_url content blocks; text-only models get plain strings
-      const groqMessages = (hasImages && /vision/i.test(modelId)) ? toOpenAIVision(messages) : textMessages;
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("groq", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "groq", modelId, { model: modelId, messages: groqMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("groq", res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
-
-    } else if (provider === "gemini") {
+    if (provider === "gemini") {
       const key = (geminiKeyEl.value || "").trim();
       if (!key) throw new Error("Google AI Studio key missing.\nAdd it in Settings → Cloud Models — free at aistudio.google.com");
       const systemMsg = messages.find(m => m.role === "system");
@@ -3626,61 +3602,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // Gemini can split one reply across several parts in a single event.
         for (const text of window.HCStreamSSE.geminiTexts(evt)) onToken(text);
       }
-
-    } else if (provider === "openrouter") {
-      const key = (openRouterKeyEl.value || "").trim();
-      if (!key) throw new Error("OpenRouter API key missing.\nAdd it in Settings → Cloud Models — free at openrouter.ai");
-      // OpenRouter supports OpenAI vision format
-      const orMessages = hasImages ? toOpenAIVision(messages) : textMessages;
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("openrouter", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "openrouter", modelId, { model: modelId, messages: orMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("openrouter", res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
-
-    } else if (provider === "cerebras") {
-      const key = (cerebrasKeyEl.value || "").trim();
-      if (!key) throw new Error("Cerebras API key missing.\nAdd it in Settings → Cloud Models — free at cloud.cerebras.ai");
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("cerebras", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "cerebras", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("cerebras", res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
-
-    } else if (provider === "samba") {
-      const key = (sambaKeyEl.value || "").trim();
-      if (!key) throw new Error("SambaNova API key missing.\nAdd it in Settings → Cloud Models — free at cloud.sambanova.ai");
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("samba", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "samba", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("samba", res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
-
-    } else if (provider === "openai") {
-      const key = (openaiKeyEl.value || "").trim();
-      if (!key) throw new Error("OpenAI API key missing.\nAdd it in Settings → APIs");
-      const oaMessages = hasImages ? toOpenAIVision(messages) : textMessages;
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("openai", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "openai", modelId, { model: modelId, messages: oaMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("openai", res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else if (provider === "anthropic") {
       const key = (anthropicKeyEl.value || "").trim();
@@ -3722,67 +3643,25 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         if (text !== null) onToken(text);
       }
 
-    } else if (provider === "moonshot") {
+    } else if (provider === "moonshot" && !isKimiCodeKey(moonshotKeyEl.value || "")) {
+      // A platform key: two hosts for two account systems, tried in turn.
       const key = (moonshotKeyEl.value || "").trim();
-      if (!key) throw new Error("Moonshot API key missing.\nAdd it in Settings → APIs");
-
-      // sk-ki keys are from the new Kimi for Code platform (kimi.com) — they only
-      // accept the Anthropic-compatible protocol at api.moonshot.{ai,cn}/anthropic.
-      if (isKimiCodeKey(key)) {
-        const body = fitRequest("anthropic", "moonshot", modelId, buildKimiAnthropicBody(modelId, textMessages, { temperature: temp, stream: true }));
-        const { res } = await fetchKimiAnthropic("/v1/messages", key, () => ({
-          method: "POST", referrerPolicy: "no-referrer",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" },
-          body: JSON.stringify(body),
-          signal,
-        }));
-        if (!res.ok) throw await httpFailure("moonshot", res);
-        for await (const line of window.HCStreamSSE.sseLines(res.body)) {
-          const evt = window.HCStreamSSE.eventFromLine(line);
-          if (!evt) continue;
-          if (evt.type === "message_start" && evt.message?.usage)
-            captured = { inputTokens: evt.message.usage.input_tokens || 0, outputTokens: (captured && captured.outputTokens) || 0 };
-          if (evt.type === "message_delta" && evt.usage && evt.usage.output_tokens != null)
-            captured = { inputTokens: (captured && captured.inputTokens) || 0, outputTokens: evt.usage.output_tokens || 0 };
-          const text = window.HCStreamSSE.anthropicText(evt);
-          if (text !== null) onToken(text);
-        }
-      } else {
-        // Legacy sk-... keys from platform.moonshot.ai/.cn use OpenAI-compatible API
-        const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
-          method: "POST", referrerPolicy: "no-referrer",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-          body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-          signal,
-        }));
-        if (!res.ok) throw await httpFailure("moonshot", res);
-        for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
-      }
-
-    } else if (provider === "deepseek") {
-      const key = (deepseekKeyEl.value || "").trim();
-      if (!key) throw new Error("DeepSeek API key missing.\nAdd it in Settings → APIs");
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("deepseek", key);
-      const res = await fetch(epUrl, {
+      if (!key) throw new Error(HCProviders.keyMissing("moonshot"));
+      const { res } = await fetchMoonshotApi("/chat/completions", key, () => ({
         method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "deepseek", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
+        headers: HCProviders.headersFor("moonshot", key),
+        body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
-      });
-      if (!res.ok) throw await httpFailure("deepseek", res);
+      }));
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
-    } else if (provider === "mistral") {
-      const key = (mistralKeyEl.value || "").trim();
-      if (!key) throw new Error("Mistral API key missing.\nAdd it in Settings → APIs");
-      const { url: epUrl, headers: epHeaders } = HCProviders.requestFor("mistral", key);
-      const res = await fetch(epUrl, {
-        method: "POST", referrerPolicy: "no-referrer",
-        headers: epHeaders,
-        body: JSON.stringify(fitRequest("openai", "mistral", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
-        signal,
-      });
-      if (!res.ok) throw await httpFailure("mistral", res);
+    } else if (PROVIDER_KEY_ELEMENTS[provider]) {
+      // Everyone else speaks the OpenAI shape, from the page or through the app.
+      const key = (PROVIDER_KEY_ELEMENTS[provider].value || "").trim();
+      if (!key) throw new Error(HCProviders.keyMissing(provider));
+      const msgs = hasImages && HCProviders.readsImages(provider, modelId) ? toOpenAIVision(messages) : textMessages;
+      const res = await providerPost(provider, key, fitRequest("openai", provider, modelId, { model: modelId, messages: msgs, temperature: temp, stream: true, stream_options: { include_usage: true } }), signal);
+      if (!res.ok) throw await httpFailure(provider, res);
       for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
 
     } else {
@@ -5910,8 +5789,6 @@ sys.stderr = _stderr
   }
 
   async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {
-    let url, headers;
-    let moonshotKeyForRequest = "";
     const hasImages = messages.some(m => m.images?.length);
     const textMessages = messages.map(m => {
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
@@ -5923,60 +5800,12 @@ sys.stderr = _stderr
       return { role: m.role, content: m.content || '' };
     });
     // Endpoint and auth come from js/providers.js, so this and streamCloudModel
-    // read one copy of those facts instead of each carrying their own. A wrong
-    // endpoint is not a crash — it is a request the CSP blocks, reported as the
-    // provider being unreachable — so the table is checked against the policy.
+    // read one copy of those facts instead of each carrying their own.
     const keyEl = PROVIDER_KEY_ELEMENTS[provider];
     if (!keyEl) throw new Error("Unknown provider: " + provider);
     const key = (keyEl.value || "").trim();
-    if (!key) throw new Error(`${HCProviders.get(provider)?.label || provider} API key missing.`);
-
-    if (provider === "moonshot") {
-      // sk-ki keys (Kimi for Code / kimi.com platform) use the Anthropic protocol.
-      // Short-circuit here — convert OpenAI-style payload → Anthropic and return.
-      if (isKimiCodeKey(key)) {
-        const body = buildKimiAnthropicBody(model, messages, { temperature });
-        if (tools && tools.length) {
-          body.tools = tools.map(t => ({
-            name: t.function.name,
-            description: t.function.description,
-            input_schema: t.function.parameters || { type: "object", properties: {} },
-          }));
-        }
-        fitRequest("anthropic", "moonshot", model, body);
-        const { res } = await fetchKimiAnthropic("/v1/messages", key, () => ({
-          method: "POST", referrerPolicy: "no-referrer",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}`, "x-api-key": key, "anthropic-version": "2023-06-01" },
-          body: JSON.stringify(body),
-          signal,
-        }));
-        if (!res.ok) throw await httpFailure("moonshot", res);
-        const data = await res.json();
-        const contentBlocks = data.content || [];
-        let text = "";
-        const toolCalls = [];
-        for (const block of contentBlocks) {
-          if (block.type === "text") text += block.text;
-          if (block.type === "tool_use") toolCalls.push({ id: block.id, name: block.name, arguments: block.input || {} });
-        }
-        return {
-          content: text || null,
-          tool_calls: toolCalls.length ? toolCalls.map(c => ({ id: c.id, function: { name: c.name, arguments: c.arguments } })) : null,
-          raw: data,
-        };
-      }
-
-      moonshotKeyForRequest = key;
-      headers = HCProviders.headersFor("moonshot", key);
-    } else {
-      ({ url, headers } = HCProviders.requestFor(provider, key));
-    }
-    const supportsOpenAIVision =
-      provider === "openai" ||
-      provider === "openrouter" ||
-      provider === "nvidia" ||
-      (provider === "groq" && /vision/i.test(model));
-    if (hasImages && !supportsOpenAIVision) {
+    if (!key) throw new Error(HCProviders.keyMissing(provider));
+    if (hasImages && !HCProviders.readsImages(provider, model)) {
       throw new Error(`${provider}:${model} cannot read PDF page images. Select OpenAI, Gemini, Anthropic, OpenRouter vision, NVIDIA vision, or a Groq vision model for image-only PDFs.`);
     }
     const requestMessages = hasImages ? toOpenAIVision(messages) : textMessages;
@@ -5988,15 +5817,15 @@ sys.stderr = _stderr
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
     fitRequest("openai", provider, model, body);
     let r;
-    if (provider === "moonshot") {
-      ({ res: r } = await fetchMoonshotApi("/chat/completions", moonshotKeyForRequest, () => ({
+    if (provider === "moonshot" && !isKimiCodeKey(key)) {
+      ({ res: r } = await fetchMoonshotApi("/chat/completions", key, () => ({
         method: "POST",
-        headers,
+        headers: HCProviders.headersFor("moonshot", key),
         body: JSON.stringify(body),
         signal,
       })));
     } else {
-      r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers, body: JSON.stringify(body), signal });
+      r = await providerPost(provider, key, body, signal);
     }
     if (!r.ok) throw await httpFailure(provider, r);
     const data = await r.json();

@@ -8,6 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **SambaNova and NVIDIA work, and so does a Kimi Code key.** Their servers
+  refuse any request from a web page, which is what every request inside the
+  app is, so their models were hidden and a Kimi Code key could not be used.
+  The app now sends their requests itself, to six fixed addresses written in
+  Rust — a chat address and a model list for each. The page names a provider,
+  never an address, so this does not widen what the page can reach. Their live
+  model lists arrive the same way, with each model's limits where the provider
+  gives them.
+
+### Fixed
+
+- **A Moonshot platform key no longer starts every request with two
+  failures.** Two of the four hosts the app tried first have no API at all, so
+  each request failed twice before reaching a real one. They are gone from the
+  list and from the page's connect-src.
+
 ## [2.6.0] — 2026-09-01
 
 ### Changed

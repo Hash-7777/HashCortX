@@ -63,14 +63,21 @@ const F = sandbox.window.HCCloudModelFetch.create({
   },
   sortMoonshotIds: (ids) => ids.slice().sort(),
   kimiCodeKey: (k) => /^sk-ki/.test(k),
+  // What the app's own route would answer, by the address provider.rs fixes
+  // for each provider — recorded like every other request here.
+  bridge: async (provider, route, key) => {
+    const at = { samba: 'https://api.sambanova.ai/v1', nvidia: 'https://integrate.api.nvidia.com/v1', 'kimi-code': 'https://api.kimi.com/coding/v1' }[provider];
+    bridged.push({ provider, route, key });
+    return sandbox.fetch(`${at}/${route}`, {});
+  },
 });
+const bridged = [];
 const on = (...pairs) => { routes = pairs; calls.length = 0; };
 const ids = (list) => list.map((m) => m.value);
 const find = (list, id) => list.find((m) => m.value.endsWith(`:${id}`));
 
 console.log('Every provider the app can reach has a fetcher:');
-for (const p of ['groq', 'gemini', 'openrouter', 'cerebras', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral']) ok(p, typeof F[p] === 'function');
-ok('none for the two that refuse requests from inside the app', !('samba' in F) && !('nvidia' in F));
+for (const p of ['groq', 'gemini', 'openrouter', 'cerebras', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral', 'samba', 'nvidia']) ok(p, typeof F[p] === 'function');
 
 console.log('\nGroq — limits carried, only chat models kept:');
 {
@@ -189,13 +196,33 @@ console.log('\nThe OpenAI-shaped rest:');
   on([/api\.moonshot\.ai/, respond(200, { data: [{ id: 'kimi-k9', context_length: 262144 }, { id: 'moonshot-v1-embedding' }] })]);
   const kimi = await F.moonshot('k');
   ok('Kimi, with a context length when it gives one', ids(kimi).join() === 'cloud:moonshot:kimi-k9' && kimi[0].ctx === 262144);
-  let refused = null;
-  try { await F.moonshot('sk-ki-x'); } catch (e) { refused = e; }
-  ok('a Kimi for Code key is refused with the reason, before a request is made', !!refused && /Kimi for Code keys/.test(refused.message));
+  on([/api\.kimi\.com\/coding\/v1\/models$/, respond(200, { data: [{ id: 'kimi-for-coding', display_name: 'Kimi for Coding', context_length: 262144 }] })]);
+  bridged.length = 0;
+  const code = await F.moonshot('sk-kimi-x');
+  ok('a Kimi Code key lists what Kimi Code serves', ids(code).join() === 'cloud:moonshot:kimi-for-coding' && code[0].ctx === 262144 && code[0].shortLabel === 'Kimi for Coding');
+  ok('... asked for through the app, with the key, never from the page', bridged.length === 1 && bridged[0].provider === 'kimi-code' && bridged[0].route === 'models' && bridged[0].key === 'sk-kimi-x' && !calls.some((c) => /moonshot/.test(c.url)));
+}
+
+console.log('\nThe two lists the app asks for itself:');
+{
+  on([/api\.sambanova\.ai\/v1\/models$/, respond(200, { data: [
+    { id: 'Enormous-99B-Instruct', context_length: 131072, max_completion_tokens: 7168 },
+    { id: 'Some-Embedding-Model' },
+  ] })]);
+  bridged.length = 0;
+  const samba = await F.samba('k');
+  ok('SambaNova, chat models only, with both limits', ids(samba).join() === 'cloud:samba:Enormous-99B-Instruct' && samba[0].ctx === 131072 && samba[0].out === 7168);
+  ok('... through the app', bridged.length === 1 && bridged[0].provider === 'samba' && bridged[0].route === 'models');
+  on([/integrate\.api\.nvidia\.com\/v1\/models$/, respond(200, { object: 'list', data: [
+    { id: 'vendor/enormous-99b-instruct' }, { id: 'nvidia/some-embed-qa' }, { id: 'nvidia/some-reward-model' },
+    { id: 'nvidia/some-content-safety' }, { id: 'nvidia/some-document-parse' }, { id: 'vendor/future-model-9' },
+  ] })]);
+  const nv = await F.nvidia('k');
+  ok('NVIDIA, less the scoring, search, safety and document models', ids(nv).join() === 'cloud:nvidia:vendor/enormous-99b-instruct,cloud:nvidia:vendor/future-model-9', ids(nv).join());
 }
 
 console.log('\nA provider that refuses says why, rather than answering with nothing:');
-for (const p of ['groq', 'gemini', 'openrouter', 'cerebras', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral']) {
+for (const p of ['groq', 'gemini', 'openrouter', 'cerebras', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral', 'samba', 'nvidia']) {
   on([/./, respond(401, { error: { message: 'Invalid API Key' } })]);
   let err = null;
   try { await F[p]('k'); } catch (e) { err = e; }

@@ -18,6 +18,7 @@ use commands::{
     keychain::{keychain_delete, keychain_retrieve_bundle},
     net::net_fetch_text,
     notch::notch_activity_post,
+    provider::{provider_request, provider_request_cancel},
     shell::{
         shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream,
     },
@@ -84,6 +85,11 @@ pub fn run() {
             // Reading a web page: resolved, judged and fetched here, so the
             // connection goes to the address that was checked.
             net_fetch_text,
+            // The three providers whose servers refuse a web page. Each call
+            // names a provider and a route and reaches one address written in
+            // src/commands/provider.rs — never one the caller supplies.
+            provider_request,
+            provider_request_cancel,
             // Undo — what a file held before the agent changed it.
             //
             // checkpoint_list is what makes the history readable at all: the

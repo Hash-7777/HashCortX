@@ -23,7 +23,7 @@
   /** One provider's last answer, as a line a person can read. */
   function describe(r) {
     if (r.state === 'ok') return { cls: 'ml-ok', state: `${r.count} model${r.count === 1 ? '' : 's'}`, why: r.note || '' };
-    if (r.state === 'blocked') return { cls: 'ml-off', state: 'not offered', why: 'its servers refuse requests from inside apps like this one' };
+    if (r.state === 'blocked') return { cls: 'ml-off', state: 'not offered', why: 'only the desktop app can send its requests' };
     if (r.state === 'empty') return { cls: 'ml-bad', state: 'none usable', why: r.note || 'it listed no model this app can chat with' };
     if (r.state === 'error') return { cls: 'ml-bad', state: 'not updated', why: `${r.error || 'no answer'} — the menu shows the last list that arrived` };
     return null;

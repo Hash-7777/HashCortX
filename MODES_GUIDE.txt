@@ -11,8 +11,8 @@ They all share your API keys and model picker — switch freely.
 ──────────────────────────────────────────────────────────────
 Your main conversation workspace. Talk to any model you have
 an API key for — Groq, Gemini, OpenAI, Anthropic, Cerebras,
-DeepSeek, Moonshot, Mistral, OpenRouter, or a local model via
-Ollama. The model menu is each provider's own list for your
+DeepSeek, Moonshot, Mistral, OpenRouter, SambaNova, NVIDIA,
+or a local model via Ollama. The model menu is each provider's own list for your
 key; Settings → API keys → Update model lists asks again. Supports file attachments, chat history, and projects 
 to keep conversations organised. 
 Use /commands in the input bar to access shortcuts.

@@ -7,6 +7,7 @@ pub mod fs;
 pub mod keychain;
 pub mod net;
 pub mod notch;
+pub mod provider;
 pub mod shell;
 pub mod swarm_site;
 pub mod usage_log;

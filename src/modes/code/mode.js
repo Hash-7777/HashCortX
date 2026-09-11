@@ -183,8 +183,7 @@
   }
 
   // ── Auto-router ────────────────────────────────────────────
-  // Provider fallback order for coding tasks. Each entry is only added
-  // if the matching API key is present in the Settings DOM.
+  // Provider fallback order for coding tasks; an entry is used only when its key is saved.
   const ROUTER_FALLBACKS = [
     { keyId: 'groqKey',       provider: 'groq',       model: 'llama-3.3-70b-versatile',           label: 'Groq'      },
     { keyId: 'cerebrasKey',   provider: 'cerebras',   model: 'llama-3.3-70b',                     label: 'Cerebras'  },
@@ -196,6 +195,7 @@
     { keyId: 'deepseekKey',   provider: 'deepseek',   model: 'deepseek-chat',                     label: 'DeepSeek'  },
     { keyId: 'moonshotKey',   provider: 'moonshot',   model: 'kimi-k2.6',                         label: 'Moonshot'  },
     { keyId: 'mistralKey',    provider: 'mistral',    model: 'mistral-large-latest',              label: 'Mistral'   },
+    { keyId: 'nvidiaKey',     provider: 'nvidia',     model: 'openai/gpt-oss-20b',                label: 'NVIDIA'    },
   ];
 
   function getAdapter(modelValue) {
@@ -220,7 +220,7 @@
 
     for (const fb of ROUTER_FALLBACKS) {
       const key = (document.getElementById(fb.keyId)?.value || '').trim();
-      if (!key || window.HCProviders?.isBrowserBlocked(fb.provider)) continue;
+      if (!key || (!window.HC?.isTauri && window.HCProviders?.get(fb.provider)?.bridge)) continue; // only the app can send those
       if (primary.kind === 'openai' && primary.provider === fb.provider) continue;
 
       // Pick the best live model for this provider instead of a hardcoded ID.

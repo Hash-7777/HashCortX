@@ -55,14 +55,19 @@
       { value: "cloud:cerebras:llama-3.3-70b", label: "Llama 3.3 70B · Cerebras",  shortLabel: "Llama 3.3 70B" },
       { value: "cloud:cerebras:llama3.1-8b",   label: "Llama 3.1 8B · Cerebras",   shortLabel: "Llama 3.1 8B (fast)" },
     ],
-    // SambaNova — free mega-scale inference. IDs are PascalCase as shown in cloud.sambanova.ai
+    // SambaNova. Its servers refuse a web page, so the app asks for it; the
+    // live list (public, with each model's limits) replaces these at once.
     samba: [
-      { value: "cloud:samba:Llama-4-Maverick-17B-128E-Instruct", label: "Llama 4 Maverick 17B · SambaNova", shortLabel: "Llama 4 Maverick 17B" },
-      { value: "cloud:samba:Meta-Llama-3.1-405B-Instruct",       label: "Llama 3.1 405B · SambaNova",      shortLabel: "Llama 3.1 405B" },
-      { value: "cloud:samba:Meta-Llama-3.3-70B-Instruct",        label: "Llama 3.3 70B · SambaNova",       shortLabel: "Llama 3.3 70B" },
-      { value: "cloud:samba:QwQ-32B",                            label: "Qwen QwQ 32B · SambaNova",        shortLabel: "Qwen QwQ 32B" },
-      { value: "cloud:samba:DeepSeek-R1",                        label: "DeepSeek R1 · SambaNova",         shortLabel: "DeepSeek R1" },
-      { value: "cloud:samba:DeepSeek-V3-0324",                   label: "DeepSeek V3 · SambaNova",         shortLabel: "DeepSeek V3" },
+      { value: "cloud:samba:gpt-oss-120b",                label: "GPT-OSS 120B · SambaNova",   shortLabel: "GPT-OSS 120B" },
+      { value: "cloud:samba:DeepSeek-V3.1",               label: "DeepSeek V3.1 · SambaNova",  shortLabel: "DeepSeek V3.1" },
+      { value: "cloud:samba:Meta-Llama-3.3-70B-Instruct", label: "Llama 3.3 70B · SambaNova",  shortLabel: "Llama 3.3 70B" },
+    ],
+    // NVIDIA. Reached through the app for the same reason; its live list
+    // replaces these.
+    nvidia: [
+      { value: "cloud:nvidia:openai/gpt-oss-20b",                       label: "GPT-OSS 20B · NVIDIA",            shortLabel: "GPT-OSS 20B" },
+      { value: "cloud:nvidia:nvidia/llama-3.1-nemotron-ultra-253b-v1",  label: "Nemotron Ultra 253B · NVIDIA",    shortLabel: "Nemotron Ultra 253B" },
+      { value: "cloud:nvidia:meta/llama-3.2-90b-vision-instruct",      label: "Llama 3.2 90B Vision · NVIDIA",   shortLabel: "Llama 3.2 90B Vision" },
     ],
     // OpenAI — paid, frontier models
     openai: [

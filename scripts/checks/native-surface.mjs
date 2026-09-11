@@ -30,6 +30,7 @@ const ALLOWED = new Map([
   ['platform/tauri/save.js', 'writes an export to the disk — no model can call it, every path starts with the user clicking Export and naming a file in the native dialog, and the write still passes the denylist in export_write_file'],
   ['platform/tauri/hashcoder.js', 'the agent tools — every one gated by HC.guard.request first'],
   ['platform/tauri/keychain.js', 'one-time migration out of the old Keychain'],
+  ['platform/tauri/provider-bridge.js', 'sends a chat or model-list request for the three providers whose servers refuse a web page. It names a provider and a route; the address is a fixed row in src-tauri/src/commands/provider.rs, so no caller can aim it at a host, path or header of its own'],
   ['main.js', 'window geometry and lifecycle at boot'],
   ['js/app.js', 'checking whether a host resolves off-device before a request is allowed to leave, and opening a hardcoded ecosystem link in the browser'],
   ['core/rag/knowledge-base.js', 'embeds text with the model bundled in the binary. The command takes text and a kind and returns numbers — it reads no file, runs no process, and reaches no network; the CDN import it replaced is why semantic search never ran in any shipped build'],

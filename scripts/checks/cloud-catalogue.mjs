@@ -106,7 +106,10 @@ console.log('\nThe app uses it:');
 {
   const app = src('js', 'app.js');
   ok('the app asks through the catalogue', /const loadCloudModelsFor = \(provider, keyEl, options\) => _catalogue\.load\(provider, keyEl\?\.value, options\);/.test(app));
-  ok('a provider that refuses the app is told apart', /isBlocked: \(provider\) => HCProviders\.isBrowserBlocked\(provider\)/.test(app));
+  // SambaNova and NVIDIA go through the app, so they are unreachable only
+  // where there is no app — a plain browser — and never inside it.
+  ok('a provider only the app can send for is told apart outside it', /isBlocked: \(provider\) => !HC\.isTauri && !!HCProviders\.get\(provider\)\?\.bridge,/.test(app));
+  ok('their lists are asked for through the app', /bridge: \(provider, route, key\) => HC\.providerBridge\.request\(provider, route, \{ key \}\),/.test(app));
   ok('listed limits go to the request sizing', /limits: window\.HCModelLimits,/.test(app));
   ok('Update model lists forgets learnt limits and asks every provider again', /async function refreshModelLists\(\) \{\s*window\.HCModelLimits\.forgetLearned\(\);\s*await refreshCloudModelsFromAPIs\(\{ force: true \}\);/.test(app));
   ok('the menu leaves out models their provider said are gone', /const offeredModels = \(models\) => visibleCloudModels\(models\)\.filter\(m => !window\.HCModelRoutes\.isRetired\(m\.value\)\);/.test(app));
