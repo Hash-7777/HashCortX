@@ -5922,7 +5922,7 @@ sys.stderr = _stderr
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
-    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg };
+    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.done_reason };
   }
 
   async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {
@@ -6031,7 +6031,7 @@ sys.stderr = _stderr
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
-    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg };
+    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason };
   }
 
   async function agentTurnAnthropic({ model, messages, tools, temperature, signal }) {

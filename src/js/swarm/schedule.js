@@ -37,10 +37,24 @@
     return map;
   }
 
+  /**
+   * Agents that deliver the answer run on whatever arrived. One failed coder
+   * used to take the final agent with it, and a run with the rest of its work
+   * done ended with "Skipped" as its whole result. Such an agent waits until
+   * everything it depends on has finished or failed, and runs if any of it
+   * finished; it is told what is missing.
+   */
+  const keepsGoing = (a, options) => !!(options && options.keepGoing && options.keepGoing.has(a.id));
+  const settledWithSome = (deps, completed, failed) =>
+    deps.every((d) => completed.has(d) || failed.has(d)) && (!deps.length || deps.some((d) => completed.has(d)));
+
   /** Agents whose dependencies are all done, and which have not run yet. */
-  function readyAgents(agents, depMap, completed, failed) {
-    return idsOf(agents).filter((a) =>
-      !completed.has(a.id) && !failed.has(a.id) && (depMap[a.id] || []).every((d) => completed.has(d)));
+  function readyAgents(agents, depMap, completed, failed, options) {
+    return idsOf(agents).filter((a) => {
+      if (completed.has(a.id) || failed.has(a.id)) return false;
+      const deps = depMap[a.id] || [];
+      return keepsGoing(a, options) ? settledWithSome(deps, completed, failed) : deps.every((d) => completed.has(d));
+    });
   }
 
   /**
@@ -53,7 +67,7 @@
    * from the results, and absent from the final answer — with nothing anywhere
    * saying a branch of the work had been dropped.
    */
-  function strandedAgents(agents, depMap, completed, failed) {
+  function strandedAgents(agents, depMap, completed, failed, options) {
     const dead = new Set(failed);
     const out = [];
     let growing = true;
@@ -61,8 +75,11 @@
       growing = false;
       for (const a of idsOf(agents)) {
         if (completed.has(a.id) || dead.has(a.id)) continue;
-        const blockers = (depMap[a.id] || []).filter((d) => dead.has(d));
+        const deps = depMap[a.id] || [];
+        const blockers = deps.filter((d) => dead.has(d));
         if (!blockers.length) continue;
+        // One that keeps going is stranded only when nothing it waits for can arrive.
+        if (keepsGoing(a, options) && blockers.length < deps.length) continue;
         dead.add(a.id);
         out.push({ agent: a, blockedBy: blockers });
         growing = true;

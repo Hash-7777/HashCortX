@@ -72,6 +72,33 @@ console.log('\nOnly agents whose dependencies are done can run:');
     S.readyAgents(agents, wide, set(), set()).length === 3);
 }
 
+console.log('\nThe agent that delivers the answer runs on whatever arrived:');
+{
+  // Planner → three builders → final. One builder failing used to strand the
+  // final agent, and a run with most of its work done answered "Skipped".
+  const agents = ['plan', 'html', 'css', 'js', 'final'].map((id) => ({ id, name: id }));
+  const map = S.dependencyMap(agents, [
+    { from: 'plan', to: 'html' }, { from: 'plan', to: 'css' }, { from: 'plan', to: 'js' },
+    { from: 'html', to: 'final' }, { from: 'css', to: 'final' }, { from: 'js', to: 'final' },
+  ]);
+  const keep = { keepGoing: new Set(['final']) };
+  ok('it waits while any input is still coming',
+    !S.readyAgents(agents, map, set('plan', 'css'), set('html'), keep).some((a) => a.id === 'final'));
+  ok('it runs once every input has finished or failed, if any finished',
+    S.readyAgents(agents, map, set('plan', 'css', 'js'), set('html'), keep).some((a) => a.id === 'final'));
+  ok('it is not stranded by one failed input',
+    !S.strandedAgents(agents, map, set('plan', 'css', 'js'), set('html'), keep).some((x) => x.agent.id === 'final'));
+  ok('it is stranded when every input failed',
+    S.strandedAgents(agents, map, set('plan'), set('html', 'css', 'js'), keep).some((x) => x.agent.id === 'final'));
+  ok('... and never offered to run on nothing',
+    !S.readyAgents(agents, map, set('plan'), set('html', 'css', 'js'), keep).some((a) => a.id === 'final'));
+  ok('an agent not named keeps the strict rule',
+    !S.readyAgents(agents, map, set('plan', 'css', 'js'), set('html')).some((a) => a.id === 'final'));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
+  ok('a run names its final agent as the one that keeps going',
+    /keepGoing: new Set\(\[bp\.finalOutputAgentId\]/.test(mode) && /SCHED\.readyAgents\([^)]*, sched\)/.test(mode) && /SCHED\.strandedAgents\([^)]*, sched\)/.test(mode));
+}
+
 console.log('\nAn agent that can never run is reported, not forgotten:');
 {
   // This is the one that loses work. An agent waiting on a failed one is never

@@ -360,7 +360,10 @@ const LINE_BUDGET = {
   // 2277, down from 2352. The per-role provider tables and the failover that
   // took the first model of each provider in menu order gave way to
   // src/js/model-routes.js, shared with the Systems builder and the Forge.
-  'modes/agent-maker/mode.js': 2277,
+  // 2275, down two. What a web task's agents are told about the site moved to
+  // src/js/swarm/web-brief.js; the final agent now runs on what arrived, and
+  // a cut-off answer is carried on by the shared router.
+  'modes/agent-maker/mode.js': 2275,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

@@ -652,7 +652,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     }
     window.HCAgentPolicy.chargeRunBudget(runBudget);
     const mv = modelValue || $("model")?.value || "llama3.2";
-    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal });
+    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true }); // a cut-off spec is carried on
   }
 
   function modelTraceLabel(modelValue) {

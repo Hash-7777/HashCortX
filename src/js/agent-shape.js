@@ -288,13 +288,60 @@
    */
   function tagged(result, model) {
     if (!result || typeof result.then !== 'function') return result;
-    return result.catch((err) => {
+    return result.then((turn) => {
+      if (turn && typeof turn === 'object') turn.cutOff = wasCutOff(turn);
+      return turn;
+    }, (err) => {
       if (err && typeof err === 'object' && !err.model) err.model = model;
       throw err;
     });
   }
 
-  function routeModelTurn({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
+  /**
+   * Whether an answer stopped because it hit the length limit rather than
+   * because it was finished. Each provider says so differently: OpenAI and
+   * Ollama "length", Gemini "MAX_TOKENS", Anthropic "max_tokens". Nothing read
+   * it, so a web page cut off mid-tag was taken as the finished file.
+   */
+  function wasCutOff(turn) {
+    const raw = (turn && turn.raw) || {};
+    const why = (turn && turn.finish) || (raw.candidates && raw.candidates[0] && raw.candidates[0].finishReason) || raw.stop_reason || '';
+    return /^(length|max_tokens)$/i.test(String(why));
+  }
+
+  const CONTINUE = 'Your answer was cut off by the length limit. Continue exactly where it stopped: no repeating, no introduction, and do not open again a code block that is already open.';
+
+  /**
+   * An answer that was cut off, carried on until it is finished or `max` more
+   * turns have been asked for. `ask(messages)` makes one more call on the same
+   * model. The result says whether it is still cut off, so a caller can say so
+   * rather than pass half a file on as a whole one.
+   */
+  async function finishCutOff(ask, messages, first, max = 3) {
+    let turn = first;
+    let text = (first && first.content) || '';
+    let more = 0;
+    while (turn && turn.cutOff && !turn.tool_calls && more < max) {
+      more++;
+      turn = await ask([...messages, { role: 'assistant', content: text }, { role: 'user', content: CONTINUE }]);
+      text += (turn && turn.content) || '';
+    }
+    return { ...(turn || {}), content: text, cutOff: !!(turn && turn.cutOff), continued: more };
+  }
+
+  /**
+   * `untilFinished` carries on an answer that hit the length limit (see
+   * finishCutOff) and says on the result whether it had to, and whether it
+   * is still cut off.
+   */
+  function routeModelTurn(request, fns, deps) {
+    const first = routeOnce(request, fns, deps);
+    if (!request.untilFinished || !first || typeof first.then !== 'function') return first;
+    const again = (messages) => routeOnce({ ...request, messages }, fns, deps);
+    return first.then((turn) => (turn && turn.cutOff ? finishCutOff(again, request.messages, turn) : turn));
+  }
+
+  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
     // Gemini is the one provider whose tool list is shaped differently, and a
@@ -314,6 +361,8 @@
   }
 
   window.HCAgentShape = {
+    wasCutOff,
+    finishCutOff,
     imageMimeFromBase64,
     visionMessage,
     toOpenAIVision,

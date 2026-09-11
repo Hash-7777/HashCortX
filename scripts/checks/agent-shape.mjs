@@ -345,5 +345,42 @@ console.log('\nA failed call names the model that failed:');
   ok('... and a model already named is not overwritten', kept.model === 'cloud:gemini:x');
 }
 
+console.log('\nAn answer cut off at the length limit is carried on:');
+{
+  ok('OpenAI and Ollama say "length"', A.wasCutOff({ finish: 'length' }));
+  ok('Gemini says MAX_TOKENS', A.wasCutOff({ raw: { candidates: [{ finishReason: 'MAX_TOKENS' }] } }));
+  ok('Anthropic says max_tokens', A.wasCutOff({ raw: { stop_reason: 'max_tokens' } }));
+  ok('a finished answer is not cut off', !A.wasCutOff({ finish: 'stop' }) && !A.wasCutOff({ raw: { candidates: [{ finishReason: 'STOP' }] } }) && !A.wasCutOff({}));
+  const deps = { parseCloudModel: (v) => ({ provider: v.split(':')[1], modelId: v.split(':').slice(2).join(':') }), providers: { get: () => ({}) } };
+  const parts = (list) => {
+    const seen = [];
+    return { seen, fns: { openai: (a) => { seen.push(a.messages); const p = list[Math.min(seen.length - 1, list.length - 1)]; return Promise.resolve({ content: p[0], finish: p[1] }); } } };
+  };
+  {
+    const { seen, fns } = parts([['<html><body>', 'length'], ['<p>hi</p>', 'length'], ['</body></html>', 'stop']]);
+    const turn = await A.routeModelTurn({ modelValue: 'cloud:groq:m', messages: [{ role: 'user', content: 'page' }], untilFinished: true }, fns, deps);
+    ok('the parts are joined into one answer', turn.content === '<html><body><p>hi</p></body></html>');
+    ok('... it says how many more turns it took, and that it is finished', turn.continued === 2 && turn.cutOff === false);
+    ok('each follow-up carries what was written so far and asks to continue',
+      seen[1].length === 3 && seen[1][1].role === 'assistant' && seen[1][1].content === '<html><body>' && /Continue exactly where it stopped/.test(seen[1][2].content));
+  }
+  {
+    const { fns } = parts([['a', 'length']]);
+    const turn = await A.routeModelTurn({ modelValue: 'cloud:groq:m', messages: [], untilFinished: true }, fns, deps);
+    ok('it stops asking after three more turns, and says it is still cut off', turn.continued === 3 && turn.cutOff === true && turn.content === 'aaaa');
+  }
+  {
+    const { seen, fns } = parts([['a', 'length']]);
+    const turn = await A.routeModelTurn({ modelValue: 'cloud:groq:m', messages: [] }, fns, deps);
+    ok('without untilFinished the first part comes back, marked cut off', seen.length === 1 && turn.cutOff === true);
+  }
+  const swarm = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
+  const systems = readFileSync(join(here, '..', '..', 'src', 'modes', 'systems', 'mode.js'), 'utf8');
+  ok('the Agent Swarm asks for finished answers', /runModelTurn\(\{[\s\S]{0,120}untilFinished: true/.test(swarm));
+  ok('... and says in the trace when one was cut off', /result\.continued \|\| result\.cutOff/.test(swarm));
+  ok('the Systems builder asks for finished answers', /runModelTurn\(\{[^}]*untilFinished: true/.test(systems));
+  ok('no agent answer carries a note about providers', !/switched providers during execution|\[Failover:/.test(swarm));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

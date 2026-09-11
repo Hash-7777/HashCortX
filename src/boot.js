@@ -95,6 +95,7 @@
     '/js/swarm/output.js',
     '/js/swarm/project-files.js',
     '/js/swarm/site.js',
+    '/js/swarm/web-brief.js',
     '/js/swarm/runs.js',
     '/js/swarm/workspace-view.js',
     '/js/swarm/talk.js',

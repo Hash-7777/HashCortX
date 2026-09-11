@@ -236,6 +236,7 @@ const SwarmMaker = (() => {
       messages,
       temperature: temp,
       signal,
+      untilFinished: true,
       tools: (kind) => {
         if (!agentObj) return [];
         if (kind === "gemini") return buildGeminiTools(agentObj);
@@ -293,11 +294,13 @@ const SwarmMaker = (() => {
     const depCharLimit = execOptions.dependencyCharLimit || 2000;
     const finalOwnerId = execOptions.finalOutputAgentId || "";
     const isFinalOwner = finalOwnerId && agent.id === finalOwnerId;
+    // On a build, whoever checks or assembles the files gets them whole, not the first few thousand characters.
+    const needsWhole = isFinalOwner || (execOptions.codeBuild && /validator|critic|qa|review|supervisor/i.test(`${agent.role} ${agent.name}`));
     const contextLines = Object.entries(depResults)
       .filter(([,v]) => v)
       .map(([name, out]) => {
         const text = String(out);
-        const limit = isFinalOwner ? Math.max(depCharLimit, text.length) : depCharLimit;
+        const limit = needsWhole ? Math.max(depCharLimit, text.length) : depCharLimit;
         return `\n[${name}]:\n${text.slice(0, limit)}`;
       });
     const context = contextLines.length ? "\n\n--- Input from prior agents ---" + contextLines.join("") : "";
@@ -306,10 +309,8 @@ const SwarmMaker = (() => {
       ? "\n\nIMPORTANT: When generating files (PDF, Word, Excel, CSV, etc.) you MUST call the execute_python tool and write the file to /output/<filename>. Do NOT write code in text — call the tool directly so the file downloads to the user."
       : "";
     const fenceNote = "\n\nFORMATTING RULE: Always wrap any code you produce in markdown fenced code blocks with the correct language tag. Examples: ```html, ```python, ```javascript, ```css, ```json, ```bash. Never output raw code outside of fences.";
-    const isWebTask = /website|webpage|web app|landing page|frontend|html|tailwind|react|vue|svelte|portfolio|dashboard/i.test(task);
-    const webFileNote = isWebTask
-      ? "\n\nWEB FILE FORMAT: When outputting files for a web project, include the filename in the fence opener using this exact format:\n```html index.html\n...content...\n```\n```css styles.css\n...content...\n```\n```javascript app.js\n...content...\n```\nThis allows files to be extracted and previewed. Use Tailwind CSS via CDN (<script src=\"https://cdn.tailwindcss.com\"></script>) instead of a local build. Do NOT split a single HTML file across multiple blocks — output each file completely in one block.\n\nWEBSITE QUALITY CONTRACT:\n- Produce a polished, integrated website, not isolated snippets. The HTML must reference the exact CSS and JS files you output.\n- If the task asks for images/products/gallery, use visible remote HTTPS image URLs and add alt text, width/height or stable aspect-ratio, object-fit styling, and an onerror fallback that replaces broken images with an inline SVG/data URI.\n- For jewelry/gold/luxury sites, prefer these known remote image URL patterns when you need real product photos: https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=900&q=80, https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&w=900&q=80, https://images.unsplash.com/photo-1617038220319-276d3cfab638?auto=format&fit=crop&w=900&q=80.\n- Do not use relative image paths like assets/foo.jpg unless you also output that file. Do not use example.com, placeholder.com, empty src, or fake local paths.\n- If the task asks for a cart, implement add/remove/quantity controls, cart count, total calculation, empty state, and localStorage persistence. Bind events after DOMContentLoaded or use deferred scripts.\n- Use tasteful CSS transitions/keyframes for requested animations, include :hover/:focus states, and include a prefers-reduced-motion fallback.\n- Final supervisor output must be the complete final code bundle only, with no reports or planning prose."
-      : "";
+    // The site's files by the team's own names, and who writes which — js/swarm/web-brief.js.
+    const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner });
     const messages = [
       { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + webFileNote },
       { role: "user",   content: `Task: ${task}${context}\n\nProvide your output directly.` }
@@ -364,6 +365,7 @@ const SwarmMaker = (() => {
               traceAdd(agent.name, `Tool result appended · transcript now ${messages.length} message(s)`, "wait");
             }
           } else {
+            if (result.continued || result.cutOff) traceAdd(agent.name, result.cutOff ? `Answer still cut off after ${result.continued} more turn(s) — its last file may be incomplete` : `Answer was cut off; finished in ${result.continued} more turn(s)`, result.cutOff ? "warn" : "ok");
             traceAdd(agent.name, `LLM returned final text · ${(result.content || "").length} chars`, "ok");
             // ── Auto-execute safety net (same as regular chat mode) ───────
             // Weaker models sometimes write Python in a markdown fence and
@@ -393,22 +395,16 @@ const SwarmMaker = (() => {
               }
             }
             traceAdd(agent.name, "Normalising final output", "wait");
-            const out = normaliseAgentOutput(candidateText || "(no output)");
-            // Annotate output with failover info so aggregator can weigh it
-            if (failoverLog.length) {
-              const note = `\n\n[Note: this agent switched providers during execution — ${failoverLog.map(f=>`${f.from}→${f.to}`).join(", ")}]`;
-              traceAdd(agent.name, `Returning output with ${failoverLog.length} failover note(s)`, "ok");
-              return out + note;
-            }
+            // Providers it went through go in the trace, never the answer: a note there shipped inside an unclosed file.
+            if (failoverLog.length) traceAdd(agent.name, `Answered after switching ${failoverLog.map(f => `${f.from}→${f.to}`).join(", ")}`, "ok");
             traceAdd(agent.name, "Returning output to orchestrator", "ok");
-            return out;
+            return normaliseAgentOutput(candidateText || "(no output)");
           }
         }
         // Fallback if max tool rounds hit
         traceAdd(agent.name, `Max tool rounds reached · using last assistant output`, "warn");
         const rawLast = messages.filter(m => m.role === "assistant").map(m => m.content).filter(Boolean).pop() || "(no output)";
-        const last = normaliseAgentOutput(rawLast);
-        return failoverLog.length ? last + `\n\n[Failover: ${failoverLog.map(f=>`${f.from}→${f.to}`).join(", ")}]` : last;
+        return normaliseAgentOutput(rawLast);
 
       } catch (err) {
         if (err.name === "AbortError" || signal?.aborted) throw err;
@@ -486,7 +482,11 @@ const SwarmMaker = (() => {
       dependencyCharLimit: bp.budgetControls?.maxContextCharsPerDependency || 2000,
       maxToolRounds: bp.budgetControls?.maxToolRounds || 8,
       finalOutputAgentId: bp.finalOutputAgentId || "",
+      codeBuild: strictDependencies,
+      siteFiles: window.HCSwarmWebBrief.siteFilesOf(bp),
     };
+    // The agent that delivers the answer runs on whatever arrived — js/swarm/schedule.js.
+    const sched = { keepGoing: new Set([bp.finalOutputAgentId].filter(Boolean)) };
 
     /**
      * Mark every agent that can no longer run, and say why.
@@ -496,7 +496,7 @@ const SwarmMaker = (() => {
      * dropped. Returns how many were marked.
      */
     const markStranded = (because) => {
-      const stranded = SCHED.strandedAgents(agents, depMap, completed, failed);
+      const stranded = SCHED.strandedAgents(agents, depMap, completed, failed, sched);
       for (const { agent: a, blockedBy } of stranded) {
         const names = blockedBy.map(id => labels[id] || id).join(", ");
         failed.add(a.id);
@@ -515,7 +515,7 @@ const SwarmMaker = (() => {
         updateProgress(completed.size / agents.length);
       }
 
-      const ready = SCHED.readyAgents(agents, depMap, completed, failed);
+      const ready = SCHED.readyAgents(agents, depMap, completed, failed, sched);
       const blocked = agents.filter(a =>
         !completed.has(a.id) &&
         !failed.has(a.id) &&
@@ -658,12 +658,10 @@ const SwarmMaker = (() => {
     }
 
     // synthesis (default) — LLM merges all outputs coherently
-    const hasFailovers = outputs.some(o => o.out.includes("[Failover:") || o.out.includes("[Note: this agent switched"));
-    traceAdd("Aggregator", hasFailovers ? "Failover notes detected · weighting outputs accordingly" : "No failover notes detected", "wait");
     try {
       traceAdd("Aggregator", "Sending synthesis prompt", "run");
       const r = await callAgentLLM(supervisorModel, [
-        { role: "system", content: `You are a synthesis expert. Combine the agent outputs below into one coherent, well-structured final answer. Be comprehensive. Do not repeat yourself.${hasFailovers ? "\n\nNote: some agents switched providers mid-task — outputs marked [Note: ...] or [Failover: ...] may be less complete. Weight them accordingly and compensate for any gaps." : ""}` },
+        { role: "system", content: `You are a synthesis expert. Combine the agent outputs below into one coherent, well-structured final answer. Be comprehensive. Do not repeat yourself.` },
         { role: "user",   content: `Original task: ${task}\n\nAgent outputs:\n${combined}\n\nSynthesize into a final answer.` }
       ], signal, 0.5);
       traceAdd("Aggregator", `Synthesis returned ${(r.content || "").length} chars`, "ok");
@@ -888,7 +886,7 @@ const SwarmMaker = (() => {
       return common + "\n- Output a compact implementation brief only: brand direction, page sections, data/content needs, file list, image strategy, interaction strategy, and acceptance criteria.\n- For websites with product/gallery imagery, specify remote HTTPS image URLs and inline fallback behavior; do not leave image sourcing to downstream guessing.\n- Keep the brief under 900 words.";
     }
     if (/front|html|css|style|js|coder|developer/.test(name) && !/back/.test(name)) {
-      return common + "\n- Output complete frontend code only, using fenced blocks with filenames: ```html index.html```, ```css styles.css```, ```javascript app.js```.\n- Use visible remote HTTPS images with alt text, stable aspect ratios, object-fit styling, and onerror inline SVG/data URI fallback.\n- If a cart is requested, implement add/remove/quantity/count/total/empty-state/localStorage behavior and wire all buttons.\n- Implement polished animations with CSS transitions/keyframes and reduced-motion support.\n- Do not output partial snippets. Do not write commentary outside code fences.";
+      return common + "\n- Output complete frontend code only: the files your role owns, each in one fenced block named with the site's exact file name.\n- Use visible remote HTTPS images with alt text, stable aspect ratios, object-fit styling, and onerror inline SVG/data URI fallback.\n- If a cart is requested, implement add/remove/quantity/count/total/empty-state/localStorage behavior and wire all buttons.\n- Implement polished animations with CSS transitions/keyframes and reduced-motion support.\n- Do not output partial snippets. Do not write commentary outside code fences.";
     }
     if (/back|server|api/.test(name)) {
       return common + "\n- If the website does not need a backend, output exactly: NO_BACKEND_NEEDED.\n- If a backend is needed, output complete code only with filenames such as ```javascript server.js``` and no document-generation code.";
