@@ -145,7 +145,11 @@ const LINE_BUDGET = {
   // beside its charts, records by stage, one figure over twelve months — and
   // a new system's differs from the last one's.
   // 3109: the five shells a system is framed in moved to js/systems/shells.js.
-  'modes/systems/mode.js': 3109,
+  // 3182, up from 3109: a system can be changed by asking — the request, the
+  // model's answer built on the system as it was, and the version kept. What
+  // it is shown, what of the design is kept and what changed are in
+  // js/systems/revise.js.
+  'modes/systems/mode.js': 3182,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

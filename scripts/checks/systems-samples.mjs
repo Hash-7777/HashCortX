@@ -76,10 +76,10 @@ ok('a whole record has an id and every field', (() => {
 })());
 
 console.log('\nThe Systems mode asks the model before it stands in:');
-ok('entities the model left empty are asked for, on both ways a spec is made', (mode.match(/await writeMissingRecords\(await finalizeOrRepairGeneratedSpec\(/g) || []).length === 2);
+ok('entities the model left empty are asked for, on both ways a spec is made and on a change', (mode.match(/await writeMissingRecords\(await finalizeOrRepairGeneratedSpec\(/g) || []).length === 3);
 ok('the books are not, since the ledger builds them', /!finance\.has\(id\)/.test(mode));
 ok('a stand-in that stays is said to be one', /are stand-ins made up by the app, not written for this business/.test(mode));
-ok('the model is told what today is, so its dates are not a year out', (mode.match(/Today is \$\{todayIso\(\)\}/g) || []).length === 2);
+ok('the model is told what today is, so its dates are not a year out', (mode.match(/Today is \$\{todayIso\(\)\}/g) || []).length === 3);
 ok('today is the person\'s own date, not UTC\'s', S.localDay(new Date(2026, 8, 11, 0, 30)) === '2026-09-11' && /const todayIso = \(\) => window\.HCSystemsSamples\.localDay\(new Date\(\)\)/.test(mode) && !/toISOString\(\)\.slice\(0, 10\)/.test(mode));
 ok('the old lists of other businesses\' data are gone', !/const menuItems|const roomTypes|Margherita Pizza/.test(mode));
 

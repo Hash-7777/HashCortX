@@ -26,7 +26,7 @@
     <div class="sys-header-center">
       <div class="sys-prompt-wrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="sysPromptInput" type="text" placeholder="Describe a business app&#8230; e.g. 'restaurant order management system'" autocomplete="off" />
+        <input id="sysPromptInput" type="text" placeholder="Describe a new business app, or a change to the open one&#8230;" autocomplete="off" />
       </div>
       <input type="text" id="sysHeaderAppSearch" placeholder="Search records&#8230;" style="height:36px;border:1px solid var(--sys-line);border-radius:7px;background:rgba(15,23,42,.72);color:#e5edf5;font:12px var(--sans);padding:0 10px;outline:0;min-width:140px;display:none;" />
     </div>
@@ -35,6 +35,7 @@
       <span class="sys-run-status" id="sysRunStatus">Idle</span>
       <select class="sys-model-select" id="sysModelSelect"></select>
       <button class="sys-btn primary" id="sysCreateBtn">Generate</button>
+      <button class="sys-btn" id="sysChangeBtn" type="button" title="Apply what you typed to the system that is open" disabled>Change</button>
       <button class="sys-btn" id="sysNewBtn">New</button>
       <button class="sys-btn" id="sysResetDataBtn">Reset Data</button>
       <button class="sys-btn" id="sysBackBtn">&#8592; Back</button>

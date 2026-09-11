@@ -272,6 +272,8 @@ const SystemMaker = (() => {
     btn.classList.toggle("danger", running);
     btn.setAttribute("aria-label", running ? "Stop system generation" : "Generate system");
     btn.title = running ? "Stop the current generation run" : "Generate a new system";
+    const change = $("sysChangeBtn");
+    if (change) change.disabled = running || !getActive();
   }
 
   function stopSystemGeneration() {
@@ -1053,9 +1055,9 @@ Repair requirements:
     return spec;
   }
 
-  async function finalizeOrRepairGeneratedSpec(modelValue, parsed, rawText, desc, signal, tried = []) {
+  async function finalizeOrRepairGeneratedSpec(modelValue, parsed, rawText, desc, signal, tried = [], previousSpec = null) {
     try {
-      return finalizeGeneratedSpec(parsed, desc, null);
+      return finalizeGeneratedSpec(parsed, desc, previousSpec);
     } catch (err) {
       if (!err.validationIssues) throw err;
       // What is actually wrong with it. The run used to announce a repair pass
@@ -1081,7 +1083,7 @@ Repair requirements:
           ], signal, 0.25);
           const repaired = parseSpecJson(repair?.content || "");
           if (!repaired) throw new Error("Semantic repair returned invalid JSON.");
-          return finalizeGeneratedSpec(repaired, desc, null);
+          return finalizeGeneratedSpec(repaired, desc, previousSpec);
         } catch (e) {
           // A stop is a stop, and the run budget is the whole point of having
           // one — neither is something to work around by asking again.
@@ -1264,7 +1266,8 @@ Repair requirements:
     return {
       at: Date.now(),
       label: label || "Revision",
-      spec: structuredCloneSafe({ ...spec, revisionHistory: [] }),
+      // Its records as they stood, so going back to it brings them back too.
+      spec: structuredCloneSafe({ ...spec, mockData: getRuntimeData(spec), revisionHistory: [] }),
     };
   }
 
@@ -1322,7 +1325,74 @@ Repair requirements:
     }
   }
 
+  /**
+   * Apply a request to the system that is open: the model is shown it and
+   * returns it changed. Records of entities that remain are kept, new
+   * entities get records written for them, the design stays unless the
+   * request is about it, and the system as it was is kept as a version.
+   */
+  async function reviseSystem() {
+    const spec = getActive();
+    const request = $("sysPromptInput")?.value.trim() || "";
+    if (!spec || runAbort) return;
+    if (!request) { trace("Type the change you want, then press Change", "warn"); return; }
+    clearTrace();
+    setStatus("Changing", "running");
+    runAbort = new AbortController();
+    runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
+    updateCreateButtonState();
+    const signal = runAbort.signal;
+    const R = window.HCSystemsRevise;
+    try {
+      const data = getRuntimeData(spec);
+      const tried = [];
+      let model = $("sysModelSelect")?.value || $("model")?.value || "";
+      let next = null;
+      for (let attempt = 1; attempt <= 3 && !next; attempt++) {
+        trace(`Changing ${spec.name} — ${modelTraceLabel(model)}`, "run");
+        try {
+          const r = await callModel(model, [
+            { role: "system", content: `${systemPrompt()}\n\nYou are CHANGING an existing system, not designing a new one. Return the complete updated SystemSpec. Keep every module, entity, field, workflow and design choice the request does not mention, with the same ids. For a new entity, include 6-10 mockData records for this business; do not repeat the existing records. Remove something only when asked.` },
+            { role: "user", content: `The system now:\n${JSON.stringify(R.compactSpec(spec, data))}\n\nThe change: ${request}\nToday is ${todayIso()}.` },
+          ], signal, 0.3);
+          const raw = r?.content || "";
+          const parsed = parseSpecJson(raw);
+          if (!parsed) throw new Error("Model returned invalid SystemSpec JSON");
+          const kept = R.keepDesign(spec, { ...parsed, id: spec.id, name: parsed.name || spec.name, domain: spec.domain });
+          next = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(model, kept, raw, `${spec.description} ${request}`, signal, tried, spec), request, signal, model);
+        } catch (err) {
+          if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
+          trace(`${modelTraceLabel(model)} could not make the change: ${String(err.message || err).slice(0, 90)}`, "warn");
+          tried.push(model);
+          const other = isFailoverError(err) && failoverModels(model).find(m => !tried.includes(m));
+          if (!other) throw err;
+          model = other;
+        }
+      }
+      if (!next) throw new Error("No model could make the change");
+      // The books the person already has stay theirs; the ledger would redraw them.
+      for (const id of Object.values(DOMAIN().FINANCE_ENTITY_IDS)) if (data[id] && next.entities[id]) next.mockData[id] = data[id];
+      next.revisionHistory = [snapshot(spec, request), ...(spec.revisionHistory || [])].slice(0, MAX_HISTORY);
+      systems[systems.findIndex(s => s.id === spec.id)] = next;
+      saveRuntimeData(next, next.mockData);
+      saveSystems();
+      renderAll();
+      const changes = R.specChanges(spec, next);
+      changes.forEach(c => trace(c, "ok"));
+      trace(changes.length ? `Changed — the version before is in History` : "The model returned the system unchanged", changes.length ? "ok" : "warn");
+      setStatus("Done", "done");
+    } catch (err) {
+      setStatus(err.name === "AbortError" ? "Stopped" : "Error", err.name === "AbortError" ? "stopped" : "error");
+      trace(err.name === "AbortError" ? "Change stopped; the system is as it was" : `${err.message || err} — the system is as it was`, err.name === "AbortError" ? "warn" : "err");
+    } finally {
+      runAbort = null;
+      runBudget = null;
+      updateCreateButtonState();
+    }
+  }
+
   function renderAll() {
+    updateCreateButtonState();
     renderSystemList();
     renderVersionList();
     renderPreview();
@@ -2613,9 +2683,11 @@ Repair requirements:
     const current = snapshot(spec, "Before restore");
     const restored = normalizeSpec({ ...structuredCloneSafe(snap.spec), id: spec.id, revisionHistory: [current, ...(spec.revisionHistory || [])].slice(0, MAX_HISTORY) }, "restore", spec);
     systems[systems.findIndex(s => s.id === spec.id)] = restored;
+    // Saved, so an entity only the restored version has shows its records.
+    saveRuntimeData(restored, restored.mockData);
     saveSystems();
     renderAll();
-    trace("Version restored", "ok");
+    trace(`Restored "${snap.label}"`, "ok");
   }
 
   function addRecord() {
@@ -2673,6 +2745,7 @@ Repair requirements:
   function wireEvents() {
     // ── Header / nav ────────────────────────────────────────────────
     $("sysCreateBtn")?.addEventListener("click", createSystem);
+    $("sysChangeBtn")?.addEventListener("click", reviseSystem);
     $("sysNewBtn")?.addEventListener("click", () => {
       activeId = null;
       activeModuleId = "";
