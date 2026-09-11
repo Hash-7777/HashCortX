@@ -104,7 +104,7 @@ Every command is bounded: a five-minute timeout, closed stdin, a 512 KB output c
 
 Chain mode hands each agent's output to the next. Vote mode runs one prompt across several models and has a judge score the answers. If a provider rate-limits or dies mid-run, the swarm swaps to another one you configured and carries on with the same context.
 
-When a run finishes it opens in the Swarm Workspace: each agent's part as a conversation beside the files the run made, every version of those files kept, and past runs a click away. Ask for a change in the message box and the run's lead agent answers, or name another agent with @. For a bigger change, send it to the whole team for another pass, which carries on the same conversation. The files each change touches become a new version, so any change can be undone, and any file can be compared line by line with how it was in another version. A site the agents built opens in your browser, where it runs as written, or downloads as one page.
+When a run finishes it opens as its Result: each agent's part as a conversation beside the files the run made, every version of those files kept, and past runs a click away. Ask for a change in the message box and the run's lead agent answers, or name another agent with @. For a bigger change, send it to the whole team for another pass, which carries on the same conversation. The files each change touches become a new version, so any change can be undone, and any file can be compared line by line with how it was in another version. A site the agents built opens in your browser, where it runs as written, or downloads as one page.
 
 ![Agent Swarm blueprint canvas with a live orchestrator trace](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
 

@@ -82,7 +82,7 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span class="btn-label">Auto Layout</span>
         </button>
-        <button class="amk-btn" id="amkViewChatBtn">Workspace</button>
+        <button class="amk-btn" id="amkViewChatBtn" title="The last run: what each agent said and the files it made">Result</button>
         <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
         <div class="amk-canvas-sep"></div>
         <div class="amk-zoom-ctrl">
@@ -206,7 +206,7 @@
   <div class="amk-ws" id="amkWorkspace" role="dialog" aria-modal="true" aria-labelledby="amkWsTitle" hidden>
     <div class="amk-ws-head">
       <div class="amk-ws-heading">
-        <span class="amk-ws-title" id="amkWsTitle">Swarm Workspace</span>
+        <span class="amk-ws-title" id="amkWsTitle">Result</span>
         <span class="amk-ws-sub" id="amkWsSub"></span>
       </div>
       <label class="amk-ws-pick"><span>Run</span><select id="amkWsRuns" aria-label="Past runs"></select></label>
@@ -217,7 +217,7 @@
         <button class="amk-ws-btn amk-ws-primary" id="amkWsOpen" type="button">Open in browser</button>
         <button class="amk-ws-btn" id="amkWsDownload" type="button">Download site</button>
         <span class="amk-ws-status" id="amkWsStatus" role="status" aria-live="polite"></span>
-        <button class="amk-ws-btn amk-ws-close" id="amkWsClose" type="button" aria-label="Close the Workspace">&#215;</button>
+        <button class="amk-ws-btn amk-ws-close" id="amkWsClose" type="button" aria-label="Close the result">&#215;</button>
       </div>
     </div>
     <div class="amk-ws-body">

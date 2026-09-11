@@ -101,7 +101,7 @@ HashCortX/
 │   │   │                            a site's files and the one page built
 │   │   │                            from them, each run kept as a
 │   │   │                            conversation with versions (IndexedDB),
-│   │   │                            and the Workspace that shows it, where
+│   │   │                            and the Result view that shows it, where
 │   │   │                            its agents, or the whole team, can be
 │   │   │                            asked for changes and two versions of a
 │   │   │                            file compared

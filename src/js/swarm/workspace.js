@@ -154,7 +154,7 @@
     const run = state.run;
     const V = VIEW();
     const now = Date.now();
-    $('amkWsTitle').textContent = state.blueprint?.name || run?.blueprintName || 'Swarm Workspace';
+    $('amkWsTitle').textContent = state.blueprint?.name || run?.blueprintName || 'Result';
     $('amkWsSub').textContent = run
       ? `${run.agents.length} agent${run.agents.length === 1 ? '' : 's'} · ${V.timeAgo(run.startedAt, now)}`
       : 'No runs yet';
