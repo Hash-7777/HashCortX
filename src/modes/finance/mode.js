@@ -1372,7 +1372,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     });
     /* chart SVGs */
     (currentReport.charts || []).forEach(chart => {
-      const svgId = "fin-svg-" + chart.id;
+      const svgId = CHARTS().chartDomId(chart);
       const old   = document.getElementById(svgId);
       if (!old) return;
       let newSvgHtml = "";
@@ -1741,7 +1741,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
           CSV
         </button>
         ${(r.charts || []).map(c => `
-        <button class="fin-export-btn" data-svgid="fin-svg-${c.id}">
+        <button class="fin-export-btn" data-svgid="${CHARTS().chartDomId(c)}">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           ${escHtml(c.title.slice(0, 14))} PNG
         </button>`).join("")}
@@ -1804,7 +1804,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
 
   /* ── chart dispatcher ───────────────────────────────────────────── */
   function renderChart(c) {
-    const svgId   = "fin-svg-" + c.id;
+    const svgId   = CHARTS().chartDomId(c);
     let chartHtml = "";
     if      (c.type === "bar")   chartHtml = renderBarChart(c, svgId);
     else if (c.type === "line")  chartHtml = renderLineChart(c, svgId);
@@ -2139,7 +2139,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     if ((r.charts || []).length) {
       section("Charts & Visualisations");
       for (const chart of r.charts) {
-        const result = await svgToDataUrl("fin-svg-" + chart.id);
+        const result = await svgToDataUrl(CHARTS().chartDomId(chart));
         if (!result) continue;
         const { dataUrl, w, h } = result;
         const aspect = h / w;

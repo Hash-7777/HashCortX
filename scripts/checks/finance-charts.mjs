@@ -131,5 +131,24 @@ console.log('\nFigures are shortened the way money is read:');
   ok('so is one that is not a number', C.formatNum('abc') === '–');
 }
 
+console.log('\nWhat a report names is drawn as data, never as markup:');
+{
+  // A report is a model's answer, and a model can be steered by the document
+  // it is reading. Its colours and ids land inside attributes.
+  ok('a colour is used only when it is one', C.colourOf('#10b981', 'x') === '#10b981' && C.colourOf('rgb(1, 2, 3)', 'x') === 'rgb(1, 2, 3)' && C.colourOf('teal', 'x') === 'teal');
+  for (const bad of ['red" onload="x', 'red"/><foreignObject>', 'url(https://attacker.test/)', 'expression(alert(1))', 'red;position:fixed', '', null, 42]) {
+    ok(`not ${JSON.stringify(bad)}`, C.colourOf(bad, 'FALLBACK') === 'FALLBACK');
+  }
+  const hostile = { labels: ['A', 'B'], datasets: [{ label: 'x', color: 'red"/><foreignObject><p>hi</p></foreignObject><rect fill="', values: [1, 2] }, { label: 'y', values: [2, 3] }] };
+  for (const [name, render] of [['bar', C.renderBarChart], ['line', C.renderLineChart]]) {
+    const svg = render(hostile, 'fin-svg-a"b');
+    ok(`${name}: a hostile colour is replaced by the palette`, !/foreignObject/.test(svg) && svg.includes(C.COLORS[0]));
+    ok(`${name}: an id cannot close its attribute`, svg.includes('id="fin-svg-a&quot;b"'));
+  }
+  const mode = readFileSync(new URL('../../src/modes/finance/mode.js', import.meta.url), 'utf8');
+  ok('a chart id keeps only letters, digits, - and _', C.chartDomId({ id: 'a"b><x' }) === 'fin-svg-abx' && C.chartDomId({ id: 7 }) === 'fin-svg-7' && C.chartDomId({}) === 'fin-svg-');
+  ok('the mode builds every chart element id through it', !/"fin-svg-"|fin-svg-\$\{/.test(mode) && (mode.match(/CHARTS\(\)\.chartDomId\(/g) || []).length === 4);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/finance/charts.js)`);
 process.exit(fail ? 1 : 0);

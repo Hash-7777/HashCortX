@@ -403,8 +403,8 @@ const SystemMaker = (() => {
 
     spec.theme = {
       mode: spec.theme?.mode === "dark" ? "dark" : "light",
-      primary: spec.theme?.primary || "#2563eb",
-      accent: spec.theme?.accent || "#10b981",
+      primary: window.HCSystemsTheme.safeHex(spec.theme?.primary, "#2563eb"),
+      accent: window.HCSystemsTheme.safeHex(spec.theme?.accent, "#10b981"),
       density: ["compact","comfortable","spacious"].includes(spec.theme?.density) ? spec.theme.density : undefined,
       radius: Number(spec.theme?.radius || 10),
       font: window.HCSystemsTheme.DESIGN.font.includes(spec.theme?.font) ? spec.theme.font : undefined,
@@ -434,7 +434,7 @@ const SystemMaker = (() => {
         entity,
         screen,
         kpis: Array.isArray(old.kpis) ? old.kpis : null,
-        color: old.color || null,
+        color: window.HCSystemsTheme.safeHex(old.color, null),
       };
     });
 
@@ -1142,7 +1142,7 @@ Repair requirements:
         module.screen = FALLBACK_SCREENS.find(s => !used.has(s)) || module.screen;
       }
       used.add(module.screen);
-      module.color = module.color || ACCENT_PALETTE[idx % ACCENT_PALETTE.length];
+      module.color = window.HCSystemsTheme.safeHex(module.color, ACCENT_PALETTE[idx % ACCENT_PALETTE.length]);
       module.icon = module.icon || moduleIcon(module.name);
     });
     if (spec.layout?.shell === "top") spec.layout.nav = "top";
@@ -2191,7 +2191,7 @@ Repair requirements:
     const fields = entity?.fields || [];
     const numFields = fields.filter(f => f.type === "number").slice(0, 4);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const accent = spec?.theme?.accent || "#10b981";
+    const accent = window.HCSystemsTheme.safeHex(spec?.theme?.accent, "#10b981");
     const primary = spec?.theme?.primary || "#2563eb";
     const tileColors = [primary, accent, "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
 

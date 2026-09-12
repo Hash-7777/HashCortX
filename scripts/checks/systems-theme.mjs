@@ -91,6 +91,18 @@ console.log('\nA design beyond colour:');
   ok('density and surface are drawn', /density-\$\{esc\(spec\.theme\.density/.test(mode) && /surface-\$\{esc\(spec\.theme\.surface/.test(mode));
 }
 
+console.log('\nA colour a spec asks for is used only when it is a colour:');
+{
+  ok('#rrggbb is kept', T.safeHex('#1D4ED8', 'x') === '#1D4ED8');
+  ok('#rgb becomes #rrggbb', T.safeHex('#abc', 'x') === '#aabbcc');
+  for (const bad of ['red" onmouseover="x', '#12345g', 'blue', 'url(https://attacker.test/)', '#1234567', '', null]) {
+    ok(`not ${JSON.stringify(bad)}`, T.safeHex(bad, 'FALLBACK') === 'FALLBACK');
+  }
+  const v = vars({ theme: { primary: '#000"><b>x</b>', accent: 'red;position:fixed' }, domain: 'generic' });
+  ok('a hostile primary or accent never reaches the style', v['--sys-primary'] === '#2563eb' && v['--sys-accent'] === '#10b981');
+  ok('the Systems mode checks every colour a model chose', (mode.match(/HCSystemsTheme\.safeHex\(/g) || []).length >= 4);
+}
+
 console.log('\nThe Systems mode draws from here:');
 ok('it takes the theme from js/systems/theme.js', /const \{ themeVars \} = window\.HCSystemsTheme;/.test(mode));
 ok('and keeps no copy of its own', !/function themeVars\(|function shadeHex\(|const DOMAIN_BG = \{/.test(mode));

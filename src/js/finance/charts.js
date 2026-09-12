@@ -52,6 +52,24 @@
   }
 
   /**
+   * A colour the report asked for, if it is one — else the palette's.
+   *
+   * The report is a model's answer, and this lands inside an attribute, so
+   * only the shapes a colour takes are let through: #hex, rgb()/rgba(),
+   * hsl()/hsla() with numbers in them, or a plain colour word.
+   */
+  const COLOUR = /^(#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([\d\s.,%/]+\)|[a-z]{3,20})$/i;
+  function colourOf(value, fallback) {
+    const v = typeof value === "string" ? value.trim() : "";
+    return COLOUR.test(v) ? v : fallback;
+  }
+
+  /** A chart's element id, from an id the model chose: letters, digits, - and _ only. */
+  function chartDomId(c) {
+    return "fin-svg-" + String(c && c.id != null ? c.id : "").replace(/[^A-Za-z0-9_-]/g, "");
+  }
+
+  /**
    * The finite numbers in a set of datasets, for working out the axis.
    *
    * A value that is not a number would otherwise carry through every
@@ -93,7 +111,7 @@
     /* bars + value labels on top */
     let bars = "", valLabels = "", legend = "";
     datasets.forEach((ds, di) => {
-      const col = ds.color || COLORS[di % COLORS.length];
+      const col = colourOf(ds.color, COLORS[di % COLORS.length]);
       (ds.values || []).forEach((raw, vi) => {
         // No figure means no bar. A bar of zero height still reads as a
         // measurement of nothing rather than the absence of one.
@@ -128,7 +146,7 @@
       xLabels += `<text x="${x.toFixed(1)}" y="${H - padB + 16}" text-anchor="middle" font-size="10" fill="#64748b">${escHtml(short)}</text>`;
     });
 
-    return `<svg id="${svgId}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    return `<svg id="${escHtml(svgId)}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${W}" height="${H}" fill="#0b0f1c" rx="10"/>
       ${gridLines}${yLabels}${bars}${valLabels}${xLabels}${legend}
     </svg>`;
@@ -160,7 +178,7 @@
 
     let paths = "", dots = "", dotLabels = "", legend = "", defs = "";
     datasets.forEach((ds, di) => {
-      const col  = ds.color || COLORS[di % COLORS.length];
+      const col  = colourOf(ds.color, COLORS[di % COLORS.length]);
       const vals = ds.values || [];
       // A point with no figure is left out, not drawn at zero. Drawing it at
       // zero would show a month of nothing where the truth is that nothing was
@@ -211,7 +229,7 @@
       xLabels += `<text x="${x.toFixed(1)}" y="${H - padB + 16}" text-anchor="middle" font-size="10" fill="#64748b">${escHtml(short)}</text>`;
     });
 
-    return `<svg id="${svgId}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    return `<svg id="${escHtml(svgId)}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       <defs>${defs}</defs>
       <rect width="${W}" height="${H}" fill="#0b0f1c" rx="10"/>
       ${gridLines}${yLabels}${paths}${dots}${dotLabels}${xLabels}${legend}
@@ -282,12 +300,12 @@
       <text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="22" fill="#f1f5f9" font-weight="800">${escHtml(centerTotal)}</text>
       <text x="${cx}" y="${cy + 30}" text-anchor="middle" font-size="9.5" fill="#64748b">${escHtml(topLabel)}</text>`;
 
-    return `<svg id="${svgId}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+    return `<svg id="${escHtml(svgId)}" class="fin-chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
       <rect width="${W}" height="${H}" fill="#0b0f1c" rx="10"/>
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(100,116,139,.10)" stroke-width="${sw}"/>
       ${segments}${centerLabel}${legend}
     </svg>`;
   }
 
-  window.HCFinanceCharts = { renderBarChart, renderLineChart, renderDonutChart, formatNum, COLORS };
+  window.HCFinanceCharts = { renderBarChart, renderLineChart, renderDonutChart, formatNum, colourOf, chartDomId, COLORS };
 })();

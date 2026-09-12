@@ -31,6 +31,19 @@
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
   }
 
+  /**
+   * A colour a spec asked for, as #rrggbb, or the fallback.
+   *
+   * A spec is a model's answer, and its colours are written into a style
+   * attribute, so anything that is not a plain hex colour is not used.
+   */
+  function safeHex(value, fallback) {
+    const v = String(value == null ? "" : value).trim();
+    if (/^#[0-9a-f]{6}$/i.test(v)) return v;
+    if (/^#[0-9a-f]{3}$/i.test(v)) return "#" + v.slice(1).split("").map((c) => c + c).join("");
+    return fallback;
+  }
+
   function hexToRgb(hex) {
     const n = parseInt(String(hex || "#000000").replace(/^#/, "").slice(0, 6), 16);
     return `${(n >> 16) & 0xff},${(n >> 8) & 0xff},${n & 0xff}`;
@@ -56,8 +69,8 @@
 
   function themeVars(spec) {
     const dark = spec.theme.mode === "dark";
-    const primary = spec.theme.primary || "#2563eb";
-    const accent  = spec.theme.accent  || "#10b981";
+    const primary = safeHex(spec.theme.primary, "#2563eb");
+    const accent  = safeHex(spec.theme.accent, "#10b981");
     const radius  = Number(spec.theme.radius || 10);
     const domain  = spec.domain || window.HCSystemsDomain.detectDomain(spec.description || "");
     const dbg     = (DOMAIN_BG[domain] || DOMAIN_BG.generic)[dark ? "dark" : "light"];
@@ -179,5 +192,5 @@
   /** The typeface stack for a design's font. */
   const fontStack = (font) => FONTS[font] || FONTS.sans;
 
-  window.HCSystemsTheme = { themeVars, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
+  window.HCSystemsTheme = { themeVars, safeHex, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
 })();

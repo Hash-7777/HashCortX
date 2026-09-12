@@ -45,6 +45,17 @@ for (const shell of S.SHELLS) {
 ok('a shell it does not know is drawn as the sidebar', draw('nope').includes('sys-shell-sidebar'));
 ok('every shell keeps the search', S.SHELLS.every((s) => draw(s).includes('id="sysAppSearch"')));
 
+console.log('\nA module colour is used only when it is a hex colour:');
+{
+  const hostile = { ...spec, modules: spec.modules.map((m, i) => (i === 0 ? { ...m, color: 'red;position:fixed;inset:0' } : { ...m, color: '#123456' })) };
+  for (const shell of S.SHELLS) {
+    const html = S.shellHtml({ shell, spec: hostile, module: hostile.modules[1], screen: 'kanban', screenDiv: '', searchInput: '', cls: '', vars: '', activeModuleId: 'orders', esc });
+    ok(`${shell}: nothing but a colour is written`, !/position:fixed/.test(html));
+  }
+  const sidebar = S.shellHtml({ shell: 'sidebar', spec: hostile, module: hostile.modules[1], screen: 'kanban', screenDiv: '', searchInput: '', cls: '', vars: '', activeModuleId: 'orders', esc });
+  ok('and a real one still is', sidebar.includes('--mod-color:#123456'));
+}
+
 console.log('\nThe Systems mode draws from here:');
 ok('it takes its frame from js/systems/shells.js', /host\.innerHTML = window\.HCSystemsShells\.shellHtml\(/.test(mode));
 ok('and keeps no copy of its own', !/case "cards-nav":/.test(mode));
