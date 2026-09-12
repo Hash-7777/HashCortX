@@ -101,6 +101,10 @@
       // shipped in the app. three.js and its loaders used to come from there
       // too; they are vendored now, so 3D Forge works with the network off.
       //
+      // worker-src: 'self' for the PDF reader's worker, and blob: for the
+      // Python sandbox, which starts from a blob so it carries this policy
+      // (see src/workers/python.js).
+      //
       // Before adding a host here, vendor the library instead. That rule is in
       // ARCHITECTURE.md and this list is where breaking it shows up.
       // ── connect-src and the code must name the SAME host ───────────
@@ -143,7 +147,7 @@
       // injected string into running script. Full 'unsafe-eval' would
       // permit all three and must not be added — the sandbox does not
       // need it.
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.mistral.ai https://generativelanguage.googleapis.com https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://www.ebi.ac.uk https://api.duckduckgo.com https://cdn.jsdelivr.net http://localhost:11434 http://127.0.0.1:11434 http://*:11434"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.mistral.ai https://generativelanguage.googleapis.com https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://www.ebi.ac.uk https://api.duckduckgo.com https://cdn.jsdelivr.net http://localhost:11434 http://127.0.0.1:11434 http://*:11434; worker-src 'self' blob:"
     }
   },
 

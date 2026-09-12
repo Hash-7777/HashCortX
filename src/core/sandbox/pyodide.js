@@ -1,33 +1,29 @@
 // ==============================================================
-// The Python sandbox's runtime loader
+// The Python sandbox's runtime, run in a worker
 //
 // Pyodide is CPython compiled to WebAssembly. The agent's execute_python tool
 // runs inside it: real pandas, numpy, matplotlib, python-docx, openpyxl and
 // reportlab, with a virtual disk whose /output directory becomes files the
 // user is offered a save dialog for.
 //
+// The Python itself runs in src/workers/python.js, a worker that can reach
+// nothing of the app's — see that file for what it removes and why. This file
+// starts it, hands it code one job at a time, and stops it when a job runs too
+// long: the worker is terminated, the job answers with a sentence the model
+// can act on, and the next job starts a fresh one.
+//
 // It is fetched on first use, never at startup — the runtime alone is around
 // 10 MB, and most sessions never run Python at all.
 //
-// WHY THIS HAS A TIMEOUT
-// ----------------------
+// WHY EVERY STAGE HAS A TIMEOUT
+// -----------------------------
 // This loader used to be twenty lines inside app.js with nothing bounding it,
-// and it could not finish in any shipped build. `cdn.jsdelivr.net` was listed
-// in the policy's script-src but not its connect-src, so the <script> tag
-// loaded and the runtime fetch behind it was refused. loadPyodide() then
-// neither resolved nor rejected: it waited for a response that the webview
-// had already thrown away.
-//
-// The result was the worst shape a failure can take. execute_python awaited a
-// promise that never settled, so the agent run stopped where it stood — no
-// error, no message, nothing to retry — and because the promise was cached,
-// every later call in that session stopped in the same place. Eight built-in
-// agents are told they have this tool.
-//
-// The policy is fixed (see the connect-src note in tauri.conf.json), but a
-// slow link, an offline machine or a CDN outage can all still leave that fetch
-// outstanding. So every stage is bounded: if the runtime does not arrive, the
-// tool reports why and the agent carries on without it.
+// and it could not finish in any shipped build: the runtime fetch was refused
+// by the policy and loadPyodide() then neither resolved nor rejected. The
+// agent run stopped where it stood, with no error, and because the promise was
+// cached every later call stopped in the same place. A slow link, an offline
+// machine or a CDN outage can still leave that fetch outstanding, so starting
+// is bounded, and so is every run.
 //
 // Loaded before app.js and published as window.HCPyodide.
 // ==============================================================
@@ -54,107 +50,143 @@
     'charset_normalizer-3.4.9-py3-none-any.whl',
   ];
 
-  /** The <script> tag only. A CDN that is not answering should be quick to spot. */
-  const SCRIPT_TIMEOUT_MS = 15000;
-
   /**
-   * The runtime, its standard library and the three bundled wheels. Generous,
-   * because this is a ~10 MB download on a connection we know nothing about,
-   * but bounded, because an unbounded wait is what broke this before.
+   * Starting: the runtime, its standard library, micropip and the wheels.
+   * Generous, because this is a ~10 MB download on a connection we know
+   * nothing about, but bounded, because an unbounded wait is what broke this.
    */
-  const LOAD_TIMEOUT_MS = 60000;
+  const START_TIMEOUT_MS = 120000;
 
-  /** Rejects rather than waiting for ever. */
-  function withTimeout(promise, ms, what) {
-    let timer;
-    const limit = new Promise((_, reject) => {
-      timer = setTimeout(
-        () => reject(new Error(`${what} did not finish within ${Math.round(ms / 1000)}s`)),
-        ms
-      );
-    });
-    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+  /** One run. Past this the worker is stopped and its variables are gone. */
+  const RUN_TIMEOUT_MS = 180000;
+
+  const WORKER_PATH = '/workers/python.js';
+
+  let worker = null;
+  let starting = null;     // Promise of a ready worker
+  let startFailure = null; // why starting failed, for the rest of the session
+  let nextId = 0;
+  const pending = new Map();
+  let queue = Promise.resolve();
+
+  function spawn() {
+    // From a blob, so the worker carries this page's security policy. A
+    // worker loaded from a file of the app's gets no policy at all: the
+    // policy is sent only with the page.
+    const loader = `importScripts(${JSON.stringify(location.origin + WORKER_PATH)});`;
+    const url = URL.createObjectURL(new Blob([loader], { type: 'text/javascript' }));
+    const w = new Worker(url);
+    return { w, url };
   }
 
-  let _promise = null;
-  /**
-   * Why the last attempt failed. Kept so a second call answers at once instead
-   * of making the user wait out the same timeout again — a failed load is
-   * almost always the network or the policy, and neither changes mid-session.
-   */
-  let _failed = null;
-
-  function loadScript() {
-    return withTimeout(
-      new Promise((resolve, reject) => {
-        const s = document.createElement('script');
-        s.src = `${RUNTIME_URL}pyodide.js`;
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('the Python runtime could not be downloaded'));
-        document.head.appendChild(s);
-      }),
-      SCRIPT_TIMEOUT_MS,
-      'downloading the Python runtime'
-    );
-  }
-
-  async function start() {
-    if (!window.loadPyodide) await loadScript();
-
-    const py = await withTimeout(
-      window.loadPyodide({ indexURL: RUNTIME_URL }),
-      LOAD_TIMEOUT_MS,
-      'starting the Python runtime'
-    );
-
-    await withTimeout(py.loadPackage(['micropip']), LOAD_TIMEOUT_MS, 'loading micropip');
-
-    // python-docx, openpyxl and reportlab cover Word, Excel and PDF. pandas,
-    // numpy and matplotlib are in Pyodide's own distribution and arrive when
-    // the code imports them; these five are not, and micropip fetches whatever
-    // is missing from PyPI — a host the policy does not permit, so all three
-    // installs were refused and the sandbox came up without them.
-    //
-    // They ship with the app instead, and are installed by path from its own
-    // origin. See src/wheels/PROVENANCE.md.
-    //
-    // A wheel that will not install is not fatal: the sandbox still runs, and
-    // the import error names the package that is missing.
-    try {
-      const micropip = py.pyimport('micropip');
-      await withTimeout(
-        micropip.install(WHEELS.map((w) => `${location.origin}/wheels/${w}`)),
-        LOAD_TIMEOUT_MS,
-        'installing the document packages'
-      );
-    } catch (e) {
-      console.warn('[HashCortx] Python document packages did not install:', e);
+  /** Stop the worker and everything waiting on it. */
+  function stop(reason) {
+    if (worker) { try { worker.terminate(); } catch { /* already gone */ } }
+    worker = null;
+    starting = null;
+    for (const [, job] of pending) {
+      clearTimeout(job.timer);
+      job.resolve({ stdout: '', stderr: '', error: reason, files: [] });
     }
-
-    try { py.FS.mkdirTree('/output'); } catch {}
-    return py;
+    pending.clear();
   }
 
-  /**
-   * The running Python sandbox.
-   *
-   * Rejects with a sentence worth showing a user. execute_python turns that
-   * into the tool's result, so the model reports it and keeps going rather
-   * than stopping the run.
-   */
-  function getRuntime() {
-    if (_failed) return Promise.reject(new Error(_failed));
-    if (_promise) return _promise;
-    _promise = start().catch((err) => {
-      _failed =
+  /** A file name from the sandbox, as a name and never a path. */
+  function safeName(name) {
+    const clean = String(name).replace(/[\\/:]/g, '_');
+    return !clean || clean.split('').every((c) => c === '.') ? 'output' : clean;
+  }
+
+  /** What the worker sent back, taken at face value only where it is safe. */
+  function onMessage(msg) {
+    if (!msg || typeof msg !== 'object' || msg.type !== 'result') return;
+    const job = pending.get(msg.id);
+    if (!job) return;
+    pending.delete(msg.id);
+    clearTimeout(job.timer);
+    const text = (v) => (typeof v === 'string' ? v : '');
+    const files = Array.isArray(msg.files) ? msg.files : [];
+    job.resolve({
+      stdout: text(msg.stdout),
+      stderr: text(msg.stderr),
+      error: msg.error == null ? null : text(msg.error) || 'Python failed.',
+      // A name is a suggestion for a save dialog, never a path: no folders.
+      files: files
+        .filter((f) => f && typeof f.name === 'string' && f.data instanceof Uint8Array)
+        .map((f) => ({ name: safeName(f.name), data: f.data })),
+    });
+  }
+
+  function ready() {
+    if (startFailure) return Promise.reject(new Error(startFailure));
+    if (starting) return starting;
+    starting = new Promise((resolve, reject) => {
+      let spawned;
+      try { spawned = spawn(); } catch (e) { reject(e); return; }
+      const { w, url } = spawned;
+      worker = w;
+      const timer = setTimeout(() => reject(new Error(`starting the Python runtime did not finish within ${START_TIMEOUT_MS / 1000}s`)), START_TIMEOUT_MS);
+      w.onmessage = (event) => {
+        const msg = event.data;
+        if (msg && msg.type === 'ready') { clearTimeout(timer); URL.revokeObjectURL(url); resolve(w); }
+        else if (msg && msg.type === 'failed') { clearTimeout(timer); URL.revokeObjectURL(url); reject(new Error(String(msg.message || 'the Python runtime did not start'))); }
+        else onMessage(msg);
+      };
+      w.onerror = (event) => {
+        clearTimeout(timer);
+        const why = (event && event.message) || 'the Python runtime stopped';
+        event && event.preventDefault && event.preventDefault();
+        reject(new Error(why));
+        stop(`Python stopped: ${why}.`);
+      };
+      w.postMessage({
+        type: 'init',
+        runtime: RUNTIME_URL,
+        wheels: WHEELS.map((name) => `${location.origin}/wheels/${name}`),
+        allowed: [RUNTIME_URL, `${location.origin}/wheels/`],
+      });
+    }).catch((err) => {
+      stop(String(err.message || err));
+      startFailure =
         `${err && err.message ? err.message : err}. ` +
         'Python is unavailable for the rest of this session — continue without it, ' +
         'and do not tell the user a file was produced.';
-      _promise = null;
-      throw new Error(_failed);
+      throw new Error(startFailure);
     });
-    return _promise;
+    return starting;
   }
 
-  window.HCPyodide = { getRuntime, RUNTIME_URL, SCRIPT_TIMEOUT_MS, LOAD_TIMEOUT_MS };
+  /**
+   * Run Python and collect what it printed and the files it wrote to /output.
+   *
+   * Resolves with { stdout, stderr, error, files: [{ name, data }] }. Rejects
+   * only when the runtime cannot start, with a sentence worth showing a user;
+   * execute_python turns that into the tool's result, so the model reports it
+   * and keeps going rather than stopping the run.
+   */
+  function run(code, options) {
+    const timeoutMs = (options && options.timeoutMs) || RUN_TIMEOUT_MS;
+    const job = queue.then(async () => {
+      const w = await ready();
+      return new Promise((resolve) => {
+        const id = ++nextId;
+        const timer = setTimeout(() => {
+          pending.delete(id);
+          resolve({
+            stdout: '', stderr: '', files: [],
+            error: `Python ran for more than ${Math.round(timeoutMs / 1000)}s and was stopped. ` +
+              'Its variables are gone; run again from the beginning, doing less at once.',
+          });
+          stop('Python was stopped.');
+        }, timeoutMs);
+        pending.set(id, { resolve, timer });
+        w.postMessage({ type: 'run', id, code: String(code) });
+      });
+    });
+    // A failed job must not stop the ones queued after it.
+    queue = job.catch(() => {});
+    return job;
+  }
+
+  window.HCPyodide = { run, RUNTIME_URL, WORKER_PATH, START_TIMEOUT_MS, RUN_TIMEOUT_MS };
 })();

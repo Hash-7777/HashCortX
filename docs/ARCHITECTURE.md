@@ -44,10 +44,12 @@ HashCortX/
 │   │   ├── memory/    store.js + map-panel.html
 │   │   ├── agents/    panel.html
 │   │   ├── rag/       knowledge-base.js
-│   │   ├── sandbox/   pyodide.js    the Python runtime loader, bounded at
-│   │   │                            every stage so it cannot hang the agent
+│   │   ├── sandbox/   pyodide.js    starts, feeds and stops the Python
+│   │   │                            worker, with a time limit on each
 │   │   └── overlays/  panel.html   templates, preview, the alert dialog
 │   │
+│   ├── workers/python.js            the Python sandbox: a worker with no
+│   │                                way out, loaded only by pyodide.js
 │   ├── wheels/                      the Python packages Pyodide does not
 │   │                                bundle — python-docx, openpyxl,
 │   │                                reportlab and two dependencies. Shipped
@@ -171,7 +173,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 100 files,
+├── scripts/checks/                  the automated frontend checks — 101 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -292,7 +294,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,541-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 4,645 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 4,688 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

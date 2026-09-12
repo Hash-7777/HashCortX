@@ -218,6 +218,9 @@ ok('exactly one remote script host', remoteScript.length === 1,
   `found ${remoteScript.length}: ${remoteScript.join(', ')} — vendor the library instead, and update docs/SECURITY.md`);
 ok('and it is jsDelivr, which serves Pyodide', remoteScript[0] === 'https://cdn.jsdelivr.net');
 
+ok("worker-src allows the app's own workers and the Python sandbox's blob, nothing else",
+  directive('worker-src').slice().sort().join(' ') === "'self' blob:", directive('worker-src').join(' '));
+
 const securityDoc = readFileSync(join(root, 'docs', 'SECURITY.md'), 'utf8');
 // ── What may be turned from a string into running script ─────────────────────
 //

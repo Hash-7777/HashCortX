@@ -9,7 +9,7 @@ HashCortx is a local desktop app that:
 1. Calls AI provider APIs using the user's own keys
 2. Reads and writes the local filesystem (Coder mode, behind a permission gate)
 3. Executes shell commands (Coder mode, behind a permission gate and a command denylist)
-4. Runs Python in a WebAssembly sandbox (Pyodide)
+4. Runs Python in a WebAssembly sandbox (Pyodide), inside a worker that reaches nothing of the app's
 5. Has no backend server, no user accounts, and no cloud storage
 
 **Out of scope.** HashCortx does not defend against a local attacker who already runs code as your user, and it does not defend against a malicious AI provider you have handed a key to. It cannot: it is an app on your machine talking to a service you chose.
@@ -193,6 +193,18 @@ Every guarded action, allowed or denied, is appended to:
 Format: `TIMESTAMP [scope] action target`. It is append-only from the app's perspective, and readable from Settings.
 
 ---
+
+### The Python sandbox
+
+`execute_python` runs code a model wrote, and a model can be told what to write by a page it read or a file it opened. It runs in `src/workers/python.js`, a worker started by `src/core/sandbox/pyodide.js`:
+
+- **It reaches nothing of the app's.** A worker has no page: no DOM, no `localStorage` where the keys are, and no Tauri bridge, so none of the native commands.
+- **It carries the page's Content Security Policy.** It is started from a blob, which is what makes a worker inherit the policy; that keeps its script and network to the page's list, and refuses `eval`.
+- **It has no way out left.** Before any model code runs, the network interfaces, storage, other workers and further script loading are removed from it, and `fetch` is narrowed to the runtime's own package files. If any of them survives, the sandbox refuses to start rather than run without it.
+- **It can be stopped.** A run that goes on for three minutes is ended and the worker replaced, and the app carries on.
+- **Files leave only through you.** What the code writes to `/output` comes back as bytes and is offered in a save dialog; a name the sandbox gives is used as a suggestion, never as a path.
+
+`scripts/checks/python-sandbox.mjs` holds these, and the headless probe exercises them against the real runtime.
 
 ## Content Security Policy
 

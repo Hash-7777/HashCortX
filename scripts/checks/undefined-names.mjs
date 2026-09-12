@@ -237,7 +237,7 @@ const GLOBALS = new Set(('Array Object String Number Boolean Symbol BigInt Math 
   'BroadcastChannel Notification ClipboardItem CSS matchMedia getComputedStyle scrollTo scrollBy open close ' +
   'postMessage addEventListener removeEventListener dispatchEvent getSelection WebAssembly globalThis self top parent ' +
   'frames opener speechSynthesis SpeechSynthesisUtterance SpeechRecognition webkitSpeechRecognition OffscreenCanvas ' +
-  'createImageBitmap ResizeObserverEntry Path2D DOMMatrix devicePixelRatio innerWidth innerHeight' +
+  'createImageBitmap ResizeObserverEntry Path2D DOMMatrix devicePixelRatio innerWidth innerHeight importScripts' +
   // The app's own runtime bridge, set up before any of these files run.
   ' HC').split(/\s+/));
 

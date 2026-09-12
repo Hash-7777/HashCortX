@@ -5638,26 +5638,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       async execute({ code }) {
         if (!code) return { error: "code is required" };
         try {
-          const py = await window.HCPyodide.getRuntime();
-          py.runPython(`
-import sys, io as _io
-_stdout = _io.StringIO()
-_stderr = _io.StringIO()
-sys.stdout = _stdout
-sys.stderr = _stderr
-`);
-          let runError = null;
-          try {
-            // Pyodide ships pandas, numpy and matplotlib but loads none of
-            // them until asked. Without this, importing one raises instead.
-            await py.loadPackagesFromImports(code);
-            await py.runPythonAsync(code);
-          } catch (e) {
-            runError = String(e?.message || e).split("\n").slice(-12).join("\n");
-          }
-          const stdout = py.runPython("_stdout.getvalue()") || "";
-          const stderr = py.runPython("_stderr.getvalue()") || "";
-          py.runPython("sys.stdout = sys.__stdout__\nsys.stderr = sys.__stderr__");
+          // In a worker that reaches nothing of the app's (src/workers/python.js).
+          const { stdout, stderr, error: runError, files: written } = await window.HCPyodide.run(code);
           // Whatever the code wrote to /output/ is a real file the user asked
           // for — a .docx, .xlsx or .pdf built by genuine Python libraries. It
           // used to be handed to an <a download>, which this webview cancels,
@@ -5668,18 +5650,15 @@ sys.stderr = _stderr
           // it to your Downloads" in the reply, and that has to be true.
           const files = [];
           try {
-            const names = py.FS.readdir("/output").filter(n => n !== "." && n !== "..");
             // One destination for the whole run. Asking per file would put a
             // dialog in front of the user once per page of a report.
-            const folder = names.length > 1 ? await window.HC.save.folder("Save the generated files") : null;
-            for (const name of names) {
-              const path = "/output/" + name;
-              const data = py.FS.readFile(path);
+            const folder = written.length > 1 ? await window.HC.save.folder("Save the generated files") : null;
+            for (const { name, data } of written) {
               const record = { filename: name, bytes: data.length, saved: false };
               try {
-                const result = names.length > 1 && folder
+                const result = written.length > 1 && folder
                   ? await window.HC.save.fileInto(folder, name, data)
-                  : (names.length > 1 && !folder
+                  : (written.length > 1 && !folder
                       ? { saved: false, reason: "cancelled" }
                       : await window.HC.save.file(name, data));
                 record.saved = !!result.saved;
@@ -5689,7 +5668,6 @@ sys.stderr = _stderr
                 record.reason = String(e?.message || e);
               }
               files.push(record);
-              try { py.FS.unlink(path); } catch {}
             }
           } catch {}
           return {

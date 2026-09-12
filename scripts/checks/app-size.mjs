@@ -110,7 +110,10 @@ const LINE_BUDGET = {
   // became one, which is also what sends SambaNova, NVIDIA and Kimi Code
   // through the app; the Kimi path aimed at four hosts that never answered
   // a Kimi Code key went with it.
-  'js/app.js': 6541,
+  // 6519, down 22. execute_python hands its code to the sandbox worker and
+  // gets back what was printed and written, instead of driving the runtime
+  // from inside the page.
+  'js/app.js': 6519,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
