@@ -107,40 +107,16 @@ tauri = { version = "2", features = ["config-json5"] }
 # Phase: 0 (already active)
 tauri-plugin-opener = "2"
 
-# ── tauri-plugin-shell ──────────────────────────────────────
-# Runs shell commands and spawns child processes.
-# Used for: Code Mode terminal execution (Phase 4).
-# Phase: 4 — registered now so capabilities are wired, but
-#   no JS calls it until Phase 4 adds the terminal UI.
-# ⚠ All commands must be allowlisted in tauri.conf.json before
-#   the JS side can call them. Nothing executes without that gate.
-tauri-plugin-shell = "2"
-
-# ── tauri-plugin-fs ─────────────────────────────────────────
-# Read/write the real filesystem (outside the WebView sandbox).
-# Used for: Code Mode file operations (Phase 4), project loading.
-# Phase: 4
-# ⚠ Scope limited in capabilities — only paths the user grants.
-tauri-plugin-fs = "2"
+# The shell, filesystem, store and notification plugins used to be listed
+# here, registered with nothing in the app calling them. Shell commands and
+# file access go through this crate's own commands, behind the denylist; an
+# unused plugin is surface for no feature, so they are gone.
 
 # ── tauri-plugin-dialog ─────────────────────────────────────
 # Native OS file picker and confirmation dialogs.
 # Used for: "Open Project" dialog, permission-guard confirmations.
 # Phase: 3 (Permission Guard) and 4 (Code Mode file open)
 tauri-plugin-dialog = "2"
-
-# ── tauri-plugin-store ──────────────────────────────────────
-# Persistent key-value store backed by a JSON file on disk.
-# Used for: user preferences, recent projects, UI state.
-# NOT used for API keys — those go in the OS Keychain (Phase 2).
-# Phase: 0 (already active for future use)
-tauri-plugin-store = "2"
-
-# ── tauri-plugin-notification ───────────────────────────────
-# Native OS push notifications.
-# Used for: long-running agent task completion alerts.
-# Phase: 5+
-tauri-plugin-notification = "2"
 
 # ── serde + serde_json ──────────────────────────────────────
 # Serialization/deserialization framework.

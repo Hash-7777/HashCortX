@@ -80,6 +80,8 @@ From the same Workspace you can ask one of the run's agents for a change. That s
 
 That claim was wrong in the alarming direction, describing an exposure the app does not have, and it sat on the roadmap as work nobody needed to do. `scripts/checks/native-surface.mjs` now enforces the real property: it scans the source, asserts which files may invoke a native command at all, and fails if one appears in a mode that is supposed to be sandboxed.
 
+**Plugin APIs are limited to what the page calls.** `src-tauri/capabilities/default.json` grants window placement, opening a web or mail link in the system browser, and the open and save dialogs — nothing else. The app registers no plugin it does not use; shell commands and file access go through its own commands, behind the checks in this document.
+
 ### Filesystem denylist — compiled into Rust, cannot be overridden
 
 From `src-tauri/src/security/denylist.rs`. These are matched against the absolute, expanded path and refused regardless of what you approve in a dialog:

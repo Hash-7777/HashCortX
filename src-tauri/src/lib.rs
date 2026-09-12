@@ -33,11 +33,7 @@ pub fn run() {
         // it is refused. Links open in the system browser from the page.
         .plugin(security::navigation::guard())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_store::Builder::default().build())
-        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             // Phase 6 — the one-time migration out of the old Keychain bundle.
             //

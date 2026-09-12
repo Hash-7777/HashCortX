@@ -27,6 +27,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The page's security policy is narrower.** The one CDN it allows is limited
   to the Python runtime's own files, and plugins, frames, form submission and
   base-address changes are refused.
+- **Plugins the app never used are gone**, and the page may call only the
+  plugin features it uses: window placement, opening a link, and the open and
+  save dialogs.
 - **The app window shows the app and nothing else.** Any attempt to take it
   to another address is refused.
 - **Colours and ids in a generated report or business system are checked**
