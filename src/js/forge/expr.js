@@ -58,6 +58,12 @@
     rad: (deg) => (deg * Math.PI) / 180,
     deg: (rad) => (rad * 180) / Math.PI,
     clamp: (v, lo, hi) => Math.min(Math.max(v, lo), hi),
+    // For the agents' calculate tool, which reads a model's arithmetic here.
+    exp: Math.exp,
+    log: Math.log,
+    log2: Math.log2,
+    log10: Math.log10,
+    cbrt: Math.cbrt,
   };
 
   const CONSTANTS = { pi: Math.PI, tau: Math.PI * 2, e: Math.E };
@@ -335,11 +341,30 @@
     return { plan: resolved, issues, scope };
   }
 
+  /**
+   * Arithmetic a model wrote the JavaScript way — `2 ** 10`, `Math.sqrt(2)`,
+   * `Math.PI` — read by this language rather than run.
+   *
+   * This is the agents' calculate tool. A string a model wrote must never be
+   * turned into code, and the page's security policy refuses to anyway, so the
+   * spelling is translated and the result evaluated like any other expression.
+   */
+  function evaluateWritten(expression) {
+    if (typeof expression !== "string") return { error: "nothing to evaluate" };
+    const written = expression
+      .replace(/\*\*/g, "^")
+      .replace(/\bMath\.PI\b/g, "pi")
+      .replace(/\bMath\.E\b/g, "e")
+      .replace(/\bMath\.(?=[a-z])/g, "");
+    return evaluate(written, {});
+  }
+
   window.HCForgeExpr = {
     FUNCTIONS,
     CONSTANTS,
     MAX_VAR_DEPTH,
     evaluate,
+    evaluateWritten,
     resolveVars,
     resolvePlan,
   };

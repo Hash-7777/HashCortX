@@ -45,6 +45,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The agents' calculate tool works in the released app.** It reads the
+  arithmetic with the app's own expression reader instead of running it.
 - **A link in a reply opens in your browser.** It did nothing inside the app.
 - **The window stays responsive while a slow task runs.** Shell commands,
   page reads, project searches, exports and loading the embedding model run

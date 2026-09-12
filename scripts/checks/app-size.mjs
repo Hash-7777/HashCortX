@@ -113,7 +113,9 @@ const LINE_BUDGET = {
   // 6519, down 22. execute_python hands its code to the sandbox worker and
   // gets back what was printed and written, instead of driving the runtime
   // from inside the page.
-  'js/app.js': 6519,
+  // 6501, down 18. The calculate tool reads a model's arithmetic with
+  // js/forge/expr.js instead of its own filter around Function().
+  'js/app.js': 6501,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

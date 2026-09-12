@@ -182,5 +182,20 @@ console.log('\nThe module reaches nothing outside itself:');
     (code.match(/hasOwnProperty\.call/g) || []).length >= 3);
 }
 
+console.log('\nThe agents\' calculate tool reads arithmetic here, never as code:');
+{
+  const W = E.evaluateWritten;
+  const near = (a, b) => Math.abs(a - b) < 1e-9;
+  ok('the JavaScript power is read', near(W('(3.14 * 2**10) / 7').value, (3.14 * 1024) / 7));
+  ok('Math. names are read', near(W('Math.sqrt(2)').value, Math.SQRT2) && near(W('Math.PI * 2').value, Math.PI * 2));
+  ok('and the logarithms and roots it offered', near(W('Math.log(Math.E)').value, 1) && near(W('Math.log10(1000)').value, 3) && near(W('Math.cbrt(27)').value, 3));
+  for (const bad of ['alert(1)', 'this', 'constructor', '"a"', 'x.y', 'Math.random()', '[].constructor', '']) {
+    ok(`refused: ${JSON.stringify(bad)}`, !!W(bad).error);
+  }
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const tool = app.slice(app.indexOf('    calculate: {'), app.indexOf('    execute_python: {'));
+  ok('the tool uses it, and turns no string into code', /HCForgeExpr\.evaluateWritten\(/.test(tool) && !/Function\(|eval\(/.test(tool));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/expr.js)\n`);
 process.exit(fail ? 1 : 0);

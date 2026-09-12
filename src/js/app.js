@@ -5604,27 +5604,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       statusLabel: a => `Calculating: ${(a.expression || "").slice(0, 60)}`,
       async execute({ expression }) {
         if (!expression) return { error: "expression is required" };
-        // Whitelist: numbers, operators, parens, dots, whitespace, and Math.<fn>
-        const safe = /^[\s\d+\-*/%().,]*(?:Math\.(?:PI|E|sqrt|cbrt|abs|floor|ceil|round|min|max|pow|exp|log|log2|log10|sin|cos|tan|asin|acos|atan|atan2)\s*\(?\)?[\s\d+\-*/%().,]*)*$/;
-        // Allow Math.<fn>(args) where args may contain nested expression — simple
-        // multi-pass check: strip valid Math.<fn>(…) calls then re-check the rest.
-        let cleaned = expression;
-        for (let i = 0; i < 5; i++) {
-          const next = cleaned.replace(/Math\.(?:PI|E|sqrt|cbrt|abs|floor|ceil|round|min|max|pow|exp|log|log2|log10|sin|cos|tan|asin|acos|atan|atan2)\s*\([^()]*\)/g, "0");
-          if (next === cleaned) break;
-          cleaned = next;
-        }
-        if (!/^[\s\d+\-*/%().,]+$/.test(cleaned)) {
-          return { error: "expression contains disallowed characters" };
-        }
-        try {
-          // eslint-disable-next-line no-new-func
-          const result = Function('"use strict"; return (' + expression + ')')();
-          if (typeof result !== "number" || !Number.isFinite(result)) return { error: "result is not a finite number" };
-          return { expression, result };
-        } catch (e) {
-          return { error: String(e?.message || e) };
-        }
+        // Read by the app's own arithmetic reader (js/forge/expr.js), never run as code.
+        const r = window.HCForgeExpr.evaluateWritten(String(expression));
+        return r.error ? { error: `could not work that out: ${r.error}` } : { expression, result: r.value };
       }
     },
     execute_python: {
