@@ -19,6 +19,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   model lists arrive the same way, with each model's limits where the provider
   gives them.
 
+### Security
+
+- **The file and shell blocklist ignores letter case and either slash, and
+  judges a new file by where it would really land.** macOS and Windows open a
+  folder whatever case its name is typed in, and a file that does not exist
+  yet was judged by its spelling alone. Both are closed.
+- **Places that start a program on their own are refused**: login agents and
+  daemons, autostart folders, the Windows Startup folder and a shell's
+  start-up files, plus `crontab` and `at` in the shell. So are browser cookies
+  and profiles, mail and messages, and more credential files.
+
 ### Fixed
 
 - **A Moonshot platform key no longer starts every request with two

@@ -70,7 +70,10 @@ pub const BLOCKED_WINDOWS_FRAGMENTS: &[&str] = &[
 /// Substrings that are never allowed inside a filesystem path.
 ///
 /// Applied to `fs_*` commands, where the argument is a single path and a
-/// loose match costs little.
+/// loose match costs little. Matched without regard to case and with either
+/// slash (see `is_path_denied`), so write them in lower case with `/`. An entry
+/// ending in `/` is a folder: it matches the folder itself and anything in it,
+/// and not a longer name that merely starts the same way.
 pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
     // ── Key material and credential stores ──
     ".ssh",
@@ -80,7 +83,7 @@ pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
     "id_dsa",
     "id_ecdsa",
     "id_ed25519",
-    "Keychains",
+    "keychains",
     ".netrc",
     ".npmrc",
     ".pypirc",
@@ -88,6 +91,45 @@ pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
     ".kube/config",
     ".config/gh/",
     ".config/gcloud",
+    ".git-credentials",
+    ".config/git/credentials",
+    ".pgpass",
+    ".cargo/credentials",
+    ".azure/",
+    ".config/op/",
+    ".password-store/",
+    ".vault-token",
+    ".terraform.d/credentials",
+    ".gem/credentials",
+    // ── Browser profiles, mail and messages ──
+    //
+    // Cookies and saved passwords are a login to every site the user uses,
+    // and nothing the coding agent is for needs to read them.
+    "library/cookies/",
+    "library/safari/",
+    "library/mail/",
+    "library/messages/",
+    "application support/google/chrome/",
+    "application support/bravesoftware/",
+    "application support/firefox/",
+    "application support/microsoft edge/",
+    "google/chrome/user data/",
+    "microsoft/edge/user data/",
+    "mozilla/firefox/",
+    ".config/google-chrome/",
+    ".config/chromium/",
+    ".config/bravesoftware/",
+    // ── What runs by itself ──
+    //
+    // A file here runs at every login, so one write turns a single approved
+    // request into a program that keeps running. The shell's own start-up
+    // files are in `BLOCKED_FILE_NAMES`.
+    "library/launchagents/",
+    "library/launchdaemons/",
+    "library/startupitems/",
+    ".config/autostart/",
+    "start menu/programs/startup/",
+    ".config/fish/config.fish",
     // ── HashCortX's own state ──
     //
     // The API keys live in plain text under the app's WebKit data directory
@@ -98,6 +140,22 @@ pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
     // so nothing legitimate is lost by refusing both here.
     "com.hashcortx.app",
     ".hashcortx",
+];
+
+/// File names that are never allowed as any part of a path.
+///
+/// A shell's start-up files run every time a terminal opens, and they are
+/// where people export their API keys. Matched against whole path parts, so
+/// `.profile` is refused and a folder called `.profiler` is not.
+pub const BLOCKED_FILE_NAMES: &[&str] = &[
+    ".zshrc",
+    ".zshenv",
+    ".zprofile",
+    ".zlogin",
+    ".bashrc",
+    ".bash_profile",
+    ".bash_login",
+    ".profile",
 ];
 
 /// Path markers that are never allowed inside a shell command string.
@@ -124,6 +182,16 @@ pub const BLOCKED_COMMAND_PATH_MARKERS: &[&str] = &[
     ".config/gh/",
     ".config/gcloud",
     "com.hashcortx.app",
+    ".git-credentials",
+    ".pgpass",
+    ".cargo/credentials",
+    ".vault-token",
+    ".password-store",
+    "library/cookies",
+    "library/messages",
+    "library/launchagents",
+    "library/launchdaemons",
+    ".config/autostart",
 ];
 
 /// Directories that are a credential store in their own right.
@@ -131,7 +199,13 @@ pub const BLOCKED_COMMAND_PATH_MARKERS: &[&str] = &[
 /// These are matched as a whole path token — see `names_protected_directory` —
 /// rather than as a literal substring, because naming the directory is enough to
 /// take everything in it.
-pub const BLOCKED_COMMAND_DIR_MARKERS: &[&str] = &[".ssh", ".aws", ".gnupg", ".hashcortx"];
+///
+/// The shell start-up files are here too, for the same reason: named whole,
+/// `.zshrc` is the file, and `.zshrc.bak` is somebody's copy.
+pub const BLOCKED_COMMAND_DIR_MARKERS: &[&str] = &[
+    ".ssh", ".aws", ".gnupg", ".hashcortx",
+    ".zshrc", ".zshenv", ".zprofile", ".zlogin", ".bashrc", ".bash_profile", ".bash_login", ".profile",
+];
 
 /// Multi-token command patterns that are always blocked.
 ///
@@ -185,6 +259,9 @@ pub const BLOCKED_LEADING_TOOLS: &[&str] = &[
     // Unix
     "dd", "mkfs", "fdisk", "parted", "newfs", // Windows (format is both)
     "format", "diskpart", "bcdedit", "vssadmin", "takeown", "cipher",
+    // Scheduling a command to run later, on its own: one approved line that
+    // keeps running after the conversation is over.
+    "crontab", "at",
 ];
 
 /// Destructive Windows command shapes, matched on the normalised command.
@@ -220,17 +297,33 @@ fn windows_normalised(path: &str) -> String {
 }
 
 /// Returns `true` if the path is explicitly denied.
+///
+/// Without regard to case, and with either slash. macOS and Windows both find
+/// `~/.SSH` when asked for `~/.ssh`, so a check that compared spellings exactly
+/// refused one and let the other through to the same folder — and for a file
+/// that does not exist yet, spelling is all there is to check. Linux keeps the
+/// two apart, where this refuses a little more than it has to.
 pub fn is_path_denied(path: &str) -> bool {
     let expanded = shellexpand::tilde(path).to_string();
+    let unified = expanded.to_lowercase().replace('\\', "/");
     for prefix in BLOCKED_PATH_PREFIXES {
-        if expanded.starts_with(prefix) {
+        if unified.starts_with(&prefix.to_lowercase()) {
             return true;
         }
     }
     for sub in BLOCKED_PATH_SUBSTRINGS {
-        if expanded.contains(sub) {
+        let sub = sub.to_lowercase();
+        if unified.contains(&sub) {
             return true;
         }
+        if let Some(folder) = sub.strip_suffix('/') {
+            if unified.ends_with(folder) {
+                return true;
+            }
+        }
+    }
+    if unified.split('/').any(|part| BLOCKED_FILE_NAMES.contains(&part)) {
+        return true;
     }
     let windows_form = windows_normalised(&expanded);
     for fragment in BLOCKED_WINDOWS_FRAGMENTS {
@@ -450,6 +543,68 @@ mod tests {
     }
 
     #[test]
+    fn a_protected_path_is_refused_however_its_letters_are_cased() {
+        // macOS and Windows open the same folder for either spelling.
+        assert!(is_path_denied("~/.SSH/authorized_keys"));
+        assert!(is_path_denied("/Users/someone/.Aws/credentials"));
+        assert!(is_path_denied("/Users/someone/Library/KEYCHAINS/login.keychain-db"));
+        assert!(is_path_denied("/ETC/hosts"));
+        assert!(is_path_denied("~/Library/Application Support/COM.HASHCORTX.APP/x"));
+    }
+
+    #[test]
+    fn a_protected_path_is_refused_with_either_slash() {
+        // These entries are written with `/`; a Windows path arrives with `\`.
+        assert!(is_path_denied("C:\\Users\\x\\.docker\\config.json"));
+        assert!(is_path_denied("C:\\Users\\x\\.kube\\config"));
+        assert!(is_path_denied("C:\\Users\\x\\.git-credentials"));
+    }
+
+    #[test]
+    fn places_that_start_a_program_on_their_own_are_refused() {
+        assert!(is_path_denied("~/Library/LaunchAgents/com.example.agent.plist"));
+        assert!(is_path_denied("~/Library/LaunchAgents"));
+        assert!(is_path_denied("/Library/LaunchDaemons/x.plist"));
+        assert!(is_path_denied("~/.config/autostart/x.desktop"));
+        assert!(is_path_denied(
+            "C:\\Users\\x\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\x.lnk"
+        ));
+        for rc in [".zshrc", ".zshenv", ".zprofile", ".bashrc", ".bash_profile", ".profile"] {
+            assert!(is_path_denied(&format!("~/{rc}")), "{rc} must be refused");
+        }
+        assert!(is_path_denied("~/.config/fish/config.fish"));
+    }
+
+    #[test]
+    fn browser_profiles_mail_and_more_credential_files_are_refused() {
+        assert!(is_path_denied("~/Library/Cookies/Cookies.binarycookies"));
+        assert!(is_path_denied("~/Library/Application Support/Google/Chrome/Default/Login Data"));
+        assert!(is_path_denied("~/Library/Application Support/Firefox/Profiles/x/cookies.sqlite"));
+        assert!(is_path_denied("C:\\Users\\x\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cookies"));
+        assert!(is_path_denied("~/.mozilla/firefox/x.default/logins.json"));
+        assert!(is_path_denied("~/Library/Mail/V10/x"));
+        assert!(is_path_denied("~/Library/Messages/chat.db"));
+        assert!(is_path_denied("~/.git-credentials"));
+        assert!(is_path_denied("~/.pgpass"));
+        assert!(is_path_denied("~/.cargo/credentials.toml"));
+        assert!(is_path_denied("~/.azure/accessTokens.json"));
+        assert!(is_path_denied("~/.password-store/email.gpg"));
+        assert!(is_path_denied("~/.vault-token"));
+    }
+
+    #[test]
+    fn names_that_merely_resemble_them_are_not_refused() {
+        // A folder entry covers the folder, not every name that starts alike;
+        // a start-up file is refused by its whole name.
+        assert!(!is_path_denied("/Users/someone/project/src/library/mailer.js"));
+        assert!(!is_path_denied("/Users/someone/project/src/library/cookies-banner.tsx"));
+        assert!(!is_path_denied("/Users/someone/project/.profiler/report.json"));
+        assert!(!is_path_denied("/Users/someone/project/docs/profile.md"));
+        assert!(!is_path_denied("/Users/someone/project/.zshrc.example"));
+        assert!(!is_path_denied("/Users/someone/project/src/launch-agents.ts"));
+    }
+
+    #[test]
     fn ordinary_project_paths_are_allowed() {
         assert!(!is_path_denied("/Users/someone/Desktop/project/src/main.rs"));
         // `credentials` used to be a blocked substring, which refused every
@@ -644,5 +799,27 @@ mod tests {
         assert!(!command_touches_denied_path("grep -rn credentials src/"));
         assert!(!command_touches_denied_path("npm test"));
         assert!(!command_touches_denied_path("git commit -m 'add ssh docs'"));
+    }
+
+    #[test]
+    fn a_command_that_schedules_itself_or_edits_start_up_files_is_refused() {
+        assert!(is_command_denied("crontab -e"));
+        assert!(is_command_denied("echo job | crontab -"));
+        assert!(is_command_denied("at now + 1 minute"));
+        assert!(command_touches_denied_path("cp x.plist ~/Library/LaunchAgents/"));
+        assert!(command_touches_denied_path("echo 'export X=1' >> ~/.zshrc"));
+        assert!(command_touches_denied_path("cat .bash_profile"));
+        assert!(command_touches_denied_path("cat ~/.git-credentials"));
+        assert!(command_touches_denied_path("sqlite3 ~/Library/Cookies/Cookies.binarycookies"));
+    }
+
+    #[test]
+    fn ordinary_commands_that_mention_those_words_still_run() {
+        // `at` and `crontab` are refused only as the program being run.
+        assert!(!is_command_denied("git commit -m 'look at the crontab docs'"));
+        assert!(!is_command_denied("grep -rn at src/"));
+        // A start-up file is refused by its whole name, not a longer one.
+        assert!(!command_touches_denied_path("cp .zshrc.example docs/"));
+        assert!(!command_touches_denied_path("ls .profiler"));
     }
 }

@@ -92,14 +92,29 @@ From `src-tauri/src/security/denylist.rs`. These are matched against the absolut
                                        /private/var
 ```
 
-Any path containing these substrings is refused too:
+Any path containing these is refused too:
 
 ```
-.ssh    .aws     .gnupg   id_rsa   id_dsa    id_ecdsa   id_ed25519
-.netrc  .npmrc   .pypirc  .kube/config       .docker/config.json
-.config/gh/      .config/gcloud     Keychains
-com.hashcortx.app          .hashcortx
+key material     .ssh  .aws  .gnupg  id_rsa  id_dsa  id_ecdsa  id_ed25519
+                 .netrc  .npmrc  .pypirc  .kube/config  .docker/config.json
+                 .config/gh/  .config/gcloud  keychains  .git-credentials
+                 .config/git/credentials  .pgpass  .cargo/credentials  .azure/
+                 .config/op/  .password-store/  .vault-token
+                 .terraform.d/credentials  .gem/credentials
+browsers, mail   Library/Cookies  Library/Safari  Library/Mail  Library/Messages
+                 the Chrome, Brave, Edge and Firefox profile folders, on every
+                 platform
+runs by itself   Library/LaunchAgents  Library/LaunchDaemons  Library/StartupItems
+                 .config/autostart  the Windows Startup folder
+                 .config/fish/config.fish
+this app         com.hashcortx.app  .hashcortx
 ```
+
+So is any path with one of a shell's start-up files as a whole part of it: `.zshrc`, `.zshenv`, `.zprofile`, `.zlogin`, `.bashrc`, `.bash_profile`, `.bash_login`, `.profile`. Those run every time a terminal opens, and they are where people export their API keys.
+
+**Matching ignores case and either slash.** macOS and Windows open the same folder whatever case its name is typed in, so a rule that compared spellings exactly was a rule about spelling rather than about the folder. An entry ending in `/` is a folder: it covers the folder and what is in it, and not a longer name that merely begins the same way, so `src/library/mailer.js` is an ordinary file.
+
+The "runs by itself" group is the newest. A file in one of those places starts a program at every login or every new terminal, so a single approved write would outlive the conversation that asked for it. Scheduling a command to run later — `crontab`, `at` — is refused in the shell for the same reason.
 
 The last two are HashCortX's own directories: the plaintext key bundle described above, the audit log, and the undo checkpoints below. The agent has no business reading your keys, editing the record of what it did, or deleting the copy of a file it just overwrote — and the app reaches all three through separate commands that do not accept a path.
 
@@ -121,7 +136,7 @@ That last rule is new, and it closes a leak of a different kind. Records only ev
 
 Coder's saved session no longer carries file contents either. It used to store every changed file, before and after, in `localStorage` — the same store your API keys are in, with a quota that fails silently once it is full — and nothing ever read it back. The undo history on disk is the record now.
 
-**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead.
+**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. That includes a file that does not exist yet: the nearest folder that does is resolved and the new name put back on it, so a new file is judged by where it would really land and not by how its path is spelled.
 
 The recursive tools — file search, fuzzy find and code grep — check every link they meet while walking, against two rules: the denylist, and **the folder you asked them to search**. The second is the one that matters most and it was missing. Refusing only denylisted destinations meant a link to any *ordinary* directory outside the search — your home folder, another project — was walked like part of the tree, and code grep returns the contents of the files it matches. Searching inside the project raises no dialog, so that was a way to read files you were never asked about. A link is now judged by whether its destination is inside the folder being searched; one leading to a folder within it is followed as normal.
 
@@ -131,10 +146,10 @@ This is the important nuance. HashCortx does **not** restrict the agent to a fix
 
 - **`rm` that is both recursive and forceful**, in any spelling — `-rf`, `-fR`, `-r -f`, `--recursive --force`.
 - **Privilege and power words**, matched as whole tokens: `sudo`, `su`, `shutdown`, `reboot`, `halt`, `poweroff`, `pkill`, `launchctl`.
-- **Disk tools**, matched as the program being run (including their families, e.g. `mkfs.ext4`, `newfs_hfs`): `dd`, `mkfs`, `fdisk`, `parted`, `format`, `newfs`.
+- **Disk tools and schedulers**, matched as the program being run (including their families, e.g. `mkfs.ext4`, `newfs_hfs`): `dd`, `mkfs`, `fdisk`, `parted`, `format`, `newfs`, the Windows disk and permission tools, and `crontab` and `at`, which leave a command behind to run later.
 - **Phrases that cannot occur innocently**: `diskutil eraseDisk`, `chmod 777`, `chown root`, piping anything into an interpreter (`… | sh`, `| bash`, `| python`, …), and process substitution (`bash <(…)`).
 - **Any command naming a protected location** — `cat ~/.ssh/id_ed25519` is refused. Before this the filesystem denylist was decorative wherever a shell existed: `fs_read_file` refused that path and `shell_run` read it anyway.
-- **Any command naming a credential directory**, whether or not a filename follows it. `.ssh`, `.aws`, `.gnupg` and HashCortX's own `.hashcortx` are matched as whole path tokens, so copying, archiving or linking a whole store is refused the same way reading one key out of it is. An ordinary file whose name merely ends the same way — `deploy.aws`, `config.ssh` — is not a protected location and is left alone.
+- **Any command naming a credential directory or a shell start-up file**, whether or not a filename follows it. `.ssh`, `.aws`, `.gnupg`, HashCortX's own `.hashcortx` and the start-up files listed above are matched as whole path tokens, so copying, archiving or linking a whole store is refused the same way reading one key out of it is. An ordinary file whose name merely ends the same way — `deploy.aws`, `config.ssh` — is not a protected location and is left alone.
 
 **The working directory is part of the command.** It is chosen by the model, and it decides what every relative path in the command means — `rm output.o` removes a different file in a different folder. It is shown in the permission dialog alongside the command, so approving one is approving both, and it passes the same path guard a file operation does. It used to be checked against the denylist as written, which half of that list cannot answer: those entries are prefixes, and a directory that climbs out with `..` is not spelled like any of them, so the shell started there.
 

@@ -38,8 +38,14 @@ pub(crate) fn guard_path(path: &str) -> Result<(), String> {
     }
     // Resolve symlinks and check the real destination too, preventing an attacker
     // from creating a symlink inside the project that points to ~/.ssh or /etc.
-    if let Ok(canonical) = std::fs::canonicalize(path) {
-        let real = canonical.to_string_lossy();
+    //
+    // For a file that is not there yet — every new file a write creates — the
+    // nearest folder that does exist is resolved instead, and the rest of the
+    // name put back on it. canonicalize alone answers nothing for such a path,
+    // so a new file written through a link into a protected folder used to be
+    // judged by its spelling and let through.
+    if let Some(real) = resolve_for_containment(Path::new(path)) {
+        let real = real.to_string_lossy();
         if denylist::is_path_denied(&real) {
             return Err(format!("Path resolves to a protected location and cannot be accessed: {real}"));
         }
@@ -627,6 +633,33 @@ mod tests {
     }
 
     #[test]
+    fn a_new_file_under_a_link_into_a_protected_folder_is_refused() {
+        // `vendor` is spelled like any folder in the project and leads into a
+        // key store. For a file that is not there yet canonicalize has nothing
+        // to resolve, so the link itself has to be followed — the new file's
+        // real place is inside the protected folder, whatever the path says.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("fs-check-scratch")
+            .join(format!("link-new-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let keys = root.join(".ssh");
+        let project = root.join("project");
+        fs::create_dir_all(&keys).unwrap();
+        fs::create_dir_all(&project).unwrap();
+        std::os::unix::fs::symlink(&keys, project.join("vendor")).unwrap();
+
+        let through = project.join("vendor").join("authorized_keys");
+        assert!(
+            guard_path(&through.to_string_lossy()).is_err(),
+            "a new file reached through a link into .ssh must be refused"
+        );
+        // The ordinary case is untouched: a new file in a real folder.
+        assert!(guard_path(&project.join("notes.txt").to_string_lossy()).is_ok());
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn a_search_does_not_follow_a_link_out_to_a_protected_directory() {
         let root = temp_root("escape");
         // `.aws` anywhere in a path is refused by the denylist, so this stands
@@ -807,6 +840,24 @@ mod containment_tests {
             p,
         ));
 
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn a_protected_folder_spelled_in_other_letters_is_still_protected() {
+        // macOS and Windows find `.SSH` when asked for `.ssh`. A file that does
+        // not exist yet has nothing for canonicalize to resolve, so the only
+        // thing standing between a new key file and the real folder is the
+        // spelling check — and it must not care about case.
+        let root = scratch("case");
+        fs::create_dir_all(root.join(".ssh")).unwrap();
+        for spelled in [".SSH", ".Ssh", ".sSh"] {
+            let new_file = root.join(spelled).join("authorized_keys");
+            assert!(
+                guard_path(&new_file.to_string_lossy()).is_err(),
+                "{spelled}/authorized_keys must be refused"
+            );
+        }
         let _ = fs::remove_dir_all(&root);
     }
 

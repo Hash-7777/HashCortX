@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **5,500 lines of Rust**, measured on 12 September 2026. Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **5,700 lines of Rust**, measured on 12 September 2026. Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -154,7 +154,7 @@ HashCortX/
 │   │   │   ├── net.rs         795   resolves a hostname and refuses private ones
 │   │   │   ├── provider.rs    524   SambaNova, NVIDIA and Kimi Code, at six
 │   │   │   │                        fixed addresses and nowhere else
-│   │   │   ├── fs.rs          985   filesystem bridge, applies the denylist
+│   │   │   ├── fs.rs        1,036   filesystem bridge, applies the denylist
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      261   writes a file the user named in a save dialog
 │   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge
@@ -163,7 +163,7 @@ HashCortX/
 │   │   │   ├── notch.rs       160   HashNotch live-activity ping
 │   │   │   └── audit.rs        52   append-only audit log
 │   │   └── security/
-│   │       └── denylist.rs    648   hardcoded blocked paths and commands
+│   │       └── denylist.rs    825   hardcoded blocked paths and commands
 │   ├── models/bge-small-en-v1.5/    bundled embedding model, MIT, 34 MB
 │   │                                compiled into the binary; PROVENANCE.md
 │   ├── capabilities/default.json
@@ -278,7 +278,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 ## Design rules
 
 1. `src/platform/` is the only place allowed to touch `window.__TAURI__`. Enforced by `scripts/checks/native-surface.mjs`, which also pins the set of files outside it that may invoke a command, and the modes that must invoke none.
-2. Every native call is intercepted by `guard.js` before executing, and independently re-checked in Rust.
+2. Every file, shell and fetch action an agent can take goes through `guard.js` before it runs, and the file and shell ones are checked again in Rust against the denylist. The other native commands take nothing an agent chooses a destination with: a fixed file under `~/.hashcortx`, a path from a save dialog the user answered, or a provider picked from a fixed table.
 3. Every guarded action is appended to the audit log, allowed or denied.
 4. `src/main.js` only bootstraps — no feature code.
 5. One folder per mode in `src/modes/<id>/` — `mode.js`, `mode.css`, `panel.html` — named once in `modes/manifest.js`. Nothing else in the app names a mode. Cross-module access goes through `window._H`. Enforced by `scripts/checks/modes.mjs`, which also counts how many shared files still name each mode and refuses to let that number rise.
@@ -292,7 +292,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,541-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 4,621 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 4,645 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal and export, and stream reading. They load the real source.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

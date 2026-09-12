@@ -32,24 +32,49 @@
 
   // Hard-blocked paths (mirrors the Rust denylist for early JS rejection).
   // Rust re-checks independently and is the authority; this only saves a round
-  // trip and gives the user a clearer message.
+  // trip and gives the user a clearer message. scripts/checks/guard.mjs fails if
+  // an entry is in src-tauri/src/security/denylist.rs and not here.
+  //
+  // Matched without regard to case and with either slash, as Rust does: macOS
+  // and Windows open the same folder for `.SSH` and `.ssh`. An entry ending in
+  // `/` is a folder, and matches the folder itself as well as what is in it.
   const BLOCKED_PREFIXES = [
-    '/System', '/usr/bin', '/usr/sbin', '/etc', '/bin', '/sbin',
-    '/private/etc', '/Library/Keychains',
+    '/.ssh', '/.aws', '/.gnupg', '/library/keychains', '/system', '/usr/bin', '/usr/sbin',
+    '/usr/lib', '/etc', '/bin', '/sbin', '/private/etc', '/private/var',
   ];
   const BLOCKED_SUBSTRINGS = [
     '.ssh', '.aws', '.gnupg', 'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
-    'Keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
+    'keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
     '.kube/config', '.config/gh/', '.config/gcloud',
+    '.git-credentials', '.config/git/credentials', '.pgpass', '.cargo/credentials', '.azure/',
+    '.config/op/', '.password-store/', '.vault-token', '.terraform.d/credentials', '.gem/credentials',
+    // Browser profiles, mail and messages.
+    'library/cookies/', 'library/safari/', 'library/mail/', 'library/messages/',
+    'application support/google/chrome/', 'application support/bravesoftware/',
+    'application support/firefox/', 'application support/microsoft edge/',
+    'google/chrome/user data/', 'microsoft/edge/user data/', 'mozilla/firefox/',
+    '.config/google-chrome/', '.config/chromium/', '.config/bravesoftware/',
+    // What runs by itself, at every login.
+    'library/launchagents/', 'library/launchdaemons/', 'library/startupitems/',
+    '.config/autostart/', 'start menu/programs/startup/', '.config/fish/config.fish',
     // HashCortX's own state: the plaintext API-key bundle and the audit trail.
     'com.hashcortx.app', '.hashcortx',
   ];
+  // A shell's start-up files, refused by whole name: `.profile`, not `.profiler`.
+  const BLOCKED_FILE_NAMES = ['.zshrc', '.zshenv', '.zprofile', '.zlogin', '.bashrc', '.bash_profile', '.bash_login', '.profile'];
+
+  function isPathBlocked(target) {
+    const unified = String(target || '').toLowerCase().replace(/\\/g, '/');
+    if (BLOCKED_PREFIXES.some(p => unified.startsWith(p))) return true;
+    if (BLOCKED_SUBSTRINGS.some(s => unified.includes(s) || (s.endsWith('/') && unified.endsWith(s.slice(0, -1))))) return true;
+    return unified.split('/').some(part => BLOCKED_FILE_NAMES.includes(part));
+  }
   // Words that are dangerous wherever they appear, matched as whole tokens.
   const BLOCKED_WORDS = ['sudo', 'su', 'shutdown', 'reboot', 'halt', 'poweroff', 'pkill', 'launchctl'];
   // Programs dangerous only as the program being run. Matched in leading
   // position only: substring-matching these is what made the old list refuse
   // `git add file` (it contains "dd "), `npm run format` and `cat departed.md`.
-  const BLOCKED_TOOLS = ['dd', 'mkfs', 'fdisk', 'parted', 'format', 'newfs'];
+  const BLOCKED_TOOLS = ['dd', 'mkfs', 'fdisk', 'parted', 'newfs', 'format', 'diskpart', 'bcdedit', 'vssadmin', 'takeown', 'cipher', 'crontab', 'at'];
   // Phrases that cannot occur innocently.
   const BLOCKED_PHRASES = [
     'diskutil erasedisk', 'chmod 777', 'chown root',
@@ -65,11 +90,16 @@
     'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
     'library/keychains', '.netrc', '.npmrc', '.pypirc', '.docker/config.json',
     '.kube/config', '.config/gh/', '.config/gcloud', 'com.hashcortx.app',
+    '.git-credentials', '.pgpass', '.cargo/credentials', '.vault-token', '.password-store',
+    'library/cookies', 'library/messages', 'library/launchagents', 'library/launchdaemons', '.config/autostart',
   ];
   // Directories that are a credential store in their own right. Matched as a
   // whole path token, because naming the directory takes everything in it and
   // there may be nothing after it to match on. Mirrors BLOCKED_COMMAND_DIR_MARKERS.
-  const BLOCKED_CMD_DIRS = ['.ssh', '.aws', '.gnupg', '.hashcortx'];
+  const BLOCKED_CMD_DIRS = [
+    '.ssh', '.aws', '.gnupg', '.hashcortx',
+    '.zshrc', '.zshenv', '.zprofile', '.zlogin', '.bashrc', '.bash_profile', '.bash_login', '.profile',
+  ];
   const ENDS_A_PATH_TOKEN = /[\s/\\"'`;&|(),:<>]/;
 
   // True when the command names a protected directory as a path, rather than
@@ -141,10 +171,7 @@
       if (BLOCKED_CMD_PATHS.some(m => lower.includes(m))) return true;
       return namesProtectedDirectory(lower);
     }
-    return (
-      BLOCKED_PREFIXES.some(p => target.startsWith(p)) ||
-      BLOCKED_SUBSTRINGS.some(s => target.includes(s))
-    );
+    return isPathBlocked(target);
   }
 
   // Log the decision to the Rust audit log (best-effort)

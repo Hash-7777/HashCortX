@@ -166,6 +166,23 @@ for (const [label, action, target] of [
   ['shell tar up ~/.hashcortx','shell', 'tar czf /tmp/h.tgz ~/.hashcortx'],
   ['shell link ~/.aws in',     'shell', 'ln -s ~/.aws vendor'],
   ['shell list ~/.ssh',        'shell', 'ls ~/.ssh'],
+  // macOS and Windows open the same folder for either spelling, and a new
+  // file has no real path yet to check instead.
+  ['write ~/.SSH/authorized_keys', 'write', '/Users/x/.SSH/authorized_keys'],
+  ['read ~/.Aws/credentials',  'read',  '/Users/x/.Aws/credentials'],
+  ['write a Windows key file with backslashes', 'write', 'C:\\Users\\x\\.docker\\config.json'],
+  // What runs by itself: one approved write that keeps running.
+  ['write a login agent',      'write', '/Users/x/Library/LaunchAgents/com.example.plist'],
+  ['write ~/.zshrc',           'write', '/Users/x/.zshrc'],
+  ['write ~/.bash_profile',    'write', '/Users/x/.bash_profile'],
+  ['shell append to ~/.zshrc', 'shell', "echo 'export X=1' >> ~/.zshrc"],
+  ['shell crontab',            'shell', 'crontab -e'],
+  ['shell at',                 'shell', 'at now + 1 minute'],
+  // Cookies, saved passwords, mail and more credential files.
+  ['read browser cookies',     'read',  '/Users/x/Library/Cookies/Cookies.binarycookies'],
+  ['read a Chrome profile',    'read',  '/Users/x/Library/Application Support/Google/Chrome/Default/Login Data'],
+  ['read ~/.git-credentials',  'read',  '/Users/x/.git-credentials'],
+  ['shell read ~/.pgpass',     'shell', 'cat ~/.pgpass'],
 ]) await check(label, () => guard.request(action, target), REFUSED);
 
 guard.setProjectRoot(R);
@@ -177,7 +194,10 @@ for (const cmd of ['git add src/main.rs', 'git add .', 'npm run format --watch',
                    // name is an ordinary file. The boundary rule has to hold in
                    // both directions or it becomes the next thing that refuses
                    // real work.
-                   'cat deploy.aws', 'vim config.ssh', 'ls terraform/.aws-vault']) {
+                   'cat deploy.aws', 'vim config.ssh', 'ls terraform/.aws-vault',
+                   // The same for a start-up file's name, and for the words
+                   // `at` and `crontab` anywhere but as the program.
+                   'cp .zshrc.example docs/', 'ls .profiler', "git commit -m 'look at the crontab docs'"]) {
   await check(`shell ${cmd}`, () => guard.request('shell', cmd), ASKED);
 }
 
@@ -398,13 +418,20 @@ console.log('\nA move asks about where the file is going:');
   let refused = false;
   const asked0 = dialogsShown;
   try {
-    await code.moveFile(`${R}/a.txt`, '/Users/x/Library/LaunchAgents/com.test.plist');
+    await code.moveFile(`${R}/a.txt`, '/Users/x/Documents/moved/com.test.plist');
   } catch { refused = true; }
   assert('a move out of the project asks the user', dialogsShown > asked0,
     'no dialog was shown for a destination outside the project');
   assert('denying it refuses the move', refused);
   assert('nothing was moved when it was denied', moved.length === wasMoved,
     `${moved.length - wasMoved} move(s) went through after a denial`);
+
+  // Into a folder whose files run at every login, it is not a question at all.
+  const asked3 = dialogsShown;
+  let refusedOutright = false;
+  try { await code.moveFile(`${R}/b.txt`, '/Users/x/Library/LaunchAgents/com.test.plist'); } catch { refusedOutright = true; }
+  assert('a move into a login-agent folder is refused without asking',
+    refusedOutright && dialogsShown === asked3 && moved.length === wasMoved);
 
   // And the same when the destination is an ordinary folder elsewhere — the
   // boundary the guard promises is the project, not just the denylist.
@@ -450,6 +477,33 @@ console.log('\nA move asks about where the file is going:');
   for (const nothing of [null, undefined, {}, { os: '' }]) {
     assert(`nothing to say adds nothing (${JSON.stringify(nothing)})`, line(nothing) === '');
   }
+}
+
+console.log('\nEvery rule in the Rust denylist is mirrored here, so a refusal is explained before the round trip:');
+{
+  const rust = readFileSync(join(here, '..', '..', 'src-tauri', 'src', 'security', 'denylist.rs'), 'utf8');
+  const listIn = (source, name) => {
+    const m = new RegExp(`${name}\\s*(?::[^=]*)?=\\s*&?\\[([\\s\\S]*?)\\];`).exec(source);
+    return m ? [...m[1].replace(/\/\/[^\n]*/g, '').matchAll(/["']([^"']+)["']/g)].map((x) => x[1].toLowerCase()) : null;
+  };
+  for (const [rustName, jsName] of [
+    ['BLOCKED_PATH_PREFIXES', 'BLOCKED_PREFIXES'],
+    ['BLOCKED_PATH_SUBSTRINGS', 'BLOCKED_SUBSTRINGS'],
+    ['BLOCKED_FILE_NAMES', 'BLOCKED_FILE_NAMES'],
+    ['BLOCKED_COMMAND_PATH_MARKERS', 'BLOCKED_CMD_PATHS'],
+    ['BLOCKED_COMMAND_DIR_MARKERS', 'BLOCKED_CMD_DIRS'],
+    ['BLOCKED_COMMAND_WORDS', 'BLOCKED_WORDS'],
+  ]) {
+    const r = listIn(rust, `pub const ${rustName}`);
+    const j = listIn(src, `const ${jsName}`);
+    const missing = r && j ? r.filter((x) => !j.includes(x)) : ['(list not found)'];
+    assert(`${rustName} → ${jsName}`, missing.length === 0, missing.join(', '));
+  }
+  // Leading tools include the Windows ones in Rust; every one is mirrored.
+  const rTools = listIn(rust, 'pub const BLOCKED_LEADING_TOOLS');
+  const jTools = listIn(src, 'const BLOCKED_TOOLS');
+  assert('BLOCKED_LEADING_TOOLS → BLOCKED_TOOLS', rTools && jTools && rTools.every((t) => jTools.includes(t)),
+    rTools && jTools ? rTools.filter((t) => !jTools.includes(t)).join(', ') : 'not found');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
