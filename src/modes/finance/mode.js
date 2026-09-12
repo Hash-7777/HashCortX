@@ -651,7 +651,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     traceAdd("PDF", `Opening ${file.name}`, "run", sizeLabel(file.size));
     const pdfjs = await waitForPdfJs();
     const buf = await file.arrayBuffer();
-    const doc = await pdfjs.getDocument({ data: buf }).promise;
+    const doc = await pdfjs.getDocument({ data: buf, isEvalSupported: false }).promise; // never code from a PDF
     traceAdd("PDF", `Loaded ${doc.numPages} page(s)`, "ok");
     const meta = await readPdfMetadata(doc);
     const chunks = [];

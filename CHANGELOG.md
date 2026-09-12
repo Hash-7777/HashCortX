@@ -27,6 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The page's security policy is narrower.** The one CDN it allows is limited
   to the Python runtime's own files, and plugins, frames, form submission and
   base-address changes are refused.
+- **PDFs are opened with the reader's code generation switched off**, on
+  every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
 - **Places that start a program on their own are refused**: login agents and

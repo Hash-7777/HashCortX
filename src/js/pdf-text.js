@@ -89,7 +89,9 @@
    */
   async function extractFromData(data, label = 'document.pdf') {
     const pdfjs = await waitForPdfJs();
-    const doc = await pdfjs.getDocument({ data }).promise;
+    // A PDF is untrusted input: pdf.js must never turn what it finds in one
+    // into code. The page's policy forbids that too; this does not rely on it.
+    const doc = await pdfjs.getDocument({ data, isEvalSupported: false }).promise;
     const pages = doc.numPages;
     const readable = Math.min(pages, MAX_PAGES);
 
