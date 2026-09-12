@@ -29,6 +29,9 @@ use commands::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // The window shows the app and nothing else: any navigation away from
+        // it is refused. Links open in the system browser from the page.
+        .plugin(security::navigation::guard())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())

@@ -251,6 +251,12 @@ Most third-party libraries are vendored into `src/js/vendor/` and load from disk
 
 ---
 
+### The window shows the app and nothing else
+
+Nothing in the app ever means to replace its page with another address, so `src-tauri/src/security/navigation.rs` refuses every navigation away from it — a link, a refresh written into markup, a script setting `location` — and the page carries on as it was. The only addresses the window may show are the app's own.
+
+A link a person clicks opens in the system browser instead, from `src/platform/index.js`: only a real click, only a web or mail address, and nothing on the app's own origin. `links.mjs` holds which clicks open what; the Rust side has its own tests for which addresses are the app's.
+
 ### Three providers are called from Rust
 
 A browser asks a server's permission before sending a request from a web page, and SambaNova, NVIDIA and Kimi Code answer without granting it. Inside the app every request is a web page's request, so theirs were never sent. `src-tauri/src/commands/provider.rs` sends them instead, through `HC.providerBridge` in `src/platform/tauri/provider-bridge.js`.

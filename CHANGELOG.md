@@ -27,6 +27,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The page's security policy is narrower.** The one CDN it allows is limited
   to the Python runtime's own files, and plugins, frames, form submission and
   base-address changes are refused.
+- **The app window shows the app and nothing else.** Any attempt to take it
+  to another address is refused.
 - **Colours and ids in a generated report or business system are checked**
   before they are drawn.
 - **PDFs are opened with the reader's code generation switched off**, on
@@ -40,6 +42,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A link in a reply opens in your browser.** It did nothing inside the app.
 - **A Moonshot platform key no longer starts every request with two
   failures.** Two of the four hosts the app tried first have no API at all, so
   each request failed twice before reaching a real one. They are gone from the

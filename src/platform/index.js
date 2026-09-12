@@ -62,6 +62,31 @@ HC.swarmSite = {
   },
 };
 
+// Links open in the system browser. The window shows the app and nothing
+// else — src-tauri/src/security/navigation.rs refuses any navigation away from
+// it — and a link that asked for a new window used to do nothing at all.
+//
+// Only a person's click opens one, only web and mail addresses, and nothing
+// on the app's own origin; a click some other handler already dealt with is
+// left to it.
+HC.externalLink = (href, base) => {
+  let url;
+  try { url = new URL(String(href || ""), base); } catch { return null; }
+  if (!/^(https?|mailto):$/.test(url.protocol)) return null;
+  if ((url.protocol === "http:" || url.protocol === "https:") && url.origin === new URL(base).origin) return null;
+  return url.href;
+};
+if (HC.isTauri) {
+  document.addEventListener("click", (e) => {
+    if (e.defaultPrevented || e.button !== 0 || !e.isTrusted) return;
+    const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    const url = a && HC.externalLink(a.getAttribute("href"), location.href);
+    if (!url) return;
+    e.preventDefault();
+    HC.invoke("plugin:opener|open_url", { url }).catch(() => {});
+  });
+}
+
 // HashNotch ping — light up the notch "HashCortX finished" when a run
 // completes, like the iPhone Dynamic Island (the same feed Claude Code's
 // hook writes). Best-effort and metadata-only — the title and nothing else,
