@@ -298,11 +298,9 @@ fn windows_normalised(path: &str) -> String {
 
 /// Returns `true` if the path is explicitly denied.
 ///
-/// Without regard to case, and with either slash. macOS and Windows both find
-/// `~/.SSH` when asked for `~/.ssh`, so a check that compared spellings exactly
-/// refused one and let the other through to the same folder — and for a file
-/// that does not exist yet, spelling is all there is to check. Linux keeps the
-/// two apart, where this refuses a little more than it has to.
+/// Without regard to case, and with either slash, as the macOS and Windows
+/// file systems themselves treat names. Linux keeps cases apart, where this
+/// refuses a little more than it has to.
 pub fn is_path_denied(path: &str) -> bool {
     let expanded = shellexpand::tilde(path).to_string();
     let unified = expanded.to_lowercase().replace('\\', "/");

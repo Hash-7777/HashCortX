@@ -41,9 +41,7 @@ pub(crate) fn guard_path(path: &str) -> Result<(), String> {
     //
     // For a file that is not there yet — every new file a write creates — the
     // nearest folder that does exist is resolved instead, and the rest of the
-    // name put back on it. canonicalize alone answers nothing for such a path,
-    // so a new file written through a link into a protected folder used to be
-    // judged by its spelling and let through.
+    // name put back on it, since canonicalize answers nothing for such a path.
     if let Some(real) = resolve_for_containment(Path::new(path)) {
         let real = real.to_string_lossy();
         if denylist::is_path_denied(&real) {

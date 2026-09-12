@@ -112,7 +112,7 @@ this app         com.hashcortx.app  .hashcortx
 
 So is any path with one of a shell's start-up files as a whole part of it: `.zshrc`, `.zshenv`, `.zprofile`, `.zlogin`, `.bashrc`, `.bash_profile`, `.bash_login`, `.profile`. Those run every time a terminal opens, and they are where people export their API keys.
 
-**Matching ignores case and either slash.** macOS and Windows open the same folder whatever case its name is typed in, so a rule that compared spellings exactly was a rule about spelling rather than about the folder. An entry ending in `/` is a folder: it covers the folder and what is in it, and not a longer name that merely begins the same way, so `src/library/mailer.js` is an ordinary file.
+**Matching ignores case and either slash**, as the file systems it guards do. An entry ending in `/` is a folder: it covers the folder and what is in it, and not a longer name that merely begins the same way, so `src/library/mailer.js` is an ordinary file.
 
 The "runs by itself" group is the newest. A file in one of those places starts a program at every login or every new terminal, so a single approved write would outlive the conversation that asked for it. Scheduling a command to run later — `crontab`, `at` — is refused in the shell for the same reason.
 
@@ -136,7 +136,7 @@ That last rule is new, and it closes a leak of a different kind. Records only ev
 
 Coder's saved session no longer carries file contents either. It used to store every changed file, before and after, in `localStorage` — the same store your API keys are in, with a quota that fails silently once it is full — and nothing ever read it back. The undo history on disk is the record now.
 
-**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. That includes a file that does not exist yet: the nearest folder that does is resolved and the new name put back on it, so a new file is judged by where it would really land and not by how its path is spelled.
+**Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. That includes a file that does not exist yet, which is judged by where it would land.
 
 The recursive tools — file search, fuzzy find and code grep — check every link they meet while walking, against two rules: the denylist, and **the folder you asked them to search**. The second is the one that matters most and it was missing. Refusing only denylisted destinations meant a link to any *ordinary* directory outside the search — your home folder, another project — was walked like part of the tree, and code grep returns the contents of the files it matches. Searching inside the project raises no dialog, so that was a way to read files you were never asked about. A link is now judged by whether its destination is inside the folder being searched; one leading to a folder within it is followed as normal.
 

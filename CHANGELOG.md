@@ -21,10 +21,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
-- **The file and shell blocklist ignores letter case and either slash, and
-  judges a new file by where it would really land.** macOS and Windows open a
-  folder whatever case its name is typed in, and a file that does not exist
-  yet was judged by its spelling alone. Both are closed.
+- **The file and shell blocklist is stricter.** It matches a path however it
+  is written and judges it by where it really leads.
 - **Places that start a program on their own are refused**: login agents and
   daemons, autostart folders, the Windows Startup folder and a shell's
   start-up files, plus `crontab` and `at` in the shell. So are browser cookies
