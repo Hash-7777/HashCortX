@@ -24,6 +24,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Python written by a model runs in a sealed worker.** It cannot reach the
   app's saved keys, its native commands or the network, and a run that goes
   on too long is stopped without stopping the app.
+- **The page's security policy is narrower.** The one CDN it allows is limited
+  to the Python runtime's own files, and plugins, frames, form submission and
+  base-address changes are refused.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
 - **Places that start a program on their own are refused**: login agents and

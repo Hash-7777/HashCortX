@@ -211,15 +211,36 @@ ok('the comment does not claim a rule the policy breaks',
 // docs/SECURITY.md names these one by one, so the doc goes stale silently when
 // the list changes. Pinning the count is what makes that a failure.
 
-console.log('\nOnly the CDN Pyodide needs is allowed to serve script:');
+console.log('\nOnly the CDN path Pyodide needs is allowed to serve script:');
 const scriptSrc = directive('script-src');
 const remoteScript = scriptSrc.filter((s) => s.startsWith('http'));
-ok('exactly one remote script host', remoteScript.length === 1,
+// The runtime's address, read from the file that loads it, so the two cannot
+// drift: a version bumped there and not here is a sandbox that cannot start.
+const pyodideJs = readFileSync(join(root, 'src', 'core', 'sandbox', 'pyodide.js'), 'utf8');
+const runtimeUrl = (/const RUNTIME_URL = '([^']+)'/.exec(pyodideJs) || [])[1] || '';
+ok('exactly one remote script source', remoteScript.length === 1,
   `found ${remoteScript.length}: ${remoteScript.join(', ')} — vendor the library instead, and update docs/SECURITY.md`);
-ok('and it is jsDelivr, which serves Pyodide', remoteScript[0] === 'https://cdn.jsdelivr.net');
+ok('and it is the Pyodide runtime path, exactly', !!runtimeUrl && remoteScript[0] === runtimeUrl,
+  `script-src has ${remoteScript[0]}, pyodide.js loads ${runtimeUrl}`);
+// Only Pyodide's own path is the app's on that host, so only that path is allowed.
+for (const [name, list] of [['script-src', scriptSrc], ['connect-src', connectSrc]]) {
+  ok(`${name} names jsDelivr only by the Pyodide path, never as a whole host`,
+    list.filter((e) => /cdn\.jsdelivr\.net/.test(e)).every((e) => e === runtimeUrl),
+    list.filter((e) => /cdn\.jsdelivr\.net/.test(e)).join(', '));
+}
+ok('connect-src lets the runtime fetch its own packages', connectSrc.includes(runtimeUrl));
 
+console.log('\nWhat the app never uses is refused outright:');
+for (const [name, want] of [['object-src', "'none'"], ['base-uri', "'none'"], ['form-action', "'none'"], ['frame-src', "'none'"]]) {
+  ok(`${name} is ${want}`, directive(name).join(' ') === want,
+    `${name} is "${directive(name).join(' ')}" — nothing in the app needs it, and each is a way for injected markup to act`);
+}
 ok("worker-src allows the app's own workers and the Python sandbox's blob, nothing else",
   directive('worker-src').slice().sort().join(' ') === "'self' blob:", directive('worker-src').join(' '));
+for (const name of ['style-src', 'font-src']) {
+  ok(`${name} names no other host`, !directive(name).some((e) => /^https?:/.test(e)),
+    `${directive(name).join(' ')} — nothing in the app loads a stylesheet or font from the network`);
+}
 
 const securityDoc = readFileSync(join(root, 'docs', 'SECURITY.md'), 'utf8');
 // ── What may be turned from a string into running script ─────────────────────
