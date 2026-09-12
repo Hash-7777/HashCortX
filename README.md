@@ -45,7 +45,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **License** | MIT |
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, OpenRouter, SambaNova, NVIDIA) + Ollama. SambaNova, NVIDIA and Kimi Code keys are sent by the app itself, because their servers refuse a web page |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~48,000 lines JS, ~5,700 Rust |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~48,000 lines JS, ~5,800 Rust |
 | **Tests** | 122 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,755 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 

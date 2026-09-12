@@ -313,11 +313,15 @@ console.log('\nEvery argument a call passes is one the command takes:');
     .filter((f) => f.endsWith('.rs'))
     .map((f) => readFileSync(join(cmdDir, f), 'utf8'))
     .join('\n');
-  // Rust: `pub fn name(a: T, b_c: U, …)` up to the closing paren.
+  // Rust: `pub fn name(a: T, b_c: U, …)` up to the closing paren — and
+  // `pub async fn`, which is how every command that can take a while is
+  // written, so that it does not hold the window while it runs.
   const params = new Map();
-  for (const m of rustSrc.matchAll(/pub fn ([a-z0-9_]+)\s*\(([^)]*)\)/g)) {
+  for (const m of rustSrc.matchAll(/pub (?:async )?fn ([a-z0-9_]+)\s*\(([^)]*)\)/g)) {
+    // A leading underscore marks an unused parameter; Tauri's name for it
+    // drops the underscore, so this does too.
     params.set(m[1], new Set(
-      [...m[2].matchAll(/(?:^|,)\s*([a-z0-9_]+)\s*:/g)].map((p) => p[1]),
+      [...m[2].matchAll(/(?:^|,)\s*([a-z0-9_]+)\s*:/g)].map((p) => p[1].replace(/^_+/, '')),
     ));
   }
   check(`the Rust commands declare their parameters (${params.size} functions)`, params.size > 0);

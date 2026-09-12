@@ -418,7 +418,11 @@ pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn fs_search_files(dir: String, pattern: String) -> Result<Vec<String>, String> {
+pub async fn fs_search_files(dir: String, pattern: String) -> Result<Vec<String>, String> {
+    super::off_main(move || search_files_blocking(dir, pattern)).await
+}
+
+fn search_files_blocking(dir: String, pattern: String) -> Result<Vec<String>, String> {
     guard_path(&dir)?;
     let root = walk_root(&dir)?;
     let pattern_lower = pattern.to_lowercase();
@@ -504,7 +508,11 @@ fn fuzzy_score(query: &str, name: &str, stem: &str) -> u32 {
 }
 
 #[tauri::command]
-pub fn fs_fuzzy_find(dir: String, query: String) -> Result<Vec<FuzzyMatch>, String> {
+pub async fn fs_fuzzy_find(dir: String, query: String) -> Result<Vec<FuzzyMatch>, String> {
+    super::off_main(move || fuzzy_find_blocking(dir, query)).await
+}
+
+fn fuzzy_find_blocking(dir: String, query: String) -> Result<Vec<FuzzyMatch>, String> {
     guard_path(&dir)?;
     let root = walk_root(&dir)?;
     let q = query.to_lowercase();
@@ -553,7 +561,11 @@ const TEXT_EXTS: &[&str] = &[
 ];
 
 #[tauri::command]
-pub fn fs_grep(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
+pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
+    super::off_main(move || grep_blocking(dir, pattern, file_ext)).await
+}
+
+fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
     guard_path(&dir)?;
     let root = walk_root(&dir)?;
     let pat_lower  = pattern.to_lowercase();
@@ -673,7 +685,7 @@ mod tests {
         // itself gives away where it leads.
         symlink(&secrets, project.join("vendor")).unwrap();
 
-        let hits = fs_grep(
+        let hits = grep_blocking(
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),
@@ -685,7 +697,7 @@ mod tests {
             "a search of the project read a file through a link into a protected directory"
         );
 
-        let found = fs_search_files(project.to_string_lossy().into_owned(), "credentials".into())
+        let found = search_files_blocking(project.to_string_lossy().into_owned(), "credentials".into())
             .unwrap();
         assert_eq!(found.len(), 0, "a filename search walked through the same link");
 
@@ -710,7 +722,7 @@ mod tests {
         fs::write(project.join("main.txt"), "ordinary source").unwrap();
         symlink(&elsewhere, project.join("vendor")).unwrap();
 
-        let hits = fs_grep(
+        let hits = grep_blocking(
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),
@@ -718,7 +730,7 @@ mod tests {
         .unwrap();
         assert_eq!(hits.len(), 0, "a search read a file outside the folder it was given");
 
-        let found = fs_search_files(project.to_string_lossy().into_owned(), "notes".into()).unwrap();
+        let found = search_files_blocking(project.to_string_lossy().into_owned(), "notes".into()).unwrap();
         assert_eq!(found.len(), 0, "a filename search walked out through the same link");
 
         let _ = fs::remove_dir_all(&root);
@@ -736,7 +748,7 @@ mod tests {
         fs::write(real.join("helper.txt"), "shared helper SENTINEL").unwrap();
         symlink(&real, project.join("lib")).unwrap();
 
-        let hits = fs_grep(
+        let hits = grep_blocking(
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),

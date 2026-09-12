@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **5,700 lines of Rust**, measured on 12 September 2026. Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **5,800 lines of Rust**, measured on 12 September 2026. Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -149,16 +149,16 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs       469   process execution: denylist, timeout,
+│   │   │   ├── shell.rs       481   process execution: denylist, timeout,
 │   │   │   │                        closed stdin, output cap
-│   │   │   ├── embed.rs       374   sentence embeddings, run natively
+│   │   │   ├── embed.rs       376   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  538   what a file held before the agent changed it
-│   │   │   ├── net.rs         795   resolves a hostname and refuses private ones
+│   │   │   ├── net.rs         802   resolves a hostname and refuses private ones
 │   │   │   ├── provider.rs    524   SambaNova, NVIDIA and Kimi Code, at six
 │   │   │   │                        fixed addresses and nowhere else
-│   │   │   ├── fs.rs        1,036   filesystem bridge, applies the denylist
+│   │   │   ├── fs.rs        1,046   filesystem bridge, applies the denylist
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
-│   │   │   ├── export.rs      261   writes a file the user named in a save dialog
+│   │   │   ├── export.rs      265   writes a file the user named in a save dialog
 │   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge
 │   │   │   ├── swarm_site.rs  137   a Swarm-built site, opened in the browser
 │   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
@@ -246,6 +246,8 @@ There is no `ai.rs`, no `allowlist.rs`, and no `browser.js`. `core/` exists now,
 src/js/*.js  ──▶  window.HC.*        ──▶  Tauri IPC  ──▶  src-tauri/src/commands/*.rs
 (renderer)        (platform/tauri/)                        (Rust, applies denylist)
 ```
+
+A command written without `async` runs on the main thread, and the window waits for it. Every command that can take more than a moment — the shell, a page read, a search over a project, an export, loading the embedding model, a provider request — is `async` and does its work on a worker thread; `off_main` in `commands/mod.rs` is the shared way to do that.
 
 **Two things worth knowing, because they surprise people:**
 

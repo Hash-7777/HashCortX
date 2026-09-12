@@ -234,8 +234,10 @@ pub async fn embed_texts(texts: Vec<String>, kind: Option<String>) -> Result<Vec
 /// falling back to keyword search the way the old CDN version did.
 #[cfg(feature = "local-embeddings")]
 #[tauri::command]
-pub fn embed_available() -> bool {
-    embedder().is_ok()
+pub async fn embed_available() -> bool {
+    // The first call loads the model, which takes a moment; off the main
+    // thread so the window does not wait for it.
+    super::off_main(|| Ok(embedder().is_ok())).await.unwrap_or(false)
 }
 
 // ── built without local-embeddings ────────────────────────────

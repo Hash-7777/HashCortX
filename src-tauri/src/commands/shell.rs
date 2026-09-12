@@ -230,39 +230,52 @@ fn read_capped<R: Read>(reader: R) -> (String, bool) {
 /// Callers that have a command line rather than a program plus arguments — the
 /// terminal, the home-directory probe — use this instead of guessing at `sh`.
 #[tauri::command]
-pub fn shell_run_line(
+pub async fn shell_run_line(
     line: String,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
 ) -> Result<ShellOutput, String> {
     let (shell, flag) = platform_shell();
-    shell_run(
-        shell.to_string(),
-        vec![flag.to_string(), line],
-        cwd,
-        timeout_ms,
-    )
+    let args = vec![flag.to_string(), line];
+    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms)).await
 }
 
 #[tauri::command]
-pub fn shell_run_line_stream(
+pub async fn shell_run_line_stream(
     line: String,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
     let (shell, flag) = platform_shell();
-    shell_run_stream(
-        shell.to_string(),
-        vec![flag.to_string(), line],
-        cwd,
-        timeout_ms,
-        on_chunk,
-    )
+    let args = vec![flag.to_string(), line];
+    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, on_chunk)).await
+}
+
+// The commands run on a worker thread (see `off_main`); the work itself is
+// below, as ordinary blocking functions.
+#[tauri::command]
+pub async fn shell_run(
+    command: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+) -> Result<ShellOutput, String> {
+    super::off_main(move || run_blocking(command, args, cwd, timeout_ms)).await
 }
 
 #[tauri::command]
-pub fn shell_run(
+pub async fn shell_run_stream(
+    command: String,
+    args: Vec<String>,
+    cwd: Option<String>,
+    timeout_ms: Option<u64>,
+    on_chunk: Channel<StreamChunk>,
+) -> Result<(), String> {
+    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, on_chunk)).await
+}
+
+fn run_blocking(
     command: String,
     args: Vec<String>,
     cwd: Option<String>,
@@ -302,8 +315,7 @@ pub fn shell_run(
     })
 }
 
-#[tauri::command]
-pub fn shell_run_stream(
+fn run_stream_blocking(
     command: String,
     args: Vec<String>,
     cwd: Option<String>,

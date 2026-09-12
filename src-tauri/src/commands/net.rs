@@ -421,7 +421,14 @@ fn pinned_agent(host: &str, addresses: Vec<IpAddr>, port: u16) -> Agent {
 }
 
 #[tauri::command]
-pub fn net_fetch_text(url: String) -> FetchOutcome {
+pub async fn net_fetch_text(url: String) -> FetchOutcome {
+    // Off the main thread, like every command that can take seconds.
+    super::off_main(move || Ok(fetch_text(url)))
+        .await
+        .unwrap_or_else(FetchOutcome::refused)
+}
+
+fn fetch_text(url: String) -> FetchOutcome {
     let mut current = url.trim().to_string();
 
     for _ in 0..=MAX_REDIRECTS {
@@ -747,7 +754,7 @@ mod tests {
             "http://169.254.169.254/latest/meta-data/", // cloud metadata
             "http://[::1]/",
         ] {
-            let out = net_fetch_text(bad.into());
+            let out = fetch_text(bad.into());
             assert!(!out.ok, "{bad} should be refused");
             assert!(out.text.is_empty(), "{bad} must return no text");
             assert!(out.reason.is_some(), "{bad} should say why");

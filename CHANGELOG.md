@@ -43,6 +43,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 
 - **A link in a reply opens in your browser.** It did nothing inside the app.
+- **The window stays responsive while a slow task runs.** Shell commands,
+  page reads, project searches, exports and loading the embedding model run
+  off the window's main thread.
 - **A Moonshot platform key no longer starts every request with two
   failures.** Two of the four hosts the app tried first have no API at all, so
   each request failed twice before reaching a real one. They are gone from the

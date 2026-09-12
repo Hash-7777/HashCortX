@@ -111,7 +111,11 @@ fn decode_base64(input: &str) -> Result<Vec<u8>, String> {
 /// something true about what happened. An export that reports success without
 /// having written anything is the failure this whole file exists to end.
 #[tauri::command]
-pub fn export_write_file(path: String, base64: String) -> Result<u64, String> {
+pub async fn export_write_file(path: String, base64: String) -> Result<u64, String> {
+    super::off_main(move || write_blocking(path, base64)).await
+}
+
+fn write_blocking(path: String, base64: String) -> Result<u64, String> {
     guard_path(&path)?;
     // Guard the directory as well. Without this a denied folder could still be
     // written into, because `is_path_denied` matches the spelling it is given
@@ -214,7 +218,7 @@ mod tests {
         // overwrite here would destroy a credential rather than leak one.
         let home = dirs::home_dir().expect("a home directory");
         let secret = home.join(".ssh").join("id_ed25519");
-        let err = export_write_file(secret.to_string_lossy().into_owned(), String::new())
+        let err = write_blocking(secret.to_string_lossy().into_owned(), String::new())
             .expect_err("a protected path must be refused");
         assert!(err.contains("protected"), "unexpected refusal: {err}");
     }
@@ -230,7 +234,7 @@ mod tests {
             .join("export-check-scratch")
             .join("..")
             .join("traversal-probe.bin");
-        let err = export_write_file(probe.to_string_lossy().into_owned(), String::new())
+        let err = write_blocking(probe.to_string_lossy().into_owned(), String::new())
             .expect_err("traversal must be refused");
         assert!(err.contains(".."), "unexpected refusal: {err}");
     }
@@ -248,7 +252,7 @@ mod tests {
         let _ = std::fs::remove_file(&target);
 
         let payload: Vec<u8> = (0..=255u8).chain(0..=255u8).collect();
-        let written = export_write_file(
+        let written = write_blocking(
             target.to_string_lossy().into_owned(),
             encode(&payload),
         )
