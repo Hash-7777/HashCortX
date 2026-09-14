@@ -42,6 +42,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **The PDF library is jsPDF 4.2.1**, the newest release, with the upstream
+  security fixes published since 2.5.1. PDF export in chat, Coder and Finance
+  uses it unchanged.
 - **The diagram library is Mermaid 11.17.2**, the newest 11.x release, with
   the upstream security fixes published since the version it replaces. Its
   source, checksum and licence are recorded in `src/js/vendor/PROVENANCE.md`.

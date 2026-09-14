@@ -14,11 +14,11 @@ None of them is fetched from a CDN at runtime.
 | `highlight-github-dark.min.css` | Highlight.js theme | not stated | not stated | No |
 | `purify.min.js` | DOMPurify | 3.4.2 | Apache 2.0 and MPL 2.0, as stated | No |
 | `pdf.min.js`, `pdf.worker.min.js` | pdf.js | 3.11.174 | Apache 2.0 | No |
-| `jspdf.umd.min.js` | jsPDF | 2.5.1 | MIT, plus notices of its own parts | No |
+| `jspdf.umd.min.js` | jsPDF | 4.2.1 | MIT, plus notices of its own parts | Yes, byte for byte |
 | `xlsx.full.min.js` | SheetJS | 0.20.3 | not stated | No |
 
-**How this was found.** Mermaid was taken from the npm registry for this
-record and compared with the package. For the others, the version and licence
+**How this was found.** Mermaid and jsPDF were taken from the npm registry
+for this record and compared with the package. For the others, the version and licence
 are what each file states about itself: in its header, or, where the header
 has no version, in its code. Those files have not been compared with the
 published packages, so a copy changed after it was made would not show here.
@@ -63,18 +63,50 @@ file are left in place.
   http://www.apache.org/licenses/LICENSE-2.0.
 - **Used by:** reading PDFs (`src/js/pdf-text.js`, Coder, Finance).
 
-## jsPDF 2.5.1
+## jsPDF 4.2.1
 
-- **File:** `jspdf.umd.min.js`. Version and build date from its header.
-- **Licence, as the file states it:** the MIT permission notice in full, for
-  James Hall, yWorks GmbH and the other contributors named in the header.
+- **Source:** the npm package `jspdf@4.2.1`. The tarball's integrity is
+  `sha512-YyAXyvnmjTbR4bHQRLzex3CuINCDlQnBqoSYyjJwTP2x9jDLuKDzy7aKUl0hgx3uhcl7xzg32agn5vlie6HIlQ==`,
+  the value the registry publishes for that version.
+- **File:** `package/dist/jspdf.umd.min.js`, copied unchanged. SHA-256
+  `e6551fcdc32f09d6853b2c5126d18d01d9447e0da618a41a11ebeee0f6c20d54`.
+- **Why this version:** it is the newest release, and it carries the upstream
+  security fixes published since 2.5.1, the version it replaced. Its breaking
+  changes between those versions are the end of Internet Explorer support and
+  file access in the Node.js build, neither of which the app uses.
 - **Parts with their own notices**, kept in place in the file: 23 more MIT
   notices for plugins and bundled code; a BSD-style notice from Adobe Systems;
   FPDF's notice, which places no restriction on use; a colour parser whose
   notice reads "Use it if you like it"; and an MD5 routine whose notice says
   its author specifies no particular licence.
-- **Used by:** exporting PDF files (`src/js/export-format.js`,
-  `src/js/app.js`).
+- **Used by:** the PDF exports in chat, Coder and Finance (`src/js/app.js`,
+  `src/modes/code/mode.js`, `src/modes/finance/mode.js`).
+- **Licence:** MIT. The package's licence file, reproduced as it requires:
+
+```
+Copyright
+(c) 2010-2025 James Hall, https://github.com/MrRio/jsPDF
+(c) 2015-2025 yWorks GmbH, https://www.yworks.com/
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+"Software"), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+```
 
 ## SheetJS 0.20.3
 
