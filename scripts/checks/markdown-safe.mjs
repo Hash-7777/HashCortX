@@ -170,5 +170,31 @@ console.log('\nWhat a model wrote is rendered without becoming markup:');
     /<img src="?x"? onerror/i.test(marked.parse('Hello <img src=x onerror=alert(1)>')));
 }
 
+console.log('\nModel text reaches the markdown library only through a safe renderer:');
+{
+  // Handed to the library directly, HTML in a reply becomes page elements,
+  // and a default sanitiser still keeps a form and its input boxes. Two
+  // renderers escape the text first: renderUntrusted here, and chat's own in
+  // app.js. Everything else goes through renderUntrusted.
+  const { readdirSync, statSync } = await import('node:fs');
+  const srcDir = join(here, '..', '..', 'src');
+  const ALLOWED = new Set(['js/markdown-safe.js', 'js/app.js']);
+  const found = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) { if (name !== 'vendor') walk(full); continue; }
+      if (!name.endsWith('.js')) continue;
+      const rel = full.slice(srcDir.length + 1).split('\\').join('/');
+      if (!ALLOWED.has(rel) && /\bmarked\.parse\(/.test(readFileSync(full, 'utf8'))) found.push(rel);
+    }
+  };
+  walk(srcDir);
+  ok('no other file calls the markdown library itself', found.length === 0, found.join(', '));
+  const coder = readFileSync(join(srcDir, 'modes', 'code', 'mode.js'), 'utf8');
+  ok('Coder draws a reply with renderUntrusted',
+    /function renderMarkdown\(text\) \{[\s\S]{0,120}HCMarkdown\.renderUntrusted\(text/.test(coder));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/markdown-safe.js)`);
 process.exit(fail ? 1 : 0);

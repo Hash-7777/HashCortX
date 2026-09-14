@@ -1015,15 +1015,12 @@
       if (el) el.scrollTop = el.scrollHeight;
     }
 
+    // A reply is model text, which a file or page the agent read can shape, so
+    // it is drawn the way chat and the Swarm draw theirs: HTML in it is shown
+    // rather than built, and links and images follow js/markdown-safe.js.
     function renderMarkdown(text) {
       if (!text) return '';
-      if (window.marked) {
-        try {
-          const html = window.marked.parse(text, { breaks: true, gfm: true });
-          if (window.DOMPurify) return window.DOMPurify.sanitize(html);
-          // DOMPurify not available — fall through to safe plain-text render
-        } catch {}
-      }
+      if (window.HCMarkdown) return window.HCMarkdown.renderUntrusted(text, { marked: window.marked, purify: window.DOMPurify });
       return esc(text).replace(/\n/g, '<br>');
     }
 

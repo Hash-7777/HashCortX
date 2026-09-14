@@ -411,7 +411,8 @@ const LINE_BUDGET = {
   // js/model-limits.js instead of a comment promising it one day.
   // 2611, down 19: an explorer toggle with no button, a failover wrapper, and
   // a pickProject and state getter on HC_CODE that nothing reached.
-  'modes/code/mode.js': 2611,
+  // 2608, down three: a reply is drawn by HCMarkdown.renderUntrusted.
+  'modes/code/mode.js': 2608,
 };
 
 console.log('\nFile sizes go down, never up:');

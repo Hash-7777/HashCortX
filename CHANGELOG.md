@@ -42,6 +42,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **Coder draws a reply the way chat does.** HTML in a reply is shown as
+  text rather than built, and links and images follow the same rules as in
+  chat and the Agent Swarm.
 - **The sanitiser is DOMPurify 3.4.15**, the newest 3.4 release, with the
   upstream security fixes published since 3.4.2. Its two licence texts now
   ship beside it.
