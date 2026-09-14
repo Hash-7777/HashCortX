@@ -907,22 +907,6 @@ const VoidStudio = (() => {
       /qwen.*(480b|235b|230b|coder|max|plus)|480b|235b|230b|405b|120b|gpt[-_\s]*oss[-_\s]*120|deepseek.*r1|gemini.*pro/i.test(text);
   }
 
-  function autoAssignModels() {
-    const opts = availableModelOptions();
-    if (!opts.length) {
-      log("No model options available to auto assign.", "warn");
-      return;
-    }
-    const largeOpts = opts.filter(o => isLargeFallbackModel(o, "god"));
-    if (!largeOpts.length) {
-      log("No large God Agent model is available; refusing to auto-route to small models.", "warn");
-      return;
-    }
-    const godPick = largeOpts.slice().sort((a, b) => modelStrengthScore(b, "god") - modelStrengthScore(a, "god"))[0];
-    if ($("voidGodModelSelect")) $("voidGodModelSelect").value = godPick.value;
-    log(`God Agent assigned ${godPick.label}`, "ok");
-  }
-
   function chooseWorkerModel() {
     const opts = availableModelOptions();
     if (!opts.length) return $("voidGodModelSelect")?.value || "";
@@ -995,17 +979,6 @@ const VoidStudio = (() => {
 
   function systemIconPosition(id, index = 0) {
     return activeProject?.systemIconPositions?.[id] || defaultSystemIconPosition(index);
-  }
-
-  function setSystemIconDrag(e, iconId) {
-    e.dataTransfer.setData("application/x-void-system-icon", iconId);
-    e.dataTransfer.setData("application/x-void-drag-origin", "desktop");
-    setDragOffset(e, e.currentTarget);
-    e.dataTransfer.effectAllowed = "move";
-  }
-
-  function getSystemIconDrag(e) {
-    return e.dataTransfer.getData("application/x-void-system-icon") || "";
   }
 
   async function moveSystemIcon(iconId, desktopPosition) {
@@ -1843,8 +1816,6 @@ Hard rules:
   user to swap in their own before the site goes anywhere real.`;
   }
 
-  // keep alias for any legacy reference (should not be called, but avoids ReferenceError)
-  function realPhotoAssetBank() { return buildDynamicImageInstruction(""); }
 
   function buildPrompt(userPrompt, repair = false) {
     const rootFolder = inferProjectName(userPrompt);
@@ -3319,8 +3290,7 @@ ${tree}`;
     });
     desktop?.addEventListener("dragover", e => {
       e.preventDefault();
-      if (hasDragType(e, "application/x-void-system-icon")) e.dataTransfer.dropEffect = "move";
-      else if (hasDragType(e, "Files")) e.dataTransfer.dropEffect = "copy";
+      if (hasDragType(e, "Files")) e.dataTransfer.dropEffect = "copy";
       else if (hasDragType(e, "text/plain")) e.dataTransfer.dropEffect = "move";
     });
     desktop?.addEventListener("drop", async e => {
@@ -3331,11 +3301,6 @@ ${tree}`;
         x: e.clientX - box.left - dragOffset.x,
         y: e.clientY - box.top - dragOffset.y,
       };
-      const systemIconId = getSystemIconDrag(e);
-      if (systemIconId) {
-        if (await moveSystemIcon(systemIconId, desktopPosition)) renderAll();
-        return;
-      }
       if (e.dataTransfer.files?.length) {
         await handleUpload(e.dataTransfer.files, false, ROOT_ID);
         return;

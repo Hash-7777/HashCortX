@@ -94,6 +94,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   docs/SECURITY.md does. The README's network and offline answers are
   corrected the same way.
 
+### Removed
+
+- **Code nothing called.** Ten functions across chat, Coder, Finance, the ERP
+  and the Virtual OS that no part of the app reached, and the drag path the
+  Virtual OS desktop icons stopped using when they moved to a pointer drag.
+  Nothing a person can do changes.
+
 ## [2.6.0] — 2026-09-01
 
 ### Changed

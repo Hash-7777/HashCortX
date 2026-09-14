@@ -164,7 +164,6 @@ const SystemMaker = (() => {
     });
   }
   const _sysPrompt  = (msg, def) => _sysDialog({ msg, showInput: true,  inputDefault: def, showCancel: true });
-  const _sysConfirm = (msg)      => _sysDialog({ msg, showInput: false, showCancel: true });
 
   function uid(prefix = "sys") {
     return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
@@ -2725,20 +2724,6 @@ Repair requirements:
     saveSystems();
     renderAll();
     trace(`Restored "${snap.label}"`, "ok");
-  }
-
-  function addRecord() {
-    const spec = getActive();
-    const entity = spec?.entities?.[activeEntityId];
-    if (!spec || !entity) return;
-    const data = getRuntimeData(spec);
-    data[activeEntityId] = data[activeEntityId] || [];
-    const rec = normalizeRecord({ id:`${activeEntityId}_${Date.now().toString(36)}` }, entity, data[activeEntityId].length);
-    data[activeEntityId].unshift(rec);
-    selectedRecordId = rec.id;
-    saveRuntimeData(spec, data);
-    renderPreview();
-    renderDataEditor();
   }
 
   function deleteRecord() {

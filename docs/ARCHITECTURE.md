@@ -30,11 +30,11 @@ HashCortX/
 │   │   ├── forge/            3,855  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
-│   │   ├── virtual-os/       3,545  virtual project desktop
-│   │   ├── systems/          3,220  ERP prototype generator
+│   │   ├── virtual-os/       3,510  virtual project desktop
+│   │   ├── systems/          3,205  ERP prototype generator
 │   │   ├── agent-maker/      2,275  chain / vote / failover
-│   │   ├── code/             2,630  the Coder agent loop
-│   │   ├── finance/          2,377  financial document analysis
+│   │   ├── code/             2,611  the Coder agent loop
+│   │   ├── finance/          2,376  financial document analysis
 │   │   └── sandbox/            603  security scanner
 │   │
 │   ├── core/                        pieces taken out of app.js, each with
@@ -65,7 +65,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,505  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,482  core: state, chat, agents, tools, providers
 │   │   ├── providers.js        390  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
 │   │   │                            and which three the app sends for itself

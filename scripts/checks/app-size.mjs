@@ -117,7 +117,9 @@ const LINE_BUDGET = {
   // js/forge/expr.js instead of its own filter around Function().
   // 6505, up four: the app's own dialogs are published on _H, because the
   // modes' page dialogs could not ask a question in the desktop app.
-  'js/app.js': 6505,
+  // 6482, down 23. Functions nothing called: a project filter, and the date
+  // line the agents' datetime tool had long since replaced.
+  'js/app.js': 6482,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -181,7 +183,9 @@ const LINE_BUDGET = {
   // out as text is in src/js/trace-copy.js.
   // 3220, down six. Which model to ask after a failure moved to
   // src/js/model-routes.js, which also tries a retired model's provider again.
-  'modes/systems/mode.js': 3220,
+  // 3205, down 15: addRecord, which the record form replaced, and a confirm
+  // helper nothing asked.
+  'modes/systems/mode.js': 3205,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
@@ -199,7 +203,9 @@ const LINE_BUDGET = {
   // where you are standing, finding a name in a tree — moved to
   // src/js/vos/shell.js. It runs nothing and never did; what it has to get
   // right is behaving like the thing it imitates.
-  'modes/virtual-os/mode.js': 3545,
+  // 3510, down 35: an auto-assign nothing offered, a legacy alias, and the
+  // drag-and-drop path desktop icons stopped using for the pointer drag.
+  'modes/virtual-os/mode.js': 3510,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is
@@ -389,7 +395,8 @@ const LINE_BUDGET = {
   // read as positive, so money going out was counted as money coming in.
   // 2377, up one: renderReport gives every chart its own id before drawing,
   // through ensureChartIds in src/js/finance/charts.js.
-  'modes/finance/mode.js': 2377,
+  // 2376, down one: a parseAmt wrapper nothing called.
+  'modes/finance/mode.js': 2376,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //
@@ -402,7 +409,9 @@ const LINE_BUDGET = {
   // not extraction.
   // 2630, down one: the context meter reads the model's own context from
   // js/model-limits.js instead of a comment promising it one day.
-  'modes/code/mode.js': 2630,
+  // 2611, down 19: an explorer toggle with no button, a failover wrapper, and
+  // a pickProject and state getter on HC_CODE that nothing reached.
+  'modes/code/mode.js': 2611,
 };
 
 console.log('\nFile sizes go down, never up:');

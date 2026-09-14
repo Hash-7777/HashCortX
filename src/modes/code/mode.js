@@ -45,7 +45,6 @@
   // version of.
   const FAILOVER = () => window.HCChatFailover;
   const classifyRouterError = (err) => FAILOVER().classifyError(err);
-  const isRoutableError = (err) => FAILOVER().isRoutable(err);
   const sortChainByQuality = (chain) => FAILOVER().orderChain(chain, _routerStreaks);
 
   function toolObject(name, args) {
@@ -687,17 +686,6 @@
     }
 
     // ── Explorer ──────────────────────────────────────────────
-    function toggleExplorer() {
-      const sidebar = $('cdrSidebar');
-      const body = $('cdrBody');
-      if (!sidebar) return;
-      const opening = !sidebar.classList.contains('open');
-      sidebar.classList.toggle('open', opening);
-      if (opening && sharedState.projectRoot) {
-        renderExplorerTree(sharedState.projectRoot);
-      }
-    }
-
     // Open native file/folder pickers. Order of preference:
     //   1. Tauri 2 plugin-dialog (requires dialog:default in capabilities + new build)
     //   2. macOS AppleScript fallback via shell_run (works in EVERY build)
@@ -2608,23 +2596,16 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     destroy:   () => window.CoderMode?.destroy?.(),
   };
 
-  // Legacy HC_CODE kept for backward compat (used by hashcoder.js tools)
+  // What app.js reaches in Coder: the one-shot run, the audit log and the
+  // tool blocks drawn after a chat render.
   window.HC_CODE = {
     run: legacyRun,
-    pickProject: async () => {
-      if (!window.HC?.isTauri) return;
-      try {
-        const folder = await HC.invoke('plugin:dialog|open', { directory: true, multiple: false, title: 'Open Project Folder' }).catch(() => null);
-        if (folder && typeof folder === 'string') sharedState.projectRoot = folder;
-      } catch {}
-    },
     // Opens the modal AND fills it. This used to only add the open class, so
     // callers outside Coder got an empty dialog — the function that actually
     // reads the log sits inside the CoderMode closure, which is why it is
     // reached through CoderMode rather than named directly here.
     showAuditLog: () => CoderMode.showAuditLog(),
     afterRender: injectAllToolBlocks,
-    get state() { return sharedState; },
   };
 
 })();

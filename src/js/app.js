@@ -800,10 +800,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     switchProject(DEFAULT_PROJECT_ID);
   }
 
-  function projectScopedItems(items) {
-    return (items || []).filter(it => (it.projectId || DEFAULT_PROJECT_ID) === state.currentProjectId);
-  }
-
   const AGENT_RUNS_KEY = "hashui_agent_runs_v1";
 
   function loadAgentRuns() {
@@ -5199,25 +5195,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Tavily — purpose-built for LLMs. Returns clean snippets + a synthesized
   // answer string. CORS-friendly (POST to api.tavily.com directly from browser).
   // Key is stored only in localStorage and only ever sent to api.tavily.com.
-  // Timezone resolved locally via Intl.DateTimeFormat — no network call, no IP leak.
-  let _cachedTz = "";
-
-  async function getCurrentDateString() {
-    // Use the browser's built-in timezone API — accurate, instant, zero network cost,
-    // and no IP address leak (previously this fetched worldtimeapi.org).
-    if (!_cachedTz) {
-      _cachedTz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    }
-
-    // Always use live Date() — instantaneous, NTP-accurate, never stale.
-    const now = new Date();
-    const days   = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-    const dateStr = `${days[now.getDay()]}, ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-    const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    return `Today is ${dateStr}. Current time: ${timeStr} (${_cachedTz}).`;
-  }
-
   async function tavilySearch(query, limit = 5) {
     const key = (tavilyKeyEl.value || "").trim();
     if (!key) return null;

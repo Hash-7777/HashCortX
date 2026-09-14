@@ -96,7 +96,6 @@ const FinanceMode = (() => {
   // what they made of it — which is how it was found that a debit written the
   // way every ledger writes one, in brackets, was being counted as income.
   const AMOUNTS = () => window.HCFinanceAmounts;
-  const parseAmt = (cell) => AMOUNTS().parseAmount(cell);
   const fmtKpi = (n, currency) => AMOUNTS().fmtKpi(n, currency);
   const fmtKpiLike = (n, existingVal, currency) => AMOUNTS().fmtKpiLike(n, existingVal, currency);
   const recalcFromTable = (report) => AMOUNTS().recalcFromTable(report);
