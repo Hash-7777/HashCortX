@@ -38,6 +38,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **The app's own logs are bounded.** Every audit entry is one line of
+  limited length, the audit log rolls over to `audit.log.1` past 8 MB, and
+  its viewer loads only the newest part. Usage records and HashNotch notices
+  that are far larger than real ones are refused.
 - **Places that start a program on their own are refused**: login agents and
   daemons, autostart folders, the Windows Startup folder and a shell's
   start-up files, plus `crontab` and `at` in the shell. So are browser cookies

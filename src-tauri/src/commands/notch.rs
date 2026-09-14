@@ -22,6 +22,31 @@ use std::path::PathBuf;
 /// HashNotch itself only shows a handful; keep the file from ever growing.
 const MAX_ACTIVITIES: usize = 8;
 
+/// Longest id accepted. The id also names a file (the logo path below), so it
+/// is held to letters, digits, '-' and '_' — never a path separator.
+const MAX_ID_CHARS: usize = 64;
+
+/// Largest record accepted, as JSON. A notice is an icon and a short title.
+const MAX_RECORD_BYTES: usize = 4 * 1024;
+
+/// The record's id, if the record is one this command will post.
+fn checked_id(record: &Value) -> Result<String, String> {
+    let id = record
+        .get("id")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .ok_or("notch activity needs a non-empty id")?;
+    let plain = id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if id.chars().count() > MAX_ID_CHARS || !plain {
+        return Err("notch activity id must be a short name of letters, digits, '-' or '_'".into());
+    }
+    let size = serde_json::to_string(record).map_err(|e| e.to_string())?.len();
+    if size > MAX_RECORD_BYTES {
+        return Err("notch activity is too large".into());
+    }
+    Ok(id.to_owned())
+}
+
 /// The folder HashNotch reads, newest name first.
 ///
 /// The app was renamed and its folder moved with it. A poster has to land where
@@ -61,12 +86,7 @@ fn logo_path(id: &str) -> PathBuf {
 
 #[tauri::command]
 pub fn notch_activity_post(record: Value) -> Result<(), String> {
-    let id = record
-        .get("id")
-        .and_then(Value::as_str)
-        .map(str::to_owned)
-        .filter(|s| !s.is_empty())
-        .ok_or("notch activity needs a non-empty id")?;
+    let id = checked_id(&record)?;
 
     let path = feed_path();
 
@@ -155,5 +175,27 @@ mod tests {
         assert!(line.contains("HashCortX finished"));
         // The one field the model label used to travel in.
         assert!(!line.contains("subtitle"));
+        // And it is a record this command accepts.
+        assert_eq!(checked_id(&record).unwrap(), "hashcortx");
+    }
+
+    #[test]
+    fn an_id_is_a_plain_name_and_never_a_path() {
+        for bad in ["", "../logos/x", "a/b", "a\\b", "has space", "dot.ted"] {
+            let record = serde_json::json!({ "id": bad, "title": "t" });
+            assert!(checked_id(&record).is_err(), "accepted {bad:?}");
+        }
+        assert!(checked_id(&serde_json::json!({ "title": "no id" })).is_err());
+        let longest = "a".repeat(MAX_ID_CHARS);
+        assert!(checked_id(&serde_json::json!({ "id": longest })).is_ok());
+        let too_long = "a".repeat(MAX_ID_CHARS + 1);
+        assert!(checked_id(&serde_json::json!({ "id": too_long })).is_err());
+    }
+
+    #[test]
+    fn an_oversized_record_is_refused() {
+        let title = "t".repeat(MAX_RECORD_BYTES);
+        let record = serde_json::json!({ "id": "hashcortx", "title": title });
+        assert!(checked_id(&record).is_err());
     }
 }

@@ -194,6 +194,8 @@ Every guarded action, allowed or denied, is appended to:
 
 Format: `TIMESTAMP [scope] action target`. It is append-only from the app's perspective, and readable from Settings.
 
+It is bounded. Every entry is one line: control characters, and characters that change how text reads on screen, are written out as escapes, and a very long target is cut with a note saying how much was left out. When the file passes 8 MB it is renamed `audit.log.1`, replacing the previous one, and a new file starts. The viewer in Settings shows the newest 512 KB. The usage log and the HashNotch notice have limits of their own: a usage record with an implausibly long model id or timestamp is refused, and a notice must be small and carry a plain id.
+
 ---
 
 ### The Python sandbox

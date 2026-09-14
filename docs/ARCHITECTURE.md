@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **5,800 lines of Rust**, measured on 12 September 2026. Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **48,000 lines of JavaScript** (plus ~18,700 more in vendored libraries) and **6,100 lines of Rust**, measured on 12 September 2026 (the Rust figure on 14 September). Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -161,9 +161,9 @@ HashCortX/
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
 │   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge
 │   │   │   ├── swarm_site.rs  137   a Swarm-built site, opened in the browser
-│   │   │   ├── usage_log.rs    93   appends token counts to usage.jsonl
-│   │   │   ├── notch.rs       160   HashNotch live-activity ping
-│   │   │   └── audit.rs        52   append-only audit log
+│   │   │   ├── usage_log.rs   142   appends token counts to usage.jsonl
+│   │   │   ├── notch.rs       201   HashNotch live-activity ping
+│   │   │   └── audit.rs       231   append-only audit log, bounded
 │   │   └── security/
 │   │       ├── denylist.rs    825   hardcoded blocked paths and commands
 │   │       └── navigation.rs   75   the window shows the app and nothing else
