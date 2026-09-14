@@ -183,5 +183,55 @@ console.log('\nOutside the desktop app it still exports:');
   check('and reaches no native command', calls.length === 0);
 }
 
+// The desktop app's web view refuses a download link, so a save made that way
+// writes nothing and reports nothing. jsPDF's own save() is one: it builds a
+// link and clicks it. Every save goes through HC.save instead. Two files may
+// make a download link, because the code in them runs in an ordinary browser.
+console.log('\nNothing else saves through a download link:');
+{
+  const { readdirSync, statSync } = await import('node:fs');
+  const BROWSER_ONLY = new Map([
+    ['src/platform/tauri/save.js', 'the fallback when the app runs in a browser'],
+    ['src/js/systems/export-app.js', 'code written into an exported page, which opens in a browser'],
+  ]);
+  const LINK = [
+    /\.download\s*=(?!=)/,                   // a.download = name
+    /[{,]\s*download\s*:/,                   // Object.assign(a, { download: name })
+    /setAttribute\(\s*['"]download['"]/,     // a.setAttribute('download', name)
+    /<a\b[^>]*\sdownload\b/,                 // <a href=… download> in a template
+  ];
+  // Only in a file that uses jsPDF, and not inside quoted text: a tool
+  // description shows the model Python's doc.save('/output/x.docx').
+  const JSPDF_SAVE = /\.save\(/;
+  const unquoted = (line) => line.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""');
+  const files = [];
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) { if (name !== 'vendor') walk(full); }
+      else if (/\.(js|html)$/.test(name)) files.push(full);
+    }
+  };
+  walk(join(root, 'src'));
+
+  const found = [];
+  for (const file of files) {
+    const rel = file.slice(root.length + 1).split('\\').join('/');
+    if (BROWSER_ONLY.has(rel)) continue;
+    const text = readFileSync(file, 'utf8');
+    const usesJsPdf = /jspdf|jsPDF|JsPDF/.test(text);
+    text.split('\n').forEach((line, i) => {
+      if (/^\s*(\/\/|\*)/.test(line)) return;
+      if (LINK.some((re) => re.test(line)) || (usesJsPdf && JSPDF_SAVE.test(unquoted(line)))) found.push(`${rel}:${i + 1}`);
+    });
+  }
+  check('no file outside the two browser-only ones makes a download link or calls jsPDF save()',
+    found.length === 0, found.join(', '));
+  check('the files allowed a download link still exist', [...BROWSER_ONLY.keys()].every((rel) => {
+    try { return statSync(join(root, rel)).isFile(); } catch { return false; }
+  }));
+  check('the scan saw the source', files.length > 50, `${files.length} files`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/save.js)`);
 process.exit(fail ? 1 : 0);

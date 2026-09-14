@@ -1908,8 +1908,8 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
 
   /* ── export ─────────────────────────────────────────────────────── */
   function exportJson(r) {
-    downloadBlob(new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }),
-      (r.title || "finance").replace(/\s+/g, "-").toLowerCase() + ".json");
+    saveExport((r.title || "finance").replace(/\s+/g, "-").toLowerCase() + ".json",
+      new Blob([JSON.stringify(r, null, 2)], { type: "application/json" }));
   }
 
   function exportCsv(r) {
@@ -1919,8 +1919,8 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     // These cells are written by a model summarising the user's own statement,
     // so a cell beginning "=" is not a theoretical concern.
     const csv = window.HCExport.csvDocument(r.table.headers || [], r.table.rows || []);
-    downloadBlob(new Blob([csv], { type: "text/csv;charset=utf-8" }),
-      window.HCExport.safeFilename(r.table.title || "table", "csv"));
+    saveExport(window.HCExport.safeFilename(r.table.title || "table", "csv"),
+      new Blob([csv], { type: "text/csv;charset=utf-8" }));
   }
 
   /* ── PDF export ─────────────────────────────────────────────────── */
@@ -1986,7 +1986,8 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     let JsPDF;
     try { JsPDF = await loadJsPdf(); }
     catch {
-      alert("Could not load PDF library. Check your internet connection.");
+      updateStatus("Could not build the PDF");
+      traceAdd("Export", "The PDF library is not loaded. Restarting the app loads it again.", "err");
       if (btn) { btn.textContent = "PDF"; btn.disabled = false; }
       return;
     }
@@ -2267,30 +2268,27 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     /* ── save ── */
     const fname = pdfSafe(r.title || "finance-report")
       .replace(/[^a-z0-9\s-]/gi, "").replace(/\s+/g, "-").toLowerCase() + ".pdf";
-    doc.save(fname || "finance-report.pdf");
+    await saveExport(fname || "finance-report.pdf", doc.output("blob"));
     if (btn) { btn.textContent = "PDF"; btn.disabled = false; }
   }
 
-  function downloadChart(svgId) {
-    const svg = document.getElementById(svgId);
-    if (!svg) return;
-    const w = svg.viewBox?.baseVal?.width  || 600;
-    const h = svg.viewBox?.baseVal?.height || 280;
-    const img = new Image(w * 2, h * 2);
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width  = w * 2; canvas.height = h * 2;
-      canvas.getContext("2d").drawImage(img, 0, 0, w * 2, h * 2);
-      canvas.toBlob(blob => { if (blob) downloadBlob(blob, svgId + ".png"); }, "image/png");
-    };
-    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(svg));
+  /* A chart becomes a PNG the way the PDF draws it, from a blob address. */
+  async function downloadChart(svgId) {
+    const png = await svgToDataUrl(svgId);
+    if (!png) { updateStatus("Could not save the chart"); traceAdd("Export", `Could not draw ${svgId} as an image`, "err"); return; }
+    const bytes = Uint8Array.from(atob(png.dataUrl.split(",")[1]), c => c.charCodeAt(0));
+    await saveExport(svgId + ".png", new Blob([bytes], { type: "image/png" }));
   }
 
-  function downloadBlob(blob, name) {
-    const url = URL.createObjectURL(blob);
-    const a   = Object.assign(document.createElement("a"), { href: url, download: name });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  /* Every export goes through HC.save: the desktop web view refuses a download
+     link, so a file saved that way was never written (platform/tauri/save.js). */
+  async function saveExport(name, blob) {
+    try {
+      if (!(await window.HC.save.file(name, blob)).saved) return;   // the dialog was closed
+      updateStatus(`Saved ${name}`); traceAdd("Export", `Saved ${name}`, "ok");
+    } catch (e) {
+      updateStatus(`Could not save ${name}`); traceAdd("Export", `Could not save ${name}`, "err", e?.message || String(e));
+    }
   }
 
   /* ── helpers ────────────────────────────────────────────────────── */

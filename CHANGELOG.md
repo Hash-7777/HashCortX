@@ -56,6 +56,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Finance's exports save a file.** Its PDF, JSON, CSV and chart-image
+  buttons saved through a download link, which the desktop app refuses, so
+  nothing was written. They now open the save dialog like every other export,
+  and a save that fails says so on Finance's status line and in its trace. A
+  check now fails if any code saves through a download link again.
 - **The agents' calculate tool works in the released app.** It reads the
   arithmetic with the app's own expression reader instead of running it.
 - **A link in a reply opens in your browser.** It did nothing inside the app.
