@@ -564,6 +564,30 @@ console.log('\nA change Undo cannot take back is asked about:');
   try { await code.deleteFile(`${R}/draft.txt`, 'Removing the draft'); } catch { readReason(); }
   assert('a deletion Undo can take back does not claim otherwise', reason === 'Removing the draft', reason);
 
+  // Undoing the new end of a move deletes the file there, so when the old end
+  // cannot be put back the new end must not be offered as undoable.
+  dropped.length = 0;
+  const moved = [];
+  const invokeBefore = sandbox.HC.invoke;
+  sandbox.HC.invoke = async (cmd, args) => (cmd === 'fs_move_file' ? (moved.push(args), null) : invokeBefore(cmd, args));
+  records.set(`${R}/pic.png`, 'binary file');
+  await code.moveFile(`${R}/pic.png`, `${R}/img/pic.png`);
+  assert('a move of a file Undo cannot restore does not keep its new end to undo',
+    moved.length === 1 && dropped.includes(`${R}/img/pic.png`), JSON.stringify(dropped));
+  dropped.length = 0;
+  await code.moveFile(`${R}/notes.md`, `${R}/docs/notes.md`);
+  assert('a move of a text file keeps both ends, so undoing both puts it back', moved.length === 2 && dropped.length === 0);
+  sandbox.HC.invoke = invokeBefore;
+
+  // A refused or failed call has no record of its own; a row for it would
+  // pick up the file's previous record, and its Undo reverse an earlier change.
+  const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const rows = coder.slice(coder.indexOf('async function runOne(call)'), coder.indexOf('results.set(call, resultStr);'));
+  const gated = [...rows.matchAll(/if \((.*(?:write_file|patch_file|delete_file|move_file).*)\) \{/g)].map((m) => m[1]);
+  assert('a change row is added only when the call succeeded',
+    gated.length === 3 && gated.every((c) => /^ok && /.test(c)), gated.join(' | '));
+  assert('a move gets its two rows', /call\.name === 'move_file'\)[\s\S]{0,400}addChangeEntry\(baseName\(from\)[\s\S]{0,120}addChangeEntry\(baseName\(to\)/.test(rows));
+
   sandbox.HC.isTauri = false;
   sandbox.HC.invoke = () => Promise.resolve();
   guard.clearSession();

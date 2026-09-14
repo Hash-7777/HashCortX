@@ -2135,15 +2135,26 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             cdrTraceAdd('Tool', call.name + ' · ' + ms + 'ms', ok ? 'ok' : 'err');
             finalizeToolBlock(toolEl, resultStr, ok, ms);
 
-            if (call.name === 'write_file' || call.name === 'patch_file') {
+            // A row is offered only for a change that happened. A refused or
+            // failed call has no record of its own, and the row would pick up
+            // the file's previous one, so its Undo reversed an earlier change.
+            if (ok && (call.name === 'write_file' || call.name === 'patch_file')) {
               const fp = call.arguments?.path || '';
               addChangeEntry(baseName(fp), fp, 'write',
                 call.arguments?.content || call.arguments?.patch || resultStr);
-              if (ok && fp) addAIFileToExplorer(fp, 'write');
-            } else if (call.name === 'delete_file') {
+              if (fp) addAIFileToExplorer(fp, 'write');
+            } else if (ok && call.name === 'delete_file') {
               const fp = call.arguments?.path || '';
               addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)');
-              if (ok && fp) addAIFileToExplorer(fp, 'delete');
+              if (fp) addAIFileToExplorer(fp, 'delete');
+            } else if (ok && call.name === 'move_file') {
+              // A move is two changes: the file leaves one path and arrives at
+              // another. Undoing both puts it back.
+              const { from = '', to = '' } = call.arguments || {};
+              addChangeEntry(baseName(from), from, 'delete', '(file moved)');
+              addChangeEntry(baseName(to), to, 'write', '');
+              if (from) addAIFileToExplorer(from, 'delete');
+              if (to) addAIFileToExplorer(to, 'write');
             }
             results.set(call, resultStr);
           }

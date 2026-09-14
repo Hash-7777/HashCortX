@@ -72,6 +72,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Coder's Keep and Undo rows match what happened.** A write the agent was
+  refused or that failed still got a row, which picked up the file's
+  previous change, so its Undo reversed that earlier change. A move now gets
+  its two rows, and the new end of a move is not offered as undoable when the
+  file it came from cannot be restored, since undoing it would delete the
+  only copy.
 - **The agent's edits leave the rest of a file alone.** patch_file wrote back
   the copy read_file shows, which stops at 100,000 characters, so editing a
   longer file cut it short; it inserted `$$`, `$&` and similar as

@@ -192,7 +192,11 @@
       // ends back. Captured before the move, which is the last moment the
       // source still holds anything.
       const gone = await HC.undo.capture(from);
-      const made = await HC.undo.capture(to);
+      let made = await HC.undo.capture(to);
+      // Undoing the new end of a move deletes the file there. When the old end
+      // cannot be put back, that would delete the only copy, so the new end is
+      // not kept as a change to undo; the move is then undone by hand.
+      if (gone?.unrestorable && made) { await HC.undo.drop(made); made = null; }
       await HC.invoke('fs_move_file', { from, to });
       if (gone) gone.after = '';
       if (made) made.after = gone?.content ?? '';

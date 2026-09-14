@@ -412,7 +412,9 @@ const LINE_BUDGET = {
   // 2611, down 19: an explorer toggle with no button, a failover wrapper, and
   // a pickProject and state getter on HC_CODE that nothing reached.
   // 2608, down three: a reply is drawn by HCMarkdown.renderUntrusted.
-  'modes/code/mode.js': 2608,
+  // 2619, up 11: a Keep/Undo row only for a change that happened, and a move
+  // gets the two rows its two records need.
+  'modes/code/mode.js': 2619,
 };
 
 console.log('\nFile sizes go down, never up:');
