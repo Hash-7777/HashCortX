@@ -18,6 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   never an address, so this does not widen what the page can reach. Their live
   model lists arrive the same way, with each model's limits where the provider
   gives them.
+- **Every bundled library's version and licence is written down**, in
+  `src/js/vendor/PROVENANCE.md`, together with the notices of the parts jsPDF
+  carries inside it and which of the files have been compared with their
+  published packages.
 
 ### Security
 
