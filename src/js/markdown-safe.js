@@ -186,7 +186,9 @@
       const text = first && typeof first === 'object' ? first.text : first;
       return `<code>${escapeHtml(decodeHtmlEntities(text))}</code>`;
     };
-    const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // < is escaped so no tag can open. > cannot open one, and a line that
+    // starts with it is a quotation, so it stays.
+    const escaped = src.replace(/&/g, '&amp;').replace(/</g, '&lt;');
     const html = marked.parse(escaped, { gfm: true, breaks: true, silent: true, renderer });
     return purify.sanitize(html, { ADD_ATTR: ['target', 'rel'], FORBID_TAGS, FORBID_ATTR: ['style'] });
   }

@@ -4338,7 +4338,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   function formatContent(text) {
     if (!window.marked || !markdownRenderer) return fallbackFormatContent(text);
-    const safe = String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const safe = String(text || "").replace(/&/g, "&amp;").replace(/</g, "&lt;");   // as renderUntrusted: > stays, for quotations
     try {
       const raw = `<div class="markdown-body">${window.marked.parse(safe, {
         gfm: true,

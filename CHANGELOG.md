@@ -65,6 +65,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A quotation in a reply is shown as one**, in chat, Coder and the Agent
+  Swarm. Every line starting with > was shown as plain text.
 - **Deleting asks first again.** Deleting a saved Coder chat, a Finance
   session or a 3D Forge project, and revoking Coder's session permissions,
   used the page's own confirm(). In the desktop app that answers yes before

@@ -159,6 +159,14 @@ console.log('\nWhat a model wrote is rendered without becoming markup:');
   const inline = render('Use `<div> & x` here');
   ok('inline code shows its own characters', inline.includes('<code>&lt;div&gt; &amp; x</code>'));
 
+  // < is what opens a tag, so only it is escaped; a line starting with > is a
+  // quotation, and escaping > as well turned every quotation into plain text.
+  ok('a quoted line is a quotation', /<blockquote>\s*<p>note<\/p>\s*<\/blockquote>/.test(render('> note')));
+  ok('a comparison still reads as written', /a &gt; b and c &lt; d/.test(render('a > b and c < d')));
+  const quotedTag = render('> <img src=x onerror=alert(1)> <script>alert(1)</script>');
+  ok('markup inside a quotation is still text', /<blockquote>/.test(quotedTag) && !/<(img|script)[\s>]/i.test(quotedTag));
+  ok('nor does a doubled bracket open a tag', !/<script/i.test(render('<<script>>alert(1)<</script>>')));
+
   // Without the sanitiser, nothing is guessed: plain escaped text.
   const bare = M.renderUntrusted('<img src=x onerror=alert(1)>\n**x**', { marked });
   ok('with no sanitiser it falls back to plain text', bare.startsWith('<div class="md-plain">'));
