@@ -48,6 +48,14 @@
       // Recorded after approval and before the write, so the copy is of what
       // the file actually held at the moment it was replaced.
       const record = await HC.undo.capture(path);
+      // Writing inside the project needs no permission because Undo can put
+      // the file back. When it cannot — a binary file, one too large to keep a
+      // copy of, one that is not UTF-8 — replacing it is asked about first.
+      if (record?.unrestorable && !(await HC.guard.request('replace', path,
+        `Undo cannot restore this file (${record.unrestorable}). Replace it anyway?`))) {
+        await HC.undo.drop(record);
+        throw new Error(`Permission denied: replace ${path}, which Undo could not restore`);
+      }
       await HC.invoke('fs_write_file', { path, content: String(content) });
       // The resulting text, kept alongside the previous text so the panel can
       // show a real diff. patch_file has no `content` argument of its own — it
@@ -56,7 +64,7 @@
       if (record) record.after = String(content);
       /* Return a structured result instead of Tauri's null so the UI
          shows something meaningful rather than displaying "null" */
-      return JSON.stringify({ ok: true, path, bytes: String(content).length });
+      return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(String(content)).length });
     },
 
     async listDir(path) {
@@ -66,10 +74,18 @@
     },
 
     async deleteFile(path, reason = '') {
-      const ok = await HC.guard.request('delete', path, reason);
-      if (!ok) throw new Error(`Permission denied: delete ${path}`);
-      // A deletion is the change most worth being able to take back.
+      // A deletion is the change most worth being able to take back. What the
+      // file holds is recorded before asking, so the question can say when
+      // Undo will not be able to bring it back.
       const record = await HC.undo.capture(path);
+      const asked = reason || 'Deleting file';
+      const lost = record?.unrestorable
+        ? `${/[.!?]$/.test(asked) ? '' : '.'} Undo cannot restore this file (${record.unrestorable}).` : '';
+      const ok = await HC.guard.request('delete', path, asked + lost);
+      if (!ok) {
+        await HC.undo.drop(record);
+        throw new Error(`Permission denied: delete ${path}`);
+      }
       if (record) record.after = '';
       return HC.invoke('fs_delete_file', { path });
     },

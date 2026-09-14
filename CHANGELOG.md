@@ -45,6 +45,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **Coder asks before a change Undo cannot take back.** Writing inside the
+  project needs no permission because Undo can restore the file; replacing a
+  file it cannot restore — binary, too large to keep a copy of, not UTF-8 —
+  now asks first and says why, and deleting one says so in the question.
 - **Coder draws a reply the way chat does.** HTML in a reply is shown as
   text rather than built, and links and images follow the same rules as in
   chat and the Agent Swarm.

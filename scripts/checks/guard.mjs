@@ -506,5 +506,70 @@ console.log('\nEvery rule in the Rust denylist is mirrored here, so a refusal is
     rTools && jTools ? rTools.filter((t) => !jTools.includes(t)).join(', ') : 'not found');
 }
 
+// Writing inside the project is free because Undo can put a file back. A file
+// Undo cannot restore — binary, too large to keep a copy of, not UTF-8 — was
+// replaced with no question as well, and for good.
+console.log('\nA change Undo cannot take back is asked about:');
+{
+  const records = new Map();   // what capture reports for each path
+  const dropped = [];
+  const wrote = [];
+  const deleted = [];
+  sandbox.TextEncoder = TextEncoder;
+  sandbox.HC.isTauri = true;
+  sandbox.HC.undo = {
+    capture: async (path) => ({ id: 'c-' + path, path, existed: true, content: '', unrestorable: records.get(path) || null }),
+    drop: async (record) => { dropped.push(record.path); },
+  };
+  sandbox.HC.invoke = async (cmd, args) => {
+    if (cmd === 'fs_path_inside_root') return args.path === R || String(args.path).startsWith(R + '/');
+    if (cmd === 'fs_write_file') { wrote.push(args.path); return null; }
+    if (cmd === 'fs_delete_file') { deleted.push(args.path); return null; }
+    return null;
+  };
+  const code = sandbox.HC.code;
+  guard.clearSession();
+  guard.setProjectRoot(R);
+
+  await check('rewriting a text file in the project is still free',
+    async () => { try { await code.writeFile(`${R}/notes.md`, 'x'); return true; } catch { return false; } }, FREE);
+
+  records.set(`${R}/logo.png`, 'binary file');
+  answer = 'deny';
+  let reason = '';
+  const readReason = () => { reason = nodes['hc-perm-reason'].textContent; };
+  await check('replacing a file Undo cannot restore asks first',
+    async () => { try { await code.writeFile(`${R}/logo.png`, 'x'); return true; } catch { readReason(); return false; } },
+    { allowed: false, asked: true });
+  assert('the question says Undo cannot restore it', /Undo cannot restore this file \(binary file\)/.test(reason), reason);
+  assert('refusing writes nothing', !wrote.includes(`${R}/logo.png`));
+  assert('and the copy kept for it is let go', dropped.includes(`${R}/logo.png`));
+
+  answer = 'allow-once';
+  records.set(`${R}/data.bin`, 'too large to keep a copy of');
+  await check('allowing it writes the file',
+    async () => { try { await code.writeFile(`${R}/data.bin`, 'x'); return wrote.includes(`${R}/data.bin`); } catch { return false; } },
+    ASKED);
+
+  records.set(`${R}/photo.jpg`, 'binary file');
+  answer = 'deny';
+  reason = '';
+  try { await code.deleteFile(`${R}/photo.jpg`, 'Removing the old photo'); } catch { readReason(); }
+  assert('deleting a file Undo cannot restore says so in the question',
+    reason === 'Removing the old photo. Undo cannot restore this file (binary file).', reason);
+  assert('refusing the deletion deletes nothing and lets the copy go',
+    !deleted.includes(`${R}/photo.jpg`) && dropped.includes(`${R}/photo.jpg`));
+
+  reason = '';
+  try { await code.deleteFile(`${R}/draft.txt`, 'Removing the draft'); } catch { readReason(); }
+  assert('a deletion Undo can take back does not claim otherwise', reason === 'Removing the draft', reason);
+
+  sandbox.HC.isTauri = false;
+  sandbox.HC.invoke = () => Promise.resolve();
+  guard.clearSession();
+  guard.clearProjectRoot();
+  answer = 'allow-once';
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);
