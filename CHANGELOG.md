@@ -38,6 +38,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **The diagram library is Mermaid 11.17.2**, the newest 11.x release, with
+  the upstream security fixes published since the version it replaces. Its
+  source, checksum and licence are recorded in `src/js/vendor/PROVENANCE.md`.
 - **The app's own logs are bounded.** Every audit entry is one line of
   limited length, the audit log rolls over to `audit.log.1` past 8 MB, and
   its viewer loads only the newest part. Usage records and HashNotch notices
