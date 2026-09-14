@@ -68,6 +68,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The agent's edits leave the rest of a file alone.** patch_file wrote back
+  the copy read_file shows, which stops at 100,000 characters, so editing a
+  longer file cut it short; it inserted `$$`, `$&` and similar as
+  instructions rather than text; and on a file with Windows line endings it
+  rewrote every line ending. It now edits the file's real contents, inserts
+  text exactly as written and keeps line endings, and it refuses a binary
+  file or one that is not UTF-8 rather than damage it.
 - **A quotation in a reply is shown as one**, in chat, Coder and the Agent
   Swarm. Every line starting with > was shown as plain text.
 - **Deleting asks first again.** Deleting a saved Coder chat, a Finance

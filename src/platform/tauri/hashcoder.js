@@ -187,34 +187,19 @@
       if (!search) throw new Error('patch_file: search string is required and must not be empty.');
       if (replace == null) throw new Error('patch_file: replace string is required (use "" to delete).');
 
-      let content;
-      try { content = await HC.code.readFile(path); }
-      catch { throw new Error(`patch_file failed: "${path}" does not exist. Use write_file to create it instead.`); }
-
-      /* ── Try exact match first ── */
-      if (content.includes(search)) {
-        const occ = content.split(search).length - 1;
-        if (occ > 1) throw new Error(`patch_file failed: search string found ${occ} times in "${path}". Add more surrounding lines to make it unique.`);
-        return HC.code.writeFile(path, content.replace(search, replace), reason || `Patching ${path}`);
-      }
-
-      /* ── CRLF normalisation fallback (Windows line-endings vs Unix) ── */
-      const norm = s => s.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-      const normContent = norm(content);
-      const normSearch  = norm(search);
-      if (normContent.includes(normSearch)) {
-        const occ = normContent.split(normSearch).length - 1;
-        if (occ > 1) throw new Error(`patch_file failed: search string found ${occ} times after line-ending normalisation. Add more surrounding lines.`);
-        return HC.code.writeFile(path, normContent.replace(normSearch, replace), reason || `Patching ${path}`);
-      }
-
-      /* ── Helpful error: show the first 600 chars so the model can self-correct ── */
-      const preview = content.slice(0, 600);
-      throw new Error(
-        `patch_file failed: search string not found in "${path}".\n` +
-        `File begins with:\n${preview}\n\n` +
-        `Re-read the file with read_file, copy the exact text you want to replace (preserving every space and indent), then retry.`
-      );
+      // The file's real bytes, not what read_file shows the model: that cuts a
+      // long file short and describes a binary one, and either would be
+      // written back over the file. The text work is in js/code/patch.js.
+      const ok = await HC.guard.request('read', path, 'Reading file');
+      if (!ok) throw new Error(`Permission denied: read ${path}`);
+      let file;
+      try { file = await HC.invoke('fs_read_base64', { path }); }
+      catch (e) { throw new Error(`patch_file failed: "${path}" could not be read (${e?.message || e}). Use write_file to create a new file.`); }
+      const P = window.HCCodePatch;
+      let next;
+      try { next = P.applyPatch(P.textOf(P.bytesFromBase64(file.base64), path), String(search), String(replace), path); }
+      catch (e) { throw new Error(`patch_file failed: ${e?.message || e}`); }
+      return HC.code.writeFile(path, next, reason || `Patching ${path}`);
     },
 
     async fuzzyFind(dir, query) {
