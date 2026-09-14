@@ -1669,6 +1669,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
   function renderReport(r) {
     const wrap = document.getElementById("finReport");
     if (!wrap) return;
+    r.charts = CHARTS().ensureChartIds(r.charts);   // one element, button and PDF image per chart
     currentReport = r;
     hideEmpty();
     wrap.style.display = "";

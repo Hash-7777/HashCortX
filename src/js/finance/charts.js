@@ -70,6 +70,39 @@
   }
 
   /**
+   * The report's charts, each with an id no other chart shares.
+   *
+   * The id names the chart's element, which its PNG button and the PDF look
+   * up. A model can leave the id out or repeat one, and two ids can differ
+   * only in characters chartDomId drops, so two charts would share an element
+   * and every lookup would find the first. A chart keeps its own id when that
+   * id, as chartDomId writes it, is not empty and not taken by an earlier
+   * chart; any other gets the next free chart-N. Running this on its own
+   * result changes nothing, so a saved report keeps its ids.
+   */
+  function ensureChartIds(charts) {
+    if (!Array.isArray(charts)) return charts;
+    const bare = (c) => chartDomId(c).slice("fin-svg-".length);
+    const used = new Set();
+    const keep = charts.map((c) => {
+      const id = c && typeof c === "object" ? bare(c) : "";
+      if (!id || used.has(id)) return null;
+      used.add(id);
+      return id;
+    });
+    let n = 0;
+    return charts.map((c, i) => {
+      if (!c || typeof c !== "object") return c;
+      let id = keep[i];
+      if (!id) {
+        do { n++; id = "chart-" + n; } while (used.has(id));
+        used.add(id);
+      }
+      return c.id === id ? c : { ...c, id };
+    });
+  }
+
+  /**
    * The finite numbers in a set of datasets, for working out the axis.
    *
    * A value that is not a number would otherwise carry through every
@@ -307,5 +340,5 @@
     </svg>`;
   }
 
-  window.HCFinanceCharts = { renderBarChart, renderLineChart, renderDonutChart, formatNum, colourOf, chartDomId, COLORS };
+  window.HCFinanceCharts = { renderBarChart, renderLineChart, renderDonutChart, formatNum, colourOf, chartDomId, ensureChartIds, COLORS };
 })();

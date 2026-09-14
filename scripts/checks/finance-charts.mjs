@@ -150,5 +150,46 @@ console.log('\nWhat a report names is drawn as data, never as markup:');
   ok('the mode builds every chart element id through it', !/"fin-svg-"|fin-svg-\$\{/.test(mode) && (mode.match(/CHARTS\(\)\.chartDomId\(/g) || []).length === 4);
 }
 
+console.log('\nEvery chart has an element of its own:');
+{
+  const ids = (charts) => C.ensureChartIds(charts).map((c) => c && c.id);
+  const domIds = (charts) => C.ensureChartIds(charts).map((c) => C.chartDomId(c));
+  ok('charts with no id are numbered', JSON.stringify(ids([{}, {}, {}])) === '["chart-1","chart-2","chart-3"]');
+  ok('an id of its own is kept', JSON.stringify(ids([{ id: 'income' }, { id: 'costs' }])) === '["income","costs"]');
+  ok('a repeated id is kept by the first chart and replaced on the next',
+    JSON.stringify(ids([{ id: 'x' }, { id: 'x' }])) === '["x","chart-1"]');
+  const same = domIds([{ id: 'a b' }, { id: 'ab' }]);
+  ok('two ids that become the same element id do not share one', new Set(same).size === 2);
+  ok('an id made only of dropped characters counts as none', ids([{ id: '<>' }])[0] === 'chart-1');
+  ok('a numbered id does not take one a later chart brought',
+    JSON.stringify(ids([{}, { id: 'chart-1' }])) === '["chart-2","chart-1"]');
+  const input = [{ id: 'x', title: 'T' }, {}];
+  const out = C.ensureChartIds(input);
+  ok('the rest of a chart is untouched', out[0] === input[0] && out[1].title === undefined && input[1].id === undefined);
+  ok('a report with no charts is left alone', C.ensureChartIds(undefined) === undefined && C.ensureChartIds([]).length === 0);
+  ok('an entry that is not a chart is passed through', ids([null, {}])[0] === null && ids([null, {}])[1] === 'chart-1');
+
+  // Over many reports a model might send, the ids always come out distinct,
+  // never empty, and the same when worked out a second time.
+  let seed = 7;
+  const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const pool = [undefined, null, '', 'a', 'a', 'b', 'a b', 'ab', '<>', 'chart-1', 'chart-2', 3, '3', 'x"y', 'rev_1', 'rev-1'];
+  let distinct = true, filled = true, stable = true;
+  for (let t = 0; t < 3000; t++) {
+    const charts = Array.from({ length: 1 + rnd(7) }, () => (rnd(10) === 0 ? {} : { id: pool[rnd(pool.length)] }));
+    const once = C.ensureChartIds(charts);
+    const dom = once.map((c) => C.chartDomId(c));
+    if (new Set(dom).size !== dom.length) distinct = false;
+    if (dom.some((d) => d === 'fin-svg-')) filled = false;
+    if (JSON.stringify(C.ensureChartIds(once)) !== JSON.stringify(once)) stable = false;
+  }
+  ok('over 3,000 reports every element id is distinct', distinct);
+  ok('and none is empty', filled);
+  ok('and working them out again changes nothing', stable);
+  const mode = readFileSync(new URL('../../src/modes/finance/mode.js', import.meta.url), 'utf8');
+  ok('the mode gives a report its ids before drawing it',
+    /function renderReport\(r\) \{[\s\S]{0,200}r\.charts = CHARTS\(\)\.ensureChartIds\(r\.charts\)/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/finance/charts.js)`);
 process.exit(fail ? 1 : 0);

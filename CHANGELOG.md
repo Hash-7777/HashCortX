@@ -62,6 +62,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Every Finance chart has an element of its own.** A chart the model gave
+  no id, or an id another chart already had, shared an element with it, so
+  its PNG button and its picture in the PDF showed the other chart. Such a
+  chart is now numbered, and a saved report keeps the ids it was given.
 - **Finance's exports save a file.** Its PDF, JSON, CSV and chart-image
   buttons saved through a download link, which the desktop app refuses, so
   nothing was written. They now open the save dialog like every other export,
