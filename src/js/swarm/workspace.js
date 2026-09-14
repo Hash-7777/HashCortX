@@ -52,6 +52,7 @@
     $('amkWsCopy')?.addEventListener('click', copyResult);
     $('amkWsExport')?.addEventListener('click', exportResult);
     $('amkWsDownload')?.addEventListener('click', downloadSite);
+    $('amkWsDelete')?.addEventListener('click', deleteRun);
     $('amkWsOpen')?.addEventListener('click', openInBrowser);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
     $('amkWsSend')?.addEventListener('click', send);
@@ -141,6 +142,29 @@
     draw();
   }
 
+  /** Delete the run on screen, once the person says so, and show the newest left. */
+  async function deleteRun() {
+    const run = state.run;
+    if (!run || state.asking) return;
+    const sure = await window._H.themedConfirm('Delete this run? Its conversation and every version of its files go with it.', 'Delete run');
+    if (!sure) return;
+    try {
+      await RUNS().deleteRun(run.id);
+    } catch (err) {
+      status(`Could not delete the run: ${err?.message || err}`, 'err');
+      return;
+    }
+    const next = VIEW().afterDelete(state.runs, run.id, state.blueprint?.lastRunId);
+    state.runs = next.runs;
+    if (state.blueprint && state.blueprint.lastRunId !== next.lastRunId) {
+      if (next.lastRunId) state.blueprint.lastRunId = next.lastRunId;
+      else delete state.blueprint.lastRunId;
+      deps.saveBlueprints();
+    }
+    selectRun(next.show);
+    status('Run deleted');
+  }
+
   // ── Drawing ─────────────────────────────────────────────────────────────
 
   function draw() {
@@ -173,6 +197,7 @@
     $('amkWsExport').disabled = !resultText();
     $('amkWsDownload').disabled = !V.hasPage(files);
     $('amkWsOpen').disabled = !V.hasPage(files);
+    $('amkWsDelete').disabled = !run || !!state.asking;
   }
 
   function drawTurns() {

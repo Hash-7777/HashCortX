@@ -99,7 +99,18 @@
     return { rows: D.collapseUnchanged(rows, 3), added, removed, missingBefore: !beforeFile, missingAfter: !afterFile };
   }
 
+  /**
+   * What is left once run `id` is deleted: the runs, newest first as they came;
+   * the one to show, which is the newest left or none; and what the
+   * blueprint's last run becomes, which changes only if it was the one deleted.
+   */
+  function afterDelete(runs, id, lastRunId) {
+    const left = (runs || []).filter((r) => r && r.id !== id);
+    const newest = left[0] ? left[0].id : '';
+    return { runs: left, show: newest, lastRunId: lastRunId === id ? newest : lastRunId };
+  }
+
   window.HCSwarmWorkspaceView = {
-    turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded, compareChoices, fileChanges,
+    turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded, compareChoices, fileChanges, afterDelete,
   };
 })();

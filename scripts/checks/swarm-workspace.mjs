@@ -353,5 +353,23 @@ console.log('\nA site opens in the browser, never inside the app:');
   ok('and writes under ~/.hashcortx, which the agent cannot touch', /\.join\("\.hashcortx"\)\.join\("swarm"\)\.join\("site\.html"\)/.test(rust));
 }
 
+console.log('\nDeleting a run:');
+{
+  // Runs were kept in IndexedDB with no way to remove one, so they gathered
+  // for good. What is shown once a run goes is decided here.
+  const runs = [{ id: 'r3' }, { id: 'r2' }, { id: 'r1' }];   // newest first, as runsFor gives them
+  const a = V.afterDelete(runs, 'r3', 'r3');
+  ok('the newest left is shown next', a.show === 'r2' && a.runs.map((r) => r.id).join() === 'r2,r1');
+  ok('and becomes the last run if the deleted one was', a.lastRunId === 'r2');
+  const b = V.afterDelete(runs, 'r1', 'r3');
+  ok('deleting an older run leaves the last run alone', b.lastRunId === 'r3' && b.show === 'r3');
+  const c = V.afterDelete([{ id: 'r1' }], 'r1', 'r1');
+  ok('deleting the only run leaves nothing to show and no last run', c.show === '' && c.lastRunId === '' && c.runs.length === 0);
+  ok('the list given is not changed', runs.length === 3);
+  ok('the button asks first, in the app\'s own dialog', /async function deleteRun\(\)[\s\S]{0,200}_H\.themedConfirm\(/.test(ws));
+  ok('and removes the run from the store', /RUNS\(\)\.deleteRun\(run\.id\)/.test(ws));
+  ok('it is off with no run on screen or while an agent answers', /amkWsDelete'\)\.disabled = !run \|\| !!state\.asking/.test(ws));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);

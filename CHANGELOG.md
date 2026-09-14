@@ -18,6 +18,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   never an address, so this does not widen what the page can reach. Their live
   model lists arrive the same way, with each model's limits where the provider
   gives them.
+- **A Swarm run can be deleted.** The Result view has a Delete run button
+  that asks first, removes the run with its conversation and every version
+  of its files, and shows the newest run left. Runs were kept for good.
 - **Every bundled library's version and licence is written down**, in
   `src/js/vendor/PROVENANCE.md`, together with the notices of the parts jsPDF
   carries inside it and which of the files have been compared with their
