@@ -15,12 +15,12 @@ Written `HashCortx`: capital H, capital C, lowercase x, no space. In terminal co
 ## Identity statement
 
 ```
-HashCortx — 100% local. Zero cloud. No account.
+HashCortx — local-first. No account. No server of ours.
 
-Your API keys stay on your machine.
-Your files never leave it.
+Your API keys are stored on your machine and sent only to their own provider.
+Your files leave it only inside a request to the model you chose.
 No telemetry. No tracking. No backend server.
-Air-gapped capable with local models (Ollama).
+Works offline with a local model through Ollama (not the Python sandbox).
 
 Every AI request travels: your device → provider API → back.
 Nothing passes through us. There is no "us".

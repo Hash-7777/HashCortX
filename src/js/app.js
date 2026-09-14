@@ -866,7 +866,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   if (SAVED.system) systemEl.value = SAVED.system;
   if (SAVED.temp) { tempEl.value = SAVED.temp; tempVal.textContent = SAVED.temp; }
 
-  // Phase 6 — Load API keys from OS Keychain (async, non-blocking)
+  // Load API keys from the app's local key store (async, non-blocking)
   const HC_KEY_PROVIDERS = [
     'groqKey','geminiKey','openRouterKey','cerebrasKey','sambaKey',
     'openaiKey','anthropicKey','moonshotKey','deepseekKey','mistralKey',
@@ -942,7 +942,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         openaiKey: "", anthropicKey: "", moonshotKey: "", deepseekKey: "", mistralKey: "",
         googleKey: "", googleCx: "", tavilyKey: "", nvidiaKey: "",
       }));
-      // API keys → OS Keychain (async fire-and-forget)
+      // API keys → the app's local key store (async fire-and-forget)
       if (window.HC && HC.keychain) {
         void HC.keychain.store('groqKey',       groqKeyEl.value       || "");
         void HC.keychain.store('geminiKey',     geminiKeyEl.value     || "");

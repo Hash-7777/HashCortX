@@ -6,14 +6,14 @@
 
   // ── Bundle identifier ──────────────────────────────────────────
   // This string permanently identifies the app on every platform.
-  // It is used by:
-  //   • macOS Keychain (API key storage)
-  //   • Windows Credential Manager
-  //   • Auto-updater signatures
-  //   • App Store (if submitted later)
+  // It names the folder the app keeps its data in, and that is where
+  // every user's API keys are stored (see docs/SECURITY.md). It is also
+  // the service name of the old Keychain entry that keychain.rs moves
+  // keys out of on first run.
   //
   // ⚠ NEVER change this after shipping to real users.
-  //   Changing it breaks Keychain access and update signatures.
+  //   Changing it moves the data folder, and every existing user
+  //   silently loses their API keys and settings.
   //   If you buy hashcortx.com later, you can note the domain in
   //   the README but do NOT change this identifier.
   "identifier": "com.hashcortx.app",
@@ -186,7 +186,7 @@
     "category": "DeveloperTool",
 
     "shortDescription": "Local-first AI coding agents",
-    "longDescription": "HashCortx — 100% local AI coding agents. No cloud, no tracking. Your API keys stay in your keychain. Your files never leave your machine.",
+    "longDescription": "HashCortx — a local-first AI workspace with coding agents. Use your own API key with a cloud provider, or a local model through Ollama. No account, no telemetry and no HashCortx server: requests go from your computer to the service you chose.",
 
     "macOS": {
       // Minimum macOS version. 10.15 (Catalina) supports all Tauri features.

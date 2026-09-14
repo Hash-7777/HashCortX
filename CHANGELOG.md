@@ -55,6 +55,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   failures.** Two of the four hosts the app tried first have no API at all, so
   each request failed twice before reaching a real one. They are gone from the
   list and from the page's connect-src.
+- **The app's own description says what it does.** It claimed more privacy
+  than the app has: it said nothing leaves the machine and that keys are in
+  the Keychain. It now says requests go to the service you chose, as
+  docs/SECURITY.md does. The README's network and offline answers are
+  corrected the same way.
 
 ## [2.6.0] — 2026-09-01
 

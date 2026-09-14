@@ -55,7 +55,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 
 ## Why you might want it
 
-**Nothing phones home.** No analytics, no crash reporting, no update pings. The only outbound connections are to providers you configured yourself.
+**Nothing phones home.** No analytics, no crash reporting, no update pings. Every outbound connection is for work you asked for — [Privacy and security](#privacy-and-security) lists them.
 
 **Your keys, your models.** Eleven cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run. The model menu is each provider's own list for your key — Settings → API keys → Update model lists asks them again — and every request asks for the longest answer that model can write, sized so the question and the answer fit.
 
@@ -226,7 +226,7 @@ No bundler is a deliberate constraint. The interface is about 2.5 MB of source t
 
 ## Privacy and security
 
-**No backend, no telemetry, no accounts, no auto-updater.** The binary makes no network call except to the provider endpoints you set up.
+**No backend, no telemetry, no accounts, no auto-updater.** Every network call is for work you asked for: the AI providers you added a key for, your Ollama server, the search and reference services an agent can use, pages an agent is asked to read, and the Python sandbox's runtime, loaded from jsDelivr. [SECURITY.md](docs/SECURITY.md) lists every address.
 
 **A permission gate in Rust.** Sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. Every guarded action is logged to `~/.hashcortx/audit.log`.
 
@@ -264,7 +264,7 @@ Best effort as of August 2026. If something is out of date, [open an issue](http
 
 **Is it free?** Yes. MIT, no paid tier, no usage caps. You pay the AI providers directly, or nothing at all with Ollama.
 
-**Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet.
+**Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet, and so do web search and the Python sandbox, which loads its runtime from jsDelivr.
 
 **Which systems?** macOS Apple Silicon is built and used daily. **Windows runs — tested on Windows 10**, where the app has been built, installed and used; that release carries a Windows installer. Linux compiles and passes its tests in CI on every push, but nobody has launched it there, so treat Linux as buildable rather than supported.
 
@@ -295,7 +295,7 @@ Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/
 
 ## The Hash ecosystem
 
-Four local-first apps, same principles — no cloud, no telemetry, your data stays where it is.
+Four local-first apps, same principles — no telemetry, and no server of ours in between.
 
 | App | What it is | Licence |
 |---|---|---|
@@ -325,7 +325,7 @@ They interlock, through files on your disk rather than a service:
 
 <br>
 
-**HashCortx** · One window · Twelve providers · Zero data leak · Local-first · MIT
+**HashCortx** · One window · Twelve providers · No telemetry · Local-first · MIT
 
 [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
