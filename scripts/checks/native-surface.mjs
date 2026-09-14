@@ -354,5 +354,37 @@ console.log('\nEvery argument a call passes is one the command takes:');
   if (bad === 0) check(`every argument name reaches its command (${checked} checked)`, true);
 }
 
+// A page dialog cannot ask the desktop app's user anything. The dialog
+// plugin replaces confirm() with an async function, and a promise is truthy,
+// so `if (confirm(...))` goes ahead before an answer exists, and the
+// capability set does not grant the plugin's confirm, so no question is even
+// shown. prompt() is not replaced, and on macOS the web view answers it with
+// null. Every question goes through the app's own dialog (_H.themedConfirm,
+// themedPrompt, themedAlert). The one exception is app.js's own fallback for
+// when that dialog's markup is missing, which never happens in the app.
+console.log('\nEvery question is asked in the app\'s own dialog:');
+{
+  const DIALOG = /(?<![\w$.])(?:window\.)?(alert|confirm|prompt)\s*\(/;
+  const FALLBACK = /if \(!terminalAlertOverlay\)|^\s*window\.alert\(message\);$|^\s*if \(confirm\) return Promise\.resolve\(window\.confirm\(message\)\);$/;
+  const found = [];
+  for (const file of files) {
+    const rel = relative(srcDir, file).split('\\').join('/');
+    readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+      if (/^\s*(\/\/|\*)/.test(line)) return;
+      const m = DIALOG.exec(line);
+      if (!m) return;
+      const before = line.slice(0, m.index);
+      if ((before.match(/["'`]/g) || []).length % 2) return;            // inside text
+      if (rel === 'js/app.js' && FALLBACK.test(line)) return;
+      found.push(`${rel}:${i + 1} ${m[1]}()`);
+    });
+  }
+  check('no code asks with alert(), confirm() or prompt()', found.length === 0, found.join(', '));
+  const app = readFileSync(join(srcDir, 'js/app.js'), 'utf8');
+  const bridge = app.slice(app.indexOf('window._H = {'));
+  check('the app publishes its own dialogs to the modes',
+    ['themedAlert', 'themedConfirm', 'themedPrompt'].every((n) => new RegExp(`\\n\\s+${n},`).test(bridge)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (native surface)`);
 process.exit(fail ? 1 : 0);

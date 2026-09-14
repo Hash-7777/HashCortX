@@ -584,10 +584,10 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     input.addEventListener("click", e => e.stopPropagation());
   }
 
-  function deleteSession(sid) {
+  async function deleteSession(sid) {
     const s = sessions.find(x => x.id === sid);
     if (!s) return;
-    if (!window.confirm(`Delete "${limitTitleWords(s.title)}"?`)) return;
+    if (!(await window._H.themedConfirm(`Delete "${limitTitleWords(s.title)}"?`, "Delete session"))) return;
     sessions = sessions.filter(x => x.id !== sid);
     saveSessions();
     if (sid === activeSessionId) startNewSession();

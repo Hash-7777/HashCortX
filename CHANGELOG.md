@@ -62,6 +62,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Deleting asks first again.** Deleting a saved Coder chat, a Finance
+  session or a 3D Forge project, and revoking Coder's session permissions,
+  used the page's own confirm(). In the desktop app that answers yes before
+  anyone can reply and shows no question, so each went ahead at once. Renaming
+  a Coder chat used prompt(), which on macOS returns nothing, so it never
+  renamed. All of them now ask in the app's own dialog and wait for the
+  answer, and a check fails if a page dialog is used again.
 - **Every Finance chart has an element of its own.** A chart the model gave
   no id, or an id another chart already had, shared an element with it, so
   its PNG button and its picture in the PDF showed the other chart. Such a

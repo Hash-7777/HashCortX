@@ -6444,6 +6444,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // feature had never once worked.
   window._H = {
     get state()                  { return state; },
+    // The app's own dialogs, for the modes: the desktop app's page dialogs cannot ask a question.
+    themedAlert,
+    themedConfirm,
+    themedPrompt,
     // Real web search, when the user has configured a Tavily key. Coder mode
     // had no access to it and fell back to DuckDuckGo's instant-answer
     // endpoint, which returns nothing for most developer queries.

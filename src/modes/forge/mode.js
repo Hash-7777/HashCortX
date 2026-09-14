@@ -339,7 +339,7 @@
   async function deleteForgeProject(id) {
     const project = forgeProjects.find((p) => p.id === id);
     if (!project) return;
-    if (!confirm(`Delete "${project.name || "Forge Project"}"?`)) return;
+    if (!(await window._H.themedConfirm(`Delete "${project.name || "Forge Project"}"?`, "Delete project"))) return;
     forgeProjects = forgeProjects.filter((p) => p.id !== id);
     if (activeProjectId === id) activeProjectId = null;
     const written = await persistForgeProjects();

@@ -115,7 +115,9 @@ const LINE_BUDGET = {
   // from inside the page.
   // 6501, down 18. The calculate tool reads a model's arithmetic with
   // js/forge/expr.js instead of its own filter around Function().
-  'js/app.js': 6501,
+  // 6505, up four: the app's own dialogs are published on _H, because the
+  // modes' page dialogs could not ask a question in the desktop app.
+  'js/app.js': 6505,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

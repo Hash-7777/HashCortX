@@ -521,8 +521,8 @@
       if (leftAddFolderBtn)  leftAddFolderBtn.addEventListener('click', openProject);
       if (clearFilesBtn)     clearFilesBtn.addEventListener('click', clearFilesPanel);
       if (auditBtn)          auditBtn.addEventListener('click', showAuditLog);
-      if (resetPermsBtn)     resetPermsBtn.addEventListener('click', () => {
-        if (!window.confirm('Revoke all session permissions you granted this session? The agent will ask again before any write or shell operation.')) return;
+      if (resetPermsBtn)     resetPermsBtn.addEventListener('click', async () => {
+        if (!(await window._H.themedConfirm('Revoke all session permissions you granted this session? The agent will ask again before any write or shell operation.', 'Session permissions'))) return;
         HC.guard.clearSession?.();
       });
 
@@ -1244,11 +1244,11 @@
       renderSessions($('cdrSessionsSearch')?.value || '');
     }
 
-    function renameSession(idx) {
+    async function renameSession(idx) {
       const sessions = loadSessions();
       const s = sessions[idx];
       if (!s) return;
-      const next = window.prompt('Rename chat (3 words max):', s.title || '');
+      const next = await window._H.themedPrompt('Rename chat (3 words max):', s.title || '', 'Rename chat');
       if (next == null) return;
       const trimmed = enforceThreeWordName(next);
       if (!trimmed || trimmed === s.title) return;
@@ -1297,7 +1297,7 @@
         const rn = item.querySelector('[data-act="rename"]');
         const dl = item.querySelector('[data-act="delete"]');
         if (rn) rn.addEventListener('click', (e) => { e.stopPropagation(); renameSession(idx); });
-        if (dl) dl.addEventListener('click', (e) => { e.stopPropagation(); if (confirm('Delete this saved chat?')) deleteSession(idx); });
+        if (dl) dl.addEventListener('click', async (e) => { e.stopPropagation(); if (await window._H.themedConfirm('Delete this saved chat?', 'Delete chat')) deleteSession(idx); });
       });
     }
 
@@ -1579,7 +1579,7 @@
     // ── Export — opens a small menu under the Export button with format choices.
     // Formats: txt (plain), code (only fenced code blocks extracted), pdf (rendered).
     function exportChat() {
-      if (!conversationMsgs.length) { alert('No conversation to export.'); return; }
+      if (!conversationMsgs.length) { window._H.themedAlert('No conversation to export.', 'Export'); return; }
       // If a menu is already open, close it
       const existing = document.getElementById('cdrExportMenu');
       if (existing) { existing.remove(); return; }
@@ -1642,7 +1642,7 @@
         await downloadBlob(out, 'text/markdown', `hashcortx-${proj}-${ts}.md`);
       } else if (fmt === 'code') {
         const out = buildCodeOnly();
-        if (!out.trim()) { alert('No fenced code blocks found in this conversation.'); return; }
+        if (!out.trim()) { window._H.themedAlert('No fenced code blocks found in this conversation.', 'Export'); return; }
         await downloadBlob(out, 'text/plain', `hashcortx-${proj}-code-${ts}.txt`);
       } else if (fmt === 'pdf') {
         await exportAsPdf(`hashcortx-${proj}-${ts}.pdf`);
