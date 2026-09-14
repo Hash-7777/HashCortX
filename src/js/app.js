@@ -595,7 +595,7 @@ PHASE 4 — IMPACT AUDIT
 
 PHASE 5 — 2026 STANDARDS CHECK
 - Remote/hybrid adaptability signals.
-- AI-tool fluency (LLMs, Copilot, automation).
+- AI-tool fluency (LLMs, AI coding assistants, automation).
 - DEI-neutral language (no age signals, no gendered language).
 - LinkedIn URL present and consistent.
 
@@ -4605,7 +4605,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     state.streaming = false;
     sendBtn.textContent = "Send";
-    // Light up HashNotch — "HashCortX finished", like the iPhone island.
+    // Light up HashNotch — "HashCortX finished".
     // Once per chat turn, cloud or local. Coder mode has its own loop and
     // fires its own, at the end of startRun in modes/code/mode.js.
     HC.notch?.finished();

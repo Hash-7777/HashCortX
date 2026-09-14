@@ -2,8 +2,7 @@
 // HashNotch live-activity ping
 //
 // When a run finishes, HashCortX writes one short "finished" activity to
-// HashNotch's local feed so the notch lights up like the iPhone Dynamic
-// Island — the same way Claude Code's hook does. Metadata only: a title,
+// HashNotch's local feed so the notch lights up. Metadata only: a title,
 // never a model label and never any prompt or answer content.
 //
 // The feed is HashNotch's documented merge-by-id contract:

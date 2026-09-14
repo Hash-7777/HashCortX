@@ -88,8 +88,8 @@ if (HC.isTauri) {
 }
 
 // HashNotch ping — light up the notch "HashCortX finished" when a run
-// completes, like the iPhone Dynamic Island (the same feed Claude Code's
-// hook writes). Best-effort and metadata-only — the title and nothing else,
+// completes, through the local feed HashNotch reads.
+// Best-effort and metadata-only — the title and nothing else,
 // never message content. No-op in the browser or if HashNotch isn't there.
 HC.notch = {
   finished: () => {

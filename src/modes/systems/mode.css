@@ -535,7 +535,7 @@ body.system-maker-mode #app { display: none; }
 .sys-cardsnav-content { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 
 /* ══════════════════════════════════════════════════════════════════
-   SHELL: COMMAND (VS Code compact style)
+   SHELL: COMMAND (compact code-editor style)
 ══════════════════════════════════════════════════════════════════ */
 .sys-shell-command { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 .sys-cmd-bar {

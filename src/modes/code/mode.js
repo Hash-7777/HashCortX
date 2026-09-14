@@ -371,7 +371,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // CoderMode — Full-screen chat agent overlay (Claude Code style)
+  // CoderMode — Full-screen chat agent overlay
   // ══════════════════════════════════════════════════════════════
   const CoderMode = (() => {
     let mounted            = false;
@@ -1984,7 +1984,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     }
 
     function sysPrompt(extra) {
-      // ── Surgical system prompt — Claude Code / Codex style ──
+      // ── Surgical system prompt ──
       // Terse. No prose. One change at a time. Prefer tool calls over speech.
       const root = sharedState.projectRoot;
       let homeDir = sharedState.homeDir || '';

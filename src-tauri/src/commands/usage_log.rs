@@ -6,8 +6,8 @@
 //   ~/.hashcortx/usage.jsonl
 //
 // HashMeterAi reads this file to report HashCortx token usage as
-// MEASURED (not estimated), the same way it reads Claude Code / Kimi
-// transcripts. The line carries a UTC timestamp, the model id, and
+// MEASURED (not estimated), the same way it reads other tools' own
+// session logs. The line carries a UTC timestamp, the model id, and
 // token/cost counts — nothing about the prompt or the answer.
 //
 // The field names ARE the on-disk contract shared with HashCerebrum

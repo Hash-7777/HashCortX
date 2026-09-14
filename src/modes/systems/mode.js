@@ -582,7 +582,7 @@ LAYOUT:
   - "top"       — horizontal tabs. SaaS, education, product tools.
   - "dock"      — icon-only 56px rail. Logistics, manufacturing, dense ops.
   - "cards-nav" — module card strip. Restaurant, retail, hotel, fitness.
-  - "command"   — compact VS Code style. Healthcare, legal, HR, CRM.
+  - "command"   — compact code-editor style. Healthcare, legal, HR, CRM.
 • layout.nav: match the shell ("top" if shell is "top", "sidebar" otherwise).
 • Follow the CREATIVE DIRECTIVE in the user message — it overrides domain defaults.
 

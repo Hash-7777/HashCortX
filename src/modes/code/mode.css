@@ -1551,7 +1551,7 @@ body.coder-mode #app { display: none; }
   color: var(--cdr-error);
 }
 
-/* Code blocks: dark VSCode-ish with cyan trim, monospace */
+/* Code blocks: dark editor look with cyan trim, monospace */
 .cdr-msg-content pre,
 .cdr-msg-content code,
 .cdr-msg-content code,

@@ -177,7 +177,7 @@ console.log('\nWho a message is for:');
   ok('the longest name wins, so @Code Reviewer is not read as @Code', T.addressee(run, '@Code Reviewer: check it').agentId === 'a2');
   ok('names are matched without regard to case', T.addressee(run, '@writer tidy up').agentId === 'a3');
   ok('an agent can be named by its id', T.addressee(run, '@a1 hi').agentId === 'a1');
-  ok('a name must end where a word ends', T.addressee(run, '@Codex hi').named === false);
+  ok('a name must end where a word ends', T.addressee(run, '@Codes hi').named === false);
   ok('an @ that names nobody stays in the message and goes to the lead', (() => {
     const w = T.addressee(run, '@Nobody hi'); return w.agentId === 'a3' && w.text === '@Nobody hi';
   })());

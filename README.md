@@ -242,24 +242,6 @@ jq -s 'map(.input_tokens + .output_tokens) | add' ~/.hashcortx/usage.jsonl
 
 ---
 
-## How it compares
-
-Best effort as of August 2026. If something is out of date, [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose).
-
-| | HashCortx | Cursor | Claude Code | Continue | Aider | Cline | Zed |
-|---|---|---|---|---|---|---|---|
-| Type | Native app | VS Code fork | CLI | Extension | Terminal CLI | Extension | Native editor |
-| License | MIT | Proprietary | Proprietary | Apache 2.0 | Apache 2.0 | Apache 2.0 | GPL/AGPL |
-| Free | Bring your own key | Subscription | Subscription or API | Yes | Yes | Yes | Yes |
-| Cloud providers | 11 | Limited | Anthropic only | Many | Many | Many | Several |
-| Local models (Ollama) | Yes | Limited | No | Yes | Yes | Yes | Yes |
-| Multi-agent swarms | Yes | No | No | No | No | No | No |
-| Workspaces beyond coding | 8 | No | No | No | No | No | No |
-| Built-in specialist agents | 9 | None | None | None | None | None | None |
-| Telemetry | None | Yes | Opt-out | Opt-in | None | None | Opt-in |
-
----
-
 ## FAQ
 
 **Is it free?** Yes. MIT, no paid tier, no usage caps. You pay the AI providers directly, or nothing at all with Ollama.

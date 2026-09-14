@@ -137,7 +137,7 @@
             </div>
           </div>`;
 
-      // ── Shell: COMMAND (VS Code style) ───────────────────────────
+      // ── Shell: COMMAND (code-editor style) ───────────────────────
       case "command":
         return `
           <div class="sys-app sys-shell-command ${cls}" style="${vars}">
