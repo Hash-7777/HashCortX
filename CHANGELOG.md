@@ -42,6 +42,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
+- **The sanitiser is DOMPurify 3.4.15**, the newest 3.4 release, with the
+  upstream security fixes published since 3.4.2. Its two licence texts now
+  ship beside it.
 - **The PDF library is jsPDF 4.2.1**, the newest release, with the upstream
   security fixes published since 2.5.1. PDF export in chat, Coder and Finance
   uses it unchanged.

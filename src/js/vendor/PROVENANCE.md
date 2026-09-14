@@ -12,14 +12,14 @@ None of them is fetched from a CDN at runtime.
 | `marked.min.js` | marked | 15.0.7 | MIT | No |
 | `highlight.min.js` | Highlight.js | 11.11.1 | BSD-3-Clause | No |
 | `highlight-github-dark.min.css` | Highlight.js theme | not stated | not stated | No |
-| `purify.min.js` | DOMPurify | 3.4.2 | Apache 2.0 and MPL 2.0, as stated | No |
+| `purify.min.js` | DOMPurify | 3.4.15 | Apache 2.0 or MPL 2.0 | Yes, byte for byte |
 | `pdf.min.js`, `pdf.worker.min.js` | pdf.js | 3.11.174 | Apache 2.0 | No |
 | `jspdf.umd.min.js` | jsPDF | 4.2.1 | MIT, plus notices of its own parts | Yes, byte for byte |
 | `xlsx.full.min.js` | SheetJS | 0.20.3 | not stated | No |
 
-**How this was found.** Mermaid and jsPDF were taken from the npm registry
-for this record and compared with the package. For the others, the version and licence
-are what each file states about itself: in its header, or, where the header
+**How this was found.** Mermaid, jsPDF and DOMPurify were taken from the npm
+registry for this record and compared with the package. For the others, the
+version and licence are what each file states about itself: in its header, or, where the header
 has no version, in its code. Those files have not been compared with the
 published packages, so a copy changed after it was made would not show here.
 Each licence below is quoted as the file gives it. The notices inside each
@@ -45,14 +45,23 @@ file are left in place.
   from.
 - **Used by:** code blocks in chat, Coder and the Sandbox.
 
-## DOMPurify 3.4.2
+## DOMPurify 3.4.15
 
-- **File:** `purify.min.js`. Version from its header.
-- **Licence, as the file states it:** "(c) Cure53 and other contributors |
-  Released under the Apache license 2.0 and Mozilla Public License 2.0",
-  pointing to github.com/cure53/DOMPurify/blob/3.4.2/LICENSE for the terms.
-- **Used by:** cleaning rendered replies before they are shown
-  (`src/js/app.js`, Finance).
+- **Source:** the npm package `dompurify@3.4.15`. The tarball's integrity is
+  `sha512-EUBjM+B+lkDE41iE82DDSCfkoPGfXx8IxFxPMjNzm/Uk4xDet77rTN9wqlxlVg71kK7XGuUMv6wUxJUwwv+Xyw==`,
+  the value the registry publishes for that version.
+- **File:** `package/dist/purify.min.js`, copied unchanged. SHA-256
+  `f263b05369e050fa175d4ecb9c9358eb4253602d510297adfb31df48b2f1c4d5`.
+- **Why this version:** it is the newest 3.4 release, and it carries the
+  upstream security fixes published since 3.4.2, the version it replaced.
+- **Licence:** the package offers Apache 2.0 or MPL 2.0; its header reads
+  "(c) Cure53 and other contributors | Released under the Apache license 2.0
+  and Mozilla Public License 2.0". Both licence texts ship beside the file,
+  copied unchanged from the package: `DOMPurify-LICENSE.txt` (Apache 2.0) and
+  `DOMPurify-LICENSE-MPL.txt` (MPL 2.0).
+- **Used by:** cleaning model output before it is shown, in chat
+  (`src/js/app.js`), Coder, the Sandbox and the Swarm workspace
+  (`src/js/markdown-safe.js`).
 
 ## pdf.js 3.11.174
 
