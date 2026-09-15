@@ -207,7 +207,9 @@ const LINE_BUDGET = {
   // right is behaving like the thing it imitates.
   // 3510, down 35: an auto-assign nothing offered, a legacy alias, and the
   // drag-and-drop path desktop icons stopped using for the pointer drag.
-  'modes/virtual-os/mode.js': 3510,
+  // 3511, up one: its chat agent is told that what its tools return is
+  // material, not instructions.
+  'modes/virtual-os/mode.js': 3511,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

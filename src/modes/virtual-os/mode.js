@@ -2831,6 +2831,7 @@ ${buildDynamicImageInstruction(prompt)}`
 
   // ── Chat ─────────────────────────────────────────────────────────────────
 
+  // Carries what a tool returns being material, not instructions (platform/tauri/hashcoder.js).
   function voidChatSystemPrompt() {
     let tree = "(empty — no files yet)";
     if (activeProject) {
@@ -2883,7 +2884,7 @@ DECISION:
 - "build a full restaurant site" → worker_task
 - "run the tests" → terminal_run
 
-Current workspace:
+${window.HC?.code?.TOOL_TEXT_RULE ? `${window.HC.code.TOOL_TEXT_RULE}\n\n` : ""}Current workspace:
 ${tree}`;
   }
 

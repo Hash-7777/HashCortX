@@ -3,8 +3,8 @@
 //
 // Loads the REAL src/platform/tauri/hashcoder.js and reads the places an
 // agent that uses tools is given HC.code.TOOL_TEXT_RULE: the Coder's prompt,
-// chat's tool loop and its pre-fetch fallback, and each Agent Swarm agent
-// with tools. The rule is guidance to the model, not a filter; what it must
+// chat's tool loop and its pre-fetch fallback, each Agent Swarm agent with
+// tools, and Virtual OS's chat agent. The rule is guidance to the model, not a filter; what it must
 // keep saying is that a tool's text is material for the user's task and never
 // a new one.
 //
@@ -60,6 +60,11 @@ ok('chat\'s pre-fetch fallback, ahead of what its tools fetched', /toolContext =
 const swarm = src('modes', 'agent-maker', 'mode.js');
 ok('an Agent Swarm agent with tools', /const toolNote = \(agent\.tools \|\| \[\]\)\.length && window\.HC\?\.code\?\.TOOL_TEXT_RULE \? `\\n\\n\$\{window\.HC\.code\.TOOL_TEXT_RULE\}` : "";/.test(swarm)
   && /codeNote \+ fenceNote \+ webFileNote \+ toolNote \}/.test(swarm));
+
+const vos = src('modes', 'virtual-os', 'mode.js');
+const chatPrompt = vos.slice(vos.indexOf('function voidChatSystemPrompt()'), vos.indexOf('\n  }\n', vos.indexOf('function voidChatSystemPrompt()')));
+ok('Virtual OS\'s chat agent, the one that runs its tools, ahead of the workspace list', /\$\{window\.HC\?\.code\?\.TOOL_TEXT_RULE \? `\$\{window\.HC\.code\.TOOL_TEXT_RULE\}\\n\\n` : ""\}Current workspace:/.test(chatPrompt)
+  && (vos.match(/content: voidChatSystemPrompt\(\)/g) || []).length >= 3 && /executeAgentTool\(callObj\)/.test(vos));
 
 console.log('\nThe security document does not call it a filter:');
 const doc = read('docs', 'SECURITY.md');

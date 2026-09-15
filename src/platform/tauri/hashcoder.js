@@ -571,7 +571,7 @@
   // ── System prompt ───────────────────────────────────────────
 
   // What every agent that reads tool results is told about them: the Coder
-  // below, chat's agents and the Agent Swarm's agents. A file, a page or a
+  // below, chat's agents, the Agent Swarm's agents and Virtual OS's chat agent. A file, a page or a
   // command's output can be written to read like instructions. This is
   // guidance to the model, not a filter — the permission guard is what stops
   // an action (docs/SECURITY.md). Checked by scripts/checks/tool-text-rule.mjs.
