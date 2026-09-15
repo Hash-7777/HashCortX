@@ -17,7 +17,7 @@
 // ==============================================================
 
 use chrono::Local;
-use std::fs::{self, create_dir_all, File, OpenOptions};
+use std::fs::{self, File, OpenOptions};
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
@@ -79,7 +79,7 @@ fn entry(scope: &str, action: &str, target: &str) -> String {
 /// cost the entry: the record matters more than the size.
 fn append_line(path: &Path, line: &str, rotate_at: u64) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        create_dir_all(parent).map_err(|e| e.to_string())?;
+        crate::security::private_dir::create(parent).map_err(|e| e.to_string())?;
     }
     if fs::metadata(path).map(|m| m.len() >= rotate_at).unwrap_or(false) {
         let _ = fs::rename(path, path.with_extension("log.1"));

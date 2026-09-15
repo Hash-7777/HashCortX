@@ -61,7 +61,7 @@ fn write_site(path: &Path, html: &str) -> Result<(), String> {
         return Err("there is no page to open".into());
     }
     let dir = path.parent().ok_or("the site has no folder")?;
-    fs::create_dir_all(dir).map_err(|e| format!("could not make {}: {e}", dir.display()))?;
+    crate::security::private_dir::create(dir).map_err(|e| format!("could not make {}: {e}", dir.display()))?;
     let tmp = path.with_extension("html.tmp");
     fs::write(&tmp, html).map_err(|e| format!("could not write the site: {e}"))?;
     fs::rename(&tmp, path).map_err(|e| {

@@ -149,7 +149,7 @@ pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
     crate::commands::fs::guard_path(&path)?;
 
     let dir = checkpoint_dir();
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    crate::security::private_dir::create(&dir).map_err(|e| e.to_string())?;
 
     let (content, existed, unrestorable) = capture(&path);
     let record = Checkpoint {

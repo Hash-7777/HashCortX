@@ -19,7 +19,7 @@
 // ==============================================================
 
 use serde::{Deserialize, Serialize};
-use std::fs::{create_dir_all, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 
@@ -65,7 +65,7 @@ pub fn usage_log_append(record: UsageRecord) -> Result<(), String> {
     check(&record)?;
     let path = log_path();
     if let Some(parent) = path.parent() {
-        create_dir_all(parent).map_err(|e| e.to_string())?;
+        crate::security::private_dir::create(parent).map_err(|e| e.to_string())?;
     }
     let mut file = OpenOptions::new()
         .create(true)

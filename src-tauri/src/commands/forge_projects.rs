@@ -110,7 +110,7 @@ fn write_to(dir: &Path, content: String) -> Result<(), String> {
         Err(e) => return Err(format!("saved projects are not valid JSON: {e}")),
     }
 
-    fs::create_dir_all(dir).map_err(|e| format!("the projects folder could not be made: {e}"))?;
+    crate::security::private_dir::create(dir).map_err(|e| format!("the projects folder could not be made: {e}"))?;
 
     let tmp = dir.join(format!(".projects.{}.tmp", std::process::id()));
     fs::write(&tmp, content.as_bytes())

@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **48,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **6,300 lines of Rust**, measured on 12 September 2026 (the Rust and vendored figures on 14 September). Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **48,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **6,500 lines of Rust**, measured on 12 September 2026 (the vendored figure on 14 September, the Rust figure on 15 September). Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -167,7 +167,8 @@ HashCortX/
 │   │   │   └── audit.rs       231   append-only audit log, bounded
 │   │   └── security/
 │   │       ├── denylist.rs    825   hardcoded blocked paths and commands
-│   │       └── navigation.rs   75   the window shows the app and nothing else
+│   │       ├── navigation.rs   75   the window shows the app and nothing else
+│   │       └── private_dir.rs 146   ~/.hashcortx, readable by its owner only
 │   ├── models/bge-small-en-v1.5/    bundled embedding model, MIT, 34 MB
 │   │                                compiled into the binary; PROVENANCE.md
 │   ├── capabilities/default.json

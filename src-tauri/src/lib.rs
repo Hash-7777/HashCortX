@@ -29,6 +29,10 @@ use commands::{
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // ~/.hashcortx holds copies of project files and the audit log, so it is
+    // kept readable by this account only (src/security/private_dir.rs).
+    security::private_dir::tighten_app_root();
+
     tauri::Builder::default()
         // The window shows the app and nothing else: any navigation away from
         // it is refused. Links open in the system browser from the page.

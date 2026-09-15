@@ -73,6 +73,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Agent Swarm, 3D Forge or the ERP, a task on an Ollama model is handed only
   to another Ollama model, never to a cloud provider; with none left, the run
   stops with the error.
+- **The app's own folder is private to your account.** On macOS and Linux,
+  `~/.hashcortx` — Undo's copies of your files, the audit log, the usage log
+  and saved 3D Forge projects — is readable by your account only, and is set
+  that way at every launch.
 
 ### Fixed
 
