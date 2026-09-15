@@ -70,9 +70,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   start-up files, plus `crontab` and `at` in the shell. So are browser cookies
   and profiles, mail and messages, and more credential files.
 - **A task given to a local model stays local.** When a model fails in the
-  Agent Swarm, 3D Forge or the ERP, a task on an Ollama model is handed only
-  to another Ollama model, never to a cloud provider; with none left, the run
-  stops with the error.
+  Agent Swarm, 3D Forge, the ERP or Virtual OS, a task on an Ollama model is
+  handed only to another Ollama model, never to a cloud provider; with none
+  left, the run stops with the error. Virtual OS's worker, which it picks
+  itself, is a local model too when the job is on one.
 - **The app's own folder is private to your account.** On macOS and Linux,
   `~/.hashcortx` — Undo's copies of your files, the audit log, the usage log
   and saved 3D Forge projects — is readable by your account only, and is set

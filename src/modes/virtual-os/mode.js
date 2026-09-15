@@ -907,15 +907,19 @@ const VoidStudio = (() => {
       /qwen.*(480b|235b|230b|coder|max|plus)|480b|235b|230b|405b|120b|gpt[-_\s]*oss[-_\s]*120|deepseek.*r1|gemini.*pro/i.test(text);
   }
 
+  // A job started on a local model stays on local models, the rule js/model-routes.js holds
+  // for the Swarm, the Forge and the ERP: a cloud model would be sent the task and the project.
+  const isLocalModel = (value) => !!value && window.HCModelRoutes.providerOf(value) === "local";
+
   function chooseWorkerModel() {
-    const opts = availableModelOptions();
-    if (!opts.length) return $("voidGodModelSelect")?.value || "";
+    const godValue = $("voidGodModelSelect")?.value || "";
+    const opts = availableModelOptions().filter(o => !isLocalModel(godValue) || isLocalModel(o.value));
+    if (!opts.length) return godValue;
     const largeOpts = opts.filter(o => isLargeFallbackModel(o, "worker"));
     if (!largeOpts.length) {
       log("No large worker model is available; refusing to auto-route to small models.", "warn");
       return "";
     }
-    const godValue = $("voidGodModelSelect")?.value || "";
     return largeOpts
       .slice()
       .sort((a, b) => {
@@ -1895,9 +1899,10 @@ ${userPrompt}`;
     const opts = availableModelOptions();
     const seen = new Set();
     const ordered = [];
+    const localOnly = isLocalModel(preferredValue);
     const addValue = (value) => {
       const opt = opts.find(o => o.value === value) || { value, label: value };
-      if (value && !seen.has(value) && isLargeFallbackModel(opt, role)) {
+      if (value && !seen.has(value) && (!localOnly || isLocalModel(value)) && isLargeFallbackModel(opt, role)) {
         seen.add(value);
         ordered.push(opt);
       }
@@ -1921,7 +1926,8 @@ ${userPrompt}`;
   async function callWithFailover(role, preferredValue, messages, signal) {
     const candidates = fallbackModels(preferredValue, role);
     if (!candidates.length) {
-      throw new Error(`${role === "god" ? "God Agent" : "Worker Agent"} has no large model route available. Small-model fallback is disabled.`);
+      const who = role === "god" ? "God Agent" : "Worker Agent";
+      throw new Error(isLocalModel(preferredValue) ? `${who} has no large local model to use. The model chosen is local, so the task stays on local models.` : `${who} has no large model route available. Small-model fallback is disabled.`);
     }
     let lastErr = null;
     for (let i = 0; i < candidates.length; i++) {

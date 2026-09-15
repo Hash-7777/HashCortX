@@ -209,7 +209,9 @@ const LINE_BUDGET = {
   // drag-and-drop path desktop icons stopped using for the pointer drag.
   // 3511, up one: its chat agent is told that what its tools return is
   // material, not instructions.
-  'modes/virtual-os/mode.js': 3511,
+  // 3517, up six: a job on a local model starts and fails over only on local
+  // models, and says so when there is none large enough.
+  'modes/virtual-os/mode.js': 3517,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is
