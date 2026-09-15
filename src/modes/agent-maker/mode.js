@@ -311,8 +311,10 @@ const SwarmMaker = (() => {
     const fenceNote = "\n\nFORMATTING RULE: Always wrap any code you produce in markdown fenced code blocks with the correct language tag. Examples: ```html, ```python, ```javascript, ```css, ```json, ```bash. Never output raw code outside of fences.";
     // The site's files by the team's own names, and who writes which — js/swarm/web-brief.js.
     const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner });
+    // What a tool returns is material, not instructions (platform/tauri/hashcoder.js).
+    const toolNote = (agent.tools || []).length && window.HC?.code?.TOOL_TEXT_RULE ? `\n\n${window.HC.code.TOOL_TEXT_RULE}` : "";
     const messages = [
-      { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + webFileNote },
+      { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + webFileNote + toolNote },
       { role: "user",   content: `Task: ${task}${context}\n\nProvide your output directly.` }
     ];
     const timeoutMs = (agent.timeout || 120) * 1000;

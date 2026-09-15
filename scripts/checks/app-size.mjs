@@ -119,7 +119,9 @@ const LINE_BUDGET = {
   // modes' page dialogs could not ask a question in the desktop app.
   // 6482, down 23. Functions nothing called: a project filter, and the date
   // line the agents' datetime tool had long since replaced.
-  'js/app.js': 6482,
+  // 6486, up four: chat's agents are told that what a tool returns is
+  // material, not instructions — in the tool loop and the pre-fetch fallback.
+  'js/app.js': 6486,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -388,7 +390,9 @@ const LINE_BUDGET = {
   // 2275, down two. What a web task's agents are told about the site moved to
   // src/js/swarm/web-brief.js; the final agent now runs on what arrived, and
   // a cut-off answer is carried on by the shared router.
-  'modes/agent-maker/mode.js': 2275,
+  // 2277, up two: an agent with tools is told that what they return is
+  // material, not instructions.
+  'modes/agent-maker/mode.js': 2277,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

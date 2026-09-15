@@ -81,6 +81,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   named like a key, token, secret or password, and `DATABASE_URL`, are left
   out of every command the agent runs. Commands you type in the terminal
   keep them.
+- **Agents are told that what a tool returns is not an instruction.** The
+  Coder, chat's agents and the Agent Swarm's agents treat a file, a web page,
+  a search result or a command's output as material for your task, and say
+  so when it asks for something else. This is guidance to the model, not a
+  filter; the permission dialogs still decide what runs.
 
 ### Fixed
 

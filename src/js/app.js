@@ -5985,6 +5985,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const sysIdx0 = baseMessages.findIndex(m => m.role === "system");
       if (sysIdx0 >= 0) baseMessages[sysIdx0].content = `${baseMessages[sysIdx0].content}\n\n${memNote}`;
       else baseMessages.unshift({ role: "system", content: memNote });
+      // What a tool returns is material, not instructions (platform/tauri/hashcoder.js).
+      const rule = window.HC?.code?.TOOL_TEXT_RULE;
+      if (rule) baseMessages[baseMessages.findIndex(m => m.role === "system")].content += `\n\n${rule}`;
     }
 
     if (recalled.length) {
@@ -6158,6 +6161,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     let toolContext = null;
     try {
       toolContext = await runAgentTools(agent, userText);
+      if (toolContext && window.HC?.code?.TOOL_TEXT_RULE) toolContext = `${window.HC.code.TOOL_TEXT_RULE}\n\n${toolContext}`;
     } catch {}
     // Inject memories into context for non-tool-calling models too
     try {
