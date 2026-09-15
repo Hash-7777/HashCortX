@@ -416,7 +416,8 @@ const LINE_BUDGET = {
   // gets the two rows its two records need.
   // 2624, up five: a stopped or failed run closes its unfinished turn, so the
   // next message is one a provider accepts.
-  'modes/code/mode.js': 2624,
+  // 2632, up eight: a run gives its commands a stop key, and Stop ends them.
+  'modes/code/mode.js': 2632,
 };
 
 console.log('\nFile sizes go down, never up:');

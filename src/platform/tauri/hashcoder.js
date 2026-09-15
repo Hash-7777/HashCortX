@@ -105,6 +105,13 @@
      */
     onShellChunk: null,
 
+    /**
+     * The stop key of the agent run in progress, set by the Coder panel. Every
+     * command the agent starts carries it, so stopping the run can end them
+     * (shell_cancel). Commands typed in the terminal carry none.
+     */
+    shellCancelKey: null,
+
     async shellRun(command, args = [], cwd = null, reason = '') {
       const display = [command, ...args].join(' ');
       // Where a command runs decides what it does. `npm test` and `rm out.o`
@@ -131,10 +138,10 @@
           if (chunk.kind === 'stderr') stderr += line; else stdout += line;
           try { HC.code.onShellChunk(chunk, display); } catch { /* a sink must never break a run */ }
         };
-        await HC.invoke('shell_run_stream', { command, args, cwd, onChunk: channel });
+        await HC.invoke('shell_run_stream', { command, args, cwd, cancelKey: HC.code.shellCancelKey, onChunk: channel });
         return { stdout, stderr, code, timedOut: false, truncated: false };
       }
-      return HC.invoke('shell_run', { command, args, cwd });
+      return HC.invoke('shell_run', { command, args, cwd, cancelKey: HC.code.shellCancelKey });
     },
 
     /**

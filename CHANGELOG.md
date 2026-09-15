@@ -72,6 +72,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Stop ends the commands a Coder run started.** Pressing Stop left a
+  running command going until it finished or reached its five-minute limit,
+  and the run waited on it. Stop now ends each command of that run, and ending
+  a command, by Stop or its time limit, ends what it started too. Commands you
+  type in the terminal are not touched.
 - **The message after a stopped Coder run works.** A run stopped or ended by
   an error between a tool call and its result left a conversation the
   providers refuse, so the next message failed. The unfinished turn is now

@@ -20,7 +20,8 @@ use commands::{
     notch::notch_activity_post,
     provider::{provider_request, provider_request_cancel},
     shell::{
-        shell_platform, shell_run, shell_run_line, shell_run_line_stream, shell_run_stream,
+        shell_cancel, shell_platform, shell_run, shell_run_line, shell_run_line_stream,
+        shell_run_stream,
     },
     swarm_site::swarm_site_open,
     usage_log::usage_log_append,
@@ -71,6 +72,8 @@ pub fn run() {
             // going quiet until it ends.
             shell_run,
             shell_run_stream,
+            // Ends the commands a stopped agent run started.
+            shell_cancel,
             shell_run_line,
             shell_run_line_stream,
             shell_platform,

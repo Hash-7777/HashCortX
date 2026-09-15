@@ -24,18 +24,21 @@
 //                 waiting for input that can never arrive
 //   • output    — capped per stream; the rest is dropped with a notice
 //
-// Honest limit: killing the child kills the process the shell became. A
-// command that spawns background grandchildren (`sh -c 'x & y &'`) can leave
-// them running — this is not a process supervisor, and docs/SECURITY.md
-// must not imply that it is.
+// Ending a command — at its time limit, or because its agent run was stopped
+// (`shell_cancel`) — ends what it started too: it runs in a process group of
+// its own on macOS and Linux, and as a process tree on Windows. Honest limit:
+// a process that deliberately leaves its group, as a daemon does, is not
+// followed. This is not a process supervisor, and docs/SECURITY.md must not
+// imply that it is.
 // ==============================================================
 
 use crate::security::denylist;
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader, Read};
+use std::collections::{HashMap, VecDeque};
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::ipc::Channel;
@@ -51,6 +54,9 @@ const MIN_TIMEOUT_MS: u64 = 1_000;
 const MAX_TIMEOUT_MS: u64 = 600_000;
 /// Most output one stream may return before the remainder is dropped.
 const MAX_STREAM_BYTES: usize = 512 * 1024;
+/// Said when a run is stopped while its command is going, or before it starts.
+const STOPPED_NOTE: &str = "\n\n[Stopped from the app — the command and anything it started were ended.]";
+const STOPPED_BEFORE_START: &str = "The run was stopped before this command started.";
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -62,6 +68,8 @@ pub struct ShellOutput {
     timed_out: bool,
     /// Output exceeded the cap and was cut short.
     truncated: bool,
+    /// The run it belonged to was stopped from the app, and it was ended.
+    stopped: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -170,26 +178,145 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Comma
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    // A process group of its own, so ending the command ends what it started
+    // too (see `kill_tree`).
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
     Ok(cmd)
 }
 
-/// Wait for the child, killing it if it outlives `timeout`.
+// ── Stopping a run's commands ─────────────────────────────────────────────
+//
+// An agent run in the app passes a stop key with every command it starts. When
+// the run is stopped, `shell_cancel` ends every command still running under
+// that key. The terminal passes no key, so a command typed there is never
+// ended by stopping an agent. A key only reaches commands this app started for
+// that run.
+
+/// Flags for the commands running under each stop key.
+fn running() -> &'static Mutex<HashMap<String, Vec<Arc<AtomicBool>>>> {
+    static RUNNING: OnceLock<Mutex<HashMap<String, Vec<Arc<AtomicBool>>>>> = OnceLock::new();
+    RUNNING.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Keys stopped recently. A command can be asked for a moment before its run
+/// is stopped and start a moment after; it finds its key here and never starts.
+fn stopped_keys() -> &'static Mutex<VecDeque<String>> {
+    static STOPPED: OnceLock<Mutex<VecDeque<String>>> = OnceLock::new();
+    STOPPED.get_or_init(|| Mutex::new(VecDeque::new()))
+}
+const STOPPED_KEYS_KEPT: usize = 32;
+
+/// One command's stop flag, listed under its key while it runs.
+struct StopFlag {
+    key: Option<String>,
+    flag: Arc<AtomicBool>,
+}
+
+impl StopFlag {
+    fn register(key: Option<String>) -> Self {
+        let key = key.filter(|k| !k.is_empty());
+        let flag = Arc::new(AtomicBool::new(false));
+        if let Some(k) = &key {
+            let already = stopped_keys().lock().map(|s| s.contains(k)).unwrap_or(false);
+            flag.store(already, Ordering::Relaxed);
+            if let Ok(mut table) = running().lock() {
+                table.entry(k.clone()).or_default().push(Arc::clone(&flag));
+            }
+        }
+        StopFlag { key, flag }
+    }
+
+    fn is_set(&self) -> bool {
+        self.flag.load(Ordering::Relaxed)
+    }
+}
+
+impl Drop for StopFlag {
+    fn drop(&mut self) {
+        let Some(k) = &self.key else { return };
+        if let Ok(mut table) = running().lock() {
+            if let Some(list) = table.get_mut(k) {
+                list.retain(|f| !Arc::ptr_eq(f, &self.flag));
+                if list.is_empty() {
+                    table.remove(k);
+                }
+            }
+        }
+    }
+}
+
+/// End every command running under `cancel_key`, and whatever each started.
+#[tauri::command]
+pub fn shell_cancel(cancel_key: String) {
+    if cancel_key.is_empty() {
+        return;
+    }
+    if let Ok(mut stopped) = stopped_keys().lock() {
+        if !stopped.contains(&cancel_key) {
+            stopped.push_back(cancel_key.clone());
+            while stopped.len() > STOPPED_KEYS_KEPT {
+                stopped.pop_front();
+            }
+        }
+    }
+    if let Ok(table) = running().lock() {
+        for flag in table.get(&cancel_key).into_iter().flatten() {
+            flag.store(true, Ordering::Relaxed);
+        }
+    }
+}
+
+/// End the child and everything it started. The child leads a process group
+/// of its own (see `prepare`), so a compiler a build started, or a server a
+/// script launched, goes with it, and the output pipes they held close.
+#[cfg(unix)]
+fn kill_tree(child: &mut Child) {
+    let _ = Command::new("sh")
+        .arg("-c")
+        .arg(format!("kill -s KILL -- -{}", child.id()))
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let _ = child.kill();
+}
+
+#[cfg(windows)]
+fn kill_tree(child: &mut Child) {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", &child.id().to_string()])
+        .creation_flags(CREATE_NO_WINDOW)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    let _ = child.kill();
+}
+
+/// Wait for the child, ending it if it outlives `timeout` or its run is stopped.
 ///
-/// Returns `(exit_code, timed_out)`.
-fn wait_with_timeout(child: &mut Child, timeout: Duration) -> (i32, bool) {
+/// Returns `(exit_code, timed_out, stopped)`.
+fn wait_with_timeout(child: &mut Child, timeout: Duration, stop: &StopFlag) -> (i32, bool, bool) {
     let start = Instant::now();
     loop {
         match child.try_wait() {
-            Ok(Some(status)) => return (status.code().unwrap_or(-1), false),
+            Ok(Some(status)) => return (status.code().unwrap_or(-1), false, false),
             Ok(None) => {
-                if start.elapsed() >= timeout {
-                    let _ = child.kill();
+                let stopped = stop.is_set();
+                if stopped || start.elapsed() >= timeout {
+                    kill_tree(child);
                     let _ = child.wait();
-                    return (-1, true);
+                    return (-1, !stopped, stopped);
                 }
                 thread::sleep(Duration::from_millis(50));
             }
-            Err(_) => return (-1, false),
+            Err(_) => return (-1, false, false),
         }
     }
 }
@@ -237,7 +364,7 @@ pub async fn shell_run_line(
 ) -> Result<ShellOutput, String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms)).await
+    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms, None)).await
 }
 
 #[tauri::command]
@@ -249,7 +376,7 @@ pub async fn shell_run_line_stream(
 ) -> Result<(), String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, on_chunk)).await
+    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, None, on_chunk)).await
 }
 
 // The commands run on a worker thread (see `off_main`); the work itself is
@@ -260,8 +387,9 @@ pub async fn shell_run(
     args: Vec<String>,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
+    cancel_key: Option<String>,
 ) -> Result<ShellOutput, String> {
-    super::off_main(move || run_blocking(command, args, cwd, timeout_ms)).await
+    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key)).await
 }
 
 #[tauri::command]
@@ -270,9 +398,10 @@ pub async fn shell_run_stream(
     args: Vec<String>,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
+    cancel_key: Option<String>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
-    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, on_chunk)).await
+    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, on_chunk)).await
 }
 
 fn run_blocking(
@@ -280,9 +409,14 @@ fn run_blocking(
     args: Vec<String>,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
+    cancel_key: Option<String>,
 ) -> Result<ShellOutput, String> {
     let mut cmd = prepare(&command, &args, &cwd)?;
     let timeout = resolve_timeout(timeout_ms);
+    let stop = StopFlag::register(cancel_key);
+    if stop.is_set() {
+        return Err(STOPPED_BEFORE_START.to_string());
+    }
 
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
     let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
@@ -293,7 +427,7 @@ fn run_blocking(
     let out_handle = thread::spawn(move || read_capped(stdout));
     let err_handle = thread::spawn(move || read_capped(stderr));
 
-    let (code, timed_out) = wait_with_timeout(&mut child, timeout);
+    let (code, timed_out, stopped) = wait_with_timeout(&mut child, timeout, &stop);
 
     let (stdout_text, out_cut) = out_handle.join().unwrap_or_else(|_| (String::new(), false));
     let (mut stderr_text, err_cut) = err_handle.join().unwrap_or_else(|_| (String::new(), false));
@@ -306,12 +440,17 @@ fn run_blocking(
         ));
     }
 
+    if stopped {
+        stderr_text.push_str(STOPPED_NOTE);
+    }
+
     Ok(ShellOutput {
         stdout: stdout_text,
         stderr: stderr_text,
         code,
         timed_out,
         truncated: out_cut || err_cut,
+        stopped,
     })
 }
 
@@ -320,10 +459,15 @@ fn run_stream_blocking(
     args: Vec<String>,
     cwd: Option<String>,
     timeout_ms: Option<u64>,
+    cancel_key: Option<String>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
     let mut cmd = prepare(&command, &args, &cwd)?;
     let timeout = resolve_timeout(timeout_ms);
+    let stop = StopFlag::register(cancel_key);
+    if stop.is_set() {
+        return Err(STOPPED_BEFORE_START.to_string());
+    }
 
     let mut child = cmd.spawn().map_err(|e| e.to_string())?;
     let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
@@ -366,10 +510,18 @@ fn run_stream_blocking(
     let out_handle = pump(stdout, "stdout", on_chunk.clone(), Arc::clone(&sent));
     let err_handle = pump(stderr, "stderr", on_chunk.clone(), Arc::clone(&sent));
 
-    let (code, timed_out) = wait_with_timeout(&mut child, timeout);
+    let (code, timed_out, stopped) = wait_with_timeout(&mut child, timeout, &stop);
 
     let _ = out_handle.join();
     let _ = err_handle.join();
+
+    if stopped {
+        let _ = on_chunk.send(StreamChunk {
+            kind: "stderr".into(),
+            data: STOPPED_NOTE.trim().into(),
+            code: None,
+        });
+    }
 
     if timed_out {
         let _ = on_chunk.send(StreamChunk {
@@ -460,8 +612,8 @@ mod tests {
         let mut cmd = prepare("sleep", &["30".into()], &None).unwrap();
         let mut child = cmd.spawn().expect("sleep should spawn");
         let start = Instant::now();
-        let (_, timed_out) = wait_with_timeout(&mut child, Duration::from_millis(300));
-        assert!(timed_out, "the command should have hit the time limit");
+        let (_, timed_out, stopped) = wait_with_timeout(&mut child, Duration::from_millis(300), &StopFlag::register(None));
+        assert!(timed_out && !stopped, "the command should have hit the time limit");
         assert!(
             start.elapsed() < Duration::from_secs(5),
             "it should have been killed promptly, not waited out"
@@ -474,8 +626,94 @@ mod tests {
         // inherited the app's stdin and could block until the app was killed.
         let mut cmd = prepare("cat", &[], &None).unwrap();
         let mut child = cmd.spawn().expect("cat should spawn");
-        let (code, timed_out) = wait_with_timeout(&mut child, Duration::from_secs(5));
+        let (code, timed_out, _) = wait_with_timeout(&mut child, Duration::from_secs(5), &StopFlag::register(None));
         assert!(!timed_out, "cat should have exited on its own");
         assert_eq!(code, 0);
+    }
+
+    // ── Stopping a run's commands ──────────────────────────────────────────
+    // Each test uses a key of its own: the table is shared by the process, and
+    // tests run side by side.
+
+    #[test]
+    fn a_flag_is_listed_under_its_key_only_while_its_command_runs() {
+        let flag = StopFlag::register(Some("t-listed".into()));
+        assert!(running().lock().unwrap().contains_key("t-listed"));
+        assert!(!flag.is_set());
+        shell_cancel("t-listed".into());
+        assert!(flag.is_set(), "cancelling the key sets its command's flag");
+        drop(flag);
+        assert!(!running().lock().unwrap().contains_key("t-listed"), "a finished command leaves the table");
+    }
+
+    #[test]
+    fn a_command_with_no_key_is_never_stopped_by_a_cancel() {
+        let flag = StopFlag::register(None);
+        shell_cancel(String::new());
+        shell_cancel("t-other".into());
+        assert!(!flag.is_set());
+    }
+
+    #[test]
+    fn a_command_asked_for_after_its_run_was_stopped_does_not_start() {
+        shell_cancel("t-late".into());
+        let out = run_blocking("echo".into(), vec!["hi".into()], None, None, Some("t-late".into()));
+        assert_eq!(out.err().as_deref(), Some(STOPPED_BEFORE_START));
+    }
+
+    #[test]
+    fn stopped_keys_are_kept_to_a_bounded_list() {
+        for i in 0..(STOPPED_KEYS_KEPT + 10) {
+            shell_cancel(format!("t-bound-{i}"));
+        }
+        assert!(stopped_keys().lock().unwrap().len() <= STOPPED_KEYS_KEPT);
+    }
+
+    /// Run `line` under `key` on another thread, stop the key after a moment,
+    /// and return how long the run took and what it reported.
+    #[cfg(unix)]
+    fn stop_after(line: &str, key: &str) -> (Duration, ShellOutput) {
+        let (line, k) = (line.to_string(), key.to_string());
+        let start = Instant::now();
+        let run = thread::spawn(move || run_blocking("sh".into(), vec!["-c".into(), line], None, None, Some(k)));
+        thread::sleep(Duration::from_millis(400));
+        shell_cancel(key.to_string());
+        let out = run.join().unwrap().expect("the command should have run");
+        (start.elapsed(), out)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stopping_a_run_ends_its_command_promptly() {
+        let (took, out) = stop_after("sleep 30", "t-stop");
+        assert!(out.stopped && !out.timed_out);
+        assert!(took < Duration::from_secs(5), "it took {took:?}");
+        assert!(out.stderr.contains("Stopped from the app"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stopping_ends_what_the_command_started_too() {
+        // The background sleep holds the output pipe open. Ending only the
+        // shell left the run waiting on that pipe until the sleep finished.
+        let (took, out) = stop_after("sleep 30 & sleep 30", "t-tree");
+        assert!(out.stopped);
+        assert!(took < Duration::from_secs(5), "it took {took:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_time_limit_ends_what_the_command_started_too() {
+        let start = Instant::now();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "sleep 30 & sleep 30".into()], None, Some(1_000), None).unwrap();
+        assert!(out.timed_out && !out.stopped);
+        assert!(start.elapsed() < Duration::from_secs(6), "it took {:?}", start.elapsed());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_command_that_finishes_is_not_reported_as_stopped() {
+        let out = run_blocking("sh".into(), vec!["-c".into(), "echo done".into()], None, None, Some("t-done".into())).unwrap();
+        assert!(!out.stopped && !out.timed_out && out.stdout.contains("done"));
     }
 }

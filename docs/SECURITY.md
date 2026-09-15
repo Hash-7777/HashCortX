@@ -168,7 +168,9 @@ From `src-tauri/src/commands/shell.rs`:
 - **Closed stdin** — a command that prompts for input gets end-of-file and fails fast, instead of waiting forever on input that can never arrive.
 - **Output cap** — 512 KB per stream, then the rest is dropped with a notice.
 
-Honest limit: killing the child kills the process the shell became. A command that puts work in the background can leave grandchildren running. This is a time limit, not a process supervisor.
+**Stopping an agent run ends its commands.** Every command an agent run starts carries that run's key, and pressing Stop ends each one still going. Commands you type in the terminal carry none, so stopping an agent never ends them.
+
+Ending a command, at its time limit or by Stop, ends what it started too: it runs in a process group of its own on macOS and Linux, and as a process tree on Windows. Honest limit: a process that deliberately leaves its group, as a daemon does, is not followed. This is a time limit and a stop, not a process supervisor.
 
 ### Where the agent's fetch tool may go
 

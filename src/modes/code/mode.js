@@ -2246,6 +2246,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (runAbort) runAbort.abort();
       runAbort = new AbortController();
       const { signal } = runAbort;
+      // Every command this run starts carries its key, so Stop can end them.
+      const stopKey = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      if (HC?.code) HC.code.shellCancelKey = stopKey;
 
       setStatus('Thinking…', 'thinking');
       cdrTraceReset('Run started');
@@ -2275,6 +2278,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (runBtn)  runBtn.style.display = '';
         if (stopBtn) stopBtn.style.display = 'none';
         runAbort = null;
+        if (HC?.code?.shellCancelKey === stopKey) HC.code.shellCancelKey = null;
         setRouterChip('Auto', '');
         // Light up HashNotch. app.js fires this for a chat turn, but Coder
         // has its own loop and never reached that line — so the one kind of run
@@ -2368,6 +2372,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     function stopRun() {
       if (runAbort) { runAbort.abort(); runAbort = null; }
+      // A command still going would hold the run until it finished; end it,
+      // and anything it started, now.
+      const key = HC?.code?.shellCancelKey;
+      if (key && HC.isTauri) HC.invoke('shell_cancel', { cancelKey: key }).catch(() => {});
       if ($('cdrRunBtn'))  $('cdrRunBtn').style.display  = '';
       if ($('cdrStopBtn')) $('cdrStopBtn').style.display = 'none';
       setStatus('Stopped', '');
