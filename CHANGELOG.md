@@ -69,6 +69,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   daemons, autostart folders, the Windows Startup folder and a shell's
   start-up files, plus `crontab` and `at` in the shell. So are browser cookies
   and profiles, mail and messages, and more credential files.
+- **A task given to a local model stays local.** When a model fails in the
+  Agent Swarm, 3D Forge or the ERP, a task on an Ollama model is handed only
+  to another Ollama model, never to a cloud provider; with none left, the run
+  stops with the error.
 
 ### Fixed
 

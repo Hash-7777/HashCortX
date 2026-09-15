@@ -282,6 +282,7 @@ What it cannot do: it does not hide the key from the renderer, which already hol
 ## Network behaviour
 
 - **No backend server.** Every AI request goes to the provider you configured, from the renderer or — for the three above — from the app itself. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
+- **A task given to a local model stays local.** The Agent Swarm, 3D Forge and the ERP switch to another model when one fails. A task on an Ollama model is only ever handed to another Ollama model, and if none can take it the run stops with the error. A task on a cloud model may move to another provider you have configured, or to a local model; the run's trace names each switch. Chat and Coder never switch on their own.
 - **No telemetry.** No analytics, no usage reporting, no crash reporting.
 - **No accounts.** Nothing to sign up for.
 - **No auto-updater.** The app never reaches out on its own.

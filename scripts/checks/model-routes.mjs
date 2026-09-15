@@ -159,6 +159,28 @@ console.log('\nA model that cannot hold the job is not asked while one that can 
   ok('when nothing can hold it, the run still goes on with what answers', only.next('cloud:groq:openai/gpt-oss-120b', E('x', {})) === 'cloud:groq:openai/gpt-oss-20b');
 }
 
+console.log('\nA job given to a local model stays local:');
+{
+  const local = [
+    { value: 'llama3.2:3b', label: 'llama3.2:3b' },
+    { value: 'qwen2.5-coder:7b', label: 'qwen2.5-coder:7b' },
+  ];
+  const mixed = [...opts, ...local];
+  const cloud = (v) => v.startsWith('cloud:');
+  for (const kind of ['retired', 'limit', 'key', 'busy', 'slow', 'other']) {
+    const next = R.nextRoutes({ failed: 'llama3.2:3b', kind, options: mixed, store: memory() });
+    ok(`after a local model fails (${kind}), no cloud model is offered`, !next.some(cloud));
+  }
+  ok('... another local model still is', R.nextRoutes({ failed: 'llama3.2:3b', kind: 'busy', options: mixed, store: memory() })[0] === 'qwen2.5-coder:7b');
+  const alone = R.createRun({ options: () => [...opts, local[0]], store: memory() });
+  ok('with no other local model, the run is told there is nothing left', alone.next('llama3.2:3b', E('Failed to fetch')) === null);
+  const small = R.createRun({ options: () => mixed, fits: (v) => cloud(v), store: memory() });
+  ok('a local model too small for the job is started as chosen, not swapped for a cloud one', small.start('llama3.2:3b') === 'llama3.2:3b');
+  ok('... and when it fails, nothing in the cloud takes over', small.next('llama3.2:3b', E('x', {})) === 'qwen2.5-coder:7b' && !cloud(small.next('qwen2.5-coder:7b', E('x', {})) || ''));
+  const up = R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind: 'limit', options: mixed, store: memory() });
+  ok('a cloud job may still fall back to a local model', up.some((v) => !cloud(v)));
+}
+
 console.log('\nA streamed answer is waited on while it keeps arriving:');
 {
   // A clock the check moves by hand.

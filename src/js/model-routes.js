@@ -25,6 +25,8 @@
 //   slow      no answer in time: other providers, then this one
 //   other     anything else: this provider's others, then the rest
 //
+// A local model hands over only to another local model, whatever the kind.
+//
 // A retired model is remembered for two weeks, so the next run skips it
 // rather than rediscovering it. Retirement is permanent, but a "not found" can
 // also be a key without access to a model, and two weeks lets that recover.
@@ -135,7 +137,11 @@
       if (p === from) continue;
       if (!bestOf.has(p) || score(o) > score(bestOf.get(p))) bestOf.set(p, o);
     }
-    const others = [...bestOf.values()].sort(byStrength);
+    // A job given to a local model stays local. Choosing one is often the
+    // point — the task and its files are not to go to a cloud provider — so
+    // only another local model may take it over, and with none left the run
+    // ends with the local model's own error.
+    const others = from === 'local' ? [] : [...bestOf.values()].sort(byStrength);
     const values = (list) => list.map((o) => o.value);
     if (kind === 'stopped') return [];
     if (kind === 'limit' || kind === 'key') return values(others);  // `same` is empty: the provider is shut
