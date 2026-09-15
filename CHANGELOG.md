@@ -93,6 +93,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   contents are written beside the old file and swapped in one step, keeping
   its permissions, so a crash or a full disk mid-save leaves the old file
   intact instead of half-written.
+- **Rewriting a whole Windows file keeps its line endings.** write_file over
+  a file that used CRLF on every line saved the new text with LF, changing
+  every line. It now keeps CRLF and tells the agent so; text that already
+  carries CR, and a file that mixed the two, are saved as written.
 - **Stop ends the commands a Coder run started.** Pressing Stop left a
   running command going until it finished or reached its five-minute limit,
   and the run waited on it. Stop now ends each command of that run, and ending

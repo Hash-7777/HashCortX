@@ -14,7 +14,7 @@
 //     containing them would be saved as something else.
 //   · Line endings stay as they were. In a file written with CRLF, a search
 //     written with LF is matched in its CRLF form, rather than the whole file
-//     being rewritten with LF.
+//     being rewritten with LF. write_file keeps them too (keepLineEndings).
 //
 // Pure: takes strings and bytes, returns strings. No DOM, no storage.
 //
@@ -101,5 +101,21 @@
     );
   }
 
-  window.HCCodePatch = { applyPatch, textOf, bytesFromBase64, count };
+  /**
+   * `text` with CRLF line endings when the file it replaces had CRLF on every
+   * line and `text` has none.
+   *
+   * A model writes LF, so a whole-file rewrite of a Windows file changed every
+   * line ending in it. Left as written: a file that mixed the two, one with no
+   * line endings, and text that already carries a CR — which is how a model
+   * that means to write CRLF, or to change a file's endings on purpose, says
+   * so. Returns `{ text, kept }`, `kept` true when the endings were changed.
+   */
+  function keepLineEndings(before, text) {
+    const crlfOnly = typeof before === 'string' && before.includes('\r\n') && !/(^|[^\r])\n/.test(before);
+    if (!crlfOnly || text.includes('\r') || !text.includes('\n')) return { text, kept: false };
+    return { text: text.replace(/\n/g, '\r\n'), kept: true };
+  }
+
+  window.HCCodePatch = { applyPatch, textOf, bytesFromBase64, count, keepLineEndings };
 })();

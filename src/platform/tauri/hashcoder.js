@@ -56,15 +56,19 @@
         await HC.undo.drop(record);
         throw new Error(`Permission denied: replace ${path}, which Undo could not restore`);
       }
-      await HC.invoke('fs_write_file', { path, content: String(content) });
+      // A file that had Windows line endings keeps them (js/code/patch.js).
+      const ends = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
+        || { text: String(content), kept: false };
+      await HC.invoke('fs_write_file', { path, content: ends.text });
       // The resulting text, kept alongside the previous text so the panel can
       // show a real diff. patch_file has no `content` argument of its own — it
       // computes the new file and calls through here — so this is the only
       // place the finished result is known without reading the file again.
-      if (record) record.after = String(content);
+      if (record) record.after = ends.text;
       /* Return a structured result instead of Tauri's null so the UI
          shows something meaningful rather than displaying "null" */
-      return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(String(content)).length });
+      return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
+        ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}) });
     },
 
     async listDir(path) {
@@ -274,7 +278,7 @@
     },
     {
       name: 'write_file',
-      description: 'Create a new file or fully overwrite an existing one. Use for new files or when rewriting >50% of content. For smaller edits, prefer patch_file.',
+      description: 'Create a new file or fully overwrite an existing one. Use for new files or when rewriting >50% of content. For smaller edits, prefer patch_file. A file that used Windows (CRLF) line endings on every line keeps them.',
       parameters: {
         path:    'Absolute path (parent dirs are created automatically)',
         content: 'Complete file content as a string',

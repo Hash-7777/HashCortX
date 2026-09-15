@@ -61,6 +61,18 @@ console.log('\nLine endings stay as they were:');
   ok('a file that mixes them is still patched', P.applyPatch(mixed, 'a\nb\nc', 'X', 'f') === 'X\n');
 }
 
+console.log('\nA whole-file rewrite keeps a Windows file\'s line endings:');
+{
+  const K = P.keepLineEndings;
+  ok('LF text over a CRLF file is written with CRLF', K('a\r\nb\r\n', 'x\ny\nz\n').text === 'x\r\ny\r\nz\r\n' && K('a\r\nb\r\n', 'x\n').kept);
+  ok('text over an LF file is left as written', K('a\nb\n', 'x\ny\n').text === 'x\ny\n' && !K('a\nb\n', 'x\n').kept);
+  ok('a file that mixed the two is not guessed at', K('a\r\nb\n', 'x\ny\n').text === 'x\ny\n');
+  ok('text that already carries a CR is left as written', K('a\r\nb\r\n', 'x\r\ny\n').text === 'x\r\ny\n');
+  ok('a new file is left as written', K(null, 'x\ny\n').text === 'x\ny\n');
+  ok('text with no line ending is left alone', K('a\r\nb\r\n', 'one line').text === 'one line' && !K('a\r\nb\r\n', 'one line').kept);
+  ok('a byte-order mark stays where it was', K('\ufeffa\r\nb\r\n', '\ufeffx\ny\n').text === '\ufeffx\r\ny\r\n');
+}
+
 console.log('\nOnly UTF-8 text is patched:');
 {
   const enc = (s) => new TextEncoder().encode(s);
@@ -134,6 +146,14 @@ console.log('\npatch_file writes back the whole file:');
   let missing = '';
   try { await code.patchFile('/p/none.txt', 'a', 'b'); } catch (e) { missing = String(e.message); }
   ok('a file that is not there says to use write_file', /could not be read[\s\S]*write_file/.test(missing));
+
+  disk.set('/p/app.config', 'one\r\ntwo\r\n');
+  const res = JSON.parse(await code.writeFile('/p/app.config', 'uno\ndos\ntres\n'));
+  ok('write_file over a Windows file saves it with CRLF', writes.at(-1).content === 'uno\r\ndos\r\ntres\r\n');
+  ok('... reports the bytes it saved', res.bytes === 'uno\r\ndos\r\ntres\r\n'.length);
+  ok('... and tells the model the endings were kept', /kept as CRLF/.test(res.lineEndings || ''));
+  const plain = JSON.parse(await code.writeFile('/p/new.txt', 'a\nb\n'));
+  ok('a new file is saved as written, with no note', writes.at(-1).content === 'a\nb\n' && !('lineEndings' in plain));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/patch.js)`);
