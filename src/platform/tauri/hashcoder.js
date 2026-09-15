@@ -444,7 +444,7 @@
     },
     {
       name: 'shell_run',
-      description: 'Run a shell command. Use for git, builds, tests, and file inspection. INSTALL RULE: before running npm/pip/cargo install, check if node_modules/venv/target already exists — skip install if it does. Never pipe remote content to a shell (curl … | sh is blocked). Never install packages not listed in the project manifest without asking the user.',
+      description: 'Run a shell command. Use for git, builds, tests, and file inspection. INSTALL RULE: before running npm/pip/cargo install, check if node_modules/venv/target already exists — skip install if it does. Never pipe remote content to a shell (curl … | sh is blocked). Never install packages not listed in the project manifest without asking the user. Environment settings named like a key, token or password are not passed to the command; if one is needed, say so and let the user run it in the terminal.',
       parameters: {
         command: { type: 'string', description: 'Command name, e.g. "npm", "git", "grep"' },
         args:    { type: 'array', items: { type: 'string' }, description: 'Arguments array, e.g. ["install", "--save-dev", "lodash"]. For installs: only packages already in package.json/requirements.txt/Cargo.toml.' },

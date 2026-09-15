@@ -160,6 +160,8 @@ This is the important nuance. HashCortx does **not** restrict the agent to a fix
 
 **Be clear about what this is not.** The agent composes the command string, so obfuscation — base64, `eval`, splicing a word out of a variable — defeats any string match, and no addition to the list changes that. An allowlist would be stronger. Treat the shell tool as what it is: an agent holding your shell, restrained by a permission prompt and a list of the worst commands.
 
+**An agent's command starts without your secrets.** A command's output goes back to the model, and so to its provider, so every command the agent runs starts without the environment settings whose names mark them as secrets — any with `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASS`, `PASSPHRASE`, `CREDENTIALS`, `AUTH` or `PAT` as a whole word of the name, and `DATABASE_URL`. `SSH_AUTH_SOCK` is kept: it is the path to your SSH agent, not a key, and git over SSH needs it. A command you type in the terminal keeps everything. The agent is told this, so a command that needs one of those settings is one to run yourself. This goes by name only: a secret kept in a setting with an ordinary name, or in a file the command can read, is not covered.
+
 ### Every command run is bounded
 
 From `src-tauri/src/commands/shell.rs`:

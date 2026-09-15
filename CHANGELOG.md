@@ -77,6 +77,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `~/.hashcortx` — Undo's copies of your files, the audit log, the usage log
   and saved 3D Forge projects — is readable by your account only, and is set
   that way at every launch.
+- **An agent's command starts without your secrets.** Environment settings
+  named like a key, token, secret or password, and `DATABASE_URL`, are left
+  out of every command the agent runs. Commands you type in the terminal
+  keep them.
 
 ### Fixed
 

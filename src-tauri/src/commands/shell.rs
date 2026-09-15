@@ -188,6 +188,52 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Comma
     Ok(cmd)
 }
 
+/// Which of the app's environment a command starts with.
+#[derive(Clone, Copy, PartialEq, Debug)]
+enum Env {
+    /// Everything, as a terminal would give it. For commands a person types.
+    Inherit,
+    /// Everything except settings named like a secret. For the agent.
+    WithoutSecrets,
+}
+
+/// Words that mark an environment setting as a secret, when one of them is a
+/// whole word of its name: `OPENAI_API_KEY`, `GH_TOKEN`, `DB_PASSWORD`.
+const SECRET_WORDS: &[&str] = &[
+    "KEY", "KEYS", "APIKEY", "TOKEN", "TOKENS", "SECRET", "SECRETS", "PASSWORD",
+    "PASSWD", "PASS", "PASSPHRASE", "CREDENTIAL", "CREDENTIALS", "AUTH", "PAT",
+];
+/// Whole names that carry a secret without saying so: a connection string
+/// holds its password.
+const SECRET_NAMES: &[&str] = &["DATABASE_URL"];
+/// Named like a secret, and not one: the path of the SSH agent's socket. It
+/// holds no key, and git over SSH needs it.
+const NOT_SECRET: &[&str] = &["SSH_AUTH_SOCK"];
+
+/// Whether an environment setting's name marks it as a secret.
+///
+/// A command's output goes back to the model, and so to its provider, so an
+/// agent command starts without these. A name is judged by its words, not by
+/// what it contains: `GIT_AUTHOR_NAME` holds a name, not a credential.
+fn is_secret_name(name: &str) -> bool {
+    let upper = name.to_ascii_uppercase();
+    if NOT_SECRET.contains(&upper.as_str()) {
+        return false;
+    }
+    SECRET_NAMES.contains(&upper.as_str())
+        || upper.split(['_', '-', '.']).any(|word| SECRET_WORDS.contains(&word))
+}
+
+/// Leave out of `cmd`'s environment every setting of this process named like a
+/// secret.
+fn without_secrets(cmd: &mut Command) {
+    for (name, _) in std::env::vars_os() {
+        if name.to_str().is_some_and(is_secret_name) {
+            cmd.env_remove(&name);
+        }
+    }
+}
+
 // ── Stopping a run's commands ─────────────────────────────────────────────
 //
 // An agent run in the app passes a stop key with every command it starts. When
@@ -364,7 +410,7 @@ pub async fn shell_run_line(
 ) -> Result<ShellOutput, String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms, None)).await
+    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms, None, Env::Inherit)).await
 }
 
 #[tauri::command]
@@ -376,11 +422,15 @@ pub async fn shell_run_line_stream(
 ) -> Result<(), String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, None, on_chunk)).await
+    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, None, Env::Inherit, on_chunk)).await
 }
 
 // The commands run on a worker thread (see `off_main`); the work itself is
 // below, as ordinary blocking functions.
+//
+// shell_run and shell_run_stream are the agent's: the command starts without
+// the settings `is_secret_name` picks out. The two line variants above are the
+// terminal's, where a person types the command, and inherit everything.
 #[tauri::command]
 pub async fn shell_run(
     command: String,
@@ -389,7 +439,7 @@ pub async fn shell_run(
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
 ) -> Result<ShellOutput, String> {
-    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key)).await
+    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key, Env::WithoutSecrets)).await
 }
 
 #[tauri::command]
@@ -401,7 +451,7 @@ pub async fn shell_run_stream(
     cancel_key: Option<String>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
-    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, on_chunk)).await
+    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, Env::WithoutSecrets, on_chunk)).await
 }
 
 fn run_blocking(
@@ -410,8 +460,12 @@ fn run_blocking(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
+    env: Env,
 ) -> Result<ShellOutput, String> {
     let mut cmd = prepare(&command, &args, &cwd)?;
+    if env == Env::WithoutSecrets {
+        without_secrets(&mut cmd);
+    }
     let timeout = resolve_timeout(timeout_ms);
     let stop = StopFlag::register(cancel_key);
     if stop.is_set() {
@@ -460,9 +514,13 @@ fn run_stream_blocking(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
+    env: Env,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
     let mut cmd = prepare(&command, &args, &cwd)?;
+    if env == Env::WithoutSecrets {
+        without_secrets(&mut cmd);
+    }
     let timeout = resolve_timeout(timeout_ms);
     let stop = StopFlag::register(cancel_key);
     if stop.is_set() {
@@ -657,7 +715,7 @@ mod tests {
     #[test]
     fn a_command_asked_for_after_its_run_was_stopped_does_not_start() {
         shell_cancel("t-late".into());
-        let out = run_blocking("echo".into(), vec!["hi".into()], None, None, Some("t-late".into()));
+        let out = run_blocking("echo".into(), vec!["hi".into()], None, None, Some("t-late".into()), Env::Inherit);
         assert_eq!(out.err().as_deref(), Some(STOPPED_BEFORE_START));
     }
 
@@ -675,7 +733,7 @@ mod tests {
     fn stop_after(line: &str, key: &str) -> (Duration, ShellOutput) {
         let (line, k) = (line.to_string(), key.to_string());
         let start = Instant::now();
-        let run = thread::spawn(move || run_blocking("sh".into(), vec!["-c".into(), line], None, None, Some(k)));
+        let run = thread::spawn(move || run_blocking("sh".into(), vec!["-c".into(), line], None, None, Some(k), Env::Inherit));
         thread::sleep(Duration::from_millis(400));
         shell_cancel(key.to_string());
         let out = run.join().unwrap().expect("the command should have run");
@@ -705,7 +763,7 @@ mod tests {
     #[test]
     fn the_time_limit_ends_what_the_command_started_too() {
         let start = Instant::now();
-        let out = run_blocking("sh".into(), vec!["-c".into(), "sleep 30 & sleep 30".into()], None, Some(1_000), None).unwrap();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "sleep 30 & sleep 30".into()], None, Some(1_000), None, Env::Inherit).unwrap();
         assert!(out.timed_out && !out.stopped);
         assert!(start.elapsed() < Duration::from_secs(6), "it took {:?}", start.elapsed());
     }
@@ -713,7 +771,43 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_command_that_finishes_is_not_reported_as_stopped() {
-        let out = run_blocking("sh".into(), vec!["-c".into(), "echo done".into()], None, None, Some("t-done".into())).unwrap();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "echo done".into()], None, None, Some("t-done".into()), Env::Inherit).unwrap();
         assert!(!out.stopped && !out.timed_out && out.stdout.contains("done"));
+    }
+
+    #[test]
+    fn settings_named_like_a_secret_are_recognised() {
+        for name in [
+            "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN", "GITHUB_TOKEN", "GH_TOKEN", "NPM_TOKEN", "DATABASE_URL",
+            "GOOGLE_APPLICATION_CREDENTIALS", "DB_PASSWORD", "openai_api_key", "SMTP_PASS",
+            "SOME_APIKEY", "GITLAB_PAT",
+        ] {
+            assert!(is_secret_name(name), "{name} should be treated as a secret");
+        }
+    }
+
+    #[test]
+    fn ordinary_settings_are_not_mistaken_for_secrets() {
+        for name in [
+            "PATH", "HOME", "PWD", "OLDPWD", "USER", "SHELL", "LANG", "TERM", "TMPDIR",
+            "SSH_AUTH_SOCK", "GIT_AUTHOR_NAME", "KEYCHAIN_PATH", "TOKENIZERS_PARALLELISM",
+            "NODE_ENV", "CARGO_HOME", "PASSAGE_DIR",
+        ] {
+            assert!(!is_secret_name(name), "{name} should be passed on");
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_agent_command_starts_without_secrets_and_a_typed_one_keeps_them() {
+        // Names used by no other test, so setting them here cannot change another.
+        std::env::set_var("HC_SHELL_TEST_API_KEY", "value-a");
+        std::env::set_var("HC_SHELL_TEST_PLAIN", "value-b");
+        let line = "echo ${HC_SHELL_TEST_API_KEY:-absent} ${HC_SHELL_TEST_PLAIN:-absent}";
+        let agent = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Env::WithoutSecrets).unwrap();
+        let typed = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Env::Inherit).unwrap();
+        assert_eq!(agent.stdout.trim(), "absent value-b");
+        assert_eq!(typed.stdout.trim(), "value-a value-b");
     }
 }
