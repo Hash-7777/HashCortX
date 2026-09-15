@@ -255,7 +255,7 @@ A command written without `async` runs on the main thread, and the window waits 
 
 **Two things worth knowing, because they surprise people:**
 
-1. **AI requests do not go through Rust.** `app.js` calls `fetch()` in the renderer, straight to the provider, with the API key in the `Authorization` header. Rust is involved only in filesystem, shell, audit, and usage logging.
+1. **Most AI requests do not go through Rust.** `app.js` calls `fetch()` in the renderer, straight to the provider, with the API key in the `Authorization` header. The exceptions are SambaNova, NVIDIA and Kimi Code, whose servers refuse a web page: `commands/provider.rs` sends those, to fixed addresses. Rust also reads web pages for the agent's fetch tool (`net.rs`) and handles the filesystem, the shell, embeddings, undo checkpoints, exports, and the audit and usage logs.
 
 2. **The denylist is enforced in Rust, not JavaScript.** `guard.js` raises the permission dialog, but `fs.rs` and `shell.rs` consult `security/denylist.rs` independently. A compromised prompt that talks its way past the dialog still cannot read `~/.ssh` — through either door. That was not true until recently: `shell.rs` checked only the working directory, never the command text, so `cat ~/.ssh/id_ed25519` ran even though `fs_read_file` refused the identical path. Both are checked now, and the difference is covered by tests in `denylist.rs`.
 

@@ -59,7 +59,7 @@ Every AI request goes straight from your machine to the provider whose key you e
 
 **Your keys, your models.** Eleven cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run. The model menu is each provider's own list for your key — Settings → API keys → Update model lists asks them again — and every request asks for the longest answer that model can write, sized so the question and the answer fit.
 
-**The agent asks before it acts.** File and shell calls hit a Rust permission gate and a compiled denylist that no prompt can talk its way past.
+**The agent asks before it acts where it matters.** Running a command, deleting a file, reading a web page the model picked and touching anything outside your project raise a permission dialog; a change inside the project is shown as a diff you can undo, and one Undo could not take back asks first. Underneath the dialog, a denylist compiled into Rust refuses keys, credentials and system folders, whatever the dialog was told.
 
 **Search that understands meaning.** Ask about "stopping a runaway command" and your notes about killing a process on timeout come back — from a model that ships inside the app and never sends anything anywhere.
 
@@ -228,7 +228,7 @@ No bundler is a deliberate constraint. The interface is about 2.5 MB of source t
 
 **No backend, no telemetry, no accounts, no auto-updater.** Every network call is for work you asked for: the AI providers you added a key for, your Ollama server, the search and reference services an agent can use, pages an agent is asked to read, and the Python sandbox's runtime, loaded from jsDelivr. [SECURITY.md](docs/SECURITY.md) lists every address.
 
-**A permission gate in Rust.** Sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. Every guarded action is logged to `~/.hashcortx/audit.log`.
+**A denylist in Rust, under the permission dialog.** The dialog is the app's; the denylist is compiled into its Rust side, and sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. Every guarded action is logged to `~/.hashcortx/audit.log`.
 
 **Keys are not encrypted.** They sit in an app-scoped local directory protected by your user account, not by Keychain encryption — because a Keychain item's access list is bound to the code signature, and an unsigned build would re-prompt for every key on every update. Code signing is on the roadmap; the reasoning is written out in full in [SECURITY.md](docs/SECURITY.md).
 
