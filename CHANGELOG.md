@@ -127,6 +127,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the Keychain. It now says requests go to the service you chose, as
   docs/SECURITY.md does. The README's network and offline answers are
   corrected the same way.
+- **The knowledge base's privacy statement is exact.** It said what you index
+  never crosses a network boundary. Indexing and searching do stay on your
+  computer, but the passages a search finds go into the request to the model
+  you are using, so with a cloud model they reach its provider. The README and
+  docs/SECURITY.md now say so.
 
 ### Removed
 

@@ -115,7 +115,7 @@ When a run finishes it opens as its Result: each agent's part as a conversation 
 Anything you ingest becomes searchable by **meaning**, not just by matching words — `bge-small-en-v1.5` (MIT) ships inside the app and runs natively in Rust. It is inference-only: a sentence encoder, not a language model. On an x86-64 machine without AVX2 the app is built without it and searches by keyword instead; see [Older processors](#older-processors-without-avx2).
 
 - **Nothing is fetched.** No first-run download, no cache to warm. It works offline on first launch.
-- **Nothing is sent.** What you index never crosses a network boundary.
+- **Nothing is sent to index it.** Indexing and searching run on your computer. The passages a search finds go only into a request to the model you are using, so with a cloud model they reach that provider.
 - **34 MB of the download.** That is the price of the two lines above, paid once.
 
 Results are ranked by meaning and by keyword at once, then fused — so a rare error code still finds its exact match while a paraphrased question still finds the right passage.

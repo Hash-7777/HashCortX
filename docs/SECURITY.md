@@ -304,7 +304,8 @@ What you ingest is indexed twice: by keyword, and as a vector produced by a sent
 This matters for the privacy claim above, so it is worth being precise about:
 
 - **Nothing is downloaded.** The weights are compiled into the binary. There is no first-run fetch, no cache to warm, and no host to reach.
-- **Nothing is uploaded.** Embedding happens in the same process as the rest of the app. What you index never crosses a network boundary — not to a provider, not to HashCortx, which has no infrastructure to send it to.
+- **Nothing is uploaded to index it.** Embedding happens in the same process as the rest of the app, so building the index and searching it never cross a network boundary — not to a provider, not to HashCortx, which has no infrastructure to send it to.
+- **What a search finds is another matter.** When chat or the coding agent uses the knowledge base, the passages it finds become part of the request to the model you chose. With Ollama that stays on your machine or your network; with a cloud model it goes to that provider, like the rest of the conversation.
 - **It works with the network off**, on the first launch, with no configuration.
 
 The previous implementation did none of this. It loaded a library from a CDN and fetched weights from `huggingface.co`, a host `connect-src` does not permit — so every embedding attempt failed, was swallowed, and semantic search never ran in any shipped build while the docs described it as working. Moving the model into the binary means no CSP rule can silently disable it again.
