@@ -89,6 +89,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A file the agent saves is replaced whole or not at all.** The new
+  contents are written beside the old file and swapped in one step, keeping
+  its permissions, so a crash or a full disk mid-save leaves the old file
+  intact instead of half-written.
 - **Stop ends the commands a Coder run started.** Pressing Stop left a
   running command going until it finished or reached its five-minute limit,
   and the run waited on it. Stop now ends each command of that run, and ending

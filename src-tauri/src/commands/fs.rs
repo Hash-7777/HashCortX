@@ -255,7 +255,95 @@ pub fn fs_write_file(path: String, content: String) -> Result<(), String> {
         }
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    fs::write(&path, content).map_err(|e| e.to_string())
+    write_whole(Path::new(&path), content.as_bytes()).map_err(|e| e.to_string())
+}
+
+/// Replace a file's contents so that a failure part-way through — the app
+/// closing, the disk filling, the power going — leaves the previous contents
+/// whole instead of part of a file.
+///
+/// The bytes go to a hidden file beside the target, take the target's
+/// permissions, are flushed to the disk, and are renamed over the target in
+/// one step. Where a rename would change more than the contents, the file is
+/// written in place instead, as it always was:
+///   · a file with more than one name (a hard link) — a rename would give this
+///     name a new file and leave the others holding the old contents;
+///   · a file owned by another account or group than a new one would be;
+///   · a read-only file, which the write should fail on as before;
+///   · a folder that will not take a new file although the file is writable;
+///   · a rename the system refuses, as Windows does while another program has
+///     the file open.
+/// A link is followed, so the file it names is replaced and the link stays.
+/// What a rename does not carry over: extended attributes, such as Finder tags
+/// on macOS, and the file's creation date.
+fn write_whole(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::io::Write;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+
+    let target = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let old = fs::metadata(&target).ok();
+    if old.as_ref().is_some_and(|m| !m.is_file() || m.permissions().readonly() || has_other_names(m)) {
+        return fs::write(&target, bytes);
+    }
+    let (Some(dir), Some(name)) = (target.parent(), target.file_name()) else {
+        return fs::write(&target, bytes);
+    };
+    let tmp = dir.join(format!(
+        ".{}.hc-{}-{}.tmp",
+        name.to_string_lossy(),
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    let Ok(mut file) = fs::OpenOptions::new().write(true).create_new(true).open(&tmp) else {
+        return fs::write(&target, bytes);
+    };
+    if let Some(old) = &old {
+        if !same_owner(old, &file) {
+            drop(file);
+            let _ = fs::remove_file(&tmp);
+            return fs::write(&target, bytes);
+        }
+    }
+    let written = file
+        .write_all(bytes)
+        .and_then(|_| match &old {
+            Some(old) => file.set_permissions(old.permissions()),
+            None => Ok(()),
+        })
+        .and_then(|_| file.sync_all());
+    drop(file);
+    if let Err(e) = written {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
+    if fs::rename(&tmp, &target).is_err() {
+        let _ = fs::remove_file(&tmp);
+        return fs::write(&target, bytes);
+    }
+    Ok(())
+}
+
+/// Whether the file has a name besides this one.
+#[cfg(unix)]
+fn has_other_names(meta: &fs::Metadata) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    meta.nlink() > 1
+}
+#[cfg(not(unix))]
+fn has_other_names(_meta: &fs::Metadata) -> bool {
+    false
+}
+
+/// Whether a new file made here has the owner and group the old one had.
+#[cfg(unix)]
+fn same_owner(old: &fs::Metadata, new: &fs::File) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    new.metadata().is_ok_and(|m| m.uid() == old.uid() && m.gid() == old.gid())
+}
+#[cfg(not(unix))]
+fn same_owner(_old: &fs::Metadata, _new: &fs::File) -> bool {
+    true
 }
 
 #[tauri::command]
@@ -1042,5 +1130,110 @@ mod containment_tests {
         assert!(!fs_path_inside_root(p, sibling.join("a.md").to_string_lossy().into_owned()));
 
         let _ = fs::remove_dir_all(&root);
+    }
+
+    /// Every file in `dir` whose name marks it as a write's temporary file.
+    fn leftovers(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir).unwrap().flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains(".hc-") && n.ends_with(".tmp"))
+            .collect()
+    }
+
+    #[test]
+    fn a_write_replaces_the_whole_file_and_leaves_nothing_behind() {
+        let dir = scratch("write-whole");
+        let file = dir.join("notes.txt");
+        fs::write(&file, "the old contents, which are longer than the new ones\n").unwrap();
+        fs_write_file(file.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "new\n");
+        let fresh = dir.join("fresh.txt");
+        fs_write_file(fresh.to_string_lossy().into_owned(), "made\n".into()).unwrap();
+        assert_eq!(fs::read_to_string(&fresh).unwrap(), "made\n");
+        assert!(leftovers(&dir).is_empty(), "left behind: {:?}", leftovers(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_ordinary_file_is_swapped_in_whole_and_keeps_its_permissions() {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+        let dir = scratch("write-swap");
+        let file = dir.join("build.sh");
+        fs::write(&file, "echo old\n").unwrap();
+        fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
+        let before = fs::metadata(&file).unwrap().ino();
+        fs_write_file(file.to_string_lossy().into_owned(), "echo new\n".into()).unwrap();
+        let after = fs::metadata(&file).unwrap();
+        // A new file renamed over the old one, never the old one rewritten.
+        assert_ne!(after.ino(), before);
+        assert_eq!(after.permissions().mode() & 0o777, 0o755);
+        assert_eq!(fs::read_to_string(&file).unwrap(), "echo new\n");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_stays_a_link_and_the_file_it_names_is_written() {
+        let dir = scratch("write-link");
+        let real = dir.join("real.txt");
+        let link = dir.join("link.txt");
+        fs::write(&real, "old\n").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        fs_write_file(link.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
+        assert_eq!(fs::read_to_string(&real).unwrap(), "new\n");
+        assert!(leftovers(&dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_file_with_two_names_is_written_in_place_so_both_see_it() {
+        use std::os::unix::fs::MetadataExt;
+        let dir = scratch("write-hardlink");
+        let one = dir.join("one.txt");
+        let two = dir.join("two.txt");
+        fs::write(&one, "old\n").unwrap();
+        fs::hard_link(&one, &two).unwrap();
+        let before = fs::metadata(&one).unwrap().ino();
+        fs_write_file(one.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        assert_eq!(fs::metadata(&one).unwrap().ino(), before);
+        assert_eq!(fs::read_to_string(&two).unwrap(), "new\n");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_folder_that_takes_no_new_file_still_lets_its_file_be_written() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = scratch("write-closed-dir");
+        let file = dir.join("config.txt");
+        fs::write(&file, "old\n").unwrap();
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).unwrap();
+        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into());
+        fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
+        result.unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "new\n");
+        assert!(leftovers(&dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_read_only_file_is_still_refused() {
+        let dir = scratch("write-readonly");
+        let file = dir.join("locked.txt");
+        fs::write(&file, "old\n").unwrap();
+        let mut perms = fs::metadata(&file).unwrap().permissions();
+        perms.set_readonly(true);
+        fs::set_permissions(&file, perms.clone()).unwrap();
+        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into());
+        #[allow(clippy::permissions_set_readonly_false)]
+        perms.set_readonly(false);
+        fs::set_permissions(&file, perms).unwrap();
+        assert!(result.is_err());
+        assert_eq!(fs::read_to_string(&file).unwrap(), "old\n");
+        assert!(leftovers(&dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
     }
 }

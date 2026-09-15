@@ -69,6 +69,8 @@ Choosing **Allow for session** on a file also covers the folder it is in, so rea
 
 **Writing inside the project is free because Undo can put the file back.** Where it cannot — a binary file, one too large for a copy to be kept, one that is not UTF-8 text — replacing the file asks first and says why, and deleting it says so in the question. `patch_file` edits only UTF-8 text, from the file's full contents.
 
+**A file is replaced whole or not at all.** `fs_write_file` writes the new contents to a hidden file beside the old one, gives it the old file's permissions, flushes it to the disk and renames it over the old one in one step, so a crash or a full disk part-way leaves the previous contents intact. A link is followed and stays a link. Where a rename would change more than the contents — a file with a second name, one owned by another account or group, a folder that will not take a new file, or a rename the system refuses — the file is written in place, as before. A rename does not carry over extended attributes, such as Finder tags, or the file's creation date.
+
 **A move is two questions, not one.** It ends a file at one path and starts it at another, and each end is judged on its own, so moving something out of the project asks about where it is going even though writing inside the project does not ask at all.
 
 **Virtual OS and 3D Forge are not gaps in this, despite what this document used to say.** It claimed their native calls were not routed through the guard. Neither mode invokes a native command itself. Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file.
