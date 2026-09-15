@@ -90,10 +90,15 @@ console.log('\npatch_file writes back the whole file:');
   // The real hashcoder.js, with the native side stood in for.
   const disk = new Map();
   const writes = [];
+  const sealed = [];
   const HC = {
     isTauri: true,
     guard: { request: async () => true },
-    undo: { capture: async (path) => ({ id: 'c1', path, existed: disk.has(path), content: disk.get(path) ?? null, unrestorable: null }) },
+    undo: {
+      capture: async (path) => ({ id: 'c1', path, existed: disk.has(path), content: disk.get(path) ?? null, unrestorable: null }),
+      // Undo's record of the file as the write left it: taken after the write.
+      seal: async (record) => { sealed.push({ path: record?.path, content: disk.get(record?.path) }); },
+    },
     invoke: async (cmd, args) => {
       if (cmd === 'fs_read_base64') {
         if (!disk.has(args.path)) throw new Error(`Cannot access "${args.path}"`);
@@ -154,6 +159,8 @@ console.log('\npatch_file writes back the whole file:');
   ok('... and tells the model the endings were kept', /kept as CRLF/.test(res.lineEndings || ''));
   const plain = JSON.parse(await code.writeFile('/p/new.txt', 'a\nb\n'));
   ok('a new file is saved as written, with no note', writes.at(-1).content === 'a\nb\n' && !('lineEndings' in plain));
+  ok('Undo records the file as each write left it, after the write', sealed.at(-1)?.path === '/p/new.txt' && sealed.at(-1)?.content === 'a\nb\n'
+    && sealed.some((x) => x.path === '/p/app.config' && x.content === 'uno\r\ndos\r\ntres\r\n'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/patch.js)`);

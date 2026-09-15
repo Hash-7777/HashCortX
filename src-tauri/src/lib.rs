@@ -7,7 +7,10 @@ mod security;
 
 use commands::{
     audit::{audit_log_append, audit_log_read},
-    checkpoint::{checkpoint_drop, checkpoint_list, checkpoint_read, checkpoint_save},
+    checkpoint::{
+        checkpoint_changed, checkpoint_drop, checkpoint_list, checkpoint_read, checkpoint_save,
+        checkpoint_seal,
+    },
     embed::{embed_available, embed_texts},
     export::export_write_file,
     forge_projects::{forge_projects_read, forge_projects_write},
@@ -106,6 +109,11 @@ pub fn run() {
             checkpoint_list,
             checkpoint_read,
             checkpoint_drop,
+            // What the file looks like just after the change, and whether it
+            // still does — so Undo asks before putting old contents back over
+            // edits made since.
+            checkpoint_seal,
+            checkpoint_changed,
             // Export — write a file the user named in a native save dialog
             export_write_file,
             // Saved 3D projects. In a file rather than the renderer's

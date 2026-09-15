@@ -64,6 +64,27 @@
     },
 
     /**
+     * Remember what the file looks like now, just after the change, so Undo
+     * can tell whether it has changed since. Never throws: without it, Undo
+     * simply does not ask.
+     */
+    async seal(record) {
+      if (!record?.id) return;
+      try { await HC.invoke('checkpoint_seal', { id: record.id }); } catch { /* Undo will not ask */ }
+    },
+
+    /** true when the file has changed since the change, false when not, null when unknown. */
+    async changedSince(record) {
+      if (!record?.id) return null;
+      try {
+        const changed = await HC.invoke('checkpoint_changed', { id: record.id });
+        return typeof changed === 'boolean' ? changed : null;
+      } catch {
+        return null;
+      }
+    },
+
+    /**
      * Every change still waiting to be kept or undone, newest first.
      *
      * The records were always written to disk and never read back: the panel
@@ -120,10 +141,22 @@
      * content somewhere the app would otherwise refuse. It raises no permission
      * dialog: the user clicking the button is the permission, and asking them
      * to approve undoing a change they just refused would be absurd.
+     *
+     * One question it does ask, through `ask(message)`: when the file has
+     * changed since the agent's change, because putting the old contents back
+     * also removes what changed since. A no, or no `ask` to put it through,
+     * throws an error marked `cancelled` and changes nothing.
      */
-    async restore(record) {
+    async restore(record, { ask } = {}) {
       if (!HC.undo.canRestore(record)) {
         throw new Error(record?.unrestorable || 'There is nothing recorded for that change.');
+      }
+      if (await HC.undo.changedSince(record)) {
+        const name = String(record.path || '').split(/[\\/]/).pop() || 'This file';
+        const message = `"${name}" has changed since the agent's change. Undo puts back what was there before that change, and what has changed since is lost. Undo anyway?`;
+        if (!ask || !(await ask(message))) {
+          throw Object.assign(new Error(`Not undone: "${name}" has changed since the agent's change.`), { cancelled: true });
+        }
       }
       // A row drawn from `pending()` carries a summary, not the file. Fetch the
       // contents before writing anything, or an undo of a file that had text in

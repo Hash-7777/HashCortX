@@ -393,7 +393,7 @@ console.log('\nA move asks about where the file is going:');
   const coderSrc = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');
   const moved = [];
   sandbox.HC.isTauri = true;
-  sandbox.HC.undo = { capture: () => Promise.resolve(null) };
+  sandbox.HC.undo = { capture: () => Promise.resolve(null), seal: async () => {} };
   sandbox.HC.invoke = (cmd, args) => {
     if (cmd === 'fs_path_inside_root') {
       return Promise.resolve(args.path === R || String(args.path).startsWith(R + '/'));
@@ -520,6 +520,7 @@ console.log('\nA change Undo cannot take back is asked about:');
   sandbox.HC.undo = {
     capture: async (path) => ({ id: 'c-' + path, path, existed: true, content: '', unrestorable: records.get(path) || null }),
     drop: async (record) => { dropped.push(record.path); },
+    seal: async () => {},
   };
   sandbox.HC.invoke = async (cmd, args) => {
     if (cmd === 'fs_path_inside_root') return args.path === R || String(args.path).startsWith(R + '/');

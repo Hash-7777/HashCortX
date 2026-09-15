@@ -220,7 +220,7 @@ console.log('\nThe guard is shown the whole action, not half of it:');
       isTauri: true,
       guard: { request: (action, target, reason) => { asked.push({ action, target, reason }); return Promise.resolve(true); } },
       invoke: () => Promise.resolve({ stdout: '', stderr: '', code: 0 }),
-      undo: { capture: () => Promise.resolve(null) },
+      undo: { capture: () => Promise.resolve(null), seal: async () => {} },
     },
   };
   sandbox.window = sandbox;

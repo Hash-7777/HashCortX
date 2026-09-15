@@ -421,7 +421,9 @@ const LINE_BUDGET = {
   // 2624, up five: a stopped or failed run closes its unfinished turn, so the
   // next message is one a provider accepts.
   // 2632, up eight: a run gives its commands a stop key, and Stop ends them.
-  'modes/code/mode.js': 2632,
+  // 2636, up four: Undo asks before putting a file back over edits made
+  // since the agent's change, and a no leaves the button as it was.
+  'modes/code/mode.js': 2636,
 };
 
 console.log('\nFile sizes go down, never up:');

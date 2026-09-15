@@ -7,6 +7,8 @@
 //
 // JS calls:
 //   invoke("checkpoint_save", { path })  → record   (reads the file itself)
+//   invoke("checkpoint_seal", { id })               (after the change)
+//   invoke("checkpoint_changed", { id }) → bool | null
 //   invoke("checkpoint_read", { id })    → record
 //   invoke("checkpoint_drop", { id })
 //
@@ -79,6 +81,12 @@ pub struct Checkpoint {
     #[serde(default)]
     pub unrestorable: Option<String>,
     pub saved_at: String,
+    /// What the file looked like right after the change: its length and a
+    /// hash of its bytes, or "absent". Undo compares the file with it, so
+    /// putting the old contents back over edits made since is asked about
+    /// first. `None` on a record saved before this existed.
+    #[serde(default)]
+    pub after: Option<String>,
 }
 
 fn checkpoint_dir() -> PathBuf {
@@ -159,6 +167,7 @@ pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
         existed,
         unrestorable,
         saved_at: chrono::Local::now().to_rfc3339(),
+        after: None,
     };
 
     let file = record_path(&record.id)?;
@@ -265,11 +274,61 @@ pub fn checkpoint_list() -> Result<Vec<CheckpointSummary>, String> {
     Ok(out)
 }
 
-#[tauri::command]
-pub fn checkpoint_read(id: String) -> Result<Checkpoint, String> {
-    let file = record_path(&id)?;
+/// A file's length and a hash of its bytes, or "absent" when there is none.
+///
+/// Only compared with itself, to tell whether a file is still exactly as a
+/// change left it. The hash is FNV-1a: stable across builds, with no crate to
+/// add, and a change that is not an attack never lands on the same value.
+fn fingerprint(path: &str) -> String {
+    match fs::read(path) {
+        Ok(bytes) => {
+            let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+            for b in &bytes {
+                hash ^= u64::from(*b);
+                hash = hash.wrapping_mul(0x0100_0000_01b3);
+            }
+            format!("{}:{hash:016x}", bytes.len())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => "absent".into(),
+        Err(_) => "unreadable".into(),
+    }
+}
+
+fn read_record(id: &str) -> Result<Checkpoint, String> {
+    let file = record_path(id)?;
     let raw = fs::read_to_string(&file).map_err(|_| "That checkpoint is no longer available.")?;
     serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+/// Remember what the file looks like now, just after the change.
+#[tauri::command]
+pub fn checkpoint_seal(id: String) -> Result<(), String> {
+    let mut record = read_record(&id)?;
+    crate::commands::fs::guard_path(&record.path)?;
+    record.after = Some(fingerprint(&record.path));
+    let json = serde_json::to_string(&record).map_err(|e| e.to_string())?;
+    fs::write(record_path(&id)?, json).map_err(|e| e.to_string())
+}
+
+/// Whether the file has changed since the change was made: `None` when the
+/// record carries nothing to compare with.
+#[tauri::command]
+pub fn checkpoint_changed(id: String) -> Result<Option<bool>, String> {
+    let record = read_record(&id)?;
+    crate::commands::fs::guard_path(&record.path)?;
+    Ok(record.after.map(|after| {
+        // A different length says so without reading the file.
+        let len = fs::metadata(&record.path).map(|m| m.len().to_string()).ok();
+        match (after.split_once(':'), len) {
+            (Some((was, _)), Some(now)) if was != now => true,
+            _ => fingerprint(&record.path) != after,
+        }
+    }))
+}
+
+#[tauri::command]
+pub fn checkpoint_read(id: String) -> Result<Checkpoint, String> {
+    read_record(&id)
 }
 
 #[tauri::command]
@@ -314,6 +373,7 @@ mod tests {
             existed: false,
             unrestorable: None,
             saved_at: "2026-08-03T00:00:00+00:00".into(),
+            after: None,
         };
         let json = serde_json::to_string(&created).unwrap();
         let back: Checkpoint = serde_json::from_str(&json).unwrap();
@@ -534,5 +594,63 @@ mod tests {
         // around the filesystem denylist.
         assert!(checkpoint_save("~/.ssh/id_ed25519".to_string()).is_err());
         assert!(checkpoint_save("/etc/passwd".to_string()).is_err());
+    }
+
+    #[test]
+    fn a_file_left_as_the_change_made_it_reads_as_unchanged() {
+        let dir = scratch("seal-same");
+        let file = dir.join("a.txt");
+        fs::write(&file, "before\n").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        fs::write(&file, "the agent's version\n").unwrap();
+        checkpoint_seal(saved.id.clone()).unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), Some(false));
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn an_edit_made_after_the_change_is_noticed_even_at_the_same_length() {
+        let dir = scratch("seal-edited");
+        let file = dir.join("a.txt");
+        fs::write(&file, "before\n").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        fs::write(&file, "agent\n").unwrap();
+        checkpoint_seal(saved.id.clone()).unwrap();
+        fs::write(&file, "yours\n").unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), Some(true));
+        fs::write(&file, "agent, and then some of yours\n").unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), Some(true));
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_deleted_file_that_is_back_again_is_noticed() {
+        let dir = scratch("seal-deleted");
+        let file = dir.join("a.txt");
+        fs::write(&file, "before\n").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        fs::remove_file(&file).unwrap();
+        checkpoint_seal(saved.id.clone()).unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), Some(false));
+        fs::write(&file, "a new file of yours\n").unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), Some(true));
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_record_with_nothing_to_compare_says_so() {
+        let dir = scratch("seal-none");
+        let file = dir.join("a.txt");
+        fs::write(&file, "before\n").unwrap();
+        let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(checkpoint_changed(saved.id.clone()).unwrap(), None);
+        // A record written before `after` existed reads back the same way.
+        let old = r#"{"id":"x","path":"/p","content":"a","existed":true,"savedAt":"2026-08-03T00:00:00+00:00"}"#;
+        assert!(serde_json::from_str::<Checkpoint>(old).unwrap().after.is_none());
+        checkpoint_drop(saved.id).unwrap();
+        let _ = fs::remove_dir_all(&dir);
     }
 }

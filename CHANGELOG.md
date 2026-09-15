@@ -93,6 +93,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   contents are written beside the old file and swapped in one step, keeping
   its permissions, so a crash or a full disk mid-save leaves the old file
   intact instead of half-written.
+- **Undo asks before it overwrites edits made since.** Undoing an agent's
+  change put the old file back even when the file had been edited after
+  that change, wiping those edits without a word. Undo now notices and asks
+  first; a no leaves the file as it is.
 - **Rewriting a whole Windows file keeps its line endings.** write_file over
   a file that used CRLF on every line saved the new text with LF, changing
   every line. It now keeps CRLF and tells the agent so; text that already

@@ -60,6 +60,7 @@
       const ends = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
         || { text: String(content), kept: false };
       await HC.invoke('fs_write_file', { path, content: ends.text });
+      await HC.undo.seal(record);
       // The resulting text, kept alongside the previous text so the panel can
       // show a real diff. patch_file has no `content` argument of its own — it
       // computes the new file and calls through here — so this is the only
@@ -91,7 +92,9 @@
         throw new Error(`Permission denied: delete ${path}`);
       }
       if (record) record.after = '';
-      return HC.invoke('fs_delete_file', { path });
+      const out = await HC.invoke('fs_delete_file', { path });
+      await HC.undo.seal(record);
+      return out;
     },
 
     async searchFiles(dir, pattern) {
@@ -209,6 +212,8 @@
       // not kept as a change to undo; the move is then undone by hand.
       if (gone?.unrestorable && made) { await HC.undo.drop(made); made = null; }
       await HC.invoke('fs_move_file', { from, to });
+      await HC.undo.seal(gone);
+      await HC.undo.seal(made);
       if (gone) gone.after = '';
       if (made) made.after = gone?.content ?? '';
       return JSON.stringify({ ok: true, from, to });

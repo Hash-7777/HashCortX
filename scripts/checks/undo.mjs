@@ -134,5 +134,58 @@ console.log('\nA missing record is refused:');
   ok('restoring nothing throws', !!threw);
 }
 
+console.log('\nA file changed since the change is asked about before it is put back:');
+{
+  const scripted = (changed) => (name) => {
+    if (name === 'checkpoint_save') return { ...RECORD };
+    if (name === 'checkpoint_changed') return changed;
+    return undefined;
+  };
+  const wrote = (calls) => calls.some(c => c.name === 'fs_write_file' || c.name === 'fs_delete_file');
+
+  let { undo, calls } = load(scripted(true));
+  let rec = await undo.capture('/p/main.rs');
+  let threw = null;
+  try { await undo.restore(rec); } catch (e) { threw = e; }
+  ok('with no way to ask, it is not undone', threw?.cancelled === true && !wrote(calls));
+
+  ({ undo, calls } = load(scripted(true)));
+  rec = await undo.capture('/p/main.rs');
+  const asked = [];
+  threw = null;
+  try { await undo.restore(rec, { ask: async (m) => { asked.push(m); return false; } }); } catch (e) { threw = e; }
+  ok('the question names the file and says what is lost', /"main\.rs" has changed since the agent's change[\s\S]*is lost/.test(asked[0] || ''));
+  ok('a no leaves the file alone and says so', threw?.cancelled === true && /Not undone/.test(threw.message) && !wrote(calls));
+  ok('... and the saved copy is kept for another try', !calls.some(c => c.name === 'checkpoint_drop'));
+
+  ({ undo, calls } = load(scripted(true)));
+  rec = await undo.capture('/p/main.rs');
+  await undo.restore(rec, { ask: async () => true });
+  ok('a yes puts the old contents back', calls.find(c => c.name === 'fs_write_file')?.args.content === 'original\n');
+
+  for (const [label, changed] of [['a file left as the change made it', false], ['a record with nothing to compare', null], ['a check that fails', new Error('gone')]]) {
+    ({ undo, calls } = load(scripted(changed)));
+    rec = await undo.capture('/p/main.rs');
+    let wasAsked = false;
+    await undo.restore(rec, { ask: async () => { wasAsked = true; return false; } });
+    ok(`${label} is put back without a question`, !wasAsked && wrote(calls));
+  }
+
+  ({ undo, calls } = load((name) => (name === 'checkpoint_save' ? { id: 'n1', path: '/p/new.rs', content: null, existed: false, unrestorable: null } : name === 'checkpoint_changed' ? true : undefined)));
+  rec = await undo.capture('/p/new.rs');
+  await undo.restore(rec, { ask: async () => true });
+  ok('a created file changed since is deleted only after a yes', calls.some(c => c.name === 'fs_delete_file'));
+}
+
+console.log('\nThe file is recorded as the change left it:');
+{
+  const { undo, calls } = load((name) => (name === 'checkpoint_seal' ? new Error('disk full') : undefined));
+  await undo.seal({ id: 'abc-1', path: '/p/main.rs' });
+  ok('seal asks Rust to record the file, by id only', calls.some(c => c.name === 'checkpoint_seal' && c.args.id === 'abc-1' && Object.keys(c.args).length === 1));
+  let threw = null;
+  try { await undo.seal(null); await undo.seal({ path: '/p/x' }); } catch (e) { threw = e; }
+  ok('a record with no id is left alone, and a failure never throws', threw === null && calls.filter(c => c.name === 'checkpoint_seal').length === 1);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/undo.js)`);
 process.exit(fail ? 1 : 0);

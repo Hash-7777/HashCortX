@@ -1750,6 +1750,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       svgView: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
       svgFile: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
     };
+    // Undo asks this when the file has changed since the agent's change (platform/tauri/undo.js).
+    const askUndo = (message) => window._H.themedConfirm(message, 'Undo');
 
     /**
      * Draw the changes left unanswered when the app last closed.
@@ -1810,7 +1812,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           try {
             // restore() fetches the contents itself \u2014 the summary does not
             // carry them, and writing it as-is would empty the file.
-            await HC.undo.restore(summary);
+            await HC.undo.restore(summary, { ask: askUndo });
             el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--rejected');
             undoBtn.innerHTML = `${svgReject} Undone`;
             keepBtn.disabled = true;
@@ -1818,6 +1820,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             if (summary.existed) addAIFileToExplorer(summary.path, 'write');
           } catch (e) {
             undoBtn.disabled = false;
+            if (e?.cancelled) return; // asked, and the answer was no
             undoBtn.innerHTML = `${svgReject} Undo failed`;
             undoBtn.title = String(e?.message || e);
             terminalLog(`[undo] could not restore ${summary.path}: ${e?.message || e}`, 'cdr-terminal-error');
@@ -1903,7 +1906,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!canUndo || undoBtn.disabled) return;
         undoBtn.disabled = true;
         try {
-          await HC.undo.restore(checkpoint);
+          await HC.undo.restore(checkpoint, { ask: askUndo });
           el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--rejected');
           undoBtn.innerHTML = `${svgReject} Undone`;
           keepBtn.disabled = true;
@@ -1912,6 +1915,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         } catch (e) {
           // Say so rather than showing "Undone" over a file that did not change.
           undoBtn.disabled = false;
+          if (e?.cancelled) return; // asked, and the answer was no
           undoBtn.innerHTML = `${svgReject} Undo failed`;
           undoBtn.title = String(e?.message || e);
           terminalLog(`[undo] could not restore ${path}: ${e?.message || e}`, 'cdr-terminal-error');
