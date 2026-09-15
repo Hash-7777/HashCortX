@@ -169,6 +169,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and the Virtual OS that no part of the app reached, and the drag path the
   Virtual OS desktop icons stopped using when they moved to a pointer drag.
   Nothing a person can do changes.
+- **Virtual OS's Agent OS loop.** It ran only behind a switch that nothing in
+  the app ever turned on, so it could not be reached. Virtual OS's chat agent
+  keeps the same tools and is unchanged.
 
 ## [2.6.0] — 2026-09-01
 

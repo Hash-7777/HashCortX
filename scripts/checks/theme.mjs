@@ -129,7 +129,7 @@ for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
 // joining them.
 const DEAD_ID_SELECTORS = new Set([
   'cpuTempBtn', 'fanBtn', 'fanVal', 'pingBtn', 'pingMs',
-  'powerBtn', 'ramBtn', 'ramVal', 'voidAgentOSBtn',
+  'powerBtn', 'ramBtn', 'ramVal',
 ]);
 
 console.log('\nEvery id a stylesheet targets exists:');

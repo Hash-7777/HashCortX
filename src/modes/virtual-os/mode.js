@@ -29,7 +29,6 @@ const VoidStudio = (() => {
   let dialogResolve = null;
   let clockTimer = null;
   let selectedSystemIconId = "";
-  let agentOSMode   = false;
   let termCwd       = "/";
   let termLines     = [];
   let termHistory   = [];
@@ -1999,70 +1998,8 @@ ${buildDynamicImageInstruction(userPrompt)}`
   }
 
   // ============================================================================
-  // AGENT OS — tool-using agentic loop (navigates filesystem on demand)
+  // AGENT TOOLS — what Virtual OS's chat agent can do in the project
   // ============================================================================
-
-  const AGENT_OS_TOOLS = [
-    { name: "fs_list",    params: '{"path":"string (default /)"}',                                              desc: "List directory contents. Shows names, types, and sizes." },
-    { name: "fs_read",    params: '{"path":"string","start_line":"number (opt)","end_line":"number (opt)"}',    desc: "Read file content. Use start_line/end_line to read a specific line range of a large file." },
-    { name: "fs_write",   params: '{"path":"string","content":"string"}',                                       desc: "Create or fully overwrite a file." },
-    { name: "fs_patch",   params: '{"path":"string","search":"string","replace":"string"}',                     desc: "Surgically edit a file — find exact text and replace it. Safer than rewriting the whole file." },
-    { name: "fs_mkdir",   params: '{"path":"string"}',                                                          desc: "Create a folder (and all parent folders if needed)." },
-    { name: "fs_delete",  params: '{"path":"string"}',                                                          desc: "Delete a file or folder." },
-    { name: "fs_move",    params: '{"from":"string","to":"string"}',                                            desc: "Move or rename a file or folder." },
-    { name: "fs_grep",    params: '{"pattern":"string","path":"string (opt, default /)"}',                      desc: "Search for a text pattern across files. Returns matches with file path and line number." },
-    { name: "terminal_run", params: '{"command":"string"}',                                                     desc: "Run a shell command in the Virtual OS terminal (ls, cat, grep, find, echo, etc.)." },
-    { name: "image_search", params: '{"query":"string","count":"number (1-8, default 4)"}',                    desc: "Topic-matched placeholder photo URLs that actually load. Call when a layout needs a photo." },
-    { name: "web_search",   params: '{"query":"string"}',                                                        desc: "Search the web for design trends, UI patterns, tech docs. Call this FIRST before building any website." },
-    { name: "task_done",  params: '{"summary":"string"}',                                                        desc: "Call this when the task is fully complete." },
-  ];
-
-  function agentOSSystemPrompt() {
-    return `You are Virtual OS Agent OS — a coding agent with full control over a virtual filesystem.
-
-Call tools by outputting EXACTLY this block (one per response):
-<tool_call>
-{"name": "TOOL_NAME", "params": {...}}
-</tool_call>
-
-AVAILABLE TOOLS:
-${AGENT_OS_TOOLS.map(t => `• ${t.name}(${t.params})\n  ${t.desc}`).join("\n")}
-
-DESIGN RESEARCH — for every website / UI task:
-① Call web_search FIRST with a design query, e.g. "modern [type] website design 2024", "glassmorphism UI", "bento grid layout".
-② Read the results, extract visual style, color palette, typography, and layout patterns.
-③ Call image_search when a layout needs photos — never invent image URLs.
-④ THEN write the files, applying what you found. No cookie-cutter hero→features→CTA templates.
-
-RULES — READ CAREFULLY:
-• ONE tool call per response. Think in one sentence, then call the tool.
-• Stay focused on the task. Do NOT explore unrelated files or projects.
-• Minimal exploration: list the ONE relevant folder, then act. Do not list every subdirectory before starting.
-• Do NOT read a file unless you need its content for the current step.
-• Prefer fs_patch for edits — only use fs_write for new files or complete rewrites.
-• Use fs_grep to jump directly to code — do not read whole files just to find one function.
-• Call task_done as soon as the task is complete. Do not do extra work.
-
-CRITICAL — task_done rules:
-✗ NEVER call task_done without having used fs_write or fs_patch at least once (unless the task was purely a search/read)
-✗ NEVER say "I'll now write X" and then call task_done instead of writing it
-✓ If you described a change, you must execute it before finishing
-
-SPEED — avoid these time-wasting patterns:
-✗ Listing /, then every subdirectory, before touching anything
-✗ Reading files that are not relevant to the task
-✗ Exploring other projects in the workspace
-✗ Reading a file you already saw in a previous tool result`;
-  }
-
-  function parseAgentToolCall(text) {
-    const m = String(text || "").match(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/);
-    if (!m) return null;
-    try { return JSON.parse(m[1]); } catch { return null; }
-  }
-
-
-
 
   async function aosPatch(path, search, replace) {
     const clean = String(path || "").replace(/^\/+/, "");
@@ -2143,8 +2080,6 @@ SPEED — avoid these time-wasting patterns:
     return `Moved /${fromClean} → /${toClean}`;
   }
 
-  let _agentWriteCount = 0; // reset each runAgentOSLoop; incremented by any write/patch/delete/move
-
   async function executeAgentTool(call) {
     const name = String(call?.name || "");
     const p    = call?.params || {};
@@ -2157,7 +2092,6 @@ SPEED — avoid these time-wasting patterns:
         case "fs_patch": {
           const r = await aosPatch(p.path, String(p.search ?? ""), String(p.replace ?? ""));
           if (!r.startsWith("Error:")) {
-            _agentWriteCount++;
             const cleanPatch = String(p.path || "").replace(/^\/+/, "");
             const patchFile = visibleProjectFiles().find(f => f.type === "file" && f.path === cleanPatch);
             if (patchFile) {
@@ -2168,21 +2102,9 @@ SPEED — avoid these time-wasting patterns:
           }
           return r;
         }
-        case "fs_mkdir": {
-          const r = await aosMkdir(p.path);
-          if (!r.startsWith("Error:")) _agentWriteCount++;
-          return r;
-        }
-        case "fs_delete": {
-          const r = await aosDelete(p.path);
-          if (!r.startsWith("Error:")) _agentWriteCount++;
-          return r;
-        }
-        case "fs_move": {
-          const r = await aosMove(p.from, p.to);
-          if (!r.startsWith("Error:")) _agentWriteCount++;
-          return r;
-        }
+        case "fs_mkdir":   return aosMkdir(p.path);
+        case "fs_delete":  return aosDelete(p.path);
+        case "fs_move":    return aosMove(p.from, p.to);
         case "fs_write": {
           const path = String(p.path || "").replace(/^\/+/, "");
           if (!path) return "Error: path required";
@@ -2190,7 +2112,6 @@ SPEED — avoid these time-wasting patterns:
           rebuildPaths();
           await saveProject();
           renderAll();
-          _agentWriteCount++;
           _sessionChanges.push({ path: "/" + path, action: "written", line: 1 });
           return `Written /${path} (${String(p.content || "").length} bytes)`;
         }
@@ -2258,85 +2179,6 @@ SPEED — avoid these time-wasting patterns:
       }
     } catch (err) {
       return `Error: ${err.message || String(err)}`;
-    }
-  }
-
-  async function runAgentOSLoop(task, signal) {
-    const messages = [
-      { role: "system", content: agentOSSystemPrompt() },
-      { role: "user",   content: task }
-    ];
-    const MAX_ITER = 28;
-    let lockedModel = null; // after first successful call, skip failover overhead on every iteration
-    let silentDoneCount = 0; // how many times agent tried to finish without writing anything
-    _agentWriteCount = 0;
-    log("Agent OS running…", "run");
-    for (let i = 0; i < MAX_ITER; i++) {
-      let response;
-      if (lockedModel) {
-        // Known-working model — call directly, no failover retry loop wasting time
-        try {
-          response = await callModelValue(lockedModel, messages, signal);
-        } catch (err) {
-          if (err?.name === "AbortError") throw err;
-          // Model broke mid-session — fall back once and re-lock
-          log(`Model dropped, re-selecting…`, "warn");
-          lockedModel = null;
-          response = await callWithFailover("worker", chooseWorkerModel(), messages, signal);
-          lockedModel = _lastWorkedModel;
-        }
-      } else {
-        response = await callWithFailover("worker", chooseWorkerModel(), messages, signal);
-        lockedModel = _lastWorkedModel; // lock to whatever worked
-      }
-      const thinking = response.replace(/<tool_call>[\s\S]*?<\/tool_call>/g, "").trim();
-      if (thinking) log(thinking.slice(0, 220), "info");
-      messages.push({ role: "assistant", content: response });
-      const call = parseAgentToolCall(response);
-      if (!call) { log("Agent OS: done.", "ok"); break; }
-      log(`→ ${call.name}(${JSON.stringify(call.params || {}).slice(0, 90)})`, "run");
-      const result = await executeAgentTool(call);
-      if (String(result).startsWith("__task_done__:")) {
-        const summary = result.slice("__task_done__:".length);
-        if (_agentWriteCount === 0 && silentDoneCount < 2) {
-          silentDoneCount++;
-          log(`Agent tried to finish without making any changes (attempt ${silentDoneCount}/2). Pushing back…`, "warn");
-          messages.push({
-            role: "user",
-            content: `You called task_done but you have not made any file changes yet. Do not stop — proceed to actually write or patch the files now. Use fs_write or fs_patch to make the changes you described.`
-          });
-          continue;
-        }
-        log(`✓ ${summary}`, "ok");
-        if (_agentWriteCount === 0) log("Warning: task completed with no file changes.", "warn");
-        break;
-      }
-      const preview = String(result).slice(0, 600);
-      log(`← ${preview}${result.length > 600 ? "…" : ""}`, "ok");
-      messages.push({ role: "user", content: `[TOOL RESULT: ${call.name}]\n${result}` });
-    }
-    renderAll();
-    await saveProject();
-  }
-
-  async function generateAgentOS(taskOverride = null) {
-    const task = (taskOverride || "").trim();
-    if (!task) { log("Describe a task for Agent OS.", "warn"); return; }
-    if (runAbort) runAbort.abort();
-    runAbort = new AbortController();
-    setStatus("Agent OS", "running");
-    const stopBtn = $("voidStopBtn");
-    if (stopBtn) { stopBtn.classList.add("running"); stopBtn.disabled = false; }
-    try {
-      await runAgentOSLoop(task, runAbort.signal);
-      setStatus("Done", "done");
-    } catch (err) {
-      if (err?.name === "AbortError") log("Agent OS stopped.", "warn");
-      else { setStatus("Error", "error"); log(err.message || String(err), "error"); }
-    } finally {
-      if (stopBtn) { stopBtn.classList.remove("running"); stopBtn.disabled = true; }
-      runAbort = null;
-      setTimeout(() => setStatus("Idle"), 2500);
     }
   }
 
@@ -2568,7 +2410,6 @@ SPEED — avoid these time-wasting patterns:
   }
 
   async function generate(repair = false, promptOverride = null) {
-    if (agentOSMode && !repair) return generateAgentOS(promptOverride);
     const prompt = (promptOverride || "").trim();
     if (!prompt) {
       log("Describe a file action or project to build first.", "warn");

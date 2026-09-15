@@ -211,7 +211,9 @@ const LINE_BUDGET = {
   // material, not instructions.
   // 3517, up six: a job on a local model starts and fails over only on local
   // models, and says so when there is none large enough.
-  'modes/virtual-os/mode.js': 3517,
+  // 3358, down 159: the Agent OS loop, which nothing in the app could start,
+  // with its prompt, its switch and its write counter. The chat keeps the tools.
+  'modes/virtual-os/mode.js': 3358,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

@@ -30,7 +30,7 @@ HashCortX/
 │   │   ├── forge/            3,855  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
-│   │   ├── virtual-os/       3,517  virtual project desktop
+│   │   ├── virtual-os/       3,358  virtual project desktop
 │   │   ├── systems/          3,205  ERP prototype generator
 │   │   ├── agent-maker/      2,277  chain / vote / failover
 │   │   ├── code/             2,636  the Coder agent loop
