@@ -382,5 +382,53 @@ console.log('\nAn answer cut off at the length limit is carried on:');
   ok('no agent answer carries a note about providers', !/switched providers during execution|\[Failover:/.test(swarm));
 }
 
+console.log('\nA turn cut off by Stop or an error is closed, not left open:');
+{
+  // A provider refuses a history where an assistant's tool calls are not all
+  // answered, so the message after a stopped run failed.
+  const call = (id, name) => ({ id, name, arguments: {} });
+  const valid = (msgs) => {
+    // Every tool call answered, every tool result for a call made, and the
+    // history ending on an assistant reply.
+    for (let i = 0; i < msgs.length; i++) {
+      const m = msgs[i];
+      if (m.role !== 'assistant' || !m.tool_calls) continue;
+      const after = new Set(msgs.slice(i + 1).filter((x) => x.role === 'tool').map((x) => x.tool_call_id));
+      if (!m.tool_calls.every((c) => after.has(c.id))) return false;
+    }
+    const last = msgs[msgs.length - 1];
+    return last.role === 'assistant' && !last.tool_calls;
+  };
+  const base = () => [{ role: 'system', content: 's' }, { role: 'user', content: 'fix it' }];
+
+  const mid = base();
+  A.appendAssistantToolCallTurn(mid, '', [call('c1', 'read_file'), call('c2', 'shell_run'), call('c3', 'write_file')]);
+  A.appendToolResult(mid, call('c1', 'read_file'), 'file text');
+  ok('control: stopped mid-batch the history is not one a provider takes', !valid(mid));
+  A.closeInterruptedTurn(mid, 'Stopped by the user before this finished.');
+  ok('stopped mid-batch, it is closed', valid(mid));
+  ok('what ran is kept', mid.some((m) => m.role === 'tool' && m.tool_call_id === 'c1' && m.content === 'file text'));
+  ok('each call that did not run says why', ['c2', 'c3'].every((id) => mid.some((m) => m.tool_call_id === id && /Stopped by the user/.test(m.content))));
+  ok('and a note ends the turn', /Stopped by the user/.test(mid.at(-1).content));
+
+  const early = base();
+  A.closeInterruptedTurn(early, 'The run ended with an error before this finished.');
+  ok('stopped before any reply, a note answers the message', valid(early) && early.length === 3);
+
+  const done = base();
+  A.appendAssistantToolCallTurn(done, '', [call('c1', 'read_file')]);
+  A.appendToolResult(done, call('c1', 'read_file'), 'x');
+  A.closeInterruptedTurn(done, 'Stopped.');
+  ok('stopped between tool rounds, nothing is invented', valid(done) && done.filter((m) => m.role === 'tool').length === 1);
+
+  const finished = [...base(), { role: 'assistant', content: 'All done.' }];
+  A.closeInterruptedTurn(finished, 'Stopped.');
+  ok('a finished conversation is left as it is', finished.length === 3 && finished.at(-1).content === 'All done.');
+
+  const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('Coder closes the turn whenever a run stops or fails',
+    /\} catch \(e\) \{[\s\S]{0,300}closeInterruptedTurn\(conversationMsgs/.test(coder));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

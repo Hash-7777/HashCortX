@@ -72,6 +72,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The message after a stopped Coder run works.** A run stopped or ended by
+  an error between a tool call and its result left a conversation the
+  providers refuse, so the next message failed. The unfinished turn is now
+  closed, and what already ran is kept.
 - **Coder's Keep and Undo rows match what happened.** A write the agent was
   refused or that failed still got a row, which picked up the file's
   previous change, so its Undo reversed that earlier change. A move now gets

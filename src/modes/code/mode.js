@@ -2257,6 +2257,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           await runMultiTurn(task, agentCount, signal);
         }
       } catch (e) {
+        // A stop or a failure between a tool call and its result leaves a
+        // history the providers refuse; close the turn so the next one works.
+        window.HCAgentShape.closeInterruptedTurn(conversationMsgs,
+          e.name === 'AbortError' ? 'Stopped by the user before this finished.' : 'The run ended with an error before this finished.');
+        saveCoderState();
         if (e.name === 'AbortError') {
           const c = appendAssistantBubble('HashCortX Coder');
           if (c) appendTextToBubble(c, '*Stopped.*');

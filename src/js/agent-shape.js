@@ -212,6 +212,39 @@
   }
 
   /**
+   * End a turn that was cut off, so the conversation can carry on.
+   *
+   * A run stopped or failed between asking for tools and receiving all their
+   * results leaves an assistant turn whose tool calls are not all answered,
+   * and the providers refuse a conversation in that state, so the next message
+   * failed. Each unanswered call gets a result saying why it did not run, and
+   * a short assistant note closes the turn. What already ran stays, so the
+   * next message still knows what was done.
+   */
+  function closeInterruptedTurn(messages, why) {
+    let open = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (!m || m.role === 'tool') continue;
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) open = i;
+      break;
+    }
+    if (open !== -1) {
+      const answered = new Set(messages.slice(open + 1).map((m) => m && m.tool_call_id));
+      for (const c of messages[open].tool_calls) {
+        if (!answered.has(c.id)) {
+          messages.push({ role: 'tool', tool_call_id: c.id, name: c.function?.name || c.name, content: JSON.stringify({ error: why }) });
+        }
+      }
+    }
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== 'assistant' || Array.isArray(last.tool_calls)) {
+      messages.push({ role: 'assistant', content: `(${why})` });
+    }
+    return messages;
+  }
+
+  /**
    * Read tool arguments that arrive as a JSON string.
    *
    * Providers disagree: some send an object, some a string. A string that does
@@ -379,6 +412,7 @@
   }
 
   window.HCAgentShape = {
+    closeInterruptedTurn,
     wasCutOff,
     finishCutOff,
     imageMimeFromBase64,

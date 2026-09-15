@@ -414,7 +414,9 @@ const LINE_BUDGET = {
   // 2608, down three: a reply is drawn by HCMarkdown.renderUntrusted.
   // 2619, up 11: a Keep/Undo row only for a change that happened, and a move
   // gets the two rows its two records need.
-  'modes/code/mode.js': 2619,
+  // 2624, up five: a stopped or failed run closes its unfinished turn, so the
+  // next message is one a provider accepts.
+  'modes/code/mode.js': 2624,
 };
 
 console.log('\nFile sizes go down, never up:');
