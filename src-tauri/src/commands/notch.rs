@@ -17,7 +17,7 @@
 
 use serde_json::Value;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// HashNotch itself only shows a handful; keep the file from ever growing.
 const MAX_ACTIVITIES: usize = 8;
@@ -62,7 +62,7 @@ fn feed_dir() -> PathBuf {
 
 /// Split out from `feed_dir` so the choice can be tested against a real
 /// directory rather than only against whatever this machine happens to have.
-fn feed_dir_in(home: &PathBuf) -> PathBuf {
+fn feed_dir_in(home: &Path) -> PathBuf {
     FEED_DIRS
         .iter()
         .map(|name| home.join(name))

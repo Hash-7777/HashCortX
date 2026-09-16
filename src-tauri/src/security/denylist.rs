@@ -477,7 +477,7 @@ fn names_protected_directory(lowered: &str) -> bool {
             let continues_a_longer_name = lowered[..start]
                 .chars()
                 .next_back()
-                .map_or(false, |c| c.is_alphanumeric());
+                .is_some_and(|c| c.is_alphanumeric());
             // Nothing after the marker means the path ended the command line.
             let ends_cleanly = lowered[end..]
                 .chars()

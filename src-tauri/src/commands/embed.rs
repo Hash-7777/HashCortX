@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn the_query_instruction_actually_changes_the_vector() {
         let text = "permission guard decisions".to_string();
-        let as_query = embed_batch(&[text.clone()], true).unwrap();
+        let as_query = embed_batch(std::slice::from_ref(&text), true).unwrap();
         let as_passage = embed_batch(&[text], false).unwrap();
         assert!(
             cosine(&as_query[0], &as_passage[0]) < 0.999,

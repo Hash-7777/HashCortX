@@ -192,7 +192,7 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
         "db","sqlite","sqlite3",
     ];
     if BINARY_EXTS.contains(&ext.as_str()) {
-        let kb = (size + 1023) / 1024;
+        let kb = size.div_ceil(1024);
         return Ok(format!(
             "[Binary file: \"{name}\" · {ext} · {kb}KB] Not text-readable. \
              Use shell_run to inspect: {}",
@@ -214,7 +214,7 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
     let raw = fs::read(p).map_err(|e| e.to_string())?;
     let null_count = raw.iter().filter(|&&b| b == 0).count();
     if raw.len() > 512 && null_count > raw.len() / 50 {
-        let kb = (size + 1023) / 1024;
+        let kb = size.div_ceil(1024);
         return Ok(format!(
             "[Binary file: \"{name}\" · {kb}KB — contains non-text data (detected {null_count} null bytes). \
              Use shell_run to inspect: {}]",
@@ -237,7 +237,7 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
              Use grep_code to search for specific symbols, or shell_run with \
              `grep -n \"pattern\" \"{path}\"` to jump to specific lines.]",
             SHOW_CHARS / 1024,
-            (size + 1023) / 1024
+            size.div_ceil(1024)
         ));
     }
 
@@ -431,7 +431,7 @@ const HARD_BYTES_CAP: u64 = 25_000_000;
 
 fn encode_base64(bytes: &[u8]) -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    let mut out = String::with_capacity((bytes.len() + 2) / 3 * 4);
+    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
         let n = ((b[0] as u32) << 16) | ((b[1] as u32) << 8) | b[2] as u32;
@@ -562,8 +562,8 @@ fn levenshtein(a: &str, b: &str) -> usize {
     if la == 0 { return lb; }
     if lb == 0 { return la; }
     let mut dp = vec![vec![0usize; lb + 1]; la + 1];
-    for i in 0..=la { dp[i][0] = i; }
-    for j in 0..=lb { dp[0][j] = j; }
+    for (i, row) in dp.iter_mut().enumerate() { row[0] = i; }
+    for (j, cell) in dp[0].iter_mut().enumerate() { *cell = j; }
     for i in 1..=la {
         for j in 1..=lb {
             let cost = if a[i-1] == b[j-1] { 0 } else { 1 };
