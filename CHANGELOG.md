@@ -100,6 +100,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Coder's answers read top to bottom again.** The rule meant to put a small
+  marker beside the reply also applied to the whole answer, so the steps of
+  a run and the reply sat side by side in one squeezed row, and a reply with
+  several paragraphs or a list did the same. Steps now stack, and the reply
+  flows with its marker in the margin.
 - **A file the agent saves is replaced whole or not at all.** The new
   contents are written beside the old file and swapped in one step, keeping
   its permissions, so a crash or a full disk mid-save leaves the old file

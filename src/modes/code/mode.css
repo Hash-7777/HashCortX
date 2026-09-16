@@ -1526,20 +1526,21 @@ body.coder-mode #app { display: none; }
   color: var(--cdr-text);
 }
 
-/* Assistant: cyan output-style */
-.cdr-msg.assistant .cdr-msg-content,
-/* The reply itself is marked, not the whole turn — the steps in between are
-   the run, and they carry their own verbs. */
+/* Assistant: the reply itself is marked, not the whole turn — the steps in
+   between are the run, and they carry their own verbs, one under another. */
 .cdr-msg.assistant .cdr-msg-text {
-  display: flex;
-  gap: 10px;
-  padding: 10px 0 4px;
+  position: relative;
+  padding: 10px 0 4px 20px;
 }
+/* In the margin, level with the first line, so a reply of several paragraphs
+   and lists still reads top to bottom. */
 .cdr-msg.assistant .cdr-msg-text::before {
   content: "::";
+  position: absolute;
+  left: 0;
+  top: 10px;
   color: var(--green-dim, var(--accent));
   opacity: 0.7;
-  flex: none;
 }
 
 /* Thinking / reasoning: violet */
