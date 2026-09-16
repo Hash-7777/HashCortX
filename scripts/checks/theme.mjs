@@ -122,15 +122,10 @@ for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
 // which does not exist — the root is `#coder-mode-wrap` — and every rule in
 // it was dead. Nothing said so; the mode simply looked identical.
 //
-// The listed ones are leftovers from a system-stats bar that was removed:
-// styling for a ping button, CPU temperature, fan, RAM and power readouts
-// that no longer exist. Recorded rather than deleted here so that removing
-// them is its own change, and so a NEW dead selector fails instead of
-// joining them.
-const DEAD_ID_SELECTORS = new Set([
-  'cpuTempBtn', 'fanBtn', 'fanVal', 'pingBtn', 'pingMs',
-  'powerBtn', 'ramBtn', 'ramVal',
-]);
+// This list held leftovers from a system-stats bar that was removed — a ping
+// button, CPU temperature, fan, RAM and power readouts. Their styling is gone
+// now, so it is empty, and any id selector without an element fails.
+const DEAD_ID_SELECTORS = new Set([]);
 
 console.log('\nEvery id a stylesheet targets exists:');
 {
@@ -189,15 +184,17 @@ const BUDGET = {
   // having tokens at all.
   // 44, down from 50. The permission modal's own palette went with it when the
   // prompt became a bar built from the shared tokens.
-  'css/modals.css': 44,
+  // 38, and the rest below down with it: styling nothing in the app used —
+  // the old system-stats bar, a startup meter, a project row — was removed.
+  'css/modals.css': 38,
   'modes/virtual-os/mode.css': 52,
-  'css/modes.css': 50,
-  'css/main.css': 41,
+  'css/modes.css': 46,
+  'css/main.css': 26,
   'modes/code/mode.css': 26,
   'modes/agent-maker/mode.css': 9,
   'modes/finance/mode.css': 27,
-  'css/tabs.css': 18,
-  'css/sidebar.css': 9,
+  'css/tabs.css': 17,
+  'css/sidebar.css': 4,
   'css/composer.css': 5,
   'css/base.css': 3,
   'modes/sandbox/mode.css': 2,

@@ -74,8 +74,7 @@
   html[data-theme="light"] .tab.active,
   html[data-theme="light"] button.tab.active,
   html[data-theme="light"] .inject-btn.active,
-  html[data-theme="light"] button.inject-btn.active,
-  html[data-theme="light"] .router-menu button.active {
+  html[data-theme="light"] button.inject-btn.active {
     background: linear-gradient(180deg, rgba(52,120,93,0.11), rgba(143,107,45,0.08));
     border-color: rgba(52,120,93,0.24);
     color: var(--gold-2);
@@ -143,19 +142,6 @@
     border-color: rgba(24,34,29,0.13);
     color: var(--text-dim);
   }
-  html[data-theme="light"] .ram-panel {
-    background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(246,248,246,0.84));
-    border-color: rgba(24,34,29,0.16);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.94), 0 18px 44px rgba(24,34,29,0.14);
-  }
-  html[data-theme="light"] .ram-row {
-    background: rgba(255,255,255,0.86);
-    border-color: rgba(24,34,29,0.12);
-  }
-  html[data-theme="light"] .ram-row:hover {
-    background: #ffffff;
-    border-color: rgba(143,107,45,0.20);
-  }
   html[data-theme="light"] .terminate-btn,
   html[data-theme="light"] button.terminate-btn {
     background: rgba(167,83,83,0.07);
@@ -167,24 +153,6 @@
     background: rgba(167,83,83,0.13);
     border-color: rgba(167,83,83,0.36);
     color: #7e3737;
-  }
-  html[data-theme="light"] .power-btn.online,
-  html[data-theme="light"] button.power-btn.online {
-    background: rgba(167,83,83,0.06);
-    border-color: rgba(167,83,83,0.30);
-    color: #9b4545;
-  }
-  html[data-theme="light"] .power-btn.online:hover,
-  html[data-theme="light"] button.power-btn.online:hover {
-    background: rgba(167,83,83,0.12);
-    border-color: rgba(167,83,83,0.44);
-    color: #7e3737;
-  }
-  html[data-theme="light"] .power-btn.offline,
-  html[data-theme="light"] button.power-btn.offline {
-    background: rgba(255,255,255,0.62);
-    border-color: rgba(24,34,29,0.12);
-    color: var(--muted);
   }
   .modal-header {
     display: flex; align-items: center; gap: 12px;
@@ -604,15 +572,6 @@
   .about-pane {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     padding: 16px 24px 16px; gap: 0; text-align: center;
-  }
-  .about-h {
-    font-family: 'Great Vibes', var(--script);
-    font-size: 80px; line-height: 1; font-weight: 400;
-    color: var(--gold-2);
-    text-shadow: 0 0 28px rgba(34,211,238,0.6), 0 0 70px rgba(34,211,238,0.25);
-    margin: 10px 0 4px;
-    transform: translateY(10px);
-    animation: h-pump 6s ease-in-out infinite;
   }
   .about-name {
     font-family: 'Cormorant Garamond', Georgia, serif;
@@ -1058,14 +1017,9 @@
     }
   }
   @media (max-width: 1040px) {
-    #pingBtn,
-    #cpuTempBtn,
-    #fanBtn,
-    #ramBtn,
     #tpsBtn,
     #tpsBtn.split-tps,
     #exportBtn,
-    #powerBtn,
     .export-wrap { width: auto; min-width: 78px; }
   }
 
@@ -1101,18 +1055,7 @@
     .agent-chip .clear { display: none; }
     .ping-btn { height: 28px; padding: 0 9px; font-size: 10.5px; }
     .ping-btn span { display: inline !important; }
-    .temp-btn span, .fan-btn span { display: inline !important; }
-    .temp-btn,
-    .fan-btn,
-    #ramBtn,
-    #powerBtn { min-width: 94px; }
     /* RAM panel — compact overlay, never full-width just because the window is narrow */
-    .ram-panel {
-      width: min(340px, calc(100vw - 24px));
-      right: 12px;
-      max-width: min(340px, calc(100vw - 24px));
-    }
-    .ram-panel .ram-list { max-height: 45vh; }
     aside { flex: 0 0 260px; width: 260px; }
     .app.collapsed aside { flex-basis: 0; width: 0; padding: 0; border-right: none; }
     .crumbs .title { font-size: 15px; }
@@ -1154,19 +1097,7 @@
       border-radius: var(--radius-sm);
     }
     .ping-btn svg { width: 12px; height: 12px; }
-    .ping-btn span,
-    #cpuTempBtn span,
-    #fanBtn span { display: inline !important; font-size: 10px; }
-    #pingMs { width: auto; min-width: 34px; }
-    .ram-panel {
-      width: min(320px, calc(100vw - 16px)) !important;
-      right: 8px !important;
-      max-width: min(320px, calc(100vw - 16px));
-      max-height: calc(100vh - 90px);
-      display: flex; flex-direction: column;
-    }
-    .ram-panel .ram-list { max-height: 40vh; flex: 1 1 auto; }
-    .ram-panel .ram-foot { flex: 0 0 auto; }
+    .ping-btn span { display: inline !important; font-size: 10px; }
     .crumbs .title { font-size: 14px; }
     .toolbar { gap: 5px; }
     .context-window {
@@ -1190,10 +1121,6 @@
       grid-template-columns: repeat(3, minmax(76px, max-content));
     }
     .ping-btn { height: 30px; padding: 0 7px; font-size: 10px; }
-    .temp-btn,
-    .fan-btn,
-    #ramBtn,
-    #powerBtn { min-width: 76px; }
   }
 
   @media (min-width: 821px) and (max-width: 1100px) {
@@ -1208,15 +1135,6 @@
       flex: 0 0 auto;
     }
   }
-
-  /* No matter the viewport, never let the RAM panel spill off the bottom */
-  .ram-panel {
-    max-height: calc(100vh - 80px);
-    display: flex; flex-direction: column;
-  }
-  .ram-panel .ram-list { flex: 1 1 auto; min-height: 0; }
-  .ram-panel .ram-foot { flex: 0 0 auto; }
-  .ram-panel .ram-head { flex: 0 0 auto; }
 
   /* ── Hash_UI 4.1: slim always-on control rail ─────────────────────── */
   main {
@@ -1306,12 +1224,10 @@
     box-shadow: none;
   }
   .topbar .actions > .ping-btn,
-  .topbar .actions > .ram-anchor,
   .topbar .actions > .export-wrap {
     width: 100%;
     min-width: 0;
   }
-  .topbar .actions .ram-anchor,
   .topbar .actions .export-wrap {
     display: flex;
     width: 100%;
@@ -1350,55 +1266,12 @@
     white-space: nowrap;
     text-align: center;
   }
-  .topbar .actions #fanBtn {
-    min-height: 54px;
-    padding-top: 5px;
-    padding-bottom: 5px;
-  }
-  .topbar .actions #fanVal {
-    line-height: 1.05;
-  }
-  .topbar .actions #fanVal .fan-unit {
-    display: block;
-    margin: 1px 0 0;
-    font-size: 7.5px;
-    line-height: 1;
-    opacity: .55;
-  }
-  .topbar .actions #ramVal {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-    line-height: 1;
-  }
-  .topbar .actions #ramVal .rv-gb {
-    font-size: 9px;
-    line-height: 1;
-    color: #c9f0cf;
-  }
-  .topbar .actions #ramVal .rv-n {
-    min-width: 22px;
-    padding: 1px 5px;
-    font-size: 7px;
-    line-height: 10px;
-    border-radius: var(--radius-xs);
-  }
-  .topbar .actions #exportBtn span,
-  .topbar .actions #powerBtn span {
+  .topbar .actions #exportBtn span {
     display: none !important;
   }
-  .topbar .actions .theme-toggle,
-  .topbar .actions .power-btn {
-    justify-content: center;
-  }
-  .topbar .actions .export-menu,
-  .topbar .actions .ram-panel {
+  .topbar .actions .export-menu {
     right: calc(100% + 10px);
     top: 0;
-  }
-  .topbar .actions .ram-panel {
-    width: min(340px, calc(100vw - var(--control-rail-w) - 34px));
   }
   .messages,
   .composer-wrap,
@@ -1504,16 +1377,6 @@
       padding-top: 5px;
       padding-bottom: 5px;
     }
-    .topbar .actions #ramVal .rv-gb {
-      font-size: 8.5px;
-    }
-    .topbar .actions #ramVal .rv-n {
-      font-size: 7px;
-      line-height: 10px;
-    }
-    .topbar .actions #fanBtn {
-      min-height: 52px;
-    }
     .topbar .actions .ping-btn svg {
       width: 13px;
       height: 13px;
@@ -1578,17 +1441,14 @@
     display: none !important;
   }
   .app:not(.code-mode):not(.forge-mode) .topbar .actions > .ping-btn,
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions > .ram-anchor,
   .app:not(.code-mode):not(.forge-mode) .topbar .actions > .export-wrap {
     width: auto !important;
     min-width: 76px !important;
   }
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions .ram-anchor,
   .app:not(.code-mode):not(.forge-mode) .topbar .actions .export-wrap {
     display: flex !important;
     width: auto !important;
   }
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions .ram-anchor > .ping-btn,
   .app:not(.code-mode):not(.forge-mode) .topbar .actions .export-wrap > .ping-btn,
   .app:not(.code-mode):not(.forge-mode) .topbar .actions .export-wrap > #exportBtn {
     width: 100% !important;
@@ -1615,13 +1475,9 @@
     max-width: 72px;
     text-align: left;
   }
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions .export-menu,
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions .ram-panel {
+  .app:not(.code-mode):not(.forge-mode) .topbar .actions .export-menu {
     right: 0 !important;
     top: calc(100% + 8px) !important;
-  }
-  .app:not(.code-mode):not(.forge-mode) .topbar .actions .ram-panel {
-    width: min(340px, calc(100vw - 24px)) !important;
   }
   .app:not(.code-mode):not(.forge-mode) .messages,
   .app:not(.code-mode):not(.forge-mode) .composer-wrap,
@@ -1643,7 +1499,6 @@
       justify-content: start !important;
     }
     .app:not(.code-mode):not(.forge-mode) .topbar .actions > .ping-btn,
-    .app:not(.code-mode):not(.forge-mode) .topbar .actions > .ram-anchor,
     .app:not(.code-mode):not(.forge-mode) .topbar .actions > .export-wrap,
     .app:not(.code-mode):not(.forge-mode) .topbar .actions .ping-btn {
       min-width: 56px !important;
@@ -1670,13 +1525,6 @@
 @keyframes stage-exit {
   0%   { opacity: 1; }
   100% { opacity: 0; }
-}
-#intro-screen .h-monogram-main {
-  will-change: transform, opacity;
-  backface-visibility: hidden;
-}
-#intro-screen .h-monogram-main.bursting {
-  animation: intro-h-burst 1.2s cubic-bezier(.22,1,.36,1) forwards !important;
 }
 @keyframes intro-h-burst {
   from { transform: translate(-0.21em, -0.035em) scale(1);   opacity: 1; }
@@ -1717,27 +1565,6 @@
 #intro-screen .boot-lines .row:nth-child(6) { animation-delay: 2.05s; }
 #intro-screen .boot-lines .row:nth-child(7) { animation-delay: 2.4s; }
 @keyframes ifl { to { opacity: 1; } }
-#intro-screen .boot-meter {
-  position: absolute; top: 4%; right: 3.4%; width: clamp(210px, 23vw, 252px);
-  font-family: var(--font-mono); font-size: clamp(7.8px, 0.72vw, 8.9px); letter-spacing: .15em;
-  color: var(--ink-dim); text-transform: uppercase; z-index: 4;
-}
-#intro-screen .boot-meter .grp { margin-bottom: 8px; }
-#intro-screen .boot-meter .row { display: flex; justify-content: space-between; gap: 14px; margin-bottom: 3px; }
-#intro-screen .boot-meter .bar { height: 1.5px; background: var(--intro-line-soft); position: relative; overflow: hidden; }
-#intro-screen .boot-meter .bar::after {
-  content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
-  transform: translateX(-100%);
-  animation: iload 3s cubic-bezier(.4,0,.2,1) forwards;
-}
-#intro-screen .boot-meter .bar.b2::after { animation-duration: 4.2s; animation-delay: 0.4s; }
-#intro-screen .boot-meter .bar.b3::after { animation-duration: 5s;   animation-delay: 0.8s; }
-#intro-screen .boot-meter .bar.b4::after { animation-duration: 3.6s; animation-delay: 1.2s; }
-#intro-screen .boot-meter .bar.b5::after { animation-duration: 4.8s; animation-delay: 1.6s; }
-#intro-screen .boot-meter .bar.b6::after { animation-duration: 3.2s; animation-delay: 2.0s; }
-#intro-screen .boot-meter .bar.b7::after { animation-duration: 2.8s; animation-delay: 2.4s; }
-#intro-screen .boot-meter .bar.b8::after { animation-duration: 3.0s; animation-delay: 2.8s; }
 @keyframes iload { to { transform: translateX(0); } }
 #intro-screen .timestamp {
   position: absolute; bottom: 4%; left: 4%;
@@ -1798,16 +1625,6 @@
   60%  { opacity:1; filter: blur(0)    brightness(1.3); }
   100% { opacity:1; filter: blur(0)    brightness(1); }
 }
-#intro-screen .h-monogram-main {
-  font-family: 'Great Vibes', cursive; font-weight: 400;
-  font-size: clamp(160px,26vmin,280px); line-height: 1;
-  color: var(--gold-bright); user-select: none; position: relative; z-index: 2; overflow: visible;
-  display: grid; place-items: center;
-  width: 1em; height: 1em;
-  text-align: center;
-  text-shadow: 0 0 40px rgba(34,211,238,.7), 0 0 80px rgba(34,211,238,.35), 0 4px 16px rgba(34,211,238,.4);
-  animation: ifloath 6s ease-in-out infinite;
-}
 @keyframes ifloath {
   0%,100% { transform: translate(-0.21em, -0.035em); }
   50% { transform: translate(-0.21em, calc(-0.035em - 10px)); }
@@ -1827,24 +1644,6 @@
 #intro-screen .drone svg { width:100%; height:100%; }
 #intro-screen .drone-glow { fill: var(--gold-bright); animation: idotpulse 1.6s ease-in-out infinite; }
 @keyframes idotpulse { 0%,100%{opacity:.6} 50%{opacity:1} }
-#intro-screen .title-block {
-  position: absolute; bottom: 9%; left: 50%; transform: translateX(-50%);
-  text-align: center; z-index: 3;
-  animation: ifadeup 1.2s 1.6s both;
-}
-#intro-screen .title-block h1 {
-  font-family: var(--font-display); font-style: italic; font-weight: 500;
-  font-size: clamp(36px,5.5vmin,72px); margin: 0; letter-spacing: .005em;
-  background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 60%, var(--gold-deep) 100%);
-  -webkit-background-clip: text; background-clip: text; color: transparent;
-  filter: drop-shadow(0 4px 16px var(--accent-glow)); white-space: nowrap; overflow: visible;
-}
-#intro-screen .title-block .sub {
-  font-family: var(--font-mono); font-size: 11px; letter-spacing: .5em;
-  color: var(--ink-mute); text-transform: uppercase; margin-top: 14px;
-  display: inline-flex; gap: 14px; align-items: center;
-}
-#intro-screen .title-block .sub .pip { color: var(--gold); }
 @keyframes ifadeup {
   from { opacity:0; transform: translate(-50%,24px); }
   to   { opacity:1; transform: translate(-50%,0);    }
@@ -1907,9 +1706,6 @@
   box-shadow: 0 0 8px var(--intro-ok); animation: idotpulse 1.4s ease-in-out infinite;
 }
 #intro-screen .boot-lines .fail { color: #e07070; }
-#intro-screen .boot-meter .bar.fail::after {
-  background: linear-gradient(90deg, #5a2020, #e07070);
-}
 #intro-screen .status-badge.offline { border-color: rgba(220,100,100,0.45); color: #e07070; }
 #intro-screen .status-badge.offline .dot { background: #e07070; box-shadow: 0 0 8px #e07070; }
 @media (max-width: 980px) {
@@ -1922,15 +1718,6 @@
     letter-spacing: .035em;
   }
   #intro-screen .boot-lines .row { gap: 4px; }
-  #intro-screen .boot-meter {
-    top: 3.2%;
-    right: 3%;
-    width: 190px;
-    font-size: 7.2px;
-    letter-spacing: .12em;
-  }
-  #intro-screen .boot-meter .grp { margin-bottom: 6px; }
-  #intro-screen .boot-meter .row { gap: 8px; margin-bottom: 2px; }
   #intro-screen .patch-badge,
   #intro-screen .timestamp {
     left: 3%;

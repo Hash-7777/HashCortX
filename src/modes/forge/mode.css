@@ -42,7 +42,6 @@ body.forge-studio-mode #app { display: none; }
 }
 .frg-header::-webkit-scrollbar { display: none; }
 
-
 .frg-header-left,
 .frg-header-right,
 .frg-prompt-wrap {
@@ -131,12 +130,10 @@ body.forge-studio-mode #app { display: none; }
 }
 .frg-btn.ghost:hover { color: var(--text); }
 
-
 .frg-header-left {
   grid-column: 1 / 2;
   grid-row: 1;
 }
-
 
 .frg-prompt-wrap svg { color: var(--accent-2); flex: 0 0 auto; }
 
@@ -480,12 +477,7 @@ body.forge-studio-mode #app { display: none; }
   color: rgba(201,169,110,0.70);
 }
 
-.frg-panel-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}.frg-agent-list,
+.frg-agent-list,
 .frg-project-list,
 .frg-stage-list,
 .frg-plan-list {

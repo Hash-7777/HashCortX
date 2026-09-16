@@ -37,102 +37,6 @@
   }
   .app.collapsed aside { padding: 0; border-right: none; overflow: hidden; }
 
-  #intro-screen .h-monogram-main {
-    visibility: hidden;
-    opacity: 0;
-  }
-  html.logo-font-ready #intro-screen .h-monogram-main {
-    visibility: visible;
-    opacity: 1;
-  }
-  .side-privacy-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    height: 30px;
-    padding: 0 10px;
-    margin: 6px 8px 6px;
-    min-height: 30px;
-    border-radius: var(--radius-sm);
-    cursor: pointer;
-    border: 1px solid rgba(34,211,238,0.24);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)),
-      rgba(0,0,0,0.26);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
-    transition: border-color .15s, background .15s, box-shadow .15s, opacity .15s;
-    user-select: none;
-  }
-  .side-privacy-row:hover,
-  .side-privacy-row:focus-within {
-    border-color: rgba(34,211,238,0.46);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 10px 22px rgba(0,0,0,0.12);
-  }
-  .side-privacy-row input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    margin: 0;
-    cursor: pointer;
-    flex-shrink: 0;
-    border: 1px solid rgba(236,231,220,0.48);
-    border-radius: var(--radius-xs);
-    background: rgba(0,0,0,0.22);
-    display: grid;
-    place-items: center;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-    transition: border-color .15s, background .15s, box-shadow .15s;
-  }
-  .side-privacy-row input[type="checkbox"]::before {
-    content: "";
-    width: 7px;
-    height: 4px;
-    border-left: 2px solid #09110d;
-    border-bottom: 2px solid #09110d;
-    transform: rotate(-45deg) scale(0);
-    transform-origin: center;
-    transition: transform .14s ease;
-  }
-  .side-privacy-row input[type="checkbox"]:checked {
-    border-color: rgba(128,200,160,0.9);
-    background: linear-gradient(180deg, #95c9d9, #22d3ee);
-    box-shadow: 0 0 0 2px rgba(34,211,238,0.10), inset 0 1px 0 rgba(255,255,255,0.32);
-  }
-  .side-privacy-row input[type="checkbox"]:checked::before {
-    transform: rotate(-45deg) scale(1);
-  }
-  .side-privacy-icon,
-  .badge-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 auto;
-  }
-  .side-privacy-icon svg,
-  .badge-icon svg {
-    width: 12px;
-    height: 12px;
-    display: block;
-  }
-  .side-privacy-text {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    font-size: 11.2px;
-    font-weight: 600;
-    letter-spacing: .035em;
-    color: #80a8c8;
-    white-space: nowrap;
-    overflow: hidden;
-    /* No text-overflow: the label is a bare text node inside a flex box, and
-       an anonymous flex item cannot be ellipsed — declaring it here looked
-       like truncation was handled when it was not. The content is short and
-       fixed, so clipping is the honest behaviour; wrap the text in a span
-       with min-width: 0 if that ever stops being true. */
-  }
-
   /* ── Sidebar memory row ── */
   .memory-row {
     display: flex; align-items: center; gap: 8px;
@@ -214,25 +118,6 @@
     background-color: rgba(4,8,7,0.78);
   }
   .search::placeholder { color: rgba(34,211,238,0.45); letter-spacing: 0.02em; }
-
-  /* Agents tab header — label + new-chat button row */
-  .agents-header {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 8px;
-    padding: 8px 6px 4px;
-    margin-top: 2px;
-  }
-  .agents-header-label {
-    font-family: var(--mono);
-    font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase;
-    color: rgba(34,211,238,0.65); font-weight: 500;
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .agents-header-label::before {
-    content: "›";
-    color: var(--gold);
-    opacity: 0.7;
-  }
 
   /* Chat list */
   .section-label {

@@ -138,10 +138,6 @@
   .app.code-mode .empty .crest-logo-img {
     filter: drop-shadow(0 0 8px rgba(200,110,60,0.90)) drop-shadow(0 0 22px rgba(200,110,60,0.55));
   }
-  .app.code-mode .empty .crest-ring {
-    border-color: rgba(200,110,60,0.28);
-    box-shadow: 0 0 60px rgba(200,110,60,0.2), inset 0 0 40px rgba(200,110,60,0.06);
-  }
 
   /* "CODING MODE" badge in header */
   .code-mode-badge {
@@ -195,50 +191,6 @@
   .hc-tool-block summary:hover { background: rgba(160,216,240,0.05); }
   .hc-tool-block summary::marker,
   .hc-tool-block summary::-webkit-details-marker { display: none; }
-  .hc-tool-block summary .hc-tb-chevron {
-    width: 10px; height: 10px; flex: 0 0 10px; opacity: .5;
-    transition: transform .15s;
-  }
-  .hc-tool-block[open] summary .hc-tb-chevron { transform: rotate(90deg); }
-  .hc-tool-block .hc-tb-icon { font-size: 11px; flex: 0 0 auto; }
-  .hc-tool-block .hc-tb-name {
-    font-weight: 600; color: #d4f0ff; font-size: 10.5px; letter-spacing: .06em;
-  }
-  .hc-tool-block .hc-tb-args {
-    font-size: 9.5px; color: rgba(160,216,240,0.45);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    min-width: 0;
-    flex: 1 1 0;
-  }
-  .hc-tool-block .hc-tb-ms {
-    flex: 0 0 auto; font-size: 9px;
-    color: rgba(245,201,122,0.5); letter-spacing: .02em;
-    margin-left: auto;
-  }
-  .hc-tool-block .hc-tb-ok  { color: #a0d8f0; font-size: 10px; }
-  .hc-tool-block .hc-tb-err { color: #f4a4a0; font-size: 10px; }
-  .hc-tool-block .hc-tb-body {
-    padding: 0 12px 10px;
-    border-top: 1px solid rgba(160,216,240,0.10);
-  }
-  .hc-tool-block .hc-tb-section {
-    margin-top: 8px;
-  }
-  .hc-tool-block .hc-tb-label {
-    font-size: 8.5px; letter-spacing: .14em; text-transform: uppercase;
-    color: rgba(160,216,240,0.35); margin-bottom: 4px;
-  }
-  .hc-tool-block .hc-tb-pre {
-    margin: 0; padding: 8px 10px;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(160,216,240,0.10);
-    border-radius: var(--radius-xs);
-    font-family: var(--mono); font-size: 10px; line-height: 1.4;
-    color: rgba(160,216,240,0.75);
-    white-space: pre-wrap; overflow-wrap: anywhere;
-    max-height: 200px; overflow-y: auto;
-  }
-  .hc-tool-block .hc-tb-pre.error { color: #f4a4a0; }
 
   /* ── Audit log modal ─────────────────────────────────────────── */
   .hc-audit-btn {
@@ -387,10 +339,6 @@
   }
   .app.forge-mode .empty .crest-logo-img {
     filter: drop-shadow(0 0 8px rgba(240,168,0,0.90)) drop-shadow(0 0 22px rgba(240,168,0,0.50));
-  }
-  .app.forge-mode .empty .crest-ring {
-    border-color: rgba(75,210,190,0.28);
-    box-shadow: 0 0 58px rgba(75,210,190,0.18), inset 0 0 40px rgba(245,201,122,0.045);
   }
   .forge-mode-badge {
     display: inline-flex; align-items: center; gap: 5px;
@@ -959,12 +907,6 @@
   .preview-copy-btn:hover { border-color: rgba(34,211,238,0.4); color: var(--gold-2); }
 
   /* Voice */
-  .mic-btn.live {
-    background: rgba(217,138,133,0.14) !important;
-    border-color: rgba(217,138,133,0.55) !important;
-    animation: pulse 1.4s cubic-bezier(.4,0,.6,1) infinite;
-  }
-  .mic-btn.live svg { color: var(--rose) !important; }
   @keyframes pulse {
     0%, 100% { box-shadow: 0 0 0 0 rgba(217,138,133,0.5); }
     50%      { box-shadow: 0 0 0 8px rgba(217,138,133,0); }
@@ -978,8 +920,6 @@
   @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   /* Switch */
-  .switch-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-  .switch-row label { font-size: 13px; color: var(--text); }
   .switch {
     position: relative; width: 38px; height: 22px; flex: 0 0 38px;
     background: rgba(255,255,255,0.08); border: 1px solid var(--line-strong);

@@ -118,7 +118,8 @@ console.log('\nLoad order is a decision, not an accident:');
 // Two sheets styling one selector means one of them is invisible, and which
 // one depends on link order rather than on anything in the rule. Lower the
 // budget as rules are merged into the sheet that owns them.
-const DUPLICATE_BUDGET = 54;
+// 47, down from 54: styling nothing in the app used was removed.
+const DUPLICATE_BUDGET = 47;
 
 console.log('\nSelectors declared in more than one sheet go down, never up:');
 {
@@ -160,8 +161,10 @@ const IMPORTANT_BUDGET = {
   // one of them was there to beat a rule the map itself had no need to fight —
   // it was forcing its width, its padding, its display mode and the stroke on
   // its own icons. Built on the shared tokens it wins those on specificity.
-  'css/modals.css': 83,
-  'css/modes.css': 17,
+  // 77, and modes.css and main.css below down with it: rules for elements
+  // that no longer exist were removed, !important and all.
+  'css/modals.css': 77,
+  'css/modes.css': 14,
   'modes/sandbox/mode.css': 14,
   // 10, not 11: one was a mention inside a comment.
   'modes/agent-maker/mode.css': 10,
@@ -170,7 +173,7 @@ const IMPORTANT_BUDGET = {
   'modes/systems/mode.css': 8,
   'css/base.css': 8,
   'modes/finance/mode.css': 4,
-  'css/main.css': 3,
+  'css/main.css': 0,
   'css/vars.css': 0,
   'css/sidebar.css': 0,
   'css/tabs.css': 0,

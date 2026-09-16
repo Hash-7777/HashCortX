@@ -56,13 +56,6 @@
   }
 
   /* ================= Router chip (auto-backend picker) ================= */
-  .router-bar {
-    position: relative;
-    display: flex;
-    justify-content: flex-end;
-    padding: 0 6px 6px;
-    margin-top: -2px;
-  }
   .router-chip {
     display: inline-flex; align-items: center; gap: 6px;
     height: 22px; padding: 0 9px;
@@ -89,40 +82,7 @@
   .router-chip.search { border-color: rgba(160,220,140,0.4); color: #b4dba0; }
   .router-chip.search:hover { border-color: rgba(160,220,140,0.7); }
   .router-chip.locked { border-color: rgba(160,220,140,0.5); color: #80a8c8; }
-  .router-chip .router-icon { font-size: 11px; opacity: 0.8; }
-  .router-chip .router-arrow { font-size: 8px; opacity: 0.55; margin-left: 2px; }
-  .router-menu {
-    position: absolute; right: 6px; bottom: 28px; top: auto;
-    z-index: 30;
-    min-width: 260px;
-    max-height: min(360px, calc(100vh - 120px));
-    overflow-y: auto;
-    background: rgba(14,16,22,0.96);
-    border: 1px solid rgba(34,211,238,0.22);
-    border-radius: var(--radius-md);
-    padding: 6px;
-    box-shadow: 0 -8px 36px rgba(0,0,0,0.5);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    display: none;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(34,211,238,0.22) transparent;
-    animation: routerIn .14s ease-out;
-  }
-  .router-menu.open { display: block; }
   @keyframes routerIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-  .router-menu button {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%; text-align: left;
-    background: none; border: none; color: var(--text-dim);
-    padding: 8px 10px; border-radius: var(--radius-sm);
-    font: 500 12px/1.3 'Inter', system-ui, sans-serif;
-    cursor: pointer;
-  }
-  .router-menu button:hover { background: rgba(34,211,238,0.1); color: var(--text); }
-  .router-menu button.active { color: var(--gold); background: rgba(34,211,238,0.08); }
-  .router-menu button .menu-sub { display: block; font-size: 10.5px; color: var(--muted); margin-top: 2px; font-weight: 400; }
-  .router-menu .menu-divider { height: 1px; background: rgba(34,211,238,0.15); margin: 4px 6px; }
 
   .compare-bar {
     display: none;

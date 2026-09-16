@@ -434,31 +434,6 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 
 /* ── Boot meter — top right ─────────────────────────────── */
-.boot-meter {
-  position: absolute; top:4%; right:3.4%;
-  width: clamp(210px, 23vw, 252px);
-  font-family: var(--font-mono);
-  font-size: clamp(7.8px, 0.72vw, 8.9px);
-  letter-spacing:.15em;
-  color: var(--ink-dim);
-  text-transform: uppercase; z-index:4;
-}
-.boot-meter .grp { margin-bottom:8px; }
-.boot-meter .row { display:flex; justify-content:space-between; gap:14px; margin-bottom:3px; }
-.boot-meter .bar { height:1.5px; background:var(--intro-line-soft); position:relative; overflow:hidden; }
-.boot-meter .bar::after {
-  content:""; position:absolute; inset:0;
-  background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
-  transform: translateX(-100%);
-  animation: iload 3s cubic-bezier(.4,0,.2,1) forwards;
-}
-.boot-meter .bar.b2::after { animation-duration:4.2s; animation-delay:0.4s; }
-.boot-meter .bar.b3::after { animation-duration:5.0s; animation-delay:0.8s; }
-.boot-meter .bar.b4::after { animation-duration:3.6s; animation-delay:1.2s; }
-.boot-meter .bar.b5::after { animation-duration:4.8s; animation-delay:1.6s; }
-.boot-meter .bar.b6::after { animation-duration:3.2s; animation-delay:2.0s; }
-.boot-meter .bar.b7::after { animation-duration:2.8s; animation-delay:2.4s; }
-.boot-meter .bar.b8::after { animation-duration:3.0s; animation-delay:2.8s; }
 @keyframes iload { to { transform:translateX(0); } }
 
 /* ── Bottom decoration ────────────────────────────────────── */
@@ -678,8 +653,6 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 /* The intro stage drag region is set via data-tauri-drag-region on the
    element in HTML. Interactive children get -webkit-app-region:no-drag. */
 .boot-lines,
-.boot-meter,
-.title-block,
 .status-badge,
 .patch-badge,
 .perfection-quote,
@@ -740,34 +713,10 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 @keyframes ising { 0%{opacity:.7;transform:scale(.8)} 100%{opacity:0;transform:scale(1.8)} }
 
 /* ── Title block — bottom center ───────────────────────────── */
-.title-block {
-  position:absolute; bottom:9%; left:50%; transform:translateX(-50%);
-  text-align:center; z-index:3;
-  animation: ifadeup 1.2s 1.6s both;
-}
 @keyframes ifadeup {
   from { opacity:0; transform:translate(-50%,24px); }
   to   { opacity:1; transform:translate(-50%,0);    }
 }
-
-/* Main title: #hashcortx_ — JetBrains Mono bold in green */
-.hc-title {
-  font-family: var(--font-mono); font-weight:700;
-  font-size: clamp(36px, 5.5vmin, 72px);
-  letter-spacing: -1.5px; line-height:1;
-  background: linear-gradient(180deg,
-    var(--gold-bright) 0%, var(--gold) 60%, var(--gold-deep) 100%);
-  -webkit-background-clip:text; background-clip:text; color:transparent;
-  filter: drop-shadow(0 4px 16px var(--accent-glow));
-  white-space:nowrap; overflow:visible;
-}
-.title-block .sub {
-  font-family: var(--font-mono); font-size:11px;
-  letter-spacing:.5em; color:var(--ink-mute);
-  text-transform:uppercase; margin-top:14px;
-  display:inline-flex; gap:14px; align-items:center;
-}
-.title-block .sub .pip { color:var(--gold); }
 
 /* ── Spark particles ────────────────────────────────────────── */
 .particles { position:absolute; inset:0; pointer-events:none; z-index:2; }
@@ -791,33 +740,6 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 
 /* Shared utility animations */
 @keyframes ifi { from{opacity:0;} to{opacity:1;} }
-
-/* ── Main app shell placeholder (Phase 0) ────────────────────── */
-/* Shown after the intro screen is dismissed. Replaced in Phase 1. */
-.hc-shell-placeholder {
-  width: 100%; height: 100%;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 20px;
-  background: var(--hc-bg);
-  animation: ifi 0.6s ease both;
-}
-.hc-shell-logo {
-  width: 80px; height: 80px; object-fit: contain;
-  filter: drop-shadow(0 0 12px rgba(34,211,238,0.6));
-  opacity: 0.85;
-  -webkit-user-drag: none;
-}
-.hc-shell-title {
-  font-family: var(--hc-font); font-weight: 700;
-  font-size: 28px; letter-spacing: -1px;
-  color: var(--hc-green);
-  text-shadow: 0 0 24px rgba(34,211,238,0.5);
-}
-.hc-shell-sub {
-  font-family: var(--hc-font); font-size: 11px;
-  letter-spacing: .35em; text-transform: uppercase;
-  color: var(--hc-text-muted);
-}
 
 /* ── Mode logo images (replaces H monogram in all full-screen modes) ───── */
 .mode-logo-img {
@@ -1445,7 +1367,6 @@ header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
 .frg-logo,
 .sys-logo,
 .void-logo,
-.cdr-logo,
 .hc-logo-full,
 .amk-empty-logo {
   filter: none !important;
@@ -1568,13 +1489,11 @@ html.low-gpu #intro-screen .ticks,
 html.low-gpu #intro-screen .security-rings,
 html.low-gpu #intro-screen .spark,
 html.low-gpu #intro-screen .drone-glow,
-html.low-gpu #intro-screen .processing-glow,
 body.low-gpu #intro-screen .ring,
 body.low-gpu #intro-screen .ticks,
 body.low-gpu #intro-screen .security-rings,
 body.low-gpu #intro-screen .spark,
-body.low-gpu #intro-screen .drone-glow,
-body.low-gpu #intro-screen .processing-glow {
+body.low-gpu #intro-screen .drone-glow {
   animation: none !important;
   filter: none !important;
   box-shadow: none !important;
@@ -1585,7 +1504,6 @@ html.low-gpu .hc-toolbar,
 html.low-gpu header.topbar,
 html.low-gpu .topbar .actions,
 html.low-gpu .export-menu,
-html.low-gpu .ram-panel,
 html.low-gpu .selection-toolbar,
 html.low-gpu .composer,
 html.low-gpu .msg .bubble,
@@ -1593,7 +1511,6 @@ body.low-gpu .hc-toolbar,
 body.low-gpu header.topbar,
 body.low-gpu .topbar .actions,
 body.low-gpu .export-menu,
-body.low-gpu .ram-panel,
 body.low-gpu .selection-toolbar,
 body.low-gpu .composer,
 body.low-gpu .msg .bubble {

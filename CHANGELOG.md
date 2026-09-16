@@ -179,6 +179,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and the Virtual OS that no part of the app reached, and the drag path the
   Virtual OS desktop icons stopped using when they moved to a pointer drag.
   Nothing a person can do changes.
+- **Styling for things the app no longer has.** 191 CSS rules and 49
+  selectors that matched nothing — an old system-stats bar, a startup meter,
+  a project row and similar leftovers — are gone. The computed style of every
+  element in every workspace is unchanged.
 - **Virtual OS's Agent OS loop.** It ran only behind a switch that nothing in
   the app ever turned on, so it could not be reached. Virtual OS's chat agent
   keeps the same tools and is unchanged.

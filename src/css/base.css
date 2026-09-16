@@ -104,8 +104,6 @@
   aside { flex: 0 0 300px; width: 300px; transition: flex-basis .28s cubic-bezier(.2,.8,.2,1), width .28s cubic-bezier(.2,.8,.2,1), padding .28s, border .28s; }
   .app.collapsed aside { flex-basis: 0; width: 0; }
 
-
-
 /* ══════════════════════════════════════════════════════════════
    Idle power
 
@@ -184,7 +182,7 @@ html.hc-power-quiet .circuit-spot * {
     transition-duration: 0.01ms !important;
   }
   /* Progress indicators keep moving — they are information, not decoration. */
-  .spinner, .cdr-pulse, .agent-tool-pulse, [class*="-spin"], [class*="-pulse"] {
+  .spinner, [class*="-spin"], [class*="-pulse"] {
     animation-duration: revert !important;
     animation-iteration-count: infinite !important;
   }
