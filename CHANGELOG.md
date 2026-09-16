@@ -100,6 +100,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The Agent Swarm's topology and aggregation menus mean something.** They
+  listed values nothing else used, so both went blank as soon as a starter
+  template was loaded, and an aggregation picked from the menu was one the
+  run did not recognise, so it quietly used synthesis. Both menus now list
+  the values the templates, the God Agent and the run use, and a blueprint
+  saved with an older value still shows it.
 - **Coder's answers read top to bottom again.** The rule meant to put a small
   marker beside the reply also applied to the whole answer, so the steps of
   a run and the reply sat side by side in one squeezed row, and a reply with

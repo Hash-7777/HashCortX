@@ -61,17 +61,23 @@
     <div class="amk-canvas-panel">
 
       <div class="amk-canvas-toolbar">
-        <select class="amk-topology-select" id="amkTopologySelect">
+        <!-- The values the templates, the God Agent and a run use (scripts/checks/swarm-menus.mjs). -->
+        <select class="amk-topology-select" id="amkTopologySelect" title="The team's shape. A label: the lines on the canvas decide who works after whom.">
           <option value="pipeline">Pipeline</option>
-          <option value="fan-out">Fan-Out</option>
-          <option value="fan-in">Fan-In</option>
-          <option value="broadcast">Broadcast</option>
-          <option value="custom">Custom</option>
-        </select>
-        <select class="amk-topology-select" id="amkAggregationSelect">
           <option value="sequential">Sequential</option>
           <option value="parallel">Parallel</option>
-          <option value="vote">Vote</option>
+          <option value="hierarchical">Hierarchical</option>
+          <option value="debate">Debate</option>
+          <option value="reflexion">Reflexion</option>
+          <option value="router">Router</option>
+          <option value="mesh">Mesh</option>
+        </select>
+        <select class="amk-topology-select" id="amkAggregationSelect" title="How the agents' answers become one result">
+          <option value="synthesis">Synthesis</option>
+          <option value="concat">Concat</option>
+          <option value="best_of_n">Best of N</option>
+          <option value="voting">Voting</option>
+          <option value="hierarchical">Hierarchical</option>
         </select>
         <div class="amk-canvas-sep"></div>
         <button class="amk-btn" id="amkAddAgentToCanvasBtn">

@@ -1915,10 +1915,14 @@ ${modelListStr}`;
 
   function syncTopologySelect() {
     const bp = getActive();
-    const tSel = document.getElementById("amkTopologySelect");
-    const aSel = document.getElementById("amkAggregationSelect");
-    if (tSel && bp) tSel.value = bp.topology || "pipeline";
-    if (aSel && bp) aSel.value = bp.aggregation || "synthesis";
+    // A blueprint saved with a value the menu does not list still shows it, not a blank menu.
+    const show = (sel, value) => {
+      if (!sel || !bp) return;
+      if (![...sel.options].some(o => o.value === value)) sel.add(new Option(value, value));
+      sel.value = value;
+    };
+    show(document.getElementById("amkTopologySelect"), bp?.topology || "pipeline");
+    show(document.getElementById("amkAggregationSelect"), bp?.aggregation || "synthesis");
   }
 
   // ── God Modal ──────────────────────────────────────────────────────

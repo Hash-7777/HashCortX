@@ -398,7 +398,9 @@ const LINE_BUDGET = {
   // a cut-off answer is carried on by the shared router.
   // 2277, up two: an agent with tools is told that what they return is
   // material, not instructions.
-  'modes/agent-maker/mode.js': 2277,
+  // 2281, up four: the topology and aggregation menus show a saved value they
+  // do not list, instead of going blank.
+  'modes/agent-maker/mode.js': 2281,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
