@@ -139,7 +139,7 @@ fn resolve_timeout(timeout_ms: Option<u64>) -> Duration {
 ///
 /// Both entry points share this so a check can never be added to one and
 /// forgotten in the other.
-fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Command, String> {
+fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller) -> Result<Command, String> {
     let full = format!("{} {}", command, args.join(" "));
 
     if denylist::is_command_denied(&full) {
@@ -157,7 +157,12 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Comma
         );
     }
 
-    let mut cmd = Command::new(command);
+    // An agent's command runs inside the system sandbox where there is one
+    // (security/agent_sandbox.rs); a command a person types does not.
+    let mut cmd = match caller {
+        Caller::Person => Command::new(command),
+        Caller::Agent => crate::security::agent_sandbox::command(command)?,
+    };
     cmd.args(args);
     if let Some(dir) = cwd {
         // The working directory decides what every relative path in the command
@@ -188,13 +193,14 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>) -> Result<Comma
     Ok(cmd)
 }
 
-/// Which of the app's environment a command starts with.
+/// Who a command is run for.
 #[derive(Clone, Copy, PartialEq, Debug)]
-enum Env {
-    /// Everything, as a terminal would give it. For commands a person types.
-    Inherit,
-    /// Everything except settings named like a secret. For the agent.
-    WithoutSecrets,
+enum Caller {
+    /// A person typing in the terminal: the whole environment, no sandbox.
+    Person,
+    /// The agent: no settings named like a secret, and on macOS the system
+    /// sandbox (security/agent_sandbox.rs).
+    Agent,
 }
 
 /// Words that mark an environment setting as a secret, when one of them is a
@@ -410,7 +416,7 @@ pub async fn shell_run_line(
 ) -> Result<ShellOutput, String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms, None, Env::Inherit)).await
+    super::off_main(move || run_blocking(shell.to_string(), args, cwd, timeout_ms, None, Caller::Person)).await
 }
 
 #[tauri::command]
@@ -422,7 +428,7 @@ pub async fn shell_run_line_stream(
 ) -> Result<(), String> {
     let (shell, flag) = platform_shell();
     let args = vec![flag.to_string(), line];
-    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, None, Env::Inherit, on_chunk)).await
+    super::off_main(move || run_stream_blocking(shell.to_string(), args, cwd, timeout_ms, None, Caller::Person, on_chunk)).await
 }
 
 // The commands run on a worker thread (see `off_main`); the work itself is
@@ -439,7 +445,7 @@ pub async fn shell_run(
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
 ) -> Result<ShellOutput, String> {
-    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key, Env::WithoutSecrets)).await
+    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key, Caller::Agent)).await
 }
 
 #[tauri::command]
@@ -451,7 +457,7 @@ pub async fn shell_run_stream(
     cancel_key: Option<String>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
-    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, Env::WithoutSecrets, on_chunk)).await
+    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, Caller::Agent, on_chunk)).await
 }
 
 fn run_blocking(
@@ -460,10 +466,10 @@ fn run_blocking(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
-    env: Env,
+    caller: Caller,
 ) -> Result<ShellOutput, String> {
-    let mut cmd = prepare(&command, &args, &cwd)?;
-    if env == Env::WithoutSecrets {
+    let mut cmd = prepare(&command, &args, &cwd, caller)?;
+    if caller == Caller::Agent {
         without_secrets(&mut cmd);
     }
     let timeout = resolve_timeout(timeout_ms);
@@ -514,11 +520,11 @@ fn run_stream_blocking(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
-    env: Env,
+    caller: Caller,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
-    let mut cmd = prepare(&command, &args, &cwd)?;
-    if env == Env::WithoutSecrets {
+    let mut cmd = prepare(&command, &args, &cwd, caller)?;
+    if caller == Caller::Agent {
         without_secrets(&mut cmd);
     }
     let timeout = resolve_timeout(timeout_ms);
@@ -618,7 +624,7 @@ mod tests {
 
     #[test]
     fn prepare_refuses_a_denylisted_command() {
-        let err = prepare("sh", &["-c".into(), "sudo rm -rf /".into()], &None).unwrap_err();
+        let err = prepare("sh", &["-c".into(), "sudo rm -rf /".into()], &None, Caller::Person).unwrap_err();
         assert!(err.contains("denylist"));
     }
 
@@ -626,14 +632,14 @@ mod tests {
     fn prepare_refuses_a_command_that_reaches_for_a_key() {
         // The hole this closes: the filesystem denylist refuses this path, and
         // before now the shell handler happily read it anyway.
-        let err = prepare("sh", &["-c".into(), "cat ~/.ssh/id_ed25519".into()], &None).unwrap_err();
+        let err = prepare("sh", &["-c".into(), "cat ~/.ssh/id_ed25519".into()], &None, Caller::Person).unwrap_err();
         assert!(err.contains("protected location"));
     }
 
     #[test]
     fn prepare_allows_ordinary_work() {
-        assert!(prepare("git", &["status".into()], &None).is_ok());
-        assert!(prepare("npm", &["test".into()], &None).is_ok());
+        assert!(prepare("git", &["status".into()], &None, Caller::Person).is_ok());
+        assert!(prepare("npm", &["test".into()], &None, Caller::Person).is_ok());
     }
 
     #[test]
@@ -643,14 +649,14 @@ mod tests {
         // nothing on that list, so the shell used to start there — the command
         // text never mentions the destination, so nothing else would catch it.
         let escape = Some(format!("{}/../../../etc", env!("CARGO_MANIFEST_DIR")));
-        let err = prepare("ls", &[], &escape).unwrap_err();
+        let err = prepare("ls", &[], &escape, Caller::Person).unwrap_err();
         assert!(
             err.contains("Working directory refused"),
             "unexpected refusal: {err}"
         );
 
         // And the plain spelling stays refused, which it always was.
-        let err = prepare("ls", &[], &Some("/etc".to_string())).unwrap_err();
+        let err = prepare("ls", &[], &Some("/etc".to_string()), Caller::Person).unwrap_err();
         assert!(
             err.contains("Working directory refused"),
             "unexpected refusal: {err}"
@@ -662,12 +668,12 @@ mod tests {
         // The rule has to hold in both directions, or it becomes the next thing
         // that refuses real work.
         let here = Some(env!("CARGO_MANIFEST_DIR").to_string());
-        assert!(prepare("git", &["status".into()], &here).is_ok());
+        assert!(prepare("git", &["status".into()], &here, Caller::Person).is_ok());
     }
 
     #[test]
     fn a_hanging_command_is_killed_rather_than_waited_on_forever() {
-        let mut cmd = prepare("sleep", &["30".into()], &None).unwrap();
+        let mut cmd = prepare("sleep", &["30".into()], &None, Caller::Person).unwrap();
         let mut child = cmd.spawn().expect("sleep should spawn");
         let start = Instant::now();
         let (_, timed_out, stopped) = wait_with_timeout(&mut child, Duration::from_millis(300), &StopFlag::register(None));
@@ -682,7 +688,7 @@ mod tests {
     fn a_command_that_reads_stdin_gets_eof_instead_of_hanging() {
         // stdin is null, so `cat` sees end-of-file immediately. Before this it
         // inherited the app's stdin and could block until the app was killed.
-        let mut cmd = prepare("cat", &[], &None).unwrap();
+        let mut cmd = prepare("cat", &[], &None, Caller::Person).unwrap();
         let mut child = cmd.spawn().expect("cat should spawn");
         let (code, timed_out, _) = wait_with_timeout(&mut child, Duration::from_secs(5), &StopFlag::register(None));
         assert!(!timed_out, "cat should have exited on its own");
@@ -715,7 +721,7 @@ mod tests {
     #[test]
     fn a_command_asked_for_after_its_run_was_stopped_does_not_start() {
         shell_cancel("t-late".into());
-        let out = run_blocking("echo".into(), vec!["hi".into()], None, None, Some("t-late".into()), Env::Inherit);
+        let out = run_blocking("echo".into(), vec!["hi".into()], None, None, Some("t-late".into()), Caller::Person);
         assert_eq!(out.err().as_deref(), Some(STOPPED_BEFORE_START));
     }
 
@@ -733,7 +739,7 @@ mod tests {
     fn stop_after(line: &str, key: &str) -> (Duration, ShellOutput) {
         let (line, k) = (line.to_string(), key.to_string());
         let start = Instant::now();
-        let run = thread::spawn(move || run_blocking("sh".into(), vec!["-c".into(), line], None, None, Some(k), Env::Inherit));
+        let run = thread::spawn(move || run_blocking("sh".into(), vec!["-c".into(), line], None, None, Some(k), Caller::Person));
         thread::sleep(Duration::from_millis(400));
         shell_cancel(key.to_string());
         let out = run.join().unwrap().expect("the command should have run");
@@ -763,7 +769,7 @@ mod tests {
     #[test]
     fn the_time_limit_ends_what_the_command_started_too() {
         let start = Instant::now();
-        let out = run_blocking("sh".into(), vec!["-c".into(), "sleep 30 & sleep 30".into()], None, Some(1_000), None, Env::Inherit).unwrap();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "sleep 30 & sleep 30".into()], None, Some(1_000), None, Caller::Person).unwrap();
         assert!(out.timed_out && !out.stopped);
         assert!(start.elapsed() < Duration::from_secs(6), "it took {:?}", start.elapsed());
     }
@@ -771,7 +777,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_command_that_finishes_is_not_reported_as_stopped() {
-        let out = run_blocking("sh".into(), vec!["-c".into(), "echo done".into()], None, None, Some("t-done".into()), Env::Inherit).unwrap();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "echo done".into()], None, None, Some("t-done".into()), Caller::Person).unwrap();
         assert!(!out.stopped && !out.timed_out && out.stdout.contains("done"));
     }
 
@@ -805,9 +811,28 @@ mod tests {
         std::env::set_var("HC_SHELL_TEST_API_KEY", "value-a");
         std::env::set_var("HC_SHELL_TEST_PLAIN", "value-b");
         let line = "echo ${HC_SHELL_TEST_API_KEY:-absent} ${HC_SHELL_TEST_PLAIN:-absent}";
-        let agent = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Env::WithoutSecrets).unwrap();
-        let typed = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Env::Inherit).unwrap();
+        let agent = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Caller::Agent).unwrap();
+        let typed = run_blocking("sh".into(), vec!["-c".into(), line.into()], None, None, None, Caller::Person).unwrap();
         assert_eq!(agent.stdout.trim(), "absent value-b");
         assert_eq!(typed.stdout.trim(), "value-a value-b");
+    }
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn an_agent_command_runs_in_the_sandbox_and_a_typed_one_does_not() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-sandbox-scratch")
+            .join(format!("run-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("id_ed25519"), "secret").unwrap();
+        // The name is put together at run time, so no text check sees it.
+        let line = "cat \"$(printf %s id_ed)25519\"";
+        let cwd = Some(dir.to_string_lossy().into_owned());
+        let agent = run_blocking("sh".into(), vec!["-c".into(), line.into()], cwd.clone(), None, None, Caller::Agent).unwrap();
+        let typed = run_blocking("sh".into(), vec!["-c".into(), line.into()], cwd, None, None, Caller::Person).unwrap();
+        assert!(!agent.stdout.contains("secret") && agent.code != 0, "the agent read it: {} {}", agent.stdout, agent.stderr);
+        assert_eq!(typed.stdout, "secret");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

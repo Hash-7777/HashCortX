@@ -45,8 +45,8 @@ Every AI request goes straight from your machine to the provider whose key you e
 | **License** | MIT |
 | **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
 | **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, OpenRouter, SambaNova, NVIDIA) + Ollama. SambaNova, NVIDIA and Kimi Code keys are sent by the app itself, because their servers refuse a web page |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~48,000 lines JS, ~6,900 Rust |
-| **Tests** | 161 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,907 source checks, every one of them run by CI on every push |
+| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~48,000 lines JS, ~7,200 Rust |
+| **Tests** | 170 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,907 source checks, every one of them run by CI on every push |
 | **Telemetry · backend · accounts** | None · None · None |
 
 > **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
@@ -199,7 +199,7 @@ Before pushing, run what CI runs:
 
 ```bash
 npm run check                                     # 4,907 checks over the real source
-cargo test --manifest-path src-tauri/Cargo.toml   # 161 tests
+cargo test --manifest-path src-tauri/Cargo.toml   # 170 tests
 ```
 
 ---
@@ -228,7 +228,7 @@ No bundler is a deliberate constraint. The interface is about 2.5 MB of source t
 
 **No backend, no telemetry, no accounts, no auto-updater.** Every network call is for work you asked for: the AI providers you added a key for, your Ollama server, the search and reference services an agent can use, pages an agent is asked to read, and the Python sandbox's runtime, loaded from jsDelivr. [SECURITY.md](docs/SECURITY.md) lists every address.
 
-**A denylist in Rust, under the permission dialog.** The dialog is the app's; the denylist is compiled into its Rust side, and sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. Every guarded action is logged to `~/.hashcortx/audit.log`.
+**A denylist in Rust, under the permission dialog.** The dialog is the app's; the denylist is compiled into its Rust side, and sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. On macOS the agent's commands also run inside the system sandbox, which keeps them out of your keys, credentials and the app's own data however a command is written. Every guarded action is logged to `~/.hashcortx/audit.log`.
 
 **Keys are not encrypted.** They sit in an app-scoped local directory protected by your user account, not by Keychain encryption — because a Keychain item's access list is bound to the code signature, and an unsigned build would re-prompt for every key on every update. Code signing is on the roadmap; the reasoning is written out in full in [SECURITY.md](docs/SECURITY.md).
 

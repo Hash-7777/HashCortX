@@ -74,6 +74,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   handed only to another Ollama model, never to a cloud provider; with none
   left, the run stops with the error. Virtual OS's worker, which it picks
   itself, is a local model too when the job is on one.
+- **On macOS, the agent's commands run inside the system sandbox.** They
+  cannot read or write keys, credentials, keychains, browser and mail data,
+  the shell's start-up files or the app's own data, or add anything that
+  starts at login, however the command is written. Without the sandbox tool
+  they are refused. Commands you type in the terminal are not affected. Git
+  over SSH and similar tools that need those files are left to you.
 - **The app's own folder is private to your account.** On macOS and Linux,
   `~/.hashcortx` — Undo's copies of your files, the audit log, the usage log
   and saved 3D Forge projects — is readable by your account only, and is set
