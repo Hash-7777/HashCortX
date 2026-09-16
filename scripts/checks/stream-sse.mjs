@@ -179,7 +179,13 @@ console.log('\nThere is one stream reader in the app, and it is this one:');
   })(root);
   const readers = files.filter((f) => /\.getReader\(\)/.test(readFileSync(f, 'utf8')))
     .map((f) => f.slice(root.length + 1));
-  ok('only src/js/stream/sse.js reads a stream itself', readers.length === 1 && readers[0] === join('js', 'stream', 'sse.js'));
+  ok('only src/js/stream/sse.js reads a stream itself', readers.filter((r) => r !== join('js', 'request-cap.js')).length === 1
+    && readers.includes(join('js', 'stream', 'sse.js')));
+  // The request cap reads an answer only to know when it is finished, and hands
+  // every chunk on as it came. It must never become a second gatherer.
+  const cap = readFileSync(join(root, 'js', 'request-cap.js'), 'utf8');
+  ok('... apart from the request cap, which passes the bytes on untouched', !/TextDecoder|\.split\(|data:/.test(cap)
+    && /controller\.enqueue\(value\)/.test(cap));
   if (readers.length !== 1) console.log(`          readers found in: ${readers.join(', ')}`);
 }
 

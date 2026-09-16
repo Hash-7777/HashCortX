@@ -80,6 +80,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   starts at login, however the command is written. Without the sandbox tool
   they are refused. Commands you type in the terminal are not affected. Git
   over SSH and similar tools that need those files are left to you.
+- **Cloud AI requests are capped.** At most 30 in any minute and 6 running at
+  once, across the whole app; one over the cap is refused with a message
+  saying which was reached. Local models, model lists and web search are not
+  counted.
 - **The app's own folder is private to your account.** On macOS and Linux,
   `~/.hashcortx` — Undo's copies of your files, the audit log, the usage log
   and saved 3D Forge projects — is readable by your account only, and is set
