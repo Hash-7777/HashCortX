@@ -276,7 +276,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
   function traceAdd(stage, message, status = "wait", detail = "") {
     const entry = {
       ts: Date.now(),
-      elapsed: Number(((Date.now() - traceStartedAt) / 1000).toFixed(1)),
+      elapsed: (Date.now() - traceStartedAt) / 1000,
       stage,
       message: String(message || ""),
       status,
@@ -306,7 +306,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     }
     list.innerHTML = traceEntries.map(e => `
       <div class="fin-trace-entry">
-        <span class="fin-trace-time">[${e.elapsed.toFixed(1)}s]</span>
+        <span class="fin-trace-time">[${window.HCTraceTime.format(e.elapsed)}]</span>
         <span class="fin-trace-stage ${e.status}">${escHtml(e.stage)}</span>
         <span class="fin-trace-icon ${e.status}">${traceIcon(e.status)}</span>
         <span class="fin-trace-msg ${e.status}">${escHtml(e.message)}</span>

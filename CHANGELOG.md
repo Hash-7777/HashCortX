@@ -98,6 +98,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   for your task, and say so when it asks for something else. This is guidance to the model, not a
   filter; the permission dialogs still decide what runs.
 
+### Changed
+
+- **Every trace counts time like a stopwatch.** Trace lines in the Coder, the
+  Agent Swarm, 3D Forge, the ERP, Finance and Virtual OS were stamped in
+  seconds only, so a long run read in the thousands. They now show seconds
+  under a minute, then minutes and seconds, then hours, and so does the
+  Swarm's "Done in" for each agent.
+
 ### Fixed
 
 - **3D Forge places parts written as arithmetic where they were written.**

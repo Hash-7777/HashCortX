@@ -367,11 +367,11 @@
     const host = $("frgTraceEntries");
     if (!host) return;
     const statusCls = kind || "wait";
-    const elapsed = ((Date.now() - traceStartTime) / 1000).toFixed(1);
+    const elapsed = window.HCTraceTime.since(traceStartTime);
     const line = document.createElement("div");
     line.className = "frg-trace-entry";
     line.innerHTML =
-      `<span class="trace-time">[${elapsed}s]</span>` +
+      `<span class="trace-time">[${elapsed}]</span>` +
       `<span class="trace-agent trace-${statusCls}">${escapeHtml(label)}</span>` +
       `<span class="trace-msg trace-${statusCls}">${escapeHtml(message)}</span>` +
       (tokens ? `<span class="trace-tokens">${escapeHtml(String(tokens))}</span>` : "");

@@ -1395,7 +1395,7 @@
 
     function cdrTraceAdd(stage, message, status) {
       cdrTraceEntries.push({
-        elapsed: Number(((Date.now() - cdrTraceStartedAt) / 1000).toFixed(1)),
+        elapsed: (Date.now() - cdrTraceStartedAt) / 1000,
         stage: String(stage || ''),
         message: String(message || ''),
         status: status || 'wait',
@@ -1425,7 +1425,7 @@
         return;
       }
       list.innerHTML = cdrTraceEntries.map(e => `<div class="cdr-trace-entry">
-  <span class="cdr-trace-time">[${e.elapsed.toFixed(1)}s]</span>
+  <span class="cdr-trace-time">[${window.HCTraceTime.format(e.elapsed)}]</span>
   <span class="cdr-trace-stage ${e.status}">${esc(e.stage)}</span>
   <span class="cdr-trace-icon ${e.status}">${icon(e.status)}</span>
   <span class="cdr-trace-msg ${e.status}">${esc(e.message)}</span>

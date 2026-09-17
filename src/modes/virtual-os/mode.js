@@ -65,7 +65,7 @@ const VoidStudio = (() => {
     const entries = $("voidTraceEntries");
     if (!entries) return;
 
-    const elapsed = ((Date.now() - _traceStartTime) / 1000).toFixed(1);
+    const elapsed = window.HCTraceTime.since(_traceStartTime);
     const cssKind  = kind === "error" ? "error" : (kind || "info");
     const icon     = _TRACE_ICONS[cssKind] || _TRACE_ICONS.info;
 
@@ -74,7 +74,7 @@ const VoidStudio = (() => {
     row.innerHTML =
       `<span class="te-icon">${icon}</span>` +
       `<span class="te-msg">${esc(message)}</span>` +
-      `<span class="te-time">[${elapsed}s]</span>`;
+      `<span class="te-time">[${elapsed}]</span>`;
     entries.appendChild(row);
     entries.scrollTop = entries.scrollHeight;
 

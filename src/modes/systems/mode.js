@@ -216,12 +216,12 @@ const SystemMaker = (() => {
       console_.classList.add("expanded");
     }
 
-    const t = ((Date.now() - traceStart) / 1000).toFixed(1);
+    const t = window.HCTraceTime.since(traceStart);
     const row = document.createElement("div");
     row.className = "sys-trace-entry";
     const agentLabel = traceAgentLabel[cls] || "Agent";
     row.innerHTML =
-      `<span class="sys-te-time">[${t}s]</span>` +
+      `<span class="sys-te-time">[${t}]</span>` +
       `<span class="sys-te-agent sys-te-${cls}">${esc(agentLabel)}</span>` +
       `<span class="sys-te-icon sys-te-${cls}">${traceIcons[cls] || traceIcons.run}</span>` +
       `<span class="sys-te-msg sys-te-${cls}">${esc(msg)}</span>`;

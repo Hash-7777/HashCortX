@@ -555,7 +555,7 @@ const SwarmMaker = (() => {
             results[agent.id] = out;
             completed.add(agent.id);
             updateNodeStatus(agent.id, "done");
-            traceAdd(agent.name, `Done in ${((Date.now()-t0)/1000).toFixed(1)}s`, "ok", out.split(/\s+/).length + " words");
+            traceAdd(agent.name, `Done in ${window.HCTraceTime.since(t0)}`, "ok", out.split(/\s+/).length + " words");
             updateProgress(completed.size / agents.length);
             return { id: agent.id, out };
           })
@@ -1450,7 +1450,7 @@ ${modelListStr}`;
   function traceAdd(agentName, message, statusCls, tokens) {
     const list = document.getElementById("amkTraceEntries");
     if (!list) return;
-    const elapsed = ((Date.now() - traceStartTime) / 1000).toFixed(1);
+    const elapsed = window.HCTraceTime.since(traceStartTime);
     const el = document.createElement("div");
     el.className = "amk-trace-entry";
     const roleColor = Object.keys(ROLE_COLORS).reduce((acc, key) => {
@@ -1458,7 +1458,7 @@ ${modelListStr}`;
       return acc;
     }, "#8899aa");
     el.innerHTML =
-      `<span class="trace-time">[${elapsed}s]</span>` +
+      `<span class="trace-time">[${elapsed}]</span>` +
       `<span class="trace-agent trace-${statusCls}" style="color:${agentName === "Orchestrator" || agentName === "Aggregator" ? "var(--amk-amber)" : roleColor}">${escHtml(agentName)}</span>` +
       `<span class="trace-icon trace-${statusCls}">${traceIconFor(message, statusCls)}</span>` +
       `<span class="trace-msg trace-${statusCls}">${escHtml(message)}</span>` +
