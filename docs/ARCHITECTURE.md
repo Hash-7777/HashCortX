@@ -27,7 +27,7 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── forge/            3,686  offline parametric part generator
+│   │   ├── forge/            3,658  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,358  virtual project desktop

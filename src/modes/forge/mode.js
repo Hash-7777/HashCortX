@@ -3321,34 +3321,6 @@ Prompt: ${prompt}`;
     };
   }
 
-  function box(id, name, role, position, size, color, rotation) {
-    return { id, name, role, type: "box", position, rotation: rotation || [0, 0, 0], scale: [1, 1, 1], params: { width: size[0], height: size[1], depth: size[2] }, color };
-  }
-
-  function capsule(id, name, role, position, radius, length, color, rotation, scale, opacity) {
-    return { id, name, role, type: "capsule", position, rotation: rotation || [0, 0, 0], scale: scale || [1, 1, 1], params: { radius, length, capSegments: 10, radialSegments: 24 }, color, opacity };
-  }
-
-  function sphere(id, name, role, position, radius, color) {
-    return { id, name, role, type: "sphere", position, rotation: [0, 0, 0], scale: [1, 1, 1], params: { radius }, color };
-  }
-
-  function cone(id, name, role, position, radius, height, color, rotation) {
-    return { id, name, role, type: "cone", position, rotation: rotation || [0, 0, 0], scale: [1, 1, 1], params: { radius, height, segments: 4 }, color };
-  }
-
-  function torus(id, name, role, position, radius, tube, color, rotation) {
-    return { id, name, role, type: "torus", position, rotation: rotation || [Math.PI / 2, 0, 0], scale: [1, 1, 1], params: { radius, tube }, color };
-  }
-
-  function lathe(id, name, role, position, points, color, scale, rotation, opacity) {
-    return { id, name, role, type: "lathe", position, rotation: rotation || [0, 0, 0], scale: scale || [1, 1, 1], params: { points, segments: 48 }, color, opacity };
-  }
-
-  function logo(id, name, role, position, width, height, style, opacity) {
-    return { id, name, role, type: "logo", position, rotation: [0, 0, 0], scale: [1, 1, 1], params: { width, height, text: "H", fontSize: 860, ...(style || {}) }, color: style?.color || "#c9a96e", opacity };
-  }
-
   function wireEvents() {
     if (eventsWired) return;
     eventsWired = true;
