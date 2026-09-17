@@ -686,6 +686,19 @@ const SwarmMaker = (() => {
     }
   }
 
+  /**
+   * Details only the person can give, asked for before a run — the asking is
+   * src/js/swarm/ask.js, what to ask js/swarm/clarify.js.
+   */
+  function askForDetails(task, signal) {
+    return window.HCSwarmAsk.askForDetails(task, signal, {
+      call: (model, messages, s) => callAgentLLM(model, messages, s, 0.2),
+      models: menuModels, label: modelTraceLabel,
+      chosen: () => document.getElementById("model")?.value || "",
+      trace: (msg, kind) => traceAdd("Orchestrator", msg, kind),
+    });
+  }
+
   // ── Main run entry point ───────────────────────────────────────────
   // Runs the active blueprint on the task in the top bar. Given `again` —
   // { run, message, feedback, base } from the Workspace — it runs that run's
@@ -698,7 +711,7 @@ const SwarmMaker = (() => {
     if (!bp)   { await amkAlert("Select or create a blueprint first."); return; }
     if (!task && !again) { await amkAlert("Enter a task in the top bar before running."); return; }
     if (!bp.agents.length) { await amkAlert("Add at least one agent to the blueprint."); return; }
-    const work = again ? window.HCSwarmTalk.teamTask(again.run, again.feedback, again.base) : task;
+    let work = again ? window.HCSwarmTalk.teamTask(again.run, again.feedback, again.base) : task;
     if (again && getActive() !== bp) _selectBp(bp.id);   // so the graph shows the team that is working
 
     swarmAbortCtrl = new AbortController();
@@ -717,6 +730,23 @@ const SwarmMaker = (() => {
     if (progressBar) progressBar.style.display = "";
     updateProgress(0);
 
+    // Details only the person can give are asked for before anything is built.
+    // A pass over an earlier run already carries them in its task.
+    if (!again) {
+      const asked = await askForDetails(task, signal);
+      if (asked === null) {
+        traceAdd("Orchestrator", "Run cancelled before the team started", "wait");
+        setRunStatus("idle", "Cancelled");
+        updateTraceDot("idle");
+        swarmAbortCtrl = null;
+        document.getElementById("amkRunBtn").style.display  = "";
+        document.getElementById("amkStopBtn").style.display = "none";
+        if (progressBar) progressBar.style.display = "none";
+        return { stopped: true };
+      }
+      work = asked;
+    }
+
     // A website build runs with the website rules on a copy. Written into the
     // saved team, they took a research team's web search away for good.
     const runBp = isCodeBuildTask(task) ? hardenGodBlueprint(structuredClone(bp), task, []) : bp;
@@ -732,7 +762,7 @@ const SwarmMaker = (() => {
     // any hardening above, so it records the agents that ran.
     const run = again
       ? window.HCSwarmRuns.continueRun(again.run, { blueprint: runBp, message: again.message, now: Date.now() })
-      : window.HCSwarmRuns.startRun(runBp, task);
+      : window.HCSwarmRuns.startRun({ ...runBp, finalOutputAgentId: window.HCSwarmTeamShape.delivererOf(runBp.agents, runBp.dag?.edges, runBp.finalOutputAgentId).id || runBp.finalOutputAgentId }, work);
 
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");

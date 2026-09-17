@@ -207,6 +207,21 @@
     </div>
   </div>
 
+  <!-- Questions asked before a run, when the task needs details only the
+       person can give. Filled in by askForDetails in mode.js. -->
+  <div class="amk-dialog amk-ask" id="amkAsk" role="dialog" aria-modal="true" aria-labelledby="amkAskTitle">
+    <div class="amk-dialog-inner amk-ask-inner">
+      <div class="amk-ask-title" id="amkAskTitle">A few details before the team starts</div>
+      <div class="amk-ask-note">This task is about you or your work. Anything you leave blank is marked in the result for you to fill in — nothing is invented.</div>
+      <div class="amk-ask-list" id="amkAskList"></div>
+      <div class="amk-dialog-actions">
+        <button class="amk-btn" id="amkAskCancel">Cancel run</button>
+        <button class="amk-btn" id="amkAskSkip">Skip — use placeholders</button>
+        <button class="amk-btn primary" id="amkAskStart">Start the team</button>
+      </div>
+    </div>
+  </div>
+
   <!-- The Swarm Workspace: a kept run's conversation beside its files.
        Drawn by src/js/swarm/workspace.js. -->
   <div class="amk-ws" id="amkWorkspace" role="dialog" aria-modal="true" aria-labelledby="amkWsTitle" hidden>

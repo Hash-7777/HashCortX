@@ -424,7 +424,11 @@ const LINE_BUDGET = {
   // callWithin.
   // 2275, down ten: which agent plans, makes, checks and delivers is
   // src/js/swarm/team-shape.js.
-  'modes/agent-maker/mode.js': 2275,
+  // 2305, up 30: a new run asks for details only the person can give before it
+  // starts, and ends cleanly when they cancel. What to ask is
+  // src/js/swarm/clarify.js and the asking itself src/js/swarm/ask.js; what is
+  // left here is handing them the model call and the trace.
+  'modes/agent-maker/mode.js': 2305,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

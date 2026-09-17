@@ -791,6 +791,20 @@ img.amk-empty-logo {
 .amk-dialog-actions {
   display: flex; justify-content: flex-end; gap: 8px;
 }
+
+/* Questions before a run: wider than a one-line dialog, and scrolls on a
+   short window rather than pushing its buttons off screen. */
+.amk-ask-inner { width: 560px; max-height: 86vh; }
+.amk-ask-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.amk-ask-note { font-size: 12.5px; line-height: 1.55; color: var(--amk-bright); opacity: 0.8; }
+.amk-ask-list { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; padding-right: 4px; }
+.amk-ask-row { display: flex; flex-direction: column; gap: 6px; }
+.amk-ask-row label { font-size: 13px; line-height: 1.45; color: var(--text); }
+.amk-ask-row textarea {
+  display: block; resize: vertical; min-height: 44px;
+  font-family: inherit; font-size: 13px; line-height: 1.45;
+}
+.amk-ask .amk-dialog-actions { flex-wrap: wrap; }
 /* ══════════════════════════════════════════════════════════════
    ROLE SVG ICONS in node canvas
 ══════════════════════════════════════════════════════════════ */

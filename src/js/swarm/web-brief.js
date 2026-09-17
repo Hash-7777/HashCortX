@@ -16,8 +16,9 @@
 //    the rest by name. The agent that delivers the answer writes every file,
 //    complete, and makes them agree, since it is the only one who sees them
 //    all together.
-//  - A bar for the result that a first draft does not clear by accident: real
-//    content for the request rather than stand-ins, a visual identity chosen
+//  - A bar for the result that a first draft does not clear by accident: the
+//    details the person gave, used exactly, and a marked placeholder for any
+//    they did not — never an invented person or business — a visual identity chosen
 //    for the subject, sections with depth, every control working, motion, and
 //    a layout that holds from a phone to a wide screen.
 //
@@ -61,7 +62,7 @@ ${fences}
 Never split a file across blocks and never stop in the middle of one.
 
 THE BAR FOR THE RESULT:
-- Real content for this request. Headings, copy, names, projects, prices and numbers that fit it. Where the request leaves a detail open — a person's name, a company — invent a realistic one and keep it consistent. Never "John Doe", "Lorem ipsum", "Project One", "A brief description of…", "Your Name", or example.com.
+- Real content for this request. Headings, copy, projects, prices and numbers that fit it, using every detail the request gives exactly as given. Never invent facts about the real person or business the site is for — their name, contact details, employer, projects, clients, prices or achievements. Where one is needed and not given, write a clearly marked placeholder in square brackets, such as [Your name] or [Project link], and keep the rest of the copy real. Never "John Doe", "Lorem ipsum", "Project One", "A brief description of…", or example.com.
 - A visual identity chosen for the subject: two or three colours plus one accent (not a framework's default blue), a heading and a body font from Google Fonts, one spacing scale and one corner radius, all set once as CSS custom properties. Write plain CSS in the stylesheet; do not pull in a CSS framework unless the request asks for one.
 - Sections with depth: a first screen that says what this is and what to do next, content with hierarchy (cards with details, tags and real links), and a footer. It holds from a 360 px phone to a wide screen with no sideways scrolling.
 - Everything works. Every button, link, form and toggle does something real; navigation reaches sections that exist; a form checks its fields and shows what happened.

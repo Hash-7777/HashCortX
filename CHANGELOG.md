@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **The Agent Swarm asks before it builds something about you.** A task
+  such as a portfolio, a CV or a site for your business is checked before the
+  team starts, and the details only you can give — your name, your work, how
+  to reach you — are asked for in a short set of questions. What you answer
+  is given to every agent as fact; anything you leave blank is marked in the
+  result for you to fill in, and the agents are told never to invent a real
+  person or business. A task that needs nothing personal starts straight
+  away, and Cancel stops the run before any agent starts.
 - **SambaNova and NVIDIA work, and so does a Kimi Code key.** Their servers
   refuse any request from a web page, which is what every request inside the
   app is, so their models were hidden and a Kimi Code key could not be used.
