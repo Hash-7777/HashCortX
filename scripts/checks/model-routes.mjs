@@ -251,5 +251,43 @@ ok('... and a local model fails over only to local ones', /const localOnly = isL
 ok('the module loads before the modes', src('boot.js').indexOf("'/js/model-routes.js'") > src('boot.js').indexOf("'/js/chat/failover.js'")
   && src('boot.js').indexOf("'/js/model-routes.js'") < src('boot.js').indexOf("'/modes/manifest.js'"));
 
+console.log('\nA call that runs out of time is cancelled, not abandoned:');
+{
+  // A pretend request that only ends when it is aborted, as a real fetch does.
+  const hanging = (seen) => (signal) => new Promise((_, reject) => {
+    signal.addEventListener('abort', () => { seen.aborted = true; reject(Object.assign(new Error('The operation was aborted.'), { name: 'AbortError' })); });
+  });
+  const manual = () => { const t = { fns: [], set: (fn) => { t.fns.push(fn); return t.fns.length; }, clear: () => { t.cleared = true; } }; return t; };
+
+  const seen = {};
+  const timers = manual();
+  const pending = R.callWithin(1000, null, 'Agent timeout after 1s', hanging(seen), timers);
+  timers.fns[0]();
+  const err = await pending.catch((e) => e);
+  ok('the request itself is aborted when time is up', seen.aborted === true);
+  ok('and the failure is a timeout, so the run moves on', err.message === 'Agent timeout after 1s' && err.timedOut === true && R.failureKind(err) === 'slow');
+
+  const stopper = new AbortController();
+  const seen2 = {};
+  const t2 = manual();
+  const stopped = R.callWithin(1000, stopper.signal, 'x', hanging(seen2), t2);
+  stopper.abort();
+  const err2 = await stopped.catch((e) => e);
+  ok('a stop the person makes reaches the request', seen2.aborted === true);
+  ok('and stays a stop, not a timeout', err2.name === 'AbortError' && !err2.timedOut);
+
+  const t3 = manual();
+  const value = await R.callWithin(1000, null, 'x', async () => 'answer', t3);
+  ok('an answer in time comes back as it is, and its timer is cleared', value === 'answer' && t3.cleared === true);
+
+  // Control: racing a timer, which is what the Swarm did, leaves the request running.
+  const seen4 = {};
+  let fire;
+  const raced = Promise.race([hanging(seen4)(new AbortController().signal), new Promise((_, rej) => { fire = () => rej(new Error('timeout')); })]);
+  fire();
+  await raced.catch(() => {});
+  ok('control: a race against a timer never aborts the request', seen4.aborted !== true);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model routes)`);
 if (fail) process.exit(1);

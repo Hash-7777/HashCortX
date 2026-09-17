@@ -342,10 +342,9 @@ const SwarmMaker = (() => {
         // Tool-calling loop: LLM → tool call → result → repeat
         for (let round = 0; round < maxToolRounds; round++) {
           traceAdd(agent.name, `LLM round ${round + 1}/${maxToolRounds} · sending ${messages.length} message(s)`, "run");
-          const result = await Promise.race([
-            callAgentLLM(activeModel, messages, signal, agent.temperature, { ...agent, model: activeModel, need }),
-            new Promise((_, rej) => setTimeout(() => rej(new Error(`Agent timeout after ${agent.timeout}s`)), timeoutMs))
-          ]);
+          // Cancelled, not abandoned, when time runs out — js/model-routes.js.
+          const result = await window.HCModelRoutes.callWithin(timeoutMs, signal, `Agent timeout after ${agent.timeout || 120}s`, (attemptSignal) =>
+            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, model: activeModel, need }));
           if (result.tool_calls && result.tool_calls.length) {
             traceAdd(agent.name, `LLM requested ${result.tool_calls.length} tool call(s)`, "wait");
             appendAssistantToolCallTurn(messages, result.content, result.tool_calls);
@@ -396,16 +395,21 @@ const SwarmMaker = (() => {
                 continue;
               }
             }
+            // An answer with nothing in it is a failure, not a result: it used
+            // to come back as a placeholder, count as done, and stand in for the
+            // agent's whole part of the work.
+            if (!candidateText.trim()) throw Object.assign(new Error("returned an empty answer"), { empty: true });
             traceAdd(agent.name, "Normalising final output", "wait");
             // Providers it went through go in the trace, never the answer: a note there shipped inside an unclosed file.
             if (failoverLog.length) traceAdd(agent.name, `Answered after switching ${failoverLog.map(f => `${f.from}→${f.to}`).join(", ")}`, "ok");
             traceAdd(agent.name, "Returning output to orchestrator", "ok");
-            return normaliseAgentOutput(candidateText || "(no output)");
+            return normaliseAgentOutput(candidateText);
           }
         }
         // Fallback if max tool rounds hit
         traceAdd(agent.name, `Max tool rounds reached · using last assistant output`, "warn");
-        const rawLast = messages.filter(m => m.role === "assistant").map(m => m.content).filter(Boolean).pop() || "(no output)";
+        const rawLast = messages.filter(m => m.role === "assistant").map(m => m.content).filter((c) => String(c || "").trim()).pop();
+        if (!rawLast) throw Object.assign(new Error("used every tool round without an answer"), { empty: true });
         return normaliseAgentOutput(rawLast);
 
       } catch (err) {

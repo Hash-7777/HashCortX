@@ -419,7 +419,10 @@ const LINE_BUDGET = {
   // material, not instructions.
   // 2281, up four: the topology and aggregation menus show a saved value they
   // do not list, instead of going blank.
-  'modes/agent-maker/mode.js': 2281,
+  // 2285, up four: an empty answer fails over instead of counting as done. The
+  // cancelling of a call that runs out of time is js/model-routes.js's
+  // callWithin.
+  'modes/agent-maker/mode.js': 2285,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

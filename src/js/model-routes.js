@@ -249,6 +249,36 @@
     };
   }
 
+  /**
+   * One model call that is cancelled, not abandoned, when it runs out of time.
+   *
+   * Racing a call against a timer leaves the losing request running: it goes
+   * on spending the account's quota and holding one of the app's places for
+   * requests while the next model is already being asked, which is how one
+   * slow model turns into rate limits for the rest of a run. Here the call is
+   * handed a signal that is aborted when time is up, and the failure it gives
+   * is a timeout. A stop the person makes still arrives as that stop.
+   */
+  async function callWithin(ms, parentSignal, message, call, timers = REAL_TIMERS) {
+    const attempt = new AbortController();
+    const stop = () => { if (!attempt.signal.aborted) attempt.abort(); };
+    if (parentSignal && parentSignal.aborted) stop();
+    else if (parentSignal && parentSignal.addEventListener) parentSignal.addEventListener('abort', stop, { once: true });
+    let timedOut = false;
+    const timer = timers.set(() => { timedOut = true; stop(); }, ms);
+    try {
+      return await call(attempt.signal);
+    } catch (err) {
+      if (timedOut && !(parentSignal && parentSignal.aborted)) {
+        throw Object.assign(new Error(message || `no answer within ${Math.round(ms / 1000)} s`), { timedOut: true });
+      }
+      throw err;
+    } finally {
+      timers.clear(timer);
+      if (parentSignal && parentSignal.removeEventListener) parentSignal.removeEventListener('abort', stop);
+    }
+  }
+
   /** A few words for a trace, saying why the run is moving on. */
   function reasonText(kind) {
     return {
@@ -262,5 +292,5 @@
     }[kind] || 'it failed';
   }
 
-  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
+  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
 })();

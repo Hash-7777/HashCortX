@@ -108,6 +108,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An Agent Swarm agent that gives an empty answer is no longer counted as
+  done.** Its answer came back as a placeholder, the run reported no
+  failures, and the agent's part of the work was simply missing — for the
+  agent that finishes a site, the whole site. An empty answer now moves the
+  agent to another model like any other failure.
+- **An Agent Swarm agent that runs out of time stops its request.** The run
+  moved to the next model but left the slow request running, still spending
+  the account's quota and holding one of the app's places for requests,
+  which turned one slow model into rate limits for the agents after it. The
+  request is now cancelled when its time is up.
 - **A request too large for a model is no longer taken for a busy or spent
   account.** A refusal saying a request was larger than a model takes on
   this account was retried on the same model two seconds later and then
