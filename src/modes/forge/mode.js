@@ -1933,6 +1933,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       transformMode,
       snapEnabled,
       mmPerUnit,
+      baseScale: selectedObjectWhole ? 1 : window.HCForgeParams?.baseScale(renderableNodes(activePlan?.nodes || [])),
       hasTwin: !!(selectedMesh && !selectedObjectWhole && twinMeshOf(selectedMesh)),
     });
   }
@@ -2142,8 +2143,11 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
 
   function updateSelectedScale(axis, value) {
     if (!selectedMesh) return;
+    // Read back the way it is shown: against the scale the model's parts share,
+    // keeping the sign that makes one side of a mirrored pair its mirror.
+    const base = selectedObjectWhole ? 1 : (window.HCForgeParams?.baseScale(renderableNodes(activePlan?.nodes || [])) || 1);
     const n = Math.max(0.02, Number(value) || 0.02);
-    selectedMesh.scale[axis] = n;
+    selectedMesh.scale[axis] = (selectedMesh.scale[axis] < 0 ? -1 : 1) * n * base;
     syncSelectedNodeFromMesh();
     selectionBox?.update();
     updatePlanList(activePlan);
@@ -2292,7 +2296,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     // Read back through the lens it was shown through, or a person typing the
     // number they were just shown would get a part of a different size.
     const raw = field.kind === "length" && units && mmPerUnit
-      ? units.fromMm(Number(value) || 0, mmPerUnit)
+      ? units.fromMm(Number(value) || 0, mmPerUnit) / P.lengthScale(node, key)
       : Number(value);
     node.params = P.withValue(node, key, raw);
     if (!rebuildMeshGeometry(selectedMesh)) return;

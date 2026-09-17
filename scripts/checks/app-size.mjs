@@ -370,7 +370,10 @@ const LINE_BUDGET = {
   // length, in place of the lines that let a design pick its own scale.
   // 3682, down two: applying Improve's answer — in millimetres, and to both
   // sides of a mirrored pair — is src/js/forge/improve.js.
-  'modes/forge/mode.js': 3682,
+  // 3686, up four: a Scale typed in the panel is read against the scale the
+  // model's parts share and keeps a mirror copy's sign. The sums themselves —
+  // lengthScale and baseScale — are in src/js/forge/params.js.
+  'modes/forge/mode.js': 3686,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

@@ -133,6 +133,16 @@ console.log("\nAnd the numbers the shape itself is made of:");
   ok('in millimetres', valueOf(html, 'data-frg-param="width"') === '20');
   ok('and says so in the label', has(html, '<label>Width (mm)</label>'));
 
+  // A design in millimetres: lengths in the hundreds, a scale that brought them
+  // to the scene. The panel showed the length through the lens alone, so a
+  // 450 mm leg read as many metres and a scale read as nothing.
+  const mmLeg = { id: 'leg', name: 'Leg', type: 'cylinder', scale: [0.004, 0.004, 0.004], params: { radius: 20, height: 450 } };
+  const legHtml = H.card(state({ node: mmLeg, scale: mmLeg.scale, baseScale: 0.004, mmPerUnit: 250 }));
+  ok('a part designed in millimetres shows its real height', valueOf(legHtml, 'data-frg-param="height"') === '450');
+  ok('and its real radius', valueOf(legHtml, 'data-frg-param="radiusTop"') === '20');
+  ok('an unstretched part shows a scale of one, in any unit', valueOf(legHtml, 'data-frg-scale="x"') === '1.00');
+  ok('the mirror copy of a part shows the same scale, not a negative one',
+    valueOf(H.card(state({ node: mmLeg, scale: [-0.004, 0.004, 0.004], baseScale: 0.004, mmPerUnit: 250 })), 'data-frg-scale="x"') === '1.00');
   const cylinder = H.card(state({ node: { id: 'c', name: 'Post', type: 'cylinder', params: { radius: 0.3 } } }));
   // The plan wrote one radius for the whole cylinder. Showing a default beside
   // a part built to something else is the drift this table exists to prevent.

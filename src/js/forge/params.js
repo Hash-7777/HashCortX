@@ -19,10 +19,13 @@
 // see. So the geometry reads its fallbacks from this table too. There is one
 // answer to "how wide is a box that did not say", and both sides ask it.
 //
-// A LENGTH IS IN SCENE UNITS HERE. It is shown in millimetres in the panel,
-// through the same lens as a position, because a scene unit means nothing
-// outside this window. A COUNT is how many sides a curve is drawn with, and is
-// a plain whole number.
+// A LENGTH HERE IS IN THE DESIGN'S OWN UNIT. A part is built at its lengths
+// times its scale, and the scale is what brought the design to the scene's size
+// — so a millimetre design keeps lengths in the hundreds beside a scale in the
+// thousandths. The panel shows a length through both, as millimetres, and reads
+// what is typed back through both. `axis` says which scale a length is measured
+// along. A COUNT is how many sides a curve is drawn with, and is a plain whole
+// number.
 //
 // Pure: no THREE, no DOM, no network, no clock.
 //
@@ -31,8 +34,10 @@
 (function () {
   "use strict";
 
-  const length = (key, label, fallback, extra = {}) => ({
-    key, label, fallback, kind: "length", min: 0.001, max: 100, ...extra,
+  // No ceiling: a length is in whatever unit the design was written in, so any
+  // fixed top would be a leg too long in one unit and a speck in another.
+  const length = (key, label, fallback, axis, extra = {}) => ({
+    key, label, fallback, axis, kind: "length", min: 0.001, max: Infinity, ...extra,
   });
   const count = (key, label, fallback, extra = {}) => ({
     key, label, fallback, kind: "count", min: 3, max: 256, step: 1, ...extra,
@@ -49,52 +54,52 @@
    */
   const FIELDS = {
     box: [
-      length("width", "Width", 1),
-      length("height", "Height", 1),
-      length("depth", "Depth", 1),
+      length("width", "Width", 1, 0),
+      length("height", "Height", 1, 1),
+      length("depth", "Depth", 1, 2),
     ],
     cylinder: [
-      length("radiusTop", "Top radius", 0.35, { reads: ["radius"] }),
-      length("radiusBottom", "Base radius", 0.35, { reads: ["radius"] }),
-      length("height", "Height", 1),
+      length("radiusTop", "Top radius", 0.35, 0, { reads: ["radius"] }),
+      length("radiusBottom", "Base radius", 0.35, 0, { reads: ["radius"] }),
+      length("height", "Height", 1, 1),
       count("segments", "Sides", 48),
     ],
     capsule: [
-      length("radius", "Radius", 0.12),
-      length("length", "Straight length", 0.6, { reads: ["height"] }),
+      length("radius", "Radius", 0.12, 0),
+      length("length", "Straight length", 0.6, 1, { reads: ["height"] }),
       count("radialSegments", "Sides", 32),
       count("capSegments", "Cap rings", 16, { min: 1 }),
     ],
     sphere: [
-      length("radius", "Radius", 0.45),
+      length("radius", "Radius", 0.45, 0),
       count("widthSegments", "Sides", 48),
       count("heightSegments", "Rings", 32),
     ],
     cone: [
-      length("radius", "Base radius", 0.42),
-      length("height", "Height", 1),
+      length("radius", "Base radius", 0.42, 0),
+      length("height", "Height", 1, 1),
       count("segments", "Sides", 48),
     ],
     torus: [
-      length("radius", "Ring radius", 0.5),
-      length("tube", "Thickness", 0.08),
+      length("radius", "Ring radius", 0.5, 0),
+      length("tube", "Thickness", 0.08, 2),
     ],
     lathe: [
       count("segments", "Sides", 64),
     ],
     extrude: [
-      length("depth", "Depth", 0.18),
-      length("bevelSize", "Bevel width", 0.025, { min: 0 }),
-      length("bevelThickness", "Bevel depth", 0.025, { min: 0 }),
+      length("depth", "Depth", 0.18, 2),
+      length("bevelSize", "Bevel width", 0.025, 0, { min: 0 }),
+      length("bevelThickness", "Bevel depth", 0.025, 2, { min: 0 }),
       count("bevelSegments", "Bevel rings", 2, { min: 1, max: 8 }),
     ],
     logo: [
-      length("width", "Width", 2.1),
-      length("height", "Height", 2.1),
+      length("width", "Width", 2.1, 0),
+      length("height", "Height", 2.1, 1),
     ],
     logo_img: [
-      length("width", "Width", 2.1),
-      length("height", "Height", 2.1),
+      length("width", "Width", 2.1, 0),
+      length("height", "Height", 2.1, 1),
     ],
     // A mesh is a list of vertices somebody else produced. There is no radius
     // to change, and offering one would be offering an edit that cannot happen.
@@ -178,5 +183,32 @@
     return params;
   }
 
-  window.HCForgeParams = { FIELDS, fieldsFor, fieldOf, isEditable, valueOf, valuesOf, clamp, withValue };
+  /** What one of a part's lengths is multiplied by when it is built. */
+  function lengthScale(node, key) {
+    const field = fieldOf(node && node.type, key);
+    const scale = Array.isArray(node && node.scale) ? node.scale : [1, 1, 1];
+    const s = Math.abs(Number(scale[field ? field.axis : 0]));
+    return Number.isFinite(s) && s > 0 ? s : 1;
+  }
+
+  /**
+   * The scale a model's parts share: the one that brought the design to the
+   * scene's size, read as the middle of every part's overall scale.
+   *
+   * The panel shows a part's scale against this, so an unstretched part reads 1
+   * whatever unit the design was written in. A model whose every part is
+   * stretched alike is not stretched — resizing the model absorbs it.
+   */
+  function baseScale(nodes) {
+    const each = (Array.isArray(nodes) ? nodes : [])
+      .map((n) => (Array.isArray(n && n.scale) ? n.scale : [1, 1, 1]).map((v) => Math.abs(Number(v))))
+      .filter((s) => s.every((v) => Number.isFinite(v) && v > 0))
+      .map((s) => Math.cbrt(s[0] * s[1] * s[2]))
+      .sort((a, b) => a - b);
+    if (!each.length) return 1;
+    const mid = Math.floor(each.length / 2);
+    return each.length % 2 ? each[mid] : Math.sqrt(each[mid - 1] * each[mid]);
+  }
+
+  window.HCForgeParams = { FIELDS, fieldsFor, fieldOf, isEditable, valueOf, valuesOf, clamp, withValue, lengthScale, baseScale };
 })();

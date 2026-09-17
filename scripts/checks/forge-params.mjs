@@ -146,12 +146,29 @@ console.log('\nA part is read at the value it was really built with:');
 console.log('\nA number typed in is brought inside what the shape allows:');
 {
   ok('below the floor comes up to it', P.clamp('box', 'width', -5) === 0.001);
-  ok('above the ceiling comes down to it', P.clamp('box', 'width', 1e9) === 100);
+  // There used to be a ceiling of 100. Lengths are in the design's own unit,
+  // so that was a chair leg in millimetres cut to a tenth of its height.
+  ok('a length has no ceiling in a unit it cannot know', P.clamp('box', 'width', 450) === 450);
   ok('a count is rounded', P.clamp('sphere', 'widthSegments', 12.6) === 13);
   ok('a count has its own floor, so a curve keeps some sides', P.clamp('sphere', 'widthSegments', 1) === 3);
   ok('a bevel may genuinely be nothing', P.clamp('extrude', 'bevelSize', 0) === 0);
   ok('nothing typed at all falls back rather than becoming zero', P.clamp('box', 'width', '') === 1);
   ok('a field that does not exist changes nothing', P.clamp('box', 'radius', 5) === null);
+}
+
+console.log('\nA length is measured with the scale it is built at:');
+{
+  const leg = { type: 'cylinder', scale: [0.002, 0.004, -0.002], params: { radius: 20, height: 450 } };
+  ok('a height is measured along y', P.lengthScale(leg, 'height') === 0.004);
+  ok('a radius is measured across, whatever the sign of a mirrored scale', P.lengthScale(leg, 'radiusTop') === 0.002);
+  ok('a part with no scale is at scale one', P.lengthScale({ type: 'box', params: {} }, 'width') === 1);
+  ok('every length says which axis it is measured along',
+    Object.values(P.FIELDS).flat().filter((f) => f.kind === 'length').every((f) => [0, 1, 2].includes(f.axis)));
+  const parts = [
+    { scale: [0.002, 0.002, 0.002] }, { scale: [-0.002, 0.002, 0.002] }, { scale: [0.002, 0.002, 0.002] }, { scale: [0.004, 0.004, 0.004] },
+  ];
+  ok('the scale a model shares is the middle of its parts, mirrored ones included', Math.abs(P.baseScale(parts) - 0.002) < 1e-15);
+  ok('a model with no parts shares a scale of one', P.baseScale([]) === 1);
 }
 
 console.log('\nSetting a number leaves the part describing itself one way:');

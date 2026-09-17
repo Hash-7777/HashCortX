@@ -152,8 +152,9 @@
    *
    * Resizing cannot stand in for these: scaling a cylinder on two axes gives an
    * oval prism, while changing its radius gives a wider cylinder. Lengths are
-   * shown in millimetres through the same lens as a position; counts — how many
-   * sides a curve is drawn with — stay whole numbers.
+   * shown in millimetres: the length times the part's own scale along it, then
+   * through the same lens as a position. Counts — how many sides a curve is
+   * drawn with — stay whole numbers.
    */
   function shapeFields(node, mmPerUnit) {
     const P = params();
@@ -169,7 +170,7 @@
     return axisGrid("Shape", fields.map((f) => {
       const isLength = f.kind === "length";
       const value = isLength && inMm
-        ? U.formatMm(U.toMm(f.value, mmPerUnit), { bare: true })
+        ? U.formatMm(U.toMm(f.value * P.lengthScale(node, f.key), mmPerUnit), { bare: true })
         : isLength ? Number(f.value).toFixed(3) : String(f.value);
       const label = isLength && inMm ? `${f.label} (mm)` : f.label;
       const step = isLength ? (inMm ? 1 : 0.01) : 1;
@@ -199,7 +200,11 @@
     const title = s.wholeObject ? "Whole object" : node.name || s.fallbackName || "Part";
     const kind = s.wholeObject ? "object" : node.role || "part";
     const pos = Array.isArray(s.position) ? s.position : [0, 0, 0];
-    const scale = Array.isArray(s.scale) ? s.scale : [1, 1, 1];
+    // Against the scale the model's parts share, so an unstretched part reads 1
+    // in any unit, and without its sign, which only says which side of a
+    // mirrored pair this is.
+    const base = Number(s.baseScale) > 0 ? Number(s.baseScale) : 1;
+    const scale = (Array.isArray(s.scale) ? s.scale : [1, 1, 1]).map((v) => Math.abs(Number(v)) / base);
     const rot = Array.isArray(s.rotationDeg) ? s.rotationDeg : [0, 0, 0];
 
     return `

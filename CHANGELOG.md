@@ -136,6 +136,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   left the other wing as it was. The plan is now shown and read back in
   millimetres, a change to either side of a pair is made to both, and
   removing one side removes the pair.
+- **3D Forge's Properties panel shows a part's real size.** A part's
+  dimensions were shown without the scale the part is built at, so a model
+  designed in millimetres showed a leg many metres long, typing a size cut it
+  to a ceiling, and its scale read as zero. Dimensions now show and accept
+  real millimetres, and scale reads 1 for a part that is not stretched,
+  including the mirror copy of a pair.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the
