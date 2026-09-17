@@ -374,7 +374,10 @@ const LINE_BUDGET = {
   // model's parts share and keeps a mirror copy's sign. The sums themselves —
   // lengthScale and baseScale — are in src/js/forge/params.js.
   // 3658, down 28: seven small part builders that nothing called any more.
-  'modes/forge/mode.js': 3658,
+  // 3685, up 27: opening the Forge shows the mark at once as a plain image and
+  // fades the 3D mark in when its picture is ready, instead of a dark view
+  // while the 3D starts and a mark that appeared with its fade already spent.
+  'modes/forge/mode.js': 3685,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

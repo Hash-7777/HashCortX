@@ -792,6 +792,22 @@ console.log('\nThe model is grounded once, by one estimator:');
     /seam\(s\) closed/.test(bodyOf('assembleDeterministically')));
 }
 
+console.log('\nOpening the Forge shows the mark at once:');
+{
+  // The 3D view can take a second to start the first time a new build opens
+  // it, and the view was dark for all of it; then the 3D mark's fade ran out
+  // while its picture was still loading, so the mark appeared all at once.
+  check('the mark is in the markup as a plain image, so it shows before the 3D starts',
+    /<img id="frgIntroMark"[^>]*src="\/assets\/hashcortx-logo\.png"/.test(panel) && /\.frg-intro-mark \{[\s\S]{0,400}animation: frg-intro-mark-in/.test(css));
+  check('and it respects reduced motion', /prefers-reduced-motion: reduce\)[\s\S]{0,120}\.frg-intro-mark \{ animation: none/.test(css));
+  check('the 3D mark reuses that image rather than loading it again',
+    /new THREE\.Texture\(shown\)/.test(bodyOf('makeImageLogoMaterial')));
+  check('its fade waits for its picture to be ready',
+    /if \(ready && !ready\.done\) continue;/.test(bodyOf('updateReveal')) && /item\.start = Math\.max\(item\.start, now\)/.test(bodyOf('updateReveal')));
+  check('the plain image steps aside as the 3D mark arrives, or at once for any other model',
+    /classList\.add\("gone"\)/.test(bodyOf('updateReveal')) && /if \(!plan\._introLogo\) \$\("frgIntroMark"\)\?\.classList\.add\("gone"\)/.test(bodyOf('buildPlan')));
+}
+
 console.log('\nThe design prompt asks for a model, not a part count:');
 {
   check('no node-count demand', !/\b24 to 56\b|\b38 to 86\b/.test(src),

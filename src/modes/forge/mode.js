@@ -1257,17 +1257,30 @@
 
   function makeImageLogoMaterial(node) {
     const p = node.params || {};
-    const loader = new THREE.TextureLoader();
-    const texture = loader.load(p.src || "/assets/hashcortx-logo.png");
+    const src = p.src || "/assets/hashcortx-logo.png";
+    // The mark fades in once its picture is on the GPU, not from when the part
+    // was made. The fade used to run out while the picture was still loading,
+    // so the mark appeared all at once. The image already on the page for the
+    // intro is used when it has loaded, which saves loading it a second time.
+    const shown = $("frgIntroMark");
+    const ready = { done: false };
+    let texture;
+    if (shown && shown.complete && shown.naturalWidth && shown.getAttribute("src") === src) {
+      texture = new THREE.Texture(shown);
+      texture.needsUpdate = true;
+      ready.done = true;
+    } else {
+      texture = new THREE.TextureLoader().load(src, () => { ready.done = true; });
+    }
     texture.colorSpace = THREE.SRGBColorSpace;
-    return new THREE.MeshBasicMaterial({
+    return Object.assign(new THREE.MeshBasicMaterial({
       map: texture,
       color: new THREE.Color(node.color || "#ffffff"),
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
-    });
+    }), { userData: { ready } });
   }
 
   function addNodeMesh(node, revealStart) {
@@ -1372,6 +1385,8 @@
     }
     clearScene();
     dropSolid();
+    // Anything but the intro mark replaces the plain intro image straight away.
+    if (!plan._introLogo) $("frgIntroMark")?.classList.add("gone");
     activePlan = normalizePlan(plan);
     const nodes = renderableNodes(activePlan.nodes);
     const revealStart = performance.now();
@@ -2822,8 +2837,17 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
 
   function updateReveal(now) {
     for (const item of revealMeshes) {
-      const t = Math.min(1, Math.max(0, (now - item.start) / item.duration));
       const mat = item.mesh.material;
+      // A picture still loading is not revealed yet: its clock starts when it
+      // is ready, and the plain intro image steps aside as it arrives.
+      const ready = mat.userData?.ready;
+      if (ready && !ready.done) continue;
+      if (ready && !item.readyAt) {
+        item.readyAt = true;
+        item.start = Math.max(item.start, now);
+        $("frgIntroMark")?.classList.add("gone");
+      }
+      const t = Math.min(1, Math.max(0, (now - item.start) / item.duration));
       mat.opacity = item.targetOpacity * easeOut(t);
       // Once it is fully there, stop treating it as glass. Left transparent, a
       // solid model draws its own far side through its near side.
@@ -3604,6 +3628,9 @@ Prompt: ${prompt}`;
 
   async function mount() {
     mounted = true;
+    // The plain intro image is only for the first mark. A model already open
+    // is drawn again at once, and nothing should sit over it.
+    if (activePlan) $("frgIntroMark")?.classList.add("gone");
     await loadForgeProjects();
     syncModelSelectors();
     renderForgeProjects();

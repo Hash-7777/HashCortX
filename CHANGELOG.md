@@ -142,6 +142,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   to a ceiling, and its scale read as zero. Dimensions now show and accept
   real millimetres, and scale reads 1 for a part that is not stretched,
   including the mirror copy of a pair.
+- **3D Forge opens on its mark instead of a dark view.** The first time a new
+  build opens the Forge, its 3D view can take a second to start, and the
+  view stayed dark for all of it; the mark then appeared at once, because
+  its fade ran out while its picture was still loading. The mark now shows
+  and fades in straight away, and the 3D mark takes over when its picture
+  is ready, using the image already loaded.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the

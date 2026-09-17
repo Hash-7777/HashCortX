@@ -250,6 +250,36 @@ body.forge-studio-mode #app { display: none; }
   height: 100%;
 }
 
+/* The intro mark as a plain image, placed and sized where the 3D mark is
+   framed: centred, 61% of the view's height, at the plane's 4 : 2.6. It shows
+   the moment the tab opens — the 3D view can take a second to start the first
+   time a new build opens it — and fades out as the 3D mark fades in. */
+.frg-intro-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 61%;
+  aspect-ratio: 4 / 2.6;
+  transform: translate(-50%, -50%);
+  object-fit: fill;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.98;
+  animation: frg-intro-mark-in 0.4s ease-out both;
+  transition: opacity 0.26s ease-out;
+}
+.frg-intro-mark.gone {
+  opacity: 0;
+  animation: none;
+}
+@keyframes frg-intro-mark-in {
+  from { opacity: 0; }
+  to { opacity: 0.98; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .frg-intro-mark { animation: none; transition: none; }
+}
+
 .frg-viewport-hud,
 .frg-help,
 .frg-cad-toolbar {
