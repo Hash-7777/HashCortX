@@ -1,10 +1,13 @@
 <div align="center">
 
+<img src="src-tauri/icons/128x128@2x.png" width="104" alt="HashCortx">
 
 # HashCortx
 
-**A local-first AI workspace — multi-provider chat, an autonomous coding agent, and multi-agent swarms in one native desktop app.**<br>
-**No backend. No telemetry. No account. MIT-licensed.**
+**The local-first AI workspace.**
+
+Chat, a coding agent, agent teams and five more workspaces in one desktop app.<br>
+Your keys, your models, your machine. No backend, no telemetry, no account.
 
 <a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
 <a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
@@ -16,7 +19,7 @@
 <a href="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Hash-7777/HashCortX/actions/workflows/ci.yml/badge.svg"></a>
 <img alt="MIT" src="https://img.shields.io/badge/MIT-2d333b?style=flat-square">
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
-<img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows%2010%20%26%2011-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
+<img alt="Windows 10" src="https://img.shields.io/badge/Windows%2010-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
 <img alt="Version 2.6.0" src="https://img.shields.io/badge/v2.6.0-2d333b?style=flat-square">
 
@@ -28,289 +31,162 @@
 
 <br>
 
-![HashCortx main interface](https://github.com/user-attachments/assets/120dfafa-a778-4758-8314-83dc41752a28)
+<img src="docs/assets/screenshots/chat.png" alt="HashCortx chat: a question about caching answered with a table, a highlighted code block and a note" width="100%">
 
----
+<br>
 
-## What this is
+## Why HashCortx
 
-Eight workspaces — chat, an autonomous coding agent, multi-agent swarms, financial document analysis, a security scanner, a business-app builder, 3D planning and a virtual project desktop — behind one window, with nine specialist agents and a real Python sandbox working inside them.
+- **Nothing phones home.** No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address.
+- **Any model, all at once.** Eleven cloud providers and Ollama, side by side, with your own keys. Run fully local when you want to.
+- **An agent that asks first.** Commands, deletions, web pages it picks and anything outside your project need your approval. Every file change is a diff you can keep or undo.
+- **Readable to the last line.** MIT licensed. Vanilla JavaScript and Rust, no bundler, no minified app code.
 
-Every AI request goes straight from your machine to the provider whose key you entered. Nothing passes through HashCortx infrastructure, because there is no HashCortx infrastructure. Point it at Ollama and it runs with the network off — everything except the Python sandbox, which fetches its runtime on first use.
+> This page describes `main`. Changes made since v2.6.0 reach the download with the next release; the [changelog](CHANGELOG.md) lists them.
 
-| | |
+## Eight workspaces
+
+| Workspace | What it does |
 |---|---|
-| **Type** | Native desktop app (Tauri v2) |
-| **Runs on** | macOS Apple Silicon — built and used daily. **Windows — tested on Windows 10**, with an installer in the release. Linux compiles and passes its tests in CI, but nobody has run the app there yet |
-| **License** | MIT |
-| **Latest release** | v2.6.0 (1 September 2026) — 43 MB DMG for Apple Silicon, 80 MB installed; 33 MB of that is the bundled embedding model and most of the rest is the runtime that executes it. Plus a 20 MB Windows program, built without that model so it starts on any 64-bit PC |
-| **AI providers** | 11 cloud (Groq, Gemini, OpenAI, Anthropic, Moonshot, DeepSeek, Mistral, Cerebras, OpenRouter, SambaNova, NVIDIA) + Ollama. SambaNova, NVIDIA and Kimi Code keys are sent by the app itself, because their servers refuse a web page |
-| **Stack** | Rust · vanilla JavaScript · no bundler · no framework · ~48,000 lines JS, ~7,200 Rust |
-| **Tests** | 170 Rust tests on a Mac — a few run only on Unix or only in the build with the bundled embedding model, so the count differs slightly elsewhere — run by CI on Linux, macOS and Windows · 4,954 source checks, every one of them run by CI on every push |
-| **Telemetry · backend · accounts** | None · None · None |
+| **Chats** | Multi-provider chat with projects, attachments, memory and a local knowledge base |
+| **Coder** | A coding agent on your real project: file tree, edits as diffs, terminal, Undo |
+| **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
+| **Finance** | Statements, CSV, PDF and XLSX turned into KPIs and charts from the document's own figures |
+| **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
+| **ERP** | Describe a business, get a working app with linked records and books, exported as one HTML file |
+| **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen |
+| **Virtual OS** | A simulated project desktop an agent builds inside |
 
-> **v2.6.0 is what this page describes.** It carries 112 commits since v2.5.0 — HashCortx running on Windows for the first time, and 3D Forge going from a demo to something that writes files a printer or a CAD program will accept. [What changed](CHANGELOG.md#260--2026-09-01), including what is still open.
-
----
-
-## Why you might want it
-
-**Nothing phones home.** No analytics, no crash reporting, no update pings. Every outbound connection is for work you asked for — [Privacy and security](#privacy-and-security) lists them.
-
-**Your keys, your models.** Eleven cloud providers and Ollama, configured at once, switched freely, mixed inside a single swarm run. The model menu is each provider's own list for your key — Settings → API keys → Update model lists asks them again — and every request asks for the longest answer that model can write, sized so the question and the answer fit.
-
-**The agent asks before it acts where it matters.** Running a command, deleting a file, reading a web page the model picked and touching anything outside your project raise a permission dialog; a change inside the project is shown as a diff you can undo, and one Undo could not take back asks first. Underneath the dialog, a denylist compiled into Rust refuses keys, credentials and system folders, whatever the dialog was told.
-
-**Search that understands meaning.** Ask about "stopping a runaway command" and your notes about killing a process on timeout come back — from a model that ships inside the app and never sends anything anywhere.
-
-**You can audit it.** MIT, no build step, no minified application code. Read it, fork it, ship your own.
-
----
-
-## The eight workspaces
-
-<img src="docs/assets/modes.svg" alt="Eight workspaces: Chats, Coder, 3D Forge, Finance, Sandbox, ERP, Agent Swarm, Virtual OS — plus Agents and Split, which open inside chat" width="100%">
-
-| | Workspace | What it does |
-|---|---|---|
-| 01 | **Chats** | Multi-provider chat with projects, attachments, slash commands, full history |
-| 02 | **Coder** | The coding agent: file tree, real file edits, shell access, browser panel |
-| 03 | **3D Forge** | Describe a part, get a dimensioned solid you can print. Fuses to one watertight body, cuts real holes, exports in millimetres |
-| 04 | **Finance** | Statements, CSV, PDF and XLSX into KPIs and charts. Never invents a number |
-| 05 | **Sandbox** | Agents scanning untrusted code for malware, prompt injection, suspicious logic |
-| 06 | **ERP** | Describe a business, get a working prototype with linked records, stages you can move them through, and books worked out from its own sales; change it by asking, every version kept, and save it as one file that runs in any browser |
-| 07 | **Agent Swarm** | Chain mode, vote mode, automatic provider failover mid-run |
-| 08 | **Virtual OS** | A simulated project desktop an agent works inside |
-
-Two more surfaces are not workspaces and have no tab of their own: **Agents** — the nine built-in specialists and the builder for your own — opens as a menu over the message you are writing, and **Split** — one prompt, two models, streamed side by side — is a toggle inside chat.
-
-The nine agents, the Python sandbox and every workspace in detail: [MODES_GUIDE.txt](MODES_GUIDE.txt) · [Wiki → Features](https://github.com/Hash-7777/HashCortX/wiki/Features)
-
----
+Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
 
 ## Coder
 
-The agent reads your real files, edits them, runs commands, and shows every change as a diff you can expand. It does not get to do any of that quietly.
+The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal.
 
-<img src="docs/assets/coder-loop.svg" alt="The Coder loop: you ask, the model plans, it calls a tool, the Permission Guard decides, Rust executes, the result feeds back. Denied calls are blocked and logged." width="100%">
-
-Every filesystem and shell call passes through `HC.guard.request()` and lands in Rust, where a compiled denylist refuses anything touching `~/.ssh`, `~/.aws`, `~/.gnupg`, the system directories, or HashCortx's own stored keys — whether the path arrives as a file operation or inside a shell command. Inside the folder you opened, the agent works without interrupting you. Outside it, everything asks first, **including reads**, because an agent that reads a file is an agent that can send it to a provider.
-
-Every command is bounded: a five-minute timeout, closed stdin, a 512 KB output cap. Full detail, and the honest limits: [SECURITY.md](docs/SECURITY.md).
-
----
+<img src="docs/assets/screenshots/coder.png" alt="Coder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
 
 ## Agent Swarm
 
-Chain mode hands each agent's output to the next. Vote mode runs one prompt across several models and has a judge score the answers. If a provider rate-limits or dies mid-run, the swarm swaps to another one you configured and carries on with the same context.
+Build a team on a canvas, or start from a template. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them.
 
-When a run finishes it opens as its Result: each agent's part as a conversation beside the files the run made, every version of those files kept, and past runs a click away. Ask for a change in the message box and the run's lead agent answers, or name another agent with @. For a bigger change, send it to the whole team for another pass, which carries on the same conversation. The files each change touches become a new version, so any change can be undone, and any file can be compared line by line with how it was in another version. A site the agents built opens in your browser, where it runs as written, or downloads as one page.
+<img src="docs/assets/screenshots/agent-swarm.png" alt="Agent Swarm: a four-agent team mid-run on a canvas, with the live trace below" width="100%">
 
-![Agent Swarm blueprint canvas with a live orchestrator trace](https://github.com/user-attachments/assets/00a538b5-bf12-4a24-aa23-3bc3a191840a)
+## 3D Forge and ERP
 
----
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/screenshots/3d-forge.png" alt="3D Forge: a desk lamp generated as four parts, 69 by 100 by 69 millimetres"></td>
+<td width="50%"><img src="docs/assets/screenshots/erp.png" alt="ERP: a generated bicycle workshop app with revenue, a status board and the latest jobs"></td>
+</tr>
+<tr>
+<td><b>3D Forge.</b> A described object becomes real parts with real dimensions, ready to print or open in CAD.</td>
+<td><b>ERP.</b> A described business becomes an app with records, stages and books. Change it by asking.</td>
+</tr>
+</table>
 
-## The knowledge base
+## Security
 
-Anything you ingest becomes searchable by **meaning**, not just by matching words — `bge-small-en-v1.5` (MIT) ships inside the app and runs natively in Rust. It is inference-only: a sentence encoder, not a language model. On an x86-64 machine without AVX2 the app is built without it and searches by keyword instead; see [Older processors](#older-processors-without-avx2).
+<img src="docs/assets/screenshots/permission.png" alt="Coder asking permission to run npm test in the project, with Deny, Allow for session and Allow once" width="100%">
 
-- **Nothing is fetched.** No first-run download, no cache to warm. It works offline on first launch.
-- **Nothing is sent to index it.** Indexing and searching run on your computer. The passages a search finds go only into a request to the model you are using, so with a cloud model they reach that provider.
-- **34 MB of the download.** That is the price of the two lines above, paid once.
+- **You approve what matters.** Commands, deletions, web pages the model picks and anything outside the open project raise this bar. Every decision is written to `~/.hashcortx/audit.log`.
+- **A blocklist compiled into Rust** refuses keys, credentials and system folders, whether they are asked for as a file or named in a command.
+- **On macOS, agent commands run in the system sandbox,** which keeps them out of your keys, keychains, shell start-up files and the app's own data however a command is written. On every system they start without environment settings named like secrets.
+- **A task on a local model stays local,** and cloud AI requests are capped at 30 a minute and 6 at once.
+- **Stated plainly:** API keys are stored on disk unencrypted, protected by your user account; the build is not code-signed.
 
-Results are ranked by meaning and by keyword at once, then fused — so a rare error code still finds its exact match while a paraphrased question still finds the right passage.
-
----
+Everything the app does, and what it does not, is in [SECURITY.md](docs/SECURITY.md).
 
 ## Install
 
-Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest), open it, drag HashCortx to `/Applications`.
-
-The DMG is built for **Apple Silicon**. On an Intel Mac, build from source.
-
-On **Windows** there is an installer in the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest). It is the build made without local embeddings, so it starts on a processor of any age and searches the knowledge base by keyword rather than by meaning; for search by meaning on an AVX2 processor, build with the default features (below). On **Linux** there is no prebuilt download — build from source (below). Check your processor first: the default build needs AVX2 and BMI2, and there is a build that does not. See [Older processors](#older-processors-without-avx2).
-
-The build is unsigned and not notarised, so on first launch right-click the app and choose **Open**, then **Open** again. If macOS still refuses:
+**macOS (Apple Silicon).** Download the DMG from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest) and drag HashCortx to Applications. The build is not notarised: on first launch, right-click the app, choose **Open**, then **Open** again. If macOS still refuses:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/HashCortx.app
 ```
 
-Then open **Settings → API keys**, add a key, press **Test**. Or skip keys entirely and run a model on your own machine — **Settings → Local model** walks you through it and checks each step for you.
+**Windows.** Run the installer from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest). It is built without the embedding model, so it starts on any 64-bit PC and searches the knowledge base by keyword.
 
-### Build from source
+**Linux and Intel Macs.** Build from source (below).
+
+Then open **Settings → API keys**, add a key and press **Test**. Or skip keys and run a model on your own machine: **Settings → Local model** walks you through it.
+
+<details>
+<summary><b>Build from source</b></summary>
+
+<br>
 
 ```bash
-cd ~                   # start in your own folder, not wherever the shell opened
+cd ~
 git clone https://github.com/Hash-7777/HashCortX.git
 cd HashCortX
 npm install
-npm run tauri dev      # live-reload development
-npm run tauri build    # DMG in src-tauri/target/release/bundle/dmg/
+npm run tauri dev      # develop
+npm run tauri build    # package
 ```
 
-Node 18+ and a Rust toolchain via `rustup`, plus **macOS**: Xcode Command Line Tools · **Linux**: Ubuntu 24.04+ and the Tauri v2 system libraries (glibc 2.38+ is required to link the bundled ONNX Runtime) · **Windows**: MSVC build tools and WebView2.
+Needs Node 18+ and Rust via `rustup`, plus **macOS:** Xcode Command Line Tools · **Linux:** Ubuntu 24.04+ with the Tauri v2 system libraries · **Windows:** MSVC build tools and WebView2.
 
-**On Windows, run `cd ~` before cloning — the line above is not decoration.**
-PowerShell opened as an administrator starts in `C:\Windows\System32`, so a
-pasted `git clone` lands inside Windows' own system folder. The prerequisite
-installers want an administrator window; the build itself does not, and a normal
-PowerShell already starts somewhere sensible.
+**On Windows, run `cd ~` first.** An administrator PowerShell starts in `C:\Windows\System32`, and a checkout there fails to bundle with a misleading "file not found".
 
-A checkout under `System32` fails in a way that points nowhere near the cause.
-The WiX tools Tauri bundles with are 32-bit, and a 32-bit process reading that
-path is redirected by Windows to `SysWOW64`, where the checkout does not exist —
-so the Rust build succeeds and bundling then fails saying it cannot find a file
-that is plainly there. The folder also inherits System32's permissions, so
-getting rid of it afterwards needs an administrator:
-
-```powershell
-robocopy C:\Windows\System32\HashCortX $HOME\HashCortX /E /XD target
-Remove-Item -LiteralPath C:\Windows\System32\HashCortX -Recurse -Force
-```
-
-### Older processors (without AVX2)
-
-The default build links a prebuilt ONNX Runtime for the embedding model. It is
-compiled for x86-64 processors with **AVX2 and BMI2** — Intel Haswell (2013),
-AMD Excavator (2015) and newer — and it is linked statically, so its start-up
-code runs before `main()`. On an older processor it executes an instruction the
-CPU does not have and the process is killed while it is still loading: no
-window, no error, nothing on screen.
-
-Build without it, and the app starts on any x86-64 machine:
+**Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); on an older processor the app exits before a window appears. Build without the embedding model instead, and search falls back to keywords:
 
 ```bash
 npx tauri build -- --no-default-features
 ```
 
-The `--` matters: the Tauri CLI has no such flag of its own and passes
-everything after it to cargo. Through an npm script it takes two, because npm
-eats the first one — `npm run tauri build -- -- --no-default-features`.
-
-That build has no embedding model in it. The knowledge base still works and
-still searches, by keyword rather than by meaning; `embed_available` reports
-false so the interface can say so rather than quietly returning worse results.
-The binary is also far smaller — about 20 MB against about 80 MB, measured on
-Apple Silicon — since neither the model nor the runtime is compiled in. Apple
-Silicon is unaffected either way.
-
-Before pushing, run what CI runs:
+Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 4,954 checks over the real source
-cargo test --manifest-path src-tauri/Cargo.toml   # 170 tests
+npm run check                                     # 4,954 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 170 Rust tests
 ```
 
----
+Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.
+[Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
-## Under the hood
-
-<img src="docs/assets/architecture.svg" alt="Architecture: vanilla JS renderer, platform bridge, Permission Guard in Rust, Tauri commands. AI requests go straight from the renderer to the provider." width="100%">
-
-| Layer | Technology |
-|---|---|
-| **Shell** | Tauri v2 — Rust core, the system webview, no Chromium |
-| **Backend** | Rust: filesystem, shell, audit log, usage log, embeddings, Keychain migration |
-| **Security** | Compiled denylist in `security/denylist.rs`, permission prompt via `HC.guard.request()` |
-| **Frontend** | Vanilla JavaScript. No React, no TypeScript, no bundler, no build step |
-| **Embeddings** | bge-small-en-v1.5 (MIT) compiled into the binary, run via ONNX Runtime |
-| **Python** | Pyodide (CPython on WebAssembly) with pandas, numpy, matplotlib, python-docx, openpyxl, reportlab |
-| **Vendored libs** | marked, highlight.js, DOMPurify, mermaid, pdf.js, jsPDF, three.js — all local, no CDN |
-
-No bundler is a deliberate constraint. The interface is about 2.5 MB of source that ships as written, so any reader can follow a feature from the button that triggers it to the Rust function that performs it, without a source map. What makes the download large is the embedding model and the runtime that executes it, not the app.
-
-[ARCHITECTURE.md](docs/ARCHITECTURE.md) · [SECURITY.md](docs/SECURITY.md) · [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md)
-
----
-
-## Privacy and security
-
-**No backend, no telemetry, no accounts, no auto-updater.** Every network call is for work you asked for: the AI providers you added a key for, your Ollama server, the search and reference services an agent can use, pages an agent is asked to read, and the Python sandbox's runtime, loaded from jsDelivr. [SECURITY.md](docs/SECURITY.md) lists every address.
-
-**A denylist in Rust, under the permission dialog.** The dialog is the app's; the denylist is compiled into its Rust side, and sensitive paths are denied unconditionally, whether they arrive as a file operation or inside a shell command. On macOS the agent's commands also run inside the system sandbox, which keeps them out of your keys, credentials and the app's own data however a command is written. Every guarded action is logged to `~/.hashcortx/audit.log`.
-
-**Keys are not encrypted.** They sit in an app-scoped local directory protected by your user account, not by Keychain encryption — because a Keychain item's access list is bound to the code signature, and an unsigned build would re-prompt for every key on every update. Code signing is on the roadmap; the reasoning is written out in full in [SECURITY.md](docs/SECURITY.md).
-
-**Measured usage, not guessed.** One JSON line per response to `~/.hashcortx/usage.jsonl` — timestamp, model id, token counts. No prompt, no answer, no file names. Counts come from the provider's own metadata; if a provider reports none, HashCortx writes nothing rather than estimating. [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) reads that file if you install it.
-
-```bash
-jq -s 'map(.input_tokens + .output_tokens) | add' ~/.hashcortx/usage.jsonl
-```
-
-**Source-grounded modes.** Published Papers Researcher, Medical Lexi-Check and Finance are constrained never to fabricate data.
-
----
+</details>
 
 ## FAQ
 
-**Is it free?** Yes. MIT, no paid tier, no usage caps. You pay the AI providers directly, or nothing at all with Ollama.
+**Is it free?** Yes. MIT, no paid tier. You pay your AI providers directly, or nothing with a local model.
 
-**Does it work offline?** Yes, with Ollama. The knowledge base works offline regardless. Cloud providers need the internet, and so do web search and the Python sandbox, which loads its runtime from jsDelivr.
+**Does it work offline?** Yes, with Ollama. Web search, cloud models and the Python sandbox's first start need the internet.
 
-**Which systems?** macOS Apple Silicon is built and used daily. **Windows runs — tested on Windows 10**, where the app has been built, installed and used; that release carries a Windows installer. Linux compiles and passes its tests in CI on every push, but nobody has launched it there, so treat Linux as buildable rather than supported.
+**Which systems?** macOS on Apple Silicon, built and used daily. Windows 10, tested. Linux builds and passes CI, but has not been run by anyone yet.
 
-**What processor does it need?** On x86-64 — every Windows and Linux machine, and Intel Macs — the default build needs **AVX2 and BMI2**: Intel Haswell (2013) or AMD Excavator (2015) and newer. That is not the app itself but the ONNX Runtime it links to run the embedding model, which is compiled for those instructions and starts up before any of the app's own code. On an older processor the app cannot start at all, and because the failure happens during loading there is no window and no message — a double-click that appears to do nothing. Building with `--no-default-features` removes that runtime and produces an app that starts on any x86-64 machine; see [Older processors](#older-processors-without-avx2). Apple Silicon is unaffected.
+**Does my code leave my machine?** Only inside a request to the model you chose. There is no HashCortx server.
 
-**Does it send my code anywhere?** Only to the provider you configured, when you send a message. There is no HashCortx server.
+**Are my API keys encrypted?** No. They sit in the app's own folder, protected by your user account. [Why](docs/SECURITY.md#where-api-keys-live).
 
-**Are my API keys encrypted?** No — see above.
+**Was it built with AI?** Yes, with AI coding models under human architecture, review and correction. Every product and security decision is the author's.
 
-**Was it built with AI?** Yes, heavily. Roughly 30 million tokens across Claude, GPT and other frontier models during the v2.0.0 build, and substantially more over the 253 commits since, under human architecture, review and correction. Disclosed because HashCortx is itself an AI tool, and hiding that would be incoherent. Every product decision — the workspace structure, the local-first rule, the Permission Guard, the swarm failover pattern, the source-grounding constraints — is the author's.
+More in the [Wiki](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
-More at [Wiki → FAQ](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
+## Keyboard shortcuts
 
----
-
-## Roadmap
-
-- A release cut from `main`, so the download matches this README
-- Code signing and notarisation, which also unlocks Keychain key storage
-- Someone actually running the app on Linux and Windows — compiling and passing tests is not the same thing
-- Continued extraction of `app.js` into focused modules
-- Permission Guard coverage for Virtual OS and 3D Forge
-- Reaching the knowledge base from Coder mode, which still cannot see it
-
-Suggest something in [Issues](https://github.com/Hash-7777/HashCortX/issues/new/choose) or [Discussions](https://github.com/Hash-7777/HashCortX/discussions).
-
----
+| Shortcut | Action |
+|---|---|
+| `Cmd/Ctrl + Shift + C` | Open or leave Coder |
+| `Cmd/Ctrl + Shift + N` | New chat |
+| `Cmd/Ctrl + K` | Model picker |
 
 ## The Hash ecosystem
-
-Four local-first apps, same principles — no telemetry, and no server of ours in between.
 
 | App | What it is | Licence |
 |---|---|---|
 | **HashCortx** *(you are here)* | The local-first AI workspace | MIT |
 | [**HashCerebrum**](https://github.com/Hash-7777/HashCerebrum) | Medical research workbench with a 3D brain interface | AGPL-3.0 |
-| [**HashMeterAi**](https://github.com/Hash-7777/HashMeterAi) | An honest local meter for how much AI you actually use | Apache-2.0 |
+| [**HashMeterAi**](https://github.com/Hash-7777/HashMeterAi) | An honest local meter for your AI usage | Apache-2.0 |
 | [**HashNotch**](https://github.com/Hash-7777/HashNotch) | Turns the MacBook notch into a live activity island | GPL-3.0 |
 
-They interlock, through files on your disk rather than a service:
+They connect through files on your disk, not a service. HashCortx records token counts in `~/.hashcortx/usage.jsonl` for **HashMeterAi**, and posts a short "finished" notice for **HashNotch**: a title, never a prompt or an answer.
 
-- HashCortx appends real token counts to `~/.hashcortx/usage.jsonl`, and **HashMeterAi** reads it — so your spend across every tool is measured in one place, by software that never phones home.
-- When a run finishes, HashCortx posts a short notice to `~/.hashnotch/activities.json`, and **HashNotch** lights up the notch — a title and nothing else, never a model name, a prompt or an answer. If it is not installed, the file simply sits there unread.
-
----
-
-## Keyboard shortcuts
-
-`Cmd/Ctrl + Shift + C` toggle Coder · `Cmd/Ctrl + Shift + N` new chat · `Cmd/Ctrl + K` model picker
-
----
-
-**Author** — [Seif Hashish](https://github.com/Hash-7777), independent open-source developer with a pharma and clinical background, which is where the refusal-to-fabricate constraints in the medical and finance modes come from. · [hashcortx.com](https://hashcortx.com)
-
-**License** — MIT. See [LICENSE](LICENSE).
+<br>
 
 <div align="center">
 
-<br>
+**HashCortx** · by [Seif Hashish](https://github.com/Hash-7777) · [MIT](LICENSE)
 
-**HashCortx** · One window · Twelve providers · No telemetry · Local-first · MIT
-
-[Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
-
-<br>
+[Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Website](https://hashcortx.com) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
 </div>
