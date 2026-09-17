@@ -1616,6 +1616,10 @@
     if (swapped.length) {
       log("Assemble", `${swapped.length} part(s) named a shape this app does not build — read as the nearest one`, "warn", swapped.join("\n"));
     }
+    const sums = plan?.arithmeticIssues || [];
+    if (sums.length) {
+      log("Assemble", `${sums.length} number(s) written as arithmetic could not be worked out — a position became 0, a size its default`, "warn", sums.join("\n"));
+    }
     const plain = plainShapeCount(nodes);
     if (nodes.length >= 3 && plain / nodes.length >= 0.7) {
       log("Design", `${plain} of ${nodes.length} part(s) are plain boxes or balls. If the subject is not blocky, the model answered with stand-ins — press Improve, or design it with a stronger model.`, "warn");

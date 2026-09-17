@@ -21,9 +21,13 @@ import vm from 'node:vm';
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 
-function load({ withAssembler = true } = {}) {
+function load({ withAssembler = true, withArithmetic = true } = {}) {
   const sandbox = { window: {}, console };
   vm.createContext(sandbox);
+  // The app loads the arithmetic before the gate, so the gate is checked with
+  // it. Left out, a sum in a position reads as zero here exactly as it did in
+  // the app before the gate learned to work sums out.
+  if (withArithmetic) vm.runInContext(src('js', 'forge', 'expr.js'), sandbox, { filename: 'expr.js' });
   if (withAssembler) vm.runInContext(src('js', 'model-plan.js'), sandbox, { filename: 'model-plan.js' });
   // Sizes come from units.js. Leaving it out skips every size field, so a
   // green run here proved nothing about them — which is exactly how the
@@ -222,6 +226,51 @@ console.log('\nA swapped shape is still reported after the plan is read again:')
   const freshEachTime = (plan) => ({ ...plan, shapeSubstitutions: [] });
   ok('control: starting the list afresh loses the warning on the second read',
     freshEachTime(first).shapeSubstitutions.length === 0);
+}
+
+console.log('\nArithmetic is worked out before any number is read:');
+{
+  // The design prompt invites a position, a turn or a size written as a sum.
+  // This gate reads positions as plain numbers, so a sum that reached it
+  // unresolved became zero, and every part placed by arithmetic collapsed onto
+  // the origin while the sizes written beside it survived.
+  const plan = {
+    sizeMm: 'seat * 2',
+    vars: { seat: 450, leg: 20 },
+    nodes: [{
+      id: 'leg', type: 'cylinder',
+      position: ['seat / 2 - leg', 'seat / 2', '-(seat / 2 - leg)'],
+      rotation: [0, 'rad(90)', 0],
+      scale: ['1 + 1', 1, 1],
+      params: { radius: 'leg', height: 'seat' },
+      repeat: { count: '2 * 2', about: 'y' },
+    }],
+  };
+  const out = N.normalizePlan(plan);
+  const leg = out.nodes[0];
+  ok('a position written as a sum arrives as its value', JSON.stringify(leg.position) === '[205,225,-205]');
+  ok('so does a turn', Math.abs(leg.rotation[1] - Math.PI / 2) < 1e-12);
+  ok('and a scale', leg.scale[0] === 2);
+  ok('a size written as a sum arrives as its value', leg.params.radius === 20 && leg.params.height === 450);
+  ok('a repeat count written as a sum arrives as its value', leg.repeat.count === 4);
+  ok('the object size written as a sum is the size used', out.sizeMm === 900 && out.sizeStated === true);
+  ok('the names the sums were written in are kept', JSON.stringify(out.vars) === JSON.stringify(plan.vars));
+  ok('a plan that worked out cleanly reports nothing', out.arithmeticIssues.length === 0);
+  ok('reading it again changes nothing', JSON.stringify(N.normalizePlan(out)) === JSON.stringify(out));
+
+  const bad = N.normalizePlan({ vars: { w: 10 }, nodes: [{ id: 'arm', type: 'box', position: ['w + nope', 0, 0], params: { width: 'w * oops' } }] });
+  ok('a sum that cannot be worked out is reported', bad.arithmeticIssues.length === 2);
+  ok('the report says where it was', bad.arithmeticIssues.some((t) => /^arm\.position\[0\]/.test(t)) && bad.arithmeticIssues.some((t) => /^arm\.params\.width/.test(t)));
+  const again = N.normalizePlan(N.normalizePlan(bad));
+  ok('reading it again does not report it twice', JSON.stringify(again.arithmeticIssues) === JSON.stringify(bad.arithmeticIssues));
+  ok('a variable that cannot be worked out is named', N.normalizePlan({ vars: { a: 'b + 1' }, nodes: [] }).arithmeticIssues.some((t) => /^vars\.a/.test(t)));
+
+  // Control: without the arithmetic loaded the gate reads a sum as zero, which
+  // is exactly what the app did. If this control ever fails, the gate has
+  // started reading sums some other way and the check above needs looking at.
+  const plain = load({ withArithmetic: false });
+  ok('control: without the arithmetic a position sum collapses to zero',
+    JSON.stringify(plain.normalizePlan(plan).nodes[0].position) === '[0,0,0]');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/plan-normalize.js)`);

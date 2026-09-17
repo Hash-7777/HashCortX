@@ -358,7 +358,10 @@ const LINE_BUDGET = {
   // 3873, down one: the planner's failover goes through src/js/model-routes.js.
   // 3855, down from 3873: waiting on a model while its plan keeps arriving is
   // src/js/model-routes.js's quietSignal, not a fixed limit of its own.
-  'modes/forge/mode.js': 3855,
+  // 3859, up four: the run says when a number written as arithmetic could not
+  // be worked out. The working-out itself is in the plan gate,
+  // src/js/forge/plan-normalize.js, where a sum used to be read as zero.
+  'modes/forge/mode.js': 3859,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

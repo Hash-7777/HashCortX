@@ -100,6 +100,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge places parts written as arithmetic where they were written.**
+  The design may give a position, a turn or a size as a sum, but the first
+  step a design passed through read those as plain numbers, so every part
+  placed by a sum landed on the centre of the model. Sums are now worked out
+  before anything else reads the design, and one that cannot be worked out is
+  named in the trace.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the

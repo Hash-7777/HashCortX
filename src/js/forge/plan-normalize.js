@@ -127,8 +127,26 @@
    * that changed shape on reopening.
    */
   function normalizePlan(plan) {
-    const src = plan && typeof plan === 'object' && !Array.isArray(plan) ? plan : { name: 'Empty model', nodes: [] };
+    const given = plan && typeof plan === 'object' && !Array.isArray(plan) ? plan : { name: 'Empty model', nodes: [] };
+    // Arithmetic is worked out before any number is read. The design prompt
+    // invites a position, a turn or a size written as a sum, and this function
+    // reads positions, turns and scales as plain numbers — so a sum reaching it
+    // unresolved became zero, and every part placed by arithmetic collapsed
+    // onto the origin while the sizes beside it survived. Resolving a plan
+    // that holds only numbers changes nothing, so a second pass is harmless.
+    const expr = window.HCForgeExpr;
+    const resolved = expr && typeof expr.resolvePlan === 'function' ? expr.resolvePlan(given) : { plan: given, issues: [] };
+    const src = resolved.plan;
     const nodes = Array.isArray(src.nodes) ? src.nodes : [];
+    // What could not be worked out, kept on the plan for the same reason the
+    // shape substitutions are: the pass that finds it is not the pass that
+    // reports it. A sum that fails in a position becomes zero below, and one
+    // that fails in a size is left as text, which a later pass would find and
+    // report again — so the list is kept once per problem.
+    const arithmeticIssues = [...new Set([
+      ...(Array.isArray(given.arithmeticIssues) ? given.arithmeticIssues.map(String) : []),
+      ...(resolved.issues || []).map((i) => [i.where || (i.name ? `vars.${i.name}` : ''), i.detail].filter(Boolean).join(': ')),
+    ])];
     // Substitutions already recorded are kept, not started afresh.
     //
     // A plan is often normalised more than once before anything reports on it:
@@ -142,6 +160,7 @@
 
     return {
       shapeSubstitutions: substitutions,
+      arithmeticIssues,
       name: src.name || 'Forged model',
       // The intro mark floats and is framed by hand. Losing that flag here is
       // how it came to be set on the floor, out of the shot built for it.
