@@ -2496,10 +2496,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       log("Assemble", "nothing to correct", "ok");
     }
     if (removed.length) log("Assemble", `Removed ${removed.length} detached part(s) outside the main model`, "warn", removed.join("\n"));
-    for (const issue of issues) {
-      if (issue.code === "detached") log("Assemble", `${issue.partId} sits too far from the body to place — left where the design put it`, "warn");
-      else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
-    }
+    for (const finding of prep.describeIssues(issues)) log("Assemble", finding.text, finding.level, finding.detail);
     return { ...plan, ...out.plan };
   }
 

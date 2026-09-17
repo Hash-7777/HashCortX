@@ -145,14 +145,65 @@
     }
     const single = keepOneSubject(out.parts, opts.prompt);
     const parts = centreOnAxis(single.parts);
+    // A part that was removed is not also "left where the design put it".
+    const gone = new Set(single.removed);
+    const issues = out.issues.filter((i) => !(i.code === "detached" && gone.has(i.partId)));
     return {
       // The size may have been written as arithmetic, and the assembler hands
       // back the value it worked out.
       plan: { ...gate, nodes: parts, sizeMm: out.sizeMm ?? gate.sizeMm },
       empty: false,
-      report: { stats: out.stats, issues: out.issues, moves: out.moves || [], seams: out.seams || [], removed: single.removed },
+      report: { stats: out.stats, issues, moves: out.moves || [], seams: out.seams || [], removed: single.removed },
     };
   }
 
-  window.HCForgePrepare = { preparePlan, keepOneSubject, centreOnAxis, allowsSeveralSubjects };
+  /**
+   * What the assembler found, in words, one line per kind of finding.
+   *
+   * The run used to report two kinds — a detached part and a part with no size
+   * — and drop the rest, so a part pulled in from far away, a repeat that could
+   * not be made or a mirror that made no copy changed the model with nothing on
+   * screen to say so. Every kind the assembler can raise has a line here, and
+   * scripts/checks/forge-prepare.mjs reads the assembler's source to keep it
+   * that way. A kind with no line still reaches the trace, under its code.
+   *
+   * Two are left out on purpose: a model off the floor, because the viewport
+   * sets every model on the floor from its built geometry, and an empty plan,
+   * which the caller reports as a plan left alone.
+   */
+  const FINDINGS = {
+    "not-a-part": [(n) => `${n} entr${n === 1 ? "y" : "ies"} in the design ${n === 1 ? "was" : "were"} not a part and ${n === 1 ? "was" : "were"} ignored`, "warn"],
+    "duplicate-id": [(n) => `${n} part(s) shared an id with another and were renamed`, "warn"],
+    "not-a-number": [(n) => `${n} part(s) had a size that is not a number and were left out`, "warn"],
+    "degenerate": [(n) => `${n} part(s) had no measurable size and were left out`, "warn"],
+    "coordinate-clamped": [(n) => `${n} position(s) were far outside the model and were pulled in`, "warn"],
+    "repeat-count": [(n) => `${n} repeat(s) asked for fewer than two copies, so nothing was repeated`, "warn"],
+    "repeat-axis": [(n) => `${n} repeat(s) named no way to repeat, so nothing was repeated`, "warn"],
+    "repeat-capped": [(n) => `${n} repeat(s) were made with fewer copies than asked`, "warn"],
+    "repeat-on-axis": [(n) => `${n} repeated part(s) sit on the axis they turn about, so their copies overlap`, "warn"],
+    "mirror-on-axis": [(n) => `${n} part(s) marked to mirror already sit on the mirror plane, so no copy was made`, "wait"],
+    "detached": [(n) => `${n} part(s) sit too far from the body to place — left where the design put it`, "warn"],
+    "flat": [() => "the model is nearly flat in one direction", "warn"],
+  };
+  const UNREPORTED = new Set(["off-floor", "empty"]);
+
+  function describeIssues(issues) {
+    const groups = new Map();
+    for (const issue of Array.isArray(issues) ? issues : []) {
+      if (!issue || UNREPORTED.has(issue.code)) continue;
+      if (!groups.has(issue.code)) groups.set(issue.code, []);
+      groups.get(issue.code).push(issue);
+    }
+    return [...groups].map(([code, list]) => {
+      const [text, level] = FINDINGS[code] || [(n) => `${n} × ${code}`, "warn"];
+      return {
+        code,
+        level,
+        text: text(list.length),
+        detail: list.map((i) => [i.partId, i.detail].filter(Boolean).join(": ")).join("\n"),
+      };
+    });
+  }
+
+  window.HCForgePrepare = { preparePlan, keepOneSubject, centreOnAxis, allowsSeveralSubjects, describeIssues, FINDINGS, UNREPORTED };
 })();

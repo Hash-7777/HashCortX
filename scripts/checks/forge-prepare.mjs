@@ -158,6 +158,7 @@ console.log('\nOne subject, and centred without breaking a mirror:');
   const one = prepare(pile, 'a bench');
   ok('a part far from the main body is removed', one.report.removed.includes('far') && !one.plan.nodes.some((n) => n.id === 'far'));
   ok('and nothing else is', one.plan.nodes.length === 4);
+  ok('a removed part is not also reported as left where it was', !one.report.issues.some((i) => i.code === 'detached' && i.partId === 'far'));
   ok('a prompt asking for several things keeps it', prepare(pile, 'two benches').plan.nodes.some((n) => n.id === 'far'));
   const box = MP.boundsOf(one.plan.nodes);
   ok('the model is centred on X and Z', Math.abs(box[0] + box[3]) < 1e-9 && Math.abs(box[2] + box[5]) < 1e-9);
@@ -182,6 +183,30 @@ console.log('\nThe path gives back the plan it was handed, not a stripped copy:'
   ok('nothing is reported empty', out.empty === false);
   const empty = prepare({ nodes: [{ id: 'flat', type: 'box', params: { width: 0, height: 0, depth: 0 } }] });
   ok('a design with nothing measurable says so rather than handing back no parts', empty.empty === true && empty.plan.nodes.length === 1);
+}
+
+console.log('\nEverything the assembler finds reaches the trace:');
+{
+  // Read the codes out of the assembler itself, so a new kind of finding added
+  // there without a line here fails rather than vanishing from the run.
+  const assembler = readFileSync(join(root, 'src', 'js', 'model-plan.js'), 'utf8');
+  const codes = [...new Set([...assembler.matchAll(/code: "([a-z-]+)"/g)].map((m) => m[1]))];
+  ok('the assembler raises findings this can read', codes.length >= 10, codes.join(', '));
+  for (const code of codes) {
+    ok(`"${code}" is said in words or deliberately left to the viewport`, !!PREP.FINDINGS[code] || PREP.UNREPORTED.has(code));
+  }
+  const lines = PREP.describeIssues([
+    { code: 'coordinate-clamped', partId: 'leg', detail: '1e7 → 4800' },
+    { code: 'coordinate-clamped', partId: 'arm', detail: '-9e6 → -4800' },
+    { code: 'repeat-on-axis', partId: 'tooth', detail: 'sits on the axis' },
+    { code: 'off-floor', detail: 'lowest point' },
+    { code: 'something-new', partId: 'x' },
+  ]);
+  ok('one line per kind of finding', lines.length === 3);
+  ok('it counts them', /^2 position\(s\)/.test(lines[0].text));
+  ok('and names every part in the detail', lines[0].detail.includes('leg') && lines[0].detail.includes('arm'));
+  ok('the floor is left to the viewport', !lines.some((l) => l.code === 'off-floor'));
+  ok('a kind with no words still reaches the trace, under its code', lines.some((l) => l.code === 'something-new' && /something-new/.test(l.text)));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/prepare.js)`);

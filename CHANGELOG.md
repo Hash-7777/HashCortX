@@ -116,6 +116,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   arithmetic was worked out. Every design now takes one path to the scene,
   every limit is measured against the design's own parts, and a mirrored
   model is never centred off its own centre line.
+- **3D Forge says everything it changed while building a model.** The run
+  reported a part too far from the body and a part with no size, and said
+  nothing when it pulled in a part placed far away, could not make a repeat,
+  made no mirror copy of a part already on the mirror line, or left out a
+  part whose size was not a number. Each of those now has its own line in the
+  trace, naming the parts.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the
