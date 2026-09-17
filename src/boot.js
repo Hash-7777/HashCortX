@@ -97,6 +97,7 @@
     '/js/finance/charts.js',
     '/js/swarm/task-kind.js',
     '/js/swarm/graph.js',
+    '/js/swarm/team-shape.js',
     '/js/swarm/schedule.js',
     '/js/swarm/output.js',
     '/js/swarm/project-files.js',

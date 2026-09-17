@@ -108,6 +108,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An Agent Swarm team's result comes from the agent that finishes the
+  work.** A team whose planner had the supervisor role had the planner chosen
+  to deliver: the first agent to run was told to write the whole finished
+  site with nothing to write it from, its answer became the result, and the
+  agent built to finish was told to write only its own part. The deliverer
+  is now the last agent that finishes, planners stay planners, and a team
+  saved the old way hands its result to an agent nothing else waits on.
 - **An Agent Swarm agent that gives an empty answer is no longer counted as
   done.** Its answer came back as a placeholder, the run reported no
   failures, and the agent's part of the work was simply missing — for the

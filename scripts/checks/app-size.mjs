@@ -422,7 +422,9 @@ const LINE_BUDGET = {
   // 2285, up four: an empty answer fails over instead of counting as done. The
   // cancelling of a call that runs out of time is js/model-routes.js's
   // callWithin.
-  'modes/agent-maker/mode.js': 2285,
+  // 2275, down ten: which agent plans, makes, checks and delivers is
+  // src/js/swarm/team-shape.js.
+  'modes/agent-maker/mode.js': 2275,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

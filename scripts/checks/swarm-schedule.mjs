@@ -96,7 +96,7 @@ console.log('\nThe agent that delivers the answer runs on whatever arrived:');
     !S.readyAgents(agents, map, set('plan', 'css', 'js'), set('html')).some((a) => a.id === 'final'));
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
   ok('a run names its final agent as the one that keeps going',
-    /keepGoing: new Set\(\[bp\.finalOutputAgentId\]/.test(mode) && /SCHED\.readyAgents\([^)]*, sched\)/.test(mode) && /SCHED\.strandedAgents\([^)]*, sched\)/.test(mode));
+    /keepGoing: new Set\(\[choice\.deliverer\]/.test(mode) && /SCHED\.readyAgents\([^)]*, sched\)/.test(mode) && /SCHED\.strandedAgents\([^)]*, sched\)/.test(mode));
 }
 
 console.log('\nAn agent that can never run is reported, not forgotten:');

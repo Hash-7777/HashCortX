@@ -453,7 +453,7 @@ const SwarmMaker = (() => {
   }
 
   // ── DAG execution engine (Promise.allSettled parallel lanes) ──────
-  async function runDAG(bp, task, signal) {
+  async function runDAG(bp, task, signal, choice = {}) {
     const agents = bp.agents || [];
     let   edges  = bp.dag?.edges || [];
     if (!agents.length) throw new Error("No agents in blueprint.");
@@ -466,6 +466,13 @@ const SwarmMaker = (() => {
     }
 
     traceAdd("Orchestrator", `Topology: ${bp.topology || "pipeline"} · ${agents.length} agents · ${edges.length} edges`, "boss");
+    // The result comes from an agent nothing else waits on — js/swarm/team-shape.js.
+    const delivers = window.HCSwarmTeamShape.delivererOf(agents, edges, bp.finalOutputAgentId);
+    choice.deliverer = delivers.id || "";
+    if (bp.finalOutputAgentId && !delivers.kept) {
+      const name = (id) => agents.find(a => a.id === id)?.name || id;
+      traceAdd("Orchestrator", `${name(delivers.id)} delivers the result — ${name(bp.finalOutputAgentId)} runs before other agents, so its answer is their input`, "warn");
+    }
     // Scheduling decisions live in src/js/swarm/schedule.js, where they can be
     // asked what they would do without running an agent.
     const SCHED = window.HCSwarmSchedule;
@@ -487,12 +494,12 @@ const SwarmMaker = (() => {
     const execOptions = {
       dependencyCharLimit: bp.budgetControls?.maxContextCharsPerDependency || 2000,
       maxToolRounds: bp.budgetControls?.maxToolRounds || 8,
-      finalOutputAgentId: bp.finalOutputAgentId || "",
+      finalOutputAgentId: choice.deliverer,
       codeBuild: strictDependencies,
       siteFiles: window.HCSwarmWebBrief.siteFilesOf(bp),
     };
     // The agent that delivers the answer runs on whatever arrived — js/swarm/schedule.js.
-    const sched = { keepGoing: new Set([bp.finalOutputAgentId].filter(Boolean)) };
+    const sched = { keepGoing: new Set([choice.deliverer].filter(Boolean)) };
 
     /**
      * Mark every agent that can no longer run, and say why.
@@ -586,7 +593,7 @@ const SwarmMaker = (() => {
   }
 
   // ── Result aggregation ─────────────────────────────────────────────
-  async function aggregateResults(bp, results, task, signal) {
+  async function aggregateResults(bp, results, task, signal, delivererId = bp.finalOutputAgentId) {
     const strategy  = bp.aggregation || "synthesis";
     const topology  = bp.topology    || "pipeline";
     const agents    = bp.agents || [];
@@ -599,13 +606,13 @@ const SwarmMaker = (() => {
 
     // concat — preserve all agent outputs verbatim, no synthesis LLM (best for code/files)
     if (strategy === "concat") {
-      if (bp.finalOutputAgentId) {
-        const finalOutput = outputs.find(o => o.id === bp.finalOutputAgentId);
+      if (delivererId) {
+        const finalOutput = outputs.find(o => o.id === delivererId && !/^(?:Error|Skipped): /.test(String(o.out)));
         if (finalOutput) {
           traceAdd("Aggregator", `Aggregation strategy concat · returning final owner ${finalOutput.name}`, "boss");
           return finalOutput.out;
         }
-        traceAdd("Aggregator", `Final owner ${bp.finalOutputAgentId} missing · preserving raw outputs`, "warn");
+        traceAdd("Aggregator", `Final owner ${delivererId} has no answer · preserving raw outputs`, "warn");
       }
       traceAdd("Aggregator", "Aggregation strategy concat · preserving raw outputs", "boss");
       return outputs.map(o => `### ${o.name}\n\n${o.out}`).join("\n\n---\n\n");
@@ -729,9 +736,10 @@ const SwarmMaker = (() => {
 
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
-      const rawResults = await runDAG(runBp, work, signal);
+      const choice = {};
+      const rawResults = await runDAG(runBp, work, signal, choice);
       traceAdd("Orchestrator", "DAG returned raw results · entering aggregation", "boss");
-      const finalOutput = await aggregateResults(runBp, rawResults, work, signal);
+      const finalOutput = await aggregateResults(runBp, rawResults, work, signal, choice.deliverer);
       traceAdd("Orchestrator", `Aggregation returned final output · ${String(finalOutput || "").length} chars`, "ok");
 
       traceAdd("Orchestrator", `Swarm complete — ${runBp.agents.length} agents, task done`, "ok");
@@ -907,7 +915,7 @@ const SwarmMaker = (() => {
   }
 
   function ensureFinalPolisher(parsed, providerModels, usedProviders) {
-    const hasFinalOwner = parsed.agents.some(a => /boss|supervisor|polish|aggregator/i.test(`${a.name || ""} ${a.role || ""}`));
+    const hasFinalOwner = parsed.agents.some(a => window.HCSwarmTeamShape.kindOf(a) === "final");
     if (hasFinalOwner) return null;
     const idx = parsed.agents.length + 1;
     const model = (providerModels || []).map(([, v]) => v).find(v => {
@@ -934,7 +942,8 @@ const SwarmMaker = (() => {
   }
 
   function ensureSupervisorAgent(parsed, providerModels, usedProviders, codeTask) {
-    const existing = parsed.agents.find(a => /boss|supervisor|polish|aggregator|synthes/i.test(`${a.name || ""} ${a.role || ""}`));
+    // An agent that finishes, not one that only has the supervisor role — js/swarm/team-shape.js.
+    const existing = [...parsed.agents].reverse().find(a => window.HCSwarmTeamShape.kindOf(a) === "final");
     if (existing) return existing;
     if (codeTask) return ensureFinalPolisher(parsed, providerModels, usedProviders);
     const idx = parsed.agents.length + 1;
@@ -1115,32 +1124,13 @@ const SwarmMaker = (() => {
       }
     });
 
-    const idOf = (a) => a.id;
-    const isPlanner = (a) => /research|planner|spec|designer|analyst/i.test(`${a.name} ${a.role}`) && !/coder|developer|validator|critic|boss|supervisor/i.test(`${a.name} ${a.role}`);
-    const isProducer = (a) => /coder|developer|front|back|style|content|copy/i.test(`${a.name} ${a.role}`) && !/validator|critic|boss|supervisor/i.test(`${a.name} ${a.role}`);
-    const isValidator = (a) => /critic|validator|qa|review/i.test(`${a.name} ${a.role}`);
-    const isFinalOwner = (a) => /boss|supervisor|polish|aggregator/i.test(`${a.name} ${a.role}`);
-
-    const planners = parsed.agents.filter(isPlanner);
-    const producers = parsed.agents.filter(isProducer);
-    const validators = parsed.agents.filter(isValidator);
-    const finalOwners = parsed.agents.filter(isFinalOwner);
-    const firstLayer = planners.length ? planners : parsed.agents.slice(0, 1);
-    const workLayer = producers.length ? producers : parsed.agents.filter(a => !firstLayer.includes(a) && !validators.includes(a) && !finalOwners.includes(a));
-    const reviewLayer = validators.length ? validators : [];
-    const finalLayer = finalOwners.length ? finalOwners : (finalOwner ? [finalOwner] : []);
-    if (finalLayer[0]) parsed.finalOutputAgentId = finalLayer[0].id;
-
-    const edges = [];
-    firstLayer.forEach(src => workLayer.forEach(dst => edges.push({ from: idOf(src), to: idOf(dst), reason: `${dst.name} uses ${src.name} planning output` })));
-    if (reviewLayer.length) {
-      workLayer.forEach(src => reviewLayer.forEach(dst => edges.push({ from: idOf(src), to: idOf(dst), reason: `${dst.name} validates ${src.name} output` })));
-      workLayer.forEach(src => finalLayer.forEach(dst => edges.push({ from: idOf(src), to: idOf(dst), reason: `${dst.name} receives ${src.name} artifacts for final assembly` })));
-      reviewLayer.forEach(src => finalLayer.forEach(dst => edges.push({ from: idOf(src), to: idOf(dst), reason: `${dst.name} incorporates ${src.name} validation` })));
-    } else {
-      workLayer.forEach(src => finalLayer.forEach(dst => edges.push({ from: idOf(src), to: idOf(dst), reason: `${dst.name} finalizes ${src.name} output` })));
-    }
-    parsed.dag.edges = edges.filter(e => e.from && e.to && e.from !== e.to);
+    // Planners, makers, checkers and one deliverer, each agent in one layer —
+    // js/swarm/team-shape.js. A planner with the supervisor role used to be
+    // chosen as the deliverer because it came first.
+    const TEAM = window.HCSwarmTeamShape;
+    const layers = TEAM.layersOf(parsed.agents);
+    if (layers.deliverer) parsed.finalOutputAgentId = layers.deliverer.id;
+    parsed.dag.edges = TEAM.edgesOf(layers);
     ensureEdgeReasons(parsed);
     return parsed;
   }
@@ -1253,7 +1243,7 @@ Rules:
 - Use sequential IDs: a1, a2, a3…
 - Valid roles: researcher, writer, critic, coder, analyst, validator, supervisor, custom
 - Replace CHOOSE_* placeholders with valid values from the allowed lists below.
-- finalOutputAgentId MUST point to the final supervisor/validator agent whose output should be shown to the user.
+- finalOutputAgentId MUST point to the agent that runs LAST and produces what the user sees (a final polisher or synthesizer), never a planner that runs first.
 - artifactContracts MUST list the concrete outputs expected from the swarm.
 - qualityGates MUST list objective checks the final supervisor should apply.
 - budgetControls MUST prevent context bloat and unnecessary tool use.
@@ -1293,7 +1283,7 @@ CODE / WEBSITE TASKS — mandatory rules when the user asks for a website, app, 
 - Set requiresBackend true only for auth, database, checkout/payment, admin, APIs, inventory, booking, order submission/storage, or server-side persistence. A simple cart/gift picker can be static with localStorage and does not require backend by itself.
 
 BIG NON-CODE ASSIGNMENTS — mandatory rules for complex research, strategy, planning, analysis, or business tasks:
-- Use hierarchical topology with a lead planner/supervisor as finalOutputAgentId.
+- Use hierarchical topology: a lead planner first, a final synthesizer last as finalOutputAgentId.
 - Use this DAG shape: Lead Planner → parallel specialists → Critic/Validator → Final Synthesizer.
 - Give each specialist a distinct angle. Do not create generic "Agent 1" filler roles.
 - The final supervisor must reconcile conflicts, state assumptions, call out risks, and produce the final answer.

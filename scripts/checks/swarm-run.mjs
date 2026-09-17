@@ -44,5 +44,15 @@ console.log('\nAn empty answer is a failure, not a result:');
   ok('"(no output)" is never handed on as an agent\'s work', !/\(no output\)/.test(agent));
 }
 
+console.log('\nThe agent that runs last delivers the result:');
+{
+  ok('a hardened team is laid out by js/swarm/team-shape.js', /TEAM\.layersOf\(parsed\.agents\)/.test(bodyOf('hardenGodBlueprint')) && /parsed\.dag\.edges = TEAM\.edgesOf\(layers\)/.test(bodyOf('hardenGodBlueprint')));
+  ok('the old supervisor-means-deliverer rule is gone', !/const isFinalOwner = \(a\) =>/.test(src));
+  ok('every run picks its deliverer from what nothing waits on', /HCSwarmTeamShape\.delivererOf\(agents, edges, bp\.finalOutputAgentId\)/.test(bodyOf('runDAG')));
+  ok('the agent told to deliver is that one', /finalOutputAgentId: choice\.deliverer/.test(bodyOf('runDAG')));
+  ok('and the result is its answer, unless it failed', /o\.id === delivererId && !\/\^\(\?:Error\|Skipped\): \/\.test/.test(bodyOf('aggregateResults')));
+  ok('the God Agent is not told to make a planner the deliverer', !/lead planner\/supervisor as finalOutputAgentId/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/agent-maker/mode.js)`);
 process.exit(fail ? 1 : 0);
