@@ -366,7 +366,9 @@ const LINE_BUDGET = {
   // they run after the assembler at the scene's size instead of before it.
   // 3683, down three: what the assembler found is put into words by
   // describeIssues in the same file, for every kind it can raise.
-  'modes/forge/mode.js': 3683,
+  // 3684, up one: the design prompt states one unit, millimetres, for every
+  // length, in place of the lines that let a design pick its own scale.
+  'modes/forge/mode.js': 3684,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

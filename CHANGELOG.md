@@ -122,6 +122,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   made no mirror copy of a part already on the mirror line, or left out a
   part whose size was not a number. Each of those now has its own line in the
   trace, naming the parts.
+- **3D Forge asks for every length in millimetres.** Its design instructions
+  asked for the object's size in millimetres, showed example sizes around
+  one, told the design to build at whatever scale suited it and to keep
+  positions between -3 and 3, so each design picked its own unit. They now
+  ask for every length in millimetres at the object's real size, offer no
+  role that another rule forbids, and the repair step no longer asks for
+  colours the design is told not to give.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the

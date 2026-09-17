@@ -802,6 +802,21 @@ console.log('\nThe design prompt asks for a model, not a part count:');
   check('audit markers are forbidden rather than requested',
     /Do not add audit markers/.test(src));
   check('few parts that read correctly is stated', /FEW PARTS THAT READ CORRECTLY/.test(src));
+  // One unit, stated once, with nothing beside it saying otherwise. The prompt
+  // used to ask for sizeMm in millimetres, show example sizes around one, tell
+  // the design to build at whatever scale suited it and to keep coordinates
+  // within -3..3 — so models picked a unit each, and the unit they picked
+  // decided what the app did to them.
+  const design = bodyOf('askModelForPlan');
+  check('the design is told every length is in millimetres',
+    /Write every length in millimetres at the object's real size/.test(design));
+  check('and nothing tells it to keep to a small range or pick its own scale',
+    !/-3\.\.3/.test(design) && !/whatever scale suits/.test(design));
+  check('the example sizes are millimetres too', /"width":40/.test(design) && !/"radius":0\.5/.test(design));
+  check('the schema offers no audit role while the rules forbid audit markers',
+    !/structure\|surface\|detail\|audit/.test(src));
+  check('the repair pass does not ask for colours the design is told not to give',
+    !/"color":"#9b7a46"/.test(bodyOf('repairForgeJson')));
   // A real run returned a fish standing on its tail. The prompt had never said
   // which way is up, so the model had no reason to lay it down.
   check('the axis convention is stated', /\+Y is up/.test(src));

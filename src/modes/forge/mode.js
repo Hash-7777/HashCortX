@@ -3131,12 +3131,12 @@ Schema:
       "id": "stable_id",
       "name": "part name",
       "type": "mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder",
-      "role": "structure|surface|detail|audit",
+      "role": "structure|surface|detail",
       "op": "union|subtract|intersect",
       "position": [x,y,z],
       "rotation": [x,y,z],
-      "scale": [x,y,z],
-      "params": {"width":1,"height":1,"depth":1,"radius":0.5,"length":0.8,"tube":0.08,"points":[[0.2,-0.5],[0.5,0],[0.2,0.5]],"segments":64,"subdivisions":1},
+      "scale": [1,1,1],
+      "params": {"width":40,"height":20,"depth":30,"radius":15,"length":60,"tube":4,"points":[[10,-25],[25,0],[10,25]],"segments":64,"subdivisions":1},
       "repeat": {"count": 8, "about": "y"}
     }
   ],
@@ -3169,7 +3169,7 @@ How to build it:
   the hole goes and make it longer than the material it passes through, so it comes out the other
   side. "op": "intersect" keeps only what two parts share. Order matters — parts are applied in the
   order you write them, so put the material in before cutting it.
-- "blend": 0.05 on a part rounds off the join where it meets what is already there. That is a fillet,
+- "blend": 3 on a part rounds off the join where it meets what is already there. That is a fillet,
   and it is what makes a bracket look made rather than assembled.
 - Arithmetic. Any number may be written as a sum instead of a literal: "bore / 2 + wall". Names come
   from "vars", which may themselves be written from each other. Available: + - * / % ^ ( ), and
@@ -3177,7 +3177,7 @@ How to build it:
   Angles are in radians, so use rad(30) when you are thinking in degrees.
 - Repetition: NEVER write out a ring of teeth, a row of ribs, a grille or a bolt circle part by part.
   Write ONE part and give it "repeat". Around an axis: {"count": 24, "about": "y"} — a full turn, or
-  add "angle" in degrees for part of one. Along a line: {"count": 5, "along": [0, 0.2, 0]}. The app
+  add "angle" in degrees for part of one. Along a line: {"count": 5, "along": [0, 20, 0]}. The app
   places every copy exactly, and it will not nudge a pattern out of true afterwards — so put the one
   part where it already touches the body, because a pattern that does not reach is reported and left.
 - Symmetry: build ONE side and set "mirror" on it, naming the plane the two halves sit either
@@ -3193,17 +3193,18 @@ How to build it:
   on X or Z, not standing on end. A bottle, a lamp or a person stands with its length on Y.
   If the object has a front, face it towards +Z.
 - The app puts the model on the floor. Build it around the origin and do not compensate.
+- UNITS. Write every length in millimetres at the object's real size: positions, widths, heights,
+  depths, radii, lengths, profile points, mesh vertices, repeat steps and blends. Leave "scale" at
+  [1,1,1] unless a part is deliberately stretched.
 - Set "sizeMm" to how long the real object's LONGEST side is, in millimetres. A mug is about 95,
-  a phone about 150, a chair about 900, a bolt about 40. This is what the exported file is measured
-  in, so a wrong number here prints at the wrong size. Build the geometry at whatever scale suits
-  the shape — the app resizes it — and only this number has to be true.
+  a phone about 150, a chair about 900, a bolt about 40. It should match the geometry you wrote.
+  This is what the exported file is measured in, so a wrong number here prints at the wrong size.
 - Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
 - Do not give parts colours. The model is shown as one printed piece in a single material, and
   shape is the only thing that describes it. Spend the answer on geometry.
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
 - For 3D print, keep parts visibly connected and avoid tiny fragile details. For GLB, keep parts
-  separate and named with clean pivots.
-- Keep coordinates within roughly -3..3 unless needed.`;
+  separate and named with clean pivots.`;
     const user = `Design this as a complete 3D model, ready to preview and export.
 Prompt: ${prompt}`;
     const text = await api.ollamaChat(model, [
@@ -3253,8 +3254,8 @@ Prompt: ${prompt}`;
     const model = modelValue || selectedModelFor("god");
     if (!api?.ollamaChat || !model) throw new Error("no JSON repair model");
     const schema = expected === "array"
-      ? `[{"id":"stable_unique_id","name":"part","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{},"color":"#9b7a46"}]`
-      : `{"name":"short model name","nodes":[{"id":"stable_id","name":"part name","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail|audit","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{},"color":"#9b7a46"}],"edges":[],"constraints":[]}`;
+      ? `[{"id":"stable_unique_id","name":"part","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}]`
+      : `{"name":"short model name","sizeMm":150,"nodes":[{"id":"stable_id","name":"part name","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}],"edges":[],"constraints":[]}`;
     return await api.ollamaChat(model, [
       {
         role: "system",
