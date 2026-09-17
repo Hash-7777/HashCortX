@@ -368,7 +368,9 @@ const LINE_BUDGET = {
   // describeIssues in the same file, for every kind it can raise.
   // 3684, up one: the design prompt states one unit, millimetres, for every
   // length, in place of the lines that let a design pick its own scale.
-  'modes/forge/mode.js': 3684,
+  // 3682, down two: applying Improve's answer — in millimetres, and to both
+  // sides of a mirrored pair — is src/js/forge/improve.js.
+  'modes/forge/mode.js': 3682,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

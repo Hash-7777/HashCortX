@@ -725,7 +725,10 @@ console.log('\nImprove is a patch, not another design:');
   check('it asks for a patch shape', /"remove":\[/.test(src) && /"replace":\[/.test(src) && /"add":\[/.test(src));
   check('it is told to change as little as possible', /Change as little as possible/.test(src));
   check('it is given what the model measures, not the prompt again',
-    /function describeBuiltModel/.test(src) && /Measured size: width/.test(src));
+    /function describeBuiltModel/.test(src) && /Measured size in millimetres: width/.test(src));
+  check('the plan it is shown and the answer it gives are both millimetres',
+    /HCForgeImprove\.toMillimetres\(n, mmPerUnit\)/.test(bodyOf('improveModel')) &&
+    /HCForgeImprove\.applyPatch\(activePlan\?\.nodes \|\| \[\], patch, mmPerUnit\)/.test(bodyOf('improveModel')));
   check('the measurements come from the built geometry',
     /new THREE\.Box3\(\)\.setFromObject\(modelGroup\)[\s\S]{0,400}getSize/.test(src));
   check('a patch that changes nothing is not applied',

@@ -1683,7 +1683,8 @@
       const box = new THREE.Box3().setFromObject(modelGroup);
       if (!box.isEmpty()) {
         const size = box.getSize(new THREE.Vector3());
-        lines.push(`Measured size: width ${size.x.toFixed(2)}, height ${size.y.toFixed(2)}, depth ${size.z.toFixed(2)}.`);
+        const k = mmPerUnit > 0 ? mmPerUnit : 1;
+        lines.push(`Measured size in millimetres: width ${Math.round(size.x * k)}, height ${Math.round(size.y * k)}, depth ${Math.round(size.z * k)}.`);
         const longest = Math.max(size.x, size.y, size.z);
         if (longest > 0 && size.y === longest && size.y > Math.max(size.x, size.z) * 1.6) {
           lines.push("The tallest axis is Y by a wide margin — if this object rests lengthwise in life, it is standing on end and should be laid down.");
@@ -1731,8 +1732,11 @@
       log("Improve", `Sending the model back to ${modelLabel(model)} with what is measurably wrong`, "run");
       const system = `You are correcting an existing 3D model, not designing a new one.
 Return only JSON: {"remove":["id",...],"replace":[node,...],"add":[node,...]}
-A node has the same shape as the plan you are given: id, name, type, position, rotation, scale, params, color, mirror.
+A node has the same shape as the plan you are given: id, name, type, position, rotation, scale, params, mirror.
 Rules:
+- Every length is in millimetres. A part's real size is its params times its scale. Answer in millimetres too.
+  A part you replace keeps its scale unless you give one; a part you add without a "scale" is read as params in millimetres.
+- A part whose id ends in "_mirrored" is the mirror copy of another. Change the original; the app mirrors it again.
 - Change as little as possible. Keep every part that is not named as a problem.
 - "replace" swaps a part with the same id. "add" introduces new ones. "remove" deletes by id.
 - Do not restate parts you are not changing.
@@ -1744,7 +1748,7 @@ What the built model measures:
 ${observations}
 
 The current plan:
-${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.nodes || []) }).slice(0, 12000)}`;
+${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: renderableNodes(activePlan?.nodes || []).map((n) => window.HCForgeImprove.toMillimetres(n, mmPerUnit)) }).slice(0, 12000)}`;
       const text = await api.ollamaChat(model, [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -1755,21 +1759,15 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       // model the person is currently watching being built.
       if (abortCtrl !== ctrl) { log("Improve", "superseded by a new run", "wait"); return; }
 
+      // Read back in millimetres, and a change to one side of a mirrored pair
+      // made to both — js/forge/improve.js.
       const patch = parseJsonPayload(text, "object") || {};
-      const removed = new Set((Array.isArray(patch.remove) ? patch.remove : []).map(String));
-      const replacements = new Map((Array.isArray(patch.replace) ? patch.replace : [])
-        .filter((n) => n && n.id).map((n) => [String(n.id), n]));
-      const added = (Array.isArray(patch.add) ? patch.add : []).filter((n) => n && typeof n === "object");
-
-      if (!removed.size && !replacements.size && !added.length) {
+      const { nodes, counts } = window.HCForgeImprove.applyPatch(activePlan?.nodes || [], patch, mmPerUnit);
+      if (!counts.changed && !counts.added && !counts.removed) {
         log("Improve", "the model reported nothing to change", "wait");
         return;
       }
-      const nodes = (activePlan?.nodes || [])
-        .filter((n) => !removed.has(String(n.id)))
-        .map((n) => (replacements.has(String(n.id)) ? { ...n, ...replacements.get(String(n.id)) } : n))
-        .concat(added);
-      log("Improve", `${replacements.size} changed · ${added.length} added · ${removed.size} removed`, "ok");
+      log("Improve", `${counts.changed} changed · ${counts.added} added · ${counts.removed} removed`, "ok");
 
       const plan = assembleDeterministically({ ...activePlan, nodes }, $("frgPrompt")?.value || "");
       buildPlan(plan);

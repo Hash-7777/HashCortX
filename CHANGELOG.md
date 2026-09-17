@@ -129,6 +129,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   ask for every length in millimetres at the object's real size, offer no
   role that another rule forbids, and the repair step no longer asks for
   colours the design is told not to give.
+- **Improve this model works in millimetres and keeps pairs matched.** It
+  showed the correcting model a plan in the scene's internal numbers and
+  merged the answer in as it came, so a correction written in millimetres
+  landed at the wrong size, and a change to one wing of a mirrored pair
+  left the other wing as it was. The plan is now shown and read back in
+  millimetres, a change to either side of a pair is made to both, and
+  removing one side removes the pair.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the
