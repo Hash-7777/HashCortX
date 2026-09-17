@@ -36,12 +36,13 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const rel of [['src', 'js', 'forge', 'expr.js'], ['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'units.js'], ['src', 'js', 'forge', 'measure.js']]) {
+for (const rel of [['src', 'js', 'forge', 'expr.js'], ['src', 'js', 'model-plan.js'], ['src', 'js', 'forge', 'units.js'], ['src', 'js', 'forge', 'plan-normalize.js'], ['src', 'js', 'forge', 'prepare.js'], ['src', 'js', 'forge', 'measure.js']]) {
   vm.runInContext(readFileSync(join(root, ...rel), 'utf8'), sandbox, { filename: rel[rel.length - 1] });
 }
 const MP = sandbox.window.HCModelPlan;
 const M = sandbox.window.HCForgeMeasure;
 const U = sandbox.window.HCForgeUnits;
+const PREP = sandbox.window.HCForgePrepare;
 
 // ── The ratchet ───────────────────────────────────────────────────────
 //
@@ -82,7 +83,11 @@ const FLOOR = {
   lamp: 100.0,
   mug: 100.0,
   rocket: 100.0,
-  shards: 62.8,
+  // 83.7, up from 62.8, and not because the shards improved: this check now
+  // scores the path the app runs, js/forge/prepare.js, and that path has always
+  // removed the pieces that do not reach the largest group. It scored the
+  // assembler alone before. Still level with the lowest in the corpus.
+  shards: 83.7,
   speck: 86.9,
   vase: 92.2,
 };
@@ -107,21 +112,24 @@ if (!entries.length) {
 }
 
 /**
- * What the app actually builds: the design, then the deterministic stage.
+ * What the app actually builds: the design, through the same path the mode
+ * sends it down — js/forge/prepare.js, which is the plan gate, the assembler,
+ * one subject and centring.
  *
- * The working span is passed exactly as the mode passes it. A gate that scored
- * a pipeline the app does not run would be measuring a fiction, and the first
- * change to diverge would sail through it.
+ * The working span and the prompt are passed exactly as the mode passes them.
+ * This used to call the assembler directly and skip the gate, so a gate that
+ * read every sum as zero scored as though nothing were wrong. A check that
+ * scores a pipeline the app does not run is measuring a fiction.
  */
-function assembled(plan) {
-  const out = MP.assemble(plan, { ground: false, targetSize: U.WORKING_SPAN });
-  return { name: plan.name, nodes: out.parts };
+function assembled(plan, prompt = '') {
+  const out = PREP.preparePlan(plan, { prompt, targetSize: U.WORKING_SPAN });
+  return { name: out.plan.name, nodes: out.plan.nodes };
 }
 
 let fail = 0;
 const rows = entries.map((entry) => {
   const before = M.score(entry.plan);
-  const after = M.score(assembled(entry.plan));
+  const after = M.score(assembled(entry.plan, entry.prompt));
   return { id: entry.id, prompt: entry.prompt, note: entry.note, before, after };
 });
 
@@ -153,7 +161,7 @@ for (const m of M.MEASURES) {
 }
 
 // A score computed twice must be the same score, or a ratchet is noise.
-const twice = rows.filter((r) => M.score(assembled(entries.find((e) => e.id === r.id).plan)).score !== r.after.score);
+const twice = rows.filter((r) => (() => { const e = entries.find((x) => x.id === r.id); return M.score(assembled(e.plan, e.prompt)).score; })() !== r.after.score);
 if (twice.length) {
   console.log(`\n  FAIL  ${twice.map((r) => r.id).join(', ')} scored differently the second time — the scorer is not deterministic`);
   fail++;

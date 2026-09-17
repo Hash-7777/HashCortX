@@ -20,14 +20,27 @@
 (function () {
   "use strict";
 
-  // Coordinates outside this are almost always a model losing track of scale —
-  // a part at z = 480 puts the camera in the next county and the object becomes
-  // an invisible speck. Clamped rather than dropped: the part is usually wanted,
-  // its position is what went wrong.
-  const COORD_LIMIT = 12;
+  // How far from the centre a part may be placed, in multiples of the largest
+  // part's half-size. Further than this is almost always a model losing track
+  // of scale — a part at z = 480 on a model a metre across puts the camera in
+  // the next county and the object becomes an invisible speck. Clamped rather
+  // than dropped: the part is usually wanted, its position is what went wrong.
+  //
+  // It was an absolute 12, checked before the model is brought to the scene's
+  // size — so it was 12 of whatever unit the design was written in. A design
+  // written in millimetres had every part pulled to within 12 mm of the centre
+  // while their sizes stayed in the hundreds, and a chair arrived as its four
+  // legs, seat and back piled into one cross. Measured against the design's own
+  // parts, the same limit means the same thing in any unit. Twenty-four
+  // half-sizes is twelve of a part that is one unit across, which is what the
+  // absolute number was written for.
+  const COORD_REACH = 24;
 
-  // A part thinner than this in every axis renders as nothing at all.
-  const MIN_EXTENT = 1e-4;
+  // A part thinner than this in every axis renders as nothing at all — as a
+  // share of the design's largest half-size, so a small part of a design
+  // written in small units is not mistaken for no part. It was an absolute
+  // ten-thousandth, which is this share of a design one unit across.
+  const MIN_EXTENT_SHARE = 2e-4;
 
   // How many copies one part may become. Sixty-four covers a fine gear, a
   // grille or a bolt circle; past it the request is nearly always a decimal
@@ -276,7 +289,6 @@
    * missing a leg and nobody knows why.
    */
   function normaliseParts(nodes, opts = {}) {
-    const limit = num(opts.coordLimit, COORD_LIMIT);
     const parts = [];
     const issues = [];
     const seen = new Set();
@@ -295,11 +307,7 @@
       }
       seen.add(id);
 
-      const position = triple(raw.position, [0, 0, 0]).map((v) => {
-        const c = clamp(v, -limit, limit);
-        if (c !== v) issues.push({ code: "coordinate-clamped", partId: id, detail: `${v} → ${c}` });
-        return c;
-      });
+      const position = triple(raw.position, [0, 0, 0]);
       const scale = triple(raw.scale, [1, 1, 1]).map((v) => (v === 0 ? 1 : v));
 
       const part = {
@@ -348,19 +356,53 @@
         blend: Number.isFinite(Number(raw.blend)) && Number(raw.blend) > 0 ? Number(raw.blend) : undefined,
       };
 
-      const [hx, hy, hz] = halfExtents(part);
-      if (hx < MIN_EXTENT && hy < MIN_EXTENT && hz < MIN_EXTENT) {
-        issues.push({ code: "degenerate", partId: id, detail: "no measurable size" });
-        continue;
-      }
-      if (![hx, hy, hz].every(Number.isFinite)) {
+      if (!halfExtents(part).every(Number.isFinite)) {
         issues.push({ code: "not-a-number", partId: id, detail: "size did not resolve to a number" });
         continue;
       }
       parts.push(part);
     }
+
+    // Size is judged once every part is known, because "too small to draw" is a
+    // share of the design's own largest part — see MIN_EXTENT_SHARE.
+    const smallest = MIN_EXTENT_SHARE * designUnit(parts);
+    for (let i = parts.length - 1; i >= 0; i--) {
+      if (halfExtents(parts[i]).every((h) => h < smallest)) {
+        issues.push({ code: "degenerate", partId: parts[i].id, detail: "no measurable size" });
+        parts.splice(i, 1);
+      }
+    }
+
+    // Positions are judged once every size is known, because the limit is a
+    // multiple of the design's own largest part — see COORD_REACH.
+    const limit = num(opts.coordLimit, COORD_REACH * designUnit(parts));
+    for (const part of parts) {
+      part.position = part.position.map((v) => {
+        const c = clamp(v, -limit, limit);
+        if (c !== v) issues.push({ code: "coordinate-clamped", partId: part.id, detail: `${formatNumber(v)} → ${formatNumber(c)}` });
+        return c;
+      });
+    }
     return { parts, issues };
   }
+
+  /**
+   * The size a design is written at: the largest half-size of any of its parts.
+   *
+   * Everything that has to be judged before a model is brought to the scene's
+   * size is judged against this, never against a fixed number, because a
+   * design may be written in millimetres, metres or units of nothing at all and
+   * the same object must come out the same in each.
+   */
+  function designUnit(parts) {
+    let unit = 0;
+    for (const part of Array.isArray(parts) ? parts : []) {
+      for (const h of halfExtents(part)) if (Number.isFinite(h) && h > unit) unit = h;
+    }
+    return unit > 0 ? unit : 0.5;
+  }
+
+  const formatNumber = (v) => String(Number(v.toPrecision(6)));
 
   /**
    * Symmetry, made rather than requested.
@@ -398,6 +440,7 @@
    */
   function expandRepeats(parts, opts = {}) {
     const limit = Math.max(2, Math.min(MAX_REPEAT, num(opts.maxRepeat, MAX_REPEAT)));
+    const unit = designUnit(parts);
     const ceiling = Math.max(1, num(opts.maxParts, MAX_REPEATED_PARTS));
     const out = [];
     const issues = [];
@@ -468,7 +511,7 @@
         : axis === "x"
         ? Math.hypot(original.position[1], original.position[2])
         : Math.hypot(original.position[0], original.position[1]);
-      if (radial < 1e-6) {
+      if (radial < 1e-6 * unit) {
         issues.push({ code: "repeat-on-axis", partId: part.id, detail: "sits on the axis it turns about, so the copies coincide" });
       }
       for (let i = 1; i < count; i++) {
@@ -515,7 +558,10 @@
   const AXIS_INDEX = { x: 0, y: 1, z: 2 };
 
   function expandMirrors(parts, opts = {}) {
-    const epsilon = num(opts.epsilon, 1e-3);
+    // A part this close to the plane is on it. Two thousandths of the design's
+    // largest half-size, which is the thousandth of a unit it always was for a
+    // design written one unit across — and the same fraction in any other unit.
+    const epsilon = num(opts.epsilon, 2e-3 * designUnit(parts));
     const out = [];
     const issues = [];
     for (const part of parts) {
@@ -582,12 +628,21 @@
     const longest = Math.max(...sizeOf(box));
     if (!Number.isFinite(longest) || longest <= 0) return { parts, factor: 1 };
     const factor = target / longest;
-    if (Math.abs(factor - 1) < 0.01) return { parts, factor: 1 };
+    // No shortcut for a model that is nearly the right size already. Leaving one
+    // within a hundredth of the target alone meant the same object came out a
+    // hundredth apart depending on the unit it was written in, and a seam that
+    // is closed at one of those sizes was left open at the other.
+    if (factor === 1) return { parts, factor: 1 };
     return {
       parts: parts.map((p) => ({
         ...p,
         position: p.position.map((v) => v * factor),
         scale: p.scale.map((v) => v * factor),
+        // A blend is a distance — how far a fillet reaches — so it resizes with
+        // the model. Left alone, a rounding written for a design in millimetres
+        // reached further than the whole resized model, and one written for a
+        // small design vanished when it was brought up to size.
+        ...(p.blend !== undefined ? { blend: p.blend * factor } : {}),
       })),
       factor,
     };
@@ -670,6 +725,11 @@
     // every other detached part waited its turn.
     const bite = Math.min(gap * 0.5, span * 0.005);
 
+    // Two faces this close are touching. Without it, faces that meet exactly
+    // in one unit are a rounding error apart in another, and the same model
+    // was repaired differently depending on what it was written in.
+    const touching = span * 1e-9;
+
     /**
      * The shortest move that brings box `a` into contact with box `b`.
      *
@@ -682,8 +742,8 @@
     const closingMove = (a, b) => {
       const d = [0, 0, 0];
       for (let k = 0; k < 3; k++) {
-        if (a[k] > b[k + 3]) d[k] = -(a[k] - b[k + 3]) - bite;
-        else if (b[k] > a[k + 3]) d[k] = b[k] - a[k + 3] + bite;
+        if (a[k] - b[k + 3] > touching) d[k] = -(a[k] - b[k + 3]) - bite;
+        else if (b[k] - a[k + 3] > touching) d[k] = b[k] - a[k + 3] + bite;
       }
       return d;
     };
@@ -787,11 +847,13 @@
     const overlaps = (a, b) => a[0] < b[3] && b[0] < a[3] && a[1] < b[4] && b[1] < a[4] && a[2] < b[5] && b[2] < a[5];
     // How far apart two boxes are on each axis; zero where they already share
     // that axis. The move that joins them closes every axis at once.
+    // As in the connecting pass: faces within a rounding error are touching.
+    const touching = span * 1e-9;
     const separation = (a, b) => {
       const d = [0, 0, 0];
       for (let k = 0; k < 3; k++) {
-        if (a[k] > b[k + 3]) d[k] = -(a[k] - b[k + 3]) - bite;
-        else if (b[k] > a[k + 3]) d[k] = b[k] - a[k + 3] + bite;
+        if (a[k] - b[k + 3] > touching) d[k] = -(a[k] - b[k + 3]) - bite;
+        else if (b[k] - a[k + 3] > touching) d[k] = b[k] - a[k + 3] + bite;
       }
       return d;
     };
@@ -957,7 +1019,8 @@
   }
 
   window.HCModelPlan = {
-    COORD_LIMIT,
+    COORD_REACH,
+    designUnit,
     halfExtents,
     localBounds,
     localOffset,

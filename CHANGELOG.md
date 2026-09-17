@@ -106,6 +106,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   placed by a sum landed on the centre of the model. Sums are now worked out
   before anything else reads the design, and one that cannot be worked out is
   named in the trace.
+- **3D Forge builds the same object whatever unit the design is written in.**
+  Several steps judged a design by fixed numbers before bringing it to size,
+  so a design in millimetres — which is how models tend to write one — had
+  every part pulled to within 12 mm of the centre and a chair arrived as a
+  cross of stacked parts. Rounded joins did not resize with the model, small
+  parts of a design in small units were dropped as too small to draw, and
+  picking out the main object and centring it ran on the design before its
+  arithmetic was worked out. Every design now takes one path to the scene,
+  every limit is measured against the design's own parts, and a mirrored
+  model is never centred off its own centre line.
 - **The Agent Swarm's topology and aggregation menus mean something.** They
   listed values nothing else used, so both went blank as soon as a starter
   template was loaded, and an aggregation picked from the menu was one the

@@ -26,6 +26,8 @@ for (const rel of [
   ['src', 'js', 'forge', 'expr.js'],
   ['src', 'js', 'model-plan.js'],
   ['src', 'js', 'forge', 'units.js'],
+  ['src', 'js', 'forge', 'plan-normalize.js'],
+  ['src', 'js', 'forge', 'prepare.js'],
   ['src', 'js', 'forge', 'field.js'],
   ['src', 'js', 'forge', 'surface.js'],
   ['src', 'js', 'forge', 'printable.js'],
@@ -205,7 +207,10 @@ console.log('\nThe one line a person reads before pressing export:');
 // then asked whether it would print. Raise the floor when it rises and say what
 // earned it. This is slower than the other checks because it walks a field for
 // every model, which is why it is worth having and why it is its own command.
-const PASS_FLOOR = 15;
+// 16, up from 15: shards now fuses into one body, because the check runs the
+// app's own path (js/forge/prepare.js), which removes the pieces that do not
+// reach the main one. It ran the assembler alone before.
+const PASS_FLOOR = 16;
 
 console.log('\nEvery corpus model, fused and asked whether it would print:\n');
 let printable = 0;
@@ -213,7 +218,9 @@ let watertight = 0;
 const rows = [];
 for (const file of readdirSync(join(root, 'scripts', 'corpus')).filter((f) => f.endsWith('.json'))) {
   const entry = JSON.parse(readFileSync(join(root, 'scripts', 'corpus', file), 'utf8'));
-  const out = MP.assemble(entry.plan, { ground: false, targetSize: U.WORKING_SPAN });
+  // The path the app sends a design down — see js/forge/prepare.js.
+  const prepared = sandbox.window.HCForgePrepare.preparePlan(entry.plan, { prompt: entry.prompt, targetSize: U.WORKING_SPAN });
+  const out = { parts: prepared.plan.nodes, sizeMm: prepared.plan.sizeMm };
   const field = F.buildField(out.parts);
   const mesh = S.extract(field, {});
   const size = Math.max(...MP.sizeOf(MP.boundsOf(out.parts)));

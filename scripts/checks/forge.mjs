@@ -36,7 +36,8 @@ const modelPlan = readFileSync(join(here, '..', '..', 'src', 'js', 'model-plan.j
 const panelHtml = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'panel-html.js'), 'utf8');
 const normalizeSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'plan-normalize.js'), 'utf8');
 /** Forge code that used to sit in mode.js and now has its own file. */
-const extractedForgeSources = [normalizeSrc];
+const prepareSrc = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'prepare.js'), 'utf8');
+const extractedForgeSources = [normalizeSrc, prepareSrc];
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -128,12 +129,13 @@ console.log('\nThe measurements are done in code, not asked of a model:');
   // whether the order is still right.
   check('the deterministic stage runs before anything is drawn', (() => {
     const run = bodyOf('forgeRun');
-    return run.indexOf('assembleDeterministically(plan)') >= 0
-      && run.indexOf('buildPlan(plan)') > run.indexOf('assembleDeterministically(plan)');
+    return run.indexOf('assembleDeterministically(plan') >= 0
+      && run.indexOf('buildPlan(plan)') > run.indexOf('assembleDeterministically(plan');
   })());
   check('it reports what it corrected', /log\("Assemble"/.test(src));
   check('it never hands back an empty scene',
-    /if \(!out\.parts\.length\)[\s\S]{0,220}return plan;/.test(src));
+    /if \(out\.empty\)[\s\S]{0,220}return plan;/.test(bodyOf('assembleDeterministically')) &&
+    /if \(!out\.parts\.length\)[\s\S]{0,220}empty: true/.test(prepareSrc));
   check('one floor height, read from the constant',
     /const FLOOR_Y = 0;/.test(src) && /grid\.position\.y = FLOOR_Y/.test(src) && /floor\.position\.y = FLOOR_Y/.test(src));
 }
@@ -151,7 +153,8 @@ console.log('\nA generated model is not replaced by a built-in one:');
   check('the plan-shape predicates that fed it are gone',
     !/isAnimalPlanSane|isPhonePlanSane|isLaptopPlanSane|isDronePlanSane|isToolPlanSane/.test(src));
   check('one subject is still enforced, and only that',
-    /function enforceSingleMainModel[\s\S]{0,900}centerPlanOnAxis\(keepLargestConnectedModel/.test(src),
+    /const single = keepOneSubject\(out\.parts[\s\S]{0,120}centreOnAxis\(single\.parts\)/.test(bodyOf('preparePlan')) &&
+    /prep\.preparePlan\(plan/.test(bodyOf('assembleDeterministically')),
     'it should keep and centre a single subject, not rebuild it');
   check('no padding pass tops a plan up to a node count',
     !/ensurePlanRichness/.test(src),
@@ -681,7 +684,7 @@ console.log('\nA design may do arithmetic, and say a thing once:');
   check('and told never to write a ring out by hand',
     /NEVER write out a ring of teeth/.test(src));
   check('a size written as arithmetic reaches the model',
-    /sizeMm: out\.sizeMm \?\? plan\.sizeMm/.test(bodyOf('assembleDeterministically')),
+    /sizeMm: out\.sizeMm \?\? gate\.sizeMm/.test(bodyOf('preparePlan')),
     'the assembler is the only place arithmetic is resolved');
   check('the arithmetic itself is not in this file',
     !/function tokenise|function resolveVars/.test(src),
@@ -771,7 +774,7 @@ console.log('\nThe design call is the only network call a run makes:');
 console.log('\nThe model is grounded once, by one estimator:');
 {
   check('the horizontal centring no longer touches height',
-    /function centerPlanOnAxis[\s\S]{0,900}\(node\.position\?\.\[1\] \|\| 0\),/.test(src),
+    /function centreOnAxis[\s\S]{0,700}position: \[p\.position\[0\] \+ dx, p\.position\[1\], p\.position\[2\] \+ dz\]/.test(prepareSrc),
     'it used to ground to FLOOR_Y + 0.015 and then be overruled by the assembler');
   check('nothing grounds twice', !/centerAndGroundPlan/.test(src));
   check('grounding is left to the tested stage',

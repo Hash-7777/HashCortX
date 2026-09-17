@@ -361,7 +361,10 @@ const LINE_BUDGET = {
   // 3859, up four: the run says when a number written as arithmetic could not
   // be worked out. The working-out itself is in the plan gate,
   // src/js/forge/plan-normalize.js, where a sum used to be read as zero.
-  'modes/forge/mode.js': 3859,
+  // 3686, down from 3859: keeping one subject and centring it moved to
+  // src/js/forge/prepare.js, the one path a design takes to the scene, where
+  // they run after the assembler at the scene's size instead of before it.
+  'modes/forge/mode.js': 3686,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

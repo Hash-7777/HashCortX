@@ -1771,8 +1771,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
         .concat(added);
       log("Improve", `${replacements.size} changed · ${added.length} added · ${removed.size} removed`, "ok");
 
-      let plan = enforceSingleMainModel($("frgPrompt")?.value || "", { ...activePlan, nodes });
-      plan = assembleDeterministically(normalizePlan(plan));
+      const plan = assembleDeterministically({ ...activePlan, nodes }, $("frgPrompt")?.value || "");
       buildPlan(plan);
       saveCurrentProject(false);
       setStatus("Ready");
@@ -2461,32 +2460,27 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
    * a fixed size would be a change of appearance dressed as a correction. When
    * there is a measurement to justify a target, pass targetSize here.
    */
-  function assembleDeterministically(plan) {
-    const MP = window.HCModelPlan;
-    if (!MP || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return plan;
+  function assembleDeterministically(plan, prompt = "") {
+    const prep = window.HCForgePrepare;
+    if (!prep || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return plan;
     let out;
     try {
-      // Grounding is skipped here: buildPlan measures the meshes it actually
-      // creates and sets the model on the floor from that, which is exact.
-      //
-      // The span is passed now. Every tolerance downstream — the contact gap,
-      // the seating bite, the smallest part that can be drawn — is an absolute
-      // number, and an absolute number is only correct at one scale. Models
-      // were arriving anywhere between 1.2 and 4.8 units across, so the same
-      // gap was 1% of one model and 5% of another and the assembler was
-      // quietly stricter with the big ones.
-      out = MP.assemble(plan, { ground: false, targetSize: U()?.WORKING_SPAN || 0 });
+      // The one path from a design to the scene — js/forge/prepare.js. The
+      // span is passed so every step after the assembler works at the scene's
+      // size, whatever unit the design was written in. Grounding is left to
+      // buildPlan, which measures the meshes it actually creates.
+      out = prep.preparePlan(plan, { prompt, targetSize: U()?.WORKING_SPAN || 0 });
     } catch (err) {
       log("Assemble", `skipped: ${err?.message || err}`, "warn");
       return plan;
     }
     // Never hand back an empty scene. If every part failed to measure, the
     // original is still more useful than nothing, and the trace says so.
-    if (!out.parts.length) {
+    if (out.empty) {
       log("Assemble", "left the plan alone — nothing measurable to work with", "warn");
       return plan;
     }
-    const s = out.stats;
+    const { stats: s, issues, moves, removed } = out.report;
     const notes = [];
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
     if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
@@ -2497,18 +2491,18 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     // "nothing to correct" used to be printed above a list of parts the same
     // step had just found adrift. It is only true when the list is empty.
     if (notes.length) {
-      log("Assemble", notes.join(" · "), "ok", (out.moves || []).map((m) => `${m.partId} → ${m.to}`).join("\n"));
-    } else if (!out.issues.length) {
+      log("Assemble", notes.join(" · "), "ok", moves.map((m) => `${m.partId} → ${m.to}`).join("\n"));
+    } else if (!issues.length && !removed.length) {
       log("Assemble", "nothing to correct", "ok");
     }
-    for (const issue of out.issues) {
+    if (removed.length) log("Assemble", `Removed ${removed.length} detached part(s) outside the main model`, "warn", removed.join("\n"));
+    for (const issue of issues) {
       if (issue.code === "detached") log("Assemble", `${issue.partId} sits too far from the body to place — left where the design put it`, "warn");
       else if (issue.code === "degenerate") log("Assemble", `${issue.partId} had no measurable size`, "warn");
     }
-    // The size may have been written as arithmetic, and the assembler is where
-    // arithmetic is resolved, so the resolved value has to come back with it.
-    return { ...plan, nodes: out.parts, sizeMm: out.sizeMm ?? plan.sizeMm };
+    return { ...plan, ...out.plan };
   }
+
 
   function alignSelectedToFloor() {
     if (!selectedMesh || !THREE) return;
@@ -2826,12 +2820,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     return window.HCForgePlanNormalize.mirrorAxis(value);
   }
 
-  function vec3(v, fallback) {
-    return Array.isArray(v) && v.length >= 3
-      ? [Number(v[0]) || 0, Number(v[1]) || 0, Number(v[2]) || 0]
-      : fallback.slice();
-  }
-
 
   function updateReveal(now) {
     for (const item of revealMeshes) {
@@ -2966,11 +2954,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
       failForgeRun("Parameter Agent", "No model plan was produced.");
       return;
     }
-    if (!useSample) {
-      plan = enforceSingleMainModel(prompt, plan, prefs);
-      plan.route = routeBrief.route;
-    }
-
     setAgentState("god", "done");
 
     // ── One call designs the model ────────────────────────────────────
@@ -2989,9 +2972,6 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     if (!useSample && routeBrief.route !== "organic_diffusion" && !ctrl.signal.aborted) {
       updateStage("refine", "active", "assembling");
 
-      // One subject, centred and grounded.
-      plan = enforceSingleMainModel(prompt, plan, prefs);
-
       // There was a padding pass here, topping a sparse plan up to a minimum
       // node count — as many as forty parts — with pieces taken from the
       // built-in template for the subject. Its only caller had already
@@ -3005,7 +2985,7 @@ ${JSON.stringify({ name: activePlan?.name, nodes: renderableNodes(activePlan?.no
     }
     updateStage("refine", "done", plan.route === "anatomical" ? "sdf smoothed" : "post-process done");
 
-    plan = assembleDeterministically(plan);
+    plan = assembleDeterministically(plan, useSample ? "" : prompt);
 
     // ── What made this ────────────────────────────────────────────────
     //
@@ -3321,159 +3301,6 @@ Prompt: ${prompt}`;
    * The built-in plans still exist and are still reachable — Mock builds from
    * them deliberately. What has gone is their power to overrule a real answer.
    */
-  function enforceSingleMainModel(prompt, plan) {
-    return centerPlanOnAxis(keepLargestConnectedModel(prompt, normalizePlan(plan)));
-  }
-
-  function keepLargestConnectedModel(prompt, plan) {
-    const normalized = normalizePlan(plan);
-    if (allowsMultipleForgeSubjects(prompt)) return normalized;
-    const nodes = renderableNodes(normalized.nodes);
-    if (nodes.length < 4) return normalized;
-    const stats = connectedModelStats(nodes);
-    if (stats.clusterCount <= 1 || !stats.largestCluster.length) return normalized;
-    if (stats.largestCount < Math.max(4, nodes.length * 0.45)) return normalized;
-    const keepIds = new Set(stats.largestCluster.map((node) => node.id));
-    const removed = nodes.length - keepIds.size;
-    if (removed <= 0) return normalized;
-    normalized.nodes = normalized.nodes.filter((node) => node.role === "audit" || keepIds.has(node.id));
-    log("Audit Agent", `Removed ${removed} detached part(s) outside the main model`, "warn");
-    return normalized;
-  }
-
-  function allowsMultipleForgeSubjects(prompt) {
-    const q = String(prompt || "").toLowerCase();
-    return /\b(two|three|four|five|pair|set of|collection|group|scene|diorama|room|city|street|landscape)\b/.test(q)
-      || /\bon (a |the )?(table|desk|workbench|floor|shelf)\b/.test(q);
-  }
-
-  function connectedModelStats(nodes) {
-    const items = (Array.isArray(nodes) ? nodes : [])
-      .map((node, index) => {
-        const extents = nodeApproxExtents(node);
-        const radius = Math.max(0.035, Math.hypot(extents[0], extents[1], extents[2]));
-        return {
-          node,
-          index,
-          center: vec3(node.position, [0, 0, 0]),
-          radius,
-        };
-      });
-    if (!items.length) return { clusterCount: 0, largestCount: 0, largestCluster: [] };
-    const box = boundsForNodes(items.map((item) => item.node));
-    const size = box ? [box.max[0] - box.min[0], box.max[1] - box.min[1], box.max[2] - box.min[2]] : [1, 1, 1];
-    const diag = Math.max(0.5, Math.hypot(size[0], size[1], size[2]));
-    const slack = Math.max(0.22, Math.min(0.75, diag * 0.14));
-    const parent = items.map((_, i) => i);
-    const find = (i) => {
-      while (parent[i] !== i) {
-        parent[i] = parent[parent[i]];
-        i = parent[i];
-      }
-      return i;
-    };
-    const unite = (a, b) => {
-      const ra = find(a);
-      const rb = find(b);
-      if (ra !== rb) parent[rb] = ra;
-    };
-    for (let i = 0; i < items.length; i++) {
-      for (let j = i + 1; j < items.length; j++) {
-        const a = items[i];
-        const b = items[j];
-        const d = Math.hypot(a.center[0] - b.center[0], a.center[1] - b.center[1], a.center[2] - b.center[2]);
-        if (d <= a.radius + b.radius + slack) unite(i, j);
-      }
-    }
-    const groups = new Map();
-    items.forEach((item, i) => {
-      const root = find(i);
-      if (!groups.has(root)) groups.set(root, []);
-      groups.get(root).push(item.node);
-    });
-    const clusters = Array.from(groups.values()).sort((a, b) => b.length - a.length);
-    return {
-      clusterCount: clusters.length,
-      largestCount: clusters[0]?.length || 0,
-      largestCluster: clusters[0] || [],
-    };
-  }
-
-  /**
-   * Centre the model over the origin on X and Z. Height is deliberately not
-   * touched.
-   *
-   * This used to ground the model too, to FLOOR_Y + 0.015, using its own
-   * estimate of where the bottom is — and then the deterministic stage grounded
-   * it again to zero using a different estimate. Two approximations of the same
-   * quantity, both applied, the second silently winning: on the sample plan
-   * they disagreed by 0.30, which is a third of a model. Grounding now happens
-   * once, in src/js/model-plan.js, where it is the tested one.
-   *
-   * Both are still estimates from a part's declared parameters rather than its
-   * rendered geometry, and neither accounts for rotation. Grounding from the
-   * real bounds after the meshes exist is the honest fix and is not done yet.
-   */
-  function centerPlanOnAxis(plan) {
-    const normalized = normalizePlan(plan);
-    const nodes = renderableNodes(normalized.nodes);
-    const box = boundsForNodes(nodes);
-    if (!box) return normalized;
-    const dx = -((box.min[0] + box.max[0]) / 2);
-    const dz = -((box.min[2] + box.max[2]) / 2);
-    if (Math.abs(dx) < 0.001 && Math.abs(dz) < 0.001) return normalized;
-    normalized.nodes = normalized.nodes.map((node) => ({
-      ...node,
-      position: [
-        (node.position?.[0] || 0) + dx,
-        (node.position?.[1] || 0),
-        (node.position?.[2] || 0) + dz,
-      ],
-    }));
-    return normalized;
-  }
-
-  function boundsForNodes(nodes) {
-    if (!nodes.length) return null;
-    const min = [Infinity, Infinity, Infinity];
-    const max = [-Infinity, -Infinity, -Infinity];
-    nodes.forEach((node) => {
-      const p = node.position || [0, 0, 0];
-      const e = nodeApproxExtents(node);
-      for (let i = 0; i < 3; i++) {
-        min[i] = Math.min(min[i], (p[i] || 0) - e[i]);
-        max[i] = Math.max(max[i], (p[i] || 0) + e[i]);
-      }
-    });
-    return { min, max };
-  }
-
-  function nodeApproxExtents(node) {
-    const p = node.params || {};
-    const s = node.scale || [1, 1, 1];
-    if (node.type === "mesh" && Array.isArray(p.positions) && p.positions.length >= 9) {
-      const min = [Infinity, Infinity, Infinity];
-      const max = [-Infinity, -Infinity, -Infinity];
-      for (let i = 0; i < p.positions.length; i += 3) {
-        for (let axis = 0; axis < 3; axis++) {
-          const value = Number(p.positions[i + axis]) || 0;
-          min[axis] = Math.min(min[axis], value);
-          max[axis] = Math.max(max[axis], value);
-        }
-      }
-      return [
-        Math.max(0.02, ((max[0] - min[0]) / 2) * Math.abs(s[0] || 1)),
-        Math.max(0.02, ((max[1] - min[1]) / 2) * Math.abs(s[1] || 1)),
-        Math.max(0.02, ((max[2] - min[2]) / 2) * Math.abs(s[2] || 1)),
-      ];
-    }
-    if (node.type === "box" || node.type === "extrude") return [(p.width || 1) * (s[0] || 1) / 2, (p.height || p.depth || 1) * (s[1] || 1) / 2, (p.depth || 1) * (s[2] || 1) / 2];
-    if (node.type === "cylinder" || node.type === "capsule" || node.type === "cone") return [(p.radius || 0.2) * (s[0] || 1), (p.height || p.length || 1) * (s[1] || 1) / 2, (p.radius || 0.2) * (s[2] || 1)];
-    if (node.type === "sphere") return [(p.radius || 0.3) * (s[0] || 1), (p.radius || 0.3) * (s[1] || 1), (p.radius || 0.3) * (s[2] || 1)];
-    if (node.type === "torus") return [(p.radius || 0.5) * (s[0] || 1), (p.tube || 0.05) * (s[1] || 1), (p.radius || 0.5) * (s[2] || 1)];
-    return [0.3, 0.3, 0.3];
-  }
-
   function hLogoPlan() {
     return {
       name: "HashCortx intro mark",

@@ -67,7 +67,7 @@ console.log('\nA plan is made safe before anything is drawn:');
   ok('entries that are not objects are refused', issues.filter((i) => i.code === 'not-a-part').length === 2);
   ok('a repeated id is renamed, not dropped', ids.includes('a') && ids.includes('a_2'));
   ok('a non-numeric coordinate becomes zero', parts.find((p) => p.id === 'nan').position[0] === 0);
-  ok('a runaway coordinate is clamped', parts.find((p) => p.id === 'far').position[0] === P.COORD_LIMIT);
+  ok('a runaway coordinate is clamped', parts.find((p) => p.id === 'far').position[0] === P.COORD_REACH * P.designUnit(parts));
   ok('the clamp is reported, not silent', issues.some((i) => i.code === 'coordinate-clamped'));
   ok('a part with no size is dropped', !ids.includes('flat'));
   ok('the drop says why', issues.some((i) => i.code === 'degenerate' && i.partId === 'flat'));
