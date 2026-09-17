@@ -23,6 +23,10 @@
 //   busy      the provider is overloaded or unreachable: other providers,
 //             then this one
 //   slow      no answer in time: other providers, then this one
+//   size      the request is larger than this model will take on this
+//             account: this provider's others, then the rest, each only if it
+//             can hold the job — never the same request again
+//   empty     an answer with nothing in it: other providers, then this one
 //   other     anything else: this provider's others, then the rest
 //
 // A local model hands over only to another local model, whatever the kind.
@@ -47,7 +51,11 @@
 
   const RETIRED = /decommission|deprecated|no longer (?:supported|available|exists|offered)|model\b.{0,40}\b(?:not (?:be )?found|does not exist|doesn'?t exist|not available|is not supported|was retired|renamed or retired|unavailable for your)|no such model|unknown model|model_not_found|model_decommissioned|invalid model|not a valid model|is not found for api version/i;
   const KEY = /api key|api-key|apikey|unauthori[sz]ed|forbidden|invalid.{0,12}key|missing.{0,12}key|rejected the api key|http 40[13]\b|permission denied/i;
-  const LIMIT = /rate.?limit|quota|\b429\b|too many requests|free.?tier|insufficient.{0,12}(?:credit|balance|fund)|billing|exceeded|tokens per (?:minute|day)|request too large/i;
+  const LIMIT = /rate.?limit|quota|\b429\b|too many requests|free.?tier|insufficient.{0,12}(?:credit|balance|fund)|billing|exceeded|tokens per (?:minute|day)/i;
+  // Checked before a limit, because a request too large for a per-minute budget
+  // names the budget. Waiting does not shrink a request, and another model on
+  // the same account may take it, so it is not a spent quota either.
+  const SIZE = /request too large|payload too large|\b413\b|context.{0,12}(?:length|window).{0,30}(?:exceed|too long|maximum)|maximum context length|prompt is too long|too many (?:input )?tokens/i;
   // An unreachable provider is treated as a busy one: try elsewhere, then it again.
   const BUSY = /capacity|overload|unavailable|\b50[234]\b|\b529\b|server error|try again later|temporar|failed to fetch|load failed|network|econn|socket|unreachable/i;
   const SLOW = /timed?.?out|timeout|aborted|abort|no answer within|took longer/i;
@@ -57,6 +65,8 @@
     if (err && err.name === 'AbortError' && !err.timedOut) return 'stopped';
     const msg = String((err && err.message) || err || '');
     if (RETIRED.test(msg)) return 'retired';
+    if (err && err.empty) return 'empty';
+    if (SIZE.test(msg)) return 'size';
     // Before the key: a quota message often says whose key ran out.
     if (LIMIT.test(msg)) return 'limit';
     if (KEY.test(msg)) return 'key';
@@ -145,7 +155,7 @@
     const values = (list) => list.map((o) => o.value);
     if (kind === 'stopped') return [];
     if (kind === 'limit' || kind === 'key') return values(others);  // `same` is empty: the provider is shut
-    if (kind === 'busy' || kind === 'slow') return values([...others, ...same]);
+    if (kind === 'busy' || kind === 'slow' || kind === 'empty') return values([...others, ...same]);
     return values([...same, ...others]);
   }
 
@@ -247,6 +257,8 @@
       key: 'the key was refused',
       busy: 'the provider is overloaded',
       slow: 'no answer in time',
+      size: 'the request is too large for this model on this account',
+      empty: 'the answer was empty',
     }[kind] || 'it failed';
   }
 

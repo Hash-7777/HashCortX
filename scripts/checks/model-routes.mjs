@@ -42,7 +42,13 @@ ok('a model the provider decommissioned is retired', R.failureKind(E('Groq error
 ok('a decommission notice cut off mid-sentence is still retired', R.failureKind(E('Groq error 400: {"error":{"message":"The model `x` has been decommissioned and is no longer supported. Pleas')) === 'retired');
 ok('model_not_found is retired', R.failureKind(E('{"error":{"code":"model_not_found"}}')) === 'retired');
 ok('the app\'s own 429 wording is a limit', R.failureKind(E(P.cloudHttpError('groq', 429, ''))) === 'limit');
-ok('a request too large for a per-minute budget is a limit', R.failureKind(E('Request too large for model on tokens per minute (TPM)')) === 'limit');
+// It was a limit, which shut the whole account and — before a limit that names
+// no quota was retried — sent the same request again two seconds later.
+ok('a request too large for a per-minute budget is a size, not a spent quota', R.failureKind(E('Request too large for model on tokens per minute (TPM)')) === 'size');
+ok('the Groq 413 wording is a size', R.failureKind(E('Groq error 413: {"error":{"message":"Request too large for model `qwen/qwen3.8-27b` in organization')) === 'size');
+ok('a context window overflow is a size', R.failureKind(E("This model's maximum context length is 8192 tokens")) === 'size');
+ok('an answer with nothing in it is empty', R.failureKind(E('returned an empty answer', { empty: true })) === 'empty');
+ok('every kind has words for the trace', ['retired', 'limit', 'key', 'busy', 'slow', 'size', 'empty'].every((k) => R.reasonText(k) !== 'it failed'));
 ok('a quota message naming the key is still a limit', R.failureKind(E('Rate limit reached for this API key')) === 'limit');
 ok('the app\'s own 401 wording is a refused key', R.failureKind(E(P.cloudHttpError('openai', 401, ''))) === 'key');
 ok('the app\'s own 503 wording is busy', R.failureKind(E(P.cloudHttpError('gemini', 503, ''))) === 'busy');
@@ -167,7 +173,7 @@ console.log('\nA job given to a local model stays local:');
   ];
   const mixed = [...opts, ...local];
   const cloud = (v) => v.startsWith('cloud:');
-  for (const kind of ['retired', 'limit', 'key', 'busy', 'slow', 'other']) {
+  for (const kind of ['retired', 'limit', 'key', 'busy', 'slow', 'size', 'empty', 'other']) {
     const next = R.nextRoutes({ failed: 'llama3.2:3b', kind, options: mixed, store: memory() });
     ok(`after a local model fails (${kind}), no cloud model is offered`, !next.some(cloud));
   }

@@ -108,6 +108,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A request too large for a model is no longer taken for a busy or spent
+  account.** A refusal saying a request was larger than a model takes on
+  this account was retried on the same model two seconds later and then
+  reported as an account out of quota, which shut every other model on that
+  account out of the run. It now moves straight to a model that can hold the
+  request, the account's other models included, and the trace says why.
 - **3D Forge places parts written as arithmetic where they were written.**
   The design may give a position, a turn or a size as a sum, but the first
   step a design passed through read those as plain numbers, so every part
