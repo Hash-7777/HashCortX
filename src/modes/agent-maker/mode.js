@@ -855,10 +855,10 @@ const SwarmMaker = (() => {
     return score;
   }
 
+  // Strongest first among models that answer in time — js/model-speed.js. By
+  // strength alone, a free giant stuck in a queue was given the key roles.
   function bestModelForProvider(options, bigTask) {
-    return [...options].sort((a, b) =>
-      modelStrengthScore(b.value, b.label, bigTask) - modelStrengthScore(a.value, a.label, bigTask)
-    )[0];
+    return window.HCModelSpeed.order(options, (o) => o.value, (o) => modelStrengthScore(o.value, o.label, bigTask))[0];
   }
 
 
@@ -1197,18 +1197,18 @@ const SwarmMaker = (() => {
       if (!providerOptions[provider]) providerOptions[provider] = [];
       providerOptions[provider].push(o);
     });
-    const providerModels = Object.entries(providerOptions)
+    const unordered = Object.entries(providerOptions)
       .map(([provider, options]) => {
         const best = bestModelForProvider(options, bigTask);
         return [provider, best?.value || options[0]?.value || "", best?.label || options[0]?.label || ""];
       })
-      .filter(([, value]) => value)
-      .sort((a, b) => modelStrengthScore(b[1], b[2], bigTask) - modelStrengthScore(a[1], a[2], bigTask));
+      .filter(([, value]) => value);
+    const providerModels = window.HCModelSpeed.order(unordered, (m) => m[1], (m) => modelStrengthScore(m[1], m[2], bigTask));
     const numProviders = providerModels.length;
     const agentBounds = recommendedAgentBounds(desc);
 
     const modelListStr = providerModels.length
-      ? `\nAvailable providers and their best representative model for this assignment:\n${providerModels.map(([p, v, label]) => `  Provider "${p}" → model value: "${v}" (${label})`).join("\n")}\n\nModel assignment guidance:\n- This request is ${bigTask ? "a BIG assignment: prioritize the strongest/frontier/famous/largest models listed above for planner, coder, validator, and final supervisor roles." : "a normal assignment: balance speed and quality."}\n- For large code/product builds, prefer Pro/R1/V3/Maverick/Nemotron/Hermes/Qwen3/405B/235B/120B/70B-class models over flash/lite/instant/small models.\n- groq → fast inference, good for researcher/analyst; use its largest available model for big tasks\n- gemini → long context, best when Pro is available; avoid Lite for big tasks\n- cerebras → ultra-fast; use its largest available model for coding/validation if available\n- samba → mega-scale, good for complex reasoning/supervisor/final synthesis roles\n- openrouter → diverse frontier/famous models, good for coder/critic/supervisor roles\n- local → fallback only unless it is clearly the strongest available local model\nUse different providers whenever possible. With ${numProviders} providers available, assign the strongest providers to the highest-risk roles first; provider count must not force extra agents.`
+      ? `\nAvailable providers and their best representative model for this assignment:\n${providerModels.map(([p, v, label]) => `  Provider "${p}" → model value: "${v}" (${label})`).join("\n")}\n\nModel assignment guidance:\n- This request is ${bigTask ? "a BIG assignment: prioritize the strongest models listed above for planner, coder, validator, and final supervisor roles. They are listed with the ones that answer in time first; a model that must answer within minutes is worth more than a larger one that may not." : "a normal assignment: balance speed and quality."}\n- For large code/product builds, prefer Pro/R1/V3/Maverick/Nemotron/Hermes/Qwen3/405B/235B/120B/70B-class models over flash/lite/instant/small models.\n- groq → fast inference, good for researcher/analyst; use its largest available model for big tasks\n- gemini → long context, best when Pro is available; avoid Lite for big tasks\n- cerebras → ultra-fast; use its largest available model for coding/validation if available\n- samba → mega-scale, good for complex reasoning/supervisor/final synthesis roles\n- openrouter → diverse frontier/famous models, good for coder/critic/supervisor roles\n- local → fallback only unless it is clearly the strongest available local model\nUse different providers whenever possible. With ${numProviders} providers available, assign the strongest providers to the highest-risk roles first; provider count must not force extra agents.`
       : `\nLeave model as "" for all agents.`;
 
     const minAgents = agentBounds.min;

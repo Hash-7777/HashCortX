@@ -496,10 +496,9 @@
     return c ? c.strengthOf(value, label, bigTask) : 0;
   }
 
+  // Strongest first among models that answer in time — js/model-speed.js.
   function bestModelForProvider(options, bigTask) {
-    return [...options].sort((a, b) =>
-      modelStrengthScore(b.value, b.label, bigTask) - modelStrengthScore(a.value, a.label, bigTask)
-    )[0] || null;
+    return window.HCModelSpeed.order(options, (o) => o.value, (o) => modelStrengthScore(o.value, o.label, bigTask))[0] || null;
   }
 
   function providerFromValue(value) {
@@ -563,13 +562,13 @@
       if (!providerOptions[provider]) providerOptions[provider] = [];
       providerOptions[provider].push(o);
     });
-    const ranked = Object.entries(providerOptions)
+    const unordered = Object.entries(providerOptions)
       .map(([provider, options]) => {
         const best = bestModelForProvider(options, bigTask);
         return [provider, best?.value || options[0]?.value || "", best?.label || options[0]?.label || ""];
       })
-      .filter(([, value]) => value)
-      .sort((a, b) => modelStrengthScore(b[1], b[2], bigTask) - modelStrengthScore(a[1], a[2], bigTask));
+      .filter(([, value]) => value);
+    const ranked = window.HCModelSpeed.order(unordered, (m) => m[1], (m) => modelStrengthScore(m[1], m[2], bigTask));
     if (!ranked.length && !includeCooling) return providerModelsForForge(bigTask, { includeCooling: true });
     return ranked;
   }

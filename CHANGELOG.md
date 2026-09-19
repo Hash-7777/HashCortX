@@ -116,6 +116,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A model is chosen by how it answers, not only by its name.** The name
+  says how big a model is, and bigger read as better, so a free giant model
+  was handed the most important roles in a team and then sat in its
+  provider's queue for the whole time limit while everyone waited. The app
+  now remembers how long each model's answers take and when one runs out of
+  time, and picks among models that answer first, strongest first within
+  those. A model that ran out of time on its last job is not asked first
+  again until it answers something; a free model of 200 billion parameters
+  or more waits its turn until it has answered once. The trace says when a
+  model was passed over.
 - **An Agent Swarm team's result comes from the agent that finishes the
   work.** A team whose planner had the supervisor role had the planner chosen
   to deliver: the first agent to run was told to write the whole finished

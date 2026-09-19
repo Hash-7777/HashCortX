@@ -136,7 +136,12 @@
     const shut = new Set(avoid);
     if (kind === 'limit' || kind === 'key') shut.add(providerOf(failed));
     const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)));
-    const byStrength = (a, b) => score(b) - score(a);
+    // Models that answer in time first, strongest first within that — a model
+    // that ran out of time, or a free giant never yet heard from, goes after
+    // the rest however large it is (js/model-speed.js).
+    const S = typeof window !== 'undefined' && window.HCModelSpeed;
+    const group = (o) => (S ? S.RANK[S.stateOf(o.value, now, store)] : 0);
+    const byStrength = (a, b) => group(a) - group(b) || score(b) - score(a);
     const from = providerOf(failed);
     const same = usable.filter((o) => providerOf(o.value) === from).sort(byStrength);
     // Each other provider's best model, the strongest provider first. One per
@@ -145,7 +150,7 @@
     for (const o of usable) {
       const p = providerOf(o.value);
       if (p === from) continue;
-      if (!bestOf.has(p) || score(o) > score(bestOf.get(p))) bestOf.set(p, o);
+      if (!bestOf.has(p) || byStrength(o, bestOf.get(p)) < 0) bestOf.set(p, o);
     }
     // A job given to a local model stays local. Choosing one is often the
     // point — the task and its files are not to go to a cloud provider — so
@@ -188,6 +193,14 @@
       start(value) {
         if (!value) return value;
         const gone = isRetired(value, Date.now(), store);
+        // A model that ran out of time on its last job is not asked first again
+        // while another can be — js/model-speed.js.
+        const S = typeof window !== 'undefined' && window.HCModelSpeed;
+        if (!gone && S && S.stateOf(value, Date.now(), store) === 'timed-out') {
+          const quicker = nextRoutes({ failed: value, kind: 'slow', options: options(), strength, fits, store })
+            .find((v) => S.stateOf(v, Date.now(), store) !== 'timed-out');
+          if (quicker) { note(`${label(value)} ran out of time on its last job — using ${label(quicker)}`); return quicker; }
+        }
         if (!gone && (!fits || fits(value))) return value;
         const next = nextRoutes({ failed: value, kind: gone ? 'retired' : 'other', options: options(), strength, fits, store })[0];
         if (next) note(gone ? `${label(value)} was reported gone — using ${label(next)}` : `${label(value)} cannot hold this job on this account — using ${label(next)}`);
@@ -206,6 +219,7 @@
           note(`${label(culprit)} is gone — it will not be asked again for two weeks`);
         }
         if (kind === 'limit' || kind === 'key') avoid.push(providerOf(culprit));
+        if (kind === 'slow' && typeof window !== 'undefined' && window.HCModelSpeed) window.HCModelSpeed.recordTimeout(culprit, Date.now(), store);
         for (const m of [failed, culprit]) if (m && !tried.includes(m)) tried.push(m);
         const ask = (extra, fit) => nextRoutes({ failed: culprit, kind, options: options(), tried, avoid: [...avoid, ...extra], strength, fits: fit, store })[0];
         // A model that can hold the job first; failing that, any that answers.

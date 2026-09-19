@@ -377,7 +377,8 @@ const LINE_BUDGET = {
   // 3685, up 27: opening the Forge shows the mark at once as a plain image and
   // fades the 3D mark in when its picture is ready, instead of a dark view
   // while the 3D starts and a mark that appeared with its fade already spent.
-  'modes/forge/mode.js': 3685,
+  // 3684, down one: nothing added — the budget follows the file.
+  'modes/forge/mode.js': 3684,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

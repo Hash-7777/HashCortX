@@ -368,10 +368,19 @@
    * is still cut off.
    */
   function routeModelTurn(request, fns, deps) {
+    const started = Date.now();
     const first = routeLearning(request, fns, deps);
-    if (!request.untilFinished || !first || typeof first.then !== 'function') return first;
+    if (!first || typeof first.then !== 'function') return first;
     const again = (messages) => routeOnce({ ...request, messages }, fns, deps);
-    return first.then((turn) => (turn && turn.cutOff ? finishCutOff(again, request.messages, turn) : turn));
+    const whole = request.untilFinished ? first.then((turn) => (turn && turn.cutOff ? finishCutOff(again, request.messages, turn) : turn)) : first;
+    // How long the answer took is kept, so a model is chosen by how it answers
+    // as well as by its name — js/model-speed.js.
+    return whole.then((turn) => {
+      const S = typeof window !== 'undefined' && window.HCModelSpeed;
+      const text = String((turn && turn.content) || '');
+      if (S && request.modelValue && text.trim()) S.record(request.modelValue, { ms: Date.now() - started, chars: text.length });
+      return turn;
+    });
   }
 
   /**
