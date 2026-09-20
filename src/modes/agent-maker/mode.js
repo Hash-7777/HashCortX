@@ -298,19 +298,16 @@ const SwarmMaker = (() => {
     const isFinalOwner = finalOwnerId && agent.id === finalOwnerId;
     // On a build, whoever checks or assembles the files gets them whole, not the first few thousand characters.
     const needsWhole = isFinalOwner || (execOptions.codeBuild && /validator|critic|qa|review|supervisor/i.test(`${agent.role} ${agent.name}`));
-    const contextLines = Object.entries(depResults)
-      .filter(([,v]) => v)
-      .map(([name, out]) => {
-        const text = String(out);
-        const limit = needsWhole ? Math.max(depCharLimit, text.length) : depCharLimit;
-        // A cut input used to arrive looking whole, so an agent given half a
-        // file could only read it as a file that ends there — and would write
-        // the rest itself, from nothing. It now says so, and says who to ask.
-        const cut = text.length > limit;
-        return `\n[${name}]:\n${text.slice(0, limit)}`
-          + (cut ? `\n[...cut here. ${name} wrote ${text.length} characters and you were given the first ${limit}. Do not treat this as the whole of it, and do not rewrite the missing part from guesswork — work from what is here and say what you could not see.]` : "");
-      });
-    const context = contextLines.length ? "\n\n--- Input from prior agents ---" + contextLines.join("") : "";
+    // What the agent is shown of the work before it — js/swarm/context.js.
+    // An agent that checks or assembles the files is shown the project rather
+    // than the transcript: every file once, the latest of each. A cut input
+    // says it was cut, and the whole context has a ceiling of its own, because
+    // a per-piece limit multiplied by the number of agents is not a limit.
+    const context = window.HCSwarmContext.contextFor(depResults, {
+      whole: needsWhole,
+      perLimit: depCharLimit,
+      totalLimit: execOptions.contextCharLimit || window.HCSwarmContext.DEFAULT_TOTAL,
+    });
     const hasPyTool = (agent.tools || []).includes("code_interpreter");
     const codeNote = hasPyTool
       ? "\n\nIMPORTANT: When generating files (PDF, Word, Excel, CSV, etc.) you MUST call the execute_python tool and write the file to /output/<filename>. Do NOT write code in text — call the tool directly so the file downloads to the user."
@@ -511,6 +508,7 @@ const SwarmMaker = (() => {
     const strictDependencies = bp.taskCategory === "code_build" || isCodeBuildTask(task);
     const execOptions = {
       dependencyCharLimit: bp.budgetControls?.maxContextCharsPerDependency || 2000,
+      contextCharLimit: bp.budgetControls?.maxContextCharsTotal || window.HCSwarmContext.DEFAULT_TOTAL,
       maxToolRounds: bp.budgetControls?.maxToolRounds || 8,
       finalOutputAgentId: choice.deliverer,
       codeBuild: strictDependencies,

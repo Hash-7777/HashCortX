@@ -531,7 +531,9 @@ const LINE_BUDGET = {
   // back. The reading is in js/swarm/project-check.js, which needs no model;
   // what is here is counting the agents that could not answer, and saying in
   // the trace what that reading found.
-  'modes/agent-maker/mode.js': 2454,
+  // 2452, down two: what an agent is shown of the work before it moved to
+  // js/swarm/context.js, where it can be checked on its own.
+  'modes/agent-maker/mode.js': 2452,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

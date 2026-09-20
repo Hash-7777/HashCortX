@@ -408,6 +408,11 @@ Return only JSON, no markdown:
    * came apart: the page alone is longer than that, so the agent that had to
    * put the files together received them cut in half and wrote its own from
    * memory. Room now follows the work.
+   *
+   * There is a ceiling on the whole request as well. A per-dependency limit
+   * multiplied by the number of agents is not a limit, and a validator handed
+   * every answer whole was refused by every provider for being too large — so
+   * the run finished with nothing checked and nothing polished.
    */
   function budgetsFor(plan) {
     const files = filesOf(plan);
@@ -417,6 +422,7 @@ Return only JSON, no markdown:
       : Math.min(12000, 4000 + (plan.items || []).length * 800);
     return {
       maxContextCharsPerDependency: perDependency,
+      maxContextCharsTotal: code ? Math.min(90000, 30000 + files.length * 6000) : 36000,
       maxIntermediateWords: code ? 1400 : 900,
       maxToolRounds: 8,
       finalOutputOwnerOnly: true,
