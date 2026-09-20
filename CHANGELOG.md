@@ -108,6 +108,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **No mark in the app is an emoji.** The cross that takes a file or image
+  off the composer is drawn like the icons beside it; the privacy question,
+  the CV audit and the medical summary no longer put warning signs and
+  ticks into what you read, and the CV audit is told to say "good", "needs
+  improvement" and "critical issue" in words instead of emoji; the Virtual
+  OS lists files and folders and states its rules in plain text. A check
+  now reads every file the app ships and fails on a picture typed as text,
+  in what the app shows and in what it asks a model to write.
 - **Every agent in the Agent Swarm is marked by a drawn icon.** An agent
   carried an icon typed as an emoji, saved by the starter teams and shown
   beside every turn in a run's conversation, so a workspace of line art had

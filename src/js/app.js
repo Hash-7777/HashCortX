@@ -550,7 +550,7 @@ Source: [site name or URL]
 
 After all cards, output:
 
-**⚠️ CRITICAL ALERTS** (D and X grades only, one line each with bold drug names)
+**CRITICAL ALERTS** (D and X grades only, one line each with bold drug names)
 
 **Sources consulted:** [list]
 
@@ -590,7 +590,7 @@ PHASE 3 — STRUCTURAL FORENSICS
 - Check length and density.
 
 PHASE 4 — IMPACT AUDIT
-- For every bullet point, mark it as: ✅ Quantified | ⚠️ Vague | ❌ Responsibility-only.
+- For every bullet point, mark it in words as: Quantified, Vague, or Responsibility-only.
 - Rewrite up to 5 of the weakest bullets as examples (use placeholders like [X%] if real numbers unknown).
 
 PHASE 5 — 2026 STANDARDS CHECK
@@ -605,7 +605,7 @@ Produce a ranked list: Critical (must fix before applying) → Important → Nic
 FORMATTING:
 - Use clear markdown headers for each phase.
 - Score breakdown as a table.
-- Use emoji: ✅ good, ⚠️ needs improvement, ❌ critical issue.
+- Never use emoji. Say it in words: good, needs improvement, critical issue.
 - End with an overall ATS Score /100 and a one-paragraph executive summary of the resume's competitive position.
 
 If no resume is pasted yet, ask the user to paste it (plain text is best for ATS analysis) and optionally a job description for targeted analysis.
@@ -1897,7 +1897,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function openAgentEditor(source) {
     // source=null → create new; source=builtin → duplicate; source=custom → edit
     if (!source) {
-      editingAgent = { id: null, icon: "✦", name: "", description: "", systemPrompt: "", tools: [] };
+      editingAgent = { id: null, icon: "", name: "", description: "", systemPrompt: "", tools: [] };
       $("agentTitle").textContent = "New agent";
       $("deleteAgentBtn").style.display = "none";
     } else if (source.builtin) {
@@ -1955,7 +1955,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const record = {
       id: editingAgent.id || ("agent_" + uid()),
       builtin: false,
-      icon: editingAgent.icon || "✦",
+      icon: editingAgent.icon || "",
       name,
       description: $("agentDesc").value.trim(),
       systemPrompt: $("agentSystem").value.trim(),
@@ -3051,6 +3051,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k chars` : `${n} chars`;
   }
 
+  // The cross on a chip, drawn: as a character it arrived at whatever weight
+  // and baseline the platform font gave it, beside icons that are drawn.
+  const REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
+
   function fileKindIcon(kind) {
     const k = kind || "file";
     if (k === "pdf") {
@@ -3131,7 +3135,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.pendingImages.forEach((img, i) => {
       const chip = document.createElement("div");
       chip.className = "chip";
-      chip.innerHTML = `<img src="${img.dataUrl}"/><span>${escapeHtml(img.name)}</span><span class="x" data-i="${i}" data-kind="img">✕</span>`;
+      chip.innerHTML = `<img src="${img.dataUrl}"/><span>${escapeHtml(img.name)}</span><span class="x" data-i="${i}" data-kind="img">${REMOVE_SVG}</span>`;
       pending.appendChild(chip);
     });
     state.pendingFiles.forEach((f, i) => {
@@ -3139,7 +3143,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       chip.className = "chip file";
       const extra = f.kind === "pdf" && f.pages ? ` · ${f.pages}p` : "";
       const chars = fileCharLabel(f.chars);
-      chip.innerHTML = `<span>${fileKindIcon(f.kind)} ${escapeHtml(f.name)}${extra}${chars ? ` · ${chars}` : ""}</span><span class="x" data-i="${i}" data-kind="file">✕</span>`;
+      chip.innerHTML = `<span>${fileKindIcon(f.kind)} ${escapeHtml(f.name)}${extra}${chars ? ` · ${chars}` : ""}</span><span class="x" data-i="${i}" data-kind="file">${REMOVE_SVG}</span>`;
       pending.appendChild(chip);
     });
     pending.querySelectorAll(".x").forEach(el => {
@@ -4856,7 +4860,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // Privacy guard: if "Local only" is enabled, confirm before sending to cloud.
         if (privacyLocalEl.checked) {
           const ok = await themedConfirm(
-            "⚠️ Privacy: Local only is enabled.\n\n" +
+            "Privacy: Local only is enabled.\n\n" +
             "You selected a cloud model — this will send your message to an external server.\n\n" +
             "Send anyway?",
             "Privacy Check"

@@ -948,7 +948,10 @@
   .chip.file { padding: 5px 10px; }
   .chip.file span:first-child { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
   .chip.file svg { width: 13px; height: 13px; color: var(--gold); flex: 0 0 13px; }
-  .chip .x { cursor: pointer; color: var(--muted); font-weight: 700; font-size: 14px; line-height: 1; padding: 0 2px; }
+  .chip .x { cursor: pointer; color: var(--muted); font-weight: 700; font-size: 14px; line-height: 1; padding: 0 2px; display: inline-flex; align-items: center; }
+  /* Drawn, so it sits with the icons beside it rather than on the font's own
+     baseline. */
+  .chip .x svg { width: 11px; height: 11px; }
   .chip .x:hover { color: var(--rose); }
 
   .error-banner {

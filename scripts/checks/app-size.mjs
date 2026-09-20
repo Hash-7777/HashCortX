@@ -121,7 +121,9 @@ const LINE_BUDGET = {
   // line the agents' datetime tool had long since replaced.
   // 6486, up four: chat's agents are told that what a tool returns is
   // material, not instructions — in the tool loop and the pre-fetch fallback.
-  'js/app.js': 6486,
+  // 6490, up four: the cross that takes a file or image off the composer is
+  // drawn, like every other mark beside it.
+  'js/app.js': 6490,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

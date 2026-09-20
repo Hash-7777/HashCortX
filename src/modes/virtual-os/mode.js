@@ -1742,10 +1742,10 @@ const VoidStudio = (() => {
 
     // Compact tree
     const tree = [
-      ...folders.map(f => `  📁 /${f.path}/`),
+      ...folders.map(f => `  [dir]  /${f.path}/`),
       ...files.map(f => {
         const bytes = new Blob([f.content || ""]).size;
-        return `  📄 /${f.path}  (${bytes} B)`;
+        return `  [file] /${f.path}  (${bytes} B)`;
       })
     ].join("\n");
 
@@ -2710,10 +2710,10 @@ RESPONSE MODES — pick the right one:
    image_search(query, count?) — topic-matched placeholder photo URLs that load
    web_search(query) — search the web for design trends, UI patterns, tech docs. Call FIRST before building any website.
 
-   ⚠ Design from what you know rather than searching first — a mandatory search costs a round trip and rarely returns anything useful. Call image_search when a layout needs a photo. Never produce generic templates.
-   ⚠ PATCH RULE: always fs_read the file FIRST — copy exact text, then patch.
-   ⚠ VIRTUAL FS RULE: NEVER run npm install, pip install, cargo build, brew install, or any package-manager command — the terminal is a JS simulation. Write package.json/requirements.txt instead; the user installs deps outside Virtual OS.
-   ⚠ MULTI-FILE RULE: when you edit HTML, ALWAYS check if CSS and JS need updating too.
+   IMPORTANT: Design from what you know rather than searching first — a mandatory search costs a round trip and rarely returns anything useful. Call image_search when a layout needs a photo. Never produce generic templates.
+   PATCH RULE: always fs_read the file FIRST — copy exact text, then patch.
+   VIRTUAL FS RULE: NEVER run npm install, pip install, cargo build, brew install, or any package-manager command — the terminal is a JS simulation. Write package.json/requirements.txt instead; the user installs deps outside Virtual OS.
+   MULTI-FILE RULE: when you edit HTML, ALWAYS check if CSS and JS need updating too.
      - Added a new element? → add its CSS class too.
      - Changed a class name? → update the stylesheet.
      - Added interactivity? → update JS too.
