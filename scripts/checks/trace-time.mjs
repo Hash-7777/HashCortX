@@ -42,6 +42,33 @@ is('nothing that is not a number reads as the start', T.format('soon'), '0.0s');
 is('a clock that went backwards reads as the start', T.format(-3), '0.0s');
 is('since a start time', T.since(1000, 1000 + 61_500), '1:01.5');
 
+console.log('\nA run clock counts from the run, never from the app opening:');
+{
+  const c = T.clock();
+  ok('a clock nobody started has no zero yet', c.startedAt() === null);
+  is('its first stamp is the start', c.stamp(5_000), '0.0s');
+  ok('and that first stamp is what set the zero', c.startedAt() === 5_000);
+  is('a later line counts from it', c.stamp(5_000 + 61_500), '1:01.5');
+  c.reset();
+  ok('reset takes the zero away again', c.startedAt() === null);
+  is('so the next line is the new start', c.stamp(9_999_999), '0.0s');
+
+  const d = T.clock();
+  d.start(1_000);
+  is('a clock given its start counts from that', d.stamp(1_000 + 42_500), '42.5s');
+  ok('seconds() answers the number for a trace that keeps it', d.seconds(1_000 + 2_500) === 2.5);
+  const e = T.clock();
+  ok('seconds() on a fresh clock is also the start', e.seconds(7_777) === 0);
+
+  // The defect this exists to prevent: a trace whose zero was the moment its
+  // module loaded, so the first line of a run started an hour later read as an
+  // hour in. A clock cannot do that, because it has no zero until it is asked.
+  const f = T.clock();
+  const appOpened = 1_000_000;
+  const runStarted = appOpened + 3_600_000;
+  is('a run an hour after the app opened still starts at zero', f.stamp(runStarted), '0.0s');
+}
+
 console.log('\nEvery trace in the app stamps its lines this way:');
 const TRACES = {
   'modes/code/mode.js': 'Coder',
@@ -53,8 +80,14 @@ const TRACES = {
 };
 for (const [file, name] of Object.entries(TRACES)) {
   const src = readFileSync(join(root, 'src', ...file.split('/')), 'utf8');
-  ok(`${name} uses the stopwatch`, /HCTraceTime\.(format|since)\(/.test(src));
+  ok(`${name} uses the stopwatch`, /HCTraceTime\.(format|since|clock)\(/.test(src));
+  ok(`${name} takes its zero from a run clock`, /HCTraceTime\.clock\(\)/.test(src), file);
   ok(`${name} no longer writes a bare count of seconds into a stamp`, !/\[\$\{[^}]*\}s\]/.test(src), file);
+  // The defect in the shape it actually shipped in: a start time kept in a
+  // variable that is assigned Date.now() where the module runs, which is the
+  // moment the app opened, not the moment anything began.
+  const loadTimeZero = new RegExp(`^\\s*(let|const|var)\\s+_?\\w*[Tt]race\\w*\\s*=\\s*Date\\.now\\(\\)`, 'm');
+  ok(`${name} keeps no start time from when its module loaded`, !loadTimeZero.test(src), file);
 }
 const boot = readFileSync(join(root, 'src', 'boot.js'), 'utf8');
 ok('it is loaded before the modes', boot.indexOf("'/js/trace-time.js'") > 0 && boot.indexOf("'/js/trace-time.js'") < boot.indexOf("'/modes/boot.js'"));

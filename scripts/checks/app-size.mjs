@@ -380,7 +380,13 @@ const LINE_BUDGET = {
   // fades the 3D mark in when its picture is ready, instead of a dark view
   // while the 3D starts and a mark that appeared with its fade already spent.
   // 3684, down one: nothing added — the budget follows the file.
-  'modes/forge/mode.js': 3684,
+  // 3720, up thirty-six. hasUserModel() gives the Forge one answer to "is
+  // there a model here?", which Export, Improve and the header each used to
+  // decide for themselves — so the mark the void opens on was written to a
+  // file, offered for correction, and counted as the person's parts. The
+  // planner also says when no model is set up, instead of reporting that
+  // every route failed.
+  'modes/forge/mode.js': 3720,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
@@ -433,7 +439,10 @@ const LINE_BUDGET = {
   // left here is handing them the model call and the trace.
   // 2295, down ten: every role's mark moved to src/js/swarm/role-icons.js,
   // which the Result view draws from too.
-  'modes/agent-maker/mode.js': 2295,
+  // 2299, up four. The trace's zero is now a run clock that is reset where a
+  // run begins, rather than a start time fixed when this module loaded — which
+  // stamped every run with how long the app had been open.
+  'modes/agent-maker/mode.js': 2299,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

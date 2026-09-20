@@ -82,7 +82,7 @@ const FinanceMode = (() => {
   let mounted         = false;
   let pendingFiles    = [];
   let traceEntries    = [];
-  let traceStartedAt  = Date.now();
+  const traceClock    = window.HCTraceTime.clock();
   let traceRunCount   = 0;
   let reportEditMode  = false;
   let editPersistTimer = null;
@@ -268,7 +268,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
 
   /* ── execution trace ────────────────────────────────────────────── */
   function traceReset(reason = "Trace reset") {
-    traceStartedAt = Date.now();
+    traceClock.reset();   // this run's first trace line is its zero
     traceEntries = [];
     traceAdd("Trace", reason, "wait");
   }
@@ -276,7 +276,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
   function traceAdd(stage, message, status = "wait", detail = "") {
     const entry = {
       ts: Date.now(),
-      elapsed: (Date.now() - traceStartedAt) / 1000,
+      elapsed: traceClock.seconds(),
       stage,
       message: String(message || ""),
       status,
@@ -600,7 +600,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     chatHistory     = s.messages ? [...s.messages] : [];
     currentReport   = s.report   || null;
     traceEntries    = s.trace ? [...s.trace] : [];
-    traceStartedAt  = traceEntries[0]?.ts || Date.now();
+    traceClock.start(traceEntries[0]?.ts || Date.now());   // a reopened session keeps the times it had
     reportEditMode  = false;
     renderMessages();
     renderTraceEntries();

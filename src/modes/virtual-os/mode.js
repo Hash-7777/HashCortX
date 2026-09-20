@@ -51,7 +51,7 @@ const VoidStudio = (() => {
     return new Date().toISOString();
   }
 
-  let _traceStartTime = Date.now();
+  const _traceClock = window.HCTraceTime.clock();
 
   const _TRACE_ICONS = {
     ok:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -65,7 +65,7 @@ const VoidStudio = (() => {
     const entries = $("voidTraceEntries");
     if (!entries) return;
 
-    const elapsed = window.HCTraceTime.since(_traceStartTime);
+    const elapsed = _traceClock.stamp();
     const cssKind  = kind === "error" ? "error" : (kind || "info");
     const icon     = _TRACE_ICONS[cssKind] || _TRACE_ICONS.info;
 
@@ -98,7 +98,7 @@ const VoidStudio = (() => {
     // sync trace dot
     const dot = $("voidTraceDot");
     if (dot) {
-      if (kind === "running") { dot.className = "void-trace-dot running"; _traceStartTime = Date.now(); }
+      if (kind === "running") { dot.className = "void-trace-dot running"; _traceClock.reset(); }
       else if (kind === "done")  dot.className = "void-trace-dot done";
       else if (kind === "error") dot.className = "void-trace-dot error";
     }

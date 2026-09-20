@@ -717,6 +717,7 @@ const SwarmMaker = (() => {
     swarmAbortCtrl = new AbortController();
     const signal   = swarmAbortCtrl.signal;
     traceRunCount++;
+    traceClock.reset();   // this run's first trace line is its zero
 
     setRunStatus("running", "Swarm running…");
     updateTraceDot("running");
@@ -1449,7 +1450,10 @@ ${modelListStr}`;
   }
 
   // ── Trace console ──────────────────────────────────────────────────
-  const traceStartTime = Date.now();
+  //
+  // Zero is the run's first line, not the moment this module loaded. It is
+  // reset where a run begins, in runSwarm.
+  const traceClock = window.HCTraceTime.clock();
 
   const TRACE_SVGS = {
     boss: `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 12.5h10"/><path d="M4 10l2.5-6 1.5 3 1.5-3L12 10"/><path d="M4 10h8"/></svg>`,
@@ -1473,7 +1477,7 @@ ${modelListStr}`;
   function traceAdd(agentName, message, statusCls, tokens) {
     const list = document.getElementById("amkTraceEntries");
     if (!list) return;
-    const elapsed = window.HCTraceTime.since(traceStartTime);
+    const elapsed = traceClock.stamp();
     const el = document.createElement("div");
     el.className = "amk-trace-entry";
     const roleColor = Object.keys(ROLE_COLORS).reduce((acc, key) => {

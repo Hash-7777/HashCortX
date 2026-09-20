@@ -23,7 +23,7 @@ const SystemMaker = (() => {
   // Ceiling for one generation — see runBudgetExceeded in js/agent-policy.js.
   let runBudget = null;
   let runRoutes = null;   // what this run has asked, and which accounts it found shut
-  let traceStart = Date.now();
+  const traceClock = window.HCTraceTime.clock();
   let libraryCollapsed = false;
   let inspectorCollapsed = true;
   let filterRules = [];
@@ -216,7 +216,7 @@ const SystemMaker = (() => {
       console_.classList.add("expanded");
     }
 
-    const t = window.HCTraceTime.since(traceStart);
+    const t = traceClock.stamp();
     const row = document.createElement("div");
     row.className = "sys-trace-entry";
     const agentLabel = traceAgentLabel[cls] || "Agent";
@@ -248,7 +248,7 @@ const SystemMaker = (() => {
   }
 
   function clearTrace() {
-    traceStart = Date.now();
+    traceClock.reset();
     const el = $("sysTrace");
     if (el) el.innerHTML = "";
     const console_ = $("sysTraceConsole");

@@ -382,7 +382,7 @@
     let coderModel         = null; // null = use main model picker
     let activeContentEl    = null; // current assistant bubble — for change pills
     let cdrTraceEntries    = [];
-    let cdrTraceStartedAt  = Date.now();
+    const cdrTraceClock    = window.HCTraceTime.clock();
     const SESSIONS_KEY     = 'hc-coder-sessions';
     const STATE_KEY        = 'hashui_coder_state';
 
@@ -1388,14 +1388,14 @@
 
     // ── Execution trace ───────────────────────────────────────
     function cdrTraceReset(reason) {
-      cdrTraceStartedAt = Date.now();
+      cdrTraceClock.reset();   // this run's first trace line is its zero
       cdrTraceEntries = [];
       cdrTraceAdd('Trace', reason || 'New run', 'wait');
     }
 
     function cdrTraceAdd(stage, message, status) {
       cdrTraceEntries.push({
-        elapsed: (Date.now() - cdrTraceStartedAt) / 1000,
+        elapsed: cdrTraceClock.seconds(),
         stage: String(stage || ''),
         message: String(message || ''),
         status: status || 'wait',

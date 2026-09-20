@@ -108,6 +108,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A trace now counts from the run, not from when you opened the app.** Every
+  trace kept its own start time in a variable set the moment its code loaded,
+  so a run begun an hour later had its first line stamped an hour in. The
+  Coder, the Agent Swarm, Finance, the Virtual OS, the 3D Forge and the ERP
+  all take their zero from a run clock that is reset where a run begins, and
+  a clock that has not been started begins at the first line it stamps — so a
+  stamp can no longer be a measure of how long the app has been open.
 - **No mark in the app is an emoji.** The cross that takes a file or image
   off the composer is drawn like the icons beside it; the privacy question,
   the CV audit and the medical summary no longer put warning signs and
@@ -135,6 +142,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The 3D Forge no longer treats its own mark as your model.** The void opens
+  on the HashCortx mark so it is not an empty black rectangle, and three parts
+  of the mode knew to step around it while the rest did not: Export wrote that
+  mark to a file under its own name, Improve offered to correct it, and the
+  header counted its two pieces as your parts. There is now one answer to
+  whether a model is there, and everything asks it — Export says there is
+  nothing yet and what to do instead, Improve stays off, and the header reads
+  "Describe a model to begin".
+- **The Forge says when no model is set up.** Pressing Generate with no
+  provider key and no local model ended the run on "all Forge planner routes
+  failed", which reads as models having been asked and having refused. It now
+  says that no model is set up yet, and where to fix it.
 - **A model is chosen by how it answers, not only by its name.** The name
   says how big a model is, and bigger read as better, so a free giant model
   was handed the most important roles in a team and then sat in its

@@ -73,7 +73,7 @@
     : null;
   let editBefore = null;
   let eventsWired = false;
-  let traceStartTime = Date.now();
+  const traceClock = window.HCTraceTime.clock();
   let traceRunCount = 0;
   let raycaster = null;
   let pointer = null;
@@ -367,7 +367,7 @@
     const host = $("frgTraceEntries");
     if (!host) return;
     const statusCls = kind || "wait";
-    const elapsed = window.HCTraceTime.since(traceStartTime);
+    const elapsed = traceClock.stamp();
     const line = document.createElement("div");
     line.className = "frg-trace-entry";
     line.innerHTML =
@@ -658,13 +658,18 @@
         </span>
       </div>
     `).join("") : `<div class="frg-plan-item"><b>No mesh yet</b><span class="frg-plan-kind">Awaiting Parameter Agent</span></div>`;
-    $("frgPlanName").textContent = plan?.name || "Void ready";
+    // The mark the Forge opens on is scenery, so the header says the void is
+    // ready rather than naming it and counting its pieces as a model.
+    const scenery = !!plan?._introLogo;
+    $("frgPlanName").textContent = scenery ? "Void ready" : (plan?.name || "Void ready");
     // The part count alone answers a question nobody asked. How big the thing
     // is, is the first thing a person wants to know about an object they are
     // going to make.
-    const measured = modelSizeMm();
-    $("frgNodeCount").textContent = `${nodes.length} part${nodes.length === 1 ? "" : "s"}`
-      + (measured ? ` · ${measured.text}` : "");
+    const measured = scenery ? null : modelSizeMm();
+    $("frgNodeCount").textContent = scenery
+      ? "Describe a model to begin"
+      : `${nodes.length} part${nodes.length === 1 ? "" : "s"}`
+        + (measured ? ` · ${measured.text}` : "");
   }
 
   /**
@@ -756,6 +761,22 @@
 
   function renderableNodes(nodes) {
     return (Array.isArray(nodes) ? nodes : []).filter((node) => node && node.role !== "audit");
+  }
+
+  /**
+   * Whether there is a model the person made.
+   *
+   * The Forge opens on its own mark so the viewport is not an empty black
+   * rectangle, and that mark is a plan like any other. Three places already
+   * knew to step around it — the reveal, the framing and the floor — and the
+   * rest did not, so Export wrote the mark to a file under the mark's own
+   * name, Improve offered to correct it, and the header counted its two
+   * pieces as the person's work. It is scenery. Everything that asks whether
+   * there is a model here asks this, so there is one answer rather than six.
+   */
+  function hasUserModel() {
+    if (!activePlan || activePlan._introLogo) return false;
+    return renderableNodes(activePlan.nodes || []).length > 0;
   }
 
   async function initThree() {
@@ -1800,7 +1821,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
   function syncImproveAvailability() {
     const btn = $("frgImproveBtn");
     const note = $("frgImproveNote");
-    const count = renderableNodes(activePlan?.nodes || []).length;
+    const count = hasUserModel() ? renderableNodes(activePlan?.nodes || []).length : 0;
     if (btn) btn.disabled = !count;
     if (note) note.textContent = count
       ? "One more call. Sends what the model measures, and applies only the corrections that come back."
@@ -2608,6 +2629,11 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
 
   async function exportForgeAsset(kind) {
     if (!await initThree()) return;
+    if (!hasUserModel()) {
+      log("Pipeline", "Nothing to export yet", "warn",
+        "the mark on screen is the Forge's own — describe a model and press Generate");
+      return;
+    }
     const object = exportableObject(kind);
     if (!object) {
       log("Pipeline", "No model to export", "warn");
@@ -2924,7 +2950,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
 
   async function forgeRun(useSample, ctrl) {
     traceRunCount += 1;
-    traceStartTime = Date.now();
+    traceClock.reset();   // this run's first trace line is its zero
     const prompt = ($("frgPrompt")?.value || "").trim() || "a complex original 3D object";
     const prefs = forgePrefs();
     resetStages();
@@ -3088,7 +3114,17 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       shut: () => [...new Set(options().map((o) => providerFromValue(o.value)))].filter((p) => forgeProviderCooldown(p)),
       note: (m) => log("Router", m, "warn"), fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([prompt]) + 3500, 3000), // a model that cannot hold the plan is not asked
     });
+    // Nothing to ask is not a route that failed. Without this the loop below
+    // never runs once, and the run ends on "all Forge planner routes failed" —
+    // which reads as the models having been tried and refused, and says
+    // nothing about the one thing that would fix it.
+    if (!options().length) {
+      throw new Error("no model is set up yet — add a provider key in Settings, or run a local model with Ollama");
+    }
     let current = routes.start(selectedModelFor("god") || providerModelsForForge(true)[0]?.[1] || "");
+    if (!current) {
+      throw new Error("no model here can hold a model plan — pick one with more room in Settings");
+    }
     let lastError = null;
     for (let i = 0; current && i < 6; i++) {
       const provider = providerFromValue(current);
@@ -3500,7 +3536,7 @@ Prompt: ${prompt}`;
       if (file) importForgeAsset(file);
     });
     $("frgAutoRouteBtn")?.addEventListener("click", () => {
-      traceStartTime = Date.now();
+      traceClock.reset();
       const traceEntries = $("frgTraceEntries");
       if (traceEntries && !traceEntries.children.length) traceEntries.innerHTML = "";
       autoAssignForgeModels(($("frgPrompt")?.value || "").trim(), true);
