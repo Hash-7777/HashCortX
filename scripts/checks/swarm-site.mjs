@@ -18,6 +18,7 @@ import vm from 'node:vm';
 const here = dirname(fileURLToPath(import.meta.url));
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'swarm', 'bundle.js'), 'utf8'), sandbox, { filename: 'bundle.js' });
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'swarm', 'site.js'), 'utf8'), sandbox, { filename: 'site.js' });
 const S = sandbox.window.HCSwarmSite;
 
@@ -100,6 +101,62 @@ console.log('\nA Tailwind page gets Tailwind:');
   ok('a page that already loads it does not get it twice', has.split('cdn.tailwindcss.com').length === 2);
   ok('a page that does not use it is left alone', !build([['index.html', { lang: 'html', content: page() }]]).includes('tailwind'));
 }
+
+console.log('\nAn image the project holds goes into the page:');
+{
+  const out = build([
+    ['index.html', { lang: 'html', content: page('<img src="logo.svg" alt="x">') }],
+    ['logo.svg', { lang: 'svg', content: '<svg xmlns="http://www.w3.org/2000/svg"><rect width="4" height="4"/></svg>' }],
+  ]);
+  ok('the file name is replaced by the image itself', /src="data:image\/svg\+xml;charset=utf-8,%3Csvg/.test(out));
+  ok('nothing is left pointing at a file the page cannot reach', !/src="logo\.svg"/.test(out));
+  ok('a quote in the image cannot end the attribute', !/%3Csvg xmlns="/.test(out));
+}
+{
+  const out = build([
+    ['index.html', { lang: 'html', content: page('<p>x</p>', '<link rel="icon" href="./icon.svg">') }],
+    ['icon.svg', { lang: 'svg', content: '<svg xmlns="http://www.w3.org/2000/svg"/>' }],
+  ]);
+  ok('an icon written with ./ is found too', /href="data:image\/svg/.test(out));
+}
+
+console.log('\nModules become the one script a page can run:');
+{
+  const r = S.buildPage(new Map([
+    ['index.html', { lang: 'html', content: page('<p>x</p><script src="script.js"></script>') }],
+    ['script.js', { lang: 'javascript', content: "import { products } from './catalogue.js';\nrender(products);" }],
+    ['catalogue.js', { lang: 'javascript', content: 'export const products = [1];' }],
+  ]));
+  ok('no export is left in the page to stop the script', !/^\s*export /m.test(r.html));
+  ok('what the script imports is in the page before it', r.html.indexOf('const products') < r.html.indexOf('render(products)'));
+  ok('the imported file is not also added again at the end', (r.html.match(/const products/g) || []).length === 1);
+  ok('the page says what was joined', r.notes.some((n) => n.kind === 'joined' && /catalogue\.js/.test(n.what)));
+}
+{
+  const r = S.buildPage(new Map([
+    ['index.html', { lang: 'html', content: page('<p>x</p><script src="app.js"></script>') }],
+    ['app.js', { lang: 'javascript', content: "import React from 'react';\nexport default 1;" }],
+  ]));
+  ok('a script that cannot be joined is still in the page as written', /import React from 'react'/.test(r.html));
+  ok('and the page says it will not run', r.notes.some((n) => n.kind === 'not-joined'));
+}
+
+console.log('\nTailwind is not dropped on a page that has its own stylesheet:');
+ok('a class that merely contains one of its words does not count',
+  !/cdn\.tailwindcss/.test(build([['index.html', { lang: 'html', content: page('<div class="product-grid"><span class="border-left-heading"></span></div>') }]])));
+ok('a page with its own stylesheet is left alone',
+  !/cdn\.tailwindcss/.test(build([
+    ['index.html', { lang: 'html', content: page('<div class="flex items-center gap-4 bg-white"></div>', '<link rel="stylesheet" href="styles.css">') }],
+    ['styles.css', { lang: 'css', content: 'body{margin:0}' }],
+  ])));
+ok('a page with its own style block is left alone',
+  !/cdn\.tailwindcss/.test(build([['index.html', { lang: 'html', content: page('<div class="flex items-center gap-4 bg-white"></div>', '<style>body{margin:0}</style>') }]])));
+ok('one Tailwind-looking class is not enough',
+  !/cdn\.tailwindcss/.test(build([['index.html', { lang: 'html', content: page('<div class="flex"></div>') }]])));
+ok('a page really written in it, with no stylesheet, still gets it',
+  /cdn\.tailwindcss/.test(build([['index.html', { lang: 'html', content: page('<div class="flex items-center gap-4 bg-white md:p-8"></div>') }]])));
+ok('a whole class name is told from a word inside one',
+  S.tailwindClass('bg-white') && S.tailwindClass('md:p-8') && !S.tailwindClass('product-grid') && !S.tailwindClass('text') && !S.tailwindClass('site-header'));
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/site.js)`);
 process.exit(fail ? 1 : 0);
