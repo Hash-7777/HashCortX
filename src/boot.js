@@ -113,6 +113,7 @@
     '/js/swarm/talk.js',
     '/js/swarm/workspace.js',
     '/js/systems/spec.js',
+    '/js/systems/backup.js',
     '/js/systems/view.js',
     '/js/systems/icons.js',
     '/js/systems/shells.js',

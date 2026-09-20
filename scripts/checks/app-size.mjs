@@ -189,7 +189,12 @@ const LINE_BUDGET = {
   // src/js/model-routes.js, which also tries a retired model's provider again.
   // 3205, down 15: addRecord, which the record form replaced, and a confirm
   // helper nothing asked.
-  'modes/systems/mode.js': 3205,
+  // 3275, up seventy. A backup can be put back: restoreBackup reads the file
+  // through js/systems/backup.js, asks, and adds the system beside the ones
+  // already there rather than over them. The Import button became a menu, the
+  // shape Export beside it already had, so the restore has somewhere to live.
+  // The export itself shrank — it no longer assembles the file by hand.
+  'modes/systems/mode.js': 3275,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

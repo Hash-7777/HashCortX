@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **An ERP backup can be put back.** The ERP could write a full backup of a
+  system as JSON and had no way to read one, so the file was insurance that
+  could not be claimed. Import now offers "Restore a backup (JSON)": it says
+  what the file holds, asks, and brings the system back as a new one beside
+  what you already have — nothing you have is replaced, so a file opened by
+  mistake costs a click rather than your work. The file it writes also carries
+  more than it used to: without the screens down the side, a restored system
+  would have come back as its tables plus a handful of empty ones it never had.
+  Backups written before this still restore, with one screen per table.
+
 - **The Agent Swarm asks before it builds something about you.** A task
   such as a portfolio, a CV or a site for your business is checked before the
   team starts, and the details only you can give — your name, your work, how

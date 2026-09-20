@@ -1654,10 +1654,17 @@ Repair requirements:
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" width="13" height="13"><path d="M2 4h12M4 8h8M6 12h4"/></svg>
             Filters${activeFilters.length ? ` <span class="sys-filter-badge">${activeFilters.length}</span>` : ""}
           </button>
-          <button class="sys-action-btn" id="sysImportBtn">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" width="13" height="13"><path d="M8 11V3M5 8l3 4 3-4"/><path d="M3 13h10"/></svg>
-            Import
-          </button>
+          <div class="sys-export-wrap">
+            <button type="button" class="sys-action-btn" id="sysImportBtn">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" width="13" height="13"><path d="M8 11V3M5 8l3 4 3-4"/><path d="M3 13h10"/></svg>
+              Import
+            </button>
+            <div class="sys-export-menu" id="sysImportMenu" style="display:none">
+              <button type="button" class="sys-export-item" id="sysImportCsvBtn">Import CSV (this entity)</button>
+              <button type="button" class="sys-export-item" id="sysRestoreJsonBtn">Restore a backup (JSON)</button>
+            </div>
+          </div>
+          <input type="file" id="sysRestoreFile" accept=".json,application/json" hidden />
           <div class="sys-export-wrap">
             <button type="button" class="sys-action-btn" id="sysExportBtn">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" width="13" height="13"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M3 13h10"/></svg>
@@ -2609,19 +2616,61 @@ Repair requirements:
     trace(`Exported ${written} of ${entities.length} table(s) as CSV`, written ? "ok" : "warn");
   }
 
+  /**
+   * A full backup of a system, in the one shape js/systems/backup.js reads.
+   *
+   * It used to be written here, by hand, and left out the modules — so the
+   * file described a set of tables rather than a system, and nothing could
+   * have restored it faithfully even if something had tried.
+   */
   async function exportJSON(spec) {
-    const data = getRuntimeData(spec);
-    const backup = {
-      name: spec.name, description: spec.description,
-      exportedAt: new Date().toISOString(),
-      theme: spec.theme, layout: spec.layout,
-      entities: Object.fromEntries(Object.entries(spec.entities || {}).map(([id, e]) => [
-        id, { name: e.name, fields: e.fields, records: data[id] || [] }
-      ])),
-      workflows: spec.workflows || [],
-    };
+    const backup = window.HCSystemsBackup.make(spec, getRuntimeData(spec));
     if (!await saveExport(`${slug(spec.name || "erp-backup")}.json`, JSON.stringify(backup, null, 2))) return;
     trace(`Exported full system backup as JSON`, "ok");
+  }
+
+  /**
+   * Put a backup back, as a new system beside the ones already here.
+   *
+   * Never over the top of anything: a file opened by mistake costs a click to
+   * delete, rather than the work it would have replaced. What the file says is
+   * read and checked in js/systems/backup.js, then goes through the same gate
+   * every system passes, so a restored one is built the way a made one is.
+   */
+  async function restoreBackup(file) {
+    if (!file) return;
+    let text;
+    try {
+      text = await file.text();
+    } catch (err) {
+      await window._H.themedAlert(`That file could not be read: ${err?.message || err}`, "Restore");
+      return;
+    }
+    const parsed = window.HCSystemsBackup.read(text);
+    if (!parsed.ok) { await window._H.themedAlert(parsed.reason, "Restore"); return; }
+
+    const B = window.HCSystemsBackup;
+    const ok = await window._H.themedConfirm(
+      `Restore ${B.describe(parsed.backup)}?\n\nIt is added as a new system. Nothing you have now is changed.`,
+      "Restore a backup");
+    if (!ok) return;
+
+    const { spec: fromFile, records } = B.toSpec(parsed.backup);
+    const spec = normalizeSpec(fromFile, fromFile.description || "");
+    systems.unshift(spec);
+    activeId = spec.id;
+    saveSystems();
+    // The records go in under the new system's own id, after the gate has
+    // settled which tables exist — a table the file named that the gate did
+    // not keep has nowhere to put its rows.
+    const kept = {};
+    let rows = 0;
+    for (const id of Object.keys(spec.entities || {})) {
+      if (Array.isArray(records[id])) { kept[id] = records[id]; rows += records[id].length; }
+    }
+    saveRuntimeData(spec, kept);
+    renderAll();
+    trace(`Restored "${spec.name}" · ${Object.keys(spec.entities || {}).length} table(s) · ${rows} record(s)`, "ok");
   }
 
   // ─────────────────────────────────────────────────────────────────
@@ -2968,10 +3017,30 @@ Repair requirements:
         return;
       }
 
-      // Import
+      // Import — a menu, the same shape as Export beside it: rows into this
+      // table from a CSV, or a whole system back from a backup.
       if (e.target.closest("#sysImportBtn")) {
-        const entity = spec?.entities?.[activeEntityId];
-        showImportModal(entity);
+        const menu = e.target.closest(".sys-export-wrap")?.querySelector("#sysImportMenu");
+        if (menu) menu.style.display = menu.style.display === "none" ? "block" : "none";
+        return;
+      }
+      if (e.target.closest("#sysImportCsvBtn")) {
+        const menu = e.target.closest(".sys-export-menu");
+        if (menu) menu.style.display = "none";
+        showImportModal(spec?.entities?.[activeEntityId]);
+        return;
+      }
+      if (e.target.closest("#sysRestoreJsonBtn")) {
+        const menu = e.target.closest(".sys-export-menu");
+        if (menu) menu.style.display = "none";
+        const picker = $("sysRestoreFile");
+        if (picker) {
+          // Cleared first, so choosing the same file twice still counts as a
+          // change and the restore runs again.
+          picker.value = "";
+          picker.onchange = (ev) => { void restoreBackup(ev.target.files && ev.target.files[0]); };
+          picker.click();
+        }
         return;
       }
 
@@ -3003,6 +3072,7 @@ Repair requirements:
       // Close export menu on outside click
       if (!e.target.closest(".sys-export-wrap")) {
         $("sysAppHost")?.querySelectorAll(".sys-export-menu").forEach(menu => { menu.style.display = "none"; });
+        document.querySelectorAll("#sysImportMenu").forEach(menu => { menu.style.display = "none"; });
       }
 
       // Bulk delete
