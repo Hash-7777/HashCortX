@@ -15,8 +15,9 @@ use commands::{
     export::export_write_file,
     forge_projects::{forge_projects_read, forge_projects_write},
     fs::{
-        fs_delete_file, fs_fuzzy_find, fs_grep, fs_list_dir, fs_move_file, fs_path_inside_root,
-        fs_read_base64, fs_read_file, fs_search_files, fs_write_file,
+        fs_clear_root, fs_delete_file, fs_fuzzy_find, fs_grant_path, fs_grep, fs_list_dir,
+        fs_move_file, fs_path_inside_root, fs_read_base64, fs_read_file, fs_search_files,
+        fs_set_root, fs_write_file,
     },
     keychain::{keychain_delete, keychain_retrieve_bundle},
     net::net_fetch_text,
@@ -73,6 +74,9 @@ pub fn run() {
             // the question the Permission Guard used to answer with a string
             // comparison a symlink walked straight past.
             fs_path_inside_root,
+            fs_set_root,
+            fs_clear_root,
+            fs_grant_path,
             // Phase 4 — Shell. shell_run_stream is registered again: it was
             // dropped when nothing called it, and the agent now streams its
             // output through it so a long build reports progress instead of

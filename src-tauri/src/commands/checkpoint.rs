@@ -151,10 +151,11 @@ fn capture(path: &str) -> (Option<String>, bool, Option<String>) {
 
 #[tauri::command]
 pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
-    // The same gate `fs_read_file` applies. Without it this command would read
-    // any protected file into a record that `checkpoint_read` hands straight
-    // back, which is the filesystem denylist undone.
-    crate::commands::fs::guard_path(&path)?;
+    // The same gate `fs_read_file` applies, boundary included. Without it this
+    // command would read any file into a record that `checkpoint_read` hands
+    // straight back — which is the denylist undone, and now the folder
+    // boundary with it.
+    crate::commands::fs::guard_agent_path(&path)?;
 
     let dir = checkpoint_dir();
     crate::security::private_dir::create(&dir).map_err(|e| e.to_string())?;
@@ -387,21 +388,30 @@ mod tests {
 
     // ── What `capture` must never do ─────────────────────────────────────────
 
-    fn scratch(name: &str) -> std::path::PathBuf {
+    /// The folder for one test, opened as its project.
+    ///
+    /// Opening it is what a real session does, and without it every command
+    /// below is refused by the folder boundary — src/security/root_jail.rs.
+    /// The turn comes back with it because that boundary is one table for the
+    /// whole process, exactly as it is in the running app, and tests run side
+    /// by side.
+    fn scratch(name: &str) -> (std::path::PathBuf, std::sync::MutexGuard<'static, ()>) {
         // Not the OS temp dir: on macOS it resolves under /private/var, which
         // the denylist refuses, so these would fail for an unrelated reason.
+        let turn = crate::security::root_jail::test_turn();
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("checkpoint-scratch")
             .join(format!("{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        dir
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+        (dir, turn)
     }
 
     #[test]
     fn a_missing_file_is_remembered_as_missing_rather_than_empty() {
-        let dir = scratch("missing");
+        let (dir, _turn) = scratch("missing");
         let (content, existed, why) = capture(&dir.join("not-here.txt").to_string_lossy());
         assert!(!existed, "a file that is not there did not exist");
         assert!(content.is_none());
@@ -411,7 +421,7 @@ mod tests {
 
     #[test]
     fn text_is_kept_byte_for_byte() {
-        let dir = scratch("text");
+        let (dir, _turn) = scratch("text");
         let file = dir.join("a.txt");
         let original = "line one\nline two\r\n\ttabbed\n";
         fs::write(&file, original).unwrap();
@@ -426,7 +436,7 @@ mod tests {
 
     #[test]
     fn a_binary_file_is_marked_unrestorable_rather_than_mangled() {
-        let dir = scratch("binary");
+        let (dir, _turn) = scratch("binary");
         let file = dir.join("a.bin");
         fs::write(&file, [0xff, 0xfe, 0x00, 0x01, 0x80]).unwrap();
         let (content, existed, why) = capture(&file.to_string_lossy());
@@ -443,7 +453,7 @@ mod tests {
         // The whole point of the feature: what the file held has to come back
         // out of the record byte for byte, from disk, after the file itself has
         // moved on.
-        let dir = scratch("roundtrip");
+        let (dir, _turn) = scratch("roundtrip");
         let file = dir.join("main.rs");
         let original = "fn main() {\n    println!(\"before\");\n}\n";
         fs::write(&file, original).unwrap();
@@ -484,7 +494,7 @@ mod tests {
     fn a_saved_checkpoint_can_be_found_again_without_knowing_its_id() {
         // The whole point: after a restart nothing remembers the id, so a
         // history that can only be read by id is a history nobody can reach.
-        let dir = scratch("listed");
+        let (dir, _turn) = scratch("listed");
         let file = dir.join("main.rs");
         fs::write(&file, "fn main() {}\n").unwrap();
 
@@ -513,7 +523,7 @@ mod tests {
         // Listing happens at startup over every unanswered change, and a record
         // can hold megabytes. Drawing a row that names a file must not pull the
         // file into the renderer — that is what checkpoint_read is for.
-        let dir = scratch("no-content");
+        let (dir, _turn) = scratch("no-content");
         let file = dir.join("secret.txt");
         fs::write(&file, "SENTINEL-not-in-the-list").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -542,7 +552,7 @@ mod tests {
         // Records went away when a change was kept and when it was undone, and
         // in no other case. Closing the app with a change pending left a copy of
         // the file, in plain text, in the home directory, for ever.
-        let dir = scratch("expiry");
+        let (dir, _turn) = scratch("expiry");
         let file = dir.join("old.txt");
         fs::write(&file, "contents").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -573,7 +583,7 @@ mod tests {
     fn a_recent_record_is_kept() {
         // The rule has to hold in both directions, or the feature is just a
         // delayed way of losing an undo.
-        let dir = scratch("kept");
+        let (dir, _turn) = scratch("kept");
         let file = dir.join("fresh.txt");
         fs::write(&file, "contents").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -598,7 +608,7 @@ mod tests {
 
     #[test]
     fn a_file_left_as_the_change_made_it_reads_as_unchanged() {
-        let dir = scratch("seal-same");
+        let (dir, _turn) = scratch("seal-same");
         let file = dir.join("a.txt");
         fs::write(&file, "before\n").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -611,7 +621,7 @@ mod tests {
 
     #[test]
     fn an_edit_made_after_the_change_is_noticed_even_at_the_same_length() {
-        let dir = scratch("seal-edited");
+        let (dir, _turn) = scratch("seal-edited");
         let file = dir.join("a.txt");
         fs::write(&file, "before\n").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -627,7 +637,7 @@ mod tests {
 
     #[test]
     fn a_deleted_file_that_is_back_again_is_noticed() {
-        let dir = scratch("seal-deleted");
+        let (dir, _turn) = scratch("seal-deleted");
         let file = dir.join("a.txt");
         fs::write(&file, "before\n").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
@@ -642,7 +652,7 @@ mod tests {
 
     #[test]
     fn a_record_with_nothing_to_compare_says_so() {
-        let dir = scratch("seal-none");
+        let (dir, _turn) = scratch("seal-none");
         let file = dir.join("a.txt");
         fs::write(&file, "before\n").unwrap();
         let saved = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();

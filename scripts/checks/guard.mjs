@@ -596,5 +596,61 @@ console.log('\nA change Undo cannot take back is asked about:');
   answer = 'allow-once';
 }
 
+// ── The same boundary, kept in Rust as well ──────────────────────────────
+//
+// Everything above is renderer code. A decision that exists only here is a
+// convention, not a floor: underneath it the file commands would read anything
+// the denylist did not name — a home folder, a sibling project, a folder of
+// invoices — if anything up here ever went wrong. So what this file decides is
+// carried across and enforced in src-tauri/src/security/root_jail.rs too.
+{
+  console.log('\nThe folder boundary is carried into Rust, not only drawn here:');
+  const repo = join(here, '..', '..');
+  const rust = readFileSync(join(repo, 'src-tauri', 'src', 'commands', 'fs.rs'), 'utf8');
+  const jail = readFileSync(join(repo, 'src-tauri', 'src', 'security', 'root_jail.rs'), 'utf8');
+  const checkpoint = readFileSync(join(repo, 'src-tauri', 'src', 'commands', 'checkpoint.rs'), 'utf8');
+  const exportRs = readFileSync(join(repo, 'src-tauri', 'src', 'commands', 'export.rs'), 'utf8');
+
+  assert('opening a project tells Rust', /fs_set_root/.test(src));
+  assert('closing one tells Rust too', /fs_clear_root/.test(src));
+  assert('an approval is carried across', /fs_grant_path/.test(src));
+  assert('and it happens on every way through the dialog',
+    (src.match(/await approvedInRust\(/g) || []).length >= 3,
+    'allow-once, allow-session, a folder already granted and a remembered yes all reach the same command');
+  assert('a shell command is not carried across as a path', /action === 'shell'\) return Promise\.resolve\(\)/.test(src));
+  assert('a failure there is logged, not thrown at the person', /boundary-failed/.test(src));
+
+  // The gate itself. One function, so a command cannot be added past it by
+  // using the looser one by mistake.
+  assert('there is one gate for what an agent reaches', /fn guard_agent_path\(path: &str\)/.test(rust));
+  assert('it is the shared gate plus the boundary',
+    /fn guard_agent_path[\s\S]{0,200}guard_path\(path\)\?;[\s\S]{0,120}root_jail::check\(path\)/.test(rust));
+  const agentCommands = ['fs_read_file', 'fs_write_file', 'fs_list_dir', 'fs_delete_file',
+    'fs_read_base64', 'fs_move_file', 'fs_search_files', 'fs_fuzzy_find', 'fs_grep'];
+  for (const name of agentCommands) {
+    const body = rust.slice(rust.indexOf(`pub fn ${name}(`) >= 0 ? rust.indexOf(`pub fn ${name}(`) : rust.indexOf(`pub async fn ${name}(`));
+    assert(`${name} is behind it`, /guard_agent_path\(&/.test(body.slice(0, 400)));
+  }
+  assert('and so is the copy taken before a write',
+    /fn checkpoint_save[\s\S]{0,400}guard_agent_path\(&path\)/.test(checkpoint),
+    'it reads a file into a record that checkpoint_read hands back, so it is a way around the boundary');
+  assert('saving a file the person chose is NOT behind it',
+    !/guard_agent_path/.test(exportRs) && /guard_path/.test(exportRs),
+    'its destination comes from the native dialog, where the person named it');
+
+  console.log('\nAnd the boundary refuses what it should:');
+  assert('nothing is reachable before a folder is opened', /no project folder is open/.test(jail));
+  assert('an approval covers one path, not its parent', /a file does not bring its folder/.test(rust));
+  assert('opening another folder forgets the last one\'s approvals', /s\.grants\.clear\(\)/.test(jail));
+  assert('a whole home directory cannot be opened as a project', /fn too_wide/.test(jail));
+  assert('links are resolved before anything is compared', /fn resolve\(path: &Path\)/.test(jail));
+  assert('the approvals are capped', /MAX_GRANTS/.test(jail));
+  // Matched across the line wrap: the property is that the file says it, not
+  // that it happens to fit on one line.
+  assert('and the file says what this does not protect against',
+    /not against code\s+(?:\/\/\s+)?running in the renderer/.test(jail),
+    'a model drives tools and cannot grant itself a path; renderer code could');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

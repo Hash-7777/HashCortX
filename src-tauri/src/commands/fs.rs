@@ -26,6 +26,24 @@ pub struct DirEntry {
     size:     u64,
 }
 
+/// The gate for anything an agent's tools reach.
+///
+/// `guard_path` is the shared one: no traversal, nothing the denylist names,
+/// judged on the resolved path as well as the written one. This adds the
+/// boundary the Permission Guard promises — the folder the person opened —
+/// and enforces it HERE rather than only in the renderer that draws the
+/// dialog. See src-tauri/src/security/root_jail.rs for what that does and does
+/// not buy.
+///
+/// `export_write_file` deliberately does NOT use this one. Its destination
+/// comes from the native save dialog, where the person named the file and
+/// chose where it goes, and writing outside the project is the whole point of
+/// it. The denylist still applies there.
+pub(crate) fn guard_agent_path(path: &str) -> Result<(), String> {
+    guard_path(path)?;
+    crate::security::root_jail::check(path)
+}
+
 pub(crate) fn guard_path(path: &str) -> Result<(), String> {
     // Reject any path that contains .. components — prevents traversal attacks
     // even on non-existent paths where canonicalize() would silently succeed.
@@ -95,6 +113,33 @@ fn resolve_for_containment(path: &Path) -> Option<PathBuf> {
 /// `false` on anything unresolvable, which makes the guard ask rather than
 /// assume — the safe direction for a check that decides whether to show a
 /// dialog.
+/// Open a folder as the project the agent may work in.
+///
+/// Called when the person picks a project. Everything inside is reachable by
+/// the agent's file tools; everything outside needs approving one path at a
+/// time. Replaces any folder opened before it, and forgets what was approved
+/// for that one — an approval was given about a different piece of work.
+#[tauri::command]
+pub fn fs_set_root(path: String) -> Result<String, String> {
+    crate::security::root_jail::set_root(&path).map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Forget the open folder, and every path approved while it was open.
+#[tauri::command]
+pub fn fs_clear_root() {
+    crate::security::root_jail::clear_root();
+}
+
+/// Record that the person approved one path outside the open folder.
+///
+/// This is what the permission dialog calls when somebody clicks Allow. It
+/// approves that path and nothing around it: a file does not bring its folder,
+/// and a folder does not bring its parent.
+#[tauri::command]
+pub fn fs_grant_path(path: String) -> Result<(), String> {
+    crate::security::root_jail::grant(&path)
+}
+
 #[tauri::command]
 pub fn fs_path_inside_root(root: String, path: String) -> bool {
     if root.trim().is_empty() || path.trim().is_empty() {
@@ -173,7 +218,7 @@ fn inspect_hint(path: &str) -> String {
 
 #[tauri::command]
 pub fn fs_read_file(path: String) -> Result<String, String> {
-    guard_path(&path)?;
+    guard_agent_path(&path)?;
     let p = Path::new(&path);
 
     let meta = fs::metadata(p).map_err(|e| format!("Cannot access \"{path}\": {e}"))?;
@@ -246,12 +291,12 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
 
 #[tauri::command]
 pub fn fs_write_file(path: String, content: String) -> Result<(), String> {
-    guard_path(&path)?;
+    guard_agent_path(&path)?;
     if let Some(parent) = Path::new(&path).parent() {
         // Guard the parent dir too — create_dir_all would otherwise bypass denylist
         let parent_str = parent.to_string_lossy();
         if !parent_str.is_empty() {
-            guard_path(&parent_str)?;
+            guard_agent_path(&parent_str)?;
         }
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
@@ -348,7 +393,7 @@ fn same_owner(_old: &fs::Metadata, _new: &fs::File) -> bool {
 
 #[tauri::command]
 pub fn fs_list_dir(path: String) -> Result<Vec<DirEntry>, String> {
-    guard_path(&path)?;
+    guard_agent_path(&path)?;
     let entries = fs::read_dir(&path).map_err(|e| e.to_string())?;
     let mut out = Vec::new();
     for entry in entries.flatten() {
@@ -365,7 +410,7 @@ pub fn fs_list_dir(path: String) -> Result<Vec<DirEntry>, String> {
 
 #[tauri::command]
 pub fn fs_delete_file(path: String) -> Result<(), String> {
-    guard_path(&path)?;
+    guard_agent_path(&path)?;
     let p = Path::new(&path);
     if p.is_dir() {
         return Err(format!("Cannot delete a directory with fs_delete_file: {path}"));
@@ -389,7 +434,7 @@ pub fn fs_delete_file(path: String) -> Result<(), String> {
 /// crosses the IPC bridge as one string.
 #[tauri::command]
 pub fn fs_read_base64(path: String, max_bytes: Option<u64>) -> Result<FileBytes, String> {
-    guard_path(&path)?;
+    guard_agent_path(&path)?;
     let p = Path::new(&path);
 
     let meta = fs::metadata(p).map_err(|e| format!("Cannot access \"{path}\": {e}"))?;
@@ -459,8 +504,8 @@ fn encode_base64(bytes: &[u8]) -> String {
 /// separate action with its own approval, which is the right shape for it.
 #[tauri::command]
 pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
-    guard_path(&from)?;
-    guard_path(&to)?;
+    guard_agent_path(&from)?;
+    guard_agent_path(&to)?;
 
     let source = Path::new(&from);
     let target = Path::new(&to);
@@ -483,7 +528,7 @@ pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
     if let Some(parent) = target.parent() {
         let parent_str = parent.to_string_lossy();
         if !parent_str.is_empty() {
-            guard_path(&parent_str)?;
+            guard_agent_path(&parent_str)?;
             fs::create_dir_all(parent).map_err(|e| e.to_string())?;
         }
     }
@@ -511,7 +556,7 @@ pub async fn fs_search_files(dir: String, pattern: String) -> Result<Vec<String>
 }
 
 fn search_files_blocking(dir: String, pattern: String) -> Result<Vec<String>, String> {
-    guard_path(&dir)?;
+    guard_agent_path(&dir)?;
     let root = walk_root(&dir)?;
     let pattern_lower = pattern.to_lowercase();
     let mut results   = Vec::new();
@@ -601,7 +646,7 @@ pub async fn fs_fuzzy_find(dir: String, query: String) -> Result<Vec<FuzzyMatch>
 }
 
 fn fuzzy_find_blocking(dir: String, query: String) -> Result<Vec<FuzzyMatch>, String> {
-    guard_path(&dir)?;
+    guard_agent_path(&dir)?;
     let root = walk_root(&dir)?;
     let q = query.to_lowercase();
     let mut results = Vec::new();
@@ -654,7 +699,7 @@ pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>) -> 
 }
 
 fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
-    guard_path(&dir)?;
+    guard_agent_path(&dir)?;
     let root = walk_root(&dir)?;
     let pat_lower  = pattern.to_lowercase();
     let ext_filter = file_ext.map(|e| e.to_lowercase());
@@ -720,14 +765,23 @@ mod tests {
     /// Not the OS temp directory: on macOS that resolves under `/private/var`,
     /// which the denylist refuses outright, so every one of these tests would
     /// fail for a reason that has nothing to do with what it is checking.
-    fn temp_root(name: &str) -> std::path::PathBuf {
+    /// The folder for one test, opened as its project.
+    ///
+    /// Opening it is what a real session does, and without it every command
+    /// below is refused by the folder boundary — src/security/root_jail.rs.
+    /// The turn comes back with it because that boundary is one table for the
+    /// whole process, exactly as it is in the running app, and tests run side
+    /// by side.
+    fn temp_root(name: &str) -> (std::path::PathBuf, std::sync::MutexGuard<'static, ()>) {
+        let turn = crate::security::root_jail::test_turn();
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("fs-check-scratch")
             .join(format!("{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        dir
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+        (dir, turn)
     }
 
     #[test]
@@ -759,7 +813,7 @@ mod tests {
 
     #[test]
     fn a_search_does_not_follow_a_link_out_to_a_protected_directory() {
-        let root = temp_root("escape");
+        let (root, _turn) = temp_root("escape");
         // `.aws` anywhere in a path is refused by the denylist, so this stands
         // in for the real credential store without touching the user's own.
         let secrets = root.join(".aws");
@@ -800,7 +854,7 @@ mod tests {
         // enough to have file contents returned from somewhere the user was
         // never asked about. Nothing here is denylisted; the folder simply is
         // not the one being searched.
-        let root = temp_root("outside");
+        let (root, _turn) = temp_root("outside");
         let elsewhere = root.join("elsewhere");
         fs::create_dir_all(&elsewhere).unwrap();
         fs::write(elsewhere.join("notes.txt"), "private SENTINEL").unwrap();
@@ -829,7 +883,7 @@ mod tests {
         // The rule refuses links by where they lead, not by being links. A
         // project that symlinks one of its own folders must keep working, or
         // the rule just becomes the next thing that breaks ordinary work.
-        let root = temp_root("ordinary");
+        let (root, _turn) = temp_root("ordinary");
         let project = root.join("project");
         let real = project.join("packages").join("lib");
         fs::create_dir_all(&real).unwrap();
@@ -857,7 +911,7 @@ mod tests {
         // two strings. A link inside the project is spelled like a path inside
         // the project, so reading, writing, listing and searching through one
         // were auto-approved with no dialog at all.
-        let root = temp_root("inside-root");
+        let (root, _turn) = temp_root("inside-root");
         let outside = root.join("outside");
         fs::create_dir_all(&outside).unwrap();
         fs::write(outside.join("tax.pdf"), "private").unwrap();
@@ -906,23 +960,32 @@ mod tests {
 mod containment_tests {
     use super::*;
 
-    fn scratch(name: &str) -> PathBuf {
+    /// The folder for one test, opened as its project.
+    ///
+    /// Opening it is what a real session does, and without it every command
+    /// below is refused by the folder boundary — src/security/root_jail.rs.
+    /// The turn comes back with it because that boundary is one table for the
+    /// whole process, exactly as it is in the running app, and tests run side
+    /// by side.
+    fn scratch(name: &str) -> (PathBuf, std::sync::MutexGuard<'static, ()>) {
         // Not env::temp_dir(): on macOS it resolves under /private/var, which
         // the denylist refuses outright.
+        let turn = crate::security::root_jail::test_turn();
         let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("target")
             .join("fs-check-scratch")
             .join(format!("{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        dir
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+        (dir, turn)
     }
 
     #[test]
     fn a_question_that_cannot_be_answered_is_answered_no() {
         // The guard shows a dialog when this says no, so refusing on anything
         // unresolvable means an unanswerable case asks rather than assumes.
-        let root = scratch("unanswerable");
+        let (root, _turn) = scratch("unanswerable");
         let project = root.join("project");
         fs::create_dir_all(&project).unwrap();
         let p = project.to_string_lossy().into_owned();
@@ -947,7 +1010,7 @@ mod containment_tests {
         // not exist yet has nothing for canonicalize to resolve, so the only
         // thing standing between a new key file and the real folder is the
         // spelling check — and it must not care about case.
-        let root = scratch("case");
+        let (root, _turn) = scratch("case");
         fs::create_dir_all(root.join(".ssh")).unwrap();
         for spelled in [".SSH", ".Ssh", ".sSh"] {
             let new_file = root.join(spelled).join("authorized_keys");
@@ -961,7 +1024,7 @@ mod containment_tests {
 
     #[test]
     fn bytes_come_back_as_base64_that_decodes_to_the_file() {
-        let root = scratch("read-bytes");
+        let (root, _turn) = scratch("read-bytes");
         let f = root.join("thing.bin");
         // Every byte value, so a sign error or a masking mistake shows up.
         let raw: Vec<u8> = (0u16..=255).map(|b| b as u8).collect();
@@ -976,7 +1039,7 @@ mod containment_tests {
     #[test]
     fn every_trailing_group_is_padded_correctly() {
         // 0, 1 and 2 bytes past a group is where base64 padding is decided.
-        let root = scratch("read-bytes-pad");
+        let (root, _turn) = scratch("read-bytes-pad");
         for len in 0..=8usize {
             let f = root.join(format!("f{len}"));
             let raw: Vec<u8> = (0..len).map(|i| (i * 37 + 11) as u8).collect();
@@ -991,7 +1054,7 @@ mod containment_tests {
     fn a_file_over_the_cap_is_refused_rather_than_cut_short() {
         // Half a PDF is not a shorter PDF — it fails to parse, which reads to
         // a model as a corrupt file rather than a large one.
-        let root = scratch("read-bytes-cap");
+        let (root, _turn) = scratch("read-bytes-cap");
         let f = root.join("big.bin");
         fs::write(&f, vec![7u8; 4096]).unwrap();
         let err = fs_read_base64(f.to_string_lossy().into_owned(), Some(1024))
@@ -1034,7 +1097,7 @@ mod containment_tests {
 
     #[test]
     fn a_file_can_be_moved_and_what_it_held_arrives_intact() {
-        let root = scratch("move");
+        let (root, _turn) = scratch("move");
         let src = root.join("old-name.txt");
         let dst = root.join("nested").join("new-name.txt");
         fs::write(&src, "contents that must survive\n").unwrap();
@@ -1057,7 +1120,7 @@ mod containment_tests {
     fn a_move_refuses_to_destroy_what_is_already_there() {
         // `mv` would overwrite. The destination's contents would be gone in one
         // call whose arguments the model chose.
-        let root = scratch("move-clobber");
+        let (root, _turn) = scratch("move-clobber");
         let src = root.join("a.txt");
         let dst = root.join("b.txt");
         fs::write(&src, "source").unwrap();
@@ -1076,7 +1139,7 @@ mod containment_tests {
 
     #[test]
     fn a_move_cannot_reach_a_protected_location_at_either_end() {
-        let root = scratch("move-guard");
+        let (root, _turn) = scratch("move-guard");
         let src = root.join("a.txt");
         fs::write(&src, "x").unwrap();
         let home = dirs::home_dir().expect("a home directory");
@@ -1101,7 +1164,7 @@ mod containment_tests {
     fn a_directory_is_not_moved() {
         // What a directory held cannot be checkpointed, so moving one would be
         // the single change the undo history could not describe.
-        let root = scratch("move-dir");
+        let (root, _turn) = scratch("move-dir");
         let dir = root.join("a-folder");
         fs::create_dir_all(&dir).unwrap();
         let err = fs_move_file(
@@ -1115,7 +1178,7 @@ mod containment_tests {
 
     #[test]
     fn an_ordinary_path_in_the_folder_is_inside_it_and_a_sibling_is_not() {
-        let root = scratch("plain");
+        let (root, _turn) = scratch("plain");
         let project = root.join("project");
         fs::create_dir_all(project.join("src")).unwrap();
         fs::write(project.join("src").join("main.rs"), "fn main() {}").unwrap();
@@ -1142,7 +1205,7 @@ mod containment_tests {
 
     #[test]
     fn a_write_replaces_the_whole_file_and_leaves_nothing_behind() {
-        let dir = scratch("write-whole");
+        let (dir, _turn) = scratch("write-whole");
         let file = dir.join("notes.txt");
         fs::write(&file, "the old contents, which are longer than the new ones\n").unwrap();
         fs_write_file(file.to_string_lossy().into_owned(), "new\n".into()).unwrap();
@@ -1158,7 +1221,7 @@ mod containment_tests {
     #[test]
     fn an_ordinary_file_is_swapped_in_whole_and_keeps_its_permissions() {
         use std::os::unix::fs::{MetadataExt, PermissionsExt};
-        let dir = scratch("write-swap");
+        let (dir, _turn) = scratch("write-swap");
         let file = dir.join("build.sh");
         fs::write(&file, "echo old\n").unwrap();
         fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
@@ -1175,7 +1238,7 @@ mod containment_tests {
     #[cfg(unix)]
     #[test]
     fn a_link_stays_a_link_and_the_file_it_names_is_written() {
-        let dir = scratch("write-link");
+        let (dir, _turn) = scratch("write-link");
         let real = dir.join("real.txt");
         let link = dir.join("link.txt");
         fs::write(&real, "old\n").unwrap();
@@ -1191,7 +1254,7 @@ mod containment_tests {
     #[test]
     fn a_file_with_two_names_is_written_in_place_so_both_see_it() {
         use std::os::unix::fs::MetadataExt;
-        let dir = scratch("write-hardlink");
+        let (dir, _turn) = scratch("write-hardlink");
         let one = dir.join("one.txt");
         let two = dir.join("two.txt");
         fs::write(&one, "old\n").unwrap();
@@ -1207,7 +1270,7 @@ mod containment_tests {
     #[test]
     fn a_folder_that_takes_no_new_file_still_lets_its_file_be_written() {
         use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("write-closed-dir");
+        let (dir, _turn) = scratch("write-closed-dir");
         let file = dir.join("config.txt");
         fs::write(&file, "old\n").unwrap();
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).unwrap();
@@ -1221,7 +1284,7 @@ mod containment_tests {
 
     #[test]
     fn a_read_only_file_is_still_refused() {
-        let dir = scratch("write-readonly");
+        let (dir, _turn) = scratch("write-readonly");
         let file = dir.join("locked.txt");
         fs::write(&file, "old\n").unwrap();
         let mut perms = fs::metadata(&file).unwrap().permissions();

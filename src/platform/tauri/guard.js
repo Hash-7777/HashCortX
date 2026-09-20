@@ -401,6 +401,35 @@
     _sessionDirs.get(action).add(scope);
   }
 
+  /**
+   * Tell the app which folder is open, and what the person has approved.
+   *
+   * This whole file decides those two things, and it is renderer code — so the
+   * same decisions are kept in Rust as well, where they are a floor rather than
+   * a convention (src-tauri/src/security/root_jail.rs). Everything below is
+   * that half: the file commands refuse a path this has not opened or approved,
+   * so a bug HERE no longer opens the whole disk.
+   *
+   * Failures are logged and swallowed. A grant that did not reach Rust makes
+   * the command refuse, which is the safe direction, and there is nothing
+   * useful to say to somebody who has just clicked Allow.
+   */
+  function quietly(what, run) {
+    if (!HC.isTauri) return Promise.resolve();
+    return run().catch((e) => {
+      auditLog('boundary-failed', what, String((e && e.message) || e));
+    });
+  }
+
+  /**
+   * Carry an approval across to Rust, which is what actually lets the command
+   * through. A shell command is not a path and has no boundary to cross.
+   */
+  function approvedInRust(action, target) {
+    if (action === 'shell') return Promise.resolve();
+    return quietly('grant', () => HC.invoke('fs_grant_path', { path: target }));
+  }
+
   HC.guard = {
     // Set the current project root — all paths inside are auto-approved for safe actions
     setProjectRoot(path) {
@@ -408,14 +437,17 @@
       // Pre-seed session so the agent never has to wait for a dialog within the project
       if (_projectRoot) {
         auditLog('allow-project-root', 'project', _projectRoot);
+        return quietly('set-root', () => HC.invoke('fs_set_root', { path: _projectRoot }));
       }
+      return quietly('clear-root', () => HC.invoke('fs_clear_root', {}));
     },
 
     clearProjectRoot() {
       _projectRoot = null;
+      return quietly('clear-root', () => HC.invoke('fs_clear_root', {}));
     },
 
-    // Request permission for an action. Returns true if approved.
+      // Request permission for an action. Returns true if approved.
     async request(action, target, reason = '') {
       // Hard-blocked — reject immediately, no dialog
       if (isHardBlocked(action, target)) {
@@ -446,10 +478,16 @@
         if (_session.has(key)) {
           const prev = _session.get(key);
           auditLog(prev, action, target);
+          // Say so again: opening another project clears what Rust was told,
+          // and this session's memory would otherwise outlive that.
+          if (prev === 'allow') await approvedInRust(action, target);
           return prev === 'allow';
         }
         if (action !== 'shell' && hasSessionDirGrant(action, target)) {
           auditLog('allow-session-dir', action, target);
+          // The folder was approved, but this exact path may be new, and Rust
+          // approves paths one at a time on purpose.
+          await approvedInRust(action, target);
           return true;
         }
 
@@ -461,6 +499,7 @@
           // Grant the containing folder too, so the next file in it does not
           // re-ask. A shell command has no containing folder — it stays exact.
           if (action !== 'shell') addSessionDirGrant(action, target);
+          await approvedInRust(action, target);
           return true;
         }
         if (choice === 'deny') {
@@ -468,6 +507,7 @@
           return false;
         }
         // allow-once — don't remember
+        await approvedInRust(action, target);
         return true;
       });
     },
