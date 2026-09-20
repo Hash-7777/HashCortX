@@ -56,7 +56,9 @@ npm run tauri build
   mode's controls, `npm run sweep` — which opens each mode in a headless browser,
   clicks every control that is visible from a cold start, and reports whatever
   throws. The checks cannot see a handler that fails only when it runs, and that
-  is where the defects here have actually been.
+  is where the defects here have actually been. `npm run align` is the same
+  idea for how a control looks: it measures every button in every mode and
+  reports any whose mark or label does not sit on the button's own centre line.
 - Expect review feedback. Drive-by PRs that ignore the architecture rules above will be closed.
 
 ## What I'm *not* looking for

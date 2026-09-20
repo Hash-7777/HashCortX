@@ -198,6 +198,25 @@ body.forge-studio-mode #app { display: none; }
   border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
+  /* Without this the button keeps the app's general button padding — nine
+     pixels top and bottom — which leaves eight pixels of room inside a
+     twenty-eight pixel button for a fifteen pixel icon. The icon cannot fit,
+     so centring it has nothing to centre in and it hangs below the middle.
+     The tool rail's buttons beside it have always set this. */
+  padding: 0;
+}
+
+/* Sized here rather than left to whatever generic rule reaches it, so the
+   mark matches the tool rail's and cannot change under this button. */
+.frg-icon-btn svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .frg-status {

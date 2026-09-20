@@ -150,6 +150,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   whether a model is there, and everything asks it — Export says there is
   nothing yet and what to do instead, Improve stays off, and the header reads
   "Describe a model to begin".
+- **Two 3D Forge buttons had their mark sitting below the middle.** Reset
+  camera and Back were drawn 28 pixels tall but kept the app's general button
+  padding, which left 8 pixels of room inside them for a 15 pixel mark — too
+  little for it to fit, so it hung low. Both now sit on their centre line, and
+  `npm run align` measures every button in every mode so it cannot happen
+  again unnoticed.
 - **The Forge says when no model is set up.** Pressing Generate with no
   provider key and no local model ended the run on "all Forge planner routes
   failed", which reads as models having been asked and having refused. It now
