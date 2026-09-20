@@ -876,6 +876,9 @@ img.amk-empty-logo {
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; background: var(--amk-dim); color: var(--amk-bright);
 }
+/* The mark is drawn, so it sits on the same baseline and takes the colour
+   around it, whatever the platform font would have done with a typed one. */
+.amk-ws-avatar svg { width: 13px; height: 13px; }
 .amk-ws-name { font-size: 12px; font-weight: 700; color: var(--text); }
 .amk-ws-role { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .amk-ws-badge { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--danger); }

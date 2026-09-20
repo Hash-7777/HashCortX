@@ -108,6 +108,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Every agent in the Agent Swarm is marked by a drawn icon.** An agent
+  carried an icon typed as an emoji, saved by the starter teams and shown
+  beside every turn in a run's conversation, so a workspace of line art had
+  colour pictures in it. The mark is now drawn from the agent's role, from
+  the same set the canvas, the role picker and the template list already
+  used, and no team saves a typed one.
 - **Every trace counts time like a stopwatch.** Trace lines in the Coder, the
   Agent Swarm, 3D Forge, the ERP, Finance and Virtual OS were stamped in
   seconds only, so a long run read in the thousands. They now show seconds

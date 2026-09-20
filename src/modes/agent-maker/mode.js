@@ -191,7 +191,7 @@ const SwarmMaker = (() => {
   function addAgentToBlueprint(bp, overrides) {
     const id = "ag_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,5);
     const agent = {
-      id, name: "New Agent", icon: "🤖", role: "custom",
+      id, name: "New Agent", role: "custom",
       systemPrompt: "You are a helpful AI agent. Complete the assigned task thoroughly.",
       tools: [...ALL_TOOL_IDS], memory: "project", timeout: 120, retries: 1, temperature: 0.7,
       model: document.getElementById("model")?.value || "",
@@ -882,16 +882,16 @@ const SwarmMaker = (() => {
       aggregation: "concat",
       supervisorModel: modelAt(0),
       agents: codeTask ? [
-        { id: "a1", name: "Planner / Specifier", icon: "✦", role: "analyst", systemPrompt: "Create a compact implementation brief with deliverables, sections, files, assumptions, acceptance criteria, image URL strategy, animation strategy, and cart/interaction requirements.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.4, model: modelAt(3) },
-        { id: "a2", name: "Frontend Developer", icon: "✦", role: "coder", systemPrompt: "Produce complete frontend files only with filename-tagged code fences. Use visible remote HTTPS images with inline fallback SVG/data URI behavior, polished responsive CSS, and working event hooks.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.35, model: modelAt(1) },
-        { id: "a3", name: "Interaction Engineer", icon: "✦", role: "coder", systemPrompt: "Implement complete cart and UI interaction logic. If no backend is needed, output NO_BACKEND_NEEDED plus complete frontend JavaScript fixes for add/remove/quantity/count/total/empty-state/localStorage.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(4) },
-        { id: "a4", name: "Validator / Critic", icon: "✦", role: "validator", systemPrompt: "Validate files against the quality gates. Reject broken image paths, missing fallbacks, unwired buttons, non-persistent cart state, and unused animations. Output concrete fixes or corrected full code blocks only.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(2) },
-        { id: "a5", name: "Final Polisher / Supervisor", icon: "✦", role: "supervisor", systemPrompt: "Merge and polish all artifacts into final complete code blocks only. Ensure visible images, working cart, applied animations, responsive layout, and exact file references. Remove duplicated prose, specs, reports, and incomplete snippets.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.3, model: modelAt(0) },
+        { id: "a1", name: "Planner / Specifier", role: "analyst", systemPrompt: "Create a compact implementation brief with deliverables, sections, files, assumptions, acceptance criteria, image URL strategy, animation strategy, and cart/interaction requirements.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.4, model: modelAt(3) },
+        { id: "a2", name: "Frontend Developer", role: "coder", systemPrompt: "Produce complete frontend files only with filename-tagged code fences. Use visible remote HTTPS images with inline fallback SVG/data URI behavior, polished responsive CSS, and working event hooks.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.35, model: modelAt(1) },
+        { id: "a3", name: "Interaction Engineer", role: "coder", systemPrompt: "Implement complete cart and UI interaction logic. If no backend is needed, output NO_BACKEND_NEEDED plus complete frontend JavaScript fixes for add/remove/quantity/count/total/empty-state/localStorage.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(4) },
+        { id: "a4", name: "Validator / Critic", role: "validator", systemPrompt: "Validate files against the quality gates. Reject broken image paths, missing fallbacks, unwired buttons, non-persistent cart state, and unused animations. Output concrete fixes or corrected full code blocks only.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(2) },
+        { id: "a5", name: "Final Polisher / Supervisor", role: "supervisor", systemPrompt: "Merge and polish all artifacts into final complete code blocks only. Ensure visible images, working cart, applied animations, responsive layout, and exact file references. Remove duplicated prose, specs, reports, and incomplete snippets.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.3, model: modelAt(0) },
       ] : [
-        { id: "a1", name: "Lead Planner", icon: "✦", role: "analyst", systemPrompt: "Create the plan, assumptions, dependencies, risks, and acceptance criteria.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.45, model: modelAt(2) },
-        { id: "a2", name: "Specialist Analyst", icon: "✦", role: "analyst", systemPrompt: "Handle the main specialist workstream and produce compact findings.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.55, model: modelAt(1) },
-        { id: "a3", name: "Validator", icon: "✦", role: "validator", systemPrompt: "Validate the specialist output and list concrete corrections.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.25, model: modelAt(3) },
-        { id: "a4", name: "Final Synthesizer", icon: "✦", role: "supervisor", systemPrompt: "Produce the final user-visible answer by reconciling all outputs.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.3, model: modelAt(0) },
+        { id: "a1", name: "Lead Planner", role: "analyst", systemPrompt: "Create the plan, assumptions, dependencies, risks, and acceptance criteria.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.45, model: modelAt(2) },
+        { id: "a2", name: "Specialist Analyst", role: "analyst", systemPrompt: "Handle the main specialist workstream and produce compact findings.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.55, model: modelAt(1) },
+        { id: "a3", name: "Validator", role: "validator", systemPrompt: "Validate the specialist output and list concrete corrections.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.25, model: modelAt(3) },
+        { id: "a4", name: "Final Synthesizer", role: "supervisor", systemPrompt: "Produce the final user-visible answer by reconciling all outputs.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.3, model: modelAt(0) },
       ],
       dag: codeTask ? {
         nodes: ["a1", "a2", "a3", "a4", "a5"],
@@ -956,7 +956,7 @@ const SwarmMaker = (() => {
     const finalPolisher = {
       id: `a${idx}`,
       name: "Final Polisher",
-      icon: "✦",
+     
       role: "supervisor",
       systemPrompt: "You are the final polisher. Revise the team output into final, production-ready code only. Keep only complete files and remove duplicated reports/specs.",
       tools: [],
@@ -985,7 +985,7 @@ const SwarmMaker = (() => {
     const supervisor = {
       id: `a${idx}`,
       name: "Final Synthesizer",
-      icon: "✦",
+     
       role: "supervisor",
       systemPrompt: "You are the lead planning agent. Integrate specialist outputs into one final answer that directly satisfies the user's request, resolves conflicts, removes duplication, and states assumptions and residual risks.",
       tools: [],
@@ -1107,7 +1107,7 @@ const SwarmMaker = (() => {
     });
     return out.map((tpl, idx) => ({
       id: `a${(parsed.agents || []).length + idx + 1}`,
-      icon: "✦",
+     
       memory: "project",
       timeout: /coder|supervisor|validator/.test(tpl.role) ? 150 : 120,
       retries: 1,
@@ -1249,7 +1249,6 @@ Return ONLY valid JSON in this exact format — no markdown, no explanation:
     {
       "id": "a1",
       "name": "Agent Name",
-      "icon": "🔬",
       "role": "researcher",
       "systemPrompt": "You are a...",
       "tools": ["web_search","fetch_url","wikipedia"],
@@ -1751,20 +1750,11 @@ ${modelListStr}`;
     { id: "code_interpreter",label: "Code Interpreter", icon: _s(`<path d="m4 5-2 2 2 2M10 5l2 2-2 2M8 3l-2 8"/>`) },
   ];
 
-  // SVG paths for role icons (16×16 viewBox, stroke-based)
-  const ROLE_SVGS = {
-    researcher: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="6.5" cy="6.5" r="4.5"/><path d="m14 14-3.2-3.2"/></svg>`,
-    writer:     `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M11 2.5a1.77 1.77 0 0 1 2.5 2.5L5 13.5 2 14l.5-3Z"/></svg>`,
-    critic:     `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M14 2H2v9h5l3 3v-3h4Z"/><path d="M6 6h4M6 8.5h2"/></svg>`,
-    coder:      `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="m5 4-3 4 3 4M11 4l3 4-3 4M9 2l-2 12"/></svg>`,
-    analyst:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="2" y="9" width="3" height="5" rx="1"/><rect x="6.5" y="6" width="3" height="8" rx="1"/><rect x="11" y="3" width="3" height="11" rx="1"/></svg>`,
-    validator:  `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M8 1 9.7 5.5H14l-3.8 2.8 1.5 4.5L8 10 4.3 12.8l1.5-4.5L2 5.5h4.3Z"/></svg>`,
-    supervisor: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="8" cy="5" r="3"/><path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6"/></svg>`,
-    custom:     `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><circle cx="8" cy="8" r="2.5"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.1 3.1l1.4 1.4M11.5 11.5l1.4 1.4M3.1 12.9l1.4-1.4M11.5 4.5l1.4-1.4"/></svg>`,
-    aggregator: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M4 4h8M4 8h8M4 12h8"/><circle cx="2" cy="4" r="1" fill="currentColor" stroke="none"/><circle cx="2" cy="8" r="1" fill="currentColor" stroke="none"/><circle cx="2" cy="12" r="1" fill="currentColor" stroke="none"/></svg>`,
-    planner:    `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 7l2 2 4-4"/></svg>`,
-  };
-  const ROLE_SVG_ORDER = ["researcher","writer","critic","coder","analyst","validator","supervisor","planner","aggregator","custom"];
+  // Every role's mark, drawn — js/swarm/role-icons.js, which the Result view
+  // draws from too.
+  const ROLE_SVGS = window.HCSwarmRoleIcons.ROLE_SVGS;
+  const ROLE_SVG_ORDER = window.HCSwarmRoleIcons.ORDER;
+
 
   function renderInspector() {
     const wrap   = document.getElementById("agent-maker-wrap");

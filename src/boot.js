@@ -98,6 +98,7 @@
     '/js/finance/charts.js',
     '/js/swarm/task-kind.js',
     '/js/swarm/graph.js',
+    '/js/swarm/role-icons.js',
     '/js/swarm/team-shape.js',
     '/js/swarm/clarify.js',
     '/js/swarm/ask.js',

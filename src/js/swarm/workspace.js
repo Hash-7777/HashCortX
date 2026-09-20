@@ -32,6 +32,9 @@
 (function () {
   'use strict';
 
+  /** Every role's mark, drawn — js/swarm/role-icons.js. */
+  const ICONS = () => window.HCSwarmRoleIcons;
+
   const $ = (id) => document.getElementById(id);
   const RUNS = () => window.HCSwarmRuns;
   const VIEW = () => window.HCSwarmWorkspaceView;
@@ -216,7 +219,9 @@
       head.className = 'amk-ws-turn-head';
       const avatar = document.createElement('span');
       avatar.className = 'amk-ws-avatar';
-      avatar.textContent = t.icon || (t.kind === 'you' ? '•' : t.name.slice(0, 1).toUpperCase());
+      // The mark is drawn from the role — js/swarm/role-icons.js. An agent's
+      // saved icon was typed, and starter teams saved emoji.
+      avatar.replaceChildren(ICONS().nodeFor(t.kind === 'you' ? 'you' : t.role));
       avatar.setAttribute('aria-hidden', 'true');
       const name = document.createElement('span');
       name.className = 'amk-ws-name';
@@ -270,7 +275,7 @@
     head.className = 'amk-ws-turn-head';
     const avatar = document.createElement('span');
     avatar.className = 'amk-ws-avatar';
-    avatar.textContent = agent.icon || agent.name.slice(0, 1).toUpperCase();
+    avatar.replaceChildren(ICONS().nodeFor(agent.role));
     avatar.setAttribute('aria-hidden', 'true');
     const name = document.createElement('span');
     name.className = 'amk-ws-name';

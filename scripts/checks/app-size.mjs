@@ -429,7 +429,9 @@ const LINE_BUDGET = {
   // starts, and ends cleanly when they cancel. What to ask is
   // src/js/swarm/clarify.js and the asking itself src/js/swarm/ask.js; what is
   // left here is handing them the model call and the trace.
-  'modes/agent-maker/mode.js': 2305,
+  // 2295, down ten: every role's mark moved to src/js/swarm/role-icons.js,
+  // which the Result view draws from too.
+  'modes/agent-maker/mode.js': 2295,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
