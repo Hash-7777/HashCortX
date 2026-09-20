@@ -44,6 +44,30 @@ ok('with a space where the language would be', files(`${B} index.html\n<p>x</p>\
 ok('the language:name form', files(`${B}js:app.js\nlet a;\n${B}`).join() === 'app.js=let a;');
 ok('a "file:" comment names the file and is not left in it', files(`${B}js\n// file: app.js\nlet a;\n${B}`).join() === 'app.js=let a;');
 
+console.log('\nA name written on the first line as a comment is a name:');
+ok('// script.js', files(`${B}js\n// script.js\nlet a;\n${B}`).join() === 'script.js=let a;');
+ok('/* style.css */', files(`${B}css\n/* style.css */\nh1{}\n${B}`).join() === 'style.css=h1{}');
+ok('<!-- index.html -->', files(`${B}html\n<!-- index.html -->\n<p>x</p>\n${B}`).join() === 'index.html=<p>x</p>');
+ok('# app.py', files(`${B}python\n# app.py\nx = 1\n${B}`).join() === 'app.py=x = 1');
+ok('a version number is not a file name', files(`${B}js\n// v1.2\nlet a;\n${B}`).join() === 'app.js=// v1.2\nlet a;');
+ok('a figure reference is not a file name', files(`${B}js\n// Fig.3\nlet a;\n${B}`).join() === 'app.js=// Fig.3\nlet a;');
+ok('a banner comment is not a file name', files(`${B}css\n/* ------------------- */\nh1{}\n${B}`).join() === 'styles.css=/* ------------------- */\nh1{}');
+ok('a comment with words after the name is not a name',
+  files(`${B}js\n// app.js — the entry point\nlet a;\n${B}`).join() === 'app.js=// app.js — the entry point\nlet a;');
+
+console.log('\nA guess never displaces a file another agent named:');
+const withKnown = (text, existing) => [...P.extractProjectFiles(text, { existing })].map(([k]) => k);
+ok('an unnamed page is dropped when the project already has one',
+  withKnown(`${B}html\n<p>mine</p>\n${B}`, ['index.html']).length === 0);
+ok('an unnamed stylesheet does not become a second stylesheet',
+  withKnown(`${B}css\nh1{}\n${B}`, ['style.css']).length === 0);
+ok('an unnamed script does not become a second script',
+  withKnown(`${B}js\nlet a;\n${B}`, ['script.js']).length === 0);
+ok('a guess still fills a gap the project has',
+  withKnown(`${B}css\nh1{}\n${B}`, ['index.html']).join() === 'styles.css');
+ok('a named file still wins over a name that came before it',
+  withKnown(`${B}css style.css\nh1{}\n${B}`, ['style.css']).join() === 'style.css');
+
 console.log('\nThe rules the preview depends on still hold:');
 ok('a plain html block becomes the page', files(`${B}html\n<p>x</p>\n${B}`).join() === 'index.html=<p>x</p>');
 ok('a plain css block becomes the stylesheet', files(`${B}css\nh1{}\n${B}`).join() === 'styles.css=h1{}');

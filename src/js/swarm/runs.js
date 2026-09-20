@@ -133,7 +133,10 @@
    * the version the pass was asked of.
    */
   function recordRun(run, { results, finalOutput, at, base, named = false }) {
-    const read = (text) => filesFromText(text, named ? { guess: false } : undefined);
+    // Each answer is read knowing what the answers before it produced, so an
+    // agent that pastes an unnamed page or stylesheet cannot displace a file
+    // another agent named.
+    const read = (text, have) => filesFromText(text, { ...(named ? { guess: false } : null), existing: Object.keys(have) });
     let r = run;
     let files = {};
     for (const agent of r.agents) {
@@ -141,11 +144,13 @@
       const text = String(results[agent.id] ?? '');
       const status = /^Skipped: /.test(text) ? 'skipped' : /^Error: /.test(text) ? 'error' : 'ok';
       r = withTurn(r, { who: agent.id, text, at, status });
-      if (status === 'ok') files = { ...files, ...read(text) };
+      if (status === 'ok') files = { ...files, ...read(text, files) };
     }
     if (finalOutput != null) {
       r = withTurn(r, { who: 'team', text: String(finalOutput), at, status: 'ok' });
-      files = { ...files, ...read(finalOutput) };
+      // The final answer is the assembly, so its own unnamed page or
+      // stylesheet IS the one to keep — it is not competing with a teammate.
+      files = { ...files, ...read(finalOutput, {}) };
     }
     return Object.keys(files).length ? withVersion(r, { by: 'team', at, changed: files, base }) : r;
   }
