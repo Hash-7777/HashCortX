@@ -344,6 +344,38 @@ console.log('\nWhat somebody is told when a request failed:');
   ok('and anything else still says which provider and what code',
     /Cerebras error 418/.test(E('cerebras', 418, '', null)));
 
+  // ── An account out of credit ───────────────────────────────────────────
+  //
+  // The body below is the one a person actually met. 402 had no branch, so it
+  // fell to the bottom of the function and the first hundred and twenty
+  // characters of that JSON went on screen — braces, a balance field and half
+  // a URL — for what is one of the simplest things to say plainly.
+  const SPENT = '{"error": {"balance_units":0,"billing_portal_url":"https://cloud.sambanova.ai/plans/billing","code":"insufficient_balance","message":"You have run out of balance units."}}';
+  const spent = E('samba', 402, SPENT, null);
+  ok('an account with no credit is told so in words', /no credit left/i.test(spent));
+  ok('and not called a rate limit', !/rate limit/i.test(spent));
+  ok('and not called a bad key', !/rejected the API key/i.test(spent));
+  ok('it says waiting will not help', /waiting will not help/i.test(spent));
+  ok('and what will — another provider', /another provider/i.test(spent));
+  ok('the provider\'s own sentence is passed on', /run out of balance units/.test(spent));
+  ok('but never the JSON it arrived in', !/[{}]|balance_units|"code"/.test(spent));
+  ok('nor an address the provider put in its answer', !/https?:\/\//.test(spent),
+    'a link from a server rendered into the app reads as something the app said');
+  ok('where to go comes from this file instead', /cloud\.sambanova\.ai/.test(spent));
+  ok('a 402 from any provider reads the same way',
+    /no credit left/i.test(E('openai', 402, '{"error":{"message":"Payment required."}}', null)));
+
+  // Every other unhandled status went the same way, so the reading is shared.
+  ok('an unknown status passes on the sentence, not the JSON',
+    E('groq', 418, '{"error":{"message":"I am a teapot"}}', null) === 'Groq error 418: I am a teapot');
+  ok('and says just the code when there is no sentence in it',
+    E('groq', 418, '{"weird":[1,2,3]}', null) === 'Groq error 418');
+  ok('a body that is not JSON at all is still passed on',
+    /Service Unavailable/.test(E('groq', 418, 'Service Unavailable', null)));
+  // A server fault says so without its body: a 5xx page is noise, and the one
+  // useful thing about it is that it is theirs and worth retrying.
+  ok('a server fault still says only that', E('groq', 504, 'a whole HTML error page', null) === 'Groq server error (504). Try again shortly.');
+
   // Every provider the app can talk to must have a name a person recognises
   // and somewhere to look, or the message is worse than no message.
   const named = ['groq', 'gemini', 'openrouter', 'cerebras', 'samba', 'nvidia', 'openai', 'anthropic', 'moonshot', 'deepseek', 'mistral'];

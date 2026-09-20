@@ -51,7 +51,12 @@
 
   const RETIRED = /decommission|deprecated|no longer (?:supported|available|exists|offered)|model\b.{0,40}\b(?:not (?:be )?found|does not exist|doesn'?t exist|not available|is not supported|was retired|renamed or retired|unavailable for your)|no such model|unknown model|model_not_found|model_decommissioned|invalid model|not a valid model|is not found for api version/i;
   const KEY = /api key|api-key|apikey|unauthori[sz]ed|forbidden|invalid.{0,12}key|missing.{0,12}key|rejected the api key|http 40[13]\b|permission denied/i;
-  const LIMIT = /rate.?limit|quota|\b429\b|too many requests|free.?tier|insufficient.{0,12}(?:credit|balance|fund)|billing|exceeded|tokens per (?:minute|day)/i;
+  // 402 is here on purpose: an account out of credit is spent in the way that
+  // matters — the same model will refuse again, and another provider is the
+  // answer — even though nothing about it is a rate limit. It used to be caught
+  // only by the word "billing" happening to appear in one provider's answer,
+  // which is luck rather than a rule.
+  const LIMIT = /rate.?limit|quota|\b429\b|\b402\b|too many requests|free.?tier|insufficient.{0,12}(?:credit|balance|fund)|no credit left|out of credit|billing|exceeded|tokens per (?:minute|day)/i;
   // Checked before a limit, because a request too large for a per-minute budget
   // names the budget. Waiting does not shrink a request, and another model on
   // the same account may take it, so it is not a spent quota either.

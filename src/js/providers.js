@@ -421,6 +421,46 @@
    * against the quota, so somebody retrying a failure is spending the budget
    * they are trying to get back.
    */
+/**
+ * The sentence a provider's refusal actually contains, or '' when it holds
+ * none.
+ *
+ * A refusal arrives as JSON, and the fall-through below used to put the first
+ * hundred and twenty characters of it on screen — so somebody out of credit
+ * read `{"error": {"balance_units":0,"billing_portal_url":"https://...` and
+ * had to work out what that meant. Providers put the sentence in one of a
+ * handful of places; this reads those, and gives back nothing rather than a
+ * fragment of JSON when it cannot find one.
+ *
+ * Addresses inside the answer are dropped. The body is written by the
+ * provider's server, and a link from it rendered into the app is content from
+ * elsewhere appearing as if the app said it. Where to go is named by HINTS
+ * here, which this app writes.
+ */
+function messageFrom(body) {
+  const raw = String(body || '').trim();
+  if (!raw) return '';
+  let found = '';
+  if (raw.startsWith('{') || raw.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(raw);
+      const pick = (v) => {
+        if (typeof v === 'string') return v;
+        if (v && typeof v === 'object') return pick(v.message) || pick(v.detail) || pick(v.error) || pick(v.description);
+        return '';
+      };
+      found = pick(parsed.error) || pick(parsed.message) || pick(parsed.detail) || pick(parsed);
+    } catch { found = ''; }
+  } else {
+    found = raw;
+  }
+  return String(found || '')
+    .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 200);
+}
+
   function cloudHttpError(provider, status, body, retryAfter) {
     const PROVIDER_LABELS = {
       groq: "Groq", gemini: "Google Gemini", openrouter: "OpenRouter",
@@ -438,8 +478,20 @@
       const wait = retryAfter ? ` Try again in ${retryAfter}s.` : " Wait ~60s and try again, or switch to a different model.";
       return `${providerLabel} rate limit — free-tier quota exceeded (failed requests count too).${wait}\nCheck usage: ${hints.quota}`;
     }
+    // Out of credit. Every provider that charges answers this way when the
+    // balance runs out, and it used to fall through to the bottom of this
+    // function and put the raw JSON on screen. It is not a rate limit — waiting
+    // does not fix it — and it is not a bad key either, so it says which it is
+    // and where to put that right.
+    if (status === 402) {
+      const said = messageFrom(body);
+      return `${providerLabel} has no credit left on this account, so it refused the request. `
+        + `Waiting will not help — add credit, or pick a model from another provider.`
+        + `\nYour account: ${hints.quota}`
+        + (said ? `\n${providerLabel} said: ${said}` : "");
+    }
     if (status === 401 || status === 403) {
-      const serverDetail = (body || "").replace(/\s+/g, " ").trim().slice(0, 200);
+      const serverDetail = messageFrom(body);
       const detailLine = serverDetail ? `\nServer said: ${serverDetail}` : "";
       return `${providerLabel} rejected the API key (HTTP ${status}). Check it was generated on the matching platform — ${hints.key} — and that API access is enabled on your project.${detailLine}`;
     }
@@ -452,7 +504,8 @@
     if (status >= 500) {
       return `${providerLabel} server error (${status}). Try again shortly.`;
     }
-    const detail = (body || "").slice(0, 120);
+    // The sentence the provider wrote, never the JSON it arrived in.
+    const detail = messageFrom(body);
     return `${providerLabel} error ${status}${detail ? ": " + detail : ""}`;
   }
 
