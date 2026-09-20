@@ -526,7 +526,12 @@ const LINE_BUDGET = {
   // free model, and the line above it never moved — so a team of five looked
   // the same whether it was working or dead. The words are decided in
   // js/trace-live.js; this is the wiring and the deadline it is given.
-  'modes/agent-maker/mode.js': 2412,
+  // 2454, up forty-two. A run reported "task done" while two of its six agents
+  // had returned an error, and nothing ever looked at what the team handed
+  // back. The reading is in js/swarm/project-check.js, which needs no model;
+  // what is here is counting the agents that could not answer, and saying in
+  // the trace what that reading found.
+  'modes/agent-maker/mode.js': 2454,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

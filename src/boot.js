@@ -109,6 +109,7 @@
     '/js/swarm/output.js',
     '/js/swarm/project-files.js',
     '/js/swarm/bundle.js',
+    '/js/swarm/project-check.js',
     '/js/swarm/site.js',
     '/js/swarm/web-brief.js',
     '/js/swarm/runs.js',

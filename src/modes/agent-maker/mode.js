@@ -747,6 +747,31 @@ const SwarmMaker = (() => {
   // { run, message, feedback, base } from the Workspace — it runs that run's
   // team another pass with the feedback, carrying on the same conversation,
   // and returns what became of it for the Workspace to say.
+  /**
+   * What the app itself can see about the work, said in the trace.
+   *
+   * Reading js/swarm/project-check.js, which needs no model and no network.
+   * Worst first, a few at a time: the point is that somebody is told, not that
+   * every last thing is listed.
+   */
+  function reportOnWork(run, blueprint) {
+    const C = window.HCSwarmProjectCheck;
+    if (!C || !run) return [];
+    let found = [];
+    try {
+      found = C.inspect(window.HCSwarmRuns.currentFiles(run), {
+        owed: ((blueprint && blueprint.artifactContracts) || []).map(a => a && a.name).filter(Boolean),
+      });
+    } catch { return []; }
+    if (!found.length) {
+      traceAdd("Orchestrator", "Read the work through: nothing points at a file that is not there, and nothing is left unfinished", "ok");
+      return found;
+    }
+    traceAdd("Orchestrator", `Read the work through — ${C.summaryOf(found)}`, "warn");
+    for (const line of C.linesOf(found).slice(0, 8)) traceAdd("Orchestrator", line, "warn");
+    return found;
+  }
+
   async function runSwarm(again = null) {
     const bp   = again ? blueprints.find(b => b.id === again.run.blueprintId) : getActive();
     const task = again ? again.run.task : document.getElementById("amkTaskInput")?.value?.trim();
@@ -832,8 +857,20 @@ const SwarmMaker = (() => {
       const finalOutput = await aggregateResults(runBp, rawResults, work, signal, choice.deliverer);
       traceAdd("Orchestrator", `Aggregation returned final output · ${String(finalOutput || "").length} chars`, "ok");
 
-      traceAdd("Orchestrator", `Swarm complete — ${runBp.agents.length} agents, task done`, "ok");
-      setRunStatus("done", `Done · ${runBp.agents.length} agents`);
+      // An agent that failed is part of the result, not a detail. A run that
+      // said "task done" while two of its six agents had returned an error —
+      // including the two whose job was to check the work — is how a broken
+      // shop was handed over as a finished one.
+      const broke = runBp.agents.filter(a => /^(?:Error|Skipped): /.test(String(rawResults[a.id] ?? ""))).length;
+      const ran = runBp.agents.length - broke;
+      traceAdd(
+        "Orchestrator",
+        broke
+          ? `Swarm finished with ${broke} of ${runBp.agents.length} agent${runBp.agents.length === 1 ? "" : "s"} unable to answer — ${ran} did the work`
+          : `Swarm complete — ${runBp.agents.length} agents, task done`,
+        broke ? "warn" : "ok",
+      );
+      setRunStatus("done", broke ? `Done · ${ran} of ${runBp.agents.length} agents` : `Done · ${runBp.agents.length} agents`);
       updateTraceDot("done");
       updateProgress(1);
 
@@ -845,6 +882,11 @@ const SwarmMaker = (() => {
       if (kept.run) { bp.lastRunId = kept.run.id; delete bp.lastOutput; }
       else { delete bp.lastRunId; bp.lastOutput = `**Swarm Result — ${bp.name}**\n\n*Task: ${task}*\n\n---\n\n${result}`; }
       traceAdd("Orchestrator", kept.run ? `Kept the run · ${kept.run.turns.length} turns` : `Could not keep the run: ${kept.error}`, kept.run ? "ok" : "warn");
+      // The app reads the work itself before the person does
+      // (src/js/swarm/project-check.js). It changes nothing; it says what a
+      // person would see in the first ten seconds, so a result is never
+      // reported as finished when a page points at a file nobody wrote.
+      reportOnWork(kept.run, runBp);
       saveBlueprints();
       if (!again) window.HCSwarmWorkspace.open(bp, kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
