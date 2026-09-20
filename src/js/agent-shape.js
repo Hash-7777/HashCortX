@@ -92,6 +92,7 @@
       if (t === 'memory') { out.add('remember_fact'); out.add('recall_facts'); }
       else if (t === 'datetime') out.add('current_datetime');
       else if (t === 'pubmed') out.add('pubmed_search');
+      else if (t === 'knowledge') out.add('search_knowledge');
       else if (t === 'code_interpreter' || t === 'python') out.add('execute_python');
       else if (toolTable[t]) out.add(t);
     }

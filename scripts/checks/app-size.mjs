@@ -148,7 +148,13 @@ const LINE_BUDGET = {
   // saveSettings, which runs when a person changes something, so it never ran
   // for anyone who does not open Settings. Two lists that named every provider
   // by hand went with it, which is most of why four lines covers this.
-  'js/app.js': 6561,
+  // 6597, up thirty-six. Every agent that shares this table can now search the
+  // person's own documents. The Coder had a tool for that and nothing else did,
+  // so an Agent Swarm could search the whole web, read pages and run Python,
+  // and had no way at all to reach the one shelf of material the person had
+  // chosen to give it — while the searching tools beside it wrote into that
+  // same store as they went.
+  'js/app.js': 6597,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -495,7 +501,10 @@ const LINE_BUDGET = {
   // 2395, up fifteen. Each agent is told which deliverable is its own and
   // which belong to the others, from js/swarm/deliverables.js, and an input
   // that had to be cut short now says so instead of arriving looking whole.
-  'modes/agent-maker/mode.js': 2395,
+  // 2396, up one. The tool picker offers the person's own documents, which it
+  // had no entry for — so the one source a team is most likely to be wanted to
+  // read could not be switched on for it.
+  'modes/agent-maker/mode.js': 2396,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

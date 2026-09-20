@@ -5620,6 +5620,42 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         return { facts: facts.map(f => ({ key: f.key, value: f.value, saved_at: new Date(f.ts).toISOString() })) };
       }
     },
+    // The knowledge base, for every agent that shares this table — which is
+    // the Agent Swarm's agents as well as chat's.
+    //
+    // The Coder had a tool for this and nothing else did, so an Agent Swarm
+    // could search the web, read a page and run Python, but had no way at all
+    // to reach the documents the person had put in. Worse, the searching tools
+    // above WRITE into that base as they go, so a swarm run filled a store it
+    // could never read.
+    search_knowledge: {
+      description: "Search the user's own knowledge base — the documents and pages they have added — for passages about a topic. Use it before assuming a convention, a policy or a past decision that would be written down. Cite the source it returns.",
+      parameters: {
+        type: "object",
+        properties: { query: { type: "string", description: "What to look for, in a few words." } },
+        required: ["query"]
+      },
+      statusLabel: a => `Searching your documents: ${(a.query || "").slice(0, 50)}`,
+      async execute({ query }) {
+        const q = String(query || "").trim();
+        if (!q) return { error: "query is required" };
+        // Switched off and holding nothing are different answers, and both used
+        // to look the same from outside. A model told "nothing found" states an
+        // invented convention; one told the base is off says so instead.
+        if (!ragEnabled) {
+          return { query, passages: [], message: "The knowledge base is switched off, so nothing was searched. Say so rather than answering as if it were empty — it can be turned on in the Agents tab." };
+        }
+        const chunks = await queryRAGMerged(q);
+        if (!chunks.length) {
+          return { query, passages: [], message: "The knowledge base is on and held nothing matching this. Say that it had nothing on it rather than filling the gap." };
+        }
+        return {
+          query,
+          passages: chunks.map((c, i) => ({ rank: i + 1, source: c.source || "unknown", title: c.title || "", chunk: c.index ?? 0, text: c.text || "" })),
+          note: "Cite the source and title when you use one of these.",
+        };
+      }
+    },
     current_datetime: {
       description: "Current date, time, timezone. Use for 'today', 'now', scheduling.",
       parameters: { type: "object", properties: {} },

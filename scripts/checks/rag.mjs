@@ -93,5 +93,43 @@ check('agreement beats a lone first place',
   topOfOne[0].title === 'A', `got ${topOfOne.map(x => x.title).join(',')}`);
 check('K matches the published constant', RRF_K === 60);
 
+// ── Who can actually reach the knowledge base ────────────────────────────
+//
+// Retrieval that ranks perfectly is worth nothing to a mode that has no way to
+// ask it. The Agent Swarm had none: the shared tool table held nine tools and
+// not one of them searched the person's documents, while two of the nine wrote
+// into that same store every time an agent searched the web. A swarm run
+// filled a shelf it could never read from.
+{
+  const root = join(here, '..', '..');
+  const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
+  const shape = readFileSync(join(root, 'src', 'js', 'agent-shape.js'), 'utf8');
+  const templates = readFileSync(join(root, 'src', 'data', 'swarm-templates.js'), 'utf8');
+  const swarm = readFileSync(join(root, 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
+  const kb = readFileSync(join(root, 'src', 'core', 'rag', 'knowledge-base.js'), 'utf8');
+
+  console.log('\nEvery agent can reach the knowledge base, not only the Coder:');
+  check('the shared tool table has one for it', /^    search_knowledge: \{/m.test(app));
+  check('it goes through the same retrieval chat uses', /const chunks = await queryRAGMerged\(q\);/.test(app));
+  check('a team can be given it', /"knowledge"/.test(templates));
+  check('and the id maps to the tool', /t === 'knowledge'\) out\.add\('search_knowledge'\)/.test(shape));
+  check('the picker offers it', /id: "knowledge"/.test(swarm));
+  check('the model is told it exists', /pick from: memory, knowledge, web_search/.test(swarm));
+
+  // A model told "nothing found" invents a convention and states it. One told
+  // the base is switched off says so instead. They must never read the same.
+  check('switched off and holding nothing are different answers',
+    /switched off, so nothing was searched/.test(app) && /held nothing matching this/.test(app));
+  check('it asks for the source to be cited', /Cite the source and title/.test(app));
+
+  console.log('\nThe switch means one thing — neither read nor written:');
+  check('reading checks it', /function queryRAGVector[\s\S]{0,120}if \(!isRagEnabled\(\)\) return \[\];/.test(kb));
+  check('merged reading checks it', /async function queryRAGMerged[\s\S]{0,80}if \(!isRagEnabled\(\)\) return \[\];/.test(kb));
+  check('adding a document by hand checks it', /function ingestIntoRAG[\s\S]{0,120}if \(!isRagEnabled\(\)\) return 0;/.test(kb));
+  check('and so does what the tools capture as they go',
+    /function addToRAG\(title, text, source\) \{\s*if \(!isRagEnabled\(\)\) return;/.test(kb),
+    'a person who switched it off still had every page their agents read written to disk');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/rag-search.js)`);
 process.exit(fail ? 1 : 0);

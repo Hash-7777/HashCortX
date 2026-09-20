@@ -271,7 +271,21 @@
 
     // RAG card events are wired per-render inside renderAgentsList()
 
+    /**
+     * Keep one passage — a search result, a page that was read.
+     *
+     * This is the automatic half of the knowledge base, and it did not check
+     * the switch. Adding a document by hand did, so a person who turned the
+     * knowledge base off still had every page their agents fetched and every
+     * result they searched written to disk, for as long as they used the app.
+     * Nothing read it back while the switch was off, so nothing ever said so.
+     *
+     * The switch means one thing now: off, the base is neither read nor
+     * written. What was gathered before stays where it is; turning it back on
+     * finds it again.
+     */
     function addToRAG(title, text, source) {
+      if (!isRagEnabled()) return;
       _ragLocalAdd(title, text, source);
     }
 

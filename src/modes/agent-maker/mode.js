@@ -1414,7 +1414,7 @@ BIG NON-CODE ASSIGNMENTS — mandatory rules for complex research, strategy, pla
 - Give each specialist a distinct angle. Do not create generic "Agent 1" filler roles.
 - The final supervisor must reconcile conflicts, state assumptions, call out risks, and produce the final answer.
 
-For tools, pick from: memory, web_search, fetch_url, wikipedia, pubmed, datetime, calculate, code_interpreter
+For tools, pick from: memory, knowledge, web_search, fetch_url, wikipedia, pubmed, datetime, calculate, code_interpreter
 Return ONLY the JSON object, nothing else
 ${modelListStr}`;
 
@@ -1841,6 +1841,7 @@ ${modelListStr}`;
   const _s = (p) => `<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12">${p}</svg>`;
   const ALL_TOOLS = [
     { id: "memory",          label: "Memory",          icon: _s(`<ellipse cx="7" cy="5" rx="5" ry="3"/><path d="M2 5v4c0 1.7 2.2 3 5 3s5-1.3 5-3V5"/>`) },
+    { id: "knowledge",       label: "Your Documents",   icon: _s(`<path d="M2 3.5A1.5 1.5 0 0 1 3.5 2H6l1 1.5h4A1.5 1.5 0 0 1 12.5 5v5.5A1.5 1.5 0 0 1 11 12H3.5A1.5 1.5 0 0 1 2 10.5Z"/><path d="M4.5 6.5h5M4.5 8.5h3"/>`) },
     { id: "web_search",      label: "Web Search",       icon: _s(`<circle cx="7" cy="7" r="5"/><path d="M7 2a8 8 0 0 1 0 10M7 2a8 8 0 0 0 0 10M2 7h10"/>`) },
     { id: "fetch_url",       label: "Fetch URL",        icon: _s(`<path d="M5.5 8.5a3.5 3.5 0 0 0 5 0l1.5-1.5a3.5 3.5 0 0 0-5-5L5.5 3.5"/><path d="M8.5 5.5a3.5 3.5 0 0 0-5 0L2 7a3.5 3.5 0 0 0 5 5l1.5-1.5"/>`) },
     { id: "wikipedia",       label: "Wikipedia",        icon: _s(`<rect x="2" y="2" width="10" height="10" rx="1"/><path d="M4 5h6M4 7h4M4 9h5"/>`) },

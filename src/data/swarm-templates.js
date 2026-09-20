@@ -15,7 +15,10 @@
 (function () {
   'use strict';
 
-  const ALL_TOOL_IDS = ["memory","web_search","fetch_url","wikipedia","pubmed","datetime","calculate","code_interpreter"];
+  // "knowledge" is the user's own documents. It was missing here, so a team
+  // could search the whole web and not the one shelf of material the person
+  // had actually chosen to give it.
+  const ALL_TOOL_IDS = ["memory","knowledge","web_search","fetch_url","wikipedia","pubmed","datetime","calculate","code_interpreter"];
   const TEMPLATES = [
     {
       name: "Research Swarm", description: "Deep research with fact-checking and synthesis",
