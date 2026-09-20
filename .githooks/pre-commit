@@ -97,9 +97,30 @@ check_pattern() {
   fi
 }
 
-check_pattern 'sk-ant-[A-Za-z0-9_-]{16,}'      "an Anthropic API key"
-check_pattern 'sk-[A-Za-z0-9]{32,}'            "an OpenAI-style API key"
+# One line per key shape this app can be given. Every provider in Settings
+# belongs here: the list is the last thing between a key and a public
+# repository with forks, and a shape missing from it is a key that reaches
+# GitHub silently.
+#
+# The `sk-` pattern allows hyphens and underscores in the body, which the
+# previous one did not — and every modern OpenAI key is `sk-proj-…`, so the run
+# of letters ended at the second hyphen and never reached the length the rule
+# asked for. OpenAI's current default format, its service-account keys and
+# OpenRouter's `sk-or-v1-…` all walked past it.
+#
+# It is anchored on a word boundary because without one `sk-` matches inside
+# ordinary words: `task-management-controller` ends a word with `sk` and
+# carries twenty more characters after the hyphen. Measured, not assumed —
+# `\b` works in the grep macOS ships, unlike `-P`.
+check_pattern '\bsk-ant-[A-Za-z0-9_-]{16,}'    "an Anthropic API key"
+check_pattern '\bsk-[A-Za-z0-9_-]{20,}'        "an OpenAI-style API key (OpenAI, OpenRouter, DeepSeek, Moonshot, Qwen)"
+check_pattern '\bcsk-[A-Za-z0-9_-]{20,}'       "a Cerebras API key"
+check_pattern '\bxai-[A-Za-z0-9_-]{20,}'       "an xAI (Grok) API key"
+check_pattern '\bnvapi-[A-Za-z0-9_-]{20,}'     "an NVIDIA API key"
+check_pattern '\btvly-[A-Za-z0-9_-]{16,}'      "a Tavily API key"
 check_pattern 'gsk_[A-Za-z0-9]{32,}'           "a Groq API key"
+check_pattern 'hf_[A-Za-z0-9]{20,}'            "a Hugging Face token"
+check_pattern 'fw_[A-Za-z0-9]{20,}'            "a Fireworks API key"
 check_pattern 'AIza[A-Za-z0-9_-]{30,}'         "a Google API key"
 check_pattern 'gh[pousr]_[A-Za-z0-9]{30,}'     "a GitHub token"
 check_pattern 'AKIA[A-Z0-9]{16}'               "an AWS access key id"
