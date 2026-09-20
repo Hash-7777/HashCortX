@@ -91,10 +91,17 @@
    * A group is removed only when the largest group holds at least four parts
    * and nearly half the model — otherwise there is no main body to prefer and
    * nothing is taken away. Audit parts are never judged.
+   *
+   * `subjects` is how many separate things the run worked out the request to
+   * ask for (js/forge/subject.js), or 0 when nothing settled it. Two or more
+   * and nothing is taken away. The word list below is kept as well, and can
+   * only ever grant permission to keep parts, never take it back: removing
+   * parts is the destructive answer, so a disagreement resolves towards
+   * leaving the design alone.
    */
-  function keepOneSubject(parts, prompt) {
+  function keepOneSubject(parts, prompt, subjects = 0) {
     const unchanged = { parts, removed: [] };
-    if (allowsSeveralSubjects(prompt)) return unchanged;
+    if (Number(subjects) >= 2 || allowsSeveralSubjects(prompt)) return unchanged;
     const body = parts.filter((p) => p.role !== "audit");
     if (body.length < 4) return unchanged;
     const clusters = clustersOf(body);
@@ -134,6 +141,9 @@
    *
    * Returns `empty: true` with the gate's plan when nothing in the design could
    * be measured, so a caller never replaces a scene with nothing.
+   *
+   * `opts.subjects` is how many separate things the request asks for; see
+   * keepOneSubject above.
    */
   function preparePlan(plan, opts = {}) {
     const NP = window.HCForgePlanNormalize;
@@ -143,7 +153,7 @@
     if (!out.parts.length) {
       return { plan: gate, empty: true, report: { stats: out.stats, issues: out.issues, moves: [], seams: [], removed: [] } };
     }
-    const single = keepOneSubject(out.parts, opts.prompt);
+    const single = keepOneSubject(out.parts, opts.prompt, opts.subjects || 0);
     const parts = centreOnAxis(single.parts);
     // A part that was removed is not also "left where the design put it".
     const gone = new Set(single.removed);

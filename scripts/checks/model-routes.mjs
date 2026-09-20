@@ -222,7 +222,11 @@ console.log('\nA streamed answer is waited on while it keeps arriving:');
   let real = null;
   try { real = R.quietSignal(null, { first: 50, between: 50 }); real.cleanup(); } catch (e) { real = e; }
   ok('the real timers are called as themselves, not as another object\'s methods', real && !(real instanceof Error));
-  ok('the Forge waits this way for its plan', /window\.HCModelRoutes\.quietSignal\(signal, quiet\)/.test(src('modes', 'forge', 'mode.js')) && /askModelForPlan\(prompt, prefs, routedSignal\.signal, routedSignal\.tick\)/.test(src('modes', 'forge', 'mode.js')));
+  // What this guards is that the plan call is given the ROUTED signal and the
+  // tick that keeps it alive, not the run's own signal. It used to pin the
+  // whole argument list, so adding an argument ahead of them read as the
+  // waiting having been removed.
+  ok('the Forge waits this way for its plan', /window\.HCModelRoutes\.quietSignal\(signal, quiet\)/.test(src('modes', 'forge', 'mode.js')) && /askModelForPlan\([^)]*routedSignal\.signal, routedSignal\.tick\)/.test(src('modes', 'forge', 'mode.js')));
 }
 
 console.log('\nThe hand-written catalogue drops what its providers shut down:');

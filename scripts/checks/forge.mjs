@@ -763,15 +763,26 @@ console.log('\nA finished run stops counting as one in flight:');
     /if \(abortCtrl !== ctrl\)[\s\S]{0,120}return;[\s\S]{0,200}parseJsonPayload/.test(improve));
 }
 
-console.log('\nThe design call is the only network call a run makes:');
+console.log('\nA run reaches for nothing but a model:');
 {
   const body = bodyOf('forgeRun');
   check('no reference brief is gathered', !/gatherReferenceBrief/.test(src));
   check('the run runs no web search', !/web_search/.test(src));
   check('the run fetches no page', !/fetch_url/.test(src));
   check('and the design call is not handed one', !/referenceBrief/.test(src));
-  check('the run goes straight from the prompt to the design call',
-    /updateStage\("generate", "active", "parameter agent"\)[\s\S]{0,120}requestForgeKernelPlan/.test(body));
+  // Two model calls now, where there used to be one. The first asks what the
+  // object IS, so the second designs against that rather than against a page of
+  // general instruction alone — js/forge/subject.js. It is never fatal, which is
+  // what makes it affordable: a run that cannot reach a model for it carries on.
+  check('the run works out what the thing is first',
+    /updateStage\("generate", "active", "working out what this is"\)[\s\S]{0,200}askForSubjectBrief/.test(body));
+  check('and then goes straight to the design call',
+    /updateStage\("generate", "active", "parameter agent"\)[\s\S]{0,120}requestForgePlan/.test(body));
+  // A run growing a third call is how the Forge got to four of them last time.
+  const asked = [...body.matchAll(/await\s+([A-Za-z_$][\w$]*)\s*\(/g)].map((m) => m[1])
+    .filter((n) => /^(ask|request|fetch|gather|get)/i.test(n));
+  check('and those two are the only calls a run makes',
+    asked.join(',') === 'askForSubjectBrief,requestForgePlan', asked.join(',') || 'none found');
 }
 
 console.log('\nThe model is grounded once, by one estimator:');

@@ -391,7 +391,13 @@ const LINE_BUDGET = {
   // file, offered for correction, and counted as the person's parts. The
   // planner also says when no model is set up, instead of reporting that
   // every route failed.
-  'modes/forge/mode.js': 3720,
+  // 3724, up four. The three-way prompt classifier is gone, and with it the
+  // routes it announced: it never reached the model, so a femur and a doorknob
+  // were designed by identical instructions under different names. What a run
+  // designs is now worked out per request in js/forge/subject.js and asked for
+  // in js/forge/ask-subject.js, and the mode only calls them — four lines more
+  // than the classifier it replaced, with two new files carrying the work.
+  'modes/forge/mode.js': 3724,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

@@ -107,6 +107,9 @@
   let activeProjectId = null;
   let projectSaveTimer = 0;
   let activeForgeRoute = "parametric";
+  // What the current run worked out the object to be, before its geometry was
+  // asked for — js/forge/subject.js. Improve and the assembler both read it.
+  let activeForgeBrief = null;
   // What one scene unit is worth in millimetres, measured from the model that
   // is actually on screen. Zero until something is built — a factor guessed
   // before there is geometry would be a wrong number shown with confidence.
@@ -1804,7 +1807,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       }
       log("Improve", `${counts.changed} changed · ${counts.added} added · ${counts.removed} removed`, "ok");
 
-      const plan = assembleDeterministically({ ...activePlan, nodes }, $("frgPrompt")?.value || "");
+      const plan = assembleDeterministically({ ...activePlan, nodes }, $("frgPrompt")?.value || "", window.HCForgeSubject?.subjectsOf(activeForgeBrief) || 0);
       buildPlan(plan);
       saveCurrentProject(false);
       setStatus("Ready");
@@ -2497,7 +2500,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
    * a fixed size would be a change of appearance dressed as a correction. When
    * there is a measurement to justify a target, pass targetSize here.
    */
-  function assembleDeterministically(plan, prompt = "") {
+  function assembleDeterministically(plan, prompt = "", subjects = 0) {
     const prep = window.HCForgePrepare;
     if (!prep || !plan || !Array.isArray(plan.nodes) || !plan.nodes.length) return plan;
     let out;
@@ -2506,7 +2509,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       // span is passed so every step after the assembler works at the scene's
       // size, whatever unit the design was written in. Grounding is left to
       // buildPlan, which measures the meshes it actually creates.
-      out = prep.preparePlan(plan, { prompt, targetSize: U()?.WORKING_SPAN || 0 });
+      out = prep.preparePlan(plan, { prompt, subjects, targetSize: U()?.WORKING_SPAN || 0 });
     } catch (err) {
       log("Assemble", `skipped: ${err?.message || err}`, "warn");
       return plan;
@@ -2906,27 +2909,28 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     controls.update();
   }
 
-  function classifyForgePrompt(prompt) {
-    const q = String(prompt || "").toLowerCase();
-    if (/\b(skull|skeleton|anatomy|anatomical|ribcage|rib cage|heart|brain|torso|hand bones?|femur|humerus|tibia|spine|vertebra|pelvis|mandible|cranium|organ|bones?)\b/.test(q)) {
-      return {
-        route: "anatomical",
-        object: prompt,
-        brief: "Anatomical structure requiring SDF composition with union, subtraction, smooth blends, and marching surface extraction.",
-      };
-    }
-    if (/\b(tree|oak|cloud|smoke|creature|dragon|monster|abstract sculpture|amorphous|coral|moss|terrain|rock formation)\b/.test(q)) {
-      return {
-        route: "organic_diffusion",
-        object: prompt,
-        brief: "Irregular organic form better suited to image-to-3D diffusion.",
-      };
-    }
-    return {
-      route: "parametric",
-      object: prompt,
-      brief: "Manufactured or engineered object suitable for lathe, tube, extrude, box, sphere, and loft primitives.",
-    };
+  /**
+   * What the thing is, worked out before any geometry is asked for.
+   *
+   * This replaces a classifier that matched the prompt against three regular
+   * expressions and announced a "route" — anatomical, organic diffusion or
+   * parametric — that never reached the model and changed nothing about what
+   * was built. Read the header of js/forge/subject.js for what that cost.
+   *
+   * The call is in js/forge/ask-subject.js, and it is never fatal: a run that
+   * cannot reach a model carries on with what the request's own words settle.
+   */
+  function askForSubjectBrief(prompt, signal) {
+    return window.HCForgeAskSubject.ask(prompt, signal, {
+      call: (model, messages, s) => window._H.ollamaChat(model, messages, null, s),
+      models: () => Array.from(document.getElementById("model")?.options || [])
+        .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
+        .filter((o) => o.value && !o.value.startsWith("\u2500")),
+      chosen: () => selectedModelFor("god"),
+      label: modelLabel,
+      strength: (o) => modelStrengthScore(o.value, o.label, true),
+      trace: (message, kind) => log("Subject", message, kind),
+    });
   }
 
   /**
@@ -2967,17 +2971,14 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     setAgentState("god", "thinking");
     log("Orchestrator", `Run ${traceRunCount} started`, "boss");
     autoAssignForgeModels(prompt, false);
-    let routeBrief = classifyForgePrompt(prompt);
-    if (routeBrief.route === "organic_diffusion") {
-      routeBrief = {
-        ...routeBrief,
-        route: "parametric",
-        brief: "Organic mesh approximation routed through direct AI geometry because no diffusion backend is configured.",
-      };
-      log("Router", "Diffusion backend unavailable; routing organic prompt to direct mesh geometry", "warn");
+    activeForgeRoute = "parametric";
+    if (!useSample) {
+      updateStage("generate", "active", "working out what this is");
+      activeForgeBrief = await askForSubjectBrief(prompt, ctrl.signal);
+      if (ctrl.signal.aborted) return;
+    } else {
+      activeForgeBrief = null;
     }
-    activeForgeRoute = routeBrief.route;
-    log("God Agent", `Route: ${routeBrief.route}`, "boss", routeBrief.brief);
     log("Parameter Agent", useSample ? "Loading sample geometry plan." : `Designing "${prompt}" with ${modelLabel(selectedModelFor("god"))}`, "run");
 
     let plan = null;
@@ -2987,10 +2988,10 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     } else {
       try {
         updateStage("generate", "active", "parameter agent");
-        plan = await requestForgeKernelPlan(prompt, prefs, routeBrief, ctrl.signal);
+        plan = await requestForgePlan(prompt, prefs, activeForgeBrief, ctrl.signal);
         if (plan) {
-          plan.route = routeBrief.route;
-          log(routeBrief.route === "anatomical" ? "SDF Kernel" : "Geometry Kernel", `Executed ${routeBrief.route} mesh plan · ${plan.nodes.length} mesh part(s)`, "ok");
+          plan.route = "parametric";
+          log("Geometry", `Built the design · ${plan.nodes.length} mesh part(s)`, "ok");
         }
       } catch (err) {
         failForgeRun("Parameter Agent", "Model generation failed: " + (err.message || err));
@@ -3017,7 +3018,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     // symmetry, contact, nothing floating — is measured in
     // src/js/model-plan.js, and Improve exists for the times a person looks at
     // the result and wants another pass.
-    if (!useSample && routeBrief.route !== "organic_diffusion" && !ctrl.signal.aborted) {
+    if (!useSample && !ctrl.signal.aborted) {
       updateStage("refine", "active", "assembling");
 
       // There was a padding pass here, topping a sparse plan up to a minimum
@@ -3029,11 +3030,11 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       // correctly, and padding a good twelve-part model up to forty is the
       // opposite of that.
       plan = normalizePlan(plan);
-      plan.route = routeBrief.route;
+      plan.route = "parametric";
     }
-    updateStage("refine", "done", plan.route === "anatomical" ? "sdf smoothed" : "post-process done");
+    updateStage("refine", "done", "assembled");
 
-    plan = assembleDeterministically(plan, useSample ? "" : prompt);
+    plan = assembleDeterministically(plan, useSample ? "" : prompt, window.HCForgeSubject?.subjectsOf(activeForgeBrief) || 0);
 
     // ── What made this ────────────────────────────────────────────────
     //
@@ -3055,6 +3056,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
         style: prefs?.style,
         detail: prefs?.detail,
         route: plan.route,
+        subject: activeForgeBrief?.subject || undefined,
         at: new Date().toISOString(),
       };
     }
@@ -3101,7 +3103,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
   // "Fetch is aborted"; a longer one just waits longer on a model that stalled.
   const QUIET_MS = { cloud: { first: 90_000, between: 30_000 }, local: { first: 180_000, between: 60_000 } };
 
-  async function askGodPlanWithFailover(prompt, prefs, signal) {
+  async function askGodPlanWithFailover(prompt, prefs, brief, signal) {
     const sel = $("frgModel_god");
     const original = sel?.value || "";
     // Every model a person can run, not one per provider: when a provider says
@@ -3133,7 +3135,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       const quiet = QUIET_MS[provider === "local" ? "local" : "cloud"];
       const routedSignal = window.HCModelRoutes.quietSignal(signal, quiet);
       try {
-        return await askModelForPlan(prompt, prefs, routedSignal.signal, routedSignal.tick);
+        return await askModelForPlan(prompt, prefs, brief, routedSignal.signal, routedSignal.tick);
       } catch (caught) {
         if (signal?.aborted) throw caught;
         const err = routedSignal.signal.aborted ? Object.assign(new Error(routedSignal.heard() ? `stopped answering for ${quiet.between / 1000} s` : `no answer within ${quiet.first / 1000} s`), { timedOut: true }) : caught;
@@ -3150,16 +3152,15 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
   }
 
 
-  async function requestForgeKernelPlan(prompt, prefs, routeBrief, signal) {
-    const route = routeBrief?.route || "parametric";
+  async function requestForgePlan(prompt, prefs, brief, signal) {
     // Geometry is generated by asking a model directly. There used to be a
     // branch here that POSTed to /api/forge-kernel first and fell back to this
     // — but it ran only when NOT inside Tauri, and this app is only ever
     // inside Tauri, so the request was never made. No such server ships with
     // HashCortX, and none is planned.
     log("God Agent", "Direct AI geometry mode", "run");
-    const plan = await askGodPlanWithFailover(prompt, prefs, signal);
-    if (plan) plan.route = route;
+    const plan = await askGodPlanWithFailover(prompt, prefs, brief, signal);
+    if (plan) plan.route = "parametric";
     return plan;
   }
 
@@ -3177,7 +3178,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
    *
    * Forge is now offline again, which is what docs/SECURITY.md always said.
    */
-  async function askModelForPlan(prompt, prefs, signal, onToken = null) {
+  async function askModelForPlan(prompt, prefs, brief, signal, onToken = null) {
     const api = window._H;
     const model = selectedModelFor("god");
     if (!api?.ollamaChat || !model) throw new Error("no model bridge");
@@ -3246,7 +3247,7 @@ How to build it:
   has its two sides on Z, so that one wants "z". ("mirror": true still means "x".) The app
   mirrors it exactly, and moves a pair together afterwards so they stay matched.
   Do not hand-place a left and a right copy — they will never match, and the app will not fix it.
-- Every part must touch or overlap another. One object, nothing floating beside it.
+${window.HCForgeSubject.subjectRule(brief?.objects)}
 - Do not add audit markers, rings, reference planes, rulers or floor pads. The app measures
   clearance, balance and floor contact itself, and anything like that becomes an unwanted part.
 - Axes: +Y is up, +X is right, +Z is towards the viewer. Orient the object the way it rests
@@ -3266,8 +3267,11 @@ How to build it:
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
 - For 3D print, keep parts visibly connected and avoid tiny fragile details. For GLB, keep parts
   separate and named with clean pivots.`;
+    // What the object is, settled in its own call first. Empty when nothing
+    // could be settled, and then this call decides it all, as it always did.
+    const about = window.HCForgeSubject.briefLines(brief);
     const user = `Design this as a complete 3D model, ready to preview and export.
-Prompt: ${prompt}`;
+Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     const text = await api.ollamaChat(model, [
       { role: "system", content: system },
       { role: "user", content: user },
