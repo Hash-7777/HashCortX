@@ -447,7 +447,11 @@ const LINE_BUDGET = {
   // attachPlanningMetadata reads the architect's own answer, has it checked,
   // and takes the room per dependency from the size of what is being made.
   // Three fixed lists left js/swarm/task-kind.js in the same change.
-  'modes/agent-maker/mode.js': 2320,
+  // 2349, up twenty-nine. A run works out what it owes for the task being run
+  // rather than the one the team was made for, so a saved team run on a
+  // different request no longer carries the first request's deliverables. Both
+  // run paths now work on a copy, and the trace names what the run owes.
+  'modes/agent-maker/mode.js': 2349,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

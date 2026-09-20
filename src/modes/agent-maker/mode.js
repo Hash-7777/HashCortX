@@ -754,9 +754,18 @@ const SwarmMaker = (() => {
 
     // A website build runs with the website rules on a copy. Written into the
     // saved team, they took a research team's web search away for good.
-    const runBp = isCodeBuildTask(task) ? hardenGodBlueprint(structuredClone(bp), task, []) : bp;
+    //
+    // Either way the run works on a copy, because what a team owes is worked
+    // out for the task being run and not for the one it was made for: a team
+    // saved for one request and run on another used to carry the first
+    // request's deliverables into the second.
+    const codeRun = isCodeBuildTask(task);
+    const runBp = codeRun
+      ? hardenGodBlueprint(structuredClone(bp), task, [])
+      : deliverablesForRun(structuredClone(bp), work);
     const added = runBp.agents.filter(a => !bp.agents.some(b => b.id === a.id)).map(a => a.name);
-    if (runBp !== bp) traceAdd("Orchestrator", `Website rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
+    if (codeRun) traceAdd("Orchestrator", `Website rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
+    traceAdd("Orchestrator", `This run owes ${DELIVERABLES.summaryOf({ items: runBp.artifactContracts || [], pieces: [] })} · ${(runBp.artifactContracts || []).map(a => a.name).join(", ")}`, "boss");
 
     // Reset all node statuses
     nodeStatuses = {};
@@ -1087,6 +1096,26 @@ const SwarmMaker = (() => {
     // characters per dependency is less than one page of a shop, so the agent
     // that had to put the files together received them cut and wrote its own.
     parsed.budgetControls = { ...DELIVERABLES.budgetsFor(plan), ...(parsed.budgetControls || {}) };
+  }
+
+  /**
+   * The deliverables for the task actually being run.
+   *
+   * A team designed for one request carries its architect's own answer, and
+   * that still applies when it is run on that request. Run on a different one
+   * it does not, so the answer is dropped and the deliverables are worked out
+   * again from what is being asked. Always on a copy — the saved team is never
+   * rewritten by a run.
+   */
+  function deliverablesForRun(copy, task) {
+    const madeFor = String(copy.task || "").trim();
+    const running = String(task || "").trim();
+    if (madeFor && running && madeFor !== running) {
+      delete copy.artifactContracts;
+      delete copy.qualityGates;
+    }
+    attachPlanningMetadata(copy, running || madeFor);
+    return copy;
   }
 
   function ensureEdgeReasons(parsed) {

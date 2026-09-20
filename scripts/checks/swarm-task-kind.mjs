@@ -119,6 +119,18 @@ console.log('\nA run never rewrites the saved team:');
   ok('and never to the team itself', !/hardenGodBlueprint\(bp\b/.test(run));
   ok('the copy is what runs and what the run records', /runDAG\(runBp,/.test(run) && /aggregateResults\(runBp,/.test(run) && /startRun\(\{ \.\.\.runBp, finalOutputAgentId:[^\n]*\}, work\)/.test(run));
   ok('and the trace says the saved team is unchanged', /the saved team is unchanged/.test(run));
+  // Both paths work on a copy now, because what a team owes is worked out for
+  // the task being run. A team saved for one request and run on another used
+  // to carry the first request's deliverables into the second.
+  ok('a run that is not a build also works on a copy', /deliverablesForRun\(structuredClone\(bp\), work\)/.test(run));
+  ok('neither path passes the saved team itself', !/:\s*bp;/.test(run));
+  ok('the trace names what the run owes', /This run owes/.test(run));
+}
+{
+  const fn = /function deliverablesForRun\([\s\S]*?\n  \}\n/.exec(mode)?.[0] || '';
+  ok('a team run on the request it was made for keeps its architect\'s answer', /madeFor !== running/.test(fn));
+  ok('and one run on a different request drops it', /delete copy\.artifactContracts/.test(fn) && /delete copy\.qualityGates/.test(fn));
+  ok('the deliverables are then worked out again', /attachPlanningMetadata\(copy,/.test(fn));
 }
 
 console.log('\nThe Agent Swarm reads these from one place:');

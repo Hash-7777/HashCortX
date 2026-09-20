@@ -119,6 +119,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   its entries, and a landing page gets none of them. The bar each result is
   held to is assembled the same way, so nothing is marked against a feature it
   was never asked for.
+- **A saved team run on a different task works out what it owes again.** A
+  team kept its deliverables from the request it was designed for, so running
+  it on something else carried the first request's outputs into the second.
+  Every run now works from a copy and decides what it owes from the task in
+  front of it, and the trace says what that is before the team starts.
 - **A shop, a storefront and a browser game are recognised as builds.** The
   rules that tell a team the exact file names, make each agent write its files
   whole, and set the bar, only applied to a task whose words included
