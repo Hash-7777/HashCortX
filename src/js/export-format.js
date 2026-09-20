@@ -211,6 +211,11 @@
     gltf: 'model/gltf+json',
     stl: 'model/stl',
     obj: 'text/plain;charset=utf-8',
+    // Both are written by the 3D Forge and neither was here, so each was
+    // saved as a stream of bytes of no particular kind.
+    '3mf': 'model/3mf',
+    step: 'model/step',
+    stp: 'model/step',
     docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -234,6 +239,7 @@
     yaml: 'YAML', yml: 'YAML', pdf: 'PDF', png: 'PNG image', jpg: 'JPEG image',
     jpeg: 'JPEG image', webp: 'WebP image', zip: 'Zip archive',
     glb: '3D model', gltf: '3D model', stl: '3D model', obj: '3D model',
+    '3mf': '3D model', step: 'CAD solid', stp: 'CAD solid',
     docx: 'Word document', xlsx: 'Excel workbook', pptx: 'PowerPoint deck',
   };
 

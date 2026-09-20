@@ -233,5 +233,77 @@ console.log('\nNothing else saves through a download link:');
   check('the scan saw the source', files.length > 50, `${files.length} files`);
 }
 
+// A file this app writes is written as a kind of file. Two of the 3D Forge's
+// five export formats were not in the type table, so each was saved as a
+// stream of bytes of no particular kind and the save dialog offered no name
+// for what it was. A format is easy to add and easy to forget, so the source
+// is read for what it actually writes.
+console.log('\nEvery format this app writes is a known kind of file:');
+{
+  const { readdirSync, statSync } = await import('node:fs');
+  const sandbox = { window: {} };
+  vm.createContext(sandbox);
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'export-format.js'), 'utf8'), sandbox, { filename: 'export-format.js' });
+  const EX = sandbox.window.HCExport;
+
+  const seen = new Set();
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      if (name === 'vendor' || name === 'wheels' || name === 'assets') continue;
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) { walk(full); continue; }
+      if (!name.endsWith('.js')) continue;
+      const text = readFileSync(full, 'utf8');
+      // The name handed to something that writes a file. Matched at the call
+      // rather than anywhere a dot appears in a template, so a property read
+      // like `${x}.value` is not mistaken for a format.
+      for (const m of text.matchAll(/(?:save\.file|save\.fileInto|saveExport|downloadBlob|saveTextFile)\(\s*(?:[^,()]*,\s*)?`[^`\n]*\.([a-z0-9]{2,5})`/gi)) {
+        seen.add(m[1].toLowerCase());
+      }
+    }
+  };
+  walk(join(root, 'src'));
+  const written = [...seen].sort();
+  check('the scan found the formats', written.length >= 8, written.join(', '));
+  for (const ext of written) {
+    const mime = EX.mimeFor(`x.${ext}`);
+    check(`.${ext} is a known kind`, mime !== 'application/octet-stream', `saved as ${mime}`);
+  }
+  // The two that were missing, named so this cannot quietly regress.
+  check('3MF carries its own kind', EX.mimeFor('m.3mf') === 'model/3mf');
+  check('STEP carries its own kind', EX.mimeFor('m.step') === 'model/step');
+  check('and the dialog names them', EX.dialogFilter('m.3mf').name === '3D model' && EX.dialogFilter('m.step').name === 'CAD solid');
+}
+
+// Two elements cannot share one id: getElementById answers with whichever the
+// document happens to put first, so a handler bound to "the" input is bound to
+// one of them and the other is a control that does nothing. One shipped, in
+// the ERP's import dialog.
+console.log('\nNo two file inputs share an id:');
+{
+  const { readdirSync, statSync } = await import('node:fs');
+  const ids = new Map();
+  const walk = (dir) => {
+    for (const name of readdirSync(dir)) {
+      if (name === 'vendor' || name === 'wheels' || name === 'assets') continue;
+      const full = join(dir, name);
+      if (statSync(full).isDirectory()) { walk(full); continue; }
+      if (!/\.(js|html)$/.test(name)) continue;
+      const text = readFileSync(full, 'utf8');
+      for (const m of text.matchAll(/<input[^>]*\btype=["']file["'][^>]*>/gi)) {
+        const id = /\bid=["']([^"']+)["']/.exec(m[0]);
+        if (!id) continue;
+        if (!ids.has(id[1])) ids.set(id[1], []);
+        ids.get(id[1]).push(full.slice(root.length + 1));
+      }
+    }
+  };
+  walk(join(root, 'src'));
+  check('the scan found the file inputs', ids.size >= 6, `${ids.size} found`);
+  for (const [id, where] of ids) {
+    check(`#${id} is declared once`, where.length === 1, where.join(' and '));
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/save.js)`);
 process.exit(fail ? 1 : 0);

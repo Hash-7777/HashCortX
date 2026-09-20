@@ -146,15 +146,19 @@
   <div class="amk-dialog" id="sysImportModal" style="z-index:310;">
     <div class="amk-dialog-inner" style="width:440px;max-width:95vw;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <span style="font-size:13px;font-weight:700;color:var(--text);" id="sysImportTitle">Import System</span>
+        <span style="font-size:13px;font-weight:700;color:var(--text);" id="sysImportTitle">Import</span>
         <button class="amk-btn" id="sysImportClose" style="padding:4px 9px;">&#215;</button>
       </div>
       <div id="sysImportBody" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
       <div id="sysImportCount" style="font-size:11px;font-family:var(--mono);color:var(--sys-accent);margin-bottom:14px;"></div>
-      <label style="display:block;padding:20px;border:2px dashed var(--sys-line);border-radius:8px;text-align:center;cursor:pointer;margin-bottom:14px;">
-        <span style="font-size:13px;color:var(--muted);">Click to select JSON file</span>
-        <input type="file" id="sysImportFile" accept=".json" style="display:none;" />
-      </label>
+      <!-- A second file input lived here, for a JSON import that does not
+           exist: nothing opened it, nothing listened to it, and it carried the
+           same id as the CSV one the drop zone builds. Two elements with one
+           id means getElementById answers with whichever comes first, so the
+           id was pointing at one of them and the dashed box sat under the CSV
+           drop zone offering to select a JSON file that would go nowhere. The
+           title below is set per open; the markup's own default named a system
+           import that no longer happens either. -->
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button class="amk-btn" id="sysImportCancel">Cancel</button>
         <button class="amk-btn primary" id="sysImportConfirm" disabled>Import</button>

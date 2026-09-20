@@ -123,6 +123,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a file read as a file that ends there — and the rest got written from
   guesswork. It now says where it was cut, how much there was, and who wrote
   it.
+- **The ERP's import dialog no longer offers a file picker that does nothing.**
+  A second file input sat under the CSV drop zone offering to select a JSON
+  file, for an import that does not exist. It carried the same id as the CSV
+  one, and two elements with one id means the app can only ever find whichever
+  comes first. It is gone, and a check now refuses any two file inputs that
+  share an id.
+- **3MF and STEP files are saved as what they are.** Two of the 3D Forge's five
+  export formats were missing from the table of file kinds, so each was written
+  as a stream of bytes of no particular kind and the save dialog had no name for
+  it. Every format the app writes is now checked against that table.
 - **The model lists no longer offer models that are gone.** The list shown
   before a provider has been asked had rotted again: seven of the eight free
   OpenRouter models in it no longer existed, so a first run offered eight and
