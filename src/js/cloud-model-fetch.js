@@ -40,7 +40,7 @@
   const NAMES = {
     groq: 'Groq', gemini: 'Google', openrouter: 'OpenRouter', cerebras: 'Cerebras', openai: 'OpenAI',
     anthropic: 'Anthropic', moonshot: 'Kimi', deepseek: 'DeepSeek', mistral: 'Mistral',
-    samba: 'SambaNova', nvidia: 'NVIDIA',
+    samba: 'SambaNova', nvidia: 'NVIDIA', cloudflare: 'Cloudflare',
     xai: 'Grok', together: 'Together', fireworks: 'Fireworks', zai: 'Z.ai', qwen: 'Qwen',
     huggingface: 'Hugging Face', deepinfra: 'DeepInfra', novita: 'Novita', venice: 'Venice',
   };
@@ -227,6 +227,18 @@
         .sort(byName);
     }
 
+    // Cloudflare does not answer the OpenAI model list at all — that address
+    // refuses a GET — so its own list is read instead, already narrowed to the
+    // models that hold a conversation by the address the app builds. Its ids
+    // are paths beginning "@cf/", which is what its chat endpoint expects.
+    async function fetchCloudflareModels(apiKey) {
+      const j = await bridgedJson('Cloudflare', 'cloudflare', apiKey);
+      return (j.result || [])
+        .filter((m) => m && typeof m.name === 'string' && !NOT_CHAT.test(m.name))
+        .map((m) => entry('cloudflare', m.name, prettify(m.name.replace(/^@cf\//, ''))))
+        .sort(byName);
+    }
+
     async function fetchNvidiaModels(apiKey) {
       const j = await bridgedJson('NVIDIA', 'nvidia', apiKey);
       return (j.data || [])
@@ -316,6 +328,7 @@
       mistral: fetchMistralModels,
       samba: fetchSambaModels,
       nvidia: fetchNvidiaModels,
+      cloudflare: fetchCloudflareModels,
 
       xai: openAiShaped('xai', 'https://api.x.ai/v1/models'),
       together: openAiShaped('together', 'https://api.together.xyz/v1/models', {

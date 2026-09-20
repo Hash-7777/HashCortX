@@ -137,7 +137,13 @@ const LINE_BUDGET = {
   // to rebuild the menu. NVIDIA had been missing from that last one since it
   // was added, so a saved NVIDIA key did nothing until something else happened
   // to rebuild the menu.
-  'js/app.js': 6531,
+  // 6554, up twenty-three. Cloudflare Workers AI, whose free tier needs no
+  // card. It refuses a web page, so it goes through the app like SambaNova and
+  // NVIDIA — but it is the only provider that needs two things rather than one,
+  // because its account id is part of its address. bridgedRequest() is the one
+  // place that adds it, so no call site can forget it: a missing account reads
+  // as the provider refusing the key, which is the wrong thing to be told.
+  'js/app.js': 6554,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

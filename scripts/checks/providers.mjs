@@ -103,16 +103,40 @@ for (const [id, p] of Object.entries(P.PROVIDERS)) {
 const rust = readFileSync(join(root, 'src-tauri', 'src', 'commands', 'provider.rs'), 'utf8');
 const rustRows = [...rust.matchAll(/\("([a-z-]+)", "([a-z]+)"\) => Some\("(https:\/\/[^"]+)"\)/g)]
   .map((m) => ({ provider: m[1], route: m[2], url: m[3] }));
+// Cloudflare is not in that table and cannot be: its account id is part of the
+// path, so its two addresses are built from a template beside it. Read from
+// there, and checked below for the one thing that makes that safe — that the
+// id is held to thirty-two hex digits before it goes anywhere near a URL.
+const cfRows = [...rust.matchAll(/"([a-z]+)" => "(ai\/[^"]+)"/g)]
+  .map((m) => ({ provider: 'cloudflare', route: m[1], url: `https://api.cloudflare.com/client/v4/accounts/<account>/${m[2]}` }));
+console.log('\nThe one address with a piece that comes from the caller:');
+{
+  // Cloudflare puts the account id in the path, so one segment of one address
+  // is not written in the source. This is what keeps that from being a hole.
+  ok('the account id is checked before it is used', /fn check_account/.test(rust));
+  ok('it must be exactly thirty-two characters', /account\.len\(\) == 32/.test(rust));
+  ok('and every one of them a hex digit', /is_ascii_digit\(\) \|\| \(b'a'\.\.=b'f'\)/.test(rust));
+  ok('the host and the rest of the path are still written in the source',
+    /https:\/\/api\.cloudflare\.com\/client\/v4\/accounts\/\{account\}\//.test(rust));
+  ok('a bad id refuses the request rather than sending it',
+    /if let Err\(e\) = check_account\(&account\)[\s\S]{0,80}return fail\(e\)/.test(rust));
+  ok('the account is ignored for every other provider',
+    /if provider == "cloudflare"[\s\S]{0,600}\} else \{[\s\S]{0,200}endpoint\(&provider, &route\)/.test(rust));
+  ok('Cloudflare is not in the fixed table', !rustRows.some((r) => r.provider === 'cloudflare'));
+  ok('and its two routes were read from the template', cfRows.length === 2, `${cfRows.length} rows`);
+}
+
 console.log('\nThe providers the app sends for itself:');
 {
   ok('the fixed table was read out of provider.rs', rustRows.length >= 6, `${rustRows.length} rows`);
   const bridged = Object.entries(P.PROVIDERS).filter(([, p]) => p.bridge);
-  ok('SambaNova and NVIDIA are among them', bridged.map(([id]) => id).sort().join() === 'nvidia,samba');
-  const inRust = new Set(rustRows.map((r) => r.provider));
+  ok('SambaNova, NVIDIA and Cloudflare are among them', bridged.map(([id]) => id).sort().join() === 'cloudflare,nvidia,samba');
+  const inRust = new Set([...rustRows, ...cfRows].map((r) => r.provider));
+  const allRows = [...rustRows, ...cfRows];
   for (const [id, p] of bridged) {
     ok(`${id} names a route the app really has`, inRust.has(p.bridge) &&
-      rustRows.some((r) => r.provider === p.bridge && r.route === 'chat') &&
-      rustRows.some((r) => r.provider === p.bridge && r.route === 'models'));
+      allRows.some((r) => r.provider === p.bridge && r.route === 'chat') &&
+      allRows.some((r) => r.provider === p.bridge && r.route === 'models'));
     ok(`${id} gives the page no address to fetch`, !p.chatUrl && !p.host && !p.hosts);
     let threw = false;
     try { P.requestFor(id, 'k'); } catch { threw = true; }

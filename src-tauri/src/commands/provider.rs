@@ -67,6 +67,42 @@ fn endpoint(provider: &str, route: &str) -> Option<&'static str> {
     }
 }
 
+/// Cloudflare's account identifier: exactly thirty-two lowercase hex digits.
+///
+/// THIS IS THE ONE PIECE OF AN ADDRESS THAT COMES FROM THE CALLER, and it is
+/// why the check is this narrow rather than "not empty". Cloudflare puts the
+/// account in the path, so there is no fixed string to write above — the
+/// template is fixed here and this one segment is filled in.
+///
+/// Thirty-two characters from `0-9a-f` cannot contain a slash, a dot, a colon,
+/// a percent, a question mark, an at sign or a backslash. So it cannot leave
+/// the path segment it is written into, cannot climb out of it, cannot become
+/// a host, a query or a second address, and cannot be an encoded anything.
+/// The scheme, the host and every other part of the path stay written here.
+fn check_account(account: &str) -> Result<(), String> {
+    if account.len() == 32 && account.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        Ok(())
+    } else {
+        Err("that is not a Cloudflare account id — it is thirty-two characters, 0-9 and a-f.".into())
+    }
+}
+
+/// Cloudflare's two addresses, built from a template written here.
+///
+/// Its own list is not the OpenAI one: `ai/v1/models` answers nothing to a
+/// GET, and the list lives at `ai/models/search` in Cloudflare's own shape.
+fn cloudflare_endpoint(route: &str, account: &str) -> Option<String> {
+    let tail = match route {
+        "chat" => "ai/v1/chat/completions",
+        "models" => "ai/models/search?task=Text%20Generation&per_page=100",
+        _ => return None,
+    };
+    Some(format!(
+        "https://api.cloudflare.com/client/v4/accounts/{account}/{tail}"
+    ))
+}
+
 /// A request body. Pictures travel inside it as base64, so it has to hold a
 /// few screenshots; it does not have to hold a video.
 const MAX_BODY_BYTES: usize = 24 * 1024 * 1024;
@@ -328,16 +364,36 @@ pub async fn provider_request(
     key: String,
     body: Option<String>,
     request_id: String,
+    account: Option<String>,
     on_event: Channel<ProviderEvent>,
 ) -> Result<(), String> {
     let fail = |message: String| {
         let _ = on_event.send(ProviderEvent::Fail { message });
         Ok(())
     };
-    let Some(url) = endpoint(&provider, &route) else {
-        return fail(format!(
-            "the app does not reach \"{provider}\" \"{route}\"."
-        ));
+    // Cloudflare is the only provider whose address is not written whole
+    // above: its account id is part of the path. The id is checked to be
+    // thirty-two hex digits before it is put anywhere near a URL, and every
+    // other part of that address is still fixed here. `account` is ignored
+    // for every other provider, so it cannot alter one of their addresses.
+    let url: String = if provider == "cloudflare" {
+        let account = account.unwrap_or_default();
+        if let Err(e) = check_account(&account) {
+            return fail(e);
+        }
+        match cloudflare_endpoint(&route, &account) {
+            Some(u) => u,
+            None => return fail(format!("the app does not reach \"{provider}\" \"{route}\".")),
+        }
+    } else {
+        match endpoint(&provider, &route) {
+            Some(u) => u.to_string(),
+            None => {
+                return fail(format!(
+                    "the app does not reach \"{provider}\" \"{route}\"."
+                ))
+            }
+        }
     };
     if let Err(e) = check_key(&key)
         .and_then(|_| check_body(&route, body.as_deref()))
@@ -355,7 +411,7 @@ pub async fn provider_request(
     let events = on_event.clone();
     let outcome = tauri::async_runtime::spawn_blocking(move || {
         let _registration = registration;
-        run(url, &key, body, &stop, &events)
+        run(&url, &key, body, &stop, &events)
     })
     .await;
     match outcome {
@@ -410,6 +466,66 @@ mod tests {
                 "{provider} {route} must not exist"
             );
         }
+    }
+
+    /// The one segment of an address that comes from the caller, held to
+    /// thirty-two hex digits — because everything below is what a looser check
+    /// would let through.
+    #[test]
+    fn only_a_real_account_id_reaches_an_address() {
+        assert!(check_account("0123456789abcdef0123456789abcdef").is_ok());
+        for bad in [
+            "",
+            "0123456789abcdef0123456789abcde",   // one short
+            "0123456789abcdef0123456789abcdef0", // one long
+            "0123456789ABCDEF0123456789ABCDEF",  // upper case
+            "0123456789abcdef0123456789abcdeg",  // not hex
+            "../../../../etc/passwd0123456789",
+            "0123456789abcdef/../../../v4/user",
+            "0123456789abcdef0123456789abcde/",
+            "..%2f..%2f..%2fuser0123456789abc",
+            "0123456789abcdef0123456789abcd@x",
+            "attacker.test/0123456789abcdef01",
+            "0123456789abcdef0123456789abcd?x",
+            "0123456789abcdef0123456789abc#ab",
+            "0123456789abcdef0123456789ab cde",
+            "0123456789abcdef0123456789abcd\n0",
+        ] {
+            assert!(
+                check_account(bad).is_err(),
+                "{bad:?} must not reach an address"
+            );
+        }
+    }
+
+    #[test]
+    fn a_checked_account_stays_inside_its_own_path_segment() {
+        let account = "0123456789abcdef0123456789abcdef";
+        for route in ["chat", "models"] {
+            let url = cloudflare_endpoint(route, account).expect("listed");
+            assert!(
+                url.starts_with("https://api.cloudflare.com/client/v4/accounts/"),
+                "{url} must stay on Cloudflare"
+            );
+            // The account appears once, as its own segment, and the host is
+            // still Cloudflare's however it is read.
+            assert_eq!(url.matches(account).count(), 1, "{url}");
+            assert!(url.contains(&format!("/accounts/{account}/")), "{url}");
+            assert_eq!(
+                url.trim_start_matches("https://")
+                    .split('/')
+                    .next()
+                    .unwrap(),
+                "api.cloudflare.com",
+                "{url}"
+            );
+        }
+        assert!(cloudflare_endpoint("completions", account).is_none());
+        assert!(cloudflare_endpoint("", account).is_none());
+        // Cloudflare is not in the fixed table, and no other provider gains a
+        // Cloudflare address.
+        assert!(endpoint("cloudflare", "chat").is_none());
+        assert!(endpoint("cloudflare", "models").is_none());
     }
 
     #[test]

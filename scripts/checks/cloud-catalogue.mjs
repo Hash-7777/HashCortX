@@ -109,7 +109,14 @@ console.log('\nThe app uses it:');
   // SambaNova and NVIDIA go through the app, so they are unreachable only
   // where there is no app — a plain browser — and never inside it.
   ok('a provider only the app can send for is told apart outside it', /isBlocked: \(provider\) => !HC\.isTauri && !!HCProviders\.get\(provider\)\?\.bridge,/.test(app));
-  ok('their lists are asked for through the app', /bridge: \(provider, route, key\) => HC\.providerBridge\.request\(provider, route, \{ key \}\),/.test(app));
+  // Through the one wrapper, not the bridge directly: it is what adds
+  // Cloudflare's account id, and a list asked for without it comes back as a
+  // refused key rather than as a missing account.
+  ok('their lists are asked for through the app', /bridge: \(provider, route, key\) => bridgedRequest\(provider, route, \{ key \}\),/.test(app));
+  ok('and that wrapper is the one place the account is added',
+    /function bridgedRequest\([\s\S]{0,400}via === "cloudflare" \? \{ account: cloudflareAccount\(\) \}/.test(app));
+  ok('nothing reaches the bridge around it',
+    (app.match(/HC\.providerBridge\.request\(/g) || []).length === 1);
   ok('listed limits go to the request sizing', /limits: window\.HCModelLimits,/.test(app));
   ok('Update model lists forgets learnt limits and asks every provider again', /async function refreshModelLists\(\) \{\s*window\.HCModelLimits\.forgetLearned\(\);\s*await refreshCloudModelsFromAPIs\(\{ force: true \}\);/.test(app));
   ok('the menu leaves out models their provider said are gone', /const offeredModels = \(models\) => visibleCloudModels\(models\)\.filter\(m => !window\.HCModelRoutes\.isRetired\(m\.value\)\);/.test(app));

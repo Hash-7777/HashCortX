@@ -11,10 +11,16 @@
 // reads this one exactly as it reads a fetch. Nothing downstream needs to know
 // which way the request went.
 //
-//   HC.providerBridge.request(provider, route, { key, body, signal })
-//     provider  "samba" | "nvidia" | "kimi-code"
+//   HC.providerBridge.request(provider, route, { key, body, signal, account })
+//     provider  "samba" | "nvidia" | "kimi-code" | "cloudflare"
 //     route     "chat" (body: a JSON string) | "models" (no body)
+//     account   Cloudflare only — its account id, which is part of its address
 //     → Promise<Response>
+//
+// Cloudflare is the one provider whose address is not written whole in the
+// app: its account id sits in the path. The app checks that id is thirty-two
+// hex digits before it goes anywhere near a URL, and builds the rest of the
+// address itself, so this still cannot name a host, a port, a query or a path.
 //
 // A stopped request is stopped here at once — the promise rejects, or the
 // stream errors, with an AbortError like fetch's — and the app is told to drop
@@ -39,7 +45,7 @@
     return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
   }
 
-  function request(provider, route, { key, body, signal } = {}) {
+  function request(provider, route, { key, body, signal, account } = {}) {
     const Channel = window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.Channel;
     if (!HC.isTauri || !Channel) {
       return Promise.reject(new TypeError(`${provider} can only be reached from the desktop app.`));
@@ -102,7 +108,9 @@
       };
 
       HC.invoke('provider_request', {
-        provider, route, key: String(key || ''), body: body == null ? null : String(body), requestId, onEvent: channel,
+        provider, route, key: String(key || ''), body: body == null ? null : String(body), requestId,
+        account: account ? String(account) : null,
+        onEvent: channel,
       }).catch((err) => finish(new TypeError(`${provider}: ${(err && err.message) || err}`)));
     });
   }

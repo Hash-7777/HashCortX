@@ -114,6 +114,10 @@
   const deepinfraKeyEl = $("deepinfraKey");
   const novitaKeyEl   = $("novitaKey");
   const veniceKeyEl   = $("veniceKey");
+  const cloudflareKeyEl = $("cloudflareKey");
+  // Not a secret in the way a token is, but it identifies the account, so
+  // it is kept with the token rather than in plain settings.
+  const cloudflareAccountEl = $("cloudflareAccount");
   const sambaKeyEl      = $("sambaKey");
   const openaiKeyEl     = $("openaiKey");
   const anthropicKeyEl  = $("anthropicKey");
@@ -876,7 +880,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     'groqKey','geminiKey','openRouterKey','cerebrasKey','sambaKey',
     'openaiKey','anthropicKey','moonshotKey','deepseekKey','mistralKey',
     'googleKey','googleCx','tavilyKey','nvidiaKey',
-    'xaiKey','togetherKey','fireworksKey','zaiKey','qwenKey','huggingfaceKey','deepinfraKey','novitaKey','veniceKey',
+    'xaiKey','togetherKey','fireworksKey','zaiKey','qwenKey','huggingfaceKey','deepinfraKey','novitaKey','veniceKey','cloudflareKey','cloudflareAccount',
   ];
   const KEY_EL_MAP = {
     groqKey: groqKeyEl, geminiKey: geminiKeyEl, openRouterKey: openRouterKeyEl,
@@ -886,6 +890,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     googleKey: googleKeyEl, googleCx: googleCxEl,
     tavilyKey: tavilyKeyEl, nvidiaKey: nvidiaKeyEl,
     xaiKey: xaiKeyEl, togetherKey: togetherKeyEl, fireworksKey: fireworksKeyEl, zaiKey: zaiKeyEl, qwenKey: qwenKeyEl, huggingfaceKey: huggingfaceKeyEl, deepinfraKey: deepinfraKeyEl, novitaKey: novitaKeyEl, veniceKey: veniceKeyEl,
+    cloudflareKey: cloudflareKeyEl, cloudflareAccount: cloudflareAccountEl,
   };
   if (window.HC && HC.keychain) {
     HC.keychain.loadAll(HC_KEY_PROVIDERS).then(keys => {
@@ -2387,12 +2392,24 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return Object.assign(new Error(cloudHttpError(provider, res.status, body, res.headers.get("Retry-After"))), { status: res.status, body });
   }
 
+  // Cloudflare's account id, which is part of its address. Every bridged
+  // request goes through the one function below so that no call site has to
+  // remember it — a forgotten account reads as Cloudflare refusing the key.
+  const cloudflareAccount = () => (cloudflareAccountEl?.value || "").trim();
+  function bridgedRequest(via, route, options = {}) {
+    return HC.providerBridge.request(via, route, {
+      ...options,
+      ...(via === "cloudflare" ? { account: cloudflareAccount() } : {}),
+    });
+  }
+
   // One chat request. Most providers are fetched from the page; SambaNova,
-  // NVIDIA and a Kimi Code key refuse a page, so the app sends theirs to an
-  // address fixed in Rust (platform/tauri/provider-bridge.js). Same Response.
+  // NVIDIA, Cloudflare and a Kimi Code key refuse a page, so the app sends
+  // theirs to an address fixed in Rust (platform/tauri/provider-bridge.js).
+  // Same Response.
   function providerPost(provider, key, body, signal) {
     const via = HCProviders.bridgeFor(provider, key);
-    if (via) return HC.providerBridge.request(via, "chat", { key, body: JSON.stringify(body), signal });
+    if (via) return bridgedRequest(via, "chat", { key, body: JSON.stringify(body), signal });
     const { url, headers } = HCProviders.requestFor(provider, key);
     return fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers, body: JSON.stringify(body), signal });
   }
@@ -2483,6 +2500,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     deepinfra: deepinfraKeyEl,
     novita: novitaKeyEl,
     venice: veniceKeyEl,
+    cloudflare: cloudflareKeyEl,
   };
 
   const API_PROVIDERS = [
@@ -2506,6 +2524,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { id: "deepinfra", name: "DeepInfra", keyId: "deepinfraKey", testUrl: "https://api.deepinfra.com/v1/openai/models", auth: "bearer" },
     { id: "novita", name: "Novita", keyId: "novitaKey", testUrl: "https://api.novita.ai/v3/openai/models", auth: "bearer" },
     { id: "venice", name: "Venice", keyId: "veniceKey", testUrl: "https://api.venice.ai/api/v1/models", auth: "bearer" },
+    { id: "cloudflare", name: "Cloudflare", keyId: "cloudflareKey", testUrl: null, auth: "bridge" },
   ];
 
   async function testProviderConnection(provider) {
@@ -2516,7 +2535,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const via = HCProviders.bridgeFor(provider.id, key);
     if (via) {
       try {
-        const r = await HC.providerBridge.request(via, "models", { key, signal: makeSignal(8000) });
+        const r = await bridgedRequest(via, "models", { key, signal: makeSignal(8000) });
         if (!r.ok) return { ok: false, error: cloudHttpError(provider.id, r.status, await r.text().catch(() => "")) };
         return via === "kimi-code" ? { ok: true, note: "Connected to Kimi Code" } : { ok: true, note: "Reachable — the key is checked by the first chat" };
       } catch (e) {
@@ -3204,7 +3223,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       moonshotApi: fetchMoonshotApi,
       sortMoonshotIds: sortMoonshotModelIds,
       kimiCodeKey: isKimiCodeKey,
-      bridge: (provider, route, key) => HC.providerBridge.request(provider, route, { key }),
+      bridge: (provider, route, key) => bridgedRequest(provider, route, { key }),
     }),
     memory: _modelMemory,
     fallback: CLOUD_FALLBACK,
@@ -3242,6 +3261,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { group: "DeepInfra  —  Open Models · Cheap", keyEl: () => deepinfraKeyEl, provider: "deepinfra", models: seedModelsFor("deepinfra") },
     { group: "Novita  —  Open Models", keyEl: () => novitaKeyEl, provider: "novita", models: seedModelsFor("novita") },
     { group: "Venice  —  Private by Default", keyEl: () => veniceKeyEl, provider: "venice", models: seedModelsFor("venice") },
+    { group: "Cloudflare  —  Free · No Card", keyEl: () => cloudflareKeyEl, provider: "cloudflare", models: seedModelsFor("cloudflare") },
   ];
 
   function seedSavedModelDropdown() {
@@ -6274,6 +6294,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   for (const el of Object.values(PROVIDER_KEY_ELEMENTS)) {
     el?.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
   }
+  // Cloudflare's account box is the other half of its credentials, and a
+  // different account serves a different set of models.
+  cloudflareAccountEl?.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
   // ========= Local Knowledge Base (RAG) =========
   // Lives in src/core/rag/knowledge-base.js. The one thing it needs from here
   // is whether the toggle is on, and it takes that as a getter because the

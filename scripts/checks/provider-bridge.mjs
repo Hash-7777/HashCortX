@@ -80,7 +80,12 @@ console.log('A reply reads like a fetch:');
   const sent = invokes.find((i) => i.cmd === 'provider_request').args;
   ok('the request named the provider, the route, the key and the body', sent.provider === 'samba' && sent.route === 'chat' && sent.key === 'k' && sent.body === '{"model":"m"}');
   ok('with an id of the kind the app accepts', /^[A-Za-z0-9-]{1,64}$/.test(sent.requestId));
-  ok('and nothing else — no address, no headers', Object.keys(sent).sort().join() === 'body,key,onEvent,provider,requestId,route');
+  // `account` is the one field that can affect an address, and only
+  // Cloudflare's — the app checks it is thirty-two hex digits and builds the
+  // rest itself. Everything else here still names nothing about where the
+  // request goes.
+  ok('and nothing else — no address, no headers', Object.keys(sent).sort().join() === 'account,body,key,onEvent,provider,requestId,route');
+  ok('no account travels with a provider that has no account', sent.account === null);
   ok('one request, and nothing to stop once it has ended', invokes.filter((i) => i.cmd === 'provider_request').length === 1 && !invokes.some((i) => i.cmd === 'provider_request_cancel'));
 }
 {

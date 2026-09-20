@@ -140,6 +140,7 @@
     deepinfra: [],
     novita: [],
     venice: [],
+    cloudflare: [],
   };
 
   window.HCCloudModels = { CLOUD_FALLBACK };

@@ -75,6 +75,16 @@
       auth: 'bearer',
       bridge: 'nvidia',
     },
+    // Cloudflare refuses a web page too, so its requests go through the app
+    // like those two. It is the only provider whose address is not fixed
+    // there: its account id is part of the path, checked to thirty-two hex
+    // digits before it is used — src-tauri/src/commands/provider.rs.
+    cloudflare: {
+      label: 'Cloudflare',
+      auth: 'bearer',
+      bridge: 'cloudflare',
+      needsAccount: true,
+    },
     deepseek: {
       label: 'DeepSeek',
       chatUrl: 'https://api.deepseek.com/v1/chat/completions',
@@ -335,6 +345,7 @@
     deepinfra:   { key: "deepinfra.com/dash/api_keys",            quota: "deepinfra.com/dash/usage" },
     novita:      { key: "novita.ai → Settings → Key Management",  quota: "novita.ai → Billing" },
     venice:      { key: "venice.ai → Settings → API",             quota: "venice.ai → Settings → API" },
+    cloudflare:  { key: "dash.cloudflare.com → AI → Workers AI (free tier, no card)", quota: "dash.cloudflare.com → AI → Workers AI" },
   };
 
   /** What to say when a request is made with no key saved for its provider. */
@@ -419,6 +430,7 @@
       xai: "xAI (Grok)", together: "Together AI", fireworks: "Fireworks AI",
       zai: "Z.ai (GLM)", qwen: "Alibaba Qwen", huggingface: "Hugging Face",
       deepinfra: "DeepInfra", novita: "Novita", venice: "Venice",
+      cloudflare: "Cloudflare",
     };
     const providerLabel = PROVIDER_LABELS[provider] || provider;
     const hints = HINTS[provider] || { key: "provider dashboard", quota: "provider dashboard" };
