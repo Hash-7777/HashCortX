@@ -31,7 +31,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 
 <br>
 
-<img src="docs/assets/screenshots/chat.png" alt="HashCortx chat: a question about caching answered with a table, a highlighted code block and a note" width="100%">
+<img src="docs/assets/screenshots/hero.png" alt="HashCortx on opening: the app mark, and a start-up list reporting the runtime, model routing, the interface, the agent runtime and the content security policy ready, above a prompt to begin" width="100%">
 
 <br>
 
