@@ -123,7 +123,12 @@ const LINE_BUDGET = {
   // material, not instructions — in the tool loop and the pre-fetch fallback.
   // 6490, up four: the cross that takes a file or image off the composer is
   // drawn, like every other mark beside it.
-  'js/app.js': 6490,
+  // 6501, up eleven. The model lists used to be asked for once, at launch, and
+  // never again: an app opened before the network came up spent the session on
+  // a list written by hand. The schedule lives in js/model-refresh.js; these
+  // lines are the app handing it the refresh it already had, what counts as a
+  // provider having failed, and where to listen.
+  'js/app.js': 6501,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

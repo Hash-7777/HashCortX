@@ -6282,6 +6282,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   };
   loadModels();
 
+  // The lists keep themselves current from here: on a timer, when the window
+  // comes back to the front, and the moment the machine is online again —
+  // js/model-refresh.js. A provider that already answered is not asked again,
+  // so this costs nothing until one of them actually needs asking.
+  window.HCModelRefresh.create({
+    refresh: () => refreshCloudModelsFromAPIs(),
+    failed: () => _catalogue.report().some((r) => r.state === "error" || r.state === "empty"),
+    on: (event, handler) => (event === "visibilitychange" ? document : window)
+      .addEventListener(event, () => { if (event !== "visibilitychange" || !document.hidden) handler(); }),
+  }).start();
+
 
   // ── Chat text selection toolbar ────────────────────────────────────
   (function initSelectionToolbar() {

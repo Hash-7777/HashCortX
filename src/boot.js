@@ -90,6 +90,7 @@
     '/js/cloud-model-memory.js',
     '/js/model-limits.js',
     '/js/cloud-catalogue.js',
+    '/js/model-refresh.js',
     '/js/cloud-model-fetch.js',
     '/js/memory.js',
     '/js/vector-map.js',
