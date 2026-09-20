@@ -111,15 +111,18 @@ console.log('\nAnd the modes use it where a run actually waits:');
   ok('the ERP has a line it can keep writing to', /function traceLive\(/.test(erp));
   ok('the generation attempt is one', /const waiting = traceLive\(`Direct generation attempt/.test(erp));
   ok('and the repair pass is another', /const repairing = traceLive\("JSON repair pass"/.test(erp));
-  ok('every one of them is finished on the way out, not only on success',
-    (erp.match(/\.finally\(\(\) => (waiting|repairing)\.done\(\)\)/g) || []).length === 2,
-    'a line left live is a timer left running');
+  // The property, not a count of them: every live line made must be finished,
+  // however many there come to be. A line left live is a timer left running.
+  const made = (src) => (src.match(/=\s*traceLive\(/g) || []).length;
+  const finished = (src) => (src.match(/\.finally\(\(\) => \w+\.done\(\)\)/g) || []).length;
+  ok('every live line the ERP makes is finished on the way out, not only on success',
+    made(erp) > 0 && finished(erp) === made(erp), `${made(erp)} made, ${finished(erp)} finished`);
   const swarm = readFileSync(join(root, 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
   ok('the Swarm has one too', /function traceLive\(agentName/.test(swarm));
   ok('an agent\'s turn is live, with the deadline it really has',
     /const waiting = traceLive\([\s\S]{0,200}deadlineMs: timeoutMs/.test(swarm));
-  ok('and it is finished on the way out there as well',
-    /\.finally\(\(\) => waiting\.done\(\)\)/.test(swarm));
+  ok('and every one the Swarm makes is finished too',
+    made(swarm) > 0 && finished(swarm) === made(swarm), `${made(swarm)} made, ${finished(swarm)} finished`);
   // Both modes ask the same question of the same place, rather than each
   // keeping its own idea of which models queue.
   ok('a queued model is named from what already measured it',

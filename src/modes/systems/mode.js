@@ -285,6 +285,10 @@ const SystemMaker = (() => {
     btn.title = running ? "Stop the current generation run" : "Generate a new system";
     const change = $("sysChangeBtn");
     if (change) change.disabled = running || !getActive();
+    // Working the records needs a system open, the same as changing its design.
+    const work = $("sysWorkBtn");
+    if (work) work.disabled = running || !getActive();
+    showUndoWork();
   }
 
   function stopSystemGeneration() {
@@ -1353,6 +1357,107 @@ Repair requirements:
    * entities get records written for them, the design stays unless the
    * request is about it, and the system as it was is kept as a version.
    */
+  /**
+   * Do what somebody says happened, to the records.
+   *
+   * "Seif paid his due expenses" — find the records, change the right fields,
+   * leave the rest alone. Changing the DESIGN is reviseSystem above; this
+   * changes the DATA, which is what a business system is actually for and what
+   * previously meant opening a table and editing cells by hand.
+   *
+   * Nothing is written until the person has seen exactly what would be: which
+   * table, which record, which field, from what to what. The checking of the
+   * model's answer is in js/systems/work.js, and the snapshot taken before the
+   * write is what Undo puts back.
+   */
+  async function workSystem() {
+    const spec = getActive();
+    const request = $("sysPromptInput")?.value.trim() || "";
+    if (!spec || runAbort) return;
+    if (!request) { trace("Type what happened, then press Do it", "warn"); return; }
+    const W = window.HCSystemsWork;
+    if (!W) return;
+    clearTrace();
+    setStatus("Working", "running");
+    runAbort = new AbortController();
+    runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
+    runRoutes = newRoutes();
+    updateCreateButtonState();
+    const signal = runAbort.signal;
+    try {
+      const data = getRuntimeData(spec);
+      let model = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
+      let plan = null;
+      for (let attempt = 1; attempt <= 3 && !plan; attempt++) {
+        const waiting = traceLive(`Working out what to change — ${modelTraceLabel(model)}`, "run",
+          { queued: window.HCTraceLive?.queued(model) });
+        try {
+          const r = await callModel(model, W.messages(spec, data, request, todayIso()), signal, 0.2)
+            .finally(() => waiting.done());
+          const said = W.readAnswer(r?.content || "");
+          if (!said) throw new Error("its answer could not be read");
+          plan = W.plan(said, spec, data);
+        } catch (err) {
+          if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
+          trace(`${modelTraceLabel(model)} could not work it out: ${String(err.message || err).slice(0, 90)}`, "warn");
+          const other = isFailoverError(err) && runRoutes.next(model, err);
+          if (!other) throw err;
+          model = other;
+        }
+      }
+      if (!plan) throw new Error("No model could work out what to change");
+      if (plan.understood) trace(plan.understood, "run");
+      for (const d of plan.dropped) trace(`Left alone — ${d.why}${d.at ? `: ${d.at}` : ""}`, "warn");
+      if (W.isEmpty(plan)) {
+        trace(plan.unsure || "Nothing in this system changes for that", "warn");
+        setStatus("Idle");
+        return;
+      }
+      const ok = await window._H.themedConfirm(W.previewOf(plan), "Do this?");
+      if (!ok) { trace("Left as it was", "warn"); setStatus("Idle"); return; }
+      // The records as they are, kept before anything is written, so undoing is
+      // putting the old ones back rather than working the changes out in reverse.
+      undoRecords = { id: spec.id, data: JSON.parse(JSON.stringify(data)), what: W.summaryOf(plan) };
+      saveRuntimeData(spec, W.apply(plan, data));
+      for (const line of W.doneLines(plan)) trace(line, "ok");
+      trace(`Done — ${W.summaryOf(plan)}. Undo that puts it back.`, "ok");
+      showUndoWork();
+      setStatus("Ready");
+      renderAll();
+    } catch (err) {
+      if (err.name !== "AbortError") trace(`Could not do it: ${String(err.message || err).slice(0, 120)}`, "err");
+      setStatus("Idle");
+    } finally {
+      runAbort = null;
+      updateCreateButtonState();
+    }
+  }
+
+  /** The records as they were before the last "Do it", for putting back. */
+  let undoRecords = null;
+
+  /** Put the records back the way they were before the last "Do it". */
+  function undoWork() {
+    const spec = getActive();
+    if (!spec || !undoRecords || undoRecords.id !== spec.id) return;
+    saveRuntimeData(spec, undoRecords.data);
+    trace(`Put back what was there before — ${undoRecords.what}`, "ok");
+    undoRecords = null;
+    showUndoWork();
+    renderAll();
+  }
+
+  /**
+   * The Undo control is there only while there is something to put back, and
+   * only for the system it was taken from — an undo offered after switching
+   * systems would put one system's records into another.
+   */
+  function showUndoWork() {
+    const btn = $("sysUndoWorkBtn");
+    if (!btn) return;
+    btn.hidden = !(undoRecords && getActive() && undoRecords.id === getActive().id);
+  }
+
   async function reviseSystem() {
     const spec = getActive();
     const request = $("sysPromptInput")?.value.trim() || "";
@@ -2832,6 +2937,8 @@ Repair requirements:
     // ── Header / nav ────────────────────────────────────────────────
     $("sysCreateBtn")?.addEventListener("click", createSystem);
     $("sysChangeBtn")?.addEventListener("click", reviseSystem);
+    $("sysWorkBtn")?.addEventListener("click", workSystem);
+    $("sysUndoWorkBtn")?.addEventListener("click", undoWork);
     $("sysNewBtn")?.addEventListener("click", () => {
       activeId = null;
       activeModuleId = "";

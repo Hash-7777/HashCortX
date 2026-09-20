@@ -229,7 +229,17 @@ const LINE_BUDGET = {
   // the repair pass — now write a line that keeps moving while they wait. One
   // measured run spent two minutes and seven seconds on a single attempt with
   // the line saying what it said at the start, which reads as a hang.
-  'modes/systems/mode.js': 3290,
+  // 3382, up ninety-two. A generated system could be made by asking and its
+  // design changed by asking, and the thing somebody actually keeps a business
+  // system for — "Seif paid his due expenses" — meant opening a table and
+  // editing cells by hand. This is the run that does it: ask, work out which
+  // records change, show exactly what would happen, and write only after that
+  // is allowed. The checking of the model's answer and every word the person
+  // reads are in js/systems/work.js, where they are read off in a test; these
+  // lines are the failover, the confirmation, the snapshot Undo puts back and
+  // the control that puts it back — offered only while there is something to
+  // put back, and only for the system it was taken from.
+  'modes/systems/mode.js': 3397,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
