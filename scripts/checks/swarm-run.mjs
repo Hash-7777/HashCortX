@@ -62,12 +62,41 @@ console.log('\nA new run asks for details only the person can give:');
   ok('cancelling ends the run before any agent starts', /if \(asked === null\) \{[\s\S]{0,160}Run cancelled before the team started/.test(run));
   ok('the team, and the kept run, get the task with the answers written in', /work = asked;/.test(run) && /startRun\(\{[^\n]*\}, work\)/.test(run));
   const ask = bodyOf('askForDetails', askSrc);
-  ok('the mode hands the asking its model call and trace', /HCSwarmAsk\.askForDetails\(task, signal, \{/.test(bodyOf('askForDetails')));
+  ok('the mode hands the asking its model call and trace', /HCSwarmAsk\.askForDetails\(task, signal, askDeps\(\)\)/.test(bodyOf('askForDetails')));
   ok('what to ask comes from js/swarm/clarify.js', /C\.parseQuestions\(reply\?\.content\)/.test(ask) && /C\.fallbackQuestions\(task\)/.test(ask) && /C\.taskWithAnswers\(task, answers\)/.test(ask));
   ok('the check is time-limited and cancelled with the run', /ROUTES\.callWithin\(45000, signal,/.test(ask));
   const dialog = bodyOf('showAskDialog', askSrc);
   ok('questions are put on the page as text, never as markup', /label\.textContent = q\.question/.test(dialog) && !/innerHTML/.test(dialog));
   ok('Stop closes the questions', /signal\?\.addEventListener\("abort", onStop/.test(dialog));
+}
+
+console.log('\nA run asks a model what it owes, and is never stopped by the answer:');
+{
+  const run = bodyOf('runSwarm');
+  const ask = bodyOf('askForDeliverables', askSrc);
+  ok('the run asks before the team is built', /const plan = await askForDeliverables\(work, signal\);/.test(run));
+  ok('it asks about the task the person is actually running', /askForDeliverables\(work, signal\)/.test(run) && !/askForDeliverables\(task,/.test(run));
+  ok('and before any agent runs', run.indexOf('askForDeliverables(') < run.indexOf('runDAG('));
+  ok('what comes back is written into the copy the run works from', /const runBp = applyDeliverables\(/.test(run));
+  ok('the question comes from js/swarm/deliverables.js', /D\.messages\(task\)/.test(ask) && /D\.readPlan\(reply\?\.content\)/.test(ask));
+  ok('the call is time-limited and cancelled with the run', /ROUTES\.callWithin\(45000, signal,/.test(ask));
+  ok('it fails over to other models', /routes\.next\(model, err\)/.test(ask));
+
+  // The whole point: nothing about this call can end a run. A free model that
+  // never answers costs the run a better list and nothing else.
+  ok('an unreadable answer is not an error the run sees', /D\.merge\(answered, task\)/.test(ask));
+  ok('it always returns a plan', /return plan;/.test(ask) && !/return null/.test(ask));
+  ok('and says which it used', /planned what this run owes/.test(ask) && /Worked out what this run owes from the task/.test(ask));
+
+  const apply = bodyOf('applyDeliverables');
+  ok('the plan sets what the team owes', /artifactContracts = DELIVERABLES\.contractsOf\(plan\)/.test(apply));
+  ok('the bar it is held to', /qualityGates = plan\.bar/.test(apply));
+  ok('and the room it gets, without an older task\'s room winning', /budgetControls = DELIVERABLES\.budgetsFor\(plan\)/.test(apply) && !/\.\.\.\(bpCopy\.budgetControls/.test(apply));
+
+  // A saved team carries the merged result of an earlier task, so without
+  // this the old room would win for ever through the spread that exists to
+  // keep an architect's own choice.
+  ok('a team run on a different request drops its old room too', /delete copy\.budgetControls;/.test(bodyOf('deliverablesForRun')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/agent-maker/mode.js)`);

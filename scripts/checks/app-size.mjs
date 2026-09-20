@@ -451,7 +451,12 @@ const LINE_BUDGET = {
   // rather than the one the team was made for, so a saved team run on a
   // different request no longer carries the first request's deliverables. Both
   // run paths now work on a copy, and the trace names what the run owes.
-  'modes/agent-maker/mode.js': 2349,
+  // 2380, up thirty-one. A run asks a model what this task needs handed back
+  // before the team is built — js/swarm/ask.js makes the call, the same way it
+  // asks the person for details only they can give — and what comes back is
+  // written into the copy the run works from. The two askings now share one
+  // set of dependencies.
+  'modes/agent-maker/mode.js': 2380,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

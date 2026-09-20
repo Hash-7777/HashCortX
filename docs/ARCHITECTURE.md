@@ -120,7 +120,8 @@ HashCortX/
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work
 │   │   ├── swarm/            2,782  Agent Swarm: what kind of task it is,
-│   │   │                            what THIS task's deliverables are,
+│   │   │                            what THIS task's deliverables are and
+│   │   │                            the one call that asks a model for them,
 │   │   │                            who plans, makes, checks and delivers,
 │   │   │                            what to ask the person before a run,
 │   │   │                            the mark drawn beside each agent,
@@ -320,7 +321,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,501-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 5,414 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 5,432 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run align` measures every button.** An icon button drawn 28px tall
   kept the app's general button padding, leaving 8px of room inside it for a
   15px mark: the mark could not fit, so centring it had nothing to centre in

@@ -108,6 +108,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A model reads your task and decides what the team owes.** Before the team
+  is built, one short call works out the deliverables for the request in front
+  of it, the same way the app already asks you for details only you can give.
+  A campaign comes back as its positioning, the copy for each channel, the
+  calendar and how it is measured — the work itself, rather than one document
+  describing it. The call cannot stop a run: if no model answers in time, or
+  answers something that cannot be read, the app works the list out itself and
+  the run carries on, and the trace says which of the two it used.
 - **A team's deliverables come from your task, not from a category.** Every
   request used to be sorted into one of eight kinds, and each kind had a fixed
   list of outputs written into the app. So every build — a shop, a game, a

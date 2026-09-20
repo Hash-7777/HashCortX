@@ -38,6 +38,14 @@
   const MAX_ITEMS = 14;
   const MAX_BAR = 16;
 
+  // True of every result, whoever worked the deliverables out. A model asked
+  // for a task's own bar answers about that task and has no reason to repeat
+  // these, so they are put back rather than relied on.
+  const ALWAYS = [
+    'the result answers the request that was actually made, and nothing in it is left for someone else to finish',
+    'no placeholder text, no lorem ipsum, and no invented facts about a real person or business',
+  ];
+
   const clean = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 
   // ── What kind of work the task is ─────────────────────────────────
@@ -184,10 +192,7 @@
     const kind = kindOf(task);
     const pieces = piecesOf(task, kind);
     const items = [];
-    const bar = [
-      'the result answers the request that was actually made, and nothing in it is left for someone else to finish',
-      'no placeholder text, no lorem ipsum, and no invented facts about a real person or business',
-    ];
+    const bar = [...ALWAYS];
 
     if (kind === 'build') {
       items.push({ name: 'plan.md', owner: 'planner', required: true, format: 'what is being built, the pieces, and who writes which file' });
@@ -257,6 +262,7 @@ Rules:
 - Name each deliverable the way it would be saved, with an extension where it is a file.
 - Anything the request implies needs somewhere to live. A shop's items belong in their own data file; a cart's behaviour in its own file; a game's loop in its own file. Do not put everything in one script.
 - Only list what this request asks for. Never add a cart, a login, a database or a page the request did not ask for.
+- List the work itself, not a plan to do the work. A campaign means the positioning, the copy for each channel, the calendar and how it is measured — not "a campaign plan" as one document. An analysis means the segments, the figures and the recommendation. Break the result into the parts it really has.
 - "bar" is what it means for THIS result to be done well: statements that could be checked by looking at the result. Only include a statement that applies to this task.
 - Give the last deliverable to the agent that finishes, and make it the thing the person actually receives.
 Return only JSON, no markdown:
@@ -347,6 +353,10 @@ Return only JSON, no markdown:
     if (!fromModel) return derived;
     const plan = normalise(fromModel, task);
     if (!plan.items.length) return derived;
+    // What holds for every result holds for this one too.
+    for (const line of ALWAYS) {
+      if (!plan.bar.some((b) => b.toLowerCase() === line.toLowerCase())) plan.bar.unshift(line);
+    }
     // A piece the request asks for that the answer gave nowhere to live gets
     // its place back — the point of the pieces is that they are not optional
     // when the request names them.
@@ -414,7 +424,7 @@ Return only JSON, no markdown:
   }
 
   window.HCSwarmDeliverables = {
-    MAX_ITEMS, MAX_BAR, PIECES,
+    MAX_ITEMS, MAX_BAR, PIECES, ALWAYS,
     kindOf, piecesOf, extraPagesOf, derive, messages, readPlan, normalise, merge,
     filesOf, budgetsFor, contractsOf, summaryOf,
   };

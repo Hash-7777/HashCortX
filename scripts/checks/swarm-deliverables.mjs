@@ -101,6 +101,16 @@ ok('a thin answer for a shop still gets its catalogue', merged.items.some((i) =>
 ok('and its cart', merged.items.some((i) => i.name === 'cart.js'));
 ok('and the cart is in its bar', merged.bar.join(' ').toLowerCase().includes('cart'));
 ok('an unreadable answer falls back to the task', D.merge(null, SHOP).items.some((i) => i.name === 'catalogue.js'));
+// A model asked for this task's bar answers about this task and has no reason
+// to repeat what is true of everything, so those lines are put back.
+{
+  const thin = D.readPlan('{"kind":"writing","items":[{"name":"campaign.md","owner":"writer"}],"bar":["every post is ready to publish"]}');
+  const m = D.merge(thin, 'plan a marketing campaign');
+  ok('what holds for every result is put back', D.ALWAYS.every((l) => m.bar.includes(l)));
+  ok('and what the model said is kept', m.bar.includes('every post is ready to publish'));
+  ok('the model\'s own deliverables are kept', m.items.some((i) => i.name === 'campaign.md'));
+  ok('they are not repeated when the model said them too', D.merge({ kind: 'writing', items: [{ name: 'a.md' }], bar: [D.ALWAYS[0]] }, 'write a thing').bar.filter((b) => b === D.ALWAYS[0]).length === 1);
+}
 ok('an empty answer falls back to the task', D.merge({ kind: 'build', items: [], bar: [] }, SHOP).items.length > 0);
 
 const messy = D.normalise({

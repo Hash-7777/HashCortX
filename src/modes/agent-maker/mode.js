@@ -694,13 +694,32 @@ const SwarmMaker = (() => {
    * Details only the person can give, asked for before a run — the asking is
    * src/js/swarm/ask.js, what to ask js/swarm/clarify.js.
    */
-  function askForDetails(task, signal) {
-    return window.HCSwarmAsk.askForDetails(task, signal, {
+  function askDeps() {
+    return {
       call: (model, messages, s) => callAgentLLM(model, messages, s, 0.2),
       models: menuModels, label: modelTraceLabel,
       chosen: () => document.getElementById("model")?.value || "",
       trace: (msg, kind) => traceAdd("Orchestrator", msg, kind),
-    });
+    };
+  }
+
+  function askForDetails(task, signal) {
+    return window.HCSwarmAsk.askForDetails(task, signal, askDeps());
+  }
+
+  function askForDeliverables(task, signal) {
+    return window.HCSwarmAsk.askForDeliverables(task, signal, askDeps());
+  }
+
+  /** What a run owes, written into the copy the run works from. */
+  function applyDeliverables(bpCopy, plan) {
+    bpCopy.deliverableKind = plan.kind;
+    bpCopy.artifactContracts = DELIVERABLES.contractsOf(plan);
+    bpCopy.qualityGates = plan.bar;
+    // The plan is the authority here: it was made for the task being run, and
+    // whatever the team was carrying was made for an earlier one.
+    bpCopy.budgetControls = DELIVERABLES.budgetsFor(plan);
+    return bpCopy;
   }
 
   // ── Main run entry point ───────────────────────────────────────────
@@ -759,10 +778,17 @@ const SwarmMaker = (() => {
     // out for the task being run and not for the one it was made for: a team
     // saved for one request and run on another used to carry the first
     // request's deliverables into the second.
+    // What the team owes, decided by a model that has read this task. It
+    // cannot stop the run: when nothing answers, js/swarm/deliverables.js
+    // works the list out from the request and the run carries on with that.
+    const plan = await askForDeliverables(work, signal);
     const codeRun = isCodeBuildTask(task);
-    const runBp = codeRun
-      ? hardenGodBlueprint(structuredClone(bp), task, [])
-      : deliverablesForRun(structuredClone(bp), work);
+    const runBp = applyDeliverables(
+      codeRun
+        ? hardenGodBlueprint(structuredClone(bp), task, [])
+        : deliverablesForRun(structuredClone(bp), work),
+      plan,
+    );
     const added = runBp.agents.filter(a => !bp.agents.some(b => b.id === a.id)).map(a => a.name);
     if (codeRun) traceAdd("Orchestrator", `Website rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
     traceAdd("Orchestrator", `This run owes ${DELIVERABLES.summaryOf({ items: runBp.artifactContracts || [], pieces: [] })} · ${(runBp.artifactContracts || []).map(a => a.name).join(", ")}`, "boss");
@@ -1113,6 +1139,11 @@ const SwarmMaker = (() => {
     if (madeFor && running && madeFor !== running) {
       delete copy.artifactContracts;
       delete copy.qualityGates;
+      // And the room they were given. attachPlanningMetadata lets what a team
+      // already carries win over what is worked out, so that the architect's
+      // own choice is kept — but a saved team carries the merged result of an
+      // earlier task, which would then win for ever.
+      delete copy.budgetControls;
     }
     attachPlanningMetadata(copy, running || madeFor);
     return copy;
