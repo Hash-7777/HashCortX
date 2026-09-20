@@ -1310,7 +1310,25 @@ Repair requirements:
     updateCreateButtonState();
     try {
       trace("Planning business modules", "plan");
-      const spec = await generateWithModel(desc, runAbort.signal);
+      // A complete system is built here first, from what the app already knows
+      // about this trade — js/systems/scaffold.js. It takes no model, so it
+      // cannot fail because a provider is out of credit, and it passes the
+      // gate by construction rather than by luck. A model is then asked to
+      // make it theirs, and when it cannot, this is what they keep instead of
+      // an error. The whole reason: one measured run had the first model out
+      // of quota, the next two out of credit, and the ladder ended on a model
+      // far too small to design a database, which answered in two seconds with
+      // no name and too few tables.
+      const scaffold = window.HCSystemsScaffold?.build(desc, todayIso()) || null;
+      if (scaffold) trace(`Built a ${scaffold.domain} system to start from — ${scaffold.modules.length} modules, ${scaffold.entities.length} tables`, "ok");
+      let spec;
+      try {
+        spec = await generateWithModel(desc, runAbort.signal);
+      } catch (err) {
+        if (err.name === "AbortError" || !scaffold) throw err;
+        trace(`No model could design one — keeping the system built here (${String(err.message || err).slice(0, 80)})`, "warn");
+        spec = scaffold;
+      }
       if (runAbort.signal?.aborted) throw new DOMException("Aborted", "AbortError");
       trace("Normalising modules, data, and interactions", "data");
       // Its design differs from the last system's on at least two of shell,

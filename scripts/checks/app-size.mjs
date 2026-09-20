@@ -239,7 +239,11 @@ const LINE_BUDGET = {
   // lines are the failover, the confirmation, the snapshot Undo puts back and
   // the control that puts it back — offered only while there is something to
   // put back, and only for the system it was taken from.
-  'modes/systems/mode.js': 3397,
+  // 3415, up eighteen. A complete system is built before a model is asked
+  // anything (js/systems/scaffold.js), so a run cannot end with nothing
+  // because every provider was out of credit — which is what one measured run
+  // did, ending on a model far too small to design a database.
+  'modes/systems/mode.js': 3415,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

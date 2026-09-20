@@ -128,6 +128,7 @@
     '/js/systems/money.js',
     '/js/systems/samples.js',
     '/js/systems/domain.js',
+    '/js/systems/scaffold.js',
     '/js/systems/theme.js',
     '/js/systems/books.js',
     '/js/systems/ledger.js',
