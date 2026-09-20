@@ -108,6 +108,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A team's deliverables come from your task, not from a category.** Every
+  request used to be sorted into one of eight kinds, and each kind had a fixed
+  list of outputs written into the app. So every build — a shop, a game, a
+  dashboard, a portfolio — was given the same three files, and every build was
+  told to wire a working cart whether or not one had been asked for. A
+  portfolio fits that shape, which is why it came out well; a shop does not.
+  What a team owes is now worked out from the request itself: a shop gets its
+  catalogue and its cart as their own files, a game gets its loop, a blog gets
+  its entries, and a landing page gets none of them. The bar each result is
+  held to is assembled the same way, so nothing is marked against a feature it
+  was never asked for.
+- **A shop, a storefront and a browser game are recognised as builds.** The
+  rules that tell a team the exact file names, make each agent write its files
+  whole, and set the bar, only applied to a task whose words included
+  "website", "portfolio" or "dashboard". An online shop, a storefront with a
+  cart and a game in the browser matched none of them and so were given no
+  rules at all — every agent picked its own file names and its own idea of
+  finished. A run is now judged by what it owes as well as by what it is
+  called.
+- **The room a team has follows what it is making.** Every build passed at
+  most six thousand characters between agents, which is less than one page of
+  a shop, so the agent assembling the files received them cut short and wrote
+  its own from memory. The limit now grows with the number of files.
+
 - **A trace now counts from the run, not from when you opened the app.** Every
   trace kept its own start time in a variable set the moment its code loaded,
   so a run begun an hour later had its first line stamped an hour in. The

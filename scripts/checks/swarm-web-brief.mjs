@@ -59,7 +59,31 @@ ok('it asks for reduced motion to be respected', /prefers-reduced-motion/.test(b
 
 console.log('\nThe Agent Swarm uses it:');
 const mode = src('modes', 'agent-maker', 'mode.js');
-ok('every agent\'s note comes from it', /HCSwarmWebBrief\.brief\(\{ task, siteFiles: execOptions\.siteFiles, isFinalOwner \}\)/.test(mode));
+ok('every agent\'s note comes from it', /HCSwarmWebBrief\.brief\(\{ task, siteFiles: execOptions\.siteFiles, isFinalOwner, bar: execOptions\.bar \}\)/.test(mode));
+ok('and carries what this run\'s own request asks of the result', /bar: Array\.isArray\(bp\.qualityGates\)/.test(mode));
+
+// The bar used to be written out here in the language of a portfolio and
+// appended to every web task, so a shop was held to a portfolio's bar.
+{
+  // A shop, a storefront and a browser game are web builds. None of them was,
+  // which is why one team produced a good portfolio and a broken shop.
+  for (const t of ['an online shop', 'build me an e-commerce site for a coffee shop', 'a storefront with a cart', 'code a snake game in the browser', 'a portfolio website', 'a landing page']) {
+    ok(`"${t}" is a web build`, W.isWebTask(t));
+  }
+  ok('a market analysis is not', !W.isWebTask('do a market analysis of the scooter market'));
+  ok('and neither is a poem', !W.isWebTask('write me a poem'));
+  ok('a run owing html and js is a web build whatever it called itself', W.isWebRun('some unusual request', ['index.html', 'app.js']));
+  ok('a run owing no files is not', !W.isWebRun('do a market analysis', []));
+
+  const shopBar = ['the cart adds, removes and keeps its total right', 'the catalogue is data in its own file'];
+  const withBar = W.brief({ task: 'an online shop', siteFiles: ['index.html'], bar: shopBar });
+  const without = W.brief({ task: 'a landing page', siteFiles: ['index.html'], bar: [] });
+  ok('this run\'s own bar reaches the agent', shopBar.every((l) => withBar.includes(l)));
+  ok('a run with no bar of its own is given none', !/AND FOR THIS SITE IN PARTICULAR/.test(without));
+  ok('a landing page is not told about a cart', !/cart/i.test(without));
+  ok('the part true of every site is still there', /prefers-reduced-motion/.test(without));
+  ok('a bar line is never taken as more than text', W.forThisSite(['a', null, '  ', 'a real line here']).split('\n- ').length === 3);
+}
 ok('a run reads the team\'s files from its blueprint', /siteFiles: window\.HCSwarmWebBrief\.siteFilesOf\(bp\)/.test(mode));
 ok('the old note that named three files for everyone is gone', !/WEB FILE FORMAT/.test(mode));
 ok('reviewers and the final agent get the files whole on a build', /const needsWhole = isFinalOwner \|\| \(execOptions\.codeBuild && /.test(mode));

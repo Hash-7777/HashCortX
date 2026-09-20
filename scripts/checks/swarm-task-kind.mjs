@@ -19,6 +19,7 @@ vm.createContext(sandbox);
 vm.runInContext(src('js', 'swarm', 'task-kind.js'), sandbox, { filename: 'task-kind.js' });
 const K = sandbox.window.HCSwarmTaskKind;
 const mode = src('modes', 'agent-maker', 'mode.js');
+const kind = src('js', 'swarm', 'task-kind.js');
 
 let pass = 0;
 let fail = 0;
@@ -91,28 +92,21 @@ ok('a big assignment a middling one', bounds[1].target === 5);
 ok('anything else a small one', bounds[2].target === 4);
 ok('the target always lies between the least and the most', bounds.every((b) => b.min <= b.target && b.target <= b.max));
 
-console.log('\nWhat a build owes:');
-const plain = K.artifactContractsForTask('Build a landing page for my bakery').map((a) => a.name);
-const shop = K.artifactContractsForTask('Build a website shop with checkout and payment').map((a) => a.name);
-ok('the page, its styles and its script', ['index.html', 'styles.css', 'app.js'].every((n) => plain.includes(n)));
-ok('a site with no server says it needs none', plain.includes('NO_BACKEND_NEEDED') && !plain.includes('server.js'));
-ok('a site that takes payments owes a server', shop.includes('server.js') && !shop.includes('NO_BACKEND_NEEDED'));
-ok('checkout and payment mean a server', K.taskRequiresBackend('a shop with checkout') && !K.taskRequiresBackend('a landing page'));
-ok('an analysis owes a plan, findings and one answer',
-  K.artifactContractsForTask('Analyze sales.csv').map((a) => a.name).join() === 'analysis_plan.json,findings.md,final_analysis.md');
-ok('every contract names who owes it and in what form',
-  ['Build a landing page', 'Analyze sales.csv', 'Write a poem'].every((t) => K.artifactContractsForTask(t).every((a) => a.ownerRole && a.format)));
+console.log('\nWhether a task needs a server:');
+ok('checkout and payment mean one', K.taskRequiresBackend('a shop with checkout') && !K.taskRequiresBackend('a landing page'));
+ok('so do accounts and a database', K.taskRequiresBackend('a site with login and a database'));
 
-console.log('\nThe rules it is held to:');
-const base = K.qualityGatesForTask('Write a poem');
-ok('every task must answer what was asked', base.length === 3 && /directly satisfies/.test(base[0]));
-const build = K.qualityGatesForTask('Build a landing page');
-ok('a build adds its own rules on top', build.length > base.length && base.every((g) => build.includes(g)));
-ok('a server adds one more', K.qualityGatesForTask('Build a website with login').length === build.length + 1);
-const codeBudget = K.budgetControlsForTask('Build a landing page');
-const plainBudget = K.budgetControlsForTask('Write a poem');
-ok('a build passes more between agents', codeBudget.maxContextCharsPerDependency > plainBudget.maxContextCharsPerDependency);
-ok('and does not reach for tools by default', codeBudget.allowToolUseByDefault === false && plainBudget.allowToolUseByDefault === true);
+console.log('\nWhat a team owes is no longer decided here:');
+// Three fixed lists used to live in this file — the files a build owed, the
+// rules it was held to, and how much it could pass along — one set per
+// category. Every build got the same three files and the same bar. They are
+// worked out from the task in js/swarm/deliverables.js now, and must not come
+// back, because a second place to decide this is a second answer.
+for (const gone of ['artifactContractsForTask', 'qualityGatesForTask', 'budgetControlsForTask']) {
+  ok(`${gone} is gone from here`, K[gone] === undefined && !new RegExp(`function ${gone}\\(`).test(kind));
+  ok(`and the Agent Swarm does not call it`, !new RegExp(`\\b${gone}\\(`).test(mode));
+}
+ok('the Agent Swarm reads them from the deliverables instead', /window\.HCSwarmDeliverables/.test(mode));
 
 console.log('\nA run never rewrites the saved team:');
 {

@@ -123,8 +123,10 @@ const SwarmMaker = (() => {
   // What kind of task this is, and what that asks of a team: js/swarm/task-kind.js.
   const {
     isCodeBuildTask, isBigAssignment, recommendedAgentBounds, classifyTask, taskRequiresBackend,
-    artifactContractsForTask, qualityGatesForTask, budgetControlsForTask,
   } = window.HCSwarmTaskKind;
+  // What a team owes for THIS task, worked out from the task rather than
+  // looked up by category: js/swarm/deliverables.js.
+  const DELIVERABLES = window.HCSwarmDeliverables;
 
   // ── Storage ────────────────────────────────────────────────────────
   function loadBlueprints() {
@@ -310,7 +312,7 @@ const SwarmMaker = (() => {
       : "";
     const fenceNote = "\n\nFORMATTING RULE: Always wrap any code you produce in markdown fenced code blocks with the correct language tag. Examples: ```html, ```python, ```javascript, ```css, ```json, ```bash. Never output raw code outside of fences.";
     // The site's files by the team's own names, and who writes which — js/swarm/web-brief.js.
-    const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner });
+    const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner, bar: execOptions.bar });
     // What a tool returns is material, not instructions (platform/tauri/hashcoder.js).
     const toolNote = (agent.tools || []).length && window.HC?.code?.TOOL_TEXT_RULE ? `\n\n${window.HC.code.TOOL_TEXT_RULE}` : "";
     const messages = [
@@ -497,6 +499,8 @@ const SwarmMaker = (() => {
       finalOutputAgentId: choice.deliverer,
       codeBuild: strictDependencies,
       siteFiles: window.HCSwarmWebBrief.siteFilesOf(bp),
+      // What this run's own request asks of the result — js/swarm/deliverables.js.
+      bar: Array.isArray(bp.qualityGates) ? bp.qualityGates : [],
     };
     // The agent that delivers the answer runs on whatever arrived — js/swarm/schedule.js.
     const sched = { keepGoing: new Set([choice.deliverer].filter(Boolean)) };
@@ -1056,16 +1060,33 @@ const SwarmMaker = (() => {
     }
   }
 
+  /**
+   * What the team owes, and the room it has to do it in.
+   *
+   * These used to come from a table keyed by a category, so every build was
+   * given the same three files and the same bar — which is why a shop had
+   * nowhere to put its catalogue and a portfolio was marked against a cart it
+   * was never asked for. The architect's own answer is read first, and
+   * js/swarm/deliverables.js checks it and puts back anything the request
+   * plainly needs; when it answered nothing, the same file works the list out
+   * from the request. Either way the result is this task's, not a category's.
+   */
   function attachPlanningMetadata(parsed, desc) {
     parsed.taskCategory = parsed.taskCategory || classifyTask(desc);
     parsed.requiresBackend = typeof parsed.requiresBackend === "boolean" ? parsed.requiresBackend : taskRequiresBackend(desc);
-    parsed.artifactContracts = Array.isArray(parsed.artifactContracts) && parsed.artifactContracts.length
-      ? parsed.artifactContracts
-      : artifactContractsForTask(desc);
-    parsed.qualityGates = Array.isArray(parsed.qualityGates) && parsed.qualityGates.length
-      ? parsed.qualityGates
-      : qualityGatesForTask(desc);
-    parsed.budgetControls = { ...budgetControlsForTask(desc), ...(parsed.budgetControls || {}) };
+    const plan = DELIVERABLES.merge(
+      Array.isArray(parsed.artifactContracts) && parsed.artifactContracts.length
+        ? { kind: parsed.deliverableKind, bar: parsed.qualityGates, items: parsed.artifactContracts.map((a) => ({ name: a.name, owner: a.ownerRole, required: a.required, format: a.format })) }
+        : null,
+      desc,
+    );
+    parsed.deliverableKind = plan.kind;
+    parsed.artifactContracts = DELIVERABLES.contractsOf(plan);
+    parsed.qualityGates = plan.bar;
+    // The room follows the size of what is being made. A fixed six thousand
+    // characters per dependency is less than one page of a shop, so the agent
+    // that had to put the files together received them cut and wrote its own.
+    parsed.budgetControls = { ...DELIVERABLES.budgetsFor(plan), ...(parsed.budgetControls || {}) };
   }
 
   function ensureEdgeReasons(parsed) {

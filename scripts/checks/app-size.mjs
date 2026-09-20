@@ -442,7 +442,12 @@ const LINE_BUDGET = {
   // 2299, up four. The trace's zero is now a run clock that is reset where a
   // run begins, rather than a start time fixed when this module loaded — which
   // stamped every run with how long the app had been open.
-  'modes/agent-maker/mode.js': 2299,
+  // 2320, up twenty-one. What a team owes is worked out from the task in
+  // src/js/swarm/deliverables.js instead of being looked up by category, so
+  // attachPlanningMetadata reads the architect's own answer, has it checked,
+  // and takes the room per dependency from the size of what is being made.
+  // Three fixed lists left js/swarm/task-kind.js in the same change.
+  'modes/agent-maker/mode.js': 2320,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
