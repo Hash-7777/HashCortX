@@ -123,6 +123,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a file read as a file that ends there — and the rest got written from
   guesswork. It now says where it was cut, how much there was, and who wrote
   it.
+- **The model lists no longer offer models that are gone.** The list shown
+  before a provider has been asked had rotted again: seven of the eight free
+  OpenRouter models in it no longer existed, so a first run offered eight and
+  seven of them failed the moment they were used. They are replaced with models
+  checked against OpenRouter's live catalogue. The Anthropic entries named an
+  older family of models, written in a dated form those ids no longer use, and
+  now name the current ones. SambaNova's and NVIDIA's were checked and were
+  already correct.
 - **A model reads your task and decides what the team owes.** Before the team
   is built, one short call works out the deliverables for the request in front
   of it, the same way the app already asks you for details only you can give.

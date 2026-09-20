@@ -59,6 +59,11 @@ npm run tauri build
   is where the defects here have actually been. `npm run align` is the same
   idea for how a control looks: it measures every button in every mode and
   reports any whose mark or label does not sit on the button's own centre line.
+  `npm run models` asks each provider whether the models listed in
+  `src/data/cloud-models.js` still exist — OpenRouter, SambaNova and NVIDIA
+  answer without a key, and the rest are checked when their key is in the
+  environment. Run it before a release: that list is other people's decisions
+  and it goes stale on their schedule.
 - Expect review feedback. Drive-by PRs that ignore the architecture rules above will be closed.
 
 ## What I'm *not* looking for

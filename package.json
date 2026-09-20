@@ -123,7 +123,8 @@
     "sweep": "node scripts/sweep-controls.mjs",
     "check:version": "node scripts/checks/version.mjs",
     "align": "node scripts/align-controls.mjs",
-    "check:swarm-deliverables": "node scripts/checks/swarm-deliverables.mjs"
+    "check:swarm-deliverables": "node scripts/checks/swarm-deliverables.mjs",
+    "models": "node scripts/check-models.mjs"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"

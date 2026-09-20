@@ -39,16 +39,21 @@
       { value: "cloud:gemini:gemini-2.5-flash-lite",                     label: "Gemini 2.5 Flash Lite · Google",shortLabel: "Gemini 2.5 Flash Lite (fast)" },
       { value: "cloud:gemini:gemini-2.0-flash-preview-image-generation", label: "Gemini Image Gen · Google",     shortLabel: "Gemini Image Gen ✦", imageGen: true },
     ],
-    // OpenRouter — only confirmed :free models with provider/model format
+    // OpenRouter — free models, checked against the live list.
+    //
+    // This list rots faster than anything else in the app: OpenRouter retires
+    // free models constantly, and seven of the eight here were already gone
+    // both times it has been checked. `npm run models` asks OpenRouter, which
+    // needs no key, and names the ones that have since died.
     openrouter: [
-      { value: "cloud:openrouter:openai/gpt-oss-120b:free",                        label: "GPT OSS 120B (free) · OpenRouter",         shortLabel: "GPT OSS 120B (free)" },
-      { value: "cloud:openrouter:openai/gpt-oss-20b:free",                         label: "GPT OSS 20B (free) · OpenRouter",           shortLabel: "GPT OSS 20B (free)" },
-      { value: "cloud:openrouter:deepseek/deepseek-r1:free",                       label: "DeepSeek R1 (free) · OpenRouter",           shortLabel: "DeepSeek R1 (free)" },
-      { value: "cloud:openrouter:meta-llama/llama-3.3-70b-instruct:free",          label: "Llama 3.3 70B (free) · OpenRouter",         shortLabel: "Llama 3.3 70B (free)" },
-      { value: "cloud:openrouter:meta-llama/llama-4-maverick:free",                label: "Llama 4 Maverick (free) · OpenRouter",      shortLabel: "Llama 4 Maverick (free)" },
-      { value: "cloud:openrouter:google/gemma-4-31b-it:free",                      label: "Gemma 4 31B (free) · OpenRouter",           shortLabel: "Gemma 4 31B (free)" },
-      { value: "cloud:openrouter:qwen/qwen3-30b-a3b:free",                         label: "Qwen3 30B (free) · OpenRouter",             shortLabel: "Qwen3 30B (free)" },
-      { value: "cloud:openrouter:nousresearch/hermes-3-llama-3.1-405b:free",       label: "Hermes 3 405B (free) · OpenRouter",         shortLabel: "Hermes 3 405B (free)" },
+      { value: "cloud:openrouter:nvidia/nemotron-3-ultra-550b-a55b:free",  label: "Nemotron 3 Ultra (free) · OpenRouter",   shortLabel: "Nemotron 3 Ultra (free)" },
+      { value: "cloud:openrouter:thinkingmachines/inkling:free",           label: "Inkling (free) · OpenRouter",            shortLabel: "Inkling (free)" },
+      { value: "cloud:openrouter:nvidia/nemotron-3-super-120b-a12b:free",  label: "Nemotron 3 Super (free) · OpenRouter",   shortLabel: "Nemotron 3 Super (free)" },
+      { value: "cloud:openrouter:google/gemma-4-31b-it:free",              label: "Gemma 4 31B (free) · OpenRouter",        shortLabel: "Gemma 4 31B (free)" },
+      { value: "cloud:openrouter:qwen/qwen3.8-27b:free",                   label: "Qwen3.8 27B (free) · OpenRouter",        shortLabel: "Qwen3.8 27B (free)" },
+      { value: "cloud:openrouter:inclusionai/ling-3.0-flash-vl:free",      label: "Ling 3.0 Flash VL (free) · OpenRouter",  shortLabel: "Ling 3.0 Flash VL (free)" },
+      { value: "cloud:openrouter:nvidia/nemotron-3.5-lightning:free",      label: "Nemotron 3.5 Lightning (free) · OpenRouter", shortLabel: "Nemotron 3.5 Lightning (free)" },
+      { value: "cloud:openrouter:z-ai/glm-5.2:free",                       label: "GLM 5.2 (free) · OpenRouter",            shortLabel: "GLM 5.2 (free)" },
     ],
     // Cerebras — confirmed stable model IDs from cerebras.ai/models
     cerebras: [
@@ -76,11 +81,16 @@
       { value: "cloud:openai:gpt-4-turbo",       label: "GPT-4 Turbo · OpenAI",       shortLabel: "GPT-4 Turbo" },
       { value: "cloud:openai:o3-mini",           label: "o3 Mini · OpenAI",           shortLabel: "o3 Mini" },
     ],
-    // Anthropic Claude — paid, strong reasoning
+    // Anthropic Claude — paid, strong reasoning.
+    //
+    // Current ids carry no date suffix. The three that were here named the
+    // Claude 4 generation and one from 3.5, each with the dated spelling that
+    // generation used, so all three were two things at once: an older family
+    // and a form of id that is no longer how these are written.
     anthropic: [
-      { value: "cloud:anthropic:claude-sonnet-4-20250514", label: "Claude Sonnet 4 · Anthropic", shortLabel: "Claude Sonnet 4" },
-      { value: "cloud:anthropic:claude-opus-4-20250514",   label: "Claude Opus 4 · Anthropic",   shortLabel: "Claude Opus 4" },
-      { value: "cloud:anthropic:claude-3-5-sonnet-20241022", label: "Claude 3.5 Sonnet · Anthropic", shortLabel: "Claude 3.5 Sonnet" },
+      { value: "cloud:anthropic:claude-opus-5",   label: "Claude Opus 5 · Anthropic",   shortLabel: "Claude Opus 5" },
+      { value: "cloud:anthropic:claude-sonnet-5", label: "Claude Sonnet 5 · Anthropic", shortLabel: "Claude Sonnet 5" },
+      { value: "cloud:anthropic:claude-haiku-4-5", label: "Claude Haiku 4.5 · Anthropic", shortLabel: "Claude Haiku 4.5 (fast)" },
     ],
     // Moonshot AI (Kimi) — OpenAI-compatible API. The live /models call replaces
     // this list whenever a key is available; keep the fallback on current public IDs.
