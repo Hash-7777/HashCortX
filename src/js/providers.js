@@ -98,6 +98,60 @@
       host: 'https://generativelanguage.googleapis.com',
       auth: 'query',
     },
+    // ── Added after measuring, not after guessing ──────────────────────
+    //
+    // Every one of these was tested for the only thing that decides whether
+    // this app can use it: whether its servers permit a request made from
+    // inside a web page. All nine answer one. Each speaks the OpenAI shape,
+    // so nothing here needs a translator — a chat address and a bearer key is
+    // the whole entry.
+    xai: {
+      label: 'xAI (Grok)',
+      chatUrl: 'https://api.x.ai/v1/chat/completions',
+      auth: 'bearer',
+    },
+    together: {
+      label: 'Together AI',
+      chatUrl: 'https://api.together.xyz/v1/chat/completions',
+      auth: 'bearer',
+    },
+    fireworks: {
+      label: 'Fireworks AI',
+      chatUrl: 'https://api.fireworks.ai/inference/v1/chat/completions',
+      auth: 'bearer',
+    },
+    zai: {
+      label: 'Z.ai (GLM)',
+      chatUrl: 'https://api.z.ai/api/paas/v4/chat/completions',
+      auth: 'bearer',
+    },
+    qwen: {
+      label: 'Alibaba Qwen',
+      // The international address. The mainland one is a separate account
+      // system, the way Moonshot's two are.
+      chatUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
+      auth: 'bearer',
+    },
+    huggingface: {
+      label: 'Hugging Face',
+      chatUrl: 'https://router.huggingface.co/v1/chat/completions',
+      auth: 'bearer',
+    },
+    deepinfra: {
+      label: 'DeepInfra',
+      chatUrl: 'https://api.deepinfra.com/v1/openai/chat/completions',
+      auth: 'bearer',
+    },
+    novita: {
+      label: 'Novita',
+      chatUrl: 'https://api.novita.ai/v3/openai/chat/completions',
+      auth: 'bearer',
+    },
+    venice: {
+      label: 'Venice',
+      chatUrl: 'https://api.venice.ai/api/v1/chat/completions',
+      auth: 'bearer',
+    },
     moonshot: {
       label: 'Moonshot (Kimi)',
       // Two hosts for two separate account systems, tried in turn. A Kimi
@@ -272,6 +326,15 @@
     nvidia:      { key: "build.nvidia.com → Get API Key",          quota: "build.nvidia.com" },
     deepseek:    { key: "platform.deepseek.com → API Keys",       quota: "platform.deepseek.com" },
     mistral:     { key: "console.mistral.ai → API Keys",          quota: "console.mistral.ai" },
+    xai:         { key: "console.x.ai → API Keys",                quota: "console.x.ai → Usage" },
+    together:    { key: "api.together.ai → Settings → API Keys",  quota: "api.together.ai → Usage" },
+    fireworks:   { key: "fireworks.ai → Account → API Keys",      quota: "fireworks.ai → Usage" },
+    zai:         { key: "z.ai → API Keys",                        quota: "z.ai → Usage" },
+    qwen:        { key: "modelstudio.console.alibabacloud.com → API-KEY", quota: "modelstudio.console.alibabacloud.com" },
+    huggingface: { key: "huggingface.co/settings/tokens (free)",  quota: "huggingface.co/settings/billing" },
+    deepinfra:   { key: "deepinfra.com/dash/api_keys",            quota: "deepinfra.com/dash/usage" },
+    novita:      { key: "novita.ai → Settings → Key Management",  quota: "novita.ai → Billing" },
+    venice:      { key: "venice.ai → Settings → API",             quota: "venice.ai → Settings → API" },
   };
 
   /** What to say when a request is made with no key saved for its provider. */
@@ -353,6 +416,9 @@
       cerebras: "Cerebras", samba: "SambaNova", nvidia: "NVIDIA",
       openai: "OpenAI", anthropic: "Anthropic", moonshot: "Moonshot (Kimi)",
       deepseek: "DeepSeek", mistral: "Mistral AI",
+      xai: "xAI (Grok)", together: "Together AI", fireworks: "Fireworks AI",
+      zai: "Z.ai (GLM)", qwen: "Alibaba Qwen", huggingface: "Hugging Face",
+      deepinfra: "DeepInfra", novita: "Novita", venice: "Venice",
     };
     const providerLabel = PROVIDER_LABELS[provider] || provider;
     const hints = HINTS[provider] || { key: "provider dashboard", quota: "provider dashboard" };

@@ -41,6 +41,8 @@
     groq: 'Groq', gemini: 'Google', openrouter: 'OpenRouter', cerebras: 'Cerebras', openai: 'OpenAI',
     anthropic: 'Anthropic', moonshot: 'Kimi', deepseek: 'DeepSeek', mistral: 'Mistral',
     samba: 'SambaNova', nvidia: 'NVIDIA',
+    xai: 'Grok', together: 'Together', fireworks: 'Fireworks', zai: 'Z.ai', qwen: 'Qwen',
+    huggingface: 'Hugging Face', deepinfra: 'DeepInfra', novita: 'Novita', venice: 'Venice',
   };
 
   /** Models that do not hold a conversation, by the words their names use. */
@@ -279,6 +281,29 @@
         .sort(byName);
     }
 
+    // ── The nine that speak plain OpenAI ──────────────────────────────
+    //
+    // Each answers `{ data: [{ id }] }` and needs no reader of its own, so
+    // they share one. Writing nine near-identical functions is how a filter
+    // gets fixed in eight places and missed in the ninth.
+    //
+    // `keep` is what that provider's list says about a model beyond its name:
+    // several of them serve pictures, video, speech and embeddings from the
+    // same address as their chat models, and their own list is the only place
+    // that says which is which. Where there is nothing to read, the name is
+    // all there is, and NOT_CHAT reads that.
+    function openAiShaped(provider, url, { keep, limits } = {}) {
+      return async function fetchModels(apiKey) {
+        const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+        const j = await getJson(NAMES[provider], url, headers);
+        return (j.data || [])
+          .filter((m) => m && typeof m.id === 'string' && !NOT_CHAT.test(m.id))
+          .filter((m) => (keep ? keep(m) : true))
+          .map((m) => entry(provider, m.id, prettify(m.id), limits ? limits(m) : {}))
+          .sort(byName);
+      };
+    }
+
     return {
       groq: fetchGroqModels,
       gemini: fetchGeminiModels,
@@ -291,6 +316,34 @@
       mistral: fetchMistralModels,
       samba: fetchSambaModels,
       nvidia: fetchNvidiaModels,
+
+      xai: openAiShaped('xai', 'https://api.x.ai/v1/models'),
+      together: openAiShaped('together', 'https://api.together.xyz/v1/models', {
+        // Together serves pictures, speech and embeddings beside its chat
+        // models and says which is which.
+        keep: (m) => !m.type || m.type === 'chat' || m.type === 'language',
+        limits: (m) => ({ ctx: m.context_length, out: m.max_output_length }),
+      }),
+      fireworks: openAiShaped('fireworks', 'https://api.fireworks.ai/inference/v1/models', {
+        limits: (m) => ({ ctx: m.context_length, tools: m.supports_tools }),
+      }),
+      zai: openAiShaped('zai', 'https://api.z.ai/api/paas/v4/models'),
+      qwen: openAiShaped('qwen', 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models'),
+      huggingface: openAiShaped('huggingface', 'https://router.huggingface.co/v1/models'),
+      deepinfra: openAiShaped('deepinfra', 'https://api.deepinfra.com/v1/openai/models', {
+        // Of 192 addresses here, 107 hold a conversation. The rest make
+        // pictures, video, speech or embeddings, and only the tags say so.
+        keep: (m) => ((m.metadata && m.metadata.tags) || []).includes('chat'),
+        limits: (m) => ({ ctx: m.metadata && m.metadata.context_length, out: m.metadata && m.metadata.max_tokens }),
+      }),
+      novita: openAiShaped('novita', 'https://api.novita.ai/v3/openai/models', {
+        keep: (m) => !m.model_type || m.model_type === 'chat',
+        limits: (m) => ({ ctx: m.context_size, out: m.max_output_tokens }),
+      }),
+      venice: openAiShaped('venice', 'https://api.venice.ai/api/v1/models', {
+        keep: (m) => !m.type || m.type === 'text',
+        limits: (m) => ({ ctx: m.context_length }),
+      }),
     };
   }
 

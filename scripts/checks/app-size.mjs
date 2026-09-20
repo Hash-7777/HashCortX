@@ -128,7 +128,16 @@ const LINE_BUDGET = {
   // a list written by hand. The schedule lives in js/model-refresh.js; these
   // lines are the app handing it the refresh it already had, what counts as a
   // provider having failed, and where to listen.
-  'js/app.js': 6501,
+  // 6531, up thirty. Nine providers people were already using and this app did
+  // not offer — Grok, Together, Fireworks, Z.ai, Qwen, Hugging Face, DeepInfra,
+  // Novita and Venice. None brings a model list of its own; they list
+  // themselves. It would have been forty-one lines, but three places that named
+  // every provider by hand now read the one table instead: blanking old keys
+  // out of plain storage, saving keys to the key store, and wiring each key box
+  // to rebuild the menu. NVIDIA had been missing from that last one since it
+  // was added, so a saved NVIDIA key did nothing until something else happened
+  // to rebuild the menu.
+  'js/app.js': 6531,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

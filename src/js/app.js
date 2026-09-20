@@ -105,6 +105,15 @@
   const geminiKeyEl = $("geminiKey");
   const openRouterKeyEl = $("openRouterKey");
   const cerebrasKeyEl   = $("cerebrasKey");
+  const xaiKeyEl      = $("xaiKey");
+  const togetherKeyEl = $("togetherKey");
+  const fireworksKeyEl = $("fireworksKey");
+  const zaiKeyEl      = $("zaiKey");
+  const qwenKeyEl     = $("qwenKey");
+  const huggingfaceKeyEl = $("huggingfaceKey");
+  const deepinfraKeyEl = $("deepinfraKey");
+  const novitaKeyEl   = $("novitaKey");
+  const veniceKeyEl   = $("veniceKey");
   const sambaKeyEl      = $("sambaKey");
   const openaiKeyEl     = $("openaiKey");
   const anthropicKeyEl  = $("anthropicKey");
@@ -867,6 +876,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     'groqKey','geminiKey','openRouterKey','cerebrasKey','sambaKey',
     'openaiKey','anthropicKey','moonshotKey','deepseekKey','mistralKey',
     'googleKey','googleCx','tavilyKey','nvidiaKey',
+    'xaiKey','togetherKey','fireworksKey','zaiKey','qwenKey','huggingfaceKey','deepinfraKey','novitaKey','veniceKey',
   ];
   const KEY_EL_MAP = {
     groqKey: groqKeyEl, geminiKey: geminiKeyEl, openRouterKey: openRouterKeyEl,
@@ -875,6 +885,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     deepseekKey: deepseekKeyEl, mistralKey: mistralKeyEl,
     googleKey: googleKeyEl, googleCx: googleCxEl,
     tavilyKey: tavilyKeyEl, nvidiaKey: nvidiaKeyEl,
+    xaiKey: xaiKeyEl, togetherKey: togetherKeyEl, fireworksKey: fireworksKeyEl, zaiKey: zaiKeyEl, qwenKey: qwenKeyEl, huggingfaceKey: huggingfaceKeyEl, deepinfraKey: deepinfraKeyEl, novitaKey: novitaKeyEl, veniceKey: veniceKeyEl,
   };
   if (window.HC && HC.keychain) {
     HC.keychain.loadAll(HC_KEY_PROVIDERS).then(keys => {
@@ -933,27 +944,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         ragEnabled,
         currentProjectId: state.currentProjectId,
         activeAgentId: state.activeAgentId,
-        // Remove API keys from localStorage (Phase 6 migration: wipe old values)
-        groqKey: "", geminiKey: "", openRouterKey: "", cerebrasKey: "", sambaKey: "",
-        openaiKey: "", anthropicKey: "", moonshotKey: "", deepseekKey: "", mistralKey: "",
-        googleKey: "", googleCx: "", tavilyKey: "", nvidiaKey: "",
+        // Every key name blanked in plain storage, from the one list of them,
+        // so a provider added later cannot be the one left behind in the clear.
+        ...Object.fromEntries(HC_KEY_PROVIDERS.map((name) => [name, ""])),
       }));
       // API keys → the app's local key store (async fire-and-forget)
+      // Every key goes to the store from the one list that names them, rather
+      // than from fourteen lines naming them again. A provider added to the
+      // list below and forgotten here used to have its key saved nowhere at
+      // all, and nothing said so.
       if (window.HC && HC.keychain) {
-        void HC.keychain.store('groqKey',       groqKeyEl.value       || "");
-        void HC.keychain.store('geminiKey',     geminiKeyEl.value     || "");
-        void HC.keychain.store('openRouterKey', openRouterKeyEl.value || "");
-        void HC.keychain.store('cerebrasKey',   cerebrasKeyEl.value   || "");
-        void HC.keychain.store('sambaKey',      sambaKeyEl.value      || "");
-        void HC.keychain.store('openaiKey',     openaiKeyEl.value     || "");
-        void HC.keychain.store('anthropicKey',  anthropicKeyEl.value  || "");
-        void HC.keychain.store('moonshotKey',   moonshotKeyEl.value   || "");
-        void HC.keychain.store('deepseekKey',   deepseekKeyEl.value   || "");
-        void HC.keychain.store('mistralKey',    mistralKeyEl.value    || "");
-        void HC.keychain.store('googleKey',     googleKeyEl.value     || "");
-        void HC.keychain.store('googleCx',      googleCxEl.value      || "");
-        void HC.keychain.store('tavilyKey',     tavilyKeyEl.value     || "");
-        void HC.keychain.store('nvidiaKey',     nvidiaKeyEl.value     || "");
+        for (const [name, el] of Object.entries(KEY_EL_MAP)) {
+          void HC.keychain.store(name, (el && el.value) || "");
+        }
       }
     } catch (err) {
       console.warn("[settings] save failed:", err);
@@ -2471,6 +2474,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     samba: sambaKeyEl,
     openrouter: openRouterKeyEl,
     nvidia: nvidiaKeyEl,
+    xai: xaiKeyEl,
+    together: togetherKeyEl,
+    fireworks: fireworksKeyEl,
+    zai: zaiKeyEl,
+    qwen: qwenKeyEl,
+    huggingface: huggingfaceKeyEl,
+    deepinfra: deepinfraKeyEl,
+    novita: novitaKeyEl,
+    venice: veniceKeyEl,
   };
 
   const API_PROVIDERS = [
@@ -2485,6 +2497,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { id: "samba",      name: "SambaNova",   keyId: "sambaKey",      testUrl: null,                                             auth: "bridge" },
     { id: "openrouter", name: "OpenRouter",  keyId: "openRouterKey", testUrl: "https://openrouter.ai/api/v1/auth/key",          auth: "bearer" },
     { id: "nvidia",     name: "NVIDIA NIM",  keyId: "nvidiaKey",     testUrl: null,                                             auth: "bridge" },
+    { id: "xai", name: "xAI (Grok)", keyId: "xaiKey", testUrl: "https://api.x.ai/v1/models", auth: "bearer" },
+    { id: "together", name: "Together AI", keyId: "togetherKey", testUrl: "https://api.together.xyz/v1/models", auth: "bearer" },
+    { id: "fireworks", name: "Fireworks AI", keyId: "fireworksKey", testUrl: "https://api.fireworks.ai/inference/v1/models", auth: "bearer" },
+    { id: "zai", name: "Z.ai (GLM)", keyId: "zaiKey", testUrl: "https://api.z.ai/api/paas/v4/models", auth: "bearer" },
+    { id: "qwen", name: "Alibaba Qwen", keyId: "qwenKey", testUrl: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/models", auth: "bearer" },
+    { id: "huggingface", name: "Hugging Face", keyId: "huggingfaceKey", testUrl: "https://router.huggingface.co/v1/models", auth: "bearer" },
+    { id: "deepinfra", name: "DeepInfra", keyId: "deepinfraKey", testUrl: "https://api.deepinfra.com/v1/openai/models", auth: "bearer" },
+    { id: "novita", name: "Novita", keyId: "novitaKey", testUrl: "https://api.novita.ai/v3/openai/models", auth: "bearer" },
+    { id: "venice", name: "Venice", keyId: "veniceKey", testUrl: "https://api.venice.ai/api/v1/models", auth: "bearer" },
   ];
 
   async function testProviderConnection(provider) {
@@ -3209,6 +3230,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     { group: "SambaNova  —  Free · Mega-Scale",   keyEl: () => sambaKeyEl,      provider: "samba",      models: seedModelsFor("samba") },
     { group: "NVIDIA  —  Many Open Models",       keyEl: () => nvidiaKeyEl,    provider: "nvidia",     models: seedModelsFor("nvidia") },
     { group: "OpenRouter  —  Free Models",        keyEl: () => openRouterKeyEl, provider: "openrouter", models: seedModelsFor("openrouter") },
+    // These nine carry no written-in models: each lists its own the moment a
+    // key is saved, and js/model-refresh.js keeps that list current from then
+    // on. See the note at the foot of src/data/cloud-models.js.
+    { group: "xAI (Grok)  —  Paid · Frontier", keyEl: () => xaiKeyEl, provider: "xai", models: seedModelsFor("xai") },
+    { group: "Together AI  —  Many Open Models", keyEl: () => togetherKeyEl, provider: "together", models: seedModelsFor("together") },
+    { group: "Fireworks AI  —  Fast Open Models", keyEl: () => fireworksKeyEl, provider: "fireworks", models: seedModelsFor("fireworks") },
+    { group: "Z.ai (GLM)  —  Strong at Code", keyEl: () => zaiKeyEl, provider: "zai", models: seedModelsFor("zai") },
+    { group: "Alibaba Qwen  —  Strong at Code", keyEl: () => qwenKeyEl, provider: "qwen", models: seedModelsFor("qwen") },
+    { group: "Hugging Face  —  Free Tier", keyEl: () => huggingfaceKeyEl, provider: "huggingface", models: seedModelsFor("huggingface") },
+    { group: "DeepInfra  —  Open Models · Cheap", keyEl: () => deepinfraKeyEl, provider: "deepinfra", models: seedModelsFor("deepinfra") },
+    { group: "Novita  —  Open Models", keyEl: () => novitaKeyEl, provider: "novita", models: seedModelsFor("novita") },
+    { group: "Venice  —  Private by Default", keyEl: () => veniceKeyEl, provider: "venice", models: seedModelsFor("venice") },
   ];
 
   function seedSavedModelDropdown() {
@@ -6234,16 +6267,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   privacyLocalEl.addEventListener("change", () => applyPrivacyLocal(privacyLocalEl.checked));
   tavilyKeyEl.addEventListener("change", saveSettings);
   nvidiaKeyEl.addEventListener("change", saveSettings);
-  groqKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
-  geminiKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
-  openRouterKeyEl.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
-  cerebrasKeyEl.addEventListener("change",   () => { saveSettings(); populateCloudModels(); });
-  sambaKeyEl.addEventListener("change",      () => { saveSettings(); populateCloudModels(); });
-  openaiKeyEl.addEventListener("change",     () => { saveSettings(); populateCloudModels(); });
-  anthropicKeyEl.addEventListener("change",  () => { saveSettings(); populateCloudModels(); });
-  moonshotKeyEl.addEventListener("change",   () => { saveSettings(); populateCloudModels(); });
-  deepseekKeyEl.addEventListener("change",   () => { saveSettings(); populateCloudModels(); });
-  mistralKeyEl.addEventListener("change",    () => { saveSettings(); populateCloudModels(); });
+  // Saving a key rebuilds the menu, which asks that provider for its own list.
+  // This was ten lines naming ten key boxes, and NVIDIA's was not among them —
+  // so a saved NVIDIA key did nothing until something else happened to rebuild
+  // the menu. Every provider's box is wired from the one table of them.
+  for (const el of Object.values(PROVIDER_KEY_ELEMENTS)) {
+    el?.addEventListener("change", () => { saveSettings(); populateCloudModels(); });
+  }
   // ========= Local Knowledge Base (RAG) =========
   // Lives in src/core/rag/knowledge-base.js. The one thing it needs from here
   // is whether the toggle is on, and it takes that as a getter because the

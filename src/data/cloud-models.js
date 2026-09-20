@@ -116,6 +116,30 @@
       { value: "cloud:mistral:codestral-latest",     label: "Codestral · Mistral",     shortLabel: "Codestral" },
       { value: "cloud:mistral:mistral-medium-latest", label: "Mistral Medium · Mistral", shortLabel: "Mistral Medium" },
     ],
+
+    // ── Nine providers with no list written here, on purpose ──────────────
+    //
+    // Every one of them answers with its own catalogue the moment there is a
+    // key to ask with, and the app asks on its own from then on — at launch,
+    // on a timer, and whenever the window comes back to the front
+    // (js/model-refresh.js). A list typed in here would only be a guess at
+    // what they offered on the day it was typed, and this file exists as a
+    // record of how quickly such a guess goes wrong: seven of the eight
+    // OpenRouter models above were already dead both times they were checked.
+    //
+    // So these carry nothing. A provider appears in the menu when its own
+    // list arrives, a second or so after a key is saved, and what it shows is
+    // what that provider actually serves that day. Nobody has to maintain it,
+    // and nobody is ever offered a model that stopped existing in July.
+    xai: [],
+    together: [],
+    fireworks: [],
+    zai: [],
+    qwen: [],
+    huggingface: [],
+    deepinfra: [],
+    novita: [],
+    venice: [],
   };
 
   window.HCCloudModels = { CLOUD_FALLBACK };
