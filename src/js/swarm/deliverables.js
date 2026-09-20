@@ -56,14 +56,28 @@
   const ASKS = /^\s*(what|why|how|when|where|who|which|whose|explain|describe|compare|summari[sz]e|is|are|does|do|did|can|should)\b/i;
   const FIXES = /\b(fix|debug|broken|failing|crash(es|ing)?|bug|regression|stack trace|error|does ?n[o']t work|not working|repair|patch)\b/i;
   const ANALYSES = /\b(analy[sz]e|analysis|research|study|survey|market|competitors?|benchmark|evaluate|assessment|feasibility|due diligence|findings|data set|dataset|csv|spreadsheet|metrics|forecast)\b/i;
-  const WRITES = /\b(campaign|strategy|plan|proposal|pitch|brief|copy|content|article|blog|essay|report|newsletter|email sequence|script|white ?paper|case study|press release|social (?:media )?posts?|ad(?:vert)?s?|slogan|brand(?:ing)?|positioning)\b/i;
+  const WRITES = /\b(campaigns?|strateg(?:y|ies)|plans?|proposals?|pitch(?:es)?|briefs?|copy|content|articles?|blogs?|essays?|reports?|newsletters?|email sequences?|scripts?|white ?papers?|case stud(?:y|ies)|press releases?|social (?:media )?posts?|ad(?:vert)?s?|slogans?|brand(?:ing)?|positioning|poems?|stor(?:y|ies)|songs?|letters?|speech(?:es)?|bios?)\b/i;
   const BUILDS = /\b(build|make|create|code|develop|implement|program|write)\b[\s\S]{0,40}\b(app|application|site|website|web ?page|landing|dashboard|game|tool|script|api|service|bot|extension|plugin|widget|calculator|clone)\b|\b(website|web ?app|landing page|front-?end|back-?end|html|css|javascript|react|vue|svelte|game|dashboard|storefront|online (?:shop|store))\b/i;
 
-  /** What the work is doing. One word, used to shape the pieces, not to pick them. */
+  /**
+   * What the work is doing. One word, used to shape the pieces, not to pick
+   * them.
+   *
+   * Whether a request asks for something to be built is decided in
+   * js/swarm/task-kind.js, which has the careful version of that reading — a
+   * question about HTML is not a website, and "a to-do app in React" is. Asking
+   * it rather than keeping a second copy here is the point: two readings of
+   * the same question drift, and the one that is wrong is the one nobody is
+   * looking at. BUILDS below is only for when that file is not loaded, as in a
+   * check that loads this one on its own.
+   */
   function kindOf(task) {
     const t = String(task || '');
     if (FIXES.test(t)) return 'fix';
-    if (BUILDS.test(t)) return 'build';
+    const TK = typeof window !== 'undefined' && window.HCSwarmTaskKind;
+    if (TK && typeof TK.isCodeBuildTask === 'function') {
+      if (TK.isCodeBuildTask(t)) return 'build';
+    } else if (BUILDS.test(t)) return 'build';
     if (ANALYSES.test(t)) return 'analysis';
     if (WRITES.test(t)) return 'writing';
     if (ASKS.test(t)) return 'answer';
@@ -79,7 +93,7 @@
   const PIECES = [
     {
       id: 'catalogue',
-      when: /\b(shop|store|storefront|e-?commerce|ecom|products?|catalogue|catalog|menu|listings?|inventory|items for sale|marketplace|gallery of|collection of|price list)\b/i,
+      when: /\b(shops?|stores?|storefronts?|e-?commerce|ecom|products?|catalogues?|catalogs?|menus?|listings?|inventory|items for sale|marketplaces?|galler(?:y|ies) of|collections? of|price lists?)\b/i,
       files: [{ name: 'catalogue.js', format: 'the items as data — one array, each with an id, name, price, image and description' }],
       bar: [
         'the catalogue is data in its own file, and the page is built from it rather than each item being written into the markup by hand',
@@ -89,7 +103,7 @@
     },
     {
       id: 'cart',
-      when: /\b(cart|basket|checkout|add to (?:cart|basket|bag)|shopping bag|order (?:form|summary))\b/i,
+      when: /\b(carts?|baskets?|checkouts?|add to (?:cart|basket|bag)|shopping bags?|order (?:forms?|summary))\b/i,
       files: [{ name: 'cart.js', format: 'the cart: add, remove, change quantity, totals, and keeping it between visits' }],
       bar: [
         'the cart adds, removes, changes quantity, and keeps its count and total right everywhere they are shown',
@@ -99,7 +113,7 @@
     },
     {
       id: 'server',
-      when: /\b(auth|login|sign ?up|sign ?in|account|admin|database|db|persist|orders?|payment|stripe|checkout|booking|reservation|cms|api|back-?end|server|multi-?user)\b/i,
+      when: /\b(auth|logins?|sign ?ups?|sign ?ins?|accounts?|admin|databases?|db|persist|orders?|payments?|stripe|checkouts?|bookings?|reservations?|cms|apis?|back-?end|servers?|multi-?user)\b/i,
       files: [{ name: 'server.js', format: 'the server: its routes, what it stores, and how the page talks to it' }],
       bar: [
         'the server owns what must outlive one browser, and the page never pretends to do it alone',
@@ -108,7 +122,7 @@
     },
     {
       id: 'game',
-      when: /\b(game|playable|player|score|leaderboard|level|enemies|puzzle|arcade|platformer|shooter|snake|tetris|pong)\b/i,
+      when: /\b(games?|playable|players?|scores?|leaderboards?|levels?|enemies|puzzles?|arcade|platformer|shooters?|snake|tetris|pong)\b/i,
       files: [{ name: 'game.js', format: 'the game: its loop, state, input and rules' }],
       bar: [
         'the game runs a real loop, is playable start to finish, and can be lost or won',
@@ -118,7 +132,7 @@
     },
     {
       id: 'charts',
-      when: /\b(dashboard|charts?|graphs?|analytics|visuali[sz]|kpis?|metrics|report(?:ing)? screen|statistics)\b/i,
+      when: /\b(dashboards?|charts?|graphs?|analytics|visuali[sz]|kpis?|metrics|report(?:ing)? screens?|statistics)\b/i,
       files: [{ name: 'charts.js', format: 'the figures and how each one is drawn' }],
       bar: [
         'every figure drawn comes from the data in the page, and no chart is a picture of numbers that are not there',
@@ -127,13 +141,13 @@
     },
     {
       id: 'posts',
-      when: /\b(blog|posts?|articles?|news|journal|changelog|updates? page|recipes?)\b/i,
+      when: /\b(blogs?|posts?|articles?|news|journals?|changelogs?|updates? pages?|recipes?)\b/i,
       files: [{ name: 'posts.js', format: 'the entries as data — title, date, summary and body' }],
       bar: ['the entries are data in their own file, each with a title, a date and real body text, and the page is built from them'],
     },
     {
       id: 'form',
-      when: /\b(contact form|sign ?up form|form|subscribe|newsletter|booking|enquiry|inquiry|quote request)\b/i,
+      when: /\b(contact forms?|sign ?up forms?|forms?|subscribe|newsletters?|bookings?|enquir(?:y|ies)|inquir(?:y|ies)|quote requests?)\b/i,
       files: [],
       bar: [
         'every form checks its fields, says what is wrong next to the field that is wrong, and says what happened when it is sent',
@@ -141,7 +155,7 @@
     },
     {
       id: 'auth_ui',
-      when: /\b(login|sign ?in|sign ?up|register|account page|profile page|dashboard for users)\b/i,
+      when: /\b(logins?|sign ?ins?|sign ?ups?|register|account pages?|profile pages?|dashboards? for users)\b/i,
       files: [],
       bar: ['the signed-in and signed-out states are both built, and one is not a screen that cannot be reached'],
     },
@@ -417,6 +431,146 @@ Return only JSON, no markdown:
     }));
   }
 
+  // ── Who writes what ──────────────────────────────────────────────
+  //
+  // THE DEFECT THIS REPLACES. Every agent was handed the same list — "Required
+  // artifacts: index.html, styles.css, app.js" — and none was told which of
+  // them was its own. So each one wrote what it thought the list meant, and
+  // the agent meant for the stylesheet spent its answer on a page it was not
+  // there to write and ran out of room before reaching the stylesheet. The
+  // deliverables have carried an owner all along; nothing was using it.
+
+  /** The words a role is known by, so an agent's own role finds its work. */
+  const ROLE_WORDS = {
+    planner: /plan|architect|spec|brief|lead|strateg/i,
+    coder: /cod|develop|engineer|build|front|back|implement|programm/i,
+    analyst: /analy|research|data|insight|market/i,
+    writer: /writ|copy|content|author|edit/i,
+    validator: /valid|test|qa|check|verif/i,
+    critic: /critic|review|challenge/i,
+    supervisor: /supervis|synthes|polish|final|deliver|assembl|aggregat|boss|lead/i,
+    researcher: /research|source|invest|find/i,
+    specialist: /special|expert/i,
+  };
+
+  /** Whether an agent answers to a deliverable's owner. */
+  function agentMatches(agent, owner) {
+    const role = String((agent && agent.role) || '').toLowerCase();
+    if (role === owner) return true;
+    const words = ROLE_WORDS[owner];
+    return !!words && words.test(`${(agent && agent.name) || ''} ${role}`);
+  }
+
+  // What a deliverable is about, so it reaches the agent built for it. A
+  // stylesheet belongs with whoever does the look of the thing, not with
+  // whoever happens to be the next coder in the list.
+  const AFFINITY = [
+    { when: /\.html?$/i, words: /front|ui|page|markup|html|web|design|layout/i },
+    { when: /\.css$/i, words: /front|ui|design|style|visual|css|layout/i },
+    { when: /^(server|api|backend|db|database)\b|\.sql$/i, words: /back|server|api|infra|database|endpoint/i },
+    { when: /^(catalogue|catalog|posts|data|products)\b/i, words: /data|content|catalog|product|back|research/i },
+    { when: /^(cart|game|charts|app|script)\b|\.m?js$/i, words: /front|script|logic|interact|engineer|develop|behaviour|behavior/i },
+  ];
+
+  // A deliverable that IS the finished thing, rather than a part of it.
+  const FINAL_NAME = /^(final|answer|result|campaign|bundle|deliverable)\b|^final[_-]/i;
+
+  /** How well an agent suits a deliverable. Higher is better. */
+  function fitScore(agent, item) {
+    let score = 0;
+    if (agentMatches(agent, item.owner)) score += 2;
+    const who = `${(agent && agent.name) || ''} ${(agent && agent.role) || ''}`;
+    for (const a of AFFINITY) {
+      if (a.when.test(item.name) && a.words.test(who)) { score += 3; break; }
+    }
+    return score;
+  }
+
+  /**
+   * Which agent writes which deliverable.
+   *
+   * Every deliverable gets exactly one agent, so two never write the same file
+   * and none is left for whoever happens to feel responsible. An agent is
+   * picked for how well it suits the piece — the stylesheet goes to whoever
+   * does the look of it, the server to whoever does servers — and where
+   * several suit it equally the one carrying least takes it, so two coders
+   * split the work rather than one writing everything.
+   *
+   * The deliverer is kept back for the deliverable that IS the finished thing,
+   * when the plan names one; it is not given an ordinary piece as well, since
+   * it already has to make every piece agree. A plan naming no such thing
+   * leaves it free, which is the case for a site, where the agent that
+   * delivers writes all the files out together at the end anyway.
+   */
+  function assign(plan, agents, delivererId) {
+    const list = Array.isArray(agents) ? agents.filter(Boolean) : [];
+    const items = (plan && plan.items) || [];
+    const byAgent = new Map(list.map((a) => [a.id, []]));
+    if (!list.length) return byAgent;
+    const deliverer = list.find((a) => a.id === delivererId) || list[list.length - 1];
+    let finalAt = items.findIndex((i) => FINAL_NAME.test(i.name));
+    if (finalAt < 0) finalAt = items.findIndex((i) => i.owner === 'supervisor');
+
+    items.forEach((item, i) => {
+      if (i === finalAt) { byAgent.get(deliverer.id).push(item); return; }
+      const others = list.filter((a) => a.id !== deliverer.id);
+      const pool = others.length ? others : list;
+      let best = null;
+      let bestScore = -1;
+      for (const a of pool) {
+        const score = fitScore(a, item);
+        const load = byAgent.get(a.id).length;
+        if (score > bestScore || (score === bestScore && best && load < byAgent.get(best.id).length)) {
+          best = a; bestScore = score;
+        }
+      }
+      byAgent.get((best || deliverer).id).push(item);
+    });
+    return byAgent;
+  }
+
+  /**
+   * What one agent is told about who writes what.
+   *
+   * Its own work by name, then everyone else's by name so it can refer to
+   * them rather than writing them again.
+   *
+   * The agent that delivers is told something different on purpose. It is the
+   * only one that sees every piece together, so it is not told to keep off
+   * the others' work — it is told it receives all of it and produces what the
+   * person actually gets. Saying "do not write them" to that agent would
+   * contradict the site rules in js/swarm/web-brief.js, which ask it for every
+   * file, complete, and that contradiction is exactly the kind that makes an
+   * agent pick one instruction and drop the other.
+   */
+  function ownershipNote(plan, agents, delivererId, agentId) {
+    const byAgent = assign(plan, agents, delivererId);
+    const mine = byAgent.get(agentId) || [];
+    const list = Array.isArray(agents) ? agents : [];
+    const nameOf = (id) => (list.find((a) => a.id === id) || {}).name || 'another agent';
+    const others = [];
+    for (const [id, items] of byAgent) {
+      if (id === agentId) continue;
+      for (const item of items) others.push(`${item.name} (${nameOf(id)})`);
+    }
+    if (!mine.length && !others.length) return '';
+
+    const parts = [];
+    if (agentId === delivererId) {
+      if (mine.length) parts.push(`WHAT YOU PRODUCE:\n${mine.map((i) => `- ${i.name} — ${i.format}`).join('\n')}`);
+      if (others.length) parts.push(`WHAT REACHES YOU: ${others.join(', ')}.`);
+      parts.push('You deliver what the person receives, and you are the only one who sees every piece together — so make them agree: every name, reference and figure used in one must exist in the others. Where a piece you were given is missing, cut short or wrong, put it right yourself rather than passing the fault on.');
+    } else {
+      parts.push(mine.length
+        ? `WHAT YOU WRITE, and nothing else:\n${mine.map((i) => `- ${i.name} — ${i.format}`).join('\n')}`
+        : 'None of the deliverables is yours to write. Do the work your own instructions give you and hand it on.');
+      if (others.length) {
+        parts.push(`WRITTEN BY OTHERS: ${others.join(', ')}. Refer to these by name and rely on them. Do not write them, and do not repeat their contents back.`);
+      }
+    }
+    return `\n\nWHO WRITES WHAT:\n${parts.join('\n\n')}`;
+  }
+
   /** One line naming what this run owes, for the trace. */
   function summaryOf(plan) {
     const n = (plan.items || []).length;
@@ -426,6 +580,6 @@ Return only JSON, no markdown:
   window.HCSwarmDeliverables = {
     MAX_ITEMS, MAX_BAR, PIECES, ALWAYS,
     kindOf, piecesOf, extraPagesOf, derive, messages, readPlan, normalise, merge,
-    filesOf, budgetsFor, contractsOf, summaryOf,
+    filesOf, budgetsFor, contractsOf, summaryOf, agentMatches, fitScore, assign, ownershipNote,
   };
 })();

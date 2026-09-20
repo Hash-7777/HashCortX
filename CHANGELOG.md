@@ -108,6 +108,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Each agent is told which part is its own.** Every agent used to be handed
+  the same list of everything the team owed, with nothing saying which of it
+  was theirs — so the agent meant for the stylesheet spent its answer writing
+  a page it was not there for, and ran out of room before reaching the
+  stylesheet. Each deliverable now goes to exactly one agent, chosen for how
+  well it suits the piece, and each agent is told what it writes, what the
+  others are writing, and to refer to theirs by name instead of writing them
+  again. The agent that delivers is told the opposite on purpose: it receives
+  every piece, has to make them agree, and puts right anything that arrives
+  wrong.
+- **An input that had to be shortened says so.** An agent given the first few
+  thousand characters of a longer answer received it looking complete, so half
+  a file read as a file that ends there — and the rest got written from
+  guesswork. It now says where it was cut, how much there was, and who wrote
+  it.
 - **A model reads your task and decides what the team owes.** Before the team
   is built, one short call works out the deliverables for the request in front
   of it, the same way the app already asks you for details only you can give.

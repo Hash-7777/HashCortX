@@ -303,7 +303,12 @@ const SwarmMaker = (() => {
       .map(([name, out]) => {
         const text = String(out);
         const limit = needsWhole ? Math.max(depCharLimit, text.length) : depCharLimit;
-        return `\n[${name}]:\n${text.slice(0, limit)}`;
+        // A cut input used to arrive looking whole, so an agent given half a
+        // file could only read it as a file that ends there — and would write
+        // the rest itself, from nothing. It now says so, and says who to ask.
+        const cut = text.length > limit;
+        return `\n[${name}]:\n${text.slice(0, limit)}`
+          + (cut ? `\n[...cut here. ${name} wrote ${text.length} characters and you were given the first ${limit}. Do not treat this as the whole of it, and do not rewrite the missing part from guesswork — work from what is here and say what you could not see.]` : "");
       });
     const context = contextLines.length ? "\n\n--- Input from prior agents ---" + contextLines.join("") : "";
     const hasPyTool = (agent.tools || []).includes("code_interpreter");
@@ -315,8 +320,14 @@ const SwarmMaker = (() => {
     const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner, bar: execOptions.bar });
     // What a tool returns is material, not instructions (platform/tauri/hashcoder.js).
     const toolNote = (agent.tools || []).length && window.HC?.code?.TOOL_TEXT_RULE ? `\n\n${window.HC.code.TOOL_TEXT_RULE}` : "";
+    // Which deliverable is this agent's own, and which belong to the others —
+    // js/swarm/deliverables.js. Every agent used to be handed the same list
+    // with nothing saying which part of it was its own.
+    const ownNote = execOptions.plan
+      ? DELIVERABLES.ownershipNote(execOptions.plan, execOptions.agents || [], finalOwnerId, agent.id)
+      : "";
     const messages = [
-      { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + webFileNote + toolNote },
+      { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + ownNote + webFileNote + toolNote },
       { role: "user",   content: `Task: ${task}${context}\n\nProvide your output directly.` }
     ];
     const timeoutMs = (agent.timeout || 120) * 1000;
@@ -501,6 +512,10 @@ const SwarmMaker = (() => {
       siteFiles: window.HCSwarmWebBrief.siteFilesOf(bp),
       // What this run's own request asks of the result — js/swarm/deliverables.js.
       bar: Array.isArray(bp.qualityGates) ? bp.qualityGates : [],
+      // And who writes which part of it. The team goes with it, because an
+      // agent is told the others by name, not by id.
+      plan: { kind: bp.deliverableKind, items: (bp.artifactContracts || []).map(a => ({ name: a.name, owner: a.ownerRole, format: a.format })) },
+      agents,
     };
     // The agent that delivers the answer runs on whatever arrived — js/swarm/schedule.js.
     const sched = { keepGoing: new Set([choice.deliverer].filter(Boolean)) };

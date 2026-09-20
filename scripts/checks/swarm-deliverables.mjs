@@ -22,6 +22,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+// task-kind.js first: deliverables.js asks it whether a request is a build,
+// rather than keeping a second reading of that question. Loading it here means
+// the check exercises the path the app actually takes.
+vm.runInContext(readFileSync(join(root, 'src', 'js', 'swarm', 'task-kind.js'), 'utf8'), sandbox, { filename: 'task-kind.js' });
 vm.runInContext(readFileSync(join(root, 'src', 'js', 'swarm', 'deliverables.js'), 'utf8'), sandbox, { filename: 'deliverables.js' });
 const D = sandbox.window.HCSwarmDeliverables;
 
@@ -131,6 +135,66 @@ ok('the list is capped', messy.items.length <= D.MAX_ITEMS, String(messy.items.l
 ok('the bar is capped', messy.bar.length <= D.MAX_BAR, String(messy.bar.length));
 ok('a bar line too short to check is dropped', !messy.bar.includes('no'));
 ok('a repeated bar line is kept once', messy.bar.filter((b) => b === 'ok fine here').length === 1);
+
+console.log('\nEvery deliverable has exactly one agent, and it is the right one:');
+{
+  const TEAM = [
+    { id: 'a1', name: 'Planner', role: 'analyst' },
+    { id: 'a2', name: 'Frontend Dev', role: 'coder' },
+    { id: 'a3', name: 'Backend Dev', role: 'coder' },
+    { id: 'a4', name: 'Validator', role: 'validator' },
+    { id: 'a5', name: 'Final Polisher', role: 'supervisor' },
+  ];
+  const plan = D.derive('build an online shop with a catalogue, a cart and logins');
+  const m = D.assign(plan, TEAM, 'a5');
+  const all = [...m.values()].flat();
+  ok('every deliverable is given out', all.length === plan.items.length, `${all.length} of ${plan.items.length}`);
+  ok('and none of them twice', new Set(all.map((i) => i.name)).size === all.length);
+  const who = (name) => [...m.entries()].find(([, items]) => items.some((i) => i.name === name))?.[0];
+  const nameOf = (id) => TEAM.find((a) => a.id === id)?.name;
+  ok('the stylesheet goes to whoever does the look of it', /Frontend/.test(nameOf(who('styles.css')) || ''), nameOf(who('styles.css')));
+  ok('the page too', /Frontend/.test(nameOf(who('index.html')) || ''), nameOf(who('index.html')));
+  ok('the server goes to whoever does servers', /Backend/.test(nameOf(who('server.js')) || ''), nameOf(who('server.js')));
+  ok('the plan goes to the planner', /Planner/.test(nameOf(who('plan.md')) || ''), nameOf(who('plan.md')));
+
+  // The deliverer has to make every piece agree, so it is not also given an
+  // ordinary piece unless the plan names one that IS the finished thing.
+  ok('a build leaves the deliverer free to assemble', (m.get('a5') || []).length === 0, String((m.get('a5') || []).length));
+  const analysis = D.assign(D.derive('analyse the scooter market'), TEAM, 'a5');
+  ok('but the final answer is the deliverer\'s', (analysis.get('a5') || []).some((i) => /answer/.test(i.name)));
+
+  // Several agents answering to one owner share the work out.
+  const twoCoders = D.assign(D.derive('build a site with a blog, a shop and charts'),
+    [{ id: 'c1', name: 'Dev One', role: 'coder' }, { id: 'c2', name: 'Dev Two', role: 'coder' }, { id: 'c3', name: 'Lead', role: 'supervisor' }], 'c3');
+  ok('two coders both get work', (twoCoders.get('c1') || []).length > 0 && (twoCoders.get('c2') || []).length > 0);
+
+  ok('a plan with no team at all is survivable', D.assign(plan, [], 'x').size === 0);
+  ok('an agent nothing matches still leaves every piece owned',
+    [...D.assign(plan, [{ id: 'z', name: 'Someone', role: 'custom' }], 'z').values()].flat().length === plan.items.length);
+}
+
+console.log('\nAnd each agent is told which part is its own:');
+{
+  const TEAM = [
+    { id: 'a1', name: 'Planner', role: 'analyst' },
+    { id: 'a2', name: 'Frontend Dev', role: 'coder' },
+    { id: 'a5', name: 'Final Polisher', role: 'supervisor' },
+  ];
+  const plan = D.derive('build an online shop with a catalogue and a cart');
+  const front = D.ownershipNote(plan, TEAM, 'a5', 'a2');
+  const deliv = D.ownershipNote(plan, TEAM, 'a5', 'a5');
+  ok('an agent is told what it writes', /WHAT YOU WRITE, and nothing else/.test(front));
+  ok('and told to keep off the rest', /Do not write them/.test(front));
+  ok('and who has them, by name', /\(Planner\)/.test(front));
+
+  // Telling the agent that assembles everything to keep off the others' files
+  // would contradict the site rules, which ask it for every file, complete.
+  ok('the deliverer is NOT told to keep off them', !/Do not write them/.test(deliv));
+  ok('it is told what reaches it', /WHAT REACHES YOU/.test(deliv));
+  ok('and that it must make the pieces agree', /make them agree/.test(deliv));
+  ok('and to repair a piece rather than pass the fault on', /put it right yourself/.test(deliv));
+  ok('a run with no plan says nothing at all', D.ownershipNote({ items: [] }, TEAM, 'a5', 'a2') === '');
+}
 
 console.log('\nThe rest of the Swarm gets what it already speaks:');
 const c = D.contractsOf(D.derive(SHOP));

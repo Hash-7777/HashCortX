@@ -58,8 +58,16 @@ ok('chat\'s tool loop, in the system message', /const rule = window\.HC\?\.code\
 ok('... after the system message is certain to exist', loop.indexOf('const rule = window.HC?.code?.TOOL_TEXT_RULE') > loop.indexOf('else baseMessages.unshift({ role: "system", content: memNote });'));
 ok('chat\'s pre-fetch fallback, ahead of what its tools fetched', /toolContext = await runAgentTools\(agent, userText\);\s*\n\s*if \(toolContext && window\.HC\?\.code\?\.TOOL_TEXT_RULE\) toolContext = `\$\{window\.HC\.code\.TOOL_TEXT_RULE\}\\n\\n\$\{toolContext\}`;/.test(bodyOf(app, 'runAgentFallback')));
 const swarm = src('modes', 'agent-maker', 'mode.js');
-ok('an Agent Swarm agent with tools', /const toolNote = \(agent\.tools \|\| \[\]\)\.length && window\.HC\?\.code\?\.TOOL_TEXT_RULE \? `\\n\\n\$\{window\.HC\.code\.TOOL_TEXT_RULE\}` : "";/.test(swarm)
-  && /codeNote \+ fenceNote \+ webFileNote \+ toolNote \}/.test(swarm));
+// The rule has to be the LAST thing in the system message, so that nothing
+// added after it can be read as qualifying it. Which notes come before it is
+// free to change; that it comes last is not.
+{
+  const built = /content: \(agent\.systemPrompt[^\n]*?\) \+ ([\w +]+) \}/.exec(swarm);
+  const order = (built ? built[1] : '').trim().split(/\s*\+\s*/);
+  ok('an Agent Swarm agent with tools', /const toolNote = \(agent\.tools \|\| \[\]\)\.length && window\.HC\?\.code\?\.TOOL_TEXT_RULE \? `\\n\\n\$\{window\.HC\.code\.TOOL_TEXT_RULE\}` : "";/.test(swarm)
+    && order.length > 1 && order[order.length - 1] === 'toolNote');
+  ok('... and it is the last thing the agent is told', order[order.length - 1] === 'toolNote', order.join(' + '));
+}
 
 const vos = src('modes', 'virtual-os', 'mode.js');
 const chatPrompt = vos.slice(vos.indexOf('function voidChatSystemPrompt()'), vos.indexOf('\n  }\n', vos.indexOf('function voidChatSystemPrompt()')));

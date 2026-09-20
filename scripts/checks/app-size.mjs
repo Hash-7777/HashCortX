@@ -456,7 +456,10 @@ const LINE_BUDGET = {
   // asks the person for details only they can give — and what comes back is
   // written into the copy the run works from. The two askings now share one
   // set of dependencies.
-  'modes/agent-maker/mode.js': 2380,
+  // 2395, up fifteen. Each agent is told which deliverable is its own and
+  // which belong to the others, from js/swarm/deliverables.js, and an input
+  // that had to be cut short now says so instead of arriving looking whole.
+  'modes/agent-maker/mode.js': 2395,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
