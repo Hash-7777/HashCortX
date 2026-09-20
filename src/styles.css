@@ -114,6 +114,18 @@ select option {
   color: var(--text);
 }
 
+/* The heading above a group of options is not an option, so the rule above
+   never reached it. On macOS that costs nothing — the system draws these
+   itself and ignores most of what is asked for. On Windows the popup is the
+   page's own, so a group heading with no colour of its own is drawn dark on
+   dark. The model menu has eleven of these headings and gained ten more with
+   the providers added beside them, which is what made it worth writing.
+   Not verified on Windows: there is no Windows machine here. */
+select optgroup {
+  background: var(--bg-1);
+  color: var(--text);
+}
+
 /* ── iOS-style toolbar / drag handle ─────────────────────────
    Always sits at the very top, above every other layer.
    The whole bar is a Tauri drag region (move the window by
