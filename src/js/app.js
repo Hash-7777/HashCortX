@@ -892,45 +892,43 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     xaiKey: xaiKeyEl, togetherKey: togetherKeyEl, fireworksKey: fireworksKeyEl, zaiKey: zaiKeyEl, qwenKey: qwenKeyEl, huggingfaceKey: huggingfaceKeyEl, deepinfraKey: deepinfraKeyEl, novitaKey: novitaKeyEl, veniceKey: veniceKeyEl,
     cloudflareKey: cloudflareKeyEl, cloudflareAccount: cloudflareAccountEl,
   };
-  if (window.HC && HC.keychain) {
-    HC.keychain.loadAll(HC_KEY_PROVIDERS).then(keys => {
-      for (const [k, v] of Object.entries(keys)) {
-        if (v && KEY_EL_MAP[k]) KEY_EL_MAP[k].value = v;
-      }
-    }).catch(() => {
-      // Fallback: non-keychain values already in localStorage (migration path)
-      if (SAVED.googleKey) googleKeyEl.value = SAVED.googleKey;
-      if (SAVED.googleCx) googleCxEl.value = SAVED.googleCx;
-      if (SAVED.tavilyKey) tavilyKeyEl.value = SAVED.tavilyKey;
-      if (SAVED.nvidiaKey) nvidiaKeyEl.value = SAVED.nvidiaKey;
-      if (SAVED.groqKey) groqKeyEl.value = SAVED.groqKey;
-      if (SAVED.geminiKey) geminiKeyEl.value = SAVED.geminiKey;
-      if (SAVED.openRouterKey) openRouterKeyEl.value = SAVED.openRouterKey;
-      if (SAVED.cerebrasKey) cerebrasKeyEl.value = SAVED.cerebrasKey;
-      if (SAVED.sambaKey) sambaKeyEl.value = SAVED.sambaKey;
-      if (SAVED.openaiKey) openaiKeyEl.value = SAVED.openaiKey;
-      if (SAVED.anthropicKey) anthropicKeyEl.value = SAVED.anthropicKey;
-      if (SAVED.moonshotKey) moonshotKeyEl.value = SAVED.moonshotKey;
-      if (SAVED.deepseekKey) deepseekKeyEl.value = SAVED.deepseekKey;
-      if (SAVED.mistralKey) mistralKeyEl.value = SAVED.mistralKey;
-    });
-  } else {
-    // Browser mode / keychain not loaded — use localStorage values
-    if (SAVED.googleKey) googleKeyEl.value = SAVED.googleKey;
-    if (SAVED.googleCx) googleCxEl.value = SAVED.googleCx;
-    if (SAVED.tavilyKey) tavilyKeyEl.value = SAVED.tavilyKey;
-    if (SAVED.nvidiaKey) nvidiaKeyEl.value = SAVED.nvidiaKey;
-    if (SAVED.groqKey) groqKeyEl.value = SAVED.groqKey;
-    if (SAVED.geminiKey) geminiKeyEl.value = SAVED.geminiKey;
-    if (SAVED.openRouterKey) openRouterKeyEl.value = SAVED.openRouterKey;
-    if (SAVED.cerebrasKey) cerebrasKeyEl.value = SAVED.cerebrasKey;
-    if (SAVED.sambaKey) sambaKeyEl.value = SAVED.sambaKey;
-    if (SAVED.openaiKey) openaiKeyEl.value = SAVED.openaiKey;
-    if (SAVED.anthropicKey) anthropicKeyEl.value = SAVED.anthropicKey;
-    if (SAVED.moonshotKey) moonshotKeyEl.value = SAVED.moonshotKey;
-    if (SAVED.deepseekKey) deepseekKeyEl.value = SAVED.deepseekKey;
-    if (SAVED.mistralKey) mistralKeyEl.value = SAVED.mistralKey;
+  /** Fill any key box still empty from what an older version left in settings. */
+  function fillKeysFromPlainSettings() {
+    for (const name of HC_KEY_PROVIDERS) {
+      const el = KEY_EL_MAP[name];
+      if (el && !el.value && SAVED[name]) el.value = SAVED[name];
+    }
   }
+
+  /**
+   * Finish moving keys out of plain settings and into the key store.
+   *
+   * Reading them across was only half of it. The clearing happened inside
+   * saveSettings, which runs when a person changes something — so a key an
+   * older version had written in the clear stayed there for as long as they
+   * never opened Settings, which for most people is always. Saving once at
+   * start-up writes every key to the store and blanks every plain copy.
+   *
+   * Only where there IS a store. In a plain browser there is none, and
+   * settings are the only place a key lives, so clearing them there would
+   * throw the key away rather than protect it.
+   */
+  function finishKeyMigration() {
+    if (!(window.HC && HC.keychain)) return;
+    if (!HC_KEY_PROVIDERS.some((name) => SAVED[name])) return;
+    saveSettings();
+  }
+
+  const keysLoaded = (window.HC && HC.keychain)
+    ? HC.keychain.loadAll(HC_KEY_PROVIDERS).then(keys => {
+        for (const [k, v] of Object.entries(keys)) {
+          if (v && KEY_EL_MAP[k]) KEY_EL_MAP[k].value = v;
+        }
+      }).catch(() => {
+        // The store could not be read. What an older version left in settings
+        // is all there is, so it is used and left where it is.
+      })
+    : Promise.resolve();   // a plain browser has no store; settings are it
   privacyLocalEl.checked     = SAVED.privacyLocal === true;
   ragEnabled = SAVED.ragEnabled === true; // default OFF; user can toggle in Agents tab
   state.activeAgentId = SAVED.activeAgentId || null;
@@ -968,6 +966,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       showError(err);
     }
   };
+
+  // Only now, with the settings above already restored onto `state`. Saving
+  // any earlier writes out a half-restored app: the first attempt at this ran
+  // inside the key load, which finishes before the current project and the
+  // chosen agent have been read back, and stored an empty one over each.
+  keysLoaded.then(() => {
+    fillKeysFromPlainSettings();
+    finishKeyMigration();
+  });
 
   try {
     window.mermaid?.initialize?.({

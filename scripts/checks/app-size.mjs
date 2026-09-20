@@ -143,7 +143,12 @@ const LINE_BUDGET = {
   // because its account id is part of its address. bridgedRequest() is the one
   // place that adds it, so no call site can forget it: a missing account reads
   // as the provider refusing the key, which is the wrong thing to be told.
-  'js/app.js': 6554,
+  // 6558, up four. A key an older version had written into plain settings was
+  // read across into its box and left where it was: the clearing lived inside
+  // saveSettings, which runs when a person changes something, so it never ran
+  // for anyone who does not open Settings. Two lists that named every provider
+  // by hand went with it, which is most of why four lines covers this.
+  'js/app.js': 6561,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
