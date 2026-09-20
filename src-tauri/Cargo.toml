@@ -52,7 +52,7 @@ tauri-build = { version = "2", features = ["config-json5"] }
 #   3. Add its permissions to src-tauri/capabilities/default.json
 #   4. Document what it enables in the comment below
 #
-# ⚠ Only add plugins you actively use. Each plugin expands the
+# IMPORTANT: Only add plugins you actively use. Each plugin expands the
 #   attack surface — unused plugins are unnecessary risk.
 # ==============================================================
 [features]
@@ -201,7 +201,7 @@ ureq = { version = "3", default-features = false, features = ["native-tls"] }
 # ==============================================================
 # Platform-specific dependencies
 #
-# ⚠ EVERY TABLE HEADER BELOW THIS POINT ENDS [dependencies].
+# IMPORTANT: EVERY TABLE HEADER BELOW THIS POINT ENDS [dependencies].
 #
 # A `[target.'cfg(…)'.dependencies]` header does not open a subsection of the
 # shared dependency list — it opens a DIFFERENT list, and every line after it

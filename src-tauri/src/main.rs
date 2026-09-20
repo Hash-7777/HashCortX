@@ -14,7 +14,7 @@
 // This attribute strips that console from RELEASE builds only —
 // debug builds keep it so you can see println! output.
 //
-// ⚠ DO NOT REMOVE — users would see a flash of a console window
+// IMPORTANT: DO NOT REMOVE — users would see a flash of a console window
 //   every time they launch the app on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 

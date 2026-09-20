@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#
+# Refuses a commit message that carries a picture typed as text.
+#
+# The rules say no emoji anywhere in this project — the app, the code, the
+# docs, the releases, and this message. A commit body is public the moment it
+# is pushed, permanent, and copied into every fork, so a pictograph in one is
+# decoration on a record strangers rely on. Marks in this project are drawn as
+# SVGs; in a commit message there is nowhere to draw, so it is said in words.
+#
+# scripts/checks/no-emoji.mjs holds the same rule for every file the repository
+# ships. This is the half of it that a file check cannot see.
+#
+# Install (per clone — git does not carry hooks):
+#
+#   git config core.hooksPath .githooks
+#
+# To get past it deliberately: `git commit --no-verify`. That is the repository
+# owner's decision to make, so it is left possible and left loud.
+#
+set -uo pipefail
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+# Comment lines are stripped by git before the message is stored, and the
+# verbose diff below the scissors line is not part of the message either.
+body="$(sed -e '/^#/d' -e '/^diff --git /,$d' "$msg_file")"
+
+# Same ranges and same allowed typographic marks as scripts/checks/no-emoji.mjs.
+# Kept as one line there and one line here on purpose: two small rules that
+# agree are easier to keep true than one shared file two languages must load.
+found="$(printf '%s' "$body" | node -e "
+const MARKS = '✓✔✗✘✕✖✦✧★☆❯❮·•—–…';
+const PICTURE = new RegExp(\`(?![\${MARKS}])[\\\\u{1F000}-\\\\u{1FAFF}\\\\u{1F1E6}-\\\\u{1F1FF}\\\\u{2600}-\\\\u{27BF}\\\\u{2B00}-\\\\u{2BFF}\\\\u{FE0F}]\`, 'u');
+let text = '';
+process.stdin.on('data', (d) => { text += d; });
+process.stdin.on('end', () => {
+  text.split('\n').forEach((line, i) => {
+    const m = line.match(PICTURE);
+    if (m) console.log(\`line \${i + 1}: \${m[0]}  \${line.trim().slice(0, 80)}\`);
+  });
+});
+" 2>/dev/null)"
+
+if [ -n "$found" ]; then
+  {
+    printf '\nThis commit was refused. The message carries a picture typed as text:\n\n'
+    printf '%s\n' "$found" | sed 's/^/  /'
+    printf '\nNo emoji anywhere in this project — the message included. Say it in\n'
+    printf 'words. Nothing has been committed; the message is kept, so:\n\n'
+    printf '    git commit\n\n'
+    printf 'reopens it for editing.\n'
+  } >&2
+  exit 1
+fi
+
+exit 0

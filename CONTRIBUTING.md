@@ -29,6 +29,14 @@ npm run tauri build
 
 - **JS:** match what's already there — no new linter, no new formatter. The codebase is plain JS, no TypeScript, no bundler.
 - **Rust:** `cargo fmt` before committing.
+- **No emoji — anywhere.** Not in the UI, the code, a comment, a prompt the app
+  sends a model, the docs, a commit message or a PR description. Where a mark is
+  needed, draw it: an inline SVG on `currentColor`, sized and aligned with the
+  icon set it joins, so it takes the colour around it and renders the same on
+  every machine. Where one isn't, use the word. `npm run check:no-emoji` reads
+  every text file in the repository and names the file, the line and the
+  character; the `commit-msg` hook applies the same rule to your message. Turn
+  both on once per clone with `git config core.hooksPath .githooks`.
 - **HTML/CSS:** use the tokens in `src/css/vars.css`. Don't introduce new fonts or colour systems — there are already three, which is two too many. See [docs/BRAND.md](docs/BRAND.md) before picking a colour.
 
 ## Architecture rules

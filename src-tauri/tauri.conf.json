@@ -11,7 +11,7 @@
   // the service name of the old Keychain entry that keychain.rs moves
   // keys out of on first run.
   //
-  // ⚠ NEVER change this after shipping to real users.
+  // IMPORTANT: NEVER change this after shipping to real users.
   //   Changing it moves the data folder, and every existing user
   //   silently loses their API keys and settings.
   //   If you buy hashcortx.com later, you can note the domain in
@@ -69,7 +69,7 @@
       //   Append its API base domain to connect-src.
       //   Example: add "https://api.newprovider.com" to allow it.
       //
-      // ⚠ A wildcard host grants every host on that port. There is exactly
+      // IMPORTANT: A wildcard host grants every host on that port. There is exactly
       //   ONE here — http://*:11434 — because Ollama's port is the only local
       //   server the app talks to and it may live on another machine on the
       //   user's network. Ports 1234, 8080 and 11435 used to be listed the

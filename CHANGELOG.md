@@ -114,8 +114,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   ticks into what you read, and the CV audit is told to say "good", "needs
   improvement" and "critical issue" in words instead of emoji; the Virtual
   OS lists files and folders and states its rules in plain text. A check
-  now reads every file the app ships and fails on a picture typed as text,
-  in what the app shows and in what it asks a model to write.
+  now reads every text file in the project — the app, the checks, the Rust,
+  the build config, the hooks and the docs — and fails on a picture typed as
+  text, in what the app shows and in what it asks a model to write. The three
+  places one is kept are the file that strips them out of exported text and
+  the two checks that prove that works, each named with its reason. Marks are
+  drawn as SVGs on the colour around them; where no mark is needed, the word
+  is used. A `commit-msg` hook holds the same rule for commit messages.
 - **Every agent in the Agent Swarm is marked by a drawn icon.** An agent
   carried an icon typed as an emoji, saved by the starter teams and shown
   beside every turn in a run's conversation, so a workspace of line art had
