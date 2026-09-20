@@ -25,6 +25,17 @@
 //
 // It reads geometry, so it has no opinion about what looks good. A finding is
 // a number: this content is this far from the middle.
+//
+// ENDING THE BROWSER IS PART OF THE JOB. The first version of this file left
+// one running on every single run. Three faults compounded: the kill was
+// deferred behind a timer while the reporting exited the process first, so the
+// timer never fired; killing the top process would not have been enough,
+// because with --headless=new the GPU helper is its own process and outlives
+// its parent; and software WebGL means that helper spins a core for as long as
+// the machine is on. Three of them were found still running, at about 250% of
+// a core each, hours later. So: the browser is started in its own process
+// group, the whole group is signalled, and it happens on the way out of this
+// process however this process ends.
 // ==============================================================
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, rmSync } from 'node:fs';
@@ -136,13 +147,36 @@ const driver = `<script>
 
 let done = false;
 let chrome;
+
+/**
+ * End the browser and everything it started.
+ *
+ * Signals the process group rather than the one process: the GPU helper is a
+ * separate process and does not go when its parent does. Safe to call twice,
+ * and safe to call when nothing was ever started.
+ */
+function stopBrowser() {
+  if (!chrome || chrome.killed) return;
+  try { process.kill(-chrome.pid, 'SIGKILL'); }
+  catch { try { chrome.kill('SIGKILL'); } catch {} }
+}
+
+// However this process ends — reported, timed out, interrupted, or thrown —
+// the browser ends with it. 'exit' handlers run synchronously, which is what
+// makes this reliable where a timer is not.
+process.on('exit', stopBrowser);
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+  process.on(signal, () => { stopBrowser(); process.exit(130); });
+}
 const server = createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/__align-result') {
-    report(decodeURIComponent(url.search.slice(1)));
-    res.end('ok');
     done = true;
-    setTimeout(() => { try { chrome.kill(); } catch {} server.close(); }, 100);
+    res.end('ok');
+    // Before reporting, because reporting ends this process.
+    stopBrowser();
+    server.close();
+    report(decodeURIComponent(url.search.slice(1)));
     return;
   }
   const p = url.pathname === '/' || url.pathname === '/__align.html' ? '__page' : url.pathname;
@@ -191,11 +225,11 @@ server.listen(PORT, () => {
     '--window-size=1500,950', '--force-device-scale-factor=1',
     '--user-data-dir=' + PROFILE,
     `http://127.0.0.1:${PORT}/__align.html`,
-  ], { stdio: 'ignore' });
+  ], { stdio: 'ignore', detached: true });
   setTimeout(() => {
     if (done) return;
     console.log('Nothing came back. The page did not finish — run it again, or open the address by hand to see why.');
-    try { chrome.kill(); } catch {}
+    stopBrowser();
     process.exit(3);
   }, 90000);
 });
