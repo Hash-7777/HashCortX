@@ -174,8 +174,20 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         // `..` matches none of them: `<project>/../../../etc` is not spelled
         // /etc, so it was accepted, and the shell then ran there. `guard_path`
         // refuses `..` outright and resolves links before deciding.
-        crate::commands::fs::guard_path(dir)
-            .map_err(|why| format!("Working directory refused: {why}"))?;
+        //
+        // An AGENT's command gets the folder boundary as well. Every relative
+        // path in the command is read from here, so a command run in a folder
+        // outside the open project is reading and writing outside it whatever
+        // the command says — which is the boundary the file commands keep, and
+        // it would mean little if a shell command could step around it.
+        //
+        // A command a PERSON typed is not held to it. They can change directory
+        // wherever they like; it is their terminal.
+        match caller {
+            Caller::Person => crate::commands::fs::guard_path(dir),
+            Caller::Agent => crate::commands::fs::guard_agent_path(dir),
+        }
+        .map_err(|why| format!("Working directory refused: {why}"))?;
         cmd.current_dir(dir);
     }
     // A command that asks a question gets EOF rather than an inherited terminal
@@ -816,6 +828,52 @@ mod tests {
         assert_eq!(agent.stdout.trim(), "absent value-b");
         assert_eq!(typed.stdout.trim(), "value-a value-b");
     }
+    /// Every relative path in a command is read from its working directory, so
+    /// a command run outside the open folder is working outside it whatever the
+    /// command itself says. A person's own terminal is not held to that.
+    #[cfg(unix)]
+    #[test]
+    fn an_agents_command_cannot_run_outside_the_open_folder_but_a_typed_one_can() {
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-cwd-scratch")
+            .join(format!("run-{}", std::process::id()));
+        let project = base.join("project");
+        let elsewhere = base.join("elsewhere");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&project).unwrap();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+
+        let _turn = crate::security::root_jail::test_turn();
+        crate::security::root_jail::set_root(&project.to_string_lossy()).unwrap();
+
+        let out = |dir: &std::path::Path, caller| {
+            run_blocking(
+                "sh".into(),
+                vec!["-c".into(), "echo here".into()],
+                Some(dir.to_string_lossy().into_owned()),
+                None,
+                None,
+                caller,
+            )
+        };
+        assert!(out(&project, Caller::Agent).is_ok(), "inside the project is ordinary");
+        match out(&elsewhere, Caller::Agent) {
+            Ok(_) => panic!("an agent must not run commands outside the open folder"),
+            Err(why) => assert!(
+                why.contains("Working directory refused"),
+                "the refusal must say which boundary it was, got: {why}"
+            ),
+        }
+        assert!(
+            out(&elsewhere, Caller::Person).is_ok(),
+            "a person can change directory wherever they like; it is their terminal"
+        );
+
+        crate::security::root_jail::clear_root();
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     #[cfg(target_os = "macos")]
     #[test]
     fn an_agent_command_runs_in_the_sandbox_and_a_typed_one_does_not() {
@@ -826,6 +884,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("id_ed25519"), "secret").unwrap();
+        // An agent's working directory is held to the open folder now, so this
+        // opens one, exactly as a session does. The turn comes with it because
+        // that boundary is one table for the whole process.
+        let _turn = crate::security::root_jail::test_turn();
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
         // The name is put together at run time, so no text check sees it.
         let line = "cat \"$(printf %s id_ed)25519\"";
         let cwd = Some(dir.to_string_lossy().into_owned());

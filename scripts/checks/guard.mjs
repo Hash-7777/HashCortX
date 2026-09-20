@@ -634,6 +634,12 @@ console.log('\nA change Undo cannot take back is asked about:');
   assert('and so is the copy taken before a write',
     /fn checkpoint_save[\s\S]{0,400}guard_agent_path\(&path\)/.test(checkpoint),
     'it reads a file into a record that checkpoint_read hands back, so it is a way around the boundary');
+  const shell = readFileSync(join(repo, 'src-tauri', 'src', 'commands', 'shell.rs'), 'utf8');
+  assert('an agent\'s working directory is behind it too',
+    /Caller::Agent => crate::commands::fs::guard_agent_path\(dir\)/.test(shell),
+    'every relative path in a command is read from there, so a command run outside the folder works outside it');
+  assert('and a command a person typed is not',
+    /Caller::Person => crate::commands::fs::guard_path\(dir\)/.test(shell));
   assert('saving a file the person chose is NOT behind it',
     !/guard_agent_path/.test(exportRs) && /guard_path/.test(exportRs),
     'its destination comes from the native dialog, where the person named it');
