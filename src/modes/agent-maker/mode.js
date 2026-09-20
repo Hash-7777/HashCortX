@@ -354,10 +354,15 @@ const SwarmMaker = (() => {
       try {
         // Tool-calling loop: LLM → tool call → result → repeat
         for (let round = 0; round < maxToolRounds; round++) {
-          traceAdd(agent.name, `LLM round ${round + 1}/${maxToolRounds} · sending ${messages.length} message(s)`, "run");
+          // A live line: this await is where an agent spends its time, and on a
+          // queued free model it is minutes. The deadline is real, so the line
+          // can say when another model will be tried instead of going quiet.
+          const waiting = traceLive(agent.name, `LLM round ${round + 1}/${maxToolRounds} · sending ${messages.length} message(s)`, "run",
+            { deadlineMs: timeoutMs, queued: window.HCTraceLive?.queued(activeModel) });
           // Cancelled, not abandoned, when time runs out — js/model-routes.js.
           const result = await window.HCModelRoutes.callWithin(timeoutMs, signal, `Agent timeout after ${agent.timeout || 120}s`, (attemptSignal) =>
-            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, model: activeModel, need }));
+            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, model: activeModel, need }))
+            .finally(() => waiting.done());
           if (result.tool_calls && result.tool_calls.length) {
             traceAdd(agent.name, `LLM requested ${result.tool_calls.length} tool call(s)`, "wait");
             appendAssistantToolCallTurn(messages, result.content, result.tool_calls);
@@ -451,7 +456,7 @@ const SwarmMaker = (() => {
           throw new Error(`All providers failed for agent "${agent.name}". Last error: ${err.message}`);
         }
         failoverLog.push({ from: failedProv, to: ROUTES.providerOf(next), reason: err.message.slice(0, 80) });
-        traceAdd(agent.name, `Switching to ${modelTraceLabel(next)} — ${ROUTES.reasonText(kind)}`, "wait");
+        traceAdd(agent.name, `Switching to ${modelTraceLabel(next)} — ${ROUTES.reasonText(kind, err)}`, "wait");
         activeModel = next;
         // A clean transcript for the next model, carrying any partial work so it is not cold.
         const sysMsg  = messages.find(m => m.role === "system");
@@ -1590,7 +1595,18 @@ ${modelListStr}`;
     list.scrollTop = list.scrollHeight;
     const summary = document.getElementById("amkTraceSummary");
     if (summary) summary.textContent = message.slice(0, 60);
+    return el;
   }
+
+  /** A line that keeps saying what an agent is waiting on — js/trace-live.js. */
+  function traceLive(agentName, message, statusCls, options = {}) {
+    if (!window.HCTraceLive) return { heard() {}, done() {} };
+    return window.HCTraceLive.attach(traceAdd(agentName, message, statusCls), {
+      selector: ".trace-msg", message,
+      summary: () => document.getElementById("amkTraceSummary"), cap: 60,
+    }, options);
+  }
+
 
   function updateTraceDot(status) {
     const dot = document.getElementById("amkTraceDot");

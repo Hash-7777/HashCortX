@@ -227,6 +227,7 @@ const SystemMaker = (() => {
       `<span class="sys-te-msg sys-te-${cls}">${esc(msg)}</span>`;
     el.appendChild(row);
     el.scrollTop = el.scrollHeight;
+    const rows = [row];
 
     // Also mirror into bottom drawer so traces are always visible
     if (console_) {
@@ -236,7 +237,9 @@ const SystemMaker = (() => {
         entries.className = "sys-trace-entries";
         console_.appendChild(entries);
       }
-      entries.appendChild(row.cloneNode(true));
+      const copy = row.cloneNode(true);
+      rows.push(copy);
+      entries.appendChild(copy);
       entries.scrollTop = entries.scrollHeight;
     }
 
@@ -245,6 +248,15 @@ const SystemMaker = (() => {
     if (dot) dot.className = "sys-trace-dot" + (cls === "err" ? " error" : cls === "ok" ? " done" : " running");
     const summary = $("sysTraceSummary");
     if (summary) summary.textContent = msg.slice(0, 70);
+    return rows;
+  }
+
+  /** A line that keeps saying what is happening while it happens — js/trace-live.js. */
+  function traceLive(msg, cls = "run", options = {}) {
+    if (!window.HCTraceLive) return { heard() {}, done() {} };
+    return window.HCTraceLive.attach(trace(msg, cls), {
+      selector: ".sys-te-msg", message: msg, summary: () => $("sysTraceSummary"),
+    }, options);
   }
 
   function clearTrace() {
@@ -807,17 +819,20 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     ];
     for (let attempt = 1; attempt <= 4; attempt++) {
       if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-      trace(`Direct generation attempt ${attempt} — ${modelTraceLabel(active)}`, "run");
+      // A live line, because this await is where a run spends its time: two
+      // minutes on a queued free model, with nothing moving, reads as a hang.
+      const waiting = traceLive(`Direct generation attempt ${attempt} — ${modelTraceLabel(active)}`, "run",
+        { queued: window.HCTraceLive?.queued(active) });
       try {
-        const result = await callModel(active, messages, signal, 0.35);
+        const result = await callModel(active, messages, signal, 0.35).finally(() => waiting.done());
         let raw = result?.content || "";
         let parsed = parseSpecJson(raw);
         if (!parsed) {
-          trace("JSON repair pass…", "warn");
+          const repairing = traceLive("JSON repair pass", "warn", { queued: window.HCTraceLive?.queued(active) });
           const repair = await callModel(active, [
             { role:"system", content: "You are a JSON repair tool. Return ONLY the cleaned valid JSON object. No markdown, no prose, no explanation. Fix any syntax errors (trailing commas, missing quotes, etc.). Preserve all data." },
             { role:"user", content: `Repair this into valid JSON:\n${raw.slice(0, 12000)}` }
-          ], signal, 0.2);
+          ], signal, 0.2).finally(() => repairing.done());
           raw = repair?.content || "";
           parsed = parseSpecJson(raw);
         }
@@ -1093,7 +1108,7 @@ Repair requirements:
           if (!isFailoverError(e)) break;
           const failed = model;
           model = runRoutes.next(failed, e);
-          trace(`Repair on ${modelTraceLabel(failed)} failed (${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(e))})${model ? ` — asking ${modelTraceLabel(model)} to repair the same spec` : ""}`, "warn");
+          trace(`Repair on ${modelTraceLabel(failed)} failed (${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(e), e)})${model ? ` — asking ${modelTraceLabel(model)} to repair the same spec` : ""}`, "warn");
         }
       }
       throw lastErr || new Error("Semantic repair failed");

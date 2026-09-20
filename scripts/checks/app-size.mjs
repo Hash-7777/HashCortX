@@ -225,7 +225,11 @@ const LINE_BUDGET = {
   // already there rather than over them. The Import button became a menu, the
   // shape Export beside it already had, so the restore has somewhere to live.
   // The export itself shrank — it no longer assembles the file by hand.
-  'modes/systems/mode.js': 3275,
+  // 3290, up fifteen. The two long awaits in a generation — the attempt and
+  // the repair pass — now write a line that keeps moving while they wait. One
+  // measured run spent two minutes and seven seconds on a single attempt with
+  // the line saying what it said at the start, which reads as a hang.
+  'modes/systems/mode.js': 3290,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
@@ -504,7 +508,11 @@ const LINE_BUDGET = {
   // 2396, up one. The tool picker offers the person's own documents, which it
   // had no entry for — so the one source a team is most likely to be wanted to
   // read could not be switched on for it.
-  'modes/agent-maker/mode.js': 2396,
+  // 2412, up sixteen. An agent's turn is one await, minutes long on a queued
+  // free model, and the line above it never moved — so a team of five looked
+  // the same whether it was working or dead. The words are decided in
+  // js/trace-live.js; this is the wiring and the deadline it is given.
+  'modes/agent-maker/mode.js': 2412,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

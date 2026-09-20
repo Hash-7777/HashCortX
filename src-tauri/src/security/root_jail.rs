@@ -215,11 +215,6 @@ pub fn test_turn() -> std::sync::MutexGuard<'static, ()> {
     TURN.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// The open folder, for anything that needs to report it.
-pub fn root() -> Option<PathBuf> {
-    state().lock().ok().and_then(|s| s.root.clone())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

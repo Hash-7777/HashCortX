@@ -84,6 +84,7 @@
     '/js/model-routes.js',
     '/js/markdown-safe.js',
     '/js/trace-copy.js',
+    '/js/trace-live.js',
     '/js/trace-time.js',
     '/js/agent-shape.js',
     '/js/model-names.js',

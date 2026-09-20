@@ -299,8 +299,17 @@
   }
 
   /** A few words for a trace, saying why the run is moving on. */
-  function reasonText(kind) {
-    return {
+  /**
+   * Why a model was given up on, in words.
+   *
+   * `err` is the failure itself, and it matters for the one kind that has no
+   * words of its own. A failure this file cannot name still arrives carrying a
+   * perfectly good sentence from the provider, and the fallback used to throw
+   * that away and say "it failed" — which is a line somebody read in a trace
+   * after two minutes of waiting, and which says less than nothing.
+   */
+  function reasonText(kind, err) {
+    const known = {
       retired: 'the provider says this model is gone',
       limit: 'this account is out of quota',
       key: 'the key was refused',
@@ -308,7 +317,10 @@
       slow: 'no answer in time',
       size: 'the request is too large for this model on this account',
       empty: 'the answer was empty',
-    }[kind] || 'it failed';
+    }[kind];
+    if (known) return known;
+    const said = String((err && err.message) || err || '').replace(/\s+/g, ' ').trim();
+    return said ? said.slice(0, 160) : 'it failed, and said nothing about why';
   }
 
   window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
