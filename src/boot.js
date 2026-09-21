@@ -78,6 +78,7 @@
     '/js/providers.js',
     '/js/request-cap.js',
     '/js/stream/sse.js',
+    '/js/stream/first-sign.js',
     '/js/chat/context.js',
     '/js/chat/failover.js',
     '/js/model-speed.js',

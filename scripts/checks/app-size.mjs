@@ -156,7 +156,12 @@ const LINE_BUDGET = {
   // same store as they went.
   // 6504, down ninety-three. The conversation PDF is laid out in
   // js/export-format.js, beside the Markdown export, where it is checked.
-  'js/app.js': 6504,
+  // 6527, up twenty-three. A reply that says it succeeded while carrying a
+  // failure in its body, or carrying nothing, now fails over like a refused
+  // one; a free model that has not started in time is left; and the bubble
+  // says "Thinking" while a reasoning model has not yet answered. The rules
+  // are in js/stream/sse.js and js/stream/first-sign.js; this is the wiring.
+  'js/app.js': 6527,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

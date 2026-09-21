@@ -54,8 +54,14 @@ check('a non-object', usageFrom('nope') === null);
 console.log('\nEvery path that finishes a model turn records:');
 // streamCloudModel is a wrapper that sends a refused request once more; the
 // turn itself, and its recording, is streamCloudModelOnce.
-check('streamCloudModel sends every request through the turn that records',
-  (appjs.slice(appjs.indexOf('async function streamCloudModel('), appjs.indexOf('async function streamCloudModelOnce(')).match(/streamCloudModelOnce\(/g) || []).length === 2);
+// Every send, the first and the resent one, goes through the one helper that
+// calls it, and nothing in the wrapper sends a request around it.
+{
+  const wrapper = appjs.slice(appjs.indexOf('async function streamCloudModel('), appjs.indexOf('async function streamCloudModelOnce('));
+  check('streamCloudModel sends every request through the turn that records',
+    (wrapper.match(/streamCloudModelOnce\(/g) || []).length >= 1
+    && !/\bfetch\(|providerPost\(|bridgedRequest\(/.test(wrapper));
+}
 const paths = ['streamCloudModelOnce', 'streamChat', 'agentTurnOllama', 'agentTurnOpenAI',
                'agentTurnAnthropic', 'agentTurnGemini'];
 for (const name of paths) {

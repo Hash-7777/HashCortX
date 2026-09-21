@@ -98,6 +98,44 @@
     return typeof content === 'string' && content !== '' ? content : null;
   }
 
+  /**
+   * The thinking a reasoning model streams before its answer, if any.
+   *
+   * Not shown as the answer. It is read only so a model that is thinking can
+   * be told apart from one that has not started — for a reasoning model the
+   * first words of the answer can come many seconds after the first sign of
+   * work.
+   */
+  function openAIReasoning(evt) {
+    const d = evt?.choices?.[0]?.delta;
+    const r = d && (d.reasoning ?? d.reasoning_content);
+    return typeof r === 'string' && r !== '' ? r : null;
+  }
+
+  /**
+   * The failure an OpenAI-shaped reply carries inside itself, or null.
+   *
+   * A gateway that has already answered 200 cannot change its status when the
+   * model behind it then fails, so it says so in the body instead: an `error`
+   * on the event (or on the whole reply, when not streaming), or on the choice.
+   * Read as text, that reply is simply empty — which is a failure that looks
+   * like a finished answer, and never reaches the code that moves on to
+   * another model. `status` is the code the body gives, so it is judged the
+   * way the same failure sent as an HTTP status would be.
+   */
+  function openAIError(evt) {
+    if (!evt || typeof evt !== 'object') return null;
+    const choice = Array.isArray(evt.choices) ? evt.choices[0] : null;
+    const err = evt.error || (choice && choice.error) || null;
+    if (err) {
+      const message = typeof err === 'string' ? err : String(err.message || err.type || 'the provider reported an error');
+      const code = Number(typeof err === 'object' ? err.code || err.status : NaN);
+      return { status: Number.isInteger(code) && code >= 400 && code < 600 ? code : 502, message };
+    }
+    if (choice && choice.finish_reason === 'error') return { status: 502, message: 'the model stopped with an error' };
+    return null;
+  }
+
   /** The text an Anthropic event carries, if any. */
   function anthropicText(evt) {
     if (evt?.type !== 'content_block_delta') return null;
@@ -129,6 +167,8 @@
       const evt = eventFromLine(line);
       if (!evt) continue;
       if (onEvent) onEvent(evt);
+      const failed = openAIError(evt);
+      if (failed) throw Object.assign(new Error(failed.message), { status: failed.status, inBody: true });
       const text = openAIText(evt);
       if (text !== null) yield text;
     }
@@ -139,6 +179,8 @@
     jsonLines,
     eventFromLine,
     openAIText,
+    openAIReasoning,
+    openAIError,
     anthropicText,
     geminiTexts,
     openAIStream,

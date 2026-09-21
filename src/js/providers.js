@@ -461,6 +461,15 @@ function messageFrom(body) {
     .slice(0, 200);
 }
 
+  /**
+   * A failure a reply carried in its body (see js/stream/sse.js openAIError),
+   * as the Error the same failure sent as an HTTP status would have been.
+   */
+  function bodyFailure(provider, failed) {
+    const body = JSON.stringify({ error: { message: failed.message } });
+    return Object.assign(new Error(cloudHttpError(provider, failed.status, body, null)), { status: failed.status, body, inBody: true });
+  }
+
   function cloudHttpError(provider, status, body, retryAfter) {
     const PROVIDER_LABELS = {
       groq: "Groq", gemini: "Google Gemini", openrouter: "OpenRouter",
@@ -515,7 +524,7 @@ function messageFrom(body) {
     MOONSHOT_API_BASES, MOONSHOT_MODEL_ORDER,
     isKimiCodeKey, moonshotEndpointLabel, orderedMoonshotBases,
     // What came back, rather than what was sent.
-    usageFrom, cloudHttpError,
+    usageFrom, cloudHttpError, bodyFailure,
     shouldTryNextMoonshotEndpoint, sortMoonshotModelIds,
   };
 })();

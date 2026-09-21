@@ -65,9 +65,9 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,486  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,527  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
-│   │   ├── providers.js        390  each provider's endpoint and auth, plus
+│   │   ├── providers.js        530  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
 │   │   │                            and which three the app sends for itself
 │   │   ├── cloud-model-fetch.js 298 asking each provider what models it has,
@@ -105,7 +105,8 @@ HashCortX/
 │   │   │                            for text a model wrote
 │   │   ├── fences.js           139  code fences, read as the chat draws them —
 │   │   │                            everything that looks for code uses it
-│   │   ├── export-format.js    343  the shared half of every export
+│   │   ├── export-format.js    471  the shared half of every export, and the
+│   │   │                            chat's PDF layout
 │   │   ├── diff.js             223  line and word diffs behind the change views
 │   │   ├── edit-history.js      90  undo and redo for hand edits
 │   │   ├── trace-copy.js        81  a run's trace, selected and copied as text
@@ -114,8 +115,11 @@ HashCortX/
 │   │   ├── power.js            183  stops work nobody can see
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
-│   │   ├── stream/             146  reading a streamed answer off the wire —
-│   │   │                            the one place a response body is read
+│   │   ├── stream/             243  reading a streamed answer off the wire —
+│   │   │                            the one place a response body is read;
+│   │   │                            a failure sent inside a 200 reply, thinking
+│   │   │                            told from the answer, and a free model that
+│   │   │                            never starts left after 45 s
 │   │   ├── chat/               249  what a model is told, and which to try next
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work

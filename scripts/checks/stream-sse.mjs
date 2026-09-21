@@ -23,6 +23,10 @@ vm.createContext(sandbox);
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'stream', 'sse.js'), 'utf8'),
   sandbox, { filename: 'sse.js' });
 const S = sandbox.window.HCStreamSSE;
+const fsBox = { window: {}, setTimeout, clearTimeout, AbortController };
+vm.createContext(fsBox);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'stream', 'first-sign.js'), 'utf8'), fsBox, { filename: 'first-sign.js' });
+const F = fsBox.window.HCFirstSign;
 
 const enc = new TextEncoder();
 const bodyOf = (chunks) => {
@@ -161,6 +165,73 @@ console.log('\nAn empty or immediately-closed stream is not an error:');
 }
 
 console.log('\nThere is one stream reader in the app, and it is this one:');
+console.log('\nA failure carried inside a reply that began as a success:');
+{
+  // The shape a gateway sends when the model behind it fails after the reply
+  // has already begun: status 200, no text, the failure in the body.
+  const overloaded = { id: 'gen-1', object: 'chat.completion.chunk', choices: [], error: { code: 503, message: 'Upstream error: Service temporarily overloaded', metadata: { error_type: 'provider_overloaded' } } };
+  const e = S.openAIError(overloaded);
+  ok('an error on the event is read, with its code', !!e && e.status === 503 && /overloaded/.test(e.message));
+  ok('an error on the choice is read too (a whole reply, not streamed)', S.openAIError({ choices: [{ index: 0, error: { code: 429, message: 'rate limited' } }] })?.status === 429);
+  ok('a string error is read', S.openAIError({ error: 'no capacity' })?.message === 'no capacity');
+  ok('a code that is not an HTTP status becomes 502', S.openAIError({ error: { code: 'weird', message: 'x' } })?.status === 502);
+  ok('a choice that finished with an error is a failure', S.openAIError({ choices: [{ finish_reason: 'error', delta: {} }] })?.status === 502);
+  ok('an ordinary text event is not a failure', S.openAIError({ choices: [{ delta: { content: 'hi' } }] }) === null);
+  ok('a usage-only chunk is not a failure', S.openAIError({ usage: { prompt_tokens: 3 }, choices: [] }) === null);
+  ok('a finished answer is not a failure', S.openAIError({ choices: [{ finish_reason: 'stop', message: { content: 'hi' } }] }) === null);
+  for (const junk of [null, undefined, 3, 'x', [], {}]) ok(`nothing is read from ${JSON.stringify(junk)}`, S.openAIError(junk) === null);
+
+  // The reader must stop on it rather than finish quietly with no words.
+  const stream = `data: ${JSON.stringify({ choices: [{ delta: { content: 'Hel' } }] })}\ndata: ${JSON.stringify(overloaded)}\ndata: [DONE]\n`;
+  let thrown = null;
+  const got = [];
+  try { for await (const t of S.openAIStream(bodyOf([enc.encode(stream)]))) got.push(t); } catch (err) { thrown = err; }
+  ok('the stream stops with an error naming the status', !!thrown && thrown.status === 503 && thrown.inBody === true);
+  ok('... after handing on what arrived before it', got.join('') === 'Hel');
+}
+
+console.log('\nThinking is told apart from the answer:');
+{
+  ok('reasoning is read as thinking', S.openAIReasoning({ choices: [{ delta: { reasoning: 'Let me see' } }] }) === 'Let me see');
+  ok('reasoning_content is read as thinking', S.openAIReasoning({ choices: [{ delta: { reasoning_content: 'hmm' } }] }) === 'hmm');
+  ok('thinking is never taken as the answer', S.openAIText({ choices: [{ delta: { reasoning: 'Let me see' } }] }) === null);
+  ok('the answer is not taken as thinking', S.openAIReasoning({ choices: [{ delta: { content: 'hi' } }] }) === null);
+  ok('empty thinking is nothing', S.openAIReasoning({ choices: [{ delta: { reasoning: '' } }] }) === null);
+}
+
+console.log('\nA model that never starts is left, and only a queued one:');
+{
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  ok('the free OpenRouter models are held to it', F.waitsInQueue('openrouter', 'nvidia/nemotron-3.5-lightning:free'));
+  ok('a paid OpenRouter model is not — it may think in silence', !F.waitsInQueue('openrouter', 'openai/o3'));
+  ok('another provider is not', !F.waitsInQueue('openai', 'o3') && !F.waitsInQueue('gemini', 'gemini-2.5-pro:free'));
+  ok('the limit is forty-five seconds', F.FIRST_SIGN_MS === 45000);
+
+  let w = F.watch('openrouter', 'x:free', null, 30);
+  await wait(60);
+  ok('silence past the limit stops the request', w.signal.aborted && w.stalled());
+  const e = w.stallError('Model X');
+  ok('... and says which model and how long, as a slow failure', e.timedOut === true && /Model X did not start answering within 0 s/.test(e.message));
+  w.release();
+
+  w = F.watch('openrouter', 'x:free', null, 40);
+  await wait(10); w.sign(); await wait(60);
+  ok('a sign of work in time keeps it going for good', !w.signal.aborted && !w.stalled());
+  w.release();
+
+  const outer = new AbortController();
+  w = F.watch('openrouter', 'x:free', outer.signal, 1000);
+  outer.abort();
+  ok('a stop from outside ends it too', w.signal.aborted);
+  ok('... and is never counted as the model stalling', !w.stalled());
+  w.release();
+
+  w = F.watch('openai', 'o3', null, 20);
+  await wait(50);
+  ok('a model not held to it is never stopped by it', !w.signal.aborted);
+  w.release();
+}
+
 {
   // The gathering was once written out in several places, and one copy was
   // missing the buffer the others had — which is how a local model's answer
@@ -189,5 +260,5 @@ console.log('\nThere is one stream reader in the app, and it is this one:');
   if (readers.length !== 1) console.log(`          readers found in: ${readers.join(', ')}`);
 }
 
-console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js)`);
+console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js, src/js/stream/first-sign.js)`);
 process.exit(fail ? 1 : 0);

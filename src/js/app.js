@@ -3454,25 +3454,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     input.focus();
   }
 
-  // Shared SSE parser for OpenAI-compatible streams (Groq, OpenRouter)
-  /**
-   * An OpenAI-shaped stream, as text.
-   *
-   * The reading of bytes into lines and lines into events is in
-   * src/js/stream/sse.js, shared with every other provider. What an event
-   * means stays here, because that is the part that differs.
-   */
-  async function* parseOpenAISSE(body, onUsage) {
+  // An OpenAI-shaped stream, as text, read by src/js/stream/sse.js — which stops
+  // on a failure carried inside the reply. Usage and thinking are read here.
+  async function* parseOpenAISSE(body, onUsage, provider, onThinking) {
     const SSE = window.HCStreamSSE;
-    for await (const line of SSE.sseLines(body)) {
-      const evt = SSE.eventFromLine(line);
-      if (!evt) continue;
-      // The final chunk carries the real token counts, for the usage ledger.
-      if (evt.usage && onUsage) {
-        onUsage({ inputTokens: evt.usage.prompt_tokens || 0, outputTokens: evt.usage.completion_tokens || 0 });
-      }
-      const text = SSE.openAIText(evt);
-      if (text !== null) yield text;
+    try {
+      yield* SSE.openAIStream(body, (evt) => {
+        const thinking = SSE.openAIReasoning(evt);
+        if (thinking !== null && onThinking) onThinking(thinking);
+        if (evt.usage && onUsage) onUsage({ inputTokens: evt.usage.prompt_tokens || 0, outputTokens: evt.usage.completion_tokens || 0 });
+      });
+    } catch (err) {
+      throw err && err.inBody ? HCProviders.bodyFailure(provider, err) : err;
     }
   }
 
@@ -3515,21 +3508,33 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return { text: text.trim(), images };
   }
 
-  // A refusal that names a limit is learnt and the request sent once more,
-  // sized by it — before any of the answer has arrived (js/model-limits.js).
-  async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal) {
+  // A model that never starts is left for another (js/stream/first-sign.js),
+  // and a reply that ended with nothing in it is a failure, not an answer.
+  async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal, onThinking) {
+    const w = window.HCFirstSign.watch(provider, modelId, signal);
+    const label = cloudModelLabel(`cloud:${provider}:${modelId}`);
     let started = false;
-    const tell = (t) => { started = true; onToken(t); };
+    const tell = (t) => { started = true; w.sign(); onToken(t); };
+    const once = () => streamCloudModelOnce(provider, modelId, messages, temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); });
     try {
-      return await streamCloudModelOnce(provider, modelId, messages, temperature, tell, signal);
+      try {
+        await once();
+      } catch (err) {
+        // A refusal that names a limit is learnt and the request sent once more,
+        // sized by it — before any of the answer has arrived (js/model-limits.js).
+        if (w.stalled() || started || !window.HCModelLimits.learn(`cloud:${provider}:${modelId}`, err, window.HCModelLimits.estimateTokens([messages]), 1500).retry) throw err;
+        await once();
+      }
+      if (!started) throw Object.assign(new Error(`${label} answered with nothing`), { empty: true });
     } catch (err) {
-      if (started || !window.HCModelLimits.learn(`cloud:${provider}:${modelId}`, err, window.HCModelLimits.estimateTokens([messages]), 1500).retry) throw err;
-      return streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal);
+      throw w.stalled() ? w.stallError(label) : err;
+    } finally {
+      w.release();
     }
   }
 
   // One streaming chat request, routed to its provider. Keys are read at call time, never cached.
-  async function streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal) {
+  async function streamCloudModelOnce(provider, modelId, messages, temperature, onToken, signal, onThinking) {
     const temp = typeof temperature === "number" ? temperature : 0.7;
     // Text-only fallback (for providers that don't support vision)
     const textMessages = messages.map(m => ({ role: m.role, content: m.content || "" }));
@@ -3620,7 +3625,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         body: JSON.stringify(fitRequest("openai", "moonshot", modelId, { model: modelId, messages: textMessages, temperature: temp, stream: true, stream_options: { include_usage: true } })),
         signal,
       }));
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage, "moonshot", onThinking)) onToken(delta);
 
     } else if (PROVIDER_KEY_ELEMENTS[provider]) {
       // Everyone else speaks the OpenAI shape, from the page or through the app.
@@ -3629,7 +3634,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const msgs = hasImages && HCProviders.readsImages(provider, modelId) ? toOpenAIVision(messages) : textMessages;
       const res = await providerPost(provider, key, fitRequest("openai", provider, modelId, { model: modelId, messages: msgs, temperature: temp, stream: true, stream_options: { include_usage: true } }), signal);
       if (!res.ok) throw await httpFailure(provider, res);
-      for await (const delta of parseOpenAISSE(res.body, onUsage)) onToken(delta);
+      for await (const delta of parseOpenAISSE(res.body, onUsage, provider, onThinking)) onToken(delta);
 
     } else {
       throw new Error(`Unknown cloud provider: ${provider}`);
@@ -4852,7 +4857,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               assistant.content = text;
               assistant.images = images;
             } else {
-              await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal);
+              thinkingShown.delete(assistant);
+              await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, () => showThinking(assistant));
             }
             break; // success
           } catch (err) {
@@ -4861,7 +4867,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             // A model its provider says is gone is not offered again (js/model-routes.js).
             const retired = window.HCModelRoutes.failureKind(err) === "retired";
             if (retired) window.HCModelRoutes.markRetired(currentModelValue);
-            const isRetriable = retired || /rate limit|overloaded|server error|429|503|529|5\d\d/.test(msg);
+            // An overload inside a reply, an empty reply and a model that never started move on too.
+            const isRetriable = retired || /rate limit|overloaded|server error|429|503|529|5\d\d/.test(msg)
+              || ["busy", "empty", "slow"].includes(window.HCModelRoutes.failureKind(err));
             if (!isRetriable) throw err;
             triedModels.add(currentModelValue);
             const fallback = getBestFailoverModel(currentModelValue, triedModels);
@@ -4953,6 +4961,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
       if (pinned) msgs.scrollTop = msgs.scrollHeight;
     }
+  }
+  // "Thinking" while a reasoning model has said nothing of its answer yet — not
+  // the thinking itself, which is not the answer. Kept off the saved message.
+  const thinkingShown = new WeakSet();
+  function showThinking(assistant) {
+    if (!state.streaming || assistant.content || thinkingShown.has(assistant)) return;
+    const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
+    if (!last) return;
+    thinkingShown.add(assistant);
+    last.classList.add("thinking-bubble");
+    last.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div class="thinking-status-label">Thinking</div>`;
+    if (pinned) msgs.scrollTop = msgs.scrollHeight;
   }
   // Show a spinner in the last assistant bubble while an image is generating.
   // Uses innerHTML with a hardcoded string — no user data interpolated.
@@ -5773,6 +5793,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     if (!r.ok) throw await httpFailure(provider, r);
     const data = await r.json();
+    // A 200 carrying a failure in its body is judged as the status it names.
+    const failed = window.HCStreamSSE.openAIError(data);
+    if (failed) throw HCProviders.bodyFailure(provider, failed);
     const msg = data.choices?.[0]?.message || {};
     const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls.map((c, i) => ({
       id: c.id || `call_${Date.now()}_${i}`,
