@@ -47,6 +47,27 @@ At most ${MAX_QUESTIONS} questions, the most important first. If nothing persona
 
   const clean = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 
+  /** The ways a model writes "for example" before the example itself. */
+  // Each spelling has to be followed by a separator or the end, or "eg" eats
+  // the front of "egypt". A full stop is not one of those separators, or
+  // "example.com" comes back as "com".
+  const LEAD_IN = /^(?:e\.\s*g\.?|eg\.?|i\.\s*e\.?|for\s+example|for\s+instance|examples?|such\s+as|like|say)(?=[\s:,\-–—]|$)[\s:,\-–—]*/i;
+
+  /**
+   * The example itself, with the model's own lead-in taken off.
+   *
+   * The app writes "e.g." in front of an example when it shows one, and the
+   * model is asked for an example rather than a sentence — but it often writes
+   * "e.g. Sara Ahmed" anyway, and the two together read as "e.g. e.g. Sara
+   * Ahmed". The lead-in is taken off however it is spelled, and more than once
+   * where a model has written two of them.
+   */
+  function exampleOf(hint) {
+    let text = clean(hint, 200);
+    for (let i = 0; i < 3 && LEAD_IN.test(text); i++) text = text.replace(LEAD_IN, '');
+    return text.replace(/^["'\u201c\u2018]|["'\u201d\u2019]$/g, '').trim().slice(0, 120);
+  }
+
   /**
    * The questions in a model's answer, or null when the answer could not be
    * read at all — which is different from a readable answer asking nothing.
@@ -112,5 +133,5 @@ At most ${MAX_QUESTIONS} questions, the most important first. If nothing persona
     return parts.join('\n\n');
   }
 
-  window.HCSwarmClarify = { MAX_QUESTIONS, messages, parseQuestions, looksPersonal, fallbackQuestions, taskWithAnswers };
+  window.HCSwarmClarify = { MAX_QUESTIONS, messages, parseQuestions, looksPersonal, fallbackQuestions, taskWithAnswers, exampleOf };
 })();

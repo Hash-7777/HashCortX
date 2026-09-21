@@ -804,6 +804,29 @@ img.amk-empty-logo {
   display: block; resize: vertical; min-height: 44px;
   font-family: inherit; font-size: 13px; line-height: 1.45;
 }
+/* The example under a question. It is a control so that pressing it fills the
+   field, and it is real text so that it can be read, selected and copied —
+   which a placeholder, which is what this used to be, is not. */
+.amk-ask-example { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.amk-ask-example-label {
+  flex: 0 0 auto;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--amk-bright); opacity: .65;
+}
+.amk-ask-example-use {
+  min-width: 0; padding: 2px 7px;
+  border: 1px dashed rgba(148, 163, 184, .38); border-radius: var(--radius-sm);
+  background: transparent; color: var(--amk-bright);
+  font: inherit; font-size: 12.5px; line-height: 1.4; text-align: left;
+  cursor: pointer; user-select: text;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: border-color .14s, color .14s, background .14s;
+}
+.amk-ask-example-use:hover,
+.amk-ask-example-use:focus-visible {
+  border-style: solid; border-color: rgba(148, 163, 184, .62);
+  background: rgba(148, 163, 184, .10); color: var(--text);
+}
 .amk-ask .amk-dialog-actions { flex-wrap: wrap; }
 /* ══════════════════════════════════════════════════════════════
    ROLE SVG ICONS in node canvas

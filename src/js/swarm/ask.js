@@ -78,8 +78,55 @@
         input.id = `amkAsk_${i}`;
         input.className = "amk-dialog-input";
         input.rows = 2;
-        if (q.hint) input.placeholder = `e.g. ${q.hint}`;
         row.append(label, input);
+        // The example, said once and put where it can be USED.
+        //
+        // It used to be the field's placeholder and nothing else. A
+        // placeholder is not text: it cannot be selected with the mouse, it
+        // cannot be copied, and the right arrow does not take it — which is
+        // what somebody tries first, because that is how a suggestion is
+        // accepted everywhere else. So the example sat there looking like an
+        // answer that could be had and was not one.
+        //
+        // The words in front of it are the app's, and only the app's. A model
+        // asked for an example writes "e.g. Sara Ahmed" as often as not, and
+        // "e.g." in front of that again reads as "e.g. e.g." —
+        // js/swarm/clarify.js takes the model's own lead-in off.
+        const example = window.HCSwarmClarify.exampleOf(q.hint);
+        if (example) {
+          input.placeholder = `e.g. ${example}`;
+          const take = () => {
+            if (input.value.trim()) return false;
+            input.value = example;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            input.focus();
+            input.setSelectionRange(example.length, example.length);
+            return true;
+          };
+          const offer = document.createElement("div");
+          offer.className = "amk-ask-example";
+          const said = document.createElement("span");
+          said.className = "amk-ask-example-label";
+          said.textContent = "Example";
+          const use = document.createElement("button");
+          use.type = "button";
+          use.className = "amk-ask-example-use";
+          // The example itself is the control, so it can be read, selected
+          // and copied where it sits, as well as pressed to fill the field.
+          use.textContent = example;
+          use.title = "Use this example";
+          use.addEventListener("click", take);
+          offer.append(said, use);
+          row.appendChild(offer);
+          // And the right arrow at the end of an empty field takes it, the
+          // way a suggestion is taken anywhere else.
+          input.addEventListener("keydown", (e) => {
+            if (e.key !== "ArrowRight" && e.key !== "Tab") return;
+            if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return;
+            if (input.value.length) return;
+            if (take()) e.preventDefault();
+          });
+        }
         list.appendChild(row);
         return input;
       });

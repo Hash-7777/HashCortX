@@ -73,6 +73,55 @@ console.log('\nWhat is answered is fact; what is not is a marked placeholder:');
   ok('with no questions the task is untouched', C.taskWithAnswers(task, []) === task);
 }
 
+console.log('\nThe example is said once, and it is the app that says "for example":');
+{
+  // A model asked for an example writes "e.g. Sara Ahmed" as often as not.
+  // The app puts "e.g." in front of what it is given, so the two together
+  // read as "e.g. e.g. Sara Ahmed".
+  const lead = [
+    ['e.g. Sara Ahmed', 'Sara Ahmed'],
+    ['eg. Sara Ahmed', 'Sara Ahmed'],
+    ['E.G.  Sara Ahmed', 'Sara Ahmed'],
+    ['e.g., Sara Ahmed', 'Sara Ahmed'],
+    ['for example: Sara Ahmed', 'Sara Ahmed'],
+    ['for instance, a bakery', 'a bakery'],
+    ['such as Go, PostgreSQL', 'Go, PostgreSQL'],
+    ['examples: A, B', 'A, B'],
+    ['i.e. the founder', 'the founder'],
+    ['like a bakery in Cairo', 'a bakery in Cairo'],
+    ['e.g. e.g. Sara', 'Sara'],
+    ['"Sara Ahmed"', 'Sara Ahmed'],
+  ];
+  for (const [given, want] of lead) ok(`"${given}" is offered as "${want}"`, C.exampleOf(given) === want, C.exampleOf(given));
+
+  // And what only looks like one is left alone, which is the half that is
+  // easy to get wrong: "eg" opens "egypt", "example" opens "example.com".
+  const keep = ['egypt office', 'Eggplant Ltd', 'example.com/me', 'Sayed Ali', 'Likely buyers', 'Sara Ahmed', 'Ikea, Cairo'];
+  for (const given of keep) ok(`"${given}" is left exactly as it is`, C.exampleOf(given) === given, C.exampleOf(given));
+
+  ok('nothing at all is nothing, not the word undefined', C.exampleOf(undefined) === '' && C.exampleOf(null) === '' && C.exampleOf('') === '');
+  ok('and a whole lead-in with nothing after it comes back empty', C.exampleOf('e.g.') === '' && C.exampleOf('for example:') === '');
+}
+
+console.log('\nThe example can be used, not only looked at:');
+{
+  // It used to be the field's placeholder and nothing else. A placeholder
+  // cannot be selected, cannot be copied, and the right arrow does not take
+  // it — which is what somebody tries first.
+  const ask = readFileSync(join(root, 'src', 'js', 'swarm', 'ask.js'), 'utf8');
+  const css = readFileSync(join(root, 'src', 'modes', 'agent-maker', 'mode.css'), 'utf8');
+  ok('the app writes "for example" once, in front of the cleaned example', /input\.placeholder = `e\.g\. \$\{example\}`/.test(ask));
+  ok('and it is cleaned by the one file that knows how', /window\.HCSwarmClarify\.exampleOf\(q\.hint\)/.test(ask));
+  ok('the example is also put on the page as a control', /amk-ask-example-use/.test(ask) && /use\.textContent = example/.test(ask));
+  ok('pressing it fills the field', /use\.addEventListener\("click", take\)/.test(ask));
+  ok('the right arrow takes it too', /e\.key !== "ArrowRight" && e\.key !== "Tab"/.test(ask));
+  ok('but only while the field is empty, so it never eats what was typed', /if \(input\.value\.trim\(\)\) return false;/.test(ask) && /if \(input\.value\.length\) return;/.test(ask));
+  ok('and only on the arrow alone, so a shortcut still works', /e\.shiftKey \|\| e\.metaKey \|\| e\.ctrlKey \|\| e\.altKey/.test(ask));
+  ok('taking it leaves the caret after it, ready to be changed', /setSelectionRange\(example\.length, example\.length\)/.test(ask));
+  ok('the words the model wrote are put on the page as text, never as markup', !/innerHTML/.test(ask));
+  ok('and the example can be selected and copied where it sits', /\.amk-ask-example-use \{[^}]*user-select: text/.test(css));
+}
+
 console.log('\nThe website rules no longer ask for an invented person:');
 {
   const note = B.brief({ task: 'portfolio website', siteFiles: ['index.html'], isFinalOwner: true });
