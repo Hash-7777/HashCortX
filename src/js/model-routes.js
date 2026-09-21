@@ -18,14 +18,27 @@
 //
 //   retired   the model is gone: the same provider's other models first,
 //             because the account works — then the other providers
-//   limit     the account is out of quota: other providers only
+//   limit     out of quota. When the WHOLE ACCOUNT is — no credit, a
+//             payment refusal, a daily allowance every free model on it
+//             shares — other providers only. When it is one model's quota,
+//             as Gemini and Groq count most of theirs, other providers first,
+//             then this one's other models: one spent model says nothing
+//             about the next, which is often answering
 //   key       the key is refused: other providers only
 //   busy      the provider is overloaded or unreachable: other providers,
 //             then this one
 //   slow      no answer in time: other providers, then this one
 //   size      the request is larger than this model will take on this
-//             account: this provider's others, then the rest, each only if it
-//             can hold the job — never the same request again
+//             account: other providers first, then this one's others, each
+//             only if it can hold the job — never the same request again. A
+//             provider that refused it on one model often has the same
+//             per-minute budget on the next
+//
+// What a run learns is shared for a few minutes with every run: a model out of
+// its quota, an account out of credit. Six agents in one team used to find the
+// same empty account six times, each spending attempts on it; the second now
+// starts where the first left off. Nothing is shut for good by this — when
+// leaving the cooling ones out would leave nothing, they are tried anyway.
 //   empty     an answer with nothing in it: other providers, then this one
 //   other     anything else: this provider's others, then the rest
 //
@@ -64,6 +77,32 @@
   // An unreachable provider is treated as a busy one: try elsewhere, then it again.
   const BUSY = /capacity|overload|unavailable|\b50[234]\b|\b529\b|server error|try again later|temporar|failed to fetch|load failed|network|econn|socket|unreachable/i;
   const SLOW = /timed?.?out|timeout|aborted|abort|no answer within|took longer/i;
+  // Models that answer with pictures, by the names their providers give them.
+  const PICTURE_MODEL = /[-/]image(?:[-:]|$)|image-preview|imagen|dall-e|flux|stable-diffusion|nano-banana/i;
+  // A limit that covers the whole account, read from the status and from the
+  // provider's own words, which the app's message leaves out.
+  const ACCOUNT_WIDE = /no credit left|out of credit|insufficient.{0,12}(?:credit|balance|fund)|payment (?:method )?(?:is )?required|free-models-per-day|never purchased credits/i;
+
+  /** Whether a limit covers the whole account rather than one model. */
+  function coversAccount(err) {
+    if (!err) return false;
+    if (Number(err.status) === 402) return true;
+    return ACCOUNT_WIDE.test(`${err.message || ''} ${typeof err.body === 'string' ? err.body : ''}`);
+  }
+
+  // What recent runs learnt, shared for a while: 'p:provider' for an account,
+  // 'm:value' for one model. Kept in memory — a restart asks again.
+  const COOL_ACCOUNT_MS = 30 * 60 * 1000;
+  const COOL_MODEL_MS = 5 * 60 * 1000;
+  const cooling = new Map();
+  function coolDown(key, ms, now = Date.now()) { cooling.set(key, Math.max(cooling.get(key) || 0, now + ms)); }
+  function coolingNow(prefix, now = Date.now()) {
+    const out = [];
+    for (const [k, until] of cooling) { if (until <= now) cooling.delete(k); else if (k.startsWith(prefix)) out.push(k.slice(prefix.length)); }
+    return out;
+  }
+  /** Forget what recent runs learnt — for the checks, and for a person who has just added credit. */
+  function forgetCooling() { cooling.clear(); }
 
   /** What kind of failure an error is — see the table at the top. */
   function failureKind(err) {
@@ -135,12 +174,15 @@
    * cannot hold the job (js/model-limits.js). `strength` may be passed to rank
    * by a mode's own judgement instead of the shared one.
    */
-  function nextRoutes({ failed, kind = 'other', options = [], tried = [], avoid = [], strength, fits, now = Date.now(), store = defaultStore() } = {}) {
+  function nextRoutes({ failed, kind = 'other', wide = true, options = [], tried = [], avoid = [], strength, fits, now = Date.now(), store = defaultStore() } = {}) {
     const score = strength || ((o) => rankOf(o.value, o.label));
     const skip = new Set([failed, ...tried].filter(Boolean));
     const shut = new Set(avoid);
-    if (kind === 'limit' || kind === 'key') shut.add(providerOf(failed));
-    const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)));
+    const shutsAccount = kind === 'key' || (kind === 'limit' && wide);
+    if (shutsAccount) shut.add(providerOf(failed));
+    // A model that makes pictures is never the fallback for one that writes.
+    const pictures = (v) => PICTURE_MODEL.test(String(v || ''));
+    const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)) && (pictures(failed) || !pictures(o.value)));
     // Models that answer in time first, strongest first within that — a model
     // that ran out of time, or a free giant never yet heard from, goes after
     // the rest however large it is (js/model-speed.js).
@@ -164,8 +206,8 @@
     const others = from === 'local' ? [] : [...bestOf.values()].sort(byStrength);
     const values = (list) => list.map((o) => o.value);
     if (kind === 'stopped') return [];
-    if (kind === 'limit' || kind === 'key') return values(others);  // `same` is empty: the provider is shut
-    if (kind === 'busy' || kind === 'slow' || kind === 'empty') return values([...others, ...same]);
+    if (shutsAccount) return values(others);  // `same` is empty: the provider is shut
+    if (kind === 'busy' || kind === 'slow' || kind === 'empty' || kind === 'limit' || kind === 'size') return values([...others, ...same]);
     return values([...same, ...others]);
   }
 
@@ -206,6 +248,13 @@
             .find((v) => S.stateOf(v, Date.now(), store) !== 'timed-out');
           if (quicker) { note(`${label(value)} ran out of time on its last job — using ${label(quicker)}`); return quicker; }
         }
+        // An account or a model another run has just found spent is not asked
+        // first, while something else can be.
+        const cold = !gone && (coolingNow('p:').includes(providerOf(value)) || coolingNow('m:').includes(value));
+        if (cold) {
+          const warm = nextRoutes({ failed: value, kind: 'limit', wide: coolingNow('p:').includes(providerOf(value)), options: options(), tried: coolingNow('m:'), avoid: coolingNow('p:'), strength, fits, store })[0];
+          if (warm) { note(`${label(value)} was just found out of quota — using ${label(warm)}`); return warm; }
+        }
         if (!gone && (!fits || fits(value))) return value;
         const next = nextRoutes({ failed: value, kind: gone ? 'retired' : 'other', options: options(), strength, fits, store })[0];
         if (next) note(gone ? `${label(value)} was reported gone — using ${label(next)}` : `${label(value)} cannot hold this job on this account — using ${label(next)}`);
@@ -223,12 +272,17 @@
           markRetired(culprit, Date.now(), store);
           note(`${label(culprit)} is gone — it will not be asked again for two weeks`);
         }
-        if (kind === 'limit' || kind === 'key') avoid.push(providerOf(culprit));
+        const wide = kind === 'key' || (kind === 'limit' && coversAccount(err));
+        if (wide) { avoid.push(providerOf(culprit)); coolDown(`p:${providerOf(culprit)}`, COOL_ACCOUNT_MS); }
+        else if (kind === 'limit') coolDown(`m:${culprit}`, COOL_MODEL_MS);
         if (kind === 'slow' && typeof window !== 'undefined' && window.HCModelSpeed) window.HCModelSpeed.recordTimeout(culprit, Date.now(), store);
         for (const m of [failed, culprit]) if (m && !tried.includes(m)) tried.push(m);
-        const ask = (extra, fit) => nextRoutes({ failed: culprit, kind, options: options(), tried, avoid: [...avoid, ...extra], strength, fits: fit, store })[0];
-        // A model that can hold the job first; failing that, any that answers.
-        return ask(shut(), fits) || ask([], fits) || ask(shut()) || ask([]) || null;
+        const ask = (extra, fit, cold = []) => nextRoutes({ failed: culprit, kind, wide, options: options(), tried: [...tried, ...cold], avoid: [...avoid, ...extra], strength, fits: fit, store })[0];
+        // What is known to answer and can hold the job first; failing that,
+        // anything that answers, the cooling ones included.
+        const coldP = coolingNow('p:');
+        const coldM = coolingNow('m:');
+        return ask([...shut(), ...coldP], fits, coldM) || ask(coldP, fits, coldM) || ask(shut(), fits) || ask([], fits) || ask(shut()) || ask([]) || null;
       },
     };
   }
@@ -356,5 +410,5 @@
     }
   }
 
-  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, askWithFailover, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
+  window.HCModelRoutes = { coversAccount, forgetCooling, failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, askWithFailover, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
 })();

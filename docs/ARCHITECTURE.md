@@ -82,7 +82,7 @@ HashCortX/
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
-│   │   ├── model-routes.js     360  which model a run asks next, by why the last
+│   │   ├── model-routes.js     410  which model a run asks next, by why the last
 │   │   │                            one failed, what it can hold and how it has
 │   │   │                            answered; models a provider says are gone;
 │   │   │                            waiting on a stream; a call cancelled when

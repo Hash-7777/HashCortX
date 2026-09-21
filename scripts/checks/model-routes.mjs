@@ -293,6 +293,57 @@ console.log('\nA call that runs out of time is cancelled, not abandoned:');
   ok('control: a race against a timer never aborts the request', seen4.aborted !== true);
 }
 
+console.log('\nOne model out of quota is not the whole account:');
+{
+  R.forgetCooling();
+  const options = [
+    { value: 'cloud:gemini:gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro' },
+    { value: 'cloud:gemini:gemini-3.6-flash', label: 'Gemini 3.6 Flash' },
+    { value: 'cloud:groq:openai/gpt-oss-120b', label: 'GPT OSS 120B' },
+    { value: 'cloud:groq:openai/gpt-oss-20b', label: 'GPT OSS 20B' },
+    { value: 'cloud:cerebras:gpt-oss-120b', label: 'Cerebras GPT OSS 120B' },
+  ];
+  const http = (provider, status, body) => E(P.cloudHttpError(provider, status, JSON.stringify(body)), { status, body: JSON.stringify(body) });
+  const geminiQuota = http('gemini', 429, { error: { code: 429, message: 'You exceeded your current quota, please check your plan and billing details.', status: 'RESOURCE_EXHAUSTED' } });
+  const groqQuota = http('groq', 429, { error: { message: 'Rate limit reached for model `openai/gpt-oss-120b` on tokens per day (TPD)', code: 'rate_limit_exceeded' } });
+  const noCredit = http('cerebras', 402, { message: 'Payment required to access this resource. Visit your billing tab.' });
+  const orDaily = http('openrouter', 429, { error: { message: 'Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day', code: 429 } });
+
+  ok('a Gemini quota refusal is one model\'s', R.coversAccount(geminiQuota) === false);
+  ok('... and so is Groq\'s daily budget for one model', R.coversAccount(groqQuota) === false);
+  ok('no credit covers the account', R.coversAccount(noCredit) === true);
+  ok('OpenRouter\'s free daily allowance covers the account', R.coversAccount(orDaily) === true);
+
+  const onlyGemini = options.filter((o) => o.value.includes(':gemini:'));
+  const r1 = R.createRun({ options: () => onlyGemini, store: memory() });
+  ok('the same provider\'s other model is still asked after one model\'s quota', r1.next('cloud:gemini:gemini-3.1-pro-preview', geminiQuota) === 'cloud:gemini:gemini-3.6-flash');
+  R.forgetCooling();
+  const order = R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind: 'limit', wide: false, options, store: memory() });
+  ok('... after the other providers', order.indexOf('cloud:groq:openai/gpt-oss-20b') > order.indexOf('cloud:gemini:gemini-3.6-flash'));
+  const shutOrder = R.nextRoutes({ failed: 'cloud:cerebras:gpt-oss-120b', kind: 'limit', wide: true, options, store: memory() });
+  ok('an account with no credit is never asked again in the run', !shutOrder.some((v) => v.includes(':cerebras:')));
+  const sizeOrder = R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind: 'size', options, store: memory() });
+  ok('a request too large goes to another provider first', !sizeOrder[0].includes(':groq:') && sizeOrder.includes('cloud:groq:openai/gpt-oss-20b'));
+
+  // What one run learns, the next starts from.
+  R.forgetCooling();
+  R.createRun({ options: () => options, store: memory() }).next('cloud:cerebras:gpt-oss-120b', noCredit);
+  const second = R.createRun({ options: () => options, store: memory(), note: () => {} });
+  ok('a second agent does not start on the account the first found empty', !second.start('cloud:cerebras:gpt-oss-120b').includes(':cerebras:'));
+  R.createRun({ options: () => options, store: memory() }).next('cloud:groq:openai/gpt-oss-120b', groqQuota);
+  const third = R.createRun({ options: () => options, store: memory(), note: () => {} });
+  ok('... nor on the model the first found out of quota', third.start('cloud:groq:openai/gpt-oss-120b') !== 'cloud:groq:openai/gpt-oss-120b');
+  ok('... while that provider\'s other model is still offered', R.createRun({ options: () => options, store: memory() }).next('cloud:gemini:gemini-3.6-flash', E('Google Gemini is overloaded right now. Try again in a few seconds.')) !== null);
+  const onlyCold = R.createRun({ options: () => [options[4]], store: memory(), note: () => {} });
+  ok('when only a cooling account is left it is still tried rather than nothing', onlyCold.start('cloud:cerebras:gpt-oss-120b') === 'cloud:cerebras:gpt-oss-120b');
+  R.forgetCooling();
+  const withPictures = [...options, { value: 'cloud:gemini:gemini-3-pro-image', label: 'Gemini 3 Pro Image' }, { value: 'cloud:gemini:gemini-3.1-flash-image-preview', label: 'Nano Banana 2' }];
+  const pictureFree = R.nextRoutes({ failed: 'cloud:gemini:gemini-3.1-pro-preview', kind: 'busy', options: withPictures, store: memory() });
+  ok('a model that makes pictures is never the fallback for one that writes', !pictureFree.some((v) => /image/.test(v)));
+  ok('... though one picture model may stand in for another', R.nextRoutes({ failed: 'cloud:gemini:gemini-3.1-flash-image-preview', kind: 'busy', options: withPictures, store: memory() }).includes('cloud:gemini:gemini-3-pro-image'));
+  ok('forgetting clears it', R.createRun({ options: () => options, store: memory(), note: () => {} }).start('cloud:cerebras:gpt-oss-120b') === 'cloud:cerebras:gpt-oss-120b');
+}
+
 console.log('\nOne question, answered by whichever model can:');
 {
   const options = () => [
