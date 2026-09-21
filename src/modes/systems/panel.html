@@ -31,7 +31,7 @@
       <input type="text" id="sysHeaderAppSearch" placeholder="Search records&#8230;" style="height:36px;border:1px solid var(--sys-line);border-radius:7px;background:rgba(15,23,42,.72);color:#e5edf5;font:12px var(--sans);padding:0 10px;outline:0;min-width:140px;display:none;" />
     </div>
 
-    <div class="sys-header-right">
+    <div class="sys-header-right" id="sysHeaderRight">
       <span class="sys-run-status" id="sysRunStatus">Idle</span>
       <select class="sys-model-select" id="sysModelSelect"></select>
       <button class="sys-btn primary" id="sysCreateBtn">Generate</button>
@@ -41,6 +41,14 @@
       <button class="sys-btn" id="sysNewBtn">New</button>
       <button class="sys-btn" id="sysResetDataBtn">Reset Data</button>
       <button class="sys-btn" id="sysBackBtn">&#8592; Back</button>
+      <!-- Whatever does not fit the bar moves in here rather than being cut
+           off by it — js/toolbar-fit.js decides what, the mode measures. -->
+      <div class="sys-more-wrap" id="sysMoreWrap" hidden>
+        <button class="sys-btn sys-more-btn" id="sysMoreBtn" aria-haspopup="menu" aria-expanded="false" aria-label="More actions" title="More actions">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+        </button>
+        <div class="sys-more-menu" id="sysMoreMenu" role="menu" aria-hidden="true" hidden></div>
+      </div>
     </div>
 
   </div><!-- /.sys-header -->

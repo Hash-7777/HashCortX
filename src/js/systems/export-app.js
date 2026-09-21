@@ -23,11 +23,12 @@
 
   /** What the file carries, in the order it must load. */
   const SCRIPTS = [
-    '/js/fences.js', '/js/export-format.js', '/js/forge/expr.js',
+    '/js/fences.js', '/js/export-format.js', '/js/toolbar-fit.js', '/js/forge/expr.js',
     '/js/systems/spec.js', '/js/systems/backup.js', '/js/systems/view.js', '/js/systems/icons.js', '/js/systems/shells.js',
     '/js/systems/stages.js', '/js/systems/relations.js', '/js/systems/forms.js', '/js/systems/revise.js', '/js/systems/work.js',
     '/js/systems/figures.js', '/js/systems/money.js', '/js/systems/samples.js', '/js/systems/domain.js', '/js/systems/scaffold.js',
-    '/js/systems/theme.js', '/js/systems/books.js', '/js/systems/ledger.js', '/js/systems/export-app.js',
+    '/js/systems/header-bar.js', '/js/systems/theme.js', '/js/systems/books.js', '/js/systems/ledger.js',
+    '/js/systems/export-app.js',
     '/modes/systems/mode.js',
   ];
   const STYLES = ['/css/vars.css', '/modes/systems/mode.css'];

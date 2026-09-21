@@ -826,7 +826,12 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   flex: 0 0 30px;
 }
 #system-maker-wrap .sys-header {
-  grid-template-columns: minmax(250px, 320px) minmax(300px, 1fr) max-content;
+  /* The centre's smallest width, declared once and read by the mode as well:
+     it is what is left over after the brand and the centre that the bar of
+     controls actually has to fit into, and a number guessed on the other side
+     is a bar that believes it fits when it does not. */
+  --sys-centre-min: 300px;
+  grid-template-columns: minmax(250px, 320px) minmax(var(--sys-centre-min), 1fr) max-content;
   gap: 12px;
   height: 64px;
   padding-left: 14px;
@@ -943,6 +948,46 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 #system-maker-wrap .sys-header-right .sys-btn {
   min-width: auto;
 }
+
+/* ── The controls that did not fit the bar ─────────────────────────
+   They move in here rather than being cut off by a bar narrower than they
+   are. js/toolbar-fit.js decides which; the mode measures and moves them. */
+#system-maker-wrap .sys-more-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+/* Written so that nothing has to fight `hidden` with !important. */
+#system-maker-wrap .sys-more-wrap:not([hidden]) { display: inline-flex; }
+#system-maker-wrap .sys-more-btn {
+  min-width: 34px;
+  width: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Fixed, not absolute, and placed by the mode. The header clips what leaves
+   it, so a menu hanging below the bar had its lower half cut away — and a
+   cut-away menu item is not a menu item: the click went through to whatever
+   was drawn underneath. */
+#system-maker-wrap .sys-more-menu {
+  position: fixed;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 168px;
+  padding: 6px;
+  border: 1px solid rgba(126, 159, 216, 0.24);
+  border-radius: var(--radius-md);
+  background: rgba(9, 13, 24, .98);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, .36);
+  z-index: 70;
+}
+#system-maker-wrap .sys-more-menu:not([hidden]) { display: flex; }
+#system-maker-wrap .sys-more-menu .sys-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
 #system-maker-wrap #sysCreateBtn { min-width: 108px; }
 #system-maker-wrap #sysNewBtn { min-width: 68px; }
 #system-maker-wrap #sysResetDataBtn { min-width: 118px; }
@@ -974,7 +1019,8 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 }
 @media (max-width: 1380px) {
   #system-maker-wrap .sys-header {
-    grid-template-columns: minmax(190px, 250px) minmax(260px, 1fr) max-content;
+    --sys-centre-min: 260px;
+    grid-template-columns: minmax(190px, 250px) minmax(var(--sys-centre-min), 1fr) max-content;
     gap: 8px;
     padding-left: 12px;
     padding-right: 12px;
@@ -998,6 +1044,8 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   #system-maker-wrap .sys-header {
     height: auto;
     min-height: 76px;
+    /* The centre has a row of its own here, so it takes nothing from the bar. */
+    --sys-centre-min: 0px;
     grid-template-columns: minmax(170px, 1fr) max-content;
     grid-template-areas:
       "brand actions"
@@ -1009,9 +1057,10 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   #system-maker-wrap .sys-header-left { grid-area: brand; }
   #system-maker-wrap .sys-header-center { grid-area: center; }
   #system-maker-wrap .sys-header-right { grid-area: actions; }
-  #system-maker-wrap .sys-header-right {
-    min-width: max-content;
-  }
+  /* No `min-width: max-content` here. It told the bar to demand room for
+     every control it holds whatever the window could give, which is how the
+     last of them ended up drawn outside the header and cut off by it. What
+     does not fit moves into the menu instead — js/toolbar-fit.js. */
 }
 
 /* Settings modal: keep panes isolated and the shell opaque in packaged WebKit. */

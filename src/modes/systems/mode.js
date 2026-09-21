@@ -289,6 +289,7 @@ const SystemMaker = (() => {
     const work = $("sysWorkBtn");
     if (work) work.disabled = running || !getActive();
     showUndoWork();
+    window.HCSystemsHeaderBar?.refit();   // a control appearing or disappearing changes what fits
   }
 
   function stopSystemGeneration() {
@@ -2954,6 +2955,7 @@ Repair requirements:
     if (src && dst) {
       dst.innerHTML = src.innerHTML;
       dst.value = src.value;
+      window.HCSystemsHeaderBar?.refit();   // the widest thing in the bar, and it arrives late
     }
   }
 
@@ -3041,6 +3043,8 @@ Repair requirements:
       if (e.target.closest("#sysPreviewExportMenuBtn") || e.target.closest("#sysPreviewExportMenu")) return;
       setPreviewExportMenuOpen(false);
     });
+
+    window.HCSystemsHeaderBar?.init();   // what does not fit the bar moves into a menu at its end
 
     // ── ERP list ────────────────────────────────────────────────────
     $("sysSystemList")?.addEventListener("click", async e => {

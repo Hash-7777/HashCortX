@@ -247,7 +247,11 @@ const LINE_BUDGET = {
   // finalise a model's answer goes through, which is what makes each screen
   // show its own table, a new record land where the screen reads it, and each
   // system keep its own records.
-  'modes/systems/mode.js': 3421,
+  // 3425, up four: three calls into js/systems/header-bar.js and the line
+  // between them. The bar of controls used to be drawn wider than the header
+  // that holds it, so its last controls were cut off and unreachable; the
+  // ninety lines that put that right went into that file, not this one.
+  'modes/systems/mode.js': 3425,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
