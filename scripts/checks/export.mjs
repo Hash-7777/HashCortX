@@ -24,7 +24,7 @@ vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'export-forma
 
 const {
   csvCell, csvDocument, pdfSafe, markdownToPlainText, safeFilename,
-  extensionOf, mimeFor, dialogFilter, conversationToMarkdown,
+  extensionOf, mimeFor, dialogFilter, conversationToMarkdown, conversationPdf,
 } = sandbox.window.HCExport;
 
 let pass = 0, fail = 0;
@@ -190,6 +190,39 @@ check('an unknown extension is still offered',
 // Null, not a filter of "": a filter the file cannot match hides it from the
 // dialog the user is trying to save it with.
 check('no extension means no filter', dialogFilter('README') === null);
+
+console.log('\nA conversation is laid out as a PDF:');
+{
+  // A stand-in for jsPDF that records every line written and every page
+  // added, with a page short enough that a long reply has to break.
+  const written = [];
+  let pages = 1;
+  function FakePdf() {
+    this.internal = { pageSize: { getWidth: () => 595, getHeight: () => 300 } };
+  }
+  Object.assign(FakePdf.prototype, {
+    splitTextToSize: (text) => String(text).split('\n'),
+    text: (line) => { written.push(String(line)); },
+    addPage: () => { pages++; },
+    setFontSize() {}, setTextColor() {}, setFont() {}, setDrawColor() {}, setLineWidth() {}, line() {},
+  });
+  const snapshot = {
+    title: '\u201cQuoted\u201d title', model: 'm', exportedAt: 'today',
+    messages: [
+      { role: 'user', content: 'PRELUDE:Hello' },
+      { role: 'assistant', content: '**Bold** answer\n' + Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n'), durationMs: 1500, tps: 12, attachments: ['a.pdf'] },
+    ],
+  };
+  const doc = conversationPdf(FakePdf, snapshot, { formatDuration: () => 'DUR', stripReplyPrelude: (t) => t.replace('PRELUDE:', '') });
+  const all = written.join('\n');
+  check('it returns the document it laid out', doc instanceof FakePdf);
+  check('the title is written, made safe for the PDF font', written[0] === pdfSafe('\u201cQuoted\u201d title'));
+  check('each turn is headed by who said it', /^YOU$/m.test(all) && /^AI {2}\(DUR \| 12 tok\/s\)$/m.test(all));
+  check('the app\'s own duration and prelude rules are used', all.includes('DUR') && all.includes('Hello') && !all.includes('PRELUDE:'));
+  check('markdown is flattened, not printed raw', all.includes('Bold answer') && !all.includes('**'));
+  check('attachments are named', all.includes('Attachments: a.pdf'));
+  check('a long reply breaks onto new pages rather than running off one', pages > 1 && all.includes('line 39'));
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/export-format.js)`);
 process.exit(fail ? 1 : 0);

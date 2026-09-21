@@ -154,7 +154,9 @@ const LINE_BUDGET = {
   // and had no way at all to reach the one shelf of material the person had
   // chosen to give it — while the searching tools beside it wrote into that
   // same store as they went.
-  'js/app.js': 6597,
+  // 6504, down ninety-three. The conversation PDF is laid out in
+  // js/export-format.js, beside the Markdown export, where it is checked.
+  'js/app.js': 6504,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
