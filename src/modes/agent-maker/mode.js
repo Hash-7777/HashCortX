@@ -329,7 +329,7 @@ const SwarmMaker = (() => {
     ];
     const timeoutMs = (agent.timeout || 120) * 1000;
     const maxToolRounds = execOptions.maxToolRounds || 8;
-    traceAdd(agent.name, `Prepared prompt · role ${agent.role || "custom"} · deps ${contextLines.length} · tools ${(agent.tools || []).length}`, "wait");
+    traceAdd(agent.name, `Prepared prompt · role ${agent.role || "custom"} · deps ${Object.values(depResults || {}).filter(Boolean).length}${needsWhole ? " (as the project)" : ""} · tools ${(agent.tools || []).length}`, "wait");
     traceAdd(agent.name, `Timeout ${agent.timeout || 120}s · max tool rounds ${maxToolRounds} · model ${modelTraceLabel(agent.model)}`, "wait");
 
     // Failover state

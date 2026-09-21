@@ -1,5 +1,5 @@
 // ==============================================================
-// A name that is called has to exist
+// A name that is called, or read, has to exist
 //
 // `isNarrow()` was called twice in app.js and defined nowhere in the app. Both
 // calls sat at the end of their functions, so each one threw a ReferenceError
@@ -11,9 +11,16 @@
 // Every script here is loaded as a plain <script>, so there is no bundler and no
 // module resolution to notice. This is the check that notices.
 //
-// THE RULE IS DELIBERATELY COARSE: a bare identifier that is called must be
-// bound somewhere in the same file, or be a known global. It does not do real
-// scope analysis — a name declared in one function and called from another is
+// It is not only calls. A variable removed when its code moved into a module
+// was left behind in the line that traced it — read for its length, never
+// called — so every agent in a Swarm run threw before it reached a model, and
+// the run came back saying nothing but "Can't find variable". A name that is
+// read is exactly as fatal as one that is called, so `name.something` is read
+// here too.
+//
+// THE RULE IS DELIBERATELY COARSE: a bare identifier that is called or read
+// must be bound somewhere in the same file, published on `window` by some file
+// in the app, or be a known global. It does not do real scope analysis — a name declared in one function and called from another is
 // accepted — because the defect this exists for is a name that is nowhere at
 // all, and a coarse rule that never cries wolf is worth more than a precise one
 // that has to be argued with.
@@ -29,6 +36,12 @@
 //   · `readFile(path) {` inside an object literal is a method DEFINITION, and it
 //     was being read as a call. So a call is only a call when the bracket it
 //     opens is not followed by a body — that one rule removed most of the noise.
+//   · A parameter list that contains brackets of its own — a default such as
+//     `store = defaultStore()` — stops a pattern that cannot nest at the inner
+//     bracket, and every parameter of that function then reads as undeclared.
+//   · Reading parameters by jumping from each bracket to its partner steps
+//     straight over `new Promise((resolve, reject) => {`, whose parameter list
+//     sits inside another bracket. Every bracket is tried; none is skipped.
 //
 // Run with: npm run check:undefined-names
 // ==============================================================
@@ -181,8 +194,29 @@ function declaredIn(code) {
       part += c;
     }
   }
-  // Parameters, of both functions and arrows, including destructured ones.
-  for (const m of code.matchAll(/\(([^()]*)\)\s*(?:=>|\{)/g)) addAll(m[1]);
+  // Parameters, of both functions and arrows, including destructured ones and
+  // defaults that are themselves calls. A default like `store = defaultStore()`
+  // puts brackets inside the brackets, and a pattern that cannot nest stops at
+  // the inner one — so EVERY parameter of such a function reads as undeclared.
+  // A condition is not a parameter list, so the words that open one are skipped.
+  const PARAMS_MAX = 2000; // no parameter list is longer than this
+  for (let i = 0; i < code.length; i++) {
+    if (code[i] !== '(') continue;
+    // Every bracket is tried, and none is skipped over: the parameter list of
+    // `new Promise((resolve, reject) => {` sits INSIDE another bracket, and
+    // jumping to the outer one's partner steps straight over it.
+    let depth = 0, j = i;
+    const stop = Math.min(code.length, i + PARAMS_MAX);
+    for (; j < stop; j++) {
+      if (code[j] === '(') depth++;
+      else if (code[j] === ')') { depth--; if (depth === 0) break; }
+    }
+    if (j >= stop) continue;
+    const after = code.slice(j + 1, j + 4).trim();
+    if (!after.startsWith('{') && !after.startsWith('=>')) continue;
+    const word = (code.slice(0, i).match(/([A-Za-z_$][\w$]*)\s*$/) || [])[1] || '';
+    if (!/^(?:if|for|while|switch|catch)$/.test(word)) addAll(code.slice(i + 1, j));
+  }
   // A single-parameter arrow needs no brackets.
   for (const m of code.matchAll(/(?:^|[\s(,=;])([A-Za-z_$][\w$]*)\s*=>/g)) add(m[1]);
   for (const m of code.matchAll(/catch\s*\(\s*([A-Za-z_$][\w$]*)/g)) add(m[1]);
@@ -215,6 +249,32 @@ function callsIn(code) {
   return out;
 }
 
+/**
+ * Bare identifiers that are READ through a property.
+ *
+ * `contextLines.length` is not a call, so the scan above never saw it — and a
+ * name that is read is exactly as fatal as one that is called. That spelling
+ * shipped: a variable removed when its code moved into a module was left
+ * behind in the line that traced it, so the very first thing every agent in a
+ * run did was throw, and the run came back with nothing but the words "Can't
+ * find variable".
+ *
+ * Only `name.` is read, and only where the name is not itself a property, a
+ * declaration or a key. That is the narrowest shape that carries the defect,
+ * and a narrow rule that never cries wolf is worth more here than a wide one.
+ */
+function readsIn(code) {
+  const out = [];
+  for (const m of code.matchAll(/(?<![.\w$?])([A-Za-z_$][\w$]*)\s*(\??\.)\s*[A-Za-z_$]/g)) {
+    const before = code.slice(Math.max(0, m.index - 24), m.index);
+    // `const x.y` cannot happen, but `case x.y:` and `{ x: y.z }` can, and the
+    // name before a colon is a key rather than a read.
+    if (/\b(?:function|class|const|let|var)\s+$/.test(before)) continue;
+    out.push({ name: m[1], index: m.index });
+  }
+  return out;
+}
+
 const KEYWORDS = new Set(('if for while switch catch return typeof new await else do function class in of delete void ' +
   'instanceof yield throw case with super constructor get set async from as export default let const var try finally ' +
   'break continue debugger null true false undefined this arguments import').split(/\s+/));
@@ -241,10 +301,28 @@ const GLOBALS = new Set(('Array Object String Number Boolean Symbol BigInt Math 
   // The app's own runtime bridge, set up before any of these files run.
   ' HC').split(/\s+/));
 
-console.log('\nEvery name that is called exists somewhere:');
+/**
+ * Everything any file in the app publishes on `window`.
+ *
+ * These scripts are loaded as plain <script> tags into one global namespace,
+ * so `HCMemory.rankMemories(…)` in one file is answered by `window.HCMemory =`
+ * in another, and reading it bare is correct. Only ASSIGNMENTS count: a read
+ * of a name nobody sets must not authorise itself.
+ */
+function publishedOnWindow(files) {
+  const names = new Set();
+  for (const file of files) {
+    for (const m of readFileSync(file, 'utf8').matchAll(/window\.([A-Za-z_$][\w$]*)\s*=[^=]/g)) names.add(m[1]);
+  }
+  return names;
+}
+
+console.log('\nEvery name that is called or read exists somewhere:');
 {
   let offenders = 0;
-  for (const file of jsFiles(srcDir)) {
+  const files = jsFiles(srcDir);
+  const published = publishedOnWindow(files);
+  for (const file of files) {
     const rel = relative(srcDir, file);
     const code = codeOnly(readFileSync(file, 'utf8'));
     const declared = declaredIn(code);
@@ -254,17 +332,21 @@ console.log('\nEvery name that is called exists somewhere:');
     const guarded = new Set([...code.matchAll(/typeof\s+([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
     const missing = new Map();
     for (const { name, index } of callsIn(code)) {
-      if (declared.has(name) || GLOBALS.has(name) || KEYWORDS.has(name) || guarded.has(name)) continue;
-      if (!missing.has(name)) missing.set(name, code.slice(0, index).split('\n').length);
+      if (declared.has(name) || published.has(name) || GLOBALS.has(name) || KEYWORDS.has(name) || guarded.has(name)) continue;
+      if (!missing.has(name)) missing.set(name, { line: code.slice(0, index).split('\n').length, how: '()' });
     }
-    for (const [name, line] of missing) {
+    for (const { name, index } of readsIn(code)) {
+      if (declared.has(name) || published.has(name) || GLOBALS.has(name) || KEYWORDS.has(name) || guarded.has(name)) continue;
+      if (!missing.has(name)) missing.set(name, { line: code.slice(0, index).split('\n').length, how: '.' });
+    }
+    for (const [name, { line, how }] of missing) {
       offenders++;
-      check(`${rel}:${line} ${name}()`, false,
-        'called here and bound nowhere in this file — a ReferenceError at runtime, which in an event handler is silent');
+      check(`${rel}:${line} ${name}${how}`, false,
+        `${how === '()' ? 'called' : 'read'} here and bound nowhere in this file — a ReferenceError at runtime, which in an event handler is silent`);
     }
   }
   if (offenders === 0) check('no call names something that does not exist', true);
 }
 
-console.log(`\n${pass} passed, ${fail} failed  (names that are called)`);
+console.log(`\n${pass} passed, ${fail} failed  (names that are called or read)`);
 process.exit(fail ? 1 : 0);
