@@ -133,6 +133,8 @@
     '/js/systems/samples.js',
     '/js/systems/domain.js',
     '/js/systems/scaffold.js',
+    '/js/systems/setup.js',
+    '/js/systems/setup-dialog.js',
     '/js/systems/header-bar.js',
     '/js/systems/contrast.js',
     '/js/systems/theme.js',

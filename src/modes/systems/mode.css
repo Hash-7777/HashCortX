@@ -1699,3 +1699,55 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 .sys-trace *,
 .sys-trace-entries,
 .sys-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }
+
+/* ── Setup: what the system is for, before it is built ──────────────
+   js/systems/setup-dialog.js. Every colour here is one of the app's own
+   tokens, which are measured against the panel they sit on — nothing new is
+   introduced to read on it. */
+.sys-setup-inner { width: 640px; max-width: 94vw; max-height: 88vh; gap: 18px; }
+.sys-setup-head { display: flex; flex-direction: column; gap: 6px; }
+.sys-setup-step { font: 10.5px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--text-dim); }
+.sys-setup-title { font-size: 17px; font-weight: 650; color: var(--text); }
+.sys-setup-note { font-size: 12.5px; line-height: 1.55; color: var(--text-dim); }
+.sys-setup-body { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px; min-height: 0; }
+.sys-setup-body[hidden] { display: none; }
+.sys-setup-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 560px) { .sys-setup-row { grid-template-columns: 1fr; } }
+.sys-setup-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.sys-setup-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.sys-setup-hint { font-size: 11.5px; line-height: 1.5; color: var(--text-dim); }
+.sys-setup-field :is(input[type="text"], select, textarea) {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text);
+  font: 13px/1.45 var(--sans); outline: 0;
+  transition: border-color .14s, box-shadow .14s;
+}
+.sys-setup-field textarea { resize: vertical; }
+.sys-setup-field :is(input, select, textarea):focus-visible { border-color: var(--sys-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-accent) 22%, transparent); }
+.sys-setup-parts { display: flex; flex-wrap: wrap; gap: 8px; }
+.sys-setup-part {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 11px; border: 1px solid var(--line-strong); border-radius: 999px;
+  font-size: 12.5px; color: var(--text); cursor: pointer; user-select: none;
+  transition: border-color .14s, background .14s;
+}
+.sys-setup-part input { margin: 0; accent-color: var(--sys-accent); }
+.sys-setup-part:has(input:checked) { border-color: var(--sys-accent); background: color-mix(in srgb, var(--sys-accent) 12%, transparent); }
+.sys-setup-part:has(input:focus-visible) { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sys-accent) 22%, transparent); }
+/* The parts that are not this trade's own are drawn dashed, and the hint says so. */
+.sys-setup-part.is-extra { border-style: dashed; }
+.sys-setup-problems { min-height: 1.4em; font-size: 12px; line-height: 1.5; color: var(--warn); }
+.sys-setup-problems:empty { min-height: 0; }
+.sys-setup-waiting { font-size: 12.5px; color: var(--text-dim); }
+.sys-setup-waiting[hidden] { display: none; }
+.sys-setup-questions { display: flex; flex-direction: column; gap: 14px; }
+.sys-setup-example-row { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.sys-setup-example {
+  min-width: 0; padding: 2px 8px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-dim); font: inherit; font-size: 12.5px; text-align: left;
+  cursor: pointer; user-select: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sys-setup-example:hover, .sys-setup-example:focus-visible { border-style: solid; color: var(--text); }
+.sys-setup-actions { flex-wrap: wrap; }
+.sys-setup-actions button:disabled { opacity: .5; cursor: not-allowed; }

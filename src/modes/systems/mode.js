@@ -981,7 +981,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
   // missing. The template now stands in only for an entity the model left
   // nearly empty; a finance entity still takes the fields its books need.
   function ensureGeneratedEntityFields(entity, entityId, desc) {
-    const financeSchema = financeFields(/egp|egypt|cairo/i.test(desc || "") ? "EGP" : /eur|euro/i.test(desc || "") ? "EUR" : "USD")[entityId];
+    const financeSchema = financeFields(window.HCSystemsMoney.currencyFor(null, desc))[entityId];
     if (financeSchema) entity.fields = mergeGeneratedFields(entity.fields, financeSchema);
     if ((entity.fields || []).length < 3) entity.fields = mergeGeneratedFields(entity.fields, defaultFields(entity.name || entityId, detectDomain(desc || "")));
     return entity;
@@ -1011,7 +1011,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
     prepared.modules.forEach(module => {
       const entityId = slug(module?.entity || "");
       if (!entityId) return;
-      const financeSchema = financeFields(/egp|egypt|cairo/i.test(`${desc} ${prepared.description}`) ? "EGP" : /eur|euro/i.test(`${desc} ${prepared.description}`) ? "EUR" : "USD")[entityId];
+      const financeSchema = financeFields(window.HCSystemsMoney.currencyFor(prepared, desc))[entityId];
       const entity = entities[entityId] || { id: entityId, name: module?.name ? `${module.name} Records` : titleCase(entityId), fields: [] };
       entity.id = entityId;
       entity.name = entity.name || titleCase(entityId);
@@ -1302,8 +1302,11 @@ Repair requirements:
       stopSystemGeneration();
       return;
     }
-    const desc = $("sysPromptInput")?.value.trim() || "Create a professional ERP system for a growing business";
     clearTrace();
+    // What it is for, asked first: a form, then only what a model cannot work out — js/systems/setup-dialog.js.
+    const plan = await window.HCSystemsSetupDialog?.ask($("sysPromptInput")?.value.trim() || "", { models: availableModels, label: modelTraceLabel, trace, chosen: () => $("sysModelSelect")?.value || $("model")?.value || "" });
+    if (plan === null) return;
+    const desc = plan ? window.HCSystemsSetup.describe(plan.setup, plan.answers) : $("sysPromptInput")?.value.trim() || "Create a professional ERP system for a growing business";
     setStatus("Running", "running");
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
@@ -1325,7 +1328,7 @@ Repair requirements:
       // load-bearing: what build() returns is the shape an answer ARRIVES in,
       // and storing it as it came broke four things at once. The account is
       // in scripts/checks/systems-scaffold.mjs, with the checks that hold it.
-      const built = window.HCSystemsScaffold?.build(desc, todayIso()) || null;
+      const built = window.HCSystemsScaffold?.build(desc, todayIso(), { setup: plan ? window.HCSystemsSetup.buildOptions(plan.setup) : null }) || null;
       const scaffold = built ? finalizeGeneratedSpec(built, desc) : null;
       if (scaffold) trace(`Built a ${scaffold.domain} system to start from — ${scaffold.modules.length} modules, ${Object.keys(scaffold.entities).length} tables`, "ok");
       let spec;
@@ -1337,6 +1340,7 @@ Repair requirements:
         spec = scaffold;
       }
       if (runAbort.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      if (plan) window.HCSystemsSetup.applyTo(spec, plan.setup);   // the owner's name and currency stand, whoever built it
       trace("Normalising modules, data, and interactions", "data");
       // Its design differs from the last system's on at least two of shell,
       // typeface, density and surface; its colours stay its industry's.

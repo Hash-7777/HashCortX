@@ -104,5 +104,24 @@
     return id;
   }
 
-  window.HCSystemsMoney = { seededRand, roundMoney, addDays, recentMonths, uniqueModuleId };
+  /**
+   * The currency a system counts in.
+   *
+   * It was decided in three places, each by the same guess over the request —
+   * Egypt or Cairo meant pounds, a mention of the euro meant euros, anything
+   * else dollars — so a shop in Dubai counted in dollars and there was no way
+   * to say otherwise. What the owner chose in the setup now comes first: on
+   * the system, or in the setup's own line in the request, which reaches the
+   * places that have only the request to go on. The old guess is what is left.
+   */
+  function currencyFor(spec, text) {
+    const own = String((spec && spec.currency) || '').trim().toUpperCase();
+    if (/^[A-Z]{3}$/.test(own)) return own;
+    const said = `${text || ''} ${(spec && spec.description) || ''}`;
+    const stated = said.match(/Money is counted in:\s*([A-Za-z]{3})\b/);
+    if (stated) return stated[1].toUpperCase();
+    return /egp|egypt|cairo/i.test(said) ? 'EGP' : /eur|euro/i.test(said) ? 'EUR' : 'USD';
+  }
+
+  window.HCSystemsMoney = { seededRand, roundMoney, addDays, recentMonths, uniqueModuleId, currencyFor };
 })();

@@ -251,7 +251,11 @@ const LINE_BUDGET = {
   // between them. The bar of controls used to be drawn wider than the header
   // that holds it, so its last controls were cut off and unreachable; the
   // ninety lines that put that right went into that file, not this one.
-  'modes/systems/mode.js': 3425,
+  // 3429, up four: asking what a system is for before building it — the
+  // form and the model's questions. The four lines here hand the answer to the
+  // builder; the four hundred that ask it are in js/systems/setup.js and
+  // js/systems/setup-dialog.js.
+  'modes/systems/mode.js': 3429,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

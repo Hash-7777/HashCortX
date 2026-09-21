@@ -152,6 +152,28 @@
     </div>
   </div>
 
+  <!-- Setup: what the system is for, then the questions only the owner can
+       answer — js/systems/setup-dialog.js draws it, js/systems/setup.js reads it. -->
+  <div class="amk-dialog sys-setup" id="sysSetup" role="dialog" aria-modal="true" aria-labelledby="sysSetupTitle" style="z-index:330;">
+    <div class="amk-dialog-inner sys-setup-inner">
+      <div class="sys-setup-head">
+        <div class="sys-setup-step" id="sysSetupStep">Step 1 of 2</div>
+        <div class="sys-setup-title" id="sysSetupTitle">About the business</div>
+        <div class="sys-setup-note" id="sysSetupNote"></div>
+      </div>
+      <div class="sys-setup-body" id="sysSetupForm"></div>
+      <div class="sys-setup-body" id="sysSetupAsk" hidden>
+        <div class="sys-setup-waiting" id="sysSetupWaiting" role="status">Reading the form and working out what else it needs to know</div>
+        <div class="sys-setup-questions" id="sysSetupQuestions"></div>
+      </div>
+      <div class="amk-dialog-actions sys-setup-actions">
+        <button class="amk-btn" id="sysSetupCancel" type="button">Cancel</button>
+        <button class="amk-btn" id="sysSetupSkip" type="button">Build without questions</button>
+        <button class="amk-btn primary" id="sysSetupNext" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Import modal -->
   <div class="amk-dialog" id="sysImportModal" style="z-index:310;">
     <div class="amk-dialog-inner" style="width:440px;max-width:95vw;">

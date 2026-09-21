@@ -70,7 +70,7 @@
     const today = (deps && deps.today) || "";
     const ENTITY = FINANCE_ENTITY_IDS();
     const profile = financeProfile(spec, desc);
-    const currency = /egp|egypt|cairo/i.test(`${desc} ${spec.description}`) ? "EGP" : /eur|euro/i.test(`${desc} ${spec.description}`) ? "EUR" : "USD";
+    const currency = window.HCSystemsMoney.currencyFor(spec, desc);
     const seed = `${spec.id}|${spec.name}|${profile.domain}`;
     const vendors = [...new Set(profile.vendors)].slice(0, 12);
     const months = monthsBetween(sales[0].date.slice(0, 7), sales[sales.length - 1].date.slice(0, 7));

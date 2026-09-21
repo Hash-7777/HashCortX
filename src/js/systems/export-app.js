@@ -27,7 +27,7 @@
     '/js/systems/spec.js', '/js/systems/backup.js', '/js/systems/view.js', '/js/systems/icons.js', '/js/systems/shells.js',
     '/js/systems/stages.js', '/js/systems/relations.js', '/js/systems/forms.js', '/js/systems/revise.js', '/js/systems/work.js',
     '/js/systems/figures.js', '/js/systems/money.js', '/js/systems/samples.js', '/js/systems/domain.js', '/js/systems/scaffold.js',
-    '/js/systems/header-bar.js', '/js/systems/contrast.js', '/js/systems/theme.js', '/js/systems/books.js', '/js/systems/ledger.js',
+    '/js/systems/setup.js', '/js/systems/setup-dialog.js', '/js/systems/header-bar.js', '/js/systems/contrast.js', '/js/systems/theme.js', '/js/systems/books.js', '/js/systems/ledger.js',
     '/js/systems/export-app.js',
     '/modes/systems/mode.js',
   ];

@@ -67,7 +67,9 @@
   function isMoneyField(field) {
     if (!field || field.type !== 'number') return false;
     const text = `${field.id || ''} ${field.label || ''}`;
-    if (/\((usd|eur|gbp|egp|aed|sar|\$|€|£)\)/i.test(field.label || '')) return true;
+    // Any currency's code in brackets marks money — a system counting in
+    // dirhams or rupees heads its columns with its own code, not a dollar sign.
+    if (/\((usd|eur|gbp|egp|aed|sar|\$|€|£|¥)\)/i.test(field.label || '') || /\([A-Z]{3}\)\s*$/.test(field.label || '')) return true;
     if (/percent|pct|rate|ratio|score|count|qty|quantity|units|stock|hours|minutes|days/i.test(field.id || '')) return false;
     return MONEY_WORDS.test(text);
   }

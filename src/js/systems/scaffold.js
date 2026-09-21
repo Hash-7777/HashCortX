@@ -76,7 +76,9 @@
     for (const module of modules) {
       const id = slug(module.entity, 'records');
       if (out[id]) continue;
-      const fields = D.defaultFields(module.entity, domain) || [];
+      // A part chosen in the setup brings fields of its own where the trade
+      // has none for it — js/systems/setup.js.
+      const fields = (Array.isArray(module.fields) && module.fields.length ? module.fields : D.defaultFields(module.entity, domain)) || [];
       out[id] = {
         id,
         name: module.name || id,
@@ -136,16 +138,22 @@
     const Samples = deps.samples || window.HCSystemsSamples;
     if (!D || !S) return null;
 
-    const domain = D.detectDomain(description);
+    // What the owner chose in the setup, where there was one: the trade, the
+    // parts, the name. Without it, all three are read from the request.
+    const setup = deps.setup || null;
+    const domain = (setup && D.DOMAIN_CONFIG[setup.domain]) ? setup.domain : D.detectDomain(description);
     const config = D.DOMAIN_CONFIG[domain] || D.DOMAIN_CONFIG.generic || Object.values(D.DOMAIN_CONFIG)[0];
-    const modules = (config.modules || []).slice(0, 10).map((m) => ({
+    const chosen = setup && Array.isArray(setup.modules) && setup.modules.length ? setup.modules : config.modules || [];
+    const listed = chosen.slice(0, 10).map((m) => ({
       name: m.name,
       entity: slug(m.entity, 'records'),
       screen: S.VALID_SCREENS.includes(m.screen) ? m.screen : 'list',
+      fields: m.fields || null,
     }));
-    if (modules.length < MIN_MODULES) return null;   // a config too thin to build from
+    if (listed.length < MIN_MODULES) return null;   // too thin to build from
 
-    const entities = entitiesFor(modules, domain, D);
+    const entities = entitiesFor(listed, domain, D);
+    const modules = listed.map(({ fields, ...m }) => m);
     // A table is completed for every screen it is drawn on, not just the first
     // — the same orders shown as a board and as a report needs stages AND a
     // figure.
@@ -163,7 +171,9 @@
     }
 
     return {
-      name: nameFrom(description, config.name),
+      name: (setup && setup.name) || nameFrom(description, config.name),
+      ...(setup && setup.currency ? { currency: setup.currency } : {}),
+      ...(setup && setup.place ? { place: setup.place } : {}),
       description: String(description || '').trim().slice(0, 400),
       domain,
       theme: { ...(config.theme || {}) },
