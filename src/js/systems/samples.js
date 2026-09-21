@@ -30,7 +30,13 @@
   const COMPANY_B = ['Supply', 'Partners', 'Trading', 'Group', 'Works', 'Services', 'Co.', 'Holdings', 'Traders', 'Associates'];
   const CITIES = ['Cairo', 'London', 'Dubai', 'Singapore', 'Toronto', 'Berlin', 'Mumbai', 'São Paulo', 'Nairobi', 'Sydney', 'Madrid', 'Seoul'];
 
-  const titleCase = (s) => String(s || '').replace(/[_-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+  const titleCase = (s) => String(s || '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()).trim();
+
+  /** Tables whose records are people, and tables whose records are firms. */
+  const PEOPLE = /customer|client(?!_compan)|staff|employee|patient|student|member|guest|contact|candidate|driver|agent|teacher|trainer|instructor|doctor|lead|people|person|user|tenant|attendee|applicant|team|owner/;
+  const COMPANIES = /supplier|vendor|partner|compan|carrier|lender|organi[sz]ation/;
+  /** "menu_items" -> "Menu Item", for naming one record of a table. */
+  const singular = (table) => titleCase(String(table || '').replace(/ies$/, 'y').replace(/([^s])s$/, '$1'));
   const pick = (list, r) => list[Math.floor(r * list.length)];
 
   /** `iso` minus a number of days, as YYYY-MM-DD, counted in UTC so no zone shifts it. */
@@ -66,10 +72,24 @@
     // Text. Only kinds of value that belong to any business get a real-looking
     // stand-in; anything particular to a business is named for what it is.
     const person = () => `${pick(FIRST, r)} ${pick(LAST, r2)}`;
+    const company = () => `${pick(COMPANY_A, r)} ${pick(COMPANY_B, r2)}`;
+
+    // A record's own name is a person's only in a table OF people. It used to
+    // be a person's in every table, because the field is simply called "name":
+    // a shop's products came out as "Aisha Brown" and "Carlos Cohen", and its
+    // stock as "Sarah Brown". The table is what says what is being named —
+    // `seed` is its id at every caller.
+    if (/^(?:name|full_name|title|display_name)$/.test(id)) {
+      const table = String(seed || '').toLowerCase();
+      if (PEOPLE.test(table)) return person();
+      if (COMPANIES.test(table)) return company();
+      const own = titleCase(String((field && field.label) || '').replace(/\b(?:name|title)\b/gi, ''));
+      return `${own || singular(table) || 'Item'} ${idx + 1}`;
+    }
     if (/email/.test(id)) return `${pick(FIRST, r).toLowerCase()}.${pick(LAST, r2).toLowerCase().normalize('NFD').replace(/[^a-z]/g, '')}@example.com`;
     if (/phone|mobile|tel/.test(id)) return `+1 555 ${String(100 + Math.floor(r * 900))} ${String(1000 + Math.floor(r2 * 9000))}`;
     if (/(^|_)(city|location|region)(_|$)/.test(id)) return pick(CITIES, r);
-    if (/supplier|vendor|company|organi[sz]ation|client|customer_company|account_name/.test(id)) return `${pick(COMPANY_A, r)} ${pick(COMPANY_B, r2)}`;
+    if (/supplier|vendor|company|organi[sz]ation|client|customer_company|account_name/.test(id)) return company();
     if (/(^|_)(name|full_name|contact|owner|assignee|assigned_to|manager|staff|employee|customer|guest|patient|student|member|driver|agent)(_|$)/.test(id)) return person();
     if (/(number|_no|_id|code|ref|sku)$/.test(id)) return `${id.replace(/_?(number|no|id|code|ref|sku)$/, '').slice(0, 3).toUpperCase() || 'REF'}-${String(1001 + idx)}`;
     return `${titleCase(field && (field.label || field.id)) || 'Item'} ${idx + 1}`;

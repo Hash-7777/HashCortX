@@ -69,6 +69,22 @@ console.log('\nWhat belongs to any business gets a real-looking stand-in:');
 }
 
 console.log('\nThe same record always gets the same stand-ins:');
+console.log('\nA record is named for what its table holds:');
+{
+  // A field called "name" was a person's name in every table, so a shop's
+  // products came out as "Aisha Brown" and its stock as "Sarah Brown".
+  const n = (label, table, id = 'name') => S.sampleValue({ id, label, type: 'text' }, 2, table, today);
+  ok('a product is a product', n('Product Name', 'products') === 'Product 3');
+  ok('a stock line is an item', n('Item', 'inventory') === 'Item 3');
+  ok('a table with a plain "Name" is named for the table', n('Name', 'promotions') === 'Promotion 3' && n('Name', 'menu_items') === 'Menu Item 3');
+  ok('a task\'s title is a task', n('Task', 'tasks', 'title') === 'Task 3');
+  const people = ['customers', 'staff', 'employees', 'patients', 'students', 'members', 'guests', 'contacts', 'candidates'];
+  ok('in a table of people, it is still a person', people.every((t) => /^\S+ \S+$/.test(n('Name', t)) && !/\d/.test(n('Name', t))));
+  ok('in a table of firms, a firm', !/\d/.test(n('Supplier', 'suppliers')) && !/^Supplier/.test(n('Supplier', 'suppliers')));
+  const things = ['products', 'inventory', 'promotions', 'menu_items', 'rooms', 'machines', 'courses'];
+  ok('and nowhere else is a thing given somebody\'s name', things.every((t) => /\d$/.test(n('Name', t))));
+}
+
 ok('so a system looks the same each time it opens', S.sampleValue(f('guest_name'), 3, 'r', today) === S.sampleValue(f('guest_name'), 3, 'r', today));
 ok('a whole record has an id and every field', (() => {
   const rec = S.sampleRecord({ id: 'menu_items', fields: [f('dish'), f('price', 'number')] }, 0, today);
