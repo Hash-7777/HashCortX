@@ -17,6 +17,9 @@
 //    complete, and makes them agree, since it is the only one who sees them
 //    all together.
 //  - A bar for the result that a first draft does not clear by accident.
+//  - What the app itself will check by code when the team is done
+//    (js/swarm/project-check.js), named exactly, so an agent is aiming at the
+//    test rather than guessing at it.
 //
 // WHERE THE BAR COMES FROM. It used to be written out here in full, in the
 // language of a portfolio — projects, cards, tags — and appended to every web
@@ -89,8 +92,15 @@ THE BAR FOR THE RESULT:
 - A first screen that says what this is and what to do next, content with real hierarchy, and a footer. It holds from a 360 px phone to a wide screen with no sideways scrolling.
 - Everything works. Every button, link, form and toggle does something real; navigation reaches sections that exist.
 - Motion that helps: hover and focus states on everything that can be pressed, a light entrance or reveal on scroll, and a prefers-reduced-motion fallback.
-- Images from remote HTTPS addresses with alt text, a fixed aspect ratio, object-fit, and an onerror fallback to an inline SVG or data URI. No local paths that are not among the files.
-- The finished site is code only: no reports, plans or commentary around it.${forThisSite(bar)}`;
+- Images from remote HTTPS addresses with alt text, a fixed aspect ratio, object-fit, and an onerror fallback to an inline SVG or data URI. No local paths that are not among the files. Never via.placeholder.com, placehold.it, lorempixel.com, unsplash.it or placeimg.com: those services stopped answering, so every image made from them is a broken image.
+- The finished site is code only: no reports, plans or commentary around it.
+
+WHAT IS CHECKED BY CODE WHEN YOU ARE DONE, so aim at it rather than at a guess:
+- Every src and href that is not a web address names one of the files above. A page linking to a page nobody wrote fails here.
+- Every id a script looks for exists in the markup, and every class the markup uses has a rule somewhere. Two agents inventing two different sets of class names fails here.
+- Stylesheets are CSS, not Sass. darken(), \$variables, @mixin and @include do nothing in a browser.
+- No lorem ipsum, no John Doe, no example.com, no TODO, and no file that stops in the middle of a bracket.
+Anything found is sent back to be put right, so writing it correctly the first time is the shorter road.${forThisSite(bar)}`;
   }
 
   /**

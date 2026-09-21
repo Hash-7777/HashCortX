@@ -18,7 +18,11 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'swarm', 'web-brief.js'), sandbox, { filename: 'web-brief.js' });
+// Loaded too, so that what agents are PROMISED will be checked is the same as
+// what is actually checked. The two drifting apart is how a bar becomes words.
+vm.runInContext(src('js', 'swarm', 'project-check.js'), sandbox, { filename: 'project-check.js' });
 const W = sandbox.window.HCSwarmWebBrief;
+const PC = sandbox.window.HCSwarmProjectCheck;
 
 let pass = 0;
 let fail = 0;
@@ -88,6 +92,20 @@ ok('a run reads the team\'s files from its blueprint', /siteFiles: window\.HCSwa
 ok('the old note that named three files for everyone is gone', !/WEB FILE FORMAT/.test(mode));
 ok('reviewers and the final agent get the files whole on a build', /const needsWhole = isFinalOwner \|\| \(execOptions\.codeBuild && /.test(mode));
 ok('it loads before the Agent Swarm', src('boot.js').indexOf("'/js/swarm/web-brief.js'") > 0 && src('boot.js').indexOf("'/js/swarm/web-brief.js'") < src('boot.js').indexOf("'/modes/manifest.js'"));
+
+console.log('\nAgents are told the test the app will actually apply:');
+{
+  const b = W.brief({ task: 'a portfolio website', isFinalOwner: true });
+  ok('every local address must name one of the files', /names one of the files above/.test(b));
+  ok('every id a script looks for must exist', /Every id a script looks for exists in the markup/.test(b));
+  ok('two agents inventing two sets of class names is named as the failure', /two different sets of class names/.test(b));
+  ok('Sass in a stylesheet is named', /darken\(\)/.test(b) && /@mixin/.test(b));
+  ok('the placeholder services that stopped answering are named', /via\.placeholder\.com/.test(b) && /stopped answering/.test(b));
+  ok('and it says what happens if they are found', /sent back to be put right/.test(b));
+  const sentence = b.match(/Never via\.placeholder[\s\S]*?broken image\./)[0];
+  const named = [...sentence.matchAll(/\b[a-z][\w-]*(?:\.[a-z]{2,})+\b/g)].map((m) => m[0]);
+  ok('every host it names is one the app really refuses', named.length >= 4 && named.every((h) => PC.DEAD_HOSTS.includes(h)));
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (website brief)`);
 if (fail) process.exit(1);
