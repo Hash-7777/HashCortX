@@ -295,15 +295,18 @@ console.log('\nAnother pass by the whole team:');
 
 console.log('\nThe message box:');
 {
-  ok('the Workspace asks through what the mode hands it', /deps\.askAgent\(agent, T\.messagesFor\(/.test(ws));
-  ok('the mode asks the agent with no tools', /askAgent: async \(agent, messages, signal\) => \(await callAgentLLM\(agent\.model, messages, signal, agent\.temperature\)\)/.test(mode));
+  ok('the Workspace asks through what the mode hands it', /const messages = T\.messagesFor\(/.test(ws) && /deps\.askAgent\(agent, messages, signal, model\)/.test(ws));
+  ok('... and moves on to another model when one cannot answer', /window\.HCModelRoutes\.askWithFailover\(\{/.test(ws) && /options: deps\.models/.test(ws));
+  ok('... starting from the model chosen, or the agent\'s own', /start: \$\('amkWsModel'\)\.value \|\| agent\.model/.test(ws));
+  ok('the mode asks the agent with no tools, on the model it is given', /askAgent: async \(agent, messages, signal, model\) => \(await callAgentLLM\(model \|\| agent\.model, messages, signal, agent\.temperature\)\)/.test(mode));
+  ok('the mode hands over its model list and how to name a model', /models: menuModels, label: \(v\) => menuModels\(\)\.find\(/.test(mode));
   ok('the change is made to the version on screen', /const base = currentFiles\(\);[\s\S]*?T\.withReply\(run, \{[^}]*base \}\)/.test(ws));
   ok('the message is cleared only once the answer is kept', (() => {
     const body = /async function send\(\)[\s\S]*?\n  \}\n/.exec(ws)?.[0] || '';
     const saved = body.indexOf('saveRun(next)'); const cleared = body.indexOf("box.value = ''");
     return saved > 0 && cleared > saved;
   })());
-  ok('Stop cancels the request', /state\.asking\?\.controller\.abort\(\)/.test(ws) && /controller\.signal\)/.test(ws));
+  ok('Stop cancels the request', /state\.asking\?\.controller\.abort\(\)/.test(ws) && /signal: state\.asking\.controller\.signal/.test(ws));
   ok('the answer is kept against the run it was asked of', /state\.runs = state\.runs\.map\(\(r\) => \(r\.id === next\.id \? next : r\)\)/.test(ws));
 }
 

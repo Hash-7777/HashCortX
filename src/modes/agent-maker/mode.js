@@ -2373,8 +2373,8 @@ function _polishToast(text, isError) {
     window.HCSwarmWorkspace.init({
       saveBlueprints, buildSite: _buildPreviewHTML, saveFile: swarmSave,
       openInBrowser: (html) => window.HC.swarmSite.open(html),
-      // A reply to a change request is the agent's answer alone: no tools.
-      askAgent: async (agent, messages, signal) => (await callAgentLLM(agent.model, messages, signal, agent.temperature))?.content || "",
+      // A reply to a change request is the agent's answer alone, no tools, on the model the Workspace picks.
+      askAgent: async (agent, messages, signal, model) => (await callAgentLLM(model || agent.model, messages, signal, agent.temperature))?.content || "", models: menuModels, label: (v) => menuModels().find(m => m.value === v)?.label.trim() || modelTraceLabel(v),
       runTeam: (again) => runSwarm(again), teamBusy: () => !!swarmAbortCtrl, stopTeam: () => swarmAbortCtrl?.abort(),
     });
     document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));

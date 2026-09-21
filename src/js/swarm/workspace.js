@@ -59,6 +59,7 @@
     $('amkWsOpen')?.addEventListener('click', openInBrowser);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
     $('amkWsSend')?.addEventListener('click', send);
+    $('amkWsTo')?.addEventListener('change', drawComposer);
     $('amkWsStop')?.addEventListener('click', () => state.asking?.controller.abort());
     $('amkWsMessage')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
@@ -430,8 +431,19 @@
       ...(run?.agents.length ? [new Option('The whole team (another pass)', TEAM)] : []),
     );
     to.value = [...to.options].some((o) => o.value === chosen) ? chosen : '';
+    // Which model answers: the agent's own unless another is chosen. If it
+    // cannot answer, the next one that can is asked (js/model-routes.js).
+    const pick = $('amkWsModel');
+    const picked = pick.value;
+    const own = run?.agents.find((a) => a.id === (to.value || lead))?.model || '';
+    pick.replaceChildren(
+      new Option(own ? `Its own: ${deps.label(own)}` : 'Its own model', ''),
+      ...deps.models().filter((m) => m.value !== own).map((m) => new Option(m.label, m.value)),
+    );
+    pick.value = [...pick.options].some((o) => o.value === picked) ? picked : '';
     const busy = !!state.asking;
     to.disabled = !run || busy;
+    pick.disabled = !run || busy || to.value === TEAM;
     $('amkWsMessage').disabled = !run || busy;
     $('amkWsSend').hidden = busy;
     $('amkWsSend').disabled = !run;
@@ -468,8 +480,14 @@
     note(`Asking ${agent.name}…`);
     draw();
     try {
-      const reply = String(await deps.askAgent(agent, T.messagesFor(run, agentId, who.text, base), state.asking.controller.signal) || '').trim();
-      if (!reply) throw new Error(`${agent.name} sent back an empty answer`);
+      const messages = T.messagesFor(run, agentId, who.text, base);
+      const answer = await window.HCModelRoutes.askWithFailover({
+        start: $('amkWsModel').value || agent.model, options: deps.models, signal: state.asking.controller.signal,
+        timeoutMs: (agent.timeout || 120) * 1000, call: (model, signal) => deps.askAgent(agent, messages, signal, model),
+        onSwitch: (from, to, why) => note(`${deps.label(from)}: ${why}. Asking ${deps.label(to)}…`),
+      });
+      const reply = answer.text.trim();
+      const by = answer.switched.length ? ` (answered by ${deps.label(answer.model)})` : '';
       const { run: next, changed, unnamedCode } = T.withReply(run, { agentId, message: raw, reply, at: Date.now(), base });
       await RUNS().saveRun(next);
       state.runs = state.runs.map((r) => (r.id === next.id ? next : r));
@@ -479,10 +497,10 @@
         if (changed.length) { state.rev = latestRev(next); state.file = changed[0]; }
       }
       note(changed.length
-        ? `${agent.name} changed ${changed.join(', ')}: now v${latestRev(next)}`
+        ? `${agent.name} changed ${changed.join(', ')}: now v${latestRev(next)}${by}`
         : unnamedCode
           ? `${agent.name}'s answer has code that names no file, so no file was changed. Ask for the whole file, labelled with its name.`
-          : `${agent.name} answered; no files changed${rev ? ` (still v${rev})` : ''}`,
+          : `${agent.name} answered; no files changed${rev ? ` (still v${rev})` : ''}${by}`,
       changed.length ? 'ok' : unnamedCode ? 'err' : '');
     } catch (err) {
       const stopped = err?.name === 'AbortError' || state.asking?.controller.signal.aborted;

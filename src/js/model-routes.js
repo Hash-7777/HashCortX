@@ -298,7 +298,6 @@
     }
   }
 
-  /** A few words for a trace, saying why the run is moving on. */
   /**
    * Why a model was given up on, in words.
    *
@@ -323,5 +322,39 @@
     return said ? said.slice(0, 160) : 'it failed, and said nothing about why';
   }
 
-  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
+  /**
+   * One question, answered by whichever model can: `start` first, then the
+   * models this run's routing picks, for the same reasons a run moves on.
+   *
+   *   call(model, signal)  the question, answered as text
+   *   options()            what a person can run, as { value, label }
+   *   onSwitch(from, to, why)  said each time it moves on
+   *
+   * An empty answer counts as no answer. A failure that is the question's own
+   * fault, not the model's, is not passed round every model — it is thrown.
+   * Resolves { text, model, switched } so the caller can say who answered.
+   */
+  async function askWithFailover({ start, options, call, signal, timeoutMs = 90000, maxAttempts = 4, strength, onSwitch, store = defaultStore(), timers = REAL_TIMERS } = {}) {
+    const run = createRun({ options, strength, store });
+    let model = run.start(start);
+    const switched = [];
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const text = String((await callWithin(timeoutMs, signal, `no answer within ${Math.round(timeoutMs / 1000)} s`, (s) => call(model, s), timers)) || '');
+        if (!text.trim()) throw Object.assign(new Error('the answer was empty'), { empty: true });
+        return { text, model, switched };
+      } catch (err) {
+        const kind = failureKind(err);
+        if (kind === 'stopped' || (signal && signal.aborted) || kind === 'other' || kind === 'size' || attempt >= maxAttempts) throw err;
+        const next = run.next(model, err);
+        if (!next) throw err;
+        const why = reasonText(kind, err);
+        switched.push({ from: model, to: next, why });
+        if (onSwitch) onSwitch(model, next, why);
+        model = next;
+      }
+    }
+  }
+
+  window.HCModelRoutes = { failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, askWithFailover, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
 })();

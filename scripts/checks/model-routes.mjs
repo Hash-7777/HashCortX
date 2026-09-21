@@ -293,5 +293,55 @@ console.log('\nA call that runs out of time is cancelled, not abandoned:');
   ok('control: a race against a timer never aborts the request', seen4.aborted !== true);
 }
 
+console.log('\nOne question, answered by whichever model can:');
+{
+  const options = () => [
+    { value: 'cloud:samba:big', label: 'Samba Big' },
+    { value: 'cloud:samba:other', label: 'Samba Other' },
+    { value: 'cloud:groq:llama-3.3-70b', label: 'Groq 70B' },
+    { value: 'cloud:gemini:gemini-2.5-flash', label: 'Gemini Flash' },
+  ];
+  const noCredit = E(P.cloudHttpError('samba', 402, JSON.stringify({ error: { message: 'A payment method is required.' } })));
+  const asked = [];
+  const switches = [];
+  const r = await R.askWithFailover({
+    start: 'cloud:samba:big', options, store: memory(),
+    call: async (m) => { asked.push(m); if (m.startsWith('cloud:samba')) throw noCredit; return 'Here is the change.'; },
+    onSwitch: (from, to, why) => switches.push({ from, to, why }),
+  });
+  ok('an account with no credit is left for another provider', r.text === 'Here is the change.' && !r.model.startsWith('cloud:samba'));
+  ok('... without asking its other models first', asked.filter((m) => m.startsWith('cloud:samba')).length === 1);
+  ok('it says who answered, and why it moved on', r.switched.length === 1 && switches[0].from === 'cloud:samba:big' && /quota/.test(switches[0].why));
+
+  const empties = [];
+  const r2 = await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), call: async (m) => { empties.push(m); return empties.length === 1 ? '   ' : 'ok'; } });
+  ok('an empty answer counts as no answer', r2.text === 'ok' && empties.length === 2);
+
+  let thrown = null;
+  const bad = E('invalid_request_error: messages must alternate');
+  try { await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), call: async () => { throw bad; } }); } catch (e) { thrown = e; }
+  ok('a question that is itself at fault is not passed round every model', thrown === bad);
+
+  let calls = 0;
+  thrown = null;
+  const busy = E(P.cloudHttpError('groq', 503, ''));
+  try { await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), maxAttempts: 3, call: async () => { calls++; throw busy; } }); } catch (e) { thrown = e; }
+  ok('it gives up after its attempts, with the last failure', thrown === busy && calls === 3);
+
+  const stop = new AbortController();
+  calls = 0;
+  thrown = null;
+  const p = R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), signal: stop.signal, call: (m, s) => new Promise((_, rej) => { calls++; s.addEventListener('abort', () => rej(Object.assign(new Error('Aborted'), { name: 'AbortError' }))); }) });
+  stop.abort();
+  try { await p; } catch (e) { thrown = e; }
+  ok('a stop is a stop — no other model is asked', thrown && thrown.name === 'AbortError' && calls === 1);
+
+  const timers = { set: (fn) => { setTimeout(fn, 0); return 1; }, clear: () => {} };
+  const slowAsked = [];
+  const r3 = await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), timers, timeoutMs: 5,
+    call: (m, s) => { slowAsked.push(m); return slowAsked.length === 1 ? new Promise((_, rej) => s.addEventListener('abort', () => rej(Object.assign(new Error('Aborted'), { name: 'AbortError' })))) : Promise.resolve('late but answered'); } });
+  ok('a model that runs out of time is left for another', r3.text === 'late but answered' && r3.model !== 'cloud:groq:llama-3.3-70b');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model routes)`);
 if (fail) process.exit(1);

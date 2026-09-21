@@ -82,11 +82,12 @@ HashCortX/
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
-│   │   ├── model-routes.js     310  which model a run asks next, by why the last
+│   │   ├── model-routes.js     360  which model a run asks next, by why the last
 │   │   │                            one failed, what it can hold and how it has
 │   │   │                            answered; models a provider says are gone;
 │   │   │                            waiting on a stream; a call cancelled when
-│   │   │                            its time is up
+│   │   │                            its time is up; one question asked until a
+│   │   │                            model can answer it
 │   │   ├── agent-shape.js      442  images, tools and tool results per provider,
 │   │   │                            carrying on an answer that was cut off, and
 │   │   │                            timing every answer
@@ -123,7 +124,7 @@ HashCortX/
 │   │   ├── chat/               263  what a model is told, and which to try next
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work
-│   │   ├── swarm/            2,994  Agent Swarm: what kind of task it is,
+│   │   ├── swarm/            3,741  Agent Swarm: what kind of task it is,
 │   │   │                            what THIS task's deliverables are, the
 │   │   │                            one call that asks a model for them and
 │   │   │                            which agent writes which of them,
