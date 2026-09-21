@@ -24,13 +24,29 @@
   /** A module's colour, if it is a plain hex colour; a spec is a model's answer. */
   const hex = (v) => (/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(String(v || "").trim()) ? String(v).trim() : null);
 
+  /**
+   * A module's own colour, and the shade a word on it can be read in.
+   *
+   * A nav button filled with the module's colour put white on it whatever
+   * that colour was — an amber one gave white on amber, which is about two to
+   * one. js/systems/contrast.js picks the shade; the colour itself is
+   * untouched, so the nav still reads as a spectrum.
+   */
+  function modStyle(m, spec) {
+    const own = hex(m && m.color);
+    if (!own) return "--mod-color:var(--sys-primary);--mod-ink:var(--sys-nav-text)";
+    const T = window.HCSystemsTheme;
+    const ink = T && T.shadesOf ? T.shadesOf(own, spec).onFill : "#ffffff";
+    return `--mod-color:${own};--mod-ink:${ink}`;
+  }
+
   function shellHtml(o) {
     const { spec, module, screen, screenDiv, searchInput, cls, vars, activeModuleId, esc } = o;
     const iconSvg = window.HCSystemsIcons.iconSvg;
     const shell = o.shell || "sidebar";
     const moduleNav = (btnClass = "sys-module-btn") => spec.modules.map(m => `
       <button class="${btnClass} ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}"
-        ${hex(m.color) ? `style="--mod-color:${hex(m.color)}"` : ""}>
+        style="${modStyle(m, spec)}">
         <span class="sys-module-icon">${iconSvg(m.icon)}</span><span>${esc(m.name)}</span>
       </button>`).join("");
 
@@ -127,7 +143,7 @@
             <div class="sys-cardsnav-modules">
               ${spec.modules.map(m => `
                 <button class="sys-cardsnav-module-btn ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}"
-                  style="${hex(m.color) ? `--mod-color:${hex(m.color)}` : `--mod-color:var(--sys-primary)`}">
+                  style="${modStyle(m, spec)}">
                   <span class="sys-cardsnav-icon">${iconSvg(m.icon)}</span>
                   <span class="sys-cardsnav-label">${esc(m.name)}</span>
                 </button>`).join("")}

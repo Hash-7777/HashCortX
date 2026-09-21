@@ -176,7 +176,10 @@ const BUDGET = {
   // last so it has the final say; recorded here so it can shrink but not grow.
   'styles.css': 26,
   'css/vars.css': 33,
-  'modes/systems/mode.css': 131,
+  // 125, down six. The state colours and the per-module colours are worked
+  // out against what they are drawn on (js/systems/contrast.js) rather than
+  // written here, so the fixed ones they replaced are gone.
+  'modes/systems/mode.css': 125,
   // 50, down from 58: the memory map was rebuilt on the shared tokens. What
   // went was its own palette — a near-black canvas of its own, a gradient
   // centre node in Coder's neon green, and the two light-theme parchment

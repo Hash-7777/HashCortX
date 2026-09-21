@@ -67,6 +67,47 @@
     generic:       { light: { app:"#f8fafc", card:"#ffffff", border:"rgba(15,23,42,.1)"    }, dark: { app:"#060b14", card:"#0d1526", border:"rgba(99,102,241,.12)"  } },
   };
 
+  /** The surfaces a system draws on, so what is drawn on them can be measured. */
+  function surfacesOf(spec) {
+    const dark = spec?.theme?.mode === "dark";
+    const domain = spec?.domain || (window.HCSystemsDomain ? window.HCSystemsDomain.detectDomain(spec?.description || "") : "generic");
+    const dbg = (DOMAIN_BG[domain] || DOMAIN_BG.generic)[dark ? "dark" : "light"];
+    // A flat card is see-through: what shows is the page's own tone with a
+    // faint wash over it, which is darker than the card colour on its own.
+    const C = window.HCSystemsContrast;
+    const flat = C ? C.mix(dbg.app, dark ? "#ffffff" : "#0f172a", dark ? 0.04 : 0.025) : dbg.app;
+    return { card: dbg.card, app: dbg.app, flat, border: dbg.border, dark };
+  }
+
+  /**
+   * One of the per-module colours, in the shades it can be READ in.
+   *
+   * A module's own colour is written straight into a style in a dozen places —
+   * a card's initials, a figure on a tile, a label on a filled nav button. On
+   * a light system that is an amber on white at about two to one, and white on
+   * that same amber at about the same. The colour still fills what it filled;
+   * what changes is the shade a word is drawn in on top of it.
+   */
+  function shadesOf(colour, spec) {
+    const C = window.HCSystemsContrast;
+    const { card, app, flat, dark } = surfacesOf(spec);
+    const fill = safeHex(colour, "#6366f1");
+    if (!C) return { fill, wash: fill, onWash: fill, onCard: fill, onFill: "#ffffff" };
+    const wash = C.mix(fill, card, dark ? 0.86 : 0.88);
+    // A word "on the card" may be on a solid card or a flat one, so it is held
+    // against every ground a card can show.
+    const grounds = [card, app, flat];
+    const onGround = (c, floor) => grounds.reduce((x, g) => C.readableOn(x, g, floor), c);
+    return {
+      fill,                                          // a block of it, with no words on it
+      wash,                                          // a wash of it behind words
+      onWash: C.readableOn(fill, wash),              // a word on that wash
+      onCard: onGround(fill),                        // a word on the card itself
+      onFill: C.readableOn(C.pickOn(fill), fill),    // a word on the block
+      line: onGround(fill, C.LARGE),                 // an edge or a mark, not a word
+    };
+  }
+
   function themeVars(spec) {
     const dark = spec.theme.mode === "dark";
     const primary = safeHex(spec.theme.primary, "#2563eb");
@@ -78,6 +119,45 @@
     const primaryRgb = hexToRgb(primary);
     const accentRgb  = hexToRgb(accent);
 
+    // Every colour a word is drawn in is measured against what it is drawn on
+    // — js/systems/contrast.js — and moved only as far as it has to go to be
+    // readable. Nothing here was measured before: the quiet labels were about
+    // two and a half to one on white, the status pills were coloured for a
+    // dark background and drawn on a light one, and the heading bar put white
+    // on whatever colour the industry happened to have.
+    const C = window.HCSystemsContrast;
+    const ink = (colour, on, floor) => (C ? C.readableOn(colour, on, floor) : colour);
+    // A tint is written as the colour it really ends up, over the card it sits
+    // on, so that what is drawn on it can be measured rather than guessed.
+    const tint = (colour, amount) => (C ? C.mix(colour, dbg.card, amount) : dbg.card);
+    const card = dbg.card;
+    const STATUS = {
+      ok:   dark ? "#34d399" : "#10b981",
+      warn: dark ? "#fbbf24" : "#f59e0b",
+      bad:  dark ? "#f87171" : "#ef4444",
+      idle: dark ? "#94a3b8" : "#64748b",
+    };
+    const washOf = (colour) => tint(colour, dark ? 0.86 : 0.88);
+    const statusVars = Object.entries(STATUS).flatMap(([name, colour]) => {
+      const bg = washOf(colour);
+      return [
+        `--sys-${name}-bg:${bg}`,
+        `--sys-${name}:${ink(colour, bg, C ? C.TEXT : 4.5)}`,
+        `--sys-${name}-line:${ink(colour, bg, C ? C.LARGE : 3)}`,
+      ];
+    });
+    // The quiet greys are drawn on the card AND on every wash the system uses
+    // — a pill, a count beside a heading. Measured against the card alone they
+    // are readable there and just short of it on a wash, which is where they
+    // are hardest to read and most often sit. So each is held against every
+    // surface in turn, and ends up the shade that works on all of them.
+    const { app: appBg, flat } = surfacesOf(spec);
+    const surfaces = [card, appBg, flat, washOf(primary), washOf(accent), ...Object.values(STATUS).map(washOf)];
+    const onEvery = (colour) => surfaces.reduce((c, on) => ink(c, on), colour);
+    const navText = C ? C.readableOn(C.pickOn(navBg), navBg, C.TEXT) : "#f1f5f9";
+    // A step away from the words on the heading bar, not towards them.
+    const navStep = (amount) => (C ? C.mix(navBg, C.luminance(navText) > 0.5 ? "#000000" : "#ffffff", amount) : navBg);
+
     return [
       `--sys-primary:${primary}`,
       `--sys-accent:${accent}`,
@@ -88,11 +168,38 @@
       `--sys-card-bg:${dbg.card}`,
       `--sys-app-bg:${dbg.app}`,
       `--sys-surface:${dark ? "rgba(255,255,255,.04)" : "rgba(15,23,42,.025)"}`,
-      `--sys-app-text:${dark ? "#e5e7eb" : "#0f172a"}`,
-      `--sys-app-sub:${dark ? "#94a3b8" : "#475569"}`,
-      `--sys-app-muted:${dark ? "#64748b" : "#94a3b8"}`,
+      `--sys-app-text:${ink(dark ? "#e5e7eb" : "#0f172a", card)}`,
+      `--sys-app-sub:${onEvery(dark ? "#94a3b8" : "#475569")}`,
+      // A date, a field name, a count, the second line of a card. These are
+      // quiet, not decorative, so they are held to the floor for reading text
+      // rather than to the one for a border.
+      `--sys-app-muted:${onEvery(dark ? "#64748b" : "#94a3b8")}`,
       `--sys-nav-bg:${navBg}`,
-      `--sys-nav-text:#f1f5f9`,
+      // Not white whatever the industry's colour turns out to be: the better
+      // of light and dark on that colour, then moved until it can be read.
+      `--sys-nav-text:${navText}`,
+      `--sys-nav-sub:${C ? C.readableOn(C.pickOn(navBg), navBg, C.LARGE) : "#e2e8f0"}`,
+      // The module you are on, and the one under the pointer. A wash of white
+      // over the heading colour used to mark both, which lightens the ground
+      // under light words — so the one module you most need to read was the
+      // hardest to. They now go the other way from the words on them, which
+      // is both readable and the deeper-looking of the two.
+      `--sys-nav-active-bg:${navStep(0.22)}`,
+      `--sys-nav-hover-bg:${navStep(0.12)}`,
+      // The industry's own colour, where a word is drawn in it — on the card
+      // and on every wash, since a link sits on a selected row as often as on
+      // a plain one.
+      `--sys-primary-ink:${onEvery(primary)}`,
+      // And where a word is drawn in it ON a wash of it — which is what a
+      // state the app has no name for gets, and there are more of those than
+      // there are named ones: "Low stock", "Out of stock", "Coming soon". The
+      // wash is written as the colour it really ends up, so what sits on it
+      // can be measured instead of assumed.
+      `--sys-primary-tint:${tint(primary, dark ? 0.86 : 0.88)}`,
+      `--sys-primary-on-tint:${ink(primary, tint(primary, dark ? 0.86 : 0.88))}`,
+      `--sys-accent-tint:${tint(accent, dark ? 0.86 : 0.88)}`,
+      `--sys-accent-on-tint:${ink(accent, tint(accent, dark ? 0.86 : 0.88))}`,
+      ...statusVars,
       `--sys-border:${dbg.border}`,
       `--sys-radius:${radius}px`,
       `--sys-radius-sm:${Math.max(4, radius - 4)}px`,
@@ -192,5 +299,5 @@
   /** The typeface stack for a design's font. */
   const fontStack = (font) => FONTS[font] || FONTS.sans;
 
-  window.HCSystemsTheme = { themeVars, safeHex, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
+  window.HCSystemsTheme = { themeVars, surfacesOf, shadesOf, safeHex, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
 })();

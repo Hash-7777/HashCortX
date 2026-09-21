@@ -412,7 +412,7 @@ body.system-maker-mode #app { display: none; }
 /* The sidebar is painted in the primary colour, so the open module is marked
    with a lighter band and a bar in its own colour — filled with the primary it
    was invisible, and its label, in the module colour, sat on the same brown. */
-.sys-shell-sidebar .sys-module-btn.active { background: rgba(255,255,255,.18); color: #fff; box-shadow: inset 3px 0 0 var(--mod-color, var(--sys-accent)); font-weight: 600; }
+.sys-shell-sidebar .sys-module-btn.active { background: var(--sys-nav-active-bg, rgba(255,255,255,.18)); color: var(--sys-nav-text, #fff); box-shadow: inset 3px 0 0 var(--mod-color, var(--sys-accent)); font-weight: 600; }
 .sys-shell-sidebar .sys-module-icon { width: 22px; height: 22px; display: grid; place-items: center; flex-shrink: 0; }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -442,7 +442,7 @@ body.system-maker-mode #app { display: none; }
 }
 .sys-topnav-tab .sys-module-icon { width: 16px; height: 16px; display: grid; place-items: center; opacity: .8; }
 .sys-topnav-tab:hover { color: rgba(255,255,255,.85); }
-.sys-topnav-tab.active { color: #fff; border-bottom-color: var(--sys-primary); }
+.sys-topnav-tab.active { color: var(--sys-nav-text, #fff); border-bottom-color: var(--sys-primary); }
 .sys-topnav-right { margin-left: 12px; flex-shrink: 0; }
 .sys-shell-top .sys-shell-body { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--sys-app-bg, #f8fafc); }
 .sys-top-breadcrumb { flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 10px 18px 0; font-size: 13px; font-weight: 700; color: var(--sys-app-text, #0f172a); }
@@ -473,8 +473,8 @@ body.system-maker-mode #app { display: none; }
   flex-shrink: 0;
 }
 .sys-dock-btn .sys-module-icon { width: 20px; height: 20px; display: grid; place-items: center; }
-.sys-dock-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
-.sys-dock-btn.active { background: var(--sys-primary); color: #fff; }
+.sys-dock-btn:hover { background: var(--sys-nav-hover-bg, rgba(255,255,255,.1)); color: var(--sys-nav-text, #fff); }
+.sys-dock-btn.active { background: var(--sys-nav-active-bg, var(--sys-primary)); color: var(--sys-nav-text, #fff); }
 .sys-dock-tooltip {
   position: absolute; left: 56px; top: 50%; transform: translateY(-50%);
   background: #1e293b; color: #fff; font: 11px var(--sans);
@@ -519,15 +519,18 @@ body.system-maker-mode #app { display: none; }
 .sys-cardsnav-module-btn {
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   padding: 8px 14px; border: 0; border-radius: var(--radius-md);
-  background: rgba(255,255,255,.07); color: rgba(255,255,255,.65);
+  /* A module you are not on is quieter, but it is still a label to be read:
+     a two-thirds-white on the heading colour is not. */
+  background: var(--sys-nav-hover-bg, rgba(255,255,255,.07)); color: var(--sys-nav-sub, rgba(255,255,255,.65));
   cursor: pointer; white-space: nowrap; flex-shrink: 0;
   transition: background .14s, color .14s, transform .14s;
   font: 11px var(--sans);
 }
-.sys-cardsnav-module-btn:hover { background: rgba(255,255,255,.14); color: #fff; transform: translateY(-1px); }
+.sys-cardsnav-module-btn:hover { background: var(--sys-nav-hover-bg, rgba(255,255,255,.14)); color: var(--sys-nav-text, #fff); transform: translateY(-1px); }
 .sys-cardsnav-module-btn.active {
   background: var(--mod-color, var(--sys-primary));
-  color: #fff; transform: translateY(-2px);
+  /* Not white on whatever colour the module happens to have. */
+  color: var(--mod-ink, #fff); transform: translateY(-2px);
   box-shadow: 0 4px 14px color-mix(in srgb, var(--mod-color, var(--sys-primary)) 40%, transparent);
 }
 .sys-cardsnav-icon { width: 22px; height: 22px; display: grid; place-items: center; }
@@ -568,7 +571,7 @@ body.system-maker-mode #app { display: none; }
 .sys-cmd-nav-btn .sys-module-icon { width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; }
 .sys-cmd-nav-label { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sys-cmd-nav-btn:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.85); }
-.sys-cmd-nav-btn.active { background: rgba(255,255,255,.1); color: #fff; }
+.sys-cmd-nav-btn.active { background: var(--sys-nav-active-bg, rgba(255,255,255,.1)); color: var(--sys-nav-text, #fff); }
 .sys-cmd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--sys-app-bg, #f8fafc); }
 .sys-shell-command .sys-screen-badge { font-size: 8.5px; padding: 1px 5px; }
 
@@ -673,13 +676,13 @@ body.system-maker-mode #app { display: none; }
   width: 34px;
   height: 34px;
   border-radius: var(--sys-radius-sm, 6px);
-  background: var(--sys-primary-fade, rgba(99,102,241,.1));
+  background: var(--sys-primary-tint, var(--sys-primary-fade, rgba(99,102,241,.1)));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--sys-primary);
+  color: var(--sys-primary-on-tint, var(--sys-primary));
 }
-.sys-kpi-card:nth-child(even) .sys-kpi-icon { background: var(--sys-accent-fade, rgba(16,185,129,.1)); color: var(--sys-accent); }
+.sys-kpi-card:nth-child(even) .sys-kpi-icon { background: var(--sys-accent-tint, var(--sys-accent-fade, rgba(16,185,129,.1))); color: var(--sys-accent-on-tint, var(--sys-accent)); }
 .sys-sparkline {
   display: block;
   width: 46px;
@@ -708,8 +711,8 @@ body.system-maker-mode #app { display: none; }
   align-self: flex-start;
   flex-shrink: 0;
 }
-.sys-kpi-trend.up   { color: var(--sys-accent, #10b981); background: var(--sys-accent-fade, rgba(16,185,129,.1)); }
-.sys-kpi-trend.down { color: #ef4444; background: rgba(239,68,68,.1); }
+.sys-kpi-trend.up   { color: var(--sys-ok); background: var(--sys-ok-bg, rgba(16,185,129,.1)); }
+.sys-kpi-trend.down { color: var(--sys-bad); background: var(--sys-bad-bg, rgba(239,68,68,.1)); }
 
 .sys-content-grid {
   display: grid;
@@ -746,7 +749,9 @@ body.system-maker-mode #app { display: none; }
 .sys-table-toolbar-left { display: flex; align-items: center; gap: 8px; }
 .sys-table-toolbar-right { display: flex; align-items: center; gap: 6px; }
 .sys-widget-title { font-size: 12px; font-weight: 800; color: var(--sys-app-text, #0f172a); }
-.sys-record-count { font-size: 11px; color: var(--sys-app-muted, #64748b); background: rgba(100,116,139,.1); padding: 2px 7px; border-radius: 999px; }
+/* On one of the system's own washes, so the grey on it is one that was
+   measured against it rather than against the card. */
+.sys-record-count { font-size: 11px; color: var(--sys-app-muted, #64748b); background: var(--sys-idle-bg, rgba(100,116,139,.1)); padding: 2px 7px; border-radius: 999px; }
 .sys-widget-body { padding: 12px; }
 .sys-bars { display: grid; gap: 10px; }
 .sys-bar-row {
@@ -909,16 +914,21 @@ body.system-maker-mode #app { display: none; }
   font-weight: 700;
   transition: opacity .15s;
   white-space: nowrap;
-  /* default uses theme primary */
-  background: var(--sys-primary-fade, rgba(99,102,241,.12));
-  color: var(--sys-primary, #6366f1);
-  border: 1px solid rgba(var(--sys-primary-rgb,99,102,241),.22);
+  /* A state the app has no name for — "Low stock", "Coming soon" — takes the
+     theme's own colour. Both the wash and the words on it are measured, so
+     this is not a pale colour on a paler one. */
+  background: var(--sys-primary-tint, var(--sys-primary-fade, rgba(99,102,241,.12)));
+  color: var(--sys-primary-on-tint, var(--sys-primary, #6366f1));
+  border: 1px solid rgba(var(--sys-primary-rgb,99,102,241),.28);
 }
-/* semantic status colors */
-.sys-pill[data-status~="active"], .sys-pill[data-status~="approved"], .sys-pill[data-status~="done"], .sys-pill[data-status~="completed"], .sys-pill[data-status~="received"] { background: rgba(16,185,129,.12); color: #10b981; border-color: rgba(16,185,129,.22); }
-.sys-pill[data-status~="pending"], .sys-pill[data-status~="review"], .sys-pill[data-status~="progress"] { background: rgba(245,158,11,.12); color: #f59e0b; border-color: rgba(245,158,11,.22); }
-.sys-pill[data-status~="closed"], .sys-pill[data-status~="cancelled"], .sys-pill[data-status~="rejected"], .sys-pill[data-status~="failed"] { background: rgba(239,68,68,.12); color: #ef4444; border-color: rgba(239,68,68,.22); }
-.sys-pill[data-status~="draft"], .sys-pill[data-status~="new"], .sys-pill[data-status~="open"] { background: rgba(148,163,184,.12); color: #94a3b8; border-color: rgba(148,163,184,.22); }
+/* What a record's state is, in colours measured against what they sit on —
+   js/systems/contrast.js. These were fixed hexes chosen for a dark background
+   and drawn on a light one: the one saying work is in progress was about two
+   to one against its own fill, which is not readable by any measure. */
+.sys-pill[data-status~="active"], .sys-pill[data-status~="approved"], .sys-pill[data-status~="done"], .sys-pill[data-status~="completed"], .sys-pill[data-status~="received"] { background: var(--sys-ok-bg, rgba(16,185,129,.12)); color: var(--sys-ok); border-color: var(--sys-ok-line, rgba(16,185,129,.22)); }
+.sys-pill[data-status~="pending"], .sys-pill[data-status~="review"], .sys-pill[data-status~="progress"] { background: var(--sys-warn-bg, rgba(245,158,11,.12)); color: var(--sys-warn); border-color: var(--sys-warn-line, rgba(245,158,11,.22)); }
+.sys-pill[data-status~="closed"], .sys-pill[data-status~="cancelled"], .sys-pill[data-status~="rejected"], .sys-pill[data-status~="failed"] { background: var(--sys-bad-bg, rgba(239,68,68,.12)); color: var(--sys-bad); border-color: var(--sys-bad-line, rgba(239,68,68,.22)); }
+.sys-pill[data-status~="draft"], .sys-pill[data-status~="new"], .sys-pill[data-status~="open"] { background: var(--sys-idle-bg, rgba(148,163,184,.12)); color: var(--sys-idle); border-color: var(--sys-idle-line, rgba(148,163,184,.22)); }
 
 .sys-detail-list {
   display: grid;
@@ -1330,7 +1340,9 @@ body.system-maker-mode #app { display: none; }
 .sys-metric-tile::before {
   content: ""; position: absolute; top: 0; right: 0;
   width: 80px; height: 80px;
-  background: radial-gradient(circle at top right, var(--tile-color, #6366f1), transparent 70%);
+  /* The colour itself, not the shade the figure is drawn in: this is a wash
+     at six per cent, with no words on it to read. */
+  background: radial-gradient(circle at top right, var(--tile-fill, var(--tile-color, #6366f1)), transparent 70%);
   opacity: .06; pointer-events: none;
 }
 .sys-metric-tile:hover { box-shadow: 0 6px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
@@ -1622,7 +1634,7 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 .sys-filter-note .sys-action-btn { margin-left: auto; }
 
 /* ── Links between records ─────────────────────────────────────── */
-.sys-link { border: 0; background: none; padding: 0; font: inherit; color: var(--sys-primary); cursor: pointer; text-decoration: underline; text-decoration-color: rgba(var(--sys-primary-rgb), .35); text-underline-offset: 2px; }
+.sys-link { border: 0; background: none; padding: 0; font: inherit; color: var(--sys-primary-ink, var(--sys-primary)); cursor: pointer; text-decoration: underline; text-decoration-color: rgba(var(--sys-primary-rgb), .35); text-underline-offset: 2px; }
 .sys-link:hover { text-decoration-color: currentColor; }
 .sys-link-missing { color: var(--sys-app-muted); }
 .sys-form-hint { display: block; margin-top: 3px; font-size: 10.5px; color: var(--sys-app-muted); }
@@ -1662,9 +1674,11 @@ tr.bulk-selected td { background: rgba(56,189,248,.07) !important; }
 .sys-dash-more { font-size: 11px; color: var(--sys-app-muted); }
 .sys-dash-hero { padding: 22px 24px; }
 .sys-dash-hero-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--sys-app-sub); }
-.sys-dash-hero-value { font-size: clamp(30px, 5vw, 48px); font-weight: 800; letter-spacing: -.02em; color: var(--sys-primary); margin-top: 4px; }
+.sys-dash-hero-value { font-size: clamp(30px, 5vw, 48px); font-weight: 800; letter-spacing: -.02em; color: var(--sys-primary-ink, var(--sys-primary)); margin-top: 4px; }
 .sys-dash-hero-trend { font-size: 12px; margin-top: 2px; }
-.sys-dash-hero-trend.up { color: var(--ok); } .sys-dash-hero-trend.down { color: var(--danger); }
+/* The system's own state colours, measured against its own card — these were
+   the app shell's, which are chosen for a dark panel. */
+.sys-dash-hero-trend.up { color: var(--sys-ok); } .sys-dash-hero-trend.down { color: var(--sys-bad); }
 .sys-dash-hero-bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; align-items: end; gap: 6px; height: 120px; margin-top: 16px; }
 .sys-dash-hero-bar { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; }
 .sys-dash-hero-bar span { display: block; width: 100%; max-width: 34px; background: var(--sys-primary); border-radius: var(--sys-radius-sm) var(--sys-radius-sm) 0 0; opacity: .85; }

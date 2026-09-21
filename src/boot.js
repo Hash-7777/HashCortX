@@ -134,6 +134,7 @@
     '/js/systems/domain.js',
     '/js/systems/scaffold.js',
     '/js/systems/header-bar.js',
+    '/js/systems/contrast.js',
     '/js/systems/theme.js',
     '/js/systems/books.js',
     '/js/systems/ledger.js',

@@ -1717,7 +1717,7 @@ Repair requirements:
     }
 
     return `<div class="sys-kpi-grid">${kpis.map((k, ki) => {
-      const accent = ACCENT_PALETTE[ki % ACCENT_PALETTE.length];
+      const accent = ACCENT_PALETTE[ki % ACCENT_PALETTE.length], sh = window.HCSystemsTheme.shadesOf(accent, getActive());
       const top = VIEW().safeMax(k.series.map(p => p.value)) || 1;
       const bars = k.series.map((p, bi) => {
         const v = Math.max(1, Math.round((Math.max(0, p.value) / top) * 18));
@@ -1725,7 +1725,7 @@ Repair requirements:
       }).join("");
       return `
       <div class="sys-kpi-card" style="--kpi-accent:${accent}">
-        <div class="sys-kpi-icon" style="color:${accent};background:${accent}18">${KPI_ICONS[ki % KPI_ICONS.length]}</div>
+        <div class="sys-kpi-icon" style="color:${sh.onWash};background:${sh.wash}">${KPI_ICONS[ki % KPI_ICONS.length]}</div>
         <div class="sys-kpi-body">
           <div class="sys-kpi-label">${esc(k.label)}</div>
           <div class="sys-kpi-value"${k.exact && k.exact !== k.value ? ` title="${esc(k.exact)}"` : ""}>${esc(String(k.value))}</div>
@@ -2173,14 +2173,14 @@ Repair requirements:
       </div>
       <div class="sys-cards-grid">
         ${records.map((r, idx) => {
-          const color = palette[idx % palette.length];
+          const color = palette[idx % palette.length], sh = window.HCSystemsTheme.shadesOf(color, getActive());
           const name = VIEW().recordLabel(r, entity);
           const status = statusField ? String(r[statusField.id] || "") : "";
           return `<div class="sys-card" data-record-id="${esc(r.id)}">
             <div class="sys-card-accent" style="background:${color}"></div>
             <div class="sys-card-body">
               <div class="sys-card-top">
-                <div class="sys-card-avatar" style="background:${color}18;color:${color}">${esc(initials(name).toUpperCase())}</div>
+                <div class="sys-card-avatar" style="background:${sh.wash};color:${sh.onWash}">${esc(initials(name).toUpperCase())}</div>
                 <div class="sys-card-header">
                   <div class="sys-card-name">${esc(name)}</div>
                   ${status ? `<span class="sys-pill" data-status="${esc(status.toLowerCase())}">${esc(status)}</span>` : ""}
@@ -2190,7 +2190,7 @@ Repair requirements:
                 </button>
               </div>
               <div class="sys-card-fields">
-                ${numField ? `<div class="sys-card-stat"><span class="sys-card-stat-val" style="color:${color}">${esc(VIEW().isMoneyField(numField) ? VIEW().formatMoney(r[numField.id], viewCurrency) : VIEW().formatNumber(r[numField.id]))}</span><span class="sys-card-stat-label">${esc(numField.label)}</span></div>` : ""}
+                ${numField ? `<div class="sys-card-stat"><span class="sys-card-stat-val" style="color:${sh.onCard}">${esc(VIEW().isMoneyField(numField) ? VIEW().formatMoney(r[numField.id], viewCurrency) : VIEW().formatNumber(r[numField.id]))}</span><span class="sys-card-stat-label">${esc(numField.label)}</span></div>` : ""}
                 ${dateField ? `<div class="sys-card-field"><span class="sys-card-field-label">${esc(dateField.label)}</span><span>${esc(String(r[dateField.id] || "—"))}</span></div>` : ""}
                 ${secondaryFields.map(f => `<div class="sys-card-field"><span class="sys-card-field-label">${esc(f.label)}</span><span>${formatCell(r[f.id], f)}</span></div>`).join("")}
               </div>
@@ -2342,7 +2342,7 @@ Repair requirements:
     const fields = entity?.fields || [];
     const numFields = fields.filter(f => f.type === "number").slice(0, 4);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const accent = window.HCSystemsTheme.safeHex(spec?.theme?.accent, "#10b981");
+    const accent = window.HCSystemsTheme.safeHex(spec?.theme?.accent, "#10b981"), tsh = window.HCSystemsTheme.shadesOf(accent, spec);
     const primary = spec?.theme?.primary || "#2563eb";
     const tileColors = [primary, accent, "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
 
@@ -2369,10 +2369,10 @@ Repair requirements:
 
     const tiles = kpiDefs.slice(0, 6).map((def, idx) => {
       const val = F.aggregate(records, def.field?.id, def.how);
-      const color = tileColors[idx % tileColors.length];
+      const color = tileColors[idx % tileColors.length], sh = window.HCSystemsTheme.shadesOf(color, getActive());
       const [formatted, exact] = def.how === "count" ? [VIEW().formatNumber(val), ""] : [showFigure(val, def.field, true), showFigure(val, def.field)];
       const trend = F.monthTrend(records, dateField?.id, def.field?.id, def.how, todayIso());
-      return `<div class="sys-metric-tile" style="--tile-color:${color}">
+      return `<div class="sys-metric-tile" style="--tile-color:${sh.onCard};--tile-fill:${sh.fill};--tile-wash:${sh.wash}">
         <div class="sys-metric-label">${esc(def.label)}</div>
         <div class="sys-metric-value" style="color:var(--tile-color)"${exact && exact !== formatted ? ` title="${esc(exact)}"` : ""}>${esc(formatted)}</div>
         ${sparkSvg(F.monthlySeries(records, dateField?.id, def.field?.id, def.how, todayIso()), color)}
@@ -2381,7 +2381,7 @@ Repair requirements:
     });
 
     if (tiles.length < 3) {
-      tiles.push(`<div class="sys-metric-tile sys-metric-tile--total" style="--tile-color:${accent}">
+      tiles.push(`<div class="sys-metric-tile sys-metric-tile--total" style="--tile-color:${tsh.onCard};--tile-fill:${tsh.fill};--tile-wash:${tsh.wash}">
         <div class="sys-metric-label">Total Records</div>
         <div class="sys-metric-value" style="color:var(--tile-color)">${records.length}</div>
         <div class="sys-metric-sub">${entity?.name || "entries"}</div>
@@ -2447,9 +2447,9 @@ Repair requirements:
           const status = statusField ? String(r[statusField.id] || "") : "";
           const date = dateField ? String(r[dateField.id] || "") : "";
           const body = bodyField ? String(r[bodyField.id] || "") : "";
-          const color = avatarColors[idx % avatarColors.length];
+          const color = avatarColors[idx % avatarColors.length], sh = window.HCSystemsTheme.shadesOf(color, getActive());
           return `<div class="sys-feed-item" data-record-id="${esc(r.id)}">
-            <div class="sys-feed-avatar" style="background:${color}18;color:${color}">${esc(initials(name))}</div>
+            <div class="sys-feed-avatar" style="background:${sh.wash};color:${sh.onWash}">${esc(initials(name))}</div>
             <div class="sys-feed-content">
               <div class="sys-feed-row">
                 <span class="sys-feed-name">${esc(name)}</span>
