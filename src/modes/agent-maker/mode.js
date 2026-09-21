@@ -314,7 +314,7 @@ const SwarmMaker = (() => {
       : "";
     const fenceNote = "\n\nFORMATTING RULE: Always wrap any code you produce in markdown fenced code blocks with the correct language tag. Examples: ```html, ```python, ```javascript, ```css, ```json, ```bash. Never output raw code outside of fences.";
     // The site's files by the team's own names, and who writes which — js/swarm/web-brief.js.
-    const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner, bar: execOptions.bar });
+    const webFileNote = window.HCSwarmWebBrief.brief({ task, siteFiles: execOptions.siteFiles, isFinalOwner, bar: execOptions.bar, images: window.HCSwarmPhotos?.briefOf(execOptions.photos) });
     // What a tool returns is material, not instructions (platform/tauri/hashcoder.js).
     const toolNote = (agent.tools || []).length && window.HC?.code?.TOOL_TEXT_RULE ? `\n\n${window.HC.code.TOOL_TEXT_RULE}` : "";
     // Which deliverable is this agent's own, and which belong to the others —
@@ -514,7 +514,7 @@ const SwarmMaker = (() => {
       codeBuild: strictDependencies,
       siteFiles: window.HCSwarmWebBrief.siteFilesOf(bp),
       // What this run's own request asks of the result — js/swarm/deliverables.js.
-      bar: Array.isArray(bp.qualityGates) ? bp.qualityGates : [],
+      bar: Array.isArray(bp.qualityGates) ? bp.qualityGates : [], photos: bp.photos,
       // And who writes which part of it. The team goes with it, because an
       // agent is told the others by name, not by id.
       plan: { kind: bp.deliverableKind, items: (bp.artifactContracts || []).map(a => ({ name: a.name, owner: a.ownerRole, format: a.format })) },
@@ -715,7 +715,7 @@ const SwarmMaker = (() => {
   function askDeps() {
     return {
       call: (model, messages, s) => callAgentLLM(model, messages, s, 0.2),
-      models: menuModels, label: modelTraceLabel,
+      models: menuModels, label: modelTraceLabel, fetch: (url, init) => window.fetch(url, init),
       chosen: () => document.getElementById("model")?.value || "",
       trace: (msg, kind) => traceAdd("Orchestrator", msg, kind),
     };
@@ -733,7 +733,7 @@ const SwarmMaker = (() => {
   function applyDeliverables(bpCopy, plan) {
     bpCopy.deliverableKind = plan.kind;
     bpCopy.artifactContracts = DELIVERABLES.contractsOf(plan);
-    bpCopy.qualityGates = plan.bar;
+    bpCopy.qualityGates = plan.bar; bpCopy.photos = plan.photos || [];
     // The plan is the authority here: it was made for the task being run, and
     // whatever the team was carrying was made for an earlier one.
     bpCopy.budgetControls = DELIVERABLES.budgetsFor(plan);
@@ -758,7 +758,7 @@ const SwarmMaker = (() => {
     let found = [];
     try {
       found = C.inspect(window.HCSwarmRuns.currentFiles(run), {
-        owed: ((blueprint && blueprint.artifactContracts) || []).map(a => a && a.name).filter(Boolean),
+        owed: ((blueprint && blueprint.artifactContracts) || []).map(a => a && a.name).filter(Boolean), photos: blueprint?.photos,
       });
     } catch { return []; }
     if (!found.length) {

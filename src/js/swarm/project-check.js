@@ -74,6 +74,21 @@
   const isJs = (n) => /\.m?js$/.test(n);
   const asMap = (files) => (files && typeof files.get === 'function' ? files : new Map(Object.entries(files || {})));
 
+  // A value left for someone else to decide, written where the browser reads
+  // it as code: "color: [brand-primary]" is dropped whole, so the header it
+  // was meant to colour has no colour, and src="[logo-url]" is a broken image.
+  // A bracket in visible text, such as a name the person has not given yet,
+  // is the placeholder the brief asks for and is left alone.
+  const CSS_BLANK = /:\s*[^;{}\n]*\[[A-Za-z][\w\s-]{1,40}\][^;{}\n]*;/;
+  const ATTR_BLANK = /\b(src|href|srcset|content)\s*=\s*["'](?:[a-z]+:)?\[[^\]"']{2,40}\]["']/i;
+  // An image or a page at a domain kept for examples. It serves nothing.
+  const EXAMPLE_REF = /(?:src|href|srcset)\s*=\s*["']https?:\/\/(?:www\.)?example\.(?:com|org|net)|url\(\s*["']?https?:\/\/(?:www\.)?example\.(?:com|org|net)|["']https?:\/\/(?:www\.)?example\.(?:com|org|net)\/[^"']*\.(?:jpe?g|png|gif|webp|avif|svg)["']/i;
+  // What a script switches on and off: classList.add/remove/toggle/replace and
+  // the names in them.
+  const CLASS_SWITCH = /classList\.(?:add|remove|toggle|replace)\(([^)]*)\)/g;
+  // Server code: it runs under Node, not in the page.
+  const SERVER_CODE = /\brequire\(\s*["'](?:express|http|fs|path|cookie-parser|body-parser)["']\s*\)|\bfrom\s+["'](?:express|node:\w+)["']|\bapp\.listen\(/;
+
   /** A reference a page makes to something outside itself. */
   const REF = /(?:src|href)\s*=\s*["']([^"']+)["']/gi;
   const OUTSIDE = /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i;
@@ -103,7 +118,7 @@
    * `owed` is what the run's plan said the team would hand back, so a missing
    * deliverable is a finding whatever kind of work it was.
    */
-  function inspect(filesIn, { owed } = {}) {
+  function inspect(filesIn, { owed, photos } = {}) {
     const files = asMap(filesIn);
     const names = new Set([...files.keys()].map(lower));
     const out = [];
@@ -127,6 +142,16 @@
       if ((isCss(name) || isJs(name)) && cutOff(text)) add('broken', name, `${name} stops in the middle — a bracket is never closed`);
 
       if (isCss(name)) for (const [re, said] of SASS_IN_CSS) if (re.test(text)) { add('broken', name, `${name} uses ${said}, which a browser reading CSS ignores`); break; }
+      if (isCss(name)) {
+        const m = CSS_BLANK.exec(text);
+        if (m) add('broken', name, `${name} leaves a design choice blank (${m[0].trim().slice(0, 60)}) — the browser drops it; choose a real value`);
+      }
+      if (isHtml(name)) {
+        const m = ATTR_BLANK.exec(text);
+        if (m) add(/^(src|srcset)$/i.test(m[1]) ? 'broken' : 'weak', name, `${name} has ${m[0].slice(0, 60)}, which leads nowhere`);
+      }
+      if ((isHtml(name) || isCss(name) || isJs(name) || /\.json$/.test(name)) && EXAMPLE_REF.test(text)) add('broken', name, `${name} points images or links at example.com, which serves nothing`);
+      if (/\.(?:png|jpe?g|gif|webp|avif|ico)$/.test(name) && !/^data:/.test(text.trim())) add('weak', name, `${name} is written as text, so it is not an image`);
 
       for (const host of DEAD_HOSTS) {
         if (text.includes(host)) { add('broken', name, `${name} loads images from ${host}, which no longer answers`); break; }
@@ -136,7 +161,7 @@
         const missing = new Set();
         for (const m of text.matchAll(REF)) {
           const ref = m[1].trim();
-          if (!ref || OUTSIDE.test(ref)) continue;
+          if (!ref || OUTSIDE.test(ref) || /^(?:[a-z]+:)?\[/i.test(ref)) continue;   // a blank is named above
           const base = baseName(ref);
           if (base && !names.has(base)) missing.add(base);
         }
@@ -166,6 +191,25 @@
         for (const m of String(f.content || '').matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) styled.add(m[1]);
       }
       for (const m of pages.matchAll(/<style[\s>][\s\S]*?<\/style>/gi)) for (const c of m[0].matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) styled.add(c[1]);
+      // A class a script switches on that nothing styles: the menu, the modal
+      // or the cart it was meant to open never changes on screen.
+      const switched = new Set();
+      for (const [n, f] of files) {
+        if (!isJs(lower(n))) continue;
+        for (const m of String(f.content || '').matchAll(CLASS_SWITCH)) {
+          for (const q of m[1].matchAll(/["']([-_a-zA-Z][\w-]*)["']/g)) switched.add(q[1]);
+        }
+      }
+      const unstyled = [...switched].filter((c) => !styled.has(c));
+      if (unstyled.length) add('broken', 'styles', `a script switches on ${unstyled.slice(0, MAX_NAMED).map((c) => `.${c}`).join(', ')}, which nothing styles — what it opens or shows never changes on screen`);
+      // A stylesheet or script that no page loads, and code meant for a server.
+      const loaded = new Set([...pages.matchAll(REF)].map((m) => baseName(m[1])));
+      for (const [rawName, file] of files) {
+        const name = lower(rawName);
+        if (!(isCss(name) || isJs(name)) || loaded.has(name)) continue;
+        if (isJs(name) && SERVER_CODE.test(String(file.content || ''))) add('weak', name, `${name} is server code, which a site opened in a browser never runs`);
+        else add('weak', name, `no page loads ${name}, so nothing in it reaches the site`);
+      }
       if (styled.size) {
         const used = new Set();
         for (const m of pages.matchAll(/class\s*=\s*["']([^"']*)["']/gi)) for (const c of m[1].split(/\s+/)) if (c) used.add(c);
@@ -174,6 +218,11 @@
       }
     }
 
+    // A photograph shown without the credit its licence asks for — js/swarm/photos.js.
+    const P = typeof window !== 'undefined' && window.HCSwarmPhotos;
+    for (const p of (P ? P.uncredited(files, photos) : []).slice(0, MAX_NAMED)) {
+      add('broken', 'credits', `the site shows ${P.creditOf(p)} without crediting it — its licence requires the title, the author and the licence where a visitor can read them${p.page ? `, linked to ${p.page}` : ''}`);
+    }
     return out;
   }
 

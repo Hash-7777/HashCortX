@@ -91,6 +91,43 @@ console.log('\nWork that is not a website finds nothing to complain about:');
 ok('a campaign of real files is clean',
   said({ 'positioning.md': 'The position we are taking, at real length, for a real audience.', 'calendar.md': 'Week one: the launch post goes out on Tuesday morning.' }) === '');
 
+console.log('\nA choice left blank where the browser reads it as code:');
+{
+  const page = `<link rel="stylesheet" href="style.css"><h1>Luis Diamond</h1>${FULL}`;
+  ok('a colour left as a bracketed name is broken', /broken:style\.css leaves a design choice blank \(: \[brand-primary\];\)/.test(said({ 'index.html': page, 'style.css': ':root { --primary: [brand-primary]; --text: #222; }' })));
+  ok('a real value is not', !/design choice blank/.test(said({ 'index.html': page, 'style.css': ':root { --primary: #1f2a44; }\na[href="x"] { color: red; }' })));
+  ok('an attribute selector is not mistaken for one', !/design choice blank/.test(said({ 'index.html': page, 'style.css': 'input[type="email"] { border: 1px solid #ccc; }' })));
+  ok('an image whose address was never filled in is broken', /broken:index\.html has src="\[logo-url\]"/.test(said({ 'index.html': `<img src="[logo-url]" alt="logo">${FULL}` })));
+  ok('a link whose address was never filled in is only unfinished', /weak:index\.html has href="mailto:\[your-email\]"/.test(said({ 'index.html': `<a href="mailto:[your-email]">[your-email]</a>${FULL}` })));
+  ok('a placeholder in the visible text is what the brief asks for, and is left alone', !/leads nowhere/.test(said({ 'index.html': `<p>Address: [your-address]</p>${FULL}` })));
+}
+
+console.log('\nAn address kept for examples, which serves nothing:');
+ok('an image at example.com is broken, so it is sent to be fixed', /broken:catalogue\.js points images or links at example\.com/.test(said({ 'catalogue.js': 'window.c = [{ imageUrl: "https://example.com/diamond1.jpg" }];' })));
+ok('... and so is one in the markup', /broken:index\.html points images/.test(said({ 'index.html': `<img src="https://www.example.com/a.png" alt="">${FULL}` })));
+ok('... and so is one in the data a page loads', /broken:products\.json points images/.test(said({ 'products.json': '[{ "imageUrl": "https://example.com/diamond1.jpg" }]' })));
+ok('a blank address is named once, not again as a missing file', (said({ 'index.html': `<img src="[logo-url]" alt="logo">${FULL}` }).match(/logo-url/g) || []).length === 1);
+ok('a word about example.com in prose is not an image', !/points images/.test(said({ 'notes.md': 'Do not use example.com for anything real in this project.' })));
+
+console.log('\nWhat a script switches on must be styled:');
+{
+  const page = `<link rel="stylesheet" href="style.css"><script src="script.js"></script><div id="cart-modal" class="modal"></div>${FULL}`;
+  const css = '.modal { display: none; }';
+  ok('a modal opened by a class nothing styles is broken', /broken:a script switches on \.show, which nothing styles/.test(said({ 'index.html': page, 'style.css': css, 'script.js': 'm.classList.add("show");' })));
+  ok('the same class, styled, is fine', !/switches on/.test(said({ 'index.html': page, 'style.css': css + '\n.modal.show { display: block; }', 'script.js': 'm.classList.add("show");' })));
+  ok('every form is read: toggle, remove, replace and several names at once', /\.open, \.a, \.b/.test(said({ 'index.html': page, 'style.css': css, 'script.js': 'x.classList.toggle("open"); y.classList.add(\'a\', "b");' })));
+}
+
+console.log('\nFiles the site never uses:');
+{
+  const page = `<link rel="stylesheet" href="style.css"><script src="script.js"></script>${FULL}`;
+  const found = said({ 'index.html': page, 'style.css': 'body{}', 'script.js': 'let a = 1;', 'styles.css': 'body { color: red; }', 'server.js': 'const express = require("express");\nconst app = express();\napp.listen(3000);' });
+  ok('a stylesheet no page loads is named', /weak:no page loads styles\.css/.test(found));
+  ok('server code is named as server code', /weak:server\.js is server code/.test(found));
+  ok('a file every page loads is not', !/no page loads style\.css|no page loads script\.js/.test(found));
+  ok('an image written out as text is named', /weak:placeholder_logo\.png is written as text/.test(said({ 'placeholder_logo.png': 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' })));
+}
+
 console.log('\nWhat it hands back:');
 {
   const found = look({ 'index.html': `<a href="cart.html">Cart</a><p>Lorem ipsum dolor sit</p>${FULL}` });

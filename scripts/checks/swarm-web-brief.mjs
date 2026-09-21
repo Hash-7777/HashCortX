@@ -63,7 +63,13 @@ ok('it asks for reduced motion to be respected', /prefers-reduced-motion/.test(b
 
 console.log('\nThe Agent Swarm uses it:');
 const mode = src('modes', 'agent-maker', 'mode.js');
-ok('every agent\'s note comes from it', /HCSwarmWebBrief\.brief\(\{ task, siteFiles: execOptions\.siteFiles, isFinalOwner, bar: execOptions\.bar \}\)/.test(mode));
+ok('every agent\'s note comes from it', /HCSwarmWebBrief\.brief\(\{ task, siteFiles: execOptions\.siteFiles, isFinalOwner, bar: execOptions\.bar, images: window\.HCSwarmPhotos\?\.briefOf\(execOptions\.photos\) \}\)/.test(mode));
+ok('... with the note on images the run\'s photographs make', /bpCopy\.photos = plan\.photos \|\| \[\]/.test(mode) && /photos: bp\.photos/.test(mode));
+{
+  const withImages = W.brief({ task: 'Build a website for a bakery', isFinalOwner: true, images: '\n\nIMAGES: draw them.' });
+  ok('the note on images is part of the brief when there is one', withImages.includes('IMAGES: draw them.'));
+  ok('images are never an address an agent made up', /Never an address you made up/.test(withImages));
+}
 ok('and carries what this run\'s own request asks of the result', /bar: Array\.isArray\(bp\.qualityGates\)/.test(mode));
 
 // The bar used to be written out here in the language of a portfolio and
@@ -102,7 +108,7 @@ console.log('\nAgents are told the test the app will actually apply:');
   ok('Sass in a stylesheet is named', /darken\(\)/.test(b) && /@mixin/.test(b));
   ok('the placeholder services that stopped answering are named', /via\.placeholder\.com/.test(b) && /stopped answering/.test(b));
   ok('and it says what happens if they are found', /sent back to be put right/.test(b));
-  const sentence = b.match(/Never via\.placeholder[\s\S]*?broken image\./)[0];
+  const sentence = b.match(/never via\.placeholder[\s\S]*?broken image\./)[0];
   const named = [...sentence.matchAll(/\b[a-z][\w-]*(?:\.[a-z]{2,})+\b/g)].map((m) => m[0]);
   ok('every host it names is one the app really refuses', named.length >= 4 && named.every((h) => PC.DEAD_HOSTS.includes(h)));
 }

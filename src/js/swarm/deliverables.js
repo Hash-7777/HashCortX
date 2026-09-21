@@ -72,7 +72,7 @@
    * check that loads this one on its own.
    */
   function kindOf(task) {
-    const t = String(task || '');
+    const t = requestOf(task);
     if (FIXES.test(t)) return 'fix';
     const TK = typeof window !== 'undefined' && window.HCSwarmTaskKind;
     if (TK && typeof TK.isCodeBuildTask === 'function') {
@@ -175,15 +175,26 @@
    * would hold the work to requirements for software nobody is writing — the
    * mention of a login in "fix the login bug" is not a request for one.
    */
+  /**
+   * What was actually asked for: the request and the answers given to the
+   * questions before the run, without the questions left unanswered.
+   *
+   * Those are appended to a task as "Not given: …" (js/swarm/clarify.js), and
+   * they are the team's questions, not the person's wishes. Read as the
+   * request, a skipped "Which payment provider would you like?" asked for a
+   * payment server on a site nobody wanted one on.
+   */
+  const requestOf = (task) => String(task || '').replace(/\n\nNot given:[\s\S]*$/, '');
+
   function piecesOf(task, kind) {
-    const t = String(task || '');
+    const t = requestOf(task);
     if ((kind || kindOf(t)) !== 'build') return [];
     return PIECES.filter((p) => p.when.test(t));
   }
 
   /** Extra pages the request names, beyond the first. */
   function extraPagesOf(task) {
-    const t = String(task || '');
+    const t = requestOf(task);
     if (SINGLE_PAGE.test(t)) return [];
     const named = new Set();
     let m;
@@ -276,18 +287,37 @@ Rules:
 - Name each deliverable the way it would be saved, with an extension where it is a file.
 - Anything the request implies needs somewhere to live. A shop's items belong in their own data file; a cart's behaviour in its own file; a game's loop in its own file. Do not put everything in one script.
 - Only list what this request asks for. Never add a cart, a login, a database or a page the request did not ask for.
+- A website whose request asks for nothing a server does is files a browser opens: no server script, no .env, no package.json, no README. Never list an image file (.png, .jpg, .ico): the team writes text, and a picture written as text is not a picture.
 - List the work itself, not a plan to do the work. A campaign means the positioning, the copy for each channel, the calendar and how it is measured — not "a campaign plan" as one document. An analysis means the segments, the figures and the recommendation. Break the result into the parts it really has.
 - "bar" is what it means for THIS result to be done well: statements that could be checked by looking at the result. Only include a statement that applies to this task.
 - Give the last deliverable to the agent that finishes, and make it the thing the person actually receives.
+- For a website that would show photographs, "photos" is up to 3 short searches for real photographs of its subject, two to four plain words each, such as "diamond engagement ring". Name the thing pictured, never a person's or a business's name. Otherwise leave it empty.
 Return only JSON, no markdown:
-{"kind":"build|fix|analysis|writing|answer|general","items":[{"name":"file.ext","owner":"planner|coder|analyst|writer|validator|supervisor|specialist","required":true,"format":"what this deliverable is"}],"bar":["a checkable statement about this result"]}`;
+{"kind":"build|fix|analysis|writing|answer|general","items":[{"name":"file.ext","owner":"planner|coder|analyst|writer|validator|supervisor|specialist","required":true,"format":"what this deliverable is"}],"bar":["a checkable statement about this result"],"photos":["a short search"]}`;
 
   /** The call that asks for a task's deliverables. */
   function messages(task) {
     return [
       { role: 'system', content: SYSTEM },
-      { role: 'user', content: `Task: ${String(task || '').trim()}` },
+      { role: 'user', content: `Task: ${requestOf(task).trim()}` },
     ];
+  }
+
+  // What a site that runs in the browser alone never has: a server and what
+  // goes with one, and pictures an agent would have to write out as text.
+  const SERVER_SIDE = /^(?:server|backend|api)\.(?:m?js|ts|py)$|^\.env|^package(?:-lock)?\.json$|\.sql$|^readme(?:\.md)?$|^config\.json$/i;
+  const BINARY_IMAGE = /\.(?:png|jpe?g|gif|webp|avif|ico|bmp)$/i;
+
+  /**
+   * A build's deliverables without what the request never needed: server
+   * files when it asks for nothing a server does, and image files at all,
+   * since an agent answers in text and a picture written as text is not one.
+   */
+  function withoutUnasked(plan, task) {
+    if (!plan || plan.kind !== 'build') return plan;
+    const server = piecesOf(task, 'build').some((p) => p.id === 'server');
+    plan.items = plan.items.filter((i) => !BINARY_IMAGE.test(i.name) && (server || !SERVER_SIDE.test(i.name)));
+    return plan;
   }
 
   const OWNERS = new Set(['planner', 'coder', 'analyst', 'writer', 'validator', 'supervisor', 'specialist', 'researcher', 'critic', 'custom']);
@@ -309,7 +339,7 @@ Return only JSON, no markdown:
     if (parsed === null || typeof parsed !== 'object') return null;
     const items = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.items) ? parsed.items : null);
     if (!items) return null;
-    return { kind: clean(parsed.kind, 20), items, bar: Array.isArray(parsed.bar) ? parsed.bar : [] };
+    return { kind: clean(parsed.kind, 20), items, bar: Array.isArray(parsed.bar) ? parsed.bar : [], photos: Array.isArray(parsed.photos) ? parsed.photos.slice(0, 3).map((q) => clean(q, 40)) : [] };
   }
 
   /**
@@ -346,7 +376,7 @@ Return only JSON, no markdown:
       bar.push(line);
       if (bar.length === MAX_BAR) break;
     }
-    return { kind, items, bar, pieces: (plan && plan.pieces) || piecesOf(task, kind).map((p) => p.id) };
+    return { kind, items, bar, pieces: (plan && plan.pieces) || piecesOf(task, kind).map((p) => p.id), photos: Array.isArray(plan && plan.photos) ? plan.photos : [] };
   }
 
   /** Who a deliverable belongs to, when nothing said. */
@@ -365,7 +395,7 @@ Return only JSON, no markdown:
   function merge(fromModel, task) {
     const derived = derive(task);
     if (!fromModel) return derived;
-    const plan = normalise(fromModel, task);
+    const plan = withoutUnasked(normalise(fromModel, task), task);
     if (!plan.items.length) return derived;
     // What holds for every result holds for this one too.
     for (const line of ALWAYS) {
@@ -585,7 +615,7 @@ Return only JSON, no markdown:
 
   window.HCSwarmDeliverables = {
     MAX_ITEMS, MAX_BAR, PIECES, ALWAYS,
-    kindOf, piecesOf, extraPagesOf, derive, messages, readPlan, normalise, merge,
+    kindOf, piecesOf, requestOf, withoutUnasked, extraPagesOf, derive, messages, readPlan, normalise, merge,
     filesOf, budgetsFor, contractsOf, summaryOf, agentMatches, fitScore, assign, ownershipNote,
   };
 })();

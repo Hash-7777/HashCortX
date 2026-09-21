@@ -33,6 +33,7 @@
   const SYSTEM = `You decide whether a task needs facts that only the person who asked can give, before a team of AI agents builds it.
 Ask ONLY for details that are personal to them or specific to their situation and that the team would otherwise have to invent: their name, contact details and links, their own work, projects, experience and skills, their company or brand, their products and prices, dates, places, the people involved, and choices only they can make when the result depends on them.
 Do not ask about anything the task already states. Do not ask about what the team can decide well itself: layout, structure, sections, wording, technology, design, colours unless the person must choose them.
+Do not ask about hosting, domain names, deployment, payment providers, shipping services or other accounts the result would be connected to later: the team hands back finished files and cannot connect them to anything.
 Return only JSON, no markdown:
 {"questions":[{"id":"short_id","question":"One short question","hint":"an example of an answer"}]}
 At most ${MAX_QUESTIONS} questions, the most important first. If nothing personal is missing, return {"questions":[]}.`;
@@ -128,7 +129,12 @@ At most ${MAX_QUESTIONS} questions, the most important first. If nothing persona
       parts.push(`Details from the person who asked. Use them exactly, and do not add to them or invent others of the same kind:\n${given.map((a) => `- ${clean(a.question, 240)} ${String(a.answer).trim()}`).join('\n')}`);
     }
     if (blank.length) {
-      parts.push(`Not given: ${blank.map((a) => clean(a.question, 240)).join(' ')} Where one of these is needed, write a clearly marked placeholder in square brackets, such as [Your name], for the person to fill in. Never invent it.`);
+      // A blank answer to a question of taste is the team's to decide, not a
+      // hole to mark: "any brand colours?" left blank came back as
+      // "color: [brand-primary]", which a browser drops, so the site had no
+      // colour at all. Only a fact about the person is marked, and only where
+      // a reader sees it — never inside code, a colour, an address or data.
+      parts.push(`Not given: ${blank.map((a) => clean(a.question, 240)).join(' ')} Where one of these is a choice of taste — colours, fonts, a logo, imagery, style, wording — make that choice yourself, well, for this subject. Where it is a fact about them — a name, contact details, prices, an address, dates — write a clearly marked placeholder in square brackets, such as [Your name], in the text a reader sees, for the person to fill in. Never invent such a fact, and never put a placeholder inside code, a colour, a link or image address, or a data value: a browser cannot use one there.`);
     }
     return parts.join('\n\n');
   }

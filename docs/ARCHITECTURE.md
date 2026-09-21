@@ -124,7 +124,7 @@ HashCortX/
 │   │   ├── chat/               263  what a model is told, and which to try next
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work
-│   │   ├── swarm/            3,741  Agent Swarm: what kind of task it is,
+│   │   ├── swarm/            4,021  Agent Swarm: what kind of task it is,
 │   │   │                            what THIS task's deliverables are, the
 │   │   │                            one call that asks a model for them and
 │   │   │                            which agent writes which of them,
@@ -133,6 +133,8 @@ HashCortX/
 │   │   │                            the mark drawn beside each agent,
 │   │   │                            layout, scheduling, fencing, what a web
 │   │   │                            task's agents are told about the site,
+│   │   │                            the openly licensed photographs found
+│   │   │                            for it on Openverse,
 │   │   │                            a site's files and the one page built
 │   │   │                            from them, each run kept as a
 │   │   │                            conversation with versions (IndexedDB),

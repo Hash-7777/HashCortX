@@ -68,9 +68,12 @@ console.log('\nWhat is answered is fact; what is not is a marked placeholder:');
   ok('the task comes first, unchanged', out.startsWith(task));
   ok('answers are written in as given', out.includes('What name should it use? Mona Adel') && out.includes('github.com/mona/ledger'));
   ok('and marked as not to be added to', /do not add to them or invent others/.test(out));
-  ok('a blank answer becomes a placeholder, never an invention', /Not given: How should people contact you\?/.test(out) && /square brackets/.test(out) && /Never invent it/.test(out));
-  ok('skipping everything still rules out inventing', /Never invent it/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])) && !/Details from the person/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])));
+  ok('a blank answer becomes a placeholder, never an invention', /Not given: How should people contact you\?/.test(out) && /square brackets/.test(out) && /Never invent such a fact/.test(out));
+  ok('a blank answer to a question of taste is the team\'s to decide, not a placeholder', /choice of taste — colours, fonts, a logo, imagery/.test(out) && /make that choice yourself/.test(out));
+  ok('a placeholder is never put where a browser reads it as code', /never put a placeholder inside code, a colour, a link or image address, or a data value/.test(out));
+  ok('skipping everything still rules out inventing', /Never invent such a fact/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])) && !/Details from the person/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])));
   ok('with no questions the task is untouched', C.taskWithAnswers(task, []) === task);
+  ok('the team is not asked about accounts it cannot connect to', /Do not ask about hosting, domain names, deployment, payment providers/.test(C.messages(task)[0].content));
 }
 
 console.log('\nThe example is said once, and it is the app that says "for example":');

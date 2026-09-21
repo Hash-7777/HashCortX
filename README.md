@@ -67,7 +67,7 @@ The agent works on your real files. Inside the project it moves freely; every ed
 
 ## Agent Swarm
 
-Build a team on a canvas, or start from a template. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them.
+Build a team on a canvas, or start from a template. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them. A website the team builds can show real, openly licensed photographs found on Openverse, credited on the page; this sends a few search words about the site's subject and can be turned off in Settings (see [SECURITY.md](docs/SECURITY.md)).
 
 <img src="docs/assets/screenshots/agent-swarm.png" alt="Agent Swarm: a four-agent team mid-run on a canvas, with the live trace below" width="100%">
 

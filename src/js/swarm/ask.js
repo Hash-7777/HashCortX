@@ -193,6 +193,18 @@
                : `Worked out what this run owes from the task · ${D.summaryOf(plan)}`,
       answered ? "ok" : "warn",
     );
+    // Real photographs for a website, when the setting allows it — js/swarm/photos.js.
+    const P = window.HCSwarmPhotos;
+    const web = window.HCSwarmWebBrief && window.HCSwarmWebBrief.isWebRun(task, D.filesOf(plan).filter((n) => /\.(html?|css|m?js)$/i.test(n)));
+    const searches = P ? P.searchesOf(plan.photos) : [];
+    plan.photos = [];
+    if (P && web && deps.fetch && P.allowed() && searches.length) {
+      const found = await P.find({ searches, fetch: deps.fetch, signal });
+      plan.photos = found.photos;
+      trace(found.photos.length ? `Found ${found.photos.length} openly licensed photographs on Openverse for ${found.searched.map((q) => `"${q}"`).join(", ")}` : `No usable photographs found for ${found.searched.map((q) => `"${q}"`).join(", ") || "this site"} — the team will draw its imagery`, found.photos.length ? "ok" : "warn");
+    } else if (P && web) {
+      trace(P.allowed() ? "No photograph searches for this site — the team will draw its imagery" : "Photograph search is off in Settings — the team will draw its imagery", "wait");
+    }
     return plan;
   }
 
@@ -226,7 +238,7 @@
     trace(`Asking for ${C.linesOf(findings.filter((f) => f.level === "broken")).length} of them to be put right`, "wait");
     const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
-    for (let i = 0; model && i < 3; i++) {
+    for (let i = 0; model && i < 4; i++) {
       if (signal?.aborted) return null;
       try {
         const reply = await ROUTES.callWithin(90000, signal, "no answer within 90 s", (s) => deps.call(model, messages, s));

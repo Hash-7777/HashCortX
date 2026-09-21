@@ -111,6 +111,7 @@
     '/js/swarm/output.js',
     '/js/swarm/project-files.js',
     '/js/swarm/bundle.js',
+    '/js/swarm/photos.js',
     '/js/swarm/project-check.js',
     '/js/swarm/context.js',
     '/js/swarm/site.js',

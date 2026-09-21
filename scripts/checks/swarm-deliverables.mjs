@@ -204,5 +204,26 @@ ok('then the stylesheet', D.filesOf(D.derive(SHOP))[1] === 'styles.css');
 ok('a plan with no files has none', D.filesOf(D.derive(MARKET)).length === 0);
 ok('the summary names what is owed', /deliverable/.test(D.summaryOf(D.derive(SHOP))));
 
+console.log('\nWhat was asked for, not what was asked about:');
+{
+  const task = 'Build a jewelery basic e-commerce website for Luis Diamond, a diamond rings brand';
+  const skipped = `${task}\n\nNot given: Which payment gateway(s) would you like to integrate for online sales? What shipping methods and rates do you want to offer customers? Where one of these is a choice of taste — colours, fonts…`;
+  ok('a question left unanswered is not read as a request', D.requestOf(skipped) === task);
+  ok('... so a skipped payment question does not bring a server in', !D.piecesOf(skipped).some((p) => p.id === 'server'));
+  ok('... and the model deciding the deliverables is not shown it', !/payment gateway/.test(D.messages(skipped)[1].content));
+  const given = `${task}\n\nDetails from the person who asked. Use them exactly:\n- Which payment provider? Stripe checkout with order storage`;
+  ok('an answer that was given still counts', D.piecesOf(given).some((p) => p.id === 'server'));
+
+  const fromModel = { kind: 'build', items: ['index.html', 'styles.css', 'script.js', 'products.json', 'config.json', 'logo.png', 'README.md', '.env.example', 'catalogue.js', 'server.js'].map((name) => ({ name, owner: 'coder' })), bar: [] };
+  const plan = D.merge(fromModel, skipped);
+  const names = plan.items.map((i) => i.name);
+  ok('a site nobody asked a server for owes no server, .env, README or config', !names.some((n) => /^(server\.js|\.env\.example|README\.md|config\.json)$/.test(n)));
+  ok('no deliverable is a picture the team would have to write as text', !names.includes('logo.png'));
+  ok('the site itself is untouched', ['index.html', 'styles.css', 'script.js', 'catalogue.js', 'products.json'].every((n) => names.includes(n)));
+  const withServer = D.merge(fromModel, `${task} with customer accounts and a database of orders`).items.map((i) => i.name);
+  ok('a request that asks for a server keeps it', withServer.includes('server.js'));
+  ok('the planner is told a browser-only site has no server files and no images', /no server script, no \.env, no package\.json, no README/.test(D.messages(task)[0].content) && /Never list an image file/.test(D.messages(task)[0].content));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/deliverables.js)`);
 process.exit(fail ? 1 : 0);
