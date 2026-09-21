@@ -533,7 +533,11 @@ const LINE_BUDGET = {
   // the trace what that reading found.
   // 2452, down two: what an agent is shown of the work before it moved to
   // js/swarm/context.js, where it can be checked on its own.
-  'modes/agent-maker/mode.js': 2452,
+  // 2471, up nineteen: one round putting right what the app's own reading
+  // found. The reading is in js/swarm/project-check.js and the asking is in
+  // js/swarm/ask.js beside the run's other two calls; this is the wiring, and
+  // the run status while it happens.
+  'modes/agent-maker/mode.js': 2471,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

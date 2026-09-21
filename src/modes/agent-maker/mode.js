@@ -752,7 +752,7 @@ const SwarmMaker = (() => {
    * Worst first, a few at a time: the point is that somebody is told, not that
    * every last thing is listed.
    */
-  function reportOnWork(run, blueprint) {
+  function reportOnWork(run, blueprint, again = false) {
     const C = window.HCSwarmProjectCheck;
     if (!C || !run) return [];
     let found = [];
@@ -762,12 +762,29 @@ const SwarmMaker = (() => {
       });
     } catch { return []; }
     if (!found.length) {
-      traceAdd("Orchestrator", "Read the work through: nothing points at a file that is not there, and nothing is left unfinished", "ok");
+      traceAdd("Orchestrator", again ? "Read it through again: everything that was wrong is now right" : "Read the work through: nothing points at a file that is not there, and nothing is left unfinished", "ok");
       return found;
     }
-    traceAdd("Orchestrator", `Read the work through — ${C.summaryOf(found)}`, "warn");
+    traceAdd("Orchestrator", `Read ${again ? "it through again" : "the work through"} — ${C.summaryOf(found)}`, "warn");
     for (const line of C.linesOf(found).slice(0, 8)) traceAdd("Orchestrator", line, "warn");
     return found;
+  }
+
+  /**
+   * One round putting right what the app found, when anything found will not
+   * work at all. The team is finished by this point and its work is already
+   * kept, so this can only add a version — never lose one.
+   */
+  async function repairWork(kept, blueprint, signal) {
+    const found = reportOnWork(kept.run, blueprint);
+    if (!kept.run || !found.some(f => f.level === "broken")) return kept;
+    setRunStatus("running", "Putting right what was found");
+    const answer = await window.HCSwarmAsk.askForRepair(window.HCSwarmRuns.currentFiles(kept.run), found, signal, askDeps());
+    if (!answer) return kept;
+    const after = await window.HCSwarmRuns.finishRun(kept.run, { results: {}, finalOutput: normaliseAgentOutput(answer), named: true });
+    if (!after.run) { traceAdd("Orchestrator", `Could not keep the repair: ${after.error}`, "warn"); return kept; }
+    reportOnWork(after.run, blueprint, true);
+    return after;
   }
 
   async function runSwarm(again = null) {
@@ -868,8 +885,7 @@ const SwarmMaker = (() => {
           : `Swarm complete — ${runBp.agents.length} agents, task done`,
         broke ? "warn" : "ok",
       );
-      setRunStatus("done", broke ? `Done · ${ran} of ${runBp.agents.length} agents` : `Done · ${runBp.agents.length} agents`);
-      updateTraceDot("done");
+      const doneLabel = broke ? `Done · ${ran} of ${runBp.agents.length} agents` : `Done · ${runBp.agents.length} agents`;
       updateProgress(1);
 
       const result = normaliseAgentOutput(finalOutput);
@@ -881,15 +897,18 @@ const SwarmMaker = (() => {
       else { delete bp.lastRunId; bp.lastOutput = `**Swarm Result — ${bp.name}**\n\n*Task: ${task}*\n\n---\n\n${result}`; }
       traceAdd("Orchestrator", kept.run ? `Kept the run · ${kept.run.turns.length} turns` : `Could not keep the run: ${kept.error}`, kept.run ? "ok" : "warn");
       // The app reads the work itself before the person does
-      // (src/js/swarm/project-check.js). It changes nothing; it says what a
-      // person would see in the first ten seconds, so a result is never
-      // reported as finished when a page points at a file nobody wrote.
-      reportOnWork(kept.run, runBp);
+      // (src/js/swarm/project-check.js), and asks once for anything that will
+      // not work at all to be put right. Nothing here can lose what the team
+      // built: the run is already kept, and a repair can only add a version.
+      const done = await repairWork(kept, runBp, signal);
+      if (done.run) bp.lastRunId = done.run.id;
+      setRunStatus("done", doneLabel);
+      updateTraceDot("done");
       saveBlueprints();
-      if (!again) window.HCSwarmWorkspace.open(bp, kept.run?.id);
+      if (!again) window.HCSwarmWorkspace.open(bp, bp.lastRunId || kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
       // normal chat as well — into whichever chat happened to be open.
-      return { run: kept.run, error: kept.error };
+      return { run: done.run || kept.run, error: kept.error };
     } catch (err) {
       if (err.name !== "AbortError") {
         traceAdd("Orchestrator", `Fatal error: ${err.message}`, "err");

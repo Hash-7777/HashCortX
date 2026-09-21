@@ -76,6 +76,26 @@
   }
 
   /**
+   * The files as fenced blocks, named the way the agents are asked to write
+   * them, stopping before `limit`. What is left out is named, so an agent is
+   * never shown part of a project as though it were the whole of it.
+   */
+  function fencesOf(filesIn, limit = DEFAULT_TOTAL) {
+    const files = filesIn && typeof filesIn.get === 'function' ? filesIn : new Map(Object.entries(filesIn || {}));
+    let body = '';
+    let left = Math.max(0, limit);
+    const dropped = [];
+    for (const [name, file] of files) {
+      const piece = fenceOf(name, file);
+      if (piece.length > left) { dropped.push(name); continue; }
+      body += piece;
+      left -= piece.length;
+    }
+    if (dropped.length) body += `\n\n[${dropped.join(', ')} would not fit and ${dropped.length === 1 ? 'is' : 'are'} not here.]`;
+    return body;
+  }
+
+  /**
    * What an agent is shown of the work before it.
    *
    * `whole` asks for the project rather than the transcript, for the agent
@@ -129,5 +149,5 @@
     return body;
   }
 
-  window.HCSwarmContext = { contextFor, projectFrom, DEFAULT_PER, DEFAULT_TOTAL };
+  window.HCSwarmContext = { contextFor, projectFrom, fencesOf, DEFAULT_PER, DEFAULT_TOTAL };
 })();

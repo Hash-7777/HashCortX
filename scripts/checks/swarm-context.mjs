@@ -77,6 +77,19 @@ console.log('\nNothing in, nothing out:');
 ok('no inputs give no context', C.contextFor({}) === '' && C.contextFor(null) === '');
 ok('an empty answer is not shown', C.contextFor({ One: '' }) === '');
 
+console.log('\nThe files as blocks, for asking that something be put right:');
+{
+  const out = C.fencesOf(new Map([['index.html', { content: '<p>x</p>' }], ['app.js', { content: 'var a = 1;' }]]));
+  ok('each file is named on its fence the way agents are asked to write them', /```html index\.html/.test(out) && /```javascript app\.js/.test(out));
+  ok('the contents are there', /<p>x<\/p>/.test(out) && /var a = 1;/.test(out));
+}
+{
+  const out = C.fencesOf({ 'a.css': { content: 'x'.repeat(9000) }, 'b.css': { content: 'y'.repeat(9000) } }, 10000);
+  ok('it stops before the ceiling', out.length <= 11000);
+  ok('and names what it left out', /b\.css would not fit/.test(out));
+}
+ok('no files, nothing to show', C.fencesOf(null) === '' && C.fencesOf({}) === '');
+
 console.log('\nThe project read from a set of answers:');
 {
   const r = C.projectFrom([

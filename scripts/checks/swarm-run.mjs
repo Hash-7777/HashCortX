@@ -99,5 +99,48 @@ console.log('\nA run asks a model what it owes, and is never stopped by the answ
   ok('a team run on a different request drops its old room too', /delete copy\.budgetControls;/.test(bodyOf('deliverablesForRun')));
 }
 
+console.log('\nA run that could not finish does not report that it did:');
+{
+  const run = bodyOf('runSwarm');
+  ok('the agents that could not answer are counted', /const broke = runBp\.agents\.filter\(a => \/\^\(\?:Error\|Skipped\): \//.test(run));
+  ok('the trace says so when any did', /unable to answer/.test(run));
+  ok('and the status counts only the ones that worked', /Done · \$\{ran\} of \$\{runBp\.agents\.length\} agents/.test(run));
+}
+
+console.log('\nThe app reads the work before the person does:');
+{
+  const report = bodyOf('reportOnWork');
+  ok('it asks js/swarm/project-check.js', /HCSwarmProjectCheck/.test(report) && /C\.inspect\(/.test(report));
+  ok('it is told what the run owed, so a missing deliverable is found', /owed: \(\(blueprint && blueprint\.artifactContracts\)/.test(report));
+  ok('a reading that fails never stops a run', /catch \{ return \[\]; \}/.test(report));
+  ok('it changes nothing, it only says', !/withVersion|saveRun|finishRun/.test(report));
+}
+
+console.log('\nOne round is asked for what will not work at all:');
+{
+  const repair = bodyOf('repairWork');
+  const run = bodyOf('runSwarm');
+  ok('nothing is asked when nothing is broken', /if \(!kept\.run \|\| !found\.some\(f => f\.level === "broken"\)\) return kept;/.test(repair));
+  ok('the asking is in js/swarm/ask.js, beside the run\'s other calls', /HCSwarmAsk\.askForRepair\(/.test(repair));
+  ok('it is given the project, not the conversation', /HCSwarmRuns\.currentFiles\(kept\.run\)/.test(repair));
+  ok('a model that will not answer costs the repair and nothing else', /if \(!answer\) return kept;/.test(repair));
+  ok('only the files it names are taken', /named: true/.test(repair));
+  ok('the run is already kept before any of this, so nothing can be lost', run.indexOf('finishRun(run,') < run.indexOf('repairWork(kept'));
+  ok('the work is read through again afterwards', /reportOnWork\(after\.run, blueprint, true\)/.test(repair));
+  ok('a repair that cannot be kept leaves the run as it was', /Could not keep the repair/.test(repair) && /return kept;/.test(repair));
+  ok('the status stops saying Done while it is happening', /setRunStatus\("running", "Putting right what was found"\)/.test(repair));
+}
+
+console.log('\nAsking for a repair cannot end a run:');
+{
+  const ask = bodyOf('askForRepair', askSrc);
+  ok('nothing is asked with nothing to fix', /if \(!note\) return null;/.test(ask));
+  ok('it fails over to other models', /routes\.next\(model, err\)/.test(ask));
+  ok('an answer with no files in it is a failure, so the next model is asked', /it returned no files/.test(ask));
+  ok('a stop is a stop', /if \(err\.name === "AbortError" \|\| signal\?\.aborted\) return null;/.test(ask));
+  ok('and when nothing can be reached, what the team built is kept', /what the team built is kept as it is/.test(ask));
+  ok('it is given longer than the planning calls, because it writes whole files', /callWithin\(90000,/.test(ask));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/agent-maker/mode.js)`);
 process.exit(fail ? 1 : 0);

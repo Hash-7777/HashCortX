@@ -149,5 +149,54 @@
     return plan;
   }
 
-  window.HCSwarmAsk = { askForDetails, askForDeliverables, showAskDialog };
+  /**
+   * One round asking for the faults the app found to be put right.
+   *
+   * The app reads the work itself when the team has finished
+   * (js/swarm/project-check.js), and what it finds needs no model to see: a
+   * page pointing at a file nobody wrote, an id no page has, a stylesheet
+   * written in Sass. Somebody still has to write the correction, so one model
+   * is asked, with the project in front of it and the faults listed.
+   *
+   * It is given the project rather than the conversation, and asked for only
+   * the files it changes, so a round costs one call whatever the team's size.
+   *
+   * Returns the answer to record, or null. Like the other two calls here it
+   * cannot end a run: a model that will not answer costs the repair and
+   * nothing else, and what the team built is kept either way.
+   */
+  async function askForRepair(files, findings, signal, deps) {
+    const C = window.HCSwarmProjectCheck;
+    const CTX = window.HCSwarmContext;
+    const ROUTES = window.HCModelRoutes;
+    const trace = deps.trace;
+    const note = C.repairNote(findings);
+    if (!note) return null;
+    const messages = [
+      { role: "system", content: "You put right faults that have been found in a project by reading its files. Change only what you are asked to change. Return every file you change complete, each in its own fenced block with its file name after the language, and write nothing else." },
+      { role: "user", content: `THE PROJECT AS IT STANDS:${CTX.fencesOf(files)}${note}` },
+    ];
+    trace(`Asking for ${C.linesOf(findings.filter((f) => f.level === "broken")).length} of them to be put right`, "wait");
+    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
+    let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
+    for (let i = 0; model && i < 3; i++) {
+      if (signal?.aborted) return null;
+      try {
+        const reply = await ROUTES.callWithin(90000, signal, "no answer within 90 s", (s) => deps.call(model, messages, s));
+        const text = String(reply?.content || "");
+        const changed = window.HCSwarmProjectFiles.extractProjectFiles(text, { guess: false });
+        if (!changed.size) throw new Error("it returned no files");
+        trace(`${deps.label(model)} rewrote ${[...changed.keys()].join(", ")}`, "ok");
+        return text;
+      } catch (err) {
+        if (err.name === "AbortError" || signal?.aborted) return null;
+        trace(`Could not repair with ${deps.label(model)} · ${String(err.message || err).slice(0, 100)}`, "warn");
+        model = routes.next(model, err);
+      }
+    }
+    trace("Nothing could be reached to put them right — what the team built is kept as it is", "warn");
+    return null;
+  }
+
+  window.HCSwarmAsk = { askForDetails, askForDeliverables, askForRepair, showAskDialog };
 })();
