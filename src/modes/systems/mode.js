@@ -1319,8 +1319,14 @@ Repair requirements:
       // of quota, the next two out of credit, and the ladder ended on a model
       // far too small to design a database, which answered in two seconds with
       // no name and too few tables.
-      const scaffold = window.HCSystemsScaffold?.build(desc, todayIso()) || null;
-      if (scaffold) trace(`Built a ${scaffold.domain} system to start from — ${scaffold.modules.length} modules, ${scaffold.entities.length} tables`, "ok");
+      //
+      // It goes down the SAME road a model's answer goes down, and that is
+      // load-bearing: what build() returns is the shape an answer ARRIVES in,
+      // and storing it as it came broke four things at once. The account is
+      // in scripts/checks/systems-scaffold.mjs, with the checks that hold it.
+      const built = window.HCSystemsScaffold?.build(desc, todayIso()) || null;
+      const scaffold = built ? finalizeGeneratedSpec(built, desc) : null;
+      if (scaffold) trace(`Built a ${scaffold.domain} system to start from — ${scaffold.modules.length} modules, ${Object.keys(scaffold.entities).length} tables`, "ok");
       let spec;
       try {
         spec = await generateWithModel(desc, runAbort.signal);

@@ -243,7 +243,11 @@ const LINE_BUDGET = {
   // anything (js/systems/scaffold.js), so a run cannot end with nothing
   // because every provider was out of credit — which is what one measured run
   // did, ending on a model far too small to design a database.
-  'modes/systems/mode.js': 3415,
+  // 3421, up six. The system built here now goes through the same
+  // finalise a model's answer goes through, which is what makes each screen
+  // show its own table, a new record land where the screen reads it, and each
+  // system keep its own records.
+  'modes/systems/mode.js': 3421,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

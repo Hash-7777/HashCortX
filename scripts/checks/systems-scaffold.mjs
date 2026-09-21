@@ -130,5 +130,32 @@ console.log('\nThe mode builds it before it asks anything:');
   ok('a stop is still a stop, not a fallback', /if \(err\.name === "AbortError" \|\| !scaffold\) throw err;/.test(mode));
 }
 
+console.log('\nAnd what it builds goes down the same road as a model\'s answer:');
+{
+  // THE DEFECT. What build() returns is the shape an answer ARRIVES in: its
+  // tables are a list rather than keyed by id, its modules and the system
+  // itself carry no id of their own. A model's answer is keyed, completed and
+  // named by finalizeGeneratedSpec before it is stored; the system built here
+  // was stored as it came. So every module pointed at a table that could not
+  // be found, every screen fell back to the first table in the list and showed
+  // the same one, a new record went to a table no screen read, and every
+  // system built this way shared one bucket of records, because the bucket is
+  // named after the system and the system had no name for itself.
+  const mode = readFileSync(join(root, 'src', 'modes', 'systems', 'mode.js'), 'utf8');
+  ok('the mode finalises what it builds, exactly as it finalises an answer',
+    /const scaffold = built \? finalizeGeneratedSpec\(built, desc\) : null;/.test(mode));
+  ok('and nothing stores it raw', !/=\s*window\.HCSystemsScaffold\?\.build\([^)]*\)\s*\|\|\s*null;\s*\n\s*if \(scaffold\)/.test(mode));
+
+  // The property underneath it, held here rather than assumed: once the tables
+  // are keyed by id — which is the one thing that road does to them — every
+  // module finds the table it names, for every trade the app knows.
+  for (const ask of ['a book shop', 'a restaurant', 'a dental clinic', 'a hotel', 'a bike shop', 'a law firm']) {
+    const built = Sc.build(ask, TODAY);
+    const keyed = S.entityMap(built.entities);
+    const missing = built.modules.filter((m) => !keyed[m.entity]).map((m) => m.name);
+    ok(`every module of "${ask}" finds its table once they are keyed by id`, missing.length === 0, missing.join(', '));
+  }
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/scaffold.js)`);
 process.exit(fail ? 1 : 0);
