@@ -142,5 +142,12 @@ console.log('\nAsking for a repair cannot end a run:');
   ok('it is given longer than the planning calls, because it writes whole files', /callWithin\(90000,/.test(ask));
 }
 
+console.log('\nA run in which no agent answered is not called done:');
+{
+  ok('the status says it failed', /const doneLabel = !ran \? "Failed · no agent could answer"/.test(src));
+  ok('... and is drawn as an error, not a success', /setRunStatus\(ran \? "done" : "error", doneLabel\)/.test(src) && /updateTraceDot\(ran \? "done" : "error"\)/.test(src));
+  ok('the trace says nothing was built, and gives the reason an agent was refused', /No agent could answer, so nothing was built\./.test(src) && /replace\(\/\^Error: \/, ""\)/.test(src));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/modes/agent-maker/mode.js)`);
 process.exit(fail ? 1 : 0);

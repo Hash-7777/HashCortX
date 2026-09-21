@@ -880,12 +880,12 @@ const SwarmMaker = (() => {
       const ran = runBp.agents.length - broke;
       traceAdd(
         "Orchestrator",
-        broke
-          ? `Swarm finished with ${broke} of ${runBp.agents.length} agent${runBp.agents.length === 1 ? "" : "s"} unable to answer — ${ran} did the work`
+        !ran ? `No agent could answer, so nothing was built. ${String(Object.values(rawResults).find(r => /^Error: /.test(String(r))) || "").replace(/^Error: /, "").slice(0, 300)}`
+          : broke ? `Swarm finished with ${broke} of ${runBp.agents.length} agent${runBp.agents.length === 1 ? "" : "s"} unable to answer — ${ran} did the work`
           : `Swarm complete — ${runBp.agents.length} agents, task done`,
-        broke ? "warn" : "ok",
+        !ran ? "err" : broke ? "warn" : "ok",
       );
-      const doneLabel = broke ? `Done · ${ran} of ${runBp.agents.length} agents` : `Done · ${runBp.agents.length} agents`;
+      const doneLabel = !ran ? "Failed · no agent could answer" : broke ? `Done · ${ran} of ${runBp.agents.length} agents` : `Done · ${runBp.agents.length} agents`;
       updateProgress(1);
 
       const result = normaliseAgentOutput(finalOutput);
@@ -902,8 +902,8 @@ const SwarmMaker = (() => {
       // built: the run is already kept, and a repair can only add a version.
       const done = await repairWork(kept, runBp, signal);
       if (done.run) bp.lastRunId = done.run.id;
-      setRunStatus("done", doneLabel);
-      updateTraceDot("done");
+      setRunStatus(ran ? "done" : "error", doneLabel);
+      updateTraceDot(ran ? "done" : "error");
       saveBlueprints();
       if (!again) window.HCSwarmWorkspace.open(bp, bp.lastRunId || kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
@@ -1483,17 +1483,17 @@ Return ONLY the JSON object, nothing else
 ${modelListStr}`;
 
     try {
-      const r = await callAgentLLM(modelValue, [
-        { role: "system", content: GOD_SYSTEM },
-        { role: "user",   content: `Design a swarm for: ${desc}` }
-      ], signal, 0.3);
+      // Whichever model can answer designs it (js/model-routes.js); with none, the team is built here.
+      const godMessages = [{ role: "system", content: GOD_SYSTEM }, { role: "user", content: `Design a swarm for: ${desc}` }];
+      const r = { content: await window.HCModelRoutes.askWithFailover({ start: modelValue, options: menuModels, signal, call: async (m, s) => (await callAgentLLM(m, godMessages, s, 0.3))?.content || "",
+        onSwitch: (f, t, why) => { if (statusText) statusText.textContent = `${modelTraceLabel(f)}: ${why}. Asking ${modelTraceLabel(t)}…`; } }).then(a => a.text).catch(e => { if (e.name === "AbortError" || signal.aborted) throw e; return ""; }) };
       if (signal.aborted) return;
 
       const parsedRaw = parseBlueprintJson(r.content || "");
       let parsed = parsedRaw;
 
       if (!parsed || !Array.isArray(parsed.agents)) {
-        if (statusText) statusText.textContent = "God output was invalid. Building fallback blueprint…";
+        if (statusText) statusText.textContent = r.content ? "God output was invalid. Building fallback blueprint…" : "No model could design the team. Building it here…";
         parsed = deterministicBlueprint(desc, providerModels);
       }
       if (statusText) statusText.textContent = "Hardening blueprint…";
