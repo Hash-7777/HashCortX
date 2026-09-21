@@ -91,33 +91,6 @@ console.log('\nHow capable a model is, read from its name:');
   ok('empty input does not throw', typeof M.getModelTier('', '') === 'number');
 }
 
-console.log('\nFailover picks something comparable, not something worse:');
-{
-  const T = M.MODEL_TIER;
-  const pool = [
-    { value: 'cloud:groq:small',     provider: 'groq',      tier: T.small },
-    { value: 'cloud:openai:frontier',provider: 'openai',    tier: T.frontier },
-    { value: 'cloud:gemini:frontier',provider: 'gemini',    tier: T.frontier },
-    { value: 'cloud:samba:capable',  provider: 'samba',     tier: T.capable },
-  ];
-  const best = M.getBestFailoverModel('cloud:openai:gpt-4o', pool);
-  ok('it picks a frontier replacement for a frontier model', best.tier === T.frontier);
-  // Between equals, a free-tier provider comes first: failover should not
-  // quietly move someone onto something that bills them.
-  ok('and prefers the free-tier provider between equals', best.provider === 'gemini');
-
-  const excluded = M.getBestFailoverModel('cloud:openai:gpt-4o', pool, new Set(['cloud:gemini:frontier']));
-  ok('an excluded model is not offered', excluded.value !== 'cloud:gemini:frontier');
-  ok('the current model is never its own replacement',
-    M.getBestFailoverModel('cloud:groq:small', [pool[0]]) === null);
-  ok('nothing available means nothing returned', M.getBestFailoverModel('x', []) === null);
-  ok('an undefined pool is safe', M.getBestFailoverModel('x', undefined) === null);
-
-  // When only smaller models remain, an answer beats no answer.
-  const onlySmall = M.getBestFailoverModel('cloud:openai:gpt-4o', [pool[0]]);
-  ok('it falls back to a smaller model rather than giving up', onlySmall === pool[0]);
-}
-
 console.log('\nModels the app does not offer stay out of the list:');
 {
   ok('matched by value', M.isExcludedCloudModel({ value: 'cloud:x:baidu-ernie' }) === true);

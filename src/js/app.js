@@ -2356,8 +2356,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   } = HCModelNames;
   const cloudModelLabel = (val) => HCModelNames.cloudModelLabel(val, CLOUD_MODELS);
   const isImageGenModel = (val) => HCModelNames.isImageGenModel(val, CLOUD_MODELS);
-  const getBestFailoverModel = (currentModel, excludeSet = new Set()) =>
-    HCModelNames.getBestFailoverModel(currentModel, getAvailableCloudModels(), excludeSet);
 
 
   // How a conversation is described to each provider — images, tools, tool
@@ -4843,7 +4841,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           }
         }
         let currentModelValue = modelEl.value;
-        const triedModels = new Set();
+        // The run's routing is the one every agent mode uses (js/model-routes.js):
+        // an account out of quota or refusing its key is left whole, a busy
+        // model is replaced from another provider first, and an image
+        // generator is never the fallback for a conversation.
+        const routes = window.HCModelRoutes.createRun({ options: () => getAvailableCloudModels().filter(m => !m.imageGen), label: cloudModelLabel,
+          strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) });
         let failoverCount = 0;
         while (true) {
           const { provider, modelId } = parseCloudModel(currentModelValue);
@@ -4863,22 +4866,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             break; // success
           } catch (err) {
             if (err.name === "AbortError") throw err;
-            const msg = err?.message || String(err);
-            // A model its provider says is gone is not offered again (js/model-routes.js).
-            const retired = window.HCModelRoutes.failureKind(err) === "retired";
-            if (retired) window.HCModelRoutes.markRetired(currentModelValue);
-            // An overload inside a reply, an empty reply and a model that never started move on too.
-            const isRetriable = retired || /rate limit|overloaded|server error|429|503|529|5\d\d/.test(msg)
-              || ["busy", "empty", "slow"].includes(window.HCModelRoutes.failureKind(err));
-            if (!isRetriable) throw err;
-            triedModels.add(currentModelValue);
-            const fallback = getBestFailoverModel(currentModelValue, triedModels);
+            // Out of quota or credit, a refused key, gone, busy, empty or never
+            // started: another model can answer. Anything else is the request's own fault.
+            if (!["retired", "limit", "key", "busy", "slow", "empty"].includes(window.HCModelRoutes.failureKind(err)) || failoverCount >= 5) throw err;
+            const fallback = routes.next(currentModelValue, err);
             if (!fallback) throw err; // no fallback available — surface original error
             failoverCount++;
             // Brief status in bubble before retrying
-            assistant.content = `_(Failover ${failoverCount}: ${cloudModelLabel(currentModelValue)} → ${fallback.shortLabel || fallback.label})_\n\n`;
+            assistant.content = `_(Failover ${failoverCount}: ${cloudModelLabel(currentModelValue)} → ${cloudModelLabel(fallback)})_\n\n`;
             updateLastBubble(assistant.content);
-            currentModelValue = fallback.value;
+            currentModelValue = fallback;
           }
         }
       } else {

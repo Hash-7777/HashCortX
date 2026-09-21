@@ -161,7 +161,8 @@ const LINE_BUDGET = {
   // one; a free model that has not started in time is left; and the bubble
   // says "Thinking" while a reasoning model has not yet answered. The rules
   // are in js/stream/sse.js and js/stream/first-sign.js; this is the wiring.
-  'js/app.js': 6527,
+  // 6524, down three. The chat's failover is the shared js/model-routes.js.
+  'js/app.js': 6524,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

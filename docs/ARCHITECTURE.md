@@ -65,12 +65,12 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,527  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,524  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        530  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
 │   │   │                            and which three the app sends for itself
-│   │   ├── cloud-model-fetch.js 298 asking each provider what models it has,
+│   │   ├── cloud-model-fetch.js 367 asking each provider what models it has,
 │   │   │                            with each model's limits
 │   │   ├── cloud-catalogue.js  113  keeping those lists, and what each provider
 │   │   │                            answered last time
@@ -78,7 +78,7 @@ HashCortX/
 │   │   │                            the limits a provider names when it refuses
 │   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
-│   │   ├── model-names.js      216  provider, display name, size class, failover
+│   │   ├── model-names.js      189  provider, display name, size class
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
@@ -120,7 +120,7 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/               249  what a model is told, and which to try next
+│   │   ├── chat/               263  what a model is told, and which to try next
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work
 │   │   ├── swarm/            2,994  Agent Swarm: what kind of task it is,

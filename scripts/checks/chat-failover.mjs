@@ -138,5 +138,48 @@ console.log('\nThe same chain always comes back in the same order:');
   ok('nothing is lost from the chain', F.orderChain(chain).length === chain.length);
 }
 
+console.log('\nThe chat moves on the way every agent mode does:');
+{
+  // The chat's failover is js/model-routes.js with the chat's own preference,
+  // so both are loaded as the app loads them.
+  const box = { window: { HCChatFailover: F }, Map, Set, Array, String, Number, Date, JSON, Math, Object };
+  vm.createContext(box);
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'model-routes.js'), 'utf8'), box, { filename: 'model-routes.js' });
+  const R = box.window.HCModelRoutes;
+  const store = { v: {}, getItem(k) { return this.v[k] ?? null; }, setItem(k, x) { this.v[k] = String(x); }, removeItem(k) { delete this.v[k]; } };
+  const options = [
+    { value: 'cloud:openrouter:nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super (free)' },
+    { value: 'cloud:openrouter:nvidia/nemotron-3-ultra-550b-a55b:free', label: 'Nemotron 3 Ultra (free)' },
+    { value: 'cloud:openrouter:google/gemma-4-31b-it:free', label: 'Gemma 4 31B (free)' },
+    { value: 'cloud:openai:gpt-4o', label: 'GPT-4o' },
+    { value: 'cloud:gemini:gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { value: 'cloud:groq:llama-3.3-70b-versatile', label: 'Llama 3.3 70B' },
+  ];
+  const run = () => R.createRun({ options: () => options, store, strength: (o) => F.strengthOf(o.value, o.label) });
+  const first = options[0].value;
+  const provider = (v) => v && v.split(':')[1];
+
+  // The account's free allowance for the day is shared by every free model on
+  // it, so trying the next free model on that account is a wasted request.
+  const quota = Object.assign(new Error('OpenRouter rate limit: free-models-per-day'), { status: 429 });
+  ok('an account out of quota is left whole', provider(run().next(first, quota)) !== 'openrouter');
+  const credit = new Error('SambaNova has no credit left on this account');
+  ok('... and so is one with no credit', R.failureKind(credit) === 'limit');
+  const busy = Object.assign(new Error('OpenRouter is overloaded right now. Try again in a few seconds.'), { status: 503 });
+  ok('a busy model is replaced from another provider first', provider(run().next(first, busy)) !== 'openrouter');
+  ok('a model that never started is replaced from another provider first',
+    provider(run().next(first, Object.assign(new Error('x did not start answering within 45 s'), { timedOut: true }))) !== 'openrouter');
+  ok('an empty reply is replaced too', !!run().next(first, Object.assign(new Error('x answered with nothing'), { empty: true })));
+
+  // Between two of the same class, the free tier comes first.
+  ok('between equals, a free-tier provider is preferred', F.strengthOf('cloud:gemini:gemini-2.5-pro', 'Gemini 2.5 Pro') > F.strengthOf('cloud:openai:gpt-5', 'GPT-5'));
+  ok('... but never over a stronger class', F.strengthOf('cloud:openai:gpt-4o', 'GPT-4o') > F.strengthOf('cloud:groq:llama-3.1-8b-instant', 'Llama 3.1 8B'));
+  const r = run();
+  const seen = [];
+  let at = first;
+  for (let i = 0; i < 8 && at; i++) { seen.push(at); at = r.next(at, busy); }
+  ok('a run never asks the same model twice', new Set(seen).size === seen.length);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/failover.js)\n`);
 process.exit(fail === 0 ? 0 : 1);

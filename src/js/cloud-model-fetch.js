@@ -150,7 +150,10 @@
       const now = Date.now();
       const list = (j.data || [])
         .filter((m) => m && typeof m.id === 'string' && m.id.includes('/') && !m.id.startsWith('~'))
-        .filter((m) => ((m.architecture && m.architecture.output_modalities) || ['text']).includes('text'))
+        // Text and nothing else. A model that also returns audio or pictures
+        // is a generator that captions its work — a music model listed as
+        // text-and-audio at no cost was offered as a free chat model.
+        .filter((m) => { const outs = (m.architecture && m.architecture.output_modalities) || ['text']; return outs.length > 0 && outs.every((o) => o === 'text'); })
         .filter((m) => !m.expiration_date || !(Date.parse(m.expiration_date) <= now))
         .filter((m) => !NOT_CHAT.test(m.id) && !/venice|thudm\/glm|glm-z/i.test(m.id) && !isExcluded(m))
         .map((m) => {

@@ -123,6 +123,8 @@ console.log('\nOpenRouter — paid models only when the key can pay:');
     { id: '~vendor/latest', name: 'Alias', pricing: { prompt: '0', completion: '0' } },
     { id: 'vendor/expired:free', name: 'Old', expiration_date: '2000-01-01', pricing: { prompt: '0', completion: '0' } },
     { id: 'vendor/pictures:free', name: 'Pictures', architecture: { output_modalities: ['image'] }, pricing: { prompt: '0', completion: '0' } },
+    { id: 'vendor/music-preview', name: 'Music', architecture: { output_modalities: ['text', 'audio'] }, pricing: { prompt: '0', completion: '0' } },
+    { id: 'vendor/captioned-pictures', name: 'Captioned pictures', architecture: { output_modalities: ['image', 'text'] }, pricing: { prompt: '0', completion: '0' } },
     { id: 'vendor/content-safety:free', name: 'Classifier', pricing: { prompt: '0', completion: '0' } },
     { id: 'no-slash', name: 'Malformed', pricing: { prompt: '0', completion: '0' } },
   ] };

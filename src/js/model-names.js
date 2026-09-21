@@ -175,32 +175,6 @@
     return false;
   }
 
-  /**
-   * Pick a replacement when a model fails.
-   *
-   * Prefers the same class or better; then within one tier below; then
-   * anything left, because an answer from a smaller model beats no answer.
-   * Between equals, providers with a free tier come first — failover should
-   * not quietly move a user onto something that bills them.
-   */
-  const FREE_PREFERRED = { groq: 1, gemini: 1, cerebras: 1, samba: 1, openrouter: 1 };
-
-  function getBestFailoverModel(currentModel, availableModels, excludeSet = new Set()) {
-    const currentTier = getModelTier(currentModel, '');
-    const available = (availableModels || [])
-      .filter((m) => !excludeSet.has(m.value) && m.value !== currentModel);
-    if (!available.length) return null;
-
-    available.sort((a, b) => {
-      if (b.tier !== a.tier) return b.tier - a.tier;
-      return (FREE_PREFERRED[b.provider] || 0) - (FREE_PREFERRED[a.provider] || 0);
-    });
-
-    return available.find((m) => m.tier >= currentTier)
-      || available.find((m) => m.tier >= currentTier - 50)
-      || available[0];
-  }
-
   window.HCModelNames = {
     MODEL_TIER,
     parseCloudModel,
@@ -211,6 +185,5 @@
     getModelTier,
     cloudModelLabel,
     isImageGenModel,
-    getBestFailoverModel,
   };
 })();

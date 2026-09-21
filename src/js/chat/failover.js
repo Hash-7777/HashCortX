@@ -118,5 +118,19 @@
       .map((x) => x.m);
   }
 
-  window.HCChatFailover = { tierOf, rankOf, classifyError, isRoutable, orderChain, TIER_RANK };
+  // Providers with a free tier. Between models of the same class one of these
+  // comes first, so a failover never quietly moves somebody onto an account
+  // that bills them while a free one would have answered.
+  const FREE_TIER = new Set(["groq", "gemini", "cerebras", "samba", "openrouter"]);
+
+  /**
+   * How strongly a failover should prefer a model: its class first, and a free
+   * tier only between equals. `value` is "cloud:provider:model".
+   */
+  function strengthOf(value, label) {
+    const provider = String(value || "").split(":")[1] || "";
+    return Math.max(rankOf(value), rankOf(label)) * 2 + (FREE_TIER.has(provider) ? 1 : 0);
+  }
+
+  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, TIER_RANK, FREE_TIER };
 })();
