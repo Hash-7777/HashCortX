@@ -3475,7 +3475,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const key = (geminiKeyEl.value || "").trim();
     if (!key) throw new Error("Google AI Studio key missing.\nAdd it in Settings → Cloud Models — free at aistudio.google.com");
     const textMessages = messages.map(m => ({ role: m.role, content: m.content || "" }));
-    const systemMsg = textMessages.find(m => m.role === "system");
+    const systemMsg = HCAgentShape.systemOf(textMessages);
     const geminiContents = textMessages
       .filter(m => m.role !== "system")
       .map(m => ({ role: m.role === "assistant" ? "model" : "user",
@@ -3545,7 +3545,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (provider === "gemini") {
       const key = (geminiKeyEl.value || "").trim();
       if (!key) throw new Error("Google AI Studio key missing.\nAdd it in Settings → Cloud Models — free at aistudio.google.com");
-      const systemMsg = messages.find(m => m.role === "system");
+      const systemMsg = HCAgentShape.systemOf(messages);
       // Build Gemini parts — supports both text and inlineData images
       const geminiContents = messages
         .filter(m => m.role !== "system")
@@ -3576,7 +3576,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } else if (provider === "anthropic") {
       const key = (anthropicKeyEl.value || "").trim();
       if (!key) throw new Error("Anthropic API key missing.\nAdd it in Settings → APIs");
-      const systemMsg = messages.find(m => m.role === "system");
+      const systemMsg = HCAgentShape.systemOf(messages);
       const anthropicMessages = messages
         .filter(m => m.role !== "system")
         .map(m => {
@@ -5694,7 +5694,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model, messages, stream: false, keep_alive: -1,
+        model, messages: HCAgentShape.forOllama(messages), stream: false, keep_alive: -1,
         tools: tools.length ? tools : undefined,
         options: { temperature, num_ctx: 8192 }
       }),
@@ -5703,18 +5703,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (!r.ok) throw new Error(`Ollama HTTP ${r.status}: ${(await r.text()).slice(0,200)}`);
     const data = await r.json();
     const msg = data.message || {};
-    const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls.map((c, i) => ({
-      id: c.id || `call_${Date.now()}_${i}`,
-      name: c.function?.name || c.name,
-      // Ollama returns parsed object; cloud APIs return a JSON string. Normalize.
-      arguments: typeof c.function?.arguments === "string"
-        ? safeJsonParse(c.function.arguments)
-        : (c.function?.arguments || c.arguments || {})
-    })) : null;
+    const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
-    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.done_reason };
+    return { content: content || null, tool_calls: calls.length ? calls : null, raw: msg, finish: data.done_reason };
   }
 
   async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {
@@ -5781,7 +5774,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   async function agentTurnAnthropic({ model, messages, tools, temperature, signal }) {
     const key = (anthropicKeyEl.value || "").trim();
     if (!key) throw new Error("Anthropic API key missing.");
-    const systemMsg = messages.find(m => m.role === "system");
+    const systemMsg = HCAgentShape.systemOf(messages);
     // Convert OpenAI-style messages to Anthropic format
     const anthropicMessages = [];
     for (const m of messages) {
@@ -5862,7 +5855,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const key = (geminiKeyEl.value || "").trim();
     if (!key) throw new Error("Google AI Studio key missing.");
     // Translate OpenAI-style messages → Gemini contents.
-    const systemMsg = messages.find(m => m.role === "system");
+    const systemMsg = HCAgentShape.systemOf(messages);
     const contents = [];
     for (const m of messages) {
       if (m.role === "system") continue;
@@ -6031,6 +6024,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     let iter = 0;
     let finalText = "";
     let hasNudged = false; // prevent repeated nudges if model keeps returning empty
+    let autoRan = false;
 
     while (iter < AGENT_MAX_ITERATIONS) {
       iter++;
@@ -6077,23 +6071,17 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const hasPythonTool = (agent.tools || []).includes("code_interpreter") || (agent.tools || []).includes("python");
       if (hasPythonTool && candidateText && iter < AGENT_MAX_ITERATIONS) {
         const pyCode = extractPythonFence(candidateText);
-        const claimsRan = /\b(downloaded|saved|created|generated|exported)\b/i.test(candidateText) && /\/output\//.test(candidateText + pyCode);
-        if (pyCode && (claimsRan || /\/output\//.test(pyCode))) {
+        if (pyCode && !autoRan && HCAgentShape.claimsItRan(candidateText, pyCode, userText)) {
+          autoRan = true;   // once: after it, the model answers from the result
           onStatus?.("Model wrote code without calling the tool — auto-executing…", "warn");
           // Synthesize a tool call so history stays consistent
-          const synth = {
-            id: `call_auto_${Date.now()}`,
-            name: "execute_python",
-            arguments: { code: pyCode }
-          };
+          const synth = { id: `call_auto_${Date.now()}`, name: "execute_python", arguments: { code: pyCode } };
           appendAssistantToolCallTurn(messages, candidateText, [synth]);
           const resultStr = await runOneTool("execute_python", synth.arguments, onStatus, tracker);
           appendToolResult(messages, synth, resultStr);
-          // Nudge the model to acknowledge what really happened
-          messages.push({
-            role: "system",
-            content: "The Python code in your previous reply was executed automatically. Use the tool result above to write your real answer. If files were generated, mention their actual filenames from the result. Do not show the code again."
-          });
+          // What really happened, as a turn every provider reads: Gemini's client
+          // keeps only the first system message, so a note written as one was lost.
+          messages.push({ role: "user", content: "The Python code in your previous reply was executed automatically. Use the tool result above to write your real answer. If files were generated, mention their actual filenames from the result. Do not show the code again." });
           continue;
         }
       }

@@ -213,6 +213,90 @@
   const FOREIGN_CALL_SIGNATURE = 'skip_thought_signature_validator';
   const signatureFor = (call) => (call && call.thoughtSignature) || FOREIGN_CALL_SIGNATURE;
 
+  /**
+   * A tool call a model wrote as text. Small local models often answer with
+   * the call itself — bare JSON, a json code block, or Qwen's <tool_call>
+   * tags — instead of in the field for it, and the raw JSON was shown as the
+   * answer. Only a reply that is a call, or ends on one, to tools the agent
+   * has counts, so an answer that shows an example is left alone.
+   */
+  function toolCallsInText(text, names) {
+    const known = new Set(names || []);
+    const bare = String(text || '').trim().replace(/^<tool_call>\s*([\s\S]*?)\s*<\/tool_call>$/, '$1').trim();
+    // A reply that ENDS on a code block is read as that block: the model
+    // saying what it will do and then making the call. A block with words
+    // after it is an example, and so is one that is not a call.
+    const parts = window.HCFences.splitFences(bare).filter((p) => p.type === 'code' || String(p.text || '').trim());
+    const last = parts[parts.length - 1];
+    const body = (last && last.type === 'code' ? last.code : bare).trim();
+    if (!known.size || !/^[\[{]/.test(body)) return [];
+    let parsed;
+    try { parsed = JSON.parse(body); } catch { return []; }
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const calls = list.map((c) => {
+      const fn = c && typeof c === 'object' ? (c.function && typeof c.function === 'object' ? c.function : c) : null;
+      const args = fn && (fn.arguments ?? fn.parameters ?? {});
+      return fn && known.has(fn.name) ? { name: fn.name, arguments: safeJsonParse(args) || {} } : null;
+    });
+    return calls.length && calls.every(Boolean) ? calls : [];
+  }
+
+  /**
+   * What Ollama is sent: a call's arguments as an object, which is how it reads
+   * them, where the conversation keeps the string the cloud APIs send.
+   */
+  function forOllama(messages) {
+    return withoutSignatures(messages).map((m) => (Array.isArray(m.tool_calls)
+      ? { ...m, tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) }
+      : m));
+  }
+
+  /**
+   * Ollama's reply as the loop reads it: the calls in the field for them, or
+   * failing that, a reply that is nothing but calls written as text.
+   */
+  function ollamaReply(msg, tools) {
+    const given = Array.isArray(msg && msg.tool_calls) ? msg.tool_calls : [];
+    const written = given.length ? [] : toolCallsInText(msg && msg.content, (tools || []).map((t) => t && t.function && t.function.name));
+    const calls = [...given, ...written].map((c, i) => ({
+      id: c.id || `call_${Date.now()}_${i}`,
+      name: (c.function && c.function.name) || c.name,
+      // Ollama returns an object where the cloud APIs return a JSON string.
+      arguments: typeof (c.function && c.function.arguments) === 'string'
+        ? safeJsonParse(c.function.arguments)
+        : ((c.function && c.function.arguments) || c.arguments || {}),
+    }));
+    return { content: written.length ? '' : ((msg && msg.content) || ''), calls };
+  }
+
+  /**
+   * Whether a reply that shows Python, when nothing was run, speaks as if it
+   * had been: a file it says it saved, code that writes one, or a result
+   * stated under code that prints it — or any code that prints, when the
+   * person asked for it to be run. Such code is run, and the model answers
+   * again from what really happened; code merely shown is left alone.
+   */
+  function claimsItRan(text, code, asked = '') {
+    const t = String(text || '');
+    const c = String(code || '');
+    if (/\/output\//.test(c)) return true;
+    if (/\bprint\s*\(/.test(c) && /\b(?:run|execute)\b[^.\n]{0,30}\b(?:it|this|code|python)\b|\bin python\b/i.test(String(asked))) return true;
+    if (/\b(downloaded|saved|created|generated|exported)\b/i.test(t) && /\/output\//.test(t)) return true;
+    const after = window.HCFences.splitFences(t).filter((p) => p.type === 'text').pop();
+    return /\bprint\s*\(/.test(c) && !!after && /\b(?:result|output)\s*(?:is\b|:)/i.test(after.text);
+  }
+
+  /**
+   * Every system message as one, for the providers that take the rules apart
+   * from the conversation (Gemini, Anthropic). They read only the first, so a
+   * note added later in a conversation — what an automatic Python run really
+   * printed, the text of a pasted link — was dropped without a word.
+   */
+  function systemOf(messages) {
+    const all = (messages || []).filter((m) => m && m.role === 'system' && m.content);
+    return all.length ? { role: 'system', content: all.map((m) => m.content).join('\n\n') } : null;
+  }
+
   /** A conversation's tool calls without what only Gemini reads, for every other provider. */
   function withoutSignatures(messages) {
     return (messages || []).map((m) => (m && Array.isArray(m.tool_calls)
@@ -459,6 +543,11 @@
     appendToolResult,
     signatureFor,
     withoutSignatures,
+    toolCallsInText,
+    systemOf,
+    claimsItRan,
+    forOllama,
+    ollamaReply,
     FOREIGN_CALL_SIGNATURE,
     safeJsonParse,
     extractPythonFence,

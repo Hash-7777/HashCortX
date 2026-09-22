@@ -119,6 +119,64 @@ console.log('\nA tool round trip is recorded the way providers expect to read it
   ok('and carries the content', messages[1].content === 'results here');
 }
 
+console.log('\nA tool call a local model wrote as text is run as one:');
+{
+  const names = ['execute_python', 'web_search'];
+  const one = A.toolCallsInText('{"name": "execute_python", "arguments": {"code": "print(1)"}}', names);
+  ok('bare JSON naming a tool', one.length === 1 && one[0].name === 'execute_python' && one[0].arguments.code === 'print(1)');
+  ok('in a json fence', A.toolCallsInText('```json\n{"name":"web_search","arguments":{"query":"x"}}\n```', names)[0].arguments.query === 'x');
+  ok('in Qwen\'s tool_call tags, arguments given as a string', A.toolCallsInText('<tool_call>\n{"name":"web_search","arguments":"{\\"query\\":\\"y\\"}"}\n</tool_call>', names)[0].arguments.query === 'y');
+  ok('several at once', A.toolCallsInText('[{"name":"web_search","arguments":{}},{"name":"execute_python","parameters":{"code":"1"}}]', names).length === 2);
+  ok('a tool the agent does not have is not run', A.toolCallsInText('{"name":"delete_files","arguments":{}}', names).length === 0);
+  ok('an answer that shows an example among words is left alone', A.toolCallsInText('Call it like this: {"name":"web_search","arguments":{}}', names).length === 0);
+  const F = '`'.repeat(3);
+  ok('a reply that says what it will do and ends on the call', A.toolCallsInText(`I will run it.\n${F}python\nprint(1)\n${F}\nRunning it now.\n${F}json\n{"name":"execute_python","arguments":{"code":"print(1)"}}\n${F}`, names)[0].arguments.code === 'print(1)');
+  ok('a call shown as an example with words after it is left alone', A.toolCallsInText(`Like this:\n${F}json\n{"name":"web_search","arguments":{}}\n${F}\nThat is the format.`, names).length === 0);
+  ok('ordinary JSON is left alone', A.toolCallsInText('{"total": 3}', names).length === 0);
+  ok('with no tools, nothing is read as a call', A.toolCallsInText('{"name":"web_search","arguments":{}}', []).length === 0);
+  const tools = [{ type: 'function', function: { name: 'execute_python' } }];
+  const read = A.ollamaReply({ content: '{"name":"execute_python","arguments":{"code":"1"}}' }, tools);
+  ok('Ollama\'s reply: a call written as text becomes a call, and is not also shown as the answer', read.calls.length === 1 && read.calls[0].arguments.code === '1' && read.content === '' && read.calls[0].id);
+  const field = A.ollamaReply({ content: 'ok', tool_calls: [{ function: { name: 'execute_python', arguments: { code: '2' } } }] }, tools);
+  ok('... a call in the field for it is read as it is, and the words kept', field.calls.length === 1 && field.calls[0].arguments.code === '2' && field.content === 'ok');
+  ok('... a plain answer has no calls', A.ollamaReply({ content: 'The answer is 4.' }, tools).calls.length === 0);
+  const sent = [];
+  A.appendAssistantToolCallTurn(sent, '', [{ id: 'c1', name: 'execute_python', arguments: { code: '3' }, thoughtSignature: 's' }]);
+  const shaped = A.forOllama(sent)[0].tool_calls[0];
+  ok('Ollama is sent a call\'s arguments as an object, which is how it reads them, and no signature', shaped.function.arguments.code === '3' && !('thoughtSignature' in shaped));
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
+  ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
+}
+
+console.log('\nEvery system message reaches the providers that take the rules apart:');
+{
+  const sys = A.systemOf([{ role: 'system', content: 'rules' }, { role: 'user', content: 'q' }, { role: 'system', content: 'later note' }]);
+  ok('all of them, in order, as one', sys.role === 'system' && sys.content === 'rules\n\nlater note');
+  ok('none is none', A.systemOf([{ role: 'user', content: 'q' }]) === null);
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('no client reads only the first', !/\.find\(m => m\.role === "system"\)/.test(app) && (app.match(/HCAgentShape\.systemOf\(/g) || []).length === 5);
+}
+
+console.log('\nPython a model only showed, but spoke of as run, is run:');
+{
+  const F = '`'.repeat(3);
+  const code = 'import math\nprint(math.factorial(17))';
+  ok('a result stated under code that prints it', A.claimsItRan(`${F}python\n${code}\n${F}\n\nResult:\n355687428096000`, code));
+  ok('a file it says it saved', A.claimsItRan('I saved it to /output/report.pdf', 'x = 1'));
+  ok('code that writes a file', A.claimsItRan('Here it is.', "open('/output/a.txt','w')"));
+  ok('code shown as an example is left alone', !A.claimsItRan(`Here is how:\n${F}python\n${code}\n${F}\nRun it yourself.`, code));
+  ok('the word result before the code is not a claim about it', !A.claimsItRan(`The result you want comes from this:\n${F}python\n${code}\n${F}`, code));
+  ok('code that prints nothing claims no output', !A.claimsItRan(`${F}python\nx = 2\n${F}\nResult: 2`, 'x = 2'));
+  const shown = `${F}python\n${code}\n${F}\n\n355687428096000`;
+  ok('code that prints, when the person asked for it to be run', A.claimsItRan(shown, code, 'Write the code, run it, and show me the result. What is 17 factorial?'));
+  ok('... or asked for it in Python', A.claimsItRan(shown, code, 'Work out 17 factorial in Python'));
+  ok('... but not when they asked only to see code', !A.claimsItRan(shown, code, 'Show me how to compute 17 factorial.'));
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('the agent loop runs such code before answering, once a run', /if \(pyCode && !autoRan && HCAgentShape\.claimsItRan\(candidateText, pyCode, userText\)\) \{\s*autoRan = true;/.test(app));
+  ok('... and tells the model what really printed in a turn every provider reads', /messages\.push\(\{ role: "user", content: "The Python code in your previous reply was executed automatically/.test(app));
+}
+
 console.log('\nGemini gets back the signature on each tool call it made, and no one else sees it:');
 {
   const m = [];
