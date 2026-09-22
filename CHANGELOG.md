@@ -234,6 +234,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Swarm team stays on the models it was designed on.** A team designed on
+  a cloud model could be given a local one, which loaded it on your machine
+  in the middle of the run; the designer is now offered models on its own
+  side only. The questions asked before a run, and the summary written after
+  it, used whatever model the chat had open rather than the team's own. Every
+  Gemini model, Pro included, was marked down on large tasks, because "mini"
+  was found inside "gemini". The team you had open is open again when you
+  come back, where Run used to ask you to select one beside the list, and the
+  God Agent starts from the task you already typed. An agent whose model
+  declined the task ("I can't comply with that request") had the refusal
+  handed on to the team as its work; it now goes to another model, as an
+  empty answer does.
+
 - **The Virtual OS agent does what it says it did.** Asked for files, a
   small model would write them into its reply and say it had created them,
   and nothing was created; they are now put in the workspace and the reply

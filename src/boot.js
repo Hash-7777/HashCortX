@@ -104,6 +104,7 @@
     '/js/finance/prompt.js',
     '/js/sandbox/patterns.js',
     '/js/swarm/task-kind.js',
+    '/js/swarm/model-strength.js',
     '/js/swarm/deliverables.js',
     '/js/swarm/graph.js',
     '/js/swarm/role-icons.js',

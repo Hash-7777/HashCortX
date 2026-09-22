@@ -114,7 +114,9 @@ console.log('\nEvery place a model is picked reads it:');
   const forge = src('modes', 'forge', 'mode.js');
   const app = src('js', 'app.js');
   const shape = src('js', 'agent-shape.js');
-  ok('the God Agent picks each provider\'s model by group, then strength', /function bestModelForProvider[\s\S]{0,300}HCModelSpeed\.order\(options/.test(swarm) && /HCModelSpeed\.order\(unordered/.test(swarm));
+  const strength = readFileSync(new URL('../../src/js/swarm/model-strength.js', import.meta.url), 'utf8');
+  ok('the God Agent picks each provider\'s model by group, then strength', /function best\(options, bigTask\)[\s\S]{0,200}HCModelSpeed\.order\(options/.test(strength)
+    && /window\.HCSwarmModelStrength\.best\(options, bigTask\)/.test(swarm) && /HCModelSpeed\.order\(unordered/.test(swarm));
   ok('the Forge does the same', /function bestModelForProvider[\s\S]{0,300}HCModelSpeed\.order\(options/.test(forge) && /HCModelSpeed\.order\(unordered/.test(forge));
   ok('every model turn records how long its answer took', /S\.record\(request\.modelValue, \{ ms: Date\.now\(\) - started, chars: text\.length \}\)/.test(shape) && /HCAgentShape\.routeModelTurn\(/.test(app));
   ok('the God Agent is no longer told to prefer the largest models', !/strongest\/frontier\/famous\/largest/.test(swarm));

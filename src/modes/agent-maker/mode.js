@@ -174,9 +174,10 @@ const SwarmMaker = (() => {
   }
 
   function getActive() { return blueprints.find(b => b.id === activeBlueprintId) || null; }
+  const ACTIVE_KEY = STORE_KEY + "_active", readActive = () => { try { return localStorage.getItem(ACTIVE_KEY); } catch { return null; } };
 
   function setActive(id) {
-    activeBlueprintId = id;
+    activeBlueprintId = id; try { localStorage.setItem(ACTIVE_KEY, id || ""); } catch {}
     selectedAgentId = null;
     nodeStatuses = {};
     dagZoom = 1.0; dagPan = { x: 20, y: 20 }; // reset view on blueprint switch
@@ -405,15 +406,15 @@ const SwarmMaker = (() => {
                   }
                 } catch {}
                 appendToolResult(messages, synth, autoResult);
-                messages.push({ role: "system", content: "The Python code was executed automatically. Use the result above to write your final answer. Mention the actual filenames from the result. Do not show the code again." });
+                messages.push({ role: "user", content: "The Python code was executed automatically. Use the result above to write your final answer. Mention the actual filenames from the result. Do not show the code again." });
                 traceAdd(agent.name, `Auto-execution result appended · continuing to final round`, "wait");
                 continue;
               }
             }
-            // An answer with nothing in it is a failure, not a result: it used
-            // to come back as a placeholder, count as done, and stand in for the
-            // agent's whole part of the work.
-            if (!candidateText.trim()) throw Object.assign(new Error("returned an empty answer"), { empty: true });
+            // An answer with nothing in it, or one declining the task, is a
+            // failure, not a result: it used to count as done and stand in for
+            // the agent's whole part of the work. Another model is asked.
+            if (!candidateText.trim() || window.HCSwarmOutput.isRefusal(candidateText)) throw Object.assign(new Error(candidateText.trim() ? "declined the task" : "returned an empty answer"), { empty: true });
             traceAdd(agent.name, "Normalising final output", "wait");
             // Providers it went through go in the trace, never the answer: a note there shipped inside an unclosed file.
             if (failoverLog.length) traceAdd(agent.name, `Answered after switching ${failoverLog.map(f => `${f.from}→${f.to}`).join(", ")}`, "ok");
@@ -641,7 +642,7 @@ const SwarmMaker = (() => {
     }
 
     const combined     = outputs.map(o => `[${o.name}]:\n${o.out}`).join("\n\n---\n\n");
-    const supervisorModel = bp.supervisorModel || document.getElementById("model")?.value || "llama3.2";
+    const supervisorModel = teamModel(bp);
     traceAdd("Aggregator", `Topology: ${topology} · Aggregation: ${strategy} · combining ${outputs.length} outputs…`, "boss");
     traceAdd("Aggregator", `Supervisor model ${modelTraceLabel(supervisorModel)}`, "run");
 
@@ -716,10 +717,14 @@ const SwarmMaker = (() => {
     return {
       call: (model, messages, s) => callAgentLLM(model, messages, s, 0.2),
       models: menuModels, label: modelTraceLabel, fetch: (url, init) => window.fetch(url, init),
-      chosen: () => document.getElementById("model")?.value || "",
+      chosen: () => teamModel(getActive()),
       trace: (msg, kind) => traceAdd("Orchestrator", msg, kind),
     };
   }
+
+  // The team's own model, before the chat's: a team on cloud models had its
+  // questions and its summary asked of whatever local model the chat had open.
+  const teamModel = (bp) => bp?.supervisorModel || (bp?.agents || []).find(a => a.model)?.model || document.getElementById("model")?.value || "llama3.2";
 
   function askForDetails(task, signal) {
     return window.HCSwarmAsk.askForDetails(task, signal, askDeps());
@@ -937,48 +942,6 @@ const SwarmMaker = (() => {
   let _godAbortCtrl = null;
 
   // ── God Agent: auto-design blueprint from description ──────────────
-  function modelSizeScore(text) {
-    const matches = [...String(text || "").matchAll(/(\d+(?:\.\d+)?)\s*([bkmt])\b/gi)];
-    if (!matches.length) return 0;
-    return Math.max(...matches.map(([, n, unit]) => {
-      const value = Number(n) || 0;
-      const u = unit.toLowerCase();
-      if (u === "t") return value * 1000;
-      if (u === "b") return value;
-      if (u === "m") return value / 1000;
-      return value / 1000000;
-    }));
-  }
-
-  function modelStrengthScore(value, label, bigTask) {
-    const text = `${value || ""} ${label || ""}`.toLowerCase();
-    let score = 0;
-    const add = (re, points) => { if (re.test(text)) score += points; };
-
-    add(/\bgpt-5|gpt5|o3|o4|gpt-4\.1|gpt-4o|claude-4|opus|sonnet/i, 160);
-    add(/gemini-2\.5-pro|gemini.*pro/i, 150);
-    add(/deepseek[-\s]?r1|deepseek[-\s]?v3/i, 135);
-    add(/llama-4|maverick|scout/i, 128);
-    add(/nemotron|hermes-3|qwen3|qwen-3|qwq/i, 118);
-    add(/gpt-oss-120b|405b|235b|120b|70b/i, 105);
-    add(/llama-3\.3|llama-3\.1/i, 65);
-
-    score += Math.min(modelSizeScore(text), 500);
-    if (bigTask) {
-      add(/pro|opus|sonnet|r1|v3|405b|235b|120b|70b|maverick|nemotron|hermes/i, 60);
-      add(/flash|lite|mini|small|fast|instant|8b|20b/i, -90);
-    } else {
-      add(/flash|fast|instant|lite/i, 25);
-    }
-    add(/embedding|rerank|moderation|vision|image|tts|whisper|guard/i, -1000);
-    return score;
-  }
-
-  // Strongest first among models that answer in time — js/model-speed.js. By
-  // strength alone, a free giant stuck in a queue was given the key roles.
-  function bestModelForProvider(options, bigTask) {
-    return window.HCModelSpeed.order(options, (o) => o.value, (o) => modelStrengthScore(o.value, o.label, bigTask))[0];
-  }
 
 
   function parseBlueprintJson(raw) {
@@ -1350,8 +1313,12 @@ const SwarmMaker = (() => {
     const bigTask = isBigAssignment(desc);
     const allOpts = Array.from(document.getElementById("model")?.options || [])
       .map(o => ({ value: o.value, label: o.textContent || o.label || o.value }))
-      // A model a provider has said is gone is not offered to a new team.
-      .filter(o => o.value && !o.disabled && !o.value.startsWith("─") && !window.HCModelRoutes.isRetired(o.value));
+      // A model a provider has said is gone is not offered to a new team, nor
+      // one on the other side of the model it is designed on: a cloud team
+      // given a local model loaded it on the machine mid-run, and a local
+      // team keeps its task off the cloud (js/model-routes.js).
+      .filter(o => o.value && !o.disabled && !o.value.startsWith("─") && !window.HCModelRoutes.isRetired(o.value)
+        && (window.HCModelRoutes.providerOf(o.value) === "local") === (window.HCModelRoutes.providerOf(modelValue) === "local"));
     const providerOptions = {};   // provider → [{ value, label }]
     allOpts.forEach(o => {
       const provider = o.value.startsWith("cloud:") ? o.value.split(":")[1] : "local";
@@ -1360,11 +1327,11 @@ const SwarmMaker = (() => {
     });
     const unordered = Object.entries(providerOptions)
       .map(([provider, options]) => {
-        const best = bestModelForProvider(options, bigTask);
+        const best = window.HCSwarmModelStrength.best(options, bigTask);   // js/swarm/model-strength.js
         return [provider, best?.value || options[0]?.value || "", best?.label || options[0]?.label || ""];
       })
       .filter(([, value]) => value);
-    const providerModels = window.HCModelSpeed.order(unordered, (m) => m[1], (m) => modelStrengthScore(m[1], m[2], bigTask));
+    const providerModels = window.HCModelSpeed.order(unordered, (m) => m[1], (m) => window.HCSwarmModelStrength.score(m[1], m[2], bigTask));
     const numProviders = providerModels.length;
     const agentBounds = recommendedAgentBounds(desc);
 
@@ -2123,6 +2090,9 @@ ${modelListStr}`;
     const src = document.getElementById("model");
     const godDst = document.getElementById("amkGodModelSelect");
     if (src && godDst) { godDst.innerHTML = src.innerHTML; godDst.value = src.value; }
+    // The task already typed in the bar is the goal, not a blank box asking again.
+    const goal = document.getElementById("amkGodTextarea"), typed = (document.getElementById("amkTaskInput")?.value || "").trim();
+    if (goal && typed && !goal.value.trim()) goal.value = typed;
   }
   function closeGodModal() {
     if (_godAbortCtrl) { _godAbortCtrl.abort(); _godAbortCtrl = null; }
@@ -2214,6 +2184,8 @@ function _polishToast(text, isError) {
     if (mounted) { renderAll(); return; }
     mounted = true;
     loadBlueprints();
+    // The team open last time, or the newest: Run said "select a blueprint" beside a list of them.
+    const reopen = blueprints.find(b => b.id === readActive()) || blueprints[0]; if (reopen) setActive(reopen.id);
 
     // Back button
     const backBtn = document.getElementById("amkBackBtn");

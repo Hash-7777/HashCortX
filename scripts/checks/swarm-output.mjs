@@ -174,5 +174,17 @@ console.log('\nAn answer already fenced is not fenced again, however its fence i
   ok('control: the old test did not see a C# block as fenced', !old.test(cases['a C# block']));
 }
 
+console.log('\nAn answer that declines the task is not the work:');
+{
+  const { isRefusal } = sandbox.window.HCSwarmOutput;
+  ok('a short apology that it cannot comply', isRefusal("I'm sorry, but I can't comply with that request."));
+  ok('... in its other common wordings', isRefusal('I cannot help with this request.') && isRefusal('Unfortunately, I am unable to complete that.') && isRefusal('Sorry, I won’t be able to assist with that.'));
+  ok('a long answer that begins politely is still the work', !isRefusal("I'm sorry to hear the launch slipped. Here is the plan: " + 'x'.repeat(500)));
+  ok('an answer that is not declining is the work', !isRefusal('Target customers: eco-conscious commuters.') && !isRefusal('Sorry for the wait — the calendar is below.') && !isRefusal(''));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
+  ok('an agent that declines is handed to another model, like one that said nothing', /if \(!candidateText\.trim\(\) \|\| window\.HCSwarmOutput\.isRefusal\(candidateText\)\) throw Object\.assign\(new Error\(candidateText\.trim\(\) \? "declined the task" : "returned an empty answer"\), \{ empty: true \}\);/.test(mode));
+  ok('the note after an automatic Python run is a turn every provider reads', /messages\.push\(\{ role: "user", content: "The Python code was executed automatically\./.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/output.js)`);
 process.exit(fail ? 1 : 0);

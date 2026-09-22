@@ -165,5 +165,18 @@
     return out.join('\n');
   }
 
-  window.HCSwarmOutput = { normaliseAgentOutput, detectLang, wholeDocumentLang };
+  /**
+   * Whether an answer is a refusal rather than the agent's part of the work:
+   * short, and opening by declining. It was taken as the work — a planner that
+   * said it could not comply was handed on to the rest of the team as the plan.
+   * A long answer that happens to begin politely is not one.
+   */
+  function isRefusal(text) {
+    const t = String(text || '').trim();
+    if (!t || t.length > 400) return false;
+    return /^(?:i['’]?m sorry|i am sorry|sorry|unfortunately|i (?:can(?:no|['’])t|am unable to|am not able to|won['’]?t be able to|must decline))\b/i.test(t)
+      && /\b(?:comply|help|assist|provide|fulfil+|complete|do (?:that|this)|with (?:that|this)|(?:this|that|your) request)\b/i.test(t);
+  }
+
+  window.HCSwarmOutput = { normaliseAgentOutput, detectLang, wholeDocumentLang, isRefusal };
 })();

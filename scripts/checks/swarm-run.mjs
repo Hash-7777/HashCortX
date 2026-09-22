@@ -40,7 +40,7 @@ console.log('An agent that runs out of time is cancelled, not left running:');
 console.log('\nAn empty answer is a failure, not a result:');
 {
   const agent = bodyOf('executeOneAgent');
-  ok('an answer with nothing in it throws, so the next model is asked', /if \(!candidateText\.trim\(\)\) throw Object\.assign\(new Error\("returned an empty answer"\), \{ empty: true \}\)/.test(agent));
+  ok('an answer with nothing in it throws, so the next model is asked', /if \(!candidateText\.trim\(\) \|\| window\.HCSwarmOutput\.isRefusal\(candidateText\)\) throw Object\.assign\(new Error\(candidateText\.trim\(\) \? "declined the task" : "returned an empty answer"\), \{ empty: true \}\)/.test(agent));
   ok('running out of tool rounds with no answer throws too', /used every tool round without an answer/.test(agent));
   ok('"(no output)" is never handed on as an agent\'s work', !/\(no output\)/.test(agent));
 }
