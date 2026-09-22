@@ -55,10 +55,16 @@
 
   const clean = (v, max) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max);
 
-  /** The tables a system has, by id. */
+  /**
+   * The tables a system has, by id. A system in the app keeps them keyed by
+   * id; one written out by a model often lists them. Read only as a list,
+   * every request in the app threw before it reached a model.
+   */
   function entitiesOf(spec) {
     const out = new Map();
-    for (const entity of (spec && spec.entities) || []) {
+    const raw = spec && spec.entities;
+    const list = Array.isArray(raw) ? raw : raw && typeof raw === 'object' ? Object.entries(raw).map(([id, e]) => (e && !e.id ? { ...e, id } : e)) : [];
+    for (const entity of list) {
       if (entity && entity.id) out.set(String(entity.id), entity);
     }
     return out;

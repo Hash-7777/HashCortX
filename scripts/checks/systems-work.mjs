@@ -224,5 +224,21 @@ console.log('\nAnd the mode uses it that way round:');
   ok('what was left alone is said, not swallowed', /Left alone — \$\{d\.why\}/.test(mode));
 }
 
+console.log('\nA system kept the way the app keeps it — tables keyed by id:');
+{
+  // The checks above list the tables, as a model writes them. The app keeps
+  // them keyed by id, and every request made in the app threw on that shape
+  // before it reached a model. Both are read the same way now.
+  const KEYED = { ...SPEC, entities: Object.fromEntries(SPEC.entities.map(({ id, ...e }) => [id, e])) };
+  let thrown = null;
+  let msgs = null;
+  try { msgs = W.messages(KEYED, DATA(), 'I paid for the taxi', '2026-09-22'); } catch (err) { thrown = err; }
+  ok('the model is shown it without throwing', !thrown && Array.isArray(msgs), thrown ? String(thrown.message) : '');
+  ok('with its tables and records', !!msgs && /expenses/.test(JSON.stringify(msgs)) && /Taxi/.test(JSON.stringify(msgs)));
+  let plan = null;
+  try { plan = W.plan(answer({ understood: 'The taxi was paid', changes: [{ action: 'update', entity: 'expenses', id: 'e2', set: { status: 'Paid' } }] }), KEYED, DATA()); } catch (err) { thrown = err; }
+  ok('an answer is planned against it the same way', !thrown && !!plan && plan.edits.length === 1 && plan.edits[0].id === 'e2', thrown ? String(thrown.message) : '');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/work.js)`);
 process.exit(fail ? 1 : 0);
