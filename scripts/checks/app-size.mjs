@@ -571,7 +571,7 @@ const LINE_BUDGET = {
   // 2377, up one: renderReport gives every chart its own id before drawing,
   // through ensureChartIds in src/js/finance/charts.js.
   // 2376, down one: a parseAmt wrapper nothing called.
-  'modes/finance/mode.js': 2376,
+  'modes/finance/mode.js': 2353,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //

@@ -792,6 +792,14 @@ body.finance-mode #app > *:not(#finance-wrap) { display: none !important; }
   color: var(--fin-sub);
   white-space: pre-wrap;
 }
+.fin-analysis-stale {
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: var(--fin-muted);
+}
+/* The charts sit in one box so they can be drawn again after an edit, and
+   still lay out as the report's own rows. */
+.fin-charts { display: contents; }
 .fin-recos {
   display: flex;
   flex-direction: column;

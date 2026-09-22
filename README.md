@@ -51,7 +51,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 | **Chats** | Multi-provider chat with projects, attachments, memory and a local knowledge base |
 | **Coder** | A coding agent on your real project: file tree, edits as diffs, terminal, Undo |
 | **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
-| **Finance** | Statements, CSV, PDF and XLSX turned into KPIs and charts from the document's own figures |
+| **Finance** | Statements, CSV, PDF and XLSX read into a list of figures, with every total, card and chart worked out by the app from that list, and updated when you edit it |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
 | **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. Exported as one HTML file |
 | **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen |
@@ -137,7 +137,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 6,536 source checks
+npm run check                                     # 6,578 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 170 Rust tests
 ```
 

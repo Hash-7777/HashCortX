@@ -99,6 +99,11 @@ const FinanceMode = (() => {
   const fmtKpi = (n, currency) => AMOUNTS().fmtKpi(n, currency);
   const fmtKpiLike = (n, existingVal, currency) => AMOUNTS().fmtKpiLike(n, existingVal, currency);
   const recalcFromTable = (report) => AMOUNTS().recalcFromTable(report);
+  // A report's numbers are worked out by the app from the figures the model
+  // read (js/finance/figures.js). A report saved before that has none, and is
+  // shown and recalculated the old way.
+  const FIG = () => window.HCFinanceFigures;
+  const hasFigures = (r) => Array.isArray(r?.figures) && r.figures.length > 0;
 
   function loadSessions() {
     try { sessions = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"); } catch { sessions = []; }
@@ -160,14 +165,23 @@ const FinanceMode = (() => {
     traceAdd("Model", `Calling ${provider}:${model} · ${messages.length} message(s)`, "run");
     try {
       // Routing lives in app.js — one copy of which client each provider
-      // needs, shared by every mode.
-      result = await window._H.runModelTurn({
-        modelValue: selected,
-        messages,
-        tools: [],
-        temperature: window._H?.selectedTemperature?.() ?? 0.35,
-        signal,
+      // needs, shared by every mode. A model that cannot answer (out of quota,
+      // busy, refused) hands the report to the next one, the way the chat
+      // does, where the report used to end at the first refusal; and a list of
+      // figures cut off at the length limit is carried on rather than lost.
+      const turns = window.HCChatFailover.agentTurns({
+        start: selected,
+        send: window._H.runModelTurn,
+        adapterOf: (v) => window.HCAgentShape.selectAgentAdapter(v, { parseCloudModel: window._H.parseCloudModel, providers: window.HCProviders }),
+        routes: String(selected).startsWith("cloud:")
+          ? window.HCModelRoutes.createRun({ options: () => window._H.getAvailableCloudModels().filter(m => !m.imageGen),
+            strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) })
+          : null,
+        failureKind: window.HCModelRoutes.failureKind,
+        reasonText: window.HCModelRoutes.reasonText,
+        onSwitch: (from, to, why) => traceAdd("Model", `${from}: ${why} · carrying on with ${to}`, "warn"),
       });
+      result = await turns.turn({ messages, tools: [], temperature: window._H?.selectedTemperature?.() ?? 0.35, signal, untilFinished: true });
     } catch (err) {
       traceAdd("Model", `Provider call failed · ${err?.message || err}`, "err");
       throw err;
@@ -182,82 +196,8 @@ const FinanceMode = (() => {
     return result;
   }
 
-  /* ── system prompt ──────────────────────────────────────────────── */
-  function systemPrompt() {
-    return `You are FinanceAI, an elite financial analyst operating as an intelligent agent inside HashCortX.
-
-AGENT PHILOSOPHY:
-You think before responding. You assess what data is actually present, calculate only what you can prove, and choose the right response mode. You NEVER invent, estimate, or hallucinate financial numbers to fill a schema.
-
-━━━ RESPONSE FORMAT ━━━
-Always return a single valid JSON object with a top-level "mode" field:
-
-■ MODE "report" — ONLY when you have real, concrete financial data to analyze:
-{
-  "mode": "report",
-  "title": string,
-  "subtitle": string,
-  "currency": string,
-  "data_sources": [string],
-  "kpis": [ { "label": string, "value": string, "change": string, "positive": boolean, "icon": "revenue"|"profit"|"cost"|"growth"|"cash"|"burn"|"margin"|"debt", "estimated": boolean } ],
-  "charts": [ { "id": string, "type": "bar"|"line"|"donut", "title": string, "labels": [string], "datasets": [ { "label": string, "values": [number], "color": string } ] } ],
-  "table": { "title": string, "headers": [string], "rows": [[string]] },
-  "analysis": string,
-  "recommendations": [string]
-}
-
-■ MODE "chat" — simple questions, follow-ups, advice, explanations:
-{ "mode": "chat", "message": string (markdown OK) }
-
-■ MODE "clarify" — data is missing or insufficient for real analysis:
-{ "mode": "clarify", "message": string, "what_i_have": [string], "what_i_need": [string] }
-
-━━━ HARD RULES — NEVER BREAK THESE ━━━
-① NEVER invent numbers. Every value in a "report" must trace to the provided data.
-② If income is not in the data → use mode "clarify", ask for it. DO NOT guess "$5,200".
-③ If a KPI cannot be calculated from real data → set value to "N/A", estimated: false.
-④ Text-only messages like "I have $X savings" or "I bought a $Y item" → use mode "chat" or "clarify", NOT a fabricated budget report.
-⑤ File attachments: extract ONLY what is literally in the file. If file has 5 transactions → table has 5 rows, not 8 invented ones.
-⑥ Multiple currencies → show each separately, never silently convert.
-⑦ Follow-up questions that don't need a new report → use mode "chat".
-
-━━━ WHEN YOU HAVE FILE DATA ━━━
-1. Extract every transaction line: date, merchant, amount, currency, debit/credit.
-2. Calculate totals ONLY from extracted rows.
-3. If file has only expenses (no income shown) → report expenses, use "clarify" for income.
-4. Flag: subscriptions, recurring charges, foreign-currency spend, unusually large amounts.
-5. Build charts and KPIs from your own calculations — never from template values.
-If the attachment includes a POSITIONAL PDF TABLE EXTRACTION block, use those coordinate rows as the source of truth for bank-statement transactions. Parse rows by Y position, then read cells left-to-right by X coordinate.
-
-━━━ REPORT RULES (mode "report" only) ━━━
-- KPIs: 4–6, only what you can actually calculate. Use "N/A" if unknown.
-- Charts: 2–3, only real data. Best choices: expense donut + category bar/line over time.
-- Table: real extracted transactions or category aggregates — exact rows from data, never invented.
-- analysis: 5–7 sentences. MUST include: (a) the top 3 cost drivers with exact amounts, (b) any single transaction >15% of total spend flagged by name and amount, (c) recurring charges identified, (d) foreign-currency spend separated, (e) the biggest financial risk visible in the data.
-- recommendations: 4–6 items. Each MUST be specific: cite the merchant/category, the amount, and the exact action (e.g. "Cancel Coursera subscription — saves $14.40/month = $172.80/year" not "reduce subscriptions").
-
-━━━ DECISION-QUALITY STANDARD ━━━
-This report must be good enough for the user to take to a bank, accountant, or financial advisor.
-- Every number in the report must be traceable to a specific row in the source data.
-- analysis must read like a senior financial analyst wrote it — not a summary, but an interpretation with specific figures cited inline.
-- Flag anything a financial advisor would flag: overdrafts, duplicate charges, large single-vendor concentration, subscription creep, FX conversion cost, spending above income.
-- Add a "data_quality" note in subtitle if data is incomplete (e.g. "Based on 14 of an estimated 30 monthly transactions").
-
-━━━ CHART DATA RULES ━━━
-- bar/line datasets.values → ACTUAL monetary amounts (e.g. 1826, 400). Never percentages.
-- donut datasets.values → ACTUAL monetary amounts per category. Renderer auto-calculates %. NEVER percentages in a donut.
-- All values must be derived from summing real transaction rows.
-
-━━━ EXAMPLE / DEMO DATA EXCEPTION ━━━
-If and only if the user explicitly asks for "example data", "sample data", "dummy data", "demo report", "fictional", "test data", "make up", or "show me how it looks" — you MAY produce mode "report" with entirely invented but realistic-looking data (plausible merchants, amounts, categories). Append " · Example Data" to the subtitle so the user knows it is fictional. This is the ONLY case where the no-inventing rules above are suspended.
-
-━━━ OUTPUT SIZE RULES (CRITICAL — prevents truncation) ━━━
-- analysis: max 4 sentences.
-- recommendations: max 5 items, each max 15 words.
-- table rows: max 15. If more transactions exist, show top 15 by amount.
-- chart labels: max 8 per chart. Merge tiny categories into "Other".
-- Keep the entire JSON response under 2000 tokens. Be concise.`;
-  }
+  /* ── system prompt: what the model is told, in js/finance/prompt.js ── */
+  const systemPrompt = () => window.HCFinancePrompt.SYSTEM;
 
   function promptButtonsHtml(className) {
     return READY_PROMPTS.map(p => `
@@ -1300,6 +1240,11 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
 
     // mode === "report"
     const report = parsed;
+    report.figures = FIG().read(report.figures);
+    if (hasFigures(report)) FIG().apply(report);
+    traceAdd("Figures", hasFigures(report)
+      ? `${report.figures.length} figure(s) read · totals, cards and charts worked out by the app`
+      : "No figures listed · the report is shown as the model wrote it", hasFigures(report) ? "ok" : "warn");
     if (!report.title || !report.kpis) {
       traceAdd("Parse", "Report missing required fields", "warn");
     }
@@ -1350,6 +1295,20 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
      keeps its cursor position while the user is typing. */
   function liveUpdateKpisAndCharts() {
     if (!currentReport) return;
+    // Worked out from the figures, the set of cards and charts can change with
+    // an edit — a first amount set aside adds a card — so both are drawn again.
+    if (hasFigures(currentReport)) {
+      const grid = document.querySelector("#finReport .fin-kpi-grid");
+      if (grid) grid.innerHTML = (currentReport.kpis || []).map((k, i) => renderKpi(k, i)).join("");
+      const charts = document.getElementById("finCharts");
+      if (charts) {
+        currentReport.charts = CHARTS().ensureChartIds(currentReport.charts);
+        charts.innerHTML = (currentReport.charts || []).map(c => renderChart(c)).join("");
+        charts.querySelectorAll(".fin-chart-dl").forEach(btn => btn.addEventListener("click", () => downloadChart(btn.dataset.svgid)));
+      }
+      document.getElementById("finAnalysisStale")?.removeAttribute("hidden");
+      return;
+    }
     /* KPI cards */
     const cards = document.querySelectorAll("#finReport .fin-kpi-card");
     (currentReport.kpis || []).forEach((k, i) => {
@@ -1387,6 +1346,22 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     });
   }
 
+  /**
+   * The report worked out again after an edit. With figures, the table as it
+   * is being typed is read back into the list and the cards and charts are
+   * made from it; the table itself is tidied when editing is done, so a row
+   * still being filled in is not taken away. Without, the old table reading.
+   */
+  function recalcReport() {
+    if (!hasFigures(currentReport)) return recalcFromTable(currentReport);
+    const table = currentReport.table;
+    currentReport.figures = FIG().fromTable(table);
+    FIG().apply(currentReport);
+    currentReport.table = table;
+    currentReport.editedFigures = true;
+    return true;
+  }
+
   function setReportPath(path, value) {
     if (!currentReport || !path) return;
     const parts = path.split(".");
@@ -1421,12 +1396,10 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
       td.addEventListener("input", () => {
         setReportPath(td.dataset.editPath, editedText(td));
         /* reclassify this cell on the fly */
-        if (Number(td.dataset.col) > 0) {
+        if (Number(td.dataset.col) > 0 && !currentReport.table?.figures) {
           td.className = classifyCell(editedText(td));
         }
-        if (recalcFromTable(currentReport)) {
-          liveUpdateKpisAndCharts();
-        }
+        if (recalcReport()) liveUpdateKpisAndCharts();
         scheduleEditedReportPersist();
       });
       td.addEventListener("keydown", e => {
@@ -1442,7 +1415,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
       });
       td.addEventListener("blur", () => {
         setReportPath(td.dataset.editPath, editedText(td));
-        recalcFromTable(currentReport);
+        recalcReport();
         liveUpdateKpisAndCharts();
         persistSession();
       });
@@ -1460,7 +1433,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
         const ri = Number(btn.dataset.delRow);
         if (!currentReport.table?.rows) return;
         currentReport.table.rows.splice(ri, 1);
-        recalcFromTable(currentReport);
+        recalcReport();
         refreshTableSection();
         liveUpdateKpisAndCharts();
         persistSession();
@@ -1495,6 +1468,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
       const scrollTop = preview?.scrollTop || 0;
       reportEditMode  = !reportEditMode;
       if (!reportEditMode) {
+        if (hasFigures(currentReport)) FIG().apply(currentReport);
         persistSession();
         updateStatus("Edits saved · calculations locked");
       } else {
@@ -1695,7 +1669,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
         ${(r.kpis || []).map((k, i) => renderKpi(k, i)).join("")}
       </div>
 
-      ${(r.charts || []).map(c => renderChart(c)).join("")}
+      <div class="fin-charts" id="finCharts">${(r.charts || []).map(c => renderChart(c)).join("")}</div>
 
       ${r.table ? renderTable(r.table) : ""}
 
@@ -1706,6 +1680,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
             Analysis
           </div>
           <p class="fin-analysis-text" ${editAttr("analysis", true)}>${escHtml(r.analysis || "")}</p>
+          ${hasFigures(r) ? `<p class="fin-analysis-stale" id="finAnalysisStale"${r.editedFigures ? "" : " hidden"}>Written from the figures as they first were. Ask again to have it rewritten from your edits.</p>` : ""}
         </div>
       </div>
 
@@ -1783,7 +1758,7 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
     const icon = KPI_ICONS[k.icon] || KPI_ICONS.revenue;
     const isNA = !k.value || k.value === "N/A" || k.value === "—";
     const estimatedBadge = k.estimated && !isNA
-      ? `<span class="fin-kpi-estimated" title="Estimated value">~</span>` : "";
+      ? `<span class="fin-kpi-estimated" title="${k.byModel ? "Worked out by the AI, not by the app" : "Estimated value"}">~</span>` : "";
     const arrow = isNA ? "" : k.positive
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`
       : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="10" height="10"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`;
@@ -1795,10 +1770,10 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
           <div class="fin-kpi-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15">${icon}</svg>
           </div>
-          <span class="fin-kpi-change ${changeClass}">${arrow}<span ${editAttr(`kpis.${i}.change`)}>${escHtml(changeText)}</span></span>
+          ${k.computed && !k.change ? "" : `<span class="fin-kpi-change ${changeClass}">${arrow}<span ${editAttr(`kpis.${i}.change`)}>${escHtml(changeText)}</span></span>`}
         </div>
         <span class="fin-kpi-label" ${editAttr(`kpis.${i}.label`)}>${escHtml(k.label)}</span>
-        <span class="fin-kpi-value" ${editAttr(`kpis.${i}.value`)}>${escHtml(k.value || "N/A")}${estimatedBadge}</span>
+        <span class="fin-kpi-value" ${k.computed ? "" : editAttr(`kpis.${i}.value`)}>${escHtml(k.value || "N/A")}${estimatedBadge}</span>
       </div>`;
   }
 
@@ -1867,7 +1842,9 @@ If and only if the user explicitly asks for "example data", "sample data", "dumm
               ${rows.map((row, ri) => `
               <tr data-row-idx="${ri}">
                 ${row.map((cell, ci) => {
-                  const cls = ci > 0 ? classifyCell(cell) : "";
+                  // The figures' amounts are all positive; money in is what is green.
+                  const cls = t.figures ? (ci === cols.length - 1 && /^in$/i.test(row[cols.length - 2]) ? "fin-td-positive" : "")
+                    : ci > 0 ? classifyCell(cell) : "";
                   return `<td class="${cls}" ${editAttr(`table.rows.${ri}.${ci}`)}
                     data-row="${ri}" data-col="${ci}">${escHtml(String(cell))}</td>`;
                 }).join("")}

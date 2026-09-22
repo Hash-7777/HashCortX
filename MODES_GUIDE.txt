@@ -81,11 +81,17 @@ and agentic 3D workflow planning.
 6. FINANCE AI
 ──────────────────────────────────────────────────────────────
 Full-screen financial analysis studio. Attach a bank statement,
-CSV, PDF, or XLSX file and get a structured report that
-includes KPIs (net income, savings rate, burn rate, top spend
-categories), a transaction table, charts, and actionable
-recommendations — all calculated from your actual data, never
-invented.
+CSV, PDF, or XLSX file, or type your figures, and get a report
+with cards (money in, money out, set aside, what is left, the
+saving rate), charts, the list of your figures, an analysis and
+recommendations.
+
+The AI reads your figures and lists them; the app adds them up.
+Every total, card and chart is worked out from that one list, so
+they always agree. Press Edit Data and change a figure, add one
+or remove one, and everything updates as you type. The analysis
+is the AI's, written from the figures as they first were: ask
+again to have it rewritten from your edits.
 
 Rules the AI follows:
   • Never makes up numbers — everything comes from your file

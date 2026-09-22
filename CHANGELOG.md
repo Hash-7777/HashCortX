@@ -8,6 +8,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **Finance adds up your figures itself, and your edits reach the whole
+  report.** A report used to be numbers the model wrote separately — the cards,
+  each chart and the table — with nothing joining them, so a total could
+  disagree with the lines it was the total of, and a figure corrected by hand
+  changed that one cell and nothing else. The model now lists the figures it
+  reads and does no sums; the app works out every total, card and chart from
+  that list, and the table is the list. Change a figure, add one or remove one
+  and the cards and charts follow as you type. A measure that is not a sum,
+  such as a debt-to-income ratio, can still come from the model and is marked
+  as its estimate. If the chosen model cannot answer, the report goes to
+  another. Reports saved before this open as they were.
+
 ### Added
 
 - **An ERP backup can be put back.** The ERP could write a full backup of a
