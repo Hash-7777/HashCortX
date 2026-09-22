@@ -166,5 +166,54 @@
     return labels[ext] || "Document";
   }
 
-  window.HCVosAnswer = { extractFiles, inferProjectName, kindLabel };
+  /**
+   * A tool call a provider refused, as the chat agent's own tag, or null.
+   *
+   * The chat agent is told to write <tool_call>…</tool_call> as text. Some
+   * models reach for a real tool call instead, and a provider sent no tools
+   * refuses the whole answer (Groq: "Tool choice is none, but model called a
+   * tool") — with the call it refused attached. That call is the answer the
+   * agent wanted to give, so it is put back in the form the agent reads.
+   */
+  function callFromRefusal(err) {
+    let body;
+    try { body = JSON.parse(String((err && err.body) || "")); } catch { return null; }
+    const e = body && body.error;
+    if (!e || e.code !== "tool_use_failed" || typeof e.failed_generation !== "string") return null;
+    let call;
+    try { call = JSON.parse(e.failed_generation); } catch { return null; }
+    let name = call && typeof call.name === "string" ? call.name.trim() : "";
+    let params = call && (call.arguments ?? call.parameters ?? call.params);
+    if (typeof params === "string") { try { params = JSON.parse(params); } catch { params = { text: params }; } }
+    params = params && typeof params === "object" ? params : {};
+    // The tag itself called as a tool: the call inside it is the one meant.
+    if (name === "tool_call" && typeof params.name === "string") {
+      name = params.name.trim();
+      params = params.params ?? params.arguments ?? {};
+    }
+    if (name === "worker_task") {
+      const brief = String(params.brief ?? params.task ?? params.text ?? Object.values(params).find((v) => typeof v === "string") ?? "").trim();
+      return brief ? `<worker_task>${brief}</worker_task>` : null;
+    }
+    if (!/^[a-z_][a-z0-9_]{0,40}$/i.test(name) || name === "tool_call") return null;
+    return `<tool_call>${JSON.stringify({ name, params: typeof params === "object" && params ? params : {} })}</tool_call>`;
+  }
+
+  /**
+   * The files a chat reply wrote out instead of calling a tool, when they are
+   * to be written: the reply made no tool call and handed off no task, and
+   * files were asked for or the reply says it made them. Code shown to answer
+   * a question stays an answer. Null otherwise; `words` is what it said.
+   */
+  function filesInReply(text, asked) {
+    const src = String(text || "");
+    if (/<(?:tool_call|worker_task)>/.test(src)) return null;
+    const files = extractFiles(src);
+    if (!files.length) return null;
+    const words = window.HCFences.splitFences(src).filter((p) => p.type === "text").map((p) => p.text.trim()).filter(Boolean).join(" ").slice(0, 300);
+    const wanted = /\b(make|build|create|write|generate|add|scaffold|set up)\b/i.test(String(asked || "")) || /\b(created|wrote|written|saved)\b/i.test(words);
+    return wanted ? { files, words } : null;
+  }
+
+  window.HCVosAnswer = { extractFiles, inferProjectName, kindLabel, callFromRefusal, filesInReply };
 })();

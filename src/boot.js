@@ -166,6 +166,7 @@
     '/js/vos/project.js',
     '/js/vos/answer.js',
     '/js/vos/shell.js',
+    '/js/vos/models.js',
     '/js/forge/io/threemf.js',
     '/js/forge/io/step.js',
     '/js/forge/io/import.js',

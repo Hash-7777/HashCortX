@@ -218,5 +218,35 @@ console.log('\nEvery file the model named is kept, however it named it:');
     tier1Only.join() === 'index.html');
 }
 
+console.log('\nA tool call a provider refused is put back as the chat agent\'s own tag:');
+{
+  const refusal = (gen, code = 'tool_use_failed') => ({ body: JSON.stringify({ error: { message: 'Tool choice is none, but model called a tool', code, failed_generation: gen } }) });
+  const tag = A.callFromRefusal(refusal('{"name": "fs_read", "arguments": {"path": "site/index.html"}}'));
+  ok('the call it refused, in the tag the agent reads', tag === '<tool_call>{"name":"fs_read","params":{"path":"site/index.html"}}</tool_call>');
+  ok('the tag itself called as a tool gives the call inside it', A.callFromRefusal(refusal('{"name":"tool_call","arguments":{"name":"fs_ls","params":{"path":"/"}}}')) === '<tool_call>{"name":"fs_ls","params":{"path":"/"}}</tool_call>');
+  ok('a hand-off called as a tool is the hand-off', A.callFromRefusal(refusal('{"name":"worker_task","arguments":{"brief":"Build the cafe site"}}')) === '<worker_task>Build the cafe site</worker_task>');
+  ok('any other refusal is not a call', A.callFromRefusal(refusal('{"name":"fs_read"}', 'rate_limit_exceeded')) === null && A.callFromRefusal({ body: 'Bad gateway' }) === null && A.callFromRefusal(null) === null);
+  ok('a refused generation that is not a call is not one', A.callFromRefusal(refusal('I will read the file')) === null && A.callFromRefusal(refusal('{"name":"rm -rf /"}')) === null);
+  const mode = readFileSync(join(root, 'src', 'modes', 'virtual-os', 'mode.js'), 'utf8');
+  ok('only the chat agent reads it back; the project workers fail over instead', /const call = toolTags && ANSWER\(\)\.callFromRefusal\(err\);/.test(mode) && /callWithFailover\("worker", selected, messages, signal, true\)/.test(mode) && /called a tool/.test(mode));
+}
+
+console.log('\nThe chat agent\'s reply that writes files out instead of calling a tool:');
+{
+  const mode = readFileSync(join(root, 'src', 'modes', 'virtual-os', 'mode.js'), 'utf8');
+  const handler = mode.slice(mode.indexOf('async function processChatResponse'), mode.indexOf('async function sendChatMessage'));
+  const F3 = '`'.repeat(3);
+  const reply = `Created files.\n${F3}html site/index.html\n<h1>Hi</h1>\n${F3}`;
+  ok('is read for files when it makes no tool call and hands off no task', A.filesInReply(reply, 'Make a page')?.files[0].path === 'site/index.html');
+  ok('... which are written when files were asked for', !!A.filesInReply(`${F3}js app.js\nlet a = 1;\n${F3}`, 'Build me a counter'));
+  ok('... or when it says it made them', !!A.filesInReply(reply, 'hello'));
+  ok('code shown to answer a question stays an answer', A.filesInReply(`Like this:\n${F3}js loop.js\nfor (;;) {}\n${F3}`, 'How does a for loop work?') === null);
+  ok('a reply that did call a tool is left to the tool', A.filesInReply(`<tool_call>{"name":"fs_ls","params":{}}</tool_call>\n${reply}`, 'Make a page') === null);
+  ok('an empty answer says so rather than ending the turn with nothing', /The model sent back an empty answer/.test(handler));
+  ok('... also from the model the chat had settled on', /if \(String\(r \|\| ""\)\.trim\(\)\) \{ _lastWorkedModel = chatLockedModel; return r; \}/.test(mode));
+  ok('... and is first taken to the next model, like a refusal', /if \(!String\(content \|\| ""\)\.trim\(\)\) throw new Error\("the answer was empty"\);/.test(mode) && /answer was empty\/i\.test\(msg\)/.test(mode));
+  ok('... the mode writes them into the workspace, saves, and says where', /const inReply = ANSWER\(\)\.filesInReply\(responseText, asked\);/.test(handler) && /materializeGeneratedFiles\(inReply\.files, asked\);\s*await saveProject\(\);\s*renderAll\(\);/.test(handler) && /Wrote \$\{written\.count\} file/.test(handler));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/vos/answer.js)\n`);
 process.exit(fail === 0 ? 0 : 1);

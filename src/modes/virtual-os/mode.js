@@ -876,57 +876,10 @@ const VoidStudio = (() => {
       .filter(o => !o.disabled && o.value && !/^[-—]/.test(o.label));
   }
 
-  function modelStrengthScore(opt, role = "worker") {
-    const text = `${opt.value} ${opt.label}`.toLowerCase();
-    let score = 0;
-    const add = (rx, n) => { if (rx.test(text)) score += n; };
-    add(/qwen.*(480b|235b|230b|coder|max|plus)|qwen3.*(235b|230b|30b|coder)|qwq/i, 170);
-    add(/480b|235b|230b|405b/i, 120);
-    add(/405b|480b|235b|230b|120b|70b|large|pro|r1|deepseek|qwen3 coder|gpt oss 120|nemotron 3 super|maverick|hermes/i, 80);
-    add(/llama.*70b|deepseek.*llama.*70b/i, -35);
-    add(/32b|30b|26b|17b|scout|versatile/i, 38);
-    add(/8b|9b|12b|20b|flash|instant|lite|nano|small/i, -12);
-    add(/embedding|rerank|moderation|vision|image|tts|whisper/i, -1000);
-    if (opt.value.startsWith("cloud:")) score += role === "god" ? 18 : 10;
-    if (/gemini.*pro|openrouter|samba|cerebras|groq|nvidia/i.test(text)) score += 12;
-    return score;
-  }
-
-  function isSmallModelOption(opt) {
-    const text = `${opt?.value || ""} ${opt?.label || ""}`.toLowerCase();
-    if (/embedding|rerank|moderation|vision|image|tts|whisper/i.test(text)) return true;
-    if (/llama.*70b|deepseek.*llama.*70b/i.test(text)) return true;
-    return /(?:^|[^0-9])(8b|9b|12b|17b|20b|26b|30b|32b)(?:[^0-9]|$)|flash|instant|lite|nano|small|mini|scout|versatile/i.test(text);
-  }
-
-  function isLargeFallbackModel(opt, role = "worker") {
-    if (!opt?.value || isSmallModelOption(opt)) return false;
-    const text = `${opt.value} ${opt.label}`.toLowerCase();
-    return modelStrengthScore(opt, role) >= 90 ||
-      /qwen.*(480b|235b|230b|coder|max|plus)|480b|235b|230b|405b|120b|gpt[-_\s]*oss[-_\s]*120|deepseek.*r1|gemini.*pro/i.test(text);
-  }
-
-  // A job started on a local model stays on local models, the rule js/model-routes.js holds
-  // for the Swarm, the Forge and the ERP: a cloud model would be sent the task and the project.
-  const isLocalModel = (value) => !!value && window.HCModelRoutes.providerOf(value) === "local";
-
-  function chooseWorkerModel() {
-    const godValue = $("voidGodModelSelect")?.value || "";
-    const opts = availableModelOptions().filter(o => !isLocalModel(godValue) || isLocalModel(o.value));
-    if (!opts.length) return godValue;
-    const largeOpts = opts.filter(o => isLargeFallbackModel(o, "worker"));
-    if (!largeOpts.length) {
-      log("No large worker model is available; refusing to auto-route to small models.", "warn");
-      return "";
-    }
-    return largeOpts
-      .slice()
-      .sort((a, b) => {
-        const aScore = modelStrengthScore(a, "worker") + (a.value === godValue ? -6 : 0);
-        const bScore = modelStrengthScore(b, "worker") + (b.value === godValue ? -6 : 0);
-        return bScore - aScore;
-      })[0]?.value || godValue;
-  }
+  // Which model is asked, and in what order, is js/vos/models.js.
+  const MODELS = () => window.HCVosModels;
+  const isLocalModel = (value) => MODELS().isLocal(value);
+  const chooseWorkerModel = () => MODELS().workerFor($("voidGodModelSelect")?.value || "", availableModelOptions());
 
   function fileIcon(item) {
     if (item.type === "folder") return "folder";
@@ -1883,46 +1836,32 @@ ${ctx}
 ${userPrompt}`;
   }
 
-  async function callModelValue(modelValue, messages, signal) {
+  async function callModelValue(modelValue, messages, signal, toolTags = false) {
     const api = window._H || {};
     const value = modelValue || api.selectedModel?.() || document.getElementById("model")?.value || "";
     if (!value) throw new Error("No model selected.");
     // Routing lives in app.js — local models included, so there is no branch
     // here to get wrong. This used to hand every non-Gemini provider to the
     // OpenAI client, so an Anthropic model failed on every call.
-    const r = await api.runModelTurn({ modelValue: value, messages, tools: [], temperature: 0.75, signal });
+    // The chat agent's tool call, refused because it came as a real one, is its answer.
+    const r = await api.runModelTurn({ modelValue: value, messages, tools: [], temperature: 0.75, signal }).catch((err) => {
+      const call = toolTags && ANSWER().callFromRefusal(err);
+      if (call) return { content: call };
+      throw err;
+    });
     return r.content || "";
   }
 
-  function fallbackModels(preferredValue, role) {
-    const opts = availableModelOptions();
-    const seen = new Set();
-    const ordered = [];
-    const localOnly = isLocalModel(preferredValue);
-    const addValue = (value) => {
-      const opt = opts.find(o => o.value === value) || { value, label: value };
-      if (value && !seen.has(value) && (!localOnly || isLocalModel(value)) && isLargeFallbackModel(opt, role)) {
-        seen.add(value);
-        ordered.push(opt);
-      }
-    };
-    addValue(preferredValue);
-    opts
-      .slice()
-      .filter(o => isLargeFallbackModel(o, role))
-      .sort((a, b) => modelStrengthScore(b, role) - modelStrengthScore(a, role))
-      .forEach(o => addValue(o.value));
-    return ordered.slice(0, 6);
-  }
+  const fallbackModels = (preferredValue, role) => MODELS().routes(preferredValue, role, availableModelOptions());
 
   function isRouteFailure(err) {
     const msg = String(err?.message || err || "");
-    return /rate|limit|quota|413|429|503|502|504|timeout|busy|overload|temporar|failed|model.*not.*found|missing|key|unsupported|request.*too.*large|too.*large|payload.*large|context.*length/i.test(msg);
+    return /rate|limit|quota|413|429|503|502|504|timeout|busy|overload|temporar|failed|model.*not.*found|missing|key|unsupported|request.*too.*large|too.*large|payload.*large|context.*length|called a tool|answer was empty/i.test(msg);
   }
 
   let _lastWorkedModel = null; // locked-in model after first successful call
 
-  async function callWithFailover(role, preferredValue, messages, signal) {
+  async function callWithFailover(role, preferredValue, messages, signal, toolTags = false) {
     const candidates = fallbackModels(preferredValue, role);
     if (!candidates.length) {
       const who = role === "god" ? "God Agent" : "Worker Agent";
@@ -1933,7 +1872,9 @@ ${userPrompt}`;
       const c = candidates[i];
       try {
         log(`${role === "god" ? "God Agent" : "Worker Agent"} using ${c.label}`, i ? "warn" : "run");
-        const content = await callModelValue(c.value, messages, signal);
+        const content = await callModelValue(c.value, messages, signal, toolTags);
+        // An empty answer is a model that did not answer, not an answer.
+        if (!String(content || "").trim()) throw new Error("the answer was empty");
         if (role === "god" && $("voidGodModelSelect")) $("voidGodModelSelect").value = c.value;
         if (role === "worker" && $("voidChatModelSelect")) $("voidChatModelSelect").value = c.value;
         _lastWorkedModel = c.value;
@@ -2540,9 +2481,6 @@ ${buildDynamicImageInstruction(prompt)}`
 
 
 
-  // alias kept for any legacy calls
-  const inferProjectFolderName = inferProjectName;
-
   function rootFolderExists(name) {
     return visibleProjectFiles().some(item =>
       item.type === "folder" && item.parentId === ROOT_ID && item.name === name
@@ -2824,16 +2762,15 @@ ${tree}`;
   async function chatCallModel(messages, signal) {
     if (chatLockedModel) {
       try {
-        const r = await callModelValue(chatLockedModel, messages, signal);
-        _lastWorkedModel = chatLockedModel;
-        return r;
+        const r = await callModelValue(chatLockedModel, messages, signal, true);
+        if (String(r || "").trim()) { _lastWorkedModel = chatLockedModel; return r; }
       } catch (e) {
         if (e?.name === "AbortError") throw e;
-        chatLockedModel = null;
       }
+      chatLockedModel = null;   // it failed or said nothing: the routes take over
     }
     const selected = $("voidChatModelSelect")?.value || chooseWorkerModel();
-    const result = await callWithFailover("worker", selected, messages, signal);
+    const result = await callWithFailover("worker", selected, messages, signal, true);
     chatLockedModel = _lastWorkedModel;
     return result;
   }
@@ -2849,6 +2786,18 @@ ${tree}`;
     const tagRe = /<(tool_call|worker_task)>([\s\S]*?)<\/\1>/g;
     let lastIndex = 0;
     let match;
+
+    // No tool call and no worker task, but files written out in the reply,
+    // which a small model does and then says it created them (js/vos/answer.js).
+    const asked = [...chatHistory].reverse().find(m => m.role === "user" && !/^\[tool_/.test(m.content))?.content || "";
+    const inReply = ANSWER().filesInReply(responseText, asked);
+    if (inReply) {
+      const written = materializeGeneratedFiles(inReply.files, asked);
+      await saveProject();
+      renderAll();
+      appendChatBubble("assistant", `${inReply.words ? `${inReply.words}\n\n` : ""}Wrote ${written.count} file${written.count === 1 ? "" : "s"} to /${written.folderName}: ${inReply.files.map(f => f.path.split("/").pop()).join(", ")}.`);
+      return;
+    }
 
     while ((match = tagRe.exec(responseText)) !== null) {
       const before = responseText.slice(lastIndex, match.index).trim();
@@ -2898,6 +2847,8 @@ ${tree}`;
 
     const tail = responseText.slice(lastIndex).trim();
     if (tail) appendChatBubble("assistant", tail);
+    // An empty answer used to end the turn with nothing on screen.
+    else if (!lastIndex) appendChatBubble("assistant", "The model sent back an empty answer. Ask again, or pick another model.");
   }
 
   async function sendChatMessage(userText) {

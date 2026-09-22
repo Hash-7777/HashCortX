@@ -249,9 +249,12 @@ ok('the Systems builder', routes(systems));
 ok('the Forge', routes(forge));
 // Virtual OS picks and replaces its models itself; the same rule is held there.
 const vos = src('modes', 'virtual-os', 'mode.js');
-ok('Virtual OS knows a local model by the shared rule', /const isLocalModel = \(value\) => !!value && window\.HCModelRoutes\.providerOf\(value\) === "local";/.test(vos));
-ok('... its worker is chosen among local models when the job is on one', /const opts = availableModelOptions\(\)\.filter\(o => !isLocalModel\(godValue\) \|\| isLocalModel\(o\.value\)\);/.test(vos));
-ok('... and a local model fails over only to local ones', /const localOnly = isLocalModel\(preferredValue\);/.test(vos) && /\(!localOnly \|\| isLocalModel\(value\)\) && isLargeFallbackModel\(opt, role\)/.test(vos));
+{
+  const vosModels = src('js', 'vos', 'models.js');
+  ok('Virtual OS knows a local model by the shared rule', /R \? R\.providerOf\(value\) === "local"/.test(vosModels) && /const isLocalModel = \(value\) => MODELS\(\)\.isLocal\(value\);/.test(vos));
+  ok('... its worker is chosen on the side the job started on (checked in vos-models.mjs)', /filter\(\(o\) => sameSide\(godValue, o\.value\) && isLarge\(o, "worker"\)\)/.test(vosModels));
+  ok('... and a job fails over only on its own side', /opts\.filter\(\(o\) => sameSide\(preferredValue, o\.value\) && isLarge\(o, role\)\)/.test(vosModels) && /MODELS\(\)\.routes\(preferredValue, role, availableModelOptions\(\)\)/.test(vos));
+}
 ok('the module loads before the modes', src('boot.js').indexOf("'/js/model-routes.js'") > src('boot.js').indexOf("'/js/chat/failover.js'")
   && src('boot.js').indexOf("'/js/model-routes.js'") < src('boot.js').indexOf("'/modes/manifest.js'"));
 

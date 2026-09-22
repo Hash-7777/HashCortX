@@ -295,7 +295,7 @@ const LINE_BUDGET = {
   // models, and says so when there is none large enough.
   // 3358, down 159: the Agent OS loop, which nothing in the app could start,
   // with its prompt, its switch and its write counter. The chat keeps the tools.
-  'modes/virtual-os/mode.js': 3358,
+  'modes/virtual-os/mode.js': 3309,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is

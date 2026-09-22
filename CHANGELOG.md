@@ -8,20 +8,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Changed
-
-- **Finance adds up your figures itself, and your edits reach the whole
-  report.** A report used to be numbers the model wrote separately — the cards,
-  each chart and the table — with nothing joining them, so a total could
-  disagree with the lines it was the total of, and a figure corrected by hand
-  changed that one cell and nothing else. The model now lists the figures it
-  reads and does no sums; the app works out every total, card and chart from
-  that list, and the table is the list. Change a figure, add one or remove one
-  and the cards and charts follow as you type. A measure that is not a sum,
-  such as a debt-to-income ratio, can still come from the model and is marked
-  as its estimate. If the chosen model cannot answer, the report goes to
-  another. Reports saved before this open as they were.
-
 ### Added
 
 - **An ERP backup can be put back.** The ERP could write a full backup of a
@@ -132,6 +118,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Finance adds up your figures itself, and your edits reach the whole
+  report.** A report used to be numbers the model wrote separately — the cards,
+  each chart and the table — with nothing joining them, so a total could
+  disagree with the lines it was the total of, and a figure corrected by hand
+  changed that one cell and nothing else. The model now lists the figures it
+  reads and does no sums; the app works out every total, card and chart from
+  that list, and the table is the list. Change a figure, add one or remove one
+  and the cards and charts follow as you type. A measure that is not a sum,
+  such as a debt-to-income ratio, can still come from the model and is marked
+  as its estimate. If the chosen model cannot answer, the report goes to
+  another. Reports saved before this open as they were.
+
 - **Each agent is told which part is its own.** Every agent used to be handed
   the same list of everything the team owed, with nothing saying which of it
   was theirs — so the agent meant for the stylesheet spent its answer writing
@@ -235,6 +233,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Swarm's "Done in" for each agent.
 
 ### Fixed
+
+- **The Virtual OS agent does what it says it did.** Asked for files, a
+  small model would write them into its reply and say it had created them,
+  and nothing was created; they are now put in the workspace and the reply
+  says where. A model that reaches for a real tool call where the agent is
+  told to write one out had its whole answer refused by the provider; the
+  call it made is now read back and carried out, and an empty answer is
+  taken to the next model instead of ending the turn with nothing on screen.
+  The worker that writes a project stays on the side the job started on, so
+  a job given to a cloud model is no longer handed to a local one, and a
+  model's size is read from its name: a local 7B model counted as the
+  strongest worker there was, and every Gemini model, Pro included, counted
+  as small and was never asked.
 
 - **The 3D Forge no longer treats its own mark as your model.** The void opens
   on the HashCortx mark so it is not an empty black rectangle, and three parts
