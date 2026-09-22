@@ -53,7 +53,7 @@ console.log('\nA module colour is used only when it is a hex colour:');
     ok(`${shell}: nothing but a colour is written`, !/position:fixed/.test(html));
   }
   const sidebar = S.shellHtml({ shell: 'sidebar', spec: hostile, module: hostile.modules[1], screen: 'kanban', screenDiv: '', searchInput: '', cls: '', vars: '', activeModuleId: 'orders', esc });
-  ok('and a real one still is', sidebar.includes('--mod-color:#123456'));
+  ok('every module is marked in the app\'s gold, not its own colour', !sidebar.includes('#123456') && sidebar.includes('--mod-color:var(--sys-primary)'));
 }
 
 console.log('\nThe Systems mode draws from here:');

@@ -263,7 +263,13 @@ const LINE_BUDGET = {
   // form and the model's questions. The four lines here hand the answer to the
   // builder; the four hundred that ask it are in js/systems/setup.js and
   // js/systems/setup-dialog.js.
-  'modes/systems/mode.js': 3429,
+  // 3428, down one. Every system is drawn in the app's own look (js/systems/theme.js).
+  // 3229, down a hundred and ninety-nine. The header, the library, the
+  // inspector, the run log and the setup form gave way to one thin bar and the
+  // agent's conversation; what the agent is told is js/systems/agent.js and
+  // its conversation js/systems/agent-chat.js. The per-trade colour lists in
+  // the prompts went with the colours they chose.
+  'modes/systems/mode.js': 3229,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

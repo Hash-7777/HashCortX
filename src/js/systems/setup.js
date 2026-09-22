@@ -8,15 +8,14 @@
 // already say. Everything else was invented — or, where the app had nothing
 // to invent from, left generic.
 //
-// WHAT HAPPENS INSTEAD. The line is read into a form the person can correct:
-// the business's name, what it does, where it is, what it counts in, and which
-// parts it wants to keep track of. A model then reads that and asks only what
-// it cannot work out itself, and what is left blank is marked for the person
-// to fill in rather than made up. Every answer changes what is built — a
-// question whose answer goes nowhere is not asked.
+// WHAT HAPPENS INSTEAD. The ERP agent (js/systems/agent.js) asks in the
+// conversation for what it needs — what the business does, its name, where it
+// is — and what it learns is read here into the business's trade, its parts
+// and its currency, then composed into what the builder is given. Nothing the
+// person did not say is invented; the owner's word is put back over a model's.
 //
-// This file reads and composes; it asks nothing and draws nothing. The form
-// is js/systems/setup-dialog.js, and the build is js/systems/scaffold.js.
+// This file reads and composes; it asks nothing and draws nothing. The build
+// is js/systems/scaffold.js.
 //
 // Pure: text in, plain objects out. No DOM, no storage, no network.
 //
@@ -29,7 +28,6 @@
 
   /** A system needs this many parts to be worth opening; the gate asks for it. */
   const MIN_PARTS = 5;
-  const MAX_QUESTIONS = 5;
 
   /**
    * Currencies offered, by the code every price is formatted with. Common
@@ -148,11 +146,6 @@
     return /^[A-Z]{3}$/.test(v) ? v : '';
   }
 
-  /** The trades the app knows, as { id, label } — labels are the app's own names for them. */
-  function tradesOf(D) {
-    return Object.entries((D && D.DOMAIN_CONFIG) || {}).map(([id, c]) => ({ id, label: String((c && c.name) || id) }));
-  }
-
   /** Every part on offer for a trade: its own, then the extras it does not already have. */
   function partsFor(trade, D) {
     const config = (D && D.DOMAIN_CONFIG && (D.DOMAIN_CONFIG[trade] || D.DOMAIN_CONFIG.generic)) || { modules: [] };
@@ -199,15 +192,6 @@
     return out;
   }
 
-  // ── The model's questions ─────────────────────────────────────────────
-
-  const ASK = `You are about to build a business management system for a real business.
-Its owner has already given the details listed below. Decide whether anything ELSE is needed that only the owner can know and that would change what the system holds: what they actually sell or offer and at roughly what prices, the stages their work moves through, the kinds of customer they serve, how they take payment, their opening hours, the names of their branches.
-Do not ask about anything already given. Do not ask about layout, colours, screens or technology — those are decided for them.
-Return only JSON, no markdown:
-{"questions":[{"id":"short_id","question":"One short question","hint":"an example of an answer"}]}
-At most ${MAX_QUESTIONS} questions, the most useful first. If nothing else is needed, return {"questions":[]}.`;
-
   /** A plain account of the form, for the model and for the build. */
   function summaryOf(setup) {
     const s = setup || {};
@@ -219,13 +203,6 @@ At most ${MAX_QUESTIONS} questions, the most useful first. If nothing else is ne
     if (currencyCode(s.currency)) lines.push(`Money is counted in: ${currencyCode(s.currency)}`);
     if (on.length) lines.push(`It keeps track of: ${on.join(', ')}`);
     return lines.join('\n');
-  }
-
-  function questionMessages(setup) {
-    return [
-      { role: 'system', content: ASK },
-      { role: 'user', content: summaryOf(setup) },
-    ];
   }
 
   /**
@@ -291,8 +268,8 @@ At most ${MAX_QUESTIONS} questions, the most useful first. If nothing else is ne
   const CURRENCY_MARK = /\((?:[A-Z]{3}|\$|€|£|¥)\)(?=\s*$)/;
 
   window.HCSystemsSetup = {
-    MIN_PARTS, MAX_QUESTIONS, CURRENCIES, EXTRAS,
-    nameIn, placeIn, currencyForPlace, currencyCode, tradesOf, partsFor, fieldsFor,
-    suggest, problemsOf, summaryOf, questionMessages, describe, buildOptions, applyTo, CURRENCY_MARK,
+    MIN_PARTS, CURRENCIES, EXTRAS,
+    nameIn, placeIn, currencyForPlace, currencyCode, partsFor, fieldsFor,
+    suggest, problemsOf, summaryOf, describe, buildOptions, applyTo, CURRENCY_MARK,
   };
 })();

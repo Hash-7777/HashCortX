@@ -21,8 +21,6 @@
    * module and screen, the screen's markup, the search box, the class and
    * style strings, the open module's id, and `esc`.
    */
-  /** A module's colour, if it is a plain hex colour; a spec is a model's answer. */
-  const hex = (v) => (/^#[0-9a-f]{3}(?:[0-9a-f]{3})?$/i.test(String(v || "").trim()) ? String(v).trim() : null);
 
   /**
    * A module's own colour, and the shade a word on it can be read in.
@@ -32,12 +30,10 @@
    * one. js/systems/contrast.js picks the shade; the colour itself is
    * untouched, so the nav still reads as a spectrum.
    */
-  function modStyle(m, spec) {
-    const own = hex(m && m.color);
-    if (!own) return "--mod-color:var(--sys-primary);--mod-ink:var(--sys-nav-text)";
-    const T = window.HCSystemsTheme;
-    const ink = T && T.shadesOf ? T.shadesOf(own, spec).onFill : "#ffffff";
-    return `--mod-color:${own};--mod-ink:${ink}`;
+  // Every module is marked in the app's gold now (js/systems/theme.js): a
+  // menu of ten colours read as ten products, not one.
+  function modStyle() {
+    return "--mod-color:var(--sys-primary);--mod-ink:var(--sys-nav-text)";
   }
 
   function shellHtml(o) {
@@ -68,7 +64,7 @@
               <header class="sys-app-topbar">
                 <div>
                   <div class="sys-breadcrumb">${esc(spec.name)} / ${esc(module.name)}</div>
-                  <div class="sys-screen-title">${esc(module.name)}<span class="sys-screen-badge">${esc(screen)}</span></div>
+                  <div class="sys-screen-title">${esc(module.name)}</div>
                 </div>
                 ${searchInput}
               </header>
@@ -95,7 +91,7 @@
             </header>
             <div class="sys-shell-body">
               <div class="sys-top-breadcrumb">
-                <span>${esc(module.name)}</span><span class="sys-screen-badge">${esc(screen)}</span>
+                <span>${esc(module.name)}</span>
               </div>
               ${screenDiv}
             </div>
@@ -118,7 +114,6 @@
               <header class="sys-dock-topbar">
                 <div class="sys-dock-breadcrumb">
                   <span class="sys-dock-module-name">${esc(module.name)}</span>
-                  <span class="sys-screen-badge">${esc(screen)}</span>
                 </div>
                 ${searchInput}
               </header>
@@ -172,7 +167,7 @@
                   <button class="sys-cmd-nav-btn ${m.id === activeModuleId ? "active" : ""}" data-module-id="${esc(m.id)}">
                     <span class="sys-module-icon">${iconSvg(m.icon)}</span>
                     <span class="sys-cmd-nav-label">${esc(m.name)}</span>
-                    ${m.id === activeModuleId ? `<span class="sys-screen-badge" style="margin-left:auto">${esc(screen)}</span>` : ""}
+                    
                   </button>`).join("")}
               </nav>
               <main class="sys-cmd-main">

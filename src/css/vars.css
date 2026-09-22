@@ -141,12 +141,14 @@
     --accent-ink: #14100a;
   }
 
+  /* The ERP is the app's gold, like everything it draws: a cyan builder
+     around a gold business app read as two products. */
   body.system-maker-mode {
-    --accent: #38bdf8;
-    --accent-2: #7dd3fc;
-    --accent-soft: rgba(56, 189, 248, 0.10);
-    --accent-line: rgba(56, 189, 248, 0.24);
-    --accent-ink: #04141f;
+    --accent: var(--gold);
+    --accent-2: var(--gold-2);
+    --accent-soft: rgba(201, 169, 110, 0.10);
+    --accent-line: rgba(201, 169, 110, 0.26);
+    --accent-ink: #1a1408;
   }
 
   body.virtual-os-mode {

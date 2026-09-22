@@ -112,11 +112,13 @@ AI-generated output before running it.
 ──────────────────────────────────────────────────────────────
 8. ERP  (Systems Builder)
 ──────────────────────────────────────────────────────────────
-Describe a business workflow and the agent generates a working
-interactive prototype — forms, tables, dashboards, and logic.
-Think of it as a rapid internal-tool builder. Good for mocking
-up CRM flows, inventory screens, order trackers, or any
-internal business app without writing frontend code manually.
+The ERP opens on an empty business app (customers, products,
+orders, invoices) you can type into straight away. Press the
+logo in the corner to talk to its agent: tell it about your
+business and it asks what it needs, then builds the app for it.
+Ask it to change the app, to record what happened ("Omar paid
+invoice 12"; you see the change before it is made, and can
+undo it), or anything about your records.
 
 
 ──────────────────────────────────────────────────────────────

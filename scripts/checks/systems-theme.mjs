@@ -33,22 +33,25 @@ ok('shading by nothing changes nothing', T.shadeHex('#1d4ed8', 0) === '#1d4ed8')
 ok('a short colour is left alone rather than misread', T.shadeHex('#fff', 0.5) === '#fff');
 
 console.log('\nA theme becomes the screens\' variables:');
-const light = vars({ theme: { mode: 'light', primary: '#92400e', accent: '#f59e0b', radius: 12 }, domain: 'restaurant' });
-ok('its primary and accent', light['--sys-primary'] === '#92400e' && light['--sys-accent'] === '#f59e0b');
-ok('over its kind of business\'s background', light['--sys-app-bg'] === T.DOMAIN_BG.restaurant.light.app);
-ok('with dark text on a light theme', light['--sys-app-text'] === '#0f172a');
-ok('and its corners, never sharper than 4px nor rounder than 20px', light['--sys-radius'] === '12px' && light['--sys-radius-sm'] === '8px' && light['--sys-radius-lg'] === '18px');
-const dark = vars({ theme: { mode: 'dark', primary: '#7c3aed', accent: '#4ade80' }, domain: 'fitness' });
-ok('a dark theme has light text and its own background', dark['--sys-app-text'] === '#e5e7eb' && dark['--sys-app-bg'] === T.DOMAIN_BG.fitness.dark.app);
-ok('and a darker rail than its primary', dark['--sys-nav-bg'] === T.shadeHex('#7c3aed', 0.38));
-ok('a kind of business it does not know gets the plain background', vars({ theme: { primary: '#000000' }, domain: 'zzz' })['--sys-app-bg'] === T.DOMAIN_BG.generic.light.app);
-ok('a theme with no colours still draws', vars({ theme: {} })['--sys-primary'] === '#2563eb');
+// Every system is drawn in the app's own look, whatever its trade or its
+// saved colours asked for (decided 2026-09-21: dark and gold, like the app).
+const bookshop = vars({ theme: { mode: 'light', primary: '#db2777', accent: '#f59e0b', radius: 12 }, domain: 'retail' });
+ok('its primary and accent are the app\'s gold, whatever the system asked for', bookshop['--sys-primary'] === T.APP.primary && bookshop['--sys-accent'] === T.APP.accent);
+ok('over the app\'s own near-black, whatever its trade', bookshop['--sys-app-bg'] === T.APP.app && bookshop['--sys-card-bg'] === T.APP.card);
+ok('with light text, since it is always dark', bookshop['--sys-app-text'] === '#e5e7eb');
+ok('and its corners, never sharper than 4px nor rounder than 20px', bookshop['--sys-radius'] === '12px' && bookshop['--sys-radius-sm'] === '8px' && bookshop['--sys-radius-lg'] === '18px');
+const other = vars({ theme: { mode: 'dark', primary: '#7c3aed', accent: '#4ade80' }, domain: 'fitness' });
+ok('two trades look like one product', other['--sys-app-bg'] === bookshop['--sys-app-bg'] && other['--sys-primary'] === bookshop['--sys-primary'] && other['--sys-nav-bg'] === bookshop['--sys-nav-bg']);
+ok('the rail is the app\'s own dark, not a shade of a colour', other['--sys-nav-bg'] === T.APP.nav);
+ok('a theme with no colours still draws', vars({ theme: {} })['--sys-primary'] === T.APP.primary);
+ok('nothing stored is rewritten to draw it', (() => { const spec = { theme: { mode: 'light', primary: '#db2777' }, domain: 'retail' }; T.themeVars(spec); return spec.theme.primary === '#db2777' && spec.domain === 'retail'; })());
+ok('where a colour per thing is needed, a set of distinct calm ones that begins with gold', T.SERIES.length >= 6 && T.SERIES[0] === T.APP.primary && new Set(T.SERIES).size === T.SERIES.length);
 
 console.log('\nA design beyond colour:');
 {
   ok('five typefaces, all already on the machine', Object.keys(T.FONTS).join() === 'sans,serif,rounded,humanist,mono' && !Object.values(T.FONTS).some((f) => /url\(|https?:/.test(f)));
   ok('written so they fit a double-quoted style attribute', Object.values(T.FONTS).every((f) => !f.includes('"')));
-  ok('a system\'s typeface reaches its controls through --sans', vars({ theme: { font: 'serif' } })['--sans'] === T.FONTS.serif);
+  ok('a system is set in the app\'s typeface, whatever it asked for', vars({ theme: { font: 'serif' } })['--sans'] === T.APP.font);
   ok('an unknown one is the plain sans', T.fontStack('comic') === T.FONTS.sans);
   ok('a design is read from a spec', JSON.stringify(T.designOf({ layout: { shell: 'top' }, theme: { font: 'mono', density: 'compact', surface: 'flat' } })) === JSON.stringify({ shell: 'top', font: 'mono', density: 'compact', surface: 'flat' }));
 
@@ -99,7 +102,7 @@ console.log('\nA colour a spec asks for is used only when it is a colour:');
     ok(`not ${JSON.stringify(bad)}`, T.safeHex(bad, 'FALLBACK') === 'FALLBACK');
   }
   const v = vars({ theme: { primary: '#000"><b>x</b>', accent: 'red;position:fixed' }, domain: 'generic' });
-  ok('a hostile primary or accent never reaches the style', v['--sys-primary'] === '#2563eb' && v['--sys-accent'] === '#10b981');
+  ok('a hostile primary or accent never reaches the style', v['--sys-primary'] === T.APP.primary && v['--sys-accent'] === T.APP.accent && !/attacker|position|<b>/.test(T.themeVars({ theme: { primary: '#000"><b>x</b>', accent: 'red;position:fixed' } })));
   ok('the Systems mode checks every colour a model chose', (mode.match(/HCSystemsTheme\.safeHex\(/g) || []).length >= 4);
 }
 

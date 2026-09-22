@@ -177,37 +177,6 @@ console.log('\nWhat was left blank is marked, never invented:');
   ok('an answer is given as fact, not to be added to', /Arabic and English novels/.test(text) && /do not add to them/.test(text));
   ok('a blank one becomes a placeholder, and inventing it is ruled out', /Not given: What are your opening hours\?/.test(text) && /Never invent it/.test(text));
   ok('with no questions asked, there is no such section', !/Not given|Details from the owner/.test(S.describe(s, [])));
-  const msgs = S.questionMessages(s);
-  ok('the model is shown the form, not asked to redo it', /Do not ask about anything already given/.test(msgs[0].content) && /Business name: Hashbooks/.test(msgs[1].content));
-  ok('and not asked about looks, which are decided for the owner', /Do not ask about layout, colours, screens or technology/.test(msgs[0].content));
-}
-
-console.log('\nThe dialog puts a model\'s words on the page as text, and can never stop a build:');
-{
-  const dlg = read('src', 'js', 'systems', 'setup-dialog.js');
-  ok('nothing is written as markup', !/innerHTML|insertAdjacentHTML|outerHTML/.test(dlg));
-  ok('the example is cleaned by the one file that knows how', /C\.exampleOf\(q\.hint\)/.test(dlg));
-  ok('and can be pressed, or taken with the right arrow', /use\.addEventListener\('click', take\)/.test(dlg) && /ArrowRight/.test(dlg));
-  ok('a model that cannot be asked costs the questions, not the build', /return \[\];\s*\}\s*\n\s*\n\s*\/\*\*\s*\n\s*\* Ask\./.test(dlg) || /\n    return \[\];\n  \}/.test(dlg));
-  ok('with no questions, it builds straight away', /if \(!questions\.length\) \{ finish\(\{ setup, answers: \[\] \}\); return; \}/.test(dlg));
-  ok('it falls back to the first model there is, as the Swarm does', /deps\.models\(\)\[0\]/.test(dlg));
-  ok('a wait is time-limited and cancelled on the way out', /ROUTES\.callWithin\(ASK_MS/.test(dlg) && /if \(asking\) asking\.abort\(\);/.test(dlg));
-  ok('without its markup it builds from the form rather than breaking', /return Promise\.resolve\(\{ setup, answers: \[\] \}\);/.test(dlg));
-  const panel = read('src', 'modes', 'systems', 'panel.html');
-  for (const id of ['sysSetup', 'sysSetupForm', 'sysSetupAsk', 'sysSetupQuestions', 'sysSetupWaiting', 'sysSetupNext', 'sysSetupSkip', 'sysSetupCancel', 'sysSetupStep', 'sysSetupTitle', 'sysSetupNote']) {
-    ok(`#${id} is in the panel`, new RegExp(`id="${id}"`).test(panel));
-  }
-}
-
-console.log('\nGenerate asks first, and hands the answer on:');
-{
-  const mode = read('src', 'modes', 'systems', 'mode.js');
-  ok('the setup is asked before anything is built', mode.indexOf('HCSystemsSetupDialog?.ask(') < mode.indexOf('HCSystemsScaffold?.build('));
-  ok('cancelling it builds nothing', /if \(plan === null\) return;/.test(mode));
-  ok('the builder is handed the choices', /HCSystemsScaffold\?\.build\(desc, todayIso\(\), \{ setup: plan \? window\.HCSystemsSetup\.buildOptions\(plan\.setup\) : null \}\)/.test(mode));
-  ok('and the owner\'s word is put back over a model\'s', /if \(plan\) window\.HCSystemsSetup\.applyTo\(spec, plan\.setup\);/.test(mode));
-  const boot = read('src', 'boot.js');
-  ok('both files load after what they read, before the mode', boot.indexOf('/js/systems/domain.js') < boot.indexOf('/js/systems/setup.js') && boot.indexOf('/js/systems/setup.js') < boot.indexOf('/js/systems/setup-dialog.js') && boot.indexOf('/js/swarm/clarify.js') < boot.indexOf('/js/systems/setup-dialog.js'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/setup.js)`);

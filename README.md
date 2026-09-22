@@ -53,7 +53,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 | **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
 | **Finance** | Statements, CSV, PDF and XLSX turned into KPIs and charts from the document's own figures |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
-| **ERP** | Describe a business, get a working app with linked records and books, exported as one HTML file |
+| **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. Exported as one HTML file |
 | **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen |
 | **Virtual OS** | A simulated project desktop an agent builds inside |
 
@@ -76,11 +76,11 @@ Build a team on a canvas, or start from a template. Watch each agent work in the
 <table>
 <tr>
 <td width="50%"><img src="docs/assets/screenshots/3d-forge.png" alt="3D Forge: a desk lamp generated as four parts, 69 by 100 by 69 millimetres"></td>
-<td width="50%"><img src="docs/assets/screenshots/erp.png" alt="ERP: a generated bicycle workshop app with revenue, a status board and the latest jobs"></td>
+<td width="50%"><img src="docs/assets/screenshots/erp.png" alt="ERP: a bicycle workshop system built by its agent, with the agent's conversation open beside it"></td>
 </tr>
 <tr>
 <td><b>3D Forge.</b> A described object becomes real parts with real dimensions, ready to print or open in CAD.</td>
-<td><b>ERP.</b> A described business becomes an app with records, stages and books. Change it by asking.</td>
+<td><b>ERP.</b> Tell the agent in the corner about your business and it builds the app: records, stages and books. Ask it to change the app, record what happened, or tell you about your records.</td>
 </tr>
 </table>
 

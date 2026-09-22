@@ -85,7 +85,8 @@ console.log('\nIn a browser, the file keeps its own system:');
 ok('under a key of its own, since every local file shares the browser\'s storage', /const STORE_KEY = STANDALONE \? `hcx_app_\$\{STANDALONE\.spec\.id\}` : "hashui_system_specs_v1";/.test(mode));
 ok('and a newer export of it replaces an older one\'s', /localStorage\.getItem\(`\$\{STORE_KEY\}_exported`\) !== String\(STANDALONE\.exportedAt\)/.test(mode));
 ok('a file is saved by download, having no app to ask', /download = name/.test(src('js', 'systems', 'export-app.js')));
-ok('the app\'s chrome is hidden, and the file cannot try to export itself', /\.sys-standalone :is\(\.sys-header, \.sys-library/.test(css) && /\[data-preview-export="app"\]/.test(css));
+ok('the app\'s agent and its own controls are hidden, and the file cannot try to export itself', /\.sys-standalone :is\(\.sys-agent-fab, \.sys-agent, #sysHistoryBtn/.test(css) && /\[data-preview-export="app"\]/.test(css));
+ok('it never talks to a model: the agent is only wired in the app', /if \(!STANDALONE\) CHAT\(\)\?\.init\(/.test(mode) && /function openStarter\(\) \{\s*if \(STANDALONE\) return;/.test(mode));
 ok('the app offers it from the Export menu', /data-preview-export="app"/.test(src('modes', 'systems', 'panel.html')) && /previewExport === "app"\) exportApp\(spec\)/.test(mode));
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/export-app.js)`);

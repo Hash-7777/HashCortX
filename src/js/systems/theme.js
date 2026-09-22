@@ -65,10 +65,31 @@
     jewelry:       { light: { app:"#fefce8", card:"#fffdf0", border:"rgba(161,120,10,.13)" }, dark: { app:"#0d0900", card:"#1a1400", border:"rgba(212,175,55,.18)"  } },
     saas:          { light: { app:"#f8fafc", card:"#ffffff", border:"rgba(15,23,42,.09)"   }, dark: { app:"#04050a", card:"#090c14", border:"rgba(148,163,184,.1)"  } },
     generic:       { light: { app:"#f8fafc", card:"#ffffff", border:"rgba(15,23,42,.1)"    }, dark: { app:"#060b14", card:"#0d1526", border:"rgba(99,102,241,.12)"  } },
+    app:           { light: { app:"#080a0f", card:"#0d1117", border:"rgba(255,255,255,.08)" }, dark: { app:"#080a0f", card:"#0d1117", border:"rgba(255,255,255,.08)" } },
   };
 
+  // Every system is drawn in the app's own look: its near-black surfaces
+  // (src/css/vars.css), gold as the one accent, and its typeface. A system
+  // used to take its trade's colours, so a bookshop came out as a hot-pink
+  // block beside a gold-and-black app, and no two systems looked like the same
+  // product. The trade still shapes the modules, the fields and the layout;
+  // it no longer picks the paint. Applied when a system is drawn, so one saved
+  // in its old colours is shown in these too, and nothing stored is rewritten.
+  const APP = {
+    app: "#080a0f", card: "#0d1117", nav: "#0a0d13", border: "rgba(255,255,255,.08)",
+    primary: "#c9a96e", accent: "#dfc38e",
+    font: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif",
+  };
+  // Where one colour per thing is needed — a chart's series, a module's mark,
+  // a person's initials — a calm set that sits with gold, each distinct.
+  const SERIES = ["#c9a96e", "#7fa99b", "#8d9fcf", "#c98f8f", "#a99cc9", "#9fb56f", "#6fa8b5", "#c7925a"];
+
+  /** A system as it is drawn: its own structure, the app's look. */
+  const lookOf = (spec) => ({ ...(spec || {}), domain: "app", theme: { ...((spec && spec.theme) || {}), mode: "dark", primary: APP.primary, accent: APP.accent } });
+
   /** The surfaces a system draws on, so what is drawn on them can be measured. */
-  function surfacesOf(spec) {
+  function surfacesOf(specIn) {
+    const spec = lookOf(specIn);
     const dark = spec?.theme?.mode === "dark";
     const domain = spec?.domain || (window.HCSystemsDomain ? window.HCSystemsDomain.detectDomain(spec?.description || "") : "generic");
     const dbg = (DOMAIN_BG[domain] || DOMAIN_BG.generic)[dark ? "dark" : "light"];
@@ -108,14 +129,15 @@
     };
   }
 
-  function themeVars(spec) {
+  function themeVars(specIn) {
+    const spec = lookOf(specIn);
     const dark = spec.theme.mode === "dark";
     const primary = safeHex(spec.theme.primary, "#2563eb");
     const accent  = safeHex(spec.theme.accent, "#10b981");
     const radius  = Number(spec.theme.radius || 10);
     const domain  = spec.domain || window.HCSystemsDomain.detectDomain(spec.description || "");
     const dbg     = (DOMAIN_BG[domain] || DOMAIN_BG.generic)[dark ? "dark" : "light"];
-    const navBg      = dark ? shadeHex(primary, 0.38) : primary;
+    const navBg      = APP.nav;
     const primaryRgb = hexToRgb(primary);
     const accentRgb  = hexToRgb(accent);
 
@@ -206,7 +228,7 @@
       `--sys-radius-lg:${Math.min(20, radius + 6)}px`,
       // The generated app's controls read the app's own --sans; inside it,
       // that is the system's typeface.
-      `--sans:${fontStack(spec.theme.font)}`,
+      `--sans:${APP.font}`,
     ].join(";");
   }
   // Typefaces already on the machine — nothing is fetched. Names are in single
@@ -299,5 +321,5 @@
   /** The typeface stack for a design's font. */
   const fontStack = (font) => FONTS[font] || FONTS.sans;
 
-  window.HCSystemsTheme = { themeVars, surfacesOf, shadesOf, safeHex, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
+  window.HCSystemsTheme = { APP, SERIES, lookOf, themeVars, surfacesOf, shadesOf, safeHex, shadeHex, hexToRgb, DOMAIN_BG, FONTS, DESIGN, FIT, designOf, varyFrom, fontStack, DASHBOARDS, dashboardFor };
 })();

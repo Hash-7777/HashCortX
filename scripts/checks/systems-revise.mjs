@@ -77,7 +77,7 @@ console.log('\nWhat a change did, in words:');
 }
 
 console.log('\nThe Systems mode changes the open system:');
-ok('there is a Change button, off until a system is open', /id="sysChangeBtn"[^>]*disabled/.test(panel) && /change\.disabled = running \|\| !getActive\(\)/.test(mode));
+ok('the agent changes the open system when it says so, and only one is open', /else if \(said\.do === "change"\) await reviseSystem\(said\.request\);/.test(mode) && /if \(!spec \|\| runAbort \|\| !String\(request\)\.trim\(\)\) return;/.test(mode));
 ok('it is shown the system and told to keep what the request does not mention', /You are CHANGING an existing system/.test(mode) && /R\.compactSpec\(spec, data\)/.test(mode));
 ok('the answer is built on the system as it was, so records of entities that remain are kept', /finalizeOrRepairGeneratedSpec\(model, kept, raw, [^)]*, signal, tried, spec\)/.test(mode) && /return finalizeGeneratedSpec\(parsed, desc, previousSpec\);/.test(mode));
 ok('new entities get records written for them', /next = await writeMissingRecords\(await finalizeOrRepairGeneratedSpec\(model, kept/.test(mode));

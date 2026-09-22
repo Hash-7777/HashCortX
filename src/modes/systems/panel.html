@@ -1,178 +1,102 @@
 <template data-mode-tab>
-  <button class="tab" data-tab="systems" id="tabSystems" title="ERP — create interactive business app prototypes">
+  <button class="tab" data-tab="systems" id="tabSystems" title="ERP — a business system you build and change by asking">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16"/><path d="M3 9h18"/><path d="M12 13h5"/><path d="M12 17h3"/></svg>
     ERP
   </button>
 </template>
 
 <!-- ══════════════════════════════════════════════════════════════
-     SYSTEM MAKER — Interactive business app prototype builder
-     Shown when body.system-maker-mode is active
+     ERP — the system itself fills the mode; everything else is a
+     thin bar above it and an agent you talk to.
+     Shown when body.system-maker-mode is active.
      ══════════════════════════════════════════════════════════════ -->
 
 <div id="system-maker-wrap">
 
-  <!-- Header bar -->
-  <div class="sys-header">
-
-    <div class="sys-header-left">
-      <img src="/assets/logo-mark.png" class="sys-logo mode-logo-img" draggable="false" alt="HashCortx"/>
-      <div>
-        <div class="sys-title">System Maker</div>
-        <div class="sys-sub">Business App Builder</div>
-      </div>
-    </div>
-
-    <div class="sys-header-center">
-      <div class="sys-prompt-wrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input id="sysPromptInput" type="text" placeholder="Describe a new business app, or a change to the open one&#8230;" autocomplete="off" />
-      </div>
-      <input type="text" id="sysHeaderAppSearch" placeholder="Search records&#8230;" style="height:36px;border:1px solid var(--sys-line);border-radius:7px;background:rgba(15,23,42,.72);color:#e5edf5;font:12px var(--sans);padding:0 10px;outline:0;min-width:140px;display:none;" />
-    </div>
-
-    <div class="sys-header-right" id="sysHeaderRight">
-      <span class="sys-run-status" id="sysRunStatus">Idle</span>
-      <select class="sys-model-select" id="sysModelSelect"></select>
-      <button class="sys-btn primary" id="sysCreateBtn">Generate</button>
-      <button class="sys-btn" id="sysChangeBtn" type="button" title="Apply what you typed to the system that is open" disabled>Change</button>
-      <button class="sys-btn" id="sysWorkBtn" type="button" title="Tell it what happened — &quot;Seif paid his due expenses&quot; — and it finds the records and changes them, after showing you what it will do" disabled>Do it</button>
-      <button class="sys-btn" id="sysUndoWorkBtn" type="button" title="Put the records back the way they were before the last Do it" hidden>Undo that</button>
-      <button class="sys-btn" id="sysNewBtn">New</button>
-      <button class="sys-btn" id="sysResetDataBtn">Reset Data</button>
-      <button class="sys-btn" id="sysBackBtn">&#8592; Back</button>
-      <!-- Whatever does not fit the bar moves in here rather than being cut
-           off by it — js/toolbar-fit.js decides what, the mode measures. -->
-      <div class="sys-more-wrap" id="sysMoreWrap" hidden>
-        <button class="sys-btn sys-more-btn" id="sysMoreBtn" aria-haspopup="menu" aria-expanded="false" aria-label="More actions" title="More actions">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>
+  <!-- The thin bar: which system, its history, and getting data in and out -->
+  <div class="sys-bar" role="toolbar" aria-label="System">
+    <div class="sys-menu-wrap">
+      <button class="sys-bar-btn sys-switch-btn" id="sysSwitchBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="Your systems">
+        <span class="sys-switch-name" id="sysPreviewName">My business</span>
+        <svg class="sys-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+      </button>
+      <div class="sys-menu sys-switch-menu" id="sysSwitchMenu" role="menu" hidden>
+        <div class="sys-system-list" id="sysSystemList"></div>
+        <div class="sys-menu-sep" role="separator"></div>
+        <button class="sys-menu-item" id="sysNewBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg><span>New empty system</span>
         </button>
-        <div class="sys-more-menu" id="sysMoreMenu" role="menu" aria-hidden="true" hidden></div>
-      </div>
-    </div>
-
-  </div><!-- /.sys-header -->
-
-  <!-- Body: library | preview shell | inspector -->
-  <div class="sys-body">
-
-    <!-- LEFT: System library -->
-    <div class="sys-library" id="sysLibraryPanel">
-      <div class="sys-panel-header">
-        <span>Systems</span>
-        <button class="sys-icon-btn" id="sysCloseLibraryBtn" title="Hide library">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <button class="sys-menu-item" id="sysResetDataBtn" type="button" role="menuitem">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8a5 5 0 1 0 1.5-3.6"/><path d="M3 3v3h3"/></svg><span>Put back the records it was built with</span>
         </button>
       </div>
-      <div class="sys-system-list" id="sysSystemList">
-        <!-- Populated by JS: renderSystemList() -->
-      </div>
-      <div class="sys-panel-header sys-history-head">
-        <span>History</span>
-      </div>
-      <div class="sys-version-list" id="sysVersionList">
-        <!-- Populated by JS -->
-      </div>
     </div>
+    <span class="sys-bar-desc" id="sysPreviewDesc"></span>
 
-    <!-- CENTER: Preview shell -->
-    <div class="sys-preview-shell" id="sysPreviewShell" style="position:relative;">
-
-      <div class="sys-preview-toolbar">
-        <div class="sys-toolbar-left">
-          <button class="sys-btn sys-panel-toggle-btn" id="sysToggleLibraryBtn">&#9776; Library</button>
-          <div>
-            <div class="sys-preview-name" id="sysPreviewName">No system loaded</div>
-            <div class="sys-preview-desc" id="sysPreviewDesc">Generate or select a system from the library.</div>
-          </div>
-        </div>
-        <div class="sys-preview-actions">
-          <div class="sys-preview-export-wrap">
-            <button class="sys-btn sys-export-trigger" id="sysPreviewExportMenuBtn" aria-haspopup="menu" aria-expanded="false">Export &#9660;</button>
-            <div id="sysPreviewExportMenu" class="sys-preview-export-menu" role="menu" aria-hidden="true" hidden>
-              <button class="sys-preview-export-item" data-preview-export="json" role="menuitem">JSON</button>
-              <button class="sys-preview-export-item" data-preview-export="csv" role="menuitem">CSV</button>
-              <button class="sys-preview-export-item" data-preview-export="app" role="menuitem" title="One file that runs this system in any browser">App (.html)</button>
-            </div>
-          </div>
-          <button class="sys-btn" id="sysPreviewImportBtn">Import JSON</button>
-          <button class="sys-btn sys-panel-toggle-btn" id="sysToggleInspectorBtn">Inspector</button>
+    <div class="sys-bar-right">
+      <button class="sys-bar-btn" id="sysUndoWorkBtn" type="button" title="Put the records back the way they were before the agent's last change" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 4 2 7l3 3"/><path d="M2 7h7a4 4 0 0 1 0 8H7"/></svg><span>Undo last change</span>
+      </button>
+      <div class="sys-menu-wrap">
+        <button class="sys-bar-btn" id="sysHistoryBtn" type="button" aria-haspopup="menu" aria-expanded="false" title="Earlier versions of this system">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span>History</span>
+        </button>
+        <div class="sys-menu" id="sysHistoryMenu" role="menu" hidden>
+          <div class="sys-version-list" id="sysVersionList"></div>
         </div>
       </div>
-
-      <!-- Live app host (JS renders generated app HTML here) -->
-      <div class="sys-app-host" id="sysAppHost">
-        <div class="sys-empty">
-          <div>
-            <h2>System Maker</h2>
-            <p>Describe a business app and click <b>Generate</b> &#8212; or pick an existing system from the library.</p>
-          </div>
+      <div class="sys-menu-wrap sys-preview-export-wrap">
+        <button class="sys-bar-btn" id="sysPreviewExportMenuBtn" type="button" aria-haspopup="menu" aria-expanded="false">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M3 12v1.5h10V12"/></svg><span>Export</span>
+        </button>
+        <div id="sysPreviewExportMenu" class="sys-menu sys-preview-export-menu" role="menu" aria-hidden="true" hidden>
+          <button class="sys-menu-item sys-preview-export-item" data-preview-export="json" role="menuitem" type="button"><span>Backup (JSON)</span></button>
+          <button class="sys-menu-item sys-preview-export-item" data-preview-export="csv" role="menuitem" type="button"><span>This table (CSV)</span></button>
+          <button class="sys-menu-item sys-preview-export-item" data-preview-export="app" role="menuitem" type="button" title="One file that runs this system in any browser"><span>App to share (.html)</span></button>
         </div>
       </div>
-
-      <!-- Drop zone for JSON import drag-and-drop -->
-      <div id="sysDropZone" style="display:none;position:absolute;inset:0;background:rgba(56,189,248,.08);border:3px dashed rgba(56,189,248,.55);border-radius:12px;z-index:50;align-items:center;justify-content:center;pointer-events:none;">
-        <span style="font-size:18px;color:var(--sys-accent);font-weight:800;">Drop JSON here to import</span>
-      </div>
-
-    </div><!-- /.sys-preview-shell -->
-
-    <!-- RIGHT: Data editor / inspector -->
-    <div class="sys-inspector" id="sysInspectorPanel">
-      <div class="sys-inspector-content">
-        <div class="sys-panel-header" style="display:flex;align-items:center;justify-content:space-between;">
-          <span>Data Editor</span>
-          <button id="sysInspectorCloseBtn" title="Close panel" style="background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;line-height:1;font-size:15px;">&#215;</button>
-        </div>
-        <div class="sys-data-editor" id="sysDataEditor">
-          <!-- Populated by JS -->
-        </div>
-        <div class="sys-panel-header sys-history-head">
-          <span>Run Trace</span>
-        </div>
-        <div class="sys-trace" id="sysTrace">
-          <!-- Populated by JS: trace() -->
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /.sys-body -->
-
-  <!-- Trace console (bottom collapsible drawer) -->
-  <div class="sys-trace-console collapsed" id="sysTraceConsole">
-    <div class="sys-trace-header" id="sysTraceToggle">
-      <span class="sys-trace-dot" id="sysTraceDot"></span>
-      <span class="sys-trace-label">Run Log</span>
-      <span class="sys-trace-summary" id="sysTraceSummary">No run yet</span>
-      <div style="display:flex;align-items:center;gap:6px;margin-right:4px;">
-        <button class="sys-trace-btn" id="sysTraceCopyBtn" title="Copy the whole run log">Copy</button>
-        <button class="sys-trace-btn" id="sysTraceClearBtn">Clear</button>
-      </div>
-      <svg class="sys-trace-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+      <button class="sys-bar-btn" id="sysPreviewImportBtn" type="button" title="Bring records in from a CSV file">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 10V2M5 5l3-3 3 3"/><path d="M3 12v1.5h10V12"/></svg><span>Import</span>
+      </button>
     </div>
   </div>
 
-  <!-- Setup: what the system is for, then the questions only the owner can
-       answer — js/systems/setup-dialog.js draws it, js/systems/setup.js reads it. -->
-  <div class="amk-dialog sys-setup" id="sysSetup" role="dialog" aria-modal="true" aria-labelledby="sysSetupTitle" style="z-index:330;">
-    <div class="amk-dialog-inner sys-setup-inner">
-      <div class="sys-setup-head">
-        <div class="sys-setup-step" id="sysSetupStep">Step 1 of 2</div>
-        <div class="sys-setup-title" id="sysSetupTitle">About the business</div>
-        <div class="sys-setup-note" id="sysSetupNote"></div>
-      </div>
-      <div class="sys-setup-body" id="sysSetupForm"></div>
-      <div class="sys-setup-body" id="sysSetupAsk" hidden>
-        <div class="sys-setup-waiting" id="sysSetupWaiting" role="status">Reading the form and working out what else it needs to know</div>
-        <div class="sys-setup-questions" id="sysSetupQuestions"></div>
-      </div>
-      <div class="amk-dialog-actions sys-setup-actions">
-        <button class="amk-btn" id="sysSetupCancel" type="button">Cancel</button>
-        <button class="amk-btn" id="sysSetupSkip" type="button">Build without questions</button>
-        <button class="amk-btn primary" id="sysSetupNext" type="button">Continue</button>
-      </div>
-    </div>
+  <!-- The system, full size -->
+  <div class="sys-preview-shell" id="sysPreviewShell">
+    <div class="sys-app-host" id="sysAppHost"></div>
   </div>
+
+  <!-- The agent: a button that stays in the corner, and the conversation it opens -->
+  <button class="sys-agent-fab" id="sysAgentFab" type="button" aria-controls="sysAgent" aria-expanded="false" title="Talk to the ERP agent">
+    <img src="/assets/logo-mark.png" alt="" draggable="false"/>
+    <span class="sys-agent-fab-ring" aria-hidden="true"></span>
+  </button>
+  <section class="sys-agent" id="sysAgent" role="dialog" aria-label="ERP agent" hidden>
+    <header class="sys-agent-head">
+      <img class="sys-agent-logo" src="/assets/logo-mark.png" alt="" draggable="false"/>
+      <div class="sys-agent-titles">
+        <div class="sys-agent-title">ERP agent</div>
+        <div class="sys-agent-status" id="sysRunStatus" role="status">Ready</div>
+      </div>
+      <select class="sys-agent-model" id="sysModelSelect" aria-label="Which model the agent uses"></select>
+      <button class="sys-icon-btn" id="sysAgentClear" type="button" title="Start a new conversation" aria-label="Start a new conversation">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.6 9.5h5.8l.6-9.5"/></svg>
+      </button>
+      <button class="sys-icon-btn" id="sysAgentClose" type="button" title="Close" aria-label="Close">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8"/></svg>
+      </button>
+    </header>
+    <div class="sys-agent-log" id="sysAgentLog" aria-live="polite"></div>
+    <form class="sys-agent-compose" id="sysAgentForm">
+      <textarea id="sysAgentInput" rows="2" placeholder="Ask for a system, a change, or anything about your records" aria-label="Message the ERP agent"></textarea>
+      <button class="sys-agent-send" id="sysAgentSend" type="submit" aria-label="Send">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M4 7l4-4 4 4"/></svg>
+      </button>
+      <button class="sys-agent-send sys-agent-stop" id="sysAgentStop" type="button" aria-label="Stop" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.5" y="4.5" width="7" height="7" rx="1"/></svg>
+      </button>
+    </form>
+  </section>
 
   <!-- Import modal -->
   <div class="amk-dialog" id="sysImportModal" style="z-index:310;">
@@ -183,14 +107,6 @@
       </div>
       <div id="sysImportBody" style="font-size:12px;color:var(--muted);margin-bottom:10px;"></div>
       <div id="sysImportCount" style="font-size:11px;font-family:var(--mono);color:var(--sys-accent);margin-bottom:14px;"></div>
-      <!-- A second file input lived here, for a JSON import that does not
-           exist: nothing opened it, nothing listened to it, and it carried the
-           same id as the CSV one the drop zone builds. Two elements with one
-           id means getElementById answers with whichever comes first, so the
-           id was pointing at one of them and the dashed box sat under the CSV
-           drop zone offering to select a JSON file that would go nowhere. The
-           title below is set per open; the markup's own default named a system
-           import that no longer happens either. -->
       <div style="display:flex;justify-content:flex-end;gap:8px;">
         <button class="amk-btn" id="sysImportCancel">Cancel</button>
         <button class="amk-btn primary" id="sysImportConfirm" disabled>Import</button>

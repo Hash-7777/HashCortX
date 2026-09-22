@@ -47,7 +47,8 @@ ok('no trace at all gives nothing to copy', T.asText(null, { rowSelector: '.x' }
 console.log('\nEvery trace can be selected:');
 const selectable = (css, sel) => new RegExp(`${sel.replace(/[.*]/g, (c) => `\\${c}`)}[^{]*\\{[^}]*user-select:\\s*text`).test(css);
 ok('the Agent Swarm trace', selectable(src('modes', 'agent-maker', 'mode.css'), '.amk-trace-entries *'));
-ok('the Systems run log', selectable(src('modes', 'systems', 'mode.css'), '.sys-trace-entries *'));
+// The ERP's steps are written in its agent's conversation, not a log.
+ok('the ERP agent\'s conversation, where its steps are written', /\.sys-agent-log \{[^}]*user-select: text/.test(src('modes', 'systems', 'mode.css')));
 ok('the Forge trace', selectable(src('modes', 'forge', 'mode.css'), '.frg-trace-entries *'));
 ok('the Coder trace', selectable(src('modes', 'code', 'mode.css'), '.cdr-trace-entries *'));
 ok('the Virtual OS trace', selectable(src('modes', 'virtual-os', 'mode.css'), '.void-trace-entries *'));
@@ -55,8 +56,6 @@ ok('the Virtual OS trace', selectable(src('modes', 'virtual-os', 'mode.css'), '.
 console.log('\nEvery trace with a Copy button copies it:');
 ok('the Agent Swarm has a Copy button', /id="amkTraceCopyBtn"/.test(src('modes', 'agent-maker', 'panel.html')));
 ok('... wired to its trace rows', /HCTraceCopy\.wire\(document\.getElementById\("amkTraceCopyBtn"\)[\s\S]{0,200}rowSelector: "\.amk-trace-entry"/.test(src('modes', 'agent-maker', 'mode.js')));
-ok('the Systems run log has a Copy button', /id="sysTraceCopyBtn"/.test(src('modes', 'systems', 'panel.html')));
-ok('... wired to its log rows', /HCTraceCopy\.wire\(\$\("sysTraceCopyBtn"\)[\s\S]{0,200}rowSelector: "\.sys-trace-entry"/.test(src('modes', 'systems', 'mode.js')));
 ok('the Forge copies through the same helper', /HCTraceCopy\.copy\(e\.currentTarget, traceAsText\(\)/.test(src('modes', 'forge', 'mode.js')));
 ok('the helper loads before the modes', src('boot.js').indexOf("'/js/trace-copy.js'") !== -1
   && src('boot.js').indexOf("'/js/trace-copy.js'") < src('boot.js').indexOf("'/modes/manifest.js'"));

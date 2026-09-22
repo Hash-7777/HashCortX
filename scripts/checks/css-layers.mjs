@@ -119,7 +119,7 @@ console.log('\nLoad order is a decision, not an accident:');
 // one depends on link order rather than on anything in the rule. Lower the
 // budget as rules are merged into the sheet that owns them.
 // 47, down from 54: styling nothing in the app used was removed.
-const DUPLICATE_BUDGET = 47;
+const DUPLICATE_BUDGET = 46;
 
 console.log('\nSelectors declared in more than one sheet go down, never up:');
 {
@@ -156,7 +156,7 @@ console.log('\nSelectors declared in more than one sheet go down, never up:');
 // the 245-odd in the app between them, which is the shape of the problem.
 const IMPORTANT_BUDGET = {
   // 153, not 154: one of these was a mention inside a comment.
-  'styles.css': 152,
+  'styles.css': 150,
   // 83, down from 92: the memory map's nine went with its own palette. Every
   // one of them was there to beat a rule the map itself had no need to fight —
   // it was forcing its width, its padding, its display mode and the stroke on
@@ -170,7 +170,7 @@ const IMPORTANT_BUDGET = {
   'modes/agent-maker/mode.css': 10,
   'modes/virtual-os/mode.css': 11,
   'modes/code/mode.css': 11,
-  'modes/systems/mode.css': 8,
+  'modes/systems/mode.css': 6,
   'css/base.css': 8,
   'modes/finance/mode.css': 4,
   'css/main.css': 0,

@@ -113,7 +113,7 @@ console.log('\nA system still looks like itself:');
   // alone, and one that does not is moved rather than replaced.
   const spec = { domain: 'retail', description: 'a book shop', theme: { primary: '#db2777', accent: '#f472b6', mode: 'light', radius: 10, font: 'sans' } };
   const v = Object.fromEntries(T.themeVars(spec).split(';').map((x) => { const at = x.indexOf(':'); return [x.slice(0, at), x.slice(at + 1)]; }));
-  ok('the industry\'s own colour is still what it draws in', v['--sys-primary'] === '#db2777');
+  ok('it draws in the app\'s gold, whatever its trade asked for', v['--sys-primary'] === T.APP.primary);
   // The shade for words is darker than the fill, because a link sits on a
   // selected row as often as on a plain one — but it is a darker shade of
   // that colour, not a grey standing in for it.
@@ -127,8 +127,8 @@ console.log('\nA system still looks like itself:');
     C.ratio(v['--sys-primary-ink'], v['--sys-card-bg']) >= C.TEXT && C.ratio(v['--sys-primary-ink'], v['--sys-primary-tint']) >= C.TEXT);
   const pale = { domain: 'retail', description: 'x', theme: { primary: '#fbbf24', accent: '#fde68a', mode: 'light', radius: 10, font: 'sans' } };
   const p = Object.fromEntries(T.themeVars(pale).split(';').map((x) => { const at = x.indexOf(':'); return [x.slice(0, at), x.slice(at + 1)]; }));
-  ok('a pale one keeps its fill', p['--sys-primary'] === '#fbbf24');
-  ok('but its words are darkened to be read', p['--sys-primary-ink'] !== '#fbbf24' && C.ratio(p['--sys-primary-ink'], p['--sys-card-bg']) >= C.TEXT);
+  ok('a pale colour asked for is not what it draws in either', p['--sys-primary'] === T.APP.primary);
+  ok('and its words read on the card', C.ratio(p['--sys-primary-ink'], p['--sys-card-bg']) >= C.TEXT);
   ok('and the heading bar puts dark on it, not white', C.ratio(p['--sys-nav-text'], p['--sys-nav-bg']) >= C.TEXT);
 }
 

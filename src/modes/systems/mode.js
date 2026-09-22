@@ -24,8 +24,6 @@ const SystemMaker = (() => {
   let runBudget = null;
   let runRoutes = null;   // what this run has asked, and which accounts it found shut
   const traceClock = window.HCTraceTime.clock();
-  let libraryCollapsed = false;
-  let inspectorCollapsed = true;
   let filterRules = [];
   let filterPanelOpen = false;
   let selectedIds = new Set();
@@ -125,7 +123,7 @@ const SystemMaker = (() => {
 
   const FALLBACK_SCREENS = ["kanban","split","cards","report","timeline","list","feed","calendar","metric","list"];
 
-  const ACCENT_PALETTE = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316","#06b6d4","#84cc16"];
+  const ACCENT_PALETTE = window.HCSystemsTheme.SERIES;   // the app's calm set — js/systems/theme.js
 
 
   // Icons: which one a module gets, and the drawings — js/systems/icons.js.
@@ -173,123 +171,31 @@ const SystemMaker = (() => {
     return new Date(ts).toLocaleString([], { month:"short", day:"numeric", hour:"2-digit", minute:"2-digit" });
   }
 
+  // What the app is doing is said in the agent's conversation, under the
+  // reply that asked for it — js/systems/agent-chat.js. The run log it used to
+  // go to is gone with the header.
+  const CHAT = () => window.HCSystemsAgentChat;
+
   function setStatus(text, cls = "") {
-    const el = $("sysRunStatus");
-    if (!el) return;
-    el.textContent = text;
-    el.className = `sys-run-status ${cls}`.trim();
-    const dot = $("sysTraceDot");
-    if (dot) {
-      if (cls === "running") dot.className = "sys-trace-dot running";
-      else if (cls === "done") dot.className = "sys-trace-dot done";
-      else if (cls === "error") dot.className = "sys-trace-dot error";
-      else dot.className = "sys-trace-dot";
-    }
+    CHAT()?.setStatus(text === "Idle" ? "Ready" : text, cls);
   }
 
-  const traceIcons = {
-    run:  `<svg viewBox="0 0 16 16"><path d="M4 2.5 12.5 8 4 13.5z"/></svg>`,
-    ok:   `<svg viewBox="0 0 16 16"><path d="m3 8.5 3 3L13 4"/></svg>`,
-    plan: `<svg viewBox="0 0 16 16"><path d="M3 3h10v10H3z"/><path d="M5 6h6M5 9h4"/></svg>`,
-    data: `<svg viewBox="0 0 16 16"><ellipse cx="8" cy="3.5" rx="5" ry="2"/><path d="M3 3.5v6c0 1.1 2.2 2 5 2s5-.9 5-2v-6"/><path d="M3 6.5c0 1.1 2.2 2 5 2s5-.9 5-2"/></svg>`,
-    warn: `<svg viewBox="0 0 16 16"><path d="M8 2 14 13H2z"/><path d="M8 6v3M8 11h.01"/></svg>`,
-    err:  `<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="m5.8 5.8 4.4 4.4M10.2 5.8l-4.4 4.4"/></svg>`,
-  };
-
-  const traceAgentLabel = {
-    run:  "Agent",
-    ok:   "Done",
-    plan: "Architect",
-    data: "Data Eng",
-    warn: "Warning",
-    err:  "Error",
-  };
-
   function trace(msg, cls = "run") {
-    const el = $("sysTrace");
-    if (!el) return;
-
-    // Auto-expand console on first entry
-    const console_ = $("sysTraceConsole");
-    if (console_ && console_.classList.contains("collapsed")) {
-      console_.classList.remove("collapsed");
-      console_.classList.add("expanded");
-    }
-
-    const t = traceClock.stamp();
-    const row = document.createElement("div");
-    row.className = "sys-trace-entry";
-    const agentLabel = traceAgentLabel[cls] || "Agent";
-    row.innerHTML =
-      `<span class="sys-te-time">[${t}]</span>` +
-      `<span class="sys-te-agent sys-te-${cls}">${esc(agentLabel)}</span>` +
-      `<span class="sys-te-icon sys-te-${cls}">${traceIcons[cls] || traceIcons.run}</span>` +
-      `<span class="sys-te-msg sys-te-${cls}">${esc(msg)}</span>`;
-    el.appendChild(row);
-    el.scrollTop = el.scrollHeight;
-    const rows = [row];
-
-    // Also mirror into bottom drawer so traces are always visible
-    if (console_) {
-      let entries = console_.querySelector(".sys-trace-entries");
-      if (!entries) {
-        entries = document.createElement("div");
-        entries.className = "sys-trace-entries";
-        console_.appendChild(entries);
-      }
-      const copy = row.cloneNode(true);
-      rows.push(copy);
-      entries.appendChild(copy);
-      entries.scrollTop = entries.scrollHeight;
-    }
-
-    // Update dot + summary
-    const dot = $("sysTraceDot");
-    if (dot) dot.className = "sys-trace-dot" + (cls === "err" ? " error" : cls === "ok" ? " done" : " running");
-    const summary = $("sysTraceSummary");
-    if (summary) summary.textContent = msg.slice(0, 70);
-    return rows;
+    const row = CHAT()?.step(msg, cls);
+    return row ? [row] : [];
   }
 
   /** A line that keeps saying what is happening while it happens — js/trace-live.js. */
   function traceLive(msg, cls = "run", options = {}) {
     if (!window.HCTraceLive) return { heard() {}, done() {} };
-    return window.HCTraceLive.attach(trace(msg, cls), {
-      selector: ".sys-te-msg", message: msg, summary: () => $("sysTraceSummary"),
-    }, options);
+    return window.HCTraceLive.attach(trace(msg, cls), { selector: ".sys-te-msg", message: msg, summary: () => $("sysRunStatus") }, options);
   }
 
-  function clearTrace() {
-    traceClock.reset();
-    const el = $("sysTrace");
-    if (el) el.innerHTML = "";
-    const console_ = $("sysTraceConsole");
-    const entries = console_?.querySelector(".sys-trace-entries");
-    if (entries) entries.innerHTML = "";
-    const dot = $("sysTraceDot");
-    if (dot) dot.className = "sys-trace-dot";
-    const summary = $("sysTraceSummary");
-    if (summary) summary.textContent = "No run yet";
-  }
+  function clearTrace() { traceClock.reset(); }
 
   function updateCreateButtonState() {
-    const btn = $("sysCreateBtn");
-    if (!btn) return;
-    const running = !!runAbort;
-    const stopping = running && runAbort.signal?.aborted;
-    btn.disabled = false;
-    btn.textContent = stopping ? "Stopping" : running ? "Stop" : "Generate";
-    btn.classList.toggle("primary", !running);
-    btn.classList.toggle("danger", running);
-    btn.setAttribute("aria-label", running ? "Stop system generation" : "Generate system");
-    btn.title = running ? "Stop the current generation run" : "Generate a new system";
-    const change = $("sysChangeBtn");
-    if (change) change.disabled = running || !getActive();
-    // Working the records needs a system open, the same as changing its design.
-    const work = $("sysWorkBtn");
-    if (work) work.disabled = running || !getActive();
+    CHAT()?.setBusy(!!runAbort || agentBusy);
     showUndoWork();
-    window.HCSystemsHeaderBar?.refit();   // a control appearing or disappearing changes what fits
   }
 
   function stopSystemGeneration() {
@@ -300,40 +206,6 @@ const SystemMaker = (() => {
     }
     setStatus("Stopping", "running");
     updateCreateButtonState();
-  }
-
-  function loadUiState() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(UI_STORE_KEY) || "{}");
-      libraryCollapsed = false;
-      inspectorCollapsed = true; // always start closed; opens on demand
-    } catch {
-      libraryCollapsed = false;
-      inspectorCollapsed = true;
-    }
-  }
-
-  function saveUiState() {
-    try { localStorage.setItem(UI_STORE_KEY, JSON.stringify({ libraryCollapsed, inspectorCollapsed })); } catch {}
-  }
-
-  function applyPanelState() {
-    const wrap = $("system-maker-wrap");
-    if (!wrap) return;
-    wrap.classList.toggle("library-collapsed", libraryCollapsed);
-    wrap.classList.toggle("data-collapsed", inspectorCollapsed);
-  }
-
-  function setLibraryCollapsed(value) {
-    libraryCollapsed = !!value;
-    applyPanelState();
-    saveUiState();
-  }
-
-  function setInspectorCollapsed(value) {
-    inspectorCollapsed = !!value;
-    applyPanelState();
-    saveUiState();
   }
 
   function loadSystems() {
@@ -592,7 +464,6 @@ SCREEN TYPES — use every generation differently. Never output the same combina
 LAYOUT:
 • modules[].screen: MANDATORY — at least 5 DIFFERENT types per spec. Never "list" for more than one module.
 • modules[].kpis: [{label, field, aggregate}] where aggregate is "sum"|"count"|"avg"|"max". Required for dashboard/report/metric.
-• modules[].color: REQUIRED on every module — different hex per module (spectrum of colors in nav).
 • layout.shell: choose boldly — vary by run, not just by domain default:
   - "sidebar"   — classic left panel. Finance, accounting, operations.
   - "top"       — horizontal tabs. SaaS, education, product tools.
@@ -602,21 +473,7 @@ LAYOUT:
 • layout.nav: match the shell ("top" if shell is "top", "sidebar" otherwise).
 • Follow the CREATIVE DIRECTIVE in the user message — it overrides domain defaults.
 
-THEME (industry-appropriate colors — never use default blue for all domains):
-• Restaurant/F&B      → primary "#92400e", accent "#f59e0b",  mode "light"  (warm amber/brown)
-• Hotel/Hospitality   → primary "#1e3a5f", accent "#60a5fa",  mode "light"  (deep navy + sky)
-• Healthcare          → primary "#0e7490", accent "#06b6d4",  mode "light"  (clinical teal/cyan)
-• Education           → primary "#3730a3", accent "#818cf8",  mode "light"  (rich indigo)
-• Fitness/Gym         → primary "#7c3aed", accent "#4ade80",  mode "dark"   (electric purple + neon green)
-• Real Estate         → primary "#047857", accent "#10b981",  mode "light"  (forest green)
-• Retail/E-commerce   → primary "#be185d", accent "#f472b6",  mode "light"  (hot pink/magenta)
-• Logistics/Supply    → primary "#0369a1", accent "#38bdf8",  mode "dark"   (steel blue + cyan)
-• Manufacturing       → primary "#1d4ed8", accent "#fb923c",  mode "dark"   (industrial blue + orange)
-• HR/People Ops       → primary "#6d28d9", accent "#c4b5fd",  mode "light"  (deep violet + lavender)
-• Legal/Law           → primary "#1c1917", accent "#d97706",  mode "light"  (charcoal + gold)
-• Finance/Accounting  → primary "#0c4a6e", accent "#0ea5e9",  mode "light"  (dark navy + sky blue)
-• Jewelry/Luxury      → primary "#b45309", accent "#fbbf24",  mode "dark"   (deep gold + amber)
-• Tech/SaaS           → primary "#0f172a", accent "#38bdf8",  mode "dark"   (near-black + electric blue)
+THEME: colours are set by the app, so leave theme.primary, theme.accent and modules[].color out.
 • theme.radius: 6-8 for corporate/legal, 10-12 for standard, 14-16 for retail/consumer-facing
 • theme.font: "sans" | "serif" | "rounded" | "humanist" | "mono" — the character of the business (a law firm or a hotel may be serif, a gym rounded, a logistics desk mono)
 • theme.density: "compact" for dense operations, "comfortable", "spacious" for calm consumer-facing work
@@ -673,6 +530,8 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
 
   function modelTraceLabel(modelValue) {
     const mv = modelValue || "default";
+    const named = [...($("model")?.options || [])].find(o => o.value === mv)?.textContent.trim();   // the name the menu shows
+    if (named) return named;
     if (!mv.startsWith("cloud:")) return `local:${mv}`;
     const [, provider, model] = mv.split(":");
     return `${provider}:${model || "default"}`;
@@ -722,13 +581,13 @@ Required keys:
   "domain": "restaurant|hotel|healthcare|education|fitness|realestate|retail|logistics|manufacturing|hr|legal|saas|generic",
   "name": "Human-readable system name (≤48 chars)",
   "description": "One sentence about what this ERP manages",
-  "theme": { "mode": "light|dark", "primary": "#hex", "accent": "#hex" },
+  "theme": { "font": "sans|serif|rounded|humanist|mono" },
   "layout": {
     "nav": "sidebar|top",
     "shell": "sidebar|top|dock|cards-nav|command"
   },
   "modules": [
-    { "name": "Module Name", "entity": "entity_id", "screen": "dashboard|list|kanban|report|split|cards|timeline|calendar|metric|feed", "color": "#hex or null" }
+    { "name": "Module Name", "entity": "entity_id", "screen": "dashboard|list|kanban|report|split|cards|timeline|calendar|metric|feed" }
   ],
   "agent_assignments": [
     "UX Agent: owns modules [name, name] with screen types [type, type] — rationale",
@@ -745,10 +604,6 @@ Rules:
   "sidebar" → finance, accounting, generic; "top" → saas, education, lightweight;
   "dock" → logistics, manufacturing, dense ops; "cards-nav" → restaurant, retail, hotel, fitness;
   "command" → healthcare, legal, hr, CRM
-- Theme: industry-specific, non-generic. Vary accent dramatically from primary (complementary, not analogous).
-  restaurant→ "#92400e"/"#f59e0b" light; fitness→ "#7c3aed"/"#4ade80" dark; logistics→ "#0369a1"/"#38bdf8" dark;
-  legal→ "#1c1917"/"#d97706" light; saas→ "#0f172a"/"#38bdf8" dark; retail→ "#be185d"/"#f472b6" light
-- modules[].color: REQUIRED on every module — give each a distinct hex accent, making the nav a multi-color spectrum
 - Finance only if the business sells something: give its sales entity (orders, bookings...) an amount, a date, a customer and a status; the app builds the books from those records. No invoice or payment entities of your own.
 - agent_assignments: write 3 specific delegation lines reflecting actual screen and entity choices
 - Follow the CREATIVE DIRECTIVE in the user message — it overrides defaults`;
@@ -1297,16 +1152,23 @@ Repair requirements:
     };
   }
 
-  async function createSystem() {
-    if (runAbort) {
-      stopSystemGeneration();
-      return;
-    }
+  /**
+   * Build a new system for a business the agent has asked about: what it
+   * does, its name, where it is and its currency (js/systems/agent.js), and
+   * the person's own words for anything else. Resolves with the system, or
+   * null when it was stopped or could not be built.
+   */
+  async function createSystem(business, request = "") {
+    if (runAbort || !business) return null;
     clearTrace();
-    // What it is for, asked first: a form, then only what a model cannot work out — js/systems/setup-dialog.js.
-    const plan = await window.HCSystemsSetupDialog?.ask($("sysPromptInput")?.value.trim() || "", { models: availableModels, label: modelTraceLabel, trace, chosen: () => $("sysModelSelect")?.value || $("model")?.value || "" });
-    if (plan === null) return;
-    const desc = plan ? window.HCSystemsSetup.describe(plan.setup, plan.answers) : $("sysPromptInput")?.value.trim() || "Create a professional ERP system for a growing business";
+    const S = window.HCSystemsSetup;
+    const setup = S.suggest(`${business.does}${business.place ? ` in ${business.place}` : ""}`, window.HCSystemsDomain);
+    if (business.name) setup.name = business.name;
+    if (business.place) setup.place = business.place;
+    if (S.currencyCode(business.currency)) setup.currency = S.currencyCode(business.currency);
+    const plan = { setup, answers: request ? [{ question: "In their own words:", answer: request }] : [] };
+    const desc = S.describe(plan.setup, plan.answers);
+    let made = null;
     setStatus("Running", "running");
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
@@ -1341,6 +1203,8 @@ Repair requirements:
       }
       if (runAbort.signal?.aborted) throw new DOMException("Aborted", "AbortError");
       if (plan) window.HCSystemsSetup.applyTo(spec, plan.setup);   // the owner's name and currency stand, whoever built it
+      // The brief the builder is handed is not a description of the business.
+      if (!spec.description || /^(Business name|What it does):/.test(spec.description)) spec.description = `${business.does}${business.place ? `, ${business.place}` : ""}`.replace(/^\w/, (c) => c.toUpperCase()).slice(0, 180);
       trace("Normalising modules, data, and interactions", "data");
       // Its design differs from the last system's on at least two of shell,
       // typeface, density and surface; its colours stay its industry's.
@@ -1350,7 +1214,8 @@ Repair requirements:
       const dashboardStyle = window.HCSystemsTheme.dashboardFor(spec.layout?.dashboardStyle, systems[0]?.layout?.dashboardStyle, !!STAGES().stageField(home), pickRandom);
       spec.layout = { ...spec.layout, shell: d.shell, nav: d.shell === "top" ? "top" : "sidebar", dashboardStyle };
       trace(`Design: ${d.shell} layout · ${d.font} type · ${d.density} · ${d.surface} cards · ${dashboardStyle} dashboard`, "data");
-      systems.unshift(spec);
+      // The empty starter, never used, gives way to the system built for them.
+      systems = [spec, ...systems.filter(s => !window.HCSystemsAgent.isUntouchedStarter(s, getRuntimeData(s)))];
       activeId = spec.id;
       activeModuleId = spec.modules[0]?.id || "";
       activeEntityId = spec.modules[0]?.entity || "";
@@ -1360,6 +1225,7 @@ Repair requirements:
       renderAll();
       setStatus("Done", "done");
       trace("System ready", "ok");
+      made = spec;
     } catch (err) {
       if (err.name === "AbortError") {
         setStatus("Stopped", "stopped");
@@ -1378,6 +1244,7 @@ Repair requirements:
       runBudget = null;
       updateCreateButtonState();
     }
+    return made;
   }
 
   /**
@@ -1399,11 +1266,9 @@ Repair requirements:
    * model's answer is in js/systems/work.js, and the snapshot taken before the
    * write is what Undo puts back.
    */
-  async function workSystem() {
+  async function workSystem(request = "") {
     const spec = getActive();
-    const request = $("sysPromptInput")?.value.trim() || "";
-    if (!spec || runAbort) return;
-    if (!request) { trace("Type what happened, then press Do it", "warn"); return; }
+    if (!spec || runAbort || !String(request).trim()) return;
     const W = window.HCSystemsWork;
     if (!W) return;
     clearTrace();
@@ -1449,7 +1314,7 @@ Repair requirements:
       undoRecords = { id: spec.id, data: JSON.parse(JSON.stringify(data)), what: W.summaryOf(plan) };
       saveRuntimeData(spec, W.apply(plan, data));
       for (const line of W.doneLines(plan)) trace(line, "ok");
-      trace(`Done — ${W.summaryOf(plan)}. Undo that puts it back.`, "ok");
+      trace(`Done — ${W.summaryOf(plan)}. "Undo last change" at the top puts it back.`, "ok");
       showUndoWork();
       setStatus("Ready");
       renderAll();
@@ -1487,11 +1352,9 @@ Repair requirements:
     btn.hidden = !(undoRecords && getActive() && undoRecords.id === getActive().id);
   }
 
-  async function reviseSystem() {
+  async function reviseSystem(request = "") {
     const spec = getActive();
-    const request = $("sysPromptInput")?.value.trim() || "";
-    if (!spec || runAbort) return;
-    if (!request) { trace("Type the change you want, then press Change", "warn"); return; }
+    if (!spec || runAbort || !String(request).trim()) return;
     clearTrace();
     setStatus("Changing", "running");
     runAbort = new AbortController();
@@ -1552,20 +1415,21 @@ Repair requirements:
     renderSystemList();
     renderVersionList();
     renderPreview();
-    renderDataEditor();
   }
 
   function renderSystemList() {
     const el = $("sysSystemList");
     if (!el) return;
     if (!systems.length) {
-      el.innerHTML = `<div class="sys-card-meta">No systems yet. Describe one above and create it.</div>`;
+      el.innerHTML = `<div class="sys-menu-note">No systems yet. Ask the agent to build one.</div>`;
       return;
     }
     el.innerHTML = systems.map(s => `
-      <div class="sys-system-card ${s.id === activeId ? "active" : ""}" data-system-id="${esc(s.id)}">
-        <div class="sys-card-name">${esc(s.name)}</div>
-        <div class="sys-card-meta">${esc((s.modules || []).length)} modules · ${esc(nowLabel(s.updatedAt || s.createdAt))}</div>
+      <div class="sys-system-card ${s.id === activeId ? "active" : ""}" data-system-id="${esc(s.id)}" role="menuitem" tabindex="0">
+        <div class="sys-card-text">
+          <div class="sys-card-name">${esc(s.name)}</div>
+          <div class="sys-card-meta">${esc((s.modules || []).length)} modules · ${esc(nowLabel(s.updatedAt || s.createdAt))}</div>
+        </div>
         <div class="sys-card-actions">
           <button class="sys-card-btn" data-sys-rename="${esc(s.id)}" title="Rename">
             <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M9.5 2.5a1.5 1.5 0 0 1 2.12 2.12L4 13H2v-2L9.5 2.5z"/></svg>
@@ -1584,11 +1448,11 @@ Repair requirements:
     if (!el) return;
     const history = spec?.revisionHistory || [];
     if (!spec || !history.length) {
-      el.innerHTML = `<div class="sys-card-meta">No revisions yet.</div>`;
+      el.innerHTML = `<div class="sys-menu-note">No earlier versions yet. Each change the agent makes keeps the one before here.</div>`;
       return;
     }
     el.innerHTML = history.map((h, idx) => `
-      <div class="sys-version-card" data-version-index="${idx}">
+      <div class="sys-version-card" data-version-index="${idx}" role="menuitem" tabindex="0" title="Go back to this version">
         <div class="sys-card-name">${esc(h.label || "Revision")}</div>
         <div class="sys-card-meta">${esc(nowLabel(h.at))}</div>
       </div>
@@ -1599,10 +1463,11 @@ Repair requirements:
     const spec = getActive();
     const host = $("sysAppHost");
     if (!host) return;
-    $("sysPreviewName").textContent = spec?.name || "No system selected";
-    $("sysPreviewDesc").textContent = spec?.description || "Create a system to start.";
+    $("sysPreviewName").textContent = spec?.name || "No system";
+    $("sysPreviewDesc").textContent = spec?.starter ? "Empty — type into it, or ask the agent to build yours" : spec?.description || "";
+    $("sysHistoryBtn")?.toggleAttribute("disabled", !(spec?.revisionHistory || []).length);
     if (!spec) {
-      host.innerHTML = `<div class="sys-empty"><div><h2>ERP Builder</h2><p>Describe your business system to generate a fully interactive prototype with modules, data, charts, and workflows.</p></div></div>`;
+      host.innerHTML = `<div class="sys-empty"><div><h2>No system open</h2><p>Ask the agent to build one for your business.</p></div></div>`;
       return;
     }
     if (!activeModuleId || !spec.modules.some(m => m.id === activeModuleId)) activeModuleId = spec.modules[0]?.id || "";
@@ -1632,7 +1497,7 @@ Repair requirements:
     })();
 
     const shell = spec.layout?.shell || "sidebar";
-    const cls = `${spec.theme.mode === "dark" ? "dark" : ""} density-${esc(spec.theme.density || "comfortable")} surface-${esc(spec.theme.surface || "outlined")}`;
+    const cls = `dark density-${esc(spec.theme.density || "comfortable")} surface-${esc(spec.theme.surface || "outlined")}`;
     const vars = themeVars(spec);
     const screen = module.screen || "dashboard";
     const searchInput = `<input class="sys-app-search" id="sysAppSearch" value="${esc(searchQuery)}" placeholder="Search ${esc(entity?.name || "")}…" />`;
@@ -1656,6 +1521,8 @@ Repair requirements:
   // figures.js. The tiles used to carry trends and sparklines nobody had
   // measured; a trend now compares two named months, or is not shown.
   const FIG = () => window.HCSystemsFigures;
+  /** "Total Price", but "Total", not "Total Total", for a field already called that. */
+  const totalLabel = (label) => (/^total\b/i.test(String(label || "")) ? String(label) : `Total ${label}`);
   const STAGES = () => window.HCSystemsStages;
   const REL = () => window.HCSystemsRelations;
   // Each linked entity's records, indexed once per drawing of the screen.
@@ -1683,7 +1550,7 @@ Repair requirements:
     saveRuntimeData(spec, data);
     trace(`${recordLabel(rec, entity)} moved to ${rec[field.id] || VIEW().NO_STATUS}`, "ok");
     selectedRecordId = recordId;
-    renderPreview(); renderDataEditor();
+    renderPreview();
   }
   const todayIso = () => window.HCSystemsSamples.localDay(new Date());
 
@@ -1701,7 +1568,7 @@ Repair requirements:
 
     const defs = Array.isArray(module?.kpis) && module.kpis.length
       ? module.kpis.map(d => F.kpiFrom(d, fields)).filter(Boolean)
-      : [{ label: "Records", field: null, how: "count" }, ...(numField ? [{ label: `Total ${numField.label}`, field: numField, how: "sum" }] : [])];
+      : [{ label: "Records", field: null, how: "count" }, ...(numField ? [{ label: totalLabel(numField.label), field: numField, how: "sum" }] : [])];
 
     const kpis = defs.map((d) => {
       const value = F.aggregate(records, d.field?.id, d.how);
@@ -1733,12 +1600,12 @@ Repair requirements:
         <div class="sys-kpi-body">
           <div class="sys-kpi-label">${esc(k.label)}</div>
           <div class="sys-kpi-value"${k.exact && k.exact !== k.value ? ` title="${esc(k.exact)}"` : ""}>${esc(String(k.value))}</div>
+          ${k.trend ? `<div class="sys-kpi-trend ${k.trend.up ? "up" : "down"}" title="${esc(`${k.trend.current} compared with ${k.trend.previous}`)}">
+            <svg viewBox="0 0 10 10" fill="currentColor" width="9" height="9"><polygon points="${k.trend.up ? "5,2 9,8 1,8" : "5,8 9,2 1,2"}"/></svg>
+            ${esc(k.trend.text)} vs ${esc(k.trend.previous)}
+          </div>` : ""}
           ${bars ? `<svg class="sys-sparkline" viewBox="0 0 ${k.series.length * 6 - 2} 20" preserveAspectRatio="none" role="img" aria-label="${esc(k.label)} by month">${bars}</svg>` : ""}
         </div>
-        ${k.trend ? `<div class="sys-kpi-trend ${k.trend.up ? "up" : "down"}" title="${esc(`${k.trend.current} compared with ${k.trend.previous}`)}">
-          <svg viewBox="0 0 10 10" fill="currentColor" width="9" height="9"><polygon points="${k.trend.up ? "5,2 9,8 1,8" : "5,8 9,2 1,2"}"/></svg>
-          ${esc(k.trend.text)} vs ${esc(k.trend.previous)}
-        </div>` : ""}
       </div>`;
     }).join("")}</div>`;
   }
@@ -1849,7 +1716,7 @@ Repair requirements:
               <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" width="12" height="12"><path d="M2 4h10M5 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5 6v4M9 6v4M3 4l.7 7.3a.7.7 0 0 0 .7.7h5.2a.7.7 0 0 0 .7-.7L11 4"/></svg>
             </button>
           </td>
-        </tr>`).join("") : `<tr><td colspan="${fields.length + 2}" class="sys-empty-row">No records match the current filters</td></tr>`}</tbody>
+        </tr>`).join("") : `<tr><td colspan="${fields.length + 2}" class="sys-empty-row">${searchQuery || filterRules.some(r => r.field && r.value !== "") ? "No records match the current filters" : `Nothing here yet. Add the first with Add Record, or ask the agent.`}</td></tr>`}</tbody>
       </table></div>
     </div>`;
   }
@@ -1860,7 +1727,7 @@ Repair requirements:
    * 20, 30 for a blank used to sit among the real ones.
    */
   function figureBars(records, entity, field, limit, labelLength) {
-    const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
+    const barColors = ACCENT_PALETTE;
     const rows = records.filter(r => r[field.id] !== "" && r[field.id] != null && Number.isFinite(Number(r[field.id]))).slice(0, limit);
     const top = VIEW().safeMax(rows.map(r => Math.abs(Number(r[field.id])))) || 1;
     return rows.map((r, idx) => {
@@ -1913,7 +1780,7 @@ Repair requirements:
     }
     // focus: the first figure, large, month by month.
     const numField = entity?.fields?.find(f => f.type === "number");
-    const def = (module?.kpis || []).map(k => F.kpiFrom(k, entity?.fields || [])).find(Boolean) || (numField ? { label: `Total ${numField.label}`, field: numField, how: "sum" } : { label: "Records", field: null, how: "count" });
+    const def = (module?.kpis || []).map(k => F.kpiFrom(k, entity?.fields || [])).find(Boolean) || (numField ? { label: totalLabel(numField.label), field: numField, how: "sum" } : { label: "Records", field: null, how: "count" });
     const value = F.aggregate(records, def.field?.id, def.how);
     const series = F.monthlySeries(records, dateField?.id, def.field?.id, def.how, todayIso(), 12);
     const top = VIEW().safeMax(series.map(p => p.value)) || 1;
@@ -1929,7 +1796,7 @@ Repair requirements:
 
   function renderSideWidgets(records, entity, selected, spec) {
     const numField = entity?.fields?.find(f => f.type === "number");
-    const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6"];
+    const barColors = ACCENT_PALETTE;
     const bars = numField ? figureBars(records, entity, numField, 6, 16) : "";
     return `<div class="sys-side-col">
       ${bars ? `<div class="sys-widget">
@@ -2008,7 +1875,7 @@ Repair requirements:
     const statusField = STAGES().stageField(entity) || entity?.fields?.find(f => f.type === "select");
     const nameField = VIEW().titleField(entity);
     const numField = entity?.fields?.find(f => f.type === "number");
-    const colColors = ["#6366f1","#f59e0b","#10b981","#3b82f6","#ec4899","#8b5cf6"];
+    const colColors = ACCENT_PALETTE;
 
     // Every record is on the board: a status that is not one of the field's
     // options gets a column of its own instead of vanishing.
@@ -2056,7 +1923,7 @@ Repair requirements:
     const fields = entity?.fields || [];
     const numField = fields.find(f => f.type === "number");
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const barColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
+    const barColors = ACCENT_PALETTE;
 
     const bars = numField ? figureBars(records, entity, numField, 8, 20) : "";
 
@@ -2159,7 +2026,7 @@ Repair requirements:
     const numField = fields.find(f => f.type === "number");
     const dateField = fields.find(f => f.type === "date");
     const secondaryFields = fields.filter(f => f !== nameField && f !== statusField && f !== numField && f !== dateField).slice(0, 3);
-    const palette = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316","#06b6d4","#84cc16"];
+    const palette = ACCENT_PALETTE;
 
     const initials = (val) => {
       const w = String(val || "?").trim().split(/\s+/);
@@ -2214,8 +2081,11 @@ Repair requirements:
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
     const descField = fields.find(f => f.type === "textarea" || /note|comment|description|detail/i.test(f.id));
     const extraFields = fields.filter(f => f !== nameField && f !== dateField && f !== statusField && f !== descField).slice(0, 3);
-    const statusColors = { active:"#10b981", completed:"#6366f1", done:"#6366f1", paid:"#10b981", closed:"#94a3b8", pending:"#f59e0b", preparing:"#f97316", cancelled:"#ef4444", "in progress":"#3b82f6", approved:"#10b981", rejected:"#ef4444" };
-    const getStatusColor = (s) => statusColors[String(s || "").toLowerCase()] || "#6366f1";
+    // A state's colour carries its meaning, in the calm set: done and paid in
+    // sage, under way in slate, waiting in gold, stopped in rose.
+    const P = ACCENT_PALETTE;
+    const statusColors = { active: P[1], completed: P[2], done: P[2], paid: P[1], closed: P[4], pending: P[0], preparing: P[7], cancelled: P[3], "in progress": P[6], approved: P[1], rejected: P[3] };
+    const getStatusColor = (s) => statusColors[String(s || "").toLowerCase()] || P[2];
 
     const sorted = [...records].sort((a, b) => String(b[dateField?.id] || "").localeCompare(String(a[dateField?.id] || "")));
 
@@ -2269,7 +2139,7 @@ Repair requirements:
     const fields = entity?.fields || [];
     const dateField = F.dateFieldOf(entity);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const statusColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316"];
+    const statusColors = ACCENT_PALETTE;
     // A chip's colour says its status: the same status is the same colour.
     const statuses = statusField ? VIEW().boardColumns(records, statusField) : [];
     const colorOf = (r) => statusColors[Math.max(0, statuses.indexOf(VIEW().boardColumnOf(r, statusField))) % statusColors.length];
@@ -2346,9 +2216,8 @@ Repair requirements:
     const fields = entity?.fields || [];
     const numFields = fields.filter(f => f.type === "number").slice(0, 4);
     const statusField = fields.find(f => f.id === "status" || f.type === "select");
-    const accent = window.HCSystemsTheme.safeHex(spec?.theme?.accent, "#10b981"), tsh = window.HCSystemsTheme.shadesOf(accent, spec);
-    const primary = spec?.theme?.primary || "#2563eb";
-    const tileColors = [primary, accent, "#f59e0b", "#ec4899", "#8b5cf6", "#14b8a6"];
+    const accent = window.HCSystemsTheme.APP.accent, tsh = window.HCSystemsTheme.shadesOf(accent, spec);
+    const tileColors = ACCENT_PALETTE;
 
     const F = FIG();
     const dateField = F.dateFieldOf(entity);
@@ -2427,7 +2296,7 @@ Repair requirements:
     const dateField = fields.find(f => f.type === "date");
     const bodyField = fields.find(f => f.type === "textarea" || /note|body|desc|message|detail|comment/i.test(f.id));
     const metaFields = fields.filter(f => f !== nameField && f !== statusField && f !== dateField && f !== bodyField).slice(0, 2);
-    const avatarColors = ["#6366f1","#10b981","#f59e0b","#3b82f6","#ec4899","#14b8a6","#8b5cf6","#f97316","#06b6d4","#84cc16"];
+    const avatarColors = ACCENT_PALETTE;
 
     const sorted = [...records].sort((a,b) => String(b[dateField?.id] || "").localeCompare(String(a[dateField?.id] || "")));
 
@@ -2543,7 +2412,6 @@ Repair requirements:
     saveRuntimeData(spec, data);
     closeRecordModal();
     renderPreview();
-    renderDataEditor();
   }
 
   // ── CSV Import ────────────────────────────────────────────────────
@@ -2674,7 +2542,6 @@ Repair requirements:
     saveRuntimeData(spec, data);
     closeImportModal();
     renderPreview();
-    renderDataEditor();
     trace(`Imported ${imported.length} records into ${entity.name}`, "ok");
   }
 
@@ -2852,51 +2719,7 @@ Repair requirements:
     return esc(value);
   }
 
-  function renderDataEditor() {
-    const spec = getActive();
-    const el = $("sysDataEditor");
-    if (!el) return;
-    if (!spec) {
-      el.innerHTML = `<div class="sys-card-meta">Create a system to edit its mock data.</div>`;
-      return;
-    }
-    const data = getRuntimeData(spec);
-    const entityIds = Object.keys(spec.entities || {});
-    if (!activeEntityId || !spec.entities[activeEntityId]) activeEntityId = entityIds[0] || "";
-    const entity = spec.entities[activeEntityId];
-    const rows = data[activeEntityId] || [];
-    if (!selectedRecordId || !rows.some(r => r.id === selectedRecordId)) selectedRecordId = rows[0]?.id || "";
-    const record = rows.find(r => r.id === selectedRecordId) || null;
-
-    el.innerHTML = `
-      <label>Entity</label>
-      <select id="sysEntitySelect">${entityIds.map(id => `<option value="${esc(id)}" ${id === activeEntityId ? "selected" : ""}>${esc(spec.entities[id].name)}</option>`).join("")}</select>
-      <label>Record</label>
-      <select id="sysRecordSelect">${rows.map(r => `<option value="${esc(r.id)}" ${r.id === selectedRecordId ? "selected" : ""}>${esc(recordLabel(r, entity))}</option>`).join("")}</select>
-      <div class="sys-record-actions">
-        <button class="sys-small-btn" id="sysAddRecordBtn">New Record</button>
-        <button class="sys-small-btn danger" id="sysDeleteRecordBtn">Delete</button>
-      </div>
-      <div id="sysRecordForm">${record ? renderRecordForm(record, entity) : `<div class="sys-card-meta" style="margin-top:12px">No records yet.</div>`}</div>
-      <div class="sys-form-actions">
-        <button class="sys-small-btn" id="sysSaveRecordBtn">Save Changes</button>
-      </div>
-    `;
-  }
-
   const recordLabel = (record, entity) => VIEW().recordLabel(record, entity);
-
-  function renderRecordForm(record, entity) {
-    return (entity.fields || []).map(f => {
-      const value = record[f.id] ?? "";
-      if (f.type === "select") {
-        const opts = f.options || ["New","In Progress","Approved","Closed"];
-        return `<label>${esc(f.label)}</label><select data-sys-field="${esc(f.id)}">${opts.map(o => `<option value="${esc(o)}" ${String(value) === String(o) ? "selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
-      }
-      if (f.type === "textarea") return `<label>${esc(f.label)}</label><textarea data-sys-field="${esc(f.id)}">${esc(value)}</textarea>`;
-      return `<label>${esc(f.label)}</label><input data-sys-field="${esc(f.id)}" type="${f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}" value="${esc(value)}" />`;
-    }).join("");
-  }
 
   function selectSystem(id) {
     activeId = id;
@@ -2932,25 +2755,6 @@ Repair requirements:
     selectedRecordId = data[activeEntityId][0]?.id || "";
     saveRuntimeData(spec, data);
     renderPreview();
-    renderDataEditor();
-  }
-
-  function saveRecord() {
-    const spec = getActive();
-    const entity = spec?.entities?.[activeEntityId];
-    if (!spec || !entity || !selectedRecordId) return;
-    const data = getRuntimeData(spec);
-    const rows = data[activeEntityId] || [];
-    const rec = rows.find(r => r.id === selectedRecordId);
-    if (!rec) return;
-    document.querySelectorAll("[data-sys-field]").forEach(input => {
-      const field = entity.fields.find(f => f.id === input.dataset.sysField);
-      rec[input.dataset.sysField] = field?.type === "number" ? Number(input.value || 0) : input.value;
-    });
-    saveRuntimeData(spec, data);
-    renderPreview();
-    renderDataEditor();
-    trace("Mock data saved locally", "ok");
   }
 
   function syncModelSelect() {
@@ -2959,78 +2763,108 @@ Repair requirements:
     if (src && dst) {
       dst.innerHTML = src.innerHTML;
       dst.value = src.value;
-      window.HCSystemsHeaderBar?.refit();   // the widest thing in the bar, and it arrives late
     }
   }
 
+  // ── The agent ───────────────────────────────────────────────────
+  // What it is told and how its answer is read are in js/systems/agent.js;
+  // the conversation on screen is js/systems/agent-chat.js. Here: asking,
+  // and doing what it said through the paths the ERP already had.
+  let agentBusy = false;
+  let agentAbort = null;
+
+  async function agentSend(text) {
+    const C = CHAT(), A = window.HCSystemsAgent;
+    if (!C || !A || agentBusy || runAbort) return;
+    const spec = getActive();
+    const history = C.history();
+    C.user(text);
+    C.settle();
+    agentBusy = true;
+    agentAbort = new AbortController();
+    updateCreateButtonState();
+    setStatus("Thinking", "running");
+    try {
+      // Whichever model can answer does — js/model-routes.js.
+      const answer = await window.HCModelRoutes.askWithFailover({
+        start: $("sysModelSelect")?.value || $("model")?.value || "", options: availableModels, signal: agentAbort.signal, timeoutMs: 90000,
+        call: async (model, signal) => (await window._H.runModelTurn({ modelValue: model, tools: [], temperature: 0.3, signal, need: 1500,
+          messages: A.messages({ spec, data: spec ? getRuntimeData(spec) : {}, history, text, today: todayIso(), starter: !!spec?.starter }) }))?.content || "",
+        onSwitch: (from, to, why) => trace(`${modelTraceLabel(from)}: ${why}. Asking ${modelTraceLabel(to)}`, "warn"),
+      });
+      const said = A.readReply(answer.text);
+      C.reply(said.say);
+      if (said.do === "build") await createSystem(said.business, said.request);
+      else if (said.do === "change") await reviseSystem(said.request);
+      else if (said.do === "records") await workSystem(said.request);
+    } catch (err) {
+      const stopped = err?.name === "AbortError" || agentAbort?.signal.aborted;
+      C.reply(stopped ? "Stopped." : `No model could answer: ${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(err), err)}. Pick another model at the top of this panel, or try again in a minute.`);
+    } finally {
+      agentBusy = false;
+      agentAbort = null;
+      C.settle();
+      setStatus("Ready");
+      updateCreateButtonState();
+    }
+  }
+
+  function agentStop() {
+    agentAbort?.abort();
+    stopSystemGeneration();
+  }
+
+  /**
+   * The empty starter system the ERP opens on: Customers, Products, Orders and
+   * Invoices with no records (js/systems/agent.js). An unused one is reused
+   * rather than a second made.
+   */
+  function openStarter() {
+    if (STANDALONE) return;
+    const A = window.HCSystemsAgent;
+    const unused = systems.find(s => A.isUntouchedStarter(s, getRuntimeData(s)));
+    if (unused) { selectSystem(unused.id); return; }
+    const built = window.HCSystemsScaffold.build(A.STARTER_NAME, todayIso(), { setup: A.starterOptions(systems[0]?.currency) });
+    const spec = A.emptied(finalizeGeneratedSpec(built, A.STARTER_NAME));
+    spec.workflows = [];   // nothing is invented for a business nobody has described
+    spec.layout = { ...spec.layout, shell: "sidebar", nav: "sidebar", dashboardStyle: "operational" };
+    spec.theme = { ...spec.theme, density: "comfortable", surface: "outlined" };
+    systems.unshift(spec);
+    saveRuntimeData(spec, spec.mockData);
+    saveSystems();
+    selectSystem(spec.id);
+  }
+
   function wireEvents() {
-    // ── Header / nav ────────────────────────────────────────────────
-    $("sysCreateBtn")?.addEventListener("click", createSystem);
-    $("sysChangeBtn")?.addEventListener("click", reviseSystem);
-    $("sysWorkBtn")?.addEventListener("click", workSystem);
+    // ── The bar: its three menus, one open at a time ─────────────────
+    const MENUS = [["sysSwitchBtn", "sysSwitchMenu"], ["sysHistoryBtn", "sysHistoryMenu"], ["sysPreviewExportMenuBtn", "sysPreviewExportMenu"]];
+    const setMenu = (menuId, open) => {
+      for (const [btnId, id] of MENUS) {
+        const on = open && id === menuId;
+        if ($(id)) { $(id).hidden = !on; $(id).setAttribute("aria-hidden", String(!on)); }
+        $(btnId)?.setAttribute("aria-expanded", String(on));
+      }
+    };
+    for (const [btnId, id] of MENUS) {
+      $(btnId)?.addEventListener("click", (e) => { e.stopPropagation(); setMenu(id, $(id)?.hidden); });
+    }
+    document.addEventListener("click", (e) => { if (!e.target.closest?.(".sys-menu-wrap")) setMenu(null, false); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(null, false); });
     $("sysUndoWorkBtn")?.addEventListener("click", undoWork);
-    $("sysNewBtn")?.addEventListener("click", () => {
-      activeId = null;
-      activeModuleId = "";
-      activeEntityId = "";
-      selectedRecordId = "";
-      searchQuery = "";
-      sortState = { field:"", dir:"asc" };
-      filterRules = [];
-      filterPanelOpen = false;
-      selectedIds.clear();
-      const prompt = $("sysPromptInput");
-      if (prompt) prompt.value = "";
-      clearTrace();
-      setStatus("Idle");
-      renderAll();
-    });
-    $("sysBackBtn")?.addEventListener("click", () => window._H?.setTab?.("chats"));
-    $("sysToggleInspectorBtn")?.addEventListener("click", () => setInspectorCollapsed(!inspectorCollapsed));
-    $("sysToggleLibraryBtn")?.addEventListener("click", () => setLibraryCollapsed(!libraryCollapsed));
-    $("sysCloseLibraryBtn")?.addEventListener("click", () => setLibraryCollapsed(true));
-    $("sysInspectorCloseBtn")?.addEventListener("click", () => setInspectorCollapsed(true));
-    $("sysTraceToggle")?.addEventListener("click", () => {
-      const tc = $("sysTraceConsole");
-      if (!tc) return;
-      const isCollapsed = tc.classList.contains("collapsed");
-      tc.classList.toggle("collapsed", !isCollapsed);
-      tc.classList.toggle("expanded", isCollapsed);
-    });
-    window.HCTraceCopy.wire($("sysTraceCopyBtn"), { host: () => $("sysTraceConsole")?.querySelector(".sys-trace-entries"), rowSelector: ".sys-trace-entry", title: "Systems run log" });
-    $("sysTraceClearBtn")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      clearTrace();
-      const tc = $("sysTraceConsole");
-      if (tc) { tc.classList.add("collapsed"); tc.classList.remove("expanded"); }
-    });
+    $("sysNewBtn")?.addEventListener("click", () => { setMenu(null, false); openStarter(true); });
     $("sysResetDataBtn")?.addEventListener("click", () => {
+      setMenu(null, false);
       const spec = getActive();
+      if (!spec) return;
       resetRuntimeData(spec);
       selectedIds.clear(); filterRules = []; filterPanelOpen = false;
       selectedRecordId = "";
-      renderPreview(); renderDataEditor();
-      trace("Mock data reset to original", "warn");
+      renderPreview();
     });
-    $("sysPromptInput")?.addEventListener("keydown", e => { if (e.key === "Enter") createSystem(); });
     $("sysPreviewImportBtn")?.addEventListener("click", () => {
       const spec = getActive();
       const entity = spec?.entities?.[activeEntityId];
       showImportModal(entity);
-    });
-    const setPreviewExportMenuOpen = (open) => {
-      const menu = $("sysPreviewExportMenu");
-      const btn = $("sysPreviewExportMenuBtn");
-      if (!menu) return;
-      menu.hidden = !open;
-      menu.classList.toggle("is-open", open);
-      menu.setAttribute("aria-hidden", String(!open));
-      if (btn) btn.setAttribute("aria-expanded", String(open));
-    };
-    $("sysPreviewExportMenuBtn")?.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const menu = $("sysPreviewExportMenu");
-      if (menu) setPreviewExportMenuOpen(menu.hidden);
     });
     $("sysPreviewExportMenu")?.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-preview-export]");
@@ -3039,16 +2873,8 @@ Repair requirements:
       if (spec && btn.dataset.previewExport === "json") exportJSON(spec);
       if (spec && btn.dataset.previewExport === "csv") exportCSV(spec, activeEntityId);
       if (spec && btn.dataset.previewExport === "app") exportApp(spec);
-      setPreviewExportMenuOpen(false);
+      setMenu(null, false);
     });
-    document.addEventListener("click", (e) => {
-      const menu = $("sysPreviewExportMenu");
-      if (!menu || menu.hidden) return;
-      if (e.target.closest("#sysPreviewExportMenuBtn") || e.target.closest("#sysPreviewExportMenu")) return;
-      setPreviewExportMenuOpen(false);
-    });
-
-    window.HCSystemsHeaderBar?.init();   // what does not fit the bar moves into a menu at its end
 
     // ── ERP list ────────────────────────────────────────────────────
     $("sysSystemList")?.addEventListener("click", async e => {
@@ -3078,11 +2904,11 @@ Repair requirements:
         return;
       }
       const card = e.target.closest("[data-system-id]");
-      if (card) selectSystem(card.dataset.systemId);
+      if (card) { selectSystem(card.dataset.systemId); setMenu(null, false); }
     });
     $("sysVersionList")?.addEventListener("click", e => {
       const card = e.target.closest("[data-version-index]");
-      if (card) restoreVersion(Number(card.dataset.versionIndex));
+      if (card) { restoreVersion(Number(card.dataset.versionIndex)); setMenu(null, false); }
     });
 
     // ── Dragging a card to another stage ───────────────────────────
@@ -3136,7 +2962,7 @@ Repair requirements:
             .sort((x, y) => order.indexOf(x.screen) - order.indexOf(y.screen))[0];
           if (target) {
             activeModuleId = target.id; selectedRecordId = rid; searchQuery = ""; filterRules = []; selectedIds.clear(); calendarMonth = "";
-            renderPreview(); renderDataEditor();
+            renderPreview();
           }
         } else if (action === "open-stage") {
           // A workflow's stage opens the list of records standing at it.
@@ -3147,7 +2973,7 @@ Repair requirements:
             activeModuleId = target.id; selectedRecordId = ""; searchQuery = ""; selectedIds.clear(); calendarMonth = "";
             filterRules = [{ id: uid("f"), field: actionBtn.dataset.field, op: "eq", value: actionBtn.dataset.stage }];
             filterPanelOpen = true;
-            renderPreview(); renderDataEditor();
+            renderPreview();
           }
         }
         return;
@@ -3238,7 +3064,7 @@ Repair requirements:
         selectedIds.clear();
         selectedRecordId = data[activeEntityId][0]?.id || "";
         saveRuntimeData(spec, data);
-        renderPreview(); renderDataEditor();
+        renderPreview();
         trace(`Deleted ${count} record${count === 1 ? "" : "s"}`, "warn");
         return;
       }
@@ -3276,7 +3102,6 @@ Repair requirements:
       const kCard = e.target.closest(".sys-kanban-card");
       if (kCard && !e.target.closest("[data-action]")) {
         selectedRecordId = kCard.dataset.recordId;
-        renderDataEditor();
         return;
       }
 
@@ -3305,7 +3130,7 @@ Repair requirements:
         activeModuleId = mod.dataset.moduleId;
         selectedRecordId = ""; searchQuery = ""; sortState = { field:"", dir:"asc" }; calendarMonth = "";
         filterRules = []; filterPanelOpen = false; selectedIds.clear();
-        renderPreview(); renderDataEditor();
+        renderPreview();
         return;
       }
 
@@ -3322,7 +3147,6 @@ Repair requirements:
           const again = host.querySelector(".sys-table-wrap");
           if (again) { again.scrollTop = top; again.scrollLeft = left; }
         } else host.querySelectorAll("tr[data-record-id]").forEach(r => r.classList.toggle("selected", r.dataset.recordId === selectedRecordId));
-        renderDataEditor();
         return;
       }
 
@@ -3361,30 +3185,6 @@ Repair requirements:
       }
     });
 
-    // ── Data Editor panel ────────────────────────────────────────────
-    $("sysDataEditor")?.addEventListener("change", e => {
-      if (e.target.id === "sysEntitySelect") {
-        activeEntityId = e.target.value;
-        const spec = getActive();
-        const mod = spec?.modules.find(m => m.entity === activeEntityId);
-        if (mod) activeModuleId = mod.id;
-        selectedRecordId = "";
-        renderPreview(); renderDataEditor();
-      } else if (e.target.id === "sysRecordSelect") {
-        selectedRecordId = e.target.value;
-        renderPreview(); renderDataEditor();
-      }
-    });
-    $("sysDataEditor")?.addEventListener("click", e => {
-      if (e.target.id === "sysAddRecordBtn") {
-        const spec = getActive();
-        const entity = spec?.entities?.[activeEntityId];
-        showRecordModal(null, entity, true);
-      }
-      if (e.target.id === "sysDeleteRecordBtn") deleteRecord();
-      if (e.target.id === "sysSaveRecordBtn") saveRecord();
-    });
-
     // ── Record modal ─────────────────────────────────────────────────
     $("sysRecordModalClose")?.addEventListener("click", closeRecordModal);
     $("sysRecordModalCancel")?.addEventListener("click", closeRecordModal);
@@ -3404,11 +3204,11 @@ Repair requirements:
     if (!STANDALONE) syncModelSelect();
     if (!mounted) {
       mounted = true;
-      loadUiState();
       loadSystems();
       wireEvents();
+      if (!STANDALONE) CHAT()?.init({ send: agentSend, stop: agentStop });
     }
-    applyPanelState();
+    if (!systems.length) openStarter();
     updateCreateButtonState();
     renderAll();
   }
