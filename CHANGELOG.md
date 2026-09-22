@@ -234,6 +234,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **You can see what an agent's code actually printed.** A small local model
+  ran its Python correctly and then wrote a different number in its answer,
+  and nothing on screen showed the real one. What each run printed is now kept
+  under the reply, folded, as the app received it. A tool call a small model
+  writes at the start of its reply, before it explains, is now carried out
+  rather than shown as the answer.
+
 - **Chats are titled by what you asked.** A chat started from one of the
   starter buttons was titled with the button's instructions, so every "Look
   it up" chat was called "Look this up…"; the title is now your own question.

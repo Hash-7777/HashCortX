@@ -1099,7 +1099,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         _imgBase64: m._imgBase64 ? m._imgBase64.slice() : undefined,
         // Persist the duration so the timestamp chip survives page reloads
         // and chat switching (previously stripped → chips disappeared on reload).
-        durationMs: m.durationMs || undefined,
+        durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined,
         _modelContent: m._modelContent || undefined,
         replyTo: m.replyTo || undefined,
         diffFrom: m.diffFrom || undefined,
@@ -4019,6 +4019,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         }
       });
     }
+    const ran = m.role === "assistant" && HCRanCode.element(m.ranCode);   // js/chat/ran-code.js
+    if (ran) bubble.appendChild(ran);
     if (m.attachments?.length) {
       const at = document.createElement("div");
       at.className = "attachments";
@@ -5667,15 +5669,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         new Promise((_, rej) => { timer = setTimeout(() => rej(new Error("tool timeout")), AGENT_TOOL_TIMEOUT_MS); })
       ]).finally(() => clearTimeout(timer));
       if (onStatus) onStatus(`${name} ✓`, "done");
-      if (tracker) tracker.push({ name, ok: true, ms: Math.round(performance.now() - t0) });
-      // Note which web-search backend actually fired (Tavily / Google / Wikipedia)
-      // so the per-message badge tells the truth instead of just "web_search".
-      if (tracker && name === "web_search" && result && typeof result === "object") {
-        const sample = (result.results || []).map(r => r.url || "").join(" ");
-        if (sample.includes("tavily")) tracker.push({ name: "tavily", ok: true, ms: 0, derived: true });
-        else if (sample.includes("google")) tracker.push({ name: "google", ok: true, ms: 0, derived: true });
-        else if (sample.includes("wikipedia")) tracker.push({ name: "wikipedia", ok: true, ms: 0, derived: true });
-      }
+      if (tracker) tracker.push({ name, ok: true, ms: Math.round(performance.now() - t0), ...(name === "execute_python" ? { output: HCRanCode.outputOf(result) } : {}) });
       return JSON.stringify(result ?? { ok: true });
     } catch (e) {
       if (onStatus) onStatus(`${name} ✗`, "failed");
@@ -5933,8 +5927,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (agent && agent.lite) {
       return await runAgentLiteFlow({ agent, assistant, signal, onStatus, onFinalToken });
     }
-    // Per-message tool tracker — the renderer reads this off the message
-    // object to draw the "tools used" badges below the bubble.
+    // Per-message record of the tools that ran; what Python printed is shown
+    // under the reply (js/chat/ran-code.js).
     if (!assistant.toolsUsed) assistant.toolsUsed = [];
     const tracker = assistant.toolsUsed;
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
@@ -6124,6 +6118,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         : `The agent used ${tracker.length} tool${tracker.length === 1 ? "" : "s"} but did not write an answer. Ask again, or pick another model.`;
     }
 
+    assistant.ranCode = HCRanCode.keep(tracker.map(t => t.output));
     // Stream the final text into the bubble so the UX feels live even though
     // the call itself was non-streaming.
     if (finalText) await typewriterIntoBubble(finalText, onFinalToken, signal);

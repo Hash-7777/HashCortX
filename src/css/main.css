@@ -954,6 +954,10 @@
   .gen-img-dl svg, .gen-img-copy svg { width: 13px; height: 13px; flex-shrink: 0; }
   .gen-img-loading { display: flex; align-items: center; gap: 10px; padding: 14px 0; color: var(--muted); font-size: 13px; }
   .gen-img-loading .spinner { width: 16px; height: 16px; border: 2px solid rgba(200,180,120,.2); border-top-color: var(--gold); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+  /* What the code an agent ran printed, folded under its reply. */
+  .ran-code { margin-top: 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface-sunken); }
+  .ran-code summary { cursor: pointer; padding: 6px 10px; font-size: 11.5px; color: var(--text-dim); }
+  .ran-code pre { margin: 0; padding: 8px 10px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 260px; overflow: auto; }
   .attachments { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .attachment {
     background: rgba(255,255,255,0.04); border: 1px solid var(--line);
