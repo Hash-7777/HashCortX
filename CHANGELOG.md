@@ -234,6 +234,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Chats are titled by what you asked.** A chat started from one of the
+  starter buttons was titled with the button's instructions, so every "Look
+  it up" chat was called "Look this up…"; the title is now your own question.
+  The list of chats names each one's model the way the model menu does,
+  rather than by its internal id.
+
 - **A Swarm team stays on the models it was designed on.** A team designed on
   a cloud model could be given a local one, which loaded it on your machine
   in the middle of the run; the designer is now offered models on its own

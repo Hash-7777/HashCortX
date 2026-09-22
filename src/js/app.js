@@ -1208,7 +1208,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     filtered.forEach(chat => {
       const row = document.createElement("div");
       row.className = "chat-item" + (chat.id === state.currentChatId ? " active" : "");
-      const modelLabel = chat.model || "—";
+      const modelLabel = [...(modelEl?.options || [])].find(o => o.value === chat.model)?.textContent || chat.model || "—";   // as its menu names it
       // Date: prefer stored createdAt, fall back to updatedAt, else show nothing
       const ts = chat.createdAt || chat.updatedAt;
       const dateStr = ts ? new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "";
@@ -3328,6 +3328,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     });
     updateCloudModelVisualState();
     syncCompareModelOptions();
+    renderChatList();   // each chat names its model as this menu now does
     // Cheap on every rebuild: a list that arrived is kept for its key and one
     // that failed waits before it is asked again. This ran once per launch, so
     // a key added or changed later never got its provider's own list.
@@ -3755,9 +3756,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // The prompt says the question is going to two models, so switch Split on
     // rather than leaving the user to discover the button that makes it true.
     if (preset === "secondOpinion" && !state.compareMode) setCompareMode(true);
-    // "Look it up" and "Work it out" promise a search and a Python run, and
-    // tools only run for an agent. With none selected — the default — the
-    // prompt went to a plain chat, which cannot search, and the model answered
+    // "Look it up" and "Work it out" promise a search and a Python run; tools run
+    // only for an agent, and with none selected (the default) the model answered
     // "not found". Pick the agent that has the tool when the one in use lacks it.
     const needs = { grounded: ["web_search", "builtin_researcher", "Researcher"], compute: ["code_interpreter", "builtin_hash_ai", "HashCortx"] }[preset];
     if (needs && !(getActiveAgent()?.tools || []).includes(needs[0])) {

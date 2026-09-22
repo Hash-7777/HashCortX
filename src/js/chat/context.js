@@ -118,7 +118,12 @@
     const list = Array.isArray(messages) ? messages : [];
     const first = list.find((m) => m && m.role === "user" && m.content);
     if (!first) return "New chat";
-    const words = String(first.content).trim().replace(/\s+/g, " ").split(" ").filter(Boolean);
+    // A chat started from a starter prompt opens with the same instructions
+    // each time, so every one was titled "Look this up…"; its title is the
+    // person's own words, after the prompt's "My question:".
+    const text = String(first.content).trim();
+    const own = text.split(/\n\s*(?:My question|The problem|Here it is):[ \t]*\n/i).pop().trim();
+    const words = (own || text).replace(/\s+/g, " ").split(" ").filter(Boolean);
     if (!words.length) return "New chat";
     return words.length > 3 ? `${words.slice(0, 3).join(" ")}…` : words.join(" ");
   }

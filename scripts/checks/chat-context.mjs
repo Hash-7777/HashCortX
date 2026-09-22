@@ -132,6 +132,11 @@ console.log('\nA conversation is named after the first thing said in it:');
   ok('nothing said yet is a new chat',
     C.deriveTitle([]) === 'New chat' && C.deriveTitle(null) === 'New chat');
   ok('and neither is whitespace', C.deriveTitle([{ role: 'user', content: '   ' }]) === 'New chat');
+  ok('a chat started from a starter prompt is titled by the person\'s own question', C.deriveTitle([{ role: 'user', content: 'Look this up before you answer.\n\n- Search first.\n\nMy question:\nlatest Node version please' }]) === 'latest Node version…');
+  ok('... whichever starter it was', C.deriveTitle([{ role: 'user', content: 'Work this out in Python.\n\nThe problem:\n17 factorial' }]) === '17 factorial');
+  ok('the chat list names each chat\'s model as its menu does, not by its raw id', /const modelLabel = \[\.\.\.\(modelEl\?\.options \|\| \[\]\)\]\.find\(o => o\.value === chat\.model\)\?\.textContent \|\| chat\.model \|\| "—";/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8')));
+  ok('... and is drawn again once the menu is filled, which on a fresh start comes after it', /syncCompareModelOptions\(\);\s*renderChatList\(\);/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8')));
+  ok('... and a starter sent with nothing added keeps its own words', C.deriveTitle([{ role: 'user', content: 'Work this out in Python.\n\nThe problem:\n' }]) === 'Work this out…');
   ok('runs of spaces do not become empty words',
     C.deriveTitle([{ role: 'user', content: 'a    b    c    d' }]) === 'a b c…');
 }
