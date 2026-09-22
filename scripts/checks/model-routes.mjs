@@ -391,6 +391,10 @@ console.log('\nOne question, answered by whichever model can:');
   const slowAsked = [];
   const r3 = await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(), timers, timeoutMs: 5,
     call: (m, s) => { slowAsked.push(m); return slowAsked.length === 1 ? new Promise((_, rej) => s.addEventListener('abort', () => rej(Object.assign(new Error('Aborted'), { name: 'AbortError' })))) : Promise.resolve('late but answered'); } });
+  const tooBig = [];
+  const r4 = await R.askWithFailover({ start: 'cloud:groq:llama-3.3-70b', options, store: memory(),
+    call: async (m) => { tooBig.push(m); if (m.startsWith('cloud:groq')) throw E(P.cloudHttpError('groq', 413, JSON.stringify({ error: { message: 'Request too large for model on tokens per minute (TPM)' } }))); return 'fits here'; } });
+  ok('a request too large for one model is taken to one that can hold it', r4.text === 'fits here' && !r4.model.startsWith('cloud:groq'));
   ok('a model that runs out of time is left for another', r3.text === 'late but answered' && r3.model !== 'cloud:groq:llama-3.3-70b');
 }
 

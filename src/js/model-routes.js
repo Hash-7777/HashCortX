@@ -399,7 +399,7 @@
         return { text, model, switched };
       } catch (err) {
         const kind = failureKind(err);
-        if (kind === 'stopped' || (signal && signal.aborted) || kind === 'other' || kind === 'size' || attempt >= maxAttempts) throw err;
+        if (kind === 'stopped' || (signal && signal.aborted) || kind === 'other' || attempt >= maxAttempts) throw err;
         const next = run.next(model, err);
         if (!next) throw err;
         const why = reasonText(kind, err);
