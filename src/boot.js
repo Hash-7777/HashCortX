@@ -81,6 +81,7 @@
     '/js/stream/first-sign.js',
     '/js/chat/context.js',
     '/js/chat/failover.js',
+    '/js/chat/web-search.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',

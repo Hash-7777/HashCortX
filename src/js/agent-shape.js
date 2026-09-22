@@ -198,8 +198,26 @@
         id: c.id,
         type: 'function',
         function: { name: c.name, arguments: JSON.stringify(c.arguments || {}) },
+        ...(c.thoughtSignature ? { thoughtSignature: c.thoughtSignature } : {}),
       })),
     });
+  }
+
+  /**
+   * Gemini 3 signs each tool call it makes and refuses the next turn unless
+   * the signature comes back with the call ("Function call is missing a
+   * thought_signature"), so every Gemini agent failed at its second step. The
+   * signature is kept on the call for Gemini; a call another model made has
+   * none, and Google's documented stand-in lets Gemini carry on from it.
+   */
+  const FOREIGN_CALL_SIGNATURE = 'skip_thought_signature_validator';
+  const signatureFor = (call) => (call && call.thoughtSignature) || FOREIGN_CALL_SIGNATURE;
+
+  /** A conversation's tool calls without what only Gemini reads, for every other provider. */
+  function withoutSignatures(messages) {
+    return (messages || []).map((m) => (m && Array.isArray(m.tool_calls)
+      ? { ...m, tool_calls: m.tool_calls.map(({ thoughtSignature, ...c }) => c) }
+      : m));
   }
 
   /** Record what a tool returned, against the call that asked for it. */
@@ -292,8 +310,12 @@
     const value = String(modelValue || '');
     if (!value.startsWith('cloud:')) return { kind: 'ollama', model: value };
     const { provider, modelId } = parseCloudModel(value);
-    if (provider === 'gemini') return { kind: 'gemini', model: modelId };
-    if (provider === 'anthropic') return { kind: 'anthropic', model: modelId };
+    // The provider is kept on every cloud adapter, because a failed call names
+    // its model from it (tagged, below). Without it a Gemini or Anthropic
+    // failure named a bare "gemini-2.5-pro", which the routing reads as a local
+    // model — and a local job is never handed to the cloud, so nothing took over.
+    if (provider === 'gemini') return { kind: 'gemini', provider, model: modelId };
+    if (provider === 'anthropic') return { kind: 'anthropic', provider, model: modelId };
     if (providers && providers.get(provider)) return { kind: 'openai', provider, model: modelId };
     throw new Error(`Unknown cloud provider for agent mode: ${provider}`);
   }
@@ -435,6 +457,9 @@
     toGeminiTools,
     appendAssistantToolCallTurn,
     appendToolResult,
+    signatureFor,
+    withoutSignatures,
+    FOREIGN_CALL_SIGNATURE,
     safeJsonParse,
     extractPythonFence,
     selectAgentAdapter,

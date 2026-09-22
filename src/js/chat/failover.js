@@ -132,5 +132,52 @@
     return Math.max(rankOf(value), rankOf(label)) * 2 + (FREE_TIER.has(provider) ? 1 : 0);
   }
 
-  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, TIER_RANK, FREE_TIER };
+  // The failures another model can get past: gone, out of quota or credit, a
+  // refused key, busy, silent, empty, or a request too large for this one.
+  const AGENT_MOVES_ON = ["retired", "limit", "key", "busy", "slow", "empty", "size"];
+
+  /**
+   * An agent's turns, each sent to the model in use and, when that one cannot
+   * answer, to the next one the run's routing names — the rest of the run
+   * then stays on it.
+   *
+   * A plain chat always moved on like this; an agent stopped with an empty
+   * reply at the first rate limit, and a run of tool calls spends a free
+   * per-minute budget quickly. The conversation is kept in one shape whatever
+   * the provider (js/agent-shape.js), so it can carry on anywhere.
+   *
+   *   send(request)   one model turn (the app's runModelTurn)
+   *   adapterOf(v)    the client a model needs
+   *   routes          a run from js/model-routes.js, or null to never move
+   *                   (a local model: its job stays local)
+   *   onSwitch(from, to, why)
+   */
+  function agentTurns({ start, send, adapterOf, routes, failureKind, reasonText, onSwitch, maxSwitches = 5 }) {
+    let model = start;
+    let adapter = adapterOf(start);
+    let switches = 0;
+    return {
+      get model() { return model; },
+      async turn(request) {
+        for (;;) {
+          try {
+            // The model is named on the request, so a failure names it whole.
+            return await send({ ...request, adapter, modelValue: model });
+          } catch (err) {
+            const kind = failureKind(err);
+            const stopped = request.signal && request.signal.aborted;
+            if (!routes || stopped || switches >= maxSwitches || !AGENT_MOVES_ON.includes(kind)) throw err;
+            const next = routes.next(model, err);
+            if (!next) throw err;
+            switches++;
+            if (onSwitch) onSwitch(model, next, reasonText(kind, err));
+            model = next;
+            adapter = adapterOf(next);
+          }
+        }
+      },
+    };
+  }
+
+  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
 })();

@@ -65,7 +65,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,524  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,514  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        530  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -82,13 +82,13 @@ HashCortX/
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
-│   │   ├── model-routes.js     410  which model a run asks next, by why the last
+│   │   ├── model-routes.js     414  which model a run asks next, by why the last
 │   │   │                            one failed, what it can hold and how it has
 │   │   │                            answered; models a provider says are gone;
 │   │   │                            waiting on a stream; a call cancelled when
 │   │   │                            its time is up; one question asked until a
 │   │   │                            model can answer it
-│   │   ├── agent-shape.js      442  images, tools and tool results per provider,
+│   │   ├── agent-shape.js      468  images, tools and tool results per provider,
 │   │   │                            carrying on an answer that was cut off, and
 │   │   │                            timing every answer
 │   │   ├── agent-context.js    136  what the model sees of a long agent run
@@ -121,7 +121,9 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/               263  what a model is told, and which to try next
+│   │   ├── chat/               417  what a model is told, which to try next
+│   │   │                            (an agent's turns too), and the web
+│   │   │                            searches an agent makes
 │   │   ├── code/               429  Coder: terminal colour, export, file names,
 │   │   │                            and patch_file's text work
 │   │   ├── swarm/            4,021  Agent Swarm: what kind of task it is,
@@ -331,7 +333,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,501-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 6,445 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 6,488 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

@@ -119,6 +119,19 @@ console.log('\nA tool round trip is recorded the way providers expect to read it
   ok('and carries the content', messages[1].content === 'results here');
 }
 
+console.log('\nGemini gets back the signature on each tool call it made, and no one else sees it:');
+{
+  const m = [];
+  A.appendAssistantToolCallTurn(m, '', [{ id: 'g1', name: 'web_search', arguments: {}, thoughtSignature: 'sig-abc' }, { id: 'g2', name: 'fetch_url', arguments: {} }]);
+  ok('a signed call keeps its signature', m[0].tool_calls[0].thoughtSignature === 'sig-abc');
+  ok('an unsigned call gets none written in', !('thoughtSignature' in m[0].tool_calls[1]));
+  ok('Gemini is handed back its own signature', A.signatureFor(m[0].tool_calls[0]) === 'sig-abc');
+  ok('a call another model made is handed Google\'s documented stand-in', A.signatureFor(m[0].tool_calls[1]) === 'skip_thought_signature_validator');
+  const out = A.withoutSignatures([{ role: 'user', content: 'x' }, m[0]]);
+  ok('every other provider is sent the calls without it', !JSON.stringify(out).includes('thoughtSignature') && out[1].tool_calls.length === 2 && out[1].tool_calls[0].id === 'g1');
+  ok('... and the conversation itself keeps it for a later Gemini turn', m[0].tool_calls[0].thoughtSignature === 'sig-abc');
+}
+
 console.log('\nArguments that arrive as text are read, and bad ones cost one call:');
 ok('a JSON string is parsed', A.safeJsonParse('{"a":1}').a === 1);
 ok('an object is passed through', A.safeJsonParse({ a: 1 }).a === 1);
@@ -164,6 +177,7 @@ console.log('\nThe adapter follows the provider table rather than its own list:'
   ok('anthropic has its own adapter', pick('cloud:anthropic:sonnet').kind === 'anthropic');
   ok('an OpenAI-shaped provider is recognised', pick('cloud:groq:llama').kind === 'openai');
   ok('the model id survives a colon in its name', pick('cloud:openai:gpt:4o').model === 'gpt:4o');
+  ok('every cloud adapter keeps its provider, so a failure names its model whole', pick('cloud:gemini:pro').provider === 'gemini' && pick('cloud:anthropic:sonnet').provider === 'anthropic' && pick('cloud:groq:llama').provider === 'groq');
   // The point of reading the table: a provider added there works here with no
   // second list to remember to update.
   ok('a provider only in the table still works', pick('cloud:newcomer:x').kind === 'openai');
@@ -343,6 +357,9 @@ console.log('\nA failed call names the model that failed:');
   const own = Object.assign(new Error('from a repair'), { model: 'cloud:gemini:x' });
   const kept = await A.routeModelTurn({ adapter: { kind: 'gemini', model: 'y' }, messages: [] }, { gemini: () => Promise.reject(own) }, {}).catch((e) => e);
   ok('... and a model already named is not overwritten', kept.model === 'cloud:gemini:x');
+  const picked = A.selectAgentAdapter('cloud:gemini:flash', { parseCloudModel: (v) => ({ provider: v.split(':')[1], modelId: v.split(':').slice(2).join(':') }), providers: { get: () => ({}) } });
+  const named = await A.routeModelTurn({ adapter: picked, messages: [] }, failing('gemini'), {}).catch((e) => e);
+  ok('a Gemini failure from a chosen adapter names the cloud model, never a bare id read as local', named.model === 'cloud:gemini:flash');
 }
 
 console.log('\nAn answer cut off at the length limit is carried on:');

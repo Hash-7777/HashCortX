@@ -3755,6 +3755,23 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // The prompt says the question is going to two models, so switch Split on
     // rather than leaving the user to discover the button that makes it true.
     if (preset === "secondOpinion" && !state.compareMode) setCompareMode(true);
+    // "Look it up" and "Work it out" promise a search and a Python run, and
+    // tools only run for an agent. With none selected — the default — the
+    // prompt went to a plain chat, which cannot search, and the model answered
+    // "not found". Pick the agent that has the tool when the one in use lacks it.
+    const needs = { grounded: ["web_search", "builtin_researcher", "Researcher"], compute: ["code_interpreter", "builtin_hash_ai", "HashCortx"] }[preset];
+    if (needs && !(getActiveAgent()?.tools || []).includes(needs[0])) {
+      setActiveAgent(needs[1]);
+      setStatus("ok", `${needs[2]} agent on, so the answer can ${preset === "grounded" ? "search the web" : "run Python"}`);
+    }
+    // Notes are read only on the plain-chat path, only when context is on, and
+    // never for a cloud model. Say which of those stands in the way rather than
+    // let the model answer that the notes do not cover it.
+    if (preset === "knowledge") {
+      if (getActiveAgent()) setActiveAgent(null);
+      if (!injectionEnabled) { injectionEnabled = true; applyInjectionState(); }
+      if (modelEl.value.startsWith("cloud:")) setStatus("warn", "Your notes are never sent to a cloud model. Pick a local model to answer from them.");
+    }
     // Free RAM chip also unloads every currently-loaded model on the local host.
     if (preset === "freeRam") {
       const host = safeHost();
@@ -5159,77 +5176,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // ========= Agent tools =========
-  async function wikipediaSearch(query, limit = 3) {
-    try {
-      const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=${limit}&utf8=1`;
-      const r = await fetch(searchUrl, { referrerPolicy: "no-referrer" });
-      if (!r.ok) return [];
-      const data = await r.json();
-      const titles = (data.query?.search || []).map(s => s.title);
-      if (!titles.length) return [];
-      // Fetch extracts in one call
-      const extractUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&titles=${encodeURIComponent(titles.join("|"))}&format=json&origin=*`;
-      const e = await fetch(extractUrl, { referrerPolicy: "no-referrer" });
-      const ed = await e.json();
-      const pages = Object.values(ed.query?.pages || {});
-      return pages.map(p => ({
-        title: p.title,
-        snippet: (p.extract || "").slice(0, 400),
-        url: `https://en.wikipedia.org/wiki/${encodeURIComponent((p.title || "").replace(/ /g, "_"))}`
-      })).filter(x => x.snippet);
-    } catch { return []; }
-  }
-
-  // Tavily — purpose-built for LLMs. Returns clean snippets + a synthesized
-  // answer string. CORS-friendly (POST to api.tavily.com directly from browser).
-  // Key is stored only in localStorage and only ever sent to api.tavily.com.
-  async function tavilySearch(query, limit = 5) {
-    const key = (tavilyKeyEl.value || "").trim();
-    if (!key) return null;
-    try {
-      const r = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: key,
-          query,
-          search_depth: "basic",
-          include_answer: true,
-          max_results: limit,
-        }),
-        signal: makeSignal(12000),
-      });
-      if (!r.ok) return null;
-      const data = await r.json();
-      return {
-        answer: data.answer || "",
-        results: (data.results || []).map(it => ({
-          title: it.title || "",
-          snippet: (it.content || "").slice(0, 400),
-          url: it.url || "",
-          score: it.score ?? null,
-        })),
-      };
-    } catch { return null; }
-  }
-
-  async function googleSearch(query, limit = 5) {
-    const key = googleKeyEl.value.trim();
-    const cx = googleCxEl.value.trim();
-    if (!key || !cx) return null;
-    try {
-      const url = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`; // not www.googleapis.com — connect-src permits only this name
-      const r = await fetch(url, { referrerPolicy: "no-referrer" });
-      if (!r.ok) return null;
-      const data = await r.json();
-      return (data.items || []).map(it => ({
-        title: it.title,
-        snippet: it.snippet || "",
-        url: it.link
-      }));
-    } catch { return null; }
-  }
+  // The searches themselves are in js/chat/web-search.js; the keys are read
+  // here, at the moment of asking, and each goes only to its own service.
+  const wikipediaSearch = (query, limit = 3) => HCWebSearch.wikipedia(query, limit);
+  const tavilySearch = (query, limit = 5) =>
+    HCWebSearch.tavily(query, limit, { key: (tavilyKeyEl.value || "").trim(), signal: makeSignal(12000) });
+  const googleSearch = (query, limit = 5) =>
+    HCWebSearch.google(query, limit, { key: googleKeyEl.value.trim(), cx: googleCxEl.value.trim() });
 
   // Where the agent's fetch tool may go. The rules are in js/url-safety.js so
   // they can be checked; nothing tested them before.
@@ -5409,6 +5362,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   function memAutoExtract(...a)               { return window.HCMemoryStore.memAutoExtract(...a); }
   function memAutoExtractFromAssistant(...a)  { return window.HCMemoryStore.memAutoExtractFromAssistant(...a); }
   const AGENT_MAX_ITERATIONS = 8;        // hard cap on tool-call rounds
+  const AGENT_CLOSING_TURN = "No more tools can be used now. Write your final answer to my question from what the tools returned above, and say what you could not confirm.";
   const AGENT_TOOL_TIMEOUT_MS = 20000;   // per-tool wall-clock cap
 
   // -------------------------------------------------------------------------
@@ -5472,6 +5426,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         required: ["url"]
       },
       statusLabel: a => `Reading page: ${(a.url || "").slice(0, 60)}`,
+      // Waits on the person's answer, then reads within the reader's own 20 s
+      // (src-tauri/src/commands/net.rs, or 10 s in a browser).
+      ownLimit: true,
       async execute({ url, offset }) {
         if (!url) return { error: "url is required" };
         // The address is the model's own, and a URL carries whatever is put in
@@ -5618,6 +5575,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         required: ["code"]
       },
       statusLabel: a => `Running Python: ${(a.code || "").split("\n")[0].slice(0, 60)}`,
+      // The runtime stops a run itself (src/core/sandbox/pyodide.js), and the
+      // save dialog after it waits on the person.
+      ownLimit: true,
       async execute({ code }) {
         if (!code) return { error: "code is required" };
         try {
@@ -5694,10 +5654,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     try {
       if (onStatus) onStatus(tool.statusLabel?.(args || {}) || `Running ${name}…`, "running");
-      const result = await Promise.race([
-        Promise.resolve(tool.execute(args || {})),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("tool timeout")), AGENT_TOOL_TIMEOUT_MS))
-      ]);
+      // A tool that keeps its own time is not raced. The race ran through the
+      // person's own decision — the "Allow this page?" bar, the dialog asking
+      // where to keep a file — so a slow click failed the tool and left the bar
+      // up with nothing waiting on it; and a first Python chart, loading its
+      // library, was given up on while it carried on running, so the next
+      // Python call queued behind it and timed out too.
+      const run = Promise.resolve(tool.execute(args || {}));
+      let timer = null;
+      const result = tool.ownLimit ? await run : await Promise.race([
+        run,
+        new Promise((_, rej) => { timer = setTimeout(() => rej(new Error("tool timeout")), AGENT_TOOL_TIMEOUT_MS); })
+      ]).finally(() => clearTimeout(timer));
       if (onStatus) onStatus(`${name} ✓`, "done");
       if (tracker) tracker.push({ name, ok: true, ms: Math.round(performance.now() - t0) });
       // Note which web-search backend actually fired (Tavily / Google / Wikipedia)
@@ -5750,6 +5718,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {
+    // A run that moved here from Gemini carries its signatures; strict
+    // providers refuse a field they do not know.
+    messages = HCAgentShape.withoutSignatures(messages);
     const hasImages = messages.some(m => m.images?.length);
     const textMessages = messages.map(m => {
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
@@ -5908,6 +5879,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           // appendAssistantToolCallTurn stores args as { function: { name, arguments: "json-string" } }
           // Gemini needs args as a plain object, so we parse the string here.
           parts: m.tool_calls.map(c => ({
+            thoughtSignature: HCAgentShape.signatureFor(c),
             functionCall: {
               name: c.function?.name || c.name,
               args: typeof c.function?.arguments === "string"
@@ -5945,7 +5917,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         calls.push({
           id: `call_${Date.now()}_${calls.length}`,
           name: p.functionCall.name,
-          arguments: p.functionCall.args || {}
+          arguments: p.functionCall.args || {},
+          ...(p.thoughtSignature ? { thoughtSignature: p.thoughtSignature } : {})
         });
       }
     }
@@ -5967,14 +5940,24 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (agent && agent.lite) {
       return await runAgentLiteFlow({ agent, assistant, signal, onStatus, onFinalToken });
     }
-    const modelValue = modelEl.value;
-    const adapter = selectAgentAdapter(modelValue);
     // Per-message tool tracker — the renderer reads this off the message
     // object to draw the "tools used" badges below the bubble.
     if (!assistant.toolsUsed) assistant.toolsUsed = [];
     const tracker = assistant.toolsUsed;
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
-    const tools = adapter.kind === "gemini" ? buildGeminiTools(agent) : buildOpenAITools(agent);
+    const tools = buildOpenAITools(agent);   // shaped for Gemini where it is sent (js/agent-shape.js)
+    const turns = window.HCChatFailover.agentTurns({
+      start: modelEl.value, send: runModelTurn, adapterOf: selectAgentAdapter,
+      routes: modelEl.value.startsWith("cloud:")
+        ? window.HCModelRoutes.createRun({ options: () => getAvailableCloudModels().filter(m => !m.imageGen), label: cloudModelLabel,
+          strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) })
+        : null,
+      failureKind: window.HCModelRoutes.failureKind, reasonText: window.HCModelRoutes.reasonText,
+      onSwitch: (from, to, why) => {
+        assistant.model = to;
+        onStatus?.(`${cloudModelLabel(from)}: ${why}. Carrying on with ${cloudModelLabel(to)}`, "warn");
+      },
+    });
 
     // ---- Build initial message list ----
     const baseMessages = buildOllamaMessages();
@@ -6056,7 +6039,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
       let turn;
       try {
-        turn = await runModelTurn({ adapter, messages, tools, temperature, signal });
+        turn = await turns.turn({ messages, tools, temperature, signal });
       } catch (e) {
         // If the model rejects tools (older models, some configs), retry once
         // without tools — the agent then runs in legacy "RAG-prefetch" mode.
@@ -6131,19 +6114,26 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
     if (iter >= AGENT_MAX_ITERATIONS) {
       onStatus?.("Reached max tool iterations — finalizing", "warn");
-      // One more call without tools to force a text answer
+      // One more call without tools to force a text answer. Leaving the tools
+      // off is not enough: a model in the middle of a search reaches for
+      // another one anyway, and Groq refuses the whole answer for it ("Tool
+      // choice is none, but model called a tool"), which left a research run
+      // that had found the answer ending on "Done.". Say that the tools are over.
       try {
-        const closing = await runModelTurn({ adapter, messages, tools: [], temperature, signal });
-        finalText = closing.content || finalText || "(no answer)";
-      } catch {}
+        const closing = await turns.turn({ messages: [...messages, { role: "user", content: AGENT_CLOSING_TURN }], tools: [], temperature, signal });
+        finalText = closing.content || finalText || "";
+      } catch (err) {
+        recordAgentEvent(assistant, "error", `Could not write the final answer: ${err?.message || err}`);
+      }
     }
 
-    // If still empty but tools ran, synthesize a fallback so the bubble is never blank.
+    // If still empty but tools ran, synthesize a fallback so the bubble is never
+    // blank — and never one that reads as a finished answer when it is not.
     if (!finalText && tracker.length) {
       const memSaved = tracker.filter(t => t.name === "remember_fact" && t.ok);
       finalText = memSaved.length
         ? `Saved ${memSaved.length === 1 ? "that" : `${memSaved.length} facts`} to memory.`
-        : "Done.";
+        : `The agent used ${tracker.length} tool${tracker.length === 1 ? "" : "s"} but did not write an answer. Ask again, or pick another model.`;
     }
 
     // Stream the final text into the bubble so the UX feels live even though

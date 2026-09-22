@@ -181,5 +181,85 @@ console.log('\nThe chat moves on the way every agent mode does:');
   ok('a run never asks the same model twice', new Set(seen).size === seen.length);
 }
 
+// ── An agent's turns ─────────────────────────────────────────────────────
+console.log('\nAn agent moves to another model when the one in use cannot answer:');
+{
+  const rsb = { window: {}, Map, Array, String, Number, Date, JSON, Math, Set, Object, Error, setTimeout, clearTimeout, AbortController };
+  vm.createContext(rsb);
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'model-routes.js'), 'utf8'), rsb, { filename: 'model-routes.js' });
+  const R = rsb.window.HCModelRoutes;
+  const options = () => [
+    { value: 'cloud:gemini:gemini-3.5-flash', label: 'Gemini 3.5 Flash' },
+    { value: 'cloud:groq:openai/gpt-oss-120b', label: 'GPT OSS 120B' },
+    { value: 'cloud:openrouter:nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super' },
+  ];
+  const adapterOf = (v) => ({ kind: v.split(':')[1] === 'gemini' ? 'gemini' : 'openai', provider: v.split(':')[1], model: v.split(':').slice(2).join(':') });
+  const quota = (model) => Object.assign(new Error('rate limit — free-tier quota exceeded'), { status: 429, model });
+  const make = (answers, extra = {}) => {
+    const asked = [];
+    const switched = [];
+    const turns = F.agentTurns({
+      start: 'cloud:gemini:gemini-3.5-flash',
+      send: async (req) => { asked.push(req); const a = answers[asked.length - 1]; if (a instanceof Error) throw a; return a; },
+      adapterOf, routes: R.createRun({ options, store: null }), failureKind: R.failureKind, reasonText: R.reasonText,
+      onSwitch: (from, to, why) => switched.push({ from, to, why }), ...extra,
+    });
+    return { turns, asked, switched };
+  };
+  R.forgetCooling();
+  {
+    const { turns, asked, switched } = make([quota('cloud:gemini:gemini-3.5-flash'), { content: 'hello', tool_calls: null }]);
+    const out = await turns.turn({ messages: [{ role: 'user', content: 'hi' }], tools: [] });
+    ok('a rate limit on the first model is answered by another', out.content === 'hello' && asked.length === 2);
+    ok('... from another provider', asked[1].modelValue.split(':')[1] !== 'gemini' && asked[1].adapter.provider === asked[1].modelValue.split(':')[1]);
+    ok('... and the person is told which, and why', switched.length === 1 && /out of quota/.test(switched[0].why));
+    ok('the rest of the run stays on the model that answered', turns.model === asked[1].modelValue);
+    ok('every request names its model whole', asked.every((r) => /^cloud:[^:]+:/.test(r.modelValue)));
+  }
+  R.forgetCooling();
+  {
+    const { turns, asked } = make([Object.assign(new Error('Function call is missing a thought_signature'), { status: 400 })]);
+    const err = await turns.turn({ messages: [], tools: [] }).catch((e) => e);
+    ok('a mistake in the request itself is not passed round every model', /thought_signature/.test(err.message) && asked.length === 1);
+  }
+  R.forgetCooling();
+  {
+    const ctrl = new AbortController();
+    ctrl.abort();
+    const { turns, asked } = make([quota('cloud:gemini:gemini-3.5-flash'), { content: 'x' }]);
+    const err = await turns.turn({ messages: [], tools: [], signal: ctrl.signal }).catch((e) => e);
+    ok('a run the person stopped does not move on', err instanceof Error && asked.length === 1);
+  }
+  R.forgetCooling();
+  {
+    const { turns, asked } = make(Array.from({ length: 12 }, () => quota()), { maxSwitches: 1 });
+    await turns.turn({ messages: [], tools: [] }).catch(() => {});
+    ok('it moves on a bounded number of times', asked.length === 2);
+  }
+  {
+    const asked = [];
+    const turns = F.agentTurns({ start: 'llama3', send: async (r) => { asked.push(r); throw quota(); }, adapterOf: () => ({ kind: 'ollama', model: 'llama3' }),
+      routes: null, failureKind: R.failureKind, reasonText: R.reasonText });
+    await turns.turn({ messages: [] }).catch(() => {});
+    ok('a local model\'s job is never handed to a cloud model', asked.length === 1);
+  }
+}
+
+console.log('\nHow the chat uses it:');
+{
+  const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
+  const loop = app.slice(app.indexOf('async function runAgentLoop'), app.indexOf('async function runAgentLiteFlow'));
+  ok('the agent loop sends every turn through it', /HCChatFailover\.agentTurns\(\{/.test(loop) && /await turns\.turn\(\{ messages, tools, temperature, signal \}\)/.test(loop) && !/runModelTurn\(\{/.test(loop));
+  ok('... a local model gets no routes', /routes: modelEl\.value\.startsWith\("cloud:"\)/.test(loop));
+  ok('the last turn tells the model the tools are over, rather than only leaving them off', /content: AGENT_CLOSING_TURN/.test(loop) && /No more tools can be used now/.test(app));
+  ok('a run that wrote no answer never says "Done."', !/: "Done\."/.test(loop) && /did not write an answer/.test(loop));
+  ok('a tool that keeps its own time, or waits on the person, is not raced', /tool\.ownLimit \? await run/.test(app)
+    && /statusLabel: a => `Reading page[^\n]*\n[^]*?ownLimit: true/.test(app) && /statusLabel: a => `Running Python[^\n]*\n[^]*?ownLimit: true/.test(app));
+  const preset = app.slice(app.indexOf('async function applyPreset'), app.indexOf('// Wire the persistent composer-level chip row'));
+  ok('"Look it up" turns on an agent that can search when the one in use cannot', /grounded: \["web_search", "builtin_researcher"/.test(preset) && /setActiveAgent\(needs\[1\]\)/.test(preset));
+  ok('"Work it out" turns on one that can run Python', /compute: \["code_interpreter", "builtin_hash_ai"/.test(preset));
+  ok('"Use my notes" says when a cloud model means the notes are not read', /preset === "knowledge"/.test(preset) && /never sent to a cloud model/.test(preset));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/failover.js)\n`);
 process.exit(fail === 0 ? 0 : 1);
