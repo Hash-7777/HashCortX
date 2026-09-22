@@ -84,7 +84,7 @@ Be precise and technical. No filler text.`,
     },
   ];
 
-  const BOSS_SYSTEM = `You are a senior cybersecurity analyst writing the final security report. You have received findings from 4 specialist scanners. Compile a clear, actionable report.
+  const BOSS_SYSTEM = `You are a senior cybersecurity analyst writing the final security report. You have received findings from an instant pattern scanner and from specialist AI scanners. The pattern scanner's findings are exact matches in the code, not opinions: never call code clean while it reports a CRITICAL or HIGH match. Compile a clear, actionable report.
 
 Format your response EXACTLY like this:
 
@@ -322,54 +322,7 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
       : html;
   }
 
-  // ── Regex-based instant pattern scanner (no LLM, runs locally) ──
-  const STATIC_PATTERNS = [
-    { rx: /eval\s*\(/gi,                          sev: "HIGH",   msg: "eval() call — can execute arbitrary code" },
-    { rx: /exec\s*\(/gi,                          sev: "HIGH",   msg: "exec() call — executes shell commands" },
-    { rx: /subprocess\.call|subprocess\.Popen|os\.system/gi, sev: "HIGH", msg: "Shell execution via subprocess/os" },
-    { rx: /child_process|\.exec\(|\.spawn\(/gi,   sev: "HIGH",   msg: "Node.js child_process shell execution" },
-    { rx: /base64[_\-\s]?decode|atob\(|b64decode/gi, sev: "MEDIUM", msg: "Base64 decode — may hide payload" },
-    { rx: /\\x[0-9a-f]{2}(\\x[0-9a-f]{2}){6,}/gi, sev: "MEDIUM", msg: "Hex-encoded byte string — possible obfuscation" },
-    { rx: /chr\(\d+\)\s*\+\s*chr\(\d+\)/gi,       sev: "MEDIUM", msg: "Character code concatenation — obfuscation pattern" },
-    { rx: /import\s+socket|net\.connect|net\.createConnection/gi, sev: "MEDIUM", msg: "Raw socket connection" },
-    { rx: /\/bin\/sh|\/bin\/bash|cmd\.exe|powershell/gi, sev: "HIGH", msg: "Shell reference — may be a shell command" },
-    { rx: /stratum\+tcp|mining\.pool|xmrig|monero|cryptonight/gi, sev: "CRITICAL", msg: "Cryptomining indicator" },
-    { rx: /reverse.?shell|bind.?shell|meterpreter|metasploit/gi, sev: "CRITICAL", msg: "Reverse/bind shell reference" },
-    { rx: /keylog|keystroke|GetAsyncKeyState|SetWindowsHookEx/gi, sev: "CRITICAL", msg: "Keylogger indicator" },
-    { rx: /HKEY_LOCAL_MACHINE|HKLM|RegSetValue|RegCreateKey/gi, sev: "HIGH", msg: "Windows registry modification" },
-    { rx: /startup|autorun|\.lnk|currentversion\\run/gi, sev: "HIGH", msg: "Persistence mechanism — startup/autorun" },
-    { rx: /wget\s+http|curl\s+-[sS].*http|urllib\.request|requests\.get/gi, sev: "MEDIUM", msg: "Remote file download" },
-    { rx: /os\.remove|shutil\.rmtree|rm\s+-rf|del\s+\/[sqf]/gi, sev: "MEDIUM", msg: "Destructive file deletion" },
-    { rx: /Encrypt|AES\.|Fernet\.|encrypt\s*\(/gi, sev: "LOW",  msg: "Encryption — possible ransomware if combined with file ops" },
-    { rx: /\b(4444|31337|12345|6667|9050)\b/g,   sev: "MEDIUM", msg: "Known malware port number in code" },
-  ];
-
-  function runPatternScan(code) {
-    const findings = [];
-    for (const { rx, sev, msg } of STATIC_PATTERNS) {
-      rx.lastIndex = 0;
-      const m = rx.exec(code);
-      if (m) {
-        const lineNum = code.slice(0, m.index).split("\n").length;
-        findings.push({ sev, msg, match: m[0], line: lineNum });
-      }
-    }
-    return findings;
-  }
-
-  async function runPortScan() {
-    try {
-      const resp = await fetch("/api/backend/sandbox-hostscan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!resp.ok) return null;
-      return await resp.json();
-    } catch {
-      return null;
-    }
-  }
+  // The instant pattern scan (no model, no network) is js/sandbox/patterns.js.
 
   async function runSandboxScan() {
     const codeInput = document.getElementById("sbxCodeInput");
@@ -404,31 +357,16 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     const scanTime = new Date().toLocaleTimeString();
     const codeSnippet = code.slice(0, 120).replace(/\s+/g, " ");
 
-    sbxLog("SYSTEM", `Scan #${scanNum} — running pattern scanner + port probe + ${AGENTS.length} AI agents in parallel…`, "info");
+    sbxLog("SYSTEM", `Scan #${scanNum} — running the pattern scanner, then ${sbxActiveAgents.length} AI agent${sbxActiveAgents.length === 1 ? "" : "s"} in parallel…`, "info");
 
     // ── Phase 1: instant local pattern scan (no LLM, no network) ──
-    const patternFindings = runPatternScan(code);
+    const patternFindings = window.HCSandboxPatterns.scan(code);
     if (patternFindings.length) {
       sbxLog("PATTERNS", `${patternFindings.length} suspicious pattern(s) found instantly:`, "warn");
       patternFindings.forEach(f => sbxLog(`[${f.sev}]`, `Line ${f.line}: ${f.msg} (matched: ${f.match.slice(0,30)})`, f.sev === "CRITICAL" ? "err" : "warn"));
     } else {
       sbxLog("PATTERNS", "No instant-match patterns detected.", "done");
     }
-
-    // ── Phase 2: port + process scan runs in parallel with LLM agents ──
-    const portScanPromise = runPortScan().then(result => {
-      if (!result || !result.ok) { sbxLog("PORTSCAN", "Port scan unavailable (server not running).", "warn"); return result; }
-      const open = result.openMalwarePorts || [];
-      const listeners = result.allListeners || [];
-      if (open.length) {
-        sbxLog("PORTSCAN", `[!] ${open.length} known malware port(s) OPEN on this machine:`, "err");
-        open.forEach(p => sbxLog(`PORT:${p.port}`, `${p.note} — OPEN`, "err"));
-      } else {
-        sbxLog("PORTSCAN", "No known malware ports open.", "done");
-      }
-      sbxLog("PORTSCAN", `${listeners.length} total listening port(s) on machine.`, "info");
-      return result;
-    });
 
     const codeBlock = `\n\`\`\`\n${code.slice(0, 6000)}\n\`\`\``;
 
@@ -473,19 +411,13 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
       return;
     }
 
-    const portScanResult = await portScanPromise;
-
     sbxLog("BOSS", "All agents done. Compiling final security report…");
 
     const patternSummary = patternFindings.length
       ? `=== INSTANT PATTERN SCANNER ===\n${patternFindings.map(f => `[${f.sev}] Line ${f.line}: ${f.msg}`).join("\n")}`
       : "=== INSTANT PATTERN SCANNER ===\nCLEAN — No patterns matched.";
 
-    const portSummary = portScanResult && portScanResult.ok
-      ? `=== PORT SCAN ===\nOpen malware ports: ${portScanResult.openMalwarePorts.length ? portScanResult.openMalwarePorts.map(p => `${p.port} (${p.note})`).join(", ") : "None"}\nAll listeners: ${(portScanResult.allListeners||[]).map(l => `${l.command}:${l.port}`).join(", ") || "None"}`
-      : "=== PORT SCAN ===\nUnavailable";
-
-    const agentSummaries = [patternSummary, portSummary, ...agentResults.map(r =>
+    const agentSummaries = [patternSummary, ...agentResults.map(r =>
       `=== ${r.label} SCANNER REPORT ===\n${r.result}`
     )].join("\n\n");
 

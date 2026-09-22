@@ -100,6 +100,7 @@
     '/js/forge/expr.js',
     '/js/finance/amounts.js',
     '/js/finance/charts.js',
+    '/js/sandbox/patterns.js',
     '/js/swarm/task-kind.js',
     '/js/swarm/deliverables.js',
     '/js/swarm/graph.js',
