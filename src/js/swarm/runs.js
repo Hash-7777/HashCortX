@@ -36,9 +36,13 @@
     };
   }
 
-  function newRun({ id, blueprint, task, now }) {
+  function newRun({ id, blueprint, task, now, plan }) {
     const bp = blueprint || {};
     return {
+      // The task as the team was given it and what it was to hand back, so a
+      // pass that failed part-way can be finished on the same terms.
+      work: String(task || ''),
+      plan: plan || null,
       id: String(id),
       blueprintId: String(bp.id || ''),
       blueprintName: String(bp.name || ''),
@@ -58,17 +62,37 @@
    * is now, so an agent changed since is asked as it is now; one since
    * removed keeps its name for the turns it already has.
    */
-  function continueRun(run, { blueprint, message, now }) {
+  function continueRun(run, { blueprint, message, now, work, plan, resume = false }) {
     const bp = blueprint || {};
     const current = (bp.agents || []).map(snapshotAgent);
     const ids = new Set(current.map((a) => a.id));
     return {
       ...run,
+      work: work != null ? String(work) : run.work,
+      plan: plan || run.plan || null,
       leadAgentId: bp.finalOutputAgentId || '',
       edges: Array.isArray(bp.dag?.edges) ? bp.dag.edges.map((e) => ({ from: e.from, to: e.to })) : [],
       agents: [...current, ...run.agents.filter((a) => !ids.has(a.id))],
-      turns: [...run.turns, { who: 'you', text: String(message ?? ''), at: now, status: 'ok' }],
+      turns: [...run.turns, { who: 'you', text: String(message ?? ''), at: now, status: resume ? 'resume' : 'ok' }],
     };
+  }
+
+  /**
+   * The latest pass's agents that could not answer, and the answers the rest
+   * gave, so the pass can be finished without asking again for work already
+   * done. A pass begins at the person's last message that was not itself a
+   * request to finish one; within it, each agent's latest turn stands.
+   */
+  function unfinished(run) {
+    const turns = (run && run.turns) || [];
+    let from = 0;
+    for (let i = turns.length - 1; i >= 0; i--) if (turns[i].who === 'you' && turns[i].status !== 'resume') { from = i + 1; break; }
+    const latest = new Map();
+    for (const t of turns.slice(from)) if (t.who !== 'you' && t.who !== 'team') latest.set(t.who, t);
+    const failed = [];
+    const done = {};
+    for (const [id, t] of latest) { if (t.status === 'ok') done[id] = t.text; else failed.push(id); }
+    return { failed, done };
   }
 
   /** The run with one more turn on the end. */
@@ -222,9 +246,9 @@
   // ── The two calls a run makes ──────────────────────────────────────────
 
   /** A new run for a blueprint and task, started now. */
-  function startRun(blueprint, task) {
+  function startRun(blueprint, task, plan) {
     const now = Date.now();
-    return newRun({ id: makeRunId(now, Math.random().toString(36).slice(2)), blueprint, task, now });
+    return newRun({ id: makeRunId(now, Math.random().toString(36).slice(2)), blueprint, task, now, plan });
   }
 
   /**
@@ -243,7 +267,7 @@
   }
 
   window.HCSwarmRuns = {
-    startRun, finishRun,
+    startRun, finishRun, unfinished,
     newRun, continueRun, withTurn, withVersion, currentFiles, filesFromText, recordRun, fromLegacyOutput,
     snapshotAgent, makeRunId,
     saveRun, getRun, runsFor, deleteRun,

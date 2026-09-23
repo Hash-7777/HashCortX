@@ -508,6 +508,14 @@ const SwarmMaker = (() => {
     const completed = new Set();
     const failed    = new Set();
     const oneAtATime = agents.every(a => window.HCModelRoutes.providerOf(a.model || document.getElementById("model")?.value || "") === "local");
+    // Finishing a pass: the agents that answered keep their answers.
+    for (const [id, out] of Object.entries(choice.seed || {})) {
+      if (!agents.some(a => a.id === id)) continue;
+      results[id] = out;
+      completed.add(id);
+      updateNodeStatus(id, "done");
+    }
+    if (choice.seed) traceAdd("Orchestrator", `Finishing the pass · ${completed.size} agent(s) keep their answers`, "boss");
     let   stepCount = 0;
     const maxSteps  = bp.maxSteps || 80;
     const strictDependencies = bp.taskCategory === "code_build" || isCodeBuildTask(task);
@@ -805,7 +813,8 @@ const SwarmMaker = (() => {
     if (!bp)   { await amkAlert("Select or create a blueprint first."); return; }
     if (!task && !again) { await amkAlert("Enter a task in the top bar before running."); return; }
     if (!bp.agents.length) { await amkAlert("Add at least one agent to the blueprint."); return; }
-    let work = again ? window.HCSwarmTalk.teamTask(again.run, again.feedback, again.base) : task;
+    const resume = !!again?.resume;
+    let work = resume ? (again.run.work || again.run.task) : again ? window.HCSwarmTalk.teamTask(again.run, again.feedback, again.base) : task;
     if (again && getActive() !== bp) _selectBp(bp.id);   // so the graph shows the team that is working
 
     swarmAbortCtrl = new AbortController();
@@ -852,7 +861,7 @@ const SwarmMaker = (() => {
     // What the team owes, decided by a model that has read this task. It
     // cannot stop the run: when nothing answers, js/swarm/deliverables.js
     // works the list out from the request and the run carries on with that.
-    const plan = await askForDeliverables(work, signal);
+    const plan = resume && again.run.plan ? again.run.plan : await askForDeliverables(work, signal);
     const codeRun = isCodeBuildTask(task);
     const runBp = applyDeliverables(
       codeRun
@@ -872,12 +881,16 @@ const SwarmMaker = (() => {
     // Kept as a conversation of its own (src/js/swarm/runs.js); started after
     // any hardening above, so it records the agents that ran.
     const run = again
-      ? window.HCSwarmRuns.continueRun(again.run, { blueprint: runBp, message: again.message, now: Date.now() })
-      : window.HCSwarmRuns.startRun({ ...runBp, finalOutputAgentId: window.HCSwarmTeamShape.delivererOf(runBp.agents, runBp.dag?.edges, runBp.finalOutputAgentId).id || runBp.finalOutputAgentId }, work);
+      ? window.HCSwarmRuns.continueRun(again.run, { blueprint: runBp, message: again.message, now: Date.now(), work, plan, resume })
+      : window.HCSwarmRuns.startRun({ ...runBp, finalOutputAgentId: window.HCSwarmTeamShape.delivererOf(runBp.agents, runBp.dag?.edges, runBp.finalOutputAgentId).id || runBp.finalOutputAgentId }, work, plan);
+    // Finishing a pass runs only the agents that failed and those after them — js/swarm/schedule.js.
+    const pass = resume ? window.HCSwarmRuns.unfinished(again.run) : null;
+    const rerun = pass ? window.HCSwarmSchedule.rerunSet(runBp.agents, runBp.dag?.edges, pass.failed) : null;
+    const seed = pass ? Object.fromEntries(Object.entries(pass.done).filter(([id]) => !rerun.has(id))) : null;
 
     try {
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
-      const choice = {};
+      const choice = seed ? { seed } : {};
       const rawResults = await runDAG(runBp, work, signal, choice);
       traceAdd("Orchestrator", "DAG returned raw results · entering aggregation", "boss");
       const finalOutput = await aggregateResults(runBp, rawResults, work, signal, choice.deliverer);
@@ -901,7 +914,9 @@ const SwarmMaker = (() => {
 
       const result = normaliseAgentOutput(finalOutput);
       bp.lastRun = Date.now();
-      const kept = await window.HCSwarmRuns.finishRun(run, { results: rawResults, finalOutput: result, base: again?.base, named: !!again });
+      // An agent that kept its answer from before is not recorded twice.
+      const fresh = seed ? Object.fromEntries(Object.entries(rawResults).filter(([id]) => !(id in seed))) : rawResults;
+      const kept = await window.HCSwarmRuns.finishRun(run, { results: fresh, finalOutput: result, base: again?.base, named: !!again && !resume });
       // The blueprint holds only the run's id; the result is copied into it
       // (localStorage, beside the keys) only when the run could not be kept.
       if (kept.run) { bp.lastRunId = kept.run.id; delete bp.lastOutput; }

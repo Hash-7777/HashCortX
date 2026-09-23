@@ -187,5 +187,16 @@ console.log('\nWaiting on a failure reads differently from waiting on work:');
   ok('a finished dependency is not listed at all', oneDead.pending.length === 0);
 }
 
+console.log('\nWho runs again to finish a pass:');
+{
+  const agents = ['a1', 'a2', 'a3', 'a4', 'a5'].map((id) => ({ id }));
+  const edges = [{ from: 'a1', to: 'a2' }, { from: 'a1', to: 'a3' }, { from: 'a2', to: 'a4' }, { from: 'a3', to: 'a4' }, { from: 'a4', to: 'a5' }];
+  const set = (ids) => [...S.rerunSet(agents, edges, ids)].sort().join();
+  ok('every agent that failed, and every agent after one of them', set(['a2']) === 'a2,a4,a5');
+  ok('the agents before, or beside, keep their answers', !S.rerunSet(agents, edges, ['a2']).has('a1') && !S.rerunSet(agents, edges, ['a2']).has('a3'));
+  ok('the last agent alone failing runs alone', set(['a5']) === 'a5');
+  ok('nothing failed, nothing runs; an id not in the team is ignored', set([]) === '' && set(['zz']) === '');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/schedule.js)`);
 process.exit(fail ? 1 : 0);

@@ -286,7 +286,7 @@ console.log('\nAnother pass by the whole team:');
 
   ok('the mode reads the run to continue, not the top bar', /again \? window\.HCSwarmTalk\.teamTask\(again\.run, again\.feedback, again\.base\) : task/.test(mode)
     && /runDAG\(runBp, work, signal, choice\)/.test(mode) && /aggregateResults\(runBp, rawResults, work, signal, choice\.deliverer\)/.test(mode));
-  ok('and keeps the pass in the same run', /again\s*\? window\.HCSwarmRuns\.continueRun\(again\.run/.test(mode) && /finishRun\(run, \{[^}]*base: again\?\.base, named: !!again \}\)/.test(mode));
+  ok('and keeps the pass in the same run', /again\s*\? window\.HCSwarmRuns\.continueRun\(again\.run/.test(mode) && /finishRun\(run, \{[^}]*base: again\?\.base, named: !!again && !resume \}\)/.test(mode));
   ok('the Run button does not hand its click to the run as a run to continue', !/addEventListener\("click", runSwarm\)/.test(mode));
   ok('the Workspace waits for the pass and opens again on the same run', /await deps\.runTeam\(\{[^}]*\}\)[\s\S]*?await open\(blueprint, run\.id\)/.test(ws));
   ok('and clears the message only if the team\'s work was kept', /if \(kept\) \{\s*\$\('amkWsMessage'\)\.value = '';/.test(ws));
@@ -372,6 +372,30 @@ console.log('\nDeleting a run:');
   ok('the button asks first, in the app\'s own dialog', /async function deleteRun\(\)[\s\S]{0,200}_H\.themedConfirm\(/.test(ws));
   ok('and removes the run from the store', /RUNS\(\)\.deleteRun\(run\.id\)/.test(ws));
   ok('it is off with no run on screen or while an agent answers', /amkWsDelete'\)\.disabled = !run \|\| !!state\.asking/.test(ws));
+}
+
+console.log('\nA pass that failed part-way can be finished:');
+{
+  const bp = { id: 'bp1', name: 'T', agents: [{ id: 'a1', name: 'Planner' }, { id: 'a2', name: 'Writer' }, { id: 'a3', name: 'Finisher' }], dag: { edges: [{ from: 'a1', to: 'a2' }, { from: 'a2', to: 'a3' }] } };
+  const plan = { kind: 'writing', items: [{ name: 'plan.md' }] };
+  let run = R.newRun({ id: 'r1', blueprint: bp, task: 'the task with details', now: 1, plan });
+  ok('a run keeps the task as the team was given it, and what it was to hand back', run.work === 'the task with details' && run.plan === plan);
+  run = R.recordRun(run, { results: { a1: 'the plan', a2: 'Error: timed out', a3: 'Skipped: dependency failed (Writer)' }, finalOutput: 'the plan', at: 2 });
+  const u = R.unfinished(run);
+  ok('the agents that failed or never ran, and the answers the rest gave', u.failed.join() === 'a2,a3' && u.done.a1 === 'the plan' && !('a2' in u.done));
+  run = R.continueRun(run, { blueprint: bp, message: 'Run the agents that did not finish', now: 3, resume: true });
+  ok('finishing is said in the conversation, as a request to finish, on the same terms', run.turns.at(-1).status === 'resume' && run.work === 'the task with details' && run.plan === plan);
+  run = R.recordRun(run, { results: { a2: 'the draft', a3: 'Error: busy' }, finalOutput: 'x', at: 4 });
+  const again = R.unfinished(run);
+  ok('what finished earlier in the pass still counts after finishing it', again.failed.join() === 'a3' && again.done.a1 === 'the plan' && again.done.a2 === 'the draft');
+  run = R.continueRun(run, { blueprint: bp, message: 'Make it shorter', now: 5 });
+  ok('a new request begins a new pass, with nothing left over from the last', R.unfinished(run).failed.length === 0 && Object.keys(R.unfinished(run).done).length === 0);
+  ok('a request to finish reads as the person asking, not as a failure', V.turnsView({ agents: [], turns: [{ who: 'you', text: 'Finish', status: 'resume' }] })[0].statusLabel === '');
+  const mode = src('modes', 'agent-maker', 'mode.js');
+  ok('the run keeps the answers, runs only who must, and records each once', /const seed = pass \? Object\.fromEntries\(Object\.entries\(pass\.done\)\.filter\(\(\[id\]\) => !rerun\.has\(id\)\)\) : null;/.test(mode) && /const fresh = seed \?/.test(mode) && /for \(const \[id, out\] of Object\.entries\(choice\.seed \|\| \{\}\)\)/.test(mode));
+  ok('on the plan it had, without asking the person again', /const plan = resume && again\.run\.plan \? again\.run\.plan : await askForDeliverables\(work, signal\);/.test(mode));
+  const ws = src('js', 'swarm', 'workspace.js');
+  ok('the Workspace offers it only when something failed', /finish\.hidden = !left;/.test(ws) && /deps\.runTeam\(\{ run, resume: true,/.test(ws));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);

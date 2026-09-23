@@ -56,6 +56,7 @@
     $('amkWsExport')?.addEventListener('click', exportResult);
     $('amkWsDownload')?.addEventListener('click', downloadSite);
     $('amkWsDelete')?.addEventListener('click', deleteRun);
+    $('amkWsFinish')?.addEventListener('click', finishPass);
     $('amkWsOpen')?.addEventListener('click', openInBrowser);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
     $('amkWsSend')?.addEventListener('click', send);
@@ -202,6 +203,15 @@
     $('amkWsDownload').disabled = !V.hasPage(files);
     $('amkWsOpen').disabled = !V.hasPage(files);
     $('amkWsDelete').disabled = !run || !!state.asking;
+    // The agents of the latest pass that could not answer can be run again on
+    // their own; the rest keep their answers.
+    const left = run && state.blueprint ? RUNS().unfinished(run).failed.length : 0;
+    const finish = $('amkWsFinish');
+    if (finish) {
+      finish.hidden = !left;
+      finish.disabled = !!state.asking;
+      finish.textContent = left === 1 ? 'Run the agent that did not finish' : `Run the ${left} agents that did not finish`;
+    }
   }
 
   function drawTurns() {
@@ -546,6 +556,32 @@
     } else {
       note(`The team could not finish: ${result?.error || 'the run did not start'}`, 'err');
     }
+  }
+
+  /**
+   * Run again only the agents of the latest pass that failed, and those after
+   * them; everything that answered stays. The Workspace closes while the team
+   * works, as it does for another pass, and opens again on the same run.
+   */
+  async function finishPass() {
+    const run = state.run;
+    if (!run || !RUNS().unfinished(run).failed.length) return;
+    if (deps.teamBusy()) { note('The swarm is already running. Try again when it finishes.', 'err'); return; }
+    const blueprint = state.blueprint;
+    state.asking = { runId: run.id, team: true, controller: { abort: () => deps.stopTeam() } };
+    close();
+    let result;
+    try {
+      result = await deps.runTeam({ run, resume: true, message: 'Run the agents that did not finish', base: currentFiles() });
+    } catch (err) {
+      result = { error: String(err?.message || err) };
+    }
+    state.asking = null;
+    await open(blueprint, run.id);
+    const left = result?.run ? RUNS().unfinished(result.run).failed.length : 0;
+    if (result?.run) note(left ? `Finished what it could; ${left} still did not finish` : 'Finished: every agent answered', left ? 'err' : 'ok');
+    else if (result?.stopped) note('Stopped. What had answered is kept.');
+    else note(`Could not finish: ${result?.error || 'the run did not start'}`, 'err');
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────

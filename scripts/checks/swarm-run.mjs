@@ -67,7 +67,7 @@ console.log('\nA new run asks for details only the person can give:');
   const run = bodyOf('runSwarm');
   ok('a new run asks before anything is built', /if \(!again\) \{\s*const asked = await askForDetails\(task, signal\);/.test(run) && run.indexOf('askForDetails(task, signal)') < run.indexOf('runDAG('));
   ok('cancelling ends the run before any agent starts', /if \(asked === null\) \{[\s\S]{0,160}Run cancelled before the team started/.test(run));
-  ok('the team, and the kept run, get the task with the answers written in', /work = asked;/.test(run) && /startRun\(\{[^\n]*\}, work\)/.test(run));
+  ok('the team, and the kept run, get the task with the answers written in', /work = asked;/.test(run) && /startRun\(\{[^\n]*\}, work, plan\)/.test(run));
   const ask = bodyOf('askForDetails', askSrc);
   ok('the mode hands the asking its model call and trace', /HCSwarmAsk\.askForDetails\(task, signal, askDeps\(\)\)/.test(bodyOf('askForDetails')));
   ok('what to ask comes from js/swarm/clarify.js', /C\.parseQuestions\(reply\?\.content\)/.test(ask) && /C\.fallbackQuestions\(task\)/.test(ask) && /C\.taskWithAnswers\(task, answers\)/.test(ask));
@@ -81,7 +81,8 @@ console.log('\nA run asks a model what it owes, and is never stopped by the answ
 {
   const run = bodyOf('runSwarm');
   const ask = bodyOf('askForDeliverables', askSrc);
-  ok('the run asks before the team is built', /const plan = await askForDeliverables\(work, signal\);/.test(run));
+  ok('the run asks before the team is built', /const plan = [^\n]*await askForDeliverables\(work, signal\);/.test(run));
+  ok('and a pass being finished keeps the list its run was given', /const plan = resume && again\.run\.plan \? again\.run\.plan : await askForDeliverables/.test(run));
   ok('it asks about the task the person is actually running', /askForDeliverables\(work, signal\)/.test(run) && !/askForDeliverables\(task,/.test(run));
   ok('and before any agent runs', run.indexOf('askForDeliverables(') < run.indexOf('runDAG('));
   ok('what comes back is written into the copy the run works from', /const runBp = applyDeliverables\(/.test(run));

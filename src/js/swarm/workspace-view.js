@@ -17,7 +17,7 @@
 (function () {
   'use strict';
 
-  const STATUS_LABEL = { ok: '', error: 'Failed', skipped: 'Did not run' };
+  const STATUS_LABEL = { ok: '', error: 'Failed', skipped: 'Did not run', resume: '' };
 
   /** Who a turn is from, and how it reads. */
   function turnView(run, turn) {

@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **An Agent Swarm run whose agents did not all finish can be finished.**
+  When an agent fails or runs out of time, the agents after it never run,
+  and running the whole team again repeated everything that had worked. The
+  result view now offers "Run the agents that did not finish": only those
+  agents run again, with the ones that depend on them, on the same task and
+  the same list of what is owed, while every answer that was given is kept
+  and handed on. The button is shown only while something is left to do.
+
 - **Models from other local model apps.** A model server on your computer
   other than Ollama — the kind other local model apps run, answering in the
   common chat format — is found on its usual port, and its models are

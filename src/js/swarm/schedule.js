@@ -136,7 +136,25 @@
     return { pending, broken };
   }
 
+  /**
+   * Who runs again to finish a pass: every agent that failed, and every agent
+   * after one of them, whose input changes. The rest keep their answers.
+   */
+  function rerunSet(agents, edges, failedIds) {
+    const out = new Set((failedIds || []).map(String));
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const e of Array.isArray(edges) ? edges : []) {
+        if (e && out.has(String(e.from)) && !out.has(String(e.to))) { out.add(String(e.to)); grew = true; }
+      }
+    }
+    const ids = new Set((agents || []).map((a) => String(a.id)));
+    return new Set([...out].filter((id) => ids.has(id)));
+  }
+
   window.HCSwarmSchedule = {
+    rerunSet,
     dependencyMap,
     readyAgents,
     strandedAgents,

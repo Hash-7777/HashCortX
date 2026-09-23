@@ -132,7 +132,7 @@ console.log('\nA run never rewrites the saved team:');
   const run = /async function runSwarm\([\s\S]*?\n  \}\n/.exec(mode)?.[0] || '';
   ok('the rules are applied to a copy', /hardenGodBlueprint\(structuredClone\(bp\), task, \[\]\)/.test(run));
   ok('and never to the team itself', !/hardenGodBlueprint\(bp\b/.test(run));
-  ok('the copy is what runs and what the run records', /runDAG\(runBp,/.test(run) && /aggregateResults\(runBp,/.test(run) && /startRun\(\{ \.\.\.runBp, finalOutputAgentId:[^\n]*\}, work\)/.test(run));
+  ok('the copy is what runs and what the run records', /runDAG\(runBp,/.test(run) && /aggregateResults\(runBp,/.test(run) && /startRun\(\{ \.\.\.runBp, finalOutputAgentId:[^\n]*\}, work, plan\)/.test(run));
   ok('and the trace says the saved team is unchanged', /the saved team is unchanged/.test(run));
   // Both paths work on a copy now, because what a team owes is worked out for
   // the task being run. A team saved for one request and run on another used

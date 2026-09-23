@@ -602,7 +602,11 @@ const LINE_BUDGET = {
   // js/swarm/task-kind.js, js/swarm/team-shape.js, js/swarm/clarify.js and
   // js/swarm/deliverables.js, and what a build agent is held to moved to
   // js/swarm/team-shape.js.
-  'modes/agent-maker/mode.js': 2438,
+  // 2453, up fifteen: a pass whose agents did not all finish can be finished,
+  // running only those agents and the ones after them, with what the rest
+  // answered kept. Which agents, and what the run keeps to do it, are
+  // js/swarm/runs.js and js/swarm/schedule.js; this is the wiring.
+  'modes/agent-maker/mode.js': 2453,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being
