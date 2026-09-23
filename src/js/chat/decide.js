@@ -85,7 +85,7 @@
   }
 
   const DECIDE = "Before you answer my last message: does it need one of your tools now? Reply with the tool and its arguments. Reply with the tool none when you can answer it yourself: when I ask you to write, rewrite, explain, summarise, plan or give an opinion, for knowledge that does not change, or when the tool results above already answer it.";
-  const ANSWER = "Now answer my last message, using the tool results above where they help. Give the results themselves — the numbers, names and dates — exactly as the tools returned them. Answer in your own words and full sentences.";
+  const ANSWER = "Now answer my last message, using the tool results above where they help. Say only what answers it: the figures, names and dates it asks for, exactly as the tools gave them, in your own words and full sentences.";
 
   /** A decision read from the model's answer, or null when it is not one. */
   function read(text, tools) {
@@ -102,7 +102,7 @@
    * One agent turn taken in steps. `messages` is the conversation, its first
    * message the agent's instructions and its last message from the person the
    * request; `ask(messages, schema)` returns a decision's raw text;
-   * `answer(messages)` streams the answer and returns it; `runTool(call)` runs
+   * `answer(messages, toolsRun)` streams the answer and returns it; `runTool(call)` runs
    * a tool and returns its result as text; `shape` is js/agent-shape.js;
    * `route(text)` is the app's own first step when the request is plain
    * (js/chat/intent.js); `context` is what changes from one request to the
@@ -148,13 +148,13 @@
     }
     const tail = () => (calls.length ? [{ role: "user", content: ANSWER }] : []);
     onEvent("answering", calls.length);
-    let text = await answer([...shape.toolTurnsInWords(convo), ...tail()]);
+    let text = await answer([...shape.toolTurnsInWords(convo), ...tail()], calls.length);
     // An answer that is itself a call, written in words: run it once and answer again.
     const late = shape.toolCallsInText(text, names)[0];
     if (late && calls.length < maxSteps && !done.has(`${late.name} ${JSON.stringify(late.arguments)}`)) {
       await act({ id: `call_late_${late.name}`, name: late.name, arguments: late.arguments || {} });
       onEvent("answering", calls.length);
-      text = await answer([...shape.toolTurnsInWords(convo), ...tail()]);
+      text = await answer([...shape.toolTurnsInWords(convo), ...tail()], calls.length);
     }
     return { text, calls };
   }

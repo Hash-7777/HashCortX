@@ -38,7 +38,8 @@ console.log('The request:');
   const schema = { type: 'object' };
   ok('a JSON schema is sent as the shape the answer must take', C.body({ model: 'm', messages: [], json: schema }).format === schema);
   const bare = C.body({ model: 'm', messages: [] });
-  ok('nothing is sent that was not asked for', !('format' in bare) && !('tools' in bare) && !('keep_alive' in bare) && Object.keys(bare.options).length === 0);
+  ok('nothing is sent that was not asked for', !('format' in bare) && !('tools' in bare) && !('keep_alive' in bare) && !('think' in bare) && Object.keys(bare.options).length === 0);
+  ok('thinking can be turned off for one request', C.body({ model: 'm', messages: [], think: false }).think === false);
 }
 
 console.log('\nThe reply, read as it arrives:');

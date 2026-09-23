@@ -24,7 +24,7 @@
   "use strict";
 
   /** The body of one request to Ollama's chat. */
-  function body({ model, messages, stream = true, temperature, numCtx, json, tools, keepAlive }) {
+  function body({ model, messages, stream = true, temperature, numCtx, json, tools, keepAlive, think }) {
     const options = {};
     if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
     if (Number.isFinite(temperature)) options.temperature = temperature;
@@ -35,6 +35,7 @@
       ...(keepAlive !== undefined ? { keep_alive: keepAlive } : {}),
       ...(json ? { format: json === true ? "json" : json } : {}),
       ...(Array.isArray(tools) && tools.length ? { tools } : {}),
+      ...(typeof think === "boolean" ? { think } : {}),
       options,
     };
   }

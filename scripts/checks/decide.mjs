@@ -40,15 +40,16 @@ const names = tools.map((t) => t.function.name);
 async function play({ decisions = [], answers = ['The answer.'], request = 'hi', context, route = (t) => I.route(t, names), results = {} }) {
   const asked = [];
   const answered = [];
+  const answeredAfter = [];
   const ran = [];
   const out = await D.run({
     messages: [{ role: 'system', content: 'Agent rules.' }, { role: 'user', content: 'earlier' }, { role: 'assistant', content: 'earlier answer' }, { role: 'user', content: request }],
     tools, shape, context, route,
     ask: async (msgs, schema) => { asked.push({ msgs, schema }); return decisions.shift() ?? '{"tool":"none","arguments":{}}'; },
-    answer: async (msgs) => { answered.push(msgs); return answers.shift() ?? 'The answer.'; },
+    answer: async (msgs, toolsRun) => { answered.push(msgs); answeredAfter.push(toolsRun); return answers.shift() ?? 'The answer.'; },
     runTool: async (call) => { ran.push(call); return results[call.name] ?? '{"ok":true}'; },
   });
-  return { out, asked, answered, ran };
+  return { out, asked, answered, answeredAfter, ran };
 }
 
 console.log('What a decision may be:');
@@ -69,10 +70,11 @@ console.log('\nThe loop:');
   const r = await play({ request: 'Is Pluto a planet?', decisions: ['{"tool":"web_search","arguments":{"query":"Pluto planet status"}}', '{"tool":"none","arguments":{}}'], results: { web_search: '{"results":["dwarf planet"]}' } });
   ok('it decides, the app runs the tool, it decides again with the result', r.asked.length === 2 && r.ran.length === 1 && r.ran[0].arguments.query === 'Pluto planet status' && /dwarf planet/.test(JSON.stringify(r.asked[1].msgs)));
   const last = r.answered[0];
-  ok('then it answers, told to give the results themselves', r.answered.length === 1 && /Give the results themselves/.test(last.at(-1).content) && last.some((m) => /Result of web_search/.test(m.content)));
+  ok('then it answers, told to say only what answers it, as the tools gave it', r.answered.length === 1 && /Say only what answers it/.test(last.at(-1).content) && /exactly as the tools gave them/.test(last.at(-1).content) && last.some((m) => /Result of web_search/.test(m.content)));
   ok('every step is sent the same instructions, so they are read once', r.asked[0].msgs[0].content === r.answered[0][0].content && r.asked[1].msgs[0].content === r.asked[0].msgs[0].content);
   ok('every tool turn is written in words, which every model\'s template reads', !JSON.stringify(r.answered[0]).includes('"role":"tool"'));
   ok('the result of the loop is the answer and the calls made', r.out.text === 'The answer.' && r.out.calls.length === 1);
+  ok('the answer is told how many tools ran, so reading back a result can be asked for plainly', r.answeredAfter[0] === 1);
 }
 {
   const r = await play({ request: 'Is Pluto a planet?', decisions: ['{"tool":"web_search","arguments":{"query":"x"}}', '{"tool":"web_search","arguments":{"query":"x"}}', '{"tool":"web_search","arguments":{"query":"x"}}'] });
@@ -80,7 +82,7 @@ console.log('\nThe loop:');
 }
 {
   const r = await play({ request: 'Is Pluto a planet?', decisions: ['not json'] });
-  ok('a decision it could not write means no tool, and it answers', r.ran.length === 0 && r.answered.length === 1 && !/Give the results/.test(JSON.stringify(r.answered[0].at(-1))));
+  ok('a decision it could not write means no tool, and it answers', r.ran.length === 0 && r.answered.length === 1 && !/Say only what answers it/.test(JSON.stringify(r.answered[0].at(-1))));
 }
 {
   const r = await play({ request: 'Is Pluto a planet?', decisions: Array(10).fill(0).map((_, i) => `{"tool":"web_search","arguments":{"query":"q${i}"}}`) });
@@ -144,6 +146,7 @@ console.log('\nThe chat uses it for local agents:');
   ok('a local agent with tools takes its turn in steps', /const localSteps = !modelEl\.value\.startsWith\("cloud:"\) && tools\.length > 0;/.test(app) && /if \(localSteps\) return runLocalAgentSteps\(/.test(app));
   ok('with the app\'s first step and what is remembered passed apart', /route: \(text\) => HCIntent\.route\(text, names\)/.test(app) && /context: memBlock/.test(app) && /if \(memBlock && !localSteps\)/.test(app));
   ok('decisions are held to their schema at no randomness; answers stream', /json: schema/.test(app) && /temperature: json \? 0 : temperature/.test(app) && /HCDecide\.shower\(onFinalToken\)/.test(app));
+  ok('a model that thinks is not asked to for a decision or to read back a result, only when Ollama says it thinks', /caps\?\.includes\("thinking"\)/.test(app) && /think: \(json \|\| plain\) && thinks \? false : undefined/.test(app) && /plain: toolsRun > 0/.test(app));
   const boot = src('boot.js');
   ok('it loads after what it reads calls with, and before the chat', boot.indexOf("'/js/agent-shape.js'") > 0 && boot.indexOf("'/js/chat/intent.js'") < boot.indexOf("'/js/chat/decide.js'") && boot.indexOf("'/js/chat/decide.js'") < boot.indexOf("'/js/app.js'"));
 }

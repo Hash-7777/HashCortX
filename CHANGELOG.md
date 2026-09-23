@@ -234,6 +234,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local model that thinks answers a tool question in seconds.** Asked
+  to read back what a tool had found, a thinking model deliberated over the
+  agent's whole set of instructions first, which could take well over a
+  minute for "what day is it". It is now asked not to think when deciding
+  on a tool or reading back a result, and still thinks before an answer
+  that needs no tool.
+
 - **The time in another city, and the days between two dates, are worked
   out by the app.** The date tool gave only the time where your computer is,
   so a model asked for the time in Tokyo did the time-zone arithmetic

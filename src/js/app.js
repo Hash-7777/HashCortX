@@ -6121,19 +6121,21 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const model = modelEl.value;
     const host = safeHost();
     const names = tools.map((t) => t.function.name);
-    const chat = async (msgs, { json, onToken } = {}) => {
+    // A model that thinks does not, to decide or to read back a result: it can take a minute and changes little.
+    const thinks = (await HCLocalContext.infoOf(host, model)).caps?.includes("thinking");
+    const chat = async (msgs, { json, onToken, plain } = {}) => {
       const numCtx = await HCLocalContext.numCtx(host, model, msgs, json ? { need: 1024 } : {});
-      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, keepAlive: -1 }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
+      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, keepAlive: -1, think: (json || plain) && thinks ? false : undefined }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
       if (reply.last) recordUsage(model, reply.last.prompt_eval_count, reply.last.eval_count);
       return reply.content;
     };
     const out = await HCDecide.run({
       messages, tools, context, shape: HCAgentShape, route: (text) => HCIntent.route(text, names),
       ask: (msgs, schema) => chat(msgs, { json: schema }),
-      answer: async (msgs) => {
+      answer: async (msgs, toolsRun) => {
         if (assistant.content) { assistant.content = ""; updateLastBubble(""); }   // only the last answer stands
         const view = HCDecide.shower(onFinalToken);
-        const text = await chat(msgs, { onToken: view.onToken });
+        const text = await chat(msgs, { onToken: view.onToken, plain: toolsRun > 0 });
         view.finish(text, HCAgentShape.toolCallsInText(text, names).length > 0);
         return text;
       },
