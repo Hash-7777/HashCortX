@@ -1,5 +1,6 @@
 // ============================================================
-// The ERP and a connected system — src/js/systems/connected.js.
+// The ERP and a connected system — src/js/systems/connected.js, and the
+// reading it shares with Finance, src/js/mcp/records.js.
 // Run with: npm run check:systems-connected
 // ============================================================
 import { readFileSync } from 'node:fs';
@@ -25,7 +26,7 @@ const conns = [
 const sandbox = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, Date };
 sandbox.window.HCMcp = { available: () => true, list: () => conns, find: (id) => conns.find((c) => c.id === id) || null };
 vm.createContext(sandbox);
-for (const f of [['js', 'mcp', 'policy.js'], ['js', 'systems', 'work.js'], ['js', 'systems', 'connected.js']]) {
+for (const f of [['js', 'mcp', 'policy.js'], ['js', 'systems', 'work.js'], ['js', 'mcp', 'records.js'], ['js', 'systems', 'connected.js']]) {
   vm.runInContext(src(...f), sandbox, { filename: f[f.length - 1] });
 }
 const S = sandbox.window.HCSystemsConnected;
@@ -215,7 +216,9 @@ console.log('\nThe ERP uses it:');
   ok('... across a restart too', /steps: Array\.isArray\(t\.steps\) \? t\.steps : \[\], \.\.\.\(t\.from \? \{ from: String\(t\.from\) \} : \{\}\) \}\)\);/.test(chat));
   ok('a system that can be read is suggested in the box\'s hint', /hint: \(\) => \{ const c = window\.HCSystemsConnected\?\.readable\(/.test(mode) && /box\.placeholder = \(deps && deps\.hint && deps\.hint\(\)\) \|\| PLACEHOLDER;/.test(chat));
   const boot = src('boot.js');
-  ok('it loads with the ERP\'s own pieces', boot.indexOf("'/js/systems/agent.js'") < boot.indexOf("'/js/systems/connected.js'"));
+  ok('it loads with the ERP\'s own pieces, after the reading it shares', boot.indexOf("'/js/systems/agent.js'") < boot.indexOf("'/js/systems/connected.js'") && boot.indexOf("'/js/mcp/records.js'") < boot.indexOf("'/js/systems/connected.js'"));
+  const exported = src('js', 'systems', 'export-app.js');
+  ok('... in the app and in an exported system alike', exported.indexOf("'/js/mcp/records.js'") > 0 && exported.indexOf("'/js/mcp/records.js'") < exported.indexOf("'/js/systems/connected.js'"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/connected.js)`);
