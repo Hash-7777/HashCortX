@@ -197,6 +197,11 @@ shellexpand = "3"
 # Deliberately without cookies, json, gzip or proxy support: the agent fetches
 # public documents and needs none of them, and each is more surface.
 ureq = { version = "3", default-features = false, features = ["native-tls"] }
+# Signing in to a connected system through the browser (commands/mcp/oauth.rs):
+# the PKCE hash and the random state and verifier. Both were already built
+# into the app through tauri; naming them here adds no new code to it.
+sha2      = "0.10"
+getrandom = "0.3"
 
 # ==============================================================
 # Platform-specific dependencies

@@ -43,18 +43,27 @@ let answer = true;
 // puts it out of reach.
 let accepts = null;
 let unreachable = false;
+const signIns = [];       // connections the native side was asked to sign in
+let signInFails = '';     // what the native side says when a sign-in does not finish
 const saved = new Map();
 const HC = {
   isTauri: true,
   version: 't',
   invoke: async (cmd, args) => {
     native.push({ cmd, args });
-    if (cmd === 'mcp_server_save') { saved.set(args.id, args); return { url: args.url, auth: args.auth, header: args.header, hasSecret: !!args.secret }; }
+    if (cmd === 'mcp_server_save') { saved.set(args.id, { ...args, signed: false }); return { url: args.url, auth: args.auth, header: args.header, hasSecret: !!args.secret && args.auth !== 'oauth', signedIn: false }; }
+    if (cmd === 'mcp_oauth_sign_in') {
+      signIns.push(args.id);
+      if (signInFails) throw new Error(signInFails);
+      saved.get(args.id).signed = true;
+      return { url: saved.get(args.id).url, auth: 'oauth', header: '', hasSecret: false, signedIn: true };
+    }
     if (cmd === 'mcp_server_remove') { saved.delete(args.id); return null; }
     if (cmd === 'mcp_request' && unreachable) throw new Error('the connection was refused.');
     if (cmd === 'mcp_request' && accepts) {
       const s = saved.get(args.id) || {};
-      if (`${s.auth}${s.header ? `:${s.header}` : ''}` !== accepts) return { status: 401, mime: 'application/json', body: '' };
+      const way = s.auth === 'oauth' ? (s.signed ? 'oauth' : 'oauth-unsigned') : `${s.auth}${s.header ? `:${s.header}` : ''}`;
+      if (way !== accepts) return { status: 401, mime: 'application/json', body: '' };
     }
     if (cmd === 'mcp_request') return systemAnswer(JSON.parse(args.body));
     throw new Error(`unexpected ${cmd}`);
@@ -253,6 +262,24 @@ console.log('\nConnecting from Settings, all or nothing:');
   const open = await M.connect({ name: 'Open', url: 'https://open.example.com/mcp', auth: 'auto' }, '');
   ok('with no key, none is sent', saves().join() === 'none' && open.auth === 'none');
   await M.remove(open.id);
+
+  // A system that has its users sign in through the browser.
+  accepts = 'oauth';
+  native.length = 0;
+  let told = '';
+  const browser = await M.connect({ name: 'Books', url: 'https://books.example.com/mcp', auth: 'auto' }, '', { onSignIn: (c) => { told = c.name; } });
+  ok('with no key, a system that asks for a sign-in is signed in to through the browser', saves().join() === 'none,oauth' && signIns.at(-1) === browser.id && browser.tools.length === 2);
+  ok('... the person is told to finish in the browser before it waits', told === 'Books');
+  ok('... it is kept as signed in, with no key sent or kept', M.find(browser.id).signedIn === true && M.find(browser.id).auth === 'oauth' && native.filter((n) => n.cmd === 'mcp_server_save').at(-1).args.secret === null);
+  await M.remove(browser.id);
+  signInFails = 'the system did not say where to sign in, so it needs a key instead.';
+  native.length = 0;
+  let needsKey = null;
+  try { await M.connect({ name: 'Keyed', url: 'https://keyed.example.com/mcp', auth: 'auto' }, ''); } catch (e) { needsKey = e; }
+  ok('a sign-in that does not finish leaves nothing saved, and says why', needsKey && !M.list().some((x) => x.name === 'Keyed')
+    && M.whyNot(needsKey, 'Keyed', 'https://keyed.example.com/mcp') === 'Not connected: it did not say where to sign in, so it needs a key instead.');
+  signInFails = '';
+  accepts = null;
 }
 
 console.log('\nThe app uses it, and shows what a system says as text:');

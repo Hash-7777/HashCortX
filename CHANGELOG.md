@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Sign in to a connected system through the browser.** A system that has
+  its users sign in on its own page no longer needs a key: leave the key
+  empty, or choose "Sign in through the browser" under More options, and
+  its sign-in page opens in your browser. HashCortX registers itself with
+  the system's sign-in server as a native app with no secret, uses PKCE,
+  waits for the answer on a one-time address on this computer, and does
+  not use an answer that names another server. The tokens stay with the
+  app, out of the page's reach, are sent only to that system, and are
+  renewed when they run out, if the server allows it. "Sign in again" on
+  the connection starts a new sign-in.
+
 - **The Coder can work with a connected system.** When a task is about
   one, such as an issue or a pull request in a connected code host, the
   Coder is offered that system's tools the same way chat agents are:
@@ -58,10 +69,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   computer and never handed back to a page or a model, and it is only ever
   sent to the address it was given for, over https unless the system is on
   this computer. A system's records go only to models running on this
-  computer unless you allow cloud models for that system. A tool the system
-  later describes differently is switched off until you look at it again.
-  Systems on both the current protocol and the older one are supported;
-  signing in through a browser page is not yet.
+  computer unless you allow cloud models for that system. A tool the
+  system later describes differently is switched off until you look at it
+  again. Systems on both the current protocol and the older one are
+  supported.
 
 - **An Agent Swarm run whose agents did not all finish can be finished.**
   When an agent fails or runs out of time, the agents after it never run,

@@ -59,7 +59,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 
 Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
 
-Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. The sign-in secret stays with the app and is never shown to a page or a model, records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. Odoo, GitHub, Stripe and Supabase are ready-made choices, and GitHub and Supabase connect reading-only unless you say otherwise. The Coder uses a connected system when a task is about one, such as opening a pull request, with each change asked first. See [SECURITY.md](docs/SECURITY.md#connected-systems).
+Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. A system signs in with a key or through your browser, and the key or the sign-in stays with the app and is never shown to a page or a model; records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. Odoo, GitHub, Stripe and Supabase are ready-made choices, and GitHub and Supabase connect reading-only unless you say otherwise. The Coder uses a connected system when a task is about one, such as opening a pull request, with each change asked first. See [SECURITY.md](docs/SECURITY.md#connected-systems).
 
 ## Coder
 
@@ -139,8 +139,8 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,380 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 192 Rust tests
+npm run check                                     # 7,387 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 203 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.

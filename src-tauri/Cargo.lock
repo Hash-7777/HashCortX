@@ -1634,11 +1634,13 @@ version = "2.6.0"
 dependencies = [
  "chrono",
  "dirs 5.0.1",
+ "getrandom 0.3.4",
  "keyring",
  "ort",
  "security-framework 2.11.1",
  "serde",
  "serde_json",
+ "sha2",
  "shellexpand",
  "tauri",
  "tauri-build",

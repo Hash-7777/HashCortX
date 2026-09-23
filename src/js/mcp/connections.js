@@ -83,11 +83,24 @@
     const info = await HC().invoke("mcp_server_save", { id: conn.id, url: String(url || "").trim(), auth, header: conn.header, secret: secret ? String(secret) : null });
     conn.url = info.url;
     conn.hasSecret = !!info.hasSecret;
+    conn.signedIn = !!info.signedIn;
     clientOf().forget(conn.id);
     const all = list().filter((c) => c.id !== conn.id);
     all.push(conn);
     keep(all);
     return conn;
+  }
+
+  /**
+   * Sign a connection in through the person's browser. The native side opens
+   * the system's own sign-in page, waits for the answer and keeps the tokens;
+   * the page learns only whether it is signed in.
+   */
+  async function signIn(id) {
+    if (!available()) throw new Error("connected systems work in the desktop app.");
+    const info = await HC().invoke("mcp_oauth_sign_in", { id });
+    clientOf().forget(id);
+    return update(id, (c) => ({ ...c, signedIn: !!(info && info.signedIn) }));
   }
 
   async function remove(id) {
@@ -314,6 +327,17 @@
       try { await refresh(conn.id); } catch { /* the card shows why */ }
       render();
     });
+    if (conn.auth === "oauth") {
+      const again = el("button", "ghost set-btn", "Sign in again");
+      again.type = "button";
+      again.addEventListener("click", async () => {
+        again.disabled = true;
+        again.textContent = "Finish in your browser…";
+        try { await signIn(conn.id); await refresh(conn.id); } catch (e) { update(conn.id, (c) => ({ ...c, error: String((e && e.message) || e) })); }
+        render();
+      });
+      actions.append(again);
+    }
     const removeBtn = el("button", "ghost set-btn set-btn-danger", "Remove");
     removeBtn.type = "button";
     removeBtn.addEventListener("click", async () => { await remove(conn.id); render(); });
@@ -326,7 +350,8 @@
     const status = conn.error
       ? `Not reached: ${conn.error}`
       : conn.checkedAt ? `Connected · ${tools.length} tool${tools.length === 1 ? "" : "s"}, ${on} switched on · checked ${new Date(conn.checkedAt).toLocaleTimeString()}` : "Not checked yet.";
-    box.appendChild(el("div", `field-note conn-status${conn.error ? " conn-error" : ""}`, `${status}${conn.auth !== "none" && !conn.hasSecret ? " · no key saved" : ""}`));
+    const signIn_ = conn.auth === "oauth" ? (conn.signedIn ? " · signed in through the browser" : " · not signed in") : conn.auth !== "none" && !conn.hasSecret ? " · no key saved" : "";
+    box.appendChild(el("div", `field-note conn-status${conn.error ? " conn-error" : ""}`, `${status}${signIn_}`));
 
     const cloud = el("label", "conn-cloud");
     const cloudBox = document.createElement("input");
@@ -370,14 +395,20 @@
    * when the system refused the one before. When none works, or the system
    * cannot be reached, nothing is left saved.
    */
-  async function connect({ name, url, auth, header, allowCloud = false }, secret) {
+  async function connect({ name, url, auth, header, allowCloud = false }, secret, { onSignIn } = {}) {
     const ways = Pre().attempts(auth, header, !!secret);
     let id = null;
     let last = null;
     for (const way of ways) {
-      const conn = await save({ id, name, url, auth: way.auth, header: way.header, allowCloud }, secret);
+      const conn = await save({ id, name, url, auth: way.auth, header: way.header, allowCloud }, way.auth === "oauth" ? "" : secret);
       id = conn.id;
-      try { return await refresh(id); } catch (e) {
+      try {
+        if (way.auth === "oauth") {
+          if (onSignIn) onSignIn(conn);
+          await signIn(id);
+        }
+        return await refresh(id);
+      } catch (e) {
         last = e;
         if (!(e && e.kind === "auth")) break;
       }
@@ -410,7 +441,7 @@
     const syncAuth = () => {
       const auth = $("connAuth")?.value || "auto";
       if ($("connHeaderRow")) $("connHeaderRow").hidden = auth !== "header";
-      if ($("connSecretRow")) $("connSecretRow").hidden = auth === "none";
+      if ($("connSecretRow")) $("connSecretRow").hidden = auth === "none" || auth === "oauth";
     };
     const readOnly = () => !!$("connReadOnly")?.checked;
     const syncFixed = () => {
@@ -463,7 +494,9 @@
       btn.disabled = true;
       say(`Connecting to ${name}…`);
       try {
-        const conn = await connect({ name, url, auth, header: $("connHeader")?.value }, secret);
+        const conn = await connect({ name, url, auth, header: $("connHeader")?.value }, secret, {
+          onSignIn: () => say(`${name} has you sign in through your browser. Finish signing in on the page that opened; this waits for up to five minutes.`),
+        });
         if (secretEl) secretEl.value = "";
         const n = (conn.tools || []).length;
         say(n
@@ -546,5 +579,5 @@
   /** What the person is told when a conversation holds records a cloud model may not see. */
   const heldText = (names, { fresh = "Start a new chat", what = "chat" } = {}) => `This ${what} holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. ${fresh} to use a cloud model, or allow cloud models for that system in Settings → Connections.`;
 
-  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, setTool, setAllowCloud, toolsFor, toolsForTask, forRun, asksFor, stepOf, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldIn, heldText, render, labelOf, RECORD_WORDS };
+  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, signIn, setTool, setAllowCloud, toolsFor, toolsForTask, forRun, asksFor, stepOf, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldIn, heldText, render, labelOf, RECORD_WORDS };
 })();

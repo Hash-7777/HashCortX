@@ -33,7 +33,7 @@ console.log('The ready-made choices:');
   ok('Supabase, at its documented address, read-only unless the person says otherwise', byId('supabase').url === 'https://mcp.supabase.com/mcp' && byId('supabase').readOnlyUrl === 'https://mcp.supabase.com/mcp?read_only=true' && byId('supabase').auth === 'bearer');
   ok('Odoo takes the address its connector shows, and its key tried the usual ways', !byId('odoo').url && byId('odoo').auth === 'auto' && /MCP server app in your Odoo/.test(byId('odoo').address.note));
   ok('every fixed address is https', P.PRESETS.filter((p) => p.url).every((p) => [p.url, p.readOnlyUrl].filter(Boolean).every((u) => u.startsWith('https://'))));
-  ok('none signs in through a browser page, which the app cannot do yet', P.PRESETS.every((p) => ['bearer', 'auto'].includes(p.auth)));
+  ok('each ready-made choice signs in with a key; one that signs in through the browser needs no choice of its own', P.PRESETS.every((p) => ['bearer', 'auto'].includes(p.auth)));
   ok('an unknown choice is any other system', P.find('nope').id === 'other' && P.find('github').id === 'github');
 }
 
@@ -49,7 +49,9 @@ console.log('\nHow a key is presented:');
 {
   const ways = (...a) => P.attempts(...a).map((w) => `${w.auth}${w.header ? `:${w.header}` : ''}`).join();
   ok('automatic: as a bearer token, then in the key header most systems read', ways('auto', '', true) === 'bearer,header:X-API-Key');
-  ok('with no key, none is sent, whatever was chosen', ways('auto', '', false) === 'none' && ways('bearer', '', false) === 'none' && ways('header', 'X-Key', false) === 'none');
+  ok('automatic with no key: none, and then the browser if the system asks for a sign-in', ways('auto', '', false) === 'none,oauth');
+  ok('a chosen key sign-in with no key sends none', ways('bearer', '', false) === 'none' && ways('header', 'X-Key', false) === 'none');
+  ok('a browser sign-in sends no key, even one typed', ways('oauth', '', true) === 'oauth' && ways('oauth', '', false) === 'oauth');
   ok('a chosen way is the only one', ways('bearer', '', true) === 'bearer' && ways('header', ' X-Secret ', true) === 'header:X-Secret' && ways('none', '', true) === 'none');
 }
 

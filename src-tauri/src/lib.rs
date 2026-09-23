@@ -20,7 +20,7 @@ use commands::{
         fs_set_root, fs_write_file,
     },
     keychain::{keychain_delete, keychain_retrieve_bundle},
-    mcp::{mcp_request, mcp_server_remove, mcp_server_save},
+    mcp::{mcp_oauth_sign_in, mcp_request, mcp_server_remove, mcp_server_save},
     net::net_fetch_text,
     notch::notch_activity_post,
     provider::{provider_request, provider_request_cancel},
@@ -111,6 +111,7 @@ pub fn run() {
             mcp_server_save,
             mcp_server_remove,
             mcp_request,
+            mcp_oauth_sign_in,
             // Undo — what a file held before the agent changed it.
             //
             // checkpoint_list is what makes the history readable at all: the

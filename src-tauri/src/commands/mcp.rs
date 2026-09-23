@@ -10,7 +10,8 @@
 // WHAT IS KEPT, AND WHERE
 // -----------------------
 // Each connection is an id the page chose, the address, how it signs in, and
-// the secret. They are kept together in ~/.hashcortx/connections.json, a file
+// the secret, or for one that signs in through the browser the tokens it was
+// handed (mcp/oauth.rs). They are kept together in ~/.hashcortx/connections.json, a file
 // readable by this account only, inside the app's own folder, which the
 // coding agent's file and shell tools refuse to open. The page can save a
 // connection and remove one; saving tells it whether a secret is set. It can
@@ -30,10 +31,11 @@
 // systems only through this file, one connection at a time.
 //
 // JS calls:
-//   invoke("mcp_server_save",   { id, url, auth, header, secret })  → info
-//   invoke("mcp_server_remove", { id })
-//   invoke("mcp_request",       { id, body, version })              → { status, mime, body }
-//     info = { url, auth, header, hasSecret }
+//   invoke("mcp_server_save",    { id, url, auth, header, secret })  → info
+//   invoke("mcp_server_remove",  { id })
+//   invoke("mcp_request",        { id, body, version })              → { status, mime, body }
+//   invoke("mcp_oauth_sign_in",  { id })                             → info
+//     info = { url, auth, header, hasSecret, signedIn }
 // ==============================================================
 
 use serde::{Deserialize, Serialize};
@@ -47,6 +49,8 @@ use ureq::config::Config;
 use ureq::http::Uri;
 use ureq::tls::{TlsConfig, TlsProvider};
 use ureq::Agent;
+
+mod oauth;
 
 const STORE_FILE: &str = "connections.json";
 const MAX_CONNECTIONS: usize = 32;
@@ -96,6 +100,9 @@ struct Connection {
     auth: String,
     header: String,
     secret: String,
+    /// What signing in through the browser left: tokens, never shown to the page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    oauth: Option<oauth::OAuth>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -111,6 +118,7 @@ pub struct ConnectionInfo {
     auth: String,
     header: String,
     has_secret: bool,
+    signed_in: bool,
 }
 
 impl From<&Connection> for ConnectionInfo {
@@ -120,6 +128,7 @@ impl From<&Connection> for ConnectionInfo {
             auth: c.auth.clone(),
             header: c.header.clone(),
             has_secret: !c.secret.is_empty(),
+            signed_in: c.oauth.as_ref().is_some_and(|o| o.signed_in()),
         }
     }
 }
@@ -178,11 +187,11 @@ fn check_url(raw: &str) -> Result<String, String> {
     }
 }
 
-/// How a connection signs in: "none", "bearer" (a token), or "header" (a
-/// secret in a header the system names).
+/// How a connection signs in: "none", "bearer" (a token), "header" (a
+/// secret in a header the system names), or "oauth" (through the browser).
 fn check_auth(auth: &str, header: &str) -> Result<(), String> {
     match auth {
-        "none" | "bearer" => Ok(()),
+        "none" | "bearer" | "oauth" => Ok(()),
         "header" => {
             let name = header.trim();
             let shaped = !name.is_empty()
@@ -215,7 +224,8 @@ fn check_secret(secret: &str) -> Result<(), String> {
 ///
 /// A secret belongs to the address and sign-in it was given for: when either
 /// changes and no secret comes with the change, the old one is dropped rather
-/// than sent somewhere it was never meant for.
+/// than sent somewhere it was never meant for. Tokens from signing in through
+/// the browser are kept only while both stay the same.
 fn merged(
     before: Option<&Connection>,
     url: String,
@@ -228,12 +238,13 @@ fn merged(
         .map(|b| b.url == url && b.auth == auth && b.header == header)
         .unwrap_or(false);
     let secret = match secret {
-        _ if auth == "none" => String::new(),
+        _ if auth == "none" || auth == "oauth" => String::new(),
         Some(s) => s,
         None if same_place => before.map(|b| b.secret.clone()).unwrap_or_default(),
         None => String::new(),
     };
-    Connection { url, auth, header, secret }
+    let oauth = if auth == "oauth" && same_place { before.and_then(|b| b.oauth.clone()) } else { None };
+    Connection { url, auth, header, secret, oauth }
 }
 
 /// The request body: one JSON-RPC 2.0 object with a method the app sends.
@@ -338,7 +349,7 @@ fn save_connection(
     let url = check_url(url)?;
     check_auth(auth, header)?;
     if let Some(s) = secret.as_deref() {
-        if auth != "none" {
+        if auth != "none" && auth != "oauth" {
             check_secret(s)?;
         }
     }
@@ -453,6 +464,11 @@ fn send(id: &str, conn: &Connection, body: &str, version: &str) -> Result<Reply,
     match conn.auth.as_str() {
         "bearer" if !conn.secret.is_empty() => req = req.header("Authorization", format!("Bearer {}", conn.secret)),
         "header" if !conn.secret.is_empty() => req = req.header(conn.header.as_str(), conn.secret.as_str()),
+        "oauth" => {
+            if let Some(o) = conn.oauth.as_ref().filter(|o| o.signed_in()) {
+                req = req.header("Authorization", format!("Bearer {}", o.access_token));
+            }
+        }
         _ => {}
     }
     let mut response = req
@@ -520,8 +536,33 @@ pub async fn mcp_server_remove(id: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn mcp_request(id: String, body: String, version: String) -> Result<Reply, String> {
     super::off_main(move || {
-        let conn = connection(&store_path()?, &id)?;
-        send(&id, &conn, &body, &version)
+        let path = store_path()?;
+        let conn = oauth::fresh(&path, &id, connection(&path, &id)?);
+        let reply = send(&id, &conn, &body, &version)?;
+        // A token the system no longer takes is renewed once, when it can be.
+        if reply.status == 401 && conn.auth == "oauth" {
+            if let Ok(renewed) = oauth::renew(&path, &id, &conn) {
+                return send(&id, &renewed, &body, &version);
+            }
+        }
+        Ok(reply)
+    })
+    .await
+}
+
+/// Sign a connection in through the person's browser (mcp/oauth.rs). The
+/// page learns only whether it is signed in.
+#[tauri::command]
+pub async fn mcp_oauth_sign_in(app: tauri::AppHandle, id: String) -> Result<ConnectionInfo, String> {
+    use tauri_plugin_opener::OpenerExt;
+    super::off_main(move || {
+        let open = |url: &str| {
+            app.opener()
+                .open_url(url, None::<&str>)
+                .map_err(|e| format!("the browser could not be opened: {e}"))
+        };
+        let conn = oauth::sign_in(&store_path()?, &id, &open)?;
+        Ok(ConnectionInfo::from(&conn))
     })
     .await
 }
@@ -579,7 +620,7 @@ mod tests {
 
     #[test]
     fn a_secret_stays_with_the_address_it_was_given_for() {
-        let before = Connection { url: "https://a.org/mcp".into(), auth: "bearer".into(), header: String::new(), secret: "s1".into() };
+        let before = Connection { url: "https://a.org/mcp".into(), auth: "bearer".into(), header: String::new(), secret: "s1".into(), oauth: None };
         // Saved again unchanged, with no secret: the secret stays.
         let same = merged(Some(&before), "https://a.org/mcp".into(), "bearer".into(), String::new(), None);
         assert_eq!(same.secret, "s1");
@@ -592,6 +633,19 @@ mod tests {
         // A new secret is taken; none is kept for a system that needs none.
         assert_eq!(merged(Some(&before), "https://b.org/mcp".into(), "bearer".into(), String::new(), Some("s2".into())).secret, "s2");
         assert_eq!(merged(Some(&before), "https://a.org/mcp".into(), "none".into(), String::new(), Some("s3".into())).secret, "");
+    }
+
+    #[test]
+    fn tokens_from_a_browser_sign_in_stay_with_the_place_they_were_given_for() {
+        let tokens = oauth::OAuth { access_token: "at".into(), refresh_token: "rt".into(), ..Default::default() };
+        let before = Connection { url: "https://a.org/mcp".into(), auth: "oauth".into(), header: String::new(), secret: String::new(), oauth: Some(tokens) };
+        assert!(merged(Some(&before), "https://a.org/mcp".into(), "oauth".into(), String::new(), None).oauth.is_some());
+        assert!(merged(Some(&before), "https://b.org/mcp".into(), "oauth".into(), String::new(), None).oauth.is_none());
+        assert!(merged(Some(&before), "https://a.org/mcp".into(), "bearer".into(), String::new(), Some("k".into())).oauth.is_none());
+        // A secret is never kept for a connection that signs in through the browser.
+        assert_eq!(merged(None, "https://a.org/mcp".into(), "oauth".into(), String::new(), Some("k".into())).secret, "");
+        let shown = serde_json::to_string(&ConnectionInfo::from(&before)).unwrap();
+        assert!(shown.contains("\"signedIn\":true") && !shown.contains("\"at\"") && !shown.contains("rt"));
     }
 
     #[test]
@@ -682,7 +736,7 @@ mod tests {
         let (url, server) = serve_once(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 36\r\nConnection: close\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}",
         );
-        let conn = Connection { url, auth: "header".into(), header: "X-Api-Key".into(), secret: "k-123".into() };
+        let conn = Connection { url, auth: "header".into(), header: "X-Api-Key".into(), secret: "k-123".into(), oauth: None };
         let reply = send("erp-3", &conn, r#"{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"get_record","arguments":{}}}"#, "2026-07-28").unwrap();
         assert_eq!(reply.status, 200);
         assert!(reply.body.contains("\"result\""));
@@ -699,7 +753,7 @@ mod tests {
         let (url, server) = serve_once(
             "HTTP/1.1 302 Found\r\nLocation: https://elsewhere.example.org/steal\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
         );
-        let conn = Connection { url, auth: "bearer".into(), header: String::new(), secret: "t".into() };
+        let conn = Connection { url, auth: "bearer".into(), header: String::new(), secret: "t".into(), oauth: None };
         let reply = send("erp-4", &conn, r#"{"jsonrpc":"2.0","id":1,"method":"tools/list"}"#, "2025-11-25").unwrap();
         assert_eq!(reply.status, 302);
         server.join().unwrap();
@@ -710,7 +764,7 @@ mod tests {
         let (url, server) = serve_once(
             "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nMcp-Session-Id: abc-123\r\nContent-Length: 36\r\nConnection: close\r\n\r\n{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}",
         );
-        let conn = Connection { url, auth: "none".into(), header: String::new(), secret: String::new() };
+        let conn = Connection { url, auth: "none".into(), header: String::new(), secret: String::new(), oauth: None };
         send("erp-5", &conn, r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}"#, "2025-11-25").unwrap();
         server.join().unwrap();
         assert_eq!(sessions().lock().unwrap().get("erp-5").map(String::as_str), Some("abc-123"));

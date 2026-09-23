@@ -13,8 +13,9 @@
 // on top either way: tools that change records start off, and each change
 // asks first (js/mcp/connections.js).
 //
-// A service that signs in only through a browser page is not offered here
-// until the app can do that.
+// A system that signs in through the browser needs no preset: with no key
+// given, the app signs in through the browser when the system asks for it
+// (src-tauri/src/commands/mcp/oauth.rs).
 //
 // With a key and no sign-in chosen ("Automatic"), the key is tried the
 // common ways in turn — as a bearer token, then in the key header most
@@ -54,7 +55,7 @@
     {
       id: "other", name: "Other system", auth: "auto",
       address: { placeholder: "https://erp.example.com/mcp", note: "its MCP address. https, or http for a system on this computer" },
-      key: { label: "Key", note: "leave it empty if the system needs none. Use an account made for this, with only the access it needs" },
+      key: { label: "Key", note: "leave it empty if the system needs none, or has you sign in through your browser. Use an account made for this, with only the access it needs" },
     },
   ];
 
@@ -67,11 +68,14 @@
   }
 
   /**
-   * The ways to present a key, in the order they are tried: the one chosen,
-   * or for "auto" a bearer token and then the key header most systems read.
-   * With no key, none is sent.
+   * The ways to sign in, in the order they are tried: the one chosen, or for
+   * "auto" with a key a bearer token and then the key header most systems
+   * read, and with no key none and then the browser, when the system asks
+   * for a sign-in.
    */
   function attempts(auth, header, hasKey) {
+    if (auth === "oauth") return [{ auth: "oauth", header: "" }];
+    if (auth === "auto" && !hasKey) return [{ auth: "none", header: "" }, { auth: "oauth", header: "" }];
     if (!hasKey || auth === "none") return [{ auth: "none", header: "" }];
     if (auth === "auto") return [{ auth: "bearer", header: "" }, { auth: "header", header: "X-API-Key" }];
     return [{ auth, header: auth === "header" ? String(header || "").trim() : "" }];

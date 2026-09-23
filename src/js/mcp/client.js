@@ -61,7 +61,7 @@
         throw failure("unreachable", String((e && e.message) || e));
       }
       const status = Number(reply && reply.status) || 0;
-      if (status === 401 || status === 403) throw failure("auth", "the system refused the sign-in. Check the secret in Settings → Connections.");
+      if (status === 401 || status === 403) throw failure("auth", "the system refused the sign-in. Check its key, or sign in again, in Settings → Connections.");
       if (notify) {
         if (status >= 200 && status < 300) return null;
         throw failure("protocol", `the system answered HTTP ${status}.`);
