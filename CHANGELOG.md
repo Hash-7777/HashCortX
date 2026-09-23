@@ -234,6 +234,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Local models read the whole request.** Ollama reads a request into a
+  window of fixed size and silently drops the start of anything longer, and
+  the start is the instructions. The app gave local models a fixed window, or
+  none at all in several modes, while an ERP request alone could be four times
+  longer, so a small model answered without knowing what was asked of it.
+  Every request to a local model is now given room for all of it and its
+  answer, within what the model supports; one that cannot fit is refused in
+  words instead of cut. Where the app needs a structured answer, a local
+  model can now be held to it.
+
 - **You can see what an agent's code actually printed.** A small local model
   ran its Python correctly and then wrote a different number in its answer,
   and nothing on screen showed the real one. What each run printed is now kept

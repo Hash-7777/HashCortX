@@ -4907,8 +4907,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             model: modelEl.value,
             stream: true,
             keep_alive: -1,
-            // Attachments need extra room; otherwise extracted PDF/file text can be truncated before the model reads it.
-            options: { temperature, num_ctx: numCtx },
+            // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
+            options: { temperature, num_ctx: Math.max(numCtx, await HCLocalContext.numCtx(host, modelEl.value, messages)) },
             messages,
           }),
           signal: ctrl.signal,
@@ -5048,7 +5048,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         model: modelValue,
         stream: true,
         keep_alive: -1,
-        options: { temperature, num_ctx: numCtx },
+        options: { temperature, num_ctx: Math.max(numCtx || 0, await HCLocalContext.numCtx(host, modelValue, messages)) },
         messages,
       }),
       signal,
@@ -5082,7 +5082,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const resp = await fetch(host + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: await HCLocalContext.numCtx(host, model, messages) } }),
       signal,
     });
     if (!resp.ok) throw new Error("Ollama error: " + resp.status);
@@ -5682,15 +5682,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Provider adapters — non-streaming single turn returning
   //   { content: string|null, tool_calls: [{id, name, arguments}]|null }
   // -------------------------------------------------------------------------
-  async function agentTurnOllama({ model, messages, tools, temperature, signal }) {
+  async function agentTurnOllama({ model, messages, tools, temperature, signal, json, need }) {
     const host = safeHost();
     const r = await fetch(`${host}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model, messages: HCAgentShape.forOllama(messages), stream: false, keep_alive: -1,
-        tools: tools.length ? tools : undefined,
-        options: { temperature, num_ctx: 8192 }
+        tools: tools.length ? tools : undefined, format: json ? (json === true ? "json" : json) : undefined,
+        options: { temperature, num_ctx: await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], need) }
       }),
       signal
     });

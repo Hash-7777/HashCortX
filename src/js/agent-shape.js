@@ -479,7 +479,8 @@
     const started = Date.now();
     const first = routeLearning(request, fns, deps);
     if (!first || typeof first.then !== 'function') return first;
-    const again = (messages) => routeOnce({ ...request, messages }, fns, deps);
+    // A continuation is the rest of an answer, not a whole one: not held to JSON.
+    const again = (messages) => routeOnce({ ...request, messages, json: undefined }, fns, deps);
     const whole = request.untilFinished ? first.then((turn) => (turn && turn.cutOff ? finishCutOff(again, request.messages, turn) : turn)) : first;
     // How long the answer took is kept, so a model is chosen by how it answers
     // as well as by its name — js/model-speed.js.
@@ -509,14 +510,17 @@
     });
   }
 
-  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal }, fns, deps) {
+  // `json`: the answer must be JSON — true, or the JSON schema it must match.
+  // Honoured by Ollama, where the small models that most often answer in the
+  // wrong shape run; a cloud model is only told so in its prompt.
+  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
     // Gemini is the one provider whose tool list is shaped differently, and a
     // caller handing over the OpenAI array is the normal case rather than a
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
-    const base = { model: route.model, messages, tools: shaped, temperature, signal };
+    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
     if (route.kind === 'gemini') return tagged(fns.gemini(base), who);
