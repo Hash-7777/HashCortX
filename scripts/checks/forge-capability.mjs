@@ -111,5 +111,13 @@ console.log('\nThe survey says what a person has, in a sentence:');
   ok('anything that is not a list is survivable', C.surveyOf(null).total === 0);
 }
 
+console.log('\n"gemini" is not "mini":');
+{
+  const pro = C.geometryVerdict('cloud:gemini:gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview');
+  ok('a Gemini Pro is not called a small model', pro.verdict !== 'no');
+  ok('... while a real mini or flash model is', C.geometryVerdict('cloud:openai:gpt-4o-mini', 'GPT-4o mini').verdict === 'no' && C.geometryVerdict('cloud:gemini:gemini-3.5-flash', 'Gemini 3.5 Flash').verdict === 'no');
+  ok('... and a Gemini Pro outranks a Gemini Flash', C.strengthOf('cloud:gemini:gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview', true) > C.strengthOf('cloud:gemini:gemini-3.5-flash', 'Gemini 3.5 Flash', true));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/capability.js)\n`);
 process.exit(fail === 0 ? 0 : 1);

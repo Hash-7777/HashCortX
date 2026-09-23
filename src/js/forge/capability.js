@@ -65,7 +65,8 @@
     if (size > 0 && size < 70) score -= bigTask ? 18 : 8;
     if (/coder|code|dev|reason|thinking|instruct|chat/.test(s)) score += 18;
     if (/vision|vl|multi/.test(s)) score += 10;
-    if (/flash|lite|mini|small|tiny|1b|1\.5b|3b|7b|8b|instant/.test(s)) score -= bigTask ? 35 : 12;
+    // Whole words: "mini" inside "gemini" marked every Gemini model small, Pro included.
+    if (/\b(?:flash|lite|mini|small|tiny|instant|1b|1\.5b|3b|7b|8b)\b/.test(s)) score -= bigTask ? 35 : 12;
     if (isFree(value, label)) score -= bigTask ? 28 : 10;
     if (/local/.test(s)) score -= bigTask ? 12 : 0;
     if (/nvidia|samba|openrouter|gemini|groq|cerebras/.test(s)) score += 8;
@@ -87,7 +88,7 @@
   function geometryVerdict(value, label) {
     const s = text(value, label);
     const size = sizeOf(value, label);
-    if (/flash|lite|mini|small|tiny|instant/.test(s) || (size > 0 && size < 8)) {
+    if (/\b(?:flash|lite|mini|small|tiny|instant)\b/.test(s) || (size > 0 && size < 8)) {
       return { verdict: "no", why: "small models describe a shape well and rarely place one" };
     }
     if (size >= GEOMETRY_SIZE) {

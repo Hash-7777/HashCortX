@@ -234,6 +234,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge no longer calls Gemini Pro a small model.** Its ranking found
+  "mini" inside "gemini", marked every Gemini model down and told you Gemini
+  Pro rarely places a shape.
+
 - **Provider error messages no longer show your account's own identifiers.**
   A provider's refusal can name the organization or project a limit belongs
   to; the app showed that on screen and kept it in saved runs. It is now
