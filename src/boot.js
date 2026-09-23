@@ -92,6 +92,7 @@
     '/js/trace-time.js',
     '/js/local-context.js',
     '/js/local-client.js',
+    '/js/tool-text.js',
     '/js/agent-shape.js',
     '/js/model-names.js',
     '/js/cloud-model-memory.js',

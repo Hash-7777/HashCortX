@@ -22,6 +22,7 @@ const sandbox = { window: {} };
 vm.createContext(sandbox);
 // Code blocks are found by the shared reader, loaded before it as in the app.
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'fences.js'), 'utf8'), sandbox, { filename: 'fences.js' });
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'tool-text.js'), 'utf8'), sandbox, { filename: 'tool-text.js' });
 vm.runInContext(src, sandbox, { filename: 'agent-shape.js' });
 const A = sandbox.window.HCAgentShape;
 

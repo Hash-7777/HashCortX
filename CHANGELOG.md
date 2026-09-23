@@ -234,6 +234,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local model's tool call runs, whichever family the model comes from.**
+  Each family of local models writes a tool call its own way, and the app
+  read only three of them, so a call written any other way was shown to you
+  as the answer and the tool never ran. Every common way is read now,
+  including a call the model left unfinished, and only for tools the agent
+  was given; an answer that merely shows an example call is left alone.
+
 - **A local model answers without reloading first.** Ollama loads a model
   again whenever a request asks for a different amount of room, and the
   app's own requests asked for different amounts, so a model was often

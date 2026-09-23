@@ -214,32 +214,12 @@
   const signatureFor = (call) => (call && call.thoughtSignature) || FOREIGN_CALL_SIGNATURE;
 
   /**
-   * A tool call a model wrote as text. Small local models often answer with
-   * the call itself — bare JSON, a json code block, or Qwen's <tool_call>
-   * tags — instead of in the field for it, and the raw JSON was shown as the
-   * answer. Only a reply that is a call, or opens or ends on one, to tools
-   * the agent has counts, so an answer that shows an example is left alone.
+   * A tool call a model wrote as text, in any of the ways local models write
+   * one (js/tool-text.js), to tools the agent has. The raw call used to be
+   * shown as the answer for every way but three.
    */
   function toolCallsInText(text, names) {
-    const known = new Set(names || []);
-    const bare = String(text || '').trim().replace(/^<tool_call>\s*([\s\S]*?)\s*<\/tool_call>$/, '$1').trim();
-    // A reply that ENDS on a code block is read as that block: the model
-    // saying what it will do and then making the call. So is one that OPENS on
-    // it, before it goes on to explain. A block with words on both sides is an
-    // example, and so is one that is not a call.
-    const parts = window.HCFences.splitFences(bare).filter((p) => p.type === 'code' || String(p.text || '').trim());
-    const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === 'code');
-    const body = (edge ? edge.code : bare).trim();
-    if (!known.size || !/^[\[{]/.test(body)) return [];
-    let parsed;
-    try { parsed = JSON.parse(body); } catch { return []; }
-    const list = Array.isArray(parsed) ? parsed : [parsed];
-    const calls = list.map((c) => {
-      const fn = c && typeof c === 'object' ? (c.function && typeof c.function === 'object' ? c.function : c) : null;
-      const args = fn && (fn.arguments ?? fn.parameters ?? {});
-      return fn && known.has(fn.name) ? { name: fn.name, arguments: safeJsonParse(args) || {} } : null;
-    });
-    return calls.length && calls.every(Boolean) ? calls : [];
+    return window.HCToolText.callsIn(text, names).map((c) => ({ name: c.name, arguments: safeJsonParse(c.arguments) || {} }));
   }
 
   /**
