@@ -59,6 +59,8 @@ ok('a portfolio gets no cart', !has(PORTFOLIO, 'cart.js'));
 ok('a portfolio gets no catalogue', !has(PORTFOLIO, 'catalogue.js'));
 ok('a portfolio gets no server', !has(PORTFOLIO, 'server.js'));
 ok('a landing page is not marked against a cart', !bar('a landing page for a new app').includes('cart'));
+ok('a landing page for a business called a shop is not built as an online store', !has('Build a landing page for a neighbourhood coffee shop.', 'catalogue.js') && !has('a one-page site for my barber shop', 'catalogue.js'));
+ok('... while a shop that sells still gets its catalogue', has('Build a website for my mug shop', 'catalogue.js') && has('Build a landing page where people can buy my candles', 'catalogue.js') && has('a landing page for a coffee shop with its menu', 'catalogue.js') && has('an online store for my prints', 'catalogue.js'));
 ok('a portfolio is not marked against a cart', !bar(PORTFOLIO).includes('cart'));
 ok('a shop IS marked against its cart', bar(SHOP).includes('cart'));
 ok('a game is marked against being playable', bar(GAME).includes('playable'));

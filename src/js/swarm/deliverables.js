@@ -90,10 +90,19 @@
   // live, and what it means for the result to be done well. A piece is only
   // ever added when the request asks for it, and its part of the bar comes
   // with it — which is what stops a landing page being marked against a cart.
+  // What a business is called is not what a page does. "A landing page for a
+  // coffee shop" presents a business; it was given a product catalogue, and a
+  // team with nothing to put in one handed back an empty skeleton. "Shop" or
+  // "store" alone means selling only when the request is not a page that
+  // presents; words about selling mean it whatever the page.
+  const SELLS = /\b(online (?:shops?|stores?)|web ?shops?|storefronts?|e-?commerce|ecom|products?|catalogues?|catalogs?|menus?|listings?|inventory|items for sale|for sale|sell(?:s|ing)?|buy(?:ing)?|marketplaces?|galler(?:y|ies) of|collections? of|price lists?)\b/i;
+  const SHOP_WORD = /\b(shops?|stores?)\b/i;
+  const PRESENTS = /\b(landing pages?|home ?pages?|one-?page|single-?page|portfolios?|brochure|about (?:us|page))\b/i;
+
   const PIECES = [
     {
       id: 'catalogue',
-      when: /\b(shops?|stores?|storefronts?|e-?commerce|ecom|products?|catalogues?|catalogs?|menus?|listings?|inventory|items for sale|marketplaces?|galler(?:y|ies) of|collections? of|price lists?)\b/i,
+      when: { test: (t) => SELLS.test(t) || (SHOP_WORD.test(t) && !PRESENTS.test(t)) },
       files: [{ name: 'catalogue.js', format: 'the items as data — one array, each with an id, name, price, image and description' }],
       bar: [
         'the catalogue is data in its own file, and the page is built from it rather than each item being written into the markup by hand',

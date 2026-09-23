@@ -272,6 +272,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A landing page for a business called a shop is not planned as an online
+  store.** The Agent Swarm read "shop" or "store" anywhere in a request as
+  selling online, so "a landing page for a neighbourhood coffee shop" was
+  given a product catalogue to fill; with no products to put in it, the team
+  handed back an empty skeleton. "Shop" or "store" alone now means selling
+  only when the request is not a page that presents a business — a landing
+  page, a home page, a one-page site, a portfolio or a brochure. Words about
+  selling, such as an online store, products, a menu or buying, still mean it
+  on any page.
+
 - **What an Agent Swarm run owes is what you asked for.** A plan for a
   piece of writing, a plan or an analysis now names the parts of one answer,
   not separate files: a team that wrote a launch plan as one document was
