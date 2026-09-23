@@ -5526,22 +5526,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     },
     current_datetime: {
-      description: "Current date, time, timezone. Use for 'today', 'now', scheduling.",
-      parameters: { type: "object", properties: {} },
-      statusLabel: () => "Reading current time",
-      async execute() {
+      description: "The date and time now, here or in another place. Use for 'today', 'now', the day of the week, scheduling, or the time somewhere else.",
+      parameters: { type: "object", properties: { place: { type: "string", description: "Optional: a city, country or time zone, such as Tokyo or Asia/Tokyo, for the date and time there." } } },
+      statusLabel: (a) => a?.place ? `Reading the time in ${String(a.place).slice(0, 40)}` : "Reading current time",
+      // Worked out by the app for any place, so the model adds nothing up (js/chat/clock.js).
+      async execute({ place } = {}) {
         const now = new Date();
-        return {
-          iso: now.toISOString(),
-          local: now.toString(),
-          unix_seconds: Math.floor(now.getTime() / 1000),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-          weekday: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][now.getDay()]
-        };
+        const here = HCClock.at(Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC", now);
+        if (!place) return { ...here, iso: now.toISOString() };
+        const zone = HCClock.zoneOf(place, typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : []);
+        return { here, there: zone ? { place, ...HCClock.at(zone, now) } : { place, error: "not a place or time zone this computer knows; answer with the time here and say so" }, iso: now.toISOString() };
       }
     },
     calculate: {
-      description: "Evaluate math. Supports +-*/%**(), Math.sqrt/sin/cos/log/PI. Use for any arithmetic.",
+      description: "Evaluate math. Supports +-*/%**(), Math.sqrt/sin/cos/log/PI, and days(2026-03-03, 2026-07-19) for the days between two dates. Use for any arithmetic.",
       parameters: {
         type: "object",
         properties: { expression: { type: "string", description: "Math expression, e.g. '(3.14 * 2**10) / 7' or 'Math.sqrt(2)'." } },

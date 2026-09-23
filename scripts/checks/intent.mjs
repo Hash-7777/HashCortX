@@ -42,6 +42,8 @@ console.log('A request that plainly needs a tool gets it:');
   const time = I.route('What day of the week is it today?', ALL);
   ok('the date or the time, with nothing for the model to write', time.tool === 'current_datetime' && Object.keys(time.arguments).length === 0);
   each('... asked in other ways', ['What time is it in Tokyo?', "What's the date today?", 'what year is it'], 'current_datetime');
+  ok('the place it is asked about is passed on, so the app works out the time there', I.route('What time is it in New York right now?', ['current_datetime']).arguments.place === 'New York' && I.route('What time is it in Tokyo?', ALL).arguments.place === 'Tokyo');
+  ok('the time or date asked about "right now" is the clock, not a search', I.route("What's the date in New York right now?", ALL).tool === 'current_datetime' && I.route('What time is it right now?', ALL).tool === 'current_datetime');
   each('arithmetic', ["What's 17% of 2,340?", 'What is 2 to the power of 70? Use the calculator.', 'How many days are there between March 3 and July 19?', 'What is 1234 * 5678?', 'What is 100 / 8?', 'what is 45 minus 17', 'What is the square root of 1764?'], 'calculate');
   ok('the model writes the calculation, held to the tool\'s own arguments', !('arguments' in I.route('What is 1234 * 5678?', ALL)));
 }

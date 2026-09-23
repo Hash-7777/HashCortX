@@ -9,14 +9,16 @@
 //
 //   a web address to read                  fetch_url, with that address
 //   code to run, or a file or chart        execute_python
+//   the date, the time, the day            current_datetime, and the place
+//                                          it was asked about
 //   a search, or anything current          web_search
-//   the date, the time, the day            current_datetime
 //   a request to write, explain or plan    no tool
 //   arithmetic                             calculate
 //   a poem, an email, a story              no tool
 //
-// in that order, so "summarise today's news" is a search before it is
-// writing, and an email about a 20% rise is writing, not a sum. What the
+// in that order, so "the date in New York right now" is the clock before it
+// is a search, "summarise today's news" is a search before it is writing,
+// and an email about a 20% rise is writing, not a sum. What the
 // tool is given is still the model's to write, held to that tool's own
 // argument schema — except a web address, which the app takes from the
 // message itself. Anything else is left to the model's own
@@ -58,8 +60,11 @@
     const url = URL_RX.exec(t);
     if (url && has.has("fetch_url") && !/\bsearch\b/i.test(t)) return { tool: "fetch_url", arguments: { url: url[0] } };
     if (CODE.test(t) && has.has("execute_python")) return { tool: "execute_python" };
+    if (TIME.test(t) && has.has("current_datetime")) {
+      const place = /\bin\s+([A-Z][\w'.-]*(?:\s+[A-Z][\w'.-]*){0,3})/.exec(t);
+      return { tool: "current_datetime", arguments: place ? { place: place[1] } : {} };
+    }
     if ((SEARCH.test(t) || CURRENT.test(t)) && has.has("web_search")) return { tool: "web_search" };
-    if (TIME.test(t) && has.has("current_datetime")) return { tool: "current_datetime", arguments: {} };
     if (ASK_TO_WRITE.test(t)) return { tool: "none" };
     if ((MATH_SIGN.test(t) || (MATH_WORD.test(t) && numbers(t) >= 1)) && has.has("calculate")) return { tool: "calculate" };
     if (WRITTEN_THING.test(t)) return { tool: "none" };

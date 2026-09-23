@@ -234,6 +234,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The time in another city, and the days between two dates, are worked
+  out by the app.** The date tool gave only the time where your computer is,
+  so a model asked for the time in Tokyo did the time-zone arithmetic
+  itself and could get the day wrong. The tool now takes a place or a time
+  zone and gives the date, time and day there. The calculator also counts
+  the days between two dates exactly, where a model had to add up the
+  months itself.
+
 - **What the app remembers about you is what you said.** Saying you are a
   developer was remembered as the first two letters of the word, a place of
   work after "at" was lost with it, and "I'm a bit tired" became a job.

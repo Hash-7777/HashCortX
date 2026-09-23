@@ -181,7 +181,8 @@ const LINE_BUDGET = {
   // remembered placed just before the request. The steps, the app's own first
   // step and what is shown are js/chat/decide.js and js/chat/intent.js; this is
   // the wiring to the model, the tools and the reply on screen.
-  'js/app.js': 6526,
+  // 6524, down two: the date tool's time anywhere is js/chat/clock.js.
+  'js/app.js': 6524,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

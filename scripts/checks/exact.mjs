@@ -36,6 +36,9 @@ ok('precedence: power before product before sum, power from the right', X.intege
 ok('brackets and a factorial of a bracket', X.integer('(3 + 2)! % 7') === '1');
 ok('division where it comes out whole', X.integer('100 / 4') === '25');
 ok('grouped thousands', X.integer('1,000,000 * 3') === '3000000');
+ok('the days between two dates', X.integer('days(2026-03-03, 2026-07-19)') === '138' && X.integer('days(2024-02-28, 2024-03-01)') === '2' && X.integer('days(2026-07-19, 2026-03-03)') === '-138');
+ok('... in a sum', X.integer('days(2026-01-01, 2026-12-31) + 1') === '365');
+ok('a date that does not exist is not a number of days', X.integer('days(2026-02-30, 2026-03-01)') === null);
 
 console.log('\nLeft to the ordinary arithmetic:');
 ok('division with a remainder', X.integer('7 / 2') === null);
@@ -52,6 +55,7 @@ console.log('\nThe calculate tool asks it first:');
   const tool = app.slice(app.indexOf('    calculate: {'), app.indexOf('    execute_python: {'));
   ok('exact first, then the ordinary reader', tool.indexOf('HCExact.integer(expression)') > 0 && tool.indexOf('HCExact.integer(expression)') < tool.indexOf('evaluateWritten'));
   ok('a rounded result says it was rounded', /rounded: too large to hold exactly/.test(tool));
+  ok('the model is told how to ask for the days between two dates', /days\(2026-03-03, 2026-07-19\) for the days between two dates/.test(tool));
   ok('it loads before the chat', src('boot.js').indexOf("'/js/chat/exact.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 
