@@ -474,7 +474,7 @@ console.log('\nAn answer cut off at the length limit is carried on:');
   const systems = readFileSync(join(here, '..', '..', 'src', 'modes', 'systems', 'mode.js'), 'utf8');
   ok('the Agent Swarm asks for finished answers', /runModelTurn\(\{[\s\S]{0,120}untilFinished: true/.test(swarm));
   ok('... and says in the trace when one was cut off', /result\.continued \|\| result\.cutOff/.test(swarm));
-  ok('the Systems builder asks for finished answers', /runModelTurn\(\{[^}]*untilFinished: true/.test(systems));
+  ok('the Systems builder asks for finished answers, unless a caller says a cut-off answer is read as it is', /untilFinished = true \} = \{\}\) \{/.test(systems) && /runModelTurn\(\{[^}]*untilFinished, need, json \}\)/.test(systems));
   ok('no agent answer carries a note about providers', !/switched providers during execution|\[Failover:/.test(swarm));
 }
 

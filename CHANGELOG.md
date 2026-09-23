@@ -250,6 +250,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Changing an ERP system's design takes seconds, and changes only what you
+  asked.** A design change was made by having the model write the whole
+  system out again — every screen, table and field — to change one thing,
+  which took many minutes on a small local model, could run out of time on
+  a cloud one, and let the model alter things nobody asked about. A change
+  is now a short list of edits: add, rename, change or remove a field or a
+  table, add, rename, re-show or remove a screen, rename the system, or
+  change its layout, typeface, density, surfaces or corners. The app makes
+  each edit itself and shows the list before anything changes. A request
+  that says plainly how the system should look, or how a screen should show
+  its table, is read by the app without a model. A new field starts empty
+  on the records you have; nothing is invented for them. Nothing is removed
+  unless you ask for it, and an edit the model gets wrong is sent back to it
+  once with the reason.
+
 - **A small model can no longer keep an answer going without end.** An
   answer held to a fixed shape — an agent's decision, the ERP's replies and
   designs — can only end when that shape is closed, and a small model can

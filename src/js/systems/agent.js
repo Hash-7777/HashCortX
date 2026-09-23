@@ -14,7 +14,7 @@
 // already existed and are already checked:
 //
 //   build    a new system for a business       (the builder, js/systems/scaffold.js)
-//   change   this system's design               (js/systems/revise.js)
+//   change   this system's design               (js/systems/edits.js)
 //   records  its records: add, edit, delete     (js/systems/work.js, shown first)
 //
 // Before building it must know what the business does, what it is called and
@@ -246,9 +246,21 @@ Return ONLY JSON, no markdown:
    * and did not ask for (noFalseClaim), and a change to the design — a field,
    * a column, a screen — sent down the records road, where it can only fail.
    */
+  // How a system looks, or how a screen shows its table: design, whatever
+  // the model made of it.
+  const LOOK_REQUEST = /\b(?:use|make|switch|change|set|give|put|move)\b[^.\n]{0,40}\b(?:typeface|font|density|compact|spacious|corners?|rounded|layout|sidebar|top bar|surfaces?)\b/i;
+  // A new table, named in a word or two: "add a Suppliers table". Not "add a
+  // customer to the customers table", which is a record.
+  const TABLE_REQUEST = /\b(?:add|create|make|set up)\s+(?:a\s+|an\s+)?(?:new\s+)?[\w&-]+(?:\s+[\w&-]+)?\s+(?:table|list|register)\b/i;
+  const SHOW_AS = /\bshow\b[^.\n]{0,40}\bas\b[^.\n]{0,12}\b(?:list|cards?|board|kanban|calendar|timeline|report|dashboard|metrics?|feed|split)\b/i;
+
   function settle(said, { starter, userTexts, text } = {}) {
     let s = noFalseClaim(settleBuild(said, { starter, userTexts }), text);
-    if (s.do === 'records' && DESIGN_REQUEST.test(String(text || ''))) s = { ...s, do: 'change', request: clean(text, 3000) };
+    const t = String(text || '');
+    const design = DESIGN_REQUEST.test(t) || TABLE_REQUEST.test(t) || LOOK_REQUEST.test(t) || SHOW_AS.test(t);
+    // A design change sent down the records road, or one the model let pass
+    // with nothing done, is made as the design change it is.
+    if (design && (s.do === 'records' || (s.do === 'none' && !/\?\s*$/.test(t)))) s = { ...s, do: 'change', request: clean(text, 3000) };
     return s;
   }
 

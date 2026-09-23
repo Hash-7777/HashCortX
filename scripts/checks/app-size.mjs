@@ -297,7 +297,11 @@ const LINE_BUDGET = {
   // agent's conversation; what the agent is told is js/systems/agent.js and
   // its conversation js/systems/agent-chat.js. The per-trade colour lists in
   // the prompts went with the colours they chose.
-  'modes/systems/mode.js': 3197,
+  // 3206, up nine: a design change is asked for as a short list of edits the
+  // app makes, what it plainly asks for read without a model, sent back once
+  // with what could not be made, judged by the person's own words. The edits
+  // are js/systems/edits.js, which replaced js/systems/revise.js.
+  'modes/systems/mode.js': 3206,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked

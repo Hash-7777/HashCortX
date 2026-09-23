@@ -513,7 +513,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
   // answers with `choices`. Every call with a Claude model selected therefore
   // failed, and because a failure here means failover, generation walked the
   // whole provider list twice before stopping.
-  async function callModel(modelValue, messages, signal, temperature = 0.25) {
+  async function callModel(modelValue, messages, signal, temperature = 0.25, { json = true, need = SPEC_NEED, untilFinished = true } = {}) {
     // Every model call in a generation passes through here, so this is where
     // the ceiling belongs — one place rather than in each of the three retry
     // loops, which is how the total went unbounded.
@@ -525,7 +525,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     }
     window.HCAgentPolicy.chargeRunBudget(runBudget);
     const mv = modelValue || $("model")?.value || "llama3.2";
-    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true, need: SPEC_NEED, json: true }); // a cut-off spec is carried on; every answer here is JSON
+    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished, need, json }); // a cut-off spec is carried on; every answer here is JSON
   }
 
   function modelTraceLabel(modelValue) {
@@ -1314,35 +1314,41 @@ Repair requirements:
     btn.hidden = !(undoRecords && getActive() && undoRecords.id === getActive().id);
   }
 
-  async function reviseSystem(request = "") {
+  // A design change is asked for as a short list of edits the app makes itself
+  // (js/systems/edits.js), sent back once with what could not be made.
+  // `asked` is the person's own words: what is read plainly, and whether a
+  // removal was asked for, is judged from them, not from the agent's retelling.
+  async function reviseSystem(request = "", asked = request) {
     const spec = getActive();
     if (!spec || runAbort || !String(request).trim()) return;
     clearTrace();
     setStatus("Changing", "running");
-    const R = window.HCSystemsRevise;
+    const E = window.HCSystemsEdits;
     const data = getRuntimeData(spec);
-    const asking = [
-      { role: "system", content: `${systemPrompt()}\n\nYou are CHANGING an existing system, not designing a new one. Return the complete updated SystemSpec. Keep every module, entity, field, workflow and design choice the request does not mention, with the same ids. For a new entity, include 6-10 mockData records for this business; do not repeat the existing records. Remove something only when asked.` },
-      { role: "user", content: `The system now:\n${JSON.stringify(R.compactSpec(spec, data))}\n\nThe change: ${request}\nToday is ${todayIso()}.` },
-    ];
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
-    runRoutes = newRoutes(asking);
+    runRoutes = newRoutes(E.messages(spec, request));
     updateCreateButtonState();
     const signal = runAbort.signal;
     try {
-      const tried = [];
       let model = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
-      let next = null;
-      for (let attempt = 1; attempt <= 6 && !next; attempt++) {   // a refusal costs nothing; the run budget bounds the rest
+      // What the request plainly asks for is read by the app; the model is asked only for the rest.
+      const plain = E.plainEdits(spec, asked);
+      let made = plain.whole ? E.apply(spec, plain.changes, { icon: moduleIcon, request: asked }) : null;
+      const already = plain.changes.length ? E.apply(spec, plain.changes, { request: asked }).done : [];
+      for (let attempt = 1; attempt <= 6 && !made; attempt++) {   // a refusal costs nothing; the run budget bounds the rest
         trace(`Changing ${spec.name} — ${modelTraceLabel(model)}`, "run");
         try {
-          const r = await callModel(model, asking, signal, 0.3);
-          const raw = r?.content || "";
-          const parsed = parseSpecJson(raw);
-          if (!parsed) throw new Error("Model returned invalid SystemSpec JSON");
-          const kept = R.keepDesign(spec, { ...parsed, id: spec.id, name: parsed.name || spec.name, domain: spec.domain });
-          next = await writeMissingRecords(await finalizeOrRepairGeneratedSpec(model, kept, raw, `${spec.description} ${request}`, signal, tried, spec), request, signal, model);
+          let problems = [];
+          for (let round = 1; round <= 2 && !made; round++) {
+            // Not carried on when cut off: the edits it finished are kept (js/systems/edits.js).
+            const r = await callModel(model, E.messages(spec, request, problems, already), signal, 0.2, { json: E.schema(spec), need: 2000, untilFinished: false });
+            const edits = E.read(r?.content);
+            if (!edits) throw new Error("Model returned no edits in JSON");
+            const out = E.apply(spec, [...plain.changes, ...edits], { icon: moduleIcon, request: asked });
+            if (out.problems.length && round === 1) { problems = out.problems; out.problems.forEach(p => trace(`Could not: ${p} — asking again`, "warn")); continue; }
+            made = out;
+          }
         } catch (err) {
           if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
           trace(`${modelTraceLabel(model)} could not make the change: ${String(err.message || err).slice(0, 90)}`, "warn");
@@ -1351,18 +1357,21 @@ Repair requirements:
           model = other;
         }
       }
-      if (!next) throw new Error("No model could make the change");
-      // The books the person already has stay theirs; the ledger would redraw them.
-      for (const id of Object.values(DOMAIN().FINANCE_ENTITY_IDS)) if (data[id] && next.entities[id]) next.mockData[id] = data[id];
-      // Shown and asked first, as a change to records is: a model rewrites the
-      // whole system to make one change and adds what nobody asked for.
-      const changes = R.specChanges(spec, next);
-      if (!changes.length) { trace("The model returned the system unchanged", "warn"); setStatus("Idle"); return; }
-      if (!(await window._H.themedConfirm(`This will change the design of ${spec.name}:\n\n${changes.join("\n")}\n\nNothing has been changed yet.`, "Do this?"))) { trace("Left as it was", "warn"); setStatus("Idle"); return; }
+      if (!made) throw new Error("No model could make the change");
+      made.problems.forEach(p => trace(`Not done: ${p}`, "warn"));
+      if (!made.done.length) { trace(made.problems.length ? "Nothing could be changed" : made.unchanged.length ? `It is already like that: ${made.unchanged.join("; ")}` : "That is not a change the design can take", "warn"); setStatus("Idle"); return; }
+      // The records stay; a new table gets records written for this business.
+      let next = { ...made.spec, id: spec.id, updatedAt: Date.now(), mockData: { ...data } };
+      for (const id of made.newTables) next.mockData[id] = Array.from({ length: 8 }, (_, i) => normalizeRecord({}, next.entities[id], i));
+      Object.defineProperty(next, "standIns", { value: made.newTables.slice(), enumerable: false, configurable: true });
+      if (made.newTables.length) next = await writeMissingRecords(next, `${spec.description} ${request}`, signal, model);
+      assertRenderableSpec(next);
+      const notDone = made.problems.length ? `\n\nCould not be done:\n${made.problems.map(p => `- ${p}`).join("\n")}` : "";
+      if (!(await window._H.themedConfirm(`This will change the design of ${spec.name}:\n\n${made.done.map(d => `- ${d}`).join("\n")}${notDone}\n\nNothing has been changed yet.`, "Do this?"))) { trace("Left as it was", "warn"); setStatus("Idle"); return; }
       next.revisionHistory = [snapshot(spec, request), ...(spec.revisionHistory || [])].slice(0, MAX_HISTORY);
       systems[systems.findIndex(s => s.id === spec.id)] = next;
       saveRuntimeData(next, next.mockData); saveSystems(); renderAll();
-      changes.forEach(c => trace(c, "ok"));
+      made.done.forEach(c => trace(c, "ok"));
       trace("Changed — the version before is in History", "ok");
       setStatus("Done", "done");
     } catch (err) {
@@ -2763,7 +2772,7 @@ Repair requirements:
       const unsaid = said.do === "build" ? A.unsaid(said.business, userTexts) : [];
       C.reply(unsaid.length ? A.askFor(unsaid) : A.leadIn(said, text));
       if (said.do === "build" && !unsaid.length) await createSystem(said.business, said.request);
-      else if (said.do === "change") await reviseSystem(said.request);
+      else if (said.do === "change") await reviseSystem(said.request, text);
       else if (said.do === "records") await workSystem(said.request, text);
     } catch (err) {
       const stopped = err?.name === "AbortError" || agentAbort?.signal.aborted;

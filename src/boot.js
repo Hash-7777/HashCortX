@@ -143,7 +143,7 @@
     '/js/systems/stages.js',
     '/js/systems/relations.js',
     '/js/systems/forms.js',
-    '/js/systems/revise.js',
+    '/js/systems/edits.js',
     '/js/systems/work.js',
     '/js/systems/figures.js',
     '/js/systems/money.js',

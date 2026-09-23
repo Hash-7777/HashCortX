@@ -109,6 +109,11 @@ console.log('\nWhat the app does with an answer, whatever the model:');
   ok('... and when nothing was asked, the claim is replaced by the truth', /^Nothing was changed/.test(A.noFalseClaim(claim, 'hello').say));
   ok('a design change sent down the records road is sent to the design', A.settle(A.readReply('{"say":"ok","do":"records","request":"ALTER TABLE"}'), { text: 'Add an ISBN field to the products table' }).do === 'change');
   ok('... while adding a record is left as records', A.settle(A.readReply('{"say":"ok","do":"records","request":"add"}'), { text: 'Add a customer called Sara' }).do === 'records');
+  const none = (text) => A.settle(A.readReply('{"say":"Sure.","do":"none"}'), { text }).do;
+  ok('a change to how the system looks, let pass with nothing done, is made', none('Use a serif typeface and compact density.') === 'change' && none('Switch the layout to a top bar.') === 'change');
+  ok('... and so is showing a screen another way', none('Show Customers as a list instead.') === 'change' && none('show the orders as a kanban board') === 'change');
+  ok('a new table asked for is made, while a record for a table is not a table', none('Add a Suppliers table with name, phone and city.') === 'change' && none('Create a new Staff table') === 'change' && A.settle(A.readReply('{"say":"ok","do":"records","request":"add"}'), { text: 'Add a customer to the customers table' }).do === 'records');
+  ok('... while a question about the design is still only answered', none('What font does it use?') === 'none' && none('Can you show me the orders as a list?') === 'none' && none('How many customers do we have?') === 'none');
   ok('what it says as it acts is the app\'s, in the person\'s words, never a claim it is done',
     /^Working out what to change in your records: Add Sara/.test(A.leadIn({ do: 'records', say: 'Added!', request: 'INSERT INTO' }, 'Add Sara')) && A.leadIn({ do: 'none', say: 'Hi' }) === 'Hi');
 }
@@ -138,13 +143,13 @@ console.log('\nHow the Systems mode uses it:');
   ok('the answer is read, and settled by the app, before anything is done', /const said = A\.settle\(A\.readReply\(answer\.text\), \{ starter: !!spec\?\.starter, userTexts, text \}\);/.test(mode)
     && /C\.reply\(unsaid\.length \? A\.askFor\(unsaid\) : A\.leadIn\(said, text\)\);/.test(mode) && /json: A\.REPLY_SCHEMA/.test(mode));
   ok('build, change and records go down the paths the ERP already had', /said\.do === "build" && !unsaid\.length\) await createSystem\(said\.business, said\.request\)/.test(mode)
-    && /said\.do === "change"\) await reviseSystem\(said\.request\)/.test(mode) && /said\.do === "records"\) await workSystem\(said\.request, text\)/.test(mode));
+    && /said\.do === "change"\) await reviseSystem\(said\.request, text\)/.test(mode) && /said\.do === "records"\) await workSystem\(said\.request, text\)/.test(mode));
   ok('a new system replaces the untouched starter, never one in use', /systems = \[spec, \.\.\.systems\.filter\(s => !window\.HCSystemsAgent\.isUntouchedStarter\(s, getRuntimeData\(s\)\)\)\];/.test(mode));
   ok('the ERP opens on the starter when there is no system', /if \(!systems\.length\) openStarter\(\);/.test(mode));
   ok('an exported file never wires the agent', /if \(!STANDALONE\) CHAT\(\)\?\.init\(/.test(mode));
   ok('a stop stops both the asking and a build under way', /function agentStop\(\) \{\s*agentAbort\?\.abort\(\);\s*stopSystemGeneration\(\);/.test(mode));
   ok('models are ranked by the shared ranking, which does not take "gemini" for "mini"', /const modelScore = \(value, label\) => [^\n]*window\.HCChatFailover\.strengthOf\(value, label\)/.test(mode) && !/function modelScore/.test(mode));
-  ok('a change is routed by what it will send, not by the instructions alone', /runRoutes = newRoutes\(asking\);/.test(mode) && (mode.match(/runRoutes = newRoutes\(asking\);/g) || []).length === 2);
+  ok('a build and a change are each routed by what they will send, not by the instructions alone', (mode.match(/runRoutes = newRoutes\(asking\);/g) || []).length === 1 && /runRoutes = newRoutes\(E\.messages\(spec, request\)\);/.test(mode));
   ok('the form that came before is gone', !/HCSystemsSetupDialog/.test(mode) && !/id="sysSetup"/.test(panel));
 }
 
