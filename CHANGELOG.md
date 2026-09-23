@@ -359,6 +359,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **"Run the agents that did not finish" shows only when some did not.**
+  In the Swarm Workspace it stayed on screen after every run, offering to
+  run none, because a style every button shares outweighed the attribute
+  that hides it. Every Workspace button now stays hidden when it is hidden.
+
 - **A landing page for a business called a shop is not planned as an online
   store.** The Agent Swarm read "shop" or "store" anywhere in a request as
   selling online, so "a landing page for a neighbourhood coffee shop" was

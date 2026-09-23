@@ -398,5 +398,13 @@ console.log('\nA pass that failed part-way can be finished:');
   ok('the Workspace offers it only when something failed', /finish\.hidden = !left;/.test(ws) && /deps\.runTeam\(\{ run, resume: true,/.test(ws));
 }
 
+console.log('\nA button the Workspace hides stays hidden:');
+{
+  const css = src('modes', 'agent-maker', 'mode.css');
+  // A global button rule sets display, which beats the hidden attribute on its own.
+  ok('every Workspace button obeys the hidden attribute, not only the composer\'s', /^\.amk-ws-btn\[hidden\] \{ display: none; \}$/m.test(css));
+  ok('... among them "Run the agents that did not finish", hidden while none is left', /finish\.hidden = !left;/.test(src('js', 'swarm', 'workspace.js')) && /id="amkWsFinish"[^>]*class="amk-ws-btn|class="amk-ws-btn[^"]*" id="amkWsFinish"/.test(src('modes', 'agent-maker', 'panel.html')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);

@@ -930,7 +930,8 @@ img.amk-empty-logo {
 }
 .amk-ws-composer-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .amk-ws-composer-row .amk-ws-btn { flex-shrink: 0; }
-.amk-ws-composer-row .amk-ws-btn[hidden] { display: none; }
+/* A global button rule sets display, which beats the hidden attribute; every Workspace button is hidden when it says so. */
+.amk-ws-btn[hidden] { display: none; }
 .amk-ws-base { font-size: 11px; color: var(--amk-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amk-ws-hint { margin-right: auto; min-width: 0; font-size: 11px; line-height: 1.4; color: var(--muted); overflow-wrap: anywhere; }
 .amk-ws-hint.ok { color: var(--ok); }
