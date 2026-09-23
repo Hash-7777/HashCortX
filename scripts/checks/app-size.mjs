@@ -165,7 +165,10 @@ const LINE_BUDGET = {
   // 6446, down fifty-one. The four requests to a local model and their four
   // readings of its reply are one client, js/local-client.js, which also reads
   // a thinking model's thinking; showing it is js/chat/thought.js.
-  'js/app.js': 6446,
+  // 6459, up thirteen: a local model is loaded while the message is still
+  // being written, and one the app unloads is sized afresh when it returns.
+  // The loading and the sizing are in js/local-client.js and js/local-context.js.
+  'js/app.js': 6459,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

@@ -53,13 +53,30 @@ console.log('\nWhat the model supports, asked once:');
     && (await L.numCtx('http://h', 'tiny', text(100), { floor: 16384, fetchFn: async () => ({ ok: true, json: async () => ({ model_info: { 'x.context_length': 4096 } }) }) })) === 4096);
 }
 
+console.log('\nThe window a model is loaded with is kept while it fits:');
+{
+  const fetchFn = async () => ({ ok: true, json: async () => ({ model_info: { 'x.context_length': 131072 } }) });
+  const n = (chars, opts = {}) => L.numCtx('http://s', 'm', text(chars), { fetchFn, ...opts });
+  const a = await n(1000);
+  const b = await n(40000);
+  const c = await n(1000);
+  ok('a short request after a longer one keeps the larger window: no reload', a === 8192 && b === 16384 && c === 16384);
+  const d = await n(80000, { need: 4000 });
+  const e = await n(1000);
+  ok('a window more than twice what is needed is not kept: it holds memory the model could use', d === 32768 && e === 8192);
+  ok('a caller\'s floor is honoured when it asks for more', (await n(1000, { floor: 16384 })) === 16384);
+  L.forget('http://s', 'm');
+  ok('forgotten, a model is sized afresh', (await n(1000)) === 8192);
+}
+
 console.log('\nEvery local call is sized:');
 {
   const app = src('js', 'app.js');
   const calls = app.match(/HCLocalContext\.numCtx\(/g) || [];
-  ok('the agent turn, plain chat, the side-by-side view and the modes\' own calls', calls.length === 4 && !/num_ctx: 8192/.test(app));
+  ok('the agent turn, plain chat, the side-by-side view, the modes\' own calls and the warm-up', calls.length === 5 && !/num_ctx: 8192/.test(app));
   ok('no request to a local model is written out beside the one client', !/\/api\/chat/.test(app));
   ok('the agent turn leaves room for the answer the caller needs', /agentTurnOllama\(\{ model, messages, tools, temperature, signal, json, need \}\)/.test(app) && /\{ need \}\)/.test(app));
+  ok('a model the app unloads is sized afresh when it is loaded again', /HCLocalContext\.forget\(host, modelName\)/.test(app));
   ok('it loads before the chat', src('boot.js').indexOf("'/js/local-context.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 

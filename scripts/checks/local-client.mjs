@@ -4,8 +4,9 @@
 // Loads the REAL src/js/local-client.js and holds that a reply from a model on
 // this computer is read whole: its words and its thinking handed on as they
 // arrive and kept apart, thinking written between think tags taken out of the
-// answer, tool calls kept, and a failure reported part-way through the reply
-// raised rather than taken for an answer.
+// answer, tool calls kept, a failure reported part-way through the reply
+// raised rather than taken for an answer, and a model loaded ahead of its
+// request no more than once a minute.
 //
 // Run with: npm run check:local-client
 // ==============================================================
@@ -90,11 +91,27 @@ console.log('\nOne request, read by the shared line reader:');
   ok('a refusal names its status and Ollama\'s words', err && /400/.test(err.message) && /does not support tools/.test(err.message));
 }
 
+console.log('\nLoaded ahead of the request:');
+{
+  const calls = [];
+  const fetchFn = async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true }; };
+  const first = await C.warm('http://w', 'm', 8192, { fetchFn, now: 1000 });
+  await C.warm('http://w', 'm', 8192, { fetchFn, now: 30000 });
+  ok('at the window the request will use, with nothing to answer', first === true && calls.length === 1 && calls[0].options.num_ctx === 8192 && calls[0].messages.length === 0 && calls[0].keep_alive === -1);
+  ok('not asked again within the minute', calls.length === 1);
+  await C.warm('http://w', 'm', 8192, { fetchFn, now: 62000 });
+  await C.warm('http://w', 'm', 16384, { fetchFn, now: 62001 });
+  ok('asked again after it, or for another window', calls.length === 3);
+  ok('never for a cloud model', (await C.warm('http://w', 'cloud:groq:x', 8192, { fetchFn, now: 1 })) === false && calls.length === 3);
+  ok('a server that is not there is not an error', (await C.warm('http://w', 'gone', 8192, { fetchFn: async () => { throw new Error('refused'); }, now: 1 })) === false);
+}
+
 console.log('\nThe app uses it:');
 {
   const app = src('js', 'app.js');
   ok('the chat, the side-by-side view, the modes and the agents all read replies through it', (app.match(/HCLocal\.chat\(/g) || []).length === 4);
   ok('a thinking model\'s thinking is shown in the chat as it arrives', /onThinking: \(t\) => showThinking\(assistant, t\)/.test(app));
+  ok('the model is loaded while the message is written', /HCLocal\.warm\(/.test(app) && /warmLocalModel\(\);/.test(app));
   const boot = src('boot.js');
   ok('it loads after the line reader and before the chat', boot.indexOf("'/js/stream/sse.js'") < boot.indexOf("'/js/local-client.js'") && boot.indexOf("'/js/local-client.js'") < boot.indexOf("'/js/app.js'"));
 }

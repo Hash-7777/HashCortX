@@ -15,6 +15,14 @@
 // that keeps memory in check. A request that still does not fit is refused in
 // words, not cut.
 //
+// THE WINDOW A MODEL IS ALREADY LOADED WITH IS KEPT. Ollama loads a model
+// again whenever a request names a different window, which costs one to three
+// seconds before the first word on this class of machine. So a request that
+// fits the window last sent for that model reuses it, as long as that window
+// is no more than twice what the request needs: a far larger one holds memory
+// the model's own layers could use, and on a small machine that pushes part of
+// the model off the graphics chip and makes every word slower.
+//
 // Published as window.HCLocalContext. Checked by scripts/checks/local-context.mjs.
 // ============================================================
 (function () {
@@ -66,17 +74,35 @@
     return max;
   }
 
+  const sent = new Map();   // host|model -> the window last sent for it
+
+  /**
+   * The window to send: the one the model is loaded with when it holds the
+   * request and is at most twice what is needed, otherwise the smallest step
+   * that holds it. `floor` is a window the caller wants at least.
+   */
+  function pick(key, size, floor, max) {
+    const needed = Math.max(size, Math.min(Number(floor) || 0, max));
+    const last = sent.get(key);
+    const chosen = last && last >= needed && last <= needed * 2 && last <= max ? last : needed;
+    sent.set(key, chosen);
+    return chosen;
+  }
+
   /**
    * `num_ctx` for a request to a local model, or an error that says why it
    * cannot be sent whole. The error reads as a request too large, so the
-   * routing treats it as one. `floor` is a window the caller wants at least.
+   * routing treats it as one.
    */
   async function numCtx(host, model, messages, { need, floor, fetchFn } = {}) {
     const max = await limitOf(host, model, fetchFn);
     const size = sizeFor(messages, { need, max });
-    if (size.ok) return Math.max(size.numCtx, Math.min(Number(floor) || 0, max));
+    if (size.ok) return pick(`${host}|${model}`, size.numCtx, floor, max);
     throw new Error(`request too large for ${model}: about ${size.wanted.toLocaleString("en-US")} tokens against the ${size.numCtx.toLocaleString("en-US")} it can be given. Shorten it, or pick a model with more room.`);
   }
 
-  window.HCLocalContext = { tokensOf, sizeFor, limitOf, numCtx, STEPS, CEILING };
+  /** Forget what was sent, so a model loaded again elsewhere is sized afresh. */
+  const forget = (host, model) => sent.delete(`${host}|${model}`);
+
+  window.HCLocalContext = { tokensOf, sizeFor, limitOf, numCtx, forget, STEPS, CEILING };
 })();

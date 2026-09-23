@@ -2784,7 +2784,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     updateContextIndicator();
     if (currentSlashQuery() != null) renderSlashPalette();
     else closeSlashPalette();
+    warmLocalModel();
   });
+  // A local model is loaded while the message is still being written, at the
+  // window the message will be sent with, so the answer does not wait for the
+  // load (js/local-client.js). Nothing is loaded for a cloud model or an empty box.
+  let _warmAt = 0;
+  function warmLocalModel() {
+    const model = modelEl.value;
+    if (!model || model.startsWith("cloud:") || !input.value.trim() || Date.now() - _warmAt < 20000) return;
+    _warmAt = Date.now();
+    const host = safeHost();
+    HCLocalContext.numCtx(host, model, buildOllamaMessages()).then((n) => HCLocal.warm(host, model, n), () => {});
+  }
   input.addEventListener("keydown", (e) => {
     if (state.slashOpen) {
       const items = filteredSlashCommands();
@@ -3241,6 +3253,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const host = safeHost();
     const uniq = [...new Set((names || []).filter(name => name && !String(name).startsWith("cloud:")))];
     for (const modelName of uniq) {
+      HCLocalContext.forget(host, modelName);   // loaded again, it is sized afresh
       const payload = JSON.stringify({ model: modelName, keep_alive: 0 });
       if (keepalive) {
         try {

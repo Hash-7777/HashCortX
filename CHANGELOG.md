@@ -234,6 +234,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local model answers without reloading first.** Ollama loads a model
+  again whenever a request asks for a different amount of room, and the
+  app's own requests asked for different amounts, so a model was often
+  reloaded between one message and the next — one to three seconds before
+  the first word. A request now uses the room the model is already loaded
+  with whenever that holds it, and the model is loaded while you are still
+  typing, so it is ready when you press send.
+
 - **A local model that thinks is no longer silent.** A model that thinks
   before it answers showed three dots for as long as it thought, often many
   seconds, and its thinking was then thrown away. The thinking now appears

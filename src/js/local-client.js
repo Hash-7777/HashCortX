@@ -14,6 +14,9 @@
 // counts. A model that writes its thinking into its words between think tags
 // has it taken out of the answer the same way.
 //
+// `warm` loads a model ahead of the request that needs it, at the window that
+// request will use, so the first answer does not wait for the load.
+//
 // Pure apart from the network call it is given. Published as window.HCLocal.
 // Checked by scripts/checks/local-client.mjs.
 // ============================================================
@@ -123,5 +126,24 @@
     return read(lines, { onToken, onThinking });
   }
 
-  window.HCLocal = { body, thinkTags, read, chat };
+  const warming = new Map();   // host|model|window -> when it was last asked for
+
+  /**
+   * Load a model at the window its next request will use, so that request
+   * does not wait for it. Asked at most once a minute for the same window;
+   * a model already loaded at it answers at once.
+   */
+  function warm(host, model, numCtx, { fetchFn = (...a) => fetch(...a), now = Date.now() } = {}) {
+    if (!host || !model || String(model).startsWith("cloud:")) return Promise.resolve(false);
+    const key = `${host}|${model}|${numCtx}`;
+    if (warming.has(key) && now - warming.get(key) < 60000) return Promise.resolve(false);
+    warming.set(key, now);
+    return fetchFn(`${host}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body({ model, messages: [], stream: false, numCtx, keepAlive: -1 })),
+    }).then((r) => !!(r && r.ok), () => false);
+  }
+
+  window.HCLocal = { body, thinkTags, read, chat, warm };
 })();
