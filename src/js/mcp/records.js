@@ -126,6 +126,7 @@
     if (!tools.length) return { tools: 0, text: "", raws: [] };
     const paramsOf = new Map(tools.map((t) => [t.function.name, t.function.parameters]));
     const raws = [];
+    const named = [];   // each read that answered: the tool, what it was asked, what it sent
     const already = new Map();
     const out = await deps.decide.run({
       // The request is about this system's records, so the first step reads some.
@@ -138,14 +139,14 @@
         const key = `${call.name} ${JSON.stringify(args)}`;
         if (words != null && already.has(key)) return already.get(key);
         const got = await deps.mcp.run(call.name, args, { raw: keepRaw });
-        if (keepRaw && got && got.raw) raws.push(got.raw);
+        if (keepRaw && got && got.raw) { raws.push(got.raw); named.push({ tool: call.name, args, raw: got.raw }); }
         const { raw, ...said } = got || {};
         const text = JSON.stringify(said);
         already.set(key, text);
         return text;
       },
     });
-    return { tools: tools.length, text: out.text, calls: out.calls, raws };
+    return { tools: tools.length, text: out.text, calls: out.calls, raws, named };
   }
 
   /** A tool's name as the person reads it: "sys_…_search_records" is "search records". */

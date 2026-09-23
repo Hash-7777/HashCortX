@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Finance can report from a connected system.** Name a connected system
+  in a Finance request, such as "summarise the unpaid invoices in Company
+  ERP", and its records are read with its reading tools, after you allow
+  it, and go with the request as an attachment, the way a file does. The
+  model lists the figures and the app does every sum, as with a file. A
+  request that names a system this model may not read is told so rather
+  than answered without the records, and a Finance conversation holding
+  records a system keeps from cloud models is not sent to one, across a
+  restart too.
+
 - **Sign in to a connected system through the browser.** A system that has
   its users sign in on its own page no longer needs a key: leave the key
   empty, or choose "Sign in through the browser" under More options, and

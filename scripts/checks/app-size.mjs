@@ -625,7 +625,10 @@ const LINE_BUDGET = {
   // 2377, up one: renderReport gives every chart its own id before drawing,
   // through ensureChartIds in src/js/finance/charts.js.
   // 2376, down one: a parseAmt wrapper nothing called.
-  'modes/finance/mode.js': 2353,
+  // 2357, up four: a request naming a connected system reads it first, as an
+  // attachment, and a conversation holding records a model may not see is
+  // not sent to it. The deciding is js/finance/connected.js; this is the wiring.
+  'modes/finance/mode.js': 2357,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //

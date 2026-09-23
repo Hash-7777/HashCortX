@@ -963,7 +963,7 @@ const FinanceMode = (() => {
       ].filter(Boolean).join(" · ");
       return `
         <div class="fin-file-chip ${f.extracted || f.images?.length ? "" : "warning"}">
-          <span class="fin-file-icon">${f.kind === "pdf" ? "PDF" : f.kind === "text" ? "TXT" : "FILE"}</span>
+          <span class="fin-file-icon">${f.kind === "pdf" ? "PDF" : f.kind === "text" ? "TXT" : f.kind === "records" ? "DATA" : "FILE"}</span>
           <span class="fin-file-main">
             <span class="fin-file-name">${escHtml(f.name)}</span>
             <span class="fin-file-meta">${escHtml(meta)}</span>
@@ -1010,6 +1010,10 @@ const FinanceMode = (() => {
     const input = document.getElementById("finInput");
     const send  = document.getElementById("finSend");
     const filesForPrompt = pendingFiles.slice();
+    // A connected system the request names is read first, as an attachment; a conversation holding records a model may not see is not sent to it — js/finance/connected.js.
+    send.disabled = true; const prep = window.HCFinanceConnected ? await window.HCFinanceConnected.prepare({ text: input?.value?.trim() || "", files: filesForPrompt, history: chatHistory, modelValue: getModel() }, { onEvent: (kind, call) => { if (kind === "tool_call") traceAdd("Connected", `Reading ${window.HCMcp?.stepOf(call.name)?.object || call.name}`, "run"); } }) : {};
+    if (prep.refusal) { send.disabled = false; hideEmpty(); appendMessage("ai", prep.refusal); return; }
+    if (prep.attachment) filesForPrompt.push(prep.attachment);
     const hasFiles = filesForPrompt.length > 0;
     const text  = input?.value?.trim() || (hasFiles ? DEFAULT_FILE_PROMPT : "");
     if (!text) return;
@@ -1047,7 +1051,7 @@ const FinanceMode = (() => {
         kind: f.kind,
         pages: f.pages || 0,
         chars: f.chars || 0,
-        extracted: !!f.extracted,
+        extracted: !!f.extracted, ...(f.from ? { from: f.from } : {}),   // where records came from, for heldFrom
       })),
     });
 

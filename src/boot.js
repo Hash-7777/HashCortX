@@ -113,6 +113,7 @@
     '/js/finance/charts.js',
     '/js/finance/figures.js',
     '/js/finance/prompt.js',
+    '/js/finance/connected.js',
     '/js/sandbox/patterns.js',
     '/js/swarm/task-kind.js',
     '/js/swarm/model-strength.js',
