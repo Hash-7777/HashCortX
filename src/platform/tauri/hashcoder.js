@@ -568,6 +568,28 @@
     },
   ];
 
+  /**
+   * The tools as a model is offered them. An argument given as a sentence is a
+   * string argument with that description; every argument is required except
+   * the ones that are optional by name.
+   */
+  HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
+    type: 'function',
+    function: {
+      name: t.name,
+      description: t.description,
+      parameters: {
+        type: 'object',
+        properties: Object.fromEntries(
+          Object.entries(t.parameters).map(([k, v]) =>
+            [k, (v && typeof v === 'object' && v.type) ? v : { type: 'string', description: String(v) }]
+          )
+        ),
+        required: Object.keys(t.parameters).filter(k => !['reason', 'cwd', 'file_ext'].includes(k)),
+      },
+    },
+  }));
+
   // ── System prompt ───────────────────────────────────────────
 
   // What every agent that reads tool results is told about them: the Coder

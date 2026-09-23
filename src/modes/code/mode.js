@@ -162,24 +162,8 @@
     if (shown.length) messages.push(window._H.visionMessage(shown));
   }
 
-  function buildLegacyTools() {
-    return (HC?.code?.TOOL_DEFINITIONS || []).map(t => ({
-      type: 'function',
-      function: {
-        name: t.name,
-        description: t.description,
-        parameters: {
-          type: 'object',
-          properties: Object.fromEntries(
-            Object.entries(t.parameters).map(([k, v]) =>
-              [k, (v && typeof v === 'object' && v.type) ? v : { type: 'string', description: String(v) }]
-            )
-          ),
-          required: Object.keys(t.parameters).filter(k => !['reason', 'cwd', 'file_ext'].includes(k)),
-        }
-      }
-    }));
-  }
+  // The tools as a model is offered them — platform/tauri/hashcoder.js.
+  const buildLegacyTools = () => HC?.code?.toolList?.() || [];
 
   // ── Auto-router ────────────────────────────────────────────
   // Provider fallback order for coding tasks; an entry is used only when its key is saved.
@@ -1953,24 +1937,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
 
     // ── Build tools + system ──────────────────────────────────
-    function buildTools() {
-      return (HC?.code?.TOOL_DEFINITIONS || []).map(t => ({
-        type: 'function',
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: {
-            type: 'object',
-            properties: Object.fromEntries(
-              Object.entries(t.parameters).map(([k, v]) =>
-                [k, (v && typeof v === 'object' && v.type) ? v : { type: 'string', description: String(v) }]
-              )
-            ),
-            required: Object.keys(t.parameters).filter(k => !['reason', 'cwd', 'file_ext'].includes(k)),
-          }
-        }
-      }));
-    }
+    const buildTools = buildLegacyTools;
 
     function sysPrompt(extra) {
       // ── Surgical system prompt ──

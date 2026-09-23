@@ -648,7 +648,9 @@ const LINE_BUDGET = {
   // 2632, up eight: a run gives its commands a stop key, and Stop ends them.
   // 2636, up four: Undo asks before putting a file back over edits made
   // since the agent's change, and a no leaves the button as it was.
-  'modes/code/mode.js': 2636,
+  // 2603, down thirty-three: its two loops built the tool list from two
+  // identical copies of one function, now platform/tauri/hashcoder.js toolList.
+  'modes/code/mode.js': 2603,
 };
 
 console.log('\nFile sizes go down, never up:');
