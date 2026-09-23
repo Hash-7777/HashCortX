@@ -184,7 +184,9 @@ const LINE_BUDGET = {
   // 6524, down two: the date tool's time anywhere is js/chat/clock.js.
   // 6526, up 2: a local model that thinks is asked not to when deciding on
   // a tool or reading back what one found.
-  'js/app.js': 6526,
+  // 6522, down four: pasted pages, notes and looked-up context are framed as
+  // material by js/chat/sources.js.
+  'js/app.js': 6522,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

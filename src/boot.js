@@ -86,6 +86,7 @@
     '/js/chat/thought.js',
     '/js/chat/exact.js',
     '/js/chat/clock.js',
+    '/js/chat/sources.js',
     '/js/chat/intent.js',
     '/js/chat/decide.js',
     '/js/model-speed.js',

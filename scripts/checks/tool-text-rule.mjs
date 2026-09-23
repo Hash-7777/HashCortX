@@ -76,8 +76,8 @@ ok('Virtual OS\'s chat agent, the one that runs its tools, ahead of the workspac
 
 console.log('\nThe security document does not call it a filter:');
 const doc = read('docs', 'SECURITY.md');
-ok('it is described as guidance to the model', /TOOL_TEXT_RULE/.test(doc) && /not a filter/.test(doc));
-ok('"No prompt-injection filter" still stands', /\*\*No prompt-injection filter\.\*\*/.test(doc));
+ok('it is described as guidance to the model', /TOOL_TEXT_RULE/.test(doc) && /guidance to the model, not a guarantee/.test(doc));
+ok('it stays among what HashCortx does not have, and says what is framed and where', /\*\*No filter on everything a model reads\.\*\*/.test(doc) && /src\/js\/chat\/sources\.js/.test(doc) && /sent as it is/.test(doc));
 
 console.log(`\n${pass} passed, ${fail} failed  (tool text rule)`);
 if (fail) process.exit(1);

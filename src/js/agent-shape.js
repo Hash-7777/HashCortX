@@ -237,10 +237,13 @@
    * tagged call it was, a result as a message in the person's turn. Every
    * model's template reads that, including one that drops tool turns.
    */
+  const markSource = (text) => (typeof window !== 'undefined' && window.HCSources ? window.HCSources.mark(text) : text);
+
   function toolTurnsInWords(messages) {
     const out = [];
     for (const m of withoutSignatures(messages)) {
-      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${m.content || ''}` }); continue; }
+      // A result is material, not instructions: a sentence in it speaking to the model is marked (js/chat/sources.js).
+      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${markSource(m.content || '')}` }); continue; }
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
         const calls = m.tool_calls.map((c) => `<tool_call>${JSON.stringify({ name: c.function && c.function.name, arguments: safeJsonParse(c.function && c.function.arguments) || {} })}</tool_call>`);
         out.push({ role: 'assistant', content: [m.content, ...calls].filter(Boolean).join('\n') });

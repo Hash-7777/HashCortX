@@ -2831,10 +2831,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // SECURITY: never expose personal knowledge base in preview for cloud/external models
     const _previewIsExternal = modelEl.value.startsWith("cloud:");
     const ragChunks = _previewIsExternal ? [] : await queryRAGMerged(text);
-    if (ragChunks.length) {
-      const ragBlock = `Background:\n` + ragChunks.map((c,i)=>`${i+1}. ${c.title}: ${c.text}`).join("\n\n");
-      toolContext = toolContext ? `${toolContext}\n\n${ragBlock}` : ragBlock;
-    }
+    if (ragChunks.length) toolContext = HCSources.frame(ragChunks.map((c) => ({ title: c.title, text: c.text })));
 
     // Build messages exactly as send() would: pending input must exist before
     // tool/RAG context is injected so context attaches to the current turn.
@@ -2851,7 +2848,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     if (toolContext) {
       const last = messages[messages.length - 1];
-      if (last?.role === "user") last.content = `${toolContext}\n\nQuestion: ${last.content}`;
+      if (last?.role === "user") last.content = `${toolContext}\n\nMy question: ${last.content}`;
       else messages.splice(messages.length - 1, 0, { role: "system", content: toolContext });
     }
 
@@ -4594,14 +4591,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // Read with or without an agent. Tools only run for an agent, so plain
       // chat answered from the address alone — describing a page it had never
       // opened, which is worse than declining.
-      const parts = await readPastedLinks(seedText);
-      if (injectionEnabled && !_isExternalModel) {
-        const ragChunks = await queryRAGMerged(seedText);
-        if (ragChunks.length) {
-          parts.push(`Background:\n` + ragChunks.map((c,i) => `${i+1}. ${c.title}: ${c.text}`).join("\n\n"));
-        }
-      }
-      const toolContext = parts.length ? parts.join("\n\n") : null;
+      const { sources, notes } = await readPastedLinks(seedText);
+      if (injectionEnabled && !_isExternalModel) sources.push(...(await queryRAGMerged(seedText)).map((c) => ({ title: c.title, text: c.text })));
+      // Framed as material to read, not instructions (js/chat/sources.js).
+      const toolContext = [...notes, HCSources.frame(sources)].filter(Boolean).join("\n\n") || null;
       try {
         await streamChat(assistant, toolContext);
       } finally {
@@ -4847,7 +4840,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // system message but cannot ignore content in the user turn itself.
       const last = messages[messages.length - 1];
       if (last?.role === "user") {
-        last.content = `${toolContext}\n\nQuestion: ${last.content}`;
+        last.content = `${toolContext}\n\nMy question: ${last.content}`;
       } else {
         messages.splice(messages.length - 1, 0, { role: "system", content: toolContext });
       }
@@ -5252,19 +5245,22 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
    * their address, not one a model chose. One that cannot be read says so —
    * otherwise the model answers from the URL and its own idea of the page.
    */
+  // The pages a message links to, as sources (js/chat/sources.js), and a note
+  // for each that could not be read.
   async function readPastedLinks(text) {
-    const blocks = [];
+    const sources = [];
+    const notes = [];
     for (const u of extractUrls(text)) {
       const content = await fetchUrl(u);
       if (!content) {
-        blocks.push(`Page (${u}): could not be read. Tell the user you could not open it. Do NOT describe it from its address.`);
+        notes.push(`Page (${u}): could not be read. Tell the user you could not open it. Do NOT describe it from its address.`);
         continue;
       }
       addToRAG(u, content, `fetch:${u}`);
       const win = HCPageText.windowOf(content, 0, HCPageText.PASSIVE_LIMIT);
-      blocks.push(`Page (${u}):\n${win.text}${HCPageText.continuationNote(win, u)}`);
+      sources.push({ title: `Page ${u}`, text: `${win.text}${HCPageText.continuationNote(win, u)}` });
     }
-    return blocks;
+    return { sources, notes };
   }
 
   async function runAgentTools(agent, userText, searchQuery = null) {
@@ -5306,7 +5302,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         pieces.push(wiki.map((r,i)=>`${i+1}. ${r.title}: ${r.snippet}`).join("\n"));
       }
     }
-    if (agent.tools.includes("fetch_url")) pieces.push(...await readPastedLinks(userText));
+    if (agent.tools.includes("fetch_url")) { const read = await readPastedLinks(userText); pieces.push(...read.notes, ...read.sources.map((x) => `${x.title}:\n${x.text}`)); }
     if (agent.tools.includes("pubmed")) {
       const papers = await pubmedSearch(q);
       if (papers.length) {
@@ -5317,7 +5313,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     }
     if (!pieces.length) return null;
-    return `Sources:\n${pieces.join("\n\n")}`;
+    return HCSources.frame(pieces.map((text) => ({ text })));
   }
 
   // =========================================================================

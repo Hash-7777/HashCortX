@@ -166,7 +166,7 @@ const injectSites = [...app.matchAll(/queryRAGMerged\(/g)].length;
 if (injectSites >= 3) ok(`queryRAGMerged is called from more than one path (${injectSites - 1} call sites)`);
 else bad(`queryRAGMerged has ${Math.max(0, injectSites - 1)} call site(s) — retrieval has lost a path again`);
 
-const sendGuard = /if \(injectionEnabled && !_isExternalModel\) \{/.test(app);
+const sendGuard = /if \(injectionEnabled && !_isExternalModel\) (?:\{|sources\.push\(\.\.\.\(await queryRAGMerged\(seedText\)\))/.test(app);
 if (sendGuard) ok('retrieval on the send path is gated on the toggle and a local model, nothing else');
 else bad('the send-path retrieval guard changed shape — check it has not been nested behind a dead condition again');
 

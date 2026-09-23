@@ -46,6 +46,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **What a model reads is kept apart from what it is asked.** Pages linked
+  in a chat, passages from your notes, what an agent looks up, and tool
+  results given to a local agent are handed to the model as reference
+  material, each source in its own marked block, with a line saying it is
+  text to read and not instructions. A sentence in that material addressed
+  to AI systems is left out before the model reads it, with a note in its
+  place; your notes and the pages themselves are unchanged.
 - **Python written by a model runs in a sealed worker.** It cannot reach the
   app's saved keys, its native commands or the network, and a run that goes
   on too long is stopped without stopping the app.
