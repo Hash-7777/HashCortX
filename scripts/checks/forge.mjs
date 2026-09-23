@@ -776,9 +776,11 @@ console.log('\nA run reaches for nothing but a model:');
   // what makes it affordable: a run that cannot reach a model for it carries on.
   check('the run works out what the thing is first',
     /updateStage\("generate", "active", "working out what this is"\)[\s\S]{0,200}askForSubjectBrief/.test(body));
-  check('and then goes straight to the design call',
-    /updateStage\("generate", "active", "parameter agent"\)[\s\S]{0,120}requestForgePlan/.test(body));
+  check('and then goes straight to the design call, with only the retry\'s wording between',
+    /updateStage\("generate", "active", "parameter agent"\);\s*const ask = [^\n]*\n\s*plan = await requestForgePlan\(ask/.test(body));
   // A run growing a third call is how the Forge got to four of them last time.
+  // The design call may be made a second time, and only for a design that does
+  // not hold together (js/forge/prepare.js faultsOf); it is the same call.
   const asked = [...body.matchAll(/await\s+([A-Za-z_$][\w$]*)\s*\(/g)].map((m) => m[1])
     .filter((n) => /^(ask|request|fetch|gather|get)/i.test(n));
   check('and those two are the only calls a run makes',

@@ -209,5 +209,24 @@ console.log('\nEverything the assembler finds reaches the trace:');
   ok('a kind with no words still reaches the trace, under its code', lines.some((l) => l.code === 'something-new' && /something-new/.test(l.text)));
 }
 
+console.log('\nA design that does not hold together is not called finished:');
+{
+  const issue = (code, partId = 'p') => ({ code, partId });
+  const nodes = (n) => ({ nodes: Array.from({ length: n }, (_, i) => ({ id: `p${i}` })) });
+  ok('an outline part with no outline is a fault', PREP.faultsOf([], { ...nodes(2), shapeSubstitutions: ['body: extrude with no outline → box'] }).length === 1);
+  ok('copies stacked on their own axis are a fault', PREP.faultsOf([issue('repeat-on-axis')], nodes(2)).length === 1);
+  ok('most parts floating free is a fault, a few is not', PREP.faultsOf([issue('detached'), issue('detached'), issue('detached')], nodes(4)).length === 1 && PREP.faultsOf([issue('detached')], nodes(4)).length === 0);
+  ok('flat alone is not a fault — a coaster is meant to be flat', PREP.faultsOf([issue('flat')], nodes(3)).length === 0);
+  ok('... but is named when something else is wrong too', PREP.faultsOf([issue('flat'), issue('repeat-on-axis')], nodes(3)).length === 2);
+  ok('a sound design has none', PREP.faultsOf([], nodes(5)).length === 0 && PREP.faultsOf(undefined, undefined).length === 0);
+  const mode = readFileSync(new URL('../../src/modes/forge/mode.js', import.meta.url), 'utf8');
+  ok('the run asks once more with the reasons, and never says "complete" over one that still fails',
+    /for \(let pass = 1; pass <= \(useSample \? 1 : 2\); pass\+\+\)/.test(mode) && /The last design for this did not hold together: \$\{faults\.join/.test(mode)
+    && /if \(faults\.length\) log\("Orchestrator", `Finished, but the design does not hold together/.test(mode));
+  ok('... and of the two designs, the one with fewer faults is kept', /if \(!best \|\| faults\.length < best\.faults\.length\) best = \{ plan, faults \};/.test(mode));
+  ok('the design is asked for as JSON, which a local model is held to', /\], onToken, signal, \{ json: true \}\);/.test(mode) && /ollamaChat\(model, messages, null, s, \{ json: true \}\)/.test(mode));
+  ok('the design call says what each shape needs', /What each shape needs in "params"/.test(mode) && /lathe: "points" \[\[r, y\]/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/prepare.js)`);
 process.exit(fail ? 1 : 0);

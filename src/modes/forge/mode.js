@@ -45,6 +45,7 @@
   let controls = null;
   let modelGroup = null;
   let activePlan = null;
+  let lastAssembleIssues = [];   // what the last assembly found, for the run to judge the design by
   let raf = 0;
   // True between the GPU taking the context away and giving it back. Nothing
   // may draw in between: the render target no longer exists.
@@ -2521,6 +2522,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
       return plan;
     }
     const { stats: s, issues, moves, removed } = out.report;
+    lastAssembleIssues = issues;
     const notes = [];
     if (s.mirrored) notes.push(`${s.mirrored} part(s) mirrored exactly`);
     if (s.connected) notes.push(`${s.connected} part(s) brought onto the body`);
@@ -2922,7 +2924,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
    */
   function askForSubjectBrief(prompt, signal) {
     return window.HCForgeAskSubject.ask(prompt, signal, {
-      call: (model, messages, s) => window._H.ollamaChat(model, messages, null, s),
+      call: (model, messages, s) => window._H.ollamaChat(model, messages, null, s, { json: true }),
       models: () => Array.from(document.getElementById("model")?.options || [])
         .map((o) => ({ value: o.value, label: o.textContent || o.label || o.value }))
         .filter((o) => o.value && !o.value.startsWith("\u2500")),
@@ -2982,59 +2984,52 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     log("Parameter Agent", useSample ? "Loading sample geometry plan." : `Designing "${prompt}" with ${modelLabel(selectedModelFor("god"))}`, "run");
 
     let plan = null;
-    if (useSample) {
-      plan = hLogoPlan();
-      plan.route = "parametric";
-    } else {
-      try {
-        updateStage("generate", "active", "parameter agent");
-        plan = await requestForgePlan(prompt, prefs, activeForgeBrief, ctrl.signal);
-        if (plan) {
-          plan.route = "parametric";
-          log("Geometry", `Built the design · ${plan.nodes.length} mesh part(s)`, "ok");
+    let faults = [], best = null;
+    // A design that does not hold together (js/forge/prepare.js faultsOf) is asked for once more, with the reasons.
+    for (let pass = 1; pass <= (useSample ? 1 : 2); pass++) {
+      if (useSample) {
+        plan = { ...hLogoPlan(), route: "parametric" };
+      } else {
+        try {
+          updateStage("generate", "active", "parameter agent");
+          const ask = pass === 1 ? prompt : `${prompt}\n\nThe last design for this did not hold together: ${faults.join("; ")}. Design it again: every part a solid with real depth and, for an outline shape, its outline points, all touching the main body.`;
+          plan = await requestForgePlan(ask, prefs, activeForgeBrief, ctrl.signal);
+          if (plan) {
+            plan.route = "parametric";
+            log("Geometry", `Built the design · ${plan.nodes.length} mesh part(s)`, "ok");
+          }
+        } catch (err) {
+          failForgeRun("Parameter Agent", "Model generation failed: " + (err.message || err));
+          return;
         }
-      } catch (err) {
-        failForgeRun("Parameter Agent", "Model generation failed: " + (err.message || err));
+      }
+      updateStage("generate", "done", plan ? "plan ready" : "failed");
+      if (!plan) {
+        failForgeRun("Parameter Agent", "No model plan was produced.");
         return;
       }
-    }
-    updateStage("generate", "done", plan ? "plan ready" : "failed");
-    if (!plan) {
-      failForgeRun("Parameter Agent", "No model plan was produced.");
-      return;
-    }
-    setAgentState("god", "done");
+      setAgentState("god", "done");
 
-    // ── One call designs the model ────────────────────────────────────
-    //
-    // There were three more here — Structure, Surface and Detail — each asked
-    // to append parts to the plan the first call produced. Nothing owned the
-    // silhouette, so they did not refine a model, they grew a pile: the run
-    // that prompted this rewrite ended with eighteen disconnected shards that
-    // did not read as a fish. Three extra calls, three more chances to hit a
-    // free-tier limit, and a worse object at the end of them.
-    //
-    // The design is one answer now. What those passes were reaching for —
-    // symmetry, contact, nothing floating — is measured in
-    // src/js/model-plan.js, and Improve exists for the times a person looks at
-    // the result and wants another pass.
-    if (!useSample && !ctrl.signal.aborted) {
-      updateStage("refine", "active", "assembling");
+      // ── One call designs the model ────────────────────────────────────
+      // Three appending passes grew a pile of shards, not a model; what they
+      // reached for is measured in js/model-plan.js, and Improve gives another pass.
+      if (!useSample && !ctrl.signal.aborted) {
+        updateStage("refine", "active", "assembling");
 
-      // There was a padding pass here, topping a sparse plan up to a minimum
-      // node count — as many as forty parts — with pieces taken from the
-      // built-in template for the subject. Its only caller had already
-      // switched it off, so the body was unreachable while still reading like
-      // a live feature. It is gone rather than left as something to switch
-      // back on: the design prompt now asks for few parts that read
-      // correctly, and padding a good twelve-part model up to forty is the
-      // opposite of that.
-      plan = normalizePlan(plan);
-      plan.route = "parametric";
+        // No padding pass tops a sparse plan up from a template: the design
+        // prompt asks for few parts that read correctly.
+        plan = normalizePlan(plan);
+        plan.route = "parametric";
+      }
+      updateStage("refine", "done", "assembled");
+
+      plan = assembleDeterministically(plan, useSample ? "" : prompt, window.HCForgeSubject?.subjectsOf(activeForgeBrief) || 0);
+      faults = useSample ? [] : window.HCForgePrepare.faultsOf(lastAssembleIssues, plan);
+      if (!best || faults.length < best.faults.length) best = { plan, faults };   // the better of the two is kept
+      ({ plan, faults } = best);
+      if (!faults.length || pass === 2) break;
+      log("God Agent", `The design did not hold together (${faults.join("; ")}) — asking once more`, "warn");
     }
-    updateStage("refine", "done", "assembled");
-
-    plan = assembleDeterministically(plan, useSample ? "" : prompt, window.HCForgeSubject?.subjectsOf(activeForgeBrief) || 0);
 
     // ── What made this ────────────────────────────────────────────────
     //
@@ -3068,7 +3063,8 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     // There was a partial-run branch here, reporting which of the three
     // appending passes had failed. With one call there is no partial run: the
     // design either arrived or the run stopped at it and said so.
-    log("Orchestrator", `Forge complete · ${partCount} mesh part(s)`, "ok");
+    if (faults.length) log("Orchestrator", `Finished, but the design does not hold together: ${faults.join("; ")}. The model that designed it did not place its parts well; press Improve, try again, or pick a stronger model.`, "warn");
+    else log("Orchestrator", `Forge complete · ${partCount} mesh part(s)`, "ok");
     if (dot) dot.className = "frg-trace-dot done";
     setStatus("Ready");
     updateStage("export", "active", `${(prefs.output || "glb").toUpperCase()} ready`);
@@ -3205,8 +3201,12 @@ Schema:
   "edges": [],
   "constraints": []
 }
-Mesh node params for real smooth structures:
-{"positions":[x,y,z,...],"indices":[a,b,c,...],"normals":[x,y,z,...],"uvs":[u,v,...],"subdivisions":1,"center":false}
+What each shape needs in "params" (millimetres). A shape missing what it needs cannot be built:
+  box: width, height, depth · cylinder: radius, height · cone: radius, height · sphere: radius
+  capsule: radius, length · torus: radius, tube
+  lathe: "points" [[r, y], ...] — at least 2, bottom to top, r the distance from the vertical axis, e.g. a vase [[30,0],[55,60],[25,160]]
+  extrude: "points" [[x, y], ...] — at least 3 corners of the outline, and "depth", its thickness
+  mesh: {"positions":[x,y,z,...],"indices":[a,b,c,...],"normals":[x,y,z,...],"uvs":[u,v,...],"subdivisions":1,"center":false}
 
 How to build it:
 - Design the object in the prompt. Decide its real proportions first, then place parts against them.
@@ -3275,7 +3275,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     const text = await api.ollamaChat(model, [
       { role: "system", content: system },
       { role: "user", content: user },
-    ], onToken, signal);
+    ], onToken, signal, { json: true });
     try {
       return parsePlan(text);
     } catch (err) {
@@ -3330,7 +3330,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
         role: "user",
         content: `Prompt: ${prompt}\n\nMalformed model output to repair:\n${String(badText || "").slice(0, 9000)}`,
       },
-    ], onToken, signal);
+    ], onToken, signal, { json: expected === "object" });
   }
 
   function extractJsonSpan(text, expected) {

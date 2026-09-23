@@ -234,6 +234,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge no longer calls a broken design finished.** A small model's
+  design could come back as outline shapes with no outline, which the app
+  drew as thin slivers, or as copies stacked on one another, or as parts
+  mostly floating free, and the run still said "Forge complete". An outline
+  shape with no outline is now the nearest real shape its sizes describe, and
+  said so; a design that does not hold together is asked for once more with
+  the reasons, the better of the two is kept, and a run that still fails says
+  so instead of "complete". The design call now says what each shape needs,
+  and a local model is held to answering in JSON, so a 4B model built a
+  recognisable mug where it had built slivers.
+
 - **The ERP agent never says a change happened when it did not.** A small
   model answered "Customer added successfully" with nothing done. What the
   agent says as it acts is now the app's own words, a change it claims but

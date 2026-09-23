@@ -215,5 +215,26 @@
     });
   }
 
-  window.HCForgePrepare = { preparePlan, keepOneSubject, centreOnAxis, allowsSeveralSubjects, describeIssues, FINDINGS, UNREPORTED };
+  /**
+   * What makes a design not worth handing over as finished, in words, or none.
+   *
+   * A small model's design can come out as parts with no outline, copies stacked
+   * on one another, or pieces mostly floating free — and the run used to say
+   * "Forge complete" over it. These are asked about once more, with the reasons.
+   * Flat alone is not one of them: a coaster or a sign is meant to be flat.
+   */
+  function faultsOf(issues, plan) {
+    const list = Array.isArray(issues) ? issues : [];
+    const count = (code) => list.filter((i) => i && i.code === code).length;
+    const parts = Math.max(1, ((plan && plan.nodes) || []).length);
+    const faults = [];
+    const blank = ((plan && plan.shapeSubstitutions) || []).filter((x) => /with no outline/.test(String(x))).length;
+    if (blank) faults.push(`${blank} outline part(s) came with no outline`);
+    if (count('repeat-on-axis')) faults.push('repeated parts sit on the axis they turn about, so the copies overlap');
+    if (count('detached') * 2 > parts) faults.push('most parts float free of the body');
+    if (faults.length && count('flat')) faults.push('the whole model is flat in one direction');
+    return faults;
+  }
+
+  window.HCForgePrepare = { preparePlan, keepOneSubject, centreOnAxis, allowsSeveralSubjects, describeIssues, faultsOf, FINDINGS, UNREPORTED };
 })();

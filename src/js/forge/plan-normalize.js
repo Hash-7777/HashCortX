@@ -64,6 +64,17 @@
    * Every field here is on the list for the same reason: dropped, it fails
    * silently. Read the file header before removing one.
    */
+  /** Whether points make an outline: enough of them, as numbers, not all on one line. */
+  function hasOutline(points, least) {
+    if (!Array.isArray(points) || points.length < least) return false;
+    const pts = points.map((p) => (Array.isArray(p) ? [Number(p[0]), Number(p[1])] : [NaN, NaN]));
+    if (pts.some(([x, y]) => !Number.isFinite(x) || !Number.isFinite(y))) return false;
+    if (least < 3) return new Set(pts.map((p) => p.join())).size >= 2;
+    let area = 0;
+    for (let k = 0; k < pts.length; k++) { const [x1, y1] = pts[k]; const [x2, y2] = pts[(k + 1) % pts.length]; area += x1 * y2 - x2 * y1; }
+    return Math.abs(area) > 1e-9;
+  }
+
   function normalizeNode(node, i, substitutions) {
     const MP = window.HCModelPlan;
     const resolved = MP?.resolveType
@@ -79,6 +90,16 @@
     // substitution is carried on the plan so the run can say it happened.
     if (resolved.from) {
       substitutions.push(`${String(node.name || node.id || `Node ${i + 1}`)}: "${resolved.from}" → ${resolved.type}`);
+    }
+    // An outline shape with no outline. The builder drew a stock pentagon (or
+    // vase) in its place, so a small model's "extrude" with only a width and a
+    // radius became a sliver the app then called finished. It is the nearest
+    // real shape its sizes describe instead, said the same way as above.
+    const params = node.params && typeof node.params === 'object' ? node.params : {};
+    if ((resolved.type === 'extrude' || resolved.type === 'lathe') && !hasOutline(params.points, resolved.type === 'extrude' ? 3 : 2)) {
+      const to = Number(params.radius) > 0 ? 'cylinder' : 'box';
+      substitutions.push(`${String(node.name || node.id || `Node ${i + 1}`)}: ${resolved.type} with no outline → ${to}`);
+      resolved.type = to;
     }
 
     return {

@@ -165,8 +165,14 @@ console.log('\nA shape the app cannot build is reported, not silently cubed:');
     /Egg/.test(out.shapeSubstitutions[0]) && /ovoid/.test(out.shapeSubstitutions[0]));
   ok('a shape the app can build is not reported',
     N.normalizePlan({ nodes: [{ type: 'torus' }] }).shapeSubstitutions.length === 0);
-  ok('every buildable shape passes through unchanged',
-    N.SHAPE_NAMES.every((t) => N.normalizePlan({ nodes: [{ type: t }] }).nodes[0].type === t));
+  const OUTLINE = { extrude: [[0, 0], [1, 0], [1, 1]], lathe: [[0.2, 0], [0.4, 1]] };
+  ok('every buildable shape passes through unchanged, an outline shape with its outline',
+    N.SHAPE_NAMES.every((t) => N.normalizePlan({ nodes: [{ type: t, params: OUTLINE[t] ? { points: OUTLINE[t] } : {} }] }).nodes[0].type === t));
+  const bare = N.normalizePlan({ nodes: [{ name: 'Body', type: 'extrude', params: { radius: 15, height: 40 } }, { name: 'Lid', type: 'extrude', params: { width: 10 } }] });
+  ok('an extrude with no outline is the nearest real shape its sizes describe, not a stock sliver', bare.nodes[0].type === 'cylinder' && bare.nodes[1].type === 'box');
+  ok('... and the swap is said', bare.shapeSubstitutions.some((x) => /Body: extrude with no outline → cylinder/.test(x)));
+  ok('an outline on one line has no area and counts as none', N.normalizePlan({ nodes: [{ type: 'extrude', params: { points: [[0, 0], [1, 1], [2, 2]] } }] }).nodes[0].type === 'box');
+  ok('a lathe with no profile is replaced too', N.normalizePlan({ nodes: [{ type: 'lathe', params: {} }] }).nodes[0].type === 'box');
 }
 
 console.log('\nA size nobody asked for never becomes a size someone chose:');

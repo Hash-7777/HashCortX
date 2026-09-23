@@ -5065,7 +5065,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // the right endpoint with the stored key, and local ones talk to Ollama
   // directly. It used to live at the bottom of the file inside a swarm
   // implementation nothing could reach.
-  async function ollamaChat(model, messages, onToken, signal) {
+  async function ollamaChat(model, messages, onToken, signal, { json } = {}) {   // json: a local model must answer in JSON
     if (model && model.startsWith("cloud:")) {
       let full = "";
       await streamWithModelValue({
@@ -5082,7 +5082,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const resp = await fetch(host + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, stream: true, options: { num_ctx: await HCLocalContext.numCtx(host, model, messages) } }),
+      body: JSON.stringify({ model, messages, stream: true, format: json ? "json" : undefined, options: { num_ctx: await HCLocalContext.numCtx(host, model, messages) } }),
       signal,
     });
     if (!resp.ok) throw new Error("Ollama error: " + resp.status);
