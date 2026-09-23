@@ -179,5 +179,16 @@
     };
   }
 
-  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
+  /**
+   * The models a run may move through, the chosen one first. A job given to a
+   * model on this computer stays on it: no cloud model follows, since choosing
+   * a local model is often the point — its project and what it read are not
+   * to go to a cloud provider because the local model failed. A cloud job may
+   * move on to the fallbacks. `selected` is the chosen model's value.
+   */
+  function withFallbacks(selected, primary, fallbacks) {
+    return String(selected || "").startsWith("cloud:") ? [primary, ...(fallbacks || [])] : [primary];
+  }
+
+  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, withFallbacks, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
 })();

@@ -261,5 +261,17 @@ console.log('\nHow the chat uses it:');
   ok('"Use my notes" says when a cloud model means the notes are not read', /preset === "knowledge"/.test(preset) && /never sent to a cloud model/.test(preset));
 }
 
+console.log('\nThe models a Coder run may move through:');
+{
+  const chosen = { kind: 'ollama', model: 'qwen2.5-coder:7b' };
+  const fallbacks = [{ kind: 'openai', provider: 'groq' }, { kind: 'gemini', provider: 'gemini' }];
+  ok('a job on a model on this computer stays on it', F.withFallbacks('qwen2.5-coder:7b', chosen, fallbacks).length === 1
+    && F.withFallbacks('local:1234/some-model', chosen, fallbacks).length === 1 && F.withFallbacks('', chosen, fallbacks).length === 1);
+  const cloud = F.withFallbacks('cloud:groq:openai/gpt-oss-20b', chosen, fallbacks);
+  ok('a cloud job may move on, the chosen model first', cloud.length === 3 && cloud[0] === chosen && cloud[2].provider === 'gemini');
+  const coder = readFileSync(join(root, 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('the Coder builds its chain this way', /return FAILOVER\(\)\.withFallbacks\(selected, primary, fallbacks\);/.test(coder) && !/chain\.push\(\{ kind: fbKind/.test(coder));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/failover.js)\n`);
 process.exit(fail === 0 ? 0 : 1);

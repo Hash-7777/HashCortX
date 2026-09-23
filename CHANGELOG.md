@@ -105,6 +105,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **A Coder task on a model on this computer stays on it.** When that model
+  cannot answer, the run stops with its error; only a task on a cloud model
+  moves on to another provider you have configured, as in every other mode.
+
 - **What a model reads is kept apart from what it is asked.** Pages linked
   in a chat, passages from your notes, what an agent looks up, and tool
   results given to a local agent are handed to the model as reference

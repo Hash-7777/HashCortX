@@ -212,7 +212,7 @@
     const H = window._H;
     const selected = overrideModel || H?.selectedModel?.() || '';
     const primary = getAdapter(selected);
-    const chain = [primary];
+    const fallbacks = [];
 
     // Fetch live available models so fallback IDs never go stale.
     const liveModels = (typeof window._H?.getAvailableCloudModels === 'function') ? window._H.getAvailableCloudModels() : [];
@@ -232,9 +232,9 @@
       }
 
       const fbKind = fb.provider === 'gemini' ? 'gemini' : fb.provider === 'anthropic' ? 'anthropic' : 'openai';
-      chain.push({ kind: fbKind, provider: fb.provider, model: modelId, label: fb.label });
+      fallbacks.push({ kind: fbKind, provider: fb.provider, model: modelId, label: fb.label });
     }
-    return chain;
+    return FAILOVER().withFallbacks(selected, primary, fallbacks);   // a job on a local model stays local
   }
 
 
