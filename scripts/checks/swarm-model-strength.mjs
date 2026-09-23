@@ -38,6 +38,15 @@ ok('a 120B model outranks a 7B one', S.score('cloud:groq:openai/gpt-oss-120b', '
 ok('a model that is not for text never leads', S.score('cloud:gemini:gemini-3-pro-image', 'Gemini 3 Pro Image', true) < 0);
 ok('the best of a provider\'s models is the strongest', S.best([{ value: 'cloud:groq:openai/gpt-oss-20b', label: 'GPT OSS 20B' }, { value: 'cloud:groq:openai/gpt-oss-120b', label: 'GPT OSS 120B' }], true).value === 'cloud:groq:openai/gpt-oss-120b');
 
+console.log('\nA model the team designer assigns is one it was offered:');
+{
+  const offered = ['qwen2.5-coder:3b', 'nemotron-3-nano:4b'];
+  const byProvider = [['local', 'qwen2.5-coder:3b']];
+  ok('an offered model stands', S.fitToOffered('nemotron-3-nano:4b', offered, byProvider, 'x') === 'nemotron-3-nano:4b');
+  ok('a provider\'s name written where a model belongs is that provider\'s offered model', S.fitToOffered('cloud:groq', ['cloud:groq:openai/gpt-oss-120b'], [['groq', 'cloud:groq:openai/gpt-oss-120b']], 'x') === 'cloud:groq:openai/gpt-oss-120b');
+  ok('anything else is the model the team was designed on — never a name a local server is asked for', S.fitToOffered('openrouter', offered, byProvider, 'qwen2.5-coder:3b') === 'qwen2.5-coder:3b');
+}
+
 console.log('\nHow the Agent Swarm uses it:');
 {
   const mode = src('modes', 'agent-maker', 'mode.js');
@@ -47,6 +56,7 @@ console.log('\nHow the Agent Swarm uses it:');
     && /chosen: \(\) => teamModel\(getActive\(\)\)/.test(mode) && /const supervisorModel = teamModel\(bp\);/.test(mode));
   ok('the God Agent\'s goal starts as the task already typed', /if \(goal && typed && !goal\.value\.trim\(\)\) goal\.value = typed;/.test(mode));
   ok('the team open last time is open again, or the newest, so Run has one', /const reopen = blueprints\.find\(b => b\.id === readActive\(\)\) \|\| blueprints\[0\]; if \(reopen\) setActive\(reopen\.id\);/.test(mode) && /localStorage\.setItem\(ACTIVE_KEY, id \|\| ""\)/.test(mode));
+  ok('every agent\'s model and the supervisor\'s are held to what was offered', /const fit = \(v\) => window\.HCSwarmModelStrength\.fitToOffered\(v, allOpts\.map\(o => o\.value\), providerModels, modelValue\);/.test(mode) && /model: a\.model \? fit\(a\.model\) : ""/.test(mode));
   ok('it loads before the mode', src('boot.js').indexOf("'/js/swarm/model-strength.js'") > 0);
 }
 

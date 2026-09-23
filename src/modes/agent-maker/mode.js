@@ -1469,10 +1469,12 @@ ${modelListStr}`;
 
       // Ensure required fields and normalize agents
       if (!parsed.dag) parsed.dag = { nodes: parsed.agents.map(a => a.id), edges: [] };
+      const fit = (v) => window.HCSwarmModelStrength.fitToOffered(v, allOpts.map(o => o.value), providerModels, modelValue);   // only models it was offered
+      parsed.supervisorModel = parsed.supervisorModel ? fit(parsed.supervisorModel) : parsed.supervisorModel;
       parsed.agents = parsed.agents.map(a => ({
         ...a,
         tools: Array.isArray(a.tools) ? a.tools : (codeTask ? [] : [...ALL_TOOL_IDS]),
-        model: a.model || "",
+        model: a.model ? fit(a.model) : "",
         memory: a.memory || "project",
         timeout: a.timeout || 120,
         retries: a.retries || 1,
@@ -1521,9 +1523,7 @@ ${modelListStr}`;
       closeGodModal();
       setActive(bp.id);
       renderAll();
-      // Load the description as the task input
-      const taskEl = document.getElementById("amkTaskInput");
-      if (taskEl) taskEl.value = desc;
+      if (document.getElementById("amkTaskInput")) document.getElementById("amkTaskInput").value = desc;   // the task, ready to run
 
       if (statusText) statusText.textContent = "";
     } catch (err) {

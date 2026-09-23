@@ -61,5 +61,20 @@
     return window.HCModelSpeed.order(options, (o) => o.value, (o) => score(o.value, o.label, bigTask))[0];
   }
 
-  window.HCSwarmModelStrength = { sizeScore, score, best };
+  /**
+   * A model the team designer assigned, as one it was offered. A small model
+   * writes a provider's name ("openrouter") where a model belongs, which the
+   * run then asked a local server for and failed on every agent. A value that
+   * is not one offered is read as the provider it names, and failing that is
+   * the model the team was designed on.
+   */
+  function fitToOffered(value, offered, providerModels, fallback) {
+    const v = String(value || '').trim();
+    const values = new Set((offered || []).map(String));
+    if (v && values.has(v)) return v;
+    const named = (providerModels || []).find(([provider]) => v && (v.toLowerCase() === provider || v.toLowerCase().includes(provider)));
+    return named ? named[1] : (fallback || v);
+  }
+
+  window.HCSwarmModelStrength = { sizeScore, score, best, fitToOffered };
 })();

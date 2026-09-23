@@ -234,6 +234,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Swarm team designed on a small model runs.** A small model wrote a
+  provider's name where each agent's model belongs, the app kept it, and
+  every agent then failed asking your local server for a model called
+  "openrouter". Every model the team designer assigns is now one it was
+  offered: a provider's name becomes that provider's model, and anything
+  else becomes the model the team was designed on.
+
 - **3D Forge no longer calls a broken design finished.** A small model's
   design could come back as outline shapes with no outline, which the app
   drew as thin slivers, or as copies stacked on one another, or as parts
