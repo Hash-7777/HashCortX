@@ -234,6 +234,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local agent uses its tools when it should, and its answer streams in.**
+  A small local model offered tools had to decide whether a request needed
+  one and write the call at the same time, and it decided badly: it answered
+  questions about recent events from what it was trained on, did sums in its
+  head and got them wrong, and said it had noted things without saving them.
+  A local agent now takes its turn in steps. When a request plainly needs a
+  tool — a web address to read, code to run, anything current, the time, a
+  sum — or plainly needs none, such as writing or explaining, the app takes
+  that first step itself; otherwise the model decides, and only that, in an
+  answer held to a fixed shape. The app runs the tool, and the model answers
+  from the result, with that answer appearing as it is written instead of
+  after it is finished. Tested with 3B to 7B local models on everyday
+  requests, the right step was chosen far more often than before.
+
 - **Every local model works as an agent, including ones that cannot take
   tools.** A model whose server says it cannot take tools was refused by
   the agents, and the chat fell back to guessing what to look up for it.

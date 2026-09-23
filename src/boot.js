@@ -85,6 +85,8 @@
     '/js/chat/ran-code.js',
     '/js/chat/thought.js',
     '/js/chat/exact.js',
+    '/js/chat/intent.js',
+    '/js/chat/decide.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',

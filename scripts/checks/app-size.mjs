@@ -176,7 +176,12 @@ const LINE_BUDGET = {
   // refused in words, and one only for search is listed but not offered. The
   // reading of what it can do is js/local-context.js; the words are
   // js/agent-shape.js.
-  'js/app.js': 6484,
+  // 6526, up 42: a local agent's turn is taken in steps — it decides, the app
+  // runs the tool, then it answers and the answer streams in — with what is
+  // remembered placed just before the request. The steps, the app's own first
+  // step and what is shown are js/chat/decide.js and js/chat/intent.js; this is
+  // the wiring to the model, the tools and the reply on screen.
+  'js/app.js': 6526,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

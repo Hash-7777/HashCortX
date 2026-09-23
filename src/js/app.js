@@ -5974,9 +5974,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (rule) baseMessages[baseMessages.findIndex(m => m.role === "system")].content += `\n\n${rule}`;
     }
 
-    if (recalled.length) {
-      const memBlock = "[INTERNAL MEMORY — do NOT recite, list, or acknowledge this block unless the user explicitly asks what you remember. Use silently as background context only.]\n" +
-        recalled.map(f => `- ${f.key}: ${f.value}`).join("\n");
+    const memBlock = recalled.length ? "[INTERNAL MEMORY — do NOT recite, list, or acknowledge this block unless the user explicitly asks what you remember. Use silently as background context only.]\n" +
+      recalled.map(f => `- ${f.key}: ${f.value}`).join("\n") : "";
+    // A local agent decides, the app runs the tool, then the model answers,
+    // and the answer streams in as it is written (js/chat/decide.js). What is
+    // remembered goes just before the request, so the instructions stay the
+    // same from one request to the next and are read only once.
+    const localSteps = !modelEl.value.startsWith("cloud:") && tools.length > 0;
+    if (memBlock && !localSteps) {
       // Prepend to system message, or insert one if none exists
       const sysIdx = baseMessages.findIndex(m => m.role === "system");
       if (sysIdx >= 0) baseMessages[sysIdx].content = `${baseMessages[sysIdx].content}\n\n${memBlock}`;
@@ -6000,6 +6005,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         baseMessages.splice(dropIdx, 1);
       }
     })();
+
+    if (localSteps) return runLocalAgentSteps({ assistant, messages: baseMessages, context: memBlock, tools, tracker, temperature, signal, onStatus, onFinalToken });
 
     let messages = baseMessages;
     let iter = 0;
@@ -6109,6 +6116,41 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Stream the final text into the bubble so the UX feels live even though
     // the call itself was non-streaming.
     if (finalText) await typewriterIntoBubble(finalText, onFinalToken, signal);
+    return finalText;
+  }
+
+  async function runLocalAgentSteps({ assistant, messages, context, tools, tracker, temperature, signal, onStatus, onFinalToken }) {
+    const model = modelEl.value;
+    const host = safeHost();
+    const names = tools.map((t) => t.function.name);
+    const chat = async (msgs, { json, onToken } = {}) => {
+      const numCtx = await HCLocalContext.numCtx(host, model, msgs, json ? { need: 1024 } : {});
+      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, keepAlive: -1 }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
+      if (reply.last) recordUsage(model, reply.last.prompt_eval_count, reply.last.eval_count);
+      return reply.content;
+    };
+    const out = await HCDecide.run({
+      messages, tools, context, shape: HCAgentShape, route: (text) => HCIntent.route(text, names),
+      ask: (msgs, schema) => chat(msgs, { json: schema }),
+      answer: async (msgs) => {
+        if (assistant.content) { assistant.content = ""; updateLastBubble(""); }   // only the last answer stands
+        const view = HCDecide.shower(onFinalToken);
+        const text = await chat(msgs, { onToken: view.onToken });
+        view.finish(text, HCAgentShape.toolCallsInText(text, names).length > 0);
+        return text;
+      },
+      runTool: async (call) => {
+        recordAgentEvent(assistant, "tool_call", call.name, call.arguments || {});
+        const result = await runOneTool(call.name, call.arguments, onStatus, tracker);
+        recordAgentEvent(assistant, "tool_result", call.name, safeJsonParse(result));
+        return result;
+      },
+      onEvent: (kind, n) => { if (kind !== "tool_call") onStatus?.(HCDecide.statusOf(kind, n), kind === "deciding" ? "thinking" : "running"); },
+    });
+    const finalText = HCDecide.replyOf(out.text, names, tracker.length, HCAgentShape);
+    if (!assistant.content && finalText) onFinalToken(finalText);
+    recordAgentEvent(assistant, "final", `Final answer · ${finalText.length} chars`);
+    assistant.ranCode = HCRanCode.keep(tracker.map(t => t.output));
     return finalText;
   }
 

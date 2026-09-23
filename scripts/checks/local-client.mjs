@@ -109,7 +109,7 @@ console.log('\nLoaded ahead of the request:');
 console.log('\nThe app uses it:');
 {
   const app = src('js', 'app.js');
-  ok('the chat, the side-by-side view, the modes and the agents all read replies through it', (app.match(/HCLocal\.chat\(/g) || []).length === 4);
+  ok('the chat, the side-by-side view, the modes, the agents and a local agent\'s steps all read replies through it', (app.match(/HCLocal\.chat\(/g) || []).length === 5);
   ok('a thinking model\'s thinking is shown in the chat as it arrives', /onThinking: \(t\) => showThinking\(assistant, t\)/.test(app));
   ok('the model is loaded while the message is written', /HCLocal\.warm\(/.test(app) && /warmLocalModel\(\);/.test(app));
   const boot = src('boot.js');

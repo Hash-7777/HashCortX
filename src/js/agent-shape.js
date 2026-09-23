@@ -233,6 +233,25 @@
   }
 
   /**
+   * The calls and results in a conversation written as words: a call as the
+   * tagged call it was, a result as a message in the person's turn. Every
+   * model's template reads that, including one that drops tool turns.
+   */
+  function toolTurnsInWords(messages) {
+    const out = [];
+    for (const m of withoutSignatures(messages)) {
+      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${m.content || ''}` }); continue; }
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+        const calls = m.tool_calls.map((c) => `<tool_call>${JSON.stringify({ name: c.function && c.function.name, arguments: safeJsonParse(c.function && c.function.arguments) || {} })}</tool_call>`);
+        out.push({ role: 'assistant', content: [m.content, ...calls].filter(Boolean).join('\n') });
+        continue;
+      }
+      out.push({ role: m.role, content: m.content || '', ...(m.images ? { images: m.images } : {}) });
+    }
+    return out;
+  }
+
+  /**
    * A conversation for a model that cannot take tools: the tools described in
    * its instructions, with one way to call them, and the calls and results so
    * far written as words. Such a model's template drops a tool-result turn
@@ -256,16 +275,7 @@
       'Tools:',
       ...list.map(line),
     ].join('\n');
-    const out = [];
-    for (const m of withoutSignatures(messages)) {
-      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${m.content || ''}` }); continue; }
-      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
-        const calls = m.tool_calls.map((c) => `<tool_call>${JSON.stringify({ name: c.function && c.function.name, arguments: safeJsonParse(c.function && c.function.arguments) || {} })}</tool_call>`);
-        out.push({ role: 'assistant', content: [m.content, ...calls].filter(Boolean).join('\n') });
-        continue;
-      }
-      out.push({ role: m.role, content: m.content || '', ...(m.images ? { images: m.images } : {}) });
-    }
+    const out = toolTurnsInWords(messages);
     const sys = out.findIndex((m) => m.role === 'system');
     if (sys >= 0) out[sys] = { ...out[sys], content: `${out[sys].content}\n\n${guide}` };
     else out.unshift({ role: 'system', content: guide });
@@ -573,6 +583,7 @@
     claimsItRan,
     forOllama,
     toolsInWords,
+    toolTurnsInWords,
     ollamaReply,
     FOREIGN_CALL_SIGNATURE,
     safeJsonParse,

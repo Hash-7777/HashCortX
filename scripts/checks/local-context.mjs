@@ -84,7 +84,7 @@ console.log('\nEvery local call is sized:');
 {
   const app = src('js', 'app.js');
   const calls = app.match(/HCLocalContext\.numCtx\(/g) || [];
-  ok('the agent turn, plain chat, the side-by-side view, the modes\' own calls and the warm-up', calls.length === 5 && !/num_ctx: 8192/.test(app));
+  ok('the agent turn, a local agent\'s steps, plain chat, the side-by-side view, the modes\' own calls and the warm-up', calls.length === 6 && !/num_ctx: 8192/.test(app));
   ok('no request to a local model is written out beside the one client', !/\/api\/chat/.test(app));
   ok('the agent turn leaves room for the answer the caller needs', /agentTurnOllama\(\{ model, messages, tools, temperature, signal, json, need \}\)/.test(app) && /\{ need \}\)/.test(app));
   ok('a model the app unloads is sized afresh when it is loaded again', /HCLocalContext\.forget\(host, modelName\)/.test(app));
