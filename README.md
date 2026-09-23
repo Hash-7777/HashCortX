@@ -54,7 +54,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 | **Finance** | Statements, CSV, PDF and XLSX, or the records of a system you connect, read into a list of figures, with every total, card and chart worked out by the app from that list, and updated when you edit it |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
 | **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. It can also answer from a system you connect and bring its records in. Exported as one HTML file |
-| **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen |
+| **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen. Agents can look things up in a system you connect, never change it |
 | **Virtual OS** | A simulated project desktop an agent builds inside |
 
 Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
@@ -139,7 +139,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,417 source checks
+npm run check                                     # 7,432 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 203 Rust tests
 ```
 

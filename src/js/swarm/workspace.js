@@ -490,6 +490,9 @@
     note(`Asking ${agent.name}…`);
     draw();
     try {
+      // A run holding records a model may not see is not sent to it — js/mcp/connections.js.
+      const held = deps.heldFor ? deps.heldFor(run, $('amkWsModel').value || agent.model) : '';
+      if (held) throw Object.assign(new Error(held), { held: true });
       const messages = T.messagesFor(run, agentId, who.text, base);
       const answer = await window.HCModelRoutes.askWithFailover({
         start: $('amkWsModel').value || agent.model, options: deps.models, signal: state.asking.controller.signal,
@@ -514,7 +517,7 @@
       changed.length ? 'ok' : unnamedCode ? 'err' : '');
     } catch (err) {
       const stopped = err?.name === 'AbortError' || state.asking?.controller.signal.aborted;
-      note(stopped ? 'Stopped. Your message is still in the box.' : `${agent.name} could not answer: ${err?.message || err}`, stopped ? '' : 'err');
+      note(stopped ? 'Stopped. Your message is still in the box.' : err?.held ? err.message : `${agent.name} could not answer: ${err?.message || err}`, stopped ? '' : 'err');
     } finally {
       state.asking = null;
       draw();

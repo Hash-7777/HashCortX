@@ -221,6 +221,36 @@ console.log('\nFor the Coder, whose conversation is kept in the agents\' own sha
     && M.stepOf(Pol.exposedName(conn.id, 'delete_record')).verb === 'CHANGE' && M.stepOf('read_file') === null);
 }
 
+console.log('\nFor an Agent Swarm run, whose agents may work side by side:');
+{
+  const Pol = sandbox.window.HCMcpPolicy;
+  M.setTool(conn.id, 'delete_record', true);
+  const none = await M.offerForRun(['qwen2.5-coder:3b'], 'Write a poem about spring');
+  ok('a run whose task is about no connected system is offered none', none.tools.length === 0);
+  const all = await M.offerForRun(['qwen2.5-coder:3b', 'qwen2.5-coder:7b'], 'Report on the unpaid invoices in Company ERP');
+  ok('one about a system is offered its reading tools only, whatever is switched on', all.tools.length > 0 && all.tools.every((t) => !/delete_record/.test(t.function.name)) && all.has(Pol.exposedName(conn.id, 'search_records')));
+  ok('... and only when every model the run uses may see its records', (await M.offerForRun(['qwen2.5-coder:3b', 'cloud:gemini:gemini-2.5-flash'], 'unpaid invoices in Company ERP')).tools.length === 0);
+  await M.toolsFor('qwen2.5-coder:3b');
+  const chatOffer = M.offering();
+  await M.offerForRun(['qwen2.5-coder:3b'], 'unpaid invoices in Company ERP');
+  ok('the run\'s offer is its own: offering it changes nothing a chat turn was offered', M.offering() === chatOffer);
+  answer = true;
+  const name = Pol.exposedName(conn.id, 'search_records');
+  ok('before it reads, it has read from nothing', all.read().length === 0);
+  const got = await all.run(name, { model: 'invoice' });
+  ok('a read asks first, and the system it read from is named afterwards', /reference material/.test(got.result) && all.read().join() === conn.id && asked.at(-1).action === 'erp-read');
+  answer = false;
+  const refused = await M.offerForRun(['qwen2.5-coder:3b'], 'unpaid invoices in Company ERP');
+  await refused.run(name, {});
+  ok('... a read that was refused names none', refused.read().length === 0);
+  answer = true;
+  ok('a tool it did not offer is not run through it', !all.has(Pol.exposedName(conn.id, 'delete_record')));
+  M.setTool(conn.id, 'delete_record', false);
+  ok('a run holding records is held from a cloud model its system keeps them from, not from one on this computer', M.heldForModels([conn.id], ['qwen2.5-coder:3b', 'cloud:x:y']).join() === 'Company ERP' && M.heldForModels([conn.id], ['qwen2.5-coder:3b']).length === 0);
+  ok('... one since removed, from cloud models only', M.heldForModels(['gone'], ['cloud:x:y']).join() === 'a connected system' && M.heldForModels(['gone'], ['qwen2.5-coder:3b']).length === 0 && M.heldForModels(undefined, ['cloud:x:y']).length === 0);
+  ok('the person is told why, and what to do', M.runHeldText(['Company ERP']) === 'This run holds records from Company ERP, which are kept to models on this computer, so it was not sent. Use models on this computer for it, or allow cloud models for that system in Settings → Connections.');
+}
+
 console.log('\nRemoving a system:');
 {
   await M.remove(conn.id);
@@ -296,6 +326,16 @@ console.log('\nThe app uses it, and shows what a system says as text:');
   ok('... runs them through the one gate, memory rule included', /def = window\.HCMcp \? window\.HCMcp\.toolFor\(call\.name, own\) : own;/.test(coder) && /def\.fn \? def\.fn\(call\.arguments \|\| \{\}\) : def\.execute\(call\.arguments \|\| \{\}\)/.test(coder));
   ok('... in single runs only: agents working side by side are offered none', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /agentLoop\(wMsgs, buildTools\(\), wEl/.test(coder));
   ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(coder) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(coder));
+  const swarm = src('modes', 'agent-maker', 'mode.js');
+  ok('the Swarm offers a run the reading tools its models may all see, and keeps where it read', /runConnected = window\.HCMcp \? await window\.HCMcp\.offerForRun\(teamOf\(runBp\), work\) : null;/.test(swarm)
+    && /connectedTools: runConnected\?\.tools/.test(swarm) && /runConnected\?\.has\(call\.name\) \? JSON\.stringify\(await runConnected\.run\(call\.name, call\.arguments\)\)/.test(swarm)
+    && /run\.connectedFrom = \[\.\.\.new Set\(\[\.\.\.\(run\.connectedFrom \|\| \[\]\), \.\.\.\(runConnected\?\.read\(\) \|\| \[\]\)\]\)\];/.test(swarm)
+    && swarm.indexOf('run.connectedFrom = [') < swarm.indexOf('window.HCSwarmRuns.finishRun(run, { results: fresh'));
+  ok('... in every client\'s shape', /if \(kind === "gemini"\) return extra\.length \? window\.HCAgentShape\.toGeminiTools\(\[\.\.\.buildOpenAITools\(agentObj\), \.\.\.extra\]\)/.test(swarm) && /if \(kind === "ollama"\) return \[\.\.\.buildOllamaTools\(agentObj\), \.\.\.extra\];/.test(swarm));
+  ok('... does not run a team again on models a run\'s records are kept from', /held = again \? window\.HCMcp\?\.heldForModels\(again\.run\.connectedFrom, teamOf\(bp\)\) \|\| \[\] : \[\];/.test(swarm) && /if \(held\.length\) return \{ error: window\.HCMcp\.runHeldText\(held\) \};/.test(swarm));
+  const ws = src('js', 'swarm', 'workspace.js');
+  ok('... and the Workspace does not send a run holding them to such a model', /heldFor: \(run, model\) =>/.test(swarm) && /const held = deps\.heldFor \? deps\.heldFor\(run, \$\('amkWsModel'\)\.value \|\| agent\.model\) : '';\s*if \(held\) throw/.test(ws)
+    && ws.indexOf('deps.heldFor(run') < ws.indexOf('T.messagesFor(run, agentId'));
   const self = src('js', 'mcp', 'connections.js');
   ok('nothing a system says is put on screen as markup', !/innerHTML|insertAdjacentHTML|outerHTML/.test(self));
   const panel = src('core', 'settings', 'panel.html');

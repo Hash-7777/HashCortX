@@ -242,9 +242,10 @@ const SwarmMaker = (() => {
       untilFinished: true, need: agentObj?.need || 0,
       tools: (kind) => {
         if (!agentObj) return [];
-        if (kind === "gemini") return buildGeminiTools(agentObj);
-        if (kind === "ollama") return buildOllamaTools(agentObj);
-        return buildOpenAITools(agentObj);
+        const extra = agentObj.connectedTools || [];   // a connected system's reading tools, for this run
+        if (kind === "gemini") return extra.length ? window.HCAgentShape.toGeminiTools([...buildOpenAITools(agentObj), ...extra]) : buildGeminiTools(agentObj);
+        if (kind === "ollama") return [...buildOllamaTools(agentObj), ...extra];
+        return [...buildOpenAITools(agentObj), ...extra];
       },
     });
   }
@@ -360,15 +361,15 @@ const SwarmMaker = (() => {
             { deadlineMs: timeoutMs, queued: window.HCTraceLive?.queued(activeModel) });
           // Cancelled, not abandoned, when time runs out — js/model-routes.js.
           const result = await window.HCModelRoutes.callWithin(timeoutMs, signal, `Agent timeout after ${timeoutMs / 1000}s`, (attemptSignal) =>
-            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, tools: window.HCSwarmTeamShape.toolsFor(agent, isFinalOwner), model: activeModel, need }))
+            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, tools: window.HCSwarmTeamShape.toolsFor(agent, isFinalOwner), model: activeModel, need, connectedTools: runConnected?.tools }))
             .finally(() => waiting.done());
           if (result.tool_calls && result.tool_calls.length) {
             traceAdd(agent.name, `LLM requested ${result.tool_calls.length} tool call(s)`, "wait");
             appendAssistantToolCallTurn(messages, result.content, result.tool_calls);
             for (const call of result.tool_calls) {
               if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-              traceAdd(agent.name, `Tool call: ${call.name}(${JSON.stringify(call.arguments || {}).slice(0, 80)})`, "wait");
-              const toolResult = await runOneTool(call.name, call.arguments, null, null);
+              traceAdd(agent.name, `Tool call: ${window.HCMcp?.stepOf(call.name)?.object || call.name}(${JSON.stringify(call.arguments || {}).slice(0, 80)})`, "wait");
+              const toolResult = runConnected?.has(call.name) ? JSON.stringify(await runConnected.run(call.name, call.arguments)) : await runOneTool(call.name, call.arguments, null, null);
               traceAdd(agent.name, `${call.name} returned`, "ok");
               // Announce any generated file downloads in the trace
               if (call.name === "execute_python") {
@@ -806,8 +807,11 @@ const SwarmMaker = (() => {
     return after;
   }
 
+  let runConnected = null;   // a run's own offer of a connected system's reading tools — js/mcp/connections.js offerForRun
   async function runSwarm(again = null) {
     const bp   = again ? blueprints.find(b => b.id === again.run.blueprintId) : getActive();
+    const teamOf = (b) => [...(b?.agents || []).map(a => a.model || document.getElementById("model")?.value || ""), teamModel(b)], held = again ? window.HCMcp?.heldForModels(again.run.connectedFrom, teamOf(bp)) || [] : [];
+    if (held.length) return { error: window.HCMcp.runHeldText(held) };   // a run holding records a model it would use may not see is not run
     const task = again ? again.run.task : document.getElementById("amkTaskInput")?.value?.trim();
     if (again && !bp?.agents.length) return { error: "This run's blueprint was deleted or has no agents, so its team cannot run again." };
     if (!bp)   { await amkAlert("Select or create a blueprint first."); return; }
@@ -889,6 +893,7 @@ const SwarmMaker = (() => {
     const seed = pass ? Object.fromEntries(Object.entries(pass.done).filter(([id]) => !rerun.has(id))) : null;
 
     try {
+      runConnected = window.HCMcp ? await window.HCMcp.offerForRun(teamOf(runBp), work) : null;   // read-only, when every model the run uses may see the records
       traceAdd("Orchestrator", "Entering DAG execution", "boss");
       const choice = seed ? { seed } : {};
       const rawResults = await runDAG(runBp, work, signal, choice);
@@ -916,6 +921,7 @@ const SwarmMaker = (() => {
       bp.lastRun = Date.now();
       // An agent that kept its answer from before is not recorded twice.
       const fresh = seed ? Object.fromEntries(Object.entries(rawResults).filter(([id]) => !(id in seed))) : rawResults;
+      run.connectedFrom = [...new Set([...(run.connectedFrom || []), ...(runConnected?.read() || [])])];   // kept with the run, for heldForModels
       const kept = await window.HCSwarmRuns.finishRun(run, { results: fresh, finalOutput: result, base: again?.base, named: !!again && !resume });
       // The blueprint holds only the run's id; the result is copied into it
       // (localStorage, beside the keys) only when the run could not be kept.
@@ -949,6 +955,7 @@ const SwarmMaker = (() => {
       return err.name === "AbortError" ? { stopped: true } : { error: err.message };
     } finally {
       swarmAbortCtrl = null;
+      runConnected = null;
       document.getElementById("amkRunBtn").style.display  = "";
       document.getElementById("amkStopBtn").style.display = "none";
       setTimeout(() => {
@@ -2358,6 +2365,7 @@ function _polishToast(text, isError) {
       // A reply to a change request is the agent's answer alone, no tools, on the model the Workspace picks.
       askAgent: async (agent, messages, signal, model) => (await callAgentLLM(model || agent.model, messages, signal, agent.temperature))?.content || "", models: menuModels, label: (v) => menuModels().find(m => m.value === v)?.label.trim() || modelTraceLabel(v),
       runTeam: (again) => runSwarm(again), teamBusy: () => !!swarmAbortCtrl, stopTeam: () => swarmAbortCtrl?.abort(),
+      heldFor: (run, model) => { const h = window.HCMcp?.heldForModels(run?.connectedFrom, [model]) || []; return h.length ? window.HCMcp.runHeldText(h) : ""; },
     });
     document.getElementById("amkViewChatBtn")?.addEventListener("click", () => window.HCSwarmWorkspace.open(getActive()));
 

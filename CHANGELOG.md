@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Agent Swarm agents can look things up in a connected system.** A run
+  whose task names a connected system, or speaks of its records, offers
+  its agents that system's reading tools, never one that changes records,
+  since nobody may be watching a run to approve a change. They are offered
+  only when every model the run uses may see that system's records, and
+  the first read asks you. A run that read records keeps where it read
+  them from: it is not run again, or answered in the Workspace, on a model
+  the system keeps them from, across a restart too.
+
 - **Finance can report from a connected system.** Name a connected system
   in a Finance request, such as "summarise the unpaid invoices in Company
   ERP", and its records are read with its reading tools, after you allow

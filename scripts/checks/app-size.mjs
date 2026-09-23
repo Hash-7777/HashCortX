@@ -617,7 +617,12 @@ const LINE_BUDGET = {
   // running only those agents and the ones after them, with what the rest
   // answered kept. Which agents, and what the run keeps to do it, are
   // js/swarm/runs.js and js/swarm/schedule.js; this is the wiring.
-  'modes/agent-maker/mode.js': 2453,
+  // 2461, up eight: a run whose task is about a connected system is offered
+  // its reading tools, only when every model the run uses may see its
+  // records, and a run holding records is not run again or answered on a
+  // model its system keeps them from. The deciding is js/mcp/connections.js
+  // offerForRun and heldForModels; this is the wiring.
+  'modes/agent-maker/mode.js': 2461,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

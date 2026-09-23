@@ -226,6 +226,60 @@
     return { tools, refusal: "" };
   }
 
+  /**
+   * The reading tools of the connected systems every one of `models` may
+   * see, for a run of several agents that may work side by side (the Agent
+   * Swarm), when its task is about one. The offer is the run's own, so one
+   * agent's tools never replace another's, and it never holds a tool that
+   * changes records: nobody may be watching a run to approve a change.
+   * `read()` names the systems it read from.
+   */
+  async function offerForRun(models, text) {
+    const at = new Map();
+    const tools = [];
+    const readFrom = new Set();
+    const everyModel = (conn) => (models || []).every((m) => P().mayReach(conn, m));
+    if (available() && asksFor(text)) {
+      for (const first of list()) {
+        if (!everyModel(first) || !(first.tools || []).some((t) => t.on && t.reads)) continue;
+        let conn = first;
+        if (Date.now() - (conn.checkedAt || 0) > RECHECK_MS) {
+          try { conn = await refresh(conn.id); } catch { continue; }
+        }
+        for (const t of conn.tools || []) {
+          if (!t.on || !t.reads || t.approved !== t.definition) continue;
+          const offer = P().offerOf(conn, t.raw);
+          if (!offer || at.has(offer.function.name)) continue;
+          at.set(offer.function.name, { id: conn.id, tool: t.name });
+          tools.push(offer);
+        }
+      }
+    }
+    return {
+      tools,
+      has: (name) => at.has(name),
+      run: async (name, args) => {
+        const got = await callAt(at.get(name), args);
+        if (got && !got.error) readFrom.add(at.get(name).id);
+        return got;
+      },
+      read: () => [...readFrom],
+    };
+  }
+
+  /** The systems among `ids` that keep their records from any of `models`; one since removed, from cloud models. */
+  function heldForModels(ids, models) {
+    const held = new Set();
+    for (const id of ids || []) {
+      const conn = find(id);
+      if ((models || []).some((m) => !P().mayReach(conn, m))) held.add(conn ? conn.name : "a connected system");
+    }
+    return [...held];
+  }
+
+  /** What the person is told when a Swarm run holds records a model it would use may not see. */
+  const runHeldText = (names) => `This run holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. Use models on this computer for it, or allow cloud models for that system in Settings → Connections.`;
+
   /** How a run shows a connected tool's step: ASK or CHANGE, and the system and tool in words. */
   function stepOf(name) {
     const conn = systemOf(name);
@@ -253,7 +307,13 @@
    * for the app's own use — never for a model.
    */
   async function run(name, args, { raw = false } = {}) {
-    const at = offered.get(name);
+    const got = await callAt(offered.get(name), args, { raw });
+    if (got && !got.error) readThisTurn = true;
+    return got;
+  }
+
+  /** Run one tool of a connected system, after asking: the system and tool it is, and what to send. */
+  async function callAt(at, args, { raw = false } = {}) {
     const conn = at && find(at.id);
     const t = conn && (conn.tools || []).find((x) => x.name === at.tool);
     if (!t || !t.on || t.approved !== t.definition) return { error: "That tool is switched off in Settings → Connections." };
@@ -266,7 +326,6 @@
     if (!allowed) return { error: "The person did not allow this." };
     try {
       const result = await clientOf().callTool(conn.id, t.name, args);
-      readThisTurn = true;
       const text = P().textOf(result);
       const S = window.HCSources;
       return { system: conn.name, tool: t.name, result: S ? S.frame([{ title: `${conn.name} · ${t.name}`, text }]) : text, ...(raw ? { raw: result } : {}) };
@@ -579,5 +638,5 @@
   /** What the person is told when a conversation holds records a cloud model may not see. */
   const heldText = (names, { fresh = "Start a new chat", what = "chat" } = {}) => `This ${what} holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. ${fresh} to use a cloud model, or allow cloud models for that system in Settings → Connections.`;
 
-  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, signIn, setTool, setAllowCloud, toolsFor, toolsForTask, forRun, asksFor, stepOf, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldIn, heldText, render, labelOf, RECORD_WORDS };
+  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, signIn, setTool, setAllowCloud, toolsFor, toolsForTask, forRun, offerForRun, heldForModels, runHeldText, asksFor, stepOf, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldIn, heldText, render, labelOf, RECORD_WORDS };
 })();
