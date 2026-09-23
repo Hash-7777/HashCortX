@@ -67,7 +67,7 @@ The agent works on your real files. Inside the project it moves freely; every ed
 
 ## Agent Swarm
 
-Build a team on a canvas, or start from a template. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them. A website the team builds can show real, openly licensed photographs found on Openverse, credited on the page; this sends a few search words about the site's subject and can be turned off in Settings (see [SECURITY.md](docs/SECURITY.md)).
+Build a team on a canvas, start from a template, or describe the task and have one designed. A team is sized to its task: a short piece of writing or a question goes to one writer, and a team on your computer's own models is a few agents that take turns. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them. A website the team builds can show real, openly licensed photographs found on Openverse, credited on the page; this sends a few search words about the site's subject and can be turned off in Settings (see [SECURITY.md](docs/SECURITY.md)).
 
 <img src="docs/assets/screenshots/agent-swarm.png" alt="Agent Swarm: a four-agent team mid-run on a canvas, with the live trace below" width="100%">
 
@@ -137,7 +137,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,027 source checks
+npm run check                                     # 7,091 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 181 Rust tests
 ```
 

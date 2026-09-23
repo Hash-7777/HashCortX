@@ -276,7 +276,17 @@
     }
 
     for (const p of pieces) bar.push(...p.bar);
-    return normalise({ kind, items, bar, pieces: pieces.map((p) => p.id) }, task);
+    return withoutUnasked(normalise({ kind, items, bar, pieces: pieces.map((p) => p.id) }, task), task);
+  }
+
+  /**
+   * What a short piece or a plain question owes: the answer itself, and no
+   * file. A small model asked named a file for a product description, and the
+   * check that followed found the file missing and had it "repaired" over
+   * the good answer.
+   */
+  function forSmall(task) {
+    return normalise({ kind: 'answer', items: [{ name: 'the answer', owner: 'writer', required: true, format: 'the finished piece or answer, ready to use' }], bar: [...ALWAYS], pieces: [] }, task);
   }
 
   // ── Reading a model's answer ──────────────────────────────────────
@@ -308,15 +318,45 @@ Return only JSON, no markdown:
   const SERVER_SIDE = /^(?:server|backend|api)\.(?:m?js|ts|py)$|^\.env|^package(?:-lock)?\.json$|\.sql$|^readme(?:\.md)?$|^config\.json$/i;
   const BINARY_IMAGE = /\.(?:png|jpe?g|gif|webp|avif|ico|bmp)$/i;
 
+  // A format the request names is kept. Anything else a task that is not a
+  // build owes is a part of its one answer, not a file of its own: a small
+  // model planned four office files for a social media plan, and a team that
+  // wrote the plan as one document was then found to owe four missing files
+  // and sent to write them again. A build's documents are written as Markdown,
+  // which every model writes well; an office file or a PDF takes a Python run.
+  const ASKED_FORMAT = {
+    docx: /\b(word|docx|\.doc)\b/i, xlsx: /\b(excel|xlsx|spreadsheets?|workbook)\b/i, pptx: /\b(powerpoint|pptx|slides?|slide deck|deck)\b/i,
+    pdf: /\bpdf\b/i, csv: /\b(csv|spreadsheets?|excel)\b/i, md: /\b(markdown|md|readme)\b/i, txt: /\b(txt|text files?)\b/i,
+  };
+  const DOCUMENT = /\.(docx|xlsx|pptx|pdf|csv|md|txt)$/i;
+
+  /** "launch_plan.md" as the part of an answer it names: "Launch plan". */
+  function partOf(name) {
+    const t = String(name).replace(/\.\w+$/, '').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
   /**
-   * A build's deliverables without what the request never needed: server
-   * files when it asks for nothing a server does, and image files at all,
-   * since an agent answers in text and a picture written as text is not one.
+   * A plan without what the request never needed: image files at all, since
+   * an agent answers in text and a picture written as text is not one;
+   * document files in formats it did not ask for; and, for a build, server
+   * files when it asks for nothing a server does.
    */
   function withoutUnasked(plan, task) {
-    if (!plan || plan.kind !== 'build') return plan;
+    if (!plan) return plan;
+    const asked = requestOf(task);
+    const seen = new Set();
+    // No task owes a picture file: an agent answers in text. A small model
+    // planned photos.jpg for a social media plan.
+    plan.items = (plan.items || []).filter((i) => !BINARY_IMAGE.test(String(i && i.name || ''))).map((i) => {
+      const ext = ((DOCUMENT.exec(String(i && i.name || '')) || [])[1] || '').toLowerCase();
+      if (!ext || ASKED_FORMAT[ext].test(asked)) return i;
+      if (plan.kind !== 'build') return { ...i, name: partOf(i.name) };
+      return ext === 'md' || ext === 'txt' ? i : { ...i, name: i.name.replace(/\.\w+$/, '.md') };
+    }).filter((i) => { const k = String(i.name).toLowerCase(); return seen.has(k) ? false : seen.add(k); });
+    if (plan.kind !== 'build') return plan;
     const server = piecesOf(task, 'build').some((p) => p.id === 'server');
-    plan.items = plan.items.filter((i) => !BINARY_IMAGE.test(i.name) && (server || !SERVER_SIDE.test(i.name)));
+    plan.items = plan.items.filter((i) => server || !SERVER_SIDE.test(i.name));
     return plan;
   }
 
@@ -614,6 +654,7 @@ Return only JSON, no markdown:
   }
 
   window.HCSwarmDeliverables = {
+    forSmall,
     MAX_ITEMS, MAX_BAR, PIECES, ALWAYS,
     kindOf, piecesOf, requestOf, withoutUnasked, extraPagesOf, derive, messages, readPlan, normalise, merge,
     filesOf, budgetsFor, contractsOf, summaryOf, agentMatches, fitScore, assign, ownershipNote,

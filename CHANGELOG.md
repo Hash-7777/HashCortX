@@ -134,6 +134,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The Agent Swarm fits its team to the task and to your computer.** A
+  short piece of writing or a question is handed to one writer: no model is
+  asked to design a team, nothing is asked of you first, and the answer is
+  what the run owes. Other tasks get a team sized to how much work they are,
+  and a team designed larger than that is cut down to it, keeping the agent
+  that delivers. A team on local models is kept to a few agents, which run
+  one after another, each given five minutes, since one computer answers one
+  request at a time. The questions before a run are asked only when a task
+  is about you, and fewer for a small task. The agent that delivers is
+  handed every piece and told that its answer is what you receive, so its
+  answer is now the result whatever the aggregation, instead of being
+  written once more by another model; voting and best of n still choose
+  between answers.
+
 - **Finance adds up your figures itself, and your edits reach the whole
   report.** A report used to be numbers the model wrote separately — the cards,
   each chart and the table — with nothing joining them, so a total could
@@ -249,6 +263,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Swarm's "Done in" for each agent.
 
 ### Fixed
+
+- **What an Agent Swarm run owes is what you asked for.** A plan for a
+  piece of writing, a plan or an analysis now names the parts of one answer,
+  not separate files: a team that wrote a launch plan as one document was
+  otherwise found to owe four missing files and sent back to write them. No
+  run owes a picture file, which an agent cannot write, and a build's
+  documents are Markdown unless you asked for another format. The questions
+  you left unanswered before a run no longer decide what kind of task it is:
+  a skipped question that mentioned a website made a social media plan a
+  website build.
+
+- **An Agent Swarm agent's answer has to be the work.** An answer that is
+  only a call to a tool, written out as text, is not taken as the agent's
+  part: the same model is asked once for the work itself, then another model
+  is tried. An answer that asks you for the details you left unanswered is
+  asked once for the work too, and the agents are told that you will not be
+  asked again: one delivered those questions as the team's result. An
+  agent's time limit is reported as the one it was given.
+
+- **Agent Swarm agents read what is remembered about you and leave it as
+  it is.** Only you, and the chat when you tell it something, add to it. The
+  agent that delivers a result puts together what it was handed and searches
+  for nothing.
 
 - **Changing an ERP system's design takes seconds, and changes only what you
   asked.** A design change was made by having the model write the whole

@@ -178,5 +178,43 @@
       && /\b(?:comply|help|assist|provide|fulfil+|complete|do (?:that|this)|with (?:that|this)|(?:this|that|your) request)\b/i.test(t);
   }
 
-  window.HCSwarmOutput = { normaliseAgentOutput, detectLang, wholeDocumentLang, isRefusal };
+  /**
+   * An answer that is only a tool call — a JSON object naming something and
+   * its arguments, in or out of a code block — and no work. A small model
+   * offered tools writes one to a tool that does not exist, and it was handed
+   * on as that agent's whole part, and then as the team's result.
+   */
+  function isOnlyACall(text) {
+    const raw = String(text || '').trim();
+    const fenced = window.HCFences && window.HCFences.jsonBlock ? window.HCFences.jsonBlock(raw) : null;   // js/fences.js
+    const t = (fenced != null ? fenced : raw).trim();
+    if (!/^[[{]/.test(t) || t.length > 2000) return false;
+    try {
+      const v = JSON.parse(t);
+      const one = Array.isArray(v) ? v[0] : v;
+      return !!one && typeof one === 'object' && typeof one.name === 'string' && ('arguments' in one || 'parameters' in one) && Object.keys(one).length <= 3;
+    } catch { return false; }
+  }
+
+  // A short answer asking the person for what the task left out, instead of
+  // doing the work: a model given the questions left unanswered asked them
+  // all again, and that stood as the team's result.
+  const ASKS_BACK = /\b(once i have (this|these|that|the|your) (information|details|info)|(could|can|would) you (please )?(provide|share|give me|tell me|send) (me )?(the following|a few|some|more|these|this) (details|information|info)|to proceed,? (i need|could you|can you|please)|before i (can )?(begin|start|proceed|finali[sz]e)|i need (a few|some|more|the following) (details|information))\b/i;
+  const asksInstead = (text) => { const t = String(text || '').trim(); return t.length < 2000 && ASKS_BACK.test(t); };
+
+  /** Why an answer is not the work: "call", "asks", or "" when it is the work. */
+  const notTheWork = (text) => (isOnlyACall(text) ? 'call' : asksInstead(text) ? 'asks' : '');
+
+  /**
+   * The turns that ask a model for the work itself when it answered with
+   * something else: its answer as it was, then the request.
+   */
+  const askForTheWork = (text, why = 'call') => [
+    { role: 'assistant', content: String(text || '') },
+    { role: 'user', content: why === 'asks'
+      ? 'The person will not answer questions. Write your part of the work itself now, in full: choose what is a matter of taste yourself, and write a clearly marked placeholder in square brackets for a fact about them that was not given.'
+      : 'That tool is not available to you. Write your part of the work itself now, in full, with no tool call.' },
+  ];
+
+  window.HCSwarmOutput = { normaliseAgentOutput, detectLang, wholeDocumentLang, isRefusal, isOnlyACall, asksInstead, notTheWork, askForTheWork };
 })();

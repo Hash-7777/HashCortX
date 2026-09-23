@@ -33,6 +33,7 @@
     const C = window.HCSwarmClarify;
     const ROUTES = window.HCModelRoutes;
     const trace = deps.trace;
+    if (!C.mayNeedDetails(task)) { trace("The task is not about you · starting", "ok"); return task; }
     trace("Checking whether the task needs details only you can give", "wait");
     const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
@@ -49,6 +50,7 @@
       }
     }
     if (questions === null) questions = C.fallbackQuestions(task);
+    questions = questions.slice(0, C.limitFor(window.HCSwarmTaskKind?.effortOf(task)));
     if (!questions.length) {
       trace("No personal details needed · starting", "ok");
       return task;
@@ -169,6 +171,12 @@
     const D = window.HCSwarmDeliverables;
     const ROUTES = window.HCModelRoutes;
     const trace = deps.trace;
+    // A short piece or a question owes the answer itself; no model is asked.
+    if (window.HCSwarmTaskKind?.effortOf(task) === "small") {
+      const plan = D.forSmall(task);
+      trace(`A short task · it owes ${D.summaryOf(plan)}`, "ok");
+      return plan;
+    }
     trace("Working out what this task needs handed back", "wait");
     const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");

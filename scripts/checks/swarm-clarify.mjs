@@ -69,6 +69,7 @@ console.log('\nWhat is answered is fact; what is not is a marked placeholder:');
   ok('answers are written in as given', out.includes('What name should it use? Mona Adel') && out.includes('github.com/mona/ledger'));
   ok('and marked as not to be added to', /do not add to them or invent others/.test(out));
   ok('a blank answer becomes a placeholder, never an invention', /Not given: How should people contact you\?/.test(out) && /square brackets/.test(out) && /Never invent such a fact/.test(out));
+  ok('and the team is told it will not be asked again, so it does not ask', /will not be asked again: never ask for them/.test(out));
   ok('a blank answer to a question of taste is the team\'s to decide, not a placeholder', /choice of taste — colours, fonts, a logo, imagery/.test(out) && /make that choice yourself/.test(out));
   ok('a placeholder is never put where a browser reads it as code', /never put a placeholder inside code, a colour, a link or image address, or a data value/.test(out));
   ok('skipping everything still rules out inventing', /Never invent such a fact/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])) && !/Details from the person/.test(C.taskWithAnswers(task, [{ question: 'Your name?', answer: '' }])));
@@ -131,6 +132,15 @@ console.log('\nThe website rules no longer ask for an invented person:');
   ok('agents are not told to invent a name', !/invent a realistic one/.test(note));
   ok('they are told to use the details given exactly', /every detail the request gives exactly as given/.test(note));
   ok('and to mark what is missing', /\[Your name\]/.test(note) && /Never invent facts about the real person or business/.test(note));
+}
+
+console.log('\nOnly a task about the person is asked about, and a short one briefly:');
+{
+  ok('a task that never speaks of the person, and is not personal by nature, is not asked about', !C.mayNeedDetails('Write a short product description for a handmade ceramic coffee mug.') && !C.mayNeedDetails('Build a landing page for a bakery'));
+  ok('one that speaks of them, or is personal by nature, may be', C.mayNeedDetails('Write a product description for my handmade mugs') && C.mayNeedDetails('Build a site for our clinic') && C.mayNeedDetails('A portfolio website for a designer'));
+  ok('a short task is asked at most two questions, ordinary work four, big work six', C.limitFor('small') === 2 && C.limitFor('normal') === 4 && C.limitFor('big') === C.MAX_QUESTIONS);
+  const ask = readFileSync(join(root, 'src', 'js', 'swarm', 'ask.js'), 'utf8');
+  ok('the run skips the question step for a task not about the person, and caps the rest', /if \(!C\.mayNeedDetails\(task\)\) \{ trace\("The task is not about you · starting", "ok"\); return task; \}/.test(ask) && /questions = questions\.slice\(0, C\.limitFor\(window\.HCSwarmTaskKind\?\.effortOf\(task\)\)\);/.test(ask));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/clarify.js)`);

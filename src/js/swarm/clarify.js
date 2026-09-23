@@ -17,6 +17,9 @@
 // short list written here is asked for the kinds of task that are always
 // personal — a portfolio, a CV — so the run still does not guess.
 //
+// A task that never speaks of the person and is not personal by nature is
+// not asked about at all, and a short task is asked at most two questions.
+//
 // Pure: text in, text out. Loaded before the Agent Swarm and published as
 // window.HCSwarmClarify. Checked by scripts/checks/swarm-clarify.mjs.
 // ==============================================================
@@ -102,6 +105,20 @@ At most ${MAX_QUESTIONS} questions, the most important first. If nothing persona
   /** Whether a task is personal by its nature, whatever a model says. */
   const looksPersonal = (task) => PERSONAL.test(String(task || ''));
 
+  // A task that speaks of the person who asked: "my shop", "our launch", "for me".
+  const ABOUT_THEM = /\b(?:my|our|mine|ours|me|us|i|i'm|i am|i've|we|we're|we are)\b/i;
+
+  /**
+   * Whether a task can need facts only the person can give. One that never
+   * speaks of them and is not personal by nature — "a product description
+   * for a ceramic mug" — has none to ask for, and a small model asked anyway
+   * asked for their name and contact details.
+   */
+  const mayNeedDetails = (task) => looksPersonal(task) || ABOUT_THEM.test(String(task || ''));
+
+  /** At most this many questions: a short task is not worth a form. */
+  const limitFor = (effort) => (effort === 'small' ? 2 : effort === 'normal' ? 4 : MAX_QUESTIONS);
+
   /** What to ask when no model could be asked, for a task that is plainly personal. */
   function fallbackQuestions(task) {
     if (!looksPersonal(task)) return [];
@@ -134,10 +151,11 @@ At most ${MAX_QUESTIONS} questions, the most important first. If nothing persona
       // "color: [brand-primary]", which a browser drops, so the site had no
       // colour at all. Only a fact about the person is marked, and only where
       // a reader sees it — never inside code, a colour, an address or data.
-      parts.push(`Not given: ${blank.map((a) => clean(a.question, 240)).join(' ')} Where one of these is a choice of taste — colours, fonts, a logo, imagery, style, wording — make that choice yourself, well, for this subject. Where it is a fact about them — a name, contact details, prices, an address, dates — write a clearly marked placeholder in square brackets, such as [Your name], in the text a reader sees, for the person to fill in. Never invent such a fact, and never put a placeholder inside code, a colour, a link or image address, or a data value: a browser cannot use one there.`);
+      // Told only what was not given, a model asked it all again as its answer, and that stood as the result.
+      parts.push(`Not given: ${blank.map((a) => clean(a.question, 240)).join(' ')} These were left unanswered and will not be asked again: never ask for them. Where one of these is a choice of taste — colours, fonts, a logo, imagery, style, wording — make that choice yourself, well, for this subject. Where it is a fact about them — a name, contact details, prices, an address, dates — write a clearly marked placeholder in square brackets, such as [Your name], in the text a reader sees, for the person to fill in. Never invent such a fact, and never put a placeholder inside code, a colour, a link or image address, or a data value: a browser cannot use one there.`);
     }
     return parts.join('\n\n');
   }
 
-  window.HCSwarmClarify = { MAX_QUESTIONS, messages, parseQuestions, looksPersonal, fallbackQuestions, taskWithAnswers, exampleOf };
+  window.HCSwarmClarify = { MAX_QUESTIONS, messages, parseQuestions, looksPersonal, mayNeedDetails, limitFor, fallbackQuestions, taskWithAnswers, exampleOf };
 })();

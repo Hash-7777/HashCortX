@@ -40,7 +40,11 @@ console.log('An agent that runs out of time is cancelled, not left running:');
 console.log('\nAn empty answer is a failure, not a result:');
 {
   const agent = bodyOf('executeOneAgent');
-  ok('an answer with nothing in it throws, so the next model is asked', /if \(!candidateText\.trim\(\) \|\| window\.HCSwarmOutput\.isRefusal\(candidateText\)\) throw Object\.assign\(new Error\(candidateText\.trim\(\) \? "declined the task" : "returned an empty answer"\), \{ empty: true \}\)/.test(agent));
+  ok('a local agent is given longer: it shares one computer with the team', /window\.HCModelRoutes\.providerOf\(agent\.model \|\| ""\) === "local" \? 300000 : 0/.test(agent));
+  ok('a local team runs one agent at a time, since one computer answers one request at a time', /const oneAtATime = agents\.every\(/.test(bodyOf('runDAG')) && /\.slice\(0, oneAtATime \? 1 : Infinity\)/.test(bodyOf('runDAG')));
+  ok('a designed team is cut to the size its task was given', /window\.HCSwarmTeamShape\.trimTo\(parsed\.agents, agentBounds\.max\)/.test(src));
+  ok('each agent is given the tools a run allows it, the deliverer fewer', /tools: window\.HCSwarmTeamShape\.toolsFor\(agent, isFinalOwner\)/.test(agent));
+  ok('an answer with nothing in it throws, so the next model is asked', /if \(!candidateText\.trim\(\) \|\| window\.HCSwarmOutput\.isRefusal\(candidateText\) \|\| window\.HCSwarmOutput\.isOnlyACall\(candidateText\)\) throw Object\.assign\(new Error\(/.test(agent) && /"returned an empty answer"/.test(agent));
   ok('running out of tool rounds with no answer throws too', /used every tool round without an answer/.test(agent));
   ok('"(no output)" is never handed on as an agent\'s work', !/\(no output\)/.test(agent));
 }
@@ -52,6 +56,9 @@ console.log('\nThe agent that runs last delivers the result:');
   ok('every run picks its deliverer from what nothing waits on', /HCSwarmTeamShape\.delivererOf\(agents, edges, bp\.finalOutputAgentId\)/.test(bodyOf('runDAG')));
   ok('the agent told to deliver is that one', /finalOutputAgentId: choice\.deliverer/.test(bodyOf('runDAG')));
   ok('and the result is its answer, unless it failed', /o\.id === delivererId && !\/\^\(\?:Error\|Skipped\): \/\.test/.test(bodyOf('aggregateResults')));
+  const agg = bodyOf('aggregateResults');
+  ok('whatever the aggregation, its answer is the result, and no model writes it all again', /const delivered = delivererId && !judged \?/.test(agg) && /if \(delivered\) \{[^\n]*return delivered\.out; \}/.test(agg) && agg.indexOf('return delivered.out') < agg.indexOf('strategy === "hierarchical"') && agg.indexOf('return delivered.out') < agg.indexOf('Sending synthesis prompt'));
+  ok('only a vote or a best-of-n still judges between the answers', /const judged = strategy === "voting" \|\| strategy === "best_of_n";/.test(agg));
   ok('the God Agent is not told to make a planner the deliverer', !/lead planner\/supervisor as finalOutputAgentId/.test(src));
 }
 

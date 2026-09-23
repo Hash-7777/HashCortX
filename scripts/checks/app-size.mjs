@@ -595,7 +595,14 @@ const LINE_BUDGET = {
   // found. The reading is in js/swarm/project-check.js and the asking is in
   // js/swarm/ask.js beside the run's other two calls; this is the wiring, and
   // the run status while it happens.
-  'modes/agent-maker/mode.js': 2443,
+  // 2438, down five: a team is sized to its task and to one computer when it
+  // is local; a short task's team is built without a designer call; an answer
+  // that is only a call is not taken as work; each agent is given the tools a
+  // run allows; and the deliverer's answer is the result. The rules are
+  // js/swarm/task-kind.js, js/swarm/team-shape.js, js/swarm/clarify.js and
+  // js/swarm/deliverables.js, and what a build agent is held to moved to
+  // js/swarm/team-shape.js.
+  'modes/agent-maker/mode.js': 2438,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

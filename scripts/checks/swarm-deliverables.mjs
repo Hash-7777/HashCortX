@@ -73,8 +73,9 @@ console.log('\nWork that is not a build is not given files to write:');
 ok('a campaign is writing', D.derive(CAMPAIGN).kind === 'writing', D.derive(CAMPAIGN).kind);
 ok('an analysis is analysis', D.derive(MARKET).kind === 'analysis', D.derive(MARKET).kind);
 ok('a bug is a fix', D.derive(BUG).kind === 'fix', D.derive(BUG).kind);
-ok('a fix names the cause on its own', has(BUG, 'cause.md'));
-ok('a fix has to show it worked', has(BUG, 'proof.md'));
+ok('a fix names the cause on its own', has(BUG, 'Cause'));
+ok('a fix has to show it worked', has(BUG, 'Proof'));
+ok('and its parts are parts of one answer, not files to go missing', !names(BUG).some((n) => /\.md$/.test(n)) && !names(CAMPAIGN).some((n) => /\.md$/.test(n)));
 ok('a fix mentioning a login is not asked to build one', D.derive(BUG).pieces.length === 0, D.derive(BUG).pieces.join(','));
 ok('an analysis is not given a stylesheet', !has(MARKET, 'styles.css'));
 ok('a campaign is asked for the finished piece', bar(CAMPAIGN).includes('finished piece'));
@@ -112,7 +113,7 @@ ok('an unreadable answer falls back to the task', D.merge(null, SHOP).items.some
   const m = D.merge(thin, 'plan a marketing campaign');
   ok('what holds for every result is put back', D.ALWAYS.every((l) => m.bar.includes(l)));
   ok('and what the model said is kept', m.bar.includes('every post is ready to publish'));
-  ok('the model\'s own deliverables are kept', m.items.some((i) => i.name === 'campaign.md'));
+  ok('the model\'s own deliverables are kept, as parts of the answer', m.items.some((i) => i.name === 'Campaign'));
   ok('they are not repeated when the model said them too', D.merge({ kind: 'writing', items: [{ name: 'a.md' }], bar: [D.ALWAYS[0]] }, 'write a thing').bar.filter((b) => b === D.ALWAYS[0]).length === 1);
 }
 ok('an empty answer falls back to the task', D.merge({ kind: 'build', items: [], bar: [] }, SHOP).items.length > 0);
@@ -161,7 +162,7 @@ console.log('\nEvery deliverable has exactly one agent, and it is the right one:
   // ordinary piece unless the plan names one that IS the finished thing.
   ok('a build leaves the deliverer free to assemble', (m.get('a5') || []).length === 0, String((m.get('a5') || []).length));
   const analysis = D.assign(D.derive('analyse the scooter market'), TEAM, 'a5');
-  ok('but the final answer is the deliverer\'s', (analysis.get('a5') || []).some((i) => /answer/.test(i.name)));
+  ok('but the final answer is the deliverer\'s', (analysis.get('a5') || []).some((i) => /answer/i.test(i.name)));
 
   // Several agents answering to one owner share the work out.
   const twoCoders = D.assign(D.derive('build a site with a blog, a shop and charts'),
@@ -223,6 +224,28 @@ console.log('\nWhat was asked for, not what was asked about:');
   const withServer = D.merge(fromModel, `${task} with customer accounts and a database of orders`).items.map((i) => i.name);
   ok('a request that asks for a server keeps it', withServer.includes('server.js'));
   ok('the planner is told a browser-only site has no server files and no images', /no server script, no \.env, no package\.json, no README/.test(D.messages(task)[0].content) && /Never list an image file/.test(D.messages(task)[0].content));
+}
+
+console.log('\nA file nobody asked for is not owed:');
+{
+  const plan = () => ({ kind: 'writing', items: [{ name: 'launch_plan.docx' }, { name: 'calendar.xlsx' }, { name: 'deck.pptx' }, { name: 'report.pdf' }, { name: 'notes.md' }] });
+  const names = (p) => p.items.map((i) => i.name).join();
+  ok('files the request did not ask for become parts of the one answer', names(D.withoutUnasked(plan(), 'Plan a one-week social media launch for my mug shop')) === 'Launch plan,Calendar,Deck,Report,Notes');
+  ok('... and formats it asked for stay files', names(D.withoutUnasked(plan(), 'Make a Word document, an Excel spreadsheet, slides and a PDF')) === 'launch_plan.docx,calendar.xlsx,deck.pptx,report.pdf,Notes');
+  ok('Markdown asked for stays Markdown', names(D.withoutUnasked(plan(), 'Write the plan as Markdown files')) === 'Launch plan,Calendar,Deck,Report,notes.md');
+  ok('a build\'s documents are written as Markdown', names(D.withoutUnasked({ kind: 'build', items: [{ name: 'index.html' }, { name: 'plan.md' }, { name: 'handbook.docx' }] }, 'Build a website for my mug shop')) === 'index.html,plan.md,handbook.md');
+  ok('two that become the same part are one part', names(D.withoutUnasked({ kind: 'writing', items: [{ name: 'plan.md' }, { name: 'plan.docx' }] }, 'Plan a launch')) === 'Plan');
+  ok('the questions left unanswered do not count as asking for a format', names(D.withoutUnasked(plan(), 'Plan a launch\n\nNot given: Do you want a PDF or a Word document?')) === 'Launch plan,Calendar,Deck,Report,Notes');
+  ok('no task owes a picture file, since an agent answers in text', names(D.withoutUnasked({ kind: 'writing', items: [{ name: 'launch_plan.md' }, { name: 'photos.jpg' }, { name: 'banner.PNG' }] }, 'Plan a launch')) === 'Launch plan');
+}
+
+console.log('\nA short piece or a question owes the answer itself:');
+{
+  const p = D.forSmall('Write a haiku about rain');
+  ok('one deliverable, the answer, and no file to go missing', p.items.length === 1 && !/\.\w{1,8}$/.test(p.items[0].name) && D.filesOf(p).length === 0);
+  ok('held to the bar every result is held to', D.ALWAYS.every((b) => p.bar.includes(b)));
+  const ask = readFileSync(join(root, 'src', 'js', 'swarm', 'ask.js'), 'utf8');
+  ok('the run uses it for a small task without asking a model', /effortOf\(task\) === "small"\) \{\s*const plan = D\.forSmall\(task\);/.test(ask));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/deliverables.js)`);

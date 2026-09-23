@@ -113,5 +113,37 @@ for (const tpl of sandbox.window.HCSwarmTemplates.TEMPLATES || []) {
   ok(`${tpl.name}: its deliverer has nothing waiting on it`, !!d.id && !edges.some((e) => e.from === d.id));
 }
 
+console.log('\nA team cut to what the task was sized for:');
+{
+  const five = [{ id: 'a1', name: 'Market Researcher', role: 'researcher' }, { id: 'a2', name: 'Content Creator', role: 'writer' }, { id: 'a3', name: 'Social Media Manager', role: 'custom' }, { id: 'a4', name: 'Critic', role: 'critic' }, { id: 'a5', name: 'Launch Plan Synthesizer', role: 'supervisor' }];
+  const cut = T.trimTo(five, 2);
+  ok('the deliverer stays, with the agent who makes the work', cut.agents.map((a) => a.name).join() === 'Content Creator,Launch Plan Synthesizer' && cut.deliverer === 'a5');
+  ok('the work is handed on to the deliverer', cut.edges.length === 1 && cut.edges[0].from === 'a2' && cut.edges[0].to === 'a5');
+  ok('and what was cut is named', cut.dropped.join() === 'Market Researcher,Social Media Manager,Critic');
+  ok('a team within its size is left alone', T.trimTo(five, 5) === null && T.trimTo(five.slice(0, 2), 3) === null);
+  ok('cut to one, the deliverer alone', T.trimTo(five, 1).agents.map((a) => a.id).join() === 'a5');
+}
+
+console.log('\nThe tools an agent is given in a run:');
+{
+  const t = T.toolsFor({ tools: ['memory', 'web_search', 'remember_fact', 'code_interpreter'] }, false);
+  ok('it may read what is remembered about the person, never write to it', t.includes('recall_facts') && !t.includes('remember_fact') && !t.includes('memory') && t.includes('web_search'));
+  ok('the agent that delivers searches and fetches nothing, and keeps Python for a file', T.toolsFor({ tools: ['memory', 'web_search', 'fetch_url', 'code_interpreter'] }, true).join() === 'code_interpreter');
+  ok('no tools, none given', T.toolsFor({}, false).length === 0);
+  const one = T.oneWriter('Write a haiku', 'qwen2.5-coder:3b');
+  ok('a short task\'s team is one writer with no tools, on the chosen model, who delivers', one.agents.length === 1 && one.agents[0].tools.length === 0 && one.agents[0].model === 'qwen2.5-coder:3b' && one.finalOutputAgentId === 'a1' && /Never invent a person, a brand/.test(one.agents[0].systemPrompt));
+}
+
+console.log('\nWhat an agent on a build is held to:');
+{
+  const c = (name, role) => T.codeContractFor({ name, role });
+  ok('every one of them is held to the build contract', [c('Planner', 'analyst'), c('Frontend Developer', 'coder'), c('Critic', 'validator'), c('Final Polisher', 'supervisor'), c('Helper', 'custom')].every((x) => /STRICT CODE-BUILD CONTRACT/.test(x)));
+  ok('a planner writes a brief', /compact implementation brief only/.test(c('Lead Planner', 'analyst')));
+  ok('a maker writes the files it owns', /complete frontend code only/.test(c('Frontend Developer', 'coder')));
+  ok('a checker writes fixes, not a report', /Do not write a general review report/.test(c('Critic', 'validator')));
+  ok('the finisher writes the finished files', /Merge and polish concrete files/.test(c('Final Polisher', 'supervisor')));
+  ok('and the Swarm takes it from here, keeping no copy', /HCSwarmTeamShape\.codeContractFor\(agent\)/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')) && !/function codeContractFor/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/team-shape.js)`);
 process.exit(fail ? 1 : 0);

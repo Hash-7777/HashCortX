@@ -100,5 +100,64 @@
     return { id: pick.id, kept: pick.id === preferredId };
   }
 
-  window.HCSwarmTeamShape = { kindOf, layersOf, edgesOf, delivererOf };
+  /**
+   * A team cut to at most `max` agents, or null when it is within it. The
+   * deliverer always stays; then the agents who make the work, then those who
+   * plan it, then those who check it. A small model told to use two agents
+   * designed five, and a team is the app's to size, not the model's.
+   */
+  function trimTo(agents, max) {
+    const list = Array.isArray(agents) ? agents.filter(Boolean) : [];
+    if (!(max >= 1) || list.length <= max) return null;
+    const L = layersOf(list);
+    const keep = new Set([L.deliverer, ...[...L.work, ...L.first, ...L.review].slice(0, max - 1)]);
+    const kept = list.filter((a) => keep.has(a));
+    const layers = layersOf(kept);
+    return { agents: kept, edges: edgesOf(layers), deliverer: layers.deliverer.id, dropped: list.filter((a) => !keep.has(a)).map((a) => a.name) };
+  }
+
+  /**
+   * The tools an agent is given in a run. It may read what is remembered about
+   * the person but never write to it: a small model saved a business name it
+   * had invented, and every later chat would have taken it as fact. The agent
+   * that delivers the result assembles what it was handed, so it searches and
+   * fetches nothing; it keeps Python, which a file to hand back may need.
+   */
+  function toolsFor(agent, delivers) {
+    const tools = ((agent && agent.tools) || []).flatMap((t) => (t === 'memory' ? ['recall_facts'] : [t])).filter((t) => t !== 'remember_fact');
+    return delivers ? tools.filter((t) => t === 'code_interpreter' || t === 'python') : tools;
+  }
+
+  /** A short piece or a question's team: one writer, on the model the person chose. */
+  function oneWriter(desc, model) {
+    return {
+      description: `One agent for: ${String(desc || '').slice(0, 120)}`, topology: 'pipeline', aggregation: 'concat', supervisorModel: model,
+      agents: [{ id: 'a1', name: 'Writer', role: 'writer', systemPrompt: 'Write exactly what the task asks for, complete and ready to use, in the form it asks for. No preamble. Never invent a person, a brand, a place or a fact the task did not give.', tools: [], memory: 'project', timeout: 120, retries: 1, temperature: 0.6, model }],
+      dag: { nodes: ['a1'], edges: [] }, finalOutputAgentId: 'a1',
+    };
+  }
+
+  /** What an agent on a build is held to, by what it does: a brief, the files it owns, fixes, or the finished files. */
+  function codeContractFor(agent) {
+    const name = `${agent.name || ""} ${agent.role || ""}`.toLowerCase();
+    const common = "\n\nSTRICT CODE-BUILD CONTRACT:\n- Do not create DOCX, PDF, reports, slide decks, or downloadable documents.\n- Do not call unrelated external URLs or fetch templates unless the user explicitly asks.\n- Keep prose minimal and only use it when your assigned output contract requires it.\n- Pass compact, structured output to downstream agents; avoid long essays.\n- For website tasks, visible images, working interactions, responsive layout, and polished motion are required implementation details, not optional decoration.";
+    if (/research|planner|spec|designer|analyst/.test(name) && !/coder|front|back/.test(name)) {
+      return common + "\n- Output a compact implementation brief only: brand direction, page sections, data/content needs, file list, image strategy, interaction strategy, and acceptance criteria.\n- For websites with product/gallery imagery, specify remote HTTPS image URLs and inline fallback behavior; do not leave image sourcing to downstream guessing.\n- Keep the brief under 900 words.";
+    }
+    if (/front|html|css|style|js|coder|developer/.test(name) && !/back/.test(name)) {
+      return common + "\n- Output complete frontend code only: the files your role owns, each in one fenced block named with the site's exact file name.\n- Use visible remote HTTPS images with alt text, stable aspect ratios, object-fit styling, and onerror inline SVG/data URI fallback.\n- If a cart is requested, implement add/remove/quantity/count/total/empty-state/localStorage behavior and wire all buttons.\n- Implement polished animations with CSS transitions/keyframes and reduced-motion support.\n- Do not output partial snippets. Do not write commentary outside code fences.";
+    }
+    if (/back|server|api/.test(name)) {
+      return common + "\n- If the website does not need a backend, output exactly: NO_BACKEND_NEEDED.\n- If a backend is needed, output complete code only with filenames such as ```javascript server.js``` and no document-generation code.";
+    }
+    if (/critic|validator|qa|review/.test(name)) {
+      return common + "\n- Validate the produced files. Output only concrete fixes or corrected full code blocks with filenames.\n- Explicitly reject broken/missing images, fake local image paths, unwired buttons, non-persistent cart state, missing totals, and animation CSS that is never applied.\n- Do not write a general review report.";
+    }
+    if (/boss|supervisor|polish|aggregator/.test(name)) {
+      return common + "\n- Merge and polish concrete files into final code blocks only. Remove duplicate prose, specs, and reports.\n- Before final output, ensure image URLs are visible/fallback-safe, cart behavior is complete, animations are applied, and all files reference each other correctly.";
+    }
+    return common;
+  }
+
+  window.HCSwarmTeamShape = { codeContractFor, toolsFor, oneWriter, trimTo, kindOf, layersOf, edgesOf, delivererOf };
 })();

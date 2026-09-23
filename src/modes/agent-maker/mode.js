@@ -328,10 +328,11 @@ const SwarmMaker = (() => {
       { role: "system", content: (agent.systemPrompt || `You are ${agent.name}, a ${agent.role || "helpful"} AI agent.`) + codeNote + fenceNote + ownNote + webFileNote + toolNote },
       { role: "user",   content: `Task: ${task}${context}\n\nProvide your output directly.` }
     ];
-    const timeoutMs = (agent.timeout || 120) * 1000;
+    // A local model shares one computer with the rest of the team and answers slower; it is given longer.
+    const timeoutMs = Math.max((agent.timeout || 120) * 1000, window.HCModelRoutes.providerOf(agent.model || "") === "local" ? 300000 : 0);
     const maxToolRounds = execOptions.maxToolRounds || 8;
     traceAdd(agent.name, `Prepared prompt · role ${agent.role || "custom"} · deps ${Object.values(depResults || {}).filter(Boolean).length}${needsWhole ? " (as the project)" : ""} · tools ${(agent.tools || []).length}`, "wait");
-    traceAdd(agent.name, `Timeout ${agent.timeout || 120}s · max tool rounds ${maxToolRounds} · model ${modelTraceLabel(agent.model)}`, "wait");
+    traceAdd(agent.name, `Timeout ${timeoutMs / 1000}s · max tool rounds ${maxToolRounds} · model ${modelTraceLabel(agent.model)}`, "wait");
 
     // Failover state
     let activeModel      = agent.model;
@@ -339,7 +340,7 @@ const SwarmMaker = (() => {
     const RETRY_WAIT_MS  = 2000; // wait before same-provider retry (2 s)
     const providerRetries = {};   // provider → number of retries already done
     const MAX_ATTEMPTS = 6;
-    let attemptNo = 0;
+    let attemptNo = 0, askedForWork = false;
     // Where to go when a model fails, skipping any that cannot hold this job — js/model-routes.js, model-limits.js.
     const need = execOptions.codeBuild ? 6000 : 1500;
     const routes = window.HCModelRoutes.createRun({ options: menuModels, note: (m) => traceAdd(agent.name, m, "warn"), label: modelTraceLabel, fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([messages]), need) });
@@ -358,8 +359,8 @@ const SwarmMaker = (() => {
           const waiting = traceLive(agent.name, `LLM round ${round + 1}/${maxToolRounds} · sending ${messages.length} message(s)`, "run",
             { deadlineMs: timeoutMs, queued: window.HCTraceLive?.queued(activeModel) });
           // Cancelled, not abandoned, when time runs out — js/model-routes.js.
-          const result = await window.HCModelRoutes.callWithin(timeoutMs, signal, `Agent timeout after ${agent.timeout || 120}s`, (attemptSignal) =>
-            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, model: activeModel, need }))
+          const result = await window.HCModelRoutes.callWithin(timeoutMs, signal, `Agent timeout after ${timeoutMs / 1000}s`, (attemptSignal) =>
+            callAgentLLM(activeModel, messages, attemptSignal, agent.temperature, { ...agent, tools: window.HCSwarmTeamShape.toolsFor(agent, isFinalOwner), model: activeModel, need }))
             .finally(() => waiting.done());
           if (result.tool_calls && result.tool_calls.length) {
             traceAdd(agent.name, `LLM requested ${result.tool_calls.length} tool call(s)`, "wait");
@@ -411,10 +412,12 @@ const SwarmMaker = (() => {
                 continue;
               }
             }
+            // A call to a tool it does not have, or questions for the person: the same model is asked once for the work, before a larger one is loaded; an answer that still asks is then taken.
+            if (!askedForWork && round < maxToolRounds - 1 && window.HCSwarmOutput.notTheWork(candidateText)) { const miss = window.HCSwarmOutput.notTheWork(candidateText); askedForWork = true; traceAdd(agent.name, miss === "call" ? "Answered with a call to a tool it does not have · asked for the work itself" : "Asked for details instead of doing the work · asked for the work itself", "warn"); messages.push(...window.HCSwarmOutput.askForTheWork(candidateText, miss)); continue; }
             // An answer with nothing in it, or one declining the task, is a
             // failure, not a result: it used to count as done and stand in for
             // the agent's whole part of the work. Another model is asked.
-            if (!candidateText.trim() || window.HCSwarmOutput.isRefusal(candidateText)) throw Object.assign(new Error(candidateText.trim() ? "declined the task" : "returned an empty answer"), { empty: true });
+            if (!candidateText.trim() || window.HCSwarmOutput.isRefusal(candidateText) || window.HCSwarmOutput.isOnlyACall(candidateText)) throw Object.assign(new Error(!candidateText.trim() ? "returned an empty answer" : window.HCSwarmOutput.isOnlyACall(candidateText) ? "answered with a tool call instead of the work" : "declined the task"), { empty: true });
             traceAdd(agent.name, "Normalising final output", "wait");
             // Providers it went through go in the trace, never the answer: a note there shipped inside an unclosed file.
             if (failoverLog.length) traceAdd(agent.name, `Answered after switching ${failoverLog.map(f => `${f.from}→${f.to}`).join(", ")}`, "ok");
@@ -504,6 +507,7 @@ const SwarmMaker = (() => {
     const results   = {};
     const completed = new Set();
     const failed    = new Set();
+    const oneAtATime = agents.every(a => window.HCModelRoutes.providerOf(a.model || document.getElementById("model")?.value || "") === "local");
     let   stepCount = 0;
     const maxSteps  = bp.maxSteps || 80;
     const strictDependencies = bp.taskCategory === "code_build" || isCodeBuildTask(task);
@@ -551,7 +555,9 @@ const SwarmMaker = (() => {
         updateProgress(completed.size / agents.length);
       }
 
-      const ready = SCHED.readyAgents(agents, depMap, completed, failed, sched);
+      // One computer answers one local request at a time: agents started
+      // together only queued behind each other until their time ran out.
+      const ready = SCHED.readyAgents(agents, depMap, completed, failed, sched).slice(0, oneAtATime ? 1 : Infinity);
       const blocked = agents.filter(a =>
         !completed.has(a.id) &&
         !failed.has(a.id) &&
@@ -575,7 +581,7 @@ const SwarmMaker = (() => {
         break;
       }
 
-      traceAdd("Orchestrator", `Dispatching ${ready.length} agent(s) in parallel: ${ready.map(a => a.name).join(", ")}`, "boss");
+      traceAdd("Orchestrator", `Dispatching ${ready.length} agent(s)${ready.length > 1 ? " in parallel" : ""}: ${ready.map(a => a.name).join(", ")}`, "boss");
 
       const settled = await Promise.allSettled(ready.map(agent => {
         const depResults = SCHED.dependencyResults(agent, depMap, agents, results, labels);
@@ -627,16 +633,16 @@ const SwarmMaker = (() => {
       return "(no results)";
     }
 
+    // The deliverer was handed every piece and told that what it writes is what
+    // the person receives: its answer is the result. Written again by a model,
+    // the drafts came back in, at a whole answer's cost. Voting and best-of-n judge.
+    const judged = strategy === "voting" || strategy === "best_of_n";
+    const delivered = delivererId && !judged ? outputs.find(o => o.id === delivererId && !/^(?:Error|Skipped): /.test(String(o.out))) : null;
+    if (delivered) { traceAdd("Aggregator", `Returning what ${delivered.name} delivered · aggregation ${strategy}`, "boss"); return delivered.out; }
+    if (delivererId && !judged) traceAdd("Aggregator", `Final owner ${delivererId} has no answer · ${strategy === "concat" ? "preserving raw outputs" : "putting the pieces together"}`, "warn");
+
     // concat — preserve all agent outputs verbatim, no synthesis LLM (best for code/files)
     if (strategy === "concat") {
-      if (delivererId) {
-        const finalOutput = outputs.find(o => o.id === delivererId && !/^(?:Error|Skipped): /.test(String(o.out)));
-        if (finalOutput) {
-          traceAdd("Aggregator", `Aggregation strategy concat · returning final owner ${finalOutput.name}`, "boss");
-          return finalOutput.out;
-        }
-        traceAdd("Aggregator", `Final owner ${delivererId} has no answer · preserving raw outputs`, "warn");
-      }
       traceAdd("Aggregator", "Aggregation strategy concat · preserving raw outputs", "boss");
       return outputs.map(o => `### ${o.name}\n\n${o.out}`).join("\n\n---\n\n");
     }
@@ -957,6 +963,12 @@ const SwarmMaker = (() => {
   function deterministicBlueprint(desc, providerModels = []) {
     const codeTask = isCodeBuildTask(desc);
     const modelAt = (idx) => providerModels[idx % Math.max(providerModels.length, 1)]?.[1] || "";
+    // A short piece of writing or a question is one agent's work — js/swarm/team-shape.js.
+    if (!codeTask && window.HCSwarmTaskKind.effortOf(desc) === "small") {
+      const one = { name: enforceTwoWordName("Quick Answer"), ...window.HCSwarmTeamShape.oneWriter(desc, modelAt(0)) };
+      attachPlanningMetadata(one, desc);
+      return one;
+    }
     const base = {
       name: enforceTwoWordName(codeTask ? "Code Build" : "Smart Plan"),
       description: `Auto-generated fallback blueprint for: ${String(desc || "").slice(0, 120)}`,
@@ -1001,44 +1013,22 @@ const SwarmMaker = (() => {
     return base;
   }
 
-  function roleToolsForCodeAgent(agent) {
-    return [];
-  }
-
-  function codeContractForAgent(agent) {
-    const name = `${agent.name || ""} ${agent.role || ""}`.toLowerCase();
-    const common = "\n\nSTRICT CODE-BUILD CONTRACT:\n- Do not create DOCX, PDF, reports, slide decks, or downloadable documents.\n- Do not call unrelated external URLs or fetch templates unless the user explicitly asks.\n- Keep prose minimal and only use it when your assigned output contract requires it.\n- Pass compact, structured output to downstream agents; avoid long essays.\n- For website tasks, visible images, working interactions, responsive layout, and polished motion are required implementation details, not optional decoration.";
-    if (/research|planner|spec|designer|analyst/.test(name) && !/coder|front|back/.test(name)) {
-      return common + "\n- Output a compact implementation brief only: brand direction, page sections, data/content needs, file list, image strategy, interaction strategy, and acceptance criteria.\n- For websites with product/gallery imagery, specify remote HTTPS image URLs and inline fallback behavior; do not leave image sourcing to downstream guessing.\n- Keep the brief under 900 words.";
-    }
-    if (/front|html|css|style|js|coder|developer/.test(name) && !/back/.test(name)) {
-      return common + "\n- Output complete frontend code only: the files your role owns, each in one fenced block named with the site's exact file name.\n- Use visible remote HTTPS images with alt text, stable aspect ratios, object-fit styling, and onerror inline SVG/data URI fallback.\n- If a cart is requested, implement add/remove/quantity/count/total/empty-state/localStorage behavior and wire all buttons.\n- Implement polished animations with CSS transitions/keyframes and reduced-motion support.\n- Do not output partial snippets. Do not write commentary outside code fences.";
-    }
-    if (/back|server|api/.test(name)) {
-      return common + "\n- If the website does not need a backend, output exactly: NO_BACKEND_NEEDED.\n- If a backend is needed, output complete code only with filenames such as ```javascript server.js``` and no document-generation code.";
-    }
-    if (/critic|validator|qa|review/.test(name)) {
-      return common + "\n- Validate the produced files. Output only concrete fixes or corrected full code blocks with filenames.\n- Explicitly reject broken/missing images, fake local image paths, unwired buttons, non-persistent cart state, missing totals, and animation CSS that is never applied.\n- Do not write a general review report.";
-    }
-    if (/boss|supervisor|polish|aggregator/.test(name)) {
-      return common + "\n- Merge and polish concrete files into final code blocks only. Remove duplicate prose, specs, and reports.\n- Before final output, ensure image URLs are visible/fallback-safe, cart behavior is complete, animations are applied, and all files reference each other correctly.";
-    }
-    return common;
+  /** A model from a provider the team does not use yet, marked as used; "" when there is none. */
+  function spareModel(providerModels, usedProviders) {
+    const of = (v) => (v?.startsWith("cloud:") ? v.split(":")[1] : "local");
+    const model = (providerModels || []).map(([, v]) => v).find(v => !usedProviders.has(of(v))) || "";
+    if (model) usedProviders.add(of(model));
+    return model;
   }
 
   function ensureFinalPolisher(parsed, providerModels, usedProviders) {
     const hasFinalOwner = parsed.agents.some(a => window.HCSwarmTeamShape.kindOf(a) === "final");
     if (hasFinalOwner) return null;
     const idx = parsed.agents.length + 1;
-    const model = (providerModels || []).map(([, v]) => v).find(v => {
-      const p = v?.startsWith("cloud:") ? v.split(":")[1] : "local";
-      return !usedProviders.has(p);
-    }) || "";
-    if (model) usedProviders.add(model.startsWith("cloud:") ? model.split(":")[1] : "local");
+    const model = spareModel(providerModels, usedProviders);
     const finalPolisher = {
       id: `a${idx}`,
       name: "Final Polisher",
-     
       role: "supervisor",
       systemPrompt: "You are the final polisher. Revise the team output into final, production-ready code only. Keep only complete files and remove duplicated reports/specs.",
       tools: [],
@@ -1059,15 +1049,10 @@ const SwarmMaker = (() => {
     if (existing) return existing;
     if (codeTask) return ensureFinalPolisher(parsed, providerModels, usedProviders);
     const idx = parsed.agents.length + 1;
-    const model = (providerModels || []).map(([, v]) => v).find(v => {
-      const p = v?.startsWith("cloud:") ? v.split(":")[1] : "local";
-      return !usedProviders.has(p);
-    }) || "";
-    if (model) usedProviders.add(model.startsWith("cloud:") ? model.split(":")[1] : "local");
+    const model = spareModel(providerModels, usedProviders);
     const supervisor = {
       id: `a${idx}`,
       name: "Final Synthesizer",
-     
       role: "supervisor",
       systemPrompt: "You are the lead planning agent. Integrate specialist outputs into one final answer that directly satisfies the user's request, resolves conflicts, removes duplication, and states assumptions and residual risks.",
       tools: [],
@@ -1264,12 +1249,12 @@ const SwarmMaker = (() => {
     parsed.agents.forEach(agent => {
       const nameRole = `${agent.name} ${agent.role}`;
       const planningContract = `\n\nORCHESTRATION CONTRACT:\n- Task category: ${parsed.taskCategory}.\n- Required artifacts: ${(parsed.artifactContracts || []).map(a => a.name).join(", ")}.\n- Quality gates: ${(parsed.qualityGates || []).join("; ")}.\n- Keep dependency context under ${parsed.budgetControls?.maxContextCharsPerDependency || 4000} chars and intermediate output under ${parsed.budgetControls?.maxIntermediateWords || 900} words unless producing final code files.`;
-      if (codeTask) agent.tools = roleToolsForCodeAgent(agent);
+      if (codeTask) agent.tools = [];
       else if (/boss|supervisor|critic|validator|qa|review/i.test(nameRole)) agent.tools = [];
       agent.timeout = Math.max(agent.timeout || 120, /coder|developer|front|back|boss|supervisor|critic|validator/i.test(nameRole) ? 150 : 90);
       agent.temperature = /critic|validator|boss|supervisor|coder|developer/i.test(nameRole) ? Math.min(agent.temperature ?? 0.5, 0.4) : (agent.temperature ?? 0.6);
       if (codeTask && !/STRICT CODE-BUILD CONTRACT/.test(agent.systemPrompt || "")) {
-        agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}${codeContractForAgent(agent)}`;
+        agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}${window.HCSwarmTeamShape.codeContractFor(agent)}`;
       } else if (!codeTask && /boss|supervisor|polish|aggregator|synthes/i.test(nameRole) && !/LEAD SYNTHESIS CONTRACT/.test(agent.systemPrompt || "")) {
         agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}\n\nLEAD SYNTHESIS CONTRACT:\n- Produce the final answer only after reconciling specialist outputs.\n- State key assumptions, tradeoffs, risks, and acceptance criteria when useful.\n- Remove duplicated intermediate reasoning and deliver one coherent result.`;
       }
@@ -1333,7 +1318,8 @@ const SwarmMaker = (() => {
       .filter(([, value]) => value);
     const providerModels = window.HCModelSpeed.order(unordered, (m) => m[1], (m) => window.HCSwarmModelStrength.score(m[1], m[2], bigTask));
     const numProviders = providerModels.length;
-    const agentBounds = recommendedAgentBounds(desc);
+    // Sized to the task, and to one computer when the team is local — js/swarm/task-kind.js.
+    const agentBounds = recommendedAgentBounds(desc, { local: window.HCModelRoutes.providerOf(modelValue) === "local" });
 
     const modelListStr = providerModels.length
       ? `\nAvailable providers and their best representative model for this assignment:\n${providerModels.map(([p, v, label]) => `  Provider "${p}" → model value: "${v}" (${label})`).join("\n")}\n\nModel assignment guidance:\n- This request is ${bigTask ? "a BIG assignment: prioritize the strongest models listed above for planner, coder, validator, and final supervisor roles. They are listed with the ones that answer in time first; a model that must answer within minutes is worth more than a larger one that may not." : "a normal assignment: balance speed and quality."}\n- For large code/product builds, prefer Pro/R1/V3/Maverick/Nemotron/Hermes/Qwen3/405B/235B/120B/70B-class models over flash/lite/instant/small models.\n- groq → fast inference, good for researcher/analyst; use its largest available model for big tasks\n- gemini → long context, best when Pro is available; avoid Lite for big tasks\n- cerebras → ultra-fast; use its largest available model for coding/validation if available\n- samba → mega-scale, good for complex reasoning/supervisor/final synthesis roles\n- openrouter → diverse frontier/famous models, good for coder/critic/supervisor roles\n- local → fallback only unless it is clearly the strongest available local model\nUse different providers whenever possible. With ${numProviders} providers available, assign the strongest providers to the highest-risk roles first; provider count must not force extra agents.`
@@ -1394,7 +1380,8 @@ Return ONLY valid JSON in this exact format — no markdown, no explanation:
 }
 
 Rules:
-- Use ${agentBounds.min}-${agentBounds.max} agents. Target ${agentBounds.target}; choose fewer only when the task is simple and choose more only when responsibilities are genuinely independent.
+- Use ${agentBounds.min}-${agentBounds.max} agents. Target ${agentBounds.target}; choose fewer only when the task is simple and choose more only when responsibilities are genuinely independent.${agentBounds.effort === "small" ? `
+- This is a small task: one agent who writes the answer is right, with a second only to check it. Give no agent tools unless the task needs something it cannot know.` : ""}
 - Use different providers when enough providers are available; never add agents just to use more providers.
 - Agents with no incoming edges run first in parallel
 - Use sequential IDs: a1, a2, a3…
@@ -1450,9 +1437,14 @@ Return ONLY the JSON object, nothing else
 ${modelListStr}`;
 
     try {
+      // A short piece or a question is one writer's work: the team is built
+      // here, with no model asked to design it. A small model asked designed
+      // three agents with tools, and they fetched pages that do not exist.
+      const small = agentBounds.effort === "small";
+      if (small && statusText) statusText.textContent = "A short task — one writer…";
       // Whichever model can answer designs it (js/model-routes.js); with none, the team is built here.
       const godMessages = [{ role: "system", content: GOD_SYSTEM }, { role: "user", content: `Design a swarm for: ${desc}` }];
-      const r = { content: await window.HCModelRoutes.askWithFailover({ start: modelValue, options: menuModels, signal, call: async (m, s) => (await callAgentLLM(m, godMessages, s, 0.3))?.content || "",
+      const r = small ? { content: "" } : { content: await window.HCModelRoutes.askWithFailover({ start: modelValue, options: menuModels, signal, call: async (m, s) => (await callAgentLLM(m, godMessages, s, 0.3))?.content || "",
         onSwitch: (f, t, why) => { if (statusText) statusText.textContent = `${modelTraceLabel(f)}: ${why}. Asking ${modelTraceLabel(t)}…`; } }).then(a => a.text).catch(e => { if (e.name === "AbortError" || signal.aborted) throw e; return ""; }) };
       if (signal.aborted) return;
 
@@ -1460,8 +1452,8 @@ ${modelListStr}`;
       let parsed = parsedRaw;
 
       if (!parsed || !Array.isArray(parsed.agents)) {
-        if (statusText) statusText.textContent = r.content ? "God output was invalid. Building fallback blueprint…" : "No model could design the team. Building it here…";
-        parsed = deterministicBlueprint(desc, providerModels);
+        if (statusText && !small) statusText.textContent = r.content ? "God output was invalid. Building fallback blueprint…" : "No model could design the team. Building it here…";
+        parsed = deterministicBlueprint(desc, small ? [[window.HCModelRoutes.providerOf(modelValue), modelValue, modelValue]] : providerModels);
       }
       if (statusText) statusText.textContent = "Hardening blueprint…";
       parsed = hardenGodBlueprint(parsed, desc, providerModels);
@@ -1473,7 +1465,7 @@ ${modelListStr}`;
       parsed.supervisorModel = parsed.supervisorModel ? fit(parsed.supervisorModel) : parsed.supervisorModel;
       parsed.agents = parsed.agents.map(a => ({
         ...a,
-        tools: Array.isArray(a.tools) ? a.tools : (codeTask ? [] : [...ALL_TOOL_IDS]),
+        tools: Array.isArray(a.tools) ? a.tools : (codeTask || agentBounds.effort === "small" ? [] : [...ALL_TOOL_IDS]),
         model: a.model ? fit(a.model) : "",
         memory: a.memory || "project",
         timeout: a.timeout || 120,
@@ -1515,6 +1507,9 @@ ${modelListStr}`;
         attachPlanningMetadata(parsed, desc);
         ensureEdgeReasons(parsed);
       }
+      // No more agents than the task was sized for — js/swarm/team-shape.js.
+      const cut = window.HCSwarmTeamShape.trimTo(parsed.agents, agentBounds.max);
+      if (cut) { parsed.agents = cut.agents; parsed.dag = { nodes: cut.agents.map(a => a.id), edges: cut.edges }; parsed.finalOutputAgentId = cut.deliverer; ensureEdgeReasons(parsed); }
       const bp = createBlueprint(enforceTwoWordName(parsed.name || "God Swarm"), parsed);
       bp.description = parsed.description || desc;
       bp.task = desc;

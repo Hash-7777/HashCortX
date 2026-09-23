@@ -82,6 +82,13 @@ ok('and carries what this run\'s own request asks of the result', /bar: Array\.i
   }
   ok('a market analysis is not', !W.isWebTask('do a market analysis of the scooter market'));
   ok('and neither is a poem', !W.isWebTask('write me a poem'));
+  // With the task reader loaded, as in the app: a skipped question about a website is not the request.
+  const box = { window: {} };
+  vm.createContext(box);
+  vm.runInContext(src('js', 'swarm', 'task-kind.js'), box, { filename: 'task-kind.js' });
+  vm.runInContext(src('js', 'swarm', 'web-brief.js'), box, { filename: 'web-brief.js' });
+  const withQuestions = 'Plan a one-week social media launch for my mug shop.\n\nNot given: What is your shop\'s name and website?';
+  ok('a question left unanswered that mentions a website does not make it a web task', !box.window.HCSwarmWebBrief.isWebRun(withQuestions, []) && box.window.HCSwarmWebBrief.brief({ task: withQuestions }) === '');
   ok('a run owing html and js is a web build whatever it called itself', W.isWebRun('some unusual request', ['index.html', 'app.js']));
   ok('a run owing no files is not', !W.isWebRun('do a market analysis', []));
 

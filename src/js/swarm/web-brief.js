@@ -51,8 +51,11 @@
   const ORDER = { html: 0, htm: 0, css: 1, js: 2, mjs: 2 };
   const ext = (name) => String(name).toLowerCase().split('.').pop();
 
+  // Read on the person's own words, not the questions they left unanswered — js/swarm/task-kind.js.
+  const requestOf = (task) => (typeof window !== 'undefined' && window.HCSwarmTaskKind && window.HCSwarmTaskKind.requestOf ? window.HCSwarmTaskKind.requestOf(task) : String(task || ''));
+
   /** Whether a task is about building something for the web, by its words. */
-  const isWebTask = (task) => WEB_TASK.test(String(task || ''));
+  const isWebTask = (task) => WEB_TASK.test(requestOf(task));
 
   /**
    * Whether THIS run is building for the web.

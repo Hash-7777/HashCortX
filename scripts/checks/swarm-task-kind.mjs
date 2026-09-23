@@ -86,11 +86,26 @@ console.log('\nWhether it is a website build:');
 }
 
 console.log('\nHow big a team it gets:');
-const bounds = ['Build a landing page', 'Write a complete essay', 'Write a poem'].map(K.recommendedAgentBounds);
+const bounds = ['Build a landing page', 'Write a complete essay', 'Plan a product launch', 'Write a poem'].map((t) => K.recommendedAgentBounds(t));
 ok('a build gets the largest team', bounds[0].target === 6);
 ok('a big assignment a middling one', bounds[1].target === 5);
-ok('anything else a small one', bounds[2].target === 4);
+ok('ordinary work a small team', bounds[2].target === 3 && bounds[2].min === 2);
+ok('a short piece or a question one agent, and at most two', bounds[3].target === 1 && bounds[3].min === 1 && bounds[3].max === 2);
 ok('the target always lies between the least and the most', bounds.every((b) => b.min <= b.target && b.target <= b.max));
+const local = ['Build a landing page', 'Write a complete essay', 'Write a poem'].map((t) => K.recommendedAgentBounds(t, { local: true }));
+ok('a local team is kept to a few agents: one computer runs them one after another', local.every((b) => b.max <= 4 && b.target <= 3) && local[2].target === 1);
+ok('... ordinary work on one computer is one or two agents', (() => { const b = K.recommendedAgentBounds('Plan a product launch', { local: true }); return b.min === 1 && b.max === 2; })());
+ok('... and a team is never told to use more than it may', ['Build a landing page', 'Write a complete essay', 'Plan a product launch', 'Write a poem'].every((t) => { const b = K.recommendedAgentBounds(t, { local: true }); return b.min <= b.target && b.target <= b.max; }));
+
+console.log('\nHow much work a task is:');
+const small = ['Write a short product description for a handmade ceramic coffee mug.', 'Give me 5 names for a small bakery in Alexandria.', 'Write a haiku about rain', 'Explain the immune system', 'What is the capital of Australia?', 'Draft an email declining a meeting'];
+ok('a short piece or a plain question is small', small.every((t) => K.effortOf(t) === 'small'));
+ok('"app", "system" or "complete" in a question is not big work', !K.isBigAssignment('Explain the immune system') && K.isSmallTask('Explain the immune system'));
+ok('several sources, sides or parts are more than one agent\'s work', K.effortOf('Research the electric car market and compare the top five brands') === 'normal' && K.effortOf('Write a detailed business plan for a bakery') === 'normal');
+ok('a build is big, however briefly asked', K.effortOf('Build a landing page') === 'big' && !K.isSmallTask('Make me a website'));
+ok('the designer is told the size, local teams included', /recommendedAgentBounds\(desc, \{ local: window\.HCModelRoutes\.providerOf\(modelValue\) === "local" \}\)/.test(mode));
+ok('a small task\'s team is built by the app: one writer, no designer call', /const r = small \? \{ content: "" \}/.test(mode) && /effortOf\(desc\) === "small"\) \{/.test(mode) && /HCSwarmTeamShape\.oneWriter\(desc, modelAt\(0\)\)/.test(mode));
+ok('... and no agent in it is given every tool by default', /codeTask \|\| agentBounds\.effort === "small" \? \[\] : \[\.\.\.ALL_TOOL_IDS\]/.test(mode));
 
 console.log('\nWhether a task needs a server:');
 ok('checkout and payment mean one', K.taskRequiresBackend('a shop with checkout') && !K.taskRequiresBackend('a landing page'));
@@ -136,6 +151,17 @@ console.log('\nA run never rewrites the saved team:');
 console.log('\nThe Agent Swarm reads these from one place:');
 ok('it takes them from js/swarm/task-kind.js', /\} = window\.HCSwarmTaskKind;/.test(mode));
 ok('and keeps no copy of its own', !/function (isCodeBuildTask|isBigAssignment|classifyTask|artifactContractsForTask)\(/.test(mode));
+
+console.log('\nRead on the person\'s own words, not the questions left unanswered:');
+{
+  const asked = (t, q) => `${t}\n\nNot given: ${q} Where one of these is a choice of taste, make that choice yourself.`;
+  const plan = asked('Plan a one-week social media launch for my handmade mug shop.', 'What is your shop\'s name and website? Which platforms do you use? Do you need a full, complete app?');
+  ok('a skipped question about a website does not make a plan a build', !K.isCodeBuildTask(plan) && K.classifyTask(plan) === 'strategy');
+  ok('... nor its words make the task big', K.effortOf(plan) === 'normal' && !K.isBigAssignment(plan));
+  ok('... nor ask for a server', !K.taskRequiresBackend(asked('Write a product description for my mug', 'Which payment provider and checkout do you use?')));
+  ok('a short piece stays small whatever the questions said', K.isSmallTask(asked('Write a haiku about rain', 'Do you want a detailed, comprehensive research report?')));
+  ok('the request itself is read as before', K.requestOf(plan) === 'Plan a one-week social media launch for my handmade mug shop.' && K.requestOf('Build a website') === 'Build a website' && K.isCodeBuildTask(asked('Build a website for my mug shop', 'What colours?')));
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/task-kind.js)`);
 process.exit(fail ? 1 : 0);
