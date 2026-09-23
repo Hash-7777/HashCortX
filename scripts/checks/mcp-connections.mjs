@@ -38,13 +38,24 @@ function systemAnswer(msg) {
 }
 const asked = [];
 let answer = true;
+// How the stand-in system takes a key: null takes any, a way written as
+// 'header:<name>' only that way, 'nothing' refuses every way; `unreachable`
+// puts it out of reach.
+let accepts = null;
+let unreachable = false;
+const saved = new Map();
 const HC = {
   isTauri: true,
   version: 't',
   invoke: async (cmd, args) => {
     native.push({ cmd, args });
-    if (cmd === 'mcp_server_save') return { url: args.url, auth: args.auth, header: args.header, hasSecret: !!args.secret };
-    if (cmd === 'mcp_server_remove') return null;
+    if (cmd === 'mcp_server_save') { saved.set(args.id, args); return { url: args.url, auth: args.auth, header: args.header, hasSecret: !!args.secret }; }
+    if (cmd === 'mcp_server_remove') { saved.delete(args.id); return null; }
+    if (cmd === 'mcp_request' && unreachable) throw new Error('the connection was refused.');
+    if (cmd === 'mcp_request' && accepts) {
+      const s = saved.get(args.id) || {};
+      if (`${s.auth}${s.header ? `:${s.header}` : ''}` !== accepts) return { status: 401, mime: 'application/json', body: '' };
+    }
     if (cmd === 'mcp_request') return systemAnswer(JSON.parse(args.body));
     throw new Error(`unexpected ${cmd}`);
   },
@@ -54,7 +65,7 @@ const document = { readyState: 'complete', getElementById: () => null, addEventL
 const sandbox = { window: {}, localStorage, document, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, Date, URL };
 sandbox.window.HC = HC;
 vm.createContext(sandbox);
-for (const f of [['js', 'chat', 'sources.js'], ['js', 'mcp', 'policy.js'], ['js', 'mcp', 'client.js'], ['js', 'mcp', 'connections.js']]) {
+for (const f of [['js', 'chat', 'sources.js'], ['js', 'mcp', 'policy.js'], ['js', 'mcp', 'client.js'], ['js', 'mcp', 'presets.js'], ['js', 'mcp', 'connections.js']]) {
   vm.runInContext(src(...f), sandbox, { filename: f[f.length - 1] });
 }
 const M = sandbox.window.HCMcp;
@@ -185,6 +196,42 @@ console.log('\nRemoving a system:');
   ok('and so does the page', M.list().length === 0);
 }
 
+console.log('\nConnecting from Settings, all or nothing:');
+{
+  const saves = () => native.filter((n) => n.cmd === 'mcp_server_save').map((n) => `${n.args.auth}${n.args.header ? `:${n.args.header}` : ''}`);
+  accepts = 'header:X-API-Key';
+  native.length = 0;
+  const c = await M.connect({ name: 'Key ERP', url: 'https://erp.example.com/mcp', auth: 'auto' }, 'k-123');
+  ok('a key is tried as a token first, and in a header only once that was refused', saves().join() === 'bearer,header:X-API-Key' && c.tools.length === 2 && M.find(c.id).auth === 'header', saves().join());
+  ok('... handed to the app each time, and kept by it alone', native.filter((n) => n.cmd === 'mcp_server_save').every((n) => n.args.secret === 'k-123') && !JSON.stringify(M.list()).includes('k-123'));
+  ok('... one connection, not one for each way tried', M.list().filter((x) => x.name === 'Key ERP').length === 1);
+  await M.remove(c.id);
+
+  accepts = 'nothing';
+  native.length = 0;
+  let refused = null;
+  try { await M.connect({ name: 'Locked', url: 'https://locked.example.com/mcp', auth: 'auto' }, 'wrong'); } catch (e) { refused = e; }
+  ok('when every way is refused, nothing is left saved, here or by the app', refused && refused.kind === 'auth' && !M.list().some((x) => x.name === 'Locked') && native.some((n) => n.cmd === 'mcp_server_remove'));
+  ok('... and the person is told to check the key', M.whyNot(refused, 'Locked', 'https://locked.example.com/mcp') === 'Locked did not accept the key. Check the key, or how it signs in under More options.');
+  native.length = 0;
+  try { await M.connect({ name: 'GitHub', url: 'https://api.githubcopilot.com/mcp/readonly', auth: 'bearer' }, 'wrong'); } catch { /* refused */ }
+  ok('a service whose sign-in is known is sent its key that way only', saves().join() === 'bearer');
+  accepts = null;
+
+  unreachable = true;
+  native.length = 0;
+  let away = null;
+  try { await M.connect({ name: 'Away', url: 'https://away.example.com/mcp', auth: 'auto' }, 'k'); } catch (e) { away = e; }
+  ok('a system out of reach is not tried another way, and is not kept', saves().join() === 'bearer' && away && away.kind === 'unreachable' && !M.list().some((x) => x.name === 'Away'));
+  ok('... and the person is told to check the address, the technical reason last', M.whyNot(away, 'Away', 'https://away.example.com/mcp') === 'Could not reach away.example.com. Check the address, and that the system is running. (the connection was refused)'
+    && M.whyNot(Object.assign(new Error('the system could not be reached: error sending request.'), { kind: 'unreachable' }), 'X', 'https://x.example.com').endsWith('running. (error sending request)'));
+  unreachable = false;
+  native.length = 0;
+  const open = await M.connect({ name: 'Open', url: 'https://open.example.com/mcp', auth: 'auto' }, '');
+  ok('with no key, none is sent', saves().join() === 'none' && open.auth === 'none');
+  await M.remove(open.id);
+}
+
 console.log('\nThe app uses it, and shows what a system says as text:');
 {
   const app = src('js', 'app.js');
@@ -197,8 +244,11 @@ console.log('\nThe app uses it, and shows what a system says as text:');
   ok('nothing a system says is put on screen as markup', !/innerHTML|insertAdjacentHTML|outerHTML/.test(self));
   const panel = src('core', 'settings', 'panel.html');
   ok('the secret is typed into a password field that nothing remembers', /id="connSecret" type="password"[^>]*autocomplete="off"/.test(panel));
+  ok('the ready-made choices come first, and how it signs in is under More options', panel.indexOf('id="connKinds"') < panel.indexOf('id="connName"')
+    && /<details class="conn-more" id="connMore">\s*<summary>More options<\/summary>[\s\S]*id="connAuth"[\s\S]*id="connHeaderRow"[\s\S]*<\/details>/.test(panel));
+  ok('the form is filled for the choice made, and tools are named in words', /for \(const p of Pre\(\)\.PRESETS\)/.test(self) && /Pre\(\)\.toolLabel\(t\.name\)/.test(self) && /name\.title = t\.name;/.test(self));
   const boot = src('boot.js');
-  ok('the rules, the protocol and the connections load before the app', boot.indexOf("'/js/mcp/policy.js'") < boot.indexOf("'/js/mcp/client.js'") && boot.indexOf("'/js/mcp/client.js'") < boot.indexOf("'/js/mcp/connections.js'") && boot.indexOf("'/js/mcp/connections.js'") < boot.indexOf("'/js/app.js'") && boot.indexOf("'/js/chat/sources.js'") < boot.indexOf("'/js/mcp/policy.js'"));
+  ok('the rules, the protocol and the connections load before the app', boot.indexOf("'/js/mcp/policy.js'") < boot.indexOf("'/js/mcp/client.js'") && boot.indexOf("'/js/mcp/client.js'") < boot.indexOf("'/js/mcp/presets.js'") && boot.indexOf("'/js/mcp/presets.js'") < boot.indexOf("'/js/mcp/connections.js'") && boot.indexOf("'/js/mcp/connections.js'") < boot.indexOf("'/js/app.js'") && boot.indexOf("'/js/chat/sources.js'") < boot.indexOf("'/js/mcp/policy.js'"));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/mcp/connections.js)`);

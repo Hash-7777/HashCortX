@@ -151,6 +151,21 @@ const NOT_A_REQUEST = new Map([
   ['images.unsplash.com', 'an address handed to the model for a generated site'],
   ['loremflickr.com', 'an address handed to the model for a generated site'],
   ['picsum.photos', 'an address handed to the model for a generated site'],
+  // Examples shown in an empty address field in Settings → Connections.
+  ['your-company.odoo.com', 'an example in an empty address field, not an address'],
+  ['erp.example.com', 'an example in an empty address field, not an address'],
+]);
+
+/**
+ * Addresses the page names but never fetches: a connected system's address is
+ * handed to the app's native side, which makes every request to it
+ * (src-tauri/src/commands/mcp.rs), so the page's policy does not reach them and
+ * must not be widened for them — the page itself has no business calling them.
+ */
+const REACHED_NATIVELY = new Map([
+  ['api.githubcopilot.com', 'a ready-made connection (js/mcp/presets.js), requested by the native side only'],
+  ['mcp.stripe.com', 'a ready-made connection (js/mcp/presets.js), requested by the native side only'],
+  ['mcp.supabase.com', 'a ready-made connection (js/mcp/presets.js), requested by the native side only'],
 ]);
 
 /** Every literal address the frontend builds, and where it was found. */
@@ -186,9 +201,16 @@ const connectHosts = new Set(connectSrc.filter((s) => s.startsWith('http')).map(
 
 console.log('\nEvery address the app builds is one connect-src allows:');
 for (const [host, where] of sourceHosts) {
-  if (NOT_A_REQUEST.has(host)) continue;
+  if (NOT_A_REQUEST.has(host) || REACHED_NATIVELY.has(host)) continue;
   ok(`${host} is allowed`, connectHosts.has(host),
     `${where} builds this address and the policy does not allow it — the request fails as a plain network error, which the app reports as the service being unreachable`);
+}
+
+console.log('\nA connected system is reached by the native side, never by the page:');
+for (const host of REACHED_NATIVELY.keys()) {
+  ok(`${host} is not one the page may fetch`, !connectHosts.has(host), 'the page has no reason to call a connected system itself — take it out of connect-src');
+  const naming = sourceFiles(join(root, 'src')).filter((f) => f.endsWith('.js') && readFileSync(f, 'utf8').includes(host)).map((f) => f.slice(root.length + 1));
+  ok(`${host} is named only among the ready-made connections`, naming.join() === 'src/js/mcp/presets.js', `named in ${naming.join(', ') || 'no file'}`);
 }
 
 console.log('\nEvery address connect-src allows is one something builds:');

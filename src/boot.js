@@ -203,6 +203,7 @@
     // Connected systems over MCP: the rules, the protocol, the connections.
     '/js/mcp/policy.js',
     '/js/mcp/client.js',
+    '/js/mcp/presets.js',
     '/js/mcp/connections.js',
     '/core/rag/knowledge-base.js',
     '/core/sandbox/pyodide.js',

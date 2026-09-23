@@ -10,6 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Ready-made connections for Odoo, GitHub, Stripe and Supabase.**
+  Settings → Connections offers them by name, and "Other system" for
+  anything else. GitHub, Stripe and Supabase need only a key, and each is
+  reached and signed in to the way its own documentation says; Odoo needs
+  the address its MCP app shows as well. GitHub and Supabase connect
+  through their own reading-only addresses unless you turn Reading only
+  off. With a key and nothing else chosen, the key is tried as a bearer
+  token and then in the key header most systems read, each only to the
+  address you gave and the second only after the first was refused.
+  Connecting is all or nothing: a refused key or an address that cannot be
+  reached leaves nothing saved, and says what to check. How a system signs
+  in is under More options, and tools are named in words.
+
 - **The ERP agent can read a connected system.** Ask it about a connected
   system's records and it looks them up with that system's reading tools
   and answers from what came back. Ask it to bring records from one, such

@@ -1972,6 +1972,24 @@ body.intro-exiting #intro-screen .logo-glow {
   .model-lists-report .ml-why { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
 
 /* Settings: business software connected over MCP */
+/* What to connect: one flat choice per service, the chosen one outlined. */
+.conn-kinds { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.conn-kind {
+  height: 30px; padding: 0 var(--space-3);
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-dim);
+  font: inherit; font-weight: 500; cursor: pointer;
+}
+.conn-kind:hover { color: var(--text); }
+.conn-kind[aria-checked="true"] { color: var(--text); border-color: var(--gold); }
+.conn-kind:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* The technical choices, out of the way until asked for. */
+.conn-more { display: flex; flex-direction: column; gap: var(--space-2); }
+.conn-more > summary { cursor: pointer; color: var(--text-dim); width: max-content; }
+.conn-more > summary:hover { color: var(--text); }
+.conn-more[open] > summary { margin-bottom: var(--space-2); }
+.conn-more > .field + .field, .conn-more > .field-note + .field { margin-top: var(--space-2); }
+.conn-lead { margin-top: 10px; }
 .conn-list { display: flex; flex-direction: column; gap: 10px; }
 .conn-card { border: 1px solid var(--line); border-radius: var(--sys-radius-sm, 8px); padding: 12px 14px; }
 .conn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1988,7 +2006,7 @@ body.intro-exiting #intro-screen .logo-glow {
 .conn-tool input { margin-top: 3px; }
 .conn-tool-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .conn-tool-line { display: flex; align-items: center; gap: 8px; }
-.conn-tool-name { font-family: var(--mono); font-size: 12.5px; }
+.conn-tool-name { font-weight: 500; }
 .conn-tool-desc { color: var(--text-dim); font-size: 12px; overflow-wrap: anywhere; }
 .conn-tag { font-size: 10.5px; color: var(--text-dim); }
 .conn-tool-desc.conn-warn { color: var(--danger); }

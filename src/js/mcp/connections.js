@@ -224,6 +224,8 @@
 
   // ── Settings → Connections ────────────────────────────────────────
 
+  const Pre = () => window.HCMcpPresets;
+
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -235,10 +237,10 @@
     const host = document.getElementById("connList");
     if (!host) return;
     const note = document.getElementById("connNote");
-    if (note) note.textContent = available() ? "" : "Connected systems work in the desktop app.";
+    if (note && !available()) note.textContent = "Connected systems work in the desktop app.";
     host.replaceChildren();
     const all = list();
-    if (!all.length) host.appendChild(el("div", "field-note", "No systems connected."));
+    if (!all.length) host.appendChild(el("div", "field-note", "Nothing connected yet."));
     for (const conn of all) host.appendChild(card(conn));
   }
 
@@ -250,11 +252,11 @@
     title.appendChild(el("span", "conn-host", hostOf(conn.url)));
     head.appendChild(title);
     const actions = el("div", "conn-actions");
-    const refreshBtn = el("button", "ghost set-btn", "Check tools");
+    const refreshBtn = el("button", "ghost set-btn", "Check again");
     refreshBtn.type = "button";
     refreshBtn.addEventListener("click", async () => {
       refreshBtn.disabled = true;
-      try { await refresh(conn.id); } catch { /* the card shows the error */ }
+      try { await refresh(conn.id); } catch { /* the card shows why */ }
       render();
     });
     const removeBtn = el("button", "ghost set-btn set-btn-danger", "Remove");
@@ -264,23 +266,26 @@
     head.appendChild(actions);
     box.appendChild(head);
 
+    const tools = conn.tools || [];
+    const on = tools.filter((t) => t.on).length;
     const status = conn.error
-      ? `Could not reach it: ${conn.error}`
-      : conn.checkedAt ? `${(conn.tools || []).length} tool${(conn.tools || []).length === 1 ? "" : "s"} · checked ${new Date(conn.checkedAt).toLocaleTimeString()}` : "Not checked yet.";
-    box.appendChild(el("div", `field-note conn-status${conn.error ? " conn-error" : ""}`, `${status}${conn.auth !== "none" && !conn.hasSecret ? " · no secret saved" : ""}`));
+      ? `Not reached: ${conn.error}`
+      : conn.checkedAt ? `Connected · ${tools.length} tool${tools.length === 1 ? "" : "s"}, ${on} switched on · checked ${new Date(conn.checkedAt).toLocaleTimeString()}` : "Not checked yet.";
+    box.appendChild(el("div", `field-note conn-status${conn.error ? " conn-error" : ""}`, `${status}${conn.auth !== "none" && !conn.hasSecret ? " · no key saved" : ""}`));
 
     const cloud = el("label", "conn-cloud");
     const cloudBox = document.createElement("input");
     cloudBox.type = "checkbox";
     cloudBox.checked = !!conn.allowCloud;
     cloudBox.addEventListener("change", () => { setAllowCloud(conn.id, cloudBox.checked); render(); });
-    cloud.append(cloudBox, el("span", "", "Let cloud models see this system's records"));
+    cloud.append(cloudBox, el("span", "", "Let cloud models read its records"));
     box.appendChild(cloud);
-    if (conn.allowCloud) box.appendChild(el("div", "field-note conn-warn", "Records read with a cloud model are sent to that model's company."));
+    if (conn.allowCloud) box.appendChild(el("div", "field-note conn-warn", "Records a cloud model reads are sent to the company that runs it."));
 
-    const tools = el("div", "conn-tools");
-    for (const t of conn.tools || []) tools.appendChild(toolRow(conn, t));
-    box.appendChild(tools);
+    if (tools.length) box.appendChild(el("div", "field-note conn-lead", "What agents may use. Reading starts on; changing starts off, and each change asks you first."));
+    const list_ = el("div", "conn-tools");
+    for (const t of tools) list_.appendChild(toolRow(conn, t));
+    box.appendChild(list_);
     return box;
   }
 
@@ -292,42 +297,127 @@
     box.addEventListener("change", () => { setTool(conn.id, t.name, box.checked); render(); });
     const text = el("span", "conn-tool-text");
     const line = el("span", "conn-tool-line");
-    line.appendChild(el("span", "conn-tool-name", t.name));
+    const name = el("span", "conn-tool-name", Pre() ? Pre().toolLabel(t.name) : t.name);
+    name.title = t.name;   // the name the system uses, for anyone who needs it
+    line.appendChild(name);
     line.appendChild(el("span", `conn-tag ${t.reads ? "reads" : "changes"}`, t.reads ? "Reads" : "Changes records"));
     text.appendChild(line);
     const said = P().clean((t.raw && (t.raw.description || t.raw.title)) || "", 240);
     if (said) text.appendChild(el("span", "conn-tool-desc", said));
-    if (t.changed) text.appendChild(el("span", "conn-tool-desc conn-warn", "The system describes this tool differently since you switched it on. Check it before switching it on again."));
+    if (t.changed) text.appendChild(el("span", "conn-tool-desc conn-warn", "The system describes this tool differently since you switched it on. Read it again before switching it back on."));
     row.append(box, text);
     return row;
   }
 
-  /** The add form: its fields, what signing in needs, and saving. */
+  /**
+   * Connect, all or nothing: the system is saved and its tools read, and the
+   * next way of presenting the key (js/mcp/presets.js attempts) is tried only
+   * when the system refused the one before. When none works, or the system
+   * cannot be reached, nothing is left saved.
+   */
+  async function connect({ name, url, auth, header, allowCloud = false }, secret) {
+    const ways = Pre().attempts(auth, header, !!secret);
+    let id = null;
+    let last = null;
+    for (const way of ways) {
+      const conn = await save({ id, name, url, auth: way.auth, header: way.header, allowCloud }, secret);
+      id = conn.id;
+      try { return await refresh(id); } catch (e) {
+        last = e;
+        if (!(e && e.kind === "auth")) break;
+      }
+    }
+    if (id) await remove(id);
+    throw last || new Error("it could not be connected.");
+  }
+
+  /** Why a connection was not made, and what to check: in words first, the technical reason last. */
+  function whyNot(e, name, url) {
+    const said = String((e && e.message) || e || "").trim();
+    if (e && e.kind === "auth") return `${name} did not accept the key. Check the key, or how it signs in under More options.`;
+    if (e && e.kind === "unreachable") {
+      const detail = said.replace(/^the system could not be reached:\s*/i, "").replace(/[.\s]+$/, "");
+      return `Could not reach ${hostOf(url) || "that address"}. Check the address, and that the system is running.${detail ? ` (${detail})` : ""}`;
+    }
+    return `Not connected: ${said.replace(/^the system /, "it ")}`;
+  }
+
+  /** The connect form: what to connect, what that needs, and connecting. */
   function wire() {
-    const auth = document.getElementById("connAuth");
-    const headerRow = document.getElementById("connHeaderRow");
-    const secretRow = document.getElementById("connSecretRow");
-    const sync = () => {
-      if (headerRow) headerRow.hidden = auth.value !== "header";
-      if (secretRow) secretRow.hidden = auth.value === "none";
+    const $ = (id) => document.getElementById(id);
+    const kinds = $("connKinds");
+    if (!kinds || kinds.dataset.wired || !Pre()) return;
+    kinds.dataset.wired = "1";
+    let kind = Pre().find("other");
+    let typedName = false;   // a name the person typed is kept when they pick another kind
+    $("connName")?.addEventListener("input", () => { typedName = !!$("connName").value.trim(); });
+
+    const syncAuth = () => {
+      const auth = $("connAuth")?.value || "auto";
+      if ($("connHeaderRow")) $("connHeaderRow").hidden = auth !== "header";
+      if ($("connSecretRow")) $("connSecretRow").hidden = auth === "none";
     };
-    auth?.addEventListener("change", sync);
-    if (auth) sync();
-    document.getElementById("connAdd")?.addEventListener("click", async () => {
-      const msg = document.getElementById("connNote");
-      const secretEl = document.getElementById("connSecret");
+    const readOnly = () => !!$("connReadOnly")?.checked;
+    const syncFixed = () => {
+      const fixed = $("connFixedUrl");
+      if (!fixed) return;
+      fixed.hidden = !kind.url;
+      fixed.textContent = kind.url ? `Connects to ${Pre().addressOf(kind, { readOnly: readOnly() })}` : "";
+    };
+    const choose = (p) => {
+      kind = p;
+      for (const b of kinds.children) b.setAttribute("aria-checked", String(b.dataset.kind === p.id));
+      if (!typedName && $("connName")) $("connName").value = p.url || p.id !== "other" ? p.name : "";
+      if ($("connUrlRow")) $("connUrlRow").hidden = !!p.url;
+      if (p.address && $("connUrl")) {
+        $("connUrl").placeholder = p.address.placeholder;
+        if ($("connUrlNote")) $("connUrlNote").textContent = `— ${p.address.note}`;
+      }
+      if ($("connSecretLabel")) $("connSecretLabel").textContent = p.key.label;
+      if ($("connSecretNote")) $("connSecretNote").textContent = `— ${p.key.note}`;
+      if ($("connReadOnlyRow")) $("connReadOnlyRow").hidden = !p.readOnlyUrl;
+      if ($("connAuth")) $("connAuth").value = p.auth;
+      if ($("connNote")) $("connNote").textContent = "";
+      syncAuth();
+      syncFixed();
+    };
+    for (const p of Pre().PRESETS) {
+      const b = el("button", "conn-kind", p.name);
+      b.type = "button";
+      b.dataset.kind = p.id;
+      b.setAttribute("role", "radio");
+      b.addEventListener("click", () => choose(p));
+      kinds.appendChild(b);
+    }
+    $("connAuth")?.addEventListener("change", syncAuth);
+    $("connReadOnly")?.addEventListener("change", syncFixed);
+    choose(kind);
+
+    const btn = $("connAdd");
+    btn?.addEventListener("click", async () => {
+      const msg = $("connNote");
+      const say = (t) => { if (msg) msg.textContent = t; };
+      const secretEl = $("connSecret");
+      const auth = $("connAuth")?.value || "auto";
+      const secret = auth === "none" ? "" : (secretEl?.value || "");
+      const url = Pre().addressOf(kind, { address: $("connUrl")?.value, readOnly: readOnly() });
+      const name = String($("connName")?.value || "").trim() || hostOf(url);
+      if (!url) { say("Enter its web address first."); return; }
+      if (kind.url && !secret) { say(`Paste your ${kind.key.label.toLowerCase()} first.`); return; }
+      if (!available()) { say("Connected systems work in the desktop app."); return; }
+      btn.disabled = true;
+      say(`Connecting to ${name}…`);
       try {
-        const conn = await save({
-          name: document.getElementById("connName")?.value,
-          url: document.getElementById("connUrl")?.value,
-          auth: auth?.value || "none",
-          header: document.getElementById("connHeader")?.value,
-        }, secretEl?.value || "");
+        const conn = await connect({ name, url, auth, header: $("connHeader")?.value }, secret);
         if (secretEl) secretEl.value = "";
-        if (msg) msg.textContent = `Saved ${conn.name}. Reading its tools…`;
-        try { await refresh(conn.id); if (msg) msg.textContent = ""; } catch { /* the card shows why */ }
+        const n = (conn.tools || []).length;
+        say(n
+          ? `Connected to ${conn.name}, with ${n} tool${n === 1 ? "" : "s"}. The ones that only read are on; the ones that change records stay off until you switch them on below.`
+          : `Connected to ${conn.name}. It offers no tools yet.`);
       } catch (e) {
-        if (msg) msg.textContent = `Not saved: ${String((e && e.message) || e)}`;
+        say(whyNot(e, name, url));
+      } finally {
+        btn.disabled = false;
       }
       render();
     });
@@ -386,5 +476,5 @@
   /** What the person is told when a chat holds records a cloud model may not see. */
   const heldText = (names) => `This chat holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. Start a new chat to use a cloud model, or allow cloud models for that system in Settings → Connections.`;
 
-  window.HCMcp = { available, list, find, save, remove, merge, refresh, setTool, setAllowCloud, toolsFor, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldText, render, labelOf, RECORD_WORDS };
+  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, setTool, setAllowCloud, toolsFor, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldText, render, labelOf, RECORD_WORDS };
 })();

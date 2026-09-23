@@ -373,46 +373,61 @@
       </div>
     </div>
 
-    <!-- Memory pane (hidden by default) -->
+    <!-- Connections pane (hidden by default) -->
     <div id="connectedPane" style="display:none" class="modal-body settings-pane" hidden>
       <div class="field">
         <div class="mem-blurb">
-          Connect a business system, such as an ERP, so agents can read its records (over MCP). The sign-in secret is kept by the app on this computer and is never shown to a page or a model. Records go only to models on this computer unless you allow cloud models for a system. Reading asks you once per system; every change asks you each time and shows exactly what will be sent.
+          Let agents work with the systems your business runs on, such as its ERP, GitHub or Stripe. The key stays with the app on this computer and is never shown to a page or a model. Agents read a system only once you allow it, and ask you before every change, showing exactly what will be sent. A system's records go only to models on this computer unless you allow cloud models for it.
         </div>
       </div>
-      <div class="set-sec">Add a system</div>
+      <div class="set-sec">Connect a system</div>
+      <div class="field">
+        <div class="conn-kinds" id="connKinds" role="radiogroup" aria-label="What to connect"></div>
+      </div>
       <div class="field">
         <label for="connName">Name</label>
         <input class="control" id="connName" placeholder="e.g. Company ERP" spellcheck="false" maxlength="40" />
       </div>
-      <div class="field">
-        <label for="connUrl">Address <span class="field-note">— its MCP address; https, or http on this computer only</span></label>
+      <div class="field" id="connUrlRow">
+        <label for="connUrl">Web address <span class="field-note" id="connUrlNote"></span></label>
         <input class="control" id="connUrl" placeholder="https://erp.example.com/mcp" spellcheck="false" autocomplete="off" />
       </div>
+      <div class="field" id="connSecretRow">
+        <label for="connSecret"><span id="connSecretLabel">Key</span> <span class="field-note" id="connSecretNote"></span></label>
+        <input class="control" id="connSecret" type="password" placeholder="Paste it here" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="field" id="connReadOnlyRow" hidden>
+        <label class="check-row">
+          <input type="checkbox" id="connReadOnly" class="check-box" checked />
+          <span><b>Reading only</b> <span class="field-note">— connect through the service's own address that can only read, so nothing can be changed through it</span></span>
+        </label>
+      </div>
+      <details class="conn-more" id="connMore">
+        <summary>More options</summary>
+        <div class="field-note" id="connFixedUrl" hidden></div>
+        <div class="field">
+          <label for="connAuth">How it signs in</label>
+          <select class="control" id="connAuth">
+            <option value="auto">Automatic: the key is tried the usual ways</option>
+            <option value="none">No key</option>
+            <option value="bearer">Token, sent as a bearer token</option>
+            <option value="header">Key in a header you name</option>
+          </select>
+        </div>
+        <div class="field" id="connHeaderRow" hidden>
+          <label for="connHeader">Header name</label>
+          <input class="control" id="connHeader" placeholder="e.g. X-Api-Key, or Authorization" spellcheck="false" autocomplete="off" />
+        </div>
+      </details>
       <div class="field">
-        <label for="connAuth">Sign-in</label>
-        <select class="control" id="connAuth">
-          <option value="none">None</option>
-          <option value="bearer">Token</option>
-          <option value="header">Key in a header</option>
-        </select>
-      </div>
-      <div class="field" id="connHeaderRow" hidden>
-        <label for="connHeader">Header name</label>
-        <input class="control" id="connHeader" placeholder="e.g. X-Api-Key, or Authorization" spellcheck="false" autocomplete="off" />
-      </div>
-      <div class="field" id="connSecretRow" hidden>
-        <label for="connSecret">Secret <span class="field-note">— use an account made for this, with only the access it needs</span></label>
-        <input class="control" id="connSecret" type="password" placeholder="Token or key" spellcheck="false" autocomplete="off" />
-      </div>
-      <div class="field">
-        <button class="ghost set-btn" type="button" id="connAdd">Save and connect</button>
+        <button class="ghost set-btn" type="button" id="connAdd">Connect</button>
         <div class="field-note" id="connNote" role="status" aria-live="polite"></div>
       </div>
       <div class="set-sec">Connected</div>
       <div id="connList" class="conn-list"></div>
     </div>
 
+    <!-- Memory pane (hidden by default) -->
     <div id="memoryPane" style="display:none" class="modal-body settings-pane" hidden>
       <div class="field">
         <label class="mem-head">
