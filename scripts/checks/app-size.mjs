@@ -171,7 +171,12 @@ const LINE_BUDGET = {
   // 6463, up four: the calculate tool asks js/chat/exact.js first, so a whole
   // number past what ordinary numbers hold comes back exact, and a rounded
   // result says it was rounded.
-  'js/app.js': 6463,
+  // 6484, up 21: a local model is asked only what it can do. One that cannot
+  // take tools is told them in words, a picture for one that cannot see is
+  // refused in words, and one only for search is listed but not offered. The
+  // reading of what it can do is js/local-context.js; the words are
+  // js/agent-shape.js.
+  'js/app.js': 6484,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

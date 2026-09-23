@@ -234,6 +234,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Every local model works as an agent, including ones that cannot take
+  tools.** A model whose server says it cannot take tools was refused by
+  the agents, and the chat fell back to guessing what to look up for it.
+  Such a model is now told its tools in words, with one way to call them,
+  and its calls are read from its answer, so it searches, calculates and
+  runs code like any other. A model made only for search is listed but not
+  offered for chat, and a picture sent to a model that cannot see is
+  refused in plain words naming the model, instead of a technical error.
+
 - **The calculator gives large whole numbers exactly.** It worked in the
   numbers every script uses, which round whole numbers past about nine
   thousand million million, and handed back the rounded figure as the

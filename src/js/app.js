@@ -3713,6 +3713,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
       // Add cloud model optgroups below local models
       populateCloudModels();
+      markSearchOnly(safeHost(), models);
       const canSelectModel = (value) =>
         !!value && Array.from(modelEl.options).some(opt => opt.value === value && !opt.disabled);
       const pick = canSelectModel(current) ? current :
@@ -3735,6 +3736,18 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const hasCloud = CLOUD_MODELS.some(g => (g.keyEl().value || "").trim());
       setStatus(hasCloud ? "warn" : "err", hasCloud ? "Local host offline · cloud ready" : "Local host offline");
     }
+  }
+
+  // A model only for search cannot hold a conversation, so it is listed but not
+  // offered, in the chat or in any mode (js/local-context.js).
+  async function markSearchOnly(host, models) {
+    const infos = await Promise.all(models.map((m) => HCLocalContext.infoOf(host, m)));
+    models.forEach((m, i) => {
+      const opt = HCLocalContext.embedsOnly(infos[i]) && Array.from(modelEl.options).find((o) => o.value === m);
+      if (opt) { opt.disabled = true; opt.textContent = `${m} (for search only)`; }
+    });
+    const next = modelEl.selectedOptions[0]?.disabled && Array.from(modelEl.options).find((o) => o.value && !o.disabled);
+    if (next) { modelEl.value = next.value; modelEl.dispatchEvent(new Event("change", { bubbles: true })); saveSettings(); }
   }
 
   function setStatus(kind, text) {
@@ -4914,6 +4927,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       } else {
         const host = safeHost();
         trackLocalModel(modelEl.value);
+        const refused = HCLocalContext.refusalFor(await HCLocalContext.infoOf(host, modelEl.value), modelEl.value, messages);
+        if (refused) throw new Error(refused);
         // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
         const numCtxNow = await HCLocalContext.numCtx(host, modelEl.value, messages, { floor: numCtx });
         const reply = await HCLocal.chat(host, { model: modelEl.value, messages, temperature, numCtx: numCtxNow, keepAlive: -1 }, {
@@ -5659,8 +5674,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // -------------------------------------------------------------------------
   async function agentTurnOllama({ model, messages, tools, temperature, signal, json, need }) {
     const host = safeHost();
+    const info = await HCLocalContext.infoOf(host, model);
+    const refused = HCLocalContext.refusalFor(info, model, messages);
+    if (refused) throw new Error(refused);
+    // A model that cannot take tools is told them in words and its calls are read from its answer.
+    const native = !tools.length || HCLocalContext.can(info, "tools");
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need });
-    const reply = await HCLocal.chat(host, { model, messages: HCAgentShape.forOllama(messages), tools, json, temperature, numCtx, keepAlive: -1 }, { signal });
+    const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
+    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, keepAlive: -1 }, { signal });
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);

@@ -40,18 +40,29 @@ ok('tool calls in a conversation are counted', L.tokensOf([{ content: '', tool_c
 console.log('\nWhat the model supports, asked once:');
 {
   let asked = 0;
-  const fakeFetch = async () => { asked++; return { ok: true, json: async () => ({ model_info: { 'qwen2.context_length': 32768 } }) }; };
+  const fakeFetch = async () => { asked++; return { ok: true, json: async () => ({ model_info: { 'qwen2.context_length': 32768 }, capabilities: ['completion', 'tools'], details: { parameter_size: '3.1B' } }) }; };
   const first = await L.limitOf('http://h', 'qwen2.5-coder:3b', fakeFetch);
   await L.limitOf('http://h', 'qwen2.5-coder:3b', fakeFetch);
   ok('read from the model\'s own information, and remembered', first === 32768 && asked === 1);
+  const info = await L.infoOf('http://h', 'qwen2.5-coder:3b', fakeFetch);
+  ok('what it can do and its size come from the same answer', asked === 1 && L.can(info, 'tools') && !L.can(info, 'vision') && info.billions === 3.1);
   const down = await L.limitOf('http://h', 'other', async () => { throw new Error('offline'); });
   ok('unknown when Ollama cannot say: the ceiling stands', down === L.CEILING);
+  const unknown = await L.infoOf('http://h', 'other');
+  ok('and nothing is assumed about what it can do: an older Ollama loses nothing', L.can(unknown, 'tools') && L.can(unknown, 'vision') && !L.embedsOnly(unknown) && L.refusalFor(unknown, 'other', [{ images: ['x'] }]) === null);
   let err = null;
   try { await L.numCtx('http://h', 'qwen2.5-coder:3b', text(200000), { need: 2000, fetchFn: fakeFetch }); } catch (e) { err = e; }
   ok('a request that cannot fit is refused as one too large, so the routing knows it', err && /request too large/.test(err.message));
   ok('a caller\'s floor is honoured, within what the model supports', (await L.numCtx('http://h', 'qwen2.5-coder:3b', text(100), { floor: 16384, fetchFn: fakeFetch })) === 16384
     && (await L.numCtx('http://h', 'tiny', text(100), { floor: 16384, fetchFn: async () => ({ ok: true, json: async () => ({ model_info: { 'x.context_length': 4096 } }) }) })) === 4096);
 }
+
+console.log('\nWhat a model cannot do is said before it is asked:');
+ok('a model only for search is told apart', L.embedsOnly({ caps: ['embedding'] }) && !L.embedsOnly({ caps: ['embedding', 'completion'] }) && !L.embedsOnly({ caps: ['completion'] }));
+ok('... and asked to chat, the refusal says what to do', /for search, not conversation\. Pick another model/.test(L.refusalFor({ caps: ['embedding'] }, 'embed-m', [{ content: 'hi' }])));
+ok('a picture for a model that cannot see: said plainly, naming the model', L.refusalFor({ caps: ['completion'] }, 'coder-3b', [{ content: 'what is this', images: ['b64'] }]) === 'coder-3b cannot see pictures. Pick a model that can, or send the message without the picture.');
+ok('a picture for a model that can see, or no picture: nothing to refuse', L.refusalFor({ caps: ['completion', 'vision'] }, 'v', [{ images: ['b64'] }]) === null && L.refusalFor({ caps: ['completion'] }, 'c', [{ content: 'hi' }]) === null);
+ok('sizes as Ollama writes them', L.billionsOf('7.6B') === 7.6 && Math.abs(L.billionsOf('770M') - 0.77) < 1e-9 && L.billionsOf('') === null && L.billionsOf('large') === null);
 
 console.log('\nThe window a model is loaded with is kept while it fits:');
 {
@@ -77,6 +88,8 @@ console.log('\nEvery local call is sized:');
   ok('no request to a local model is written out beside the one client', !/\/api\/chat/.test(app));
   ok('the agent turn leaves room for the answer the caller needs', /agentTurnOllama\(\{ model, messages, tools, temperature, signal, json, need \}\)/.test(app) && /\{ need \}\)/.test(app));
   ok('a model the app unloads is sized afresh when it is loaded again', /HCLocalContext\.forget\(host, modelName\)/.test(app));
+  ok('the chat and the agents say what a model cannot do before asking it', (app.match(/HCLocalContext\.refusalFor\(/g) || []).length === 2);
+  ok('a model only for search is listed but not offered', /HCLocalContext\.embedsOnly\(infos\[i\]\)/.test(app) && /opt\.disabled = true; opt\.textContent = `\$\{m\} \(for search only\)`/.test(app) && /markSearchOnly\(safeHost\(\), models\)/.test(app));
   ok('it loads before the chat', src('boot.js').indexOf("'/js/local-context.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 

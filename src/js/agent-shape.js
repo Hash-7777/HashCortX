@@ -233,6 +233,46 @@
   }
 
   /**
+   * A conversation for a model that cannot take tools: the tools described in
+   * its instructions, with one way to call them, and the calls and results so
+   * far written as words. Such a model's template drops a tool-result turn
+   * altogether, so each result goes back as a message in the person's turn.
+   * Its calls are then read from its answer (js/tool-text.js).
+   */
+  function toolsInWords(messages, tools) {
+    const list = (tools || []).map((t) => (t && t.function) || t).filter((f) => f && f.name);
+    if (!list.length) return forOllama(messages);
+    const line = (f) => {
+      const props = (f.parameters && f.parameters.properties) || {};
+      const req = new Set((f.parameters && f.parameters.required) || []);
+      const args = Object.entries(props).map(([k, v]) => `${k}${req.has(k) ? '' : '?'}: ${(v && v.type) || 'string'}`).join(', ');
+      return `- ${f.name}(${args}): ${String(f.description || '').split('\n')[0]}`;
+    };
+    const guide = [
+      'You can use these tools. To use one, reply with only the call, in exactly this form, and nothing else:',
+      '<tool_call>{"name": "tool_name", "arguments": {"argument": "value"}}</tool_call>',
+      'Its result comes back to you in the next message. Use one tool at a time. When you need no tool, answer in plain words.',
+      '',
+      'Tools:',
+      ...list.map(line),
+    ].join('\n');
+    const out = [];
+    for (const m of withoutSignatures(messages)) {
+      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${m.content || ''}` }); continue; }
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+        const calls = m.tool_calls.map((c) => `<tool_call>${JSON.stringify({ name: c.function && c.function.name, arguments: safeJsonParse(c.function && c.function.arguments) || {} })}</tool_call>`);
+        out.push({ role: 'assistant', content: [m.content, ...calls].filter(Boolean).join('\n') });
+        continue;
+      }
+      out.push({ role: m.role, content: m.content || '', ...(m.images ? { images: m.images } : {}) });
+    }
+    const sys = out.findIndex((m) => m.role === 'system');
+    if (sys >= 0) out[sys] = { ...out[sys], content: `${out[sys].content}\n\n${guide}` };
+    else out.unshift({ role: 'system', content: guide });
+    return out;
+  }
+
+  /**
    * Ollama's reply as the loop reads it: the calls in the field for them, or
    * failing that, a reply that is nothing but calls written as text.
    */
@@ -532,6 +572,7 @@
     systemOf,
     claimsItRan,
     forOllama,
+    toolsInWords,
     ollamaReply,
     FOREIGN_CALL_SIGNATURE,
     safeJsonParse,

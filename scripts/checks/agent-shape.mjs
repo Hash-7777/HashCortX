@@ -151,6 +151,25 @@ console.log('\nA tool call a local model wrote as text is run as one:');
   ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
 }
 
+console.log('\nA model that cannot take tools is told them in words:');
+{
+  const tools = [{ type: 'function', function: { name: 'web_search', description: 'Live web search.\nMore detail.', parameters: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'integer' } }, required: ['query'] } } }];
+  const convo = [{ role: 'system', content: 'Be brief.' }, { role: 'user', content: 'Cairo population?' }];
+  A.appendAssistantToolCallTurn(convo, 'Searching.', [{ id: 'c1', name: 'web_search', arguments: { query: 'Cairo population' } }]);
+  A.appendToolResult(convo, { id: 'c1', name: 'web_search' }, '{"results":["about 22 million"]}');
+  const out = A.toolsInWords(convo, tools);
+  ok('the tools, their arguments and the one way to call them are in its instructions', out[0].role === 'system' && out[0].content.startsWith('Be brief.') && /web_search\(query: string, limit\?: integer\): Live web search\.$/m.test(out[0].content) && /<tool_call>\{"name": "tool_name"/.test(out[0].content));
+  ok('a call it made is written back as the call', out[2].role === 'assistant' && out[2].content === 'Searching.\n<tool_call>{"name":"web_search","arguments":{"query":"Cairo population"}}</tool_call>' && !out[2].tool_calls);
+  ok('a result comes back in the person\'s turn, which its template does not drop', out[3].role === 'user' && out[3].content === 'Result of web_search:\n{"results":["about 22 million"]}');
+  ok('no tool turn is left for its template to drop', !out.some((m) => m.role === 'tool'));
+  ok('what it writes back in the form it was taught is read as a call', A.toolCallsInText('<tool_call>{"name": "web_search", "arguments": {"query": "x"}}</tool_call>', ['web_search']).length === 1);
+  ok('with no system message, the instructions become one', A.toolsInWords([{ role: 'user', content: 'hi' }], tools)[0].role === 'system');
+  ok('with no tools, the conversation is sent as it is', A.toolsInWords(convo, [])[3].role === 'tool');
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
+  ok('the agent turn does this for a model Ollama says cannot take tools, and sends it no tool list', /HCLocalContext\.can\(info, "tools"\)/.test(ollama) && /HCAgentShape\.toolsInWords\(messages, tools\)/.test(ollama) && /tools: native \? tools : undefined/.test(ollama));
+}
+
 console.log('\nEvery system message reaches the providers that take the rules apart:');
 {
   const sys = A.systemOf([{ role: 'system', content: 'rules' }, { role: 'user', content: 'q' }, { role: 'system', content: 'later note' }]);
