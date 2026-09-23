@@ -650,7 +650,11 @@ const LINE_BUDGET = {
   // since the agent's change, and a no leaves the button as it was.
   // 2603, down thirty-three: its two loops built the tool list from two
   // identical copies of one function, now platform/tauri/hashcoder.js toolList.
-  'modes/code/mode.js': 2603,
+  // 2608, up five: a single run is offered the tools of a connected system its
+  // request is about, runs them through the one approval gate, and does not
+  // send a conversation that read records to a model that system keeps them
+  // from. The deciding is js/mcp/connections.js forRun; this is the wiring.
+  'modes/code/mode.js': 2608,
 };
 
 console.log('\nFile sizes go down, never up:');

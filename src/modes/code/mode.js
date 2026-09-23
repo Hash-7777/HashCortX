@@ -33,7 +33,7 @@
     remember_fact: 'REMEMBER', recall_facts: 'RECALL',
     placeholder_images: 'IMAGES',
   };
-  const toolVerb = (name) => TOOL_VERBS[name] || String(name || '').toUpperCase();
+  const toolVerb = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
 
   /** The one argument worth showing beside the verb. */
   // ── Which model to try when one will not answer ─────────────────────────
@@ -53,6 +53,7 @@
       return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
     }
     if (name === 'move_file') return `${a.from || ''} → ${a.to || ''}`;
+    if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
     return String(a.path || a.dir || a.file || a.query || a.url || a.pattern || a.expression || a.key || '');
   }
 
@@ -2095,10 +2096,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             const t0 = performance.now();
             let resultStr, ok = true;
             try {
-              const def = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name);
+              const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name), def = window.HCMcp ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
               if (!def) throw new Error('Unknown tool: ' + call.name);
-              const raw = await def.fn(call.arguments || {});
+              const raw = await (def.fn ? def.fn(call.arguments || {}) : def.execute(call.arguments || {}));
               resultStr = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
+              if (!def.fn && raw?.error) ok = false;
             } catch (e) {
               resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
             }
@@ -2260,8 +2262,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     }
 
     async function runSingleTurn(signal) {
-      const tools     = buildTools();
+      // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
+      const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
+      const tools = [...buildTools(), ...run.tools];
       const contentEl = appendAssistantBubble('HashCortX Coder');
+      if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
       const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
       if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText });
       saveCoderState();

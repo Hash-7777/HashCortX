@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **The Coder can work with a connected system.** When a task is about
+  one, such as an issue or a pull request in a connected code host, the
+  Coder is offered that system's tools the same way chat agents are:
+  reading asks you once, and every change, such as opening a pull request,
+  asks you each time and shows exactly what will be sent. Each tool tells
+  the agent to use it rather than a shell command for that system. A Coder
+  conversation that read a system's records is not sent to a model that
+  system keeps them from, and runs with several agents are offered none of
+  these tools. Tools are named in words, in its steps and on the
+  permission bar, such as "ASK GitHub · Get issue".
+
 - **Ready-made connections for Odoo, GitHub, Stripe and Supabase.**
   Settings → Connections offers them by name, and "Other system" for
   anything else. GitHub, Stripe and Supabase need only a key, and each is

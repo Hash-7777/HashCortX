@@ -168,6 +168,60 @@
   /** Whether this turn offers any connected system's tools. */
   const offering = () => offered.size > 0;
 
+  // Words that name what a code host keeps, for a request made to the Coder.
+  const CODE_WORDS = /\b(?:issues?|pull requests?|PRs?|repositor(?:y|ies)|repos?|releases?|reviews?)\b/i;
+
+  /** Whether a request is about a connected system: it names one, or speaks of what such systems keep. */
+  function asksFor(text) {
+    const t = String(text || "");
+    if (RECORD_WORDS.test(t) || CODE_WORDS.test(t)) return true;
+    const lower = t.toLowerCase();
+    return list().some((c) => c.name && lower.includes(c.name.toLowerCase()));
+  }
+
+  /**
+   * The connected tools for one run of an agent loop other than the chat's
+   * (the Coder's): none unless the request is about a connected system, since
+   * every tool offered costs a small model some of its accuracy.
+   */
+  async function toolsForTask(modelValue, text) {
+    if (asksFor(text)) return toolsFor(modelValue);
+    offered = new Map();
+    readThisTurn = false;
+    return [];
+  }
+
+  /**
+   * For one run of an agent loop other than the chat's (the Coder's), on this
+   * conversation: the connected tools to add, or — when it holds records this
+   * model may not see — what to say instead of sending it.
+   */
+  async function forRun(modelValue, messages) {
+    const held = heldIn(messages, modelValue);
+    if (held.length) {
+      offered = new Map();
+      readThisTurn = false;
+      return { tools: [], refusal: heldText(held, { fresh: "Start a new conversation", what: "conversation" }) };
+    }
+    const asked = [...(Array.isArray(messages) ? messages : [])].reverse().find((m) => m && m.role === "user");
+    // An agent with a shell reaches for a command-line client it knows, which
+    // goes round the approval each change here is given; each tool says so.
+    const tools = (await toolsForTask(modelValue, asked && asked.content)).map((t) => {
+      const conn = systemOf(t.function.name);
+      return conn ? { ...t, function: { ...t.function, description: `${t.function.description} For anything in ${conn.name}, use this rather than a shell command.` } } : t;
+    });
+    return { tools, refusal: "" };
+  }
+
+  /** How a run shows a connected tool's step: ASK or CHANGE, and the system and tool in words. */
+  function stepOf(name) {
+    const conn = systemOf(name);
+    const t = conn && (conn.tools || []).find((x) => P().exposedName(conn.id, x.name) === name);
+    if (!t) return null;
+    const words = window.HCMcpPresets ? window.HCMcpPresets.toolLabel(t.name) : t.name;
+    return { verb: t.reads ? "ASK" : "CHANGE", object: `${conn.name} · ${words}` };
+  }
+
   // Words that name records in a business system. A request using them, with
   // a system's tools on offer, is the model's to decide, not the app's plain
   // routing — "search the invoices" is not a web search.
@@ -192,9 +246,10 @@
     if (!t || !t.on || t.approved !== t.definition) return { error: "That tool is switched off in Settings → Connections." };
     const guard = HC().guard;
     if (!guard) return { error: "Connected systems work in the desktop app." };
+    const words = window.HCMcpPresets ? window.HCMcpPresets.toolLabel(t.name) : t.name;
     const allowed = t.reads
-      ? await guard.request("erp-read", labelOf(conn), `Read records with ${t.name}. Allowed once, reading lasts until the app closes.`)
-      : await guard.request("erp-change", `${labelOf(conn)} · ${t.name}`, P().previewOf(args));
+      ? await guard.request("erp-read", labelOf(conn), `Read its records with "${words}". Allowed once, reading lasts until the app closes.`)
+      : await guard.request("erp-change", `${labelOf(conn)} · ${words}`, P().previewOf(args));
     if (!allowed) return { error: "The person did not allow this." };
     try {
       const result = await clientOf().callTool(conn.id, t.name, args);
@@ -473,8 +528,23 @@
     return [...held];
   }
 
-  /** What the person is told when a chat holds records a cloud model may not see. */
-  const heldText = (names) => `This chat holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. Start a new chat to use a cloud model, or allow cloud models for that system in Settings → Connections.`;
+  /**
+   * The same for a conversation kept in the agents' own shape (the Coder's):
+   * a connected tool that answered, rather than failed, left records in it.
+   */
+  function heldIn(messages, modelValue) {
+    const held = new Set();
+    for (const m of Array.isArray(messages) ? messages : []) {
+      if (!m || m.role !== "tool" || !/^sys_/.test(String(m.name || ""))) continue;
+      if (/^\s*\{\s*"error"/.test(String(m.content || ""))) continue;
+      const conn = systemOf(m.name);
+      if (!P().mayReach(conn, modelValue)) held.add(conn ? conn.name : "a connected system");
+    }
+    return [...held];
+  }
 
-  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, setTool, setAllowCloud, toolsFor, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldText, render, labelOf, RECORD_WORDS };
+  /** What the person is told when a conversation holds records a cloud model may not see. */
+  const heldText = (names, { fresh = "Start a new chat", what = "chat" } = {}) => `This ${what} holds records from ${names.join(" and ")}, which are kept to models on this computer, so it was not sent. ${fresh} to use a cloud model, or allow cloud models for that system in Settings → Connections.`;
+
+  window.HCMcp = { available, list, find, save, remove, merge, refresh, connect, whyNot, setTool, setAllowCloud, toolsFor, toolsForTask, forRun, asksFor, stepOf, offering, speaksOf, run, toolOf, toolFor, systemOf, heldFrom, heldIn, heldText, render, labelOf, RECORD_WORDS };
 })();

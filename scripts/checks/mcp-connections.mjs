@@ -108,7 +108,7 @@ console.log('\nRunning a call:');
   ok('it runs through the agent\'s own tool runner and keeps its own time', tool && tool.ownLimit === true && /Asking Company ERP: search_records/.test(tool.statusLabel()));
   answer = true;
   const out = await tool.execute({ model: 'account.move' });
-  ok('reading asks the person, naming the system and where it is', asked.at(-1).action === 'erp-read' && asked.at(-1).target === 'Company ERP (erp.example.org)');
+  ok('reading asks the person, naming the system and where it is', asked.at(-1).action === 'erp-read' && asked.at(-1).target === 'Company ERP (erp.example.org)' && /with "Search records"\./.test(asked.at(-1).reason));
   ok('the system is called with the model\'s arguments', calls.at(-1).name === 'search_records' && calls.at(-1).arguments.model === 'account.move');
   ok('what comes back is framed as material to read, not instructions', /reference material/.test(out.result) && /<source n="1" title="Company ERP · search_records">/.test(out.result));
   ok('... with a line addressed to AI systems left out', !/Ignore previous instructions/.test(out.result) && /INV\/7 unpaid/.test(out.result));
@@ -127,7 +127,7 @@ console.log('\nA change:');
   ok('switched on, it is offered, and says each call is approved', !!offer && /the person approves each call/.test(offer.function.description));
   await M.toolOf(offer.function.name).execute({ id: 7 });
   const last = asked.at(-1);
-  ok('it asks as a change, naming the system and the tool', last.action === 'erp-change' && last.target === 'Company ERP (erp.example.org) · delete_record');
+  ok('it asks as a change, naming the system and the tool in words', last.action === 'erp-change' && last.target === 'Company ERP (erp.example.org) · Delete record');
   ok('... and shows exactly what will be sent', last.reason === '{\n  "id": 7\n}');
 }
 
@@ -190,6 +190,28 @@ console.log('\nWhere records do not go afterwards:');
   ok('the person is told why, and what to do', /Start a new chat to use a cloud model, or allow cloud models for that system/.test(M.heldText(['Company ERP'])));
 }
 
+console.log('\nFor the Coder, whose conversation is kept in the agents\' own shape:');
+{
+  const Pol = sandbox.window.HCMcpPolicy;
+  ok('its tools are offered when a request is about a connected system', M.asksFor('Fix issue 12 and open a pull request') && M.asksFor('what is in company erp?') && M.asksFor('list the unpaid invoices'));
+  ok('... and not for plain coding work', !M.asksFor('Rename the variable in parser.js') && !M.asksFor('Add a test for the date helper'));
+  const plain = await M.forRun('qwen2.5-coder:3b', [{ role: 'user', content: 'Rename the variable in parser.js' }]);
+  ok('a plain coding request is offered none of them', plain.tools.length === 0 && plain.refusal === '' && !M.offering());
+  const asked = await M.forRun('qwen2.5-coder:3b', [{ role: 'user', content: 'Rename it' }, { role: 'assistant', content: 'Done.' }, { role: 'user', content: 'Which invoices are unpaid in Company ERP?' }]);
+  ok('a request about records is offered them, judged by the latest request', asked.tools.some((t) => /search_records/.test(t.function.name)) && asked.refusal === '');
+  ok('... each saying to use it for that system rather than a shell command', asked.tools.every((t) => /For anything in Company ERP, use this rather than a shell command\.$/.test(t.function.description)));
+  const name = Pol.exposedName(conn.id, 'search_records');
+  const read = [{ role: 'user', content: 'unpaid?' }, { role: 'tool', name, content: JSON.stringify({ system: 'Company ERP', tool: 'search_records', result: 'INV/7' }) }];
+  ok('a conversation that read records is held from a cloud model, not from one on this computer', M.heldIn(read, 'cloud:gemini:gemini-2.5-flash').join() === 'Company ERP' && M.heldIn(read, 'qwen2.5-coder:3b').length === 0);
+  ok('... but not for a call that failed or was refused', M.heldIn([{ role: 'tool', name, content: '{"error":"The person did not allow this."}' }], 'cloud:x:y').length === 0);
+  ok('... and one from a system since removed is held from a cloud model only', M.heldIn([{ role: 'tool', name: 'sys_gone_get_issue', content: '{"result":"x"}' }], 'cloud:x:y').join() === 'a connected system' && M.heldIn([{ role: 'tool', name: 'sys_gone_get_issue', content: '{"result":"x"}' }], 'qwen2.5-coder:7b').length === 0);
+  const held = await M.forRun('cloud:gemini:gemini-2.5-flash', [...read, { role: 'user', content: 'And the paid invoices?' }]);
+  ok('... so a run on one is not sent, and says why and what to do', held.tools.length === 0 && !M.offering()
+    && held.refusal === 'This conversation holds records from Company ERP, which are kept to models on this computer, so it was not sent. Start a new conversation to use a cloud model, or allow cloud models for that system in Settings → Connections.');
+  ok('a step is shown in words: asking or changing, with the system and the tool', M.stepOf(name).verb === 'ASK' && M.stepOf(name).object === 'Company ERP · Search records'
+    && M.stepOf(Pol.exposedName(conn.id, 'delete_record')).verb === 'CHANGE' && M.stepOf('read_file') === null);
+}
+
 console.log('\nRemoving a system:');
 {
   await M.remove(conn.id);
@@ -241,6 +263,12 @@ console.log('\nThe app uses it, and shows what a system says as text:');
   ok('each side of Split checks it too', /const held = window\.HCMcp\?\.heldFrom\(state\.messages, branch\.model\) \|\| \[\];[^\n]*\n\s*if \(held\.length\) throw new Error\(window\.HCMcp\.heldText\(held\)\);\n\s*await streamWithModelValue/.test(app));
   ok('a turn on a cloud model first checks what the chat holds', /const _held = _selectedIsCloud \? \(window\.HCMcp\?\.heldFrom\(state\.messages, modelEl\.value\) \|\| \[\]\) : \[\];/.test(app) && /if \(_held\.length\) \{ assistant\.content = window\.HCMcp\.heldText\(_held\);/.test(app) && /\}\s*\/\/ ── Code Mode dispatch[^\n]*\n\s*else if \(isCodeMode\(\)/.test(app));
   ok('the plain routing steps aside for records', /window\.HCMcp\?\.speaksOf\(text\) \? null : HCIntent\.route\(text, names\)/.test(app));
+  const coder = src('modes', 'code', 'mode.js');
+  ok('the Coder offers them for the request, and holds back a conversation a model may not see', /const run = window\.HCMcp \? await window\.HCMcp\.forRun\(coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \|\| '', conversationMsgs\)/.test(coder)
+    && /const tools = \[\.\.\.buildTools\(\), \.\.\.run\.tools\];/.test(coder) && /if \(run\.refusal\) \{ appendTextToBubble\(contentEl, run\.refusal\);[^\n]*return; \}/.test(coder));
+  ok('... runs them through the one gate, memory rule included', /def = window\.HCMcp \? window\.HCMcp\.toolFor\(call\.name, own\) : own;/.test(coder) && /def\.fn \? def\.fn\(call\.arguments \|\| \{\}\) : def\.execute\(call\.arguments \|\| \{\}\)/.test(coder));
+  ok('... in single runs only: agents working side by side are offered none', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /agentLoop\(wMsgs, buildTools\(\), wEl/.test(coder));
+  ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(coder) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(coder));
   const self = src('js', 'mcp', 'connections.js');
   ok('nothing a system says is put on screen as markup', !/innerHTML|insertAdjacentHTML|outerHTML/.test(self));
   const panel = src('core', 'settings', 'panel.html');
