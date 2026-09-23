@@ -78,6 +78,8 @@
     const key = `${host}|${model}`;
     if (known.has(key)) return known.get(key);
     const info = { max: CEILING, caps: null, billions: null };
+    // A model on another local app is not Ollama's to describe.
+    if (/^local:/.test(String(model))) return info;
     try {
       const r = await fetchFn(`${host}/api/show`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model }) });
       if (r.ok) {

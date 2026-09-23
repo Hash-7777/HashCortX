@@ -116,6 +116,9 @@
    * `body` takes; `lineReader` turns the response body into events.
    */
   async function chat(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader } = {}) {
+    // A model on another local app is reached its own way (js/local-apps.js).
+    const apps = typeof window !== "undefined" && window.HCLocalApps;
+    if (apps && apps.isLocalApp(request.model)) return apps.chat(request.model, request, { signal, onToken, onThinking });
     const res = await fetchFn(`${host}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -135,7 +138,7 @@
    * a model already loaded at it answers at once.
    */
   function warm(host, model, numCtx, { fetchFn = (...a) => fetch(...a), now = Date.now() } = {}) {
-    if (!host || !model || String(model).startsWith("cloud:")) return Promise.resolve(false);
+    if (!host || !model || /^(?:cloud|local):/.test(String(model))) return Promise.resolve(false);
     const key = `${host}|${model}|${numCtx}`;
     if (warming.has(key) && now - warming.get(key) < 60000) return Promise.resolve(false);
     warming.set(key, now);

@@ -872,6 +872,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const SAVED = readSavedSettings();
   if (SAVED.host) hostEl.value = SAVED.host;
+  if (SAVED.localAppPorts && $("localAppPorts")) $("localAppPorts").value = SAVED.localAppPorts;
   if (SAVED.system) systemEl.value = SAVED.system;
   if (SAVED.temp) { tempEl.value = SAVED.temp; tempVal.textContent = SAVED.temp; }
 
@@ -942,7 +943,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // Non-sensitive settings → localStorage
       localStorage.setItem("atelier", JSON.stringify({
         ...readSavedSettings(),
-        host: hostEl.value, system: systemEl.value, temp: tempEl.value, model: modelEl.value,
+        host: hostEl.value, system: systemEl.value, temp: tempEl.value, model: modelEl.value, localAppPorts: $("localAppPorts")?.value || "",
         privacyLocal: privacyLocalEl.checked,
         ragEnabled,
         currentProjectId: state.currentProjectId,
@@ -1992,6 +1993,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   tempEl.addEventListener("input", () => { tempVal.textContent = tempEl.value; updateRangeFill(); saveSettings(); });
   systemEl.addEventListener("change", saveSettings);
   hostEl.addEventListener("change", () => { syncHostPreset(); saveSettings(); loadModels(); });
+  $("localAppPorts")?.addEventListener("change", () => { saveSettings(); loadModels(); });
 
   // ════════════════════════════════════════════════════════════════
   // Ollama endpoint presets — store + + Save / Delete / dropdown wiring
@@ -3248,7 +3250,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   async function unloadLocalModels(names, { keepalive = false } = {}) {
     const host = safeHost();
-    const uniq = [...new Set((names || []).filter(name => name && !String(name).startsWith("cloud:")))];
+    const uniq = [...new Set((names || []).filter(name => name && !/^(?:cloud|local):/.test(String(name))))];
     for (const modelName of uniq) {
       HCLocalContext.forget(host, modelName);   // loaded again, it is sized afresh
       const payload = JSON.stringify({ model: modelName, keep_alive: 0 });
@@ -3719,8 +3721,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (pick) modelEl.value = pick;
 
       saveSettings();
+      addLocalAppModels(seq);
     } catch (err) {
       if (seq !== loadModelsSeq) return;
+      addLocalAppModels(seq);
       // Local host offline — show cloud models so the user can still chat
       modelEl.innerHTML = `<option value="" disabled>(Local host offline)</option>`;
       populateCloudModels();
@@ -3733,6 +3737,19 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const hasCloud = CLOUD_MODELS.some(g => (g.keyEl().value || "").trim());
       setStatus(hasCloud ? "warn" : "err", hasCloud ? "Local host offline · cloud ready" : "Local host offline");
     }
+  }
+
+  // Models on other local model apps on this computer, offered beside Ollama's
+  // and before the cloud models (js/local-apps.js). The ports asked are the
+  // usual ones and any named in Settings.
+  async function addLocalAppModels(seq) {
+    const servers = await HCLocalApps.discover(String($("localAppPorts")?.value || "").split(/[\s,]+/));
+    if (seq !== loadModelsSeq) return;
+    modelEl.querySelectorAll("optgroup[data-local-apps]").forEach((g) => g.remove());
+    if ($("localAppsFound")) $("localAppsFound").textContent = HCLocalApps.foundText(servers);
+    const group = HCLocalApps.menuGroup(servers);
+    if (group) modelEl.insertBefore(group, modelEl.querySelector('option[data-separator="1"], optgroup[data-cloud]'));
+    if (group && !modelEl.value && Array.from(group.children).some((o) => o.value === SAVED.model)) modelEl.value = SAVED.model;
   }
 
   // A model only for search cannot hold a conversation, so it is listed but not
@@ -5672,7 +5689,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const refused = HCLocalContext.refusalFor(info, model, messages);
     if (refused) throw new Error(refused);
     // A model that cannot take tools is told them in words and its calls are read from its answer.
-    const native = !tools.length || HCLocalContext.can(info, "tools");
+    const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need });
     const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
     const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, keepAlive: -1 }, { signal });

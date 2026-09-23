@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Models from other local model apps.** A model server on your computer
+  other than Ollama — the kind other local model apps run, answering in the
+  common chat format — is found on its usual port, and its models are
+  offered in the model menu under "Other local apps", beside Ollama's, in
+  the chat and in every mode. A server on another port can be named in
+  Settings. Its replies are read the way Ollama's are, thinking included,
+  and its models count as local: a local task is never handed to the cloud.
+  The app reaches such a server only on this computer.
+
 - **An ERP backup can be put back.** The ERP could write a full backup of a
   system as JSON and had no way to read one, so the file was insurance that
   could not be claimed. Import now offers "Restore a backup (JSON)": it says

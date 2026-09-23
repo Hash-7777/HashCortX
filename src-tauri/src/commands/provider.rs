@@ -22,8 +22,13 @@
 // from the same store the web view already reads it from, and it goes in one
 // header to one fixed host. It is never logged and never returned.
 //
+// ANOTHER LOCAL MODEL APP on this computer is reached the same way, as the
+// provider "local": the caller names only a port, a number from 1024 up, and
+// the address is http://127.0.0.1 at that port with one of the two paths
+// written below. Such a server usually needs no key, so none is required.
+//
 // JS calls:
-//   invoke("provider_request", { provider, route, key, body, requestId, onEvent })
+//   invoke("provider_request", { provider, route, key, body, requestId, port, onEvent })
 //     onEvent receives, in order:
 //       { kind: "head",  status, mime, retry }   once, when the reply starts
 //       { kind: "chunk", text }                  as the reply arrives
@@ -101,6 +106,24 @@ fn cloudflare_endpoint(route: &str, account: &str) -> Option<String> {
     Some(format!(
         "https://api.cloudflare.com/client/v4/accounts/{account}/{tail}"
     ))
+}
+
+/// A model server on this computer, at a port the person's app runs it on.
+///
+/// THE PORT IS THE ONE PART OF THIS ADDRESS THAT COMES FROM THE CALLER, and it
+/// arrives as a number, so it cannot carry a host, a path or anything else.
+/// The host is always this computer and the path is one of the two below.
+/// Ports under 1024 are the system's own and no model app listens there.
+fn local_endpoint(route: &str, port: u16) -> Option<String> {
+    if port < 1024 {
+        return None;
+    }
+    let path = match route {
+        "chat" => "v1/chat/completions",
+        "models" => "v1/models",
+        _ => return None,
+    };
+    Some(format!("http://127.0.0.1:{port}/{path}"))
 }
 
 /// A request body. Pictures travel inside it as base64, so it has to hold a
@@ -285,19 +308,26 @@ fn run(
     events: &Channel<ProviderEvent>,
 ) -> Result<(), String> {
     let agent = agent();
-    let auth = format!("Bearer {key}");
+    // A model server on this computer may take no key; nothing is sent then.
+    let auth = if key.is_empty() { None } else { Some(format!("Bearer {key}")) };
     let sent = match body {
-        Some(json) => agent
-            .post(url)
-            .header("Authorization", &auth)
-            .header("Content-Type", "application/json")
-            .header("Accept", "text/event-stream, application/json")
-            .send(json),
-        None => agent
-            .get(url)
-            .header("Authorization", &auth)
-            .header("Accept", "application/json")
-            .call(),
+        Some(json) => {
+            let mut req = agent
+                .post(url)
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream, application/json");
+            if let Some(a) = &auth {
+                req = req.header("Authorization", a);
+            }
+            req.send(json)
+        }
+        None => {
+            let mut req = agent.get(url).header("Accept", "application/json");
+            if let Some(a) = &auth {
+                req = req.header("Authorization", a);
+            }
+            req.call()
+        }
     };
     let mut response = sent.map_err(|e| format!("the provider was unreachable: {e}"))?;
 
@@ -365,6 +395,7 @@ pub async fn provider_request(
     body: Option<String>,
     request_id: String,
     account: Option<String>,
+    port: Option<u16>,
     on_event: Channel<ProviderEvent>,
 ) -> Result<(), String> {
     let fail = |message: String| {
@@ -376,7 +407,12 @@ pub async fn provider_request(
     // thirty-two hex digits before it is put anywhere near a URL, and every
     // other part of that address is still fixed here. `account` is ignored
     // for every other provider, so it cannot alter one of their addresses.
-    let url: String = if provider == "cloudflare" {
+    let url: String = if provider == "local" {
+        match local_endpoint(&route, port.unwrap_or(0)) {
+            Some(u) => u,
+            None => return fail(format!("the app does not reach a local \"{route}\" on that port.")),
+        }
+    } else if provider == "cloudflare" {
         let account = account.unwrap_or_default();
         if let Err(e) = check_account(&account) {
             return fail(e);
@@ -395,7 +431,9 @@ pub async fn provider_request(
             }
         }
     };
-    if let Err(e) = check_key(&key)
+    // A local server may need no key; one that is given is still checked.
+    let key_ok = if provider == "local" && key.is_empty() { Ok(()) } else { check_key(&key) };
+    if let Err(e) = key_ok
         .and_then(|_| check_body(&route, body.as_deref()))
         .and_then(|_| check_id(&request_id))
     {
@@ -465,6 +503,22 @@ mod tests {
                 endpoint(provider, route).is_none(),
                 "{provider} {route} must not exist"
             );
+        }
+    }
+
+    #[test]
+    fn a_local_model_app_is_reached_only_on_this_computer_and_two_paths() {
+        assert_eq!(local_endpoint("chat", 1234).as_deref(), Some("http://127.0.0.1:1234/v1/chat/completions"));
+        assert_eq!(local_endpoint("models", 8080).as_deref(), Some("http://127.0.0.1:8080/v1/models"));
+        assert_eq!(local_endpoint("models", 65535).as_deref(), Some("http://127.0.0.1:65535/v1/models"));
+        // No other route, and no system port.
+        for (route, port) in [("completions", 1234), ("", 1234), ("../chat", 1234), ("chat", 80), ("models", 0), ("chat", 1023)] {
+            assert!(local_endpoint(route, port).is_none(), "{route} {port} must not exist");
+        }
+        // Whatever the port, the host is this computer.
+        for port in [1024u16, 11434, 40000, 65535] {
+            let url = local_endpoint("chat", port).unwrap();
+            assert_eq!(url.trim_start_matches("http://").split('/').next().unwrap(), format!("127.0.0.1:{port}"));
         }
     }
 

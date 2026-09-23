@@ -186,7 +186,11 @@ const LINE_BUDGET = {
   // a tool or reading back what one found.
   // 6522, down four: pasted pages, notes and looked-up context are framed as
   // material by js/chat/sources.js.
-  'js/app.js': 6522,
+  // 6539, up seventeen: models on other local model apps on this computer are
+  // found and offered beside Ollama's, with a port to name in Settings; every
+  // local request for one goes on to js/local-apps.js, which finds, lists and
+  // reads them. This is the menu, the setting and the agent's tool wording.
+  'js/app.js': 6539,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

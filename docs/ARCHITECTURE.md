@@ -65,7 +65,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,522  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,539  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        536  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -93,6 +93,9 @@ HashCortX/
 │   │   │                            drops its instructions, and the window it
 │   │   │                            is loaded with kept while it fits; and what
 │   │   │                            it can do: tools, pictures, or search only
+│   │   ├── local-apps.js       200  models on another local model app: found
+│   │   │                            on the usual ports, offered, and read the
+│   │   │                            way an Ollama reply is
 │   │   ├── local-client.js     150  the one request to a local model and the one
 │   │   │                            reading of its reply: words, thinking and
 │   │   │                            tool calls as they arrive; and loading a
@@ -213,8 +216,9 @@ HashCortX/
 │   │   │   ├── checkpoint.rs  656   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since
 │   │   │   ├── net.rs         802   resolves a hostname and refuses private ones
-│   │   │   ├── provider.rs    524   SambaNova, NVIDIA and Kimi Code, at six
-│   │   │   │                        fixed addresses and nowhere else
+│   │   │   ├── provider.rs    694   SambaNova, NVIDIA and Kimi Code, at six
+│   │   │   │                        fixed addresses and nowhere else; and a
+│   │   │   │                        model app on this computer, by port
 │   │   │   ├── fs.rs        1,239   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
@@ -317,7 +321,7 @@ A command written without `async` runs on the main thread, and the window waits 
 
 **Two things worth knowing, because they surprise people:**
 
-1. **Most AI requests do not go through Rust.** `app.js` calls `fetch()` in the renderer, straight to the provider, with the API key in the `Authorization` header. The exceptions are SambaNova, NVIDIA and Kimi Code, whose servers refuse a web page: `commands/provider.rs` sends those, to fixed addresses. Rust also reads web pages for the agent's fetch tool (`net.rs`) and handles the filesystem, the shell, embeddings, undo checkpoints, exports, and the audit and usage logs.
+1. **Most AI requests do not go through Rust.** `app.js` calls `fetch()` in the renderer, straight to the provider, with the API key in the `Authorization` header. The exceptions are SambaNova, NVIDIA and Kimi Code, whose servers refuse a web page: `commands/provider.rs` sends those, to fixed addresses, and it also reaches a model app on this computer at a port the person's app uses. Rust also reads web pages for the agent's fetch tool (`net.rs`) and handles the filesystem, the shell, embeddings, undo checkpoints, exports, and the audit and usage logs.
 
 2. **The denylist is enforced in Rust, not JavaScript.** `guard.js` raises the permission dialog, but `fs.rs` and `shell.rs` consult `security/denylist.rs` independently. A compromised prompt that talks its way past the dialog still cannot read `~/.ssh` — through either door. That was not true until recently: `shell.rs` checked only the working directory, never the command text, so `cat ~/.ssh/id_ed25519` ran even though `fs_read_file` refused the identical path. Both are checked now, and the difference is covered by tests in `denylist.rs`.
 
@@ -363,7 +367,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,501-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 6,934 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 6,972 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

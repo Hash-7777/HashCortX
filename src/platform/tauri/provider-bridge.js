@@ -11,10 +11,11 @@
 // reads this one exactly as it reads a fetch. Nothing downstream needs to know
 // which way the request went.
 //
-//   HC.providerBridge.request(provider, route, { key, body, signal, account })
-//     provider  "samba" | "nvidia" | "kimi-code" | "cloudflare"
+//   HC.providerBridge.request(provider, route, { key, body, signal, account, port })
+//     provider  "samba" | "nvidia" | "kimi-code" | "cloudflare" | "local"
 //     route     "chat" (body: a JSON string) | "models" (no body)
 //     account   Cloudflare only — its account id, which is part of its address
+//     port      "local" only — the port of a model app on this computer
 //     → Promise<Response>
 //
 // Cloudflare is the one provider whose address is not written whole in the
@@ -45,7 +46,7 @@
     return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
   }
 
-  function request(provider, route, { key, body, signal, account } = {}) {
+  function request(provider, route, { key, body, signal, account, port } = {}) {
     const Channel = window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.Channel;
     if (!HC.isTauri || !Channel) {
       return Promise.reject(new TypeError(`${provider} can only be reached from the desktop app.`));
@@ -110,6 +111,7 @@
       HC.invoke('provider_request', {
         provider, route, key: String(key || ''), body: body == null ? null : String(body), requestId,
         account: account ? String(account) : null,
+        port: Number.isInteger(port) ? port : null,
         onEvent: channel,
       }).catch((err) => finish(new TypeError(`${provider}: ${(err && err.message) || err}`)));
     });

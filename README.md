@@ -38,7 +38,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 ## Why HashCortx
 
 - **Nothing phones home.** No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address.
-- **Any model, all at once.** Eleven cloud providers and Ollama, side by side, with your own keys. Run fully local when you want to.
+- **Any model, all at once.** Eleven cloud providers, Ollama, and any other model app on your computer that serves the common chat format, side by side, with your own keys. Run fully local when you want to.
 - **An agent that asks first.** Commands, deletions, web pages it picks and anything outside your project need your approval. Every file change is a diff you can keep or undo.
 - **Readable to the last line.** MIT licensed. Vanilla JavaScript and Rust, no bundler, no minified app code.
 
@@ -137,8 +137,8 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 6,934 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 170 Rust tests
+npm run check                                     # 6,972 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 181 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.
@@ -150,7 +150,7 @@ Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface 
 
 **Is it free?** Yes. MIT, no paid tier. You pay your AI providers directly, or nothing with a local model.
 
-**Does it work offline?** Yes, with Ollama. Web search, cloud models and the Python sandbox's first start need the internet.
+**Does it work offline?** Yes, with Ollama or another local model app. Web search, cloud models and the Python sandbox's first start need the internet.
 
 **Which systems?** macOS on Apple Silicon, built and used daily. Windows 10, tested. Linux builds and passes CI, but has not been run by anyone yet.
 

@@ -80,18 +80,27 @@ console.log('A reply reads like a fetch:');
   const sent = invokes.find((i) => i.cmd === 'provider_request').args;
   ok('the request named the provider, the route, the key and the body', sent.provider === 'samba' && sent.route === 'chat' && sent.key === 'k' && sent.body === '{"model":"m"}');
   ok('with an id of the kind the app accepts', /^[A-Za-z0-9-]{1,64}$/.test(sent.requestId));
-  // `account` is the one field that can affect an address, and only
-  // Cloudflare's — the app checks it is thirty-two hex digits and builds the
-  // rest itself. Everything else here still names nothing about where the
-  // request goes.
-  ok('and nothing else — no address, no headers', Object.keys(sent).sort().join() === 'account,body,key,onEvent,provider,requestId,route');
-  ok('no account travels with a provider that has no account', sent.account === null);
+  // `account` and `port` are the only fields that can affect an address:
+  // Cloudflare's account, checked to be thirty-two hex digits, and the port of
+  // a model app on this computer, a number. The app builds the rest itself.
+  // Everything else here still names nothing about where the request goes.
+  ok('and nothing else — no address, no headers', Object.keys(sent).sort().join() === 'account,body,key,onEvent,port,provider,requestId,route');
+  ok('no account or port travels with a provider that has neither', sent.account === null && sent.port === null);
   ok('one request, and nothing to stop once it has ended', invokes.filter((i) => i.cmd === 'provider_request').length === 1 && !invokes.some((i) => i.cmd === 'provider_request_cancel'));
 }
 {
   const { bridge } = page({ script: () => [head(200), chunk('{"data":[{"id":"m"}]}'), END] });
   const res = await bridge.request('nvidia', 'models', { key: 'k' });
   ok('a model list reads as JSON', (await res.json()).data[0].id === 'm');
+}
+{
+  const { bridge, invokes } = page({ script: () => [head(200), chunk('{"data":[{"id":"m"}]}'), END] });
+  await bridge.request('local', 'models', { port: 1234 });
+  const sent = invokes.find((i) => i.cmd === 'provider_request').args;
+  ok('a model app on this computer is named by its port, a number, and needs no key', sent.provider === 'local' && sent.port === 1234 && sent.key === '');
+  const { bridge: b2, invokes: i2 } = page({ script: () => [head(200), END] });
+  await b2.request('local', 'models', { port: '1234/../x' });
+  ok('a port that is not a number is not sent', i2.find((i) => i.cmd === 'provider_request').args.port === null);
 }
 {
   const { bridge, invokes } = page({ script: () => [head(200), END] });

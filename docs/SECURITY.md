@@ -303,10 +303,12 @@ This does not give the page a way onto the network, and it is built so that it c
 
 What it cannot do: it does not hide the key from the renderer, which already holds it, and it cannot stop a compromised page from spending your quota at those three providers — the same as it could at any other.
 
+The same command reaches **another model app on this computer** (`src/js/local-apps.js`). For that the caller names only a port, a number from 1024 up: the host is always this computer, `127.0.0.1`, and the path is one of two written in Rust, the model list and the chat. It sends no key unless one is given. A test holds the host and the two paths whatever the port.
+
 ## Network behaviour
 
 - **No backend server.** Every AI request goes to the provider you configured, from the renderer or — for the three above — from the app itself. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
-- **A task given to a local model stays local.** The Agent Swarm, 3D Forge, the ERP and Virtual OS switch to another model when one fails. A task on an Ollama model is only ever handed to another Ollama model, and if none can take it the run stops with the error. Virtual OS also picks its worker model itself, and when the job is on a local model it picks among local models only. A task on a cloud model may move to another provider you have configured, or to a local model; the run's trace names each switch. Chat switches only from one cloud model to another, and says so in the reply; a chat on an Ollama model never switches, and neither does Coder.
+- **A task given to a local model stays local.** The Agent Swarm, 3D Forge, the ERP and Virtual OS switch to another model when one fails. A task on a local model — Ollama's, or another local app's — is only ever handed to another local model, and if none can take it the run stops with the error. Virtual OS also picks its worker model itself, and when the job is on a local model it picks among local models only. A task on a cloud model may move to another provider you have configured, or to a local model; the run's trace names each switch. Chat switches only from one cloud model to another, and says so in the reply; a chat on an Ollama model never switches, and neither does Coder.
 - **No telemetry.** No analytics, no usage reporting, no crash reporting.
 - **No accounts.** Nothing to sign up for.
 - **No auto-updater.** The app never reaches out on its own.
