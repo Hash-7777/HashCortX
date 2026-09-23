@@ -1,0 +1,127 @@
+// ============================================================
+// local-client.js — one way of talking to a model on this computer
+//
+// The chat, the side-by-side view, the agents and every mode each wrote out
+// their own request to Ollama and their own reading of its reply. Each read
+// only the words, so a model that thinks before it answers sat silent for as
+// long as it thought, with its thinking thrown away; a failure Ollama reports
+// part-way through a reply was never read at all; and each copy chose its own
+// window and its own lifetime for the model.
+//
+// There is one request and one reading of the reply now. The reply is read as
+// it arrives: the words, the thinking, and the tool calls, each handed to the
+// caller as it comes, and the whole returned at the end with Ollama's own
+// counts. A model that writes its thinking into its words between think tags
+// has it taken out of the answer the same way.
+//
+// Pure apart from the network call it is given. Published as window.HCLocal.
+// Checked by scripts/checks/local-client.mjs.
+// ============================================================
+(function () {
+  "use strict";
+
+  /** The body of one request to Ollama's chat. */
+  function body({ model, messages, stream = true, temperature, numCtx, json, tools, keepAlive }) {
+    const options = {};
+    if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
+    if (Number.isFinite(temperature)) options.temperature = temperature;
+    return {
+      model,
+      messages,
+      stream,
+      ...(keepAlive !== undefined ? { keep_alive: keepAlive } : {}),
+      ...(json ? { format: json === true ? "json" : json } : {}),
+      ...(Array.isArray(tools) && tools.length ? { tools } : {}),
+      options,
+    };
+  }
+
+  /**
+   * Thinking a model writes into its words, between <think> tags at the very
+   * start, taken out as it streams. Only a reply that opens on the tag counts,
+   * so an answer that talks about the tag is left alone.
+   */
+  function thinkTags() {
+    let state = "start";   // start | inside | answer
+    let held = "";
+    return function feed(delta) {
+      const out = { answer: "", thinking: "" };
+      if (state === "answer") { out.answer = delta; return out; }
+      held += delta;
+      if (state === "start") {
+        const lead = held.replace(/^\s+/, "");
+        if (!lead) return out;
+        if ("<think>".startsWith(lead)) return out;          // could still be the tag
+        if (!lead.startsWith("<think>")) { state = "answer"; out.answer = held; held = ""; return out; }
+        state = "inside";
+        held = lead.slice("<think>".length);
+      }
+      const end = held.indexOf("</think>");
+      if (end < 0) {
+        // Keep back what could be the start of the closing tag.
+        let keep = 0;
+        for (let k = Math.min(7, held.length); k > 0; k--) if ("</think>".startsWith(held.slice(-k))) { keep = k; break; }
+        out.thinking = held.slice(0, held.length - keep);
+        held = held.slice(held.length - keep);
+        return out;
+      }
+      out.thinking = held.slice(0, end);
+      out.answer = held.slice(end + "</think>".length).replace(/^\s+/, "");
+      held = "";
+      state = "answer";
+      return out;
+    };
+  }
+
+  /**
+   * A streamed reply read to its end. `lines` are Ollama's events in order.
+   * Words and thinking are handed on as they come; the result is the whole.
+   */
+  async function read(lines, { onToken, onThinking } = {}) {
+    const split = thinkTags();
+    let content = "";
+    let thinking = "";
+    let last = null;
+    const calls = [];
+    const think = (text) => {
+      if (!text) return;
+      thinking += text;
+      if (onThinking) onThinking(text, thinking);
+    };
+    for await (const evt of lines) {
+      if (!evt || typeof evt !== "object") continue;
+      if (evt.error) throw new Error(`Ollama: ${typeof evt.error === "string" ? evt.error : JSON.stringify(evt.error)}`);
+      const m = evt.message || {};
+      think(m.thinking);
+      if (m.content) {
+        const part = split(m.content);
+        think(part.thinking);
+        if (part.answer) {
+          content += part.answer;
+          if (onToken) onToken(part.answer, content);
+        }
+      }
+      if (Array.isArray(m.tool_calls)) calls.push(...m.tool_calls);
+      if (evt.done) last = evt;
+    }
+    return { content, thinking, tool_calls: calls, last };
+  }
+
+  /**
+   * One request to a local model, read as it arrives. `request` is what
+   * `body` takes; `lineReader` turns the response body into events.
+   */
+  async function chat(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader } = {}) {
+    const res = await fetchFn(`${host}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body({ ...request, stream: true })),
+      signal,
+    });
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${String(await res.text()).slice(0, 300)}`);
+    const lines = (lineReader || window.HCStreamSSE.jsonLines)(res.body);
+    return read(lines, { onToken, onThinking });
+  }
+
+  window.HCLocal = { body, thinkTags, read, chat };
+})();

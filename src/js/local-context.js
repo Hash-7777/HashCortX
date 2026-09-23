@@ -69,12 +69,12 @@
   /**
    * `num_ctx` for a request to a local model, or an error that says why it
    * cannot be sent whole. The error reads as a request too large, so the
-   * routing treats it as one.
+   * routing treats it as one. `floor` is a window the caller wants at least.
    */
-  async function numCtx(host, model, messages, need, fetchFn) {
+  async function numCtx(host, model, messages, { need, floor, fetchFn } = {}) {
     const max = await limitOf(host, model, fetchFn);
     const size = sizeFor(messages, { need, max });
-    if (size.ok) return size.numCtx;
+    if (size.ok) return Math.max(size.numCtx, Math.min(Number(floor) || 0, max));
     throw new Error(`request too large for ${model}: about ${size.wanted.toLocaleString("en-US")} tokens against the ${size.numCtx.toLocaleString("en-US")} it can be given. Shorten it, or pick a model with more room.`);
   }
 

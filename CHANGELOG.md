@@ -234,6 +234,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local model that thinks is no longer silent.** A model that thinks
+  before it answers showed three dots for as long as it thought, often many
+  seconds, and its thinking was then thrown away. The thinking now appears
+  as it arrives and stays folded above the answer, with how long it took;
+  cloud models that think are shown the same way. Every request to a local
+  model goes through one connection now, which also stops on a failure the
+  model server reports part-way through a reply instead of taking half an
+  answer for a whole one.
+
 - **A Swarm team designed on a small model runs.** A small model wrote a
   provider's name where each agent's model belongs, the app kept it, and
   every agent then failed asking your local server for a model called

@@ -1099,7 +1099,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         _imgBase64: m._imgBase64 ? m._imgBase64.slice() : undefined,
         // Persist the duration so the timestamp chip survives page reloads
         // and chat switching (previously stripped → chips disappeared on reload).
-        durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined,
+        durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined, thinking: m.thinking || undefined, thoughtMs: m.thoughtMs || undefined,
         _modelContent: m._modelContent || undefined,
         replyTo: m.replyTo || undefined,
         diffFrom: m.diffFrom || undefined,
@@ -3959,6 +3959,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // The rendered markdown gets its own wrapper so the raw source can take
       // its place in situ. Reading what was actually said used to mean opening
       // a separate window and losing your place in the conversation.
+      const thought = m.role === "assistant" && !isStreamingPlaceholder && HCThought.element(m.thinking, m.thoughtMs);   // js/chat/thought.js
+      if (thought) bubble.appendChild(thought);
       const body = document.createElement("div");
       body.className = "msg-body";
       body.innerHTML = html;
@@ -4879,8 +4881,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               assistant.content = text;
               assistant.images = images;
             } else {
-              thinkingShown.delete(assistant);
-              await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, () => showThinking(assistant));
+              await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, (t) => showThinking(assistant, t));
             }
             break; // success
           } catch (err) {
@@ -4900,47 +4901,28 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       } else {
         const host = safeHost();
         trackLocalModel(modelEl.value);
-        const res = await fetch(`${host}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: modelEl.value,
-            stream: true,
-            keep_alive: -1,
-            // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
-            options: { temperature, num_ctx: Math.max(numCtx, await HCLocalContext.numCtx(host, modelEl.value, messages)) },
-            messages,
-          }),
+        // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
+        const numCtxNow = await HCLocalContext.numCtx(host, modelEl.value, messages, { floor: numCtx });
+        const reply = await HCLocal.chat(host, { model: modelEl.value, messages, temperature, numCtx: numCtxNow, keepAlive: -1 }, {
           signal: ctrl.signal,
+          onThinking: (t) => showThinking(assistant, t),
+          onToken: (delta) => {
+            if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
+            assistant.content += delta;
+            updateLastBubble(assistant.content);
+          },
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-        // Lines are gathered across chunk boundaries by src/js/stream/sse.js,
-        // the same reader every other provider uses.
-        for await (const evt of window.HCStreamSSE.jsonLines(res.body)) {
-            if (evt.message?.content) {
-              if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
-              assistant.content += evt.message.content;
-              updateLastBubble(assistant.content);
-            }
-            if (evt.done && evt.eval_count && evt.eval_duration) {
-              const tps = Math.round(evt.eval_count / (evt.eval_duration / 1e9));
-              assistant.tps = tps;
-              setTpsDisplay(tps);
-            }
-            if (evt.done) {
-              // Ollama reports real counts on its final object. They were read
-              // for tokens-per-second and then thrown away, so every local run
-              // was missing from the usage log while cloud runs were counted —
-              // which made the reported total look smaller than it was.
-              assistant.inputTokens = evt.prompt_eval_count || assistant.inputTokens;
-              assistant.outputTokens = evt.eval_count || assistant.outputTokens;
-              recordUsage(modelEl.value || "ollama", evt.prompt_eval_count, evt.eval_count);
-            }
-        }
+        // Ollama's own counts, on its last event, for speed and the usage log.
+        const done = reply.last || {};
+        if (done.eval_count && done.eval_duration) setTpsDisplay(assistant.tps = Math.round(done.eval_count / (done.eval_duration / 1e9)));
+        assistant.inputTokens = done.prompt_eval_count || assistant.inputTokens;
+        assistant.outputTokens = done.eval_count || assistant.outputTokens;
+        if (reply.last) recordUsage(modelEl.value || "ollama", done.prompt_eval_count, done.eval_count);
       }
     } catch (err) {
       if (err.name !== "AbortError") showError(err);
     } finally {
+      if (assistant.thinking) assistant.thoughtMs = (assistant.firstTokenAt || Date.now()) - (assistant.thoughtStart || assistant.startedAt);
       // If the stream completed but produced no content, surface a clear error
       // instead of leaving an empty bubble with no indication of what happened.
       if (!assistant.content && !assistant.images?.length) {
@@ -4978,17 +4960,22 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (pinned) msgs.scrollTop = msgs.scrollHeight;
     }
   }
-  // "Thinking" while a reasoning model has said nothing of its answer yet — not
-  // the thinking itself, which is not the answer. Kept off the saved message.
-  const thinkingShown = new WeakSet();
-  function showThinking(assistant) {
-    if (!state.streaming || assistant.content || thinkingShown.has(assistant)) return;
-    const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
-    if (!last) return;
-    thinkingShown.add(assistant);
-    last.classList.add("thinking-bubble");
-    last.innerHTML = `<div class="typing"><span></span><span></span><span></span></div><div class="thinking-status-label">Thinking</div>`;
-    if (pinned) msgs.scrollTop = msgs.scrollHeight;
+  // What a model thinks before it answers is shown as it arrives, and kept,
+  // folded, above the answer (js/chat/thought.js). Never sent back to a model.
+  let _thoughtRaf = null;
+  function showThinking(assistant, delta) {
+    if (!state.streaming || assistant.content) return;
+    if (delta) { assistant.thinking = (assistant.thinking || "") + delta; assistant.thoughtStart = assistant.thoughtStart || Date.now(); }
+    if (_thoughtRaf) return;
+    _thoughtRaf = requestAnimationFrame(() => {
+      _thoughtRaf = null;
+      const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
+      if (!last || assistant.content || !state.streaming) return;
+      last.classList.add("thinking-bubble");
+      last.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
+      last.appendChild(HCThought.liveElement(assistant.thinking || ""));
+      if (pinned) msgs.scrollTop = msgs.scrollHeight;
+    });
   }
   // Show a spinner in the last assistant bubble while an image is generating.
   // Uses innerHTML with a hardcoded string — no user data interpolated.
@@ -5041,23 +5028,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     const host = safeHost();
     trackLocalModel(modelValue);
-    const res = await fetch(`${host}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: modelValue,
-        stream: true,
-        keep_alive: -1,
-        options: { temperature, num_ctx: Math.max(numCtx || 0, await HCLocalContext.numCtx(host, modelValue, messages)) },
-        messages,
-      }),
-      signal,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    for await (const evt of window.HCStreamSSE.jsonLines(res.body)) {
-      if (evt.message?.content) onToken(evt.message.content);
-      if (evt.done && typeof onStats === "function") onStats(evt);
-    }
+    const numCtxNow = await HCLocalContext.numCtx(host, modelValue, messages, { floor: numCtx });
+    const reply = await HCLocal.chat(host, { model: modelValue, messages, temperature, numCtx: numCtxNow, keepAlive: -1 }, { signal, onToken: (t) => onToken(t) });
+    if (reply.last && typeof onStats === "function") onStats(reply.last);
   }
 
   // A whole reply in one call, for the places that do not stream into the
@@ -5079,27 +5052,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       return full;
     }
     const host = window.HashCortxRuntime ? window.HashCortxRuntime.getHost() : "http://localhost:11434";
-    const resp = await fetch(host + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, stream: true, format: json ? "json" : undefined, options: { num_ctx: await HCLocalContext.numCtx(host, model, messages) } }),
-      signal,
+    // Read through js/local-client.js, which gathers whole lines across chunk
+    // boundaries and keeps a thinking model's thinking out of the answer.
+    const reply = await HCLocal.chat(host, { model, messages, json, numCtx: await HCLocalContext.numCtx(host, model, messages) }, {
+      signal, onToken: onToken ? (tok, full) => onToken(tok, full) : undefined,
     });
-    if (!resp.ok) throw new Error("Ollama error: " + resp.status);
-    // Read through src/js/stream/sse.js, which gathers whole lines across
-    // chunk boundaries. This loop used to decode and split each chunk on its
-    // own with nothing carried between them, so a line that straddled a
-    // boundary became two fragments that both failed to parse and were both
-    // swallowed by the catch. Whole words went missing from an answer, and
-    // with small enough chunks the whole answer did.
-    let full = "";
-    for await (const obj of window.HCStreamSSE.jsonLines(resp.body)) {
-      const tok = obj.message?.content || "";
-      if (!tok) continue;
-      full += tok;
-      if (onToken) onToken(tok, full);
-    }
-    return full;
+    return reply.content;
   }
 
   // HISTORY_LIMIT is declared near the memory-depth slider block above.
@@ -5684,24 +5642,15 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // -------------------------------------------------------------------------
   async function agentTurnOllama({ model, messages, tools, temperature, signal, json, need }) {
     const host = safeHost();
-    const r = await fetch(`${host}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model, messages: HCAgentShape.forOllama(messages), stream: false, keep_alive: -1,
-        tools: tools.length ? tools : undefined, format: json ? (json === true ? "json" : json) : undefined,
-        options: { temperature, num_ctx: await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], need) }
-      }),
-      signal
-    });
-    if (!r.ok) throw new Error(`Ollama HTTP ${r.status}: ${(await r.text()).slice(0,200)}`);
-    const data = await r.json();
-    const msg = data.message || {};
+    const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need });
+    const reply = await HCLocal.chat(host, { model, messages: HCAgentShape.forOllama(messages), tools, json, temperature, numCtx, keepAlive: -1 }, { signal });
+    const data = reply.last || {};
+    const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
-    return { content: content || null, tool_calls: calls.length ? calls : null, raw: msg, finish: data.done_reason };
+    return { content: content || null, tool_calls: calls.length ? calls : null, raw: msg, finish: data.done_reason, thinking: reply.thinking || undefined };
   }
 
   async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {

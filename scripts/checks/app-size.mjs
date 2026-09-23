@@ -162,7 +162,10 @@ const LINE_BUDGET = {
   // says "Thinking" while a reasoning model has not yet answered. The rules
   // are in js/stream/sse.js and js/stream/first-sign.js; this is the wiring.
   // 6524, down three. The chat's failover is the shared js/model-routes.js.
-  'js/app.js': 6497,
+  // 6446, down fifty-one. The four requests to a local model and their four
+  // readings of its reply are one client, js/local-client.js, which also reads
+  // a thinking model's thinking; showing it is js/chat/thought.js.
+  'js/app.js': 6446,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

@@ -47,8 +47,10 @@ console.log('\nWhat the model supports, asked once:');
   const down = await L.limitOf('http://h', 'other', async () => { throw new Error('offline'); });
   ok('unknown when Ollama cannot say: the ceiling stands', down === L.CEILING);
   let err = null;
-  try { await L.numCtx('http://h', 'qwen2.5-coder:3b', text(200000), 2000, fakeFetch); } catch (e) { err = e; }
+  try { await L.numCtx('http://h', 'qwen2.5-coder:3b', text(200000), { need: 2000, fetchFn: fakeFetch }); } catch (e) { err = e; }
   ok('a request that cannot fit is refused as one too large, so the routing knows it', err && /request too large/.test(err.message));
+  ok('a caller\'s floor is honoured, within what the model supports', (await L.numCtx('http://h', 'qwen2.5-coder:3b', text(100), { floor: 16384, fetchFn: fakeFetch })) === 16384
+    && (await L.numCtx('http://h', 'tiny', text(100), { floor: 16384, fetchFn: async () => ({ ok: true, json: async () => ({ model_info: { 'x.context_length': 4096 } }) }) })) === 4096);
 }
 
 console.log('\nEvery local call is sized:');
@@ -56,7 +58,8 @@ console.log('\nEvery local call is sized:');
   const app = src('js', 'app.js');
   const calls = app.match(/HCLocalContext\.numCtx\(/g) || [];
   ok('the agent turn, plain chat, the side-by-side view and the modes\' own calls', calls.length === 4 && !/num_ctx: 8192/.test(app));
-  ok('the agent turn leaves room for the answer the caller needs', /agentTurnOllama\(\{ model, messages, tools, temperature, signal, json, need \}\)/.test(app));
+  ok('no request to a local model is written out beside the one client', !/\/api\/chat/.test(app));
+  ok('the agent turn leaves room for the answer the caller needs', /agentTurnOllama\(\{ model, messages, tools, temperature, signal, json, need \}\)/.test(app) && /\{ need \}\)/.test(app));
   ok('it loads before the chat', src('boot.js').indexOf("'/js/local-context.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 
