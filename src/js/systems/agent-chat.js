@@ -34,6 +34,8 @@
 
   const WELCOME = 'I am your ERP agent. Tell me about your business and I will build its system: what it does, its name and where it is, for example "a bookshop called Pages in Cairo". Once it is built, ask me to change it, to record what happened, or anything about its records.';
 
+  const PLACEHOLDER = 'Ask for a system, a change, or anything about your records';
+
   let turns = [];
   let deps = null;
   let busy = false;
@@ -118,16 +120,21 @@
    * The agent's words for the turn under way: written into the reply its steps
    * already began (a model that was busy, say), or as a new reply.
    */
-  function reply(text) {
+  // `from`: the connected system an answer was read from, so it is kept out of
+  // what is sent to a model that system keeps its records from.
+  function reply(text, { from } = {}) {
     if (current && !current.text) {
       current.text = String(text || '').trim();
+      if (from) current.from = String(from);
       const bubble = current.el && current.el.querySelector('.sys-agent-bubble');
       if (bubble) bubble.textContent = current.text;
       save();
       scroll();
       return current;
     }
-    return agent(text);
+    const turn = agent(text);
+    if (from) { turn.from = String(from); save(); }
+    return turn;
   }
 
   /** A step of what the app is doing, under the agent's latest words. Returns the row, for a live line. */
@@ -173,7 +180,13 @@
     fab?.setAttribute('aria-expanded', String(!!on));
     fab?.classList.toggle('open', !!on);
     write(OPEN_KEY, !!on);
-    if (on) { scroll(); setTimeout(() => $('sysAgentInput')?.focus(), 30); }
+    if (on) {
+      // A connected system this model may read is suggested in the box's hint.
+      const box = $('sysAgentInput');
+      if (box) box.placeholder = (deps && deps.hint && deps.hint()) || PLACEHOLDER;
+      scroll();
+      setTimeout(() => box?.focus(), 30);
+    }
   }
 
   function clear() {
@@ -197,7 +210,8 @@
     if (!$('sysAgent') || $('sysAgent').dataset.wired) return;
     $('sysAgent').dataset.wired = '1';
     turns = (read(STORE_KEY, []) || []).filter((t) => t && (t.role === 'user' || t.role === 'agent'))
-      .map((t) => ({ role: t.role, text: String(t.text || ''), at: t.at || 0, steps: Array.isArray(t.steps) ? t.steps : [] }));
+      // `from` is kept: it is what keeps an answer read from a connected system away from models that system excludes.
+      .map((t) => ({ role: t.role, text: String(t.text || ''), at: t.at || 0, steps: Array.isArray(t.steps) ? t.steps : [], ...(t.from ? { from: String(t.from) } : {}) }));
     render();
     $('sysAgentFab')?.addEventListener('click', () => open(!isOpen()));
     $('sysAgentClose')?.addEventListener('click', () => open(false));
@@ -212,7 +226,7 @@
   }
 
   /** The conversation so far, as the agent is shown it. */
-  const history = () => turns.map((t) => ({ role: t.role, text: t.text }));
+  const history = () => turns.map((t) => ({ role: t.role, text: t.text, ...(t.from ? { from: t.from } : {}) }));
 
   window.HCSystemsAgentChat = { init, user, agent, reply, step, settle, setBusy, setStatus, open, isOpen, clear, history, WELCOME };
 })();

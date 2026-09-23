@@ -37,14 +37,14 @@ const tools = [fn('web_search', { query: { type: 'string' } }, ['query']), fn('c
 const names = tools.map((t) => t.function.name);
 
 /** Runs the loop with scripted decisions and answers; records what each call was sent. */
-async function play({ decisions = [], answers = ['The answer.'], request = 'hi', context, route = (t) => I.route(t, names), results = {} }) {
+async function play({ decisions = [], answers = ['The answer.'], request = 'hi', context, route = (t) => I.route(t, names), results = {}, needsTool = false }) {
   const asked = [];
   const answered = [];
   const answeredAfter = [];
   const ran = [];
   const out = await D.run({
     messages: [{ role: 'system', content: 'Agent rules.' }, { role: 'user', content: 'earlier' }, { role: 'assistant', content: 'earlier answer' }, { role: 'user', content: request }],
-    tools, shape, context, route,
+    tools, shape, context, route, needsTool,
     ask: async (msgs, schema) => { asked.push({ msgs, schema }); return decisions.shift() ?? '{"tool":"none","arguments":{}}'; },
     answer: async (msgs, toolsRun) => { answered.push(msgs); answeredAfter.push(toolsRun); return answers.shift() ?? 'The answer.'; },
     runTool: async (call) => { ran.push(call); return results[call.name] ?? '{"ok":true}'; },
@@ -58,6 +58,8 @@ console.log('What a decision may be:');
   ok('one of the agent\'s tools with that tool\'s own arguments, or none', s.anyOf.length === 4 && s.anyOf[0].properties.tool.enum[0] === 'web_search' && s.anyOf[0].properties.arguments.required[0] === 'query' && s.anyOf[3].properties.tool.enum[0] === 'none');
   const only = D.schema(tools, 'calculate');
   ok('narrowed to the one tool the app chose, only its arguments are left to write', !only.anyOf && only.properties.tool.enum.join() === 'calculate' && only.properties.arguments.properties.expression);
+  const must = D.schema(tools, undefined, { none: false });
+  ok('when the app knows a tool is needed, none is not among the choices', must.anyOf.length === 3 && !must.anyOf.some((x) => x.properties.tool.enum[0] === 'none'));
   ok('read: a tool it has, with its arguments', D.read('{"tool":"calculate","arguments":{"expression":"2+2"}}', tools).arguments.expression === '2+2');
   ok('read: none', D.read('{"tool":"none","arguments":{}}', tools).tool === 'none');
   ok('read: a tool it does not have, or not a decision at all, is nothing', D.read('{"tool":"delete_all","arguments":{}}', tools) === null && D.read('sure!', tools) === null && D.read('{"arguments":{}}', tools) === null);
@@ -87,6 +89,15 @@ console.log('\nThe loop:');
 {
   const r = await play({ request: 'Is Pluto a planet?', decisions: Array(10).fill(0).map((_, i) => `{"tool":"web_search","arguments":{"query":"q${i}"}}`) });
   ok('it stops deciding after its limit of steps and answers', r.ran.length === 6 && r.answered.length === 1);
+}
+
+console.log('\nWhen the app knows the request needs a tool:');
+{
+  const r = await play({ request: 'the records', route: null, needsTool: true, decisions: ['{"tool":"web_search","arguments":{"query":"records"}}', '{"tool":"none","arguments":{}}'] });
+  const first = r.asked[0], second = r.asked[1];
+  ok('the first decision must name one, and is asked for one', !first.schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none') && first.msgs.at(-1).content === D.MUST);
+  ok('after it has read, the model may decide it has enough', second.schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none') && second.msgs.at(-1).content === D.DECIDE && r.ran.length === 1);
+  ok('without it, the first decision may be none, as before', (await play({ request: 'the records', route: null })).asked[0].schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none'));
 }
 
 console.log('\nThe app takes the first step when the request is plain:');

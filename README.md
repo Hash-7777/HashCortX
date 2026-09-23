@@ -53,13 +53,13 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 | **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
 | **Finance** | Statements, CSV, PDF and XLSX read into a list of figures, with every total, card and chart worked out by the app from that list, and updated when you edit it |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
-| **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. Exported as one HTML file |
+| **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. It can also answer from a system you connect and bring its records in. Exported as one HTML file |
 | **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen |
 | **Virtual OS** | A simulated project desktop an agent builds inside |
 
 Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
 
-Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. The sign-in secret stays with the app and is never shown to a page or a model, records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. See [SECURITY.md](docs/SECURITY.md#connected-systems).
+Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. The sign-in secret stays with the app and is never shown to a page or a model, records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. See [SECURITY.md](docs/SECURITY.md#connected-systems).
 
 ## Coder
 
@@ -139,7 +139,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,227 source checks
+npm run check                                     # 7,316 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 192 Rust tests
 ```
 

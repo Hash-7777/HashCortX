@@ -140,6 +140,20 @@ console.log('\nThe app\'s plain routing steps aside for records:');
   ok('with no system on offer, nothing changes', !M.speaksOf('search the unpaid invoices'));
 }
 
+console.log('\nFor the ERP, which only reads:');
+{
+  M.setTool(conn.id, 'delete_record', true);
+  const reads = await M.toolsFor('qwen2.5-coder:3b', { readsOnly: true, only: conn.id });
+  ok('only tools that read are offered, whatever is switched on', reads.length > 0 && reads.every((t) => !/delete_record/.test(t.function.name)));
+  const offer = reads.find((t) => /search_records/.test(t.function.name));
+  answer = true;
+  const withRaw = await M.run(offer.function.name, {}, { raw: true });
+  ok('the app can be handed what the system sent, for its own use', withRaw.raw && Array.isArray(withRaw.raw.content) && /reference material/.test(withRaw.result));
+  ok('... and only when it asks', !('raw' in (await M.run(offer.function.name, {}))));
+  ok('... and only the one system asked for is offered', (await M.toolsFor('qwen2.5-coder:3b', { readsOnly: true, only: 'someone-else' })).length === 0);
+  M.setTool(conn.id, 'delete_record', false);
+}
+
 console.log('\nWhere records do not go afterwards:');
 {
   const remember = { execute: () => 'saved' };

@@ -492,6 +492,9 @@
   }
   .terminal-alert-body {
     padding: 18px 20px 6px;
+    /* A long message scrolls here, so the buttons below it stay on screen. */
+    max-height: min(60vh, 520px);
+    overflow-y: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     line-height: 1.55;

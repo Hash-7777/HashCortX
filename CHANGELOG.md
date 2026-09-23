@@ -10,6 +10,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **The ERP agent can read a connected system.** Ask it about a connected
+  system's records and it looks them up with that system's reading tools
+  and answers from what came back. Ask it to bring records from one, such
+  as "bring the customers from Company ERP", and it reads them, matches
+  them to a table's fields by name, and shows you every record it would
+  add, and what it leaves out and why, before anything is written; Undo
+  takes them out again. It only ever reads a connected system and never
+  changes one. When it brings records in, a filter you did not ask for is
+  not used, a record already in the table is not added again, and the
+  other system's record numbers are not copied over this system's own. An
+  ERP holding records brought from a connected system is not sent to a
+  model that system keeps its records from, and an answer read from one is
+  left out, with the question that asked for it, of what such a model is
+  shown.
+
 - **Connect a business system, such as an ERP.** Settings → Connections
   takes a system's MCP address and how it signs in. Its tools then become
   available to agents: the ones that only read start switched on, the ones

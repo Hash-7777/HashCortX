@@ -137,11 +137,27 @@ console.log('\nThe empty starter system:');
   ok('nor any system that is not the starter', A.isUntouchedStarter({ name: 'x' }, {}) === false);
 }
 
+console.log('\nA connected system:');
+{
+  const connected = [{ id: 'c1', name: 'Company ERP' }];
+  ok('with none, the answer\'s shape and what the agent is told are as they were', A.schemaFor([]) === A.REPLY_SCHEMA && A.connectedText([]) === '' && !/CONNECTED SYSTEMS/.test(A.messages({ spec: null, text: 'hi' })[0].content));
+  ok('with one, it may also look and bring', A.schemaFor(connected).properties.do.enum.join() === 'none,build,change,records,look,bring' && A.REPLY_SCHEMA.properties.do.enum.join() === 'none,build,change,records');
+  const told = A.messages({ spec: null, text: 'hi', connected })[0].content;
+  ok('it is told the system by name, and that it can only read one', /CONNECTED SYSTEMS you can read[^\n]*: Company ERP\./.test(told) && /You can only read a connected system; you can never change one\./.test(told));
+  ok('look and bring are taken only with a connected system', A.readReply('{"say":"x","do":"look","request":"q"}').do === 'none' && A.readReply('{"say":"x","do":"look","request":"q"}', { connected }).do === 'look');
+  const settled = (text, said = { say: '', do: 'none', request: '' }, c = connected) => A.settle(said, { text, userTexts: [text], connected: c }).do;
+  ok('a request to bring records from a named system brings them', settled('Bring my customers from Company ERP into Customers') === 'bring' && settled('import the invoices from company erp', { say: '', do: 'records', request: 'x' }) === 'bring');
+  ok('a question about a named system looks it up, whatever a small model said', settled('Which invoices are unpaid in Company ERP?') === 'look' && settled('How much does Delta Foods owe in Company ERP?', { say: '', do: 'records', request: 'x' }) === 'look');
+  ok('a change to this system that mentions the other is still a change', settled('Add a field for the Company ERP number to Customers', { say: '', do: 'change', request: 'x' }) === 'change');
+  ok('nothing changes when the system is not connected', settled('Which invoices are unpaid in Company ERP?', { say: '', do: 'none', request: '' }, []) === 'none');
+  ok('what the agent says as it reads is the app\'s own', /^Looking it up: /.test(A.leadIn({ do: 'look', request: 'q' }, 'Which invoices are unpaid?')) && /You will see every record before anything is added\./.test(A.leadIn({ do: 'bring', request: 'q' }, 'bring them')));
+}
+
 console.log('\nHow the Systems mode uses it:');
 {
   ok('whichever model can answer does', /window\.HCModelRoutes\.askWithFailover\(\{/.test(mode) && /options: availableModels/.test(mode));
-  ok('the answer is read, and settled by the app, before anything is done', /const said = A\.settle\(A\.readReply\(answer\.text\), \{ starter: !!spec\?\.starter, userTexts, text \}\);/.test(mode)
-    && /C\.reply\(unsaid\.length \? A\.askFor\(unsaid\) : A\.leadIn\(said, text\)\);/.test(mode) && /json: A\.REPLY_SCHEMA/.test(mode));
+  ok('the answer is read, and settled by the app, before anything is done', /const said = A\.settle\(A\.readReply\(answer\.text, \{ connected \}\), \{ starter: !!spec\?\.starter, userTexts, text, connected \}\);/.test(mode)
+    && /C\.reply\(unsaid\.length \? A\.askFor\(unsaid\) : A\.leadIn\(said, text\)\);/.test(mode) && /json: A\.schemaFor\(connected\)/.test(mode));
   ok('build, change and records go down the paths the ERP already had', /said\.do === "build" && !unsaid\.length\) await createSystem\(said\.business, said\.request\)/.test(mode)
     && /said\.do === "change"\) await reviseSystem\(said\.request, text\)/.test(mode) && /said\.do === "records"\) await workSystem\(said\.request, text\)/.test(mode));
   ok('a new system replaces the untouched starter, never one in use', /systems = \[spec, \.\.\.systems\.filter\(s => !window\.HCSystemsAgent\.isUntouchedStarter\(s, getRuntimeData\(s\)\)\)\];/.test(mode));

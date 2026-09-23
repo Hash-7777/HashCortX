@@ -70,9 +70,10 @@
   /**
    * The shape a decision must take: one tool the agent has, with arguments in
    * that tool's own shape, or none. `only` narrows it to one tool the app has
-   * already chosen, so the model writes only its arguments.
+   * already chosen, so the model writes only its arguments; `none: false`
+   * leaves none out, when the app knows the request needs a tool but not which.
    */
-  function schema(tools, only) {
+  function schema(tools, only, { none = true } = {}) {
     const one = (name, params) => ({
       type: "object",
       properties: { tool: { type: "string", enum: [name] }, arguments: params && typeof params === "object" ? params : { type: "object" } },
@@ -80,11 +81,12 @@
     });
     const list = namesOf(tools).filter((f) => !only || f.name === only);
     const shapes = list.map((f) => one(f.name, f.parameters));
-    if (!only) shapes.push(one("none", { type: "object" }));
+    if (!only && none) shapes.push(one("none", { type: "object" }));
     return shapes.length === 1 ? shapes[0] : { anyOf: shapes };
   }
 
   const DECIDE = "Before you answer my last message: does it need one of your tools now? Reply with the tool and its arguments. Reply with the tool none when you can answer it yourself: when I ask you to write, rewrite, explain, summarise, plan or give an opinion, for knowledge that does not change, or when the tool results above already answer it.";
+  const MUST = "My last message needs what one of your tools returns. Reply with the tool that returns it and its arguments.";
   const ANSWER = "Now answer my last message, using the tool results above where they help. Say only what answers it: the figures, names and dates it asks for, exactly as the tools gave them, in your own words and full sentences.";
 
   /** A decision read from the model's answer, or null when it is not one. */
@@ -108,9 +110,12 @@
    * (js/chat/intent.js); `context` is what changes from one request to the
    * next, such as what is remembered, and goes just before the request, so
    * everything before it stays the same and is read only once; `onEvent(kind,
-   * detail)` hears each step. Returns { text, calls }.
+   * detail)` hears each step; `needsTool` says the app knows the request needs
+   * a tool, so the first decision must name one — answering a question about a
+   * connected system's records without reading them could only invent them.
+   * Returns { text, calls }.
    */
-  async function run({ messages, tools, ask, answer, runTool, shape, route, context, onEvent = () => {}, maxSteps = 6 }) {
+  async function run({ messages, tools, ask, answer, runTool, shape, route, context, onEvent = () => {}, maxSteps = 6, needsTool = false }) {
     const convo = messages.slice();
     const sys = convo.findIndex((m) => m.role === "system");
     const told = guide(tools);
@@ -138,7 +143,8 @@
       else {
         onEvent("deciding", step);
         const only = step === 1 && plain ? plain.tool : undefined;
-        decision = read(await ask([...shape.toolTurnsInWords(convo), { role: "user", content: DECIDE }], schema(tools, only)), tools);
+        const must = needsTool && !calls.length;
+        decision = read(await ask([...shape.toolTurnsInWords(convo), { role: "user", content: must ? MUST : DECIDE }], schema(tools, only, { none: !must })), tools);
       }
       if (!decision || decision.tool === "none") break;
       const key = `${decision.tool} ${JSON.stringify(decision.arguments)}`;
@@ -187,5 +193,5 @@
     return used ? `The agent used ${used} tool${used === 1 ? "" : "s"} but did not write an answer. Ask again, or pick another model.` : "";
   }
 
-  window.HCDecide = { shower, statusOf, replyOf, guide, schema, read, run, WHEN, DECIDE, ANSWER };
+  window.HCDecide = { shower, statusOf, replyOf, guide, schema, read, run, WHEN, DECIDE, MUST, ANSWER };
 })();

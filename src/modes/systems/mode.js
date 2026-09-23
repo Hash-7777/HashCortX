@@ -288,6 +288,8 @@ const SystemMaker = (() => {
     spec.createdAt = spec.createdAt || previousSpec?.createdAt || Date.now();
     spec.updatedAt = Date.now();
     spec.revisionHistory = Array.isArray(spec.revisionHistory) ? spec.revisionHistory.slice(0, MAX_HISTORY) : [];
+    // Which connected systems its records came from outlives every rebuild and restore — js/systems/connected.js.
+    spec.connectedFrom = [...new Set([...(Array.isArray(spec.connectedFrom) ? spec.connectedFrom : []), ...(previousSpec?.connectedFrom || [])])];
 
     spec.theme = {
       mode: spec.theme?.mode === "dark" ? "dark" : "light",
@@ -1297,6 +1299,7 @@ Repair requirements:
     const spec = getActive();
     if (!spec || !undoRecords || undoRecords.id !== spec.id) return;
     saveRuntimeData(spec, undoRecords.data);
+    if (Array.isArray(undoRecords.connectedFrom)) { spec.connectedFrom = undoRecords.connectedFrom; saveSystems(); }   // brought records gone, so is their mark
     trace(`Put back what was there before — ${undoRecords.what}`, "ok");
     undoRecords = null;
     showUndoWork();
@@ -2750,8 +2753,11 @@ Repair requirements:
   async function agentSend(text) {
     const C = CHAT(), A = window.HCSystemsAgent;
     if (!C || !A || agentBusy || runAbort) return;
-    const spec = getActive();
-    const history = C.history();
+    const spec = getActive(), SC = window.HCSystemsConnected;
+    const model = $("sysModelSelect")?.value || $("model")?.value || "";
+    // Connected systems this model may read, and what it may be shown of them — js/systems/connected.js.
+    const connected = SC ? SC.readable(model) : [], held = SC && spec ? SC.heldFrom(spec, model) : [];
+    const history = SC ? SC.visibleTo(C.history(), model).history : C.history();
     C.user(text);
     C.settle();
     agentBusy = true;
@@ -2759,21 +2765,23 @@ Repair requirements:
     updateCreateButtonState();
     setStatus("Thinking", "running");
     try {
+      if (held.length) { C.reply(SC.heldText(held)); return; }
       // Whichever model can answer does — js/model-routes.js.
       const answer = await window.HCModelRoutes.askWithFailover({
-        start: $("sysModelSelect")?.value || $("model")?.value || "", options: availableModels, signal: agentAbort.signal, timeoutMs: 90000,
-        call: async (model, signal) => (await window._H.runModelTurn({ modelValue: model, tools: [], temperature: 0.3, signal, need: 1500, json: A.REPLY_SCHEMA,
-          messages: A.messages({ spec, data: spec ? getRuntimeData(spec) : {}, history, text, today: todayIso(), starter: !!spec?.starter }) }))?.content || "",
+        start: model, options: availableModels, signal: agentAbort.signal, timeoutMs: 90000,
+        call: async (m, signal) => (await window._H.runModelTurn({ modelValue: m, tools: [], temperature: 0.3, signal, need: 1500, json: A.schemaFor(connected),
+          messages: A.messages({ spec, data: spec ? getRuntimeData(spec) : {}, history, text, today: todayIso(), starter: !!spec?.starter, connected }) }))?.content || "",
         onSwitch: (from, to, why) => trace(`${modelTraceLabel(from)}: ${why}. Asking ${modelTraceLabel(to)}`, "warn"),
       });
       const userTexts = [...history.filter(t => t.role === "user").map(t => t.text), text];
-      const said = A.settle(A.readReply(answer.text), { starter: !!spec?.starter, userTexts, text });
+      const said = A.settle(A.readReply(answer.text, { connected }), { starter: !!spec?.starter, userTexts, text, connected });
       // A business name or place the person never gave is asked for, not used.
       const unsaid = said.do === "build" ? A.unsaid(said.business, userTexts) : [];
       C.reply(unsaid.length ? A.askFor(unsaid) : A.leadIn(said, text));
       if (said.do === "build" && !unsaid.length) await createSystem(said.business, said.request);
       else if (said.do === "change") await reviseSystem(said.request, text);
       else if (said.do === "records") await workSystem(said.request, text);
+      else if (said.do === "look" || said.do === "bring") await readConnected(said, text, connected, model);
     } catch (err) {
       const stopped = err?.name === "AbortError" || agentAbort?.signal.aborted;
       C.reply(stopped ? "Stopped." : `No model could answer: ${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(err), err)}. Pick another model at the top of this panel, or try again in a minute.`);
@@ -2784,6 +2792,24 @@ Repair requirements:
       setStatus("Ready");
       updateCreateButtonState();
     }
+  }
+
+  /** "look" and "bring": a connected system is read, never changed — js/systems/connected.js. */
+  async function readConnected(said, text, connected, model) {
+    const SC = window.HCSystemsConnected, C = CHAT(), spec = getActive(), data = getRuntimeData(spec);
+    const turn = (messages, extra) => window._H.runModelTurn({ modelValue: model, messages, tools: [], ...extra }).then((r) => r?.content || "");
+    const r = await SC.act(said, text, connected, { spec, data, derived: (id) => isDerived(spec, id) }, { mcp: window.HCMcp, decide: window.HCDecide, shape: window.HCAgentShape, modelValue: model,
+      ask: (messages, schema) => turn(messages, { json: schema, temperature: 0, need: 1024 }), answer: (messages) => turn(messages, { temperature: 0.3, need: 1500 }),
+      onEvent: (kind, call) => { if (kind === "tool_call") trace(`Reading ${SC.toolWords(call.name)}`, "run"); } });
+    if (!r.plan) { C.reply(r.say, { from: r.from }); return; }
+    if (!(await window._H.themedConfirm(r.preview, "Bring them in?"))) { C.reply("Nothing was brought in."); return; }
+    undoRecords = { id: spec.id, data: JSON.parse(JSON.stringify(data)), what: `${r.plan.additions.length} records from ${r.system.name}`, connectedFrom: [...(spec.connectedFrom || [])] };
+    spec.connectedFrom = SC.markedWith(spec, r.system.id);
+    saveSystems();
+    saveRuntimeData(spec, window.HCSystemsWork.apply(r.plan, data));
+    showUndoWork();
+    renderAll();
+    C.reply(`Brought ${r.plan.additions.length} record${r.plan.additions.length === 1 ? "" : "s"} from ${r.system.name} into ${r.plan.entity.name}. "Undo last change" at the top puts them back.`);
   }
 
   function agentStop() {
@@ -3183,7 +3209,7 @@ Repair requirements:
       mounted = true;
       loadSystems();
       wireEvents();
-      if (!STANDALONE) CHAT()?.init({ send: agentSend, stop: agentStop });
+      if (!STANDALONE) CHAT()?.init({ send: agentSend, stop: agentStop, hint: () => { const c = window.HCSystemsConnected?.readable($("sysModelSelect")?.value || $("model")?.value || "") || []; return c.length ? `Ask about ${c[0].name}, or say "bring the customers from ${c[0].name}"` : ""; } });
     }
     if (!systems.length) openStarter();
     updateCreateButtonState();

@@ -17,6 +17,12 @@
 //   change   this system's design               (js/systems/edits.js)
 //   records  its records: add, edit, delete     (js/systems/work.js, shown first)
 //
+// And when a connected system can be read with the model in use, two more,
+// which only ever read that system (js/systems/connected.js):
+//
+//   look     answer from its records
+//   bring    copy its records into a table here  (shown first)
+//
 // Before building it must know what the business does, what it is called and
 // where it is, and it asks in the conversation for what it does not know,
 // rather than a form. It never invents a business's name.
@@ -38,6 +44,9 @@
   'use strict';
 
   const ACTIONS = ['none', 'build', 'change', 'records'];
+  // Offered only when a connected system can be read with the model in use
+  // (js/systems/connected.js). Both only read it; the ERP never changes one.
+  const CONNECTED_ACTIONS = ['look', 'bring'];
   const MAX_TURNS = 12;          // the conversation the model is shown
   const MAX_TURN_CHARS = 1500;
   const RECENT_ROWS = 12;        // records shown per table, at most
@@ -104,13 +113,23 @@ Return ONLY JSON, no markdown:
   }
 
   /** What the model is sent: the rules, the system, the conversation so far and the new message. */
-  function messages({ spec, data, history, text, today, starter } = {}) {
+  /** What the agent is told about the connected systems it may read. */
+  function connectedText(connected) {
+    const names = (connected || []).map((c) => clean(c.name, 40)).filter(Boolean);
+    if (!names.length) return '';
+    return `\n\nCONNECTED SYSTEMS you can read — the company's own systems, whose records are not in this ERP: ${names.join(', ')}.
+- "look": answer a question from a connected system's records. Put the question, naming the system, in "request". Use it whenever the person asks about records in a connected system.
+- "bring": copy records from a connected system into a table of this system. Put what to bring, from which system and into which table, in "request". The app shows the person every record before anything is added.
+You can only read a connected system; you can never change one. Never "look" or "bring" for a system not named here.`;
+  }
+
+  function messages({ spec, data, history, text, today, starter, connected } = {}) {
     const past = (Array.isArray(history) ? history : [])
       .filter((t) => t && (t.role === 'user' || t.role === 'agent') && clean(t.text, 10))
       .slice(-MAX_TURNS)
       .map((t) => ({ role: t.role === 'user' ? 'user' : 'assistant', content: clean(t.text, MAX_TURN_CHARS) }));
     return [
-      { role: 'system', content: `${SYSTEM}\n\nTHE SYSTEM THAT IS OPEN:\n${contextOf(spec, data, { today, starter })}` },
+      { role: 'system', content: `${SYSTEM}${connectedText(connected)}\n\nTHE SYSTEM THAT IS OPEN:\n${contextOf(spec, data, { today, starter })}` },
       ...past,
       { role: 'user', content: clean(text, 4000) },
     ];
@@ -123,7 +142,7 @@ Return ONLY JSON, no markdown:
    * nothing. An action is only kept with an instruction to carry out, and a
    * build only with the business's own description.
    */
-  function readReply(raw) {
+  function readReply(raw, { connected } = {}) {
     const text = String(raw || '').trim();
     const fenced = typeof window !== 'undefined' && window.HCFences ? window.HCFences.jsonBlock(text) : null;
     const body = fenced != null ? fenced : text;
@@ -134,7 +153,8 @@ Return ONLY JSON, no markdown:
     if (!parsed || typeof parsed !== 'object') {
       return { say: clean(text, 1200) || 'I could not put that into words. Try asking again.', do: 'none', request: '', business: null, readable: false };
     }
-    let action = ACTIONS.includes(parsed.do) ? parsed.do : 'none';
+    const allowed = connected && connected.length ? [...ACTIONS, ...CONNECTED_ACTIONS] : ACTIONS;
+    let action = allowed.includes(parsed.do) ? parsed.do : 'none';
     const request = clean(parsed.request, 3000);
     const b = parsed.business && typeof parsed.business === 'object' ? parsed.business : {};
     const business = {
@@ -163,6 +183,11 @@ Return ONLY JSON, no markdown:
     },
     required: ['say', 'do'],
   };
+
+  /** The answer's shape: with a connected system to read, "look" and "bring" too. */
+  const schemaFor = (connected) => (connected && connected.length
+    ? { ...REPLY_SCHEMA, properties: { ...REPLY_SCHEMA.properties, do: { type: 'string', enum: [...ACTIONS, ...CONNECTED_ACTIONS] } } }
+    : REPLY_SCHEMA);
 
   // Words that say what kind of business it is, not what it is called.
   const TRADE_WORD = /^(?:the|and|of|shop|store|bookstore|bookshop|cafe|café|restaurant|bakery|clinic|salon|studio|company|co|ltd|llc|inc|business|services?|centre|center|market|group|workshop)$/i;
@@ -216,6 +241,8 @@ Return ONLY JSON, no markdown:
     if (!said || said.do === 'none') return (said && said.say) || '';
     if (said.do === 'build') return `Building the system for ${clean(said.business && said.business.name, 60) || 'your business'} now.`;
     if (said.do === 'change') return `Changing the design: ${req}`;
+    if (said.do === 'look') return `Looking it up: ${req}`;
+    if (said.do === 'bring') return `Reading the records to bring in: ${req}. You will see every record before anything is added.`;
     return `Working out what to change in your records: ${req}. You will see the change before it is made.`;
   }
 
@@ -254,15 +281,29 @@ Return ONLY JSON, no markdown:
   const TABLE_REQUEST = /\b(?:add|create|make|set up)\s+(?:a\s+|an\s+)?(?:new\s+)?[\w&-]+(?:\s+[\w&-]+)?\s+(?:table|list|register)\b/i;
   const SHOW_AS = /\bshow\b[^.\n]{0,40}\bas\b[^.\n]{0,12}\b(?:list|cards?|board|kanban|calendar|timeline|report|dashboard|metrics?|feed|split)\b/i;
 
-  function settle(said, { starter, userTexts, text } = {}) {
+  function settle(said, { starter, userTexts, text, connected } = {}) {
     let s = noFalseClaim(settleBuild(said, { starter, userTexts }), text);
     const t = String(text || '');
+    // A request that names a connected system is about that system's records,
+    // whatever a small model made of it: to bring some in, or to read them.
+    if (namesConnected(t, connected)) {
+      if (BRING_REQUEST.test(t)) return { ...s, do: 'bring', request: clean(text, 3000) };
+      if (s.do === 'none' || s.do === 'records') {
+        if (READ_REQUEST.test(t)) return { ...s, do: 'look', request: clean(text, 3000) };
+      }
+    }
     const design = DESIGN_REQUEST.test(t) || TABLE_REQUEST.test(t) || LOOK_REQUEST.test(t) || SHOW_AS.test(t);
     // A design change sent down the records road, or one the model let pass
     // with nothing done, is made as the design change it is.
     if (design && (s.do === 'records' || (s.do === 'none' && !/\?\s*$/.test(t)))) s = { ...s, do: 'change', request: clean(text, 3000) };
     return s;
   }
+
+  const squash = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  /** Whether the person's words name a connected system. */
+  const namesConnected = (text, connected) => (connected || []).some((c) => c && c.name && squash(text).includes(squash(c.name)));
+  const BRING_REQUEST = /\b(?:bring|import|copy|pull|load|sync|move)\b[^.\n]{0,80}\bfrom\b/i;
+  const READ_REQUEST = /\?\s*$|^\s*(?:what|which|who|whom|how|when|where|why|list|show|tell|find|look|check|give|is|are|was|were|do|does|did|can|could)\b/i;
 
   /** The question asked instead of building, for what was not said. */
   function askFor(missing) {
@@ -338,6 +379,6 @@ Return ONLY JSON, no markdown:
   }
 
   window.HCSystemsAgent = {
-    ACTIONS, SYSTEM, STARTER_NAME, REPLY_SCHEMA, contextOf, messages, readReply, unsaid, askFor, settleBuild, noFalseClaim, settle, leadIn, starterOptions, emptied, isUntouchedStarter,
+    ACTIONS, CONNECTED_ACTIONS, SYSTEM, STARTER_NAME, REPLY_SCHEMA, schemaFor, connectedText, contextOf, messages, readReply, unsaid, askFor, settleBuild, noFalseClaim, settle, leadIn, starterOptions, emptied, isUntouchedStarter,
   };
 })();

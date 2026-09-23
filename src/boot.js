@@ -153,6 +153,7 @@
     '/js/systems/setup.js',
     '/js/systems/prompts.js',
     '/js/systems/agent.js',
+    '/js/systems/connected.js',
     '/js/systems/agent-chat.js',
     '/js/systems/contrast.js',
     '/js/systems/theme.js',

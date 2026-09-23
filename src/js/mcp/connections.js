@@ -137,20 +137,25 @@
   let offered = new Map();   // name the model calls → { id, tool }
   let readThisTurn = false;  // whether this turn has read a system's records
 
-  /** The tools an agent may call on this model, for this turn. */
-  async function toolsFor(modelValue) {
+  /**
+   * The tools an agent may call on this model, for this turn. `readsOnly`
+   * offers only tools that read, and `only` one system's — how the ERP reads
+   * a connected system without ever being able to change it.
+   */
+  async function toolsFor(modelValue, { readsOnly = false, only = null } = {}) {
     offered = new Map();
     readThisTurn = false;
     if (!available()) return [];
     const out = [];
     for (const first of list()) {
+      if (only && first.id !== only) continue;
       if (!P().mayReach(first, modelValue) || !(first.tools || []).some((t) => t.on)) continue;
       let conn = first;
       if (Date.now() - (conn.checkedAt || 0) > RECHECK_MS) {
         try { conn = await refresh(conn.id); } catch { continue; }
       }
       for (const t of conn.tools || []) {
-        if (!t.on || t.approved !== t.definition) continue;
+        if (!t.on || t.approved !== t.definition || (readsOnly && !t.reads)) continue;
         const offer = P().offerOf(conn, t.raw);
         if (!offer || offered.has(offer.function.name)) continue;
         offered.set(offer.function.name, { id: conn.id, tool: t.name });
@@ -175,8 +180,12 @@
     return list().some((c) => c.name && lower.includes(c.name.toLowerCase()));
   }
 
-  /** Run a call the model made, after asking. The result as text framed as material, or an error. */
-  async function run(name, args) {
+  /**
+   * Run a call the model made, after asking. The result as text framed as
+   * material, or an error; with `raw`, also the result as the system gave it,
+   * for the app's own use — never for a model.
+   */
+  async function run(name, args, { raw = false } = {}) {
     const at = offered.get(name);
     const conn = at && find(at.id);
     const t = conn && (conn.tools || []).find((x) => x.name === at.tool);
@@ -192,7 +201,7 @@
       readThisTurn = true;
       const text = P().textOf(result);
       const S = window.HCSources;
-      return { system: conn.name, tool: t.name, result: S ? S.frame([{ title: `${conn.name} · ${t.name}`, text }]) : text };
+      return { system: conn.name, tool: t.name, result: S ? S.frame([{ title: `${conn.name} · ${t.name}`, text }]) : text, ...(raw ? { raw: result } : {}) };
     } catch (e) {
       return { error: `${conn.name}: ${String((e && e.message) || e)}` };
     }

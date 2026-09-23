@@ -306,7 +306,13 @@ const LINE_BUDGET = {
   // app makes, what it plainly asks for read without a model, sent back once
   // with what could not be made, judged by the person's own words. The edits
   // are js/systems/edits.js, which replaced js/systems/revise.js.
-  'modes/systems/mode.js': 3206,
+  // 3232, up twenty-six: the ERP agent can read a connected system to answer
+  // a question and bring records from one into a table, never changing it;
+  // and a system holding such records, or a conversation holding such an
+  // answer, is not sent to a model that system keeps them from. The reading,
+  // the matching and the keeping are js/systems/connected.js; this is the
+  // wiring, the confirmation and the Undo.
+  'modes/systems/mode.js': 3232,
   // 3766, down from 3808. A second implementation of the zip format lived
   // here — its own header writer, its own checksum — doing the same job as the
   // one the 3D mode already had, and only one of the two was ever checked
