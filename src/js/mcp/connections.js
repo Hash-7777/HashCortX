@@ -458,7 +458,8 @@
    * The systems whose records this conversation holds and which keep them from
    * `modelValue`: a chat that read records keeps the answer, and going on with
    * it on a cloud model would send that answer too. A tool from a system since
-   * removed counts as kept, since nothing says otherwise.
+   * removed counts as kept from cloud models, since nothing says otherwise;
+   * a model on this computer may still be shown what it read.
    */
   function heldFrom(messages, modelValue) {
     const held = new Set();
@@ -466,8 +467,7 @@
       for (const used of (m && m.toolsUsed) || []) {
         if (!used || !used.ok || !/^sys_/.test(String(used.name || ""))) continue;
         const conn = systemOf(used.name);
-        if (!conn) held.add("a connected system");
-        else if (!P().mayReach(conn, modelValue)) held.add(conn.name);
+        if (!P().mayReach(conn, modelValue)) held.add(conn ? conn.name : "a connected system");
       }
     }
     return [...held];

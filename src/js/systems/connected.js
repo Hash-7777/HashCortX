@@ -227,14 +227,17 @@
   /** The connected systems a spec has read from, with this one added. */
   const markedWith = (spec, id) => [...new Set([...((spec && spec.connectedFrom) || []), id])];
 
-  /** The systems this spec has read from that keep their records from `modelValue`. */
+  /**
+   * The systems this spec has read from that keep their records from
+   * `modelValue`. One since removed keeps them from cloud models, since
+   * nothing says otherwise; a model on this computer may still see them.
+   */
   function heldFrom(spec, modelValue) {
     const M = window.HCMcp, P = window.HCMcpPolicy;
     const held = new Set();
     for (const id of (spec && spec.connectedFrom) || []) {
       const conn = M && M.find(id);
-      if (!conn) held.add("a connected system");
-      else if (!P || !P.mayReach(conn, modelValue)) held.add(conn.name);
+      if (!P || !P.mayReach(conn, modelValue)) held.add(conn ? conn.name : "a connected system");
     }
     return [...held];
   }
@@ -251,7 +254,7 @@
     let leftOut = 0;
     for (const turn of Array.isArray(history) ? history : []) {
       const conn = turn && turn.from ? M && M.find(turn.from) : null;
-      if (turn && turn.from && (!conn || !P || !P.mayReach(conn, modelValue))) {
+      if (turn && turn.from && (!P || !P.mayReach(conn, modelValue))) {
         leftOut++;
         const asked = kept.map((t) => t && t.role).lastIndexOf("user");
         if (asked >= 0) kept.length = asked;

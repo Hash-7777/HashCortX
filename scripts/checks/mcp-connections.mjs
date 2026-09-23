@@ -185,7 +185,8 @@ console.log('\nWhere records do not go afterwards:');
   ok('... nor from a cloud model once the system allows it', M.heldFrom(chat, 'cloud:gemini:gemini-2.5-flash').length === 0);
   M.setAllowCloud(conn.id, false);
   ok('a call that failed brought no records', M.heldFrom([{ toolsUsed: [{ name: offer.function.name, ok: false }] }], 'cloud:x:y').length === 0);
-  ok('records from a system since removed are still held', M.heldFrom([{ toolsUsed: [{ name: 'sys_gone_search_records', ok: true }] }], 'cloud:x:y').join() === 'a connected system');
+  ok('records from a system since removed are still held from cloud models', M.heldFrom([{ toolsUsed: [{ name: 'sys_gone_search_records', ok: true }] }], 'cloud:x:y').join() === 'a connected system');
+  ok('... and not from a model on this computer', M.heldFrom([{ toolsUsed: [{ name: 'sys_gone_search_records', ok: true }] }], 'qwen2.5-coder:3b').length === 0);
   ok('the person is told why, and what to do', /Start a new chat to use a cloud model, or allow cloud models for that system/.test(M.heldText(['Company ERP'])));
 }
 

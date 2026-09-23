@@ -133,7 +133,9 @@ console.log('\nWhere records and answers may go afterwards:');
   const marked = { connectedFrom: ['c1', 'c2'] };
   ok('it is not sent to a cloud model a system keeps its records from', S.heldFrom(marked, 'cloud:gemini:gemini-2.5-flash').join() === 'Company ERP');
   ok('... and is to a model on this computer', S.heldFrom(marked, 'qwen2.5-coder:3b').length === 0);
-  ok('records from a system since removed stay kept', S.heldFrom({ connectedFrom: ['gone'] }, 'cloud:x:y').join() === 'a connected system');
+  ok('records from a system since removed stay kept from cloud models', S.heldFrom({ connectedFrom: ['gone'] }, 'cloud:x:y').join() === 'a connected system');
+  ok('... and may still go to a model on this computer', S.heldFrom({ connectedFrom: ['gone'] }, 'qwen2.5-coder:3b').length === 0
+    && S.visibleTo([{ role: 'user', text: 'q' }, { role: 'agent', text: 'a', from: 'gone' }], 'qwen2.5-coder:3b').history.length === 2 && S.visibleTo([{ role: 'user', text: 'q' }, { role: 'agent', text: 'a', from: 'gone' }], 'cloud:x:y').history.length === 0);
   ok('the person is told why, and what to do', /Pick a model on this computer at the top of this panel, or allow cloud models for that system in Settings → Connections\./.test(S.heldText(['Company ERP'])));
   const history = [{ role: 'user', text: 'Hello' }, { role: 'agent', text: 'Hi.' }, { role: 'user', text: 'Unpaid invoices in Company ERP?' }, { role: 'agent', text: 'Looking it up: Unpaid invoices in Company ERP?' },
     { role: 'agent', text: 'INV/2 and INV/3.', from: 'c1' }, { role: 'user', text: 'Orders in Shop Books?' }, { role: 'agent', text: 'Two orders.', from: 'c2' }];
