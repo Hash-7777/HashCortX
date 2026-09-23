@@ -234,6 +234,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The ERP agent never says a change happened when it did not.** A small
+  model answered "Customer added successfully" with nothing done. What the
+  agent says as it acts is now the app's own words, a change it claims but
+  did not ask for is carried out or corrected, and a business name or place
+  you never gave is asked for instead of made up. Adding a field or a screen
+  goes to the design, not to the records. A request for "all" of something
+  covers all of them, and the question before a change says what will
+  happen, with the values, rather than reading as if it already had. A change
+  to the design is now shown and asked about first, as a change to records
+  is. A table or field a model names in another form ("customers" for
+  "customer") is found. The ERP no longer takes "gemini" for "mini", so a job
+  too large for one provider reaches one that can hold it, and a change is
+  routed by the size of what it sends.
+
 - **3D Forge no longer calls Gemini Pro a small model.** Its ranking found
   "mini" inside "gemini", marked every Gemini model down and told you Gemini
   Pro rarely places a shape.

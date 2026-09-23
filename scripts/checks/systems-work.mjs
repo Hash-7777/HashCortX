@@ -192,14 +192,31 @@ console.log('\nThe last thing somebody reads before their records change:');
     { action: 'delete', entity: 'expenses', id: 'e2', why: 'remove it' },
   ], unsure: 'Mona may have paid hers too.' }), SPEC, DATA());
   const text = W.previewOf(p);
-  ok('it says which table and which field', /Expenses: Status Unpaid to Paid/.test(text));
-  ok('a removal is spelled out, not counted in with the rest', /a record REMOVED/.test(text));
+  ok('it says which table, which record and which field', /Expenses, [^:]+: Status Unpaid to Paid/.test(text));
+  ok('it says what WILL happen, not what has', /^This will change 1 record, REMOVE 1 record:/.test(text) && !/record changed/.test(text));
+  ok('a removal is spelled out, by the record it takes away', /Expenses: "[^"]+" REMOVED/.test(text));
+  const added = W.previewOf(W.plan(answer({ changes: [{ action: 'add', entity: 'expenses', set: { status: 'Paid' } }] }), SPEC, DATA()));
+  ok('a new record is shown with its values', /a new record, Status Paid/.test(added));
+  const plural = W.plan(answer({ changes: [{ action: 'add', entity: 'EXPENSE', set: { Status: 'Paid' } }] }), SPEC, DATA());
+  ok('a table or field named in another form ("EXPENSE" for "expenses", its label for its id) is found', plural.additions.length === 1 && plural.additions[0].values.status === 'Paid');
   ok('and said to be the one that cannot be looked at again', /cannot be looked at again/.test(text));
   ok('what it was unsure about is carried into the question', /Mona may have paid/.test(text));
   ok('and it says plainly that nothing has happened yet', /Nothing has been changed yet/.test(text));
   ok('an empty field reads as empty rather than as nothing',
     /\(empty\)/.test(W.previewOf(W.plan(answer({ changes: [{ action: 'update', entity: 'expenses', id: 'e1', set: { paidOn: '2026-09-21' } }] }), SPEC, DATA()))));
   ok('what was done afterwards is one line each', W.doneLines(p).length === 2);
+  const one = answer({ changes: [{ action: 'update', entity: 'expenses', id: 'e1', set: { status: 'Paid' }, why: 'paid' }] });
+  const all = W.completeAll(W.plan(one, SPEC, DATA()), 'Mark all unpaid expenses as paid', SPEC, DATA());
+  ok('"all", done to some: the rest sharing the choice named are added before the question', all.edits.map((e) => e.id).join() === 'e1,e2,e3' && /Added because the request said all: 2 more Expenses that are "Unpaid"/.test(W.previewOf(all)));
+  ok('... each added one gives its own reason, not the first one\'s', all.edits.slice(1).every((e) => e.why === 'the request said all Unpaid'));
+  ok('... never without "all" in the request', W.completeAll(W.plan(one, SPEC, DATA()), "Mark Seif's unpaid expenses as paid", SPEC, DATA()).edits.length === 1);
+  ok('... nor when the choice is not one the request names', W.completeAll(W.plan(one, SPEC, DATA()), 'Mark all of them as paid', SPEC, DATA()).edits.length === 1);
+  const mixed = answer({ changes: [{ action: 'update', entity: 'expenses', id: 'e1', set: { status: 'Paid' } }, { action: 'update', entity: 'expenses', id: 'e2', set: { status: 'Disputed' } }] });
+  ok('... nor when the changes made are not all the same', W.completeAll(W.plan(mixed, SPEC, DATA()), 'Mark all unpaid expenses', SPEC, DATA()).edits.length === 2);
+  const gone = W.completeAll(W.plan(answer({ changes: [{ action: 'delete', entity: 'expenses', id: 'e2' }] }), SPEC, DATA()), 'Delete every unpaid expense', SPEC, DATA());
+  ok('... and removals the same way', gone.removals.length === 3);
+  const repeated = W.plan(answer({ changes: [1, 2, 3].map(() => ({ action: 'add', entity: 'nowhere', set: { a: 1 } })) }), SPEC, DATA());
+  ok('a note left alone is said once, however often a model repeats it', repeated.dropped.length === 1);
 }
 
 console.log('\nAnd the mode uses it that way round:');
@@ -210,8 +227,9 @@ console.log('\nAnd the mode uses it that way round:');
   const standalone = readFileSync(join(root, 'src', 'js', 'systems', 'export-app.js'), 'utf8');
   ok('the module is loaded', /\/js\/systems\/work\.js/.test(boot));
   ok('and goes into an exported app too', /systems\/work\.js/.test(standalone));
-  ok('the agent does it when it says the records change', /else if \(said\.do === "records"\) await workSystem\(said\.request\);/.test(mode));
-  ok('which needs a system open and something to do', /async function workSystem\(request = ""\) \{\s*const spec = getActive\(\);\s*if \(!spec \|\| runAbort \|\| !String\(request\)\.trim\(\)\) return;/.test(mode));
+  ok('the agent does it when it says the records change, with the person\'s own words beside its request', /else if \(said\.do === "records"\) await workSystem\(said\.request, text\);/.test(mode));
+  ok('which needs a system open and something to do', /async function workSystem\(request = "", asked = request\) \{[^\n]*\n\s*const spec = getActive\(\);\s*if \(!spec \|\| runAbort \|\| !String\(request\)\.trim\(\)\) return;/.test(mode));
+  ok('"all" is read in the person\'s words, not the model\'s rewrite of them', /plan = W\.completeAll\(W\.plan\(said, spec, data\), asked, spec, data\);/.test(mode));
   ok('and it can be undone from the bar', /id="sysUndoWorkBtn"/.test(panel));
   ok('it asks before writing anything', /themedConfirm\(W\.previewOf\(plan\)/.test(mode));
   ok('a refusal writes nothing', /if \(!ok\) \{ trace\("Left as it was"/.test(mode));

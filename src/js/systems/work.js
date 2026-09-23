@@ -219,13 +219,30 @@
    * silently includes them is how somebody allows three edits and loses three
    * rows.
    */
+  // The forms a table or field name is written in: a model writes "customers"
+  // for a table called "customer", or its label for its id. One is matched
+  // only when exactly one table (or field) answers to it.
+  const formsOf = (v) => {
+    const w = String(v == null ? '' : v).toLowerCase().replace(/[^a-z0-9]+/g, '');
+    return new Set([w, w.replace(/ies$/, 'y'), w.replace(/es$/, ''), w.replace(/s$/, '')].filter(Boolean));
+  };
+  function lookUp(map, key, nameOf) {
+    const k = String(key == null ? '' : key);
+    if (map.has(k)) return [k, map.get(k)];
+    const want = formsOf(k);
+    const meets = (v) => [...formsOf(v)].some((f) => want.has(f));
+    const hits = [...map.entries()].filter(([id, item]) => meets(id) || meets(nameOf(item)));
+    return hits.length === 1 ? hits[0] : null;
+  }
+
   function plan(answer, spec, data) {
     const entities = entitiesOf(spec);
     const edits = [];
     const additions = [];
     const removals = [];
     const dropped = [];
-    const note = (why, at) => dropped.push({ why, at: clean(at, 80) });
+    // One line per thing left alone, however many times a model repeats it.
+    const note = (why, at) => { const n = { why, at: clean(at, 80) }; if (!dropped.some((d) => d.why === n.why && d.at === n.at)) dropped.push(n); };
 
     const list = Array.isArray(answer && answer.changes) ? answer.changes : [];
     for (const raw of list) {
@@ -234,9 +251,9 @@
         break;
       }
       if (!raw || typeof raw !== 'object') { note('not a change', ''); continue; }
-      const entityId = clean(raw.entity, 60);
-      const entity = entities.get(entityId);
-      if (!entity) { note('there is no such table in this system', entityId); continue; }
+      const found = lookUp(entities, clean(raw.entity, 60), (e) => e && e.name);
+      if (!found) { note('there is no such table in this system', clean(raw.entity, 60)); continue; }
+      const [entityId, entity] = found;
       const fields = fieldsOf(entity);
       const rows = Array.isArray(data && data[entityId]) ? data[entityId] : [];
       const action = clean(raw.action, 20).toLowerCase();
@@ -256,18 +273,20 @@
 
       if (action === 'add') {
         const values = {};
+        const shownAs = [];
         let taken = 0;
         for (const [key, value] of Object.entries(wanted)) {
           if (taken >= MAX_FIELDS) break;
-          const field = fields.get(String(key));
+          const field = (lookUp(fields, key, (f) => f && f.label) || [])[1];
           if (!field) { note('no such field on that table', `${label}.${clean(key, 40)}`); continue; }
           const fitted = fit(field, value);
           if (fitted === undefined) { note('that value does not fit the field', `${label}.${field.label || field.id}`); continue; }
           values[field.id] = fitted;
+          shownAs.push(`${clean(field.label || field.id, 40)} ${clean(fitted, 60)}`);
           taken += 1;
         }
         if (!taken) { note('nothing in it could be written', label); continue; }
-        additions.push({ entity: entityId, entityName: label, values, why });
+        additions.push({ entity: entityId, entityName: label, values, why, shownAs });
         continue;
       }
 
@@ -278,7 +297,7 @@
       const changes = [];
       for (const [key, value] of Object.entries(wanted)) {
         if (changes.length >= MAX_FIELDS) break;
-        const field = fields.get(String(key));
+        const field = (lookUp(fields, key, (f) => f && f.label) || [])[1];
         if (!field) { note('no such field on that table', `${label}.${clean(key, 40)}`); continue; }
         const fitted = fit(field, value);
         if (fitted === undefined) { note('that value does not fit the field', `${label}.${field.label || field.id}`); continue; }
@@ -353,14 +372,72 @@
    * before their records change, and every line of it can then be read off in
    * a test instead of being trusted.
    */
+  const ALL = /\b(?:all|every|each)\b/i;
+
+  /**
+   * "Delete ALL cancelled orders", done to some of them. A small model given
+   * two cancelled orders removed one and said it was done. When the request
+   * says all, every change made to one table is the same (all removed, or all
+   * given the same values), and the records changed share a choice the request
+   * names ("Cancelled"), the other records with that choice are added to the
+   * plan — before anything is asked, so the question shows every one of them.
+   */
+  function completeAll(p, request, spec, data) {
+    if (!p || !ALL.test(String(request || ''))) return p;
+    const said = String(request).toLowerCase();
+    const entities = entitiesOf(spec);
+    const out = { ...p, edits: [...p.edits], removals: [...p.removals], widened: [] };
+    const room = () => MAX_CHANGES - out.edits.length - out.additions.length - out.removals.length;
+    for (const kind of ['removals', 'edits']) {
+      const byTable = new Map();
+      for (const item of p[kind]) byTable.set(item.entity, [...(byTable.get(item.entity) || []), item]);
+      for (const [entityId, items] of byTable) {
+        const same = kind === 'removals' || new Set(items.map((i) => JSON.stringify(i.changes.map((c) => [c.field, c.to])))).size === 1;
+        const entity = entities.get(entityId);
+        if (!same || !entity) continue;
+        const touched = new Set(items.map((i) => String(i.id)));
+        for (const field of fieldsOf(entity).values()) {
+          if (field.type !== 'select') continue;
+          const values = new Set(items.map((i) => i.record && i.record[field.id]));
+          const [value] = values;
+          if (values.size !== 1 || typeof value !== 'string' || !value.trim() || !said.includes(value.toLowerCase())) continue;
+          const rest = (Array.isArray(data && data[entityId]) ? data[entityId] : []).filter((r) => r && r[field.id] === value && !touched.has(String(r.id)));
+          for (const r of rest.slice(0, Math.max(0, room()))) {
+            const why = `the request said all ${value}`;
+            if (kind === 'removals') { out.removals.push({ ...items[0], id: String(r.id), record: r, why }); continue; }
+            const changes = items[0].changes.filter((c) => String(r[c.field] == null ? '' : r[c.field]) !== String(c.to))
+              .map((c) => ({ ...c, from: r[c.field] == null ? '' : r[c.field] }));
+            if (changes.length) out.edits.push({ ...items[0], id: String(r.id), record: r, changes, why });
+          }
+          if (rest.length) out.widened.push(`${rest.length} more ${items[0].entityName} that ${rest.length === 1 ? 'is' : 'are'} "${value}"`);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  // The record a person would recognise: its first value that is not an id.
+  const titleOf = (record) => clean(Object.entries(record || {}).find(([k, v]) => k !== 'id' && typeof v === 'string' && v.trim())?.[1] || (record && record.id), 60);
+
+  /**
+   * The question put before anything changes: what WILL happen, in the future
+   * tense, with the values. It used to open with the summary written for after
+   * the change ("1 record added"), so it read as done, and a new record showed
+   * as "a new record" with nothing in it to judge.
+   */
   function previewOf(p) {
     const lines = [
-      ...((p && p.edits) || []).map((e) => `${e.entityName}: ${e.changes.map((c) => `${c.label} ${c.from === '' || c.from === undefined ? '(empty)' : c.from} to ${c.to}`).join(', ')}`),
-      ...((p && p.additions) || []).map((a) => `${a.entityName}: a new record`),
+      ...((p && p.edits) || []).map((e) => `${e.entityName}, ${titleOf(e.record)}: ${e.changes.map((c) => `${c.label} ${c.from === '' || c.from === undefined ? '(empty)' : c.from} to ${c.to}`).join(', ')}`),
+      ...((p && p.additions) || []).map((a) => `${a.entityName}: a new record, ${(a.shownAs || []).join(', ') || 'with no values'}`),
       // Spelled out, and last, so it is the thing left in the eye.
-      ...((p && p.removals) || []).map((r) => `${r.entityName}: a record REMOVED, which cannot be looked at again`),
+      ...((p && p.removals) || []).map((r) => `${r.entityName}: "${titleOf(r.record)}" REMOVED, which cannot be looked at again`),
     ];
-    return `${summaryOf(p)}.\n\n${lines.join('\n')}\n\n`
+    const n = (list) => `${list.length} ${list.length === 1 ? 'record' : 'records'}`;
+    const will = [p && p.edits.length && `change ${n(p.edits)}`, p && p.additions.length && `add ${n(p.additions)}`,
+      p && p.removals.length && `REMOVE ${n(p.removals)}`].filter(Boolean).join(', ') || 'change nothing';
+    return `This will ${will}:\n\n${lines.join('\n')}\n\n`
+      + (p && p.widened && p.widened.length ? `Added because the request said all: ${p.widened.join('; ')}.\n\n` : '')
       + (p && p.unsure ? `It was unsure: ${p.unsure}\n\n` : '')
       + 'Nothing has been changed yet.';
   }
@@ -376,6 +453,6 @@
 
   window.HCSystemsWork = {
     MAX_CHANGES, MAX_FIELDS, MAX_SHOWN, MAX_VALUE, SYSTEM,
-    entitiesOf, fieldsOf, fit, shown, messages, readAnswer, plan, isEmpty, summaryOf, previewOf, doneLines, apply,
+    entitiesOf, fieldsOf, fit, shown, messages, readAnswer, plan, completeAll, isEmpty, summaryOf, previewOf, doneLines, apply,
   };
 })();

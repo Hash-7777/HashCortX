@@ -525,7 +525,7 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     }
     window.HCAgentPolicy.chargeRunBudget(runBudget);
     const mv = modelValue || $("model")?.value || "llama3.2";
-    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true, need: SPEC_NEED }); // a cut-off spec is carried on
+    return window._H.runModelTurn({ modelValue: mv, messages, tools: [], temperature, signal, untilFinished: true, need: SPEC_NEED, json: true }); // a cut-off spec is carried on; every answer here is JSON
   }
 
   function modelTraceLabel(modelValue) {
@@ -546,17 +546,11 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
     return /rate.?limit|quota|429|too many|capacity|overloaded|unavailable|timeout|timed.?out|failed to fetch|jsondecodeerror|invalid_request_error|invalid ai systemspec|semantic repair|tool|function|model.{0,12}not.{0,12}found|context/i.test(err?.message || "");
   }
 
-  function modelScore(value, label) {
-    const t = `${value || ""} ${label || ""}`.toLowerCase();
-    let score = 0;
-    if (/gpt-5|gpt-4\.1|gpt-4o|claude|opus|sonnet/.test(t)) score += 160;
-    if (/gemini-2\.5-pro|gemini.*pro/.test(t)) score += 145;
-    if (/deepseek|r1|v3/.test(t)) score += 130;
-    if (/405b|235b|120b|70b|maverick|nemotron|hermes|qwen/.test(t)) score += 115;
-    if (/flash|lite|mini|small|instant|8b/.test(t)) score -= 45;
-    if (/embedding|rerank|moderation|vision|image|tts|whisper/.test(t)) score -= 1000;
-    return score;
-  }
+  // The shared ranking (js/chat/failover.js). The one that stood here found
+  // "mini" inside "gemini" and put every Gemini model, Pro included, below
+  // slow free models, so a job too large for one provider never reached the
+  // provider that could hold it.
+  const modelScore = (value, label) => (/embedding|rerank|moderation|tts|whisper/i.test(`${value} ${label}`) ? -1000 : window.HCChatFailover.strengthOf(value, label));
 
   function availableModels() {
     const src = $("model");
@@ -569,45 +563,12 @@ Build a complete, production-realistic system. Impress with depth and realism.`;
 
   // Where a run goes when a model fails (js/model-routes.js), skipping any that cannot hold the instructions and a whole spec (js/model-limits.js).
   const SPEC_NEED = 6000;
-  const newRoutes = () => window.HCModelRoutes.createRun({ options: availableModels, strength: (o) => modelScore(o.value, o.label), note: (m) => trace(m, "warn"), label: modelTraceLabel, fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens([systemPrompt()]), SPEC_NEED) });
+  // `input`: what each call will send. Sized by the instructions alone, a
+  // change carrying the whole system was sent to a model known not to hold it.
+  const newRoutes = (input = [systemPrompt()]) => window.HCModelRoutes.createRun({ options: availableModels, strength: (o) => modelScore(o.value, o.label), note: (m) => trace(m, "warn"), label: modelTraceLabel, fits: (v) => window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens(input), SPEC_NEED) });
 
-  function godAgentPrompt() {
-    return `You are the God Agent — a senior ERP architect who assigns specialist agents.
-Given a business description, produce a Domain Brief: a compact JSON object your specialist agents will build from.
-Return ONLY valid JSON. No markdown, no prose, no code fences.
+  const godAgentPrompt = () => window.HCSystemsPrompts.GOD_AGENT;   // js/systems/prompts.js
 
-Required keys:
-{
-  "domain": "restaurant|hotel|healthcare|education|fitness|realestate|retail|logistics|manufacturing|hr|legal|saas|generic",
-  "name": "Human-readable system name (≤48 chars)",
-  "description": "One sentence about what this ERP manages",
-  "theme": { "font": "sans|serif|rounded|humanist|mono" },
-  "layout": {
-    "nav": "sidebar|top",
-    "shell": "sidebar|top|dock|cards-nav|command"
-  },
-  "modules": [
-    { "name": "Module Name", "entity": "entity_id", "screen": "dashboard|list|kanban|report|split|cards|timeline|calendar|metric|feed" }
-  ],
-  "agent_assignments": [
-    "UX Agent: owns modules [name, name] with screen types [type, type] — rationale",
-    "Data Agent: owns entities [entity, entity] — will generate realistic records",
-    "Workflow Agent: designing [workflow name] for [entity] spanning N stages"
-  ]
-}
-
-Rules:
-- VARIETY IS MANDATORY. Each generation must feel different from the last. Do not default to the same screen types, shell, or color every time.
-- modules array: 5-8 modules, MINIMUM 5 different screen types across them. Avoid repeating any type more than once unless 8+ modules.
-- First module MUST be "dashboard" or "metric". Second module is never "list" — use kanban, split, or cards instead.
-- layout.shell: choose boldly — a restaurant can use "top" or "sidebar" instead of always "cards-nav". Break domain stereotypes if the creative directive says so.
-  "sidebar" → finance, accounting, generic; "top" → saas, education, lightweight;
-  "dock" → logistics, manufacturing, dense ops; "cards-nav" → restaurant, retail, hotel, fitness;
-  "command" → healthcare, legal, hr, CRM
-- Finance only if the business sells something: give its sales entity (orders, bookings...) an amount, a date, a customer and a status; the app builds the books from those records. No invoice or payment entities of your own.
-- agent_assignments: write 3 specific delegation lines reflecting actual screen and entity choices
-- Follow the CREATIVE DIRECTIVE in the user message — it overrides defaults`;
-  }
 
   function specialistPrompt(brief) {
     return `You are a specialist agent swarm executing a brief from the God Agent.
@@ -1266,7 +1227,7 @@ Repair requirements:
    * model's answer is in js/systems/work.js, and the snapshot taken before the
    * write is what Undo puts back.
    */
-  async function workSystem(request = "") {
+  async function workSystem(request = "", asked = request) {   // asked: the person's own words
     const spec = getActive();
     if (!spec || runAbort || !String(request).trim()) return;
     const W = window.HCSystemsWork;
@@ -1275,22 +1236,23 @@ Repair requirements:
     setStatus("Working", "running");
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
-    runRoutes = newRoutes();
+    const data = getRuntimeData(spec);
+    const asking = W.messages(spec, data, request, todayIso());
+    runRoutes = newRoutes(asking);
     updateCreateButtonState();
     const signal = runAbort.signal;
     try {
-      const data = getRuntimeData(spec);
       let model = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
       let plan = null;
-      for (let attempt = 1; attempt <= 3 && !plan; attempt++) {
+      for (let attempt = 1; attempt <= 6 && !plan; attempt++) {   // a refusal costs nothing; the run budget bounds the rest
         const waiting = traceLive(`Working out what to change — ${modelTraceLabel(model)}`, "run",
           { queued: window.HCTraceLive?.queued(model) });
         try {
-          const r = await callModel(model, W.messages(spec, data, request, todayIso()), signal, 0.2)
+          const r = await callModel(model, asking, signal, 0.2)
             .finally(() => waiting.done());
           const said = W.readAnswer(r?.content || "");
           if (!said) throw new Error("its answer could not be read");
-          plan = W.plan(said, spec, data);
+          plan = W.completeAll(W.plan(said, spec, data), asked, spec, data);
         } catch (err) {
           if (err.name === "AbortError" || err.name === "BudgetExceeded") throw err;
           trace(`${modelTraceLabel(model)} could not work it out: ${String(err.message || err).slice(0, 90)}`, "warn");
@@ -1357,24 +1319,25 @@ Repair requirements:
     if (!spec || runAbort || !String(request).trim()) return;
     clearTrace();
     setStatus("Changing", "running");
+    const R = window.HCSystemsRevise;
+    const data = getRuntimeData(spec);
+    const asking = [
+      { role: "system", content: `${systemPrompt()}\n\nYou are CHANGING an existing system, not designing a new one. Return the complete updated SystemSpec. Keep every module, entity, field, workflow and design choice the request does not mention, with the same ids. For a new entity, include 6-10 mockData records for this business; do not repeat the existing records. Remove something only when asked.` },
+      { role: "user", content: `The system now:\n${JSON.stringify(R.compactSpec(spec, data))}\n\nThe change: ${request}\nToday is ${todayIso()}.` },
+    ];
     runAbort = new AbortController();
     runBudget = window.HCAgentPolicy.newRunBudget(Date.now());
-    runRoutes = newRoutes();
+    runRoutes = newRoutes(asking);
     updateCreateButtonState();
     const signal = runAbort.signal;
-    const R = window.HCSystemsRevise;
     try {
-      const data = getRuntimeData(spec);
       const tried = [];
       let model = runRoutes.start($("sysModelSelect")?.value || $("model")?.value || "");
       let next = null;
-      for (let attempt = 1; attempt <= 3 && !next; attempt++) {
+      for (let attempt = 1; attempt <= 6 && !next; attempt++) {   // a refusal costs nothing; the run budget bounds the rest
         trace(`Changing ${spec.name} — ${modelTraceLabel(model)}`, "run");
         try {
-          const r = await callModel(model, [
-            { role: "system", content: `${systemPrompt()}\n\nYou are CHANGING an existing system, not designing a new one. Return the complete updated SystemSpec. Keep every module, entity, field, workflow and design choice the request does not mention, with the same ids. For a new entity, include 6-10 mockData records for this business; do not repeat the existing records. Remove something only when asked.` },
-            { role: "user", content: `The system now:\n${JSON.stringify(R.compactSpec(spec, data))}\n\nThe change: ${request}\nToday is ${todayIso()}.` },
-          ], signal, 0.3);
+          const r = await callModel(model, asking, signal, 0.3);
           const raw = r?.content || "";
           const parsed = parseSpecJson(raw);
           if (!parsed) throw new Error("Model returned invalid SystemSpec JSON");
@@ -1391,14 +1354,16 @@ Repair requirements:
       if (!next) throw new Error("No model could make the change");
       // The books the person already has stay theirs; the ledger would redraw them.
       for (const id of Object.values(DOMAIN().FINANCE_ENTITY_IDS)) if (data[id] && next.entities[id]) next.mockData[id] = data[id];
+      // Shown and asked first, as a change to records is: a model rewrites the
+      // whole system to make one change and adds what nobody asked for.
+      const changes = R.specChanges(spec, next);
+      if (!changes.length) { trace("The model returned the system unchanged", "warn"); setStatus("Idle"); return; }
+      if (!(await window._H.themedConfirm(`This will change the design of ${spec.name}:\n\n${changes.join("\n")}\n\nNothing has been changed yet.`, "Do this?"))) { trace("Left as it was", "warn"); setStatus("Idle"); return; }
       next.revisionHistory = [snapshot(spec, request), ...(spec.revisionHistory || [])].slice(0, MAX_HISTORY);
       systems[systems.findIndex(s => s.id === spec.id)] = next;
-      saveRuntimeData(next, next.mockData);
-      saveSystems();
-      renderAll();
-      const changes = R.specChanges(spec, next);
+      saveRuntimeData(next, next.mockData); saveSystems(); renderAll();
       changes.forEach(c => trace(c, "ok"));
-      trace(changes.length ? `Changed — the version before is in History` : "The model returned the system unchanged", changes.length ? "ok" : "warn");
+      trace("Changed — the version before is in History", "ok");
       setStatus("Done", "done");
     } catch (err) {
       setStatus(err.name === "AbortError" ? "Stopped" : "Error", err.name === "AbortError" ? "stopped" : "error");
@@ -2788,15 +2753,18 @@ Repair requirements:
       // Whichever model can answer does — js/model-routes.js.
       const answer = await window.HCModelRoutes.askWithFailover({
         start: $("sysModelSelect")?.value || $("model")?.value || "", options: availableModels, signal: agentAbort.signal, timeoutMs: 90000,
-        call: async (model, signal) => (await window._H.runModelTurn({ modelValue: model, tools: [], temperature: 0.3, signal, need: 1500,
+        call: async (model, signal) => (await window._H.runModelTurn({ modelValue: model, tools: [], temperature: 0.3, signal, need: 1500, json: A.REPLY_SCHEMA,
           messages: A.messages({ spec, data: spec ? getRuntimeData(spec) : {}, history, text, today: todayIso(), starter: !!spec?.starter }) }))?.content || "",
         onSwitch: (from, to, why) => trace(`${modelTraceLabel(from)}: ${why}. Asking ${modelTraceLabel(to)}`, "warn"),
       });
-      const said = A.readReply(answer.text);
-      C.reply(said.say);
-      if (said.do === "build") await createSystem(said.business, said.request);
+      const userTexts = [...history.filter(t => t.role === "user").map(t => t.text), text];
+      const said = A.settle(A.readReply(answer.text), { starter: !!spec?.starter, userTexts, text });
+      // A business name or place the person never gave is asked for, not used.
+      const unsaid = said.do === "build" ? A.unsaid(said.business, userTexts) : [];
+      C.reply(unsaid.length ? A.askFor(unsaid) : A.leadIn(said, text));
+      if (said.do === "build" && !unsaid.length) await createSystem(said.business, said.request);
       else if (said.do === "change") await reviseSystem(said.request);
-      else if (said.do === "records") await workSystem(said.request);
+      else if (said.do === "records") await workSystem(said.request, text);
     } catch (err) {
       const stopped = err?.name === "AbortError" || agentAbort?.signal.aborted;
       C.reply(stopped ? "Stopped." : `No model could answer: ${window.HCModelRoutes.reasonText(window.HCModelRoutes.failureKind(err), err)}. Pick another model at the top of this panel, or try again in a minute.`);

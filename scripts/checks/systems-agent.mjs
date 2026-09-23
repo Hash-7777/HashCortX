@@ -90,6 +90,29 @@ console.log('\nWhat is done with its answer:');
   ok('an empty answer still says something', A.readReply('').say.length > 0);
 }
 
+console.log('\nWhat the app does with an answer, whatever the model:');
+{
+  ok('a local model is held to the answer\'s shape', A.REPLY_SCHEMA.properties.do.enum.join() === 'none,build,change,records' && A.REPLY_SCHEMA.required.includes('do'));
+  ok('a business name and place the person never gave are not used', A.unsaid({ name: 'Bookstore', place: 'USA' }, ['Build me an ERP for a bookstore']).join() === 'name,place');
+  ok('... what they did give is, with a trade word or a country added', A.unsaid({ name: 'Pages Bookshop', place: 'Cairo, Egypt' }, ['a bookshop called Pages in Cairo']).length === 0);
+  ok('... in any language', A.unsaid({ name: 'مكتبة النور', place: 'القاهرة' }, ['مكتبة النور في القاهرة']).length === 0);
+  ok('... and a plain name is fine when they said it has none', A.unsaid({ name: 'Bookshop', place: 'Cairo' }, ['a bookshop in Cairo, no name yet']).length === 0);
+  ok('the question asked instead names only what is missing', /what the business is called/.test(A.askFor(['name'])) && !/where it is/.test(A.askFor(['name'])));
+  const described = A.readReply('{"say":"What should it include?","do":"none","business":{"name":"Pages","does":"sells books","place":"Cairo"}}');
+  const texts = ['Build me an ERP for a bookstore', "It's called Pages and it's in Cairo"];
+  ok('a build it described and did not start is started, on the starter', A.settleBuild(described, { starter: true, userTexts: texts }).do === 'build');
+  ok('... never over a system already built', A.settleBuild(described, { starter: false, userTexts: texts }).do === 'none');
+  ok('... nor without a system asked for', A.settleBuild(described, { starter: true, userTexts: ["It's called Pages and it's in Cairo"] }).do === 'none');
+  const claim = A.readReply('{"say":"Customer Sara Ali added successfully.","do":"none"}');
+  ok('a change it claims and did not ask for is carried out, as records', A.noFalseClaim(claim, 'Add a customer: Sara Ali').do === 'records');
+  ok('... or as a design change when it names a field or a screen', A.noFalseClaim(claim, 'Add a phone column to customers').do === 'change');
+  ok('... and when nothing was asked, the claim is replaced by the truth', /^Nothing was changed/.test(A.noFalseClaim(claim, 'hello').say));
+  ok('a design change sent down the records road is sent to the design', A.settle(A.readReply('{"say":"ok","do":"records","request":"ALTER TABLE"}'), { text: 'Add an ISBN field to the products table' }).do === 'change');
+  ok('... while adding a record is left as records', A.settle(A.readReply('{"say":"ok","do":"records","request":"add"}'), { text: 'Add a customer called Sara' }).do === 'records');
+  ok('what it says as it acts is the app\'s, in the person\'s words, never a claim it is done',
+    /^Working out what to change in your records: Add Sara/.test(A.leadIn({ do: 'records', say: 'Added!', request: 'INSERT INTO' }, 'Add Sara')) && A.leadIn({ do: 'none', say: 'Hi' }) === 'Hi');
+}
+
 console.log('\nThe empty starter system:');
 {
   const opts = A.starterOptions('EGP');
@@ -112,13 +135,16 @@ console.log('\nThe empty starter system:');
 console.log('\nHow the Systems mode uses it:');
 {
   ok('whichever model can answer does', /window\.HCModelRoutes\.askWithFailover\(\{/.test(mode) && /options: availableModels/.test(mode));
-  ok('the answer is read before anything is done', /const said = A\.readReply\(answer\.text\);/.test(mode));
-  ok('build, change and records go down the paths the ERP already had', /said\.do === "build"\) await createSystem\(said\.business, said\.request\)/.test(mode)
-    && /said\.do === "change"\) await reviseSystem\(said\.request\)/.test(mode) && /said\.do === "records"\) await workSystem\(said\.request\)/.test(mode));
+  ok('the answer is read, and settled by the app, before anything is done', /const said = A\.settle\(A\.readReply\(answer\.text\), \{ starter: !!spec\?\.starter, userTexts, text \}\);/.test(mode)
+    && /C\.reply\(unsaid\.length \? A\.askFor\(unsaid\) : A\.leadIn\(said, text\)\);/.test(mode) && /json: A\.REPLY_SCHEMA/.test(mode));
+  ok('build, change and records go down the paths the ERP already had', /said\.do === "build" && !unsaid\.length\) await createSystem\(said\.business, said\.request\)/.test(mode)
+    && /said\.do === "change"\) await reviseSystem\(said\.request\)/.test(mode) && /said\.do === "records"\) await workSystem\(said\.request, text\)/.test(mode));
   ok('a new system replaces the untouched starter, never one in use', /systems = \[spec, \.\.\.systems\.filter\(s => !window\.HCSystemsAgent\.isUntouchedStarter\(s, getRuntimeData\(s\)\)\)\];/.test(mode));
   ok('the ERP opens on the starter when there is no system', /if \(!systems\.length\) openStarter\(\);/.test(mode));
   ok('an exported file never wires the agent', /if \(!STANDALONE\) CHAT\(\)\?\.init\(/.test(mode));
   ok('a stop stops both the asking and a build under way', /function agentStop\(\) \{\s*agentAbort\?\.abort\(\);\s*stopSystemGeneration\(\);/.test(mode));
+  ok('models are ranked by the shared ranking, which does not take "gemini" for "mini"', /const modelScore = \(value, label\) => [^\n]*window\.HCChatFailover\.strengthOf\(value, label\)/.test(mode) && !/function modelScore/.test(mode));
+  ok('a change is routed by what it will send, not by the instructions alone', /runRoutes = newRoutes\(asking\);/.test(mode) && (mode.match(/runRoutes = newRoutes\(asking\);/g) || []).length === 2);
   ok('the form that came before is gone', !/HCSystemsSetupDialog/.test(mode) && !/id="sysSetup"/.test(panel));
 }
 

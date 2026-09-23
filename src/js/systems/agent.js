@@ -146,7 +146,116 @@ Return ONLY JSON, no markdown:
     if (action !== 'none' && !request && !(action === 'build' && business.does)) action = 'none';
     if (action === 'build' && !business.does) business.does = request.slice(0, 300);
     const say = clean(parsed.say, 1200) || (action === 'none' ? 'Done.' : '');
-    return { say, do: action, request, business: action === 'build' ? business : null, readable: true };
+    // A business described alongside another action is kept aside, for
+    // `settleBuild` below; only a build acts on one.
+    const described = action !== 'build' && business.name && business.does ? business : null;
+    return { say, do: action, request, business: action === 'build' ? business : null, described, readable: true };
+  }
+
+  /** The shape an answer must have, for a model that can be held to one (Ollama). */
+  const REPLY_SCHEMA = {
+    type: 'object',
+    properties: {
+      say: { type: 'string' },
+      do: { type: 'string', enum: ACTIONS },
+      request: { type: 'string' },
+      business: { type: 'object', properties: { name: { type: 'string' }, does: { type: 'string' }, place: { type: 'string' }, currency: { type: 'string' } } },
+    },
+    required: ['say', 'do'],
+  };
+
+  // Words that say what kind of business it is, not what it is called.
+  const TRADE_WORD = /^(?:the|and|of|shop|store|bookstore|bookshop|cafe|café|restaurant|bakery|clinic|salon|studio|company|co|ltd|llc|inc|business|services?|centre|center|market|group|workshop)$/i;
+  const NO_NAME = /\b(?:no name|not named|don'?t have a name|doesn'?t have a name|hasn'?t got a name|no name yet|any name|you (?:choose|pick|decide)|pick (?:a|one)|name it (?:yourself|anything))\b/i;
+  const wordsOf = (v) => String(v || '').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3);
+
+  /**
+   * What a build names that the person never said: 'name' and 'place'. The
+   * agent is told never to invent them, and a small model does anyway — a
+   * bookstore with no place given came back as in the USA. A name or place
+   * counts as said when one of its own words is in something the person
+   * wrote; a name also when they said they have none.
+   */
+  function unsaid(business, userTexts) {
+    const said = (Array.isArray(userTexts) ? userTexts : [userTexts]).join('\n');
+    const heard = new Set(wordsOf(said));
+    const missing = [];
+    const nameWords = wordsOf(business && business.name).filter((w) => !TRADE_WORD.test(w));
+    if (!(nameWords.some((w) => heard.has(w)) || NO_NAME.test(said))) missing.push('name');
+    if (!wordsOf(business && business.place).some((w) => heard.has(w))) missing.push('place');
+    return missing;
+  }
+
+  const WANTS_A_SYSTEM = /\b(?:build|make|create|set ?up|start|need|want)\b[^.?!\n]{0,60}\b(?:erp|system|app|software)\b|\berp\b/i;
+
+  /**
+   * A build the model described and did not start. A small model asked for a
+   * system, given the business's name, trade and place, fills in all of it
+   * and still says "none", asking what to include — and asks again each turn.
+   * Before anything is built (the starter is open), with a system asked for
+   * and every fact the person's own, that is taken as the build it described.
+   */
+  function settleBuild(said, { starter, userTexts } = {}) {
+    const b = said && said.described;
+    if (!b || said.do !== 'none' || !starter) return said;
+    const texts = Array.isArray(userTexts) ? userTexts : [userTexts];
+    if (!texts.some((t) => WANTS_A_SYSTEM.test(String(t || ''))) || unsaid(b, texts).length) return said;
+    const request = `A system for ${b.name}, which ${b.does}, in ${b.place}. ${texts.join(' ')}`.slice(0, 3000);
+    return { ...said, do: 'build', request, business: b, described: null, say: `Building the system for ${b.name} now.` };
+  }
+
+  /**
+   * What the agent says as it acts. Its own words are used only when it is
+   * doing nothing: a model says "Customer added successfully" before anything
+   * has run, and when the change then fails the person has been told it
+   * happened. The steps written under the reply say what really did.
+   */
+  function leadIn(said, asked) {
+    // The person's own words: a model's request can be SQL or its own shorthand.
+    const req = clean(asked || (said && said.request), 160);
+    if (!said || said.do === 'none') return (said && said.say) || '';
+    if (said.do === 'build') return `Building the system for ${clean(said.business && said.business.name, 60) || 'your business'} now.`;
+    if (said.do === 'change') return `Changing the design: ${req}`;
+    return `Working out what to change in your records: ${req}. You will see the change before it is made.`;
+  }
+
+  const CLAIMS_DONE = /\b(?:added|created|updated|deleted|removed|recorded|changed|renamed|saved|marked|built|set up|moved|paid)\b/i;
+  const ASKS_A_CHANGE = /\b(?:add|new|create|record|log|enter|put|delete|remove|update|change|edit|rename|mark|set|paid|pays|bought|sold|returned|cancel(?:led)?)\b/i;
+  const ABOUT_DESIGN = /\b(?:fields?|columns?|modules?|screens?|tabs?|tables?|pages?|layout|sections?|dashboard|design|colou?rs?|theme|menu)\b/i;
+
+  /**
+   * An answer that says a change was made when none was asked of the app.
+   * A small model answers "Customer added successfully" with "do":"none", so
+   * nothing happens and the person believes it did. When their message asked
+   * for a change, it is carried out — a design change when it names a field,
+   * a table or a screen, a change to records otherwise; when it did not, the
+   * claim is replaced by the truth.
+   */
+  function noFalseClaim(said, text) {
+    if (!said || said.do !== 'none' || !CLAIMS_DONE.test(said.say || '')) return said;
+    const asked = clean(text, 3000);
+    if (ASKS_A_CHANGE.test(asked)) return { ...said, do: ABOUT_DESIGN.test(asked) ? 'change' : 'records', request: asked };
+    return { ...said, say: 'Nothing was changed. Say what you would like changed, or pick a larger model at the top of this panel.' };
+  }
+
+  const DESIGN_REQUEST = /\b(?:add|remove|delete|rename|drop|create|new|hide)\b[^.\n]{0,40}\b(?:fields?|columns?|modules?|screens?|tabs?|pages?|sections?|charts?)\b/i;
+
+  /**
+   * What the app does with the agent's answer, before anything happens: a
+   * build it described and did not start (settleBuild), a change it claimed
+   * and did not ask for (noFalseClaim), and a change to the design — a field,
+   * a column, a screen — sent down the records road, where it can only fail.
+   */
+  function settle(said, { starter, userTexts, text } = {}) {
+    let s = noFalseClaim(settleBuild(said, { starter, userTexts }), text);
+    if (s.do === 'records' && DESIGN_REQUEST.test(String(text || ''))) s = { ...s, do: 'change', request: clean(text, 3000) };
+    return s;
+  }
+
+  /** The question asked instead of building, for what was not said. */
+  function askFor(missing) {
+    const want = [missing.includes('name') && 'what the business is called', missing.includes('place') && 'where it is (the city or country sets its currency)'].filter(Boolean);
+    return `Before I build it, tell me ${want.join(' and ')}. For example: "a bookshop called Pages in Cairo". If it has no name yet, say so and I will use a plain one.`;
   }
 
   // ── The starter system ──────────────────────────────────────────────
@@ -217,6 +326,6 @@ Return ONLY JSON, no markdown:
   }
 
   window.HCSystemsAgent = {
-    ACTIONS, SYSTEM, STARTER_NAME, contextOf, messages, readReply, starterOptions, emptied, isUntouchedStarter,
+    ACTIONS, SYSTEM, STARTER_NAME, REPLY_SCHEMA, contextOf, messages, readReply, unsaid, askFor, settleBuild, noFalseClaim, settle, leadIn, starterOptions, emptied, isUntouchedStarter,
   };
 })();

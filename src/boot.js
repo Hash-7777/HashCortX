@@ -142,6 +142,7 @@
     '/js/systems/domain.js',
     '/js/systems/scaffold.js',
     '/js/systems/setup.js',
+    '/js/systems/prompts.js',
     '/js/systems/agent.js',
     '/js/systems/agent-chat.js',
     '/js/systems/contrast.js',
