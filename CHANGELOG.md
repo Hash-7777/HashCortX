@@ -234,6 +234,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **What the app remembers about you is what you said.** Saying you are a
+  developer was remembered as the first two letters of the word, a place of
+  work after "at" was lost with it, and "I'm a bit tired" became a job.
+  Asking what the app remembers was itself saved as something to remember,
+  a note repeated a fact already read out of it, and remarks such as "I
+  don't understand this error" were kept as habits. Each of these now reads
+  correctly, and the memory tool no longer shows models example labels that
+  they copied onto unrelated facts. Facts saved before this are left as they
+  are; they can be edited or removed in Settings, under Memory.
+
 - **A local agent uses its tools when it should, and its answer streams in.**
   A small local model offered tools had to decide whether a request needed
   one and write the call at the same time, and it decided badly: it answered

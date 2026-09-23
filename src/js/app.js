@@ -5463,11 +5463,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     },
     remember_fact: {
-      description: "Save a fact to cross-session memory. Call silently for any preference, project, person, deadline. Use stable keys (favorite_animal, employer, location).",
+      description: "Save a fact the person tells you about themselves or their work, to remember in later chats: a preference, a project, a person, a deadline. Call it silently.",
       parameters: {
         type: "object",
         properties: {
-          key:   { type: "string", description: "Short label for the fact (e.g. 'preferred_language', 'home_city', 'project_alpha_deadline')." },
+          key:   { type: "string", description: "A short label naming what the fact is about, in the person's own words, with underscores between words." },
           value: { type: "string", description: "The fact itself, in natural language." }
         },
         required: ["key", "value"]

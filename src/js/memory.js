@@ -185,14 +185,16 @@
       [/\bcall\s+me\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, (m) => push('name', cleanName(m[1]))],
       [/\bthis\s+is\s+([A-Za-z][A-Za-z'\- ]{1,40})\s+speaking/i, (m) => push('name', cleanName(m[1]))],
       // Preferences
-      [/\bi\s+(?:love|like|enjoy|adore|prefer|am\s+a\s+fan\s+of)\s+([^,.;!?\n]{2,80})/i, (m) => push('likes', m[1])],
+      [/\bi\s+(?:love|like|enjoy|adore|prefer|am\s+a\s+fan\s+of)\s+(?!(?:this|that|it|how|what|when|your|you|the\s+way)\b)([^,.;!?\n]{2,80})/i, (m) => push('likes', m[1])],
       [/\bmy\s+favou?rite\s+([a-z ]{2,30}?)\s+(?:is|are)\s+([^,.;!?\n]{2,80})/i, (m) => push(`favorite_${m[1].trim().replace(/\s+/g, '_')}`, m[2])],
       [/\bi\s+(?:hate|dislike|can'?t\s+stand|loathe|despise)\s+([^,.;!?\n]{2,80})/i, (m) => push('dislikes', m[1])],
       [/\bi\s+(?:always|usually|tend\s+to)\s+([^,.;!?\n]{4,100})/i, (m) => push('habits', m[1])],
-      [/\bi\s+(?:never|don'?t|do\s+not)\s+([^,.;!?\n]{4,100})/i, (m) => push('avoids', m[1])],
+      [/\bi\s+(?:never|(?:don'?t|do\s+not)\s+(?=(?:eat|drink|smoke|use|drive|fly|work)\b))\s*([^,.;!?\n]{4,100})/i, (m) => push('avoids', m[1])],
       // Work
       [/\bi\s+(?:work|am\s+working)\s+(?:at|for)\s+([^,.;!?\n]{2,80})/i, (m) => push('employer', m[1])],
-      [/\bi(?:'m|\s+am)\s+(?:a|an)\s+([a-z ]{2,40}?)(?:\s+(?:at|for|in)\s+([^,.;!?\n]{2,80}))?/i, (m) => { push('role', m[1]); if (m[2]) push('employer', m[2]); }],
+      // A role runs to the end of its clause or to "at", "for" or "in", and is
+      // a few words at most; "a bit", "a fan" and the like are not roles.
+      [/\bi(?:'m|\s+am)\s+(?:a|an)\s+(?!(?:bit|little|lot|fan|big|huge|tad|few|couple|kind|sort|total|complete|real)\b)([a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,3}?)(?=\s+(?:at|for|in|with|and|from|who)\b|\s*[,.;!?\n]|\s*$)(?:\s+(at|for|in)\s+([^,.;!?\n]{2,80}))?/i, (m) => { push('role', m[1]); if (m[3]) push(m[2].toLowerCase() === 'in' ? 'location' : 'employer', m[3]); }],
       [/\bi(?:'m|\s+am)\s+(?:building|making|developing|creating)\s+([^,.;!?\n]{4,120})/i, (m) => push('current_project', m[1])],
       // Place / origin
       [/\bi\s+live\s+in\s+([^,.;!?\n]{2,80})/i, (m) => push('location', m[1])],
@@ -217,12 +219,19 @@
       [/\bismi\s+([A-Za-z][A-Za-z'\- ]{1,40})/i, (m) => push('name', cleanName(m[1]))],
     ];
 
+    // A question about what is remembered asks; it tells nothing to keep.
+    const asking = /\?\s*$/.test(t) && !/\bremember\s+that\b/i.test(t);
     for (const [re, fn] of patterns) {
+      if (asking && /remember/.test(re.source)) continue;
       const m = t.match(re);
       // One bad pattern must not stop the rest from running.
       if (m) try { fn(m); } catch { /* skip this one */ }
     }
-    return found;
+    // A note that only repeats a fact already read out of it, or another note,
+    // is not kept twice.
+    return found.filter((f, i) => !f.key.startsWith('note_')
+      || (!found.some((g) => !g.key.startsWith('note_') && f.value.toLowerCase().includes(String(g.value).toLowerCase()))
+        && found.findIndex((g) => g.key === f.key && g.value === f.value) === i));
   }
 
   /**

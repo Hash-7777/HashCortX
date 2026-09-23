@@ -66,6 +66,14 @@ console.log('\nOrdinary statements become facts:');
   ok('who they work for', valueOf(f('i work at Acme'), 'employer') === 'Acme');
   ok('what they like', valueOf(f('i love cats'), 'likes') === 'cats');
   ok('what they dislike', valueOf(f('i hate coriander'), 'dislikes') === 'coriander');
+  ok('a role is the whole of it, not its first two letters', valueOf(f("I'm a developer"), 'role') === 'developer' && valueOf(f('I am an ER doctor.'), 'role') === 'ER doctor');
+  ok('a role and where it is held', valueOf(f("I'm a software engineer at Acme Labs"), 'role') === 'software engineer' && valueOf(f("I'm a software engineer at Acme Labs"), 'employer') === 'Acme Labs' && valueOf(f("I'm a teacher in Alexandria"), 'location') === 'Alexandria');
+  ok('"a bit", "a fan" and the like are not roles', f('I am a bit tired today').length === 0 && !f("I'm a big fan of jazz").some((x) => x.key === 'role'));
+  ok('a question about what is remembered is not something to keep', f('What do you remember about me?').length === 0 && f('Do you remember my name?').length === 0);
+  ok('... but asking to remember something is', f('Can you remember that my meeting is at 3?').some((x) => x.key.startsWith('note_') && x.value === 'my meeting is at 3'));
+  ok('a note that only repeats a fact read out of it is not kept twice', JSON.stringify(f('Remember that my favourite colour is teal.')) === '[{"key":"favorite_colour","value":"teal"}]');
+  ok('nor one read twice', f('Please remember my wife is called Sara.').filter((x) => x.key.startsWith('note_')).length === 1);
+  ok('a remark about the conversation is not a preference or a habit', f('I like how you explained it').length === 0 && f("I don't understand this error").length === 0 && valueOf(f('I never eat pork'), 'avoids') === 'eat pork');
   ok('an allergy', valueOf(f("i'm allergic to peanuts"), 'allergies') === 'peanuts');
   ok('an age', valueOf(f("i'm 30 years old"), 'age') === '30');
   ok('a favourite, keyed by what it is of',
