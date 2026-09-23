@@ -234,6 +234,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Provider error messages no longer show your account's own identifiers.**
+  A provider's refusal can name the organization or project a limit belongs
+  to; the app showed that on screen and kept it in saved runs. It is now
+  taken out, and what the limit was is kept.
+
 - **Local models read the whole request.** Ollama reads a request into a
   window of fixed size and silently drops the start of anything longer, and
   the start is the instructions. The app gave local models a fixed window, or

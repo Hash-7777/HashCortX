@@ -358,6 +358,8 @@ console.log('\nWhat somebody is told when a request failed:');
   ok('it says waiting will not help', /waiting will not help/i.test(spent));
   ok('and what will — another provider', /another provider/i.test(spent));
   ok('the provider\'s own sentence is passed on', /run out of balance units/.test(spent));
+  const orgLimited = E('groq', 413, JSON.stringify({ error: { message: 'Request too large for model `m` in organization `org_example000000` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Requested 14573' } }), null);
+  ok('the account\'s own identifiers are taken out of it, and what the limit was is kept', !/org_|organization/.test(orgLimited) && /Limit 8000, Requested 14573/.test(orgLimited));
   ok('but never the JSON it arrived in', !/[{}]|balance_units|"code"/.test(spent));
   ok('nor an address the provider put in its answer', !/https?:\/\//.test(spent),
     'a link from a server rendered into the app reads as something the app said');

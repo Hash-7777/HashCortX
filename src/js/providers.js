@@ -436,6 +436,10 @@
  * provider's server, and a link from it rendered into the app is content from
  * elsewhere appearing as if the app said it. Where to go is named by HINTS
  * here, which this app writes.
+ *
+ * So are the account's own identifiers — Groq names the organization a limit
+ * belongs to ("in organization `org_…`") — which were then on screen, in the
+ * trace, and kept in saved runs.
  */
 function messageFrom(body) {
   const raw = String(body || '').trim();
@@ -456,6 +460,8 @@ function messageFrom(body) {
   }
   return String(found || '')
     .replace(/https?:\/\/\S+/g, '')
+    .replace(/\s*\b(?:in|for|of)\s+(?:organi[sz]ation|project|account|workspace|user|team)\s+`?[\w-]+`?/gi, '')
+    .replace(/`?\b(?:org|proj|acct|user|team|ws)[-_][A-Za-z0-9]{6,}\b`?/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 200);
