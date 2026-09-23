@@ -20,6 +20,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 7.5 19 4"/><path d="m4 20 4.5-4.5"/><path d="M14 5.5a3.54 3.54 0 0 1 5 5l-2 2-5-5z"/><path d="M10 18.5a3.54 3.54 0 0 1-5-5l2-2 5 5z"/><path d="m9 15 6-6"/></svg>
         <span>API keys</span>
       </button>
+      <button class="srail-item" id="stab-connected">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><path d="M7 10v2.5a2 2 0 0 0 2 2h4"/><path d="M17 14v-2.5a2 2 0 0 0-2-2h-4"/></svg>
+        <span>Connections</span>
+      </button>
       <button class="srail-item" id="stab-memory">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6"/><path d="M4.5 12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3"/></svg>
         <span>Memory</span>
@@ -370,6 +374,45 @@
     </div>
 
     <!-- Memory pane (hidden by default) -->
+    <div id="connectedPane" style="display:none" class="modal-body settings-pane" hidden>
+      <div class="field">
+        <div class="mem-blurb">
+          Connect a business system, such as an ERP, so agents can read its records (over MCP). The sign-in secret is kept by the app on this computer and is never shown to a page or a model. Records go only to models on this computer unless you allow cloud models for a system. Reading asks you once per system; every change asks you each time and shows exactly what will be sent.
+        </div>
+      </div>
+      <div class="set-sec">Add a system</div>
+      <div class="field">
+        <label for="connName">Name</label>
+        <input class="control" id="connName" placeholder="e.g. Company ERP" spellcheck="false" maxlength="40" />
+      </div>
+      <div class="field">
+        <label for="connUrl">Address <span class="field-note">— its MCP address; https, or http on this computer only</span></label>
+        <input class="control" id="connUrl" placeholder="https://erp.example.com/mcp" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="connAuth">Sign-in</label>
+        <select class="control" id="connAuth">
+          <option value="none">None</option>
+          <option value="bearer">Token</option>
+          <option value="header">Key in a header</option>
+        </select>
+      </div>
+      <div class="field" id="connHeaderRow" hidden>
+        <label for="connHeader">Header name</label>
+        <input class="control" id="connHeader" placeholder="e.g. X-Api-Key, or Authorization" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="field" id="connSecretRow" hidden>
+        <label for="connSecret">Secret <span class="field-note">— use an account made for this, with only the access it needs</span></label>
+        <input class="control" id="connSecret" type="password" placeholder="Token or key" spellcheck="false" autocomplete="off" />
+      </div>
+      <div class="field">
+        <button class="ghost set-btn" type="button" id="connAdd">Save and connect</button>
+        <div class="field-note" id="connNote" role="status" aria-live="polite"></div>
+      </div>
+      <div class="set-sec">Connected</div>
+      <div id="connList" class="conn-list"></div>
+    </div>
+
     <div id="memoryPane" style="display:none" class="modal-body settings-pane" hidden>
       <div class="field">
         <label class="mem-head">

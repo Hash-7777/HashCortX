@@ -10,6 +10,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Connect a business system, such as an ERP.** Settings → Connections
+  takes a system's MCP address and how it signs in. Its tools then become
+  available to agents: the ones that only read start switched on, the ones
+  that change records start off, and you choose. Reading asks you once for
+  each system; every create, change or delete asks you each time and shows
+  exactly what it will send. The sign-in secret is kept by the app on this
+  computer and never handed back to a page or a model, and it is only ever
+  sent to the address it was given for, over https unless the system is on
+  this computer. A system's records go only to models running on this
+  computer unless you allow cloud models for that system. A tool the system
+  later describes differently is switched off until you look at it again.
+  Systems on both the current protocol and the older one are supported;
+  signing in through a browser page is not yet.
+
 - **An Agent Swarm run whose agents did not all finish can be finished.**
   When an agent fails or runs out of time, the agents after it never run,
   and running the whole team again repeated everything that had worked. The

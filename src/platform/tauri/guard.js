@@ -156,7 +156,17 @@
     return tools;
   }
 
+  // Records in a connected system are not files: nothing about a path applies
+  // to them — not the protected folders, not the project boundary, not a
+  // folder granted for the session (js/mcp/connections.js).
+  const isPathAction = (action) => action !== 'shell' && !String(action).startsWith('erp-');
+  // A change to a connected system's records is asked about every time, and
+  // neither a yes nor a no is remembered: each one names different records.
+  const ASKED_EVERY_TIME = new Set(['erp-change']);
+  const BADGE = { 'erp-read': 'READ RECORDS IN', 'erp-change': 'CHANGE RECORDS IN' };
+
   function isHardBlocked(action, target) {
+    if (String(action).startsWith('erp-')) return false;
     if (action === 'shell') {
       const lower = String(target || '').toLowerCase();
       const normalized = normalizeCommand(target);
@@ -240,8 +250,13 @@
       // "Working — FETCH …" with Allow and Deny underneath it.
       const titleEl = document.getElementById('hc-perm-title');
       if (titleEl) titleEl.textContent = 'Allow HashCortX to';
-      actEl.textContent = String(action).toUpperCase();
+      actEl.textContent = BADGE[action] || String(action).toUpperCase();
       actEl.className   = 'hc-perm-badge ' + action;
+      // Nothing about a change is kept for the session, so it is not offered,
+      // and what it will send is shown whole rather than cut to one line.
+      sessBtn.hidden = ASKED_EVERY_TIME.has(action);
+      sessBtn.style.display = sessBtn.hidden ? 'none' : '';
+      if (bar.dataset) bar.dataset.action = action;
       // Long paths lose their middle, not their end: the filename is the part
       // a person recognises.
       const shown = String(target || '');
@@ -257,6 +272,9 @@
         bar.classList.remove('open');
         // A fetch already running keeps the bar; otherwise it goes.
         paintBar();
+        sessBtn.hidden = false;
+        sessBtn.style.display = '';
+        if (bar.dataset) delete bar.dataset.action;
         onceBtn.removeEventListener('click', onOnce);
         sessBtn.removeEventListener('click', onSession);
         denyBtn.removeEventListener('click', onDeny);
@@ -426,7 +444,7 @@
    * through. A shell command is not a path and has no boundary to cross.
    */
   function approvedInRust(action, target) {
-    if (action === 'shell') return Promise.resolve();
+    if (!isPathAction(action)) return Promise.resolve();
     return quietly('grant', () => HC.invoke('fs_grant_path', { path: target }));
   }
 
@@ -475,6 +493,11 @@
       // session" and is asked twice more for a folder they just granted.
       // Deciding on entry means a grant made while a request waited is honoured.
       return _enqueue(async () => {
+        if (ASKED_EVERY_TIME.has(action)) {
+          const once = await showDialog(action, target, reason);
+          auditLog(once === 'deny' ? 'deny' : 'allow-once', action, target);
+          return once !== 'deny';
+        }
         if (_session.has(key)) {
           const prev = _session.get(key);
           auditLog(prev, action, target);
@@ -483,7 +506,7 @@
           if (prev === 'allow') await approvedInRust(action, target);
           return prev === 'allow';
         }
-        if (action !== 'shell' && hasSessionDirGrant(action, target)) {
+        if (isPathAction(action) && hasSessionDirGrant(action, target)) {
           auditLog('allow-session-dir', action, target);
           // The folder was approved, but this exact path may be new, and Rust
           // approves paths one at a time on purpose.
@@ -498,7 +521,7 @@
           _session.set(key, 'allow');
           // Grant the containing folder too, so the next file in it does not
           // re-ask. A shell command has no containing folder — it stays exact.
-          if (action !== 'shell') addSessionDirGrant(action, target);
+          if (isPathAction(action)) addSessionDirGrant(action, target);
           await approvedInRust(action, target);
           return true;
         }

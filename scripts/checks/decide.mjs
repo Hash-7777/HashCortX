@@ -144,7 +144,7 @@ console.log('\nThe chat uses it for local agents:');
 {
   const app = src('js', 'app.js');
   ok('a local agent with tools takes its turn in steps', /const localSteps = !modelEl\.value\.startsWith\("cloud:"\) && tools\.length > 0;/.test(app) && /if \(localSteps\) return runLocalAgentSteps\(/.test(app));
-  ok('with the app\'s first step and what is remembered passed apart', /route: \(text\) => HCIntent\.route\(text, names\)/.test(app) && /context: memBlock/.test(app) && /if \(memBlock && !localSteps\)/.test(app));
+  ok('with the app\'s first step and what is remembered passed apart', /route: \(text\) => \(window\.HCMcp\?\.speaksOf\(text\) \? null : HCIntent\.route\(text, names\)\)/.test(app) && /context: memBlock/.test(app) && /if \(memBlock && !localSteps\)/.test(app));
   ok('decisions are held to their schema at no randomness; answers stream', /json: schema/.test(app) && /temperature: json \? 0 : temperature/.test(app) && /HCDecide\.shower\(onFinalToken\)/.test(app));
   ok('a model that thinks is not asked to for a decision or to read back a result, only when Ollama says it thinks', /caps\?\.includes\("thinking"\)/.test(app) && /think: \(json \|\| plain\) && thinks \? false : undefined/.test(app) && /plain: toolsRun > 0/.test(app));
   const boot = src('boot.js');

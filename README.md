@@ -59,6 +59,8 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 
 Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
 
+Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. The sign-in secret stays with the app and is never shown to a page or a model, records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. See [SECURITY.md](docs/SECURITY.md#connected-systems).
+
 ## Coder
 
 The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal.
@@ -137,8 +139,8 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,107 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 181 Rust tests
+npm run check                                     # 7,227 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 192 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.

@@ -33,6 +33,7 @@ let answer = 'allow-once'; // what the fake user clicks
 // the first's text, and one click resolving both.
 let openNow = 0, maxOpenAtOnce = 0;
 let answerDelay = 0;
+let sessionHiddenWhenAsked = null;
 
 function el(id) {
   const listeners = { click: [] };
@@ -60,6 +61,7 @@ function el(id) {
           maxOpenAtOnce = Math.max(maxOpenAtOnce, openNow);
           const respond = () => {
             openNow--;
+            sessionHiddenWhenAsked = !!nodes['hc-perm-session'].hidden;
             const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', deny: 'hc-perm-deny' }[answer];
             nodes[btn]._fire('click');
           };
@@ -617,7 +619,7 @@ console.log('\nA change Undo cannot take back is asked about:');
   assert('and it happens on every way through the dialog',
     (src.match(/await approvedInRust\(/g) || []).length >= 3,
     'allow-once, allow-session, a folder already granted and a remembered yes all reach the same command');
-  assert('a shell command is not carried across as a path', /action === 'shell'\) return Promise\.resolve\(\)/.test(src));
+  assert('a shell command is not carried across as a path', /if \(!isPathAction\(action\)\) return Promise\.resolve\(\)/.test(src) && /const isPathAction = \(action\) => action !== 'shell' && !String\(action\)\.startsWith\('erp-'\);/.test(src));
   assert('a failure there is logged, not thrown at the person', /boundary-failed/.test(src));
 
   // The gate itself. One function, so a command cannot be added past it by
@@ -656,6 +658,28 @@ console.log('\nA change Undo cannot take back is asked about:');
   assert('and the file says what this does not protect against',
     /not against code\s+(?:\/\/\s+)?running in the renderer/.test(jail),
     'a model drives tools and cannot grant itself a path; renderer code could');
+}
+
+console.log('\nA connected system\'s records:');
+{
+  answer = 'allow-session';
+  await check('reading is asked about once for a system', () => guard.request('erp-read', 'Company ERP (erp.example.org)', 'Read records'), { allowed: true, asked: true });
+  await check('... and the answer lasts for the session', () => guard.request('erp-read', 'Company ERP (erp.example.org)', 'Read records'), { allowed: true, asked: false });
+  assert('the session button is offered for reading', sessionHiddenWhenAsked === false);
+  await check('another system is asked about on its own', () => guard.request('erp-read', 'Other ERP (other.example.org)', 'Read records'), { allowed: true, asked: true });
+  await check('a change is asked about', () => guard.request('erp-change', 'Company ERP (erp.example.org) · delete_record', '{ "id": 7 }'), { allowed: true, asked: true });
+  assert('... with no session button, since nothing about a change is kept', sessionHiddenWhenAsked === true);
+  assert('... and the button is back for the next question', nodes['hc-perm-session'].hidden === false && nodes['hc-perm-session'].style.display === '');
+  assert('hiding it does not rest on the stylesheet alone', /sessBtn\.style\.display = sessBtn\.hidden \? 'none' : '';/.test(src) && /\.hc-perm-btn\[hidden\] \{ display: none; \}/.test(readFileSync(new URL('../../src/css/modals.css', import.meta.url), 'utf8')));
+  await check('the same change is asked about again, however it was answered', () => guard.request('erp-change', 'Company ERP (erp.example.org) · delete_record', '{ "id": 7 }'), { allowed: true, asked: true });
+  answer = 'deny';
+  await check('a refused change is refused', () => guard.request('erp-change', 'Company ERP (erp.example.org) · update_record', '{}'), { allowed: false, asked: true });
+  answer = 'allow-once';
+  await check('... and not remembered: the next one is asked about', () => guard.request('erp-change', 'Company ERP (erp.example.org) · update_record', '{}'), { allowed: true, asked: true });
+  answer = 'allow-session';
+  await check('a system named like a protected folder is a system, not a path', () => guard.request('erp-read', '.ssh (erp.example.org)', 'Read records'), { allowed: true, asked: true });
+  assert('a change is labelled as one in the bar', /'erp-change': 'CHANGE RECORDS IN'/.test(src) && /\.hc-perm-badge\.erp-change/.test(readFileSync(new URL('../../src/css/modals.css', import.meta.url), 'utf8')));
+  answer = 'allow-once';
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);

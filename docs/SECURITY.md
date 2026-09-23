@@ -10,7 +10,8 @@ HashCortx is a local desktop app that:
 2. Reads and writes the local filesystem (Coder mode, behind a permission gate)
 3. Executes shell commands (Coder mode, behind a permission gate and a command denylist)
 4. Runs Python in a WebAssembly sandbox (Pyodide), inside a worker that reaches nothing of the app's
-5. Has no backend server, no user accounts, and no cloud storage
+5. Connects to business systems you add, over MCP, only by web address and behind the same permission gate
+6. Has no backend server, no user accounts, and no cloud storage
 
 **Out of scope.** HashCortx does not defend against a local attacker who already runs code as your user, and it does not defend against a malicious AI provider you have handed a key to. It cannot: it is an app on your machine talking to a service you chose.
 
@@ -305,6 +306,22 @@ What it cannot do: it does not hide the key from the renderer, which already hol
 
 The same command reaches **another model app on this computer** (`src/js/local-apps.js`). For that the caller names only a port, a number from 1024 up: the host is always this computer, `127.0.0.1`, and the path is one of two written in Rust, the model list and the chat. It sends no key unless one is given. A test holds the host and the two paths whatever the port.
 
+## Connected systems
+
+A business system such as an ERP can offer its records to agents over the Model Context Protocol (MCP). HashCortx connects to one only when you add it in **Settings → Connections**, and only by its web address: it never starts a program to do so.
+
+- **The secret stays out of the page.** The address, how the system signs in, and the secret are kept by the app in `~/.hashcortx/connections.json`, a file readable by your account only, inside the folder the agent's file and shell tools refuse to open (`src-tauri/src/commands/mcp.rs`). The page hands a secret over once, when you enter it, and afterwards can only learn that one is set: no command returns it.
+- **A secret goes only where it was given.** A request names a saved connection, never an address, and is sent to the address saved with that secret. Changing the address, or how the system signs in, drops the secret until you enter it again. No redirect is followed.
+- **Only https, except to this computer.** An address on another machine must use https, so what is sent cannot be read on the way; plain http is accepted for this computer itself only. A name and password written into the address are refused.
+- **Only what the app needs is sent.** A request is one JSON-RPC object using one of five protocol methods — `server/discover`, `initialize`, `notifications/initialized`, `tools/list` and `tools/call`. A reply is capped at 4 MB, and a request has a deadline.
+- **You choose the tools.** A tool that only reads starts switched on; a tool that changes records starts off. A tool counts as reading only when nothing about it says otherwise: its name has no word that changes things, and the system does not say it changes or destroys anything (`src/js/mcp/policy.js`).
+- **Tools are pinned.** Each tool is kept with the exact definition you switched it on as. The list is read again before tools are offered, at most a minute apart, and a tool the system now describes differently — another description, other arguments — is off until you look at it and switch it on again (`src/js/mcp/connections.js`).
+- **Reading asks once per system; changing asks every time.** The first read from a system raises the permission bar, and allowing it for the session covers reads from that system until the app closes. Every create, change or delete raises the bar with everything it will send shown in full, "for the session" is not offered, and neither a yes nor a no is remembered (`src/platform/tauri/guard.js`). The audit log records each decision with the system and the tool, not the records.
+- **Records stay on this computer by default.** A system's tools are offered only to models running on this computer — Ollama's, or another local model app's. Letting cloud models see one system's records is a separate switch for that system, with a warning, because the records then go to that model's company. It holds afterwards too: a chat that read a system's records is not sent to a cloud model that system keeps them from, in a turn or in Split — the app says so and suggests a new chat — and a turn that read records does not save to long-term memory, which is added to every model's chats.
+- **What a system says is material, not instructions.** A tool's description reaches a model shortened, with any line addressed to AI systems left out, and what a tool returns reaches it framed as reference material with the same lines left out (`src/js/chat/sources.js`). On screen, everything a system sends is shown as text, never as markup.
+
+What it cannot do: it cannot make the system's own permissions any narrower — connect with an account made for HashCortX that has only the access it needs. The secret is protected by your account's file permissions, not encrypted. Leaving out lines addressed to AI systems works on common English phrasings and is guidance, not a guarantee; the permission bar is what stands between a model and a change. Signing in through a browser page (OAuth) is not supported yet, so a system must accept a token or a key in a header.
+
 ## Network behaviour
 
 - **No backend server.** Every AI request goes to the provider you configured, from the renderer or — for the three above — from the app itself. There is no HashCortx intermediary, because there is no HashCortx infrastructure.
@@ -349,7 +366,7 @@ These are commonly assumed, and worth naming because an earlier version of this 
 - **No rate limiting per provider.** There is one cap of the app's own, in `src/js/request-cap.js`: at most 30 cloud AI requests in any minute and 6 running at once, across the whole app. A request over it is refused with a message saying which was reached; it is not queued. It counts what asks a cloud model for an answer, including the three providers sent through Rust; model lists, local models and web search are not counted. Each provider's own limits still apply on top, with retry and backoff on `429` and `5xx`, and a Stop button that aborts a run.
 - **No shell command allowlist.** See above — it is a denylist.
 - **No Hardened Runtime, no notarisation, no code signature.** The v2.6.0 build is unsigned on both platforms, so macOS requires a Gatekeeper bypass to install it and Windows shows a SmartScreen warning the first time it is run.
-- **No encryption at rest** for API keys, chat history, or the audit log.
+- **No encryption at rest** for API keys, connected systems' secrets, chat history, or the audit log.
 - **No semantic search over anything you did not put there.** The knowledge base only contains what you ingested. See below for how it works.
 
 ---

@@ -2175,6 +2175,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       local: { tab: stabLocal, pane: localPane, title: "Local model", onShow: renderLocalPane },
       apis: { tab: stabApis, pane: apisPane, title: "API keys", onShow: renderApisPane },
       memory: { tab: stabMemory, pane: memoryPane, title: "Memory", onShow: renderMemoryPane },
+      connected: { tab: $("stab-connected"), pane: $("connectedPane"), title: "Connections", onShow: () => window.HCMcp?.render() },
       about: { tab: stabAbout, pane: aboutPane, title: "About" },
     };
     const activeKey = tabs[which]?.tab && tabs[which]?.pane ? which : "settings";
@@ -2191,6 +2192,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   stabLocal?.addEventListener("click",    () => activateSettingsTab("local"));
   stabApis?.addEventListener("click",     () => activateSettingsTab("apis"));
   stabMemory?.addEventListener("click",   () => activateSettingsTab("memory"));
+  $("stab-connected")?.addEventListener("click", () => activateSettingsTab("connected"));
   stabAbout?.addEventListener("click",    () => activateSettingsTab("about"));
   activateSettingsTab("settings");
 
@@ -4537,9 +4539,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const _selectedIsCloud = modelEl.value.startsWith("cloud:");
     const _isExternalModel  = _selectedIsCloud;
     const activeAgent = getActiveAgent();
+    const _held = _selectedIsCloud ? (window.HCMcp?.heldFrom(state.messages, modelEl.value) || []) : [];   // records a connected system keeps local (js/mcp/connections.js)
+    if (_held.length) { assistant.content = window.HCMcp.heldText(_held); updateLastBubble(assistant.content); }
 
     // ── Code Mode dispatch — HashCoder agent (Tauri only) ───────────────
-    if (isCodeMode() && HC.isTauri && window.HC_CODE) {
+    else if (isCodeMode() && HC.isTauri && window.HC_CODE) {
       const ctrl = new AbortController();
       state.abort = ctrl;
       try {
@@ -4722,6 +4726,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const runSide = async (side) => {
       const branch = compareMsg.compare[side];
       try {
+        const held = window.HCMcp?.heldFrom(state.messages, branch.model) || [];   // records a connected system keeps local
+        if (held.length) throw new Error(window.HCMcp.heldText(held));
         await streamWithModelValue({
           modelValue: branch.model,
           messages: messages.map(m => ({ ...m, images: m.images ? m.images.slice() : undefined })),
@@ -5649,7 +5655,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Returns a string suitable for feeding back as a tool message content.
   // -------------------------------------------------------------------------
   async function runOneTool(name, args, onStatus, tracker) {
-    const tool = AGENT_TOOLS[name];
+    const tool = window.HCMcp ? window.HCMcp.toolFor(name, AGENT_TOOLS[name]) : AGENT_TOOLS[name];
     const t0 = performance.now();
     if (!tool) {
       if (tracker) tracker.push({ name, ok: false, ms: 0 });
@@ -5931,6 +5937,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const tracker = assistant.toolsUsed;
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
     const tools = buildOpenAITools(agent);   // shaped for Gemini where it is sent (js/agent-shape.js)
+    tools.push(...((await window.HCMcp?.toolsFor(modelEl.value)) || []));   // connected systems' tools this model may use (js/mcp/connections.js)
     const turns = window.HCChatFailover.agentTurns({
       start: modelEl.value, send: runModelTurn, adapterOf: selectAgentAdapter,
       routes: modelEl.value.startsWith("cloud:")
@@ -6143,7 +6150,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       return reply.content;
     };
     const out = await HCDecide.run({
-      messages, tools, context, shape: HCAgentShape, route: (text) => HCIntent.route(text, names),
+      messages, tools, context, shape: HCAgentShape, route: (text) => (window.HCMcp?.speaksOf(text) ? null : HCIntent.route(text, names)),
       ask: (msgs, schema) => chat(msgs, { json: schema }),
       answer: async (msgs, toolsRun) => {
         if (assistant.content) { assistant.content = ""; updateLastBubble(""); }   // only the last answer stands

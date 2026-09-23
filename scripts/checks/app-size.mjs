@@ -190,7 +190,12 @@ const LINE_BUDGET = {
   // found and offered beside Ollama's, with a port to name in Settings; every
   // local request for one goes on to js/local-apps.js, which finds, lists and
   // reads them. This is the menu, the setting and the agent's tool wording.
-  'js/app.js': 6539,
+  // 6546, up seven: a connected system's tools join an agent's turn, run
+  // through the one tool runner, and have their own Settings section; and a
+  // chat holding a system's records is not sent to a model the system keeps
+  // them from, in a turn or in Split. The rules, the protocol and the
+  // connections are js/mcp/.
+  'js/app.js': 6546,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

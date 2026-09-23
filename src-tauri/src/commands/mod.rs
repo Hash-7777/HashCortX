@@ -5,6 +5,7 @@ pub mod export;
 pub mod forge_projects;
 pub mod fs;
 pub mod keychain;
+pub mod mcp;
 pub mod net;
 pub mod notch;
 pub mod provider;
