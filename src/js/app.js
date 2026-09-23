@@ -5535,9 +5535,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       statusLabel: a => `Calculating: ${(a.expression || "").slice(0, 60)}`,
       async execute({ expression }) {
         if (!expression) return { error: "expression is required" };
-        // Read by the app's own arithmetic reader (js/forge/expr.js), never run as code.
+        // Whole numbers exactly, at any size (js/chat/exact.js); the rest by the
+        // app's own arithmetic reader (js/forge/expr.js). Never run as code.
+        const exact = HCExact.integer(expression);
+        if (exact !== null) return { expression, result: exact };
         const r = window.HCForgeExpr.evaluateWritten(String(expression));
-        return r.error ? { error: `could not work that out: ${r.error}` } : { expression, result: r.value };
+        const rounded = Number.isFinite(r.value) && Math.abs(r.value) > Number.MAX_SAFE_INTEGER;
+        return r.error ? { error: `could not work that out: ${r.error}` } : { expression, result: r.value, ...(rounded ? { note: "rounded: too large to hold exactly" } : {}) };
       }
     },
     execute_python: {

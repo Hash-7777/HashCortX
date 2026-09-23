@@ -234,6 +234,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The calculator gives large whole numbers exactly.** It worked in the
+  numbers every script uses, which round whole numbers past about nine
+  thousand million million, and handed back the rounded figure as the
+  answer. A sum made only of whole numbers — powers and factorials included
+  — is now worked out exactly at any size, and a result that had to be
+  rounded says so.
+
 - **A local model's tool call runs, whichever family the model comes from.**
   Each family of local models writes a tool call its own way, and the app
   read only three of them, so a call written any other way was shown to you

@@ -168,7 +168,10 @@ const LINE_BUDGET = {
   // 6459, up thirteen: a local model is loaded while the message is still
   // being written, and one the app unloads is sized afresh when it returns.
   // The loading and the sizing are in js/local-client.js and js/local-context.js.
-  'js/app.js': 6459,
+  // 6463, up four: the calculate tool asks js/chat/exact.js first, so a whole
+  // number past what ordinary numbers hold comes back exact, and a rounded
+  // result says it was rounded.
+  'js/app.js': 6463,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

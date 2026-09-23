@@ -84,6 +84,7 @@
     '/js/chat/web-search.js',
     '/js/chat/ran-code.js',
     '/js/chat/thought.js',
+    '/js/chat/exact.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',
