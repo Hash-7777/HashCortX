@@ -24,9 +24,12 @@
   "use strict";
 
   /** The body of one request to Ollama's chat. */
-  function body({ model, messages, stream = true, temperature, numCtx, json, tools, keepAlive, think }) {
+  function body({ model, messages, stream = true, temperature, numCtx, numPredict, json, tools, keepAlive, think }) {
     const options = {};
     if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
+    // An answer held to a schema can only end when its JSON closes, and a small
+    // model can keep adding to a list without end; its length is bounded.
+    if (Number.isFinite(numPredict) && numPredict > 0) options.num_predict = numPredict;
     if (Number.isFinite(temperature)) options.temperature = temperature;
     return {
       model,

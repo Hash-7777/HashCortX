@@ -250,6 +250,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A small model can no longer keep an answer going without end.** An
+  answer held to a fixed shape — an agent's decision, the ERP's replies and
+  designs — can only end when that shape is closed, and a small model can
+  keep adding to a list until it runs out of room, which looked like the app
+  hanging. Such an answer now has a length limit on every local model.
+
 - **A local model that thinks answers a tool question in seconds.** Asked
   to read back what a tool had found, a thinking model deliberated over the
   agent's whole set of instructions first, which could take well over a

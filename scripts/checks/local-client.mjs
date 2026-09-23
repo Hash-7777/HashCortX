@@ -40,6 +40,9 @@ console.log('The request:');
   const bare = C.body({ model: 'm', messages: [] });
   ok('nothing is sent that was not asked for', !('format' in bare) && !('tools' in bare) && !('keep_alive' in bare) && !('think' in bare) && Object.keys(bare.options).length === 0);
   ok('thinking can be turned off for one request', C.body({ model: 'm', messages: [], think: false }).think === false);
+  ok('an answer\'s length can be bounded', C.body({ model: 'm', messages: [], numPredict: 2048 }).options.num_predict === 2048 && !('num_predict' in C.body({ model: 'm', messages: [] }).options));
+  const app = src('js', 'app.js');
+  ok('every answer held to a schema is bounded', /numPredict: json \? Math\.max\(1024, need \|\| 4096\) : undefined/.test(app) && /numPredict: json \? 2048 : undefined/.test(app));
 }
 
 console.log('\nThe reply, read as it arrives:');

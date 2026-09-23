@@ -5692,7 +5692,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need });
     const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
-    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, keepAlive: -1 }, { signal });
+    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : undefined, keepAlive: -1 }, { signal });
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
@@ -6137,8 +6137,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // A model that thinks does not, to decide or to read back a result: it can take a minute and changes little.
     const thinks = (await HCLocalContext.infoOf(host, model)).caps?.includes("thinking");
     const chat = async (msgs, { json, onToken, plain } = {}) => {
-      const numCtx = await HCLocalContext.numCtx(host, model, msgs, json ? { need: 1024 } : {});
-      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, keepAlive: -1, think: (json || plain) && thinks ? false : undefined }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
+      const numCtx = await HCLocalContext.numCtx(host, model, msgs, json ? { need: 2048 } : {});
+      const reply = await HCLocal.chat(host, { model, messages: msgs, json, temperature: json ? 0 : temperature, numCtx, numPredict: json ? 2048 : undefined, keepAlive: -1, think: (json || plain) && thinks ? false : undefined }, { signal, onToken, onThinking: (t) => showThinking(assistant, t) });
       if (reply.last) recordUsage(model, reply.last.prompt_eval_count, reply.last.eval_count);
       return reply.content;
     };

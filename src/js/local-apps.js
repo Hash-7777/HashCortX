@@ -117,9 +117,10 @@
   }
 
   /** The request body: the answer held to a schema when one is asked for. */
-  function bodyOf({ model, messages, temperature, json, tools }) {
+  function bodyOf({ model, messages, temperature, json, tools, numPredict }) {
     const b = { model, messages: toWire(messages), stream: true, stream_options: { include_usage: true } };
     if (Number.isFinite(temperature)) b.temperature = temperature;
+    if (Number.isFinite(numPredict) && numPredict > 0) b.max_tokens = numPredict;
     if (Array.isArray(tools) && tools.length) b.tools = tools;
     if (json) b.response_format = { type: "json_schema", json_schema: { name: "answer", strict: true, schema: json === true ? { type: "object" } : json } };
     return b;
