@@ -269,7 +269,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   answer held to a fixed shape — an agent's decision, the ERP's replies and
   designs — can only end when that shape is closed, and a small model can
   keep adding to a list until it runs out of room, which looked like the app
-  hanging. Such an answer now has a length limit on every local model.
+  hanging. Such an answer now has a length limit on every local model. Any
+  other answer from a local model now stops where the model's room to read
+  and write runs out: before, a small model repeating itself wrote on until
+  it was stopped, and an Agent Swarm agent spent its whole five minutes that
+  way.
+
+- **One local model no longer waits behind another.** Every request to a
+  model on your computer asked for it to stay loaded for good. When another
+  model was needed and there was not room for both, the one held could not
+  be let go, and the request to the other waited until it was given up on.
+  A model now stays loaded for as long as your local model server keeps any
+  model — five minutes unless you set it otherwise — and is loaded again
+  while you type your next message. It also no longer holds memory after
+  you close HashCortX.
 
 - **A local model that thinks answers a tool question in seconds.** Asked
   to read back what a tool had found, a thinking model deliberated over the

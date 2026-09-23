@@ -8,6 +8,12 @@
 // part-way through a reply was never read at all; and each copy chose its own
 // window and its own lifetime for the model.
 //
+// A model is kept loaded for as long as Ollama keeps any model after a
+// request — five minutes unless the person set it otherwise — and never for
+// good. Held for good, a model marked to make room for another was kept by the
+// next request to it, and on a computer short of memory the other model
+// waited until it was given up on.
+//
 // There is one request and one reading of the reply now. The reply is read as
 // it arrives: the words, the thinking, and the tool calls, each handed to the
 // caller as it comes, and the whole returned at the end with Ollama's own
@@ -29,7 +35,16 @@
     if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
     // An answer held to a schema can only end when its JSON closes, and a small
     // model can keep adding to a list without end; its length is bounded.
-    if (Number.isFinite(numPredict) && numPredict > 0) options.num_predict = numPredict;
+    // Every other answer ends where its window does. Left unbounded, Ollama
+    // makes room by dropping the start of the conversation and writes on, so
+    // a small model repeating itself never stopped: an agent on a 3B model
+    // wrote for its whole five minutes and was given up on.
+    const C = typeof window !== "undefined" && window.HCLocalContext;
+    const room = C && Number.isFinite(numCtx) && Array.isArray(messages) && messages.length
+      ? Math.max(1024, numCtx - C.tokensOf(Array.isArray(tools) && tools.length ? [...messages, { content: JSON.stringify(tools) }] : messages))
+      : 0;
+    const limit = Number.isFinite(numPredict) && numPredict > 0 ? numPredict : room;
+    if (limit) options.num_predict = limit;
     if (Number.isFinite(temperature)) options.temperature = temperature;
     return {
       model,
@@ -138,7 +153,8 @@
   /**
    * Load a model at the window its next request will use, so that request
    * does not wait for it. Asked at most once a minute for the same window;
-   * a model already loaded at it answers at once.
+   * a model already loaded at it answers at once. It stays loaded as long as
+   * any model does, and no longer (see above).
    */
   function warm(host, model, numCtx, { fetchFn = (...a) => fetch(...a), now = Date.now() } = {}) {
     if (!host || !model || /^(?:cloud|local):/.test(String(model))) return Promise.resolve(false);
@@ -148,7 +164,7 @@
     return fetchFn(`${host}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body({ model, messages: [], stream: false, numCtx, keepAlive: -1 })),
+      body: JSON.stringify(body({ model, messages: [], stream: false, numCtx })),
     }).then((r) => !!(r && r.ok), () => false);
   }
 

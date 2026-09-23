@@ -33,8 +33,8 @@ const words = (...parts) => parts.map((p) => ({ message: { content: p } }));
 
 console.log('The request:');
 {
-  const b = C.body({ model: 'm', messages: [], numCtx: 8192, temperature: 0.2, json: true, tools: [{ type: 'function' }], keepAlive: -1 });
-  ok('window, temperature, JSON, tools and lifetime all sent', b.options.num_ctx === 8192 && b.options.temperature === 0.2 && b.format === 'json' && b.tools.length === 1 && b.keep_alive === -1 && b.stream === true);
+  const b = C.body({ model: 'm', messages: [], numCtx: 8192, temperature: 0.2, json: true, tools: [{ type: 'function' }], keepAlive: '10m' });
+  ok('window, temperature, JSON, tools and a lifetime asked for all sent', b.options.num_ctx === 8192 && b.options.temperature === 0.2 && b.format === 'json' && b.tools.length === 1 && b.keep_alive === '10m' && b.stream === true);
   const schema = { type: 'object' };
   ok('a JSON schema is sent as the shape the answer must take', C.body({ model: 'm', messages: [], json: schema }).format === schema);
   const bare = C.body({ model: 'm', messages: [] });
@@ -43,6 +43,26 @@ console.log('The request:');
   ok('an answer\'s length can be bounded', C.body({ model: 'm', messages: [], numPredict: 2048 }).options.num_predict === 2048 && !('num_predict' in C.body({ model: 'm', messages: [] }).options));
   const app = src('js', 'app.js');
   ok('every answer held to a schema is bounded', /numPredict: json \? Math\.max\(1024, need \|\| 4096\) : undefined/.test(app) && /numPredict: json \? 2048 : undefined/.test(app));
+}
+
+console.log('\nAn answer ends where its window does:');
+{
+  // With the window reader loaded, as in the app.
+  const box = { window: {}, JSON, Math, Number, String, Array, Object, Map, Promise, Error, Date };
+  vm.createContext(box);
+  vm.runInContext(src('js', 'local-context.js'), box, { filename: 'local-context.js' });
+  vm.runInContext(src('js', 'local-client.js'), box, { filename: 'local-client.js' });
+  const L = box.window.HCLocal;
+  const T = box.window.HCLocalContext.tokensOf;
+  const msgs = [{ role: 'system', content: 'x'.repeat(6400) }, { role: 'user', content: 'Write the plan.' }];
+  const b = L.body({ model: 'm', messages: msgs, numCtx: 8192 });
+  ok('with no length asked for, it may use what the window has left', b.options.num_predict === 8192 - T(msgs));
+  const tools = [{ type: 'function', function: { name: 'web_search', description: 'y'.repeat(3200), parameters: {} } }];
+  ok('the tools it is given count as part of what is sent', L.body({ model: 'm', messages: msgs, numCtx: 8192, tools }).options.num_predict === 8192 - T([...msgs, { content: JSON.stringify(tools) }]));
+  ok('a length asked for is kept', L.body({ model: 'm', messages: msgs, numCtx: 8192, numPredict: 2048 }).options.num_predict === 2048);
+  ok('a window already full still leaves a whole answer', L.body({ model: 'm', messages: [{ role: 'user', content: 'z'.repeat(40000) }], numCtx: 8192 }).options.num_predict === 1024);
+  ok('loading a model with nothing to answer asks for no length', !('num_predict' in L.body({ model: 'm', messages: [], numCtx: 8192 }).options));
+  ok('and nothing sent is kept loaded for good', !/keepAlive: -1/.test(src('js', 'app.js')) && !/keepAlive: -1/.test(src('js', 'local-client.js')));
 }
 
 console.log('\nThe reply, read as it arrives:');
@@ -101,7 +121,8 @@ console.log('\nLoaded ahead of the request:');
   const fetchFn = async (url, init) => { calls.push(JSON.parse(init.body)); return { ok: true }; };
   const first = await C.warm('http://w', 'm', 8192, { fetchFn, now: 1000 });
   await C.warm('http://w', 'm', 8192, { fetchFn, now: 30000 });
-  ok('at the window the request will use, with nothing to answer', first === true && calls.length === 1 && calls[0].options.num_ctx === 8192 && calls[0].messages.length === 0 && calls[0].keep_alive === -1);
+  ok('at the window the request will use, with nothing to answer', first === true && calls.length === 1 && calls[0].options.num_ctx === 8192 && calls[0].messages.length === 0);
+  ok('and kept only as long as Ollama keeps any model after a request, never held for good', !('keep_alive' in calls[0]));
   ok('not asked again within the minute', calls.length === 1);
   await C.warm('http://w', 'm', 8192, { fetchFn, now: 62000 });
   await C.warm('http://w', 'm', 16384, { fetchFn, now: 62001 });
