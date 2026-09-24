@@ -59,6 +59,10 @@ npm run tauri build
   is where the defects here have actually been. `npm run align` is the same
   idea for how a control looks: it measures every button in every mode and
   reports any whose mark or label does not sit on the button's own centre line.
+  For a change to the Coder's tools, instructions or loop, run
+  `npm run bench:coder -- --model <a local model>` before and after it and
+  compare the two with `--compare`: a change there is kept when more tasks
+  pass, or as many pass for less.
   `npm run models` asks each provider whether the models listed in
   `src/data/cloud-models.js` still exist — OpenRouter, SambaNova and NVIDIA
   answer without a key, and the rest are checked when their key is in the

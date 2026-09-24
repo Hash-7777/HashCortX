@@ -1,0 +1,7 @@
+{
+  "title": "Answer a question about the code without changing it",
+  "kind": "question",
+  "prompt": "Which file works out the tax on an order, and what tax rate does it use? Just answer; do not change any files.",
+  "answer": ["tax\\.js", "(0?\\.14\\b|14\\s*%|14 percent|fourteen percent)"],
+  "unchanged": true
+}

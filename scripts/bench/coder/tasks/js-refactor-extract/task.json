@@ -1,0 +1,7 @@
+{
+  "title": "Refactor duplicated code and keep the tests green",
+  "kind": "refactor",
+  "prompt": "The email check is copied in src/signup.js and src/invite.js. Move it into one function, isValidEmail(email), in a new file src/validate.js, and use that function in both places. Behaviour must not change and npm test must keep passing.",
+  "check": ["node", ".bench-check/check.js"],
+  "keep": ["test/forms.test.js"]
+}

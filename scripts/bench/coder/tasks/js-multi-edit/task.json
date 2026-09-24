@@ -1,0 +1,6 @@
+{
+  "title": "Several small edits in one file",
+  "kind": "edit",
+  "prompt": "In src/limits.js raise MAX_USERS from 50 to 100, MAX_UPLOAD_MB from 10 to 25, and TIMEOUT_SECONDS from 30 to 60. Nothing else in the file should change.",
+  "check": ["node", ".bench-check/check.js"]
+}

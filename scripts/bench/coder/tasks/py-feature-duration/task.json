@@ -1,0 +1,6 @@
+{
+  "title": "Add a Python function to a written spec",
+  "kind": "feature",
+  "prompt": "Add parse_duration(text) to timeparse.py. It reads durations like \"1h30m\", \"45s\", \"2h\" or \"1h5s\" and returns the number of seconds as an int: h is hours, m is minutes, s is seconds, they come in that order, and any of them may be left out. Anything else, including an empty string, raises ValueError.",
+  "check": ["python3", ".bench-check/check.py"]
+}

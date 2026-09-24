@@ -1,0 +1,32 @@
+{
+  "name": "orders-service",
+  "version": "3.2.1",
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8080,
+    "timeoutSeconds": 30,
+    "cors": {
+      "origins": [
+        "https://shop.example.com",
+        "https://admin.example.com"
+      ],
+      "credentials": true
+    },
+    "logLevel": "warn"
+  },
+  "database": {
+    "pool": {
+      "min": 2,
+      "max": 10
+    },
+    "retry": [
+      100,
+      500,
+      2000
+    ]
+  },
+  "features": {
+    "newCheckout": false,
+    "giftCards": true
+  }
+}

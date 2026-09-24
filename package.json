@@ -154,6 +154,7 @@
     "sweep": "node scripts/sweep-controls.mjs",
     "check:version": "node scripts/checks/version.mjs",
     "align": "node scripts/align-controls.mjs",
+    "bench:coder": "node scripts/bench/coder/run.mjs",
     "check:swarm-deliverables": "node scripts/checks/swarm-deliverables.mjs",
     "models": "node scripts/check-models.mjs",
     "check:systems-backup": "node scripts/checks/systems-backup.mjs",

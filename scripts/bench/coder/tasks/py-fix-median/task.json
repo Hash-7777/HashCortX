@@ -1,0 +1,7 @@
+{
+  "title": "Fix a Python bug a failing test exposes",
+  "kind": "fix",
+  "prompt": "python3 -m unittest fails in this project. Fix stats.py so the tests pass. Do not change the tests.",
+  "check": ["python3", ".bench-check/check.py"],
+  "keep": ["tests/test_stats.py"]
+}

@@ -1,0 +1,7 @@
+{
+  "title": "Fix a bug a failing test exposes",
+  "kind": "fix",
+  "prompt": "npm test fails in this project. Fix the code so the tests pass. Do not change the tests.",
+  "check": ["node", ".bench-check/check.js"],
+  "keep": ["test/range.test.js"]
+}

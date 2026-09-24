@@ -1,0 +1,6 @@
+{
+  "title": "Add checks inside a Python class method",
+  "kind": "feature",
+  "prompt": "Cart.add_item in cart.py should refuse a quantity of zero or less, and a negative price, by raising ValueError. Everything that works now must keep working.",
+  "check": ["python3", ".bench-check/check.py"]
+}

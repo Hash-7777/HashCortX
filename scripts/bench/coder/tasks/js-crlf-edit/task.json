@@ -1,0 +1,6 @@
+{
+  "title": "Edit a file with Windows line endings",
+  "kind": "edit",
+  "prompt": "In src/greet.js change the greeting word from \"Hello\" to \"Hi\" in both functions. Keep everything else as it is.",
+  "check": ["node", ".bench-check/check.js"]
+}

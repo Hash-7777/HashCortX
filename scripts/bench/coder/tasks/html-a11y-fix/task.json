@@ -1,0 +1,6 @@
+{
+  "title": "Make an existing page accessible",
+  "kind": "page",
+  "prompt": "Make page.html accessible: every image needs alt text that says what it shows, the icon-only menu button needs an accessible name, and the email field needs a label. Do not remove anything from the page.",
+  "check": ["node", ".bench-check/check.js"]
+}

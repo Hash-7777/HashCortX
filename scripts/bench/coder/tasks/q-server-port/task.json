@@ -1,0 +1,7 @@
+{
+  "title": "Trace how a project starts",
+  "kind": "question",
+  "prompt": "When I run npm start in this project, which file runs first, and which port does the server listen on? Do not change anything.",
+  "answer": ["server/index\\.js", "4173"],
+  "unchanged": true
+}

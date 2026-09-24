@@ -1,0 +1,1 @@
+npm start runs server/index.js first. It listens on port 4173 from config/default.json, unless PORT is set.

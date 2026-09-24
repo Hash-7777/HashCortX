@@ -1,0 +1,6 @@
+{
+  "title": "Fix a bug from a description of the symptom",
+  "kind": "fix",
+  "prompt": "formatDate(new Date(2024, 0, 5)) in src/format.js returns \"2024-00-05\". It should return \"2024-01-05\". Fix it.",
+  "check": ["node", ".bench-check/check.js"]
+}

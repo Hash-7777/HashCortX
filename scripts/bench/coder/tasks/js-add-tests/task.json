@@ -1,0 +1,7 @@
+{
+  "title": "Write tests that would catch a real bug",
+  "kind": "tests",
+  "prompt": "Add tests for clamp in src/clamp.js: a value below the range, one inside it, one above it, and both edges. Use node's built-in test runner, put them in test/clamp.test.js, and make sure npm test passes.",
+  "check": ["node", ".bench-check/check.js"],
+  "keep": ["src/clamp.js"]
+}

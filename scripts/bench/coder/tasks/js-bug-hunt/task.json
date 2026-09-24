@@ -1,0 +1,7 @@
+{
+  "title": "Find a bug from a user report, with no hint where it is",
+  "kind": "fix",
+  "prompt": "Customers say the basket total is wrong when they enter the same discount code twice: the discount is taken off twice. A code should only ever count once. Find the cause and fix it. npm test shows the problem.",
+  "check": ["node", ".bench-check/check.js"],
+  "keep": ["test/basket.test.js"]
+}

@@ -1,0 +1,6 @@
+{
+  "title": "Find and fix one line in a long file",
+  "kind": "fix",
+  "prompt": "calcShipping in src/rates.js is wrong for parcels over 20 kg. Each kg above 20 should add 2.5 to the price, but the total comes out far too high. Fix it without changing anything else in the file.",
+  "check": ["node", ".bench-check/check.js"]
+}

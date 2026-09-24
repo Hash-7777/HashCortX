@@ -1,0 +1,4 @@
+body { margin: 0; font-family: system-ui, sans-serif; }
+main { max-width: 960px; margin: 0 auto; padding: 32px 16px; }
+.plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+.plan { border: 1px solid #ddd; border-radius: 8px; padding: 20px; }

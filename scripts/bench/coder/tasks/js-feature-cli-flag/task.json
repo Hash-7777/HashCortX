@@ -1,0 +1,6 @@
+{
+  "title": "Add an option to a command-line tool",
+  "kind": "feature",
+  "prompt": "bin/count.js prints how many words a file has: node bin/count.js notes.txt. Add a --lines option, used as node bin/count.js --lines notes.txt, that prints how many lines the file has instead. A last line with no newline after it still counts as a line. Without the option it must keep printing the word count.",
+  "check": ["node", ".bench-check/check.js"]
+}

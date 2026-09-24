@@ -1,0 +1,6 @@
+{
+  "title": "Edit a settings file without breaking it",
+  "kind": "edit",
+  "prompt": "In config/app.json set the server port to 8080, and add a setting \"logLevel\" with the value \"warn\" inside the server section. Leave every other setting exactly as it is.",
+  "check": ["node", ".bench-check/check.js"]
+}

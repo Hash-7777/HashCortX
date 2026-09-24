@@ -1,0 +1,6 @@
+{
+  "title": "Add a feature that touches two files",
+  "kind": "feature",
+  "prompt": "Add a GET /health route that answers { status: 'ok' }. Write its handler the way the other handlers are written and register it the same way the other routes are registered. npm test must keep passing.",
+  "check": ["node", ".bench-check/check.js"]
+}

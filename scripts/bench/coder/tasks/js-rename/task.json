@@ -1,0 +1,6 @@
+{
+  "title": "Rename a function across several files",
+  "kind": "rename",
+  "prompt": "Rename the function getUsr to getUser everywhere in this project, including where it is called and tested. npm test must still pass.",
+  "check": ["node", ".bench-check/check.js"]
+}

@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A benchmark for the Coder.** `npm run bench:coder` gives the Coder
+  twenty small tasks, from fixing a bug a test exposes to building a page,
+  and judges each with a hidden check it never sees. It runs the real app with
+  a local model and reports what passed and what it cost, so changes to the
+  agent can be measured. Its commands run in the macOS sandbox, inside a
+  temporary folder, with no network.
+
 - **Agent Swarm agents can look things up in a connected system.** A run
   whose task names a connected system, or speaks of its records, offers
   its agents that system's reading tools, never one that changes records,

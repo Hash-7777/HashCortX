@@ -1,0 +1,6 @@
+{
+  "title": "Build a page from a description",
+  "kind": "page",
+  "prompt": "Create index.html in this folder: a pricing page with the heading \"Pricing\" and three plans, Basic at $9/month, Pro at $29/month and Team at $99/month. Each plan has a button labelled \"Choose Basic\", \"Choose Pro\" or \"Choose Team\". Put the styles in styles.css and link it from the page. It must work on a phone.",
+  "check": ["node", ".bench-check/check.js"]
+}

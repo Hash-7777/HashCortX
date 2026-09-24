@@ -317,6 +317,9 @@ HashCortX/
 │   └── bridge.mjs                   window._H exposes what is called, and
 │                                    only what is called
 │
+├── scripts/bench/coder/             the Coder benchmark: twenty tasks with
+│                                    hidden checks, run in a sandbox
+│
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
 ├── docs/
@@ -408,6 +411,19 @@ This is the seam to respect when adding a mode: **never import across mode files
   nothing that reads the stylesheet could find it. This opens each mode and
   compares where a button's contents ended up with the box they had to sit in.
   Like the sweep it needs a real browser, so it is not in CI.
+- **`npm run bench:coder` measures the Coder on real tasks.** Twenty small
+  projects, each with a task and a hidden check the agent never sees: fix a
+  bug a test exposes, add a feature to a written spec, rename across files,
+  refactor with the tests kept green, edit a settings file, build a page,
+  answer a question without changing anything. It runs the real app in a
+  headless browser with a local model and records what passed, the minutes,
+  steps, failed edits and tokens, so a change to the agent is measured rather
+  than guessed at. Everything happens in one temporary folder: file requests
+  outside the task's project are refused, and every command runs in the macOS
+  sandbox with writing allowed only in that folder, the home folder unreadable
+  and no network. `--self-test` shows each check fails on the untouched
+  project and passes on a reference answer. It needs macOS, a browser and a
+  local model, so it is not in CI.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 

@@ -1,0 +1,9 @@
+{
+  "name": "notes-server",
+  "version": "1.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js --watch"
+  }
+}

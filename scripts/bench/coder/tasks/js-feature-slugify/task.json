@@ -1,0 +1,6 @@
+{
+  "title": "Add a function to a written spec",
+  "kind": "feature",
+  "prompt": "Add a function slugify(text) to src/text.js and export it next to capitalize. Rules: lowercase the text; keep the letters a-z and the digits 0-9; anything else becomes a dash; several dashes in a row become one; no dash at the start or the end. Examples: \"  Hello, World!  \" gives \"hello-world\", and \"Node.js 24 is out\" gives \"node-js-24-is-out\".",
+  "check": ["node", ".bench-check/check.js"]
+}

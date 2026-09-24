@@ -1,0 +1,6 @@
+{
+  "name": "shop-core",
+  "version": "0.4.0",
+  "private": true,
+  "main": "src/index.js"
+}
