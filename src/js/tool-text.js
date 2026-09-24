@@ -19,7 +19,8 @@
 //   functools[{…}]
 //   the call tokens with a separator between the name and its arguments
 //   a tool_code block holding name(a="…")
-//   bare JSON or a json block, at the start or the end of the reply
+//   bare JSON or a json block, at the start or the end of the reply, and
+//   several of them one after another, one call per line
 //
 // and the keys each spells a call with: name, tool, tool_name, action; and
 // arguments, parameters, args, tool_input, action_input, input — or the
@@ -212,6 +213,26 @@
     return [];
   }
 
+  /**
+   * Whole values written one after another, with nothing between them but
+   * space, commas or semicolons, or [] when anything else is there. A small
+   * model asked for its next steps often writes one call per line.
+   */
+  function valuesInRow(body) {
+    const out = [];
+    let i = 0;
+    while (i < body.length) {
+      while (i < body.length && /[\s,;]/.test(body[i])) i++;
+      if (i >= body.length) break;
+      if (body[i] !== "{" && body[i] !== "[") return [];
+      const end = closing(body, i);
+      if (end < 0) return [];
+      try { out.push(JSON.parse(body.slice(i, end + 1))); } catch { return []; }
+      i = end + 1;
+    }
+    return out;
+  }
+
   /** An unmarked call: the whole reply, or a block at its start or end. */
   function unmarked(text) {
     const parts = window.HCFences && window.HCFences.splitFences
@@ -220,10 +241,12 @@
     const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code");
     const body = (edge ? edge.code : text).trim();
     if (!/^[[{]/.test(body)) return [];
-    const parsed = parseJson(body);
-    // A whole value, not the first object inside some prose.
-    try { JSON.parse(body); } catch { return []; }
-    return callsOfValue(parsed);
+    // A whole value, or whole values in a row: not the first object inside some prose.
+    let values;
+    try { values = [JSON.parse(body)]; } catch { values = valuesInRow(body); }
+    const calls = values.map(callsOfValue);
+    // Every value a call, or none is read: JSON that only mentions a tool is not a call.
+    return calls.length && calls.every((c) => c.length) ? calls.flat() : [];
   }
 
   /** Thinking written at the start of a reply, between think tags, is not part of it. */

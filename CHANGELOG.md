@@ -368,6 +368,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A small local model's tool calls are read when it writes several in a
+  row.** A model that set out its next steps as calls, one per line, had them
+  shown as its answer and none of them ran. They run now, when every one of
+  them names a tool the model was offered.
+
 - **An ERP counts in the currency of its place unless you name another.**
   The agent's model could fill in a currency nobody mentioned, and it
   outweighed the one the app works out from where the business is, so a

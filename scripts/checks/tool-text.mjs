@@ -54,6 +54,8 @@ ok('a tool_code block holding a printed call', one(`${F}tool_code\nprint(functio
 ok('a tool_code block with single quotes and a number', (() => { const c = T.callsIn(`${F}tool_code\nweb_search(query='x', limit=3)\n${F}`, names); return c.length === 1 && c[0].arguments.query === 'x' && c[0].arguments.limit === 3; })());
 ok('bare JSON', one('{"name": "web_search", "arguments": {"query": "x"}}'));
 ok('a json block ending the reply', one(`Searching now.\n${F}json\n{"name":"web_search","arguments":{"query":"x"}}\n${F}`));
+ok('two calls written one after another, one per line', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'web_search,current_datetime');
+ok('calls in a row inside a json block, with commas between', T.callsIn(`${F}json\n{"name":"web_search","arguments":{"query":"a"}},\n{"name":"web_search","arguments":{"query":"b"}}\n${F}`, names).map((c) => c.arguments.query).join() === 'a,b');
 
 console.log('\nEach way a call is spelled:');
 ok('action and action_input', one('{"action": "web_search", "action_input": {"query": "x"}}'));
@@ -69,6 +71,9 @@ ok('a tool that was not offered, bare', T.callsIn('{"name":"delete_files","argum
 ok('an answer showing an example among its words', T.callsIn('Call it like this: {"name":"web_search","arguments":{}} and you are done.', names).length === 0);
 ok('a json example with words before and after it', T.callsIn(`Like this:\n${F}json\n{"name":"web_search","arguments":{}}\n${F}\nThat is the format.`, names).length === 0);
 ok('ordinary JSON with a name in it', T.callsIn('{"name": "John", "age": 3}', names).length === 0);
+ok('a call next to JSON that is not one is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"total": 3}', names).length === 0);
+ok('two calls with words between them are left alone', T.callsIn('{"name": "web_search", "arguments": {}}\nand then\n{"name": "current_datetime", "arguments": {}}', names).length === 0);
+ok('a call in a row with one to a tool not offered is not read', T.callsIn('{"name": "web_search", "arguments": {}}\n{"name": "delete_files", "arguments": {}}', names).length === 0);
 ok('Python code that happens to name a tool is not a tool_code block', T.callsIn(`${F}python\nweb_search(query="x")\n${F}`, names).length === 0);
 ok('an answer that talks about the tags', T.callsIn('Models often wrap calls in <tool_call> tags.', names).length === 0);
 ok('with no tools offered, nothing is a call', T.callsIn('{"name":"web_search","arguments":{}}', []).length === 0);
