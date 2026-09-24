@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **The Coder proves a change before it says it is done.** When it tries to
+  finish after changing code, with no test passed since the change, it is sent
+  back to run the project's own test, found from its package.json, Python
+  setup, Cargo, Go module or Makefile: once, and twice at most. Every command
+  it runs is recorded as the kind of check it is, whether it passed, and
+  whether it covered the whole project or part of it. The last line of its
+  answer says what was proven after the last change, worked out from that
+  record rather than from its own words.
+
 - **A benchmark for the Coder.** `npm run bench:coder` gives the Coder
   twenty small tasks, from fixing a bug a test exposes to building a page,
   and judges each with a hidden check it never sees. It runs the real app with

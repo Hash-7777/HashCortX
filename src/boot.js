@@ -68,6 +68,7 @@
     '/js/code/ansi.js',
     '/js/code/paths.js',
     '/js/code/patch.js',
+    '/js/code/verify.js',
     '/js/code/export.js',
     '/js/export-format.js',
     '/js/rag-search.js',

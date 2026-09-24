@@ -1334,6 +1334,7 @@
       msgs.innerHTML = '';
       for (const m of conversationMsgs) {
         if (m.role === 'user') {
+          if (window.HCCodeVerify?.isAppNote(m.content)) continue;   // the app's, not the person's
           appendUserMsg(m.content);
         } else if (m.role === 'assistant' && m.content) {
           const el = appendAssistantBubble('HashCortX Coder');
@@ -1962,6 +1963,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       ];
       if (root) {
         lines.push(`Project root: ${root}`);
+        const checks = sharedState.projectChecks?.root === root ? window.HCCodeVerify?.checksLine(sharedState.projectChecks.checks) : '';
+        if (checks) lines.push(checks);
         lines.push(`6. If the project directory is empty or new, immediately start creating files — do NOT explore the filesystem first.`);
         if (sharedState.activeFile) lines.push(`Active file: ${sharedState.activeFile}`);
       } else {
@@ -2007,6 +2010,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // one that is going in circles. The old fixed cap could not: it stopped
       // both at the same number and reported both as "paused".
       const seenReadTargets = new Set();
+      // What was changed and what proved it: js/code/verify.js.
+      const proof = window.HCCodeVerify?.proofLog();
+      let sentBack = 0;
       let stalledIterations = 0;
       let lastStop = null;
       let thinkEl = appendThinking(contentEl);
@@ -2111,6 +2117,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             // A row is offered only for a change that happened. A refused or
             // failed call has no record of its own, and the row would pick up
             // the file's previous one, so its Undo reversed an earlier change.
+            if (proof && ok) {
+              const a = call.arguments || {};
+              const touched = { write_file: [a.path], patch_file: [a.path], delete_file: [a.path], move_file: [a.from, a.to] }[call.name];
+              if (touched) touched.forEach((p) => proof.edited(p));
+              else if (call.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
+            }
             if (ok && (call.name === 'write_file' || call.name === 'patch_file')) {
               const fp = call.arguments?.path || '';
               addChangeEntry(baseName(fp), fp, 'write',
@@ -2161,6 +2173,17 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // Final answer — hide reasoning, show result
         reasoningEl?.remove(); reasoningEl = null;
         const finalText = turn.content || '';
+        // Code changed and nothing proved it: sent back once to run the
+        // project's own test, twice at most (js/code/verify.js).
+        const back = proof && finalText.trim() ? window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, finalText, sentBack) : null;
+        if (back) {
+          sentBack++;
+          messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message });
+          appendStep(contentEl, { verb: 'CHECK', object: 'Sent back to run the tests before finishing', status: '' });
+          cdrTraceAdd('Check', 'Sent back to prove the change', 'run');
+          thinkEl = appendThinking(contentEl);
+          continue;
+        }
         if (!finalText.trim()) {
           cdrTraceAdd('Done', 'Empty response from model', 'warn');
           appendTextToBubble(contentEl, '*No response from model. Try again or check your model settings.*');
@@ -2168,6 +2191,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           cdrTraceAdd('Done', (label || 'Agent') + ' · ' + finalText.length + ' chars', 'ok');
           appendTextToBubble(contentEl, finalText);
         }
+        // What was proven, from the record rather than from the reply.
+        const proven = proof && window.HCCodeVerify.proofLine(proof);
+        if (proven) appendTextToBubble(contentEl, `*${proven}*`);
         return finalText;
       }
       // The budget ran out while the model was still calling tools. Strip any
@@ -2204,6 +2230,14 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
       // Auto-extract memory from user message
       try { window._H?.memAutoExtract?.(task); } catch {}
+
+      // The project's own test, lint and build commands, found once per project.
+      const root = sharedState.projectRoot;
+      if (root && sharedState.projectChecks?.root !== root && window.HCCodeVerify && HC?.code) {
+        const checks = await window.HCCodeVerify.readProjectChecks(root, { list: (d) => HC.code.listDir(d), read: (f) => HC.code.readFile(f) });
+        sharedState.projectChecks = { root, checks };
+        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
+      }
 
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) {

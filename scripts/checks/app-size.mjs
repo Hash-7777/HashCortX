@@ -662,7 +662,12 @@ const LINE_BUDGET = {
   // request is about, runs them through the one approval gate, and does not
   // send a conversation that read records to a model that system keeps them
   // from. The deciding is js/mcp/connections.js forRun; this is the wiring.
-  'modes/code/mode.js': 2608,
+  // 2642, up 34: a run keeps a record of what it changed and what proved it,
+  // is sent back to run the project's test when it finishes after changing
+  // code with nothing proven, and ends by saying what was proven; the rules
+  // are js/code/verify.js, and this is the wiring and the project's checks
+  // being found once.
+  'modes/code/mode.js': 2642,
 };
 
 console.log('\nFile sizes go down, never up:');
