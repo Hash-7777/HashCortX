@@ -211,6 +211,26 @@ You can only read a connected system; you can never change one. Never "look" or 
     return missing;
   }
 
+  // A currency as people name it without its code: "in dollars", "€12".
+  const CURRENCY_WORDS = { USD: /\$|\bdollars?\b/, EUR: /€|\beuros?\b/, GBP: /£|\bsterling\b/, JPY: /¥|\byen\b/, INR: /₹|\brupees?\b/ };
+
+  /**
+   * The currency a build names, when the person named it, and '' when they
+   * did not, so the one its place counts in is used (js/systems/setup.js).
+   * A small model fills in a currency it was never told, and a business in
+   * Cairo was built counting in dollars. Said means its code in capitals,
+   * its name, or a word or sign only it goes by.
+   */
+  function currencySaid(code, userTexts) {
+    const c = String(code || '').trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(c)) return '';
+    const said = (Array.isArray(userTexts) ? userTexts : [userTexts]).map((t) => String(t || '')).join('\n');
+    const lower = said.toLowerCase();
+    const named = ((window.HCSystemsSetup && window.HCSystemsSetup.CURRENCIES) || []).find(([k]) => k === c);
+    const heard = new RegExp(`\\b${c}\\b`).test(said) || !!(named && lower.includes(named[1].toLowerCase())) || !!(CURRENCY_WORDS[c] && CURRENCY_WORDS[c].test(lower));
+    return heard ? c : '';
+  }
+
   const WANTS_A_SYSTEM = /\b(?:build|make|create|set ?up|start|need|want)\b[^.?!\n]{0,60}\b(?:erp|system|app|software)\b|\berp\b/i;
 
   /**
@@ -283,6 +303,8 @@ You can only read a connected system; you can never change one. Never "look" or 
 
   function settle(said, { starter, userTexts, text, connected } = {}) {
     let s = noFalseClaim(settleBuild(said, { starter, userTexts }), text);
+    // A currency the person never named gives way to the one their place counts in.
+    if (s.do === 'build' && s.business && s.business.currency) s = { ...s, business: { ...s.business, currency: currencySaid(s.business.currency, userTexts) } };
     const t = String(text || '');
     // A request that names a connected system is about that system's records,
     // whatever a small model made of it: to bring some in, or to read them.
@@ -379,6 +401,6 @@ You can only read a connected system; you can never change one. Never "look" or 
   }
 
   window.HCSystemsAgent = {
-    ACTIONS, CONNECTED_ACTIONS, SYSTEM, STARTER_NAME, REPLY_SCHEMA, schemaFor, connectedText, contextOf, messages, readReply, unsaid, askFor, settleBuild, noFalseClaim, settle, leadIn, starterOptions, emptied, isUntouchedStarter,
+    ACTIONS, CONNECTED_ACTIONS, SYSTEM, STARTER_NAME, REPLY_SCHEMA, schemaFor, connectedText, contextOf, messages, readReply, unsaid, currencySaid, askFor, settleBuild, noFalseClaim, settle, leadIn, starterOptions, emptied, isUntouchedStarter,
   };
 })();

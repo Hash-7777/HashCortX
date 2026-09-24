@@ -359,6 +359,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An ERP counts in the currency of its place unless you name another.**
+  The agent's model could fill in a currency nobody mentioned, and it
+  outweighed the one the app works out from where the business is, so a
+  business in Cairo was built counting in dollars. A currency is now used
+  only when your words name it, by its code, its name or a sign only it
+  goes by; otherwise the place decides.
+
 - **An ERP keeps one table for one thing.** When a model's design named a
   table one way in its list of tables and another on the screen that shows
   it, such as "customers" and "customer", the system was built with both:

@@ -18,7 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'systems/spec.js', 'systems/domain.js', 'systems/money.js', 'systems/samples.js', 'systems/scaffold.js', 'systems/agent.js']) {
+for (const f of ['fences.js', 'systems/spec.js', 'systems/domain.js', 'systems/money.js', 'systems/samples.js', 'systems/scaffold.js', 'systems/setup.js', 'systems/agent.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const A = sandbox.window.HCSystemsAgent;
@@ -97,6 +97,16 @@ console.log('\nWhat the app does with an answer, whatever the model:');
   ok('... what they did give is, with a trade word or a country added', A.unsaid({ name: 'Pages Bookshop', place: 'Cairo, Egypt' }, ['a bookshop called Pages in Cairo']).length === 0);
   ok('... in any language', A.unsaid({ name: 'مكتبة النور', place: 'القاهرة' }, ['مكتبة النور في القاهرة']).length === 0);
   ok('... and a plain name is fine when they said it has none', A.unsaid({ name: 'Bookshop', place: 'Cairo' }, ['a bookshop in Cairo, no name yet']).length === 0);
+  const told = ['Build a system for my food wholesale business.', 'It is called Delta Fresh Supply, in Cairo.'];
+  ok('a currency the person never named is not used', A.currencySaid('USD', told) === '');
+  ok('... one they named is: by its code, its name, or a word or sign only it goes by', A.currencySaid('usd', ['prices in USD']) === 'USD' && A.currencySaid('EGP', ['we count in Egyptian pounds']) === 'EGP'
+    && A.currencySaid('USD', ['everything is priced in dollars']) === 'USD' && A.currencySaid('EUR', ['a coffee is €3']) === 'EUR');
+  ok('... while a code that is also a word counts only in capitals, and a non-code never', A.currencySaid('TRY', ['I want to try it']) === '' && A.currencySaid('TRY', ['prices in TRY']) === 'TRY' && A.currencySaid('dollars', ['dollars']) === '');
+  const build = (currency) => A.readReply(JSON.stringify({ say: '', do: 'build', request: 'food wholesale in Cairo', business: { name: 'Delta Fresh Supply', does: 'food wholesale', place: 'Cairo', currency } }));
+  ok('a build keeps no currency the person did not name, so its place decides', A.settle(build('USD'), { userTexts: told, text: told[1] }).business.currency === ''
+    && sandbox.window.HCSystemsSetup.suggest('food wholesale in Cairo', sandbox.window.HCSystemsDomain).currency === 'EGP');
+  ok('... and keeps one they did', A.settle(build('USD'), { userTexts: [...told, 'Prices are in USD.'], text: 'Prices are in USD.' }).business.currency === 'USD');
+  ok('... which is what the ERP builds with', /if \(S\.currencyCode\(business\.currency\)\) setup\.currency = S\.currencyCode\(business\.currency\);/.test(src('modes', 'systems', 'mode.js')) && /const said = A\.settle\(A\.readReply\(answer\.text, \{ connected \}\), \{ starter: !!spec\?\.starter, userTexts, text, connected \}\);/.test(src('modes', 'systems', 'mode.js')));
   ok('the question asked instead names only what is missing', /what the business is called/.test(A.askFor(['name'])) && !/where it is/.test(A.askFor(['name'])));
   const described = A.readReply('{"say":"What should it include?","do":"none","business":{"name":"Pages","does":"sells books","place":"Cairo"}}');
   const texts = ['Build me an ERP for a bookstore', "It's called Pages and it's in Cairo"];
