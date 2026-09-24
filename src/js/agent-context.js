@@ -35,10 +35,12 @@
     toolBudget: 60000,
     /** No result is trimmed below this, however tight the budget gets. */
     minPerResult: 400,
-    /** Verbatim turns kept before older ones roll into a summary line. */
-    keepTurns: 16,
-    /** Below this many messages, nothing is summarised at all. */
-    summariseAfter: 18,
+    /** The newest tool results shown in full; older ones are hidden. */
+    keepResults: 10,
+    /** Requests kept with everything that followed them; older ones roll into a note. */
+    keepRequests: 3,
+    /** An argument longer than this, in a call whose result is hidden, is not repeated. */
+    longArgument: 300,
   };
 
   function truncateResult(content, keep) {
@@ -93,44 +95,132 @@
     return out;
   }
 
+  // ── Hiding what is old, keeping what was asked ──────────────────────────
+  //
+  // Older turns used to be rolled into a one-line count once a conversation
+  // passed 18 messages. A single task reaches that in nine steps, and the
+  // first message rolled away was the request itself: from there on the model
+  // was working on a task nobody had told it about. Now the request is never
+  // taken away. What gives way first is the output of tools the agent has
+  // already acted on: the newest results stay whole, older ones are replaced
+  // by a line saying what they were, and the long arguments of the calls that
+  // produced them (a whole file written, a passage replaced) are not repeated.
+  // Only when a conversation holds several requests are the earliest ones
+  // rolled into a note, and the note keeps the words of each.
+
+  const RESULT_TARGET_KEYS = ['path', 'dir', 'file', 'from', 'query', 'pattern', 'url', 'command'];
+
+  /** What a call was about, in a few words: `read_file src/app.js`. */
+  function callLabel(name, args) {
+    let a = args;
+    if (typeof a === 'string') { try { a = JSON.parse(a); } catch { a = {}; } }
+    const key = RESULT_TARGET_KEYS.find((k) => a && typeof a[k] === 'string' && a[k]);
+    const target = key ? String(a[key]).slice(0, 120) : '';
+    return (name || 'a tool') + (target ? ' ' + target : '');
+  }
+
+  /** The call's arguments with every long string replaced by its length. */
+  function slimArguments(raw, limit) {
+    const isText = typeof raw === 'string';
+    let args = raw;
+    if (isText) { try { args = JSON.parse(raw); } catch { return raw; } }
+    if (!args || typeof args !== 'object' || Array.isArray(args)) return raw;
+    let changed = false;
+    const out = {};
+    for (const [k, v] of Object.entries(args)) {
+      if (typeof v === 'string' && v.length > limit) {
+        out[k] = `[${v.length.toLocaleString()} characters, sent earlier and not repeated]`;
+        changed = true;
+      } else out[k] = v;
+    }
+    if (!changed) return raw;
+    return isText ? JSON.stringify(out) : out;
+  }
+
   /**
-   * Roll turns older than the recent window into one summary line, then apply
-   * the tool budget to what remains.
+   * Hide tool results older than the newest `keepResults`, slim the calls that
+   * asked for them, and take the pictures out of image messages older than
+   * that. Returns a new array; no message is removed, so every result still
+   * follows the call it answers.
+   */
+  function hideOldResults(messages, options) {
+    const opts = Object.assign({}, DEFAULTS, options || {});
+    const out = messages.slice();
+    let seen = 0;
+    let cutoff = -1;   // results at or before this index are hidden
+    for (let i = out.length - 1; i >= 0; i--) {
+      if (out[i] && out[i].role === 'tool' && ++seen > opts.keepResults) { cutoff = i; break; }
+    }
+    if (cutoff < 0) return out;
+    const labels = new Map();
+    for (let i = 0; i <= cutoff; i++) {
+      const m = out[i];
+      if (!m) continue;
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+        for (const c of m.tool_calls) {
+          const fn = c && c.function;
+          labels.set(c && c.id, callLabel(fn ? fn.name : c && c.name, fn ? fn.arguments : c && c.arguments));
+        }
+        out[i] = Object.assign({}, m, {
+          tool_calls: m.tool_calls.map((c) => {
+            if (!c) return c;
+            if (c.function) return Object.assign({}, c, { function: Object.assign({}, c.function, { arguments: slimArguments(c.function.arguments, opts.longArgument) }) });
+            return 'arguments' in c ? Object.assign({}, c, { arguments: slimArguments(c.arguments, opts.longArgument) }) : c;
+          }),
+        });
+      } else if (m.role === 'tool' && typeof m.content === 'string') {
+        const label = labels.get(m.tool_call_id) || callLabel(m.name, null);
+        out[i] = Object.assign({}, m, {
+          content: `[Earlier result of ${label}, hidden to keep the conversation short. Call the tool again if you need it.]`,
+        });
+      } else if (m.role === 'user' && Array.isArray(m.images) && m.images.length) {
+        const rest = Object.assign({}, m);
+        delete rest.images;
+        out[i] = Object.assign(rest, { content: `${m.content || ''} [The picture was shown earlier and is not sent again.]`.trim() });
+      }
+    }
+    return out;
+  }
+
+  // A request is a user message that carries no picture: the app adds the
+  // images an agent opened as a user message of their own, inside a request.
+  const isRequest = (m) => !!m && m.role === 'user' && !(Array.isArray(m.images) && m.images.length);
+
+  /**
+   * What the model is sent of a conversation: every request of the newest
+   * `keepRequests` with all that followed it, tool results older than the
+   * newest `keepResults` hidden, and the tool budget spent on the rest.
    *
-   * The system message stays at index 0 and the summary is appended to it, so
-   * there is only ever one system turn — several providers reject more.
+   * Earlier requests roll into a note on the system message — there is only
+   * ever one system turn, as several providers refuse more — and the note
+   * keeps what each of them asked. The newest request is never rolled away.
    */
   function compressHistory(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
     if (!Array.isArray(messages)) return [];
-    if (messages.length <= opts.summariseAfter) return budgetToolResults(messages, opts);
-
     const systemMsg = messages[0] && messages[0].role === 'system' ? messages[0] : null;
-    const rest = systemMsg ? messages.slice(1) : messages;
-
-    // Never cut inside a tool-call pair: an orphaned tool result, with no
-    // assistant turn that requested it, is rejected outright by most APIs.
-    let cut = Math.max(0, rest.length - opts.keepTurns);
-    while (cut < rest.length && rest[cut] && rest[cut].role === 'tool') cut++;
-
-    const older = rest.slice(0, cut);
-    const tail = rest.slice(cut);
-    if (!older.length) return budgetToolResults(messages, opts);
-
-    const users = older.filter(m => m && m.role === 'user').length;
-    const assistants = older.filter(m => m && m.role === 'assistant').length;
-    const tools = older.filter(m => m && m.role === 'tool').length;
-    const summary =
-      `[Earlier context compressed: ${users} user message${users !== 1 ? 's' : ''}, ` +
-      `${assistants} assistant repl${assistants !== 1 ? 'ies' : 'y'}, ` +
-      `${tools} tool call${tools !== 1 ? 's' : ''}.]`;
-
+    const rest = systemMsg ? messages.slice(1) : messages.slice();
+    const starts = [];
+    rest.forEach((m, i) => { if (isRequest(m)) starts.push(i); });
+    let kept = rest;
+    let note = '';
+    if (starts.length > opts.keepRequests) {
+      const cut = starts[starts.length - opts.keepRequests];
+      const older = rest.slice(0, cut);
+      kept = rest.slice(cut);
+      const asked = older.filter(isRequest).map((m) => {
+        const text = String(m.content || '').replace(/\s+/g, ' ').trim();
+        return `"${text.length > 200 ? text.slice(0, 200) + '…' : text}"`;
+      });
+      const calls = older.filter((m) => m && m.role === 'tool').length;
+      note = `[Earlier in this conversation, not repeated here: ${asked.length} earlier request${asked.length === 1 ? '' : 's'} ` +
+        `(${asked.join('; ')}), answered with ${calls} tool call${calls === 1 ? '' : 's'}.]`;
+    }
     const head = systemMsg
-      ? Object.assign({}, systemMsg, { content: systemMsg.content + '\n' + summary })
-      : { role: 'system', content: summary };
-
-    return budgetToolResults([head].concat(tail), opts);
+      ? [note ? Object.assign({}, systemMsg, { content: systemMsg.content + '\n' + note }) : systemMsg]
+      : (note ? [{ role: 'system', content: note }] : []);
+    return budgetToolResults(hideOldResults(head.concat(kept), opts), opts);
   }
 
-  window.HCAgentContext = { DEFAULTS, budgetToolResults, compressHistory };
+  window.HCAgentContext = { DEFAULTS, budgetToolResults, hideOldResults, compressHistory };
 })();

@@ -20,7 +20,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'agent-context.js' });
 
-const { DEFAULTS, budgetToolResults, compressHistory } = sandbox.window.HCAgentContext;
+const { DEFAULTS, budgetToolResults, hideOldResults, compressHistory } = sandbox.window.HCAgentContext;
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -111,7 +111,8 @@ console.log('\nSummarising older turns:');
   check('exactly one system turn survives',
     out.filter(m => m.role === 'system').length === 1);
   check('the original system prompt is still there', out[0].content.startsWith('prompt'));
-  check('the summary is appended to it', /Earlier context compressed/.test(out[0].content));
+  check('the note on earlier requests is appended to it', /Earlier in this conversation/.test(out[0].content));
+  check('the note keeps what the earlier requests asked', /"u0"/.test(out[0].content) && /"u26"/.test(out[0].content));
   check('the most recent turn is kept verbatim',
     out[out.length - 1].content === 'a29', out[out.length - 1].content);
 }
@@ -125,6 +126,46 @@ console.log('\nSummarising older turns:');
   const firstNonSystem = out.find(m => m.role !== 'system');
   check('the window never opens on an orphaned tool result',
     firstNonSystem.role !== 'tool', `starts with ${firstNonSystem.role}`);
+}
+
+console.log('\nA long task keeps its request:');
+{
+  // One request followed by thirty steps, each a call and its result.
+  const call = (id, name, args) => ({ role: 'assistant', content: '', tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }] });
+  const res = (id, name, content) => ({ role: 'tool', tool_call_id: id, name, content });
+  const msgs = [sys('prompt'), user('Fix the failing test in src/range.js')];
+  for (let i = 0; i < 30; i++) {
+    msgs.push(i === 0 ? call('c0', 'write_file', { path: '/p/src/big.js', content: 'w'.repeat(5000) }) : call('c' + i, 'read_file', { path: `/p/src/f${i}.js` }));
+    msgs.push(res('c' + i, i === 0 ? 'write_file' : 'read_file', 'r'.repeat(900) + i));
+  }
+  const out = compressHistory(msgs);
+  check('the request is still there, word for word', out.some((m) => m.role === 'user' && m.content === 'Fix the failing test in src/range.js'));
+  check('no message is taken out of the request in progress', out.length === msgs.length, `${msgs.length} -> ${out.length}`);
+  const results = out.filter((m) => m.role === 'tool');
+  check('the newest results arrive whole', results.slice(-DEFAULTS.keepResults).every((m) => m.content.startsWith('rrrr')));
+  check('older results are hidden, saying what they were', /Earlier result of read_file \/p\/src\/f19\.js/.test(results[results.length - DEFAULTS.keepResults - 1].content));
+  check('and how to see them again', /Call the tool again/.test(results[1].content));
+  const written = out[2].tool_calls[0].function.arguments;
+  check('a whole file written long ago is not sent again', !/w{400}/.test(written) && /5,000 characters/.test(written));
+  check('its call still reads as JSON, with its path', JSON.parse(written).path === '/p/src/big.js');
+  check('every result still follows the call it answers', out.every((m, i) => m.role !== 'tool' || (out[i - 1].role === 'assistant' || out[i - 1].role === 'tool')));
+  check('what the caller holds is not changed', msgs[3].content.startsWith('rrrr') && /w{5000}/.test(msgs[2].tool_calls[0].function.arguments));
+}
+{
+  const msgs = [sys('p'), user('look at the mockup')];
+  for (let i = 0; i < 14; i++) {
+    msgs.push({ role: 'assistant', content: '', tool_calls: [{ id: 'v' + i, function: { name: 'view_image', arguments: '{}' } }] });
+    msgs.push({ role: 'tool', tool_call_id: 'v' + i, content: 'ok' });
+    msgs.push({ role: 'user', content: 'This is shot.png, the image you opened.', images: ['QUJD'] });
+  }
+  const out = compressHistory(msgs);
+  const pics = out.filter((m) => m.role === 'user' && m.images);
+  check('a picture opened long ago is not sent again', pics.length < 14 && pics.length > 0);
+  check('a picture message is not taken for a new request', out.some((m) => m.content === 'look at the mockup') && !/Earlier in this conversation/.test(out[0].content));
+}
+{
+  const few = [sys('p'), user('a'), { role: 'assistant', content: '', tool_calls: [{ id: 'x', function: { name: 'read_file', arguments: '{"path":"/a"}' } }] }, tool('whole', 'x')];
+  check('a short run is sent as it is', JSON.stringify(hideOldResults(few)) === JSON.stringify(few));
 }
 
 console.log('\nDegenerate inputs:');

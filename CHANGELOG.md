@@ -368,6 +368,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The Coder keeps your request in view on a long task.** Once a task passed
+  about nine steps, the oldest messages were folded into a count, and the
+  first to go was the request itself, so the agent carried on without knowing
+  what it had been asked. The request is never folded away now. What gives way
+  is the output of tools the agent has already acted on: the newest results
+  stay whole, older ones become a line saying what they were, and pictures and
+  whole files sent long ago are not sent again.
+
 - **A small local model's tool calls are read when it writes several in a
   row.** A model that set out its next steps as calls, one per line, had them
   shown as its answer and none of them ran. They run now, when every one of
