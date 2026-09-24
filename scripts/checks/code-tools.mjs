@@ -64,6 +64,14 @@ console.log('\nWhere a command runs:');
   HC.guard.projectRoot = () => null;
   await HC.code.shellRun('ls', []);
   ok('with no project open, none is made up', sent[2].cwd === null && asked[2] === 'ls');
+  await HC.code.shellRun('npm test', []);
+  ok('a whole line written as the command is split into program and arguments', sent[3].command === 'npm' && JSON.stringify(sent[3].args) === '["test"]');
+  await HC.code.shellRun('git commit -m "two words"');
+  ok('quotes keep a spaced argument whole', JSON.stringify(sent[4].args) === '["commit","-m","two words"]');
+  let refused = '';
+  try { await HC.code.shellRun('cat a.txt | grep x', []); } catch (e) { refused = String(e.message); }
+  ok('a line that needs a shell is refused, saying what to do', /not a shell line/.test(refused) && sent.length === 5);
+  ok('a wildcard or a variable needs a shell too', HC.code.splitCommandLine('ls *.js') === null && HC.code.splitCommandLine('echo $HOME') === null);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

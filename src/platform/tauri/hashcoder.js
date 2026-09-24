@@ -120,6 +120,18 @@
     shellCancelKey: null,
 
     async shellRun(command, args = [], cwd = null, reason = '') {
+      // A small model often writes the whole line as the command. A plain line
+      // is split into the program and its arguments as a person would read it;
+      // one that needs a shell is refused with what to do instead, rather than
+      // failing as a program that does not exist.
+      if ((!Array.isArray(args) || !args.length) && /\s/.test(String(command || '').trim())) {
+        const words = splitCommandLine(String(command).trim());
+        if (!words) {
+          throw new Error('shell_run runs one program with its arguments, not a shell line: pipes, redirects, ' +
+            'wildcards and variables are not available. Pass the program as command and each argument in args.');
+        }
+        [command, ...args] = words;
+      }
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
       const display = [command, ...args].join(' ');
@@ -252,6 +264,31 @@
       return HC.invoke('fs_grep', { dir, pattern, fileExt });
     },
   };
+
+  /**
+   * A command line as its words, quotes honoured, or null when it needs a
+   * shell to mean what it says: a pipe, a redirect, a wildcard, a variable.
+   */
+  function splitCommandLine(text) {
+    const words = [];
+    let word = null;
+    let quote = null;
+    for (const ch of text) {
+      if (quote) {
+        if (ch === quote) quote = null;
+        else word += ch;
+        continue;
+      }
+      if (ch === '"' || ch === "'") { quote = ch; word = word ?? ''; continue; }
+      if (/\s/.test(ch)) { if (word != null) { words.push(word); word = null; } continue; }
+      if ('|&;<>`$()*?[]{}~\\!'.includes(ch)) return null;
+      word = (word ?? '') + ch;
+    }
+    if (quote) return null;
+    if (word != null) words.push(word);
+    return words.length ? words : null;
+  }
+  HC.code.splitCommandLine = splitCommandLine;
 
   // ── Tool definitions ────────────────────────────────────────
 
