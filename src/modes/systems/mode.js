@@ -806,7 +806,7 @@ CRITICAL: Implement the exact modules and screen types from the God Agent brief.
   }
 
   function prepareRawGeneratedSpecForValidation(raw, desc) {
-    const prepared = raw && typeof raw === "object" && !Array.isArray(raw) ? structuredCloneSafe(raw) : raw;
+    const prepared = raw && typeof raw === "object" && !Array.isArray(raw) ? SPEC().joinTwins(structuredCloneSafe(raw)) : raw;   // customer and customers made one table (js/systems/spec.js)
     if (!prepared || typeof prepared !== "object" || Array.isArray(prepared)) return prepared;
     const modules = Array.isArray(prepared.modules) ? prepared.modules : [];
     const existingEntities = rawEntityMap(prepared.entities);

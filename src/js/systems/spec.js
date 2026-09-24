@@ -68,6 +68,76 @@
     return map;
   }
 
+  /** Whether two table ids are one name, singular and plural: customer and customers, category and categories. */
+  function twins(a, b) {
+    const one = (p, s) => p === `${s}s` || p === `${s}es` || (/ies$/.test(p) && /y$/.test(s) && p.slice(0, -3) === s.slice(0, -1));
+    return a !== b && (one(a, b) || one(b, a));
+  }
+
+  /**
+   * One table for one thing. A model names a table one way in its list of
+   * tables and another in the module that shows it, customers and customer,
+   * or lists it twice, and the system was built with both: two customer
+   * lists, one of them empty. Tables whose ids differ only as singular and
+   * plural are made one. The one the model listed with the most fields keeps
+   * its id; the other's fields and records join it, and every module, link,
+   * figure and workflow that named the other names it. A copy is returned.
+   */
+  function joinTwins(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return raw;
+    const listed = entityMap(raw.entities);
+    const shown = (Array.isArray(raw.modules) ? raw.modules : []).map((m) => slug(m && m.entity, "")).filter(Boolean);
+    const ids = [...new Set([...Object.keys(listed), ...shown])];
+    const fieldsOf = (id) => (listed[id] && Array.isArray(listed[id].fields) ? listed[id].fields.length : -1);
+    const into = {};
+    for (const id of ids) {
+      if (into[id]) continue;
+      const group = ids.filter((other) => other === id || (!into[other] && twins(id, other)));
+      if (group.length < 2) continue;
+      const keep = group.reduce((best, other) => (fieldsOf(other) > fieldsOf(best) ? other : best));
+      for (const other of group) if (other !== keep) into[other] = keep;
+    }
+    if (!Object.keys(into).length) return raw;
+
+    const out = cloneSafe(raw);
+    const to = (id) => into[slug(id, "")] || id;
+    const map = entityMap(out.entities);
+    const entities = {};
+    for (const id of Object.keys(map)) {
+      const at = to(id);
+      if (entities[at]) continue;
+      // The kept table's own name and fields first, then what only its twin had.
+      const members = [at, ...Object.keys(map).filter((other) => other !== at && to(other) === at)].filter((m) => map[m]);
+      const fields = [];
+      const known = new Set();
+      for (const m of members) {
+        for (const f of Array.isArray(map[m].fields) ? map[m].fields : []) {
+          const key = slug(f && (f.id || f.name || f.label), "");
+          if (key && known.has(key)) continue;
+          known.add(key);
+          fields.push(f);
+        }
+      }
+      entities[at] = { ...map[members[0]], id: at, fields };
+    }
+    for (const e of Object.values(entities)) for (const f of e.fields) if (f && f.type === "link" && f.entity) f.entity = to(f.entity);
+    out.entities = entities;
+    if (Array.isArray(out.modules)) out.modules = out.modules.map((m) => (m && m.entity ? { ...m, entity: to(m.entity) } : m));
+    if (Array.isArray(out.workflows)) out.workflows = out.workflows.map((w) => (w && w.entity ? { ...w, entity: to(w.entity) } : w));
+    for (const key of ["mockData", "kpis"]) {
+      const was = out[key];
+      if (!was || typeof was !== "object" || Array.isArray(was)) continue;
+      const now = {};
+      const kept = (id) => (into[slug(id, "")] ? 1 : 0);
+      for (const [id, value] of Object.entries(was).sort(([a], [b]) => kept(a) - kept(b))) {
+        const at = to(id);
+        now[at] = Array.isArray(now[at]) && Array.isArray(value) ? [...now[at], ...value] : (now[at] || value);
+      }
+      out[key] = now;
+    }
+    return out;
+  }
+
   /**
    * The JSON inside whatever a model actually sent.
    *
@@ -244,5 +314,5 @@
     return records;
   }
 
-  window.HCSystemsSpec = { VALID_SCREENS, SCREEN_NEEDS, slug, cloneSafe, entityMap, parseJson, validate, prepareRecords };
+  window.HCSystemsSpec = { VALID_SCREENS, SCREEN_NEEDS, slug, cloneSafe, entityMap, twins, joinTwins, parseJson, validate, prepareRecords };
 })();

@@ -225,5 +225,53 @@ console.log('\nA copy is a copy, however the platform feels about it:');
   ok('and nothing usable still gives an object', typeof S.cloneSafe(null) === 'object');
 }
 
+console.log('\nOne table for one thing, however the model spelled it:');
+{
+  ok('singular and plural are one name', S.twins('customer', 'customers') && S.twins('categories', 'category') && S.twins('address', 'addresses') && S.twins('class', 'classes') && S.twins('sales_orders', 'sales_order'));
+  ok('... and other names are not', !S.twins('customer', 'customer') && !S.twins('order', 'order_lines') && !S.twins('product', 'products_sold') && !S.twins('invoices', 'invoice_lines'));
+
+  const field = (id, type = 'text', extra = {}) => ({ id, label: id, type, ...extra });
+  const base = () => ({
+    name: 'Delta Fresh Supply',
+    modules: [
+      { name: 'Orders', entity: 'orders', screen: 'kanban' },
+      { name: 'Products', entity: 'products', screen: 'list' },
+      { name: 'Customers', entity: 'customer', screen: 'split' },
+      { name: 'Deliveries', entity: 'deliveries', screen: 'calendar' },
+      { name: 'Reports', entity: 'orders', screen: 'report' },
+    ],
+    entities: {
+      orders: { name: 'Orders', fields: [field('number'), field('customer', 'link', { entity: 'customer' }), field('total', 'number'), field('status', 'select', { options: ['Open', 'Done'] })] },
+      products: { name: 'Products', fields: [field('name'), field('price', 'number'), field('stock', 'number')] },
+      customers: { name: 'Customers', fields: [field('name'), field('phone'), field('terms'), field('balance', 'number')] },
+      deliveries: { name: 'Deliveries', fields: [field('order'), field('date', 'date'), field('route')] },
+    },
+    mockData: { customers: [{ name: 'Harbor Street Market' }], orders: [] },
+    kpis: { customer: [{ label: 'Customers', aggregate: 'count' }] },
+  });
+
+  const raw = base();
+  ok('the gate cannot build a module that names a table by its other spelling', S.validate(raw).some((i) => /Entity "customer" referenced by module "Customers"/.test(i)));
+  const one = S.joinTwins(raw);
+  ok('joined, the module names the table the model listed, and the gate is satisfied', one.modules[2].entity === 'customers' && S.validate(one).length === 0, S.validate(one).join(' | '));
+  ok('... there is one customer table, not two', Object.keys(one.entities).filter((id) => /^customers?$/.test(id)).join() === 'customers');
+  ok('... a link to it and a figure about it follow it', one.entities.orders.fields[1].entity === 'customers' && Object.keys(one.kpis).join() === 'customers');
+  ok('... and what the model sent is left as it was', raw.modules[2].entity === 'customer' && raw.kpis.customer);
+
+  const both = base();
+  both.entities = { customer: { name: 'Customer', fields: [field('name'), field('city')] }, ...both.entities };
+  both.mockData.customer = [{ name: 'Corner Bistro Group', city: 'Giza' }];
+  const joined = S.joinTwins(both);
+  const kept = joined.entities.customers;
+  ok('listed twice, the one with more fields keeps its name, even when listed second', !joined.entities.customer && kept.id === 'customers' && kept.name === 'Customers');
+  ok('... with its own fields first, then only what the other had', kept.fields.map((f) => f.id).join() === 'name,phone,terms,balance,city');
+  ok('... and the records of both, its own first', joined.mockData.customers.map((r) => r.name).join() === 'Harbor Street Market,Corner Bistro Group' && !('customer' in joined.mockData));
+
+  const plain = base();
+  plain.modules[2].entity = 'customers';
+  ok('a system with no twins comes back untouched', S.joinTwins(plain) === plain);
+  ok('the ERP joins them before it reads a model\'s system', /const prepared = raw && typeof raw === "object" && !Array\.isArray\(raw\) \? SPEC\(\)\.joinTwins\(structuredCloneSafe\(raw\)\) : raw;/.test(readFileSync(join(root, 'src', 'modes', 'systems', 'mode.js'), 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/systems/spec.js)\n`);
 process.exit(fail === 0 ? 0 : 1);

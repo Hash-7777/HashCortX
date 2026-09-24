@@ -359,6 +359,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An ERP keeps one table for one thing.** When a model's design named a
+  table one way in its list of tables and another on the screen that shows
+  it, such as "customers" and "customer", the system was built with both:
+  the model's table with its records, and an empty one filled with
+  stand-ins, which was the one on screen. Tables whose names differ only as
+  singular and plural are now made one, keeping the fields and records of
+  both, and every screen and link points at it.
+
 - **A food wholesaler's ERP is built for a wholesaler.** "Food" anywhere in
   a description meant a restaurant, so a wholesaler that sells to
   restaurants and shops was built with a menu, dining tables and waiters.
