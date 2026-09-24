@@ -5937,7 +5937,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const tracker = assistant.toolsUsed;
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
     const tools = buildOpenAITools(agent);   // shaped for Gemini where it is sent (js/agent-shape.js)
-    tools.push(...((await window.HCMcp?.toolsFor(modelEl.value)) || []));   // connected systems' tools this model may use (js/mcp/connections.js)
+    tools.push(...((await window.HCMcp?.toolsFor(modelEl.value, { text: state.messages.filter((m) => m.role === "user").at(-1)?.content })) || []));   // connected systems' tools this model may use (js/mcp/connections.js)
     const turns = window.HCChatFailover.agentTurns({
       start: modelEl.value, send: runModelTurn, adapterOf: selectAgentAdapter,
       routes: modelEl.value.startsWith("cloud:")

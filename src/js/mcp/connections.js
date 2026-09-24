@@ -147,15 +147,16 @@
 
   // ── Offering tools to an agent, and running one ─────────────────────────
 
-  let offered = new Map();   // name the model calls → { id, tool }
+  let offered = new Map();   // name the model calls → { id, tool, off }: off for a switched-off tool, which sends nothing
   let readThisTurn = false;  // whether this turn has read a system's records
 
   /**
    * The tools an agent may call on this model, for this turn. `readsOnly`
    * offers only tools that read, and `only` one system's — how the ERP reads
-   * a connected system without ever being able to change it.
+   * a connected system without ever being able to change it. `text` is the
+   * request, which picks the switched-off tools worth naming (offOffers).
    */
-  async function toolsFor(modelValue, { readsOnly = false, only = null } = {}) {
+  async function toolsFor(modelValue, { readsOnly = false, only = null, text = "" } = {}) {
     offered = new Map();
     readThisTurn = false;
     if (!available()) return [];
@@ -174,9 +175,54 @@
         offered.set(offer.function.name, { id: conn.id, tool: t.name });
         out.push(offer);
       }
+      if (readsOnly) continue;   // switching a tool on would not help: these callers never change records
+      for (const offer of offOffers(conn, text)) {
+        if (offered.has(offer.function.name)) continue;
+        offered.set(offer.function.name, { id: conn.id, tool: offer.tool, off: true });
+        out.push({ type: offer.type, function: offer.function });
+      }
     }
     return out;
   }
+
+  const OFF_OFFERED = 6;
+
+  /**
+   * A system's switched-off tools, offered in their place as tools that send
+   * nothing. A model asked for something only a switched-off tool does knows
+   * of no way to do it, and reaches for a shell command or says it lacks
+   * permission; offered one by name, it calls it, and the answer it gets
+   * back says the tool is off and where the person switches it on (offText).
+   * Each is described in the app's words, never the system's: the person has
+   * not approved what the system says about it. At most OFF_OFFERED of them,
+   * those whose names share most words with the request first. A name worded
+   * as a line to AI systems is not offered.
+   */
+  function offOffers(conn, text) {
+    const stem = (w) => w.replace(/s$/, "");
+    const asked = new Set(P().wordsOf(text).map(stem));
+    const shared = (t) => P().wordsOf(t.name).filter((w) => asked.has(stem(w))).length;
+    return (conn.tools || [])
+      .filter((t) => !(t.on && t.approved === t.definition))
+      .map((t) => ({ t, words: labelOfTool(t.name), score: shared(t) }))
+      .filter((x) => x.words && P().clean(x.words, x.words.length) === x.words)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, OFF_OFFERED)
+      .map(({ t, words }) => ({
+        tool: t.name,
+        type: "function",
+        function: {
+          name: P().exposedName(conn.id, t.name),
+          description: `${conn.name}: ${words}. Switched off in Settings → Connections: calling it sends nothing, and says how the person can switch it on.`,
+          parameters: { type: "object", properties: {} },
+        },
+      }));
+  }
+
+  /** What a model is told when it calls a switched-off tool. */
+  const offText = (conn, tool) => `Nothing was sent: "${labelOfTool(tool)}" is switched off for ${conn ? conn.name : "that system"} in Settings → Connections. The person can switch it on there, and each change will still ask them first.`;
+
+  const labelOfTool = (name) => (window.HCMcpPresets ? window.HCMcpPresets.toolLabel(name) : String(name || ""));
 
   /** Whether this turn offers any connected system's tools. */
   const offering = () => offered.size > 0;
@@ -198,7 +244,7 @@
    * every tool offered costs a small model some of its accuracy.
    */
   async function toolsForTask(modelValue, text) {
-    if (asksFor(text)) return toolsFor(modelValue);
+    if (asksFor(text)) return toolsFor(modelValue, { text });
     offered = new Map();
     readThisTurn = false;
     return [];
@@ -307,7 +353,9 @@
    * for the app's own use — never for a model.
    */
   async function run(name, args, { raw = false } = {}) {
-    const got = await callAt(offered.get(name), args, { raw });
+    const at = offered.get(name);
+    if (at && at.off) return { error: offText(find(at.id), at.tool) };   // a switched-off tool: nothing is sent, and the system is not asked
+    const got = await callAt(at, args, { raw });
     if (got && !got.error) readThisTurn = true;
     return got;
   }
@@ -344,8 +392,9 @@
     const conn = find(at.id);
     return {
       ownLimit: true,
-      statusLabel: () => `Asking ${conn ? conn.name : "a connected system"}: ${at.tool}`,
-      execute: (args) => run(name, args),
+      statusLabel: () => (at.off ? `Switched off: ${at.tool}` : `Asking ${conn ? conn.name : "a connected system"}: ${at.tool}`),
+      // A switched-off tool fails, so no runner counts it as having read records.
+      execute: (args) => (at.off ? Promise.reject(new Error(offText(conn, at.tool))) : run(name, args)),
     };
   }
 

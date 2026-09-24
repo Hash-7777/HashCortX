@@ -359,6 +359,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An agent says when the tool a request needs is switched off.** A model
+  asked for something only a switched-off tool of a connected system does,
+  such as opening a pull request, knew of no way to do it, and tried a shell
+  command or told you to ask an administrator. In chat and the Coder, a
+  system's switched-off tools are now offered in their place as tools that
+  send nothing, described in the app's words, up to six of them, those
+  closest to the request first. Calling one tells the model the tool is
+  switched off and that you can switch it on in Settings → Connections.
+
 - **"Run the agents that did not finish" shows only when some did not.**
   In the Swarm Workspace it stayed on screen after every run, offering to
   run none, because a style every button shares outweighed the attribute
