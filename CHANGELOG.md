@@ -32,8 +32,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Sign in to a connected system through the browser.** A system that has
   its users sign in on its own page no longer needs a key: leave the key
   empty, or choose "Sign in through the browser" under More options, and
-  its sign-in page opens in your browser. HashCortX registers itself with
-  the system's sign-in server as a native app with no secret, uses PKCE,
+  its sign-in page opens in your browser. HashCortX introduces itself to
+  the system's sign-in server by its public client document on
+  hashcortx.com when the server reads those, and otherwise registers
+  itself as a native app with no secret. It uses PKCE,
   waits for the answer on a one-time address on this computer, and does
   not use an answer that names another server. The tokens stay with the
   app, out of the page's reach, are sent only to that system, and are

@@ -17,8 +17,8 @@
 //   with S256 is refused before the browser opens.
 //
 // HOW THE APP INTRODUCES ITSELF
-//   With its public client document when the server reads those and the
-//   document is published (CLIENT_METADATA_URL); otherwise by registering
+//   With its public client document when the server reads those
+//   (CLIENT_METADATA_URL); otherwise by registering
 //   itself as a native app with no secret, when the server allows that;
 //   otherwise it cannot, and the person is told.
 //
@@ -48,10 +48,15 @@ use std::path::Path;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// The app's public client document, read by sign-in servers that support
-/// them. None until the document is published at its address
-/// (https://hashcortx.com/oauth/client-metadata.json): a server that reads
-/// one that is not there turns the sign-in away.
-const CLIENT_METADATA_URL: Option<&str> = None;
+/// them. It is published at this address, and says the app's name, that it
+/// has no secret, and where the answer comes back: 127.0.0.1 on DOCUMENT_PORT,
+/// or on any port, as the loopback rule allows.
+const CLIENT_METADATA_URL: Option<&str> = Some("https://hashcortx.com/oauth/client-metadata.json");
+/// The port the client document names. A sign-in introduced by the document
+/// waits on it, so a server that holds the answer's address to the document
+/// exactly finds it there; when it is taken, any free port is used, which a
+/// server following the loopback rule accepts.
+const DOCUMENT_PORT: u16 = 28574;
 const CLIENT_NAME: &str = "HashCortx";
 const CALLBACK_PATH: &str = "/callback";
 const SIGN_IN_WAIT: Duration = Duration::from_secs(300);
@@ -753,13 +758,20 @@ pub(super) fn sign_in(
         scope = format!("{scope} offline_access").trim().to_string();
     }
 
-    // The one-time address, on the port this app registered before when it can be had.
+    // The one-time address: on the port the client document names when the
+    // server reads it, otherwise on the port this app registered before, when
+    // either can be had.
     let before = conn.oauth.clone().filter(|o| o.issuer == server.issuer);
-    let wanted_port = before
-        .as_ref()
-        .and_then(|o| o.redirect_uri.rsplit_once(':'))
-        .and_then(|(_, rest)| rest.split('/').next())
-        .and_then(|p| p.parse::<u16>().ok());
+    let by_document = CLIENT_METADATA_URL.is_some() && server.reads_client_documents;
+    let wanted_port = if by_document {
+        Some(DOCUMENT_PORT)
+    } else {
+        before
+            .as_ref()
+            .and_then(|o| o.redirect_uri.rsplit_once(':'))
+            .and_then(|(_, rest)| rest.split('/').next())
+            .and_then(|p| p.parse::<u16>().ok())
+    };
     let listener = wanted_port
         .and_then(|p| TcpListener::bind(("127.0.0.1", p)).ok())
         .map_or_else(|| TcpListener::bind(("127.0.0.1", 0)), Ok)
@@ -769,7 +781,7 @@ pub(super) fn sign_in(
 
     // Introducing the app.
     let (client_id, client_secret) = match (CLIENT_METADATA_URL, before) {
-        (Some(document), _) if server.reads_client_documents => (document.to_string(), String::new()),
+        (Some(document), _) if by_document => (document.to_string(), String::new()),
         (_, Some(o)) if o.redirect_uri == redirect_uri && !o.client_id.is_empty() => (o.client_id, o.client_secret),
         _ if !server.registration_endpoint.is_empty() => register(&server, &redirect_uri)?,
         _ => return Err("this system's sign-in server does not let new apps introduce themselves, so HashCortx cannot sign in to it yet. Use a key if it offers one.".into()),
@@ -1127,8 +1139,13 @@ mod tests {
     }
 
     /// A system and its sign-in server on one port. `wrong_iss` makes the
-    /// answer carry another server's name; `no_pkce` leaves S256 unoffered.
-    fn stand_in(wrong_iss: bool, no_pkce: bool) -> (u16, Arc<Mutex<Seen>>, TcpListener) {
+    /// answer carry another server's name; `no_pkce` leaves S256 unoffered;
+    /// `reads_documents` has the server read client documents.
+    fn stand_in(
+        wrong_iss: bool,
+        no_pkce: bool,
+        reads_documents: bool,
+    ) -> (u16, Arc<Mutex<Seen>>, TcpListener) {
         let seen = Arc::new(Mutex::new(Seen::default()));
         let port_cell = Arc::new(Mutex::new(0u16));
         let (s, p) = (seen.clone(), port_cell.clone());
@@ -1162,10 +1179,15 @@ mod tests {
                     } else {
                         r#","code_challenge_methods_supported":["S256"]"#
                     };
+                    let documents = if reads_documents {
+                        r#","client_id_metadata_document_supported":true"#
+                    } else {
+                        ""
+                    };
                     json(
                         "200 OK",
                         &format!(
-                            r#"{{"issuer":"{base}","authorization_endpoint":"{base}/authorize","token_endpoint":"{base}/token","registration_endpoint":"{base}/register","authorization_response_iss_parameter_supported":true{pkce}}}"#
+                            r#"{{"issuer":"{base}","authorization_endpoint":"{base}/authorize","token_endpoint":"{base}/token","registration_endpoint":"{base}/register","authorization_response_iss_parameter_supported":true{pkce}{documents}}}"#
                         ),
                         "",
                     )
@@ -1189,7 +1211,12 @@ mod tests {
                     assert_eq!(get("code_challenge_method"), "S256");
                     assert_eq!(get("resource"), format!("{base}/mcp"));
                     assert_eq!(get("scope"), "records:read");
-                    assert_eq!(get("client_id"), "cid-1");
+                    let client = if reads_documents {
+                        CLIENT_METADATA_URL.unwrap()
+                    } else {
+                        "cid-1"
+                    };
+                    assert_eq!(get("client_id"), client);
                     s.lock().unwrap().challenge = get("code_challenge");
                     let iss = if wrong_iss {
                         "https://evil.example.com".to_string()
@@ -1213,6 +1240,10 @@ mod tests {
                             .unwrap_or_default()
                     };
                     assert_eq!(get("resource"), format!("{base}/mcp"));
+                    if reads_documents {
+                        assert_eq!(get("client_id"), CLIENT_METADATA_URL.unwrap());
+                        assert!(get("client_secret").is_empty());
+                    }
                     if get("grant_type") == "refresh_token" {
                         s.lock().unwrap().renewed.push(get("refresh_token"));
                         return json(
@@ -1267,8 +1298,49 @@ mod tests {
     }
 
     #[test]
+    fn a_server_that_reads_client_documents_is_introduced_by_the_published_one() {
+        let document = CLIENT_METADATA_URL.expect("the client document is published");
+        let (scheme, rest) = document.split_once("://").unwrap();
+        assert!(scheme == "https" && rest.split_once('/').is_some_and(|(_, p)| !p.is_empty()));
+        let (port, seen, _l) = stand_in(false, false, true);
+        let free = TcpListener::bind(("127.0.0.1", DOCUMENT_PORT)).is_ok();
+        let path = temp_store("document");
+        let url = format!("http://127.0.0.1:{port}/mcp");
+        super::super::save_connection(&path, "sys-4", &url, "oauth", "", None).unwrap();
+        let opened = Arc::new(Mutex::new(Vec::new()));
+        let conn = sign_in(&path, "sys-4", &browser(opened.clone())).unwrap();
+        let o = conn.oauth.clone().unwrap();
+        assert_eq!(
+            (
+                o.access_token.as_str(),
+                o.client_id.as_str(),
+                o.client_secret.as_str()
+            ),
+            ("at-1", document, "")
+        );
+        // Nothing is registered: the server reads who the app is from its page.
+        assert_eq!(seen.lock().unwrap().registered, 0);
+        assert!(opened.lock().unwrap()[0].contains(&format!("client_id={}&", encode(document))));
+        // The answer comes back to the port the document names, when it is free.
+        if free {
+            let named = format!("http://127.0.0.1:{DOCUMENT_PORT}/callback");
+            assert!(
+                opened.lock().unwrap()[0].contains(&format!("redirect_uri={}&", encode(&named)))
+            );
+        }
+        // With that port taken, the sign-in waits on another.
+        let held = TcpListener::bind(("127.0.0.1", DOCUMENT_PORT)).ok();
+        let again = sign_in(&path, "sys-4", &browser(opened.clone())).unwrap();
+        assert_eq!(again.oauth.unwrap().client_id, document);
+        if held.is_some() {
+            let named = format!("http://127.0.0.1:{DOCUMENT_PORT}/callback");
+            assert!(!opened.lock().unwrap()[1].contains(&encode(&named)));
+        }
+    }
+
+    #[test]
     fn a_whole_sign_in_keeps_its_tokens_out_of_the_page_and_renews_them() {
-        let (port, seen, _l) = stand_in(false, false);
+        let (port, seen, _l) = stand_in(false, false, false);
         let path = temp_store("flow");
         let url = format!("http://127.0.0.1:{port}/mcp");
         super::super::save_connection(&path, "sys-1", &url, "oauth", "", None).unwrap();
@@ -1341,7 +1413,7 @@ mod tests {
 
     #[test]
     fn an_answer_naming_another_server_is_not_used() {
-        let (port, seen, _l) = stand_in(true, false);
+        let (port, seen, _l) = stand_in(true, false, false);
         let path = temp_store("iss");
         super::super::save_connection(
             &path,
@@ -1364,7 +1436,7 @@ mod tests {
 
     #[test]
     fn a_server_without_pkce_is_refused_before_the_browser_opens() {
-        let (port, _seen, _l) = stand_in(false, true);
+        let (port, _seen, _l) = stand_in(false, true, false);
         let path = temp_store("pkce");
         super::super::save_connection(
             &path,
