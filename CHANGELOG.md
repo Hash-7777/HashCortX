@@ -359,6 +359,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A food wholesaler's ERP is built for a wholesaler.** "Food" anywhere in
+  a description meant a restaurant, so a wholesaler that sells to
+  restaurants and shops was built with a menu, dining tables and waiters.
+  The ERP now knows wholesale and distribution businesses, food or
+  otherwise: orders that move from received to delivered, products by the
+  pack, customers with payment terms and credit, deliveries and suppliers.
+
 - **An agent says when the tool a request needs is switched off.** A model
   asked for something only a switched-off tool of a connected system does,
   such as opening a pull request, knew of no way to do it, and tried a shell

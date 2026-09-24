@@ -43,6 +43,9 @@
 
   function detectDomain(desc) {
     const d = String(desc || "").toLowerCase();
+    // Before the restaurant: a food wholesaler sells to restaurants and shops,
+    // and names both, but keeps no menu and no dining tables.
+    if (/wholesal|distributor|\bdistribution\b|\bb2b\b|cash[- ]and[- ]carry/.test(d)) return "wholesale";
     if (/pizza|burger|restaurant|cafe|dine|bistro|grill|kitchen|food|eatery|brasserie|canteen/.test(d)) return "restaurant";
     if (/hotel|resort|hostel|motel|lodge|hospitality|booking|accommodation/.test(d)) return "hotel";
     if (/clinic|medical|hospital|healthcare|doctor|patient|pharmacy|health/.test(d)) return "healthcare";
@@ -233,6 +236,24 @@
       workflows: [
         {id:"case_flow",name:"Case Lifecycle",stages:["Intake","Discovery","Filing","Hearing","Judgement","Closed"]},
         {id:"billing",name:"Billing",stages:["Draft","Sent","Partial","Paid","Overdue"]},
+      ],
+    },
+    wholesale: {
+      name: "Wholesale & Distribution",
+      theme: { mode:"light", primary:"#166534", accent:"#84cc16" },
+      modules: [
+        { name:"Orders",     screen:"kanban",   entity:"orders" },
+        { name:"Products",   screen:"list",     entity:"products" },
+        { name:"Customers",  screen:"split",    entity:"customers" },
+        { name:"Deliveries", screen:"calendar", entity:"deliveries" },
+        { name:"Suppliers",  screen:"cards",    entity:"suppliers" },
+        { name:"Reports",    screen:"report",   entity:"orders" },
+      ],
+      kpis: {
+        orders: [{label:"Orders",aggregate:"count"},{label:"Order Value",field:"total",aggregate:"sum"},{label:"Avg Order",field:"total",aggregate:"avg"}],
+      },
+      workflows: [
+        {id:"order_flow",name:"Order Fulfilment",stages:["Received","Confirmed","Picking","Packed","Dispatched","Delivered"]},
       ],
     },
     jewelry: {
@@ -474,6 +495,54 @@
       ];
     }
 
+    if (domain === "wholesale") {
+      if (/order/.test(base)) return [
+        { id:"order_number", label:"Order #", type:"text", required:true },
+        { id:"customer", label:"Customer", type:"text" },
+        { id:"total", label:"Total ($)", type:"number" },
+        { id:"lines", label:"Lines", type:"number" },
+        { id:"status", label:"Status", type:"select", options:["Received","Confirmed","Picking","Packed","Dispatched","Delivered"] },
+        { id:"order_date", label:"Order Date", type:"date" },
+        { id:"delivery_date", label:"Delivery Date", type:"date" },
+      ];
+      if (/product/.test(base)) return [
+        { id:"name", label:"Product", type:"text", required:true },
+        { id:"sku", label:"SKU", type:"text" },
+        { id:"pack", label:"Pack Size", type:"text" },
+        { id:"price", label:"Price per Pack ($)", type:"number" },
+        { id:"stock", label:"Packs in Stock", type:"number" },
+        { id:"reorder_level", label:"Reorder At", type:"number" },
+        { id:"status", label:"Status", type:"select", options:["In Stock","Low Stock","Out of Stock","Discontinued"] },
+        { id:"last_received", label:"Last Received", type:"date" },
+      ];
+      if (/customer/.test(base)) return [
+        { id:"name", label:"Customer", type:"text", required:true },
+        { id:"contact", label:"Contact", type:"text" },
+        { id:"phone", label:"Phone", type:"text" },
+        { id:"terms", label:"Payment Terms", type:"select", options:["On delivery","7 days","14 days","30 days","60 days"] },
+        { id:"credit_limit", label:"Credit Limit ($)", type:"number" },
+        { id:"balance", label:"Balance ($)", type:"number" },
+        { id:"status", label:"Status", type:"select", options:["Active","On Hold","Closed"] },
+        { id:"last_order", label:"Last Order", type:"date" },
+      ];
+      if (/deliver/.test(base)) return [
+        { id:"order_number", label:"Order #", type:"text", required:true },
+        { id:"customer", label:"Customer", type:"text" },
+        { id:"route", label:"Route", type:"text" },
+        { id:"packs", label:"Packs", type:"number" },
+        { id:"date", label:"Delivery Date", type:"date" },
+        { id:"status", label:"Status", type:"select", options:["Scheduled","Loaded","Out for Delivery","Delivered","Failed"] },
+      ];
+      if (/supplier/.test(base)) return [
+        { id:"name", label:"Supplier", type:"text", required:true },
+        { id:"contact", label:"Contact", type:"text" },
+        { id:"phone", label:"Phone", type:"text" },
+        { id:"supplies", label:"Supplies", type:"text" },
+        { id:"lead_days", label:"Lead Time (days)", type:"number" },
+        { id:"status", label:"Status", type:"select", options:["Active","On Hold","Ended"] },
+      ];
+    }
+
     if (domain === "manufacturing") {
       if (/production|order/.test(base)) return [
         { id:"order_number", label:"Order #", type:"text", required:true },
@@ -556,6 +625,7 @@
       manufacturing: { baseRevenue:210000, grossMargin:.34, taxRate:.06, customers:["Apex Industrial","Crestfield Parts","Helix Systems","Norwood Manufacturing","Trident Supply"], vendors:["SteelWorks","CNC Maintenance","Packaging Hub","Safety Supplies"] },
       hr: { baseRevenue:76000, grossMargin:.71, taxRate:.05, customers:["Retainer Clients","Recruiting Fees","Payroll Services","Benefits Admin","HR Advisory"], vendors:["Job Boards","Assessment Tools","Payroll Processor","Legal Counsel"] },
       legal: { baseRevenue:138000, grossMargin:.69, taxRate:.045, customers:["Corporate Counsel","Litigation Client","Estate Planning","Retainer Account","Contract Review"], vendors:["Court Filing Service","Legal Research","Process Servers","Document Storage"] },
+      wholesale: { baseRevenue:240000, grossMargin:.18, taxRate:.05, customers:["Harbor Street Market","Greenleaf Stores","Corner Bistro Group","Metro Hotel Supply","Northside Traders"], vendors:["Primary Producers Co.","Coastal Packers","Freight Partners","Warehouse Lease"] },
       jewelry: { baseRevenue:165000, grossMargin:.42, taxRate:.0825, customers:["Bridal Clients","Collectors","Custom Orders","Boutique Buyers","Repair Customers"], vendors:["Gem Exchange","Gold Refinery","Security Services","Luxury Packaging"] },
       saas: { baseRevenue:123000, grossMargin:.82, taxRate:.04, customers:["Enterprise Plan","Team Subscriptions","Usage Overage","Implementation Fees","Partner Channel"], vendors:["Cloud Hosting","Support Tools","Data Provider","Security Audit"] },
       generic: { baseRevenue:88000, grossMargin:.52, taxRate:.06, customers:["Meridian Co.","Northstar Group","BluePeak LLC","Arion Partners","Crestfield"], vendors:["Office Supply Co.","Cloud Services","Contract Labor","Facilities Vendor"] },

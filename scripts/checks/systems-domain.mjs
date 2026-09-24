@@ -44,6 +44,19 @@ console.log('\nA description is placed in an industry, or honestly in none:');
   ok('a school is education', D.detectDomain('language school admin') === 'education');
   ok('a courier is logistics', D.detectDomain('courier and delivery fleet') === 'logistics');
   ok('a law firm is legal', D.detectDomain('law firm case tracker') === 'legal');
+  // A food wholesaler names food, restaurants and shops — its customers — and
+  // keeps no menu and no dining tables.
+  ok('a food wholesaler is wholesale, not a restaurant', D.detectDomain('food wholesale business in Cairo') === 'wholesale'
+    && D.detectDomain('a food distribution company selling produce to restaurants and shops') === 'wholesale'
+    && D.detectDomain('Wholesaler of dry goods') === 'wholesale');
+  ok('... and so is a distributor of anything else', D.detectDomain('an electronics distributor') === 'wholesale' && D.detectDomain('B2B cleaning supplies') === 'wholesale' && D.detectDomain('cash and carry') === 'wholesale');
+  ok('... while a place that serves food is still a restaurant', D.detectDomain('a food truck') === 'restaurant' && D.detectDomain('a family restaurant') === 'restaurant');
+  const w = D.DOMAIN_CONFIG.wholesale;
+  ok('a wholesaler keeps orders, products, customers, deliveries and suppliers', w.modules.map((m) => m.entity).join() === 'orders,products,customers,deliveries,suppliers,orders');
+  const own = ['orders', 'products', 'customers', 'deliveries', 'suppliers'].map((e) => [e, JSON.stringify(D.defaultFields(e, 'wholesale'))]);
+  ok('... each with fields of its own, not a restaurant\'s', own.every(([e, f]) => f !== JSON.stringify(D.defaultFields(e, 'generic')) && f !== JSON.stringify(D.defaultFields(e, 'restaurant')) && !/table_number|waiter|menu/.test(f)));
+  ok('... an order moves through the stages its board shows', JSON.stringify(D.defaultFields('orders', 'wholesale').find((f) => f.id === 'status').options) === JSON.stringify(w.workflows[0].stages));
+  ok('... with books of its own', D.financeProfile({ domain: 'wholesale' }).domain === 'wholesale' && D.financeProfile({ domain: 'wholesale' }).customers.length >= 5);
   // Nothing recognised has to be its own answer rather than the first one on
   // the list — guessing "restaurant" for a description about beekeeping would
   // furnish the whole system wrongly.
@@ -57,7 +70,7 @@ console.log('\nA description is placed in an industry, or honestly in none:');
   // the generic one and named "Business Operating System" — a system that
   // looks like a fallback for a description the app understood perfectly.
   ok('every industry it can name has a configuration',
-    ['restaurant', 'hotel', 'healthcare', 'education', 'fitness', 'realestate', 'retail',
+    ['restaurant', 'hotel', 'healthcare', 'education', 'fitness', 'realestate', 'retail', 'wholesale',
       'logistics', 'manufacturing', 'hr', 'legal', 'jewelry', 'saas', 'generic']
       .every((d) => !!D.DOMAIN_CONFIG[d]), DOMAINS.join(','));
 }

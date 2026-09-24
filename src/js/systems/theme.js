@@ -62,6 +62,7 @@
     manufacturing: { light: { app:"#f1f5f9", card:"#ffffff", border:"rgba(30,58,95,.1)"    }, dark: { app:"#030910", card:"#08141e", border:"rgba(96,165,250,.11)"  } },
     hr:            { light: { app:"#faf5ff", card:"#ffffff", border:"rgba(124,58,237,.1)"  }, dark: { app:"#0d0320", card:"#180738", border:"rgba(196,181,253,.12)" } },
     legal:         { light: { app:"#faf8f4", card:"#fffdf9", border:"rgba(28,25,23,.09)"   }, dark: { app:"#0c0900", card:"#1a1500", border:"rgba(217,119,6,.12)"   } },
+    wholesale:     { light: { app:"#f7fee7", card:"#ffffff", border:"rgba(22,101,52,.1)"   }, dark: { app:"#020c04", card:"#061708", border:"rgba(132,204,22,.12)"  } },
     jewelry:       { light: { app:"#fefce8", card:"#fffdf0", border:"rgba(161,120,10,.13)" }, dark: { app:"#0d0900", card:"#1a1400", border:"rgba(212,175,55,.18)"  } },
     saas:          { light: { app:"#f8fafc", card:"#ffffff", border:"rgba(15,23,42,.09)"   }, dark: { app:"#04050a", card:"#090c14", border:"rgba(148,163,184,.1)"  } },
     generic:       { light: { app:"#f8fafc", card:"#ffffff", border:"rgba(15,23,42,.1)"    }, dark: { app:"#060b14", card:"#0d1526", border:"rgba(99,102,241,.12)"  } },
@@ -275,6 +276,7 @@
     manufacturing: { shell: ['dock', 'command', 'sidebar'], font: ['mono', 'sans'], density: ['compact', 'comfortable'] },
     hr: { shell: ['command', 'sidebar', 'top'], font: ['humanist', 'sans', 'rounded'] },
     legal: { shell: ['command', 'sidebar'], font: ['serif', 'sans'] },
+    wholesale: { shell: ['sidebar', 'dock', 'top'], font: ['sans', 'humanist'], density: ['compact', 'comfortable'] },
     jewelry: { shell: ['cards-nav', 'sidebar', 'top'], font: ['serif', 'humanist'], density: ['comfortable', 'spacious'] },
     saas: { shell: ['top', 'sidebar', 'command'], font: ['sans', 'mono'], density: ['compact', 'comfortable'] },
   };

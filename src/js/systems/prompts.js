@@ -16,7 +16,7 @@ Return ONLY valid JSON. No markdown, no prose, no code fences.
 
 Required keys:
 {
-  "domain": "restaurant|hotel|healthcare|education|fitness|realestate|retail|logistics|manufacturing|hr|legal|saas|generic",
+  "domain": "restaurant|hotel|healthcare|education|fitness|realestate|retail|wholesale|logistics|manufacturing|hr|legal|saas|generic",
   "name": "Human-readable system name (≤48 chars)",
   "description": "One sentence about what this ERP manages",
   "theme": { "font": "sans|serif|rounded|humanist|mono" },

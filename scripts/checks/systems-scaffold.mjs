@@ -46,7 +46,7 @@ console.log('Every kind of business gets a system the app can actually draw:');
   const asks = [
     'a pizza restaurant in Cairo', 'a small hotel', 'a dentist clinic', 'a private school',
     'a gym and wellness studio', 'a property agency', 'an online clothing store',
-    'a law firm', 'a logistics company', 'a car workshop', 'a bakery',
+    'a law firm', 'a logistics company', 'a food wholesale business', 'a car workshop', 'a bakery',
     'a system for Seif\'s bike shop', 'something for my business', 'x', '',
   ];
   let renderable = 0;
@@ -73,6 +73,14 @@ console.log('\nAnd every one of them is a system somebody could use:');
   ok('and it says it was built without a model', spec.builtWithoutAModel === true);
 }
 
+console.log('\nA food wholesaler is built as one, not as a restaurant:');
+{
+  const spec = Sc.build('a food wholesale business in Cairo', TODAY);
+  ok('its tables are a wholesaler\'s', spec.domain === 'wholesale' && spec.entities.map((e) => e.id).join() === 'orders,products,customers,deliveries,suppliers', spec.entities.map((e) => e.id).join());
+  ok('... with no menu and no dining tables', !spec.entities.some((e) => /menu|^tables$/.test(e.id)) && !JSON.stringify(spec.entities).includes('waiter'));
+  ok('... and it passes the app\'s own gate', S.validate(spec).length === 0, S.validate(spec).join(' | '));
+}
+
 console.log('\nIt is named for the business, not for the industry:');
 {
   ok('a named shop keeps its name', /bike shop/i.test(Sc.build("a system for Seif's bike shop", TODAY).name));
@@ -86,7 +94,7 @@ console.log('\nA screen is never shown something it cannot draw:');
   // The gate asks a board for stages, a report for a figure, a calendar for a
   // date. An industry's own fields do not always carry one.
   const boards = [];
-  for (const ask of ['a restaurant', 'a hotel', 'a clinic', 'a gym', 'a law firm', 'a logistics company']) {
+  for (const ask of ['a restaurant', 'a hotel', 'a clinic', 'a gym', 'a law firm', 'a logistics company', 'a food wholesaler']) {
     const spec = Sc.build(ask, TODAY);
     for (const module of spec.modules) {
       const entity = spec.entities.find((e) => e.id === module.entity);
