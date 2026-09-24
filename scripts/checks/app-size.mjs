@@ -195,7 +195,9 @@ const LINE_BUDGET = {
   // chat holding a system's records is not sent to a model the system keeps
   // them from, in a turn or in Split. The rules, the protocol and the
   // connections are js/mcp/.
-  'js/app.js': 6546,
+  // 6542, down four: Settings gained a HashCoder section, and the seven
+  // section buttons are wired in one line rather than one line each.
+  'js/app.js': 6542,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -670,7 +672,9 @@ const LINE_BUDGET = {
   // 2652, up ten: a small local model is given the tools a coding task needs
   // and a short set of steps, chosen by its size before each run; the tools
   // and the steps are in platform/tauri/hashcoder.js.
-  'modes/code/mode.js': 2652,
+  // 2650, down two: the panel's rarely used controls moved to Settings, and a
+  // new conversation redraws the panel's own empty screen instead of a copy.
+  'modes/code/mode.js': 2650,
 };
 
 console.log('\nFile sizes go down, never up:');

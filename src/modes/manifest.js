@@ -14,10 +14,11 @@
 // two have to match, and check:modes fails if they ever stop matching.
 //
 // `host` is the element the panel is inserted into, and it is not decoration.
-// The seven panels did not all sit in the same place: Finance and Sandbox were
-// inside #app, four were inside #mainApp, and Coder was a direct child of
-// <body>. Those are different stacking and layout contexts, so each panel goes
-// back exactly where it was.
+// Finance and Sandbox sit inside #app and the full-screen workspaces inside
+// #mainApp. Those are different stacking and layout contexts. HashCoder is
+// in #mainApp beside the others, so Settings, which it opens from its bar,
+// and the memory map Settings opens, are layered above it as they are above
+// every other workspace.
 //
 // Order is load order, and it is the cascade order of the stylesheets.
 // ==============================================================
@@ -26,7 +27,7 @@
 
   window.HCModes = {
     MANIFEST: [
-      { id: 'code',        host: 'body' },
+      { id: 'code',        host: '#mainApp' },
       { id: 'forge',       host: '#mainApp' },
       { id: 'finance',     host: '#app' },
       { id: 'sandbox',     host: '#app' },

@@ -2158,7 +2158,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (e.key === "Escape" && settingsOverlay.classList.contains("open")) closeSettings();
   });
 
-  // General ↔ Local model ↔ API keys ↔ Memory ↔ About section switching
+  // Switching between the Settings sections, one per button in its rail.
   const stabSettings = $("stab-settings"), stabLocal = $("stab-local"), stabApis = $("stab-apis"),
         stabMemory = $("stab-memory"), stabAbout = $("stab-about");
   const settingsPane = $("settingsPane"), localPane = $("localPane"), apisPane = $("apisPane"),
@@ -2176,6 +2176,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       apis: { tab: stabApis, pane: apisPane, title: "API keys", onShow: renderApisPane },
       memory: { tab: stabMemory, pane: memoryPane, title: "Memory", onShow: renderMemoryPane },
       connected: { tab: $("stab-connected"), pane: $("connectedPane"), title: "Connections", onShow: () => window.HCMcp?.render() },
+      hashcoder: { tab: $("stab-hashcoder"), pane: $("hashcoderPane"), title: "HashCoder" },
       about: { tab: stabAbout, pane: aboutPane, title: "About" },
     };
     const activeKey = tabs[which]?.tab && tabs[which]?.pane ? which : "settings";
@@ -2188,12 +2189,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     $("settingsTitle").textContent = tabs[activeKey]?.title || "Settings";
     tabs[activeKey]?.onShow?.();
   }
-  stabSettings?.addEventListener("click", () => activateSettingsTab("settings"));
-  stabLocal?.addEventListener("click",    () => activateSettingsTab("local"));
-  stabApis?.addEventListener("click",     () => activateSettingsTab("apis"));
-  stabMemory?.addEventListener("click",   () => activateSettingsTab("memory"));
-  $("stab-connected")?.addEventListener("click", () => activateSettingsTab("connected"));
-  stabAbout?.addEventListener("click",    () => activateSettingsTab("about"));
+  ["settings", "local", "apis", "memory", "connected", "hashcoder", "about"].forEach((key) => $(`stab-${key}`)?.addEventListener("click", () => activateSettingsTab(key)));
   activateSettingsTab("settings");
 
   // ── API keys: filter the list ─────────────────────────────────────────

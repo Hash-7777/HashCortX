@@ -253,6 +253,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The Coder panel is redesigned as HashCoder.** One bar holds the project,
+  the model, how full its window is, and new conversation, history, terminal,
+  Settings and leave. History and the execution trace open over the
+  conversation, and the terminal is hidden until you ask for it. What is used
+  less often moved to a new HashCoder section in Settings: the audit log, the
+  trace, export, how many agents work at once, resetting permissions and the
+  knowledge base switch, with whether the terminal opens with the panel and
+  whether a change is proven before finishing. A local model under 7B is
+  named as small under the box you type in. The panel is drawn in the app's
+  shared colours, so it follows the theme.
+
 - **A small local model gets the tools a coding task needs and a short set of
   steps.** Below five billion parameters the Coder offers nine tools instead
   of nineteen, and a few lines of steps in place of its full instructions.

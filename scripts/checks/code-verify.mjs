@@ -150,6 +150,10 @@ console.log('\nThe Coder uses it:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing', /HCCodeVerify\.stopCheck\(/.test(mode));
+  ok('only while proving is switched on in Settings, which it is unless turned off',
+    /cdrPrefs\(\)\.prove !== false \? window\.HCCodeVerify\.stopCheck\(/.test(mode) && /proveEl\.checked = prefs\.prove !== false/.test(mode));
+  const settings = src('core', 'settings', 'panel.html');
+  ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));
   ok('a note from the app is not shown as the person\'s message', /isAppNote\(/.test(mode));
 }
 

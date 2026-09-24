@@ -1,5 +1,12 @@
 /* ================================================================
-   CODER MODE — HashCortx Coder · Futuristic Minimal IDE
+   HashCoder — the coding agent's panel
+
+   One bar, the conversation in the middle, the files on the left. History,
+   the terminal and the execution trace open over the conversation when asked
+   for; everything used less often is in Settings, under HashCoder.
+
+   Drawn from the app's own tokens (css/vars.css), so it follows the theme:
+   type, space and hairlines, flat controls, one accent.
    ================================================================ */
 
 #coder-mode-wrap {
@@ -7,1864 +14,438 @@
   position: fixed;
   inset: 0;
   z-index: 82;
+  padding-top: 44px;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--surface-0);
   color: var(--text);
-  font-family: var(--mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace);
-  overflow: hidden;
-  flex-direction: column;
+  font-family: var(--sans);
+  font-size: 13px;
 
-  /* ── Terminal-inspired palette ─────────────────────────────── */
-  --cdr-bg:        var(--surface-0);
-  --cdr-bg-panel:  var(--surface-2);
-  --cdr-bg-chat:   var(--surface-1);
-  --cdr-bg-input:  var(--surface-2);
-  --cdr-border:    var(--line);
-  --cdr-border-hover: var(--line-strong);
-
-  --cdr-text:      var(--text);
-  --cdr-text-dim:  var(--text-dim);
-  --cdr-text-muted:var(--muted);
-
-  --cdr-cyan:      var(--accent-2);
-  --cdr-gold:      var(--warn);
-  --cdr-violet:    var(--info);
-  --cdr-rose:      var(--danger);
-  --cdr-success:   var(--ok);
-  --cdr-error:     var(--danger);
-
-  --cdr-radius:    var(--radius-xs);
-  --cdr-radius-lg: var(--radius-sm);
+  /* Names the file tree, the terminal and the steps draw with. */
+  --cdr-border: var(--line);
+  --cdr-border-strong: var(--line-strong);
+  --cdr-text: var(--text);
+  --cdr-text-dim: var(--text-dim);
+  --cdr-text-muted: var(--muted);
+  --cdr-cyan: var(--accent-2);
+  --cdr-gold: var(--warn);
+  --cdr-violet: var(--info);
+  --cdr-error: var(--danger);
+  --cdr-col: 760px;
 }
 body.coder-mode #coder-mode-wrap { display: flex; }
 body.coder-mode #app { display: none; }
-#coder-mode-wrap { padding-top: 44px; }
 
-/* ── Header ─────────────────────────────────────────────────── */
-.cdr-header {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-panel);
-  min-height: 48px;
-}
+#coder-mode-wrap svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+#coder-mode-wrap button { font-family: inherit; }
 
-.cdr-header-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.cdr-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--cdr-text);
-}
-.cdr-sub {
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  margin-top: 1px;
-}
-
-.cdr-header-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-.cdr-status-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--cdr-text-muted);
-  display: inline-block;
-}
-.cdr-status-dot.ok    { background: var(--cdr-success); }
-.cdr-status-dot.warn  { background: var(--cdr-gold); }
-.cdr-status-dot.err   { background: var(--cdr-error); }
-.cdr-status-dot.run   { background: var(--cdr-cyan); animation: cdr-pulse 1.2s ease-in-out infinite; }
-@keyframes cdr-pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.35; }
-}
-
-.cdr-router-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 10px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  font-size: 10px;
-  color: var(--cdr-text-dim);
-  letter-spacing: 0.03em;
-}
-.cdr-router-chip.routing {
-  border-color: rgba(245,201,122,0.35);
-  color: var(--cdr-gold);
-}
-
-.cdr-header-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* ── Body layout (VS-Code style: files | chat | sessions) ─────── */
-.cdr-body {
-  flex: 1;
-  display: grid;
-  /* Driven by custom properties so the split handles can move them, and so a
-     collapsed panel is simply a width of zero.
-
-     This was three fixed columns — 220px file tree, chat, 260px saved chats —
-     none of them resizable. At the window's 960px minimum the two side columns
-     took 480px, half the app, and the terminal was pinned at 140px, about six
-     lines of build output. */
-  --cdr-side-w: 232px;
-  --cdr-right-w: 210px;
-  --cdr-term-h: 220px;
-  --cdr-split: 5px;
-  grid-template-columns: var(--cdr-side-w) var(--cdr-split) minmax(0, 1fr) var(--cdr-right-w);
-  grid-template-rows: minmax(0, 1fr) var(--cdr-split) var(--cdr-term-h);
-  grid-template-areas:
-    "side splitx chat     right"
-    "side splitx splity   right"
-    "side splitx terminal right";
-  overflow: hidden;
-  position: relative;
-}
-.cdr-body.cdr-side-hidden { --cdr-side-w: 0px; --cdr-split: 0px; }
-.cdr-body.cdr-term-hidden { --cdr-term-h: 34px; }
-.cdr-body.cdr-term-hidden .cdr-terminal-body,
-.cdr-body.cdr-term-hidden .cdr-terminal-input { display: none; }
-.cdr-body.cdr-term-full   { --cdr-term-h: calc(100% - 46px); }
-
-/* ── The side panel: Files and Chats as tabs in one column ── */
-.cdr-side {
-  grid-area: side;
-  display: flex; flex-direction: column;
-  min-width: 0; overflow: hidden;
-  background: var(--cdr-bg-panel);
-  border-right: 1px solid var(--cdr-border);
-}
-.cdr-body.cdr-side-hidden .cdr-side,
-.cdr-body.cdr-side-hidden .cdr-split-x { display: none; }
-
-.cdr-side-tab {
-  flex: 1 1 0; min-width: 0;
-  padding: 6px 4px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-bottom: none;
-  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
-  color: var(--cdr-text-muted);
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
-  white-space: nowrap; overflow: hidden;
-  cursor: pointer;
-}
-.cdr-side-tab:hover { color: var(--cdr-text-dim); background: rgba(255,255,255,0.04); }
-.cdr-side-tab.active {
-  color: var(--cdr-cyan);
-  background: rgba(255,255,255,0.05);
-  border-color: var(--cdr-border);
-}
-.cdr-side-pane { display: none; flex: 1 1 auto; min-height: 0; overflow: hidden; }
-.cdr-side-pane.active { display: flex; flex-direction: column; }
-
-/* A rail to bring the panel back, only while it is hidden. */
-.cdr-side-rail {
-  display: none;
-  position: absolute; left: 0; top: 0; bottom: 0; z-index: 4;
-  width: 14px; padding: 0;
-  background: var(--cdr-bg-panel);
-  border: none; border-right: 1px solid var(--cdr-border);
-  color: var(--cdr-text-muted); cursor: pointer; font-size: 11px;
-}
-.cdr-side-rail:hover { color: var(--cdr-cyan); background: rgba(255,255,255,0.05); }
-.cdr-body.cdr-side-hidden .cdr-side-rail { display: block; }
-
-/* ── Split handles ── */
-.cdr-split {
-  position: relative;
-  background: transparent;
-  z-index: 3;
-}
-.cdr-split::after {
-  content: ""; position: absolute; inset: 0;
-  background: var(--cdr-border);
-  transition: background .12s ease;
-}
-.cdr-split:hover::after,
-.cdr-split:focus-visible::after { background: var(--cdr-cyan); }
-.cdr-split-x { grid-area: splitx; cursor: col-resize; }
-.cdr-split-y { grid-area: splity; cursor: row-resize; }
-.cdr-split-x::after { left: 2px; right: 2px; }
-.cdr-split-y::after { top: 2px; bottom: 2px; }
-.cdr-body.cdr-term-hidden .cdr-split-y::after { background: var(--cdr-border); }
-/* While dragging, the whole body takes the cursor and stops selecting text. */
-.cdr-body.cdr-dragging { user-select: none; }
-.cdr-body.cdr-dragging.cdr-dragging-x { cursor: col-resize; }
-.cdr-body.cdr-dragging.cdr-dragging-y { cursor: row-resize; }
-.cdr-body.cdr-dragging iframe { pointer-events: none; }
-/* ── Sidebar (left — Files panel, always visible) ─────────────── */
-.cdr-sidebar {
-  flex: 1 1 auto; min-height: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--cdr-bg-panel);
-  overflow: hidden;
-  width: 100%;
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-}
-.cdr-sidebar.open { display: flex; }  /* legacy compat */
-.cdr-sidebar-hd,
-.cdr-sessions-hd {
+/* ── The bar ───────────────────────────────────────────────────── */
+.cdr-top {
+  flex: 0 0 52px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 10px;
+  gap: 16px;
+  padding: 0 14px 0 18px;
   border-bottom: 1px solid var(--cdr-border);
-  gap: 6px;
-  min-height: 34px;
 }
-.cdr-sidebar-actions {
-  display: flex; align-items: center; gap: 3px;
-}
-/* All four the same size. They were not: a generic button rule adds padding,
-   so the collapse chevron came out a third wider than the file actions beside
-   it and the row read as broken. */
-.cdr-sidebar-actions .cdr-sidebar-iconbtn,
-.cdr-sidebar-actions #cdrSideCollapse {
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  padding: 0;
-  flex: none;
-  background: transparent;
-  border-color: transparent;
-}
-.cdr-sidebar-actions .cdr-sidebar-iconbtn:hover,
-.cdr-sidebar-actions #cdrSideCollapse:hover {
-  background: var(--surface-raised);
-  border-color: var(--cdr-border);
-}
-/* The collapse acts on the panel, not on the files in it. */
-.cdr-sidebar-actions #cdrSideCollapse {
-  order: 9;
-  margin-left: 6px;
-  color: var(--cdr-text-muted);
-}
-.cdr-sidebar-iconbtn {
-  width: 22px; height: 22px;
-  display: grid; place-items: center;
-  background: rgba(75,210,190,0.04);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--radius-xs);
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  transition: background .12s, color .12s, border-color .12s;
-}
-.cdr-sidebar-iconbtn:hover {
-  background: rgba(75,210,190,0.12);
-  color: var(--cdr-cyan);
-  border-color: rgba(75,210,190,0.32);
-}
-.cdr-sidebar-iconbtn.danger {
-  background: rgba(255,143,143,0.04);
-  color: rgba(255,143,143,0.72);
-}
-.cdr-sidebar-iconbtn.danger:hover {
-  background: rgba(255,143,143,0.12);
-  color: var(--cdr-rose);
-  border-color: rgba(255,143,143,0.34);
-}
-.cdr-sidebar-iconbtn svg { display: block; }
-.cdr-sidebar-title {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--cdr-text-dim);
-}
-.cdr-sidebar-body {
-  flex: 1;
-  overflow: auto;
-  padding: 4px 6px;
-}
+.cdr-top-left, .cdr-top-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cdr-top-right { gap: 6px; flex: none; }
+.cdr-brand { font-size: 14px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
+.cdr-brand b, .cdr-welcome-title b { color: var(--accent-2); font-weight: 600; }
+.cdr-top-sep { width: 1px; height: 18px; background: var(--cdr-border-strong); flex: none; margin: 0 4px; }
 
-/* Explorer tree */
-.cdr-tree-root {
-  font-size: 10px;
-  color: var(--cdr-text-dim);
-  padding: 6px 7px 7px;
-  margin-bottom: 5px;
-  border-bottom: 1px solid var(--cdr-border);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  white-space: nowrap;
-  overflow: hidden;
+.cdr-project {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 30px; max-width: 320px; padding: 0 11px;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--cdr-text); font-size: 12.5px; cursor: pointer;
 }
-.cdr-tree-root strong,
-.cdr-tree-root span {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-tree-root strong {
-  color: var(--cdr-text);
-  font-size: 10.5px;
-  font-weight: 600;
-}
-.cdr-tree-root span {
-  color: var(--cdr-text-muted);
-  font-size: 9px;
-}
-.cdr-tree-empty {
-  font-size: 11px;
-  color: var(--cdr-text-muted);
-  padding: 20px 10px;
-  text-align: center;
-}
+.cdr-project:hover { border-color: var(--accent); }
+.cdr-project span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.cdr-tree-entry {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 24px;
-  padding: 3px 7px;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1.2;
-  color: var(--cdr-text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background .1s, color .1s;
-}
-.cdr-tree-entry:hover  { background: rgba(255,255,255,0.04); color: var(--cdr-text); }
-.cdr-tree-entry.active { background: rgba(75,210,190,0.08); color: var(--cdr-cyan); }
-.cdr-tree-entry svg {
-  width: 14px;
-  height: 14px;
-  flex: 0 0 14px;
-  display: block;
-  opacity: 0.68;
-}
-/* A folder says whether it is open. Without this the tree gave no sign a row
-   could be expanded at all, which is the first thing a file tree has to do. */
-.cdr-tree-entry.dir::before {
-  content: "\25B8";
-  font-size: 8px;
-  width: 8px;
-  flex: none;
-  color: var(--cdr-text-muted);
-}
-.cdr-tree-entry.dir.open::before { content: "\25BE"; color: var(--accent); }
-.cdr-tree-entry:not(.dir)::before { content: ""; width: 8px; flex: none; }
-.cdr-tree-entry.dir svg { color: var(--cdr-gold); opacity: 0.78; }
-.cdr-tree-entry .cdr-tree-name {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-tree-entry .cdr-tree-text {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.cdr-tree-entry .cdr-tree-path {
-  display: none;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--cdr-text-muted);
-  font-size: 9px;
-  line-height: 1.15;
-}
-.cdr-tree-subtree {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
+.cdr-status { display: inline-flex; align-items: center; gap: 7px; color: var(--cdr-text-muted); font-size: 12px; white-space: nowrap; }
+.cdr-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cdr-text-muted); flex: none; }
+.cdr-status-dot.ok, .cdr-status-dot.done { background: var(--ok); }
+.cdr-status-dot.thinking, .cdr-status-dot.run, .cdr-status-dot.running { background: var(--accent-2); animation: cdr-pulse 1.2s ease-in-out infinite; }
+.cdr-status-dot.err, .cdr-status-dot.warn { background: var(--danger); }
+@keyframes cdr-pulse { 50% { opacity: 0.35; } }
 
-/* ── Chat area (center) ─────────────────────────────────────── */
-.cdr-chat-area {
-  grid-area: chat;
-  display: flex;
-  flex-direction: column;
-  background: var(--cdr-bg-chat);
-  overflow: hidden;
-  position: relative;
-}
-
-.cdr-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-/* Welcome screen */
-.cdr-welcome {
-  margin: auto;
-  text-align: center;
-  padding: 48px 24px;
-  color: var(--cdr-text-dim);
-}
-.cdr-welcome-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--cdr-text);
-  margin-bottom: 6px;
-}
-.cdr-welcome-sub {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--cdr-text-dim);
-  margin-bottom: 20px;
-}
-.cdr-welcome-chips {
-  flex-wrap: wrap;
-  max-width: 720px;
-  justify-content: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-.cdr-welcome-chip {
-  display: inline-flex;
-  padding: 6px 12px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input);
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  transition: background .12s, color .12s, border-color .12s, transform .08s;
-}
-.cdr-welcome-chip:hover {
-  background: rgba(255,255,255,0.04);
-  color: var(--cdr-text);
-  border-color: var(--cdr-border-hover);
-  transform: translateY(-1px);
-}
-
-/* ── Chat messages ──────────────────────────────────────────── */
-.cdr-msg {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 0;
-  animation: cdr-msg-in .22s ease-out;
-}
-@keyframes cdr-msg-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* ── The header, as one status line ────────────────────────────
-   It carried a logo, a two-line title, a centred status group and five
-   buttons. The mock reads left to right in one line: what this is, where it
-   is pointed, whether it is busy — then the model, and two controls. */
-.cdr-header-left {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
-}
-.cdr-header-center { justify-self: start; }
-.cdr-header-left .cdr-title {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--cdr-text);
-}
-.cdr-header-left .cdr-sub {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--cdr-text-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-status-word {
-  font-size: 11px;
-  color: var(--cdr-text-muted);
-  margin-left: 2px;
-}
-.cdr-header-right { display: flex; align-items: center; gap: 8px; }
-.cdr-header-right .cdr-model-picker {
-  height: var(--control-h-sm);
-  width: 168px;
-  max-width: 168px;
-  text-overflow: ellipsis;
-  padding: 0 8px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--cdr-text);
-  font-family: var(--mono);
-  font-size: 11px;
-}
-.cdr-more-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 9px;
-  color: var(--cdr-text-dim);
-  font-family: var(--mono);
-  font-size: 11px;
-}
-
-/* ── The side rail: three stacked panes, no tabs ───────────────
-   Files and Chats were two tabs in one column, so finding an old session meant
-   leaving the file tree. The mock stacks them, which is also how Knowledge
-   already sat. */
-.cdr-side-pane[data-cdr-side-pane="files"] { flex: 1 1 auto; min-height: 0; }
-
-/* ── Pane labels ────────────────────────────────────────────────
-   Every panel names itself the same way: small, spaced, bracketed. It is what
-   makes the columns read as parts of one tool rather than four widgets that
-   happen to be adjacent. */
-.cdr-pane-label {
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-  opacity: 0.85;
-  white-space: nowrap;
-}
-
-/* ── The overflow menu ──────────────────────────────────────────
-   Audit, trace, export and reset-permissions used to sit in the header
-   permanently — four controls you touch about once a month, two of them
-   diagnostics, competing with the two you read constantly. */
-.cdr-icon-btn {
-  height: var(--control-h-sm);
-  min-width: 26px;
-  padding: 0 7px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1;
-  cursor: pointer;
-}
-.cdr-icon-btn:hover { border-color: var(--accent); color: var(--accent); }
-.cdr-more-menu {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 30;
-  min-width: 178px;
-  padding: 4px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-panel);
-  box-shadow: var(--shadow-sm);
-}
-.cdr-more-menu.open { display: block; }
-.cdr-more-item {
-  display: block;
-  width: 100%;
-  padding: 6px 9px;
-  border: none;
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-family: var(--mono);
-  font-size: 11px;
-  text-align: left;
-  cursor: pointer;
-}
-.cdr-more-item:hover { background: var(--surface-raised); color: var(--cdr-text); }
-.cdr-more-item.danger { color: var(--cdr-error); }
-
-/* The router chip only earns its space while it is saying something. Idle it
-   read "Auto" for ever, which is a label for a setting, not a status. During a
-   run it reports which provider is answering and when one has failed over,
-   which is worth the room. */
-.cdr-router-chip:empty,
+/* Says which provider is answering, and only when routing has something to say. */
+.cdr-router-chip { font-size: 11.5px; color: var(--cdr-text-muted); white-space: nowrap; }
 .cdr-router-chip[data-idle="1"] { display: none; }
+.cdr-router-chip.routing { color: var(--warn); }
+.cdr-router-chip.switched { color: var(--accent-2); }
 
-/* ── The composer reads as a prompt ─────────────────────────── */
-.cdr-run-btn {
-  height: 24px;
-  padding: 0 14px;
-  flex: none;
-  border: 1px solid var(--accent);
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-}
-.cdr-run-btn:hover { background: rgba(92,255,151,0.10); }
-
-.cdr-prompt-mark {
-  align-self: center;
-  padding-left: 12px;
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 13px;
-  line-height: 1;
-  user-select: none;
-}
-
-/* ── One step of a run ──────────────────────────────────────────
-   State classes are namespaced. They were bare — `change`, `pending`, `ok` —
-   and `modes.css` carries `.pending { display: flex }` for something else
-   entirely, which turned every pending change into a flex row: the summary and
-   the diff sat side by side instead of the diff opening underneath. A generic
-   class name in this app is a collision waiting to happen.
-   A tool call and a file change are the same thing from the outside: a thing
-   the run did. They used to be two different blocks sitting next to each other,
-   which is most of why a run was hard to follow. One shape now — verb, what it
-   acted on, how it went — and whatever detail belongs to that step opens
-   underneath it in place. */
-.cdr-step {
-  border-bottom: 1px solid var(--cdr-border);
-  font-size: 11.5px;
-}
-.cdr-step:last-of-type { border-bottom: none; }
-.cdr-step-head {
-  display: grid;
-  grid-template-columns: 12px 58px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 9px;
-  padding: 3px 8px;
-  cursor: pointer;
-  list-style: none;
-  border-radius: var(--cdr-radius);
-}
-.cdr-step-head::-webkit-details-marker { display: none; }
-.cdr-step-head::before {
-  content: "\25B8";
-  font-size: 9px;
-  color: var(--cdr-text-muted);
-}
-.cdr-step[open] > .cdr-step-head::before { content: "\25BE"; color: var(--accent); }
-.cdr-step-head:hover { background: var(--surface-raised); }
-.cdr-step-verb {
-  font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: var(--cdr-text-muted);
-}
-.cdr-step--ok .cdr-step-verb    { color: var(--accent); }
-.cdr-step--err .cdr-step-verb   { color: var(--cdr-error); }
-.cdr-step--change .cdr-step-verb { color: var(--accent); }
-.cdr-step-object {
-  font-family: var(--mono);
-  color: var(--cdr-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-step-result {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 10.5px;
+.cdr-model {
+  display: inline-flex; align-items: center; gap: 7px;
+  height: 30px; padding: 0 4px 0 10px;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm);
   color: var(--cdr-text-dim);
-  white-space: nowrap;
-}
-.cdr-step-running { color: var(--cdr-text-muted); }
-.cdr-step--err .cdr-step-result { color: var(--cdr-error); }
-.cdr-plus  { color: var(--cdr-success); }
-.cdr-minus { color: var(--cdr-error); }
-.cdr-step-body {
-  padding: 2px 8px 8px 79px;
-  overflow: auto;
-  max-height: 340px;
-}
-.cdr-step-body pre {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  line-height: 1.6;
-  color: var(--cdr-text-dim);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.cdr-step-body pre.cdr-diff-lines { white-space: pre; word-break: normal; }
-.cdr-step-note {
-  font-size: 10.5px;
-  color: var(--cdr-error);
-  margin-bottom: 6px;
-}
-.cdr-step-actions { display: inline-flex; gap: 5px; }
-.cdr-step-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 20px;
-  padding: 0 8px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-family: inherit;
-  font-size: 10px;
-  cursor: pointer;
-}
-.cdr-step-btn.keep:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
-.cdr-step-btn.undo:not(:disabled):hover { border-color: var(--cdr-error); color: var(--cdr-error); }
-.cdr-step-btn:disabled { opacity: 0.45; cursor: default; }
-.cdr-step--accepted .cdr-step-object { opacity: 0.65; }
-.cdr-step--rejected .cdr-step-object { opacity: 0.5; text-decoration: line-through; }
-
-/* ── Context indicator ──────────────────────────────────────── */
-/* How full the model's window is. Amber past 70%, red past 90% — the same
-   thresholds chat uses, so the two do not disagree about what "nearly full"
-   means. */
-.cdr-ctx {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  font-size: 10px;
-  color: var(--cdr-text-dim);
-  white-space: nowrap;
-}
-.cdr-ctx-label { color: var(--cdr-text-muted); letter-spacing: 0.08em; }
-.cdr-ctx-count { color: var(--cdr-text-muted); }
-.cdr-ctx-bar {
-  width: 46px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--surface-raised);
-  overflow: hidden;
-}
-.cdr-ctx-fill {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--accent);
-  transition: width 0.2s ease;
-}
-.cdr-ctx.warn { border-color: var(--warn); color: var(--warn); }
-.cdr-ctx.warn .cdr-ctx-fill { background: var(--warn); }
-.cdr-ctx.hot { border-color: var(--danger); color: var(--danger); }
-.cdr-ctx.hot .cdr-ctx-fill { background: var(--danger); }
-
-/* ── Knowledge base strip ───────────────────────────────────── */
-.cdr-kb {
-  flex: 0 0 auto;
-  border-top: 1px solid var(--cdr-border);
-  padding: 7px 10px 9px;
-}
-.cdr-kb-hd {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 9.5px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--cdr-text-muted);
-  margin-bottom: 5px;
-}
-.cdr-kb-state {
-  letter-spacing: 0;
-  text-transform: none;
-  padding: 1px 8px;
-  border: 1px solid var(--cdr-border);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--cdr-text-muted);
-  font-family: var(--mono);
-  font-size: 9.5px;
-  cursor: pointer;
-}
-.cdr-kb-state:hover { border-color: var(--accent); color: var(--accent); }
-.cdr-kb.on .cdr-kb-state { border-color: var(--accent); }
-.cdr-kb.on .cdr-kb-state { color: var(--accent); }
-.cdr-kb-rows { display: flex; flex-direction: column; gap: 1px; }
-.cdr-kb-row span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-/* The off/empty state is a sentence, not a label and a value, so it gets its
-   own shape rather than being squeezed into the two-column row. */
-.cdr-kb-note {
-  font-size: 10.5px;
-  line-height: 1.45;
-  color: var(--cdr-text-muted);
-}
-.cdr-kb-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 10.5px;
-  color: var(--cdr-text-dim);
-}
-.cdr-kb-row b { font-weight: 500; color: var(--cdr-text); }
-
-/* ── Changes carried over from a previous session ───────────── */
-/* Drawn by restorePendingChanges(): the same rows, gathered under one heading
-   so it is clear they are not from the conversation above them. */
-.cdr-change-group {
-  margin: 12px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-input);
-}
-.cdr-change-group-title {
-  font-size: 10px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--cdr-text-muted);
-  margin-bottom: 6px;
-}
-
-/* ── Slim file-change rows ──────────────────────────────────── */
-/* ── Real-time thinking stream ────────────────────────────── */
-.cdr-thinking-stream {
-  font-family: var(--mono);
-  font-size: 11px;
-  line-height: 1.55;
-  color: var(--cdr-text-muted);
-  background: rgba(124,106,245,0.04);
-  border-left: 2px solid rgba(124,106,245,0.25);
-  border-radius: 0 var(--cdr-radius) var(--cdr-radius) 0;
-  padding: 8px 12px;
-  margin: 4px 0 8px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  max-height: 200px;
-  overflow-y: auto;
-}
-.cdr-thinking-stream.empty {
-  display: none;
-}
-.cdr-thinking-hd {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cdr-violet);
-  margin-bottom: 4px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.cdr-thinking-hd::before {
-  content: '';
-  display: inline-block;
-  width: 5px; height: 5px;
-  border-radius: 50%;
-  background: var(--cdr-violet);
-  animation: cdr-pulse 1.4s ease-in-out infinite;
-}
-
-/* ── Bash preview in terminal ───────────────────────────────── */
-.cdr-bash-preview {
-  color: var(--accent);
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 2px 0;
-  opacity: 0.7;
-}
-.cdr-bash-preview::before {
-  content: '$ ';
-  color: var(--cdr-success);
-  opacity: 0.8;
-}
-
-/* Inline diff preview */
-/* Line-by-line diff of one change. Each line is its own block so the tint
-   spans the full width rather than stopping at the end of the text. */
-.cdr-diff-lines { margin: 0; white-space: pre; line-height: 1.55; }
-.cdr-diff-lines .cdr-diff-line { display: block; padding: 0 6px; border-radius: 2px; }
-.cdr-diff-lines .cdr-diff-line.add {
-  color: var(--cdr-success);
-  background: rgba(95,184,138,0.10);
-}
-.cdr-diff-lines .cdr-diff-line.del {
-  color: var(--cdr-error);
-  background: rgba(217,138,133,0.10);
-}
-.cdr-diff-lines .cdr-diff-line.same { color: var(--cdr-text-dim); }
-.cdr-diff-lines .cdr-diff-gap {
-  display: block;
-  padding: 2px 6px;
-  color: var(--cdr-text-muted);
-  font-style: italic;
-}
-
-/* A change whose previous contents could not be saved cannot be undone, and
-   the button says so rather than pretending. */
-/* ── Slim permission strip ──────────────────────────────────── */
-
-
-/* ── Composer ───────────────────────────────────────────────── */
-.cdr-composer {
-  flex: 0 0 auto;
-  border-top: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-panel);
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 .cdr-model-picker {
-  appearance: none;
-  -webkit-appearance: none;
-  padding: 5px 24px 5px 10px;
-  border-radius: var(--cdr-radius);
-  border: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-input) url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6b78' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 8px center;
-  color: var(--cdr-text-dim);
-  font-size: 11px;
-  cursor: pointer;
-  min-width: 140px;
+  max-width: 220px; height: 28px; border: 0; background: transparent;
+  color: var(--cdr-text); font: inherit; font-size: 12.5px; cursor: pointer; outline: none;
 }
-.cdr-model-picker:focus {
-  outline: none;
-  border-color: rgba(75,210,190,0.35);
+.cdr-model:focus-within { border-color: var(--accent); }
+
+/* How full the model's window is: a ring, amber past 70%, red past 90%. */
+.cdr-ctx { display: inline-flex; align-items: center; gap: 7px; padding: 0 8px; color: var(--cdr-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.cdr-ctx-ring {
+  --pct: 0;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: conic-gradient(var(--accent-2) calc(var(--pct) * 1%), var(--cdr-border-strong) 0);
+  -webkit-mask: radial-gradient(circle, transparent 5px, var(--text) 5.5px);
+  mask: radial-gradient(circle, transparent 5px, var(--text) 5.5px);
 }
-.cdr-agents-toggle {
-  display: flex;
-  gap: 2px;
+.cdr-ctx.warn .cdr-ctx-ring { background: conic-gradient(var(--warn) calc(var(--pct) * 1%), var(--cdr-border-strong) 0); }
+.cdr-ctx.hot .cdr-ctx-ring { background: conic-gradient(var(--danger) calc(var(--pct) * 1%), var(--cdr-border-strong) 0); }
+.cdr-ctx.hot { color: var(--danger); }
+
+.cdr-icon-btn {
+  width: 32px; height: 30px; display: inline-grid; place-items: center;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--cdr-text-dim); cursor: pointer; padding: 0;
 }
-.cdr-agent-btn {
-  padding: 3px 8px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-size: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all .1s;
+.cdr-icon-btn:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-icon-btn.on { color: var(--cdr-text); border-color: var(--cdr-border-strong); }
+.cdr-icon-btn:focus-visible, .cdr-project:focus-visible, .cdr-text-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.cdr-text-btn {
+  height: 26px; padding: 0 9px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs);
+  background: transparent; color: var(--cdr-text-dim); font-size: 11.5px; cursor: pointer;
 }
-.cdr-agent-btn:hover { background: rgba(255,255,255,0.04); color: var(--cdr-text); }
-.cdr-agent-btn.active {
-  background: rgba(75,210,190,0.10);
-  border-color: rgba(75,210,190,0.30);
-  color: var(--cdr-cyan);
+.cdr-text-btn:hover { color: var(--cdr-text); border-color: var(--cdr-text-muted); }
+.cdr-text-btn:disabled { opacity: 0.45; cursor: default; }
+
+/* ── The body: files · conversation, the terminal below ────────── */
+.cdr-body {
+  --cdr-side-w: 232px;
+  --cdr-term-h: 220px;
+  flex: 1 1 auto;
+  min-height: 0;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--cdr-side-w) 6px 1fr;
+  grid-template-rows: 1fr 6px var(--cdr-term-h);
+  grid-template-areas:
+    "side splitx main"
+    "side splitx splity"
+    "side splitx term";
+}
+.cdr-body.cdr-side-hidden { grid-template-columns: 0 0 1fr; }
+.cdr-body.cdr-term-hidden { grid-template-rows: 1fr 0 0; }
+.cdr-body.cdr-term-full { grid-template-rows: 0 6px 1fr; }
+.cdr-body.cdr-dragging { cursor: col-resize; user-select: none; }
+.cdr-body.cdr-dragging-y { cursor: row-resize; }
+
+.cdr-side { grid-area: side; min-width: 0; overflow: hidden; border-right: 1px solid var(--cdr-border); }
+.cdr-body.cdr-side-hidden .cdr-side { border-right: 0; }
+.cdr-split { background: transparent; position: relative; z-index: 2; }
+.cdr-split-x { grid-area: splitx; cursor: col-resize; margin-left: -3px; margin-right: -3px; }
+.cdr-split-y { grid-area: splity; cursor: row-resize; margin-top: -3px; margin-bottom: -3px; }
+.cdr-split:hover, .cdr-split:focus-visible { background: var(--cdr-border-strong); outline: none; }
+.cdr-body.cdr-side-hidden .cdr-split-x, .cdr-body.cdr-term-hidden .cdr-split-y { display: none; }
+
+.cdr-side-rail {
+  display: none; position: absolute; left: 0; top: 14px; z-index: 3;
+  width: 22px; height: 40px; padding: 0; place-items: center;
+  border: 1px solid var(--cdr-border-strong); border-left: 0; border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+  background: var(--surface-1); color: var(--cdr-text-dim); cursor: pointer;
+}
+.cdr-body.cdr-side-hidden .cdr-side-rail { display: grid; }
+
+/* ── Files ─────────────────────────────────────────────────────── */
+.cdr-sidebar { height: 100%; display: flex; flex-direction: column; min-width: 0; }
+.cdr-sidebar-hd { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 14px 10px 8px 16px; }
+.cdr-pane-label { color: var(--cdr-text-muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+.cdr-sidebar-actions { display: flex; gap: 2px; }
+.cdr-sidebar-iconbtn {
+  width: 26px; height: 26px; display: inline-grid; place-items: center; padding: 0;
+  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--cdr-text-muted); cursor: pointer;
+}
+.cdr-sidebar-iconbtn svg { width: 14px; height: 14px; }
+.cdr-sidebar-iconbtn:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-sidebar-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 8px 16px; }
+.cdr-sidebar-title { color: var(--cdr-text-muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+.cdr-tree-root {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 2px 8px 10px; margin-bottom: 6px; border-bottom: 1px solid var(--cdr-border);
+  color: var(--cdr-text-muted); font-size: 12px; white-space: nowrap; overflow: hidden;
+}
+.cdr-tree-root strong, .cdr-tree-root span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cdr-tree-root strong { color: var(--cdr-text); font-size: 12.5px; font-weight: 600; }
+.cdr-tree-root span { font-size: 11px; }
+.cdr-tree-empty { padding: 20px 10px; color: var(--cdr-text-muted); font-size: 12px; text-align: center; }
+
+.cdr-tree-entry {
+  display: flex; align-items: center; gap: 7px;
+  min-height: 27px; padding: 3px 8px; border-radius: var(--radius-xs);
+  color: var(--cdr-text-dim); font-size: 12.5px; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.cdr-tree-entry:hover { background: var(--surface-raised); color: var(--cdr-text); }
+.cdr-tree-entry.active { background: var(--surface-raised); color: var(--cdr-text); box-shadow: inset 2px 0 0 var(--accent-2); }
+.cdr-tree-entry svg { width: 14px; height: 14px; opacity: 0.7; }
+/* A folder says whether it is open. */
+.cdr-tree-entry.dir::before { content: "\25B8"; width: 8px; flex: none; font-size: 8px; color: var(--cdr-text-muted); }
+.cdr-tree-entry.dir.open::before { content: "\25BE"; }
+.cdr-tree-entry:not(.dir)::before { content: ""; width: 8px; flex: none; }
+.cdr-tree-entry .cdr-tree-name, .cdr-tree-entry .cdr-tree-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cdr-tree-entry .cdr-tree-text { display: flex; flex-direction: column; gap: 1px; }
+.cdr-tree-entry .cdr-tree-path { display: none; color: var(--cdr-text-muted); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; }
+.cdr-tree-subtree { display: flex; flex-direction: column; gap: 1px; padding-left: 12px; }
+
+/* Files the agent changed in this session, above the tree. */
+.cdr-ai-session-section { margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--cdr-border); }
+.cdr-ai-session-hd { display: flex; align-items: center; gap: 6px; padding: 4px 8px 6px; color: var(--cdr-text-muted); font-size: 11px; letter-spacing: 0.06em; }
+.cdr-ai-session-hd svg { width: 11px; height: 11px; }
+.cdr-ai-file { color: var(--cdr-text); }
+.cdr-ai-file svg { color: var(--accent-2); opacity: 1; }
+.cdr-ai-file.deleted { color: var(--cdr-text-muted); text-decoration: line-through; }
+.cdr-symbols-section { margin-top: 10px; }
+
+/* ── The conversation ──────────────────────────────────────────── */
+.cdr-chat-area { grid-area: main; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.cdr-messages { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 34px 24px 12px; display: flex; flex-direction: column; gap: 20px; }
+.cdr-messages > * { width: 100%; max-width: var(--cdr-col); margin-left: auto; margin-right: auto; }
+
+/* Before anything is asked. */
+.cdr-welcome { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 24px 0 40px; }
+.cdr-welcome-title { margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em; }
+.cdr-welcome-sub { margin: 0; max-width: 460px; color: var(--cdr-text-dim); font-size: 14px; line-height: 1.6; }
+#coder-mode-wrap .cdr-when-open { display: none; }
+#coder-mode-wrap.has-project .cdr-when-open { display: block; }
+#coder-mode-wrap.has-project .cdr-when-closed { display: none; }
+.cdr-welcome-open {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 18px;
+  border: 1px solid var(--accent); border-radius: var(--radius-sm);
+  background: transparent; color: var(--accent-2); font-size: 13px; cursor: pointer;
+}
+.cdr-welcome-open:hover { background: var(--surface-raised); }
+.cdr-welcome-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
+.cdr-welcome-chip {
+  height: 30px; padding: 0 12px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--cdr-text-dim); font-size: 12.5px; cursor: pointer;
+}
+.cdr-welcome-chip:hover { color: var(--cdr-text); border-color: var(--cdr-text-muted); }
+
+/* What the person asked. */
+.cdr-msg.user { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.cdr-user-bubble {
+  max-width: 560px; padding: 10px 14px; border: 1px solid var(--cdr-border); border-radius: var(--radius-md);
+  background: var(--surface-raised); white-space: pre-wrap; word-break: break-word; line-height: 1.55; font-size: 13.5px;
 }
 
-.cdr-new-chat-btn {
-  padding: 4px 10px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-size: 10px;
-  cursor: pointer;
-  transition: all .1s;
+/* What HashCoder did and said. */
+.cdr-msg.assistant { display: flex; flex-direction: column; gap: 8px; }
+.cdr-msg-role { color: var(--cdr-text-muted); font-size: 11.5px; letter-spacing: 0.04em; }
+.cdr-msg.boss .cdr-msg-role { color: var(--accent-2); }
+.cdr-msg-content { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cdr-msg-actions { display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+.cdr-msg:hover .cdr-msg-actions, .cdr-msg:focus-within .cdr-msg-actions { opacity: 1; }
+.cdr-action-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px;
+  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--cdr-text-muted); font-size: 11.5px; cursor: pointer;
 }
-.cdr-new-chat-btn:hover { background: rgba(255,255,255,0.04); color: var(--cdr-text); }
+.cdr-action-btn svg { width: 12px; height: 12px; }
+.cdr-action-btn:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-action-btn.flash { color: var(--ok); }
 
+/* The reply itself: model text, drawn by js/markdown-safe.js. */
+.cdr-msg-text { font-size: 14px; line-height: 1.65; color: var(--cdr-text); word-break: break-word; }
+.cdr-msg-text p { margin: 0 0 10px; }
+.cdr-msg-text p:last-child { margin-bottom: 0; }
+.cdr-msg-text ul, .cdr-msg-text ol { margin: 0 0 10px; padding-left: 22px; }
+.cdr-msg-text li { margin: 3px 0; }
+.cdr-msg-text a { color: var(--accent-2); }
+.cdr-msg-text h1, .cdr-msg-text h2, .cdr-msg-text h3 { margin: 14px 0 8px; font-size: 15px; font-weight: 600; }
+.cdr-msg-text blockquote { margin: 0 0 10px; padding-left: 12px; border-left: 2px solid var(--cdr-border-strong); color: var(--cdr-text-dim); }
+.cdr-msg-text em { color: var(--cdr-text-dim); }
+.cdr-msg-text code { font-family: var(--mono); font-size: 12.5px; color: var(--accent-2); }
+.cdr-msg-text pre {
+  margin: 0 0 10px; padding: 12px 14px; overflow-x: auto;
+  border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-sunken);
+}
+.cdr-msg-text pre code { color: var(--cdr-text); font-size: 12px; line-height: 1.55; }
+.cdr-msg-text table { border-collapse: collapse; margin: 0 0 10px; font-size: 12.5px; }
+.cdr-msg-text th, .cdr-msg-text td { padding: 5px 10px; border: 1px solid var(--cdr-border); text-align: left; }
+
+/* Working… */
+.cdr-thinking { display: inline-flex; gap: 5px; padding: 6px 2px; }
+.cdr-thinking span { width: 5px; height: 5px; border-radius: 50%; background: var(--cdr-text-muted); animation: cdr-pulse 1.1s ease-in-out infinite; }
+.cdr-thinking span:nth-child(2) { animation-delay: 0.15s; }
+.cdr-thinking span:nth-child(3) { animation-delay: 0.3s; }
+.cdr-thinking-stream { padding: 8px 12px; border-left: 2px solid var(--cdr-border-strong); color: var(--cdr-text-dim); font-size: 12.5px; line-height: 1.55; white-space: pre-wrap; max-height: 180px; overflow: auto; }
+.cdr-thinking-stream.empty { display: none; }
+.cdr-thinking-hd { color: var(--cdr-text-muted); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+
+/* ── One step of a run: verb · object · result ──────────────────── */
+.cdr-step { border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); overflow: hidden; }
+.cdr-step + .cdr-step { margin-top: -11px; border-top-left-radius: 0; border-top-right-radius: 0; }
+.cdr-step:has(+ .cdr-step) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.cdr-step-head {
+  display: grid; grid-template-columns: 64px 1fr auto; align-items: center; gap: 12px;
+  min-height: 36px; padding: 0 14px; list-style: none; cursor: pointer; font-size: 12.5px;
+}
+.cdr-step-head::-webkit-details-marker { display: none; }
+.cdr-step-head:hover { background: var(--surface-raised); }
+.cdr-step-verb { color: var(--cdr-text-muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; }
+.cdr-step-object { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; color: var(--cdr-text); }
+.cdr-step-result { display: inline-flex; align-items: center; gap: 10px; color: var(--cdr-text-muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cdr-step--running .cdr-step-result { color: var(--accent-2); }
+.cdr-step--err .cdr-step-result { color: var(--danger); }
+.cdr-step--err .cdr-step-verb { color: var(--danger); }
+.cdr-step-body { border-top: 1px solid var(--cdr-border); background: var(--surface-sunken); }
+.cdr-step-body pre { margin: 0; padding: 10px 14px; max-height: 320px; overflow: auto; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--cdr-text-dim); white-space: pre-wrap; word-break: break-word; }
+.cdr-step-note { padding: 8px 14px 0; color: var(--warn); font-size: 12px; }
+
+/* A change: its size, and Keep or Undo in the row. */
+.cdr-plus { color: var(--ok); }
+.cdr-minus { color: var(--danger); }
+.cdr-step-actions { display: inline-flex; gap: 6px; }
+.cdr-step-btn {
+  display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs);
+  background: transparent; color: var(--cdr-text-dim); font-size: 11.5px; cursor: pointer;
+}
+.cdr-step-btn svg { width: 11px; height: 11px; }
+.cdr-step-btn:hover:not(:disabled) { color: var(--cdr-text); border-color: var(--cdr-text-muted); }
+.cdr-step-btn:disabled { opacity: 0.45; cursor: default; }
+.cdr-step--accepted .cdr-step-btn.keep { color: var(--ok); border-color: var(--ok); opacity: 1; }
+.cdr-step--rejected .cdr-step-btn.undo { color: var(--danger); border-color: var(--danger); opacity: 1; }
+.cdr-diff-lines { margin: 0; padding: 8px 0; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; overflow-x: auto; }
+.cdr-diff-line { display: block; padding: 0 14px; white-space: pre; color: var(--cdr-text-dim); }
+.cdr-diff-line.add { color: var(--ok); background: color-mix(in srgb, var(--ok) 9%, transparent); }
+.cdr-diff-line.del { color: var(--danger); background: color-mix(in srgb, var(--danger) 9%, transparent); }
+.cdr-diff-gap { display: block; padding: 2px 14px; color: var(--cdr-text-muted); font-style: normal; }
+
+/* Changes carried over from the last session. */
+.cdr-change-group { display: flex; flex-direction: column; gap: 10px; }
+.cdr-change-group-title { color: var(--cdr-text-muted); font-size: 12px; }
+
+/* Tool blocks drawn after a chat render. */
+.hc-tool-blocks-wrap { display: flex; flex-direction: column; gap: 0; margin-bottom: 8px; }
+
+/* ── The composer ──────────────────────────────────────────────── */
+.cdr-composer { flex: none; padding: 12px 24px 18px; }
 .cdr-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 7px 12px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-input);
-  transition: border-color .15s;
+  max-width: var(--cdr-col); margin: 0 auto;
+  display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 10px;
+  padding: 12px 12px 12px 16px;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-md); background: var(--surface-1);
 }
 .cdr-input-wrap:focus-within { border-color: var(--accent); }
 .cdr-task-input {
-  flex: 1;
-  min-height: 20px;
-  max-height: 320px;
-  padding: 2px 0;
-  border: none;
-  background: transparent;
-  color: var(--cdr-text);
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.5;
-  resize: none;
-  outline: none;
+  width: 100%; min-height: 44px; max-height: 320px; resize: none; padding: 4px 0;
+  border: 0; outline: none; background: transparent; color: var(--cdr-text);
+  font: inherit; font-size: 14px; line-height: 1.55;
 }
 .cdr-task-input::placeholder { color: var(--cdr-text-muted); }
-.cdr-task-input::placeholder { color: var(--cdr-text-muted); }
-.cdr-task-input:focus {
-  border-color: rgba(75,210,190,0.30);
-  box-shadow: 0 0 0 3px rgba(75,210,190,0.06);
+.cdr-run-btn, .cdr-stop-btn {
+  height: 32px; padding: 0 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
 }
+.cdr-run-btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface-0); }
+.cdr-run-btn:hover { filter: brightness(1.08); }
+.cdr-stop-btn { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
+.cdr-hint { max-width: var(--cdr-col); margin: 8px auto 0; display: flex; justify-content: space-between; gap: 16px; color: var(--cdr-text-muted); font-size: 11.5px; }
+.cdr-model-warn { color: var(--warn); text-align: right; }
 
-.cdr-run-btn,
-.cdr-stop-btn {
-  flex-shrink: 0;
-  width: 38px; height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--cdr-border);
-  cursor: pointer;
-  transition: transform .1s, opacity .1s, border-color .12s, background .12s, box-shadow .12s;
-}
-.cdr-run-btn {
-  background: #10141a;
-  color: var(--accent);
-  border-color: rgba(57,255,129,0.32);
-  box-shadow: inset 0 0 0 1px rgba(57,255,129,0.04);
-}
-.cdr-run-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(57,255,129,0.09);
-  border-color: rgba(57,255,129,0.55);
-  box-shadow: 0 0 14px rgba(57,255,129,0.12);
-}
-.cdr-run-btn:active { transform: scale(0.94); }
-.cdr-stop-btn {
-  background: var(--cdr-rose);
-  color: #fff;
-}
+/* ── The terminal, below the conversation when opened ──────────── */
+.cdr-terminal-panel { grid-area: term; min-height: 0; display: flex; flex-direction: column; border-top: 1px solid var(--cdr-border); background: var(--surface-sunken); }
+.cdr-body.cdr-term-hidden .cdr-terminal-panel { display: none; }
+.cdr-terminal-hd { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 8px 12px 8px 16px; }
+.cdr-terminal-actions { display: flex; gap: 6px; }
+.cdr-terminal-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 4px 16px 8px; font-family: var(--mono); font-size: 12px; line-height: 1.55; user-select: text; }
+.cdr-terminal-line { white-space: pre-wrap; word-break: break-word; color: var(--cdr-text-dim); }
+.cdr-terminal-muted { color: var(--cdr-text-muted); }
+.cdr-terminal-error { color: var(--danger); }
+.cdr-terminal-prompt, .cdr-bash-preview { color: var(--accent-2); }
+.cdr-terminal-input { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 16px 10px; border-top: 1px solid var(--cdr-border); font-family: var(--mono); font-size: 12px; }
+#cdrTerminalPrompt { color: var(--accent-2); white-space: nowrap; }
+#cdrTerminalInput { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--cdr-text); font: inherit; }
+.cdr-text-dim { color: var(--cdr-text-dim); }
+.cdr-text-muted { color: var(--cdr-text-muted); }
+.cdr-cyan { color: var(--cdr-cyan); }
+.cdr-gold { color: var(--cdr-gold); }
+.cdr-violet { color: var(--cdr-violet); }
+.cdr-error { color: var(--cdr-error); }
 
-/* ── Terminal panel (bottom) ────────────────────────────────── */
-.cdr-terminal-panel {
-  grid-area: terminal;
-  display: flex;
-  flex-direction: column;
-  background: #080a08;
-  border-top: 1px solid rgba(255,255,255,0.16);
-  box-shadow:
-    inset 0 1px 0 rgba(255,255,255,0.08),
-    0 -8px 24px rgba(0,0,0,0.24);
-  overflow: hidden;
+/* ── History and the execution trace: drawers over the conversation ── */
+.cdr-right, .cdr-trace-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; z-index: 6;
+  width: min(360px, 90%); display: none; flex-direction: column;
+  border-left: 1px solid var(--cdr-border-strong); background: var(--surface-1);
+  box-shadow: var(--shadow-sm);
 }
-.cdr-terminal-hd {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 28px;
-  padding: 5px 11px;
-  border-bottom: 1px solid var(--cdr-border);
-  background: var(--cdr-bg-panel);
-  position: relative;
-}
-.cdr-terminal-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  max-width: calc(100% - 150px);
-  color: var(--cdr-text-dim);
-  font-size: 11px;
-  font-weight: 500;
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  letter-spacing: 0;
-  white-space: nowrap;
-  overflow: hidden;
-}
-/* The title carries the working directory, which is genuinely long, so this
-   one gets a real ellipsis rather than a note explaining why it cannot have
-   one: the text lives in its own span, so the properties belong there. On the
-   flex container above they did nothing and the path was clipped mid-word. */
-.cdr-terminal-title > span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.cdr-terminal-title svg {
-  color: #5fcaff;
-  flex: 0 0 14px;
-}
-.cdr-terminal-actions {
-  position: absolute;
-  right: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  gap: 6px;
-}
-.cdr-terminal-btn {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.10);
-  color: #b6b6b6;
-  font-size: 10px;
-  cursor: pointer;
-  padding: 2px 7px;
-  border-radius: var(--radius-xs);
-}
-.cdr-terminal-btn:hover { color: #ffffff; background: rgba(255,255,255,0.10); }
-
-.cdr-terminal-body {
-  flex: 1;
-  overflow: auto;
-  padding: 11px 12px 8px;
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--accent);
-  background: #080a08;
-  letter-spacing: 0;
-}
-.cdr-terminal-line {
-  white-space: pre-wrap;
-  word-break: break-all;
-  padding: 0;
-}
-.cdr-terminal-prompt {
-  color: var(--accent);
-}
-.cdr-terminal-muted {
-  color: rgba(57,255,129,0.62);
-}
-.cdr-terminal-input {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 0 12px 10px;
-  border-top: 0;
-  background: #080a08;
-}
-.cdr-terminal-input span {
-  color: var(--accent);
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 11px;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-.cdr-terminal-input input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--accent);
-  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-  font-size: 11px;
-  line-height: 1.35;
-  outline: none;
-  min-width: 0;
-  caret-color: var(--accent);
-}
-.cdr-terminal-input input::placeholder { color: rgba(57,255,129,0.42); }
-
-/* ── Scrollbars ─────────────────────────────────────────────── */
-.cdr-messages::-webkit-scrollbar,
-.cdr-sidebar-body::-webkit-scrollbar,
-.cdr-terminal-body::-webkit-scrollbar { width: 5px; }
-.cdr-messages::-webkit-scrollbar-thumb,
-.cdr-sidebar-body::-webkit-scrollbar-thumb,
-.cdr-terminal-body::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.06);
-  border-radius: var(--radius-xs);
-}
-.cdr-messages::-webkit-scrollbar-thumb:hover,
-.cdr-sidebar-body::-webkit-scrollbar-thumb:hover,
-.cdr-terminal-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.10);
-}
-
-/* ── Responsive ─────────────────────────────────────────────── */
-@media (max-width: 720px) {
-  .cdr-body {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "chat"
-      "terminal";
-  }
-  .cdr-sidebar {
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 220px;
-    z-index: 20;
-    display: none;
-    transform: translateX(-100%);
-    transition: transform .22s ease;
-  }
-  .cdr-sidebar.open {
-    display: flex;
-    transform: translateX(0);
-  }
-}
-
-/* ── Message bubbles ────────────────────────────────────────── */
-
-.cdr-user-bubble {
-  background: rgba(95,184,138,0.08);
-  border: 1px solid rgba(95,184,138,0.15);
-  border-radius: var(--cdr-radius);
-  padding: 10px 14px;
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--cdr-text);
-  max-width: 85%;
-  align-self: flex-end;
-}
-
-.cdr-msg-role {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--cdr-cyan);
-  padding: 0 2px;
-}
-
-.cdr-msg-content {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--cdr-text);
-  padding: 0 2px;
-}
-.cdr-msg-content pre,
-.cdr-msg-content code {
-  font-family: var(--mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 12px;
-}
-.cdr-msg-content pre {
-  background: var(--cdr-bg-input);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  padding: 10px 12px;
-  overflow-x: auto;
-  margin: 6px 0;
-}
-.cdr-msg-content code {
-  background: rgba(255,255,255,0.04);
-  padding: 1px 4px;
-  border-radius: var(--radius-xs);
-}
-
-.cdr-msg-actions {
-  display: flex;
-  gap: 6px;
-  padding: 4px 2px;
-  opacity: 0;
-  transition: opacity .15s;
-}
-.cdr-msg:hover .cdr-msg-actions { opacity: 1; }
-
-.cdr-action-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: var(--radius-xs);
-  border: 1px solid var(--cdr-border);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-size: 10px;
-  cursor: pointer;
-  transition: all .1s;
-}
-.cdr-action-btn:hover {
-  background: rgba(255,255,255,0.04);
-  color: var(--cdr-text);
-}
-
-.cdr-msg-text {
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--cdr-text);
-}
-.cdr-msg-text pre,
-.cdr-msg-text code {
-  font-family: var(--mono, ui-monospace, SFMono-Regular, monospace);
-  font-size: 12px;
-}
-.cdr-msg-text pre {
-  background: var(--cdr-bg-input);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  padding: 10px 12px;
-  overflow-x: auto;
-  margin: 6px 0;
-}
-.cdr-msg-text code {
-  background: rgba(255,255,255,0.04);
-  padding: 1px 4px;
-  border-radius: var(--radius-xs);
-}
-
-/* Tool blocks */
-.hc-tool-block {
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: var(--cdr-bg-input);
-  margin: 6px 0;
-  overflow: hidden;
-}
-.hc-tool-block summary {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  font-size: 11px;
-  color: var(--cdr-text-dim);
-  cursor: pointer;
-  list-style: none;
-}
-.hc-tool-block summary::-webkit-details-marker { display: none; }
-
-/* ── More legacy JS compatibility aliases ───────────────────── */
-
-.cdr-thinking {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  font-size: 12px;
-  color: var(--cdr-text-dim);
-}
-.cdr-thinking::before {
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--cdr-cyan);
-  animation: cdr-pulse 1.2s ease-in-out infinite;
-}
-
-.cdr-sessions-empty {
-  font-size: 11px;
-  color: var(--cdr-text-muted);
-  padding: 20px 10px;
-  text-align: center;
-}
-
-.cdr-session-item {
-  padding: 8px 10px;
-  border-radius: var(--radius-xs);
-  cursor: pointer;
-  transition: background .1s;
-  border-bottom: 1px solid var(--cdr-border);
-}
-.cdr-session-item:hover {
-  background: rgba(255,255,255,0.03);
-}
-.cdr-session-title {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--cdr-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.cdr-session-meta {
-  font-size: 10px;
-  color: var(--cdr-text-muted);
-  margin-top: 2px;
-}
-
-/* ════════════════════════════════════════════════════════════════
-   v2.0 redesign — terminal-themed, color-tagged, 3-column shell
-   ════════════════════════════════════════════════════════════════ */
-
-/* Enforce monospace across the entire coder mode (no system fonts) */
-#coder-mode-wrap,
-#coder-mode-wrap * {
-  font-family: var(--mono, ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace);
-}
-
-/* Big brand logo in the empty-chat welcome state */
-.cdr-welcome { padding-top: 8vh; }
-.cdr-welcome-logo {
-  width: 220px;
-  height: auto;
-  opacity: 0.78;
-  margin-bottom: 22px;
-  filter: drop-shadow(0 0 28px rgba(75,210,190,0.18));
-  -webkit-user-drag: none;
-  user-select: none;
-}
-.cdr-welcome-title {
-  font-family: var(--mono);
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cdr-cyan);
-  margin-bottom: 8px;
-}
-.cdr-welcome-sub {
-  font-size: 11.5px;
-  color: var(--cdr-text-dim);
-  letter-spacing: 0.04em;
-  margin-bottom: 22px;
-}
-
-/* ── Saved Chats (right panel) — always visible ───────────────── */
-.cdr-right {
-  grid-area: right;
-  min-height: 0; min-width: 0;
-  display: flex !important;            /* override the legacy display:none inline */
-  flex-direction: column;
-  background: var(--cdr-bg-panel);
-  border-left: 1px solid var(--cdr-border);
-  overflow: hidden;
-}
-.cdr-sessions-hd {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--cdr-border);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--cdr-text-dim);
-}
-.cdr-sessions-hd-actions { display: flex; align-items: center; gap: 4px; }
-.cdr-new-chat-btn {
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--cdr-radius);
-  background: transparent;
-  color: var(--cdr-text-dim);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.cdr-new-chat-btn:hover { border-color: var(--accent); color: var(--accent); }
-.cdr-sessions-clear {
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  width: 22px; height: 22px;
-  min-width: 22px;
-  padding: 0;
-  color: var(--cdr-text-muted);
-  cursor: pointer;
-  display: grid; place-items: center;
-  font-size: 13px; line-height: 1;
-}
-.cdr-sessions-clear:hover { color: var(--cdr-error); border-color: var(--cdr-border); }
-.cdr-sessions-clear:hover {
-  background: rgba(217,138,133,0.18);
-  border-color: rgba(217,138,133,0.50);
-}
+.cdr-right.open, .cdr-trace-panel.open { display: flex; }
+.cdr-trace-panel { top: 96px; width: min(440px, 90%); }
+.cdr-sessions-hd, .cdr-trace-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 10px 16px; font-size: 13px; }
+.cdr-sessions-hd-actions, .cdr-trace-actions { display: flex; gap: 6px; }
 .cdr-sessions-search {
-  margin: 6px 8px;
-  padding: 4px 8px;
-  background: var(--cdr-bg-input);
-  border: 1px solid var(--cdr-border);
-  border-radius: var(--radius-xs);
-  color: var(--cdr-text);
-  font-family: var(--mono);
-  font-size: 11px;
-  outline: none;
-  transition: border-color .12s;
+  margin: 0 14px 10px; height: 32px; padding: 0 10px;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--cdr-text); font: inherit; font-size: 12.5px; outline: none;
 }
-.cdr-sessions-search:focus {
-  border-color: rgba(75,210,190,0.4);
-}
-.cdr-sessions-search::placeholder { color: var(--cdr-text-muted); }
-.cdr-sessions-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 0;
-}
-.cdr-sessions-empty {
-  text-align: center;
-  font-size: 11px;
-  color: var(--cdr-text-muted);
-  padding: 24px 12px;
-  line-height: 1.5;
-}
-.cdr-session-item {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--cdr-border);
-  border-radius: 0;
-  padding: 5px 10px;
-  cursor: pointer;
-  transition: background .12s;
-}
+.cdr-sessions-search:focus { border-color: var(--accent); }
+.cdr-sessions-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 8px 12px; }
+.cdr-sessions-empty { padding: 24px 12px; color: var(--cdr-text-muted); font-size: 12.5px; text-align: center; }
+.cdr-session-item { padding: 9px 10px; border-radius: var(--radius-sm); cursor: pointer; }
 .cdr-session-item:hover { background: var(--surface-raised); }
-.cdr-session-item .cdr-session-title {
-  font-size: 11px;
-  color: var(--cdr-text);
-  margin-bottom: 1px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.cdr-session-item .cdr-session-meta {
-  font-size: 9px;
-  color: var(--cdr-text-muted);
-  letter-spacing: 0.04em;
-  margin-top: 0;
-}
+.cdr-session-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cdr-session-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.cdr-session-meta { margin-top: 2px; color: var(--cdr-text-muted); font-size: 11.5px; }
+.cdr-session-actions { display: flex; gap: 2px; opacity: 0; }
+.cdr-session-item:hover .cdr-session-actions, .cdr-session-item:focus-within .cdr-session-actions { opacity: 1; }
+.cdr-session-act { width: 24px; height: 24px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--cdr-text-muted); cursor: pointer; }
+.cdr-session-act svg { width: 11px; height: 11px; }
+.cdr-session-act:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-session-del:hover { color: var(--danger); }
 
-/* ── Color-tagged role bubbles (terminal-themed) ──────────────── */
-/* User: green prompt-style */
-/* What you asked for, written as a prompt line rather than boxed and
-   labelled. The label said "$ USER" above every message you had just typed. */
-.cdr-msg.user .cdr-msg-content {
-  display: flex;
-  gap: 10px;
-  padding: 2px 0 10px;
-  background: none;
-  border: none;
-}
-.cdr-msg.user .cdr-msg-content::before {
-  content: "\276F";
-  color: var(--accent);
-  flex: none;
-}
-.cdr-msg.user .cdr-user-bubble {
-  background: none;
-  border: none;
-  padding: 0;
-  max-width: none;
-  align-self: auto;
-  color: var(--cdr-text);
-}
+.cdr-trace-entries { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 16px 14px; font-family: var(--mono); font-size: 11.5px; }
+/* The trace is read and copied: styles.css switches selection off app-wide. */
+.cdr-trace-entries * { user-select: text; -webkit-user-select: text; }
+.cdr-trace-entry { display: grid; grid-template-columns: auto 56px 14px 1fr; gap: 8px; align-items: baseline; padding: 4px 0; border-bottom: 1px solid var(--cdr-border); }
+.cdr-trace-icon { color: var(--cdr-text-muted); }
+.cdr-trace-icon svg { width: 11px; height: 11px; }
+.cdr-trace-icon.ok { color: var(--ok); }
+.cdr-trace-icon.err, .cdr-trace-msg.err { color: var(--danger); }
+.cdr-trace-icon.warn { color: var(--warn); }
+.cdr-trace-icon.run { color: var(--accent-2); }
+.cdr-trace-stage { color: var(--cdr-text-dim); }
+.cdr-trace-msg { color: var(--cdr-text); word-break: break-word; }
+.cdr-trace-time { color: var(--cdr-text-muted); font-variant-numeric: tabular-nums; }
+.cdr-trace-empty { padding: 20px 0; color: var(--cdr-text-muted); text-align: center; }
 
-/* Assistant: the reply itself is marked, not the whole turn — the steps in
-   between are the run, and they carry their own verbs, one under another. */
-.cdr-msg.assistant .cdr-msg-text {
-  position: relative;
-  padding: 10px 0 4px 20px;
-}
-/* In the margin, level with the first line, so a reply of several paragraphs
-   and lists still reads top to bottom. */
-.cdr-msg.assistant .cdr-msg-text::before {
-  content: "::";
-  position: absolute;
-  left: 0;
-  top: 10px;
-  color: var(--green-dim, var(--accent));
-  opacity: 0.7;
-}
-
-/* Thinking / reasoning: violet */
-.cdr-thinking,
-/* Error rows: rose */
-.cdr-msg.error .cdr-msg-content {
-  border-left: 2px solid var(--cdr-error);
-  background: rgba(217,138,133,0.06);
-  color: var(--cdr-error);
-}
-
-/* Code blocks: dark editor look with cyan trim, monospace */
-.cdr-msg-content pre,
-.cdr-msg-content code,
-.cdr-msg-content code,
-.cdr-user-bubble pre,
-.cdr-user-bubble code {
-  font-family: var(--mono) !important;
-  background: rgba(0,0,0,0.42);
-  border: 1px solid rgba(75,210,190,0.10);
-  border-radius: var(--radius-xs);
-}
-.cdr-msg-content pre,
-.cdr-user-bubble pre {
-  padding: 10px 12px;
-  overflow-x: auto;
-  font-size: 11.5px;
-  line-height: 1.55;
-  color: #d7f0ea;
-}
-.cdr-msg-content :not(pre) > code,
-.cdr-user-bubble :not(pre) > code {
-  padding: 1px 5px;
-  font-size: 11px;
-  color: var(--cdr-gold);
-  border-color: rgba(245,201,122,0.16);
-}
-
-/* Syntax-highlight color hints (used by highlight.js if loaded) */
-.cdr-msg-content .hljs-keyword,
-.cdr-msg-content .hljs-built_in    { color: #ff8fb0; }
-.cdr-msg-content .hljs-string,
-.cdr-msg-content .hljs-regexp      { color: #b5e890; }
-.cdr-msg-content .hljs-number,
-.cdr-msg-content .hljs-literal     { color: #f5c97a; }
-.cdr-msg-content .hljs-title,
-.cdr-msg-content .hljs-class,
-.cdr-msg-content .hljs-function    { color: #4bd2be; }
-.cdr-msg-content .hljs-comment,
-.cdr-msg-content .hljs-quote       { color: #5a6d80; font-style: italic; }
-.cdr-msg-content .hljs-attr,
-.cdr-msg-content .hljs-attribute   { color: #c5a3ff; }
-
-/* ── Session item: rename & delete actions (hover-revealed) ──── */
-.cdr-session-item { position: relative; }
-.cdr-session-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-.cdr-session-actions {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  opacity: 0;
-  transform: translateX(4px);
-  transition: opacity .12s, transform .12s;
-  flex-shrink: 0;
-}
-.cdr-session-item:hover .cdr-session-actions {
-  opacity: 1;
-  transform: translateX(0);
-}
-.cdr-session-act {
-  width: 20px; height: 20px;
-  display: grid; place-items: center;
-  background: rgba(57,255,129,0.05);
-  border: 1px solid rgba(57,255,129,0.20);
-  border-radius: var(--radius-xs);
-  color: #6fffaa;
-  cursor: pointer;
-  padding: 0;
-  transition: background .12s, color .12s, border-color .12s;
-}
-.cdr-session-act:hover {
-  background: rgba(57,255,129,0.18);
-  border-color: rgba(57,255,129,0.50);
-  color: #d6ffe2;
-}
-.cdr-session-act.cdr-session-del {
-  background: rgba(217,138,133,0.05);
-  border-color: rgba(217,138,133,0.22);
-  color: #ff9d9d;
-}
-.cdr-session-act.cdr-session-del:hover {
-  background: rgba(217,138,133,0.18);
-  border-color: rgba(217,138,133,0.50);
-  color: #ffd6d6;
-}
-
-/* ── Auto-tracked AI session files (top of left tree) ─────────── */
-.cdr-ai-session-section {
-  margin: 0 -2px 8px;
-  padding: 2px 4px 6px;
-  border-bottom: 1px dashed rgba(75,210,190,0.18);
-}
-.cdr-ai-session-hd {
-  display: flex; align-items: center; gap: 5px;
-  font-size: 9px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--cdr-cyan);
-  padding: 4px 6px;
-  opacity: 0.78;
-}
-.cdr-ai-session-hd svg { opacity: 0.9; flex-shrink: 0; }
-.cdr-ai-session-list {
-  display: flex; flex-direction: column; gap: 2px;
-}
-.cdr-tree-entry.cdr-ai-file {
-  min-height: 36px;
-  align-items: flex-start;
-  color: var(--cdr-success);
-  background: rgba(95,184,138,0.04);
-  border-left: 2px solid var(--cdr-success);
-  padding: 5px 7px 5px 8px;
-}
-.cdr-tree-entry.cdr-ai-file svg {
-  margin-top: 1px;
-}
-.cdr-tree-entry.cdr-ai-file .cdr-tree-name {
-  color: var(--cdr-text);
-}
-.cdr-tree-entry.cdr-ai-file .cdr-tree-path {
-  display: block;
-}
-.cdr-tree-entry.cdr-ai-file:hover {
-  background: rgba(95,184,138,0.10);
-  color: #b8eecc;
-}
-.cdr-tree-entry.cdr-ai-file.deleted {
-  color: var(--cdr-error);
-  background: rgba(217,138,133,0.04);
-  border-left-color: var(--cdr-error);
-  text-decoration: line-through;
-  opacity: 0.7;
-}
-
-/* Panels are separated by a hairline, not framed by a glow. */
-.cdr-sidebar { border-right: 1px solid var(--cdr-border); }
-
-.cdr-sidebar-hd,
-.cdr-sessions-hd {
-  border-bottom-color: rgba(57,255,129,0.22) !important;
-}
-.cdr-sidebar-iconbtn {
-  border-color: rgba(57,255,129,0.30) !important;
-  color: #6fffaa !important;
-}
-.cdr-sidebar-iconbtn:hover {
-  background: rgba(57,255,129,0.14) !important;
-  border-color: rgba(57,255,129,0.55) !important;
-  color: #b0ffce !important;
-  box-shadow: 0 0 8px rgba(57,255,129,0.30);
-}
-
-/* ── The chat surface ──────────────────────────────────────────
-   Plain. A drafting grid used to sit behind the run, which competes with the
-   code it is drawn under. */
-.cdr-chat-area { isolation: isolate; background: var(--cdr-bg); }
-.cdr-chat-area::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,0.020), transparent 16%, transparent 84%, rgba(255,255,255,0.015)),
-    radial-gradient(1000px 640px at 50% 110%, rgba(0,0,0,0.26), transparent 70%);
-}
-.cdr-chat-area > * {
-  position: relative;
-  z-index: 1;
-}
-.cdr-messages {
-  background: transparent;
-}
-
-/* Make the welcome title glow neon green in the new theme */
-.cdr-welcome-title {
-  color: #6fffaa !important;
-  text-shadow: 0 0 14px rgba(57,255,129,0.35);
-}
-.cdr-welcome-logo {
-  filter:
-    drop-shadow(0 0 22px rgba(57,255,129,0.28))
-    drop-shadow(0 0 40px rgba(57,255,129,0.14)) !important;
-}
-
-/* ── Export dropdown menu (fixed to viewport, anchored under btn) */
+/* The export formats, under the Export button in Settings. */
 .cdr-export-menu {
-  display: flex; flex-direction: column;
-  min-width: 180px;
-  padding: 6px;
-  background: linear-gradient(180deg, rgba(8,16,12,0.97), rgba(4,8,7,0.98));
-  border: 1px solid rgba(57,255,129,0.40);
-  border-radius: var(--radius-sm);
-  box-shadow:
-    0 14px 36px rgba(0,0,0,0.55),
-    0 0 22px rgba(57,255,129,0.10);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  font-family: var(--mono);
+  display: flex; flex-direction: column; min-width: 200px; padding: 4px;
+  border: 1px solid var(--cdr-border-strong, var(--line-strong)); border-radius: var(--radius-sm);
+  background: var(--surface-1); box-shadow: var(--shadow-sm);
 }
 .cdr-export-menu button {
-  display: flex; align-items: center; gap: 8px;
-  width: 100%;
-  padding: 8px 10px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  color: #b6e6c6;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  text-align: left;
-  cursor: pointer;
-  transition: background .12s, border-color .12s, color .12s;
+  display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px;
+  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--text-dim); font-size: 12.5px; text-align: left; cursor: pointer;
 }
-.cdr-export-menu button:hover {
-  background: rgba(57,255,129,0.10);
-  border-color: rgba(57,255,129,0.32);
-  color: #d6ffe2;
-}
-.cdr-export-menu button svg { opacity: 0.78; flex-shrink: 0; }
+.cdr-export-menu button:hover { background: var(--surface-raised); color: var(--text); }
+.cdr-export-menu svg { width: 12px; height: 12px; fill: none; stroke: currentColor; }
 
-/* Responsive: collapse right panel only on truly narrow screens */
-@media (max-width: 880px) {
-  .cdr-body { grid-template-columns: 200px 1fr; grid-template-areas: "sidebar chat" "sidebar terminal"; }
-  .cdr-right { display: none !important; }
-}
-@media (max-width: 640px) {
-  .cdr-body { grid-template-columns: 1fr; grid-template-areas: "chat" "terminal"; }
-  .cdr-sidebar { display: none; }
-}
+/* ── Scrollbars and narrow windows ─────────────────────────────── */
+#coder-mode-wrap ::-webkit-scrollbar { width: 8px; height: 8px; }
+#coder-mode-wrap ::-webkit-scrollbar-thumb { background: var(--cdr-border-strong); border-radius: 999px; }
+#coder-mode-wrap ::-webkit-scrollbar-track { background: transparent; }
 
-/* ── Execution Trace panel ──────────────────────────────────────── */
-.cdr-trace-wrap { position: relative; }
-.cdr-trace-panel {
-  position: absolute;
-  top: calc(100% + 7px);
-  right: 0;
-  width: min(520px, calc(100vw - 36px));
-  max-height: 450px;
-  display: none;
-  flex-direction: column;
-  background: var(--cdr-bg-panel);
-  border: 1px solid var(--cdr-border-hover);
-  border-radius: var(--cdr-radius-lg);
-  box-shadow: 0 18px 54px rgba(0,0,0,.65);
-  z-index: 1000;
-  overflow: hidden;
+@media (max-width: 1100px) {
+  .cdr-router-chip, .cdr-ctx { display: none; }
+  .cdr-model-picker { max-width: 150px; }
 }
-.cdr-trace-panel.open { display: flex; }
-.cdr-trace-head {
-  height: 34px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 10px 0 12px;
-  border-bottom: 1px solid var(--cdr-border);
-  color: var(--cdr-text);
-  font: 800 9.5px var(--mono, monospace);
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  flex-shrink: 0;
+@media (max-width: 860px) {
+  .cdr-status .cdr-status-word { display: none; }
+  .cdr-project { max-width: 180px; }
+  .cdr-messages, .cdr-composer { padding-left: 14px; padding-right: 14px; }
 }
-.cdr-trace-clear {
-  height: 22px;
-  padding: 0 8px;
-  border: 1px solid rgba(255,255,255,.1);
-  border-radius: var(--radius-xs);
-  background: rgba(255,255,255,.04);
-  color: var(--cdr-text-dim);
-  font: 700 8.5px var(--mono, monospace);
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  cursor: pointer;
+@media (prefers-reduced-motion: reduce) {
+  .cdr-status-dot, .cdr-thinking span { animation: none; }
 }
-.cdr-trace-clear:hover { color: var(--cdr-text); border-color: rgba(75,210,190,.35); }
-.cdr-trace-entries {
-  overflow-y: auto;
-  padding: 8px 10px 10px;
-  font-family: var(--mono, monospace);
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.1) transparent;
-}
-.cdr-trace-entries::-webkit-scrollbar { width: 4px; }
-.cdr-trace-entries::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: var(--radius-xs); }
-.cdr-trace-empty { padding: 20px 8px; text-align: center; color: var(--cdr-text-muted); font-size: 11px; }
-.cdr-trace-entry {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 3px 2px;
-  border-bottom: 1px solid rgba(255,255,255,.04);
-  font-size: 10.5px;
-  line-height: 1.5;
-}
-.cdr-trace-time  { color: rgba(255,255,255,.22); flex: 0 0 auto; min-width: 44px; white-space: nowrap; }
-.cdr-trace-stage { flex: 0 0 68px; font-weight: 800; color: var(--cdr-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cdr-trace-icon  { flex: 0 0 13px; display: grid; place-items: center; color: var(--cdr-text-muted); }
-/* The mark is drawn now, so it takes its colour from the row rather than its
-   weight from whatever font happened to render a tick. */
-.cdr-trace-icon svg { width: 12px; height: 12px; display: block; }
-.cdr-trace-msg   { flex: 1; min-width: 0; color: var(--cdr-text-dim); overflow-wrap: anywhere; }
-.cdr-trace-stage.ok, .cdr-trace-icon.ok, .cdr-trace-msg.ok   { color: var(--cdr-cyan); }
-.cdr-trace-stage.run,.cdr-trace-icon.run,.cdr-trace-msg.run   { color: #60a5fa; }
-.cdr-trace-stage.warn,.cdr-trace-icon.warn,.cdr-trace-msg.warn{ color: var(--cdr-gold); }
-.cdr-trace-stage.err,.cdr-trace-icon.err,.cdr-trace-msg.err   { color: var(--cdr-error); }
-
-/* styles.css switches selection off for the whole application; the trace has
-   to be granted it back, or a run can be read and never copied. */
-.cdr-trace-entries,
-.cdr-trace-entries * { user-select: text; -webkit-user-select: text; cursor: text; }

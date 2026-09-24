@@ -104,6 +104,9 @@ console.log('\nThe shared dialogs open above every mode:');
     const block = at < 0 ? '' : css.slice(at, css.indexOf('}', at));
     return Number((/z-index:\s*(\d+)/.exec(block) || [])[1]);
   };
+  const settingsHost = (/\{\s*file:\s*'\/core\/settings\/panel\.html',\s*host:\s*'([^']+)'/.exec(boot) || [])[1];
+  check('Settings opens above every mode, HashCoder included', !onPage.length || settingsHost === 'body',
+    `Settings go into ${settingsHost}, beneath ${onPage.map((m) => m.id).join(', ')}, which open them`);
   const dialog = zOf('css/modals.css', '.terminal-alert-overlay');
   for (const { id } of onPage) {
     const wrap = zOf(`modes/${id}/mode.css`, `#${id === 'code' ? 'coder' : id}-mode-wrap`);

@@ -369,6 +369,7 @@
     let cdrTraceEntries    = [];
     const cdrTraceClock    = window.HCTraceTime.clock();
     const SESSIONS_KEY     = 'hc-coder-sessions';
+    let welcomeHtml        = '';
     const STATE_KEY        = 'hashui_coder_state';
 
     // ── State persistence ─────────────────────────────────────
@@ -452,15 +453,15 @@
           terminalLog(chunk.data ?? '', chunk.kind === 'stderr' ? 'cdr-terminal-error' : '');
         };
       }
-      // The state word is the switch. It read "Turn on in Agents to search
-      // your documents" — an instruction to go somewhere else for one setting
-      // that decides whether searching your documents works at all.
-      $('cdrKbState')?.addEventListener('click', () => {
-        const H = window._H;
-        if (!H?.ragSetOn) return;
-        H.ragSetOn(!H.ragIsOn?.());
+      // The knowledge base's own switch, shown in Settings under HashCoder.
+      $('cdrKbState')?.addEventListener('change', (e) => {
+        window._H?.ragSetOn?.(!!e.target.checked);
         updateCoderStatus();
       });
+      // The empty screen, kept as the panel drew it, so a new conversation
+      // brings back the same one.
+      welcomeHtml = welcomeHtml || $('cdrMessages')?.querySelector('.cdr-welcome')?.outerHTML || '';
+      wireWelcome();
       restoreCoderState();
       // Deliberately NOT inside restoreCoderState: that returns early when there
       // is no saved session, and a change waiting to be kept or undone has
@@ -474,6 +475,9 @@
     function remount() {
       populateModelPicker();
       renderSessions();
+      warnIfSmall();
+      // The terminal opens with HashCoder only when Settings say so.
+      cdrShowTerminal(!!cdrPrefs().terminalOnOpen);
     }
 
     function destroy() {
@@ -510,25 +514,27 @@
         HC.guard.clearSession?.();
       });
 
-      // The overflow menu. Audit, trace, export and reset-permissions live in
-      // here rather than in the header, where four controls nobody uses daily
-      // were crowding the two that are read constantly.
-      const moreBtn  = $('cdrMoreBtn');
-      const moreMenu = $('cdrMoreMenu');
-      const closeMore = () => {
-        moreMenu?.classList.remove('open');
-        moreBtn?.setAttribute('aria-expanded', 'false');
+      // The top bar. Everything used less often than these is in Settings,
+      // under HashCoder, where the audit log, the trace, export, the number
+      // of agents and resetting permissions now live.
+      $('cdrProjectBtn')?.addEventListener('click', openProject);
+      $('cdrSettingsBtn')?.addEventListener('click', () => {
+        $('openSettings')?.click();
+        $('stab-hashcoder')?.click();
+      });
+      const history = $('cdrSessionsPanel');
+      const historyBtn = $('cdrHistoryBtn');
+      const showHistory = (open) => {
+        history?.classList.toggle('open', open);
+        historyBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
+        historyBtn?.classList.toggle('on', open);
+        if (open) $('cdrSessionsSearch')?.focus();
       };
-      if (moreBtn && moreMenu) {
-        moreBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const open = moreMenu.classList.toggle('open');
-          moreBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
-        // Choosing anything closes it; the action's own handler still runs.
-        moreMenu.addEventListener('click', () => closeMore());
-        document.addEventListener('click', closeMore);
-      }
+      historyBtn?.addEventListener('click', (e) => { e.stopPropagation(); showHistory(!history?.classList.contains('open')); });
+      $('cdrSessionsClose')?.addEventListener('click', () => showHistory(false));
+      history?.addEventListener('click', (e) => e.stopPropagation());
+      document.addEventListener('click', () => { if (history?.classList.contains('open')) showHistory(false); });
+      $('cdrTerminalBtn')?.addEventListener('click', () => cdrShowTerminal(!!cdrLayout.termHidden));
 
       const traceBtn   = $('cdrTraceBtn');
       const tracePanel = $('cdrTracePanel');
@@ -536,13 +542,16 @@
       if (traceBtn && tracePanel) {
         traceBtn.addEventListener('click', e => {
           e.stopPropagation();
-          closeMore();
-          tracePanel.classList.toggle('open');
+          // Asked for from Settings: close them and show the trace over HashCoder.
+          $('closeSettings')?.click();
+          if (!document.body.classList.contains('coder-mode')) window._H?.setTab?.('code');
+          tracePanel.classList.add('open');
           renderCdrTrace();
         });
         tracePanel.addEventListener('click', e => e.stopPropagation());
       }
       if (traceClear) traceClear.addEventListener('click', () => cdrTraceReset('Trace cleared'));
+      $('cdrTraceClose')?.addEventListener('click', () => tracePanel?.classList.remove('open'));
       document.addEventListener('click', () => $('cdrTracePanel')?.classList.remove('open'));
       if (exportBtn)         exportBtn.addEventListener('click', exportChat);
       if (sessionsClearAll)  sessionsClearAll.addEventListener('click', async () => {
@@ -570,33 +579,25 @@
       });
       if (termClear) termClear.addEventListener('click', clearTerminal);
 
-      const sessionsClearBtn = $('cdrSessionsClearBtn');
-      if (sessionsClearBtn) sessionsClearBtn.addEventListener('click', () => {
-        try { localStorage.removeItem(SESSIONS_KEY); } catch {}
-        renderSessions();
-      });
-
-
       renderSessions();
 
-      // Quick-action chips on welcome screen
-      document.querySelectorAll('.cdr-welcome-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          const prompt = chip.dataset.prompt;
-          if (!prompt || !taskInput) return;
-          taskInput.value = prompt;
-          autoResize(taskInput);
-          taskInput.focus();
-        });
-      });
-
-      document.querySelectorAll('.cdr-agent-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.querySelectorAll('.cdr-agent-btn').forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          agentCount = parseInt(btn.dataset.agents, 10) || 1;
-        });
-      });
+      // Settings, under HashCoder.
+      const prefs = cdrPrefs();
+      const agentsEl = $('cdrAgentCount');
+      if (agentsEl) {
+        agentsEl.value = String(agentCount);
+        agentsEl.addEventListener('change', () => { agentCount = parseInt(agentsEl.value, 10) || 1; });
+      }
+      const proveEl = $('cdrSetProve');
+      if (proveEl) {
+        proveEl.checked = prefs.prove !== false;
+        proveEl.addEventListener('change', () => cdrSavePrefs({ prove: proveEl.checked }));
+      }
+      const termEl = $('cdrSetTerminal');
+      if (termEl) {
+        termEl.checked = !!prefs.terminalOnOpen;
+        termEl.addEventListener('change', () => cdrSavePrefs({ terminalOnOpen: termEl.checked }));
+      }
 
       if (taskInput) {
         taskInput.addEventListener('keydown', e => {
@@ -610,10 +611,38 @@
       if (modelPicker) {
         modelPicker.addEventListener('change', () => {
           coderModel = modelPicker.value || null;
-          const label = modelPicker.options[modelPicker.selectedIndex]?.text || 'Auto';
-          setRouterChip(label.length > 22 ? label.slice(0, 20) + '…' : label, '');
+          warnIfSmall();
         });
       }
+    }
+
+    /** The chips and the Open project button of the empty screen. */
+    function wireWelcome() {
+      $('cdrMessages')?.querySelectorAll('.cdr-welcome-chip').forEach((chip) => {
+        chip.addEventListener('click', () => {
+          const ti = $('cdrTaskInput');
+          if (!ti || !chip.dataset.prompt) return;
+          ti.value = chip.dataset.prompt;
+          autoResize(ti);
+          ti.focus();
+        });
+      });
+      $('cdrWelcomeOpen')?.addEventListener('click', openProject);
+    }
+
+    // A local model below this many billion parameters is flagged as small
+    // under the composer: on such a model the agent often stops early or skips
+    // steps, and the person should know that before blaming the task.
+    const SMALL_MODEL_WARN_BILLIONS = 7;
+    async function warnIfSmall() {
+      const el = $('cdrModelWarn');
+      if (!el) return;
+      const model = coderModel || window._H?.selectedModel?.() || '';
+      const info = /^cloud:/.test(model) || !model ? null
+        : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
+      const small = !!(info?.billions && info.billions < SMALL_MODEL_WARN_BILLIONS);
+      el.hidden = !small;
+      el.textContent = small ? `${info.billions}B is a small model: it may stop early or skip steps. 7B or larger works better.` : '';
     }
 
     // Models known to reliably support structured tool/function calling.
@@ -655,6 +684,7 @@
 
     function syncProjectLabel() {
       const sub = $('cdrProjectSub');
+      $('coder-mode-wrap')?.classList.toggle('has-project', !!sharedState.projectRoot);
       if (!sub) return;
       const root = sharedState.projectRoot;
       sub.textContent = root ? baseName(root) : 'No project open';
@@ -1273,6 +1303,7 @@
 
     function restoreSession(session) {
       if (!session?.msgs?.length) return;
+      $('cdrSessionsPanel')?.classList.remove('open');
       conversationMsgs = session.msgs.slice();
       renderConversation();
       setStatus('Ready', '');
@@ -1300,7 +1331,7 @@
         const pct = Math.min(100, Math.round((used / MAX) * 100));
         const pctEl = $('cdrContextPct'), fillEl = $('cdrContextFill'), cntEl = $('cdrContextCount');
         if (pctEl) pctEl.textContent = `${pct}%`;
-        if (fillEl) fillEl.style.width = `${pct}%`;
+        if (fillEl) fillEl.style.setProperty('--pct', String(pct));
         const k = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
         if (cntEl) cntEl.textContent = `${k(used)}/${k(MAX)}`;
         box.classList.toggle('warn', pct >= 70 && pct < 90);
@@ -1312,19 +1343,16 @@
       if (kb && kbState && kbRows) {
         const on = !!H?.ragIsOn?.();
         const size = H?.ragSize?.() || { passages: 0, sources: 0 };
-        kb.classList.toggle('on', on);
-        kbState.textContent = on ? 'on' : 'off';
-        kbState.title = on ? 'Switch the knowledge base off' : 'Switch the knowledge base on';
+        kbState.checked = on;
         // Plain words. This said "search_knowledge will find nothing", which
         // names a tool the reader never sees and wrapped onto three lines in a
         // narrow panel, so the one strip meant to tell you the truth about the
         // knowledge base looked broken.
-        kbRows.innerHTML = on
+        kbRows.textContent = on
           ? (size.passages
-            ? `<div class="cdr-kb-row"><span>passages</span><b>${size.passages.toLocaleString()}</b></div>` +
-              `<div class="cdr-kb-row"><span>sources</span><b>${size.sources}</b></div>`
-            : '<div class="cdr-kb-note">On, but empty. Add documents to use it.</div>')
-          : '<div class="cdr-kb-note">Off. Nothing of yours is searched.</div>';
+            ? `On: ${size.passages.toLocaleString()} passages from ${size.sources} source${size.sources === 1 ? '' : 's'}.`
+            : 'On, but empty. Add documents in Agents to use it.')
+          : 'Off. Nothing of yours is searched.';
       }
     }
 
@@ -1518,30 +1546,8 @@
       clearCoderState();
       const msgs = $('cdrMessages');
       if (msgs) {
-        msgs.innerHTML = `<div class="cdr-welcome">
-          <img src="/assets/hashcortx-logo.png" class="cdr-welcome-logo" draggable="false" alt="HashCortx"/>
-          <div class="cdr-welcome-title">Coder Mode</div>
-          <div class="cdr-welcome-sub">Surgical AI tasks &middot; local-first &middot; your keys</div>
-          <div class="cdr-welcome-chips">
-            <span class="cdr-welcome-chip" data-prompt="Map this project. Use list_dir from the project root, then grep_code for the entry point. Tell me: what it is, how it starts, the three or four files that matter most, and anything that looks unusual. Read before you conclude, and name the file behind every claim.">Map the project</span>
-            <span class="cdr-welcome-chip" data-prompt="Find every TODO, FIXME, HACK and XXX comment with grep_code. Group them by file, quote the line, and say which ones look like real work versus notes someone left and forgot. Do not fix anything yet.">Find the TODOs</span>
-            <span class="cdr-welcome-chip" data-prompt="Look for real defects, not style. Read the main source files and report anything that would misbehave at runtime: unhandled errors, a value used before it is set, an await that is missing, an off-by-one, a branch that can never run. For each one give me the file, the line, and the input that would break it. Do not change any code.">Hunt for bugs</span>
-            <span class="cdr-welcome-chip" data-prompt="Find the test command in package.json, Cargo.toml or the Makefile and run it with shell_run. If it passes, tell me what is NOT covered and write tests for the most important gap. If it fails, show me the failing output and diagnose it before changing anything.">Run and extend the tests</span>
-            <span class="cdr-welcome-chip" data-prompt="Explain how one thing works end to end. Ask me which feature first if it is not obvious, then trace it: where it starts, every file it passes through, and where it ends. Quote the key lines rather than describing them.">Explain a feature</span>
-            <span class="cdr-welcome-chip" data-prompt="Review the uncommitted changes. Run git status --short and git diff with shell_run, read what changed, and tell me what is wrong with it — correctness first, then anything left behind like a debug print or dead code. Be specific and do not praise it.">Review my changes</span>
-            <span class="cdr-welcome-chip" data-prompt="Find the dead code. Look for functions, classes, exports, CSS classes and files that nothing references, using grep_code to confirm each one has no caller. List them with the evidence. Delete nothing until I say so.">Find dead code</span>
-            <span class="cdr-welcome-chip" data-prompt="Check the dependencies. Read package.json, Cargo.toml or requirements.txt, then grep the source for each one and tell me which are imported nowhere. Flag anything pinned loosely enough to change under me.">Audit dependencies</span>
-          </div>
-        </div>`;
-        msgs.querySelectorAll('.cdr-welcome-chip').forEach(chip => {
-          chip.addEventListener('click', () => {
-            const ti = $('cdrTaskInput');
-            if (!ti || !chip.dataset.prompt) return;
-            ti.value = chip.dataset.prompt;
-            autoResize(ti);
-            ti.focus();
-          });
-        });
+        msgs.innerHTML = welcomeHtml;
+        wireWelcome();
       }
       setStatus('Ready', '');
       setRouterChip('Auto', '');
@@ -2173,9 +2179,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // Final answer — hide reasoning, show result
         reasoningEl?.remove(); reasoningEl = null;
         const finalText = turn.content || '';
-        // Code changed and nothing proved it: sent back once to run the
-        // project's own test, twice at most (js/code/verify.js).
-        const back = proof && finalText.trim() ? window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, finalText, sentBack) : null;
+        // Code changed and nothing proved it: sent back to run the project's own
+        // test, twice at most (js/code/verify.js), unless Settings turn it off.
+        const back = proof && finalText.trim() && cdrPrefs().prove !== false ? window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, finalText, sentBack) : null;
         if (back) {
           sentBack++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message });
@@ -2459,7 +2465,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
   // you have chosen.
   // ══════════════════════════════════════════════════════════════
   const CDR_LAYOUT_KEY = 'hashcortx_coder_layout_v1';
-  const CDR_LAYOUT_DEFAULTS = { sideW: 232, termH: 220, sideHidden: false, termHidden: false };
+  const CDR_LAYOUT_DEFAULTS = { sideW: 232, termH: 220, sideHidden: false, termHidden: true };
   // Floors, not suggestions. Dragging used to be able to squeeze a panel until
   // its own labels were clipped; these are the widths at which every panel
   // still shows what it is.
@@ -2479,6 +2485,22 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
   const cdrClamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 
+  // HashCoder's choices in Settings: whether it proves a change before
+  // finishing, and whether the terminal opens with it.
+  const CDR_PREFS_KEY = 'hashcoder_prefs_v1';
+  function cdrPrefs() {
+    try { return JSON.parse(localStorage.getItem(CDR_PREFS_KEY) || '{}') || {}; } catch { return {}; }
+  }
+  function cdrSavePrefs(change) {
+    try { localStorage.setItem(CDR_PREFS_KEY, JSON.stringify({ ...cdrPrefs(), ...change })); } catch {}
+  }
+
+  /** Show or hide the terminal, and say so on the bar's terminal button. */
+  function cdrShowTerminal(show) {
+    cdrLayout.termHidden = !show;
+    cdrApplyLayout(); cdrSaveLayout();
+  }
+
   function cdrApplyLayout() {
     const body = $('cdrBody');
     if (!body) return;
@@ -2494,9 +2516,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     const expandBtn = $('cdrTerminalExpand');
     if (expandBtn) expandBtn.textContent = body.classList.contains('cdr-term-full') ? 'Restore' : 'Expand';
-    const hideBtn = $('cdrTerminalCollapse');
-    if (hideBtn) hideBtn.textContent = cdrLayout.termHidden ? 'Show' : 'Hide';
-    if (expandBtn) expandBtn.disabled = !!cdrLayout.termHidden;
+    const barBtn = $('cdrTerminalBtn');
+    barBtn?.classList.toggle('on', !cdrLayout.termHidden);
+    barBtn?.setAttribute('aria-expanded', cdrLayout.termHidden ? 'false' : 'true');
   }
 
   /** Wire one split handle. `axis` is 'x' (side width) or 'y' (terminal height). */
@@ -2578,38 +2600,14 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     $('cdrSideCollapse')?.addEventListener('click', () => setSideHidden(true));
     $('cdrSideRail')?.addEventListener('click', () => setSideHidden(false));
 
-    $('cdrTerminalCollapse')?.addEventListener('click', () => {
-      cdrLayout.termHidden = !cdrLayout.termHidden;
-      cdrApplyLayout(); cdrSaveLayout();
-    });
-    // A control labelled Hide that cannot be pressed again is a one-way door.
-    // It reads Show while the terminal is collapsed.
+    // The terminal is hidden here and opened again from the bar.
+    $('cdrTerminalCollapse')?.addEventListener('click', () => cdrShowTerminal(false));
     $('cdrTerminalExpand')?.addEventListener('click', () => {
       // Expand is a view state, not a size: leaving the dragged height alone
       // means Restore puts back exactly what the user had chosen.
-      if (cdrLayout.termHidden) { cdrLayout.termHidden = false; cdrApplyLayout(); cdrSaveLayout(); return; }
       body.classList.toggle('cdr-term-full');
       cdrApplyLayout();
     });
-
-    // Files / Chats tabs.
-    document.querySelectorAll('.cdr-side-tab[data-cdr-side-tab]').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        const want = tab.getAttribute('data-cdr-side-tab');
-        document.querySelectorAll('.cdr-side-tab[data-cdr-side-tab]').forEach((t) => {
-          const on = t === tab;
-          t.classList.toggle('active', on);
-          t.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        document.querySelectorAll('.cdr-side-pane[data-cdr-side-pane]').forEach((pane) => {
-          pane.classList.toggle('active', pane.getAttribute('data-cdr-side-pane') === want);
-        });
-        cdrLayout.sideTab = want; cdrSaveLayout();
-      });
-    });
-    if (cdrLayout.sideTab) {
-      document.querySelector(`.cdr-side-tab[data-cdr-side-tab="${cdrLayout.sideTab}"]`)?.click();
-    }
   }
 
   function init() {

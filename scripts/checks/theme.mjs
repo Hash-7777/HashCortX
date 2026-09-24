@@ -193,7 +193,9 @@ const BUDGET = {
   'modes/virtual-os/mode.css': 52,
   'css/modes.css': 46,
   'css/main.css': 26,
-  'modes/code/mode.css': 26,
+  // 0, down from 26: the HashCoder panel was redrawn on the shared tokens,
+  // so it follows the theme rather than carrying a palette of its own.
+  'modes/code/mode.css': 0,
   'modes/agent-maker/mode.css': 9,
   'modes/finance/mode.css': 27,
   'css/tabs.css': 17,

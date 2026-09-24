@@ -119,7 +119,9 @@ console.log('\nLoad order is a decision, not an accident:');
 // one depends on link order rather than on anything in the rule. Lower the
 // budget as rules are merged into the sheet that owns them.
 // 47, down from 54: styling nothing in the app used was removed.
-const DUPLICATE_BUDGET = 46;
+// 43, down three: the HashCoder panel's sheet was rewritten to style only
+// its own panel.
+const DUPLICATE_BUDGET = 43;
 
 console.log('\nSelectors declared in more than one sheet go down, never up:');
 {
@@ -169,7 +171,8 @@ const IMPORTANT_BUDGET = {
   // 10, not 11: one was a mention inside a comment.
   'modes/agent-maker/mode.css': 10,
   'modes/virtual-os/mode.css': 11,
-  'modes/code/mode.css': 11,
+  // 0, down from 11: the HashCoder panel was redrawn with nothing to overrule.
+  'modes/code/mode.css': 0,
   'modes/systems/mode.css': 6,
   'css/base.css': 8,
   'modes/finance/mode.css': 4,

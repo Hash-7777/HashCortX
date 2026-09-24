@@ -24,6 +24,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><path d="M7 10v2.5a2 2 0 0 0 2 2h4"/><path d="M17 14v-2.5a2 2 0 0 0-2-2h-4"/></svg>
         <span>Connections</span>
       </button>
+      <button class="srail-item" id="stab-hashcoder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <span>HashCoder</span>
+      </button>
       <button class="srail-item" id="stab-memory">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3V6"/><path d="M4.5 12c0 1.66 3.36 3 7.5 3s7.5-1.34 7.5-3"/></svg>
         <span>Memory</span>
@@ -426,6 +430,66 @@
       </div>
       <div class="set-sec">Connected</div>
       <div id="connList" class="conn-list"></div>
+    </div>
+
+    <!-- HashCoder pane (hidden by default). What the coding agent's own panel
+         does not need on screen every day. -->
+    <div id="hashcoderPane" style="display:none" class="modal-body settings-pane" hidden>
+      <div class="field">
+        <div class="mem-blurb">
+          How HashCoder, the coding agent, works. Its own panel keeps only what you use every day: the conversation, your files and the model.
+        </div>
+      </div>
+
+      <div class="set-sec">How it works</div>
+      <div class="field">
+        <div class="field-note">The model is chosen in the HashCoder bar. Models smaller than 7B often stop early or skip steps; use 7B or larger for real work.</div>
+      </div>
+      <div class="field">
+        <label class="check-row">
+          <input type="checkbox" id="cdrSetProve" class="check-box" checked />
+          <span><b>Prove changes before finishing</b> <span class="field-note">— after changing code, HashCoder is sent back to run the project's own tests before it finishes. What was checked is said under each answer either way.</span></span>
+        </label>
+      </div>
+      <div class="field" id="cdrKb">
+        <label class="check-row">
+          <input type="checkbox" id="cdrKbState" class="check-box" />
+          <span><b>Use my knowledge base</b> <span class="field-note">— the same switch as in Agents: while it is on, HashCoder can look up your documents</span></span>
+        </label>
+        <div class="field-note" id="cdrKbRows"></div>
+      </div>
+      <div class="field">
+        <label class="check-row">
+          <input type="checkbox" id="cdrSetTerminal" class="check-box" />
+          <span><b>Show the terminal when HashCoder opens</b> <span class="field-note">— the terminal button in its bar opens it at any time</span></span>
+        </label>
+      </div>
+      <div class="field">
+        <label for="cdrAgentCount">Agents working at once <span class="field-note">— a large task split between helpers</span></label>
+        <select class="control" id="cdrAgentCount">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+        </select>
+      </div>
+
+      <div class="set-sec">Records</div>
+      <div class="field">
+        <div class="field-note">What HashCoder did, step by step, and what it was allowed to do.</div>
+        <div class="host-row">
+          <button class="ghost set-btn" type="button" id="cdrAuditBtn">Audit log</button>
+          <button class="ghost set-btn" type="button" id="cdrTraceBtn">Execution trace</button>
+          <button class="ghost set-btn" type="button" id="cdrExportBtn">Export conversation</button>
+        </div>
+      </div>
+
+      <div class="set-sec">Permissions</div>
+      <div class="field">
+        <div class="field-note">What you allowed for this session. After a reset, HashCoder asks again before any change or command.</div>
+        <div class="host-row">
+          <button class="ghost set-btn set-btn-danger" type="button" id="cdrResetPermsBtn">Reset permissions</button>
+        </div>
+      </div>
     </div>
 
     <!-- Memory pane (hidden by default) -->
