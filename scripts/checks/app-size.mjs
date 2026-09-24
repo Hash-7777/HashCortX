@@ -667,7 +667,10 @@ const LINE_BUDGET = {
   // code with nothing proven, and ends by saying what was proven; the rules
   // are js/code/verify.js, and this is the wiring and the project's checks
   // being found once.
-  'modes/code/mode.js': 2642,
+  // 2652, up ten: a small local model is given the tools a coding task needs
+  // and a short set of steps, chosen by its size before each run; the tools
+  // and the steps are in platform/tauri/hashcoder.js.
+  'modes/code/mode.js': 2652,
 };
 
 console.log('\nFile sizes go down, never up:');

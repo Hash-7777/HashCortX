@@ -251,6 +251,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A small local model gets the tools a coding task needs and a short set of
+  steps.** Below five billion parameters the Coder offers nine tools instead
+  of nineteen, and a few lines of steps in place of its full instructions.
+  Such a model still often stops early or skips steps.
+
 - **The Coder's edits land more often, and it reads long files by lines.** An
   edit finds its passage even when the model copied it with the indentation
   off, spaces left at the ends of lines, or the line numbers of a numbered

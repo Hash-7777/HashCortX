@@ -1984,7 +1984,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
       } catch {}
 
-      const richBase = (HC?.code?.SYSTEM_PROMPT || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
+      const richBase = ((sharedState.small ? HC?.code?.SMALL_MODEL_PROMPT : HC?.code?.SYSTEM_PROMPT) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
     }
@@ -2239,6 +2239,15 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
       }
 
+      // A small local model gets fewer tools and shorter instructions (platform/tauri/hashcoder.js).
+      const model = coderModel || window._H?.selectedModel?.() || '';
+      const size = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
+      const small = !!(size?.billions && size.billions < (HC?.code?.SMALL_MODEL_BILLIONS || 0));
+      if (small !== !!sharedState.small) {
+        sharedState.small = small;
+        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
+      }
+
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) {
         conversationMsgs = [{ role: 'system', content: sysPrompt() }];
@@ -2298,7 +2307,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function runSingleTurn(signal) {
       // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
-      const tools = [...buildTools(), ...run.tools];
+      const own = sharedState.small ? buildTools().filter((t) => HC.code.SMALL_MODEL_TOOLS.includes(t.function.name)) : buildTools();
+      const tools = [...own, ...run.tools];
       const contentEl = appendAssistantBubble('HashCortX Coder');
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
       const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);

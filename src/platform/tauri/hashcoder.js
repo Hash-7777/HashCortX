@@ -764,6 +764,36 @@ REASONING:
 • After each tool call, assess the result before deciding the next step.
 • NEVER call tools for greetings, conversational replies, or questions that need no file access.`;
 
+  // ── A small local model ────────────────────────────────────
+  //
+  // A model of a few billion parameters given nineteen tools and two thousand
+  // words of instructions mostly did not start: it described the change, or
+  // wrote its calls as text, and changed nothing. It gets the tools a coding
+  // task needs and a short set of steps instead; everything else is the same.
+
+  /** Below this many billion parameters a local model is treated as small. */
+  HC.code.SMALL_MODEL_BILLIONS = 5;
+
+  /** The tools a small model is offered. */
+  HC.code.SMALL_MODEL_TOOLS = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'patch_file', 'write_file', 'shell_run', 'delete_file', 'move_file'];
+
+  HC.code.SMALL_MODEL_PROMPT = `You are HashCoder, a coding agent. You change files in the person's project by calling tools. Do the task; do not only describe it.
+
+How to work:
+1. Look: list_dir the project, and grep_code to find where something is.
+2. Read a file with read_file before you change it.
+3. Change it with patch_file: search is text copied exactly from the file, replace is the new text. Use write_file only for a new file.
+4. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error and fix the code.
+5. Finish with one or two sentences: what you changed, and what passed.
+
+Rules:
+- Call one tool at a time and wait for its result.
+- Use full paths inside the project.
+- Do not change the tests unless the task asks for it.
+- If the task only asks a question, answer it and change nothing.
+
+${HC.code.TOOL_TEXT_RULE}`;
+
   /**
    * One line telling the model which machine it is working on.
    *

@@ -50,6 +50,19 @@ console.log('\nThe Coder uses it, in one place:');
   ok('no copy of it is left in the Coder', !/Object\.entries\(t\.parameters\)/.test(mode));
 }
 
+console.log('\nA small local model:');
+{
+  const names = HC.code.TOOL_DEFINITIONS.map((t) => t.name);
+  ok('every tool it is offered exists', HC.code.SMALL_MODEL_TOOLS.every((n) => names.includes(n)));
+  ok('it can read, find, edit, create and run', ['read_file', 'grep_code', 'patch_file', 'write_file', 'shell_run'].every((n) => HC.code.SMALL_MODEL_TOOLS.includes(n)));
+  const named = [...HC.code.SMALL_MODEL_PROMPT.matchAll(/\b([a-z]+_[a-z_]+)\b/g)].map((m) => m[1]).filter((n) => names.includes(n));
+  ok('its instructions name no tool it is not given', named.length > 0 && named.every((n) => HC.code.SMALL_MODEL_TOOLS.includes(n)), named.join());
+  ok('its instructions carry the rule about text from tools', HC.code.SMALL_MODEL_PROMPT.includes(HC.code.TOOL_TEXT_RULE));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('the Coder gives it only those tools and those instructions', /HC\.code\.SMALL_MODEL_TOOLS\.includes/.test(mode) && /sharedState\.small \? HC\?\.code\?\.SMALL_MODEL_PROMPT/.test(mode));
+  ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode));
+}
+
 console.log('\nWhere a command runs:');
 {
   const asked = [];
