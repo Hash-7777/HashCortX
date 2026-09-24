@@ -242,6 +242,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The Coder's edits land more often, and it reads long files by lines.** An
+  edit finds its passage even when the model copied it with the indentation
+  off, spaces left at the ends of lines, or the line numbers of a numbered
+  read, and still only where it appears once. Several edits to one file are
+  made together or not at all. An edit that finds nothing shows the lines most
+  like it, numbered, so the next try can copy them. A file over 400 lines is
+  read 200 numbered lines at a time, with a range when one is asked for. A
+  JSON file that an edit would leave unreadable is not written.
+
 - **The Agent Swarm fits its team to the task and to your computer.** A
   short piece of writing or a question is handed to one writer: no model is
   asked to design a team, nothing is asked of you first, and the answer is

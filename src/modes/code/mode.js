@@ -1956,7 +1956,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         'Rules:',
         '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.',
         '2. Replies must be ≤3 short sentences unless the user asks for detail.',
-        '3. For code edits, return only the changed region. No surrounding context.',
+        '3. Make code changes with the file tools; do not paste the code into the reply.',
         '4. Never call tools for greetings or conversational questions — answer in plain text.',
         '5. Blocked paths: /System, /etc, /private, /usr, /bin — refuse without asking.',
       ];

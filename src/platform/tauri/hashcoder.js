@@ -9,7 +9,7 @@
 
   HC.code = {
 
-    async readFile(path) {
+    async readFile(path, startLine = null, endLine = null) {
       const ok = await HC.guard.request('read', path, 'Reading file');
       if (!ok) throw new Error(`Permission denied: read ${path}`);
       // A PDF is not text, so fs_read_file answers with a sentence describing
@@ -31,7 +31,19 @@
                  (await HC.invoke('fs_read_file', { path }));
         }
       }
-      return HC.invoke('fs_read_file', { path });
+      // A range asked for, or a long file, is read as numbered lines a window
+      // at a time (js/code/patch.js). A whole long file filled a small model's
+      // memory before it had read a line of the task; a window and the line
+      // numbers grep_code gives lead straight to the part that matters.
+      const P = window.HCCodePatch;
+      const name = path.split(/[\\/]/).pop() || path;
+      const ranged = startLine != null || endLine != null;
+      const plain = ranged ? null : await HC.invoke('fs_read_file', { path });
+      if (!P || (!ranged && !(P.isLong(plain) || /\n\n\[TRUNCATED/.test(plain)))) return plain ?? HC.invoke('fs_read_file', { path });
+      let text;
+      try { text = P.textOf(P.bytesFromBase64((await HC.invoke('fs_read_base64', { path })).base64), name); }
+      catch { return plain ?? HC.invoke('fs_read_file', { path }); }   // not text: the plain read says what it is
+      return P.linesWindow(text, startLine, endLine, name);
     },
 
     async writeFile(path, content, reason = '') {
@@ -55,6 +67,12 @@
         `Undo cannot restore this file (${record.unrestorable}). Replace it anyway?`))) {
         await HC.undo.drop(record);
         throw new Error(`Permission denied: replace ${path}, which Undo could not restore`);
+      }
+      // A JSON file this would break is not written (js/code/patch.js).
+      const broken = window.HCCodePatch?.breaks(path, record?.existed ? record.content : null, String(content));
+      if (broken) {
+        await HC.undo.drop(record);
+        throw new Error(broken);
       }
       // A file that had Windows line endings keeps them (js/code/patch.js).
       const ends = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
@@ -233,9 +251,12 @@
       return JSON.stringify({ ok: true, from, to });
     },
 
-    async patchFile(path, search, replace, reason = '') {
+    async patchFile(path, search, replace, reason = '', more = null) {
       if (!search) throw new Error('patch_file: search string is required and must not be empty.');
       if (replace == null) throw new Error('patch_file: replace string is required (use "" to delete).');
+      // Further edits to the same file, made with the first: all or none.
+      const edits = [{ search: String(search), replace: String(replace) }]
+        .concat(Array.isArray(more) ? more.map((e) => ({ search: e && e.search, replace: e && e.replace })) : []);
 
       // The file's real bytes, not what read_file shows the model: that cuts a
       // long file short and describes a binary one, and either would be
@@ -247,9 +268,14 @@
       catch (e) { throw new Error(`patch_file failed: "${path}" could not be read (${e?.message || e}). Use write_file to create a new file.`); }
       const P = window.HCCodePatch;
       let next;
-      try { next = P.applyPatch(P.textOf(P.bytesFromBase64(file.base64), path), String(search), String(replace), path); }
+      try { next = P.applyEdits(P.textOf(P.bytesFromBase64(file.base64), path), edits, path); }
       catch (e) { throw new Error(`patch_file failed: ${e?.message || e}`); }
-      return HC.code.writeFile(path, next, reason || `Patching ${path}`);
+      const out = JSON.parse(await HC.code.writeFile(path, next.text, reason || `Patching ${path}`));
+      // Said when a passage was found loosely, so the model can see the change
+      // went where it meant.
+      if (edits.length > 1) out.edits = edits.length;
+      if (next.notes.length) out.matched = next.notes.join('; ');
+      return JSON.stringify(out);
     },
 
     async fuzzyFind(dir, query) {
@@ -314,11 +340,13 @@
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
-      description: 'Read a file\'s content. Handles text, code, config and data files, and reads a PDF as its text — so a .pdf can be read directly, no shell tool needed. A scanned PDF says so rather than coming back empty. Other binary files return a metadata summary. Large files are truncated with a continuation hint.',
+      description: 'Read a file\'s content. Handles text, code, config and data files, and reads a PDF as its text — so a .pdf can be read directly, no shell tool needed. A scanned PDF says so rather than coming back empty. Other binary files return a metadata summary. A file over 400 lines, or a range asked for with start_line and end_line, comes back as numbered lines, 200 at a time by default: find the line with grep_code, then read around it.',
       parameters: {
         path: 'Absolute path to the file',
+        start_line: { type: 'integer', description: 'Optional: the first line to read, counting from 1.' },
+        end_line: { type: 'integer', description: 'Optional: the last line to read.' },
       },
-      fn: (p) => HC.code.readFile(p.path),
+      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null),
     },
     {
       name: 'write_file',
@@ -332,14 +360,15 @@
     },
     {
       name: 'patch_file',
-      description: 'Replace an exact string inside an existing file. Surgical edit — preserves everything else. REQUIREMENT: copy the search string verbatim from read_file output, including all whitespace and indentation.',
+      description: 'Replace a passage inside an existing file, keeping everything else. Copy the search text from read_file output, without the line numbers of a numbered read. It must appear once in the file: add neighbouring lines when it is not unique. For several changes to one file, pass the rest in edits: all are made together, or none. When the passage is not found, the answer shows the lines most like it.',
       parameters: {
         path:    'Absolute path to the file to edit',
-        search:  'Exact string to find (must match character-for-character)',
-        replace: 'String to replace it with',
+        search:  'The passage to find, copied from the file',
+        replace: 'What to put in its place ("" deletes it)',
+        edits:   { type: 'array', description: 'Optional: more changes to the same file, made with the first one.', items: { type: 'object', properties: { search: { type: 'string' }, replace: { type: 'string' } }, required: ['search', 'replace'] } },
         reason:  'What this change does',
       },
-      fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason),
+      fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits),
     },
     {
       name: 'list_dir',
@@ -612,6 +641,7 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {
@@ -624,7 +654,7 @@
             [k, (v && typeof v === 'object' && v.type) ? v : { type: 'string', description: String(v) }]
           )
         ),
-        required: Object.keys(t.parameters).filter(k => !['reason', 'cwd', 'file_ext'].includes(k)),
+        required: Object.keys(t.parameters).filter(k => !OPTIONAL_ARGUMENTS.includes(k)),
       },
     },
   }));
@@ -649,9 +679,9 @@ WORKFLOW (follow this order every time):
 ④ VERIFY — shell_run tests/build/lint after significant changes when it adds value.
 
 PATCH RULES (most common failure mode):
-• The search string must be EXACT — copy it character-for-character from read_file output, preserving every space and indent.
-• If patch fails "not found": re-read → find the real string → retry once. If it fails again, explain what you found and ask.
-• One patch call per edit. Complete each before starting the next.
+• Copy the search text from the file as read_file showed it, every space and indent, without the line numbers of a numbered read.
+• If patch_file says "not found", it shows the lines most like your search: copy them from there and retry. If it fails twice, say what you found.
+• Several changes to one file: one patch_file call, with the rest in edits.
 
 TOOL ROUTING:
 • File name unknown/fuzzy  → fuzzy_find(dir, query)
@@ -683,8 +713,8 @@ TOOL ROUTING:
 • A layout genuinely needs a photo → placeholder_images(seed, count). Prefer gradients, icons or inline SVG; never invent an image URL.
 
 FILE READING:
-• read_file handles all text formats and returns readable metadata for binary/large files.
-• For truncated files: use grep_code or shell_run grep/head/tail to target specific sections.
+• read_file handles all text formats and returns readable metadata for binary files.
+• A file over 400 lines comes back 200 numbered lines at a time. Find the part you need with grep_code, which gives line numbers, then read_file with start_line and end_line around it.
 • For binary inspection, use what this machine actually has — the platform is
   stated at the end of this prompt, so read it before choosing.
   macOS and Linux: \`file\`, \`xxd -l 128\`, \`sqlite3 <db> .tables\`.

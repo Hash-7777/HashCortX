@@ -36,7 +36,7 @@ console.log('The tool list:');
     const [k, v] = Object.entries(withSchema.parameters).find(([, x]) => x && typeof x === 'object' && x.type);
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
-  const optional = ['reason', 'cwd', 'file_ext'];
+  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits'];
   ok('every argument is required but the ones optional by name', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k)).join();
