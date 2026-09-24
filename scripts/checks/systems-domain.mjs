@@ -50,7 +50,10 @@ console.log('\nA description is placed in an industry, or honestly in none:');
     && D.detectDomain('a food distribution company selling produce to restaurants and shops') === 'wholesale'
     && D.detectDomain('Wholesaler of dry goods') === 'wholesale');
   ok('... and so is a distributor of anything else', D.detectDomain('an electronics distributor') === 'wholesale' && D.detectDomain('B2B cleaning supplies') === 'wholesale' && D.detectDomain('cash and carry') === 'wholesale');
-  ok('... while a place that serves food is still a restaurant', D.detectDomain('a food truck') === 'restaurant' && D.detectDomain('a family restaurant') === 'restaurant');
+  ok('... and so is a business that sells or supplies to others, without the word', D.detectDomain('We sell fresh produce and dry goods to restaurants and shops') === 'wholesale'
+    && D.detectDomain('a bakery that supplies bread to cafes and hotels') === 'wholesale' && D.detectDomain('we distribute olive oil to supermarkets') === 'wholesale');
+  ok('... while a place that serves food is still a restaurant', D.detectDomain('a food truck') === 'restaurant' && D.detectDomain('a family restaurant') === 'restaurant'
+    && D.detectDomain('a restaurant that delivers to homes') === 'restaurant' && D.detectDomain('a cafe that sells coffee to students') === 'restaurant');
   const w = D.DOMAIN_CONFIG.wholesale;
   ok('a wholesaler keeps orders, products, customers, deliveries and suppliers', w.modules.map((m) => m.entity).join() === 'orders,products,customers,deliveries,suppliers,orders');
   const own = ['orders', 'products', 'customers', 'deliveries', 'suppliers'].map((e) => [e, JSON.stringify(D.defaultFields(e, 'wholesale'))]);

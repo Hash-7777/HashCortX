@@ -378,8 +378,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a description meant a restaurant, so a wholesaler that sells to
   restaurants and shops was built with a menu, dining tables and waiters.
   The ERP now knows wholesale and distribution businesses, food or
-  otherwise: orders that move from received to delivered, products by the
-  pack, customers with payment terms and credit, deliveries and suppliers.
+  otherwise, including one described only as selling or supplying to
+  restaurants, shops or other businesses: orders that move from received
+  to delivered, products by the pack, customers with payment terms and
+  credit, deliveries and suppliers.
 
 - **An agent says when the tool a request needs is switched off.** A model
   asked for something only a switched-off tool of a connected system does,

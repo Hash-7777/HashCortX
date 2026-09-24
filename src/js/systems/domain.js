@@ -41,11 +41,14 @@
     summary: "financial_summary",
   };
 
+  const SELLS_TO_TRADE = /\b(?:sells?|selling|suppl(?:y|ies|ying)|distribut(?:e|es|ing))\b[^.;\n]{0,80}?\bto\s+(?:other\s+)?(?:restaurants?|shops?|stores?|retailers?|hotels?|caf[eé]s?|supermarkets?|grocers?|businesses|caterers?|bakeries|pharmacies|kiosks)\b/;
+
   function detectDomain(desc) {
     const d = String(desc || "").toLowerCase();
     // Before the restaurant: a food wholesaler sells to restaurants and shops,
-    // and names both, but keeps no menu and no dining tables.
-    if (/wholesal|distributor|\bdistribution\b|\bb2b\b|cash[- ]and[- ]carry/.test(d)) return "wholesale";
+    // and names both, but keeps no menu and no dining tables. Selling or
+    // supplying TO other businesses is what makes one, however it is put.
+    if (/wholesal|distributor|\bdistribution\b|\bb2b\b|cash[- ]and[- ]carry/.test(d) || SELLS_TO_TRADE.test(d)) return "wholesale";
     if (/pizza|burger|restaurant|cafe|dine|bistro|grill|kitchen|food|eatery|brasserie|canteen/.test(d)) return "restaurant";
     if (/hotel|resort|hostel|motel|lodge|hospitality|booking|accommodation/.test(d)) return "hotel";
     if (/clinic|medical|hospital|healthcare|doctor|patient|pharmacy|health/.test(d)) return "healthcare";
