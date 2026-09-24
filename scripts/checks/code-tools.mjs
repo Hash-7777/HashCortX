@@ -1,5 +1,5 @@
 // ============================================================
-// The Coder's tools as a model is offered them —
+// The Coder's tools as a model is offered them, and where its commands run —
 // src/platform/tauri/hashcoder.js toolList. Run with: npm run check:code-tools
 // ============================================================
 import { readFileSync } from 'node:fs';
@@ -48,6 +48,22 @@ console.log('\nThe Coder uses it, in one place:');
   const mode = src('modes', 'code', 'mode.js');
   ok('both of its loops take the list from here', /const buildLegacyTools = \(\) => HC\?\.code\?\.toolList\?\.\(\) \|\| \[\];/.test(mode) && /const buildTools = buildLegacyTools;/.test(mode));
   ok('no copy of it is left in the Coder', !/Object\.entries\(t\.parameters\)/.test(mode));
+}
+
+console.log('\nWhere a command runs:');
+{
+  const asked = [];
+  const sent = [];
+  HC.guard = { request: async (action, target) => { asked.push(target); return true; }, projectRoot: () => '/work/app' };
+  HC.invoke = async (cmd, args) => { sent.push(args); return { stdout: '', stderr: '', code: 0 }; };
+  await HC.code.shellRun('npm', ['test']);
+  ok('a command given no folder runs in the open project', sent[0].cwd === '/work/app', JSON.stringify(sent[0]));
+  ok('and the question names that folder', asked[0] === 'npm test (in /work/app)', asked[0]);
+  await HC.code.shellRun('npm', ['test'], '/work/app/pkg');
+  ok('a folder the agent names is kept', sent[1].cwd === '/work/app/pkg');
+  HC.guard.projectRoot = () => null;
+  await HC.code.shellRun('ls', []);
+  ok('with no project open, none is made up', sent[2].cwd === null && asked[2] === 'ls');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

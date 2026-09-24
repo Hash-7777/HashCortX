@@ -139,8 +139,8 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,494 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 204 Rust tests
+npm run check                                     # 7,498 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 205 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.

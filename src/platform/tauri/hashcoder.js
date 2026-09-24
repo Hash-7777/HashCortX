@@ -120,6 +120,8 @@
     shellCancelKey: null,
 
     async shellRun(command, args = [], cwd = null, reason = '') {
+      // A command given no folder runs in the open project, as the tool says.
+      cwd = cwd || HC.guard.projectRoot?.() || null;
       const display = [command, ...args].join(' ');
       // Where a command runs decides what it does. `npm test` and `rm out.o`
       // mean different things in different folders, and the working directory

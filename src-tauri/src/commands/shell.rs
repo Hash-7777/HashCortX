@@ -164,7 +164,14 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         Caller::Agent => crate::security::agent_sandbox::command(command)?,
     };
     cmd.args(args);
-    if let Some(dir) = cwd {
+    // An agent's command given no folder runs in the open project.
+    let opened = match (caller, cwd) {
+        (Caller::Agent, None) => {
+            crate::security::root_jail::root().map(|r| r.to_string_lossy().into_owned())
+        }
+        _ => None,
+    };
+    if let Some(dir) = cwd.as_ref().or(opened.as_ref()) {
         // The working directory decides what every relative path in the command
         // means, so it gets the same gate a file operation gets rather than a
         // bare denylist lookup.
@@ -819,6 +826,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn an_agent_command_starts_without_secrets_and_a_typed_one_keeps_them() {
+        // With no folder open, an agent's command given none runs where this does.
+        let _turn = crate::security::root_jail::test_turn();
+        crate::security::root_jail::clear_root();
         // Names used by no other test, so setting them here cannot change another.
         std::env::set_var("HC_SHELL_TEST_API_KEY", "value-a");
         std::env::set_var("HC_SHELL_TEST_PLAIN", "value-b");
@@ -872,6 +882,30 @@ mod tests {
 
         crate::security::root_jail::clear_root();
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A command the agent names no folder for starts in the open project; one
+    /// a person types, or one with no project open, starts where it always did.
+    #[test]
+    fn an_agents_command_given_no_folder_starts_in_the_open_project() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-cwd-scratch")
+            .join(format!("default-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let _turn = crate::security::root_jail::test_turn();
+        let real = crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+
+        let agent = prepare("ls", &[], &None, Caller::Agent).unwrap();
+        assert_eq!(agent.get_current_dir(), Some(real.as_path()));
+        let typed = prepare("ls", &[], &None, Caller::Person).unwrap();
+        assert_eq!(typed.get_current_dir(), None);
+
+        crate::security::root_jail::clear_root();
+        let none_open = prepare("ls", &[], &None, Caller::Agent).unwrap();
+        assert_eq!(none_open.get_current_dir(), None);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(target_os = "macos")]

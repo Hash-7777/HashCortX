@@ -114,6 +114,11 @@ pub fn set_root(path: &str) -> Result<PathBuf, String> {
     Ok(real)
 }
 
+/// The open folder, resolved, or None when no folder is open.
+pub fn root() -> Option<PathBuf> {
+    state().lock().ok().and_then(|s| s.root.clone())
+}
+
 /// Forget the open folder and everything approved for it.
 pub fn clear_root() {
     if let Ok(mut s) = state().lock() {

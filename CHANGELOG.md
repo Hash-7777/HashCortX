@@ -155,6 +155,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **A command the Coder runs without naming a folder starts in the folder you
+  opened.** The app fills the folder in, and Rust does the same on its own
+  side.
+
 - **A Coder task on a model on this computer stays on it.** When that model
   cannot answer, the run stops with its error; only a task on a cloud model
   moves on to another provider you have configured, as in every other mode.

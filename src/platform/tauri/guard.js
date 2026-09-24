@@ -465,6 +465,11 @@
       return quietly('clear-root', () => HC.invoke('fs_clear_root', {}));
     },
 
+    /** The open project's folder, or null. */
+    projectRoot() {
+      return _projectRoot;
+    },
+
       // Request permission for an action. Returns true if approved.
     async request(action, target, reason = '') {
       // Hard-blocked — reject immediately, no dialog
