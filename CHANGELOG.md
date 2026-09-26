@@ -417,6 +417,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder can run `npm` and its kind on Windows.** `npm`, `npx`, `yarn`
+  and `pnpm` are batch files on Windows, and a command naming one without its
+  extension was not found. The batch file of that name is now found on the
+  search path, in the order Windows uses, and started through cmd with its
+  arguments escaped.
+
 - **HashCoder's questions open above it.** Resetting permissions, renaming
   or deleting a saved chat, confirming an Undo and the export notices opened
   their question beneath the HashCoder panel, where it could not be seen or

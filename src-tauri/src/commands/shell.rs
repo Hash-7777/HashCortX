@@ -95,6 +95,38 @@ pub const fn platform_shell() -> (&'static str, &'static str) {
     ("sh", "-c")
 }
 
+/// The batch file a program named without an extension stands for, or None.
+///
+/// On Windows a program named with no extension is looked for as an `.exe`
+/// only, and `npm`, `npx`, `yarn` and `pnpm` are batch files there. Each
+/// folder on the search path is tried in order, as Windows does: an `.exe` or
+/// `.com` of that name means the program is found as it is; otherwise the
+/// first `.cmd` or `.bat` is the one to start. Rust starts a batch file through
+/// cmd with its arguments escaped, and refuses arguments it cannot pass safely.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn batch_file_for(program: &str, search_path: &std::ffi::OsStr) -> Option<std::path::PathBuf> {
+    let named = std::path::Path::new(program);
+    if program.is_empty() || named.extension().is_some() || named.components().count() != 1 {
+        return None;
+    }
+    for dir in std::env::split_paths(search_path) {
+        if ["exe", "com"]
+            .iter()
+            .any(|ext| dir.join(format!("{program}.{ext}")).is_file())
+        {
+            return None;
+        }
+        if let Some(found) = ["cmd", "bat"]
+            .iter()
+            .map(|ext| dir.join(format!("{program}.{ext}")))
+            .find(|candidate| candidate.is_file())
+        {
+            return Some(found);
+        }
+    }
+    None
+}
+
 /// The command that prints the user's home directory on this platform.
 #[cfg(windows)]
 const HOME_PROBE: &str = "echo %USERPROFILE%";
@@ -156,6 +188,12 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
                 .to_string(),
         );
     }
+
+    // `npm` and its kind are batch files on Windows (batch_file_for).
+    #[cfg(windows)]
+    let batch = batch_file_for(command, &std::env::var_os("PATH").unwrap_or_default());
+    #[cfg(windows)]
+    let command: &str = batch.as_deref().and_then(|p| p.to_str()).unwrap_or(command);
 
     // An agent's command runs inside the system sandbox where there is one
     // (security/agent_sandbox.rs); a command a person types does not.
@@ -906,6 +944,55 @@ mod tests {
         let none_open = prepare("ls", &[], &None, Caller::Agent).unwrap();
         assert_eq!(none_open.get_current_dir(), None);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A program that is a batch file on Windows is found by its extension, in
+    /// search-path order, and an `.exe` earlier on the path keeps its place.
+    #[test]
+    fn a_program_that_is_a_batch_file_is_found_as_one() {
+        let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-batch-scratch")
+            .join(format!("path-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let (first, second) = (base.join("first"), base.join("second"));
+        std::fs::create_dir_all(&first).unwrap();
+        std::fs::create_dir_all(&second).unwrap();
+        for file in [
+            second.join("npm.cmd"),
+            first.join("node.exe"),
+            second.join("node.cmd"),
+            first.join("tool.bat"),
+            second.join("tool.exe"),
+        ] {
+            std::fs::write(file, "").unwrap();
+        }
+        let path = std::env::join_paths([&first, &second]).unwrap();
+
+        assert_eq!(batch_file_for("npm", &path), Some(second.join("npm.cmd")));
+        assert_eq!(
+            batch_file_for("node", &path),
+            None,
+            "an .exe earlier on the path is used"
+        );
+        assert_eq!(
+            batch_file_for("tool", &path),
+            Some(first.join("tool.bat")),
+            "the first folder wins"
+        );
+        assert_eq!(
+            batch_file_for("npm.cmd", &path),
+            None,
+            "named with its extension already"
+        );
+        assert_eq!(
+            batch_file_for("bin/npm", &path),
+            None,
+            "named with a folder"
+        );
+        assert_eq!(batch_file_for("absent", &path), None);
+        assert_eq!(batch_file_for("", &path), None);
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     #[cfg(target_os = "macos")]

@@ -230,7 +230,7 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs       935   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs     1,022   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  666   what a file held before the agent changed it,
