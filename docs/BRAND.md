@@ -79,9 +79,9 @@ These are the tokens components should use.
 
 This is why the app reads as cool green-teal on screen even though the accent token is gold. The gold shows up mainly on the Send button.
 
-### 3. Terminal green in Coder
+### 3. Terminal green in HashCoder
 
-`modes/code/mode.css` uses `#39ff81` — neon terminal green — for output and status text, and it is Coder's declared accent in `vars.css`. Outside Coder it appears in exactly one other place: the edge of the app icon.
+`modes/code/mode.css` uses `#39ff81` — neon terminal green — for output and status text, and it is HashCoder's declared accent in `vars.css`. Outside HashCoder it appears in exactly one other place: the edge of the app icon.
 
 ### Traps
 

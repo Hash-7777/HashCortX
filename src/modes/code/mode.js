@@ -1065,14 +1065,14 @@
       const msgs = $('cdrMessages');
       if (!msgs) return null;
       const el = document.createElement('div');
-      el.className = 'cdr-msg assistant' + (roleLabel && roleLabel !== 'HashCortX Coder' ? ' boss' : '');
+      el.className = 'cdr-msg assistant' + (roleLabel && roleLabel !== 'HashCoder' ? ' boss' : '');
 
       const svgCopy  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
       const svgReply = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>`;
       const svgRegen = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.18"/></svg>`;
 
       el.innerHTML = `
-        <div class="cdr-msg-role">${esc(roleLabel || 'HashCortX Coder')}</div>
+        <div class="cdr-msg-role">${esc(roleLabel || 'HashCoder')}</div>
         <div class="cdr-msg-content"></div>
         <div class="cdr-msg-actions">
           <button class="cdr-action-btn cdr-act-copy">${svgCopy} copy</button>
@@ -1365,7 +1365,7 @@
           if (window.HCCodeVerify?.isAppNote(m.content)) continue;   // the app's, not the person's
           appendUserMsg(m.content);
         } else if (m.role === 'assistant' && m.content) {
-          const el = appendAssistantBubble('HashCortX Coder');
+          const el = appendAssistantBubble('HashCoder');
           if (el) {
             const div = document.createElement('div');
             div.className = 'cdr-msg-text';
@@ -1675,7 +1675,7 @@
             y += lineH;
           }
         };
-        write('HashCortx Coder — Chat Export', { size: 14, bold: true });
+        write('HashCoder — Chat Export', { size: 14, bold: true });
         write(new Date().toLocaleString(), { size: 8, color: '#666' });
         if (sharedState.projectRoot) write('Project: ' + sharedState.projectRoot, { size: 8, color: '#666' });
         y += 6;
@@ -1714,7 +1714,7 @@ h1{font-size:18px;border-bottom:1px solid #ddd;padding-bottom:8px}
 pre{background:#f4f6f8;border:1px solid #e2e4e8;border-radius:5px;padding:10px;overflow:auto;font:11px/1.45 ui-monospace,Menlo,monospace}
 .meta{color:#888;font-size:11px}
 </style></head><body>
-<h1>HashCortx Coder — Chat Export</h1>
+<h1>HashCoder — Chat Export</h1>
 <div class="meta">${esc(new Date().toLocaleString())}</div>
 ${sharedState.projectRoot ? `<div class="meta">Project: ${esc(sharedState.projectRoot)}</div>` : ''}
 ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
@@ -1959,7 +1959,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       }
 
       const lines = [
-        'You are HashCortx Coder — a precise coding agent.',
+        'You are HashCoder — a precise coding agent.',
         'Rules:',
         '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.',
         '2. Replies must be ≤3 short sentences unless the user asks for detail.',
@@ -2288,7 +2288,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           e.name === 'AbortError' ? 'Stopped by the user before this finished.' : 'The run ended with an error before this finished.');
         saveCoderState();
         if (e.name === 'AbortError') {
-          const c = appendAssistantBubble('HashCortX Coder');
+          const c = appendAssistantBubble('HashCoder');
           if (c) appendTextToBubble(c, '*Stopped.*');
           setStatus('Stopped', '');
         } else {
@@ -2315,7 +2315,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
       const own = sharedState.small ? buildTools().filter((t) => HC.code.SMALL_MODEL_TOOLS.includes(t.function.name)) : buildTools();
       const tools = [...own, ...run.tools];
-      const contentEl = appendAssistantBubble('HashCortX Coder');
+      const contentEl = appendAssistantBubble('HashCoder');
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
       const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
       if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText });
@@ -2328,7 +2328,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
       // Multi-agent tasks need a project root to be useful — bail early otherwise
       if (!sharedState.projectRoot) {
-        const el = appendAssistantBubble('HashCortX Coder');
+        const el = appendAssistantBubble('HashCoder');
         appendTextToBubble(el, 'Multi-agent mode works best with a project open. Click **Open Project** to select your project folder, then try again.');
         setStatus('Ready', '');
         return;
@@ -2626,7 +2626,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
   window.CoderMode = CoderMode;
 
   (window._registeredModes = window._registeredModes || {})["code"] = {
-    label:     "Coder",
+    label:     "HashCoder",
     bodyClass: "coder-mode",
     appClass:  null,
     fullscreen: true,

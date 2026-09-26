@@ -6440,7 +6440,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   document.addEventListener('keydown', (e) => {
     const mod = e.metaKey || e.ctrlKey;
     if (!mod) return;
-    // Cmd/Ctrl + Shift + C → toggle Coder Mode
+    // Cmd/Ctrl + Shift + C → open or leave HashCoder
     if (e.shiftKey && e.key.toLowerCase() === 'c') {
       e.preventDefault();
       if (isCodeMode()) setTab(state._preCoderTab || 'chats');

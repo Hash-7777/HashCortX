@@ -2625,7 +2625,7 @@ ${buildDynamicImageInstruction(prompt)}`
       tree = paths.slice(0, 80).join("\n");
       if (paths.length > 80) tree += `\n… +${paths.length - 80} more`;
     }
-    return `You are HashCortX Coder — a fast, silent, action-first coding agent inside Virtual OS.
+    return `You are the coding agent inside Virtual OS — fast, silent and action-first.
 
 CARDINAL RULES (never break):
 - No preamble. Never say "I'll help", "Sure!", "Let me", "Of course". Just act.
@@ -2808,7 +2808,7 @@ ${tree}`;
 
       if (tagName === "worker_task") {
         appendChatBubble("assistant", tagContent, "worker");
-        log(`HashCortX Coder → worker: ${tagContent.slice(0, 80)}`, "run");
+        log(`Coding agent → worker: ${tagContent.slice(0, 80)}`, "run");
         try { await generate(false, tagContent); } catch (e) { log(`Worker error: ${e.message}`, "error"); }
         appendChatBubble("assistant", "Done.");
       } else if (tagName === "tool_call") {

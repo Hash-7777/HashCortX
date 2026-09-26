@@ -33,7 +33,7 @@ HashCortX/
 │   │   ├── virtual-os/       3,309  virtual project desktop
 │   │   ├── systems/          3,232  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,461  chain / vote / failover
-│   │   ├── code/             2,650  the Coder agent loop
+│   │   ├── code/             2,650  the HashCoder agent loop
 │   │   ├── finance/          2,357  financial document analysis
 │   │   └── sandbox/            535  security scanner
 │   │
@@ -155,10 +155,10 @@ HashCortX/
 │   │   │                            both generations, the ready-made ones and
 │   │   │                            how a key is presented, the connections
 │   │   │                            with their Settings section, what the
-│   │   │                            Coder and a Swarm run are offered of them,
+│   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/               968  Coder: terminal colour, export, file names,
+│   │   ├── code/               968  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            and the record of what proved a change
 │   │   ├── swarm/            4,422  Agent Swarm: what kind of task it is,
@@ -282,7 +282,7 @@ HashCortX/
 │   ├── dom-ids.mjs                  every element lookup resolves, or is
 │   │                                written down as deliberately absent
 │   ├── diff.mjs                     both files rebuild exactly from the diff
-│   │                                the Coder panel shows before you undo
+│   │                                the HashCoder panel shows before you undo
 │   ├── undo.mjs                     a change is put back, or refused — never
 │   │                                reported as undone while it still stands
 │   ├── rag-store.mjs                chunking covers every character of a
@@ -318,7 +318,7 @@ HashCortX/
 │   └── bridge.mjs                   window._H exposes what is called, and
 │                                    only what is called
 │
-├── scripts/bench/coder/             the Coder benchmark: twenty tasks with
+├── scripts/bench/coder/             the HashCoder benchmark: twenty tasks with
 │                                    hidden checks, run in a sandbox
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
@@ -373,9 +373,9 @@ window._H = {
 
 This is the seam to respect when adding a mode: **never import across mode files directly** — go through `_H`. It holds 24 members: the 23 something calls, plus `registerMode`, which is the documented way for a mode to register itself even though every mode currently writes `window._registeredModes` directly.
 
-`scripts/checks/bridge.mjs` holds that to equality in both directions, because both ways of getting it wrong are silent. It was 38 members with 23 of them unused — and, worse, three names were *called and never exposed*: `memAdd`, `memRecall` and `memAutoExtract`. The Coder agent's `remember_fact` and `recall_facts` tools call through this object and the system prompt tells the model it has them, but the call sites are written defensively, so the model was told "Memory not available" every time instead of anything failing. That feature had never worked.
+`scripts/checks/bridge.mjs` holds that to equality in both directions, because both ways of getting it wrong are silent. It was 38 members with 23 of them unused — and, worse, three names were *called and never exposed*: `memAdd`, `memRecall` and `memAutoExtract`. HashCoder agent's `remember_fact` and `recall_facts` tools call through this object and the system prompt tells the model it has them, but the call sites are written defensively, so the model was told "Memory not available" every time instead of anything failing. That feature had never worked.
 
-`modes/code/mode.js` additionally exposes `window.HC_CODE`, and `render()` calls its `afterRender` hook — that hook is on `HC_CODE`, not on `_H`. It exists because `render()` rebuilds the chat DOM wholesale, which would otherwise destroy the collapsible tool-call blocks Coder injects.
+`modes/code/mode.js` additionally exposes `window.HC_CODE`, and `render()` calls its `afterRender` hook — that hook is on `HC_CODE`, not on `_H`. It exists because `render()` rebuilds the chat DOM wholesale, which would otherwise destroy the collapsible tool-call blocks HashCoder injects.
 
 ---
 
@@ -394,9 +394,9 @@ This is the seam to respect when adding a mode: **never import across mode files
 ## Known architectural debt
 
 - `app.js` is still a 6,542-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
-- The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
-- Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 7,630 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
+- The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
+- The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
+- The frontend's automated coverage is `scripts/checks/` — 7,630 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.
@@ -412,7 +412,7 @@ This is the seam to respect when adding a mode: **never import across mode files
   nothing that reads the stylesheet could find it. This opens each mode and
   compares where a button's contents ended up with the box they had to sit in.
   Like the sweep it needs a real browser, so it is not in CI.
-- **`npm run bench:coder` measures the Coder on real tasks.** Twenty small
+- **`npm run bench:coder` measures HashCoder on real tasks.** Twenty small
   projects, each with a task and a hidden check the agent never sees: fix a
   bug a test exposes, add a feature to a written spec, rename across files,
   refactor with the tests kept green, edit a settings file, build a page,

@@ -49,7 +49,7 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 | Workspace | What it does |
 |---|---|
 | **Chats** | Multi-provider chat with projects, attachments, memory and a local knowledge base |
-| **Coder** | A coding agent on your real project: file tree, edits as diffs, terminal, Undo |
+| **HashCoder** | A coding agent on your real project: file tree, edits as diffs, terminal, Undo |
 | **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
 | **Finance** | Statements, CSV, PDF and XLSX, or the records of a system you connect, read into a list of figures, with every total, card and chart worked out by the app from that list, and updated when you edit it |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
@@ -59,13 +59,13 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 
 Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
 
-Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. A system signs in with a key or through your browser, and the key or the sign-in stays with the app and is never shown to a page or a model; records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. Odoo, GitHub, Stripe and Supabase are ready-made choices, and GitHub and Supabase connect reading-only unless you say otherwise. The Coder uses a connected system when a task is about one, such as opening a pull request, with each change asked first. See [SECURITY.md](docs/SECURITY.md#connected-systems).
+Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. A system signs in with a key or through your browser, and the key or the sign-in stays with the app and is never shown to a page or a model; records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. Odoo, GitHub, Stripe and Supabase are ready-made choices, and GitHub and Supabase connect reading-only unless you say otherwise. HashCoder uses a connected system when a task is about one, such as opening a pull request, with each change asked first. See [SECURITY.md](docs/SECURITY.md#connected-systems).
 
-## Coder
+## HashCoder
 
 The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal.
 
-<img src="docs/assets/screenshots/coder.png" alt="Coder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
+<img src="docs/assets/screenshots/coder.png" alt="HashCoder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
 
 ## Agent Swarm
 
@@ -88,7 +88,7 @@ Build a team on a canvas, start from a template, or describe the task and have o
 
 ## Security
 
-<img src="docs/assets/screenshots/permission.png" alt="Coder asking permission to run npm test in the project, with Deny, Allow for session and Allow once" width="100%">
+<img src="docs/assets/screenshots/permission.png" alt="HashCoder asking permission to run npm test in the project, with Deny, Allow for session and Allow once" width="100%">
 
 - **You approve what matters.** Commands, deletions, web pages the model picks and anything outside the open project raise this bar. Every decision is written to `~/.hashcortx/audit.log`.
 - **A blocklist compiled into Rust** refuses keys, credentials and system folders, whether they are asked for as a file or named in a command.
@@ -168,7 +168,7 @@ More in the [Wiki](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
 | Shortcut | Action |
 |---|---|
-| `Cmd/Ctrl + Shift + C` | Open or leave Coder |
+| `Cmd/Ctrl + Shift + C` | Open or leave HashCoder |
 | `Cmd/Ctrl + Shift + N` | New chat |
 | `Cmd/Ctrl + K` | Model picker |
 

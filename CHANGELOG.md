@@ -10,7 +10,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- **The Coder proves a change before it says it is done.** When it tries to
+- **HashCoder proves a change before it says it is done.** When it tries to
   finish after changing code, with no test passed since the change, it is sent
   back to run the project's own test, found from its package.json, Python
   setup, Cargo, Go module or Makefile: once, and twice at most. Every command
@@ -19,14 +19,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   answer says what was proven after the last change, worked out from that
   record rather than from its own words.
 
-- **A benchmark for the Coder.** `npm run bench:coder` gives the Coder
+- **A benchmark for HashCoder.** `npm run bench:coder` gives HashCoder
   twenty small tasks, from fixing a bug a test exposes to building a page,
   and judges each with a hidden check it never sees. It runs the real app with
   a local model and reports what passed and what it cost, so changes to the
   agent can be measured. Its commands run in the macOS sandbox, inside a
   temporary folder, with no network. A run stops starting tasks after twenty
   minutes unless told otherwise and rests between them, and `--smoke` checks
-  the Coder's loop in seconds with a scripted stand-in for a model.
+  HashCoder's loop in seconds with a scripted stand-in for a model.
 
 - **Agent Swarm agents can look things up in a connected system.** A run
   whose task names a connected system, or speaks of its records, offers
@@ -60,12 +60,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   renewed when they run out, if the server allows it. "Sign in again" on
   the connection starts a new sign-in.
 
-- **The Coder can work with a connected system.** When a task is about
+- **HashCoder can work with a connected system.** When a task is about
   one, such as an issue or a pull request in a connected code host, the
-  Coder is offered that system's tools the same way chat agents are:
+  HashCoder is offered that system's tools the same way chat agents are:
   reading asks you once, and every change, such as opening a pull request,
   asks you each time and shows exactly what will be sent. Each tool tells
-  the agent to use it rather than a shell command for that system. A Coder
+  the agent to use it rather than a shell command for that system. A HashCoder
   conversation that read a system's records is not sent to a model that
   system keeps them from, and runs with several agents are offered none of
   these tools. Tools are named in words, in its steps and on the
@@ -166,11 +166,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
-- **A command the Coder runs without naming a folder starts in the folder you
+- **A command HashCoder runs without naming a folder starts in the folder you
   opened.** The app fills the folder in, and Rust does the same on its own
   side.
 
-- **A Coder task on a model on this computer stays on it.** When that model
+- **A HashCoder task on a model on this computer stays on it.** When that model
   cannot answer, the run stops with its error; only a task on a cloud model
   moves on to another provider you have configured, as in every other mode.
 
@@ -198,18 +198,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   every path that opens one.
 - **The file and shell blocklist is stricter.** It matches a path however it
   is written and judges it by where it really leads.
-- **Coder asks before a change Undo cannot take back.** Writing inside the
+- **HashCoder asks before a change Undo cannot take back.** Writing inside the
   project needs no permission because Undo can restore the file; replacing a
   file it cannot restore — binary, too large to keep a copy of, not UTF-8 —
   now asks first and says why, and deleting one says so in the question.
-- **Coder draws a reply the way chat does.** HTML in a reply is shown as
+- **HashCoder draws a reply the way chat does.** HTML in a reply is shown as
   text rather than built, and links and images follow the same rules as in
   chat and the Agent Swarm.
 - **The sanitiser is DOMPurify 3.4.15**, the newest 3.4 release, with the
   upstream security fixes published since 3.4.2. Its two licence texts now
   ship beside it.
 - **The PDF library is jsPDF 4.2.1**, the newest release, with the upstream
-  security fixes published since 2.5.1. PDF export in chat, Coder and Finance
+  security fixes published since 2.5.1. PDF export in chat, HashCoder and Finance
   uses it unchanged.
 - **The diagram library is Mermaid 11.17.2**, the newest 11.x release, with
   the upstream security fixes published since the version it replaces. Its
@@ -246,7 +246,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   out of every command the agent runs. Commands you type in the terminal
   keep them.
 - **Agents are told that what a tool returns is not an instruction.** The
-  Coder, chat's agents, the Agent Swarm's agents and Virtual OS's chat agent
+  HashCoder, chat's agents, the Agent Swarm's agents and Virtual OS's chat agent
   treat a file, a web page, a search result or a command's output as material
   for your task, and say so when it asks for something else. This is guidance to the model, not a
   filter; the permission dialogs still decide what runs.
@@ -265,11 +265,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   shared colours, so it follows the theme.
 
 - **A small local model gets the tools a coding task needs and a short set of
-  steps.** Below five billion parameters the Coder offers nine tools instead
+  steps.** Below five billion parameters HashCoder offers nine tools instead
   of nineteen, and a few lines of steps in place of its full instructions.
   Such a model still often stops early or skips steps.
 
-- **The Coder's edits land more often, and it reads long files by lines.** An
+- **HashCoder's edits land more often, and it reads long files by lines.** An
   edit finds its passage even when the model copied it with the indentation
   off, spaces left at the ends of lines, or the line numbers of a numbered
   read, and still only where it appears once. Several edits to one file are
@@ -379,7 +379,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **A trace now counts from the run, not from when you opened the app.** Every
   trace kept its own start time in a variable set the moment its code loaded,
   so a run begun an hour later had its first line stamped an hour in. The
-  Coder, the Agent Swarm, Finance, the Virtual OS, the 3D Forge and the ERP
+  HashCoder, the Agent Swarm, Finance, the Virtual OS, the 3D Forge and the ERP
   all take their zero from a run clock that is reset where a run begins, and
   a clock that has not been started begins at the first line it stamps — so a
   stamp can no longer be a measure of how long the app has been open.
@@ -402,7 +402,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   colour pictures in it. The mark is now drawn from the agent's role, from
   the same set the canvas, the role picker and the template list already
   used, and no team saves a typed one.
-- **Every trace counts time like a stopwatch.** Trace lines in the Coder, the
+- **Every trace counts time like a stopwatch.** Trace lines in HashCoder, the
   Agent Swarm, 3D Forge, the ERP, Finance and Virtual OS were stamped in
   seconds only, so a long run read in the thousands. They now show seconds
   under a minute, then minutes and seconds, then hours, and so does the
@@ -410,20 +410,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
-- **The Coder's questions open above it.** Resetting permissions, renaming
+- **HashCoder's questions open above it.** Resetting permissions, renaming
   or deleting a saved chat, confirming an Undo and the export notices opened
-  their question beneath the Coder panel, where it could not be seen or
+  their question beneath the HashCoder panel, where it could not be seen or
   answered, so the action never finished. The app's shared dialogs now sit
   above every workspace.
 
-- **A command line the Coder writes as one program is read as its words.**
+- **A command line HashCoder writes as one program is read as its words.**
   `npm test` given as the program to run is split into the program and its
   arguments, quotes kept. A line that needs a shell to mean what it says, with
   a pipe, a redirect, a wildcard or a variable, is refused with what to do
   instead, rather than failing as a program that does not exist. On Windows
   a backslash is read as part of a path.
 
-- **The Coder keeps your request in view on a long task.** Once a task passed
+- **HashCoder keeps your request in view on a long task.** Once a task passed
   about nine steps, the oldest messages were folded into a count, and the
   first to go was the request itself, so the agent carried on without knowing
   what it had been asked. The request is never folded away now. What gives way
@@ -463,7 +463,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **An agent says when the tool a request needs is switched off.** A model
   asked for something only a switched-off tool of a connected system does,
   such as opening a pull request, knew of no way to do it, and tried a shell
-  command or told you to ask an administrator. In chat and the Coder, a
+  command or told you to ask an administrator. In chat and HashCoder, a
   system's switched-off tools are now offered in their place as tools that
   send nothing, described in the app's words, up to six of them, those
   closest to the request first. Calling one tells the model the tool is
@@ -815,7 +815,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   run did not recognise, so it quietly used synthesis. Both menus now list
   the values the templates, the God Agent and the run use, and a blueprint
   saved with an older value still shows it.
-- **Coder's answers read top to bottom again.** The rule meant to put a small
+- **HashCoder's answers read top to bottom again.** The rule meant to put a small
   marker beside the reply also applied to the whole answer, so the steps of
   a run and the reply sat side by side in one squeezed row, and a reply with
   several paragraphs or a list did the same. Steps now stack, and the reply
@@ -832,16 +832,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a file that used CRLF on every line saved the new text with LF, changing
   every line. It now keeps CRLF and tells the agent so; text that already
   carries CR, and a file that mixed the two, are saved as written.
-- **Stop ends the commands a Coder run started.** Pressing Stop left a
+- **Stop ends the commands a HashCoder run started.** Pressing Stop left a
   running command going until it finished or reached its five-minute limit,
   and the run waited on it. Stop now ends each command of that run, and ending
   a command, by Stop or its time limit, ends what it started too. Commands you
   type in the terminal are not touched.
-- **The message after a stopped Coder run works.** A run stopped or ended by
+- **The message after a stopped HashCoder run works.** A run stopped or ended by
   an error between a tool call and its result left a conversation the
   providers refuse, so the next message failed. The unfinished turn is now
   closed, and what already ran is kept.
-- **Coder's Keep and Undo rows match what happened.** A write the agent was
+- **HashCoder's Keep and Undo rows match what happened.** A write the agent was
   refused or that failed still got a row, which picked up the file's
   previous change, so its Undo reversed that earlier change. A move now gets
   its two rows, and the new end of a move is not offered as undoable when the
@@ -854,13 +854,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   rewrote every line ending. It now edits the file's real contents, inserts
   text exactly as written and keeps line endings, and it refuses a binary
   file or one that is not UTF-8 rather than damage it.
-- **A quotation in a reply is shown as one**, in chat, Coder and the Agent
+- **A quotation in a reply is shown as one**, in chat, HashCoder and the Agent
   Swarm. Every line starting with > was shown as plain text.
-- **Deleting asks first again.** Deleting a saved Coder chat, a Finance
-  session or a 3D Forge project, and revoking Coder's session permissions,
+- **Deleting asks first again.** Deleting a saved HashCoder chat, a Finance
+  session or a 3D Forge project, and revoking HashCoder's session permissions,
   used the page's own confirm(). In the desktop app that answers yes before
   anyone can reply and shows no question, so each went ahead at once. Renaming
-  a Coder chat used prompt(), which on macOS returns nothing, so it never
+  a HashCoder chat used prompt(), which on macOS returns nothing, so it never
   renamed. All of them now ask in the app's own dialog and wait for the
   answer, and a check fails if a page dialog is used again.
 - **Every Finance chart has an element of its own.** A chart the model gave
@@ -895,7 +895,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Removed
 
-- **Code nothing called.** Ten functions across chat, Coder, Finance, the ERP
+- **Code nothing called.** Ten functions across chat, HashCoder, Finance, the ERP
   and the Virtual OS that no part of the app reached, and the drag path the
   Virtual OS desktop icons stopped using when they moved to a pointer drag.
   Nothing a person can do changes.

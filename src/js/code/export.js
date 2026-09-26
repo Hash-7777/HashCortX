@@ -44,7 +44,7 @@
   };
 
   function buildMarkdown(msgs, opts = {}) {
-    const lines = header('# HashCortx Coder — Chat Export', opts);
+    const lines = header('# HashCoder — Chat Export', opts);
     lines.push('');
     for (const m of spoken(msgs)) {
       lines.push(m.role === 'user' ? '## User' : '## Agent', '');
@@ -54,7 +54,7 @@
   }
 
   function buildPlainText(msgs, opts = {}) {
-    const lines = header('HashCortx Coder — Chat Export', opts);
+    const lines = header('HashCoder — Chat Export', opts);
     lines.push('═'.repeat(60));
     for (const m of spoken(msgs)) {
       lines.push('');
