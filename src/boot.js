@@ -38,12 +38,19 @@
 (function () {
   'use strict';
 
-  /** Hidden panels, and the element each is inserted into. */
+  /**
+   * Hidden panels, and the element each is inserted into.
+   *
+   * The shared dialogs (confirm, alert, prompt, preview) go on the page itself,
+   * not inside #mainApp: #mainApp is fixed, so everything in it is layered as
+   * one, beneath the Coder panel, which sits on the page above it. Any mode
+   * must be able to ask a question on top of itself.
+   */
   const PANELS = [
     { file: '/core/settings/panel.html',   host: '#mainApp' },
     { file: '/core/memory/map-panel.html', host: '#mainApp' },
     { file: '/core/agents/panel.html',     host: '#mainApp' },
-    { file: '/core/overlays/panel.html',   host: '#mainApp' },
+    { file: '/core/overlays/panel.html',   host: 'body' },
   ];
 
   /**

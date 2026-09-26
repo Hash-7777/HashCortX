@@ -399,6 +399,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The Coder's questions open above it.** Resetting permissions, renaming
+  or deleting a saved chat, confirming an Undo and the export notices opened
+  their question beneath the Coder panel, where it could not be seen or
+  answered, so the action never finished. The app's shared dialogs now sit
+  above every workspace.
+
 - **A command line the Coder writes as one program is read as its words.**
   `npm test` given as the program to run is split into the program and its
   arguments, quotes kept. A line that needs a shell to mean what it says, with

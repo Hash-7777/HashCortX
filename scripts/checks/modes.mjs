@@ -87,6 +87,30 @@ for (const { id, host } of MODES) {
     'no such element in index.html — the panel would never be inserted');
 }
 
+// A mode on the page itself is layered above #mainApp, and #mainApp, being
+// fixed, layers everything inside it as one. A confirm, alert or prompt kept
+// in there opens beneath such a mode, and the action waiting on it never
+// finishes. So the shared dialogs sit on the page too, above every mode.
+console.log('\nThe shared dialogs open above every mode:');
+{
+  const boot = read('boot.js');
+  const overlaysHost = (/\{\s*file:\s*'\/core\/overlays\/panel\.html',\s*host:\s*'([^']+)'/.exec(boot) || [])[1];
+  const onPage = MODES.filter((m) => m.host === 'body');
+  check('the dialogs go on the page when any mode does', !onPage.length || overlaysHost === 'body',
+    `the dialogs go into ${overlaysHost}, beneath ${onPage.map((m) => m.id).join(', ')}`);
+  const zOf = (file, selector) => {
+    const css = read(file);
+    const at = css.indexOf(`${selector} {`);
+    const block = at < 0 ? '' : css.slice(at, css.indexOf('}', at));
+    return Number((/z-index:\s*(\d+)/.exec(block) || [])[1]);
+  };
+  const dialog = zOf('css/modals.css', '.terminal-alert-overlay');
+  for (const { id } of onPage) {
+    const wrap = zOf(`modes/${id}/mode.css`, `#${id === 'code' ? 'coder' : id}-mode-wrap`);
+    check(`and above ${id}`, dialog > 0 && wrap > 0 && dialog > wrap, `dialog ${dialog}, ${id} ${wrap}`);
+  }
+}
+
 // ── 2 & 3. Registration: present, complete, and under the right id ───────
 //
 // The id a mode registers itself under is what setTab() looks up. If it drifts
