@@ -435,7 +435,7 @@
         // not exist on Windows, and hard-coding it here made every terminal
         // command and this probe fail there.
         HC.invoke('shell_platform')
-          .then(info => { sharedState.platform = info; return HC.invoke('shell_run_line', { line: info.homeProbe, cwd: null }); })
+          .then(info => { sharedState.platform = info; if (HC.code) HC.code.platform = info; return HC.invoke('shell_run_line', { line: info.homeProbe, cwd: null }); })
           .then(r => { if (r?.stdout?.trim()) sharedState.homeDir = r.stdout.trim(); })
           .catch(() => {});
       }

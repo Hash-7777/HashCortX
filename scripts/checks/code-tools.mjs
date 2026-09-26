@@ -85,6 +85,14 @@ console.log('\nWhere a command runs:');
   try { await HC.code.shellRun('cat a.txt | grep x', []); } catch (e) { refused = String(e.message); }
   ok('a line that needs a shell is refused, saying what to do', /not a shell line/.test(refused) && sent.length === 5);
   ok('a wildcard or a variable needs a shell too', HC.code.splitCommandLine('ls *.js') === null && HC.code.splitCommandLine('echo $HOME') === null);
+  ok('on Windows a backslash separates folders', JSON.stringify(HC.code.splitCommandLine('python C:\\proj\\test.py', { windows: true })) === '["python","C:\\\\proj\\\\test.py"]');
+  ok('elsewhere a backslash is an escape, which needs a shell', HC.code.splitCommandLine('python C:\\proj\\test.py') === null);
+  ok('on Windows %NAME% is a variable, which needs a shell', HC.code.splitCommandLine('echo %PATH%', { windows: true }) === null);
+  HC.code.platform = { os: 'windows' };
+  HC.guard.projectRoot = () => 'C:\\work\\app';
+  await HC.code.shellRun('node test\\run.js');
+  ok('the app reads a Windows line as Windows does', sent[5].command === 'node' && JSON.stringify(sent[5].args) === '["test\\\\run.js"]', JSON.stringify(sent[5]));
+  delete HC.code.platform;
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

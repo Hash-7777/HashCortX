@@ -143,7 +143,7 @@
       // one that needs a shell is refused with what to do instead, rather than
       // failing as a program that does not exist.
       if ((!Array.isArray(args) || !args.length) && /\s/.test(String(command || '').trim())) {
-        const words = splitCommandLine(String(command).trim());
+        const words = splitCommandLine(String(command).trim(), { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
         if (!words) {
           throw new Error('shell_run runs one program with its arguments, not a shell line: pipes, redirects, ' +
             'wildcards and variables are not available. Pass the program as command and each argument in args.');
@@ -294,8 +294,11 @@
   /**
    * A command line as its words, quotes honoured, or null when it needs a
    * shell to mean what it says: a pipe, a redirect, a wildcard, a variable.
+   * On Windows a backslash separates folders and %NAME% is a variable;
+   * elsewhere a backslash is a shell's escape.
    */
-  function splitCommandLine(text) {
+  function splitCommandLine(text, { windows = false } = {}) {
+    const special = windows ? '|&;<>`$()*?[]{}%' : '|&;<>`$()*?[]{}~\\!';
     const words = [];
     let word = null;
     let quote = null;
@@ -307,7 +310,7 @@
       }
       if (ch === '"' || ch === "'") { quote = ch; word = word ?? ''; continue; }
       if (/\s/.test(ch)) { if (word != null) { words.push(word); word = null; } continue; }
-      if ('|&;<>`$()*?[]{}~\\!'.includes(ch)) return null;
+      if (special.includes(ch)) return null;
       word = (word ?? '') + ch;
     }
     if (quote) return null;

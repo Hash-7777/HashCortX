@@ -403,7 +403,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   `npm test` given as the program to run is split into the program and its
   arguments, quotes kept. A line that needs a shell to mean what it says, with
   a pipe, a redirect, a wildcard or a variable, is refused with what to do
-  instead, rather than failing as a program that does not exist.
+  instead, rather than failing as a program that does not exist. On Windows
+  a backslash is read as part of a path.
 
 - **The Coder keeps your request in view on a long task.** Once a task passed
   about nine steps, the oldest messages were folded into a count, and the
