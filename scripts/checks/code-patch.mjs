@@ -84,6 +84,19 @@ console.log('\nA JSON file an edit would break is not written:');
   ok('a new JSON file must parse', /does not parse/.test(P.breaks('/p/new.json', null, '{oops')));
   ok('a file that did not parse before is not judged', P.breaks('/p/tsconfig.json', '{ // comment\n}', '{ // comment\n "a": 1 }') === '');
   ok('other files are not judged', P.breaks('/p/app.js', 'a', '{oops') === '');
+  ok('a new tsconfig.json with comments and a trailing comma is written',
+    P.breaks('/p/tsconfig.json', null, '{\n  // strict\n  "compilerOptions": { "strict": true, /* for now */ },\n}\n') === '');
+  ok('a comment added to a tsconfig.json that parsed is allowed',
+    P.breaks('/p/tsconfig.build.json', '{"a": 1}', '{\n  // why\n  "a": 1\n}') === '');
+  ok('an editor settings file reads its comments', P.breaks('/p/.vscode/settings.json', null, '{ // x\n "a": 1 }') === '');
+  ok('a tsconfig.json left with an open bracket is refused', /does not parse/.test(P.breaks('/p/tsconfig.json', '{"a": 1}', '{"a": 1')));
+  ok('a tsconfig.json left with a comment open is refused', /comment is left open/.test(P.breaks('/p/tsconfig.json', '{"a": 1}', '{"a": 1 /* }')));
+  ok('slashes inside a string are not a comment', P.breaks('/p/tsconfig.json', null, '{"u": "http://x", "p": "a/*b"}') === '' &&
+    /does not parse/.test(P.breaks('/p/tsconfig.json', null, '{"u": "//"')));
+  ok('package.json still refuses a comment: its readers take none',
+    /does not parse/.test(P.breaks('/p/package.json', '{"a": 1}', '{\n  // why\n  "a": 1\n}')));
+  ok('a file named like one is not taken for it', /does not parse/.test(P.breaks('/p/mytsconfig.json.bak.json', null, '{ // x\n}')));
+  ok('a byte-order mark at the start is allowed', P.breaks('/p/config.json', null, '\uFEFF{"a": 1}') === '');
 }
 
 console.log('\nA long file is read by lines:');
@@ -135,7 +148,7 @@ console.log('\nOnly UTF-8 text is patched:');
 {
   const enc = (s) => new TextEncoder().encode(s);
   ok('ordinary text reads back as it is', P.textOf(enc('const ü = "✓";\n'), 'f') === 'const ü = "✓";\n');
-  ok('a byte-order mark is kept, so it is written back', P.textOf(new Uint8Array([0xef, 0xbb, 0xbf, 0x61]), 'f') === '﻿a');
+  ok('a byte-order mark is kept, so it is written back', P.textOf(new Uint8Array([0xef, 0xbb, 0xbf, 0x61]), 'f') === '\uFEFFa');
   ok('a file with NUL bytes is refused as not text', /not a text file/.test(throws(() => P.textOf(new Uint8Array([0x25, 0x50, 0x00, 0x01]), 'x.bin'))));
   ok('a file in another encoding is refused', /not UTF-8/.test(throws(() => P.textOf(new Uint8Array([0x63, 0x61, 0x66, 0xe9]), 'latin1.txt'))));
   const b = 'héllo ✓';

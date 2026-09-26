@@ -265,7 +265,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   made together or not at all. An edit that finds nothing shows the lines most
   like it, numbered, so the next try can copy them. A file over 400 lines is
   read 200 numbered lines at a time, with a range when one is asked for. A
-  JSON file that an edit would leave unreadable is not written.
+  JSON file that an edit would leave unreadable is not written; a settings
+  file whose tools take comments, such as tsconfig.json, is read as they
+  read it.
 
 - **The Agent Swarm fits its team to the task and to your computer.** A
   short piece of writing or a question is handed to one writer: no model is

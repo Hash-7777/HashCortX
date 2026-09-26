@@ -286,18 +286,54 @@
 
   // ── Refusing a write that would break a data file ──────────────────────
 
+  // Settings files whose readers take comments and trailing commas: the
+  // TypeScript and JavaScript project files, an editor's settings folder, a
+  // dev container, and tools that document the same.
+  const WITH_COMMENTS = /(^|[\\/])((ts|js)config[^\\/]*|\.?devcontainer|deno|\.eslintrc|biome|\.swcrc)\.json$|(^|[\\/])\.vscode[\\/][^\\/]+\.json$/i;
+
+  /** JSON with its comments and trailing commas taken out, strings untouched; null when a comment is left open. */
+  function withoutComments(text) {
+    let out = '';
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (ch === '"') {
+        let j = i + 1;
+        while (j < text.length && text[j] !== '"') j += text[j] === '\\' ? 2 : 1;
+        out += text.slice(i, j + 1);
+        i = j;
+      } else if (ch === '/' && text[i + 1] === '/') {
+        while (i + 1 < text.length && text[i + 1] !== '\n') i++;
+      } else if (ch === '/' && text[i + 1] === '*') {
+        const end = text.indexOf('*/', i + 2);
+        if (end < 0) return null;
+        out += ' ';
+        i = end + 1;
+      } else out += ch;
+    }
+    return out.replace(/,(\s*[}\]])/g, '$1');
+  }
+
   /**
    * Why `after` must not be written over `before`, or '' when it may.
    *
    * A JSON file that parsed before the change and would not parse after it is
-   * refused, with where it breaks. One that did not parse before — a settings
-   * file with comments, say — is not judged: the change did not break it.
+   * refused, with where it breaks. A settings file whose readers take comments
+   * and trailing commas, tsconfig.json or an editor's settings, is read the
+   * way they read it. One that did not parse before is not judged: the change
+   * did not break it.
    */
   function breaks(name, before, after) {
     if (!/\.json$/i.test(String(name))) return '';
-    const parses = (t) => { try { JSON.parse(String(t).replace(/^﻿/, '')); return true; } catch { return false; } };
+    const loose = WITH_COMMENTS.test(String(name));
+    const read = (t) => {
+      const text = String(t).replace(/^\uFEFF/, '');
+      const plain = loose ? withoutComments(text) : text;
+      if (plain == null) throw new SyntaxError('a comment is left open');
+      JSON.parse(plain);
+    };
+    const parses = (t) => { try { read(t); return true; } catch { return false; } };
     if (before != null && before !== '' && !parses(before)) return '';
-    try { JSON.parse(String(after).replace(/^﻿/, '')); return ''; }
+    try { read(after); return ''; }
     catch (e) { return `This would leave "${name}" as JSON that does not parse (${e.message}), so nothing was written. Fix the edit and try again.`; }
   }
 
