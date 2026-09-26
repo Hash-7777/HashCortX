@@ -24,7 +24,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and judges each with a hidden check it never sees. It runs the real app with
   a local model and reports what passed and what it cost, so changes to the
   agent can be measured. Its commands run in the macOS sandbox, inside a
-  temporary folder, with no network.
+  temporary folder, with no network. A run stops starting tasks after twenty
+  minutes unless told otherwise and rests between them, and `--smoke` checks
+  the Coder's loop in seconds with a scripted stand-in for a model.
 
 - **Agent Swarm agents can look things up in a connected system.** A run
   whose task names a connected system, or speaks of its records, offers

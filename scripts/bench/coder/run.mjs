@@ -6,6 +6,7 @@
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --compare <earlier results.json>
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --src <another copy of src/>
 //     node scripts/bench/coder/run.mjs --self-test
+//     node scripts/bench/coder/run.mjs --smoke
 //
 // NOT part of `npm run check`. It needs macOS, a real browser and a local
 // model, and a full run takes the better part of an hour.
@@ -43,8 +44,18 @@
 //     none of this machine's environment settings beyond PATH.
 //   · The browser reaches nothing but this server and the local model: every
 //     other address goes to a proxy that does not exist.
-// A command given no working folder runs in an empty folder of its own; in
-// the app it runs wherever the app was started.
+// A command given no working folder runs in the task's project, as an
+// agent's command does in the app.
+//
+// The folder is under /tmp unless --work names another. macOS's own temporary
+// folder resolves under /private/var, where the app refuses to read or write
+// anything, as it should, so a run there could not touch its own project.
+//
+// GENTLE ON THE MACHINE IT RUNS ON. A run keeps a local model and a browser
+// busy, so it stops starting tasks once --budget minutes have gone (20 unless
+// given; the tasks left are reported as not run) and rests --rest seconds
+// between tasks (15 unless given). A model several gigabytes large on a
+// machine without much more memory than that works it hard: use a small one.
 //
 // ENDING WHAT IT STARTS. Each task gets its own browser, started in its own
 // process group and ended, with anything it started, before the task is
@@ -55,6 +66,11 @@
 //
 // --src serves another copy of the app's source instead of src/, so a run can
 // measure a fixed version while the working copy changes.
+//
+// --smoke runs one task with a scripted stand-in for a model
+// (scripted-model.mjs), whose answers are fixed, and checks the app's side of
+// it: the edit lands, the agent is sent back to prove its change, and the
+// person is told what was proven. It needs no real model and takes seconds.
 // ==============================================================
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
@@ -63,16 +79,16 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { startScriptedModel, SCRIPTED_MODEL } from './scripted-model.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.join(here, '..', '..', '..');
 const tasksDir = path.join(here, 'tasks');
 const resultsDir = path.join(repo, 'node_modules', '.coder-bench');
-const OLLAMA = 'http://127.0.0.1:11434';
 const PREFIX = 'hashcortx-coder-bench-';
 
 // ── Options ─────────────────────────────────────────────────────
-const opt = { models: [], tasks: [], keep: false, selfTest: false, minutes: 10, work: null, out: null, compare: null, quiet: false, src: null };
+const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false, minutes: 10, budget: 20, rest: 15, work: null, out: null, compare: null, quiet: false, src: null, ollama: null };
 {
   const argv = process.argv.slice(2);
   const next = (i) => {
@@ -84,17 +100,24 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, minutes: 10, 
     if (a === '--model') opt.models.push(next(i++));
     else if (a === '--task') opt.tasks.push(next(i++));
     else if (a === '--minutes') opt.minutes = Number(next(i++));
+    else if (a === '--budget') opt.budget = Number(next(i++));
+    else if (a === '--rest') opt.rest = Number(next(i++));
     else if (a === '--work') opt.work = next(i++);
     else if (a === '--out') opt.out = next(i++);
     else if (a === '--compare') opt.compare = next(i++);
     else if (a === '--src') opt.src = next(i++);
+    else if (a === '--ollama') opt.ollama = next(i++);
     else if (a === '--keep') opt.keep = true;
     else if (a === '--quiet') opt.quiet = true;
     else if (a === '--self-test') opt.selfTest = true;
+    else if (a === '--smoke') opt.smoke = true;
     else usage(`unknown option ${a}`);
   }
+  if (opt.smoke) { opt.models = [SCRIPTED_MODEL]; opt.tasks = ['js-fix-range']; opt.minutes = 3; opt.quiet = true; }
   if (!opt.selfTest && !opt.models.length) usage('name a model with --model');
   if (!(opt.minutes > 0)) usage('--minutes must be a positive number');
+  if (!(opt.budget > 0)) usage('--budget must be a positive number of minutes');
+  if (!(opt.rest >= 0)) usage('--rest must be zero or more seconds');
   for (const m of opt.models) {
     if (/^cloud:/.test(m)) usage('cloud models are not supported yet: the benchmark runs local models only');
   }
@@ -103,12 +126,18 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, minutes: 10, 
 function usage(why) {
   console.log(`${why}\n\n` +
     'node scripts/bench/coder/run.mjs --model <local model> [--model ...] [--task <id> ...]\n' +
-    '                                 [--minutes <per task>] [--compare <results.json>] [--src <folder>] [--keep] [--work <folder>]\n' +
-    'node scripts/bench/coder/run.mjs --self-test');
+    '                                 [--minutes <per task>] [--budget <minutes in all>] [--rest <seconds between tasks>]\n' +
+    '                                 [--compare <results.json>] [--src <folder>] [--ollama <local url>]\n' +
+    '                                 [--keep] [--work <folder>]\n' +
+    'node scripts/bench/coder/run.mjs --self-test\n' +
+    'node scripts/bench/coder/run.mjs --smoke');
   process.exit(2);
 }
 
 const srcDir = opt.src ? path.resolve(opt.src) : path.join(repo, 'src');
+// The local model server, on this computer only: the browser reaches nothing else.
+let OLLAMA = (opt.ollama || 'http://127.0.0.1:11434').replace(/\/+$/, '');
+if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(OLLAMA)) usage('--ollama must be a server on this computer, such as http://127.0.0.1:11434');
 if (!fs.existsSync(path.join(srcDir, 'index.html'))) usage(`no app source at ${srcDir}`);
 
 if (process.platform !== 'darwin' || !fs.existsSync('/usr/bin/sandbox-exec')) {
@@ -127,9 +156,14 @@ if (opt.tasks.length && tasks.length !== opt.tasks.length) {
 }
 
 // ── The run's own folder, and the sandbox around every command ──
-const base = opt.work ? path.resolve(opt.work) : os.tmpdir();
+const base = opt.work ? path.resolve(opt.work) : process.platform === 'darwin' ? '/tmp' : os.tmpdir();
 fs.mkdirSync(base, { recursive: true });
 const ROOT = fs.realpathSync(fs.mkdtempSync(path.join(base, PREFIX)));
+if (/^\/private\/(var|etc)(\/|$)/i.test(ROOT)) {
+  console.log(`The app refuses to read or write anything under ${ROOT.split('/').slice(0, 3).join('/')}, so a run there could not touch its project. Name another folder with --work.`);
+  fs.rmSync(ROOT, { recursive: true, force: true });
+  process.exit(2);
+}
 if (/["\\\n]/.test(ROOT)) {
   console.log(`The temporary folder's path has a character the sandbox profile cannot hold: ${ROOT}`);
   process.exit(2);
@@ -412,7 +446,7 @@ const NATIVE = {
   checkpoint_list: () => [...current.checkpoints.values()].map((r) => ({ id: r.id, path: r.path, existed: r.existed, unrestorable: r.unrestorable, saved_at: r.saved_at, bytes: (r.content || '').length })),
   checkpoint_drop: ({ id }) => { current.checkpoints.delete(id); return null; },
   shell_run: async ({ command, args, cwd, cancelKey }) => {
-    const dir = cwd ? inProject(cwd) : APP_CWD;
+    const dir = cwd ? inProject(cwd) : current ? current.ws : APP_CWD;
     return sandboxed(command, Array.isArray(args) ? args : [], { cwd: dir, key: cancelKey || null });
   },
   shell_cancel: ({ cancelKey }) => { if (cancelKey) endCommands(cancelKey); return null; },
@@ -429,7 +463,8 @@ async function answerNative(cmd, args) {
 }
 
 // ── The page: the real app, with a stand-in for its native side ──
-const SHIM = `<script>
+const shim = () => `<script>
+try { if (!localStorage.getItem('atelier')) localStorage.setItem('atelier', JSON.stringify({ host: ${JSON.stringify(OLLAMA)} })); } catch {}
 window.__TAURI_INTERNALS__ = {
   invoke: async (cmd, args) => {
     const res = await fetch('/__bench/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd, args: args || {} }) });
@@ -485,8 +520,12 @@ const DRIVER = `<script>
       const main = $('model');
       main.value = job.model;
       main.dispatchEvent(new Event('change', { bubbles: true }));
-      $('tabCode').click();
-      await until(() => shown($('cdrTaskInput')), 30000, 'the HashCoder panel');
+      // The tab answers once the app has finished starting; ask again until it does.
+      for (let tries = 0; !shown($('cdrTaskInput')); tries++) {
+        if (tries === 6) throw new Error('timed out waiting for the HashCoder panel');
+        $('tabCode').click();
+        try { await until(() => shown($('cdrTaskInput')), 10000, 'the HashCoder panel'); } catch {}
+      }
       const picker = $('cdrModelPicker');
       if (picker && [...picker.options].some((o) => o.value === job.model)) {
         picker.value = job.model;
@@ -562,7 +601,7 @@ const server = createServer(async (req, res) => {
   }
   if (url.pathname === '/' || url.pathname === '/index.html') {
     res.setHeader('content-type', 'text/html');
-    res.end(fs.readFileSync(path.join(srcDir, 'index.html'), 'utf8').replace('<head>', '<head>' + SHIM).replace('</body>', DRIVER + '</body>'));
+    res.end(fs.readFileSync(path.join(srcDir, 'index.html'), 'utf8').replace('<head>', '<head>' + shim()).replace('</body>', DRIVER + '</body>'));
     return;
   }
   const file = path.join(srcDir, path.normalize(decodeURIComponent(url.pathname)));
@@ -640,7 +679,11 @@ async function judge(task, ws, answer) {
     try { r = await sandboxed(task.check[0], task.check.slice(1), { cwd: dir, timeoutMs: 120_000 }); }
     catch (e) { r = { code: -1, stderr: String(e) }; }
     if (r.code !== 0) {
-      const why = (r.stderr || r.stdout || '').trim().split('\n').filter((l) => /Error|assert|expected|must|not|refused/i.test(l)).slice(0, 2).join(' | ');
+      // The assertion and what it compared, not the stack.
+      const lines = (r.stderr || r.stdout || '').split('\n').map((l) => l.trim()).filter(Boolean)
+        .filter((l) => !/^(at |node:|\^+$|throw |\}|\{$|code:|generatedMessage|operator|actual:|expected:|diff:)/.test(l));
+      const at = lines.findIndex((l) => /Error/.test(l));
+      const why = (at >= 0 ? lines.slice(at, at + 3) : lines.slice(-2)).join(' | ');
       notes.push(`hidden check failed${r.timedOut ? ' (timed out)' : ''}: ${why.slice(0, 240) || 'exit ' + r.code}`);
     }
   }
@@ -652,7 +695,7 @@ const EDIT_TOOLS = new Set(['patch_file', 'write_file', 'edit_file']);
 /** Steps, tool calls and failures, read from the conversation the app saved. */
 function measure(history) {
   const nameOf = new Map();
-  const m = { steps: 0, calls: 0, failedCalls: 0, failedEdits: 0, byTool: {} };
+  const m = { steps: 0, calls: 0, failedCalls: 0, failedEdits: 0, looseEdits: 0, byTool: {} };
   for (const msg of history || []) {
     if (msg.role === 'assistant') {
       m.steps++;
@@ -665,7 +708,10 @@ function measure(history) {
     }
     if (msg.role === 'tool') {
       let failed = false;
-      try { failed = !!JSON.parse(msg.content)?.error; } catch {}
+      let loose = false;
+      try { const r = JSON.parse(msg.content); failed = !!r?.error; loose = !!r?.matched; } catch {}
+      // An edit that landed only once its passage was looked for loosely.
+      if (loose && EDIT_TOOLS.has(msg.name || nameOf.get(msg.tool_call_id))) m.looseEdits++;
       if (failed) {
         m.failedCalls++;
         if (EDIT_TOOLS.has(msg.name || nameOf.get(msg.tool_call_id))) m.failedEdits++;
@@ -742,9 +788,10 @@ async function runTask(port, model, task, n) {
   const verdict = result.failed ? { pass: false, notes: [`the run did not complete: ${result.failed}`] } : await judge(task, current.ws, answer);
   const usage = current.usage.reduce((t, u) => ({ input: t.input + (Number(u.input_tokens) || 0), output: t.output + (Number(u.output_tokens) || 0) }), { input: 0, output: 0 });
   const record = {
-    task: task.id, kind: task.kind, model, pass: verdict.pass, notes: verdict.notes,
+    task: task.id, kind: task.kind, model, pass: verdict.pass, notes: verdict.notes, notRun: !!result.failed && result.seconds == null,
     seconds: result.seconds ?? null, timedOut: !!result.timedOut, tokens: usage,
     asks: result.asks || [], pageErrors: result.pageErrors || [], ...measure(result.history), answer: answer.slice(0, 1500),
+    shown: String(result.lastBubble || '').slice(-1500),
   };
   current = null;
   job = null;
@@ -757,14 +804,15 @@ function printTable(model, rows) {
   console.log(`\nHashCoder benchmark · ${model}`);
   console.log('  task                    result  min    steps  tools  failed  edits failed  tokens in / out');
   for (const r of rows) {
-    console.log(`  ${r.task.padEnd(24)}${(r.pass ? 'pass' : 'FAIL').padEnd(8)}${String(r.seconds == null ? '-' : (r.seconds / 60).toFixed(1)).padEnd(7)}` +
+    console.log(`  ${r.task.padEnd(24)}${(r.notRun ? 'not run' : r.pass ? 'pass' : 'FAIL').padEnd(8)}${String(r.seconds == null ? '-' : (r.seconds / 60).toFixed(1)).padEnd(7)}` +
       `${String(r.steps).padEnd(7)}${String(r.calls).padEnd(7)}${String(r.failedCalls).padEnd(8)}${String(r.failedEdits).padEnd(14)}${fmt(r.tokens.input)} / ${fmt(r.tokens.output)}`);
   }
   const passed = rows.filter((r) => r.pass).length;
+  const notRun = rows.filter((r) => r.notRun).length;
   const minutes = rows.reduce((t, r) => t + (r.seconds || 0), 0) / 60;
   const tokIn = rows.reduce((t, r) => t + r.tokens.input, 0);
   const tokOut = rows.reduce((t, r) => t + r.tokens.output, 0);
-  console.log(`  passed ${passed} of ${rows.length} · ${minutes.toFixed(1)} min · ${fmt(tokIn)} tokens in, ${fmt(tokOut)} out · ` +
+  console.log(`  passed ${passed} of ${rows.length}${notRun ? ` (${notRun} did not run)` : ''} · ${minutes.toFixed(1)} min · ${fmt(tokIn)} tokens in, ${fmt(tokOut)} out · ` +
     `${rows.reduce((t, r) => t + r.failedEdits, 0)} failed edits`);
 }
 
@@ -774,7 +822,9 @@ function printComparison(rows, earlierFile) {
   for (const model of new Set(rows.map((r) => r.model))) {
     const now = rows.filter((r) => r.model === model);
     const then = new Map((earlier.runs || []).filter((r) => r.model === model).map((r) => [r.task, r]));
-    const shared = now.filter((r) => then.has(r.task));
+    // Only tasks that ran both times: one that never reached the agent says nothing.
+    const ran = (r) => r && !r.notRun && !(r.notes || []).some((note) => /^the run did not complete/.test(note));
+    const shared = now.filter((r) => ran(r) && ran(then.get(r.task)));
     if (!shared.length) { console.log(`\nNothing to compare for ${model} in ${earlierFile}.`); continue; }
     const sum = (list, f) => list.reduce((t, r) => t + f(r), 0);
     const was = shared.map((r) => then.get(r.task));
@@ -793,6 +843,11 @@ function printComparison(rows, earlierFile) {
 async function main() {
   if (opt.selfTest) return selfTest();
   if (!CHROME) { console.log('No Chrome or Chromium found. The benchmark drives the real app in a browser.'); return 2; }
+  if (opt.smoke) {
+    const scripted = await startScriptedModel();
+    OLLAMA = scripted.url;
+    try { return await smoke(); } finally { await scripted.close(); }
+  }
   const have = await localModels();
   if (!have) { console.log(`No local model server answered at ${OLLAMA}. Start it and try again.`); return 2; }
   const missing = opt.models.filter((m) => !have.includes(m));
@@ -806,13 +861,21 @@ async function main() {
   console.log(`Working in ${ROOT}`);
   const rows = [];
   let n = 0;
+  const stopAt = Date.now() + opt.budget * 60_000;
   for (const model of opt.models) {
     for (const task of tasks) {
+      if (Date.now() > stopAt) {
+        rows.push({ task: task.id, kind: task.kind, model, pass: false, notRun: true, notes: ['the time budget for this run was used up'], seconds: null, tokens: { input: 0, output: 0 }, asks: [], pageErrors: [], steps: 0, calls: 0, failedCalls: 0, failedEdits: 0, looseEdits: 0, byTool: {}, answer: '', shown: '' });
+        continue;
+      }
+      if (n > 0 && opt.rest) await new Promise((r) => setTimeout(r, opt.rest * 1000));
       n++;
       process.stdout.write(`  ${model}  ${task.id} ... `);
-      const row = await runTask(port, model, task, n);
+      let row = await runTask(port, model, task, n);
+      // A run that never reached the agent says nothing about it: try once more.
+      if (row.notRun) { n++; row = await runTask(port, model, task, n); }
       rows.push(row);
-      console.log(`${row.pass ? 'pass' : 'FAIL'}${row.seconds != null ? ` in ${(row.seconds / 60).toFixed(1)} min` : ''}${row.pass ? '' : ' · ' + row.notes.join('; ')}`);
+      console.log(`${row.notRun ? 'NOT RUN' : row.pass ? 'pass' : 'FAIL'}${row.seconds != null ? ` in ${(row.seconds / 60).toFixed(1)} min` : ''}${row.pass ? '' : ' · ' + row.notes.join('; ')}`);
     }
     // Unload the model, so the machine gets its memory back.
     try { await fetch(`${OLLAMA}/api/generate`, { method: 'POST', body: JSON.stringify({ model, keep_alive: 0 }) }); } catch {}
@@ -827,6 +890,23 @@ async function main() {
   console.log(`\nResults: ${out}`);
   if (opt.compare) printComparison(rows, opt.compare);
   return 0;
+}
+
+/** One scripted task, and what the app must have done in it. */
+async function smoke() {
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const row = await runTask(server.address().port, SCRIPTED_MODEL, tasks[0], 1);
+  server.close();
+  const wrong = [
+    [!row.pass, `the task did not pass: ${row.notes.join('; ')}`],
+    [row.failedEdits > 0, 'an edit failed'],
+    [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
+    [!/Sent back to run the tests/.test(row.shown), 'the agent was not sent back to prove its change'],
+    [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
+    [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
+  ].filter(([bad]) => bad).map(([, why]) => why);
+  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}` : 'Smoke run passed: the edit landed with its indentation adjusted, the agent was sent back to prove it, and the person was told what was proven.');
+  return wrong.length ? 1 : 0;
 }
 
 let code = 1;

@@ -62,7 +62,8 @@ npm run tauri build
   For a change to the Coder's tools, instructions or loop, run
   `npm run bench:coder -- --model <a local model>` before and after it and
   compare the two with `--compare`: a change there is kept when more tasks
-  pass, or as many pass for less.
+  pass, or as many pass for less. `npm run bench:coder -- --smoke` checks the
+  loop itself in seconds, with no model.
   `npm run models` asks each provider whether the models listed in
   `src/data/cloud-models.js` still exist — OpenRouter, SambaNova and NVIDIA
   answer without a key, and the rest are checked when their key is in the

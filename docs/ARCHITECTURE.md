@@ -422,8 +422,11 @@ This is the seam to respect when adding a mode: **never import across mode files
   outside the task's project are refused, and every command runs in the macOS
   sandbox with writing allowed only in that folder, the home folder unreadable
   and no network. `--self-test` shows each check fails on the untouched
-  project and passes on a reference answer. It needs macOS, a browser and a
-  local model, so it is not in CI.
+  project and passes on a reference answer, and `--smoke` runs one task with a
+  scripted stand-in for a model, to show in seconds that the loop still lands
+  an edit, sends the agent back to prove it, and tells the person what was
+  proven. It needs macOS, a browser and, except for those two, a local model,
+  so it is not in CI.
 - **`npm run sweep` drives the UI**, which the checks cannot: it opens each mode in a headless browser, clicks every control visible from a cold start, and reports what throws. It is not in CI — it needs a real browser — and it covers each mode from cold, not states that need content. Before it existed nothing caught a broken button; it was written after a menu was found that opened, closed, wrote no file and said nothing.
 - The build is unsigned. See [SECURITY.md](SECURITY.md).
 
