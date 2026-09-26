@@ -69,8 +69,9 @@
 //
 // --smoke runs one task with a scripted stand-in for a model
 // (scripted-model.mjs), whose answers are fixed, and checks the app's side of
-// it: the edit lands, the agent is sent back to prove its change, and the
-// person is told what was proven. It needs no real model and takes seconds.
+// it: the agent is sent back to make a change it wrote into its reply, the
+// edit lands, it is sent back to prove its change, and the person is told
+// what was proven. It needs no real model and takes seconds.
 // ==============================================================
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
@@ -899,13 +900,14 @@ async function smoke() {
   server.close();
   const wrong = [
     [!row.pass, `the task did not pass: ${row.notes.join('; ')}`],
+    [!/Sent back to make the change in the files/.test(row.shown), 'the agent was not sent back to make the change it wrote into its reply'],
     [row.failedEdits > 0, 'an edit failed'],
     [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
     [!/Sent back to run the tests/.test(row.shown), 'the agent was not sent back to prove its change'],
     [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);
-  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}` : 'Smoke run passed: the edit landed with its indentation adjusted, the agent was sent back to prove it, and the person was told what was proven.');
+  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it, and the person was told what was proven.');
   return wrong.length ? 1 : 0;
 }
 

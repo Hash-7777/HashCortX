@@ -21,6 +21,9 @@
 //     documents, pages or settings files does not send it back, nor does a
 //     reply that ends by asking the person something, nor a project with no
 //     test command to name.
+//   · When the request asks for a change, no file changed in the run, and the
+//     reply holds the code instead, the agent is sent back once to make the
+//     change with the file tools (unmadeChange).
 //   · What the person is told at the end is worked out from the record, not
 //     from the agent's own words (proofLine): which check passed after the
 //     last change and how much of the project it covered, or that nothing was
@@ -276,7 +279,62 @@
         'Then finish by saying which checks passed. If it cannot be made to pass, say what still fails and why.'
       : `${APP_NOTE} you changed ${files} and no test has run since. Run \`${test}\` now. If it fails, read the failure and fix it. ` +
         'Then finish by saying which checks passed. If it cannot run here, say so and why.';
-    return { message };
+    return { kind: 'prove', step: 'Sent back to run the tests before finishing', message };
+  }
+
+  // ── A change written into the reply instead of made ─────────────────────
+  //
+  // Asked to change the code, a model sometimes writes the new code into its
+  // answer and stops, and nothing in the project changes; a small local model
+  // does it often. When the request asks for a change, no file was changed in
+  // the run, and the reply holds a block of code that is not something to
+  // type into a terminal, the agent is sent back once to make the change with
+  // the file tools, or to answer without changing anything if the request was
+  // only a question.
+
+  const CHANGE_WORDS = /\b(fix|add|change|implement|create|write|update|rename|refactor|remove|delete|build|make|replace|move|convert|edit|modify|correct|extend|handle|support)\b/i;
+  const TERMINAL_BLOCKS = new Set(['bash', 'sh', 'zsh', 'fish', 'shell', 'console', 'terminal', 'powershell', 'ps1', 'pwsh', 'cmd', 'bat', 'text', 'txt', 'plaintext', 'output', 'log']);
+
+  /** The newest request from the person: the last message from them that is not a note from the app. */
+  function requestIn(messages) {
+    const list = Array.isArray(messages) ? messages : [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      const m = list[i];
+      if (!m || m.role !== 'user' || typeof m.content !== 'string' || isAppNote(m.content)) continue;
+      if (Array.isArray(m.images) && m.images.length) continue;   // a picture the agent opened
+      return m.content;
+    }
+    return '';
+  }
+
+  /**
+   * How many blocks of code of three lines or more a reply holds, leaving out
+   * commands for a terminal and their output. Blocks are read by js/fences.js.
+   */
+  function codeBlocks(reply) {
+    const F = window.HCFences;
+    if (!F || !F.splitFences) return 0;
+    return F.splitFences(String(reply || '')).filter((p) => p.type === 'code'
+      && !TERMINAL_BLOCKS.has(String(p.lang || '').toLowerCase())
+      && String(p.code || '').split('\n').filter((l) => l.trim()).length >= 3).length;
+  }
+
+  /**
+   * What sends the agent back when it wrote a change into its reply instead
+   * of making it, or null. Once at most: `sentBack` is how many times this
+   * run has already been sent back for it.
+   */
+  function unmadeChange(log, messages, reply, sentBack = 0, limit = 1) {
+    if (!log || log.changed.length || sentBack >= limit) return null;
+    if (/\?\s*$/.test(String(reply || '').trim())) return null;   // asking the person something
+    if (!CHANGE_WORDS.test(requestIn(messages)) || !codeBlocks(reply)) return null;
+    return {
+      kind: 'make',
+      step: 'Sent back to make the change in the files',
+      message: `${APP_NOTE} your reply shows code, but no file in the project was changed. If the request was to change ` +
+        'the project, make the change now with patch_file, or write_file for a new file, then say in a sentence or two what ' +
+        'you changed. If it only asked a question, answer it and change nothing.',
+    };
   }
 
   /**
@@ -299,5 +357,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
+    requestIn, codeBlocks, unmadeChange,
   };
 })();

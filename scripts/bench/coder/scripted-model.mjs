@@ -2,12 +2,14 @@
 // A scripted stand-in for a local model server, for `run.mjs --smoke`
 //
 // It answers one task, js-fix-range, turn by turn the way a model would: run
-// the tests, read the file, make the edit — its passage indented one level
-// less than the file, as small models often write it — and then try to
-// finish without running the tests again. What the app must do in answer is
-// fixed, so a run with this model checks the HashCoder loop itself: the tools,
-// the edit matching, being sent back to prove the change, and the line saying
-// what was proven. It needs no real model and takes seconds.
+// the tests, read the file, write the fix into its reply instead of making
+// it, make the edit once sent back — its passage indented one level less than
+// the file, as small models often write it — and then try to finish without
+// running the tests again. What the app must do in answer is fixed, so a run
+// with this model checks the HashCoder loop itself: the tools, being sent
+// back to make a change written into the reply, the edit matching, being sent
+// back to prove the change, and the line saying what was proven. It needs no
+// real model and takes seconds.
 //
 // It listens on this computer only, answers only what the app asks of a model
 // server, and is closed by the run that started it.
@@ -22,10 +24,15 @@ function reply(messages) {
   const sys = messages.find((m) => m.role === 'system')?.content || '';
   const root = (/Project root: (.+)/.exec(sys) || [])[1]?.trim() || '';
   const done = messages.filter((m) => m.role === 'tool').length;
-  const sentBack = messages.some((m) => m.role === 'user' && String(m.content).startsWith(NOTE));
+  const notes = messages.filter((m) => m.role === 'user' && String(m.content).startsWith(NOTE)).map((m) => String(m.content));
+  const toMake = notes.some((n) => n.includes('no file in the project was changed'));
+  const sentBack = notes.some((n) => n.includes('no test has run'));
   const call = (name, args) => ({ role: 'assistant', content: '', tool_calls: [{ function: { name, arguments: args } }] });
   if (done === 0) return call('shell_run', { command: 'npm', args: ['test'], cwd: root });
   if (done === 1) return call('read_file', { path: `${root}/src/range.js` });
+  if (done === 2 && !toMake) {
+    return { role: 'assistant', content: 'Here is the fix:\n\n```js\nfunction range(start, end, step = 1) {\n  const out = [];\n  for (let n = start; n <= end; n += step) out.push(n);\n  return out;\n}\n```' };
+  }
   if (done === 2) {
     // Two lines written without the file's indentation, so the passage is not
     // there as written and is found only with its indentation adjusted.

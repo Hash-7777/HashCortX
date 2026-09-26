@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder makes a change it wrote into its reply.** Asked to change the
+  project, a model sometimes answers with the new code and changes no file.
+  HashCoder is then sent back once to make the change with its file tools, or
+  to answer without changing anything if the request was only a question.
+  Commands to type into a terminal, and a line or two of code, do not send it
+  back.
+
 - **HashCoder proves a change before it says it is done.** When it tries to
   finish after changing code, with no test passed since the change, it is sent
   back to run the project's own test, found from its package.json, Python

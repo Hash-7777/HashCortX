@@ -17,6 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+vm.runInContext(src('js', 'fences.js'), sandbox, { filename: 'fences.js' });
 vm.runInContext(src('js', 'code', 'verify.js'), sandbox, { filename: 'verify.js' });
 const V = sandbox.window.HCCodeVerify;
 
@@ -125,6 +126,29 @@ console.log('\nWhen the agent is sent back:');
   ok('a command that never started is not recorded', log.ran('npm', ['test'], null) === null && log.checks.length === 1);
 }
 
+console.log('\nA change written into the reply instead of made:');
+{
+  const fence = (lang, n) => '```' + lang + '\n' + Array.from({ length: n }, (_, i) => `line ${i}`).join('\n') + '\n```';
+  const asked = (text) => [{ role: 'system', content: 's' }, { role: 'user', content: text }];
+  const reply = `Here is the fix:\n\n${fence('js', 4)}\n\nThis includes the end.`;
+  let log = V.proofLog();
+  const back = V.unmadeChange(log, asked('Fix the off-by-one in range.js'), reply);
+  ok('a change asked for, code in the reply, no file changed: sent back to make it', back && back.kind === 'make' && /no file in the project was changed/.test(back.message) && V.isAppNote(back.message));
+  ok('it says what it was sent back for', back && /make the change/.test(back.step));
+  ok('once at most', V.unmadeChange(log, asked('Fix it'), reply, 1) === null);
+  log.edited('/p/src/range.js');
+  ok('not when a file was changed', V.unmadeChange(log, asked('Fix it'), reply) === null);
+  log = V.proofLog();
+  ok('not for a question', V.unmadeChange(log, asked('Explain how range() works'), reply) === null);
+  ok('not when the reply asks the person something', V.unmadeChange(log, asked('Fix it'), reply + '\n\nShall I apply it?') === null);
+  ok('not for commands to type in a terminal', V.unmadeChange(log, asked('Fix the build'), `Run:\n\n${fence('bash', 4)}`) === null);
+  ok('not for a line or two of code', V.unmadeChange(log, asked('Fix it'), `Change it to:\n\n${fence('js', 2)}`) === null);
+  ok('not for code only mentioned in a sentence', V.unmadeChange(log, asked('Fix it'), 'Use `n <= end` in the loop.') === null);
+  const notes = [{ role: 'user', content: 'Add a --lines flag' }, { role: 'assistant', content: '' }, { role: 'user', content: `${V.APP_NOTE} run the tests` }];
+  ok('the request is the person\'s, not a note from the app', V.requestIn(notes) === 'Add a --lines flag');
+  ok('a picture the agent opened is not the request', V.requestIn([...notes, { role: 'user', content: 'See the screenshot', images: ['x'] }]) === 'Add a --lines flag');
+}
+
 console.log('\nWhat the person is told:');
 {
   const log = V.proofLog();
@@ -150,6 +174,7 @@ console.log('\nThe Coder uses it:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing', /HCCodeVerify\.stopCheck\(/.test(mode));
+  ok('and asks first whether a change was written into the reply instead of made', /HCCodeVerify\.unmadeChange\(proof, messages, finalText, madeBack\)/.test(mode));
   ok('only while proving is switched on in Settings, which it is unless turned off',
     /cdrPrefs\(\)\.prove !== false \? window\.HCCodeVerify\.stopCheck\(/.test(mode) && /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
