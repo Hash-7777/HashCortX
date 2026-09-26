@@ -143,7 +143,7 @@ npm run check                                     # 7,628 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 205 Rust tests
 ```
 
-Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3 MB of interface source that ships as written.
+Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3.7 MB of interface source that ships as written.
 [Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 </details>

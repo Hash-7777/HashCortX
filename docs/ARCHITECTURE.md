@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **48,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,000 lines of Rust**, measured on 12 September 2026 (the vendored figure on 14 September, the Rust figure on 24 September). Most per-file sizes below were measured on 10 September 2026; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **60,500 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,200 lines of Rust**, measured on 26 September 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -13,7 +13,7 @@ Roughly **48,000 lines of JavaScript** (plus ~20,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html              645  the shell: the intro screen, the sidebar
+│   ├── index.html              636  the shell: the intro screen, the sidebar
 │   │                                and the chat column. Nothing else.
 │   ├── boot.js                      puts the hidden panels in, then runs
 │   │                                every script in order
@@ -33,7 +33,7 @@ HashCortX/
 │   │   ├── virtual-os/       3,309  virtual project desktop
 │   │   ├── systems/          3,232  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,461  chain / vote / failover
-│   │   ├── code/             2,608  the Coder agent loop
+│   │   ├── code/             2,652  the Coder agent loop
 │   │   ├── finance/          2,357  financial document analysis
 │   │   └── sandbox/            535  security scanner
 │   │
@@ -59,13 +59,13 @@ HashCortX/
 │   │
 │   ├── data/                        content, not behaviour
 │   │   ├── prompts.js          281  every preset prompt and chip row
-│   │   ├── cloud-models.js     107  the fallback model catalogue
-│   │   └── swarm-templates.js  122  the Agent Swarm's starter teams
+│   │   ├── cloud-models.js     147  the fallback model catalogue
+│   │   └── swarm-templates.js  128  the Agent Swarm's starter teams
 │   │
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,539  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,546  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        536  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -88,7 +88,7 @@ HashCortX/
 │   │   │                            waiting on a stream; a call cancelled when
 │   │   │                            its time is up; one question asked until a
 │   │   │                            model can answer it
-│   │   ├── local-context.js    148  how much a local model is given room to
+│   │   ├── local-context.js    150  how much a local model is given room to
 │   │   │                            read: sized to the request, so Ollama never
 │   │   │                            drops its instructions, and the window it
 │   │   │                            is loaded with kept while it fits; and what
@@ -101,14 +101,14 @@ HashCortX/
 │   │   │                            tool calls as they arrive, each answer
 │   │   │                            ending where its window does; and loading
 │   │   │                            a model while the message is written
-│   │   ├── tool-text.js        248  a tool call a model wrote in its words, in
+│   │   ├── tool-text.js        271  a tool call a model wrote in its words, in
 │   │   │                            each of the ways local models write one
 │   │   ├── agent-shape.js      597  images, tools and tool results per provider,
 │   │   │                            tools told in words to a model that cannot
 │   │   │                            take them, carrying on an answer that was
 │   │   │                            cut off, timing every answer, and tool calls
 │   │   │                            or Python runs a model wrote as text
-│   │   ├── agent-context.js    136  what the model sees of a long agent run
+│   │   ├── agent-context.js    226  what the model sees of a long agent run
 │   │   ├── agent-policy.js     221  what may run together, and when to stop
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                            cosine, rank fusion
@@ -118,8 +118,8 @@ HashCortX/
 │   │   ├── vector-map.js       404  placing memory vectors on a flat picture
 │   │   ├── url-safety.js        95  addresses the fetch tool may reach
 │   │   ├── page-text.js        107  a fetched web page, as text a model can read
-│   │   ├── pdf-text.js         123  a PDF, as text
-│   │   ├── markdown-safe.js    206  link sanitiser, escaping, and the renderer
+│   │   ├── pdf-text.js         125  a PDF, as text
+│   │   ├── markdown-safe.js    208  link sanitiser, escaping, and the renderer
 │   │   │                            for text a model wrote
 │   │   ├── fences.js           139  code fences, read as the chat draws them —
 │   │   │                            everything that looks for code uses it
@@ -128,8 +128,8 @@ HashCortX/
 │   │   ├── diff.js             223  line and word diffs behind the change views
 │   │   ├── edit-history.js      90  undo and redo for hand edits
 │   │   ├── trace-copy.js        81  a run's trace, selected and copied as text
-│   │   ├── trace-time.js        47  when a trace line was written, as a stopwatch
-│   │   ├── model-plan.js     1,044  a generated 3D model's parts, made trustworthy
+│   │   ├── trace-time.js        88  when a trace line was written, as a stopwatch
+│   │   ├── model-plan.js     1,045  a generated 3D model's parts, made trustworthy
 │   │   ├── power.js            183  stops work nobody can see
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
@@ -138,7 +138,7 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/             1,097  what a model is told, which to try next
+│   │   ├── chat/             1,114  what a model is told, which to try next
 │   │   │                            (an agent's turns too), the web searches
 │   │   │                            an agent makes, what its code printed,
 │   │   │                            what a model thought before it answered,
@@ -158,9 +158,10 @@ HashCortX/
 │   │   │                            Coder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/               429  Coder: terminal colour, export, file names,
-│   │   │                            and patch_file's text work
-│   │   ├── swarm/            4,419  Agent Swarm: what kind of task it is,
+│   │   ├── code/               968  Coder: terminal colour, export, file names,
+│   │   │                            patch_file's text work and numbered reads,
+│   │   │                            and the record of what proved a change
+│   │   ├── swarm/            4,422  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
 │   │   │                            how strong each model is for its roles,
@@ -229,10 +230,10 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs       838   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs       935   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
-│   │   │   ├── checkpoint.rs  656   what a file held before the agent changed it,
+│   │   │   ├── checkpoint.rs  666   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since
 │   │   │   ├── net.rs         802   resolves a hostname and refuses private ones
 │   │   │   ├── provider.rs    694   SambaNova, NVIDIA and Kimi Code, at six
@@ -241,10 +242,10 @@ HashCortX/
 │   │   │   ├── mcp.rs         777   connected systems: address and secret kept
 │   │   │   │                        together, out of the page's reach; requests
 │   │   │   │                        only to that address, five methods, no redirect
-│   │   │   ├── mcp/oauth.rs 1,384   signing in to one through the browser: where
+│   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,239   filesystem bridge, applies the denylist;
+│   │   │   ├── fs.rs        1,302   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all
 │   │   │   ├── keychain.rs    103   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
@@ -392,7 +393,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 6,501-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 6,546-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The Coder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - Coder still boxes its messages: `modes.css` forces a background on `.app.code-mode .msg .bubble`, so it reads as a different app from the rebuilt chat. The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
 - The frontend's automated coverage is `scripts/checks/` — 7,628 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, the Coder's terminal, export and patching, and stream reading. They load the real source.
