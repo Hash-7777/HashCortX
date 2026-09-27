@@ -253,6 +253,12 @@
   const APP_NOTE = 'Note from HashCortX, not from the person:';
   const isAppNote = (text) => String(text || '').startsWith(APP_NOTE);
 
+  // What the person is shown for each note, when a saved conversation is drawn again.
+  const MADE_STEP = 'Sent back to make the change in the files';
+  const PROVE_STEP = 'Sent back to run the tests before finishing';
+  /** The step a note from the app stands for. */
+  const noteStep = (text) => (/no file in the project was changed/.test(String(text || '')) ? MADE_STEP : PROVE_STEP);
+
   /** The command line of a shell_run call, as the person would type it. */
   const line = (entry) => `\`${entry.command}\``;
 
@@ -279,7 +285,7 @@
         'Then finish by saying which checks passed. If it cannot be made to pass, say what still fails and why.'
       : `${APP_NOTE} you changed ${files} and no test has run since. Run \`${test}\` now. If it fails, read the failure and fix it. ` +
         'Then finish by saying which checks passed. If it cannot run here, say so and why.';
-    return { kind: 'prove', step: 'Sent back to run the tests before finishing', message };
+    return { kind: 'prove', step: PROVE_STEP, message };
   }
 
   // ── A change written into the reply instead of made ─────────────────────
@@ -330,7 +336,7 @@
     if (!CHANGE_WORDS.test(requestIn(messages)) || !codeBlocks(reply)) return null;
     return {
       kind: 'make',
-      step: 'Sent back to make the change in the files',
+      step: MADE_STEP,
       message: `${APP_NOTE} your reply shows code, but no file in the project was changed. If the request was to change ` +
         'the project, make the change now with patch_file, or write_file for a new file, then say in a sentence or two what ' +
         'you changed. If it only asked a question, answer it and change nothing.',
@@ -357,6 +363,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange,
+    requestIn, codeBlocks, unmadeChange, noteStep,
   };
 })();

@@ -92,6 +92,7 @@ console.log('\nWhen the agent is sent back:');
   const back = V.stopCheck(log, checks, 'Fixed the off-by-one.');
   ok('code changed and nothing run: sent back to run the test', back && /Run `npm test` now/.test(back.message) && /range\.js/.test(back.message));
   ok('the note says it is from the app, not the person', V.isAppNote(back.message));
+  ok('and stands for the step it was', V.noteStep(back.message) === back.step);
 
   log.ran('npm', ['test'], passed);
   ok('a test passed after the change: not sent back', V.stopCheck(log, checks, 'Fixed.') === null);
@@ -134,7 +135,7 @@ console.log('\nA change written into the reply instead of made:');
   let log = V.proofLog();
   const back = V.unmadeChange(log, asked('Fix the off-by-one in range.js'), reply);
   ok('a change asked for, code in the reply, no file changed: sent back to make it', back && back.kind === 'make' && /no file in the project was changed/.test(back.message) && V.isAppNote(back.message));
-  ok('it says what it was sent back for', back && /make the change/.test(back.step));
+  ok('it says what it was sent back for', back && /make the change/.test(back.step) && V.noteStep(back.message) === back.step);
   ok('once at most', V.unmadeChange(log, asked('Fix it'), reply, 1) === null);
   log.edited('/p/src/range.js');
   ok('not when a file was changed', V.unmadeChange(log, asked('Fix it'), reply) === null);
@@ -181,6 +182,10 @@ console.log('\nThe Coder uses it:');
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));
   ok('a note from the app is not shown as the person\'s message', /isAppNote\(/.test(mode));
+  const render = mode.slice(mode.indexOf('function renderConversation()'), mode.indexOf('// ── Terminal'));
+  ok('a saved conversation is drawn with its steps, and each note as the step it stands for',
+    /appendToolBlock\(reply, fn\.name/.test(render) && /V\.noteStep\(m\.content\)/.test(render));
+  ok('... and a reply the agent was sent back from is not drawn as an answer', /!V\?\.isAppNote\(conversationMsgs\[i \+ 1\]\?\.content\)/.test(render));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/verify.js)`);

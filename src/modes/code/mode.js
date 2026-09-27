@@ -359,6 +359,7 @@
   // ══════════════════════════════════════════════════════════════
   const CoderMode = (() => {
     let mounted            = false;
+    let setUp              = false;   // wired once: HashCoder is mounted again each time it is opened
     let agentCount         = 1;
     let runAbort           = null;
     let conversationMsgs   = []; // persists across turns — full chat history
@@ -424,10 +425,14 @@
     function mount() {
       if (mounted) return;
       mounted = true;
-      wireDom();
       syncProjectLabel();
       setRouterChip('Auto', '');
       if (sharedState.projectRoot) HC?.guard?.setProjectRoot?.(sharedState.projectRoot);
+      // Opened again: the panel and its conversation are as they were left, and
+      // wiring them again would make every button answer twice.
+      if (setUp) { syncTerminalPrompt(); updateCoderStatus(); return; }
+      setUp = true;
+      wireDom();
       // Discover home dir for system-prompt path hints. Bypasses HC.code.shellRun intentionally
       // — this is an internal app initialisation, not an AI agent action, so a permission
       // dialog would be jarring UX. The command is read-only and hardcoded.
@@ -1186,7 +1191,7 @@
       el.classList.remove('cdr-step--running');
       el.classList.add(ok ? 'cdr-step--ok' : 'cdr-step--err');
       const status = el.querySelector('.cdr-step-result');
-      if (status) status.textContent = ok ? `${ms}ms` : 'failed';
+      if (status) status.textContent = ok ? (ms == null ? '' : `${ms}ms`) : 'failed';   // no time is kept for a saved step
       const body = el.querySelector('.cdr-step-body');
       if (body) {
         const text = String(result || '');
@@ -1358,24 +1363,30 @@
       }
     }
 
+    /**
+     * Draw a saved conversation as it ran: each request, then one reply
+     * holding the steps taken and the answer. A reply the agent was sent back
+     * from was not its answer, so it is drawn as the step that sent it back.
+     */
     function renderConversation() {
       const msgs = $('cdrMessages');
       if (!msgs) return;
       msgs.innerHTML = '';
-      for (const m of conversationMsgs) {
-        if (m.role === 'user') {
-          if (window.HCCodeVerify?.isAppNote(m.content)) continue;   // the app's, not the person's
-          appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content);
-        } else if (m.role === 'assistant' && m.content) {
-          const el = appendAssistantBubble('HashCoder');
-          if (el) {
-            const div = document.createElement('div');
-            div.className = 'cdr-msg-text';
-            div.innerHTML = renderMarkdown(m.content);
-            el.appendChild(div);
-          }
+      const V = window.HCCodeVerify;
+      const results = new Map(conversationMsgs.filter((m) => m.role === 'tool').map((m) => [m.tool_call_id, String(m.content ?? '')]));
+      let reply = null;
+      conversationMsgs.forEach((m, i) => {
+        if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
+        if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content); reply = null; return; }
+        if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
+        for (const c of m.tool_calls || []) {
+          const fn = c.function || c, result = results.get(c.id);
+          let args = fn.arguments; try { args = typeof args === 'string' ? JSON.parse(args) : args; } catch { args = {}; }
+          let failed = result == null; try { failed = failed || !!JSON.parse(result).error; } catch { /* a result that is not JSON is output */ }
+          finalizeToolBlock(appendToolBlock(reply, fn.name, args || {}), result ?? 'No result was kept.', !failed, null);
         }
-      }
+        if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) appendTextToBubble(reply, m.content);
+      });
     }
 
     // ── Terminal ──────────────────────────────────────────────

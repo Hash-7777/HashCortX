@@ -677,7 +677,10 @@ const LINE_BUDGET = {
   // 2653, up three: a request carries the files and pictures attached to it,
   // and a saved conversation leaves the pictures out; reading, packing and the
   // panel's attach button, paste and drop are js/code/attach.js.
-  'modes/code/mode.js': 2653,
+  // 2664, up eleven: HashCoder is wired once however often it is opened, and
+  // a saved conversation is drawn as it ran, with its steps and without the
+  // replies the agent was sent back from.
+  'modes/code/mode.js': 2664,
 };
 
 console.log('\nFile sizes go down, never up:');

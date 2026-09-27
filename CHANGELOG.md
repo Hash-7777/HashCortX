@@ -426,6 +426,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder works the same after you leave it and come back.** Opening it
+  again wired every button again, so History and the terminal button toggled
+  twice and seemed to do nothing, the conversation was drawn again without
+  its steps, and changes from the run just made were listed as left over
+  from a previous session. It is set up once now, and opening it again
+  leaves it as it was.
+- **A saved HashCoder conversation opens as it ran.** Opened from History or
+  after a restart, it shows each step taken and each time the agent was sent
+  back, and only its real answer: a reply it was sent back from is no longer
+  shown as one.
+
 - **A HashCoder run with a picture in it works on OpenAI-style providers.**
   Once a picture was in the conversation, such as one opened with
   view_image, every tool call and its result were sent without what ties

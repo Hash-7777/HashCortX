@@ -114,6 +114,17 @@ console.log('\nThe shared dialogs open above every mode:');
   }
 }
 
+// A mode is mounted again every time it is opened. Wiring its buttons again
+// each time gives every button a second handler, and a button that toggles
+// something then toggles it twice and seems to do nothing.
+console.log('\nA mode opened again is not wired again:');
+{
+  const code = read('modes/code/mode.js');
+  const mount = code.slice(code.indexOf('    function mount() {'), code.indexOf('    function remount() {'));
+  check('HashCoder wires its panel once, however often it is opened',
+    /if \(setUp\) \{[^}]*return; \}\s*setUp = true;\s*wireDom\(\);/.test(mount) && (mount.match(/wireDom\(\)/g) || []).length === 1);
+}
+
 // ── 2 & 3. Registration: present, complete, and under the right id ───────
 //
 // The id a mode registers itself under is what setTab() looks up. If it drifts
