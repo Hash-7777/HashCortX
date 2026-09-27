@@ -1770,24 +1770,25 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function restorePendingChanges() {
       const msgs = $('cdrMessages');
       if (!msgs || !HC?.undo?.pending) return;
-      const pending = await HC.undo.pending();
+      // One row a file, however many times it was changed (platform/tauri/undo.js byFile).
+      const pending = HC.undo.byFile(await HC.undo.pending());
       if (!pending.length) return;
 
       const { svgAccept, svgReject } = CHANGE_ICONS;
       const group = document.createElement('div');
       group.className = 'cdr-change-group';
-      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} change${pending.length === 1 ? '' : 's'} from your last session \u2014 keep or undo</div>`;
+      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} file${pending.length === 1 ? '' : 's'} changed in your last session \u2014 keep or undo</div>`;
 
       for (const summary of pending) {
         const name = baseName(summary.path);
-        const canUndo = !summary.unrestorable;
+        const canUndo = !summary.unrestorable, count = summary.records.length;
         // The same shape as a step in a live run. A change from last session is
         // the same kind of thing as one from this one, so it should not arrive
         // looking like a different feature.
         const el = appendStep(group, {
           verb: summary.existed ? 'EDIT' : 'CREATE',
           object: name,
-          status: `${summary.existed ? esc(String(summary.bytes)) + ' bytes saved' : 'new file'}` +
+          status: `${count > 1 ? `${count} changes` : summary.existed ? esc(String(summary.records[0].bytes)) + ' bytes saved' : 'new file'}` +
             `<span class="cdr-step-actions">` +
             `<button class="cdr-step-btn keep">${svgAccept} Keep</button>` +
             `<button class="cdr-step-btn undo"${canUndo ? '' : ` disabled title="${esc(summary.unrestorable)}"`}>${svgReject} Undo</button>` +
@@ -1805,7 +1806,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--accepted');
           keepBtn.innerHTML = `${svgAccept} Kept`;
           undoBtn.disabled = true;
-          await HC.undo.drop(summary);
+          for (const r of summary.records) await HC.undo.drop(r);
         }));
 
         undoBtn.addEventListener('click', own(async () => {
@@ -1813,8 +1814,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           undoBtn.disabled = true;
           try {
             // restore() fetches the contents itself \u2014 the summary does not
-            // carry them, and writing it as-is would empty the file.
-            await HC.undo.restore(summary, { ask: askUndo });
+            // carry them, and writing it as-is would empty the file. Newest first,
+            // so each finds the file as the change after it left it.
+            for (const r of summary.records) await HC.undo.restore(r, { ask: askUndo });
             el.classList.remove('cdr-step--pending'); el.classList.add('cdr-step--rejected');
             undoBtn.innerHTML = `${svgReject} Undone`;
             keepBtn.disabled = true;

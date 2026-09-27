@@ -687,7 +687,9 @@ const LINE_BUDGET = {
   // js/code/live.js, which replaced the waiting dots and the reasoning box.
   // 2653, up two: a request to build a site puts the bar the Swarm's sites
   // are held to into HashCoder's instructions (hashcoder.js siteBrief).
-  'modes/code/mode.js': 2653,
+  // 2655, up two: changes left from a last session are one row a file,
+  // kept or undone together (platform/tauri/undo.js byFile).
+  'modes/code/mode.js': 2655,
 };
 
 console.log('\nFile sizes go down, never up:');

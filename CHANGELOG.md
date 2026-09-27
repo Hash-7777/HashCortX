@@ -283,6 +283,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Changes left from a last HashCoder session are listed by file.** A run
+  that edited two files eighteen times listed eighteen rows. Each file is now
+  one row saying how many changes it holds; Undo takes it back to how it was
+  before the first of them, and Keep keeps them all.
+
 - **A site HashCoder builds is held to the bar the Agent Swarm's are.**
   Asked to build a site, HashCoder is told what the finished site must
   have: real content for the request, a visual identity chosen for the

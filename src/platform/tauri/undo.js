@@ -106,6 +106,28 @@
     },
 
     /**
+     * Pending changes gathered by file, the file changed most recently first:
+     * { path, records, existed, unrestorable }, its records newest first. A
+     * run edits one file many times, and a row for each edit said nothing a
+     * row for the file does not. `existed` is whether the file was there
+     * before the first of them; `unrestorable` the first reason one of them
+     * cannot be undone, or null.
+     */
+    byFile(list) {
+      const files = new Map();
+      for (const r of Array.isArray(list) ? list : []) {
+        if (!r || !r.path) continue;
+        if (!files.has(r.path)) files.set(r.path, { path: r.path, records: [] });
+        files.get(r.path).records.push(r);
+      }
+      return [...files.values()].map((f) => ({
+        ...f,
+        existed: !!f.records[f.records.length - 1].existed,
+        unrestorable: (f.records.find((r) => r.unrestorable) || {}).unrestorable || null,
+      }));
+    },
+
+    /**
      * The full record for an id, contents and all.
      *
      * Fetched when someone asks to see or undo a change, rather than for every

@@ -187,5 +187,25 @@ console.log('\nThe file is recorded as the change left it:');
   ok('a record with no id is left alone, and a failure never throws', threw === null && calls.filter(c => c.name === 'checkpoint_seal').length === 1);
 }
 
+console.log('\nChanges left from a last session are one row a file:');
+{
+  const { undo } = load();
+  const list = [
+    { id: 'c3', path: '/p/style.css', existed: true, bytes: 30 },
+    { id: 'c2', path: '/p/index.html', existed: true, bytes: 20 },
+    { id: 'c1', path: '/p/style.css', existed: true, bytes: 10 },
+    { id: 'c0', path: '/p/new.js', existed: false, bytes: 0, unrestorable: 'too large' },
+  ];
+  const files = undo.byFile(list);
+  ok('one entry a file, the file changed most recently first', files.map((f) => f.path).join() === '/p/style.css,/p/index.html,/p/new.js');
+  ok('each holds its records newest first', files[0].records.map((r) => r.id).join() === 'c3,c1');
+  ok('whether the file was there is taken from before its first change', files[2].existed === false && files[0].existed === true);
+  ok('a reason one of them cannot be undone is kept', files[2].unrestorable === 'too large' && files[0].unrestorable === null);
+  ok('nothing gives nothing', undo.byFile([]).length === 0 && undo.byFile(null).length === 0);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('the Coder draws them by file, and undoes a file newest change first',
+    /HC\.undo\.byFile\(await HC\.undo\.pending\(\)\)/.test(mode) && /for \(const r of summary\.records\) await HC\.undo\.restore\(r, \{ ask: askUndo \}\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/undo.js)`);
 process.exit(fail ? 1 : 0);
