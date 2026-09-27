@@ -5704,7 +5704,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return { content: content || null, tool_calls: calls.length ? calls : null, raw: msg, finish: data.done_reason, thinking: reply.thinking || undefined };
   }
 
-  async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal }) {
+  async function agentTurnOpenAI({ provider, model, messages, tools, temperature, signal, onText, onThinking }) {
     // A run that moved here from Gemini carries its signatures; strict
     // providers refuse a field they do not know.
     messages = HCAgentShape.withoutSignatures(messages);
@@ -5731,7 +5731,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const body = {
       model, messages: requestMessages,
       temperature: typeof temperature === "number" ? temperature : 0.7,
-      stream: false
+      stream: !!onText, ...(onText ? { stream_options: { include_usage: true } } : {}),   // streamed when watched, as HashCoder does
     };
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
     fitRequest("openai", provider, model, body);
@@ -5747,10 +5747,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       r = await providerPost(provider, key, body, signal);
     }
     if (!r.ok) throw await httpFailure(provider, r);
-    const data = await r.json();
-    // A 200 carrying a failure in its body is judged as the status it names.
-    const failed = window.HCStreamSSE.openAIError(data);
-    if (failed) throw HCProviders.bodyFailure(provider, failed);
+    // Read from its stream when streamed, as JSON otherwise; a 200 carrying a
+    // failure in its body is judged as the status it names (js/stream/sse.js).
+    const data = await window.HCStreamSSE.openAIReply(r, { onText, onThinking, fail: (f) => HCProviders.bodyFailure(provider, f) });
     const msg = data.choices?.[0]?.message || {};
     const calls = Array.isArray(msg.tool_calls) ? msg.tool_calls.map((c, i) => ({
       id: c.id || `call_${Date.now()}_${i}`,

@@ -56,6 +56,10 @@ console.log('\nThe words reach it as they are written:');
   const app = src('js', 'app.js');
   const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
   ok('and the client for a model on this computer hands them each piece', /onToken: onText, onThinking/.test(ollama));
+  const openai = app.slice(app.indexOf('async function agentTurnOpenAI'), app.indexOf('async function agentTurnAnthropic'));
+  ok('an OpenAI-shaped provider streams when someone watches, and answers whole when not',
+    /async function agentTurnOpenAI\(\{[^}]*onText, onThinking \}\)/.test(openai) && /stream: !!onText/.test(openai)
+    && /HCStreamSSE\.openAIReply\(r, \{ onText, onThinking, fail:/.test(openai));
   const boot = src('boot.js');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
 }

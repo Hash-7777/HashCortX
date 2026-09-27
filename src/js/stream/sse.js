@@ -174,7 +174,73 @@
     }
   }
 
+  /**
+   * Read a whole OpenAI-shaped stream as one message: the text, and each
+   * tool call put back together from the pieces it arrives in, by its index.
+   * `onText(piece, soFar)` hears the text as it grows, and `onThinking` the
+   * reasoning a model sends before it. Returns { message: { content,
+   * tool_calls }, finish, usage }, the usage being that of the event that
+   * carried it, for the provider's own counting to read.
+   */
+  async function openAIMessage(body, { onText, onThinking } = {}) {
+    let content = '';
+    const calls = [];
+    let finish = null;
+    let usage = null;
+    for await (const line of sseLines(body)) {
+      const evt = eventFromLine(line);
+      if (!evt) continue;
+      const failed = openAIError(evt);
+      if (failed) throw Object.assign(new Error(failed.message), { status: failed.status, inBody: true });
+      if (evt.usage) usage = evt;
+      const choice = evt.choices && evt.choices[0];
+      if (!choice) continue;
+      if (choice.finish_reason) finish = choice.finish_reason;
+      const thought = openAIReasoning(evt);
+      if (thought && onThinking) onThinking(thought);
+      const delta = choice.delta || choice.message || {};
+      if (typeof delta.content === 'string' && delta.content) {
+        content += delta.content;
+        if (onText) onText(delta.content, content);
+      }
+      for (const part of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
+        const at = Number.isInteger(part.index) ? part.index : calls.length;
+        const call = calls[at] || (calls[at] = { id: '', type: 'function', function: { name: '', arguments: '' } });
+        const fn = part.function || {};
+        if (part.id) call.id = part.id;
+        // A name comes whole in its first piece; some providers repeat it, and it is not doubled.
+        if (fn.name && fn.name !== call.function.name) call.function.name += fn.name;
+        if (fn.arguments != null) call.function.arguments += typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments);
+      }
+    }
+    const whole = calls.filter(Boolean).map((c) => (c.function.arguments ? c : { ...c, function: { ...c.function, arguments: '{}' } }));
+    return { message: { content: content || null, tool_calls: whole }, finish, usage };
+  }
+
+  /**
+   * An OpenAI-shaped reply read whole: from its stream when it is one, as
+   * openAIMessage puts it back together, or as JSON when it is not. A failure
+   * carried in the body is thrown as `fail(failed)` makes it. Returns the
+   * reply in the form the JSON would have: { choices: [{ message,
+   * finish_reason }] } and whatever the event with the usage carried.
+   */
+  async function openAIReply(res, { onText, onThinking, fail = (f) => Object.assign(new Error(f.message), f) } = {}) {
+    const type = (res && res.headers && typeof res.headers.get === 'function' && res.headers.get('content-type')) || '';
+    if (/event-stream/i.test(type)) {
+      let read;
+      try { read = await openAIMessage(res.body, { onText, onThinking }); }
+      catch (e) { throw e && e.inBody ? fail({ message: e.message, status: e.status }) : e; }
+      return { ...(read.usage || {}), choices: [{ message: read.message, finish_reason: read.finish }] };
+    }
+    const data = await res.json();
+    const failed = openAIError(data);
+    if (failed) throw fail(failed);
+    return data;
+  }
+
   window.HCStreamSSE = {
+    openAIMessage,
+    openAIReply,
     sseLines,
     jsonLines,
     eventFromLine,

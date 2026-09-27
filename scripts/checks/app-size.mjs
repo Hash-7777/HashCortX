@@ -197,7 +197,9 @@ const LINE_BUDGET = {
   // connections are js/mcp/.
   // 6542, down four: Settings gained a HashCoder section, and the seven
   // section buttons are wired in one line rather than one line each.
-  'js/app.js': 6542,
+  // 6541, down one: an OpenAI-shaped reply, streamed or whole, is read by
+  // js/stream/sse.js openAIReply.
+  'js/app.js': 6541,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

@@ -260,5 +260,42 @@ console.log('\nA model that never starts is left, and only a queued one:');
   if (readers.length !== 1) console.log(`          readers found in: ${readers.join(', ')}`);
 }
 
+console.log('\nA streamed reply with tool calls is put back together:');
+{
+  const ev = (o) => `data: ${JSON.stringify(o)}\n\n`;
+  const stream = [
+    ev({ choices: [{ delta: { role: 'assistant', content: 'Reading ' } }] }),
+    ev({ choices: [{ delta: { content: 'the file.' } }] }),
+    ev({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'c1', type: 'function', function: { name: 'read_file', arguments: '' } }] } }] }),
+    ev({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '{"path":' } }] } }] }),
+    ev({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"/p/a.js"}' } }] } }] }),
+    ev({ choices: [{ delta: { tool_calls: [{ index: 1, id: 'c2', function: { name: 'list_dir', arguments: '{"path":"/p"}' } }] } }] }),
+    ev({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] }),
+    ev({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 5 } }),
+    'data: [DONE]\n\n',
+  ].join('');
+  for (const [how, chunks] of Object.entries(chunkings(stream))) {
+    const heard = [];
+    const got = await S.openAIMessage(bodyOf(chunks), { onText: (piece, soFar) => heard.push(soFar) });
+    const [a, b] = got.message.tool_calls;
+    ok(`${how}: the text, both calls and their arguments, whole`,
+      got.message.content === 'Reading the file.' && a.id === 'c1' && a.function.name === 'read_file' && a.function.arguments === '{"path":"/p/a.js"}'
+      && b.function.name === 'list_dir' && got.finish === 'tool_calls' && got.usage.usage.completion_tokens === 5 && heard.at(-1) === 'Reading the file.');
+  }
+  const once = await S.openAIMessage(bodyOf([enc.encode(ev({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'x', function: { name: 'now' } }] } }] }) + ev({ choices: [{ delta: { tool_calls: [{ index: 0, function: { name: 'now' } }] } }] }))]));
+  ok('a name a provider repeats is not doubled, and a call with no arguments has empty ones', once.message.tool_calls[0].function.name === 'now' && once.message.tool_calls[0].function.arguments === '{}');
+  let thrown = null;
+  try { await S.openAIMessage(bodyOf([enc.encode(ev({ choices: [{ delta: { content: 'a' } }] }) + ev({ error: { message: 'overloaded', code: 503 } }))])); } catch (e) { thrown = e; }
+  ok('a failure inside the stream is thrown with its status', thrown && thrown.inBody && thrown.status === 503);
+  const headers = (type) => ({ get: (k) => (k === 'content-type' ? type : null) });
+  const streamed = await S.openAIReply({ headers: headers('text/event-stream'), body: bodyOf([enc.encode(stream)]) });
+  ok('a reply read whole from its stream has the form the JSON would', streamed.choices[0].message.tool_calls.length === 2 && streamed.usage.prompt_tokens === 10);
+  const plain = await S.openAIReply({ headers: headers('application/json'), json: async () => ({ choices: [{ message: { content: 'hi' } }] }) });
+  ok('a reply that was not streamed is read as JSON', plain.choices[0].message.content === 'hi');
+  let failed = null;
+  try { await S.openAIReply({ headers: headers('application/json'), json: async () => ({ error: { message: 'no credit', code: 402 } }) }, { fail: (f) => Object.assign(new Error('judged'), { status: f.status }) }); } catch (e) { failed = e; }
+  ok('a failure in either is thrown as the caller judges it', failed && failed.message === 'judged' && failed.status === 402);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js, src/js/stream/first-sign.js)`);
 process.exit(fail ? 1 : 0);

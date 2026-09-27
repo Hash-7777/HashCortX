@@ -276,8 +276,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **HashCoder shows what it is doing while it works.** A line under its
   reply says whether it is thinking or writing and for how long, in place of
-  three dots. With a model on this computer, its words appear as it writes
-  them, and a tool call being written shows as the next step being chosen.
+  three dots. With a model on this computer, or a provider that answers the
+  way OpenAI does (OpenAI, Groq, OpenRouter, Mistral, DeepSeek, Cerebras,
+  SambaNova, NVIDIA and Moonshot), its words appear as it writes them, and a
+  tool call being written shows as the next step being chosen. Gemini and
+  Anthropic answer whole, with the line counting the wait.
   Larger models say in a sentence what they are about to do before each
   step, and that sentence stays in the reply above the step, including when
   the conversation is opened again. Small models are not asked to, since a
