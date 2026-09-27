@@ -274,6 +274,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder changes the part of a file it was asked to, not the whole
+  file.** Rewriting an existing file of 30 lines or more whole, and changing
+  more than a fifth of it, is refused unless HashCoder says the whole file
+  is meant to be replaced; it is told to change the part it means with
+  patch_file instead, so the rest stays exactly as it was. A rewrite that
+  leaves the rest untouched still goes through.
+
 - **The Coder panel is redesigned as HashCoder.** One bar holds the project,
   the model, how full its window is, and new conversation, history, terminal,
   Settings and leave. History and the execution trace open over the

@@ -46,7 +46,7 @@
       return P.linesWindow(text, startLine, endLine, name);
     },
 
-    async writeFile(path, content, reason = '') {
+    async writeFile(path, content, reason = '', { asked = false, whole = false } = {}) {
       /* Reject null/undefined content — prevents the literal string "null"
          from being written to files when the model omits the content arg */
       if (content == null) {
@@ -68,8 +68,12 @@
         await HC.undo.drop(record);
         throw new Error(`Permission denied: replace ${path}, which Undo could not restore`);
       }
-      // A JSON file this would break is not written (js/code/patch.js).
-      const broken = window.HCCodePatch?.breaks(path, record?.existed ? record.content : null, String(content));
+      // A JSON file this would break is not written, nor, when the agent asked
+      // for it by write_file, a file rewritten whole for a change to part of it
+      // (js/code/patch.js). patch_file writes through here with neither check of its own.
+      const before = record?.existed ? record.content : null;
+      const broken = window.HCCodePatch?.breaks(path, before, String(content))
+        || (asked ? window.HCCodePatch?.wholeRewrite(path.split(/[\\/]/).pop() || path, before, String(content), whole) : '');
       if (broken) {
         await HC.undo.drop(record);
         throw new Error(broken);
@@ -353,13 +357,14 @@
     },
     {
       name: 'write_file',
-      description: 'Create a new file or fully overwrite an existing one. Use for new files or when rewriting >50% of content. For smaller edits, prefer patch_file. A file that used Windows (CRLF) line endings on every line keeps them.',
+      description: 'Create a new file, or replace an existing one whole. For a change to part of an existing file, use patch_file, so the rest stays exactly as it is. Replacing a file of 30 lines or more whole, changing more than a fifth of it, needs replace_whole: true. A file that used Windows (CRLF) line endings on every line keeps them.',
       parameters: {
         path:    'Absolute path (parent dirs are created automatically)',
         content: 'Complete file content as a string',
+        replace_whole: { type: 'boolean', description: 'Optional: true when an existing file is meant to be replaced whole, not edited.' },
         reason:  'Why you are writing this file',
       },
-      fn: (p) => HC.code.writeFile(p.path, p.content, p.reason),
+      fn: (p) => HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true }),
     },
     {
       name: 'patch_file',
@@ -644,7 +649,7 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {
@@ -678,7 +683,7 @@
 WORKFLOW (follow this order every time):
 ① ORIENT — locate files first. Use fuzzy_find by name, grep_code by content, list_dir to explore. NEVER guess or invent paths.
 ② READ — always read_file before editing. Understand exact current content before changing anything.
-③ ACT — patch_file for targeted edits (<50% of file); write_file for new files or full rewrites only.
+③ ACT — patch_file for a change to part of a file, so the rest stays exactly as it is; write_file for a new file, or to replace a file whole when that is what was asked (replace_whole: true).
 ④ VERIFY — shell_run tests/build/lint after significant changes when it adds value.
 
 PATCH RULES (most common failure mode):

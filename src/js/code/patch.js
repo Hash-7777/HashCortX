@@ -337,6 +337,49 @@
     catch (e) { return `This would leave "${name}" as JSON that does not parse (${e.message}), so nothing was written. Fix the edit and try again.`; }
   }
 
+  // ── A whole file rewritten for a change to part of it ──────────────────
+
+  /** Files shorter than this many lines may be rewritten whole without saying so. */
+  const WHOLE_FROM_LINES = 30;
+  /** More than this share of a file's lines changed by a rewrite means it is replaced, not edited. */
+  const WHOLE_SHARE = 0.2;
+
+  /** The share of `before`'s non-empty lines that `after` no longer has, counted as a multiset. */
+  function changedShare(before, after) {
+    const lines = (t) => lf(String(t || '')).split('\n').map((l) => l.trim()).filter(Boolean);
+    const had = lines(before);
+    if (!had.length) return 0;
+    const left = new Map();
+    for (const l of lines(after)) left.set(l, (left.get(l) || 0) + 1);
+    let gone = 0;
+    for (const l of had) {
+      const n = left.get(l) || 0;
+      if (n) left.set(l, n - 1); else gone++;
+    }
+    return gone / had.length;
+  }
+
+  /**
+   * Why write_file must not replace an existing file with this, or ''.
+   *
+   * Asked for a change to part of a file, a model sometimes writes the whole
+   * file again from memory, and whatever it did not remember exactly changes
+   * with it. A rewrite of a file of WHOLE_FROM_LINES or more that changes more
+   * than WHOLE_SHARE of its lines is refused unless `whole` says the whole
+   * file is meant to be replaced; a rewrite that leaves the rest as it was
+   * goes through, since nothing else moved.
+   */
+  function wholeRewrite(name, before, after, whole) {
+    if (whole || before == null) return '';
+    const count = lf(String(before)).split('\n').filter((l) => l.trim()).length;
+    if (count < WHOLE_FROM_LINES) return '';
+    const share = changedShare(before, after);
+    if (share <= WHOLE_SHARE) return '';
+    return `"${name}" already exists (${count} lines) and this would change ${Math.round(share * 100)}% of it, so nothing was written. ` +
+      'To change part of it, use patch_file with the passage to replace, so the rest stays exactly as it is. ' +
+      'If the request needs the whole file replaced, call write_file again with replace_whole: true.';
+  }
+
   /**
    * `text` with CRLF line endings when the file it replaces had CRLF on every
    * line and `text` has none.
@@ -353,5 +396,5 @@
     return { text: text.replace(/\n/g, '\r\n'), kept: true };
   }
 
-  window.HCCodePatch = { applyPatch, applyEdits, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks };
+  window.HCCodePatch = { applyPatch, applyEdits, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();

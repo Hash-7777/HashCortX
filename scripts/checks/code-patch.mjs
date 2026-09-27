@@ -99,6 +99,20 @@ console.log('\nA JSON file an edit would break is not written:');
   ok('a byte-order mark at the start is allowed', P.breaks('/p/config.json', null, '\uFEFF{"a": 1}') === '');
 }
 
+console.log('\nA whole file rewritten for a change to part of it:');
+{
+  const page = Array.from({ length: 40 }, (_, i) => `<p>line ${i}</p>`).join('\n') + '\n';
+  const redone = Array.from({ length: 40 }, (_, i) => `<div>row ${i}</div>`).join('\n') + '\n';
+  const oneLine = page.replace('<p>line 7</p>', '<p>line seven</p>');
+  const why = P.wholeRewrite('index.html', page, redone, false);
+  ok('a rewrite changing most of a long file is refused, saying how to change part of it', /already exists \(40 lines\)/.test(why) && /patch_file/.test(why) && /replace_whole: true/.test(why), why);
+  ok('... and goes through when it says the whole file is meant', P.wholeRewrite('index.html', page, redone, true) === '');
+  ok('a rewrite that leaves the rest as it was goes through', P.wholeRewrite('index.html', page, oneLine, false) === '');
+  ok('a short file may be rewritten whole', P.wholeRewrite('a.css', 'a{}\nb{}\n', 'c{}\n', false) === '');
+  ok('a new file is not judged', P.wholeRewrite('new.html', null, redone, false) === '');
+  ok('what changed is counted by lines, repeats included', P.changedShare('a\na\nb\nc\n', 'a\nb\nc\n') === 0.25 && P.changedShare('', 'x') === 0);
+}
+
 console.log('\nA long file is read by lines:');
 {
   const text = Array.from({ length: 450 }, (_, i) => `line ${i + 1}`).join('\n') + '\n';
@@ -251,6 +265,19 @@ console.log('\npatch_file writes back the whole file:');
   ok('a new file is saved as written, with no note', writes.at(-1).content === 'a\nb\n' && !('lineEndings' in plain));
   ok('Undo records the file as each write left it, after the write', sealed.at(-1)?.path === '/p/new.txt' && sealed.at(-1)?.content === 'a\nb\n'
     && sealed.some((x) => x.path === '/p/app.config' && x.content === 'uno\r\ndos\r\ntres\r\n'));
+  const page = Array.from({ length: 40 }, (_, i) => `<p>line ${i}</p>`).join('\n') + '\n';
+  const redone = Array.from({ length: 40 }, (_, i) => `<div>row ${i}</div>`).join('\n') + '\n';
+  disk.set('/p/index.html', page);
+  const writeTool = code.TOOL_DEFINITIONS.find((t) => t.name === 'write_file');
+  const writesBefore = writes.length;
+  let refused = '';
+  try { await writeTool.fn({ path: '/p/index.html', content: redone }); } catch (e) { refused = String(e.message); }
+  ok('write_file rewriting most of a long file is refused, and nothing is written', /replace_whole: true/.test(refused) && writes.length === writesBefore && disk.get('/p/index.html') === page, refused);
+  await writeTool.fn({ path: '/p/index.html', content: redone, replace_whole: true });
+  ok('... and writes it when told the whole file is meant', disk.get('/p/index.html') === redone);
+  disk.set('/p/index.html', page);
+  err = await attempt('/p/index.html', '<p>line 3</p>', '<p>three</p>');
+  ok('patch_file is never held to it, since it changes only its passage', !err && disk.get('/p/index.html').includes('<p>three</p>'), err);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/patch.js)`);
