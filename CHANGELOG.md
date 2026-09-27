@@ -446,8 +446,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **A small local model's tool calls are read when it writes several in a
   row.** A model that set out its next steps as calls, one per line, had them
-  shown as its answer and none of them ran. They run now, when every one of
-  them names a tool the model was offered.
+  shown as its answer and none of them ran, including when its answer was
+  cut off partway through the last one. When every call written whole names
+  a tool the model was offered, the first of them runs, and the model writes
+  the next knowing what it returned. A call followed by an empty code fence
+  is read, and a backslash JSON does not allow, such as the `\s` of a
+  pattern in an edit, is kept as the model wrote it.
 
 - **An ERP counts in the currency of its place unless you name another.**
   The agent's model could fill in a currency nobody mentioned, and it

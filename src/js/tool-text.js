@@ -214,9 +214,40 @@
   }
 
   /**
+   * JSON whose strings hold a backslash JSON does not allow, such as the `\s`
+   * of a pattern a model wrote into an edit, with that backslash kept as the
+   * character it meant. Everything outside strings, and every escape JSON
+   * allows, is left as it is.
+   */
+  function withLooseEscapes(t) {
+    let out = "";
+    let inString = false;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (!inString) { if (c === '"') inString = true; out += c; continue; }
+      if (c === "\\") {
+        const next = t[i + 1];
+        if (next !== undefined && '"\\/bfnrtu'.includes(next)) { out += c + next; i++; }
+        else out += "\\\\";
+        continue;
+      }
+      if (c === '"') inString = false;
+      out += c;
+    }
+    return out;
+  }
+
+  /** One JSON value, read as written or, failing that, with loose escapes kept. */
+  function jsonValue(t) {
+    try { return JSON.parse(t); } catch { return JSON.parse(withLooseEscapes(t)); }
+  }
+
+  /**
    * Whole values written one after another, with nothing between them but
    * space, commas or semicolons, or [] when anything else is there. A small
-   * model asked for its next steps often writes one call per line.
+   * model asked for its next steps often writes one call per line, and often
+   * until its answer is cut off: a value that never closes can only be the
+   * end of the reply, so the values written whole before it are kept.
    */
   function valuesInRow(body) {
     const out = [];
@@ -226,8 +257,8 @@
       if (i >= body.length) break;
       if (body[i] !== "{" && body[i] !== "[") return [];
       const end = closing(body, i);
-      if (end < 0) return [];
-      try { out.push(JSON.parse(body.slice(i, end + 1))); } catch { return []; }
+      if (end < 0) return out;
+      try { out.push(jsonValue(body.slice(i, end + 1))); } catch { return []; }
       i = end + 1;
     }
     return out;
@@ -238,12 +269,14 @@
     const parts = window.HCFences && window.HCFences.splitFences
       ? window.HCFences.splitFences(text).filter((p) => p.type === "code" || String(p.text || "").trim())
       : [{ type: "text", text }];
-    const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code");
-    const body = (edge ? edge.code : text).trim();
+    // A fence with nothing in it, as a model may leave after its call, holds no call and hides none.
+    const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code" && String(p.code || "").trim());
+    const loose = String(text).replace(/^\s*(`{3,}|~{3,})[ \t]*\n/, "").replace(/\n[ \t]*(`{3,}|~{3,})\s*$/, "");
+    const body = (edge ? edge.code : loose).trim();
     if (!/^[[{]/.test(body)) return [];
     // A whole value, or whole values in a row: not the first object inside some prose.
     let values;
-    try { values = [JSON.parse(body)]; } catch { values = valuesInRow(body); }
+    try { values = [jsonValue(body)]; } catch { values = valuesInRow(body); }
     const calls = values.map(callsOfValue);
     // Every value a call, or none is read: JSON that only mentions a tool is not a call.
     return calls.length && calls.every((c) => c.length) ? calls.flat() : [];

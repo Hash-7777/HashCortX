@@ -55,6 +55,16 @@ ok('a tool_code block with single quotes and a number', (() => { const c = T.cal
 ok('bare JSON', one('{"name": "web_search", "arguments": {"query": "x"}}'));
 ok('a json block ending the reply', one(`Searching now.\n${F}json\n{"name":"web_search","arguments":{"query":"x"}}\n${F}`));
 ok('two calls written one after another, one per line', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'web_search,current_datetime');
+ok('a row cut off partway keeps the calls written whole before the cut', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"name": "current_datetime", "arguments": {}}\n{"name": "web_search", "arguments": {"query": "b', names).map((c) => c.name).join() === 'web_search,current_datetime');
+ok('a call followed by a fence with nothing in it is read', one(`{"name": "web_search", "arguments": {"query": "x"}}\n${F}\n`));
+{
+  const loose = T.callsIn('{"name": "web_search", "arguments": {"query": "x.split(/\\s+/)"}}', names);
+  ok('a backslash JSON does not allow, in a pattern, is kept as written', loose.length === 1 && loose[0].arguments.query === 'x.split(/\\s+/)');
+  const both = T.callsIn('{"name": "web_search", "arguments": {"query": "\\d and \\\\s and \\n"}}', names);
+  ok('... and the escapes JSON does allow keep their meaning beside it', both.length === 1 && both[0].arguments.query === '\\d and \\s and \n');
+}
+ok('calls with a code block between them are left alone', T.callsIn(`{"name": "web_search", "arguments": {}}\n${F}js\nx()\n${F}\n{"name": "web_search", "arguments": {}}`, names).length === 0);
+ok('a single call cut off is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a', names).length === 0);
 ok('calls in a row inside a json block, with commas between', T.callsIn(`${F}json\n{"name":"web_search","arguments":{"query":"a"}},\n{"name":"web_search","arguments":{"query":"b"}}\n${F}`, names).map((c) => c.arguments.query).join() === 'a,b');
 
 console.log('\nEach way a call is spelled:');

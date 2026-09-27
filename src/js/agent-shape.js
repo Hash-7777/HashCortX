@@ -287,11 +287,14 @@
 
   /**
    * Ollama's reply as the loop reads it: the calls in the field for them, or
-   * failing that, a reply that is nothing but calls written as text.
+   * failing that, a reply that is nothing but calls written as text. Of calls
+   * written as text in a row, only the first is taken: the rest were written
+   * before any result came back, so they are guesses, and the model writes
+   * the next one knowing what the first returned.
    */
   function ollamaReply(msg, tools) {
     const given = Array.isArray(msg && msg.tool_calls) ? msg.tool_calls : [];
-    const written = given.length ? [] : toolCallsInText(msg && msg.content, (tools || []).map((t) => t && t.function && t.function.name));
+    const written = given.length ? [] : toolCallsInText(msg && msg.content, (tools || []).map((t) => t && t.function && t.function.name)).slice(0, 1);
     const calls = [...given, ...written].map((c, i) => ({
       id: c.id || `call_${Date.now()}_${i}`,
       name: (c.function && c.function.name) || c.name,
