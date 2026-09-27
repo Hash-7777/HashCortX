@@ -2048,7 +2048,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         iter++;
 
         setStatus(`${label ? label + ' · ' : ''}Thinking…`, 'thinking');
-        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
 
         // A nudge is passed on a COPY, so it never persists into
         // conversationMsgs and colour the next user turn.

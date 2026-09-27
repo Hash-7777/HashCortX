@@ -63,7 +63,8 @@
     let text = '';
     let frame = 0;
     let done = false;
-    const tick = setInterval(() => { timeEl.textContent = elapsed(Date.now() - began); }, 1000);
+    // A line taken off the page by any other route stops its own clock.
+    const tick = setInterval(() => { if (!el.isConnected) { done = true; clearInterval(tick); return; } timeEl.textContent = elapsed(Date.now() - began); }, 1000);
 
     function paint() {
       frame = 0;

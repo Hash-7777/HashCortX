@@ -70,6 +70,13 @@ console.log('\nThe words reach it as they are written:');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
 }
 
+console.log('\nThe line never outlives its run:');
+{
+  const mode = src('modes', 'code', 'mode.js');
+  ok('a run stopped between steps takes the line with it', /if \(signal\?\.aborted\) \{ thinkEl\?\.remove\(\); throw new DOMException\('Aborted', 'AbortError'\); \}/.test(mode));
+  ok('and a line off the page stops its clock', /if \(!el\.isConnected\) \{ done = true; clearInterval\(tick\); return; \}/.test(src('js', 'code', 'live.js')));
+}
+
 console.log('\nWhat the model says before a step stays:');
 {
   const mode = src('modes', 'code', 'mode.js');
