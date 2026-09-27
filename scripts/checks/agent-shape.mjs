@@ -55,6 +55,13 @@ console.log('\nImages reach the model, and text-only messages stay simple:');
   ok('the image is carried as a data URL', out[0].content[1].image_url.url.startsWith('data:image/jpeg;base64,AAAA'));
   ok('an image with no caption still gets a prompt', A.toOpenAIVision([{ role: 'user', images: ['B'] }])[0].content[0].text.length > 0);
   ok('two images become two blocks', A.toOpenAIVision([{ role: 'user', content: 'x', images: ['A', 'B'] }])[0].content.length === 3);
+  const run = A.toOpenAIVision([
+    { role: 'user', content: 'fix the page', images: ['A'] },
+    { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'read_file', arguments: '{}' } }] },
+    { role: 'tool', tool_call_id: 'c1', name: 'read_file', content: 'x' },
+  ]);
+  ok('an agent run with a picture keeps its tool calls', run[1].tool_calls && run[1].tool_calls[0].id === 'c1');
+  ok('... and each result stays tied to its call', run[2].role === 'tool' && run[2].tool_call_id === 'c1' && run[2].content === 'x');
 
   const stripped = A.toTextOnly(msgs);
   ok('the text-only form drops images entirely', stripped.every(m => typeof m.content === 'string'));

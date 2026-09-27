@@ -54,9 +54,15 @@
    * A message with no image keeps the plain string form — some providers
    * reject a content array on a text-only message, and it reads better in a
    * log. A message WITH images becomes a text block plus one block per image.
+   * A tool call and its result keep what ties them together, so an agent
+   * run that has a picture in it is still a valid conversation.
    */
   function toOpenAIVision(messages) {
     return (messages || []).map((m) => {
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
+        return { role: 'assistant', content: m.content ?? null, tool_calls: m.tool_calls };
+      }
+      if (m.role === 'tool') return { role: 'tool', tool_call_id: m.tool_call_id, name: m.name || '', content: m.content || '' };
       if (!m.images?.length) return { role: m.role, content: m.content || '' };
       return {
         role: m.role,

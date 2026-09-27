@@ -417,6 +417,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A HashCoder run with a picture in it works on OpenAI-style providers.**
+  Once a picture was in the conversation, such as one opened with
+  view_image, every tool call and its result were sent without what ties
+  them together, and OpenAI, Groq, OpenRouter and the like refused the
+  request. They now keep it.
+
 - **HashCoder can run `npm` and its kind on Windows.** `npm`, `npx`, `yarn`
   and `pnpm` are batch files on Windows, and a command naming one without its
   extension was not found. The batch file of that name is now found on the
