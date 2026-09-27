@@ -127,5 +127,25 @@ console.log('\nReal photographs of a site\'s subject:');
   ok('a small model is not offered it', !box.window.HC.code.SMALL_MODEL_TOOLS.includes('find_photos'));
 }
 
+console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
+{
+  const box = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
+  box.HC = box.window.HC = {};
+  vm.createContext(box);
+  vm.runInContext(src('js', 'swarm', 'web-brief.js'), box, { filename: 'web-brief.js' });
+  vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
+  const W = box.window.HCSwarmWebBrief;
+  const site = box.window.HC.code.siteBrief('make a website in this folder for a diamond store called luis diamond');
+  ok('a request to build a site gets the bar', /^BUILDING THIS SITE/.test(site)
+    && ['content', 'identity', 'logo', 'firstScreen', 'works', 'motion', 'scriptClasses'].every((k) => site.includes(W.BAR[k])));
+  ok('with photographs from find_photos, credited, and files written with the file tools', /find_photos/.test(site) && /credit each one/.test(site) && /write_file/.test(site) && /patch_file/.test(site));
+  ok('and nothing of the Swarm\'s own: no fenced files, no other agents', !/fenced block/.test(site) && !/agent/i.test(site));
+  ok('a request that is not for the web gets nothing', box.window.HC.code.siteBrief('rename the helper in utils.py') === '');
+  ok('the Swarm\'s brief is built from the same lines', ['content', 'identity', 'logo', 'firstScreen', 'works', 'motion', 'scriptClasses'].every((k) => W.brief({ task: 'a landing page', siteFiles: [] }).includes(W.BAR[k])));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder puts it in its instructions for such a request, never for a small model',
+    /const site = small \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(sharedState\.siteBrief\) lines\.push\(sharedState\.siteBrief\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

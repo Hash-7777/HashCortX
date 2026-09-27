@@ -76,6 +76,18 @@
   }
 
   /** The note an agent on a web task is given, or '' for any other task. */
+  // What every site is held to, whoever builds it: the Agent Swarm's team, or
+  // HashCoder on its own (platform/tauri/hashcoder.js siteBrief).
+  const BAR = {
+    content: "- Real content for this request. Headings, copy and numbers that fit it, using every detail the request gives exactly as given. Never invent facts about the real person or business the site is for — their name, contact details, employer, projects, clients, prices or achievements. Where one is needed and not given, write a clearly marked placeholder in square brackets, such as [Your name], in the text a reader sees, and keep the rest of the copy real. Never put a placeholder inside CSS, a colour, a src or href, or script data: a browser cannot use one there. Never \"John Doe\", \"Lorem ipsum\", \"Project One\", \"A brief description of…\", or example.com.",
+    identity: "- A visual identity YOU choose for the subject — it is never a placeholder: two or three colours plus one accent (not a framework's default blue), a heading and a body font from Google Fonts, one spacing scale and one corner radius, all set once as CSS custom properties with real values. Write plain CSS in the stylesheet; do not pull in a CSS framework unless the request asks for one.",
+    logo: "- The logo is the business's name set as a wordmark in the heading font, or a small inline SVG mark drawn for it — not an image file nobody has.",
+    firstScreen: "- A first screen that says what this is and what to do next, content with real hierarchy, and a footer. It holds from a 360 px phone to a wide screen with no sideways scrolling.",
+    works: "- Everything works. Every button, link, form and toggle does something real; navigation reaches sections that exist.",
+    motion: "- Motion that helps: hover and focus states on everything that can be pressed, a light entrance or reveal on scroll, and a prefers-reduced-motion fallback.",
+    scriptClasses: "- Every class a script switches on — open, show, active and the like — has a CSS rule that changes what is seen.",
+  };
+
   function brief({ task, siteFiles, isFinalOwner, bar, images } = {}) {
     if (!isWebRun(task, siteFiles)) return '';
     const files = siteFiles && siteFiles.length ? siteFiles : DEFAULT_FILES;
@@ -90,15 +102,15 @@ ${fences}
 Never split a file across blocks and never stop in the middle of one.
 
 THE BAR FOR THE RESULT:
-- Real content for this request. Headings, copy and numbers that fit it, using every detail the request gives exactly as given. Never invent facts about the real person or business the site is for — their name, contact details, employer, projects, clients, prices or achievements. Where one is needed and not given, write a clearly marked placeholder in square brackets, such as [Your name], in the text a reader sees, and keep the rest of the copy real. Never put a placeholder inside CSS, a colour, a src or href, or script data: a browser cannot use one there. Never "John Doe", "Lorem ipsum", "Project One", "A brief description of…", or example.com.
-- A visual identity YOU choose for the subject — it is never a placeholder: two or three colours plus one accent (not a framework's default blue), a heading and a body font from Google Fonts, one spacing scale and one corner radius, all set once as CSS custom properties with real values. Write plain CSS in the stylesheet; do not pull in a CSS framework unless the request asks for one.
-- The logo is the business's name set as a wordmark in the heading font, or a small inline SVG mark drawn for it — not an image file nobody has.
-- A first screen that says what this is and what to do next, content with real hierarchy, and a footer. It holds from a 360 px phone to a wide screen with no sideways scrolling.
-- Everything works. Every button, link, form and toggle does something real; navigation reaches sections that exist.
-- Motion that helps: hover and focus states on everything that can be pressed, a light entrance or reveal on scroll, and a prefers-reduced-motion fallback.
+${BAR.content}
+${BAR.identity}
+${BAR.logo}
+${BAR.firstScreen}
+${BAR.works}
+${BAR.motion}
 - Images only as the note on images below says, each with alt text, a fixed aspect ratio, object-fit, and an onerror fallback to an inline SVG or data URI. Never an address you made up, never a local path that is not among the files, and never via.placeholder.com, placehold.it, lorempixel.com, unsplash.it or placeimg.com: those services stopped answering, so every image made from them is a broken image.
 - The finished site is code only: no reports, plans or commentary around it. Only the files named above — no server code, no config or README files, no images written out as text.
-- Every class a script switches on — open, show, active and the like — has a CSS rule that changes what is seen.
+${BAR.scriptClasses}
 
 WHAT IS CHECKED BY CODE WHEN YOU ARE DONE, so aim at it rather than at a guess:
 - Every src and href that is not a web address names one of the files above. A page linking to a page nobody wrote fails here.
@@ -125,5 +137,5 @@ Anything found is sent back to be put right, so writing it correctly the first t
     return `\n\nAND FOR THIS SITE IN PARTICULAR:\n${lines.map((l) => `- ${l}`).join('\n')}`;
   }
 
-  window.HCSwarmWebBrief = { isWebTask, isWebRun, siteFilesOf, brief, forThisSite, DEFAULT_FILES };
+  window.HCSwarmWebBrief = { isWebTask, isWebRun, siteFilesOf, brief, forThisSite, DEFAULT_FILES, BAR };
 })();

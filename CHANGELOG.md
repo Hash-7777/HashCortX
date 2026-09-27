@@ -283,6 +283,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A site HashCoder builds is held to the bar the Agent Swarm's are.**
+  Asked to build a site, HashCoder is told what the finished site must
+  have: real content for the request, a visual identity chosen for the
+  subject with its own colours, fonts and spacing, a wordmark or drawn logo,
+  a first screen that says what the site is, everything clickable working,
+  motion that helps, and photographs of the subject found with find_photos
+  and credited. Its old advice to use placeholder photographs is gone.
+
 - **HashCoder shows what it is doing while it works.** A line under its
   reply says whether it is thinking or writing and for how long, in place of
   three dots. The model's words appear as it writes them, from a model on

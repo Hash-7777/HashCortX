@@ -1979,6 +1979,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         '4. Never call tools for greetings or conversational questions — answer in plain text.',
         '5. Blocked paths: /System, /etc, /private, /usr, /bin — refuse without asking.',
       ];
+      if (sharedState.siteBrief) lines.push(sharedState.siteBrief);
       if (root) {
         lines.push(`Project root: ${root}`);
         const checks = sharedState.projectChecks?.root === root ? window.HCCodeVerify?.checksLine(sharedState.projectChecks.checks) : '';
@@ -2249,8 +2250,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const model = coderModel || window._H?.selectedModel?.() || '';
       const size = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
       const small = !!(size?.billions && size.billions < (HC?.code?.SMALL_MODEL_BILLIONS || 0));
-      if (small !== !!sharedState.small) {
-        sharedState.small = small;
+      const site = small ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
+      if (small !== !!sharedState.small || site !== (sharedState.siteBrief || '')) {
+        sharedState.small = small; sharedState.siteBrief = site;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
       }
 

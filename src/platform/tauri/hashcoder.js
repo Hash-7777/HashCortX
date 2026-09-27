@@ -777,9 +777,9 @@ BUILDING A UI:
   property's support, a library's current name.
 • Never produce a generic hero→features→CTA template. Commit to a specific visual idea
   and carry it through: type scale, spacing rhythm, one accent colour used deliberately.
-• Images: prefer CSS gradients, icons and inline SVG. When a photo is genuinely required,
-  call placeholder_images — the URLs it returns work, but they are generic stock, so say
-  so and tell the user to replace them. Never write an image URL you have not been given.
+• Images: when the site should show its subject, call find_photos and credit each photo
+  the page shows. Otherwise prefer CSS gradients, icons and inline SVG; placeholder_images
+  is generic stock, for a mock-up only. Never write an image URL you have not been given.
 • Always: descriptive alt text, explicit width/height or aspect-ratio to stop layout shift,
   visible :hover and :focus states, and a prefers-reduced-motion fallback for animation.
 
@@ -793,6 +793,23 @@ REASONING:
 • Ambiguous request → ask ONE focused clarifying question before acting.
 • After each tool call, assess the result before deciding the next step.
 • NEVER call tools for greetings, conversational replies, or questions that need no file access.`;
+
+  /**
+   * What a site HashCoder builds is held to: the bar the Agent Swarm's sites
+   * are held to (js/swarm/web-brief.js BAR), with its own way of writing files
+   * and of finding photographs, or '' when the request is not to build for
+   * the web.
+   */
+  HC.code.siteBrief = (task) => {
+    const W = window.HCSwarmWebBrief;
+    if (!W || !W.BAR || !W.isWebTask(task)) return '';
+    const b = W.BAR;
+    return ['BUILDING THIS SITE. The result is held to this bar:', b.content, b.identity, b.logo, b.firstScreen, b.works, b.motion,
+      '- Photographs of what the site is about come from find_photos: use only the addresses it gives and credit each one the page shows where a visitor can read it. Otherwise draw with CSS and inline SVG. Every image has alt text, a fixed aspect ratio and object-fit. Never an address you made up.',
+      b.scriptClasses,
+      '- Write each new file whole with write_file and change an existing one with patch_file. Before saying it is done, read the page through as a visitor would: every link, button and picture.',
+    ].join('\n');
+  };
 
   // ── A small local model ────────────────────────────────────
   //

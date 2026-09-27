@@ -685,7 +685,9 @@ const LINE_BUDGET = {
   // 2665, up one: Stop answers no to a question the run left waiting (guard.js).
   // 2651, down fourteen: the model's words as it works are drawn by
   // js/code/live.js, which replaced the waiting dots and the reasoning box.
-  'modes/code/mode.js': 2651,
+  // 2653, up two: a request to build a site puts the bar the Swarm's sites
+  // are held to into HashCoder's instructions (hashcoder.js siteBrief).
+  'modes/code/mode.js': 2653,
 };
 
 console.log('\nFile sizes go down, never up:');
