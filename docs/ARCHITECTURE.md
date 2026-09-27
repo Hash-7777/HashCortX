@@ -329,7 +329,7 @@ HashCortX/
 │   ├── ARCHITECTURE.md              (this file)
 │   ├── BRAND.md
 │   ├── SECURITY.md
-│   └── assets/                      README diagrams
+│   └── assets/                      README screenshots
 │
 ├── scripts/gen-icon.py              legacy — does NOT produce the shipped icon
 ├── MODES_GUIDE.txt

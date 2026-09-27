@@ -91,13 +91,13 @@ This is why the app reads as cool green-teal on screen even though the accent to
 
 ### Documentation art
 
-**README diagrams are monochrome** — white and grey on near-black, with emerald and rose reserved for allowed and denied. They deliberately do not follow the app palette, because the app palette is currently three palettes. Keep the docs art white until the UI colours are unified.
+**The README shows the app itself** — real screenshots, not drawings. A diagram added to the docs is monochrome: white and grey on near-black, with emerald and rose reserved for allowed and denied. It deliberately does not follow the app palette, because the app palette is currently three palettes. Keep the docs art white until the UI colours are unified.
 
 ## Typography
 
 - **UI body**: the system sans stack (`--sans`) — SF Pro on macOS.
 - **Code, terminal surfaces, modals**: JetBrains Mono, falling back to `ui-monospace`.
-- **Diagrams and the README hero**: monospace throughout.
+- **Diagrams in the docs**: monospace throughout.
 
 The claim that the entire UI is monospace is not true, and never was.
 
