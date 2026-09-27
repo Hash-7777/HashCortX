@@ -539,8 +539,30 @@
       fn: (p) => HC.code.shellRun(p.command, p.args || [], p.cwd || null, p.reason),
     },
     {
+      // Real photographs of the site's subject, by the search the Agent Swarm
+      // uses (js/swarm/photos.js), under the same setting.
+      name: 'find_photos',
+      description: 'Find real photographs of a subject for a website: openly licensed photos from Openverse, each with the credit its licence asks for. Use this, not placeholder_images, whenever a site should show its subject, such as a jewellery shop, a bakery or a hotel. Give the subject in two to four plain words. Use the addresses it returns exactly, never write any other image address, and credit each photo the page shows where a visitor can read it, such as a footer line linked to its page. When it finds none, draw the imagery with CSS or inline SVG.',
+      parameters: {
+        subject: { type: 'string', description: 'Two to four plain words, such as "diamond engagement ring"' },
+        count: { type: 'number', description: 'Optional: how many photos, 1 to 10, 6 unless given' },
+      },
+      fn: async (p) => {
+        const P = window.HCSwarmPhotos;
+        if (!P) throw new Error('find_photos is not available in this build.');
+        const draw = 'Draw the imagery with CSS or inline SVG instead, and write no image address.';
+        if (!P.allowed()) return JSON.stringify({ photos: [], note: `"Find real photos for websites" is off in Settings, or Local only is on, so no search was made. ${draw}` });
+        const { photos } = await P.find({ searches: [p.subject], fetch: (...a) => fetch(...a) });
+        const list = photos.slice(0, Math.min(Math.max(parseInt(p.count) || 6, 1), P.MAX_PHOTOS))
+          .map((x) => ({ url: x.url, title: x.title, shape: x.shape, credit: P.creditOf(x), page: x.page }));
+        return JSON.stringify(list.length
+          ? { photos: list, note: 'Real, openly licensed photographs. Use these addresses exactly. Credit each one the page shows where a visitor can read it, with its credit and a link to its page: the licence requires it.' }
+          : { photos: [], note: `No openly licensed photos were found for "${String(p.subject || '').slice(0, 60)}". Try other plain words once, or: ${draw}` });
+      },
+    },
+    {
       name: 'placeholder_images',
-      description: 'Get working placeholder image URLs for a mock-up or prototype. These are STABLE, real, loadable URLs — but they are generic placeholder photography, not pictures of the subject. Say so when you use them, and tell the user to swap in their own assets before shipping. Only call this when a layout genuinely needs a photo; a gradient, an icon or an inline SVG is usually better and always faster.',
+      description: 'Get working placeholder image URLs for a mock-up or prototype. These are STABLE, real, loadable URLs — but they are generic placeholder photography, not pictures of the subject: for photos of the subject, use find_photos. Say so when you use them, and tell the user to swap in their own assets before shipping. Only call this when a layout genuinely needs a photo; a gradient, an icon or an inline SVG is usually better and always faster.',
       parameters: {
         seed:  { type: 'string', description: 'Any word. The same seed always returns the same picture, so a rebuild does not reshuffle the page.' },
         count: { type: 'number', description: 'How many URLs (1–8, default 4)' },
@@ -649,7 +671,7 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {
@@ -718,7 +740,7 @@ TOOL ROUTING:
   a file exists only for the ones the result reports as saved.
 • Writing a date anywhere → current_datetime first. You do not know what day it is.
 • A number that ends up in code or in a message → calculate
-• A layout genuinely needs a photo → placeholder_images(seed, count). Prefer gradients, icons or inline SVG; never invent an image URL.
+• A site should show its subject (the shop's jewellery, the hotel's rooms) → find_photos(subject), and credit each photo in the footer. Only for a generic mock-up → placeholder_images(seed, count). Never invent an image URL: via.placeholder.com and source.unsplash.com no longer serve images.
 
 FILE READING:
 • read_file handles all text formats and returns readable metadata for binary files.

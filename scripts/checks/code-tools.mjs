@@ -36,7 +36,7 @@ console.log('The tool list:');
     const [k, v] = Object.entries(withSchema.parameters).find(([, x]) => x && typeof x === 'object' && x.type);
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
-  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole'];
+  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count'];
   ok('every argument is required but the ones optional by name', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k)).join();
@@ -93,6 +93,38 @@ console.log('\nWhere a command runs:');
   await HC.code.shellRun('node test\\run.js');
   ok('the app reads a Windows line as Windows does', sent[5].command === 'node' && JSON.stringify(sent[5].args) === '["test\\\\run.js"]', JSON.stringify(sent[5]));
   delete HC.code.platform;
+}
+
+console.log('\nReal photographs of a site\'s subject:');
+{
+  const box = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set, setTimeout, clearTimeout, AbortController, encodeURIComponent };
+  box.HC = box.window.HC = {};
+  let asked = [];
+  let answer = [];
+  box.fetch = async (url) => { asked.push(String(url)); return { ok: true, json: async () => ({ results: answer }) }; };
+  vm.createContext(box);
+  vm.runInContext(src('js', 'swarm', 'photos.js'), box, { filename: 'photos.js' });
+  vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
+  const tool = box.window.HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'find_photos');
+  ok('HashCoder has a tool for them', !!tool && /Openverse/.test(tool.description) && /credit/.test(tool.description));
+  const photo = (n) => ({ url: `https://live.example.org/p${n}.jpg`, title: `Diamond ring ${n}`, creator: 'A. Maker', license: 'by', license_version: '2.0', width: 1600, height: 1000, foreign_landing_url: `https://example.org/photo/${n}` });
+  answer = [photo(1), photo(2), photo(3)];
+  box.window.HCSwarmPhotos.allowed = () => true;
+  const found = JSON.parse(await tool.fn({ subject: 'diamond ring', count: 2 }));
+  ok('it searches for the subject alone, and returns the photos asked for with their credit and page',
+    asked.length === 1 && /q=diamond%20ring/.test(asked[0]) && found.photos.length === 2
+    && found.photos[0].url === 'https://live.example.org/p1.jpg' && /by A\. Maker \(CC BY 2\.0\)/.test(found.photos[0].credit) && found.photos[0].page === 'https://example.org/photo/1');
+  ok('and says they are to be used exactly and credited', /exactly/.test(found.note) && /Credit each one/.test(found.note));
+  answer = [];
+  const none = JSON.parse(await tool.fn({ subject: 'xyzzy plugh' }));
+  ok('with none found, it says to draw the imagery and write no address', none.photos.length === 0 && /write no image address/.test(none.note));
+  box.window.HCSwarmPhotos.allowed = () => false;
+  asked = [];
+  const off = JSON.parse(await tool.fn({ subject: 'diamond ring' }));
+  ok('with the setting off or Local only on, nothing is searched', asked.length === 0 && off.photos.length === 0 && /off in Settings/.test(off.note));
+  const prompt = box.window.HC.code.SYSTEM_PROMPT;
+  ok('the instructions send a site that shows its subject to it, and name the image hosts that are gone', /find_photos\(subject\)/.test(prompt) && /via\.placeholder\.com and source\.unsplash\.com no longer serve images/.test(prompt));
+  ok('a small model is not offered it', !box.window.HC.code.SMALL_MODEL_TOOLS.includes('find_photos'));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

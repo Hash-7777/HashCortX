@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder finds real photographs for a site's subject.** A new
+  find_photos tool searches Openverse for openly licensed photos, the way
+  the Agent Swarm does and under the same "Find real photos for websites"
+  setting, and hands HashCoder each photo's address and the credit its
+  licence asks for. It is told to use them for any site that shows its
+  subject, to credit each one on the page, and never to write an image
+  address of its own; two image hosts it used to reach for no longer serve
+  images, and it is told so.
+
 - **Attach files and pictures to a HashCoder request.** The paperclip in the
   box, pasting, or dropping onto HashCoder attaches a screenshot, a picture,
   a PDF, or a Markdown, text or code file. A picture goes to the model as a

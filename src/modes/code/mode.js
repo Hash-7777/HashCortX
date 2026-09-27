@@ -31,7 +31,7 @@
     search_knowledge: 'KB', execute_python: 'PYTHON',
     current_datetime: 'TIME', calculate: 'CALC',
     remember_fact: 'REMEMBER', recall_facts: 'RECALL',
-    placeholder_images: 'IMAGES',
+    placeholder_images: 'IMAGES', find_photos: 'PHOTOS',
   };
   const toolVerb = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
 
@@ -54,7 +54,7 @@
     }
     if (name === 'move_file') return `${a.from || ''} → ${a.to || ''}`;
     if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
-    return String(a.path || a.dir || a.file || a.query || a.url || a.pattern || a.expression || a.key || '');
+    return String(a.path || a.dir || a.file || a.query || a.subject || a.url || a.pattern || a.expression || a.key || '');
   }
 
   // ── Shared state ───────────────────────────────────────────
