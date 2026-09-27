@@ -64,6 +64,7 @@ ok('a call followed by a fence with nothing in it is read', one(`{"name": "web_s
   ok('... and the escapes JSON does allow keep their meaning beside it', both.length === 1 && both[0].arguments.query === '\\d and \\s and \n');
 }
 ok('calls with a code block between them are left alone', T.callsIn(`{"name": "web_search", "arguments": {}}\n${F}js\nx()\n${F}\n{"name": "web_search", "arguments": {}}`, names).length === 0);
+ok('a list of calls ending in a line of words keeps the calls', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"name": "current_datetime", "arguments": {}}\n"Done. Tests passed."', names).map((c) => c.name).join() === 'web_search,current_datetime');
 ok('a single call cut off is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a', names).length === 0);
 ok('calls in a row inside a json block, with commas between', T.callsIn(`${F}json\n{"name":"web_search","arguments":{"query":"a"}},\n{"name":"web_search","arguments":{"query":"b"}}\n${F}`, names).map((c) => c.arguments.query).join() === 'a,b');
 

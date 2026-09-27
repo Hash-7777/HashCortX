@@ -247,7 +247,10 @@
    * space, commas or semicolons, or [] when anything else is there. A small
    * model asked for its next steps often writes one call per line, and often
    * until its answer is cut off: a value that never closes can only be the
-   * end of the reply, so the values written whole before it are kept.
+   * end of the reply, so the values written whole before it are kept. Such a
+   * list may also end in a line of words, the model telling itself how it
+   * went: after two values or more, that is where the list stops. After one,
+   * words mean the value was an example, and nothing is read.
    */
   function valuesInRow(body) {
     const out = [];
@@ -255,7 +258,7 @@
     while (i < body.length) {
       while (i < body.length && /[\s,;]/.test(body[i])) i++;
       if (i >= body.length) break;
-      if (body[i] !== "{" && body[i] !== "[") return [];
+      if (body[i] !== "{" && body[i] !== "[") return out.length >= 2 ? out : [];
       const end = closing(body, i);
       if (end < 0) return out;
       try { out.push(jsonValue(body.slice(i, end + 1))); } catch { return []; }
