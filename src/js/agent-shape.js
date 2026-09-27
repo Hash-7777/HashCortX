@@ -557,14 +557,15 @@
   // `json`: the answer must be JSON — true, or the JSON schema it must match.
   // Honoured by Ollama, where the small models that most often answer in the
   // wrong shape run; a cloud model is only told so in its prompt.
-  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need }, fns, deps) {
+  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need, onText, onThinking }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
     // Gemini is the one provider whose tool list is shaped differently, and a
     // caller handing over the OpenAI array is the normal case rather than a
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
-    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}) };
+    // onText and onThinking hear the answer as it is written, where the client can say (a model on this computer).
+    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
     if (route.kind === 'gemini') return tagged(fns.gemini(base), who);

@@ -246,7 +246,7 @@
   // Session-scoped failure streak counter — models that fail 3x get demoted.
   const _routerStreaks = new Map();
 
-  async function callWithRouter(messages, tools, temperature, signal, modelOverride) {
+  async function callWithRouter(messages, tools, temperature, signal, modelOverride, live) {
     const H = window._H;
     let chain = buildRouterChain(modelOverride);
     if (!chain.length) {
@@ -268,7 +268,8 @@
         try {
           // Routing lives in app.js — one copy of which client each provider
           // needs, shared by every mode.
-          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal });
+          live?.reset?.();   // what an earlier try wrote is not this one's (js/code/live.js)
+          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking });
           // Success — reset streak, update chip, return
           _routerStreaks.set(key, 0);
           if (i > 0) setRouterChip(adapter.label, 'switched');
@@ -1133,14 +1134,9 @@
       return contentEl;
     }
 
+    /** The live line while the model works: what it is doing, how long, and its words as they arrive (js/code/live.js). */
     function appendThinking(contentEl) {
-      if (!contentEl) return null;
-      const el = document.createElement('div');
-      el.className = 'cdr-thinking';
-      el.innerHTML = '<span></span><span></span><span></span>';
-      contentEl.appendChild(el);
-      scrollMessages();
-      return el;
+      return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages }) : null;
     }
 
     /**
@@ -1379,6 +1375,7 @@
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
         if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
+        if (m.content && m.tool_calls?.length && !window.HCCodeLive.looksLikeCalls(m.content)) appendTextToBubble(reply, m.content);   // what it said before the step
         for (const c of m.tool_calls || []) {
           const fn = c.function || c, result = results.get(c.id);
           let args = fn.arguments; try { args = typeof args === 'string' ? JSON.parse(args) : args; } catch { args = {}; }
@@ -1974,7 +1971,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const lines = [
         'You are HashCoder — a precise coding agent.',
         'Rules:',
-        '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.',
+        // A small model told to write a sentence first often writes only the sentence.
+        sharedState.small ? '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.'
+          : '1. One change at a time. Before each tool call, say in one short sentence what you are doing and why; the person reads it as you work. Use tool calls for every file and shell action.',
         '2. Replies must be ≤3 short sentences unless the user asks for detail.',
         '3. Make code changes with the file tools; do not paste the code into the reply.',
         '4. Never call tools for greetings or conversational questions — answer in plain text.',
@@ -2035,7 +2034,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       let stalledIterations = 0;
       let lastStop = null;
       let thinkEl = appendThinking(contentEl);
-      let reasoningEl = null; // real-time reasoning display
 
       for (;;) {
         const verdict = policy.shouldContinue({
@@ -2059,10 +2057,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
         let turn;
         try {
-          turn = await callWithRouter(callMessages, tools, temperature, signal, coderModel);
+          turn = await callWithRouter(callMessages, tools, temperature, signal, coderModel, thinkEl);
         } catch (e) {
           thinkEl?.remove(); thinkEl = null;
-          reasoningEl?.remove(); reasoningEl = null;
           cdrTraceAdd('Error', e?.message || String(e), 'err');
           // Show error inline in the bubble
           const errDiv = document.createElement('div');
@@ -2076,19 +2073,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           scrollMessages();
           throw e;
         }
-        thinkEl?.remove(); thinkEl = null;
-
-        // Show reasoning content between iterations (model's thought process)
-        if (turn.content && turn.tool_calls?.length) {
-          if (!reasoningEl) {
-            reasoningEl = document.createElement('div');
-            reasoningEl.className = 'cdr-thinking-stream';
-            contentEl.appendChild(reasoningEl);
-          }
-          reasoningEl.innerHTML = `<div class="cdr-thinking-hd">Reasoning</div>${esc(turn.content)}`;
-          reasoningEl.classList.remove('empty');
-          scrollMessages();
-        }
+        // What the model said before a step stays in the reply, where it said it;
+        // a call written as text does not, and an answer is drawn below instead.
+        const said = turn.tool_calls?.length && turn.content && !window.HCCodeLive.looksLikeCalls(turn.content) ? turn.content : '';
+        thinkEl?.finish(said); thinkEl = null;
 
         if (turn.tool_calls?.length) {
           H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls); // always append to real history
@@ -2190,7 +2178,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
 
         // Final answer — hide reasoning, show result
-        reasoningEl?.remove(); reasoningEl = null;
         const finalText = turn.content || '';
         // Sent back when a change was written into the reply and not made, or code changed with nothing proving it (js/code/verify.js).
         const back = !proof || !finalText.trim() ? null : window.HCCodeVerify.unmadeChange(proof, messages, finalText, madeBack)
@@ -2218,7 +2205,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // The budget ran out while the model was still calling tools. Strip any
       // dangling tool turns so the next user message does not produce an
       // invalid sequence like [tool, user], which most provider APIs reject.
-      reasoningEl?.remove(); reasoningEl = null;
       thinkEl?.remove(); thinkEl = null;
       while (messages.length && messages[messages.length - 1].role === 'tool') messages.pop();
       while (messages.length && messages[messages.length - 1].role === 'assistant' &&

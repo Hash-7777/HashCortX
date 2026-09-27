@@ -274,6 +274,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder shows what it is doing while it works.** A line under its
+  reply says whether it is thinking or writing and for how long, in place of
+  three dots. With a model on this computer, its words appear as it writes
+  them, and a tool call being written shows as the next step being chosen.
+  Larger models say in a sentence what they are about to do before each
+  step, and that sentence stays in the reply above the step, including when
+  the conversation is opened again. Small models are not asked to, since a
+  sentence before a call often takes the place of the call.
+
 - **HashCoder changes the part of a file it was asked to, not the whole
   file.** Rewriting an existing file of 30 lines or more whole, and changing
   more than a fifth of it, is refused unless HashCoder says the whole file

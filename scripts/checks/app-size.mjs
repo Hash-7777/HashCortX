@@ -681,7 +681,9 @@ const LINE_BUDGET = {
   // a saved conversation is drawn as it ran, with its steps and without the
   // replies the agent was sent back from.
   // 2665, up one: Stop answers no to a question the run left waiting (guard.js).
-  'modes/code/mode.js': 2665,
+  // 2651, down fourteen: the model's words as it works are drawn by
+  // js/code/live.js, which replaced the waiting dots and the reasoning box.
+  'modes/code/mode.js': 2651,
 };
 
 console.log('\nFile sizes go down, never up:');
