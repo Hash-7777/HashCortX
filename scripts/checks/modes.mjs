@@ -125,6 +125,18 @@ console.log('\nA mode opened again is not wired again:');
     /if \(setUp\) \{[^}]*return; \}\s*setUp = true;\s*wireDom\(\);/.test(mount) && (mount.match(/wireDom\(\)/g) || []).length === 1);
 }
 
+// The chat once took on a look of its own in coding mode. HashCoder covers the
+// chat and hides it, so a rule for the chat in that mode is one nobody sees.
+console.log('\nThe chat is out of sight while HashCoder is open:');
+{
+  const code = read('modes/code/mode.js');
+  check('HashCoder hides the chat and gives it no class of its own',
+    /bodyClass:\s*"coder-mode",\s*appClass:\s*null/.test(code) && /body\.coder-mode #app \{ display: none; \}/.test(read('modes/code/mode.css')));
+  check('opening a mode takes the last one\'s classes off the chat first', /destroyRegisteredModes\(tab\);\s*clearModeClasses\(\);/.test(read('js/app.js')));
+  const styled = stylesheets(srcDir).filter((f) => /\.app\.code-mode\b/.test(read(f)));
+  check('so no stylesheet styles the chat in coding mode', !styled.length, styled.join(', '));
+}
+
 // ── 2 & 3. Registration: present, complete, and under the right id ───────
 //
 // The id a mode registers itself under is what setTab() looks up. If it drifts

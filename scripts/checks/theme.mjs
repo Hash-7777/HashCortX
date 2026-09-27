@@ -191,7 +191,9 @@ const BUDGET = {
   // the old system-stats bar, a startup meter, a project row — was removed.
   'css/modals.css': 38,
   'modes/virtual-os/mode.css': 52,
-  'css/modes.css': 46,
+  // 30, down from 46: the terminal look the chat took on in coding mode went.
+  // HashCoder hides the chat whenever it is open, so none of it could be seen.
+  'css/modes.css': 30,
   'css/main.css': 26,
   // 0, down from 26: the HashCoder panel was redrawn on the shared tokens,
   // so it follows the theme rather than carrying a palette of its own.

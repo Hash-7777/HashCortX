@@ -166,7 +166,8 @@ const IMPORTANT_BUDGET = {
   // 77, and modes.css and main.css below down with it: rules for elements
   // that no longer exist were removed, !important and all.
   'css/modals.css': 77,
-  'css/modes.css': 14,
+  // 8, down from 14: the coding-mode chat look went, which HashCoder hid.
+  'css/modes.css': 8,
   'modes/sandbox/mode.css': 14,
   // 10, not 11: one was a mention inside a comment.
   'modes/agent-maker/mode.css': 10,
