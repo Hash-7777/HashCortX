@@ -146,7 +146,8 @@ console.log('\nA change written into the reply instead of made:');
   ok('not for code only mentioned in a sentence', V.unmadeChange(log, asked('Fix it'), 'Use `n <= end` in the loop.') === null);
   const notes = [{ role: 'user', content: 'Add a --lines flag' }, { role: 'assistant', content: '' }, { role: 'user', content: `${V.APP_NOTE} run the tests` }];
   ok('the request is the person\'s, not a note from the app', V.requestIn(notes) === 'Add a --lines flag');
-  ok('a picture the agent opened is not the request', V.requestIn([...notes, { role: 'user', content: 'See the screenshot', images: ['x'] }]) === 'Add a --lines flag');
+  ok('a picture the agent opened is not the request', V.requestIn([...notes, { role: 'user', content: 'This is shot.png, the image you opened.', images: ['x'], opened: true }]) === 'Add a --lines flag');
+  ok('a request the person sent with a picture is', V.requestIn([...notes, { role: 'user', content: 'Match this screenshot', images: ['x'] }]) === 'Match this screenshot');
 }
 
 console.log('\nWhat the person is told:');

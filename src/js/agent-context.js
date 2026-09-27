@@ -182,9 +182,10 @@
     return out;
   }
 
-  // A request is a user message that carries no picture: the app adds the
-  // images an agent opened as a user message of their own, inside a request.
-  const isRequest = (m) => !!m && m.role === 'user' && !(Array.isArray(m.images) && m.images.length);
+  // A request is a user message the app did not add: the pictures an agent
+  // opened arrive as a user message of their own, marked `opened`, inside a
+  // request. A request may carry pictures the person attached.
+  const isRequest = (m) => !!m && m.role === 'user' && !m.opened;
 
   /**
    * What the model is sent of a conversation: every request of the newest

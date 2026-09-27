@@ -674,7 +674,10 @@ const LINE_BUDGET = {
   // and the steps are in platform/tauri/hashcoder.js.
   // 2650, down two: the panel's rarely used controls moved to Settings, and a
   // new conversation redraws the panel's own empty screen instead of a copy.
-  'modes/code/mode.js': 2650,
+  // 2653, up three: a request carries the files and pictures attached to it,
+  // and a saved conversation leaves the pictures out; reading, packing and the
+  // panel's attach button, paste and drop are js/code/attach.js.
+  'modes/code/mode.js': 2653,
 };
 
 console.log('\nFile sizes go down, never up:');

@@ -156,12 +156,19 @@ console.log('\nA long task keeps its request:');
   for (let i = 0; i < 14; i++) {
     msgs.push({ role: 'assistant', content: '', tool_calls: [{ id: 'v' + i, function: { name: 'view_image', arguments: '{}' } }] });
     msgs.push({ role: 'tool', tool_call_id: 'v' + i, content: 'ok' });
-    msgs.push({ role: 'user', content: 'This is shot.png, the image you opened.', images: ['QUJD'] });
+    msgs.push({ role: 'user', content: 'This is shot.png, the image you opened.', images: ['QUJD'], opened: true });
   }
   const out = compressHistory(msgs);
   const pics = out.filter((m) => m.role === 'user' && m.images);
   check('a picture opened long ago is not sent again', pics.length < 14 && pics.length > 0);
   check('a picture message is not taken for a new request', out.some((m) => m.content === 'look at the mockup') && !/Earlier in this conversation/.test(out[0].content));
+}
+{
+  const asked = (i) => ({ role: 'user', content: 'request ' + i, images: ['QUJD'] });
+  const msgs = [sys('p'), asked(1), { role: 'assistant', content: 'done' }, asked(2), { role: 'assistant', content: 'done' },
+    asked(3), { role: 'assistant', content: 'done' }, asked(4)];
+  const out = compressHistory(msgs);
+  check('a request with pictures the person attached is a request', /Earlier in this conversation[^\]]*"request 1"/.test(out[0].content) && out.some((m) => m.content === 'request 4'));
 }
 {
   const few = [sys('p'), user('a'), { role: 'assistant', content: '', tool_calls: [{ id: 'x', function: { name: 'read_file', arguments: '{"path":"/a"}' } }] }, tool('whole', 'x')];

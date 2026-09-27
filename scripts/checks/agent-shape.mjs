@@ -380,6 +380,7 @@ console.log('\nAn opened image is put in front of the model:');
   ok('it arrives as a user message', one.role === 'user')
   ok('it names the file so the model knows which is which', one.content.includes('shot.png'));
   ok('and it carries the image', one.images.length === 1);
+  ok('it is marked as the app\'s, so it is not taken for a request', one.opened === true);
 
   const many = A.visionMessage([
     { name: 'a.png', base64: 'x' }, { name: 'b.png', base64: 'y' },

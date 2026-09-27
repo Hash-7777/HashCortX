@@ -301,7 +301,7 @@
     for (let i = list.length - 1; i >= 0; i--) {
       const m = list[i];
       if (!m || m.role !== 'user' || typeof m.content !== 'string' || isAppNote(m.content)) continue;
-      if (Array.isArray(m.images) && m.images.length) continue;   // a picture the agent opened
+      if (m.opened) continue;   // pictures the agent opened, added by the app
       return m.content;
     }
     return '';

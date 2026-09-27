@@ -2941,14 +2941,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => {
     e.preventDefault();
-    const files = Array.from(e.dataTransfer.files);
+    const files = document.body.classList.contains("coder-mode") ? [] : Array.from(e.dataTransfer.files);   // HashCoder attaches its own
     const imgs = files.filter(f => f.type.startsWith("image/"));
     const docs = files.filter(f => !f.type.startsWith("image/"));
     if (imgs.length) handleImages(imgs);
     if (docs.length) handleFiles(docs);
   });
   window.addEventListener("paste", (e) => {
-    const items = Array.from(e.clipboardData?.items || []);
+    const items = document.body.classList.contains("coder-mode") ? [] : Array.from(e.clipboardData?.items || []);   // HashCoder attaches its own
     const imgs = items.filter(it => it.type.startsWith("image/")).map(it => it.getAsFile()).filter(Boolean);
     if (imgs.length) handleImages(imgs);
   });

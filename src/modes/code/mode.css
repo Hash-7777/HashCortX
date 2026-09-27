@@ -350,6 +350,29 @@ body.coder-mode #app { display: none; }
 .cdr-run-btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface-0); }
 .cdr-run-btn:hover { filter: brightness(1.08); }
 .cdr-stop-btn { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
+.cdr-input-actions { display: flex; align-items: center; gap: 6px; }
+
+/* What is attached to the next request, above the words. */
+.cdr-attach-list { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.cdr-attach-list[hidden] { display: none; }
+.cdr-attach-chip {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 280px; height: 32px; padding: 0 4px 0 6px;
+  border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-0); font-size: 12px;
+}
+.cdr-attach-chip.off { color: var(--cdr-text-muted); }
+.cdr-attach-thumb { width: 22px; height: 22px; object-fit: cover; border-radius: var(--radius-xs); flex: none; }
+.cdr-attach-icon { color: var(--cdr-text-dim); }
+.cdr-attach-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cdr-text); }
+.cdr-attach-chip.off .cdr-attach-name { color: var(--cdr-text-muted); }
+.cdr-attach-kind { flex: none; color: var(--cdr-text-muted); font-size: 11px; }
+.cdr-attach-remove {
+  width: 22px; height: 22px; display: inline-grid; place-items: center; flex: none; padding: 0;
+  border: 0; border-radius: var(--radius-xs); background: transparent; color: var(--cdr-text-muted); cursor: pointer;
+}
+.cdr-attach-remove:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-attach-remove svg { width: 12px; height: 12px; }
+.cdr-attach-left { flex-basis: 100%; color: var(--warn); font-size: 11.5px; }
+#coder-mode-wrap.cdr-dropping .cdr-input-wrap { border-color: var(--accent); border-style: dashed; }
 .cdr-hint { max-width: var(--cdr-col); margin: 8px auto 0; display: flex; justify-content: space-between; gap: 16px; color: var(--cdr-text-muted); font-size: 11.5px; }
 .cdr-model-warn { color: var(--warn); text-align: right; }
 

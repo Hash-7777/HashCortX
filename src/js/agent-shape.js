@@ -153,6 +153,8 @@
         ? `This is ${names}, the image you opened.`
         : `These are the images you opened: ${names}.`,
       images: list.map((v) => v.base64),
+      // The app's, not a request from the person, who may attach pictures of their own.
+      opened: true,
     };
   }
 

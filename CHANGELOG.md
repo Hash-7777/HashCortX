@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Attach files and pictures to a HashCoder request.** The paperclip in the
+  box, pasting, or dropping onto HashCoder attaches a screenshot, a picture,
+  a PDF, or a Markdown, text or code file. A picture goes to the model as a
+  picture, when the model can see pictures; a file goes as its text. Each
+  attachment shows as a chip you can remove before running, and the
+  conversation names what was attached. Pictures are not kept when a
+  conversation is saved. A picture or file pasted or dropped while HashCoder
+  is open no longer lands in the next chat message.
+
 - **HashCoder makes a change it wrote into its reply.** Asked to change the
   project, a model sometimes answers with the new code and changes no file.
   HashCoder is then sent back once to make the change with its file tools, or

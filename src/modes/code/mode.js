@@ -388,7 +388,7 @@
         const state = {
           projectRoot: sharedState.projectRoot,
           homeDir: sharedState.homeDir,
-          chatHistory: conversationMsgs,
+          chatHistory: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs,   // pictures are not kept
           activeFile: sharedState.activeFile,
           ts: Date.now(),
         };
@@ -462,6 +462,8 @@
       // brings back the same one.
       welcomeHtml = welcomeHtml || $('cdrMessages')?.querySelector('.cdr-welcome')?.outerHTML || '';
       wireWelcome();
+      // Files and pictures attached to the next request — js/code/attach.js.
+      window.HCCodeAttach?.mount({ panel: $('coder-mode-wrap'), input: $('cdrTaskInput'), button: $('cdrAttachBtn'), picker: $('cdrAttachInput'), list: $('cdrAttachList') });
       restoreCoderState();
       // Deliberately NOT inside restoreCoderState: that returns early when there
       // is no saved session, and a change waiting to be kept or undone has
@@ -1229,7 +1231,7 @@
       const now = new Date();
       const date = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
                    now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      const session = { id: Date.now(), title, date, msgs: conversationMsgs.slice() };
+      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice() };
       const sessions = loadSessions();
       sessions.unshift(session);
       saveSessions(sessions);
@@ -1363,7 +1365,7 @@
       for (const m of conversationMsgs) {
         if (m.role === 'user') {
           if (window.HCCodeVerify?.isAppNote(m.content)) continue;   // the app's, not the person's
-          appendUserMsg(m.content);
+          appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content);
         } else if (m.role === 'assistant' && m.content) {
           const el = appendAssistantBubble('HashCoder');
           if (el) {
@@ -2231,8 +2233,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       taskInput.value = '';
       autoResize(taskInput);
 
-      // Show user message
-      appendUserMsg(task);
+      // Show the request, with what is attached to it (js/code/attach.js).
+      const request = window.HCCodeAttach ? window.HCCodeAttach.take(task) : { content: task, images: [] };
+      appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(request.content) : task);
 
       // Auto-extract memory from user message
       try { window._H?.memAutoExtract?.(task); } catch {}
@@ -2258,7 +2261,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (!conversationMsgs.length) {
         conversationMsgs = [{ role: 'system', content: sysPrompt() }];
       }
-      conversationMsgs.push({ role: 'user', content: task });
+      conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}) });
 
       const runBtn  = $('cdrRunBtn');
       const stopBtn = $('cdrStopBtn');

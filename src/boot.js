@@ -76,6 +76,7 @@
     '/js/code/paths.js',
     '/js/code/patch.js',
     '/js/code/verify.js',
+    '/js/code/attach.js',
     '/js/code/export.js',
     '/js/export-format.js',
     '/js/rag-search.js',
