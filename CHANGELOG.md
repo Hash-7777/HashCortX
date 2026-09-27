@@ -431,6 +431,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A dropdown's arrow stays where it is under the pointer.** Hovering a
+  dropdown drawn in the app's own style cleared its arrow, which slid away
+  and vanished, in Settings and everywhere else the style is used. Only
+  the colour changes now.
+
 - **HashCoder works the same after you leave it and come back.** Opening it
   again wired every button again, so History and the terminal button toggled
   twice and seemed to do nothing, the conversation was drawn again without

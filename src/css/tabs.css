@@ -541,9 +541,10 @@
     border-radius: var(--radius-md);
     padding: 10px 12px;
     outline: none;
-    transition: border-color .15s, box-shadow .15s, background .2s;
+    transition: border-color .15s, box-shadow .15s, background-color .2s;
   }
-  .control:hover { background: rgba(0,0,0,0.5); }
+  /* The colour alone: the shorthand also cleared a select's drawn arrow, which slid away. */
+  .control:hover { background-color: rgba(0,0,0,0.5); }
   .control:focus {
     border-color: var(--gold);
     box-shadow: 0 0 0 3px rgba(34,211,238,0.15);
