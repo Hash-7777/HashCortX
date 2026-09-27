@@ -224,9 +224,8 @@
    * reply in the form the JSON would have: { choices: [{ message,
    * finish_reason }] } and whatever the event with the usage carried.
    */
-  async function openAIReply(res, { onText, onThinking, fail = (f) => Object.assign(new Error(f.message), f) } = {}) {
-    const type = (res && res.headers && typeof res.headers.get === 'function' && res.headers.get('content-type')) || '';
-    if (/event-stream/i.test(type)) {
+  async function openAIReply(res, { onText, onThinking, fail = failure } = {}) {
+    if (isStream(res)) {
       let read;
       try { read = await openAIMessage(res.body, { onText, onThinking }); }
       catch (e) { throw e && e.inBody ? fail({ message: e.message, status: e.status }) : e; }
@@ -238,9 +237,89 @@
     return data;
   }
 
+  /** Whether a response is a stream of events rather than one JSON body. */
+  const isStream = (res) => /event-stream/i.test((res && res.headers && typeof res.headers.get === 'function' && res.headers.get('content-type')) || '');
+  const failure = (f) => Object.assign(new Error(f.message), f);
+
+  /**
+   * A Gemini reply read whole: from its stream when it is one, or as JSON.
+   * Streamed, the text of every event is joined, `onText` hearing it grow
+   * and `onThinking` any thought, and every other part (a function call,
+   * with its signature) is kept as it came. Returns the form the JSON would
+   * have: { candidates: [{ content: { parts }, finishReason }], usageMetadata }.
+   */
+  async function geminiReply(res, { onText, onThinking, fail = failure } = {}) {
+    if (!isStream(res)) return res.json();
+    let text = '';
+    const others = [];
+    let finish = null;
+    let usage = null;
+    for await (const line of sseLines(res.body)) {
+      const evt = eventFromLine(line);
+      if (!evt) continue;
+      if (evt.error) throw fail({ message: String(evt.error.message || 'the provider reported an error'), status: Number(evt.error.code) || 502 });
+      if (evt.usageMetadata) usage = evt.usageMetadata;
+      const cand = evt.candidates && evt.candidates[0];
+      if (!cand) continue;
+      if (cand.finishReason) finish = cand.finishReason;
+      for (const p of (cand.content && cand.content.parts) || []) {
+        if (p.thought && typeof p.text === 'string') { if (onThinking) onThinking(p.text); }
+        else if (typeof p.text === 'string' && !p.functionCall) { text += p.text; if (onText && p.text) onText(p.text, text); }
+        else others.push(p);
+      }
+    }
+    return { candidates: [{ content: { parts: [...(text ? [{ text }] : []), ...others] }, finishReason: finish }], ...(usage ? { usageMetadata: usage } : {}) };
+  }
+
+  // The status an Anthropic error event stands for.
+  const ANTHROPIC_STATUS = { overloaded_error: 529, rate_limit_error: 429, api_error: 500, authentication_error: 401, permission_error: 403, invalid_request_error: 400 };
+
+  /**
+   * An Anthropic reply read whole: from its stream when it is one, each
+   * content block put back together by its index (a tool call's input from
+   * its pieces of JSON), or as JSON. `onText` hears the text grow and
+   * `onThinking` any thinking. Returns the form the JSON would have:
+   * { content: [blocks], stop_reason, usage }.
+   */
+  async function anthropicReply(res, { onText, onThinking, fail = failure } = {}) {
+    if (!isStream(res)) return res.json();
+    const blocks = [];
+    const usage = {};
+    let stop = null;
+    let text = '';
+    for await (const line of sseLines(res.body)) {
+      const evt = eventFromLine(line);
+      if (!evt) continue;
+      if (evt.type === 'error' || evt.error) {
+        const err = evt.error || {};
+        throw fail({ message: String(err.message || 'the provider reported an error'), status: ANTHROPIC_STATUS[err.type] || 502 });
+      }
+      if (evt.type === 'message_start' && evt.message && evt.message.usage) Object.assign(usage, evt.message.usage);
+      if (evt.type === 'content_block_start' && evt.content_block) blocks[evt.index] = { ...evt.content_block, json: '' };
+      if (evt.type === 'content_block_delta' && evt.delta) {
+        const block = blocks[evt.index] || (blocks[evt.index] = { type: 'text', text: '', json: '' });
+        const d = evt.delta;
+        if (d.type === 'text_delta') { block.text = (block.text || '') + d.text; text += d.text; if (onText) onText(d.text, text); }
+        else if (d.type === 'input_json_delta') block.json += d.partial_json || '';
+        else if (d.type === 'thinking_delta' && onThinking) onThinking(d.thinking);
+      }
+      if (evt.type === 'message_delta') {
+        if (evt.delta && evt.delta.stop_reason) stop = evt.delta.stop_reason;
+        if (evt.usage) Object.assign(usage, evt.usage);
+      }
+    }
+    const content = blocks.filter(Boolean).map(({ json, ...block }) => {
+      if (block.type !== 'tool_use' || !json) return block;
+      try { return { ...block, input: JSON.parse(json) }; } catch { return { ...block, input: {} }; }
+    });
+    return { content, stop_reason: stop, usage };
+  }
+
   window.HCStreamSSE = {
     openAIMessage,
     openAIReply,
+    geminiReply,
+    anthropicReply,
     sseLines,
     jsonLines,
     eventFromLine,

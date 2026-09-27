@@ -5764,7 +5764,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason };
   }
 
-  async function agentTurnAnthropic({ model, messages, tools, temperature, signal }) {
+  async function agentTurnAnthropic({ model, messages, tools, temperature, signal, onText, onThinking }) {
     const key = (anthropicKeyEl.value || "").trim();
     if (!key) throw new Error("Anthropic API key missing.");
     const systemMsg = HCAgentShape.systemOf(messages);
@@ -5802,7 +5802,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       model,
       messages: anthropicMessages,
       ...(systemMsg ? { system: systemMsg.content } : {}),
-      ...(typeof temperature === "number" ? { temperature } : {}),
+      ...(typeof temperature === "number" ? { temperature } : {}), ...(onText ? { stream: true } : {}),   // streamed when watched
     };
     if (tools.length) {
       body.tools = tools.map(t => ({
@@ -5820,7 +5820,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       signal
     });
     if (!r.ok) throw await httpFailure("anthropic", r);
-    const data = await r.json();
+    const data = await window.HCStreamSSE.anthropicReply(r, { onText, onThinking, fail: (f) => HCProviders.bodyFailure("anthropic", f) });   // js/stream/sse.js
     const contentBlocks = data.content || [];
     let text = "";
     const toolCalls = [];
@@ -5844,7 +5844,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     };
   }
 
-  async function agentTurnGemini({ model, messages, tools, temperature, signal }) {
+  async function agentTurnGemini({ model, messages, tools, temperature, signal, onText, onThinking }) {
     const key = (geminiKeyEl.value || "").trim();
     if (!key) throw new Error("Google AI Studio key missing.");
     // Translate OpenAI-style messages → Gemini contents.
@@ -5890,10 +5890,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
       ...(tools.length ? { tools } : {})
     });
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${onText ? "streamGenerateContent?alt=sse&" : "generateContent?"}key=${encodeURIComponent(key)}`;   // streamed when watched
     const r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
     if (!r.ok) throw await httpFailure("gemini", r);
-    const data = await r.json();
+    const data = await window.HCStreamSSE.geminiReply(r, { onText, onThinking, fail: (f) => HCProviders.bodyFailure("gemini", f) });   // js/stream/sse.js
     const parts = data.candidates?.[0]?.content?.parts || [];
     let textOut = "";
     const calls = [];

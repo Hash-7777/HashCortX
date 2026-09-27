@@ -297,5 +297,48 @@ console.log('\nA streamed reply with tool calls is put back together:');
   ok('a failure in either is thrown as the caller judges it', failed && failed.message === 'judged' && failed.status === 402);
 }
 
+console.log('\nGemini and Anthropic streams are put back together too:');
+{
+  const ev = (o) => `data: ${JSON.stringify(o)}\n\n`;
+  const headers = { get: (k) => (k === 'content-type' ? 'text/event-stream' : null) };
+  const gemini = [
+    ev({ candidates: [{ content: { parts: [{ text: 'Reading ' }] } }] }),
+    ev({ candidates: [{ content: { parts: [{ text: 'it.' }, { functionCall: { name: 'read_file', args: { path: '/p/a.js' } }, thoughtSignature: 'sig' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 9, candidatesTokenCount: 4 } }),
+  ].join('');
+  for (const [how, chunks] of Object.entries(chunkings(gemini))) {
+    const heard = [];
+    const g = await S.geminiReply({ headers, body: bodyOf(chunks) }, { onText: (p, all) => heard.push(all) });
+    const parts = g.candidates[0].content.parts;
+    ok(`Gemini, ${how}: the text joined, the call kept with its signature, the usage kept`,
+      parts[0].text === 'Reading it.' && parts[1].functionCall.args.path === '/p/a.js' && parts[1].thoughtSignature === 'sig'
+      && g.usageMetadata.candidatesTokenCount === 4 && heard.at(-1) === 'Reading it.');
+  }
+  let gFail = null;
+  try { await S.geminiReply({ headers, body: bodyOf([enc.encode(ev({ error: { code: 429, message: 'quota' } }))]) }); } catch (e) { gFail = e; }
+  ok('a Gemini failure in the stream is thrown with its status', gFail && gFail.status === 429);
+  const anthropic = [
+    ev({ type: 'message_start', message: { usage: { input_tokens: 12 } } }),
+    ev({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+    ev({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading it.' } }),
+    ev({ type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'tu1', name: 'read_file', input: {} } }),
+    ev({ type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '{"path":' } }),
+    ev({ type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: '"/p/a.js"}' } }),
+    ev({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 7 } }),
+    ev({ type: 'message_stop' }),
+  ].join('');
+  for (const [how, chunks] of Object.entries(chunkings(anthropic))) {
+    const heard = [];
+    const a = await S.anthropicReply({ headers, body: bodyOf(chunks) }, { onText: (p, all) => heard.push(all) });
+    ok(`Anthropic, ${how}: the text block, the tool call with its input, the stop and the usage`,
+      a.content[0].text === 'Reading it.' && a.content[1].type === 'tool_use' && a.content[1].id === 'tu1' && a.content[1].input.path === '/p/a.js'
+      && !('json' in a.content[1]) && a.stop_reason === 'tool_use' && a.usage.input_tokens === 12 && a.usage.output_tokens === 7 && heard.at(-1) === 'Reading it.');
+  }
+  let aFail = null;
+  try { await S.anthropicReply({ headers, body: bodyOf([enc.encode(ev({ type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }))]) }); } catch (e) { aFail = e; }
+  ok('an Anthropic failure in the stream is thrown with the status its kind stands for', aFail && aFail.status === 529);
+  const whole = { headers: { get: () => 'application/json' }, json: async () => ({ content: [{ type: 'text', text: 'hi' }] }) };
+  ok('a reply that was not streamed is read as JSON by both', (await S.anthropicReply(whole)).content[0].text === 'hi');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js, src/js/stream/first-sign.js)`);
 process.exit(fail ? 1 : 0);

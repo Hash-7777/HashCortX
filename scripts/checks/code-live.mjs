@@ -60,6 +60,12 @@ console.log('\nThe words reach it as they are written:');
   ok('an OpenAI-shaped provider streams when someone watches, and answers whole when not',
     /async function agentTurnOpenAI\(\{[^}]*onText, onThinking \}\)/.test(openai) && /stream: !!onText/.test(openai)
     && /HCStreamSSE\.openAIReply\(r, \{ onText, onThinking, fail:/.test(openai));
+  const gemini = app.slice(app.indexOf('async function agentTurnGemini'), app.indexOf('// Pick the right adapter'));
+  ok('so does Gemini', /agentTurnGemini\(\{[^}]*onText, onThinking \}\)/.test(gemini) && /onText \? "streamGenerateContent\?alt=sse&" : "generateContent\?"/.test(gemini)
+    && /HCStreamSSE\.geminiReply\(r, \{ onText, onThinking, fail:/.test(gemini));
+  const anthropic = app.slice(app.indexOf('async function agentTurnAnthropic'), app.indexOf('async function agentTurnGemini'));
+  ok('and Anthropic', /agentTurnAnthropic\(\{[^}]*onText, onThinking \}\)/.test(anthropic) && /\.\.\.\(onText \? \{ stream: true \} : \{\}\)/.test(anthropic)
+    && /HCStreamSSE\.anthropicReply\(r, \{ onText, onThinking, fail:/.test(anthropic));
   const boot = src('boot.js');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
 }
