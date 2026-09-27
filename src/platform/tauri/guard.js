@@ -211,6 +211,10 @@
   // set going. A question always wins — an unanswered request is the only thing
   // that blocks — and the working state comes back when the question is gone.
   let _asking = false;
+  // Stop answers what is waiting (denyWaiting): the question open now, and
+  // every one queued before it, which is then never shown.
+  let _denyOpen = null;
+  let _generation = 0;
   let _busy = [];
 
   function paintBar() {
@@ -269,6 +273,7 @@
 
       function cleanup(choice) {
         _asking = false;
+        _denyOpen = null;
         bar.classList.remove('open');
         // A fetch already running keeps the bar; otherwise it goes.
         paintBar();
@@ -283,6 +288,7 @@
       const onOnce    = () => cleanup('allow-once');
       const onSession = () => cleanup('allow-session');
       const onDeny    = () => cleanup('deny');
+      _denyOpen = () => cleanup('stopped');   // answered by Stop, not by the person
       onceBtn.addEventListener('click', onOnce);
       sessBtn.addEventListener('click', onSession);
       denyBtn.addEventListener('click', onDeny);
@@ -470,6 +476,16 @@
       return _projectRoot;
     },
 
+    /**
+     * Answer no to every question waiting: the one open now, and those queued
+     * behind it, which are never shown. Called when a run is stopped, so an
+     * Allow pressed afterwards cannot start what the stopped run asked for.
+     */
+    denyWaiting() {
+      _generation++;
+      if (_denyOpen) _denyOpen();
+    },
+
       // Request permission for an action. Returns true if approved.
     async request(action, target, reason = '') {
       // Hard-blocked — reject immediately, no dialog
@@ -497,11 +513,18 @@
       // find none, and queue a dialog. The user then answers "allow for
       // session" and is asked twice more for a folder they just granted.
       // Deciding on entry means a grant made while a request waited is honoured.
+      const generation = _generation;
       return _enqueue(async () => {
+        // Asked for before a Stop: the run that wanted it is over.
+        if (generation !== _generation) {
+          auditLog('deny-stopped', action, target);
+          return false;
+        }
         if (ASKED_EVERY_TIME.has(action)) {
           const once = await showDialog(action, target, reason);
-          auditLog(once === 'deny' ? 'deny' : 'allow-once', action, target);
-          return once !== 'deny';
+          const allowed = once === 'allow-once' || once === 'allow-session';
+          auditLog(allowed ? 'allow-once' : once === 'stopped' ? 'deny-stopped' : 'deny', action, target);
+          return allowed;
         }
         if (_session.has(key)) {
           const prev = _session.get(key);
@@ -520,6 +543,11 @@
         }
 
         const choice = await showDialog(action, target, reason);
+        // Stopped: no, this once, and not remembered, since the person did not answer.
+        if (choice === 'stopped') {
+          auditLog('deny-stopped', action, target);
+          return false;
+        }
         auditLog(choice, action, target);
 
         if (choice === 'allow-session') {

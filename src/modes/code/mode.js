@@ -2412,6 +2412,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     function stopRun() {
       if (runAbort) { runAbort.abort(); runAbort = null; }
+      HC?.guard?.denyWaiting?.();   // a question the run left waiting is answered no
       // A command still going would hold the run until it finished; end it,
       // and anything it started, now.
       const key = HC?.code?.shellCancelKey;

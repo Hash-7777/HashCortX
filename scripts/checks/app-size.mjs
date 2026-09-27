@@ -680,7 +680,8 @@ const LINE_BUDGET = {
   // 2664, up eleven: HashCoder is wired once however often it is opened, and
   // a saved conversation is drawn as it ran, with its steps and without the
   // replies the agent was sent back from.
-  'modes/code/mode.js': 2664,
+  // 2665, up one: Stop answers no to a question the run left waiting (guard.js).
+  'modes/code/mode.js': 2665,
 };
 
 console.log('\nFile sizes go down, never up:');

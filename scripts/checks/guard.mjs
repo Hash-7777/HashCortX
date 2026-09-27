@@ -682,5 +682,30 @@ console.log('\nA connected system\'s records:');
   answer = 'allow-once';
 }
 
+console.log('\nStop answers what is waiting:');
+{
+  answer = 'allow-once';
+  answerDelay = 200;   // the person has not answered yet when Stop is pressed
+  const shownBefore = dialogsShown;
+  const open = guard.request('shell', 'npm test (in /p)', 'Run the tests');
+  const queued = guard.request('shell', 'rm -r build (in /p)', 'Clean');
+  await new Promise((r) => setTimeout(r, 10));
+  guard.denyWaiting();
+  const [first, second] = await Promise.all([open, queued]);
+  assert('the question open when Stop is pressed is answered no', first === false);
+  assert('... and one queued behind it is answered no without being shown', second === false && dialogsShown === shownBefore + 1);
+  await new Promise((r) => setTimeout(r, 250));   // the late click lands on a closed bar
+  answerDelay = 0;
+  answerDelay = 200;
+  const change = guard.request('erp-change', 'Company ERP (erp.example.org) · update_record', '{}');
+  await new Promise((r) => setTimeout(r, 10));
+  guard.denyWaiting();
+  assert('a change asked about every time is answered no by Stop too', (await change) === false);
+  await new Promise((r) => setTimeout(r, 250));
+  answerDelay = 0;
+  await check('a question asked after the Stop is asked as usual', () => guard.request('shell', 'npm test (in /p)', 'Run the tests'), { allowed: true, asked: true });
+  assert('the Coder\'s Stop does it', /function stopRun\(\) \{[^}]*\}\s*HC\?\.guard\?\.denyWaiting\?\.\(\);/.test(readFileSync(new URL('../../src/modes/code/mode.js', import.meta.url), 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

@@ -197,7 +197,7 @@ From `src-tauri/src/commands/shell.rs`:
 
 **Stopping an agent run ends its commands.** Every command an agent run starts carries that run's key, and pressing Stop ends each one still going. Commands you type in the terminal carry none, so stopping an agent never ends them.
 
-Ending a command, at its time limit or by Stop, ends what it started too: it runs in a process group of its own on macOS and Linux, and as a process tree on Windows. Honest limit: a process that deliberately leaves its group, as a daemon does, is not followed. This is a time limit and a stop, not a process supervisor.
+Stopping a HashCoder run answers no to any permission question it left waiting, and to those queued behind it, so an Allow pressed afterwards starts nothing; that no is not remembered. Ending a command, at its time limit or by Stop, ends what it started too: it runs in a process group of its own on macOS and Linux, and as a process tree on Windows. Honest limit: a process that deliberately leaves its group, as a daemon does, is not followed. This is a time limit and a stop, not a process supervisor.
 
 ### Where the agent's fetch tool may go
 

@@ -182,6 +182,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **Stop answers what a HashCoder run left waiting.** A permission question
+  still open when you press Stop, and any queued behind it, is answered no,
+  so pressing Allow afterwards starts nothing. The no is not remembered for
+  the session.
+
 - **A command HashCoder runs without naming a folder starts in the folder you
   opened.** The app fills the folder in, and Rust does the same on its own
   side.
