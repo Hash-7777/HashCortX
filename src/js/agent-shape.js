@@ -233,10 +233,17 @@
   /**
    * What Ollama is sent: a call's arguments as an object, which is how it reads
    * them, where the conversation keeps the string the cloud APIs send.
+   *
+   * A turn that made calls goes with its calls and without the words said
+   * beside them. Several local models' templates write a past turn as either
+   * its words or its calls, never both, and the words win: the model then
+   * read its own steps as sentences followed by results, wrote the next one
+   * as a sentence too, and stopped with nothing done. The words stay in the
+   * conversation, where the person reads them.
    */
   function forOllama(messages) {
-    return withoutSignatures(messages).map((m) => (Array.isArray(m.tool_calls)
-      ? { ...m, tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) }
+    return withoutSignatures(messages).map((m) => (Array.isArray(m.tool_calls) && m.tool_calls.length
+      ? { ...m, content: '', tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) }
       : m));
   }
 

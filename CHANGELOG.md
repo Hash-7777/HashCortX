@@ -470,6 +470,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A model on your computer sees its own steps.** Several local models'
+  templates show a past turn as either its words or its tool calls, never
+  both, and the words won: a model that said what it was about to do before
+  a step then saw its steps as sentences followed by results, answered with
+  a sentence too, and stopped with nothing done. A step now goes back to a
+  local model as its calls alone; what was said stays in the conversation,
+  where you read it.
+
 - **A dropdown's arrow stays where it is under the pointer.** Hovering a
   dropdown drawn in the app's own style cleared its arrow, which slid away
   and vanished, in Settings and everywhere else the style is used. Only

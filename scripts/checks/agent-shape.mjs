@@ -157,6 +157,13 @@ console.log('\nA tool call a local model wrote as text is run as one:');
   A.appendAssistantToolCallTurn(sent, '', [{ id: 'c1', name: 'execute_python', arguments: { code: '3' }, thoughtSignature: 's' }]);
   const shaped = A.forOllama(sent)[0].tool_calls[0];
   ok('Ollama is sent a call\'s arguments as an object, which is how it reads them, and no signature', shaped.function.arguments.code === '3' && !('thoughtSignature' in shaped));
+  const said = [{ role: 'user', content: 'Add slugify' }];
+  A.appendAssistantToolCallTurn(said, 'I will read src/text.js first.', [{ id: 'c2', name: 'read_file', arguments: { path: '/p/src/text.js' } }]);
+  said.push({ role: 'assistant', content: 'Added slugify.' });
+  const out = A.forOllama(said);
+  ok('a turn that made calls is sent with its calls and without its words, which some templates show in place of the calls',
+    out[1].content === '' && out[1].tool_calls[0].function.name === 'read_file' && out[1].tool_calls[0].function.arguments.path === '/p/src/text.js');
+  ok('... while the conversation keeps the words, and an answer is sent as it is', said[1].content === 'I will read src/text.js first.' && out[2].content === 'Added slugify.' && out[0].content === 'Add slugify');
   const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
   const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
   ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
