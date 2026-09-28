@@ -184,8 +184,11 @@
 
   // A request is a user message the app did not add: the pictures an agent
   // opened arrive as a user message of their own, marked `opened`, inside a
-  // request. A request may carry pictures the person attached.
-  const isRequest = (m) => !!m && m.role === 'user' && !m.opened;
+  // request, and so does a note sending the agent back before it finishes,
+  // marked `note`: counted as requests, three notes in one run rolled the
+  // person's own request away. A request may carry pictures the person
+  // attached.
+  const isRequest = (m) => !!m && m.role === 'user' && !m.opened && !m.note;
 
   /**
    * What the model is sent of a conversation: every request of the newest

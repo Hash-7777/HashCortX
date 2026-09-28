@@ -164,6 +164,17 @@ console.log('\nA long task keeps its request:');
   check('a picture message is not taken for a new request', out.some((m) => m.content === 'look at the mockup') && !/Earlier in this conversation/.test(out[0].content));
 }
 {
+  const msgs = [sys('p'), user('Fix the loop in range.js'), { role: 'assistant', content: '', tool_calls: [{ id: 'r', function: { name: 'read_file', arguments: '{"path":"/p/range.js"}' } }] }, tool('function range() {}', 'r')];
+  for (const why of ['no file in the project was changed', 'no test has run since', 'check your work against the request']) {
+    msgs.push({ role: 'assistant', content: 'Done.' }, { role: 'user', content: 'Note from HashCortX, not from the person: ' + why, note: true });
+  }
+  const out = compressHistory(msgs);
+  check('a note sending the agent back is not taken for a new request, however many there are',
+    out.some((m) => m.content === 'Fix the loop in range.js') && out.some((m) => m.role === 'tool') && !/Earlier in this conversation/.test(out[0].content));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('the note is marked where HashCoder adds it, and so is a nudge from the step budget', /\{ role: 'user', content: back\.message, note: true \}/.test(mode) && /\{ role: 'user', content: verdict\.nudge, note: true \}/.test(mode));
+}
+{
   const asked = (i) => ({ role: 'user', content: 'request ' + i, images: ['QUJD'] });
   const msgs = [sys('p'), asked(1), { role: 'assistant', content: 'done' }, asked(2), { role: 'assistant', content: 'done' },
     asked(3), { role: 'assistant', content: 'done' }, asked(4)];

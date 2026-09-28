@@ -2053,7 +2053,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // A nudge is passed on a COPY, so it never persists into
         // conversationMsgs and colour the next user turn.
         const baseMsgs = verdict.nudge
-          ? [...messages, { role: 'user', content: verdict.nudge }]
+          ? [...messages, { role: 'user', content: verdict.nudge, note: true }]
           : messages;
         const callMessages = compressHistory(baseMsgs);
 
@@ -2187,7 +2187,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           || (cdrPrefs().prove !== false ? window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, finalText, sentBack) : null);
         if (back) {
           if (back.kind === 'make') madeBack++; else sentBack++;
-          messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message });
+          messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
           appendStep(contentEl, { verb: 'CHECK', object: back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
           thinkEl = appendThinking(contentEl);

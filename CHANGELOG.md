@@ -475,6 +475,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder keeps your request in view however often it is sent back.**
+  When a long conversation was shortened for the model, HashCoder's own
+  notes sending the agent back before finishing were counted as requests,
+  and after three of them your request and the first steps were left out
+  of what the model saw. The notes are marked as HashCoder's and no longer
+  count.
+
 - **A test that could not run is not a failed test.** A command that
   found no test script in the project, or no program by that name, was
   read as a test that failed after HashCoder's change, and it was sent back
