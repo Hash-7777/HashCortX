@@ -218,6 +218,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **The desktop side's libraries are up to date with their fixes.** Three
+  libraries it is built with, among them the XML reader under the one that
+  reads property-list files, are updated to the versions their published
+  advisories name as fixed.
 - **Stop answers what a HashCoder run left waiting.** A permission question
   still open when you press Stop, and any queued behind it, is answered no,
   so pressing Allow afterwards starts nothing. The no is not remembered for
