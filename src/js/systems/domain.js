@@ -49,19 +49,28 @@
     // and names both, but keeps no menu and no dining tables. Selling or
     // supplying TO other businesses is what makes one, however it is put.
     if (/wholesal|distributor|\bdistribution\b|\bb2b\b|cash[- ]and[- ]carry/.test(d) || SELLS_TO_TRADE.test(d)) return "wholesale";
-    if (/pizza|burger|restaurant|cafe|dine|bistro|grill|kitchen|food|eatery|brasserie|canteen/.test(d)) return "restaurant";
-    if (/hotel|resort|hostel|motel|lodge|hospitality|booking|accommodation/.test(d)) return "hotel";
+    // A courier or a freight firm names the places it delivers to, shops and
+    // restaurants among them, and is still a carrier.
+    if (/\bcouriers?\b|logistics|\bfreight\b|haulage/.test(d)) return "logistics";
+    if (/pizza|burger|restaurant|cafe|dine|bistro|grill|kitchen|food|eatery|brasserie|canteen|bakery|bakeries|patisserie|coffee/.test(d)) return "restaurant";
+    // Words are matched whole where a short one hides in longer ones: "hr" in
+    // "three", "gem" in "management", "law" in "lawn", "spa" in "space". A
+    // booking is not a hotel's alone: a clinic or a salon takes them too.
+    if (/hotel|resort|hostel|motel|\blodges?\b|hospitality|accommodation/.test(d)) return "hotel";
     if (/clinic|medical|hospital|healthcare|doctor|patient|pharmacy|health/.test(d)) return "healthcare";
-    if (/school|student|university|college|course|class|education|academy/.test(d)) return "education";
-    if (/gym|fitness|wellness|spa|yoga|sport|training|club/.test(d)) return "fitness";
-    if (/real estate|property|rent|lease|agent|realty|housing|mortgage/.test(d)) return "realestate";
-    if (/retail|shop|ecommerce|e-commerce|store|boutique|fashion|clothing/.test(d)) return "retail";
+    if (/school|student|university|college|\bcourses?\b|\bclass(?:es)?\b|education|academy/.test(d)) return "education";
+    if (/\bgyms?\b|fitness|wellness|\bspas?\b|yoga|pilates|\bsports?\b|personal train/.test(d)) return "fitness";
+    if (/real estate|\bpropert(?:y|ies)\b|\brent(?:al|als|s|ing)?\b|\blease|\bletting|realty|housing|mortgage/.test(d)) return "realestate";
+    // A jewellery shop and a machine shop are shops of their own kind.
+    if (/\bjewel|\bgold\b|\bgems?\b|gemstone|diamond/.test(d)) return "jewelry";
+    if (/machine shop|metal shop|fabrication shop/.test(d)) return "manufacturing";
+    if (/retail|shop|ecommerce|e-commerce|store|boutique|fashion|clothing|apparel/.test(d)) return "retail";
     if (/logistics|delivery|transport|shipping|courier|fleet|truck|supply chain/.test(d)) return "logistics";
-    if (/manufactur|factory|production|assembly|plant|machining/.test(d)) return "manufacturing";
-    if (/hr|human resource|payroll|employee|staff management|talent|recruit/.test(d)) return "hr";
-    if (/law|legal|firm|contract|case|attorney|counsel/.test(d)) return "legal";
-    if (/jewel|gold|gem|diamond|luxury/.test(d)) return "jewelry";
-    if (/saas|software|tech|startup|product|app/.test(d)) return "saas";
+    if (/manufactur|factory|production|assembly|machining/.test(d)) return "manufacturing";
+    if (/\bhr\b|human resources?|payroll|employee (?:management|records|portal)|staff management|talent|recruit/.test(d)) return "hr";
+    if (/\blaw\b|\blawyers?\b|legal|attorney|\bcounsel\b|solicitor|\bcases?\b|\bcontracts?\b/.test(d)) return "legal";
+    if (/luxury/.test(d)) return "jewelry";
+    if (/saas|software|\btech\b|technology|startup|\bproducts?\b|\bapps?\b/.test(d)) return "saas";
     return "generic";
   }
 

@@ -498,6 +498,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An ERP is built for the right kind of business more often.** Short words
+  were found inside longer ones, so a lawn-care company was set up as a law
+  practice, "event management" as a jewellers and a candle maker "with three
+  kinds" as a human resources office; a consulting firm or a building
+  contractor was taken for a law firm, a coworking space for a gym, and a
+  clinic that takes bookings for a hotel. A courier that delivers to shops
+  is a carrier, a jewellery or diamond shop and a machine shop are shops of
+  their own kind, and a bakery serves food.
+
 - **A tool that answered with a failure is not counted as done.** In chat,
   a tool that said it failed rather than stopping with an error was marked
   with a tick and recorded as a success: a memory save that saved nothing

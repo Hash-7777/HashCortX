@@ -63,6 +63,18 @@ console.log('\nA description is placed in an industry, or honestly in none:');
   // Nothing recognised has to be its own answer rather than the first one on
   // the list — guessing "restaurant" for a description about beekeeping would
   // furnish the whole system wrongly.
+  ok('a carrier is logistics whatever it delivers to', D.detectDomain('a courier that delivers parcels to shops and restaurants') === 'logistics' && D.detectDomain('a freight company') === 'logistics');
+  ok('a jewellery shop and a machine shop are shops of their own kind', D.detectDomain('a jewellery store') === 'jewelry' && D.detectDomain('a diamond shop') === 'jewelry' && D.detectDomain('a machine shop') === 'manufacturing'
+    && D.detectDomain('a shoe store') === 'retail');
+  ok('a bakery serves food', D.detectDomain('a bakery with five employees') === 'restaurant');
+  ok('a booking alone does not make a hotel', D.detectDomain('a dental clinic with online booking') === 'healthcare' && D.detectDomain('a hair salon that takes bookings') !== 'hotel');
+  // A short word hides inside longer ones, and a hit there furnishes the whole
+  // system for the wrong trade.
+  const hidden = { 'a candle maker with three kinds of candles': 'hr', 'a lawn care company': 'legal', 'a consulting firm': 'legal', 'a building contractor': 'legal',
+    'a coworking space': 'fitness', 'classic car restoration': 'education', 'a happy hour bar': 'saas', 'event management company': 'jewelry',
+    'inventory management for a warehouse': 'jewelry', 'a plant nursery': 'manufacturing' };
+  const wrong = Object.entries(hidden).filter(([said, not]) => D.detectDomain(said) === not);
+  ok('a word hidden inside another one decides nothing', !wrong.length, wrong.map(([said]) => said).join('; '));
   ok('something it does not recognise is generic',
     D.detectDomain('beekeeping cooperative') === 'generic');
   ok('and so is nothing at all',
