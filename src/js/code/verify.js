@@ -224,8 +224,12 @@
    * nothing either way, and reading it as a failed test sent the agent back to
    * fix a failure its change never caused.
    */
-  const neverRan = (result) => result.code === 127
-    || /\bMissing script\b|\bcommand not found\b|\berror Command "[^"]+" not found\b/i.test(`${result.stderr || ''}\n${result.stdout || ''}`);
+  // The shell's own words for a program that is not there begin a line; the
+  // same words inside a test's output are the test's business.
+  const NOT_THERE = /^(?:[\w./-]+: )?(?:line \d+: )?(?:[\w./-]+: )?command not found\b|^(?:zsh|bash|sh): command not found: |is not recognized as an internal or external command/im;
+  const neverRan = (result) => result.code === 127 || result.code === 9009   // 9009: Windows' cmd found no such program
+    || /\bMissing script\b|\berror Command "[^"]+" not found\b/i.test(`${result.stderr || ''}\n${result.stdout || ''}`)
+    || NOT_THERE.test(String(result.stderr || ''));
 
   /**
    * A record of one run: the files changed, and every check run with what it

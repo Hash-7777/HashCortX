@@ -129,6 +129,10 @@ console.log('\nWhen the agent is sent back:');
     && log.ran('pnpm', ['test'], { code: 1, stderr: 'ERR_PNPM_NO_SCRIPT  Missing script: test' }) === null
     && log.ran('yarn', ['test'], { code: 1, stderr: 'error Command "test" not found.' }) === null && log.checks.length === 1);
   ok('nor one whose program is not there', log.ran('pytest', [], { code: 127, stderr: 'zsh: command not found: pytest' }) === null && log.checks.length === 1);
+  ok('... in the words of each shell, Windows\' included', log.ran('pytest', [], { code: 1, stderr: 'bash: pytest: command not found' }) === null
+    && log.ran('jest', [], { code: 1, stderr: "'jest' is not recognized as an internal or external command,\noperable program or batch file." }) === null
+    && log.ran('npm', ['test'], { code: 9009, stderr: '' }) === null && log.checks.length === 1);
+  ok('while a test whose own output says so is a test that failed', log.ran('npm', ['test'], { code: 1, stdout: 'not ok 2 - says "command not found" for an unknown flag', stderr: '  expected: command not found' }) !== null && log.checks.length === 2);
 
   const told = V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/stats.py'); return l; })(), { test: 'python3 -m unittest' }, 'Done.');
   ok('told to run the tests, it is given the call that runs them', /Run `python3 -m unittest` now with shell_run: command "python3", args \["-m","unittest"\]/.test(told?.message || ''), told?.message);
