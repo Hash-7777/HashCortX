@@ -59,8 +59,39 @@ console.log('\nA small local model:');
   ok('its instructions name no tool it is not given', named.length > 0 && named.every((n) => HC.code.SMALL_MODEL_TOOLS.includes(n)), named.join());
   ok('its instructions carry the rule about text from tools', HC.code.SMALL_MODEL_PROMPT.includes(HC.code.TOOL_TEXT_RULE));
   const mode = src('modes', 'code', 'mode.js');
-  ok('the Coder gives it only those tools and those instructions', /HC\.code\.SMALL_MODEL_TOOLS\.includes/.test(mode) && /sharedState\.small \? HC\?\.code\?\.SMALL_MODEL_PROMPT/.test(mode));
-  ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode));
+  const list = HC.code.toolList();
+  ok('the Coder gives it only those tools and those instructions',
+    HC.code.toolsFor('small', list, 'a site').map((t) => t.function.name).sort().join() === [...HC.code.SMALL_MODEL_TOOLS].sort().join() && HC.code.promptFor('small') === HC.code.SMALL_MODEL_PROMPT
+    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), sharedState\.siteBrief\);/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
+  ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode) && /const size = HC\?\.code\?\.sizeOf\?\.\(info\?\.billions\) \|\| 'full';/.test(mode));
+}
+
+console.log('\nThe size of a model decides how HashCoder is set up for it:');
+{
+  const sizes = [[null, 'full'], [undefined, 'full'], [0, 'full'], [1.5, 'small'], [3.1, 'small'], [4.9, 'small'], [5, 'mid'], [7.6, 'mid'], [14.8, 'mid'], [15, 'full'], [32, 'full']];
+  ok('under 5 billion small, under 15 mid-sized, larger or unknown given everything', sizes.every(([b, want]) => HC.code.sizeOf(b) === want),
+    sizes.filter(([b, want]) => HC.code.sizeOf(b) !== want).map(([b]) => b).join());
+  const list = HC.code.toolList();
+  ok('a larger model is offered every tool and the full instructions', HC.code.toolsFor('full', list, '') === list && HC.code.promptFor('full') === HC.code.SYSTEM_PROMPT);
+}
+
+console.log('\nA mid-sized local model:');
+{
+  const names = HC.code.TOOL_DEFINITIONS.map((t) => t.name);
+  const list = HC.code.toolList();
+  const offered = (site) => HC.code.toolsFor('mid', list, site).map((t) => t.function.name);
+  ok('every tool it is offered exists', HC.code.MID_MODEL_TOOLS.every((n) => names.includes(n)));
+  ok('it has a small model\'s tools, and pictures', HC.code.SMALL_MODEL_TOOLS.every((n) => offered('').includes(n)) && offered('').includes('view_image'));
+  ok('photographs only when it builds a site', !offered('').includes('find_photos') && offered('BUILDING THIS SITE').includes('find_photos'));
+  const prompt = HC.code.promptFor('mid');
+  const named = [...prompt.matchAll(/\b([a-z]+_[a-z_]+)\b/g)].map((m) => m[1]).filter((n) => names.includes(n));
+  ok('its instructions name no tool it is not given', named.length > 0 && named.every((n) => offered('').includes(n)), named.join());
+  ok('its instructions carry the rule about text from tools', prompt.includes(HC.code.TOOL_TEXT_RULE));
+  ok('its steps end by checking the request before finishing', /Before you finish, read the request again and make sure every thing it asks for is done/.test(prompt));
+  // What it is sent before the request fits the smallest window a local model
+  // is given (js/local-context.js) with room to work, as the full set did not.
+  const est = (size) => Math.ceil((HC.code.promptFor(size).length + JSON.stringify(HC.code.toolsFor(size, list, '')).length) / 3.2);
+  ok('its instructions and tools take under half the smallest window, and under half what a larger model is sent', est('mid') < 4096 && est('mid') < est('full') * 0.5, `${est('mid')} of ${est('full')}`);
 }
 
 console.log('\nWhat a search by file name tells the model:');
@@ -165,7 +196,7 @@ console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
   ok('the Swarm\'s brief is built from the same lines', ['content', 'identity', 'logo', 'firstScreen', 'works', 'motion', 'scriptClasses'].every((k) => W.brief({ task: 'a landing page', siteFiles: [] }).includes(W.BAR[k])));
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder puts it in its instructions for such a request, never for a small model',
-    /const site = small \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(sharedState\.siteBrief\) lines\.push\(sharedState\.siteBrief\);/.test(mode));
+    /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(sharedState\.siteBrief\) lines\.push\(sharedState\.siteBrief\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

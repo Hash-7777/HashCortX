@@ -1973,8 +1973,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const lines = [
         'You are HashCoder — a precise coding agent.',
         'Rules:',
-        // A small model told to write a sentence first often writes only the sentence.
-        sharedState.small ? '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.'
+        // A model on this computer under 15B told to write a sentence first often writes only the sentence.
+        sharedState.size === 'small' || sharedState.size === 'mid' ? '1. One change at a time. Use tool calls for any file/shell action — do not narrate plans.'
           : '1. One change at a time. Before each tool call, say in one short sentence what you are doing and why; the person reads it as you work. Use tool calls for every file and shell action.',
         '2. Replies must be ≤3 short sentences unless the user asks for detail.',
         '3. Make code changes with the file tools; do not paste the code into the reply.',
@@ -2005,7 +2005,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
       } catch {}
 
-      const richBase = ((sharedState.small ? HC?.code?.SMALL_MODEL_PROMPT : HC?.code?.SYSTEM_PROMPT) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
+      const richBase = (HC?.code?.promptFor?.(sharedState.size) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
     }
@@ -2248,13 +2248,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
       }
 
-      // A small local model gets fewer tools and shorter instructions (platform/tauri/hashcoder.js).
+      // A small or mid-sized local model gets fewer tools and shorter instructions (platform/tauri/hashcoder.js).
       const model = coderModel || window._H?.selectedModel?.() || '';
-      const size = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
-      const small = !!(size?.billions && size.billions < (HC?.code?.SMALL_MODEL_BILLIONS || 0));
-      const site = small ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
-      if (small !== !!sharedState.small || site !== (sharedState.siteBrief || '')) {
-        sharedState.small = small; sharedState.siteBrief = site;
+      const info = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
+      const size = HC?.code?.sizeOf?.(info?.billions) || 'full';
+      const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
+      if (size !== sharedState.size || site !== (sharedState.siteBrief || '')) {
+        sharedState.size = size; sharedState.siteBrief = site;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
       }
 
@@ -2317,7 +2317,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function runSingleTurn(signal) {
       // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
-      const own = sharedState.small ? buildTools().filter((t) => HC.code.SMALL_MODEL_TOOLS.includes(t.function.name)) : buildTools();
+      const own = HC.code.toolsFor(sharedState.size, buildTools(), sharedState.siteBrief);
       const tools = [...own, ...run.tools];
       const contentEl = appendAssistantBubble('HashCoder');
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }

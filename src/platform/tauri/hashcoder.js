@@ -843,13 +843,23 @@ REASONING:
 
   // ── A small local model ────────────────────────────────────
   //
-  // A model of a few billion parameters given nineteen tools and two thousand
+  // A model of a few billion parameters given twenty tools and two thousand
   // words of instructions mostly did not start: it described the change, or
   // wrote its calls as text, and changed nothing. It gets the tools a coding
   // task needs and a short set of steps instead; everything else is the same.
 
   /** Below this many billion parameters a local model is treated as small. */
   HC.code.SMALL_MODEL_BILLIONS = 5;
+  /** Below this many, and not small, a local model is treated as mid-sized. */
+  HC.code.MID_MODEL_BILLIONS = 15;
+
+  /**
+   * How HashCoder is set up for a model: 'small', 'mid' or 'full'. `billions`
+   * is its size when it runs on this computer, null for a cloud model or one
+   * whose size is not known, which get everything.
+   */
+  HC.code.sizeOf = (billions) => (!(billions > 0) ? 'full'
+    : billions < HC.code.SMALL_MODEL_BILLIONS ? 'small' : billions < HC.code.MID_MODEL_BILLIONS ? 'mid' : 'full');
 
   /** The tools a small model is offered. */
   HC.code.SMALL_MODEL_TOOLS = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'patch_file', 'write_file', 'shell_run', 'delete_file', 'move_file'];
@@ -870,6 +880,57 @@ Rules:
 - If the task only asks a question, answer it and change nothing.
 
 ${HC.code.TOOL_TEXT_RULE}`;
+
+  // ── A mid-sized local model ────────────────────────────────
+  //
+  // A model of five to fifteen billion parameters calls tools well, but it
+  // reads slowly, and the full instructions and all twenty tools are more
+  // than twice what it needs to read before every step that is not already
+  // cached. Given them, it also asked the person for what it could have
+  // looked up. It gets the tools a coding task needs, pictures, and
+  // photographs when it builds a site, with the steps written out. Its usual
+  // failure is stopping with part of the request undone, so the steps end by
+  // checking the request again. Like a small model, it is not asked to say a
+  // sentence before each step: it wrote the sentence in place of the call, or
+  // the call as text after it.
+
+  /** The tools a mid-sized model is offered; find_photos only when it builds a site. */
+  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos'];
+
+  HC.code.MID_MODEL_PROMPT = `You are HashCoder, a coding agent with the person's project open. You work by calling tools: do the task, do not only describe it.
+
+How to work:
+1. Find: list_dir shows a folder, grep_code finds where something is written, fuzzy_find finds a file by a rough name. Never guess a path.
+2. Read a file with read_file before you change it. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
+3. Change part of a file with patch_file: search is text copied exactly from the file, without line numbers; replace is the new text. Several changes to one file go in one call, the rest in edits. If the search is not found, copy the lines it shows you and try again.
+4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true.
+5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path].
+6. Before you finish, read the request again and make sure every thing it asks for is done. Then finish with two or three sentences: what you changed, and what passed.
+
+Rules:
+- Change only what the request asks for, and keep the rest of each file as it is.
+- Do not change the tests unless the request asks for it.
+- If the request only asks a question, answer it from the files and change nothing.
+- Never ask the person for what the files or the tests can tell you: an error, where something is, a value. Look it up.
+- Use full paths inside the project.
+- A picture file, such as a screenshot or a mockup: view_image, then say what is in it.
+- Rename or move a file with move_file, not a shell command, so it can be undone.
+
+${HC.code.TOOL_TEXT_RULE}`;
+
+  /**
+   * The tools a model of this size is offered, from `list` (toolList's
+   * shape). A mid-sized model is offered find_photos only when building a
+   * site (`site`).
+   */
+  HC.code.toolsFor = (size, list, site) => {
+    const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
+    if (!names) return list;
+    return list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site));
+  };
+
+  /** The instructions for a model of this size. */
+  HC.code.promptFor = (size) => (size === 'small' ? HC.code.SMALL_MODEL_PROMPT : size === 'mid' ? HC.code.MID_MODEL_PROMPT : HC.code.SYSTEM_PROMPT);
 
   /**
    * One line telling the model which machine it is working on.

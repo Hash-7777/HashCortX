@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder is set up for a mid-sized model on your computer.** A local
+  model of 5 to 15 billion parameters, such as a 7B, is offered the tools a
+  coding task needs, pictures, and photographs when it builds a site, with
+  its steps written out, in place of all twenty tools and the full
+  instructions; what it reads before each step is under half what a larger
+  model is sent. Its steps include checking a changed JavaScript or Python
+  file for mistakes when the project has no test, and it is told never to
+  ask you for what the files or the tests can tell it. Like a small model,
+  it is not asked to say a sentence before each step.
+
 - **HashCoder can rename in one edit.** An edit whose passage appears more
   than once was refused, so renaming a function used twice in a file could
   not be done with it. An edit can now change every place its passage
@@ -308,8 +318,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   shows as the next step being chosen.
   Larger models say in a sentence what they are about to do before each
   step, and that sentence stays in the reply above the step, including when
-  the conversation is opened again. Small models are not asked to, since a
-  sentence before a call often takes the place of the call.
+  the conversation is opened again. A model on your computer under 15
+  billion parameters is not asked to, since a sentence before a call often
+  takes the place of the call.
 
 - **HashCoder changes the part of a file it was asked to, not the whole
   file.** Rewriting an existing file of 30 lines or more whole, and changing
@@ -331,7 +342,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **A small local model gets the tools a coding task needs and a short set of
   steps.** Below five billion parameters HashCoder offers nine tools instead
-  of nineteen, and a few lines of steps in place of its full instructions.
+  of twenty, and a few lines of steps in place of its full instructions.
   Such a model still often stops early or skips steps.
 
 - **HashCoder's edits land more often, and it reads long files by lines.** An

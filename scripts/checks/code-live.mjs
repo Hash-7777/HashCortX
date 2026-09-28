@@ -82,8 +82,8 @@ console.log('\nWhat the model says before a step stays:');
   const mode = src('modes', 'code', 'mode.js');
   ok('words said with a step are kept in the reply; a call written as text is not',
     /const said = turn\.tool_calls\?\.length && turn\.content && !window\.HCCodeLive\.looksLikeCalls\(turn\.content\) \? turn\.content : '';\s*thinkEl\?\.finish\(said\);/.test(mode));
-  ok('a larger model is asked to say what it is doing before each step, a small one is not',
-    /sharedState\.small \? '1\. One change at a time\. Use tool calls[^']*'\s*: '1\. One change at a time\. Before each tool call, say in one short sentence/.test(mode));
+  ok('a larger model is asked to say what it is doing before each step, one on this computer under 15B is not',
+    /sharedState\.size === 'small' \|\| sharedState\.size === 'mid' \? '1\. One change at a time\. Use tool calls[^']*'\s*: '1\. One change at a time\. Before each tool call, say in one short sentence/.test(mode));
   ok('a saved conversation draws those words before their step', /if \(m\.content && m\.tool_calls\?\.length && !window\.HCCodeLive\.looksLikeCalls\(m\.content\)\) appendTextToBubble\(reply, m\.content\);/.test(mode));
 }
 

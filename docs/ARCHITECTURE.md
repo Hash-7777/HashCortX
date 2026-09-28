@@ -108,7 +108,7 @@ HashCortX/
 │   │   │                            take them, carrying on an answer that was
 │   │   │                            cut off, timing every answer, and tool calls
 │   │   │                            or Python runs a model wrote as text
-│   │   ├── agent-context.js    227  what the model sees of a long agent run
+│   │   ├── agent-context.js    230  what the model sees of a long agent run
 │   │   ├── agent-policy.js     233  what may run together, and when to stop
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                            cosine, rank fusion
@@ -219,8 +219,9 @@ HashCortX/
 │   └── platform/
 │       ├── index.js                 detects browser vs Tauri
 │       └── tauri/
-│           ├── hashcoder.js         HC.code.* file and shell tools, and the
-│           │                        list of them a model is offered
+│           ├── hashcoder.js         HC.code.* file and shell tools, the list
+│           │                        of them a model is offered, and how
+│           │                        HashCoder is set up for a model's size
 │           ├── guard.js             HC.guard.request() permission dialog
 │           ├── undo.js              saves what a file held, and puts it back
 │           ├── provider-bridge.js   the three providers a web page cannot call,
@@ -398,7 +399,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,542-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 7,820 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 7,829 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.
