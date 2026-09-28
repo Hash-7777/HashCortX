@@ -470,6 +470,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's search by file name says how each file matched.** It gave
+  each match a number, 0 for the exact name, and a model read that 0 as no
+  match and said the file did not exist. Each file now comes with how its
+  name matches, in words; a search that finds nothing says it looks at names
+  only and which tool looks inside files; and reading a path where there is
+  no file says how to find the one meant.
+
 - **A quote a model escapes in a call is written as a quote.** A call
   written as text with its single quotes escaped kept the backslash, so a
   file HashCoder wrote had one before every quote and would not run.

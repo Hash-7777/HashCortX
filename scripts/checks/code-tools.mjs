@@ -63,6 +63,27 @@ console.log('\nA small local model:');
   ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode));
 }
 
+console.log('\nWhat a search by file name tells the model:');
+{
+  const found = HC.code.namesFound([{ path: '/p/stats.py', name: 'stats.py', score: 0 }, { path: '/p/tests/test_stats.py', name: 'test_stats.py', score: 2 }, { path: '/p/stat.py', name: 'stat.py', score: 10 }], 'stats.py');
+  ok('each file with how its name matches, in words, closest first', found.files.map((f) => f.match).join() === 'the exact name,contains it,a close spelling' && found.files[0].path === '/p/stats.py' && /Closest first/.test(found.note));
+  ok('no number a model could read as no match', !JSON.stringify(found).includes('score'));
+  const none = HC.code.namesFound([], 'getUsr');
+  ok('nothing found: it says the search is by name, and which tool looks inside files', none.files.length === 0 && /No file is named like "getUsr"/.test(none.note) && /grep_code/.test(none.note));
+  ok('the tool uses it, and says so in its description', /HC\.code\.namesFound\(await HC\.invoke\('fs_fuzzy_find'/.test(src('platform', 'tauri', 'hashcoder.js'))
+    && /names only: to find text inside files, use grep_code/.test(HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'fuzzy_find').description));
+}
+
+console.log('\nA read of a path with no file:');
+{
+  const missing = HC.code.notThere(new Error("ENOENT: no such file or directory, stat '/p/range.js'"));
+  ok('says how to find the file meant', /no such file[\s\S]*find it by name with fuzzy_find, or list_dir the folder/.test(missing.message));
+  ok('... in the words the native side uses too', /fuzzy_find/.test(HC.code.notThere(new Error('No such file or directory (os error 2)')).message));
+  const other = new Error('Permission denied: read /p/a.js');
+  ok('any other error is passed on as it is', HC.code.notThere(other) === other);
+  ok('read_file uses it', /HC\.code\.readFile\(p\.path, p\.start_line \?\? null, p\.end_line \?\? null\)\.catch\(\(e\) => \{ throw HC\.code\.notThere\(e\); \}\)/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
 console.log('\nWhere a command runs:');
 {
   const asked = [];

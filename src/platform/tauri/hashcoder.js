@@ -285,7 +285,7 @@
     async fuzzyFind(dir, query) {
       const ok = await HC.guard.request('search', dir, `Fuzzy find: ${query}`);
       if (!ok) throw new Error(`Permission denied: search ${dir}`);
-      return HC.invoke('fs_fuzzy_find', { dir, query });
+      return HC.code.namesFound(await HC.invoke('fs_fuzzy_find', { dir, query }), query);
     },
 
     async grepCode(dir, pattern, fileExt = null) {
@@ -293,6 +293,35 @@
       if (!ok) throw new Error(`Permission denied: search ${dir}`);
       return HC.invoke('fs_grep', { dir, pattern, fileExt });
     },
+  };
+
+  /**
+   * A read of a path where there is no file, with how to find the one meant.
+   * A model that guessed a path and was told only that it was not there asked
+   * the person where the file was. Any other error is passed on as it is.
+   */
+  HC.code.notThere = (e) => {
+    const said = String(e?.message || e);
+    if (!/ENOENT|no such file|os error 2|cannot find the (file|path)/i.test(said)) return e;
+    return new Error(`${said}. There is no file at that path: find it by name with fuzzy_find, or list_dir the folder.`);
+  };
+
+  // How close a file's name is to what was asked, by the score the native
+  // search gives it (fs.rs fuzzy_score).
+  const NAME_MATCH = [[0, 'the exact name'], [1, 'starts with it'], [2, 'contains it'], [3, 'has its letters in order'], [999, 'a close spelling']];
+
+  /**
+   * What fuzzy_find tells the model: each file with how its name matches, in
+   * words, closest first. The native search scores a match 0 when the name is
+   * exactly what was asked, and a model read that 0 as no match at all and
+   * told the person the file did not exist. When nothing matches it says the
+   * search is by name, since a model looking for a function by name with it
+   * took an empty answer to mean the function did not exist either.
+   */
+  HC.code.namesFound = (list, query) => {
+    const files = (Array.isArray(list) ? list : []).map((m) => ({ path: m.path, match: (NAME_MATCH.find(([n]) => (Number(m.score) || 0) <= n) || NAME_MATCH[4])[1] }));
+    if (files.length) return { files, note: 'Closest first.' };
+    return { files, note: `No file is named like "${query}". fuzzy_find looks at file names only: to find where a name or text is written inside the files, use grep_code.` };
   };
 
   /**
@@ -353,7 +382,7 @@
         start_line: { type: 'integer', description: 'Optional: the first line to read, counting from 1.' },
         end_line: { type: 'integer', description: 'Optional: the last line to read.' },
       },
-      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null),
+      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null).catch((e) => { throw HC.code.notThere(e); }),
     },
     {
       name: 'write_file',
@@ -510,7 +539,7 @@
     },
     {
       name: 'fuzzy_find',
-      description: 'Find files by approximate name — tolerates typos, partial names, and case differences. Returns top 15 matches ranked by similarity. Use when you know roughly what a file is called.',
+      description: 'Find files by approximate name — tolerates typos, partial names, and case differences. Returns top 15 matches ranked by similarity. Use when you know roughly what a file is called. It reads names only: to find text inside files, use grep_code.',
       parameters: {
         dir:   { type: 'string', description: 'Root directory to search from (project root or homeDir)' },
         query: { type: 'string', description: 'Approximate file name or stem to match' },
