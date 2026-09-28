@@ -7,12 +7,10 @@
 // way, so its list of key shapes is load-bearing, and this file runs real key
 // shapes against the real patterns out of the real hook.
 //
-// THE DEFECT THIS REPLACES. The OpenAI pattern was `sk-[A-Za-z0-9]{32,}`, with
-// no hyphen in the body. Every modern OpenAI key is `sk-proj-…`, so the run of
-// letters ended at the second hyphen and never reached thirty-two. OpenAI's
-// current default format, its service-account keys and OpenRouter's
-// `sk-or-v1-…` all walked straight past the gate, and so did the shapes of
-// five other providers the app offers.
+// WHY THE SHAPES ARE WRITTEN AS THEY ARE. Modern keys carry hyphens and
+// underscores in their body — OpenAI's `sk-proj-…`, its service-account keys,
+// OpenRouter's `sk-or-v1-…` — so every pattern allows them in the part after
+// the prefix, and each provider the app offers has a shape of its own.
 //
 // Every provider in Settings belongs in that list. A provider added without
 // its key shape is a key that reaches GitHub in silence, which is why the

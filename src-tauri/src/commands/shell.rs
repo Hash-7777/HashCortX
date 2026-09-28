@@ -214,11 +214,10 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         // means, so it gets the same gate a file operation gets rather than a
         // bare denylist lookup.
         //
-        // `is_path_denied` matches the spelling it is handed. Half of that list
-        // is prefixes — /etc, /System, /usr/bin — and a directory written with
-        // `..` matches none of them: `<project>/../../../etc` is not spelled
-        // /etc, so it was accepted, and the shell then ran there. `guard_path`
-        // refuses `..` outright and resolves links before deciding.
+        // `is_path_denied` matches the spelling it is handed, and half of that
+        // list is prefixes — /etc, /System, /usr/bin — which a directory
+        // written with `..` does not match. `guard_path` refuses `..` outright
+        // and resolves links before deciding.
         //
         // An AGENT's command gets the folder boundary as well. Every relative
         // path in the command is read from here, so a command run in a folder
@@ -687,8 +686,8 @@ mod tests {
 
     #[test]
     fn prepare_refuses_a_command_that_reaches_for_a_key() {
-        // The hole this closes: the filesystem denylist refuses this path, and
-        // before now the shell handler happily read it anyway.
+        // The filesystem denylist refuses this path, and a command that names
+        // it is refused as well.
         let err = prepare("sh", &["-c".into(), "cat ~/.ssh/id_ed25519".into()], &None, Caller::Person).unwrap_err();
         assert!(err.contains("protected location"));
     }
@@ -703,8 +702,8 @@ mod tests {
     fn a_working_directory_written_with_dot_dot_is_refused() {
         // The denylist matches the spelling it is given, and half of it is
         // prefixes. A directory that climbs out with `..` is spelled like
-        // nothing on that list, so the shell used to start there — the command
-        // text never mentions the destination, so nothing else would catch it.
+        // nothing on that list, and the command text never mentions where it
+        // leads, so such a directory is refused as the working directory.
         let escape = Some(format!("{}/../../../etc", env!("CARGO_MANIFEST_DIR")));
         let err = prepare("ls", &[], &escape, Caller::Person).unwrap_err();
         assert!(

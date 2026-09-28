@@ -330,10 +330,9 @@
   // Returns true if the path really leads inside the current project root.
   //
   // The spelling is only the first half of the question. A symlink inside the
-  // project is written exactly like a path inside the project, so comparing the
-  // two strings — which is all this used to do — auto-approved reading, writing,
-  // listing and searching anywhere on the disk the link happened to lead, with
-  // no dialog at all. The renderer cannot resolve a link, so Rust is asked.
+  // project is written exactly like a path inside the project and may lead
+  // anywhere on the disk, so the spelling alone cannot decide it. The renderer
+  // cannot resolve a link, so Rust is asked.
   //
   // Anything that cannot be answered falls through to the dialog rather than
   // being allowed or refused outright: the guard's job here is to decide whether
@@ -352,12 +351,11 @@
   // Read-only actions inside the project root need no dialog — the user chose
   // that folder, and asking per file would make the agent unusable.
   //
-  // Outside it, a read is NOT free and is no longer auto-approved. "It only
-  // reads" is a fair argument about the filesystem and a bad one about an
-  // agent whose whole purpose is to send what it reads to a provider: a
-  // prompt-injected model could read anything on disk and put it in its next
-  // request, and the user would never see a prompt. Write, patch, delete and
-  // shell were always gated; reads now join them.
+  // Outside it, a read is NOT free and asks. "It only reads" is a fair
+  // argument about the filesystem and a bad one about an agent whose whole
+  // purpose is to send what it reads to a provider: whatever it reads can
+  // leave in its next request. Write, patch, delete and shell are gated the
+  // same way.
   const AUTO_APPROVE_IN_ROOT = new Set(['read', 'list', 'search', 'write', 'patch']);
 
   // Directory of a path, for coarse session grants.
@@ -432,7 +430,7 @@
    * same decisions are kept in Rust as well, where they are a floor rather than
    * a convention (src-tauri/src/security/root_jail.rs). Everything below is
    * that half: the file commands refuse a path this has not opened or approved,
-   * so a bug HERE no longer opens the whole disk.
+   * so a bug HERE does not open the whole disk.
    *
    * Failures are logged and swallowed. A grant that did not reach Rust makes
    * the command refuse, which is the safe direction, and there is nothing

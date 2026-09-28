@@ -199,7 +199,9 @@ const LINE_BUDGET = {
   // section buttons are wired in one line rather than one line each.
   // 6541, down one: an OpenAI-shaped reply, streamed or whole, is read by
   // js/stream/sse.js openAIReply.
-  'js/app.js': 6541,
+  // 6538, down three: a comment on images in replies says what the page does
+  // now in fewer lines.
+  'js/app.js': 6538,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

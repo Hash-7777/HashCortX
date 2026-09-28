@@ -4314,15 +4314,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const safeTitle = title ? ` title="${escapeHtml(title)}"` : "";
       return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer"${safeTitle}>${escapeHtml(text || href || "")}</a>`;
     };
-    // An image in a model's reply is a request the app makes on the model's
-    // behalf, before anyone has read a word of it. Left on marked's default
-    // renderer that was an <img> pointing anywhere, fetched the instant the
-    // message was drawn — so text injected into a page the agent fetched, or a
-    // file it read, could put what it learned into a URL and have the app send
-    // it. img-src in tauri.conf.json no longer permits a remote host at all;
-    // this turns what would be a broken-image icon into a link the user can
-    // choose to open, and keeps the reason visible next to the markdown rather
-    // than only in the config.
+    // An image in a model's reply would be a request the app makes on the
+    // model's behalf, to an address the model chose, the instant the message
+    // is drawn and before anyone has read a word of it. img-src in
+    // tauri.conf.json permits no remote host at all; this turns what would be
+    // a broken-image icon into a link the user can choose to open, and keeps
+    // the reason visible next to the markdown rather than only in the config.
     renderer.image = function(...args) {
       const { href, title, text } = extractMarkedLinkArgs(args);
       const label = escapeHtml(text || title || "image");

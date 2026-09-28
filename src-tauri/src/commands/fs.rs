@@ -159,16 +159,15 @@ pub fn fs_path_inside_root(root: String, path: String) -> bool {
 /// caller asked about.
 ///
 /// The recursive walkers below descend with `is_dir()`, which follows symlinks,
-/// and only the directory the caller named was ever checked. A link inside the
-/// project pointing at a credential store was therefore walked like any other
-/// folder, and `fs_grep` returned what it found in the files there.
+/// and the directory the caller named is the only one the guard sees: a link
+/// inside it could lead a walk, and what `fs_grep` returns, anywhere.
 ///
-/// Refusing only denylisted destinations was not enough. The denylist is a list
-/// of secrets; the boundary the guard actually promises is the folder the user
-/// opened, and a link to any ordinary directory outside it — a home folder, a
-/// sibling project — was followed and its file contents returned, through a
-/// search that raises no dialog. So a link is judged against the searched root,
-/// not only against the denylist.
+/// Refusing only denylisted destinations would not be enough. The denylist is a
+/// list of secrets; the boundary the guard actually promises is the folder the
+/// user opened, and a link to any ordinary directory outside it — a home
+/// folder, a sibling project — would hand its files to a search that raises no
+/// dialog. So a link is judged against the searched root, not only against the
+/// denylist.
 ///
 /// Only links are resolved, so an ordinary tree costs nothing extra. A link that
 /// cannot be resolved is treated as one to avoid: it cannot be read anyway.
@@ -907,10 +906,10 @@ mod tests {
 
     #[test]
     fn a_link_out_of_the_project_is_not_a_path_inside_the_project() {
-        // This is the question the Permission Guard used to answer by comparing
-        // two strings. A link inside the project is spelled like a path inside
-        // the project, so reading, writing, listing and searching through one
-        // were auto-approved with no dialog at all.
+        // The question the Permission Guard asks before it lets a read or a
+        // write through without a dialog. A link inside the project is spelled
+        // like a path inside the project and may lead anywhere, so the answer
+        // comes from where the path leads, not from how it is spelled.
         let (root, _turn) = temp_root("inside-root");
         let outside = root.join("outside");
         fs::create_dir_all(&outside).unwrap();

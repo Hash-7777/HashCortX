@@ -248,7 +248,7 @@ It is bounded. Every entry is one line: control characters, and characters that 
 
 Defined in `src-tauri/tauri.conf.json`, and checked by `scripts/checks/csp.mjs` so a rule cannot be widened without a test failing.
 
-`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, Europe PMC, DuckDuckGo), Openverse's image search for the websites the Agent Swarm and HashCoder build, the Python runtime's own path on jsDelivr, and Ollama. `object-src`, `base-uri`, `form-action` and `frame-src` are `'none'`, since nothing in the app uses a plugin, a `<base>`, a submitted form or a frame, and no stylesheet or font comes from another host. It does not list SambaNova, NVIDIA or Kimi Code: the page never calls them (see *Three providers are called from Rust* below), and `providers.mjs` fails if one of their hosts is added. `api.kimi.com` and `api.kimi.ai` used to be listed for Moonshot; neither answers a Moonshot request, and both are gone.
+`connect-src` is restricted to AI provider endpoints, the grounding backends (Tavily, Google Programmable Search, Wikipedia, Europe PMC, DuckDuckGo), Openverse's image search for the websites the Agent Swarm and HashCoder build, the Python runtime's own path on jsDelivr, and Ollama. `object-src`, `base-uri`, `form-action` and `frame-src` are `'none'`, since nothing in the app uses a plugin, a `<base>`, a submitted form or a frame, and no stylesheet or font comes from another host. It does not list SambaNova, NVIDIA or Kimi Code: the page never calls them (see *Three providers are called from Rust* below), and `providers.mjs` fails if one of their hosts is added.
 
 ### The policy and the code have to name the same host
 

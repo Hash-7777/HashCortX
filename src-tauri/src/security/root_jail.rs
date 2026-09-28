@@ -25,10 +25,10 @@
 // Security Policy is what stands in the way of it.
 //
 // What it does buy is exact:
-//   · the default is closed. Before, a path outside the project was refused
-//     only by a dialog in JavaScript; now it is refused by this file too.
+//   · the default is closed. A path outside the project is refused by this
+//     file, not only by a dialog in JavaScript.
 //   · a bug in that dialog — a path levelled wrongly, a promise not awaited,
-//     a race between two approvals — no longer opens the whole disk.
+//     a race between two approvals — does not open the whole disk.
 //   · the approval is for ONE path. Approving a file does not approve its
 //     folder, and approving a folder does not approve its parent.
 //

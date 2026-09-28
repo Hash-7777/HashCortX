@@ -71,9 +71,8 @@ pub fn run() {
             // Rename or relocate a file. Without it the only way was `mv`
             // through the shell, which the undo history cannot see.
             fs_move_file,
-            // Does a path really lead inside the open project, links and all —
-            // the question the Permission Guard used to answer with a string
-            // comparison a symlink walked straight past.
+            // Does a path really lead inside the open project, links and all:
+            // answered by where it leads, which the renderer cannot resolve.
             fs_path_inside_root,
             fs_set_root,
             fs_clear_root,

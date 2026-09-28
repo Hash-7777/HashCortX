@@ -3,10 +3,9 @@
 //
 // The agent's `fetch_url` tool takes a URL a language model chose. The
 // renderer checks the address as written — see src/js/url-safety.js — but it
-// cannot resolve a name, so a public hostname pointing at 192.168.1.1 or at a
-// cloud metadata service passed that check untouched. The comment in the
-// renderer used to say a server proxy did the real address check; no server
-// ships with this app, so nothing did.
+// cannot resolve a name, and a public hostname can point at a private address
+// or at a cloud metadata service. No server ships with this app to check it
+// on the way, so it is checked here.
 //
 // This resolves the name and refuses if ANY address it answers with is
 // private. Any, not the first: a name that returns one public address and one

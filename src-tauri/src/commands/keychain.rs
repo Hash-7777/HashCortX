@@ -12,15 +12,14 @@
 // renderer reads the old bundle, merges it into the local store, and deletes
 // the Keychain entry so it can never prompt again.
 //
-// WHAT USED TO BE HERE, AND WHY IT IS NOT
-// ---------------------------------------
-// keychain_store, keychain_retrieve and keychain_store_bundle were registered
-// alongside these two with nothing in the app calling any of them. Every
-// registered command is an entry point the renderer can reach, so a dead one
-// is surface with no feature paying for it — and keychain_store would have
-// written a secret back into the Keychain, which is the thing this app
-// deliberately stopped doing. scripts/checks/native-surface.mjs now fails on a
-// command registered without a caller.
+// WHY ONLY THESE TWO
+// ------------------
+// Every registered command is an entry point the renderer can reach, so one
+// nothing calls is surface with no feature paying for it, and a command that
+// wrote a secret into the Keychain would undo what this app deliberately
+// stopped doing. Only the way out is registered, and
+// scripts/checks/native-surface.mjs fails on a command registered without a
+// caller.
 //
 // macOS uses security-framework directly; entries have no application ACL, so
 // an old bundle is still readable after a rebuild. Other platforms use the
