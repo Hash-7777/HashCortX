@@ -129,22 +129,34 @@
       return { continue: true, reason: 'approaching-limit',
         nudge: 'Two steps left in the normal budget. Wrap up what you are doing.' };
     }
+    if (stalled >= 2) {
+      return { continue: true, reason: 'repeating',
+        nudge: 'Your last steps repeated what you had already done and changed nothing. Do something different: read the file the error or the result points to and change it, or finish and say what is in the way.' };
+    }
     return { continue: true, reason: 'within-budget' };
   }
 
   /**
    * Did this iteration accomplish anything?
    *
-   * A write or a command is progress by definition. Reads count only when they
-   * are new — re-reading the same file for the third time is the signature of
-   * an agent that has lost the thread, and is exactly what the stall counter
-   * is watching for.
+   * A write or a command is progress, unless it is one this run already made
+   * with the same arguments: a small model ran the same failing test again
+   * and again without ever opening the file it named, and each run counted
+   * as progress, so nothing stopped it. Reads count only when they are new —
+   * re-reading the same file for the third time is the signature of an agent
+   * that has lost the thread, and is exactly what the stall counter is
+   * watching for.
    */
   function iterationMadeProgress(calls, seenReadTargets) {
     let progress = false;
     for (const call of calls || []) {
       if (!call) continue;
-      if (effectOf(call.name) !== 'read') { progress = true; continue; }
+      if (effectOf(call.name) !== 'read') {
+        const same = 'call::' + call.name + '::' + JSON.stringify(call.arguments || {});
+        if (!seenReadTargets) { progress = true; continue; }
+        if (!seenReadTargets.has(same)) { seenReadTargets.add(same); progress = true; }
+        continue;
+      }
       const target = String(
         (call.arguments && (call.arguments.path || call.arguments.dir || call.arguments.query)) || ''
       );

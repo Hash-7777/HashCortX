@@ -120,6 +120,19 @@ console.log('\nProgress detection:');
     iterationMadeProgress([call('read_file', { path: '/new' })], seen) === false,
     'this is the signature of an agent that has lost the thread');
   check('nothing at all is not progress', iterationMadeProgress([], seen) === false);
+  const test = call('shell_run', { command: 'npm', args: ['test'] });
+  check('a command run again with the same arguments is not progress', iterationMadeProgress([test], seen) && iterationMadeProgress([call('shell_run', { command: 'npm', args: ['test'] })], seen) === false);
+  check('... nor a write repeated as it was', iterationMadeProgress([call('write_file', { path: '/b', content: 'x' })], seen) && iterationMadeProgress([call('write_file', { path: '/b', content: 'x' })], seen) === false);
+  check('... while the same command with other arguments is', iterationMadeProgress([call('shell_run', { command: 'npm', args: ['test', '--', 'range'] })], seen));
+  check('a caller keeping no record counts every command as progress', iterationMadeProgress([test]) && iterationMadeProgress([test]));
+}
+
+console.log('\nAn agent repeating itself is told to do something different:');
+{
+  const out = shouldContinue({ iteration: 6, stalledIterations: 2 });
+  check('after two steps that changed nothing it goes on, told to do something different', out.continue && out.reason === 'repeating' && /Do something different/.test(out.nudge));
+  check('one such step is not yet repeating', shouldContinue({ iteration: 6, stalledIterations: 1 }).reason === 'within-budget');
+  check('and at the stall limit it stops, as before', shouldContinue({ iteration: 6, stalledIterations: BUDGET.stallLimit }).reason === 'stalled');
 }
 
 // ── The ceiling on one generation ─────────────────────────────────────────

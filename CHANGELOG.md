@@ -475,6 +475,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder notices when it goes round in circles.** A command it had
+  already run, run again the same way, counted as progress, so an agent
+  that ran the same failing test over and over was never stopped. Such a
+  step now counts as nothing done: after two of them HashCoder is told to do
+  something different, such as reading the file the error names, and it
+  stops as before if it keeps repeating itself.
+
 - **HashCoder keeps your request in view however often it is sent back.**
   When a long conversation was shortened for the model, HashCoder's own
   notes sending the agent back before finishing were counted as requests,
