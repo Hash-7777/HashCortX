@@ -218,8 +218,10 @@
   /**
    * JSON whose strings hold a backslash JSON does not allow, such as the `\s`
    * of a pattern a model wrote into an edit, with that backslash kept as the
-   * character it meant. Everything outside strings, and every escape JSON
-   * allows, is left as it is.
+   * character it meant. A quote written `\'` is the quote: every language
+   * that writes it so means the quote alone, and keeping the backslash put
+   * one before every quote in the file the call wrote. Everything outside
+   * strings, and every escape JSON allows, is left as it is.
    */
   function withLooseEscapes(t) {
     let out = "";
@@ -230,6 +232,7 @@
       if (c === "\\") {
         const next = t[i + 1];
         if (next !== undefined && '"\\/bfnrtu'.includes(next)) { out += c + next; i++; }
+        else if (next === "'") { out += "'"; i++; }
         else out += "\\\\";
         continue;
       }

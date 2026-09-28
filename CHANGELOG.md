@@ -470,6 +470,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A quote a model escapes in a call is written as a quote.** A call
+  written as text with its single quotes escaped kept the backslash, so a
+  file HashCoder wrote had one before every quote and would not run.
+
 - **A call a local model writes after its words is made.** A model that
   says what it is about to do and then writes the call as plain text on the
   lines after it had the call shown as its answer, and the step never ran.
