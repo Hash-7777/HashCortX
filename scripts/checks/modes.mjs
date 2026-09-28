@@ -168,6 +168,16 @@ for (const id of MANIFEST) {
   check(`${id} declares ${REQUIRED_KEYS.length} keys`, missing.length === 0, `missing ${missing.join(', ')}`);
 }
 
+// A mode that fails to open is not a failed request, and a person without 3D
+// graphics is told so in words rather than by the renderer's own error.
+console.log('\nA mode that cannot open says so plainly:');
+{
+  const app = read('js/app.js');
+  check('the error box takes a heading, "Request failed" unless told otherwise', /function showError\(err, title = "Request failed"\)/.test(app) && /<b>\$\{escapeHtml\(title\)\}<\/b>/.test(app));
+  check('a mode that cannot open is headed so, and missing 3D graphics is said in words', /failed to open: \$\{\/webgl\/i\.test\([^)]*\)\) \? "it needs 3D graphics/.test(app) && /, "Could not open"\);/.test(app));
+  check('the heading stays on one line beside the message', /\.error-banner b \{[^}]*white-space: nowrap/.test(read('css/modes.css')));
+}
+
 // ── 4. Reachable, in both directions ─────────────────────────────────────
 console.log('\nEvery mode can be opened, and every tab opens something:');
 {

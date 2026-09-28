@@ -498,6 +498,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A mode that cannot open says so plainly.** Its message was headed
+  "Request failed", as if something had been asked of a model, and a
+  computer without 3D graphics was shown the graphics library's own error
+  for 3D Forge. It is now headed "Could not open" and says that 3D Forge
+  needs 3D graphics, and what may help. Settings that could not be saved are
+  headed so too.
+
 - **HashCoder notices when it goes round in circles.** A command it had
   already run, run again the same way, counted as progress, so an agent
   that ran the same failing test over and over was never stopped. Such a

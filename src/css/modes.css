@@ -821,7 +821,7 @@
     font-size: 13px; line-height: 1.55;
     display: flex; gap: 12px; align-items: flex-start;
   }
-  .error-banner b { color: #fff; }
+  .error-banner b { color: #fff; flex: none; white-space: nowrap; }
   .error-banner span { flex: 1 1 auto; min-width: 0; }
   .error-banner .error-close {
     flex: 0 0 28px;

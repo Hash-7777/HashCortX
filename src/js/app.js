@@ -964,7 +964,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     } catch (err) {
       console.warn("[settings] save failed:", err);
-      showError(err);
+      showError(err, "Settings not saved");
     }
   };
 
@@ -1571,7 +1571,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       try { mode.destroy?.(); } catch {}
       leaveFullscreenModes();
       setTab("chats");
-      showError(new Error(`${mode.label || tab} failed to open: ${err?.message || err}`));
+      showError(new Error(`${mode.label || tab} failed to open: ${/webgl/i.test(String(err?.message || err)) ? "it needs 3D graphics, and this computer's could not be started. Turning on hardware acceleration, or updating the graphics driver, may help." : err?.message || err}`), "Could not open");
     }
   }
 
@@ -3771,9 +3771,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     statusText.title = text;
   }
 
-  function showError(err) {
+  function showError(err, title = "Request failed") {
     const msg = err?.message || String(err || "Unknown error");
-    errorSlot.innerHTML = `<div class="error-banner"><b>Request failed</b><span>${escapeHtml(msg)}</span><button type="button" class="error-close" aria-label="Dismiss request failed message" title="Close">&times;</button></div>`;
+    errorSlot.innerHTML = `<div class="error-banner"><b>${escapeHtml(title)}</b><span>${escapeHtml(msg)}</span><button type="button" class="error-close" aria-label="Dismiss the message: ${escapeHtml(title)}" title="Close">&times;</button></div>`;
   }
   function clearError() { errorSlot.innerHTML = ""; }
   errorSlot?.addEventListener("click", (e) => {
