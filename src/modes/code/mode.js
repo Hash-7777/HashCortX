@@ -1382,7 +1382,7 @@
           let failed = result == null; try { failed = failed || !!JSON.parse(result).error; } catch { /* a result that is not JSON is output */ }
           finalizeToolBlock(appendToolBlock(reply, fn.name, args || {}), result ?? 'No result was kept.', !failed, null);
         }
-        if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) appendTextToBubble(reply, m.content);
+        if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) { appendTextToBubble(reply, m.content); if (m.proven) appendTextToBubble(reply, `*${m.proven}*`); }
       });
     }
 
@@ -2200,9 +2200,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           cdrTraceAdd('Done', (label || 'Agent') + ' · ' + finalText.length + ' chars', 'ok');
           appendTextToBubble(contentEl, finalText);
         }
-        // What was proven, from the record rather than from the reply.
+        // What was proven, from the record rather than from the reply; kept with the answer, so a saved conversation says it too.
         const proven = proof && window.HCCodeVerify.proofLine(proof);
-        if (proven) appendTextToBubble(contentEl, `*${proven}*`);
+        sharedState.proven = proven || ''; if (proven) appendTextToBubble(contentEl, `*${proven}*`);
         return finalText;
       }
       // The budget ran out while the model was still calling tools. Strip any
@@ -2322,7 +2322,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const contentEl = appendAssistantBubble('HashCoder');
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
       const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
-      if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText });
+      if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });
       saveCoderState();
       setStatus('Ready', '');
     }

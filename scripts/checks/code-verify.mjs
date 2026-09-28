@@ -260,6 +260,9 @@ console.log('\nThe Coder uses it:');
   ok('a saved conversation is drawn with its steps, and each note as the step it stands for',
     /appendToolBlock\(reply, fn\.name/.test(render) && /V\.noteStep\(m\.content\)/.test(render));
   ok('... and a reply the agent was sent back from is not drawn as an answer', /!V\?\.isAppNote\(conversationMsgs\[i \+ 1\]\?\.content\)/.test(render));
+  ok('what was proven is kept with the answer and said again when the conversation is opened, as Settings promises',
+    /sharedState\.proven = proven \|\| '';/.test(mode) && /content: finalText, \.\.\.\(sharedState\.proven \? \{ proven: sharedState\.proven \} : \{\}\)/.test(mode)
+    && /if \(m\.proven\) appendTextToBubble\(reply, `\*\$\{m\.proven\}\*`\);/.test(render) && /What was checked is said under each answer either way/.test(settings));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/verify.js)`);

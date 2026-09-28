@@ -498,6 +498,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A saved HashCoder conversation says what was checked.** The line under
+  each answer saying which check passed after the last change, or that none
+  did, was drawn only while the run happened; opened again from History or
+  after a restart, the answer came without it, although Settings says it is
+  given either way. It is now kept with the answer.
+
 - **A mode that cannot open says so plainly.** Its message was headed
   "Request failed", as if something had been asked of a model, and a
   computer without 3D graphics was shown the graphics library's own error
