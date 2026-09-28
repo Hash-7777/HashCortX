@@ -5,11 +5,13 @@
 // the tests, read the file, write the fix into its reply instead of making
 // it, make the edit once sent back — its passage indented one level less than
 // the file, as small models often write it — and then try to finish without
-// running the tests again. What the app must do in answer is fixed, so a run
-// with this model checks the HashCoder loop itself: the tools, being sent
-// back to make a change written into the reply, the edit matching, being sent
-// back to prove the change, and the line saying what was proven. It needs no
-// real model and takes seconds.
+// running the tests again. It says it is a 7B, so HashCoder also sends it back
+// once to check its work against the request, and it finishes as it was.
+// What the app must do in answer is fixed, so a run with this model checks the
+// HashCoder loop itself: the tools, being sent back to make a change written
+// into the reply, the edit matching, being sent back to prove the change and
+// to check it, and the line saying what was proven. It needs no real model
+// and takes seconds.
 //
 // It listens on this computer only, answers only what the app asks of a model
 // server, and is closed by the run that started it.

@@ -63,7 +63,7 @@ Agents can also work with a business system you connect in **Settings → Connec
 
 ## HashCoder
 
-The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal. Attach a screenshot, a picture, a PDF or a text file to a request by the paperclip, by pasting or by dropping it in. For a website it finds real, openly licensed photos of the subject and credits them on the page, under the same setting as the Agent Swarm.
+The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal. Attach a screenshot, a picture, a PDF or a text file to a request by the paperclip, by pasting or by dropping it in. For a website it finds real, openly licensed photos of the subject and credits them on the page, under the same setting as the Agent Swarm. It works with cloud models and with models on your own computer: a local model is given instructions and tools sized to it, and one under 15 billion parameters, such as a 7B, checks its work against your request before it finishes.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
 
@@ -139,7 +139,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 7,829 source checks
+npm run check                                     # 7,856 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 206 Rust tests
 ```
 

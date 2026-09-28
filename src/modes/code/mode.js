@@ -2033,7 +2033,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      let sentBack = 0, madeBack = 0;
+      const sent = { make: 0, prove: 0, review: 0 };   // how often this run was sent back, for each reason
       let stalledIterations = 0;
       let lastStop = null;
       let thinkEl = appendThinking(contentEl);
@@ -2182,11 +2182,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
-        // Sent back when a change was written into the reply and not made, or code changed with nothing proving it (js/code/verify.js).
-        const back = !proof || !finalText.trim() ? null : window.HCCodeVerify.unmadeChange(proof, messages, finalText, madeBack)
-          || (cdrPrefs().prove !== false ? window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, finalText, sentBack) : null);
+        // Sent back before finishing, for a change not made, not proven, or not checked against the request (js/code/verify.js).
+        const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
+          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest });
         if (back) {
-          if (back.kind === 'make') madeBack++; else sentBack++;
+          sent[back.kind]++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
           appendStep(contentEl, { verb: 'CHECK', object: back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');

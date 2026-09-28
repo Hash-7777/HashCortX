@@ -71,7 +71,8 @@
 // --smoke runs one task with a scripted stand-in for a model
 // (scripted-model.mjs), whose answers are fixed, and checks the app's side of
 // it: the agent is sent back to make a change it wrote into its reply, the
-// edit lands, it is sent back to prove its change, and the person is told
+// edit lands, it is sent back to prove its change and, the stand-in being a
+// mid-sized model, to check it against the request, and the person is told
 // what was proven. It needs no real model and takes seconds.
 // ==============================================================
 import { createServer } from 'node:http';
@@ -924,10 +925,11 @@ async function smoke() {
     [row.failedEdits > 0, 'an edit failed'],
     [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
     [!/Sent back to run the tests/.test(row.shown), 'the agent was not sent back to prove its change'],
+    [!/Sent back to check the work against the request/.test(row.shown), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
     [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);
-  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}\n\nWhat happened:\n  ${(row.trail || []).join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it, and the person was told what was proven.');
+  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}\n\nWhat happened:\n  ${(row.trail || []).join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it and to check it against the request, and the person was told what was proven.');
   return wrong.length ? 1 : 0;
 }
 

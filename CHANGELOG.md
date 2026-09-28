@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A model on your computer finishes what you asked.** Under 15 billion
+  parameters, a model that changed files is sent back once before it
+  finishes, with your request quoted, to check each thing it asked for and
+  do what is missing; this follows the "Prove changes before finishing"
+  setting. A model that tries to finish having changed nothing, when your
+  request asks for a change, is sent back once to make it with its tools,
+  and told to ask you only what the files and the tests cannot tell it; a
+  question it still needs to ask, it asks again. A request that says to
+  leave the files alone is answered as it is.
+
 - **HashCoder is set up for a mid-sized model on your computer.** A local
   model of 5 to 15 billion parameters, such as a 7B, is offered the tools a
   coding task needs, pictures, and photographs when it builds a site, with

@@ -161,6 +161,70 @@ console.log('\nA change written into the reply instead of made:');
   ok('a request the person sent with a picture is', V.requestIn([...notes, { role: 'user', content: 'Match this screenshot', images: ['x'] }]) === 'Match this screenshot');
 }
 
+console.log('\nThe work checked against the request:');
+{
+  const request = 'In src/limits.js raise MAX_USERS to 100, MAX_UPLOAD_MB to 25 and TIMEOUT_SECONDS to 60.';
+  const log = V.proofLog();
+  ok('nothing changed: not sent back', V.reviewCheck(log, request, 'Done.') === null);
+  log.edited('/p/src/limits.js');
+  const back = V.reviewCheck(log, request, 'I raised MAX_USERS to 100.');
+  ok('a file changed: sent back once to check each thing the request asks for', back && back.kind === 'review' && V.isAppNote(back.message) && /each thing it asks for/.test(back.message));
+  ok('with the request quoted, since it may be far back', back && back.message.includes(request));
+  ok('and told to change nothing more when everything is done', back && /If everything is done, change nothing more/.test(back.message));
+  ok('it stands for its own step', back && V.noteStep(back.message) === back.step && /check the work against the request/.test(back.step));
+  ok('once at most', V.reviewCheck(log, request, 'Done.', 1) === null);
+  ok('not when the reply asks the person something', V.reviewCheck(log, request, 'Should the timeout be 60 or 90?') === null);
+  ok('not without a request to quote', V.reviewCheck(log, '  ', 'Done.') === null);
+  const long = V.reviewCheck(log, 'x'.repeat(5000), 'Done.');
+  ok('a long request is quoted in part', long && long.message.length < 1800 && long.message.includes('x'.repeat(1200) + '…'));
+  ok('the other notes keep their own steps', V.noteStep(`${V.APP_NOTE} you changed a.js and no test has run since.`) === 'Sent back to run the tests before finishing'
+    && V.noteStep(`${V.APP_NOTE} your reply shows code, but no file in the project was changed.`) === 'Sent back to make the change in the files');
+}
+
+console.log('\nWhat sends it back, in order:');
+{
+  const request = [{ role: 'system', content: 's' }, { role: 'user', content: 'Raise MAX_USERS to 100 and add a TIMEOUT of 60.\n\n[Attached by the person: notes.md.]\n\nlong notes' }];
+  const checks = { test: 'npm test' };
+  const code = '```js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```';
+  let log = V.proofLog();
+  ok('a change written into the reply comes first', V.sendBack(log, request, code, { checks, size: 'mid' })?.kind === 'make');
+  ok('an empty reply, or no record, sends nothing back', V.sendBack(log, request, '  ', { checks }) === null && V.sendBack(null, request, 'Done.', { checks }) === null);
+  log.edited('/p/src/limits.js');
+  ok('then a change nothing proved', V.sendBack(log, request, 'Done.', { checks, size: 'mid' })?.kind === 'prove');
+  log.ran('npm', ['test'], { code: 0 });
+  const review = V.sendBack(log, request, 'Done.', { checks, size: 'mid', shown: (t) => t.split('\n\n[Attached')[0] });
+  ok('then, on a mid-sized model, the work checked against the request as the person sees it', review?.kind === 'review' && review.message.includes('add a TIMEOUT of 60') && !review.message.includes('long notes'));
+  ok('on a small one too', V.sendBack(log, request, 'Done.', { checks, size: 'small' })?.kind === 'review');
+  ok('not on a larger model or a cloud one', V.sendBack(log, request, 'Done.', { checks, size: 'full' }) === null && V.sendBack(log, request, 'Done.', { checks }) === null);
+  ok('each only as often as it allows', V.sendBack(log, request, 'Done.', { checks, size: 'mid', sent: { review: 1 } }) === null);
+  log.edited('/p/src/limits.js');
+  ok('with proving switched off, only a change not made sends it back', V.sendBack(log, request, 'Done.', { checks, size: 'mid', prove: false }) === null
+    && V.sendBack(V.proofLog(), request, code, { checks, size: 'mid', prove: false })?.kind === 'make');
+}
+
+console.log('\nA change asked for and not begun, on a model on this computer under 15B:');
+{
+  const asked = (text) => [{ role: 'system', content: 's' }, { role: 'user', content: text }];
+  const words = 'The loop stops one short of the end. To fix it, the condition should include the end.';
+  const log = V.proofLog();
+  const back = V.sendBack(log, asked('npm test fails in this project. Fix the code so the tests pass. Do not change the tests.'), words, { size: 'mid' });
+  ok('a reply of words alone, nothing changed: sent back once to make it with the tools', back?.kind === 'make' && /request asks for a change/.test(back.message) && /grep_code/.test(back.message)
+    && V.noteStep(back.message) === back.step);
+  ok('... and told to ask the person only for what the files and tests cannot tell', back && /Ask the person only for what the files and the tests cannot tell you/.test(back.message));
+  ok('on a small model too', V.sendBack(log, asked('Rename getUsr to getUser everywhere.'), 'Please double-check the name.', { size: 'small' })?.kind === 'make');
+  ok('not on a larger or cloud model, where a reply of words is left as it is', V.sendBack(log, asked('Fix the loop.'), words, { size: 'full' }) === null && V.sendBack(log, asked('Fix the loop.'), words) === null);
+  ok('not when the request says to leave the files alone', V.sendBack(log, asked('Which file works out the tax? Just answer; do not change any files.'), 'tax.js, at 14%.', { size: 'mid' }) === null
+    && V.sendBack(log, asked('Explain how to fix the loop without changing anything.'), words, { size: 'mid' }) === null);
+  ok('not for a question with no change in it', V.sendBack(log, asked('Where is the tax worked out?'), 'In tax.js.', { size: 'mid' }) === null);
+  const early = V.sendBack(log, asked('npm test fails. Fix the code so the tests pass.'), 'Could you provide the error message you see when you run npm test?', { size: 'mid' });
+  ok('a question to the person is sent back too, once: the files and the tests can tell it most things', early?.kind === 'make' && /Ask the person only/.test(early.message));
+  ok('... on a larger model a question is left as it is', V.sendBack(log, asked('npm test fails. Fix the code.'), 'Could you provide the error message?', { size: 'full' }) === null);
+  ok('once, shared with a change written into the reply', V.sendBack(log, asked('Fix the loop.'), words, { size: 'mid', sent: { make: 1 } }) === null);
+  const edited = V.proofLog();
+  edited.edited('/p/src/range.js');
+  ok('not once a file has changed', V.sendBack(edited, asked('Fix the loop.'), words, { size: 'mid', prove: false }) === null);
+}
+
 console.log('\nWhat the person is told:');
 {
   const log = V.proofLog();
@@ -185,10 +249,10 @@ console.log('\nThe Coder uses it:');
   ok('it loads before the Coder mode', boot.includes("'/js/code/verify.js'") && boot.indexOf("'/js/code/verify.js'") < boot.indexOf("'/js/code/export.js'"));
   const mode = src('modes', 'code', 'mode.js');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
-  ok('the loop asks it before finishing', /HCCodeVerify\.stopCheck\(/.test(mode));
-  ok('and asks first whether a change was written into the reply instead of made', /HCCodeVerify\.unmadeChange\(proof, messages, finalText, madeBack\)/.test(mode));
-  ok('only while proving is switched on in Settings, which it is unless turned off',
-    /cdrPrefs\(\)\.prove !== false \? window\.HCCodeVerify\.stopCheck\(/.test(mode) && /proveEl\.checked = prefs\.prove !== false/.test(mode));
+  ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
+    /window\.HCCodeVerify\.sendBack\(proof, messages, finalText,\s*\{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest \}\)/.test(mode)
+    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, prove: 0, review: 0 \};/.test(mode));
+  ok('the switch is on unless turned off', /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));
   ok('a note from the app is not shown as the person\'s message', /isAppNote\(/.test(mode));

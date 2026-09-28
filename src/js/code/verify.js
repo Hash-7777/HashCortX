@@ -23,7 +23,17 @@
 //     test command to name.
 //   · When the request asks for a change, no file changed in the run, and the
 //     reply holds the code instead, the agent is sent back once to make the
-//     change with the file tools (unmadeChange).
+//     change with the file tools (unmadeChange). On a model on this computer
+//     under 15B a reply of words alone sends it back too, a question
+//     included, unless the request says to leave the files alone: such a
+//     model ends a run by explaining the fix, or by asking the person for
+//     what a search would have found.
+//   · A model on this computer under 15B that changed files is sent back once
+//     more, with the request quoted, to check each thing it asked for against
+//     the files and do what is missing (reviewCheck). Such a model's usual
+//     failure is not a wrong change but a finished half: one of three edits,
+//     a page without the stylesheet it was asked for. The order, and the
+//     switch in Settings the last two follow, are in sendBack.
 //   · What the person is told at the end is worked out from the record, not
 //     from the agent's own words (proofLine): which check passed after the
 //     last change and how much of the project it covered, or that nothing was
@@ -265,8 +275,13 @@
   // What the person is shown for each note, when a saved conversation is drawn again.
   const MADE_STEP = 'Sent back to make the change in the files';
   const PROVE_STEP = 'Sent back to run the tests before finishing';
+  const REVIEW_STEP = 'Sent back to check the work against the request';
+  const REVIEW_SAYS = 'check your work against the request';
   /** The step a note from the app stands for. */
-  const noteStep = (text) => (/no file in the project was changed/.test(String(text || '')) ? MADE_STEP : PROVE_STEP);
+  const noteStep = (text) => {
+    const t = String(text || '');
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : PROVE_STEP;
+  };
 
   /** The command line of a shell_run call, as the person would type it. */
   const line = (entry) => `\`${entry.command}\``;
@@ -316,9 +331,15 @@
   // the run, and the reply holds a block of code that is not something to
   // type into a terminal, the agent is sent back once to make the change with
   // the file tools, or to answer without changing anything if the request was
-  // only a question.
+  // only a question. `wordsToo` sends back a reply without code as well, once,
+  // a question to the person included, unless the request says to leave the
+  // files alone: every question such a model was seen to ask here was for
+  // something the files or the tests would have told it, and one it still
+  // needs to ask, it asks again.
 
   const CHANGE_WORDS = /\b(fix|add|change|implement|create|write|update|rename|refactor|remove|delete|build|make|replace|move|convert|edit|modify|correct|extend|handle|support)\b/i;
+  // A request that says to leave the files alone: a question with "do not change any files", "just answer".
+  const KEEP_FILES = /\b(?:do not|don't|dont|never|without)\s+(?:change|changing|edit|editing|modify|modifying|touch|touching)\s+(?:any|anything|a file|files|the files|the code)\b|\bjust answer\b|\bonly answer\b/i;
   const TERMINAL_BLOCKS = new Set(['bash', 'sh', 'zsh', 'fish', 'shell', 'console', 'terminal', 'powershell', 'ps1', 'pwsh', 'cmd', 'bat', 'text', 'txt', 'plaintext', 'output', 'log']);
 
   /** The newest request from the person: the last message from them that is not a note from the app. */
@@ -350,17 +371,75 @@
    * of making it, or null. Once at most: `sentBack` is how many times this
    * run has already been sent back for it.
    */
-  function unmadeChange(log, messages, reply, sentBack = 0, limit = 1) {
+  function unmadeChange(log, messages, reply, sentBack = 0, limit = 1, { wordsToo = false } = {}) {
     if (!log || log.changed.length || sentBack >= limit) return null;
-    if (/\?\s*$/.test(String(reply || '').trim())) return null;   // asking the person something
-    if (!CHANGE_WORDS.test(requestIn(messages)) || !codeBlocks(reply)) return null;
+    if (/\?\s*$/.test(String(reply || '').trim()) && !wordsToo) return null;   // asking the person something
+    const request = requestIn(messages);
+    if (!CHANGE_WORDS.test(request)) return null;
+    if (codeBlocks(reply)) {
+      return {
+        kind: 'make',
+        step: MADE_STEP,
+        message: `${APP_NOTE} your reply shows code, but no file in the project was changed. If the request was to change ` +
+          'the project, make the change now with patch_file, or write_file for a new file, then say in a sentence or two what ' +
+          'you changed. If it only asked a question, answer it and change nothing.',
+      };
+    }
+    if (!wordsToo || KEEP_FILES.test(request)) return null;
     return {
       kind: 'make',
       step: MADE_STEP,
-      message: `${APP_NOTE} your reply shows code, but no file in the project was changed. If the request was to change ` +
-        'the project, make the change now with patch_file, or write_file for a new file, then say in a sentence or two what ' +
-        'you changed. If it only asked a question, answer it and change nothing.',
+      message: `${APP_NOTE} no file in the project was changed, and the request asks for a change. Make it now with the ` +
+        'tools: grep_code finds where a name or a piece of text is written, read_file shows a file, patch_file changes it, ' +
+        'and shell_run runs the tests. Ask the person only for what the files and the tests cannot tell you. If it should ' +
+        'not be changed, say why.',
     };
+  }
+
+  // ── The work checked against the request ────────────────────────────────
+
+  const REQUEST_QUOTED = 1200;   // characters of the request quoted back
+
+  /**
+   * What sends the agent back to check its work against the request before
+   * it finishes, or null. Once at most, and only after it changed a file:
+   * `reviewed` is how many times this run has been sent back for it. The
+   * request is quoted, since on a long run it is far back in the
+   * conversation, and a model that holds less loses it first.
+   */
+  function reviewCheck(log, request, reply, reviewed = 0, limit = 1) {
+    if (!log || !log.changed.length || reviewed >= limit) return null;
+    if (/\?\s*$/.test(String(reply || '').trim())) return null;   // asking the person something
+    const asked = String(request || '').trim();
+    if (!asked) return null;
+    const quoted = asked.length > REQUEST_QUOTED ? asked.slice(0, REQUEST_QUOTED) + '…' : asked;
+    return {
+      kind: 'review',
+      step: REVIEW_STEP,
+      message: `${APP_NOTE} before you finish, ${REVIEW_SAYS}. The request was:\n\n${quoted}\n\n` +
+        'Go through each thing it asks for and make sure the files now do it; read a file again if you are not sure. ' +
+        'If something is missing or wrong, fix it now. If everything is done, change nothing more and finish with what ' +
+        'you changed and what passed.',
+    };
+  }
+
+  /**
+   * What sends the agent back when it tries to finish, or null, in this
+   * order: a change written into the reply and not made, or on a small or
+   * mid-sized model a change asked for and not begun; then, while proving
+   * is switched on (`prove`), a change to code nothing proved, and on a small
+   * or mid-sized model on this computer (`size`) the work checked against the
+   * request. `sent` counts, by kind, how often this run was sent back;
+   * `shown` gives the request as the person sees it, without the text of
+   * what they attached.
+   */
+  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null } = {}) {
+    if (!log || !String(reply || '').trim()) return null;
+    const request = requestIn(messages);
+    const local = size === 'small' || size === 'mid';
+    return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
+      || (prove ? stopCheck(log, checks, reply, sent.prove || 0) : null)
+      || (prove && local ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
   }
 
   /**
@@ -383,6 +462,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, noteStep,
+    requestIn, codeBlocks, unmadeChange, reviewCheck, sendBack, noteStep,
   };
 })();
