@@ -123,13 +123,16 @@
    * the ends of lines ignored; with indentation ignored, the replacement then
    * indented as the file is. Throws a message the model can act on when the
    * passage is not unique, or not there, and then shows the passage most like
-   * it with its line numbers.
+   * it with its line numbers. With `every`, a passage found as written more
+   * than once is changed everywhere it appears, as a rename needs; a passage
+   * found only by a looser stage must still be there once.
    */
-  function patchWithStage(content, search, replace, name) {
+  function patchWithStage(content, search, replace, name, every = false) {
     const unique = (text, find, repl, how) => {
       const n = count(text, find);
       if (n === 1) return spliceOnce(text, find, repl);
-      if (n > 1) throw new Error(`search string found ${n} times in "${name}"${how}. Add more surrounding lines to make it unique.`);
+      if (n > 1 && every) return text.split(find).join(repl);
+      if (n > 1) throw new Error(`search string found ${n} times in "${name}"${how}. Add more surrounding lines to make it unique, or set all to true to change every one of them, as in a rename.`);
       return null;
     };
     let out = unique(content, search, replace, '');
@@ -247,7 +250,7 @@
       if (!e || typeof e.search !== 'string' || !e.search) throw new Error(`edit ${i + 1} of ${edits.length} has no search text. Nothing was changed.`);
       if (typeof e.replace !== 'string') throw new Error(`edit ${i + 1} of ${edits.length} has no replace text (use "" to delete). Nothing was changed.`);
       let step;
-      try { step = patchWithStage(text, e.search, e.replace, name); }
+      try { step = patchWithStage(text, e.search, e.replace, name, e.all === true); }
       catch (err) { throw new Error(edits.length > 1 ? `edit ${i + 1} of ${edits.length}: ${err.message}\nNothing was changed.` : err.message); }
       text = step.text;
       if (step.how) notes.push(edits.length > 1 ? `edit ${i + 1} matched ${step.how}` : `matched ${step.how}`);

@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder can rename in one edit.** An edit whose passage appears more
+  than once was refused, so renaming a function used twice in a file could
+  not be done with it. An edit can now change every place its passage
+  appears, and the refusal says so.
+
 - **HashCoder finds real photographs for a site's subject.** A new
   find_photos tool searches Openverse for openly licensed photos, the way
   the Agent Swarm does and under the same "Find real photos for websites"

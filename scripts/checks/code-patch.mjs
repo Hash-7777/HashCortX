@@ -35,7 +35,11 @@ const throws = (fn) => { try { fn(); return null; } catch (e) { return String(e.
 console.log('The passage is replaced, and nothing else:');
 {
   ok('one occurrence is replaced', P.applyPatch('a b c', 'b', 'B', 'f') === 'a B c');
-  ok('a passage that is not unique is refused, saying how many', /found 2 times/.test(throws(() => P.applyPatch('x x', 'x', 'y', 'f'))));
+  ok('a passage that is not unique is refused, saying how many, and how to change them all', /found 2 times[\s\S]*set all to true/.test(throws(() => P.applyPatch('x x', 'x', 'y', 'f'))));
+  const renamed = P.applyEdits("const { getUsr } = require('./users');\nconst u = getUsr(1);\n", [{ search: 'getUsr', replace: 'getUser', all: true }], 'f').text;
+  ok('with all, every place it appears is changed, as a rename needs', renamed === "const { getUser } = require('./users');\nconst u = getUser(1);\n", JSON.stringify(renamed));
+  ok('... and with all, a passage there once is changed as usual', P.applyEdits('a b', [{ search: 'b', replace: 'c', all: true }], 'f').text === 'a c');
+  ok('... while a passage found only loosely must still be there once', /found 2 times in "f" with its indentation adjusted/.test(throws(() => P.applyEdits('  foo()\n    foo()\n', [{ search: 'foo()  ', replace: 'bar()', all: true }], 'f')) || ''));
   ok('a missing passage is refused, with the start of the file', /not found[\s\S]*File begins with:\nabc/.test(throws(() => P.applyPatch('abc', 'zzz', 'y', 'f'))));
   ok('an empty search matches nothing', P.count('abc', '') === 0);
 }

@@ -255,12 +255,12 @@
       return JSON.stringify({ ok: true, from, to });
     },
 
-    async patchFile(path, search, replace, reason = '', more = null) {
+    async patchFile(path, search, replace, reason = '', more = null, all = false) {
       if (!search) throw new Error('patch_file: search string is required and must not be empty.');
       if (replace == null) throw new Error('patch_file: replace string is required (use "" to delete).');
       // Further edits to the same file, made with the first: all or none.
-      const edits = [{ search: String(search), replace: String(replace) }]
-        .concat(Array.isArray(more) ? more.map((e) => ({ search: e && e.search, replace: e && e.replace })) : []);
+      const edits = [{ search: String(search), replace: String(replace), all: all === true }]
+        .concat(Array.isArray(more) ? more.map((e) => ({ search: e && e.search, replace: e && e.replace, all: !!e && e.all === true })) : []);
 
       // The file's real bytes, not what read_file shows the model: that cuts a
       // long file short and describes a binary one, and either would be
@@ -397,15 +397,16 @@
     },
     {
       name: 'patch_file',
-      description: 'Replace a passage inside an existing file, keeping everything else. Copy the search text from read_file output, without the line numbers of a numbered read. It must appear once in the file: add neighbouring lines when it is not unique. For several changes to one file, pass the rest in edits: all are made together, or none. When the passage is not found, the answer shows the lines most like it.',
+      description: 'Replace a passage inside an existing file, keeping everything else. Copy the search text from read_file output, without the line numbers of a numbered read. It must appear once in the file: add neighbouring lines when it is not unique, or set all to true to change every place it appears, as in a rename. For several changes to one file, pass the rest in edits: all are made together, or none. When the passage is not found, the answer shows the lines most like it.',
       parameters: {
         path:    'Absolute path to the file to edit',
         search:  'The passage to find, copied from the file',
         replace: 'What to put in its place ("" deletes it)',
-        edits:   { type: 'array', description: 'Optional: more changes to the same file, made with the first one.', items: { type: 'object', properties: { search: { type: 'string' }, replace: { type: 'string' } }, required: ['search', 'replace'] } },
+        all:     { type: 'boolean', description: 'Optional: true to change every place the search appears, rather than exactly one.' },
+        edits:   { type: 'array', description: 'Optional: more changes to the same file, made with the first one.', items: { type: 'object', properties: { search: { type: 'string' }, replace: { type: 'string' }, all: { type: 'boolean' } }, required: ['search', 'replace'] } },
         reason:  'What this change does',
       },
-      fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits),
+      fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits, p.all === true),
     },
     {
       name: 'list_dir',
@@ -700,7 +701,7 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {
