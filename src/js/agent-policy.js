@@ -169,6 +169,15 @@
     return progress;
   }
 
+  /**
+   * Whether what a tool handed back says it failed. A tool may fail by
+   * answering `{ error }` or `{ ok: false }` rather than by throwing; counted
+   * as a success, a memory save that saved nothing was reported as saved, and
+   * a read that was refused as records the chat now held.
+   */
+  const failedResult = (result) => !!result && typeof result === 'object' && !Array.isArray(result)
+    && (result.error != null && result.error !== false || result.ok === false);
+
   // ── A ceiling on one multi-step generation ──────────────────────────────
   //
   // A pipeline that retries and then fails over has no natural end. ERP's
@@ -227,7 +236,7 @@
 
   window.HCAgentPolicy = {
     TOOL_EFFECT, BUDGET, MAX_PARALLEL, RUN_BUDGET,
-    effectOf, planBatches, shouldContinue, iterationMadeProgress,
+    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult,
     newRunBudget, runBudgetExceeded, chargeRunBudget,
   };
 })();

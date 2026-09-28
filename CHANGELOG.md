@@ -498,6 +498,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A tool that answered with a failure is not counted as done.** In chat,
+  a tool that said it failed rather than stopping with an error was marked
+  with a tick and recorded as a success: a memory save that saved nothing
+  could be reported as "Saved that to memory", and a refused read from a
+  connected system counted as records the conversation held, keeping it
+  from cloud models for no reason. Such a tool is now marked and recorded as
+  failed.
+
 - **A saved HashCoder conversation says what was checked.** The line under
   each answer saying which check passed after the last change, or that none
   did, was drawn only while the run happened; opened again from History or

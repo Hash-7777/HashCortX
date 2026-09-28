@@ -183,5 +183,17 @@ console.log('\nOne generation has an end:');
   check('there is a default ceiling', RUN_BUDGET.ms > 0 && RUN_BUDGET.calls > 0);
 }
 
+console.log('\nA tool that answers with a failure has failed:');
+{
+  const F = sandbox.HCAgentPolicy.failedResult;
+  check('an answer of { error } is a failure', F({ error: 'query is required' }) && F({ ok: false, error: 'key and value are required' }));
+  check('... and so is { ok: false } with no error named', F({ ok: false }));
+  check('what a tool found, or nothing at all, is not', !F({ ok: true, saved: { key: 'a' } }) && !F({ facts: [] }) && !F('text') && !F(null) && !F(undefined) && !F([{ error: 'a row' }]) && !F({ error: null }));
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const run = app.slice(app.indexOf('async function runOneTool'), app.indexOf('async function agentTurnOllama'));
+  check('chat marks and records a tool by it, so a memory save that saved nothing is not reported as saved',
+    /const failed = HCAgentPolicy\.failedResult\(result\);/.test(run) && /tracker\.push\(\{ name, ok: !failed,/.test(run) && /failed \? "failed" : "done"/.test(run));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);
 process.exit(fail ? 1 : 0);

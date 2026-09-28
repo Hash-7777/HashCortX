@@ -5662,14 +5662,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       // up with nothing waiting on it; and a first Python chart, loading its
       // library, was given up on while it carried on running, so the next
       // Python call queued behind it and timed out too.
-      const run = Promise.resolve(tool.execute(args || {}));
-      let timer = null;
+      let timer = null; const run = Promise.resolve(tool.execute(args || {}));
       const result = tool.ownLimit ? await run : await Promise.race([
         run,
         new Promise((_, rej) => { timer = setTimeout(() => rej(new Error("tool timeout")), AGENT_TOOL_TIMEOUT_MS); })
       ]).finally(() => clearTimeout(timer));
-      if (onStatus) onStatus(`${name} ✓`, "done");
-      if (tracker) tracker.push({ name, ok: true, ms: Math.round(performance.now() - t0), ...(name === "execute_python" ? { output: HCRanCode.outputOf(result) } : {}) });
+      const failed = HCAgentPolicy.failedResult(result);   // an answer of { error } is a failure too: js/agent-policy.js
+      if (onStatus) onStatus(`${name} ${failed ? "✗" : "✓"}`, failed ? "failed" : "done");
+      if (tracker) tracker.push({ name, ok: !failed, ms: Math.round(performance.now() - t0), ...(name === "execute_python" ? { output: HCRanCode.outputOf(result) } : {}) });
       return JSON.stringify(result ?? { ok: true });
     } catch (e) {
       if (onStatus) onStatus(`${name} ✗`, "failed");
