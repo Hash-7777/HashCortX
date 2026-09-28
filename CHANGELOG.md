@@ -470,6 +470,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A call a local model writes after its words is made.** A model that
+  says what it is about to do and then writes the call as plain text on the
+  lines after it had the call shown as its answer, and the step never ran.
+  Calls on the last lines of a reply are now read when nothing but calls
+  follows them; an example among the words is still left alone.
+
 - **A model on your computer sees its own steps.** Several local models'
   templates show a past turn as either its words or its tool calls, never
   both, and the words won: a model that said what it was about to do before

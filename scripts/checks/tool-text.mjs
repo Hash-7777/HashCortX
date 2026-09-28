@@ -68,6 +68,12 @@ ok('a list of calls ending in a line of words keeps the calls', T.callsIn('{"nam
 ok('a single call cut off is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a', names).length === 0);
 ok('calls in a row inside a json block, with commas between', T.callsIn(`${F}json\n{"name":"web_search","arguments":{"query":"a"}},\n{"name":"web_search","arguments":{"query":"b"}}\n${F}`, names).map((c) => c.arguments.query).join() === 'a,b');
 
+{
+  const said = T.callsIn('Found the file.\n\nNow reading it before changing it.\n\n{"name": "web_search", "arguments": {"query": "slugify"}}', names);
+  ok('a call written as the last lines, after words saying what it is for', said.length === 1 && said[0].name === 'web_search' && said[0].arguments.query === 'slugify');
+  ok('... and calls in a row there', T.callsIn('Two steps.\n{"name": "web_search", "arguments": {}}\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'web_search,current_datetime');
+  ok('... the last one, when an example came earlier among the words', T.callsIn('A call looks like\n{"name": "web_search", "arguments": {}}\nso here is mine:\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'current_datetime');
+}
 console.log('\nEach way a call is spelled:');
 ok('action and action_input', one('{"action": "web_search", "action_input": {"query": "x"}}'));
 ok('tool and tool_input as a string', one('{"tool": "web_search", "tool_input": "{\\"query\\": \\"x\\"}"}'));
@@ -85,6 +91,10 @@ ok('ordinary JSON with a name in it', T.callsIn('{"name": "John", "age": 3}', na
 ok('a call next to JSON that is not one is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"total": 3}', names).length === 0);
 ok('two calls with words between them are left alone', T.callsIn('{"name": "web_search", "arguments": {}}\nand then\n{"name": "current_datetime", "arguments": {}}', names).length === 0);
 ok('a call in a row with one to a tool not offered is not read', T.callsIn('{"name": "web_search", "arguments": {}}\n{"name": "delete_files", "arguments": {}}', names).length === 0);
+ok('a call after words, followed by more words, is an example', T.callsIn('Like this:\n{"name": "web_search", "arguments": {}}\nThat is the format.', names).length === 0);
+ok('... and so are calls in a row with words after them', T.callsIn('Like this:\n{"name": "web_search", "arguments": {}}\n{"name": "current_datetime", "arguments": {}}\nThat is how.', names).length === 0);
+ok('a call after words, cut off, is not read', T.callsIn('Reading it now.\n{"name": "web_search", "arguments": {"query": "a', names).length === 0);
+ok('JSON after words that is not a call is not read', T.callsIn('The settings are:\n{"port": 8080}', names).length === 0);
 ok('Python code that happens to name a tool is not a tool_code block', T.callsIn(`${F}python\nweb_search(query="x")\n${F}`, names).length === 0);
 ok('an answer that talks about the tags', T.callsIn('Models often wrap calls in <tool_call> tags.', names).length === 0);
 ok('with no tools offered, nothing is a call', T.callsIn('{"name":"web_search","arguments":{}}', []).length === 0);

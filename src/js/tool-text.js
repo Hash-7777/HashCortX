@@ -21,6 +21,7 @@
 //   a tool_code block holding name(a="…")
 //   bare JSON or a json block, at the start or the end of the reply, and
 //   several of them one after another, one call per line
+//   bare JSON as the last lines of a reply, after words saying what it is for
 //
 // and the keys each spells a call with: name, tool, tool_name, action; and
 // arguments, parameters, args, tool_input, action_input, input — or the
@@ -28,8 +29,9 @@
 //
 // A call is kept only when it names a tool the caller offered. Marked calls
 // count wherever they sit, because the mark says what they are. An unmarked
-// block counts only at the start or end of the reply, so an answer that shows
-// an example among its words is left alone.
+// block counts only at the start or end of the reply, and after words only
+// when nothing but calls follows it, so an answer that shows an example among
+// its words is left alone.
 //
 // Pure. Published as window.HCToolText. Checked by scripts/checks/tool-text.mjs.
 // ============================================================
@@ -250,24 +252,43 @@
    * end of the reply, so the values written whole before it are kept. Such a
    * list may also end in a line of words, the model telling itself how it
    * went: after two values or more, that is where the list stops. After one,
-   * words mean the value was an example, and nothing is read.
+   * words mean the value was an example, and nothing is read. `whole` asks
+   * for values to the end and nothing else: no words after, none cut off.
    */
-  function valuesInRow(body) {
+  function valuesInRow(body, whole = false) {
     const out = [];
     let i = 0;
     while (i < body.length) {
       while (i < body.length && /[\s,;]/.test(body[i])) i++;
       if (i >= body.length) break;
-      if (body[i] !== "{" && body[i] !== "[") return out.length >= 2 ? out : [];
+      if (body[i] !== "{" && body[i] !== "[") return out.length >= 2 && !whole ? out : [];
       const end = closing(body, i);
-      if (end < 0) return out;
+      if (end < 0) return whole ? [] : out;
       try { out.push(jsonValue(body.slice(i, end + 1))); } catch { return []; }
       i = end + 1;
     }
     return out;
   }
 
-  /** An unmarked call: the whole reply, or a block at its start or end. */
+  /**
+   * Calls written as the last lines of a reply, after words saying what they
+   * are for, as a model asked to say what it is doing before each step writes
+   * them: from a line that opens a value to the end of the reply, every value
+   * a call and nothing after. A value in the middle of the words, followed by
+   * more words, is an example and is not read.
+   */
+  function afterWords(text) {
+    const t = String(text);
+    for (let at = t.indexOf("\n"); at >= 0; at = t.indexOf("\n", at + 1)) {
+      const rest = t.slice(at + 1).trim();
+      if (!/^[[{]/.test(rest)) continue;
+      const calls = valuesInRow(rest, true).map(callsOfValue);
+      if (calls.length && calls.every((c) => c.length)) return calls.flat();
+    }
+    return [];
+  }
+
+  /** An unmarked call: the whole reply, or a block at its start or end, or its last lines after words. */
   function unmarked(text) {
     const parts = window.HCFences && window.HCFences.splitFences
       ? window.HCFences.splitFences(text).filter((p) => p.type === "code" || String(p.text || "").trim())
@@ -276,7 +297,7 @@
     const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code" && String(p.code || "").trim());
     const loose = String(text).replace(/^\s*(`{3,}|~{3,})[ \t]*\n/, "").replace(/\n[ \t]*(`{3,}|~{3,})\s*$/, "");
     const body = (edge ? edge.code : loose).trim();
-    if (!/^[[{]/.test(body)) return [];
+    if (!/^[[{]/.test(body)) return edge ? [] : afterWords(loose);
     // A whole value, or whole values in a row: not the first object inside some prose.
     let values;
     try { values = [jsonValue(body)]; } catch { values = valuesInRow(body); }
