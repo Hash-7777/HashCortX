@@ -66,7 +66,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   agent can be measured. Its commands run in the macOS sandbox, inside a
   temporary folder, with no network. A run stops starting tasks after twenty
   minutes unless told otherwise and rests between them, and `--smoke` checks
-  HashCoder's loop in seconds with a scripted stand-in for a model.
+  HashCoder's loop in seconds with a scripted stand-in for a model. Each
+  task's steps are kept in short with its result, so a failure can be read,
+  and a smoke run that fails prints them.
 
 - **Agent Swarm agents can look things up in a connected system.** A run
   whose task names a connected system, or speaks of its records, offers

@@ -62,7 +62,8 @@
 // judged, and on every way out of this process. Commands still running when a
 // task ends are ended too. Local models are unloaded at the end. The
 // temporary folder is removed unless --keep is given. Results are written to
-// node_modules/.coder-bench/, which git ignores.
+// node_modules/.coder-bench/, which git ignores, each task with its steps in
+// short: what the agent said and called, and what came back.
 //
 // --src serves another copy of the app's source instead of src/, so a run can
 // measure a fixed version while the working copy changes.
@@ -722,6 +723,25 @@ function measure(history) {
   return m;
 }
 
+/**
+ * The run step by step, short: what the agent said and called, what each
+ * call gave back, and each note the app sent it back with. For reading why a
+ * task failed, not for scoring.
+ */
+function trailOf(history) {
+  const cut = (t, n) => { const s = String(t ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
+  const trail = [];
+  for (const msg of history || []) {
+    if (!msg || msg.role === 'system') continue;
+    if (msg.role === 'assistant') {
+      const calls = (msg.tool_calls || []).map((c) => `${c.function?.name || c.name}(${cut(typeof c.function?.arguments === 'string' ? c.function.arguments : JSON.stringify(c.function?.arguments ?? c.arguments ?? {}), 400)})`);
+      trail.push(`agent: ${cut(msg.content, 700)}${calls.length ? ' => ' + calls.join(' ; ') : ''}`);
+    } else if (msg.role === 'tool') trail.push(`  result: ${cut(msg.content, 200)}`);
+    else if (msg.role === 'user') trail.push(`${trail.length ? 'note' : 'request'}: ${cut(msg.content, 200)}`);
+  }
+  return trail;
+}
+
 function finalAnswer(result) {
   const history = result.history || [];
   for (let i = history.length - 1; i >= 0; i--) {
@@ -792,7 +812,7 @@ async function runTask(port, model, task, n) {
     task: task.id, kind: task.kind, model, pass: verdict.pass, notes: verdict.notes, notRun: !!result.failed && result.seconds == null,
     seconds: result.seconds ?? null, timedOut: !!result.timedOut, tokens: usage,
     asks: result.asks || [], pageErrors: result.pageErrors || [], ...measure(result.history), answer: answer.slice(0, 1500),
-    shown: String(result.lastBubble || '').slice(-1500),
+    shown: String(result.lastBubble || '').slice(-1500), trail: trailOf(result.history),
   };
   current = null;
   job = null;
@@ -907,7 +927,7 @@ async function smoke() {
     [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);
-  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it, and the person was told what was proven.');
+  console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}\n\nWhat happened:\n  ${(row.trail || []).join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it, and the person was told what was proven.');
   return wrong.length ? 1 : 0;
 }
 
