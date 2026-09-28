@@ -209,11 +209,20 @@
   const isCode = (path) => CODE_FILE.test(String(path || ''));
 
   /**
+   * Whether a command's result says nothing was run: the program is not
+   * there, or the project has no script by that name. Such a command proved
+   * nothing either way, and reading it as a failed test sent the agent back to
+   * fix a failure its change never caused.
+   */
+  const neverRan = (result) => result.code === 127
+    || /\bMissing script\b|\bcommand not found\b|\berror Command "[^"]+" not found\b/i.test(`${result.stderr || ''}\n${result.stdout || ''}`);
+
+  /**
    * A record of one run: the files changed, and every check run with what it
    * showed. `edited(path)` after each change the agent makes; `ran(command,
    * args, result)` after each command, where `result` is what shell_run gave
-   * back — a command that never started is not proof of anything and is not
-   * recorded.
+   * back — a command that never started, or found no program or script to
+   * run, is not proof of anything and is not recorded.
    */
   function proofLog() {
     let step = 0;
@@ -229,7 +238,7 @@
       ran(command, args, result) {
         step++;
         const kind = commandKind(command, args);
-        if (!kind || !result || typeof result.code !== 'number') return null;
+        if (!kind || !result || typeof result.code !== 'number' || neverRan(result)) return null;
         const entry = {
           kind,
           command: [command, ...(Array.isArray(args) ? args : [])].join(' ').trim(),
@@ -263,6 +272,17 @@
   const line = (entry) => `\`${entry.command}\``;
 
   /**
+   * A command line as the shell_run call that runs it, or '' when it needs a
+   * shell to mean what it says. A model told only to run a command often
+   * wrote it into its reply as text.
+   */
+  function callFor(commandLine) {
+    const words = String(commandLine || '').trim().split(/\s+/).filter(Boolean);
+    if (!words.length || /["'`|&;<>$*?(){}\\]/.test(commandLine)) return '';
+    return ` with shell_run: command ${JSON.stringify(words[0])}, args ${JSON.stringify(words.slice(1))}`;
+  }
+
+  /**
    * What sends the agent back before it finishes, or null when nothing does.
    *
    * `checks` is what projectChecks found; `sentBack` how many times this run
@@ -281,9 +301,9 @@
     if (!test && !failed) return null;
     const files = log.changed.filter(isCode).map((p) => String(p).split(/[\\/]/).pop()).slice(0, 4).join(', ');
     const message = failed
-      ? `${APP_NOTE} ${line(failed)} failed after your last change. Read the failure, fix the cause, and run it again. ` +
+      ? `${APP_NOTE} ${line(failed)} failed after your last change. Read the failure, change the code to fix the cause, and run it again${callFor(failed.command)}; make the fix, do not describe it. ` +
         'Then finish by saying which checks passed. If it cannot be made to pass, say what still fails and why.'
-      : `${APP_NOTE} you changed ${files} and no test has run since. Run \`${test}\` now. If it fails, read the failure and fix it. ` +
+      : `${APP_NOTE} you changed ${files} and no test has run since. Run \`${test}\` now${callFor(test)}. If it fails, read the failure and fix it. ` +
         'Then finish by saying which checks passed. If it cannot run here, say so and why.';
     return { kind: 'prove', step: PROVE_STEP, message };
   }

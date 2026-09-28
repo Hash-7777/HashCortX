@@ -125,6 +125,16 @@ console.log('\nWhen the agent is sent back:');
   log.ran('ls', ['-la'], passed);
   ok('a command that checks nothing is not recorded', log.checks.length === 1);
   ok('a command that never started is not recorded', log.ran('npm', ['test'], null) === null && log.checks.length === 1);
+  ok('nor one that found no script to run', log.ran('npm', ['test'], { code: 1, stderr: 'npm error Missing script: "test"' }) === null
+    && log.ran('pnpm', ['test'], { code: 1, stderr: 'ERR_PNPM_NO_SCRIPT  Missing script: test' }) === null
+    && log.ran('yarn', ['test'], { code: 1, stderr: 'error Command "test" not found.' }) === null && log.checks.length === 1);
+  ok('nor one whose program is not there', log.ran('pytest', [], { code: 127, stderr: 'zsh: command not found: pytest' }) === null && log.checks.length === 1);
+
+  const told = V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/stats.py'); return l; })(), { test: 'python3 -m unittest' }, 'Done.');
+  ok('told to run the tests, it is given the call that runs them', /Run `python3 -m unittest` now with shell_run: command "python3", args \["-m","unittest"\]/.test(told?.message || ''), told?.message);
+  const refail = (() => { const l = V.proofLog(); l.edited('/p/range.js'); l.ran('npm', ['test'], { code: 1 }); return V.stopCheck(l, { test: 'npm test' }, 'Done.'); })();
+  ok('... and after a failure, to make the fix rather than describe it', /run it again with shell_run: command "npm", args \["test"\]; make the fix, do not describe it/.test(refail?.message || ''), refail?.message);
+  ok('a command that needs a shell is named, not given as a call', !/shell_run/.test(V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.')?.message || 'shell_run'));
 }
 
 console.log('\nA change written into the reply instead of made:');

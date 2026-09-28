@@ -470,6 +470,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A test that could not run is not a failed test.** A command that
+  found no test script in the project, or no program by that name, was
+  read as a test that failed after HashCoder's change, and it was sent back
+  to fix a failure its change never caused. Such a command now proves
+  nothing either way. When HashCoder is sent back to run a test, it is given
+  the exact call that runs it, and after a failure it is told to make the
+  fix rather than describe it.
+
 - **HashCoder's search by file name says how each file matched.** It gave
   each match a number, 0 for the exact name, and a model read that 0 as no
   match and said the file did not exist. Each file now comes with how its
