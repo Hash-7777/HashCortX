@@ -1093,6 +1093,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Removed
 
+- **Five packages the app never loads.** The project's package list named
+  the file, shell, store, notification and dialog plugins' JavaScript
+  packages, which the app does not use: it reaches the dialogs through the
+  desktop side directly and has no build step that could load them. They
+  were installed for everyone who set the project up, and are gone.
 - **Code nothing called.** Ten functions across chat, HashCoder, Finance, the ERP
   and the Virtual OS that no part of the app reached, and the drag path the
   Virtual OS desktop icons stopped using when they moved to a pointer drag.
