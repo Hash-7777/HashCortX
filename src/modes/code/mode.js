@@ -1994,15 +1994,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       return out + (extra ? '\n' + extra : '');
     }
 
-    // History compression lives in js/agent-context.js so it can be tested.
-    //
-    // It used to cut EVERY tool result to 800 characters on every call — not
-    // just old ones, but the file the agent had asked for one step earlier.
-    // read_file returns up to 100 KB and the model saw the first 800 bytes of
-    // it, which is why the agent so often "forgot" what it had just read. It
-    // now spends a character budget newest-first, so recent results arrive
-    // whole and only older ones give way.
-    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs);
+    // What the model is shown of a long run, sized to the model: js/agent-context.js.
+    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, window.HCAgentContext.optionsFor(sharedState.size, sharedState.local));
 
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
@@ -2237,6 +2230,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const info = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
       const size = HC?.code?.sizeOf?.(info?.billions) || 'full';
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
+      sharedState.local = !/^cloud:/.test(model); if (HC?.code) HC.code.outputLimit = window.HCAgentContext.optionsFor(size, sharedState.local).shellOutput;   // sized to the model (js/agent-context.js)
       if (size !== sharedState.size) {
         sharedState.size = size;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();

@@ -134,6 +134,9 @@
      */
     onShellChunk: null,
 
+    /** How much of a command's output the model is given whole; set for the model in use by the Coder panel. */
+    outputLimit: 20000,
+
     /**
      * The stop key of the agent run in progress, set by the Coder panel. Every
      * command the agent starts carries it, so stopping the run can end them
@@ -566,7 +569,8 @@
         cwd:     { type: 'string', description: 'Working directory absolute path (omit to use project root)' },
         reason:  { type: 'string', description: 'Why you are running this command' },
       },
-      fn: (p) => HC.code.shellRun(p.command, p.args || [], p.cwd || null, p.reason),
+      // Long output is given in short, its failures kept (js/code/digest.js); the terminal shows it all.
+      fn: (p) => HC.code.shellRun(p.command, p.args || [], p.cwd || null, p.reason).then((r) => (window.HCCodeDigest ? window.HCCodeDigest.shellResult(r, HC.code.outputLimit) : r)),
     },
     {
       // Real photographs of the site's subject, by the search the Agent Swarm

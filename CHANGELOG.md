@@ -314,6 +314,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder shows a model what fits it.** How much tool output a model is
+  shown whole, and how many results it keeps, now follows its size: a small
+  model on your computer the least, a large cloud model as much as before.
+  A command's output longer than that is given to the model as its first
+  lines, every line that reports a failure or an error with the lines
+  around it, and its last lines, saying how many were left out; the
+  terminal still shows all of it.
+
 - **Each HashCoder step starts where the last one did.** A model reads a
   request from the start, and a provider, or a model on your computer, can
   reuse the work of reading everything up to the first thing that changed.

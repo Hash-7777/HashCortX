@@ -20,7 +20,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'agent-context.js' });
 
-const { DEFAULTS, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory } = sandbox.window.HCAgentContext;
+const { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory } = sandbox.window.HCAgentContext;
 
 let pass = 0, fail = 0;
 function check(label, condition, detail = '') {
@@ -115,6 +115,36 @@ console.log('\nEach request is the last one with more on the end:');
   const sliding = run({ hideStep: 1, hideTo: 0.99 });
   check('at most one step in four starts differently from the one before', stepped <= 15, `${stepped} of 60`);
   check('...where hiding one result a turn would start differently at most of them', sliding >= 40 && stepped * 2 < sliding, `${sliding} of 60`);
+}
+
+console.log('\nSized to the model:');
+{
+  const [small, mid, local, cloud] = [optionsFor('small', true), optionsFor('mid', true), optionsFor('full', true), optionsFor('full', false)];
+  check('a smaller model is shown less, of results and of a command\'s output',
+    small.toolBudget < mid.toolBudget && mid.toolBudget < local.toolBudget && local.toolBudget < cloud.toolBudget &&
+    small.shellOutput < mid.shellOutput && mid.shellOutput < local.shellOutput && local.shellOutput < cloud.shellOutput &&
+    small.keepResults < mid.keepResults && mid.keepResults < cloud.keepResults);
+  check('a cloud model is shown what it always was', cloud.toolBudget === DEFAULTS.toolBudget && cloud.keepResults === DEFAULTS.keepResults && cloud.maxResult === DEFAULTS.maxResult);
+  check('a size it does not know is treated as the largest', optionsFor(undefined, false).toolBudget === cloud.toolBudget);
+  check('every size keeps the rules it does not set', ['small', 'mid', 'full'].every((size) => ['keepRequests', 'requestStep', 'longArgument'].every((k) => optionsFor(size, true)[k] === DEFAULTS[k])) && optionsFor('full', true).hideTo === DEFAULTS.hideTo);
+  check('no size cuts a whole numbered read of a file short', Object.values(TIERS).every((t) => t.maxResult >= 10000));
+  // A small model's long run: what is shown stays within its budget, and the
+  // request still starts the same way at most steps.
+  const msgs = [sys('prompt'), user('Fix the failing test')];
+  let worst = 0, breaks = 0, prev = null;
+  for (let i = 0; i < 40; i++) {
+    msgs.push({ role: 'assistant', content: '', tool_calls: [{ id: 'c' + i, function: { name: 'read_file', arguments: `{"path":"/p/f${i}.js"}` } }] });
+    msgs.push({ role: 'tool', tool_call_id: 'c' + i, name: 'read_file', content: 'r'.repeat(1200 + (i % 4) * 900) });
+    const out = compressHistory(msgs, small);
+    const shown = out.filter((m) => m.role === 'tool' && !/^\[Earlier result/.test(m.content)).reduce((t, m) => t + m.content.length, 0);
+    worst = Math.max(worst, shown);
+    if (prev && !prev.every((m, k) => JSON.stringify(m) === JSON.stringify(out[k]))) breaks++;
+    prev = out;
+  }
+  check('a small model is never shown more tool output than its budget', worst <= small.toolBudget, `${worst}`);
+  check('...and its requests still start the same way at most steps', breaks <= 16, `${breaks} of 40`);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\)\)/.test(mode) && /sharedState\.local = !\/\^cloud:\/\.test\(model\)/.test(mode));
 }
 
 console.log('\nInputs are not mutated:');

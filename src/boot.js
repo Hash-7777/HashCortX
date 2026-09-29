@@ -77,6 +77,7 @@
     '/js/code/patch.js',
     '/js/code/verify.js',
     '/js/code/context.js',
+    '/js/code/digest.js',
     '/js/code/attach.js',
     '/js/code/live.js',
     '/js/code/export.js',

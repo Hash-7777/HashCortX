@@ -57,6 +57,29 @@
     longArgument: 300,
   };
 
+  // ── Sized to the model ──────────────────────────────────────────────────
+  //
+  // How much a model is shown follows what it can use. A small model on this
+  // computer reads slowly and loses the thread in a long request, so it is
+  // shown the newest few results and a command's output in short; a large
+  // cloud model is shown the most. `shellOutput` is how much of a command's
+  // output is given before it is shortened (js/code/digest.js).
+  const TIERS = {
+    small: { toolBudget: 12000, maxResult: 10000, keepResults: 4, hideStep: 4, hideTo: 0.4, shellOutput: 3000 },
+    mid: { toolBudget: 24000, maxResult: 16000, keepResults: 5, hideStep: 5, hideTo: 0.4, shellOutput: 6000 },
+    local: { toolBudget: 40000, maxResult: 30000, keepResults: 8, hideStep: 5, shellOutput: 12000 },
+    cloud: { toolBudget: 60000, maxResult: 60000, keepResults: 10, hideStep: 6, shellOutput: 20000 },
+  };
+
+  /**
+   * The options for a model of this size ('small', 'mid' or 'full', as
+   * hashcoder.js sizeOf gives it), `local` when it runs on this computer.
+   */
+  function optionsFor(size, local) {
+    const tier = size === 'small' ? TIERS.small : size === 'mid' ? TIERS.mid : local ? TIERS.local : TIERS.cloud;
+    return Object.assign({}, DEFAULTS, tier);
+  }
+
   function truncateResult(content, keep) {
     // Keep the head — for a file read or a directory listing that is the part
     // carrying structure. Keep a little of the tail too, because a command's
@@ -264,5 +287,5 @@
     return budgetToolResults(hideOldResults(head.concat(kept.map(withContext)), opts), opts);
   }
 
-  window.HCAgentContext = { DEFAULTS, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory };
+  window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory };
 })();

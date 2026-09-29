@@ -694,7 +694,9 @@ const LINE_BUDGET = {
   // kept or undone together (platform/tauri/undo.js byFile).
   // 2642, down thirteen: what belongs to one request leaves the instructions
   // for js/code/context.js, so the instructions stay the same between requests.
-  'modes/code/mode.js': 2642,
+  // 2636, down six: a comment on what the model is shown says it in a line,
+  // the rules being in js/agent-context.js.
+  'modes/code/mode.js': 2636,
 };
 
 console.log('\nFile sizes go down, never up:');
