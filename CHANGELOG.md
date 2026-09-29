@@ -385,6 +385,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A HashCoder run reads as a few short lines.** Each step is one line on
+  a dashed rail, its file named from the project's folder, with a dot that
+  fills when the step is done and turns red when it failed; a file written
+  and its Keep and Undo are one line, not two. When the run ends its steps
+  fold to one line, such as "12 steps", that opens them again, and the
+  changes it made are gathered under the answer with Keep and Undo. The one
+  sign of work is the line under the steps: a turning ring and its label in
+  a moving light, with the time. The bar says Running and stays still, and
+  copy, reply and regen wait for the answer.
+
 - **On Anthropic models, HashCoder's requests are read from the provider's
   cache.** Each request marks where its reusable start ends, after the
   instructions and at its last block, so the provider reads everything

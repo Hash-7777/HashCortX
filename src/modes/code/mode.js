@@ -53,9 +53,18 @@
     if (name === 'shell_run') {
       return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
     }
-    if (name === 'move_file') return `${a.from || ''} → ${a.to || ''}`;
+    if (name === 'move_file') return `${shownPath(a.from)} → ${shownPath(a.to)}`;
     if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
-    return String(a.path || a.dir || a.file || a.query || a.subject || a.url || a.pattern || a.expression || a.key || '');
+    const place = a.path || a.dir || a.file;
+    if (place) return shownPath(place);
+    return String(a.query || a.subject || a.url || a.pattern || a.expression || a.key || '');
+  }
+
+  /** A path as a step shows it: from the project's folder, and the folder itself by its name. */
+  function shownPath(p) {
+    const raw = String(p || ''), root = String(sharedState.projectRoot || '').replace(/[\\/]+$/, '');
+    if (root && raw.replace(/[\\/]+$/, '') === root) return `${root.split(/[\\/]/).pop()}/`;
+    return window.HCCodePaths ? window.HCCodePaths.relativeFromRoot(raw, root) : raw;
   }
 
   // ── Shared state ───────────────────────────────────────────
@@ -1096,35 +1105,15 @@
       return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages }) : null;
     }
 
-    /**
-     * One step of a run.
-     *
-     * Tool calls and file changes both come through here, so a run reads as one
-     * list of things that happened rather than two kinds of block sitting next
-     * to each other. Both are a <details>: the row is the summary, and whatever
-     * detail belongs to that step opens underneath it, in place. Native
-     * disclosure, so it works from the keyboard without any of this having to
-     * reimplement it.
-     *
-     * Layout is verb · object · result, which is the order the question comes
-     * in — what did it do, to what, and how did it go.
-     */
-    function appendStep(contentEl, { verb, object, status, statusClass = '', open = false }) {
-      if (!contentEl) return null;
-      const el = document.createElement('details');
-      el.className = 'cdr-step' + (statusClass ? ' ' + statusClass : '');
-      el.open = open;
-      el.innerHTML = `
-        <summary class="cdr-step-head">
-          <span class="cdr-step-verb">${esc(verb)}</span>
-          <span class="cdr-step-object" title="${esc(object)}">${esc(object)}</span>
-          <span class="cdr-step-result">${status || ''}</span>
-        </summary>
-        <div class="cdr-step-body"></div>`;
-      contentEl.appendChild(el);
-      scrollMessages();
+    /** One step of a run, a tool call or a file change alike, kept in view (js/code/steps.js). */
+    function appendStep(contentEl, step) {
+      const el = window.HCCodeSteps.add(contentEl, step);   // js/code/steps.js
+      if (el) scrollMessages();
       return el;
     }
+
+    /** A reply whose run has ended: its steps folded, its changes gathered under it (js/code/steps.js). */
+    const settleSteps = (contentEl) => window.HCCodeSteps.settle(contentEl);
 
     function appendToolBlock(contentEl, name, args) {
       const id = ++toolCallCounter;
@@ -1341,6 +1330,7 @@
         }
         if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) { appendTextToBubble(reply, m.content); if (m.proven) appendTextToBubble(reply, `*${m.proven}*`); }
       });
+      msgs.querySelectorAll('.cdr-msg.assistant .cdr-msg-content').forEach(settleSteps);   // drawn as a finished run reads
     }
 
     // ── Terminal ──────────────────────────────────────────────
@@ -1743,6 +1733,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // the same kind of thing as one from this one, so it should not arrive
         // looking like a different feature.
         const el = appendStep(group, {
+          flat: true,
           verb: summary.existed ? 'EDIT' : 'CREATE',
           object: name,
           status: `${count > 1 ? `${count} changes` : summary.existed ? esc(String(summary.records[0].bytes)) + ' bytes saved' : 'new file'}` +
@@ -2011,7 +2002,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!verdict.continue) { lastStop = verdict; break; }
         iter++;
 
-        setStatus(`${label ? label + ' · ' : ''}Thinking…`, 'thinking');
+        setStatus(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
 
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
@@ -2096,6 +2087,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               if (touched) touched.forEach((p) => { proof.edited(p); window.HCCodeReview?.track(changes, p, HC?.undo?.lastFor?.(p)); });
               else if (call.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
             }
+            if (ok && ['write_file', 'patch_file', 'delete_file', 'move_file'].includes(call.name)) toolEl?.remove();   // its change row, with Keep and Undo, says it
             if (ok && (call.name === 'write_file' || call.name === 'patch_file')) {
               const fp = call.arguments?.path || '';
               addChangeEntry(baseName(fp), fp, 'write',
@@ -2251,7 +2243,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const stopKey = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; }   // a plan is for one request
 
-      setStatus('Thinking…', 'thinking');
+      setStatus('Running', 'thinking');
       cdrTraceReset('Run started');
 
       try {
@@ -2292,11 +2284,18 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => t.function.name !== 'save_lesson' || !!HC.code.lessonsFor);
       const tools = [...own, ...run.tools];
       const contentEl = appendAssistantBubble('HashCoder');
-      if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
-      const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
-      if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });
-      saveCoderState();
-      setStatus('Ready', '');
+      const bubble = contentEl?.closest('.cdr-msg');
+      bubble?.classList.add('running');   // copy, reply and regen wait for the answer
+      try {
+        if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
+        const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
+        if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });
+        saveCoderState();
+        setStatus('Ready', '');
+      } finally {
+        settleSteps(contentEl);
+        bubble?.classList.remove('running');
+      }
     }
 
     function stopRun() {

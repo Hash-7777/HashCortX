@@ -716,7 +716,9 @@ const LINE_BUDGET = {
   // whether the plan is done, so a finished agent is told to finish.
   // 2554, up nine: a site the run changed is read the way a browser would
   // before it is called done (js/code/site.js).
-  'modes/code/mode.js': 2554,
+  // 2553, down one: a run's steps are drawn, folded and settled by
+  // js/code/steps.js, which the mode calls.
+  'modes/code/mode.js': 2553,
 };
 
 console.log('\nFile sizes go down, never up:');

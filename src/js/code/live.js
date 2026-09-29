@@ -5,7 +5,8 @@
 // for how long, and, where the model's answer arrives as it is written (a
 // model on this computer), the answer itself as it grows. A tool call being
 // written is not shown as text, since it is not words for the person; the
-// line says a step is being chosen instead.
+// line says a step is being chosen instead. It is the one sign of work in the
+// panel: a turning ring and the label drawn in a moving light.
 //
 // When the turn ends the caller decides what stays: the words the model said
 // before a step stay in the reply as a line of their own, and everything else
@@ -52,7 +53,7 @@
   function start(container, { render = (t) => t, scroll = () => {} } = {}) {
     const el = document.createElement('div');
     el.className = 'cdr-live';
-    el.innerHTML = '<div class="cdr-live-status"><span class="cdr-live-dot" aria-hidden="true"></span>' +
+    el.innerHTML = '<div class="cdr-live-status" role="status"><span class="cdr-live-ring" aria-hidden="true"></span>' +
       '<span class="cdr-live-label">Thinking</span><span class="cdr-live-time">0s</span></div>' +
       '<div class="cdr-live-text cdr-msg-text" hidden></div>';
     container.appendChild(el);
