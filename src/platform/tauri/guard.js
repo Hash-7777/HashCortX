@@ -358,6 +358,10 @@
   // same way.
   const AUTO_APPROVE_IN_ROOT = new Set(['read', 'list', 'search', 'write', 'patch']);
 
+  // What the app may read on its own, without a person having asked: reading
+  // and listing only (allowedWithoutAsking).
+  const QUIET_ACTIONS = new Set(['read', 'list']);
+
   // Directory of a path, for coarse session grants.
   function parentDir(target) {
     const norm = String(target || '').replace(/\/+$/, '');
@@ -482,6 +486,19 @@
     denyWaiting() {
       _generation++;
       if (_denyOpen) _denyOpen();
+    },
+
+    /**
+     * For reading the app does on its own, such as the Symbols list: true
+     * only for a read or a listing request() would allow with no question,
+     * where the path really leads inside the open project and is not
+     * protected. It never shows a question or a notice; whatever would
+     * need one is left out by the caller instead.
+     */
+    async allowedWithoutAsking(action, target) {
+      if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || !(await isInProjectRoot(target))) return false;
+      auditLog('allow-project-root', action, target);
+      return true;
     },
 
       // Request permission for an action. Returns true if approved.

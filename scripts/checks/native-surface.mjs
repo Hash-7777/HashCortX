@@ -132,11 +132,13 @@ console.log('\nThe agent tools are gated:');
   let unguarded = 0;
   for (const [, name, body] of methods) {
     if (!/HC\.invoke\(/.test(body)) continue;
-    const asks = /HC\.guard\.request\(/.test(body);
+    // allowedWithoutAsking is the guard's own answer too, for what the app
+    // reads on its own: it allows no more than request() allows unasked.
+    const asks = /HC\.guard\.(?:request|allowedWithoutAsking)\(/.test(body);
     if (!asks) {
       unguarded++;
       check(`${name}() reaches Rust without asking first`, false,
-        'every tool must call HC.guard.request before HC.invoke');
+        'every tool must call HC.guard.request (or allowedWithoutAsking) before HC.invoke');
     }
   }
   if (unguarded === 0) {

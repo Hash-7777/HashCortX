@@ -932,54 +932,16 @@
       }
     }
 
-    // ── Project symbol index ──────────────────────────────────
-    const SYMBOL_PATTERNS = {
-      js:  /(?:export\s+(?:default\s+)?)?(?:async\s+)?(?:function|class|const|let|var)\s+(\w+)|(?:export\s+(?:default\s+)?)?class\s+(\w+)/g,
-      ts:  /(?:export\s+(?:default\s+)?)?(?:async\s+)?(?:function|class|const|let|var|interface|type)\s+(\w+)|(?:export\s+(?:default\s+)?)?class\s+(\w+)/g,
-      py:  /^(?:async\s+)?def\s+(\w+)|^class\s+(\w+)/gm,
-      rs:  /(?:pub\s+)?(?:async\s+)?fn\s+(\w+)|(?:pub\s+)?struct\s+(\w+)|(?:pub\s+)?enum\s+(\w+)|(?:pub\s+)?trait\s+(\w+)|impl(?:\s+<[^>]+>)?\s+(?:\w+\s+for\s+)?(\w+)/g,
-      go:  /^func\s+(?:\([^)]+\)\s+)?(\w+)|^type\s+(\w+)/gm,
-      java:/(?:public|private|protected)\s+(?:static\s+)?(?:<[^>]+>\s+)?\w+(?:<[^>]+>)?(?:\[\])?\s+(\w+)\s*\(|^\s*(?:public\s+)?class\s+(\w+)/gm,
-      c:   /^\s*(?:\w+\s+)+(\w+)\s*\([^)]*\)\s*\{/gm,
-      cpp: /^\s*(?:\w+(?:\s*::\s*\w+)?\s+)+(\w+)\s*\([^)]*\)\s*(?:const\s*)?\{|^\s*class\s+(\w+)/gm,
-      rb:  /^(?:def\s+(?:self\.)?(\w+)|class\s+(\w+)|module\s+(\w+))/gm,
-    };
-    const SYMBOL_EXT_MAP = {
-      js:'js', ts:'ts', tsx:'ts', jsx:'js',
-      py:'py', rs:'rs', go:'go',
-      java:'java', c:'c', cpp:'cpp', h:'c', hpp:'cpp',
-      rb:'rb', rake:'rb',
-    };
-
+    // ── What the files in the project's top folder define (js/code/codemap.js) ──
     async function scanProjectSymbols(root) {
-      if (!window.HC?.isTauri || !root) return;
-      const symbols = {}; // path → [{name, kind}]
+      if (!window.HC?.isTauri || !root || !window.HCCodeMap) return;
+      const symbols = {}; // path → [{name, kind, line}]
       try {
-        const entries = await HC.code.listDir(root);
-        if (!entries) return;
-        const files = entries.filter(e => !e.is_dir && !e.name.startsWith('.') && !e.name.match(/\.(png|jpg|jpeg|gif|svg|ico|woff|ttf|eot|mp3|mp4|pdf|zip|tar|gz|bin|exe|dll|so|dylib)$/i));
-        for (const f of files) {
-          const ext = f.name.split('.').pop()?.toLowerCase() || '';
-          const lang = SYMBOL_EXT_MAP[ext];
+        for (const f of (await HC.code.listDir(root)) || []) {
+          const lang = !f.is_dir && !f.name.startsWith('.') && window.HCCodeMap.langOf(f.name);
           if (!lang) continue;
-          try {
-            const content = await HC.code.readFile(f.path);
-            const text = typeof content === 'string' ? content : JSON.stringify(content);
-            const pat = SYMBOL_PATTERNS[lang];
-            if (!pat) continue;
-            pat.lastIndex = 0;
-            const matches = [];
-            let m;
-            while ((m = pat.exec(text)) !== null) {
-              const name = m[1] || m[2] || m[3] || m[4] || m[5];
-              if (name && name.length < 80 && !name.match(/^(if|else|for|while|switch|catch|return|throw|try|new|this|self|super)$/)) {
-                const line = text.slice(0, m.index).split('\n').length;
-                const kind = m[0].includes('class') ? 'class' : m[0].includes('struct') ? 'struct' : m[0].includes('enum') ? 'enum' : m[0].includes('interface') ? 'interface' : m[0].includes('trait') ? 'trait' : m[0].includes('type') ? 'type' : 'fn';
-                matches.push({ name, kind, line });
-              }
-            }
-            if (matches.length) symbols[f.path] = matches.slice(0, 30);
-          } catch {}
+          // Read whole and without asking: a file the project would need a question for is left out.
+          try { const found = window.HCCodeMap.definitions(await HC.code.readQuietly(f.path), lang); if (found.length) symbols[f.path] = found.slice(0, 30); } catch {}
         }
       } catch (e) { console.warn('[CoderMode] scan symbols:', e); }
       sharedState.projectSymbols = symbols;

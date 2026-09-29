@@ -340,6 +340,41 @@ console.log('\nA link out of the project is not inside the project:');
   sandbox.HC.invoke = () => Promise.resolve();
 }
 
+// What the app reads on its own (the Symbols list, the project map) is never
+// a question: it is allowed exactly where request() would allow it unasked,
+// and anything else is left out, with nothing shown either way.
+console.log('\nReading the app does on its own never asks:');
+{
+  const resolve = (p) => String(p).replace(`${R}/vendor`, '/Users/x/Documents');
+  sandbox.HC.isTauri = true;
+  sandbox.HC.invoke = (cmd, args) => Promise.resolve(cmd === 'fs_path_inside_root' && (resolve(args.path) === R || resolve(args.path).startsWith(R + '/')));
+  const notices = [];
+  const notify = guard.notify;
+  guard.notify = (m) => { notices.push(m); };
+  const quiet = (action, target) => guard.allowedWithoutAsking(action, target);
+
+  answer = 'allow-once';
+  await check('a file in the project is read', () => quiet('read', R + '/src/main.rs'), FREE);
+  await check('a folder in the project is listed', () => quiet('list', R + '/src'), FREE);
+  await check('a link out of the project is left out, not asked about', () => quiet('read', R + '/vendor/tax.pdf'), { allowed: false, asked: false });
+  await check('a path outside the project is left out', () => quiet('read', '/Users/x/Elsewhere/a.txt'), { allowed: false, asked: false });
+  await check('a protected path is left out', () => quiet('read', R + '/.ssh/id_ed25519'), { allowed: false, asked: false });
+  assert('...with no notice shown', notices.length === 0, notices.join('; '));
+  for (const action of ['write', 'patch', 'search', 'delete', 'shell']) {
+    await check(`it answers for reading and listing only, never ${action}`, () => quiet(action, R + '/src/main.rs'), { allowed: false, asked: false });
+  }
+  sandbox.HC.invoke = (cmd) => (cmd === 'fs_path_inside_root' ? Promise.reject(new Error('command unavailable')) : Promise.resolve());
+  await check('a resolver that fails leaves the file out', () => quiet('read', R + '/src/other.rs'), { allowed: false, asked: false });
+  guard.clearProjectRoot();
+  sandbox.HC.invoke = () => Promise.resolve(true);
+  await check('with no project open, nothing is read', () => quiet('read', R + '/src/main.rs'), { allowed: false, asked: false });
+  guard.setProjectRoot(R);
+
+  guard.notify = notify;
+  sandbox.HC.isTauri = false;
+  sandbox.HC.invoke = () => Promise.resolve();
+}
+
 // A session grant on a fetch covers the host that was granted — not the web.
 //
 // Granting one is the whole safety valve on the Coder agent's fetch_url: the

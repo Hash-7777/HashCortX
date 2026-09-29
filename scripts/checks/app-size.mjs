@@ -708,7 +708,9 @@ const LINE_BUDGET = {
   // 2573, up five: the switch that keeps lessons about each project and the
   // button that forgets them, and the lessons read into the start of a
   // conversation (js/code/lessons.js).
-  'modes/code/mode.js': 2573,
+  // 2535, down thirty-eight: the Symbols list finds what a file defines
+  // through js/code/codemap.js instead of patterns of its own.
+  'modes/code/mode.js': 2535,
 };
 
 console.log('\nFile sizes go down, never up:');

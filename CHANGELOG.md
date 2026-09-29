@@ -586,6 +586,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's Symbols list reads each file whole.** A file of more than
+  400 lines was read the way the model reads it, a first window of numbered
+  lines, so the list missed most of what a long file defined, gave line
+  numbers one out, and found nothing at all in a long Python, Go, Ruby, C or
+  C++ file; it also listed every constant and variable in a JavaScript file.
+  It now lists the functions, classes and types each file in the project's
+  top folder defines, with a function's parameters by name, in JavaScript,
+  TypeScript, Python, Rust, Go, Java, C#, Kotlin, Swift, C, C++, Ruby and
+  PHP. A file that would need a permission question is left out rather than
+  asked about.
+
 - **An ERP is built for the right kind of business more often.** Short words
   were found inside longer ones, so a lawn-care company was set up as a law
   practice, "event management" as a jewellers and a candle maker "with three

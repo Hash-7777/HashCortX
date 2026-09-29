@@ -101,6 +101,17 @@
       return HC.invoke('fs_list_dir', { path });
     },
 
+    /**
+     * A file's whole text for the app's own reading (js/code/codemap.js):
+     * readFile gives a long file a window at a time, numbered, for the
+     * model. Only where no question is needed; anywhere else it is left out,
+     * unasked.
+     */
+    async readQuietly(path) {
+      if (!(await HC.guard.allowedWithoutAsking('read', path))) throw new Error(`Not read without asking: ${path}`);
+      return HC.invoke('fs_read_file', { path });
+    },
+
     async deleteFile(path, reason = '') {
       // A deletion is the change most worth being able to take back. What the
       // file holds is recorded before asking, so the question can say when
