@@ -362,7 +362,6 @@
   const CoderMode = (() => {
     let mounted            = false;
     let setUp              = false;   // wired once: HashCoder is mounted again each time it is opened
-    let agentCount         = 1;
     let runAbort           = null;
     let conversationMsgs   = []; // persists across turns — full chat history
     let toolCallCounter    = 0;
@@ -592,11 +591,6 @@
 
       // Settings, under HashCoder.
       const prefs = cdrPrefs();
-      const agentsEl = $('cdrAgentCount');
-      if (agentsEl) {
-        agentsEl.value = String(agentCount);
-        agentsEl.addEventListener('change', () => { agentCount = parseInt(agentsEl.value, 10) || 1; });
-      }
       const proveEl = $('cdrSetProve');
       if (proveEl) {
         proveEl.checked = prefs.prove !== false;
@@ -2011,7 +2005,20 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, fresh: 0 };   // how often this run was sent back, for each reason
+      // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
+      const changes = new Map();
+      const secondLook = async () => {
+        const R = window.HCCodeReview, V = window.HCCodeVerify, shown = R && R.diffText(changes, window.HCDiff.diffLines);
+        if (!shown || !R.worthReview({ size: sharedState.size, prove: cdrPrefs().prove !== false, files: shown.files, changed: shown.changed, reviewed: sent.fresh })) return null;
+        cdrTraceAdd('Review', 'A second look at the changes', 'run');
+        try {
+          const said = await callWithRouter(R.messages((window.HCCodeAttach?.shownRequest || String)(V.requestIn(messages)), V.proofLine(proof), shown.text), [], 0, signal, coderModel);
+          const found = R.verdict(said?.content);
+          appendStep(contentEl, { verb: 'REVIEW', object: found.ok ? 'looks right' : `${found.problems.length} to look at`, status: '' });
+          return found.ok ? null : V.freshReviewNote(found.problems);
+        } catch (e) { if (signal?.aborted) throw e; return null; }   // a second look that fails holds nothing up
+      };
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();
       let lastStop = null;
@@ -2108,7 +2115,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             if (proof && ok) {
               const a = call.arguments || {};
               const touched = { write_file: [a.path], patch_file: [a.path], delete_file: [a.path], move_file: [a.from, a.to] }[call.name];
-              if (touched) touched.forEach((p) => proof.edited(p));
+              if (touched) touched.forEach((p) => { proof.edited(p); window.HCCodeReview?.track(changes, p, HC?.undo?.lastFor?.(p)); });
               else if (call.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
             }
             if (ok && (call.name === 'write_file' || call.name === 'patch_file')) {
@@ -2161,9 +2168,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
-        // Sent back before finishing, for a change not made, not proven, or not checked against the request (js/code/verify.js).
+        // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), or with what a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
-          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan });
+          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan })
+          || (finalText.trim() ? await secondLook() : null);
         if (back) {
           sent[back.kind]++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
@@ -2261,11 +2269,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       cdrTraceReset('Run started');
 
       try {
-        if (agentCount === 1) {
-          await runSingleTurn(signal);
-        } else {
-          await runMultiTurn(task, agentCount, signal);
-        }
+        await runSingleTurn(signal);
       } catch (e) {
         // A stop or a failure between a tool call and its result leaves a
         // history the providers refuse; close the turn so the next one works.
@@ -2305,79 +2309,6 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
       const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
       if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });
-      saveCoderState();
-      setStatus('Ready', '');
-    }
-
-    async function runMultiTurn(task, count, signal) {
-      const H = window._H;
-
-      // Multi-agent tasks need a project root to be useful — bail early otherwise
-      if (!sharedState.projectRoot) {
-        const el = appendAssistantBubble('HashCoder');
-        appendTextToBubble(el, 'Multi-agent mode works best with a project open. Click **Open Project** to select your project folder, then try again.');
-        setStatus('Ready', '');
-        return;
-      }
-
-      // Boss: decompose
-      const bossEl   = appendAssistantBubble('Boss');
-      const thinkEl  = appendThinking(bossEl);
-      const planMsgs = [
-        { role: 'system', content: `You are a task planner. Split the user's request into exactly ${count - 1} independent coding sub-tasks. Reply ONLY with a valid JSON array:\n[{"id":"1","task":"..."},...]` },
-        { role: 'user',   content: `Decompose for ${count - 1} parallel agents: ${task}` }
-      ];
-      let subTasks;
-      try {
-        const planTurn = await callWithRouter(planMsgs, [], 0.25, signal, coderModel);
-        thinkEl?.remove();
-        const m = (planTurn.content || '').match(/\[[\s\S]*?\]/);
-        subTasks = m ? JSON.parse(m[0]) : null;
-      } catch { thinkEl?.remove(); }
-
-      if (!subTasks?.length) {
-        subTasks = Array.from({ length: count - 1 }, (_, i) => ({
-          id: String(i + 1), task: `Part ${i + 1}: ${task}`
-        }));
-      }
-      appendTextToBubble(bossEl, `Coordinating **${count - 1} sub-agent${count - 1 > 1 ? 's' : ''}** for this task.`);
-      setStatus('Agents running…', 'thinking');
-
-      // Workers — each gets its own bubble and independent message history
-      cdrTraceAdd('Boss', `Decomposed into ${subTasks.length} sub-task${subTasks.length !== 1 ? 's' : ''}`, 'ok');
-      const results = await Promise.all(subTasks.map(async (st, i) => {
-        cdrTraceAdd(`Agent ${i + 2}`, (st.task || task).slice(0, 60), 'run');
-        const wEl   = appendAssistantBubble(`Agent ${i + 2}`);
-        const wMsgs = [
-          { role: 'system', content: sysPrompt(`You are sub-agent ${i + 2} of ${count}. Focus only on your assigned task.`) },
-          { role: 'user',   content: st.task || task }
-        ];
-        try {
-          const result = await agentLoop(wMsgs, buildTools(), wEl, `Agent ${i + 2}`, signal);
-          cdrTraceAdd(`Agent ${i + 2}`, 'Finished', 'ok');
-          return result;
-        } catch (e) {
-          cdrTraceAdd(`Agent ${i + 2}`, e?.message || 'Failed', 'err');
-          appendTextToBubble(wEl, `**Error:** ${esc((e.message || '').slice(0, 80))}`);
-          return '';
-        }
-      }));
-
-      // Synthesis — boss combines all agent output into a final answer
-      const synthEl   = appendAssistantBubble('Boss — Synthesis');
-      const agentSummary = results
-        .map((r, i) => `### Agent ${i + 2}\n${(r || '(no output)').slice(0, 1200)}`)
-        .join('\n\n');
-      const synthMsgs = [
-        { role: 'system', content: sysPrompt('You are the synthesis boss. Your job is to combine the sub-agent results into one clear, complete final answer. Do NOT call any tools — write your synthesis directly.') },
-        {
-          role: 'user',
-          content: `Original task: ${task}\n\nProject: ${sharedState.projectRoot}\n\nSub-agent results:\n${agentSummary}\n\nWrite a clear synthesis: what was done, what changed, and what (if anything) still needs attention.`
-        }
-      ];
-      setStatus('Synthesizing…', 'thinking');
-      const finalText = await agentLoop(synthMsgs, [], synthEl, 'Boss', signal);
-      if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText });
       saveCoderState();
       setStatus('Ready', '');
     }

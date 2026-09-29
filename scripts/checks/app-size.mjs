@@ -702,7 +702,10 @@ const LINE_BUDGET = {
   // request, and the misplaced comment above toolObject moved onto it.
   // 2637, up three: the loop counts each turn's edits to a file, with
   // whether a check passed in it, for js/agent-policy.js editLoop.
-  'modes/code/mode.js': 2637,
+  // 2568, down sixty-nine: the helpers that split a task between agents
+  // writing at once are gone, and a second look at a larger change
+  // (js/code/review.js) takes their place in a few lines.
+  'modes/code/mode.js': 2568,
 };
 
 console.log('\nFile sizes go down, never up:');

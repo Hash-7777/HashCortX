@@ -371,7 +371,7 @@ console.log('\nThe app uses it, and shows what a system says as text:');
   ok('the Coder offers them for the request, and holds back a conversation a model may not see', /const run = window\.HCMcp \? await window\.HCMcp\.forRun\(coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \|\| '', conversationMsgs\)/.test(coder)
     && /const tools = \[\.\.\.own, \.\.\.run\.tools\];/.test(coder) && /if \(run\.refusal\) \{ appendTextToBubble\(contentEl, run\.refusal\);[^\n]*return; \}/.test(coder));
   ok('... runs them through the one gate, memory rule included', /def = window\.HCMcp \? window\.HCMcp\.toolFor\(call\.name, own\) : own;/.test(coder) && /def\.fn \? def\.fn\(call\.arguments \|\| \{\}\) : def\.execute\(call\.arguments \|\| \{\}\)/.test(coder));
-  ok('... in single runs only: agents working side by side are offered none', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /agentLoop\(wMsgs, buildTools\(\), wEl/.test(coder));
+  ok('... in the run itself only: the second look at its changes is offered no tools at all', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(coder) && !/runMultiTurn/.test(coder));
   ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(coder) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(coder));
   const swarm = src('modes', 'agent-maker', 'mode.js');
   ok('the Swarm offers a run the reading tools its models may all see, and keeps where it read', /runConnected = window\.HCMcp \? await window\.HCMcp\.offerForRun\(teamOf\(runBp\), work\) : null;/.test(swarm)

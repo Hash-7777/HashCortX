@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A second look at HashCoder's larger changes.** After a change to more
+  than one file, or of thirty lines or more, a model on your computer of 15
+  billion parameters or more, or a cloud model, is asked once more as a
+  reviewer that sees only your request, the changes and what was run to
+  check them, none of the conversation. When it finds a problem, the agent
+  is sent back once to fix it, or to say why the finding is wrong. It
+  follows the "Prove changes before finishing" setting, is sent only to the
+  model the run already uses, and a review that fails holds nothing up.
+
 - **HashCoder notices when it keeps changing the same file.** When the
   agent has changed, or tried to change, one file four times with no check
   passing since, it is told to stop, read the file as it is and the last
@@ -1161,6 +1170,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   docs/SECURITY.md now say so.
 
 ### Removed
+
+- **HashCoder's "Agents working at once" setting.** Splitting a task
+  between agents that write at the same time had them make conflicting
+  choices about the same code. It is gone, and a second look at larger
+  changes takes its place.
 
 - **Five packages the app never loads.** The project's package list named
   the file, shell, store, notification and dialog plugins' JavaScript

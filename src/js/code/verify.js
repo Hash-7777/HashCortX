@@ -30,6 +30,9 @@
 //     what a search would have found.
 //   · When the agent tries to finish with steps of its own plan still open
 //     (js/code/plan.js), it is sent back once to do them (planCheck).
+//   · After a larger change by a large model, a second look with a clean
+//     slate (js/code/review.js) may send it back once with what it found
+//     (freshReviewNote).
 //   · A model on this computer under 15B that changed files is sent back once
 //     more, with the request quoted, to check each thing it asked for against
 //     the files and do what is missing (reviewCheck). Such a model's usual
@@ -285,10 +288,12 @@
   const REVIEW_SAYS = 'check your work against the request';
   const PLAN_STEP = 'Sent back to finish the steps of its plan';
   const PLAN_SAYS = 'your plan still has open steps';
+  const FRESH_STEP = 'Sent back with what a second look found';
+  const FRESH_SAYS = 'a second look at your changes, with a clean slate, found';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -449,6 +454,20 @@
   }
 
   /**
+   * The note sending the agent back once with what a second look at its
+   * changes found (js/code/review.js): each problem, to fix where it is right
+   * or to answer where it is not.
+   */
+  function freshReviewNote(problems) {
+    return {
+      kind: 'fresh',
+      step: FRESH_STEP,
+      message: `${APP_NOTE} ${FRESH_SAYS}:\n${(problems || []).map((p) => `- ${p}`).join('\n')}\n` +
+        'Fix each one that is right, then finish. If one is wrong, say why in your answer instead of changing anything for it.',
+    };
+  }
+
+  /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
    * mid-sized model a change asked for and not begun; then steps of its own
@@ -488,6 +507,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, sendBack, noteStep,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, freshReviewNote, sendBack, noteStep,
   };
 })();
