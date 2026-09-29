@@ -5,11 +5,17 @@
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:3b --task js-fix-range
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --compare <earlier results.json>
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --src <another copy of src/>
+//     HASHCORTX_BENCH_KEY_ANTHROPIC=... node scripts/bench/coder/run.mjs --model cloud:anthropic:<model>
 //     node scripts/bench/coder/run.mjs --self-test
 //     node scripts/bench/coder/run.mjs --smoke
 //
-// NOT part of `npm run check`. It needs macOS, a real browser and a local
-// model, and a full run takes the better part of an hour.
+// NOT part of `npm run check`. It needs macOS, a real browser, and a local
+// model or a key for a cloud one, and a full run takes the better part of an
+// hour. A cloud model's key is read only from a HASHCORTX_BENCH_KEY_<PROVIDER>
+// variable set in the terminal that starts the run, reaches only the headless
+// browser, and is scrubbed from everything written or printed (cloud.mjs).
+// Its requests are real ones, billed by the provider or counted against its
+// quota. A provider the app reaches through its native side cannot be run.
 //
 // WHY IT EXISTS. Every change to how the agent reads, edits, plans or checks
 // its work is a guess until it is measured. This gives each change a number:
@@ -43,8 +49,9 @@
 //     reading nothing in the home folder or on other disks, and no network.
 //     Commands run with a home folder and temporary folder of their own, and
 //     none of this machine's environment settings beyond PATH.
-//   · The browser reaches nothing but this server and the local model: every
-//     other address goes to a proxy that does not exist.
+//   · The browser reaches nothing but this server, the local model and, for a
+//     cloud model, the providers whose keys were given: every other address
+//     goes to a proxy that does not exist.
 // A command given no working folder runs in the task's project, as an
 // agent's command does in the app.
 //
@@ -84,6 +91,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { startScriptedModel, SCRIPTED_MODEL } from './scripted-model.mjs';
+import { loadProviders, keysFrom, hostsFor, refusal, scrubber } from './cloud.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.join(here, '..', '..', '..');
@@ -122,14 +130,11 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false,
   if (!(opt.minutes > 0)) usage('--minutes must be a positive number');
   if (!(opt.budget > 0)) usage('--budget must be a positive number of minutes');
   if (!(opt.rest >= 0)) usage('--rest must be zero or more seconds');
-  for (const m of opt.models) {
-    if (/^cloud:/.test(m)) usage('cloud models are not supported yet: the benchmark runs local models only');
-  }
 }
 
 function usage(why) {
   console.log(`${why}\n\n` +
-    'node scripts/bench/coder/run.mjs --model <local model> [--model ...] [--task <id> ...]\n' +
+    'node scripts/bench/coder/run.mjs --model <local model, or cloud:<provider>:<model>> [--model ...] [--task <id> ...]\n' +
     '                                 [--minutes <per task>] [--budget <minutes in all>] [--rest <seconds between tasks>]\n' +
     '                                 [--compare <results.json>] [--src <folder>] [--ollama <local url>]\n' +
     '                                 [--keep] [--work <folder>]\n' +
@@ -143,6 +148,15 @@ const srcDir = opt.src ? path.resolve(opt.src) : path.join(repo, 'src');
 let OLLAMA = (opt.ollama || 'http://127.0.0.1:11434').replace(/\/+$/, '');
 if (!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(OLLAMA)) usage('--ollama must be a server on this computer, such as http://127.0.0.1:11434');
 if (!fs.existsSync(path.join(srcDir, 'index.html'))) usage(`no app source at ${srcDir}`);
+
+// Cloud models: keys from this terminal only, and scrubbed from everything
+// written or printed (cloud.mjs).
+const PROVIDERS = loadProviders(srcDir);
+const CLOUD = keysFrom(process.env, PROVIDERS);
+const scrub = scrubber(CLOUD.secrets);
+const cloudModels = opt.models.filter((m) => /^cloud:/.test(m));
+for (const m of cloudModels) { const why = refusal(m, PROVIDERS, CLOUD.providers); if (why) usage(why); }
+const CLOUD_HOSTS = cloudModels.length ? hostsFor(CLOUD.providers, PROVIDERS) : [];
 
 if (process.platform !== 'darwin' || !fs.existsSync('/usr/bin/sandbox-exec')) {
   console.log('The benchmark runs every command inside the macOS sandbox, so it needs macOS. Nothing was run.');
@@ -473,6 +487,7 @@ async function answerNative(cmd, args) {
 // the token count cannot show a request that reused its start: the time can.
 const shim = () => `<script>
 try { if (!localStorage.getItem('atelier')) localStorage.setItem('atelier', JSON.stringify({ host: ${JSON.stringify(OLLAMA)} })); } catch {}
+${cloudModels.length ? `try { localStorage.setItem('hc_api_bundle_v2', ${JSON.stringify(JSON.stringify(CLOUD.bundle))}); localStorage.setItem('hc_migrated_v2', '1'); } catch {}` : ''}
 (function () {
   const chatAt = ${JSON.stringify(OLLAMA)} + '/api/chat';
   const plain = window.fetch.bind(window);
@@ -660,8 +675,8 @@ function startBrowser(port, profile) {
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--disable-extensions', '--disable-background-networking', '--disable-sync', '--mute-audio',
     `--user-data-dir=${profile}`,
-    // Nothing but this server and the local model.
-    '--proxy-server=127.0.0.1:9', '--proxy-bypass-list=127.0.0.1;localhost',
+    // Nothing but this server, the local model, and the providers whose keys were given.
+    '--proxy-server=127.0.0.1:9', `--proxy-bypass-list=${['127.0.0.1', 'localhost', ...CLOUD_HOSTS].join(';')}`,
     `http://127.0.0.1:${port}/`,
   ], { detached: true, stdio: 'ignore' });
 }
@@ -830,19 +845,21 @@ async function runTask(port, model, task, n) {
   onResult = null;
   stopBrowser();
   endCommands();
+  if (cloudModels.length) fs.rmSync(profile, { recursive: true, force: true });   // the keys were in it
   const answer = finalAnswer(result);
   const verdict = result.failed ? { pass: false, notes: [`the run did not complete: ${result.failed}`] } : await judge(task, current.ws, answer);
-  const usage = current.usage.reduce((t, u) => ({ input: t.input + (Number(u.input_tokens) || 0), output: t.output + (Number(u.output_tokens) || 0) }), { input: 0, output: 0 });
+  const usage = current.usage.reduce((t, u) => ({ input: t.input + (Number(u.input_tokens) || 0), output: t.output + (Number(u.output_tokens) || 0),
+    cacheRead: t.cacheRead + (Number(u.cache_read) || 0), cacheWrite: t.cacheWrite + (Number(u.cache_write) || 0) }), { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
   const record = {
     task: task.id, kind: task.kind, model, pass: verdict.pass, notes: verdict.notes, notRun: !!result.failed && result.seconds == null,
     seconds: result.seconds ?? null, timedOut: !!result.timedOut, tokens: usage,
-    reading: Math.round(current.reading.reduce((t, ns) => t + ns, 0) / 1e8) / 10,
+    reading: current.reading.length ? Math.round(current.reading.reduce((t, ns) => t + ns, 0) / 1e8) / 10 : null,
     asks: result.asks || [], pageErrors: result.pageErrors || [], ...measure(result.history), answer: answer.slice(0, 1500),
     shown: String(result.lastBubble || '').slice(-1500), trail: trailOf(result.history),
   };
   current = null;
   job = null;
-  return record;
+  return scrub(record);
 }
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
@@ -852,7 +869,8 @@ function printTable(model, rows) {
   console.log('  task                    result  min    reading s  steps  tools  failed  edits failed  tokens in / out');
   for (const r of rows) {
     console.log(`  ${r.task.padEnd(24)}${(r.notRun ? 'not run' : r.pass ? 'pass' : 'FAIL').padEnd(8)}${String(r.seconds == null ? '-' : (r.seconds / 60).toFixed(1)).padEnd(7)}` +
-      `${String(r.reading ?? '-').padEnd(11)}${String(r.steps).padEnd(7)}${String(r.calls).padEnd(7)}${String(r.failedCalls).padEnd(8)}${String(r.failedEdits).padEnd(14)}${fmt(r.tokens.input)} / ${fmt(r.tokens.output)}`);
+      `${String(r.reading ?? '-').padEnd(11)}${String(r.steps).padEnd(7)}${String(r.calls).padEnd(7)}${String(r.failedCalls).padEnd(8)}${String(r.failedEdits).padEnd(14)}${fmt(r.tokens.input)} / ${fmt(r.tokens.output)}` +
+      `${r.tokens.cacheRead ? ` · ${fmt(r.tokens.cacheRead)} from cache` : ''}`);
   }
   const passed = rows.filter((r) => r.pass).length;
   const notRun = rows.filter((r) => r.notRun).length;
@@ -879,7 +897,8 @@ function printComparison(rows, earlierFile) {
     console.log(`  passed ${sum(was, (r) => (r.pass ? 1 : 0))} then, ${sum(shared, (r) => (r.pass ? 1 : 0))} now`);
     console.log(`  minutes ${(sum(was, (r) => r.seconds || 0) / 60).toFixed(1)} then, ${(sum(shared, (r) => r.seconds || 0) / 60).toFixed(1)} now`);
     console.log(`  tokens in ${fmt(sum(was, (r) => r.tokens.input))} then, ${fmt(sum(shared, (r) => r.tokens.input))} now`);
-    if (was.every((r) => r.reading != null)) console.log(`  seconds reading requests ${sum(was, (r) => r.reading).toFixed(1)} then, ${sum(shared, (r) => r.reading || 0).toFixed(1)} now`);
+    if (shared.some((r) => r.tokens.cacheRead) || was.some((r) => r.tokens.cacheRead)) console.log(`  tokens from a provider's cache ${fmt(sum(was, (r) => r.tokens.cacheRead || 0))} then, ${fmt(sum(shared, (r) => r.tokens.cacheRead || 0))} now`);
+    if (was.every((r) => r.reading != null) && shared.every((r) => r.reading != null)) console.log(`  seconds reading requests ${sum(was, (r) => r.reading).toFixed(1)} then, ${sum(shared, (r) => r.reading || 0).toFixed(1)} now`);
     console.log(`  failed edits ${sum(was, (r) => r.failedEdits)} then, ${sum(shared, (r) => r.failedEdits)} now`);
     for (const r of shared) {
       const t = then.get(r.task);
@@ -896,10 +915,14 @@ async function main() {
     OLLAMA = scripted.url;
     try { return await smoke(); } finally { await scripted.close(); }
   }
-  const have = await localModels();
-  if (!have) { console.log(`No local model server answered at ${OLLAMA}. Start it and try again.`); return 2; }
-  const missing = opt.models.filter((m) => !have.includes(m));
-  if (missing.length) { console.log(`Not installed locally: ${missing.join(', ')}. Installed: ${have.join(', ') || 'none'}.`); return 2; }
+  const locals = opt.models.filter((m) => !/^cloud:/.test(m));
+  if (locals.length) {
+    const have = await localModels();
+    if (!have) { console.log(`No local model server answered at ${OLLAMA}. Start it and try again.`); return 2; }
+    const missing = locals.filter((m) => !have.includes(m));
+    if (missing.length) { console.log(`Not installed locally: ${missing.join(', ')}. Installed: ${have.join(', ') || 'none'}.`); return 2; }
+  }
+  if (cloudModels.length) console.log('Cloud models make real requests, billed by their providers or counted against their quotas.');
 
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const port = server.address().port;
@@ -925,8 +948,8 @@ async function main() {
       rows.push(row);
       console.log(`${row.notRun ? 'NOT RUN' : row.pass ? 'pass' : 'FAIL'}${row.seconds != null ? ` in ${(row.seconds / 60).toFixed(1)} min` : ''}${row.pass ? '' : ' · ' + row.notes.join('; ')}`);
     }
-    // Unload the model, so the machine gets its memory back.
-    try { await fetch(`${OLLAMA}/api/generate`, { method: 'POST', body: JSON.stringify({ model, keep_alive: 0 }) }); } catch {}
+    // Unload a local model, so the machine gets its memory back.
+    if (!/^cloud:/.test(model)) { try { await fetch(`${OLLAMA}/api/generate`, { method: 'POST', body: JSON.stringify({ model, keep_alive: 0 }) }); } catch {} }
   }
   server.close();
 

@@ -62,7 +62,10 @@ npm run tauri build
   For a change to HashCoder's tools, instructions or loop, run
   `npm run bench:coder -- --model <a local model>` before and after it and
   compare the two with `--compare`: a change there is kept when more tasks
-  pass, or as many pass for less. `npm run bench:coder -- --smoke` checks the
+  pass, or as many pass for less. A cloud model runs the same way, as
+  `--model cloud:<provider>:<model>`, with its key in
+  `HASHCORTX_BENCH_KEY_<PROVIDER>` in your terminal; its requests are billed
+  as any other. `npm run bench:coder -- --smoke` checks the
   loop itself in seconds, with no model.
   `npm run models` asks each provider whether the models listed in
   `src/data/cloud-models.js` still exist — OpenRouter, SambaNova and NVIDIA

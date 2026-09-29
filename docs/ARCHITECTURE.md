@@ -279,7 +279,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 159 files,
+├── scripts/checks/                  the automated frontend checks — 160 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -409,7 +409,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,528-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 7,988 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 8,006 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.
@@ -430,9 +430,13 @@ This is the seam to respect when adding a mode: **never import across mode files
   bug a test exposes, add a feature to a written spec, rename across files,
   refactor with the tests kept green, edit a settings file, build a page,
   answer a question without changing anything. It runs the real app in a
-  headless browser with a local model and records what passed, the minutes,
-  steps, failed edits and tokens, so a change to the agent is measured rather
-  than guessed at. Everything happens in one temporary folder: file requests
+  headless browser with a local model, or a cloud one whose key is set in the
+  terminal that starts it, and records what passed, the minutes, steps,
+  failed edits, tokens (those a provider served from its cache apart) and the
+  seconds a local model spent reading, so a change to the agent is measured
+  rather than guessed at. A cloud key reaches only the headless browser, the
+  browser reaches only that provider, and every record is scrubbed of keys
+  before it is kept. Everything happens in one temporary folder: file requests
   outside the task's project are refused, and every command runs in the macOS
   sandbox with writing allowed only in that folder, the home folder unreadable
   and no network. `--self-test` shows each check fails on the untouched
