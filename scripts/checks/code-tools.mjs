@@ -62,7 +62,7 @@ console.log('\nA small local model:');
   const list = HC.code.toolList();
   ok('the Coder gives it only those tools and those instructions',
     HC.code.toolsFor('small', list, 'a site').map((t) => t.function.name).sort().join() === [...HC.code.SMALL_MODEL_TOOLS].sort().join() && HC.code.promptFor('small') === HC.code.SMALL_MODEL_PROMPT
-    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), sharedState\.siteBrief\);/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
+    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\);/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
   ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode) && /const size = HC\?\.code\?\.sizeOf\?\.\(info\?\.billions\) \|\| 'full';/.test(mode));
 }
 
@@ -195,8 +195,19 @@ console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
   ok('a request that is not for the web gets nothing', box.window.HC.code.siteBrief('rename the helper in utils.py') === '');
   ok('the Swarm\'s brief is built from the same lines', ['content', 'identity', 'logo', 'firstScreen', 'works', 'motion', 'scriptClasses'].every((k) => W.brief({ task: 'a landing page', siteFiles: [] }).includes(W.BAR[k])));
   const mode = src('modes', 'code', 'mode.js');
-  ok('HashCoder puts it in its instructions for such a request, never for a small model',
-    /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(sharedState\.siteBrief\) lines\.push\(sharedState\.siteBrief\);/.test(mode));
+  ok('HashCoder gives it with such a request, never to a small model',
+    /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(site\) lines\.push\(String\(site\)\);/.test(src('js', 'code', 'context.js'))
+    && /const context = window\.HCCodeContext\?\.forRequest\(\{ site, activeFile: root && sharedState\.activeFile, facts:/.test(mode) && /\.\.\.\(context \? \{ context \} : \{\}\), \.\.\.\(site \? \{ site: true \} : \{\}\)/.test(mode));
+}
+
+console.log('\nThe instructions stay the same from one request to the next:');
+{
+  const mode = src('modes', 'code', 'mode.js');
+  const at = mode.indexOf('    function sysPrompt(extra) {');
+  const sys = mode.slice(at, mode.indexOf('\n    }\n', at));
+  ok('nothing that belongs to one request is in them', sys.length > 500 && !/memRecall|activeFile|siteBrief|Date\.now|new Date/.test(sys));
+  ok('the file open and remembered facts go with the request instead', /activeFile: root && sharedState\.activeFile, facts: \(\(\) => \{ try \{ return window\._H\?\.memRecall\?\.\(task, 4\)/.test(mode));
+  ok('a site\'s tools, once offered in a conversation, stay offered', /conversationMsgs\.some\(\(m\) => m\.site\)/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

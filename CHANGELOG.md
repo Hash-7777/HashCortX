@@ -314,6 +314,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Each HashCoder step starts where the last one did.** A model reads a
+  request from the start, and a provider, or a model on your computer, can
+  reuse the work of reading everything up to the first thing that changed.
+  HashCoder's instructions now stay the same from one request to the next:
+  the file open, remembered facts and the bar a site is held to go with the
+  request they belong to. Older tool output is set aside in steps, several
+  results at once, instead of one more at every turn, so between those steps
+  each request is the last one with more on the end. On a model on your
+  computer, a long run spends a small fraction of the time it did reading
+  its requests.
+
 - **Tokens served from a provider's cache are counted apart.** In agent
   runs, tokens a provider reports as read from its cache, or stored in it,
   go in fields of their own in the usage log instead of being counted as

@@ -692,7 +692,9 @@ const LINE_BUDGET = {
   // are held to into HashCoder's instructions (hashcoder.js siteBrief).
   // 2655, up two: changes left from a last session are one row a file,
   // kept or undone together (platform/tauri/undo.js byFile).
-  'modes/code/mode.js': 2655,
+  // 2642, down thirteen: what belongs to one request leaves the instructions
+  // for js/code/context.js, so the instructions stay the same between requests.
+  'modes/code/mode.js': 2642,
 };
 
 console.log('\nFile sizes go down, never up:');

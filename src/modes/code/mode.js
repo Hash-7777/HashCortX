@@ -1959,9 +1959,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     // ── Build tools + system ──────────────────────────────────
     const buildTools = buildLegacyTools;
 
+    // The same for every request of a conversation, so it can be reused; what belongs to one request goes with it (js/code/context.js).
     function sysPrompt(extra) {
-      // ── Surgical system prompt ──
-      // Terse. No prose. One change at a time. Prefer tool calls over speech.
       const root = sharedState.projectRoot;
       let homeDir = sharedState.homeDir || '';
       if (!homeDir && root) {
@@ -1981,29 +1980,14 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         '4. Never call tools for greetings or conversational questions — answer in plain text.',
         '5. Blocked paths: /System, /etc, /private, /usr, /bin — refuse without asking.',
       ];
-      if (sharedState.siteBrief) lines.push(sharedState.siteBrief);
       if (root) {
         lines.push(`Project root: ${root}`);
         const checks = sharedState.projectChecks?.root === root ? window.HCCodeVerify?.checksLine(sharedState.projectChecks.checks) : '';
         if (checks) lines.push(checks);
         lines.push(`6. If the project directory is empty or new, immediately start creating files — do NOT explore the filesystem first.`);
-        if (sharedState.activeFile) lines.push(`Active file: ${sharedState.activeFile}`);
       } else {
         lines.push(`No project open. Home: ${homeDir || 'unknown'}. Ask user to open a folder for write ops.`);
       }
-
-      // Optional memory recall — kept terse, opt-in only
-      try {
-        const H = window._H;
-        if (H?.memRecall) {
-          const task = conversationMsgs.filter(m => m.role === 'user').slice(-1)[0]?.content || '';
-          const scored = H.memRecall(task, 4);
-          if (scored && scored.length) {
-            lines.push('Memory (silent context, do not recite):');
-            scored.forEach(f => lines.push(`  - ${f.key}: ${String(f.value).slice(0, 120)}`));
-          }
-        }
-      } catch {}
 
       const richBase = (HC?.code?.promptFor?.(sharedState.size) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
@@ -2253,8 +2237,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const info = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
       const size = HC?.code?.sizeOf?.(info?.billions) || 'full';
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
-      if (size !== sharedState.size || site !== (sharedState.siteBrief || '')) {
-        sharedState.size = size; sharedState.siteBrief = site;
+      if (size !== sharedState.size) {
+        sharedState.size = size;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
       }
 
@@ -2262,7 +2246,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (!conversationMsgs.length) {
         conversationMsgs = [{ role: 'system', content: sysPrompt() }];
       }
-      conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}) });
+      const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })() }) || '';
+      conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}),
+        ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
 
       const runBtn  = $('cdrRunBtn');
       const stopBtn = $('cdrStopBtn');
@@ -2317,7 +2303,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function runSingleTurn(signal) {
       // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
-      const own = HC.code.toolsFor(sharedState.size, buildTools(), sharedState.siteBrief);
+      // Once a request in this conversation has built a site, its tools stay offered: a list that changes between requests is read again whole.
+      const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site));
       const tools = [...own, ...run.tools];
       const contentEl = appendAssistantBubble('HashCoder');
       if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }

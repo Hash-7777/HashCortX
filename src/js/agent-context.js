@@ -3,25 +3,33 @@
 //
 // Decides what the model actually sees of a long agent run.
 //
-// THE BUG THIS REPLACES
-// ---------------------
-// Every tool result was cut to 800 characters, on every call, at every point
-// in the conversation. Not old results — all of them, including the file the
-// agent had just asked to read. `fs_read_file` returns up to 100 KB and the
-// model saw the first 800 bytes of it, then had to guess at the rest. It is
-// the single biggest reason the coding agent felt weaker than it should: it
-// was working almost blind, one paragraph at a time, and no amount of
-// prompting could fix that because the text was gone before the model ran.
-//
-// WHAT REPLACES IT
+// WHAT STAYS WHOLE
 // ----------------
-// A budget, spent newest-first. Recent tool results — the ones the agent is
-// actually reasoning about — arrive whole. Older ones are trimmed only once
-// the budget runs out, because by then their content has usually already been
-// acted on and what matters is that the call happened at all.
+// The newest tool results arrive whole: they are what the agent is reasoning
+// about, and a file it has just asked to read is no use to it cut short. The
+// request is never taken away, however long the run.
 //
-// Truncation says what was dropped and how to get it back, so the model can
-// choose to re-read a region instead of inventing what was in it.
+// WHAT GIVES WAY, AND WHEN
+// ------------------------
+// Output the agent has already acted on gives way first. An older result is
+// replaced by a line saying what it was and how to see it again, the long
+// arguments of the call that produced it are not repeated, and a picture it
+// opened long ago is not sent again. Older requests in a long conversation
+// roll into a note that keeps what each of them asked.
+//
+// All of that happens in STEPS, never one message per turn. A model reads
+// a request from the start, and a provider or a model on this computer can
+// reuse the work of reading everything up to the first thing that changed
+// since the previous request. Hiding one more result at every turn changed
+// something near the start at every turn, so the whole run was read again at
+// every turn. Here a result is hidden only when the results shown pass the
+// budget, and then enough of them go at once to bring what is shown down to
+// half of it; by count, several at once. Between those steps each request is
+// the previous one with more on the end.
+//
+// The rules are worked out from the messages alone, with no state kept
+// between turns: the same conversation always comes out the same way, and a
+// message's hidden or cut form depends only on its own content and position.
 //
 // Pure functions: no DOM, no storage, no network. Checked by
 // scripts/checks/agent-context.mjs.
@@ -31,14 +39,20 @@
   'use strict';
 
   const DEFAULTS = {
-    /** Characters of tool output kept verbatim across the whole prompt. */
+    /** Characters of tool output shown whole; past this, older results are hidden. */
     toolBudget: 60000,
-    /** No result is trimmed below this, however tight the budget gets. */
-    minPerResult: 400,
-    /** The newest tool results shown in full; older ones are hidden. */
+    /** A step of hiding brings what is shown down to this share of the budget. */
+    hideTo: 0.5,
+    /** One result longer than this is cut to it, its head and tail kept. */
+    maxResult: 60000,
+    /** No more than this many newest results... */
     keepResults: 10,
+    /** ...counting from the last step, older ones hidden this many at a time. */
+    hideStep: 6,
     /** Requests kept with everything that followed them; older ones roll into a note. */
     keepRequests: 3,
+    /** Older requests roll into the note this many at a time. */
+    requestStep: 2,
     /** An argument longer than this, in a call whose result is hidden, is not repeated. */
     longArgument: 300,
   };
@@ -62,51 +76,58 @@
   }
 
   /**
-   * Spend a character budget on tool results, newest first.
-   *
-   * Returns a new array; inputs are never mutated, because the caller keeps the
-   * untrimmed history for the UI and for the next turn.
+   * Every tool result longer than `maxResult` cut to it, head and tail kept.
+   * A result's cut form depends on nothing but its own text, so it is the
+   * same at every turn. Returns a new array; inputs are never mutated,
+   * because the caller keeps the untrimmed history for the UI and for the
+   * next turn.
    */
   function budgetToolResults(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
     if (!Array.isArray(messages)) return [];
+    return messages.map((m) => (m && m.role === 'tool' && typeof m.content === 'string' && m.content.length > opts.maxResult
+      ? Object.assign({}, m, { content: truncateResult(m.content, opts.maxResult) })
+      : m));
+  }
 
-    const out = messages.slice();
-    let spent = 0;
+  /**
+   * How many of the oldest of `n` things to set aside when the newest `keep`
+   * are kept, `step` at a time: none until there are `keep + step`, then
+   * enough to leave `keep`, and the same number until `step` more arrive.
+   */
+  const inSteps = (n, keep, step) => {
+    const s = Math.max(1, Math.floor(step) || 1);
+    return n < keep + s ? 0 : Math.floor((n - keep) / s) * s;
+  };
 
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
-      if (!message || message.role !== 'tool' || typeof message.content !== 'string') continue;
-
-      const remaining = opts.toolBudget - spent;
-      if (message.content.length <= remaining) {
-        spent += message.content.length;
-        continue; // fits whole — the common case, and the one that was broken
-      }
-
-      const keep = Math.max(remaining, opts.minPerResult);
-      if (keep >= message.content.length) {
-        spent += message.content.length;
-        continue;
-      }
-      spent += keep;
-      out[i] = Object.assign({}, message, { content: truncateResult(message.content, keep) });
+  /**
+   * How many of the oldest `lengths` (tool results, oldest first) are hidden.
+   *
+   * By count: `inSteps`. By size: nothing while the results total no more
+   * than the budget; past it, every result that starts before a mark is
+   * hidden, where the mark moves on in whole steps of the budget less the
+   * share kept. What is shown is then under the budget, and a step leaves
+   * about that share. The larger of the two, never the newest result.
+   */
+  function hiddenCount(lengths, options) {
+    const opts = Object.assign({}, DEFAULTS, options || {});
+    const n = lengths.length;
+    if (n < 2) return 0;
+    const byCount = inSteps(n, opts.keepResults, opts.hideStep);
+    const high = opts.toolBudget;
+    const low = Math.floor(high * Math.min(Math.max(Number(opts.hideTo) || 0, 0), 0.9));
+    const total = lengths.reduce((t, l) => t + l, 0);
+    let bySize = 0;
+    if (total > high) {
+      const stride = Math.max(1, high - low);
+      const mark = Math.floor((total - low) / stride) * stride;
+      let end = 0;
+      while (bySize < n && end < mark) end += lengths[bySize++];
     }
-    return out;
+    return Math.min(Math.max(byCount, bySize), n - 1);
   }
 
   // ── Hiding what is old, keeping what was asked ──────────────────────────
-  //
-  // Older turns used to be rolled into a one-line count once a conversation
-  // passed 18 messages. A single task reaches that in nine steps, and the
-  // first message rolled away was the request itself: from there on the model
-  // was working on a task nobody had told it about. Now the request is never
-  // taken away. What gives way first is the output of tools the agent has
-  // already acted on: the newest results stay whole, older ones are replaced
-  // by a line saying what they were, and the long arguments of the calls that
-  // produced them (a whole file written, a passage replaced) are not repeated.
-  // Only when a conversation holds several requests are the earliest ones
-  // rolled into a note, and the note keeps the words of each.
 
   const RESULT_TARGET_KEYS = ['path', 'dir', 'file', 'from', 'query', 'pattern', 'url', 'command'];
 
@@ -138,20 +159,20 @@
   }
 
   /**
-   * Hide tool results older than the newest `keepResults`, slim the calls that
-   * asked for them, and take the pictures out of image messages older than
-   * that. Returns a new array; no message is removed, so every result still
-   * follows the call it answers.
+   * Hide the oldest tool results (hiddenCount), slim the calls that asked
+   * for them, and take the pictures out of image messages up to the last
+   * one hidden. Returns a new array; no message is removed, so every result
+   * still follows the call it answers.
    */
   function hideOldResults(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
     const out = messages.slice();
-    let seen = 0;
-    let cutoff = -1;   // results at or before this index are hidden
-    for (let i = out.length - 1; i >= 0; i--) {
-      if (out[i] && out[i].role === 'tool' && ++seen > opts.keepResults) { cutoff = i; break; }
-    }
-    if (cutoff < 0) return out;
+    const at = [];
+    out.forEach((m, i) => { if (m && m.role === 'tool') at.push(i); });
+    const lengths = at.map((i) => Math.min(typeof out[i].content === 'string' ? out[i].content.length : 0, opts.maxResult));
+    const hide = hiddenCount(lengths, opts);
+    if (!hide) return out;
+    const cutoff = at[hide - 1];   // results at or before this index are hidden
     const labels = new Map();
     for (let i = 0; i <= cutoff; i++) {
       const m = out[i];
@@ -191,13 +212,29 @@
   const isRequest = (m) => !!m && m.role === 'user' && !m.opened && !m.note;
 
   /**
-   * What the model is sent of a conversation: every request of the newest
-   * `keepRequests` with all that followed it, tool results older than the
-   * newest `keepResults` hidden, and the tool budget spent on the rest.
+   * A request as the model reads it: the person's words, then what the app
+   * adds for that request alone (`context`: the file open, remembered facts,
+   * the bar a site is held to). Kept on the message rather than in the
+   * instructions, so the instructions stay the same from one request to the
+   * next and the start of every request can be reused.
+   */
+  function withContext(m) {
+    if (!m || m.role !== 'user' || typeof m.context !== 'string') return m;
+    const out = Object.assign({}, m);
+    delete out.context;
+    if (m.context.trim()) out.content = `${m.content || ''}\n\n${m.context}`;
+    return out;
+  }
+
+  /**
+   * What the model is sent of a conversation: the newest requests (at least
+   * `keepRequests`, older ones rolling into a note `requestStep` at a time)
+   * with all that followed them, older tool results hidden (hideOldResults),
+   * and any one result longer than `maxResult` cut.
    *
-   * Earlier requests roll into a note on the system message — there is only
-   * ever one system turn, as several providers refuse more — and the note
-   * keeps what each of them asked. The newest request is never rolled away.
+   * The note goes on the system message — there is only ever one system
+   * turn, as several providers refuse more — and keeps what each earlier
+   * request asked. The newest request is never rolled away.
    */
   function compressHistory(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
@@ -208,8 +245,9 @@
     rest.forEach((m, i) => { if (isRequest(m)) starts.push(i); });
     let kept = rest;
     let note = '';
-    if (starts.length > opts.keepRequests) {
-      const cut = starts[starts.length - opts.keepRequests];
+    const roll = Math.min(inSteps(starts.length, opts.keepRequests, opts.requestStep), Math.max(0, starts.length - 1));
+    if (roll) {
+      const cut = starts[roll];
       const older = rest.slice(0, cut);
       kept = rest.slice(cut);
       const asked = older.filter(isRequest).map((m) => {
@@ -223,8 +261,8 @@
     const head = systemMsg
       ? [note ? Object.assign({}, systemMsg, { content: systemMsg.content + '\n' + note }) : systemMsg]
       : (note ? [{ role: 'system', content: note }] : []);
-    return budgetToolResults(hideOldResults(head.concat(kept), opts), opts);
+    return budgetToolResults(hideOldResults(head.concat(kept.map(withContext)), opts), opts);
   }
 
-  window.HCAgentContext = { DEFAULTS, budgetToolResults, hideOldResults, compressHistory };
+  window.HCAgentContext = { DEFAULTS, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory };
 })();
