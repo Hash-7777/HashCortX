@@ -36,7 +36,7 @@ console.log('The tool list:');
     const [k, v] = Object.entries(withSchema.parameters).find(([, x]) => x && typeof x === 'object' && x.type);
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
-  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all'];
+  const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces'];
   ok('every argument is required but the ones optional by name', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k)).join();
@@ -62,7 +62,7 @@ console.log('\nA small local model:');
   const list = HC.code.toolList();
   ok('the Coder gives it only those tools and those instructions',
     HC.code.toolsFor('small', list, 'a site').map((t) => t.function.name).sort().join() === [...HC.code.SMALL_MODEL_TOOLS].sort().join() && HC.code.promptFor('small') === HC.code.SMALL_MODEL_PROMPT
-    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\);/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
+    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\)/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
   ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode) && /const size = HC\?\.code\?\.sizeOf\?\.\(info\?\.billions\) \|\| 'full';/.test(mode));
 }
 
@@ -216,7 +216,7 @@ console.log('\nThe project is known from the start of a conversation:');
   const mode = src('modes', 'code', 'mode.js');
   ok('its top folder and its notes are read once a project, with its checks', /sharedState\.projectChecks = \{ root, checks, \.\.\.\(await window\.HCCodeContext\?\.readProject\(root, io\)\) \}/.test(mode));
   ok('the top folder is named in the instructions, sized to the model', /window\.HCCodeContext\?\.projectPicture\(known\.entries, sharedState\.size\)/.test(mode));
-  ok('the notes go with the instructions for the first request to carry, marked as any material is', /window\.HCCodeContext\.systemTurn\(sysPrompt\(\), sharedState\.projectChecks\?\.root === sharedState\.projectRoot \? sharedState\.projectChecks : null, sharedState\.size, window\.HCSources\?\.mark\)/.test(mode));
+  ok('the notes go with the instructions for the first request to carry, marked as any material is', /window\.HCCodeContext\.systemTurn\(sysPrompt\(\), sharedState\.projectChecks\?\.root === sharedState\.projectRoot \? sharedState\.projectChecks : null, sharedState\.size, window\.HCSources\?\.mark,/.test(mode));
   ok('every place the instructions are set sets both', !/conversationMsgs\[0\]\.content = sysPrompt\(\)/.test(mode) && (mode.match(/conversationMsgs\[0\] = systemTurn\(\)/g) || []).length === 3 && /conversationMsgs = \[systemTurn\(\)\]/.test(mode));
 }
 

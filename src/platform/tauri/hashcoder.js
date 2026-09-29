@@ -141,6 +141,9 @@
     /** The plan update_plan keeps for the request in progress (js/code/plan.js); the Coder panel clears it for each request. */
     plan: null,
 
+    /** Where save_lesson keeps a lesson, `{ root, local }`, or null while lessons are switched off; set by the Coder panel. */
+    lessonsFor: null,
+
     /**
      * The stop key of the agent run in progress, set by the Coder panel. Every
      * command the agent starts carries it, so stopping the run can end them
@@ -427,6 +430,22 @@
         if (plan.error) throw new Error(plan.error);
         HC.code.plan = plan;
         return window.HCCodePlan.answer(plan);
+      },
+    },
+    {
+      // A lesson about this project for the next conversation on it, when switched on in Settings (js/code/lessons.js).
+      name: 'save_lesson',
+      description: 'Keep one short lesson about this project for your next conversation on it: how it is built or tested, a convention it follows, a trap that cost you time. Never a one-off failure, a setup error, or anything about the person.',
+      parameters: {
+        text: 'The lesson, one short line',
+        replaces: { type: 'string', description: 'Optional: the exact text of an earlier lesson this one corrects.' },
+      },
+      fn: (p) => {
+        const at = HC.code.lessonsFor;
+        if (!at || !window.HCCodeLessons) return JSON.stringify({ ok: false, error: 'Keeping lessons is switched off in Settings, so nothing was saved.' });
+        const kept = window.HCCodeLessons.save(localStorage, at.root, p.text, { local: at.local, replaces: p.replaces });
+        if (kept.error) throw new Error(kept.error);
+        return JSON.stringify(kept);
       },
     },
     {
@@ -723,7 +742,7 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {

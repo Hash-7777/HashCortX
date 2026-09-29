@@ -144,7 +144,7 @@ console.log('\nSized to the model:');
   check('a small model is never shown more tool output than its budget', worst <= small.toolBudget, `${worst}`);
   check('...and its requests still start the same way at most steps', breaks <= 16, `${breaks} of 40`);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\)\)/.test(mode) && /sharedState\.local = !\/\^cloud:\/\.test\(model\)/.test(mode));
+  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\)\)/.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
 }
 
 console.log('\nInputs are not mutated:');

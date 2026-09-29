@@ -38,6 +38,7 @@
     placeholder_images: 'read',
     recall_facts: 'read',
     update_plan: 'read',   // keeps a checklist; changes nothing on disk
+    save_lesson: 'write',  // keeps a lesson in the app's own storage
     write_file: 'write',
     patch_file: 'write',
     delete_file: 'write',

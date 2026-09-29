@@ -451,6 +451,13 @@
           <span><b>Prove changes before finishing</b> <span class="field-note">— after changing code, HashCoder is sent back to run the project's own tests before it finishes, and a model on this computer under 15B is also sent back once to check its work against the request. After a larger change, a larger model takes a second look at it with a clean slate and fixes what that finds. What was checked is said under each answer either way.</span></span>
         </label>
       </div>
+      <div class="field">
+        <label class="check-row">
+          <input type="checkbox" id="cdrSetLessons" class="check-box" />
+          <span><b>Keep lessons about each project</b> <span class="field-note">— a model of 15B or more, or a cloud model, may save short notes on how a project is built and tested, kept in HashCortx, never in the project, and read at the start of the next conversation on it. Lessons a model on this computer kept never go to a cloud model.</span></span>
+        </label>
+        <button class="ghost set-btn" type="button" id="cdrForgetLessons" title="Remove every lesson kept, for every project">Forget all lessons</button>
+      </div>
       <div class="field" id="cdrKb">
         <label class="check-row">
           <input type="checkbox" id="cdrKbState" class="check-box" />

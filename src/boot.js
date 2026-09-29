@@ -81,6 +81,7 @@
     '/js/code/plan.js',
     '/js/code/balance.js',
     '/js/code/review.js',
+    '/js/code/lessons.js',
     '/js/code/attach.js',
     '/js/code/live.js',
     '/js/code/export.js',

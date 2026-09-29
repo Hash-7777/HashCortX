@@ -705,7 +705,10 @@ const LINE_BUDGET = {
   // 2568, down sixty-nine: the helpers that split a task between agents
   // writing at once are gone, and a second look at a larger change
   // (js/code/review.js) takes their place in a few lines.
-  'modes/code/mode.js': 2568,
+  // 2573, up five: the switch that keeps lessons about each project and the
+  // button that forgets them, and the lessons read into the start of a
+  // conversation (js/code/lessons.js).
+  'modes/code/mode.js': 2573,
 };
 
 console.log('\nFile sizes go down, never up:');

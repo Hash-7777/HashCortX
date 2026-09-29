@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder can keep lessons about each project.** With "Keep lessons
+  about each project" switched on in Settings (it starts off), a model on
+  your computer of 15 billion parameters or more, or a cloud model, may
+  save short lessons about the open project, such as how it is tested or a
+  trap that cost time, and the next conversation on it starts with them.
+  They are kept in HashCortx, never in the project, a dozen a project; a
+  lesson that looks like a key or holds an email address is refused, and
+  lessons a model on your computer kept never go to a cloud model. "Forget
+  all lessons" removes every one.
+
 - **A second look at HashCoder's larger changes.** After a change to more
   than one file, or of thirty lines or more, a model on your computer of 15
   billion parameters or more, or a cloud model, is asked once more as a

@@ -381,6 +381,12 @@ These are commonly assumed, and worth naming because an earlier version of this 
 
 ---
 
+## HashCoder's lessons about a project
+
+Off until you switch on **Keep lessons about each project** in Settings → HashCoder. While it is on, a model on your computer of 15 billion parameters or more, or a cloud model, may keep short lessons about the open project: one line each, a dozen a project, in the app's own storage and never inside the project. A lesson that looks like a key or holds an email address is refused. At the start of the next conversation on that project the lessons are given to the model in use, beside the project's `AGENTS.md` and framed the same way; lessons a model on your computer kept are never given to a cloud model. **Forget all lessons** removes every one (`src/js/code/lessons.js`).
+
+---
+
 ## Data flow
 
 ```

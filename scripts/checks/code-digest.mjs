@@ -68,7 +68,7 @@ console.log('\nHashCoder gives it for the model in use:');
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('shell_run is shortened through it, by the limit set for the model', /HC\.code\.shellRun\(p\.command, p\.args \|\| \[\], p\.cwd \|\| null, p\.reason\)\.then\(\(r\) => \(window\.HCCodeDigest \? window\.HCCodeDigest\.shellResult\(r, HC\.code\.outputLimit\) : r\)\)/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
-  ok('the limit follows the size of the model', /HC\.code\.outputLimit = window\.HCAgentContext\.optionsFor\(size, sharedState\.local\)\.shellOutput/.test(mode));
+  ok('the limit follows the size of the model', /HC\.code\.outputLimit = window\.HCAgentContext\.optionsFor\(size, local\)\.shellOutput/.test(mode));
   ok('it is loaded before the mode', src('boot.js').indexOf("'/js/code/digest.js'") > 0);
 }
 

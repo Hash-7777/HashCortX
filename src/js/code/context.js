@@ -110,10 +110,13 @@
    * The conversation's system turn: `content` the instructions, and, when
    * `known` (what readProject found) holds the project's notes, those notes
    * beside them for the first request to carry (js/agent-context.js), cut
-   * to the size of the model and marked with `mark`.
+   * to the size of the model and marked with `mark`; and `lessons`, what
+   * earlier conversations kept about the project (js/code/lessons.js),
+   * marked the same way.
    */
-  function systemTurn(content, known, size, mark) {
-    const notes = known && known.notesText ? projectNotes(known.notesName, known.notesText, size, mark) : '';
+  function systemTurn(content, known, size, mark, lessons = '') {
+    const kept = lessons && typeof mark === 'function' ? mark(lessons) : lessons;
+    const notes = [known && known.notesText ? projectNotes(known.notesName, known.notesText, size, mark) : '', kept].filter(Boolean).join('\n\n');
     return { role: 'system', content, ...(notes ? { notes } : {}) };
   }
 
