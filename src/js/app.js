@@ -5751,7 +5751,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason };
   }
 
-  async function agentTurnAnthropic({ model, messages, tools, temperature, signal, onText, onThinking }) {
+  async function agentTurnAnthropic({ model, messages, tools, temperature, signal, onText, onThinking, cache }) {
     const key = (anthropicKeyEl.value || "").trim();
     if (!key) throw new Error("Anthropic API key missing.");
     const systemMsg = HCAgentShape.systemOf(messages);
@@ -5788,7 +5788,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const body = {
       model,
       messages: anthropicMessages,
-      ...(systemMsg ? { system: systemMsg.content } : {}),
+      ...(systemMsg ? { system: HCAgentShape.markReusable(systemMsg.content, anthropicMessages, cache) } : {}),   // a conversation sent again
       ...(typeof temperature === "number" ? { temperature } : {}), ...(onText ? { stream: true } : {}),   // streamed when watched
     };
     if (tools.length) {

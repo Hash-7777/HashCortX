@@ -443,6 +443,13 @@ console.log('\nGemini gets the tool shape Gemini takes:');
   ok('and leaves every other provider alone', untouched === openAi);
 }
 
+console.log('\nA caller that sends its conversation again says so:');
+{
+  const seen = (req) => A.routeModelTurn(req, { anthropic: (a) => a, openai: (a) => a }, {});
+  ok('the client is told when the caller asks', seen({ adapter: { kind: 'anthropic', model: 'm' }, messages: [], tools: [], cache: true }).cache === true);
+  ok('and not told when it does not', !('cache' in seen({ adapter: { kind: 'anthropic', model: 'm' }, messages: [], tools: [] })));
+}
+
 console.log('\nA failed call names the model that failed:');
 {
   const failing = (kind) => ({ [kind]: () => Promise.reject(new Error('boom')) });

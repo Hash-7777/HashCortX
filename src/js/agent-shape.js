@@ -564,7 +564,9 @@
   // `json`: the answer must be JSON — true, or the JSON schema it must match.
   // Honoured by Ollama, where the small models that most often answer in the
   // wrong shape run; a cloud model is only told so in its prompt.
-  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need, onText, onThinking }, fns, deps) {
+  // `cache`: the caller sends this conversation again with more on the end, so
+  // a provider that is told where its reusable start ends is told (Anthropic).
+  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need, onText, onThinking, cache }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
     // Gemini is the one provider whose tool list is shaped differently, and a
@@ -572,7 +574,7 @@
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
     // onText and onThinking hear the answer as it is written, where the client can say (a model on this computer).
-    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}) };
+    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
     if (route.kind === 'gemini') return tagged(fns.gemini(base), who);
@@ -584,7 +586,25 @@
     throw new Error(`No client for model adapter: ${route.kind}`);
   }
 
+  /**
+   * Anthropic's instructions for a request, and its messages marked where
+   * their reusable start ends when `cache` says the conversation will be sent
+   * again with more on the end: after the instructions, and at the last block
+   * of the last message, so the next request reads everything before its own
+   * new part from the cache. `messages` are Anthropic's (content as blocks)
+   * and are marked in place. Without `cache` nothing is marked, so a one-off
+   * request pays nothing to store what nothing will read.
+   */
+  function markReusable(system, messages, cache) {
+    if (!cache) return system;
+    const mark = { type: 'ephemeral' };
+    const last = Array.isArray(messages) && messages.length ? messages[messages.length - 1].content : null;
+    if (Array.isArray(last) && last.length) last[last.length - 1] = Object.assign({}, last[last.length - 1], { cache_control: mark });
+    return [{ type: 'text', text: String(system), cache_control: mark }];
+  }
+
   window.HCAgentShape = {
+    markReusable,
     closeInterruptedTurn,
     wasCutOff,
     finishCutOff,

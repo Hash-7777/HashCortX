@@ -331,6 +331,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **On Anthropic models, HashCoder's requests are read from the provider's
+  cache.** Each request marks where its reusable start ends, after the
+  instructions and at its last block, so the provider reads everything
+  before the new part from its cache at a fraction of the price. Only
+  HashCoder, which sends its conversation again at every step, asks for it:
+  a one-off request pays nothing to store what nothing would read.
+
 - **HashCoder shows a model what fits it.** How much tool output a model is
   shown whole, and how many results it keeps, now follows its size: a small
   model on your computer the least, a large cloud model as much as before.

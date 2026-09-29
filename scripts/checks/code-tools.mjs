@@ -208,6 +208,7 @@ console.log('\nThe instructions stay the same from one request to the next:');
   ok('nothing that belongs to one request is in them', sys.length > 500 && !/memRecall|activeFile|siteBrief|Date\.now|new Date/.test(sys));
   ok('the file open and remembered facts go with the request instead', /activeFile: root && sharedState\.activeFile, facts: \(\(\) => \{ try \{ return window\._H\?\.memRecall\?\.\(task, 4\)/.test(mode));
   ok('a site\'s tools, once offered in a conversation, stay offered', /conversationMsgs\.some\(\(m\) => m\.site\)/.test(mode));
+  ok('every model call says the conversation will be sent again', /cache: true \}\);/.test(mode));
 }
 
 console.log('\nThe project is known from the start of a conversation:');

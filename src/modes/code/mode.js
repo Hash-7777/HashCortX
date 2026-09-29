@@ -270,7 +270,7 @@
           // Routing lives in app.js — one copy of which client each provider
           // needs, shared by every mode.
           live?.reset?.();   // what an earlier try wrote is not this one's (js/code/live.js)
-          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking });
+          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true });
           // Success — reset streak, update chip, return
           _routerStreaks.set(key, 0);
           if (i > 0) setRouterChip(adapter.label, 'switched');

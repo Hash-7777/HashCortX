@@ -49,10 +49,10 @@ console.log('\nThe words reach it as they are written:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl\) \{\s*return contentEl \? window\.HCCodeLive\.start\(contentEl/.test(mode));
   ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
-    && /H\.runModelTurn\(\{ adapter, messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking \}\)/.test(mode));
+    && /H\.runModelTurn\(\{ adapter, messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true \}\)/.test(mode));
   ok('a model asked again starts the line again', /live\?\.reset\?\.\(\);/.test(mode));
   const shape = src('js', 'agent-shape.js');
-  ok('the router passes the listeners to the client', /function routeOnce\(\{[^}]*onText, onThinking \}/.test(shape) && /\.\.\.\(onText \? \{ onText \} : \{\}\)/.test(shape));
+  ok('the router passes the listeners to the client', /function routeOnce\(\{[^}]*onText, onThinking, cache \}/.test(shape) && /\.\.\.\(onText \? \{ onText \} : \{\}\)/.test(shape));
   const app = src('js', 'app.js');
   const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
   ok('and the client for a model on this computer hands them each piece', /onToken: onText, onThinking/.test(ollama));
@@ -64,7 +64,7 @@ console.log('\nThe words reach it as they are written:');
   ok('so does Gemini', /agentTurnGemini\(\{[^}]*onText, onThinking \}\)/.test(gemini) && /onText \? "streamGenerateContent\?alt=sse&" : "generateContent\?"/.test(gemini)
     && /HCStreamSSE\.geminiReply\(r, \{ onText, onThinking, fail:/.test(gemini));
   const anthropic = app.slice(app.indexOf('async function agentTurnAnthropic'), app.indexOf('async function agentTurnGemini'));
-  ok('and Anthropic', /agentTurnAnthropic\(\{[^}]*onText, onThinking \}\)/.test(anthropic) && /\.\.\.\(onText \? \{ stream: true \} : \{\}\)/.test(anthropic)
+  ok('and Anthropic', /agentTurnAnthropic\(\{[^}]*onText, onThinking, cache \}\)/.test(anthropic) && /\.\.\.\(onText \? \{ stream: true \} : \{\}\)/.test(anthropic)
     && /HCStreamSSE\.anthropicReply\(r, \{ onText, onThinking, fail:/.test(anthropic));
   const boot = src('boot.js');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));

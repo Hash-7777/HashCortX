@@ -70,6 +70,25 @@ console.log('\nTokens read from a provider\'s cache are counted apart:');
   check('every agent turn hands them on', (appjs.match(/recordUsage\(model, u\.input, u\.output, u\.cacheRead, u\.cacheWrite\)/g) || []).length === 4);
 }
 
+console.log('\nA conversation sent again marks where its reusable start ends:');
+{
+  const at = appjs.indexOf('async function agentTurnAnthropic(');
+  const body = appjs.slice(at, appjs.indexOf('\n  async function ', at + 10));
+  check('Anthropic is told, when the caller asks', /\bcache \}\)/.test(body.split('\n')[0]) && /system: HCAgentShape\.markReusable\(systemMsg\.content, anthropicMessages, cache\)/.test(body));
+  const shape = { window: {} };
+  vm.createContext(shape);
+  vm.runInContext(readFileSync(join(root, 'src', 'js', 'agent-shape.js'), 'utf8'), shape, { filename: 'agent-shape.js' });
+  const mark = shape.window.HCAgentShape.markReusable;
+  const msgs = [{ role: 'user', content: [{ type: 'text', text: 'fix it' }] }, { role: 'assistant', content: [{ type: 'tool_use', id: 'a', name: 'read_file', input: {} }] },
+    { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'a', content: 'x' }] }];
+  const system = mark('rules', msgs, true);
+  check('after the instructions', Array.isArray(system) && system[0].text === 'rules' && system[0].cache_control.type === 'ephemeral');
+  check('and at the last block of the last message, only there', msgs[2].content[0].cache_control && !msgs[0].content[0].cache_control && !msgs[1].content[0].cache_control);
+  const plain = [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }];
+  check('and not when it is not asked: a one-off request pays nothing to store', mark('rules', plain, false) === 'rules' && !plain[0].content[0].cache_control);
+  check('a message with no blocks is not a failure', Array.isArray(mark('r', [{ role: 'user', content: [] }], true)));
+}
+
 console.log('\nNothing is invented when a provider stays silent:');
 check('no usage field at all', usageFrom({ choices: [] }) === null);
 check('empty object', usageFrom({}) === null);
