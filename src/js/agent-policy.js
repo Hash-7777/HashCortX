@@ -102,7 +102,9 @@
    * Returns `{ continue, reason, nudge }`. `nudge` is a message to append for
    * the coming turn when the agent needs telling that the end is near — it
    * replaces the old behaviour of silently stopping and reporting a pause,
-   * which left the user unable to tell "finished" from "gave up".
+   * which left the user unable to tell "finished" from "gave up". `changed`
+   * says the run has changed files, and `planDone` that every step of its
+   * plan is marked done: an agent in either state is told to finish.
    */
   function shouldContinue(progress, options) {
     const budget = Object.assign({}, BUDGET, options || {});
@@ -114,8 +116,12 @@
         message: `Stopped after ${iteration} steps — the hard limit. Reply to continue from here.` };
     }
     if (stalled >= budget.stallLimit) {
+      // After changes were made, the steps that followed were looking again
+      // rather than going round in circles, and the person is told so.
       return { continue: false, reason: 'stalled',
-        message: `Stopped after ${stalled} steps that changed nothing — the agent was repeating itself rather than making progress. Reply with more detail to continue.` };
+        message: progress.changed
+          ? `Stopped: the agent made its changes, then spent ${stalled} steps looking at files again without finishing. The changes are above, each with Keep and Undo. Reply to have it carry on.`
+          : `Stopped after ${stalled} steps that changed nothing — the agent was repeating itself rather than making progress. Reply with more detail to continue.` };
     }
     if (iteration >= budget.softLimit) {
       // Past the soft limit the agent keeps going only while it is still
@@ -133,7 +139,11 @@
     }
     if (stalled >= 2) {
       return { continue: true, reason: 'repeating',
-        nudge: 'Your last steps repeated what you had already done and changed nothing. Do something different: read the file the error or the result points to and change it, or finish and say what is in the way.' };
+        nudge: progress.planDone
+          ? 'Every step of your plan is done, and your last steps changed nothing. Finish now: say in two or three sentences what you changed and what you checked. If something is still wrong, fix it instead.'
+          : progress.changed
+            ? 'Your last steps looked at files again and changed nothing. If the change is complete, finish now with what you changed and what you checked; if it is not, make the next change.'
+            : 'Your last steps repeated what you had already done and changed nothing. Do something different: read the file the error or the result points to and change it, or finish and say what is in the way.' };
     }
     return { continue: true, reason: 'within-budget' };
   }
@@ -147,7 +157,11 @@
    * as progress, so nothing stopped it. Reads count only when they are new —
    * re-reading the same file for the third time is the signature of an agent
    * that has lost the thread, and is exactly what the stall counter is
-   * watching for.
+   * watching for. A read is the same read only when everything it asks is
+   * the same: a search for other words in the same folder, or another part of
+   * a long file, is new, and so is a plan with a step newly marked done. A
+   * file the run has just changed is new to read again, and so is any folder
+   * holding it: reading back a change is checking it.
    */
   function iterationMadeProgress(calls, seenReadTargets) {
     let progress = false;
@@ -156,19 +170,44 @@
       if (effectOf(call.name) !== 'read') {
         const same = 'call::' + call.name + '::' + JSON.stringify(call.arguments || {});
         if (!seenReadTargets) { progress = true; continue; }
-        if (!seenReadTargets.has(same)) { seenReadTargets.add(same); progress = true; }
+        if (!seenReadTargets.has(same)) {
+          seenReadTargets.add(same);
+          progress = true;
+          const changed = changedPaths(call);
+          if (changed.length) {
+            for (const key of [...seenReadTargets]) {
+              if (!key.startsWith('call::') && changed.some((p) => covers(key.split('::')[1], p))) seenReadTargets.delete(key);
+            }
+          }
+        }
         continue;
       }
-      const target = String(
-        (call.arguments && (call.arguments.path || call.arguments.dir || call.arguments.query)) || ''
-      );
-      const key = call.name + '::' + target;
+      const key = readKey(call);
       if (seenReadTargets && !seenReadTargets.has(key)) {
         seenReadTargets.add(key);
         progress = true;
       }
     }
     return progress;
+  }
+
+  /** What a read looks at, and exactly how: its target, then every argument it gave. */
+  function readKey(call) {
+    const a = call.arguments || {};
+    return `${call.name}::${String(a.path || a.dir || a.query || '')}::${JSON.stringify(a)}`;
+  }
+
+  /** Whether a read of `target` looks at `path`: the file itself, or a folder holding it. */
+  function covers(target, path) {
+    const t = String(target || '').replace(/[\\/]+$/, '');
+    return !!t && (path === t || path.startsWith(t + '/') || path.startsWith(t + '\\'));
+  }
+
+  /** The files a call changes: the one a write names, or both ends of a move. */
+  function changedPaths(call) {
+    const a = (call && call.arguments) || {};
+    const paths = call && call.name === 'move_file' ? [a.from, a.to] : EDIT_TOOLS.has(call && call.name) || (call && call.name === 'delete_file') ? [a.path] : [];
+    return paths.filter((p) => typeof p === 'string' && p);
   }
 
   // ── The same file changed again and again ──────────────────────────────

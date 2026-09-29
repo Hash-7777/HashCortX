@@ -712,7 +712,9 @@ const LINE_BUDGET = {
   // through js/code/codemap.js instead of patterns of its own.
   // 2543, up eight: a larger model is given a map of the project's code,
   // made as a conversation begins (js/code/codemap.js).
-  'modes/code/mode.js': 2543,
+  // 2545, up two: the loop tells the stop rules whether files changed and
+  // whether the plan is done, so a finished agent is told to finish.
+  'modes/code/mode.js': 2545,
 };
 
 console.log('\nFile sizes go down, never up:');

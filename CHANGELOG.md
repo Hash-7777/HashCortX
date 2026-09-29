@@ -598,6 +598,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder no longer stops a finished run as if it were stuck.** Reading
+  back a file it had just changed, marking a step of its plan done,
+  searching the same folder for other words, or reading another part of a
+  long file was counted as a step that changed nothing, so an agent checking
+  its own work was stopped and told it was repeating itself. All of these
+  now count as progress; the same read or search made again still does not.
+  An agent whose plan is done, or whose change is made, is told to finish;
+  and if it is stopped after making changes, the message says the changes
+  are there to keep or undo rather than blaming it.
+
 - **HashCoder's Symbols list reads each file whole.** A file of more than
   400 lines was read the way the model reads it, a first window of numbered
   lines, so the list missed most of what a long file defined, gave line

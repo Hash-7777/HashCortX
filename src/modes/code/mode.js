@@ -1996,6 +1996,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           iteration: iter,
           stalledIterations,
           madeProgress: stalledIterations === 0,
+          changed: proof ? proof.changed.length : 0,   // an agent that has made its change, or finished its plan, is told to finish
+          planDone: !!HC?.code?.plan && !!window.HCCodePlan && !window.HCCodePlan.openSteps(HC.code.plan).length,
         });
         if (!verdict.continue) { lastStop = verdict; break; }
         iter++;

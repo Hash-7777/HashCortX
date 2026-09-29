@@ -135,6 +135,44 @@ console.log('\nAn agent repeating itself is told to do something different:');
   check('and at the stall limit it stops, as before', shouldContinue({ iteration: 6, stalledIterations: BUDGET.stallLimit }).reason === 'stalled');
 }
 
+console.log('\nAn agent that has done its work is told to finish, and is not blamed for looking:');
+{
+  const seen = new Set();
+  const read = (p) => call('read_file', { path: p });
+  iterationMadeProgress([read('/p/style.css'), read('/p/index.html')], seen);
+  check('reading back a file just changed is checking it, not repeating', iterationMadeProgress([call('patch_file', { path: '/p/style.css', search: 'a', replace: 'b' })], seen) && iterationMadeProgress([read('/p/style.css')], seen));
+  check('...while a file nothing changed is still a repeat', iterationMadeProgress([read('/p/index.html')], seen) === false);
+  check('...and a second read of the changed file is a repeat again', iterationMadeProgress([read('/p/style.css')], seen) === false);
+  iterationMadeProgress([call('list_dir', { path: '/p' })], seen);
+  check('a new file makes its folder new to list', iterationMadeProgress([call('write_file', { path: '/p/new.js', content: 'x' })], seen) && iterationMadeProgress([call('list_dir', { path: '/p' })], seen));
+  check('a move makes both ends new to read', iterationMadeProgress([read('/p/a.js'), read('/p/b.js')], seen) && iterationMadeProgress([call('move_file', { from: '/p/a.js', to: '/p/b.js' })], seen) && iterationMadeProgress([read('/p/b.js')], seen));
+  const same = call('write_file', { path: '/p/loop.js', content: 'same' });
+  iterationMadeProgress([same], seen); iterationMadeProgress([read('/p/loop.js')], seen);
+  check('a write repeated as it was does not make its file new to read, so writing and reading in a loop still stalls',
+    iterationMadeProgress([call('write_file', { path: '/p/loop.js', content: 'same' })], seen) === false && iterationMadeProgress([read('/p/loop.js')], seen) === false);
+  const grep = (pattern) => call('grep_code', { dir: '/p', pattern });
+  check('a search for other words in the same folder is progress', iterationMadeProgress([grep('reveal')], seen) && iterationMadeProgress([grep('hero-img')], seen));
+  check('...the same search again is not', iterationMadeProgress([grep('reveal')], seen) === false);
+  check('...until a file in that folder changes', iterationMadeProgress([call('patch_file', { path: '/p/css/site.css', search: 'x', replace: 'y' })], seen) && iterationMadeProgress([grep('reveal')], seen));
+  const part = (start) => call('read_file', { path: '/p/long.js', start_line: start, end_line: start + 199 });
+  check('another part of a long file is progress, the same part again is not', iterationMadeProgress([part(1)], seen) && iterationMadeProgress([part(200)], seen) && iterationMadeProgress([part(200)], seen) === false);
+  check('a folder whose name begins like a changed file\'s folder is not taken for it', iterationMadeProgress([call('list_dir', { path: '/p2' })], seen) && iterationMadeProgress([call('write_file', { path: '/p/x.js', content: '1' })], seen) && iterationMadeProgress([call('list_dir', { path: '/p2' })], seen) === false);
+  const plan = (done) => call('update_plan', { steps: [{ step: 'page', status: 'done' }, { step: 'styles', status: done ? 'done' : 'doing' }] });
+  check('a step of the plan marked done is progress', iterationMadeProgress([plan(false)], seen) && iterationMadeProgress([plan(true)], seen));
+  check('...the same plan sent again is not', iterationMadeProgress([plan(true)], seen) === false);
+  const done = shouldContinue({ iteration: 9, stalledIterations: 2, changed: 3, planDone: true });
+  check('with every step of its plan done, it is told to finish now', done.continue && /Every step of your plan is done/.test(done.nudge) && /Finish now/.test(done.nudge));
+  const changedOnly = shouldContinue({ iteration: 9, stalledIterations: 2, changed: 1 });
+  check('with its change made, it is told to finish if the change is complete', /If the change is complete, finish now/.test(changedOnly.nudge));
+  const stop = shouldContinue({ iteration: 12, stalledIterations: BUDGET.stallLimit, changed: 3 });
+  check('stopped after its changes, the person is told the changes are there to keep or undo, and nobody is blamed',
+    stop.reason === 'stalled' && /made its changes/.test(stop.message) && /Keep and Undo/.test(stop.message) && !/repeating itself/.test(stop.message));
+  check('stopped having changed nothing, it says so as before', /repeating itself/.test(shouldContinue({ iteration: 6, stalledIterations: BUDGET.stallLimit }).message));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('HashCoder says whether files changed and whether the plan is done',
+    /changed: proof \? proof\.changed\.length : 0,/.test(mode) && /planDone: !!HC\?\.code\?\.plan && !!window\.HCCodePlan && !window\.HCCodePlan\.openSteps\(HC\.code\.plan\)\.length,/.test(mode));
+}
+
 // ── The ceiling on one generation ─────────────────────────────────────────
 //
 // ERP's pipeline retries, then fails over, then runs a second pipeline that
