@@ -6429,7 +6429,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Cmd/Ctrl + Shift + C → open or leave HashCoder
     if (e.shiftKey && e.key.toLowerCase() === 'c') {
       e.preventDefault();
-      if (isCodeMode()) setTab(state._preCoderTab || 'chats');
+      if (isCodeMode()) setTab(state._precodeTab || 'chats');   // where activateRegisteredMode kept the tab HashCoder was opened from
       else setTab('code');
       return;
     }

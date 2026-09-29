@@ -616,6 +616,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's bar has no X.** It sat where a close button for the
+  conversation would, and took you to chat instead. HashCoder is left with
+  the exit button at the top right of the window, as every mode is, or with
+  Cmd/Ctrl+Shift+C, which now goes back to the tab HashCoder was opened
+  from; it went to chat every time.
+
 - **The check of a finished site finds sections that can never appear.**
   A script that hides elements by setting their style directly, then
   switches a class on to show them, leaves them hidden for good, since a

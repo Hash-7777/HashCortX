@@ -506,7 +506,6 @@
     function wireDom() {
       const runBtn            = $('cdrRunBtn');
       const stopBtn           = $('cdrStopBtn');
-      const backBtn           = $('cdrBackBtn');
       const auditBtn          = $('cdrAuditBtn');
       const resetPermsBtn     = $('cdrResetPermsBtn');
       const exportBtn         = $('cdrExportBtn');
@@ -520,7 +519,6 @@
 
       if (runBtn)            runBtn.addEventListener('click', startRun);
       if (stopBtn)           stopBtn.addEventListener('click', stopRun);
-      if (backBtn)           backBtn.addEventListener('click', goBack);
       if (clearBtn)          clearBtn.addEventListener('click', clearChat);
       if (leftAddFileBtn)    leftAddFileBtn.addEventListener('click', openFile);
       if (leftAddFolderBtn)  leftAddFolderBtn.addEventListener('click', openProject);
@@ -690,12 +688,6 @@
       el.style.height = Math.min(el.scrollHeight, 320) + 'px';
     }
 
-
-    function goBack() {
-      const H = window._H;
-      const prev = H?.state?._preCoderTab || 'chats';
-      H?.setTab?.(prev);
-    }
 
     function syncProjectLabel() {
       const sub = $('cdrProjectSub');
