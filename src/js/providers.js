@@ -373,6 +373,14 @@
    * and the pair Ollama puts on its final object. Read in that order because
    * that is the order they are common in, and a response only ever uses one.
    *
+   * Tokens a provider read from its cache of an earlier request cost a
+   * fraction of the rest, so they are counted apart: `input` is what was read
+   * fresh, `cacheRead` what came from the cache and `cacheWrite` what was
+   * stored for next time, each present only when the provider reports it.
+   * Anthropic counts those apart from its input already; the OpenAI spelling
+   * (and DeepSeek's and Kimi's) and Gemini's count them inside the prompt, so
+   * they are taken out of it here.
+   *
    * These numbers are written into the usage log that a separate application
    * reads, so a shape read wrongly here is a wrong figure in something else
    * entirely — and nothing in either app would say so.
@@ -383,29 +391,52 @@
    */
   function usageFrom(data) {
     if (!data || typeof data !== "object") return null;
+    const cached = (out, read, write) => {
+      if (read > 0) out.cacheRead = read;
+      if (write > 0) out.cacheWrite = write;
+      return out;
+    };
+    const fresh = (prompt, read) => (prompt != null ? prompt - read : prompt);
     // OpenAI-compatible, which most providers follow.
     if (data.usage) {
       const u = data.usage;
       if (u.prompt_tokens != null || u.completion_tokens != null) {
-        return { input: u.prompt_tokens, output: u.completion_tokens };
+        const hit = Number((u.prompt_tokens_details && u.prompt_tokens_details.cached_tokens) ?? u.prompt_cache_hit_tokens ?? u.cached_tokens) || 0;
+        const read = Math.min(hit, Number(u.prompt_tokens) || 0);
+        return cached({ input: fresh(u.prompt_tokens, read), output: u.completion_tokens }, read, 0);
       }
       // Anthropic.
       if (u.input_tokens != null || u.output_tokens != null) {
-        return { input: u.input_tokens, output: u.output_tokens };
+        return cached({ input: u.input_tokens, output: u.output_tokens },
+          Number(u.cache_read_input_tokens) || 0, Number(u.cache_creation_input_tokens) || 0);
       }
     }
     // Gemini.
     if (data.usageMetadata) {
-      return {
-        input: data.usageMetadata.promptTokenCount,
-        output: data.usageMetadata.candidatesTokenCount,
-      };
+      const m = data.usageMetadata;
+      const read = Math.min(Number(m.cachedContentTokenCount) || 0, Number(m.promptTokenCount) || 0);
+      return cached({ input: fresh(m.promptTokenCount, read), output: m.candidatesTokenCount }, read, 0);
     }
     // Ollama reports these on the final object.
     if (data.prompt_eval_count != null || data.eval_count != null) {
       return { input: data.prompt_eval_count, output: data.eval_count };
     }
     return null;
+  }
+
+  /**
+   * One line of the usage log, or null when there is nothing to record:
+   * `counts` as usageFrom gives them, `ts` the time. Tokens read from or
+   * stored in a provider's cache go in the fields the log has for them
+   * (usage_log.rs), and only when there are some.
+   */
+  function usageRecord(model, counts, ts) {
+    const n = (v) => Number(v) || 0;
+    const c = counts || {};
+    const [input, output, read, write] = [n(c.input), n(c.output), n(c.cacheRead), n(c.cacheWrite)];
+    if (!input && !output && !read && !write) return null;
+    return { ts: String(ts), model: String(model || 'unknown'), input_tokens: input, output_tokens: output,
+      ...(read ? { cache_read: read } : {}), ...(write ? { cache_write: write } : {}) };
   }
 
   /**
@@ -530,7 +561,7 @@ function messageFrom(body) {
     MOONSHOT_API_BASES, MOONSHOT_MODEL_ORDER,
     isKimiCodeKey, moonshotEndpointLabel, orderedMoonshotBases,
     // What came back, rather than what was sent.
-    usageFrom, cloudHttpError, bodyFailure,
+    usageFrom, usageRecord, cloudHttpError, bodyFailure,
     shouldTryNextMoonshotEndpoint, sortMoonshotModelIds,
   };
 })();

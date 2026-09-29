@@ -3657,22 +3657,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   // Token usage — one recorder for every path that finishes a model turn.
   //
-  // This used to live inline in streamCloudModel only, so HashMeterAi counted
-  // cloud chat and nothing else: local Ollama turns and every Coder-mode turn
-  // were invisible, and the reported total was quietly short.
-  //
   // Measured only. When a provider reports no counts we write nothing rather
-  // than estimating — a missing line is honest, an invented one is not.
-  function recordUsage(model, input, output) {
-    const inTok = Number(input) || 0;
-    const outTok = Number(output) || 0;
-    if (!inTok && !outTok) return;
-    HC.usageLog.append({
-      ts: new Date().toISOString(),
-      model: String(model || "unknown"),
-      input_tokens: inTok,
-      output_tokens: outTok,
-    });
+  // than estimating — a missing line is honest, an invented one is not. The
+  // record's shape, cached tokens included, is js/providers.js usageRecord.
+  function recordUsage(model, input, output, cacheRead, cacheWrite) {
+    const record = HCProviders.usageRecord(model, { input, output, cacheRead, cacheWrite }, new Date().toISOString());
+    if (record) HC.usageLog.append(record);
   }
 
   /** Pull counts out of whatever shape this provider answered with. */
@@ -5697,7 +5687,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
-    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }
     return { content: content || null, tool_calls: calls.length ? calls : null, raw: msg, finish: data.done_reason, thinking: reply.thinking || undefined };
   }
 
@@ -5757,7 +5747,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     })) : null;
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
-    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }
     return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason };
   }
 
@@ -5833,7 +5823,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
-    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }
     return {
       content: text || null,
       tool_calls: toolCalls.length ? toolCalls.map(c => ({ id: c.id, function: { name: c.name, arguments: c.arguments } })) : null,
@@ -5907,7 +5897,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
-    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output); }
+    { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }
     return { content: textOut || null, tool_calls: calls.length ? calls : null, raw: data };
   }
 

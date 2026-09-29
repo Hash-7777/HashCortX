@@ -314,6 +314,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Tokens served from a provider's cache are counted apart.** In agent
+  runs, tokens a provider reports as read from its cache, or stored in it,
+  go in fields of their own in the usage log instead of being counted as
+  ordinary input, so HashMeterAi prices them apart. Anthropic, OpenAI and
+  the providers that follow its format, DeepSeek and Gemini each report them
+  their own way, and each is read.
+
 - **Changes left from a last HashCoder session are listed by file.** A run
   that edited two files eighteen times listed eighteen rows. Each file is now
   one row saying how many changes it holds; Undo takes it back to how it was
