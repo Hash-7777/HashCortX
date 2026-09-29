@@ -93,11 +93,19 @@
   const REF = /(?:src|href)\s*=\s*["']([^"']+)["']/gi;
   const OUTSIDE = /^(?:https?:|data:|blob:|mailto:|tel:|javascript:|#|\/\/)/i;
 
-  /** Whether the brackets in a file balance, which a file cut off does not. */
-  function cutOff(code) {
-    let depth = 0;
-    let inString = null;
-    const text = String(code);
+  /**
+   * Where a stylesheet or a script stops parsing: `{ line, what }`, or null.
+   * Read by HashCoder's bracket reader (js/code/balance.js), which sets
+   * comments, strings, templates and patterns aside; an apostrophe in a
+   * comment is not the start of a string. Without it, braces are counted
+   * outside strings and comments, and only one left open is reported.
+   */
+  function fault(code, name) {
+    const B = typeof window !== 'undefined' && window.HCCodeBalance;
+    const family = B && B.familyOf(name);
+    if (family) return B.firstFault(String(code), family);
+    const text = String(code).replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/[^\n]*/g, '$1');
+    let depth = 0, inString = null;
     for (let i = 0; i < text.length; i++) {
       const c = text[i];
       if (inString) {
@@ -109,7 +117,69 @@
       if (c === '{') depth++;
       else if (c === '}') depth--;
     }
-    return depth > 0;
+    return depth > 0 ? { line: 0, what: 'a "{" is never closed' } : null;
+  }
+
+  // A style a script sets on elements directly, and a class it switches on
+  // to change that style: a style set directly wins over every class, so the
+  // class changes nothing and the elements stay as the script left them. A
+  // section faded out to be shown on scrolling is never shown.
+  const STYLE_SET = /\.style\.([a-zA-Z]+)\s*=(?!=)\s*([^;\n]*)/g;
+  const CLASS_ON = /classList\.(?:add|toggle|replace)\(([^)]*)\)/g;
+  const LITERAL = /^(?:(["'`])[^"'`$]*\1|-?\d+(?:\.\d+)?)$/;
+  const kebab = (p) => p.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+  /**
+   * `{ file, props, cls }` for each class a script switches on that sets a
+   * property the script has fixed on elements directly, or []. A property
+   * counts as fixed when every script gives it the one same literal value
+   * and never clears it; one changed again from the script is not stuck.
+   */
+  function stuckStyles(files) {
+    const given = new Map();   // property -> { values, file }
+    const on = new Set();
+    let cleared = '';
+    for (const [n, f] of files) {
+      if (!isJs(lower(n))) continue;
+      const js = String((f && f.content) || '');
+      for (const m of js.matchAll(STYLE_SET)) {
+        const had = given.get(m[1]) || { values: new Set(), file: lower(n) };
+        had.values.add(m[2].trim());
+        given.set(m[1], had);
+      }
+      for (const m of js.matchAll(CLASS_ON)) for (const q of m[1].matchAll(/["']([-_a-zA-Z][\w-]*)["']/g)) on.add(q[1]);
+      cleared += ` ${(js.match(/removeProperty\(\s*["'][\w-]+["']|\.style\.cssText\s*=|removeAttribute\(\s*["']style["']|setAttribute\(\s*["']style["']/g) || []).join(' ')}`;
+    }
+    if (!on.size || /cssText|Attribute/.test(cleared)) return [];
+    const fixed = new Map();
+    for (const [p, had] of given) {
+      const [value] = had.values;
+      if (had.values.size === 1 && LITERAL.test(value) && !/^(["'`])\1$/.test(value) && !cleared.includes(`'${kebab(p)}'`) && !cleared.includes(`"${kebab(p)}"`)) fixed.set(kebab(p), had.file);
+    }
+    if (!fixed.size) return [];
+    const css = [];
+    for (const [n, f] of files) {
+      const text = String((f && f.content) || '');
+      if (isCss(lower(n))) css.push(text);
+      else if (isHtml(lower(n))) for (const m of text.matchAll(/<style[\s>]([\s\S]*?)<\/style>/gi)) css.push(m[1]);
+    }
+    const stuck = new Map();   // class -> properties
+    for (const r of css.join('\n').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      // Only the element a selector styles itself can clash: not its ::before
+      // or ::after, which a style set directly never reaches, nor a child.
+      const cls = r[1].split(',').map((sel) => sel.trim().split(/\s*[\s>+~]\s*/).pop() || '')
+        .filter((last) => !/::?(?:before|after|marker|placeholder|selection|first-line|first-letter)\b/i.test(last))
+        .flatMap((last) => [...last.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((c) => c[1])).find((c) => on.has(c));
+      if (!cls) continue;
+      for (const d of r[2].split(';')) {
+        const at = d.indexOf(':');
+        const prop = d.slice(0, at).trim().toLowerCase();
+        if (at < 0 || !fixed.has(prop) || /!important/i.test(d.slice(at))) continue;
+        if (!stuck.has(cls)) stuck.set(cls, new Set());
+        stuck.get(cls).add(prop);
+      }
+    }
+    return [...stuck].map(([cls, props]) => ({ file: fixed.get([...props][0]), props: [...props], cls }));
   }
 
   /**
@@ -139,7 +209,8 @@
 
       for (const [re, said] of TEMPLATE_TEXT) if (re.test(text)) { add('weak', name, `${name} still has ${said} in it`); break; }
 
-      if ((isCss(name) || isJs(name)) && cutOff(text)) add('broken', name, `${name} stops in the middle — a bracket is never closed`);
+      const stop = (isCss(name) || isJs(name)) ? fault(text, name) : null;
+      if (stop) add('broken', name, /never closed/.test(stop.what) ? `${name} stops in the middle: ${stop.what}${stop.line ? ` (line ${stop.line})` : ''}` : `${name} does not parse: on line ${stop.line}, ${stop.what}`);
 
       if (isCss(name)) for (const [re, said] of SASS_IN_CSS) if (re.test(text)) { add('broken', name, `${name} uses ${said}, which a browser reading CSS ignores`); break; }
       if (isCss(name)) {
@@ -216,6 +287,10 @@
         const bare = [...used].filter((c) => !styled.has(c));
         if (bare.length) add('weak', 'styles', `nothing styles ${bare.slice(0, MAX_NAMED).join(', ')}${bare.length > MAX_NAMED ? ` and ${bare.length - MAX_NAMED} more` : ''}`);
       }
+    }
+
+    for (const s of stuckStyles(files).slice(0, MAX_NAMED)) {
+      add('broken', s.file, `${s.file} sets ${s.props.join(' and ')} on elements directly, then switches on .${s.cls} to change ${s.props.length === 1 ? 'it' : 'them'} — a style set directly wins over any class, so those elements stay as the script left them${s.props.includes('opacity') ? ', invisible' : ''}. Set the starting style in the stylesheet, or change it back from the script`);
     }
 
     // A photograph shown without the credit its licence asks for — js/swarm/photos.js.

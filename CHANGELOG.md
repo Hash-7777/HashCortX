@@ -598,6 +598,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The check of a finished site finds sections that can never appear.**
+  A script that hides elements by setting their style directly, then
+  switches a class on to show them, leaves them hidden for good, since a
+  style set directly wins over any class; the Agent Swarm's check of the
+  work now names it as something that will not work. The same check no
+  longer calls a script cut off because a comment in it holds an
+  apostrophe, and a file that does not parse is named with its line.
+
 - **HashCoder no longer stops a finished run as if it were stuck.** Reading
   back a file it had just changed, marking a step of its plan done,
   searching the same folder for other words, or reading another part of a

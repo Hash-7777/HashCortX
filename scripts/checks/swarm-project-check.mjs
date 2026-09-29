@@ -19,8 +19,13 @@ import vm from 'node:vm';
 const here = dirname(fileURLToPath(import.meta.url));
 const sandbox = { window: {} };
 vm.createContext(sandbox);
+// As in the app, the bracket reader is loaded first (src/boot.js).
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'balance.js'), 'utf8'), sandbox, { filename: 'balance.js' });
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'swarm', 'project-check.js'), 'utf8'), sandbox, { filename: 'project-check.js' });
 const C = sandbox.window.HCSwarmProjectCheck;
+const alone = { window: {} };
+vm.createContext(alone);
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'swarm', 'project-check.js'), 'utf8'), alone, { filename: 'project-check.js' });
 
 let pass = 0;
 let fail = 0;
@@ -45,6 +50,28 @@ ok('a file cut off mid-way', /app\.js stops in the middle/.test(said({ 'app.js':
 ok('a brace inside a string does not count as unclosed', !/stops in the middle/.test(said({ 'app.js': 'const a = "{";\nconst b = 2;' })));
 ok('an escaped quote does not run the string on', !/stops in the middle/.test(said({ 'app.js': 'const a = "say \\" here";\nconst b = 2;' })));
 ok('a whole stylesheet is not called cut off', !/stops in the middle/.test(said({ 'styles.css': 'body { margin: 0; }\n.a { color: red; }' })));
+const noted = 'function f() {\n  // we\'ll add the rest later\n  return 1;\n}\n/* it\'s done */\n';
+ok('an apostrophe in a comment is not the start of a string', !/stops in the middle|does not parse/.test(said({ 'app.js': noted })));
+ok('...nor where the bracket reader is not loaded', !alone.window.HCSwarmProjectCheck.inspect(set({ 'app.js': noted })).some((f) => /stops in the middle/.test(f.what)));
+ok('a file cut off says where the bracket opened', /app\.js stops in the middle: a "\{" opened here is never closed \(line 1\)/.test(said({ 'app.js': 'function f() {\n  const a = 1;' })));
+ok('a bracket that closes the wrong thing is named with its line', /app\.js does not parse: on line 2/.test(said({ 'app.js': 'const a = [1, 2;\nconst b = 3);\n' })));
+ok('a stylesheet cut off is still found', /site\.css stops in the middle/.test(said({ 'site.css': 'body { margin: 0;\n.a { color: red; }' })));
+
+console.log('\nA style a script sets directly, that a class cannot change:');
+const PAGE = '<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><section class="card">A real section of the page</section><script src="app.js"></script></body></html>';
+const REVEAL = "document.querySelectorAll('.card').forEach((el) => {\n  el.style.opacity = '0';\n  el.style.transform = 'translateY(20px)';\n  io.observe(el);\n});\nfunction shown(e) { e.target.classList.add('revealed'); }\n";
+const CSS = '.card { padding: 1rem; }\n.revealed { opacity: 1; transform: none; }\n';
+const stuck = (js, css = CSS) => said({ 'index.html': PAGE, 'style.css': css, 'app.js': js });
+ok('a section faded out by the script, to be shown by a class, is found: it never shows', /app\.js sets opacity and transform on elements directly, then switches on \.revealed to change them — a style set directly wins over any class, so those elements stay as the script left them, invisible/.test(stuck(REVEAL)));
+ok('...and said as something that will not work', /broken:app\.js sets opacity/.test(stuck(REVEAL)));
+ok('a style the script changes back itself is not stuck', !/sets opacity/.test(stuck(`${REVEAL}function show(e) { e.target.style.opacity = '1'; }\n`)));
+ok('...nor one the script clears', !/sets opacity/.test(stuck(`${REVEAL}function show(e) { e.target.style.removeProperty('opacity'); }\n`)));
+ok('...nor one the class sets as important', !/sets opacity/.test(stuck(REVEAL, '.revealed { opacity: 1 !important; }\n')));
+ok('...nor a class that styles only a ::before, which a style set directly never reaches', !/sets transform/.test(stuck("el.style.transform = 'none';\nbtn.classList.toggle('active');\n", '.icon.active::before { transform: rotate(45deg); }\n')));
+ok('...nor a class that styles a child of its element', !/sets opacity/.test(stuck(REVEAL, '.revealed img { opacity: 1; }\n')));
+ok('...nor a value worked out as the script runs', !/sets opacity/.test(stuck("el.style.opacity = shown ? 1 : 0;\nel.classList.add('revealed');\n")));
+ok('...nor a class the script only takes away', !/sets opacity/.test(stuck("el.style.opacity = '0';\nel.classList.remove('revealed');\n")));
+ok('the rule may sit in the page\'s own <style>', /switches on \.revealed/.test(said({ 'index.html': PAGE.replace('</head>', '<style>.revealed { opacity: 1; }</style></head>'), 'style.css': '.card { padding: 1rem; }', 'app.js': REVEAL })));
 
 console.log('\nText that came from a template rather than this request:');
 ok('lorem ipsum', /lorem ipsum/.test(said({ 'index.html': `<p>Lorem ipsum dolor sit amet consectetur</p>${FULL}` })));
