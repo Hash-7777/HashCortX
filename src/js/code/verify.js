@@ -290,10 +290,12 @@
   const PLAN_SAYS = 'your plan still has open steps';
   const FRESH_STEP = 'Sent back with what a second look found';
   const FRESH_SAYS = 'a second look at your changes, with a clean slate, found';
+  const SITE_STEP = 'Sent back with what the site check found';
+  const SITE_SAYS = 'the site you changed was read the way a browser reads it';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -468,6 +470,20 @@
   }
 
   /**
+   * The note sending the agent back once with what the check of a site it
+   * changed found will not work (js/code/site.js): each finding, to fix, or
+   * to answer where it is not right.
+   */
+  function siteNote(findings) {
+    return {
+      kind: 'site',
+      step: SITE_STEP,
+      message: `${APP_NOTE} ${SITE_SAYS}, and these will not work:\n${(findings || []).map((f) => `- ${f}`).join('\n')}\n` +
+        'Fix each one now, then finish. If one is not right, say why in your answer instead of changing anything for it.',
+    };
+  }
+
+  /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
    * mid-sized model a change asked for and not begun; then steps of its own
@@ -507,6 +523,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, freshReviewNote, sendBack, noteStep,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, freshReviewNote, siteNote, sendBack, noteStep,
   };
 })();

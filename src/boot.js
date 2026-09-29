@@ -83,6 +83,7 @@
     '/js/code/review.js',
     '/js/code/lessons.js',
     '/js/code/codemap.js',
+    '/js/code/site.js',
     '/js/code/attach.js',
     '/js/code/live.js',
     '/js/code/export.js',

@@ -714,7 +714,9 @@ const LINE_BUDGET = {
   // made as a conversation begins (js/code/codemap.js).
   // 2545, up two: the loop tells the stop rules whether files changed and
   // whether the plan is done, so a finished agent is told to finish.
-  'modes/code/mode.js': 2545,
+  // 2554, up nine: a site the run changed is read the way a browser would
+  // before it is called done (js/code/site.js).
+  'modes/code/mode.js': 2554,
 };
 
 console.log('\nFile sizes go down, never up:');

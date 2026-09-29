@@ -1972,7 +1972,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, fresh: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, fresh: 0, site: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1985,6 +1985,15 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           appendStep(contentEl, { verb: 'REVIEW', object: found.ok ? 'looks right' : `${found.problems.length} to look at`, status: '' });
           return found.ok ? null : V.freshReviewNote(found.problems);
         } catch (e) { if (signal?.aborted) throw e; return null; }   // a second look that fails holds nothing up
+      };
+      // A site the run changed, read the way a browser would, once before it is called done (js/code/site.js).
+      const siteLook = async () => {
+        const S = window.HCCodeSite, C = window.HCSwarmProjectCheck, root = sharedState.projectRoot;
+        if (!S || !C || !proof || sent.site || cdrPrefs().prove === false || !root || !S.worthChecking(proof.changed)) return null;
+        const files = await S.gather(proof.changed, root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => null);
+        const broken = files && files.size ? C.inspect(files).filter((f) => f.level === 'broken').map((f) => f.what) : [];
+        cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} that will not work` : 'Site: nothing found that will not work', broken.length ? 'warn' : 'ok');
+        return broken.length ? window.HCCodeVerify.siteNote(broken) : null;
       };
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();
@@ -2137,10 +2146,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
-        // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), or with what a second look found.
+        // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan })
-          || (finalText.trim() ? await secondLook() : null);
+          || (finalText.trim() ? (await siteLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });

@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder checks a website before calling it done.** When a run
+  changes a page, a stylesheet or a script, the site's files are read the
+  way a browser would, by the same check the Agent Swarm's work goes
+  through, with no model involved: sections that can never appear, a menu
+  that never opens, a page pointing at a file that is not there, an image
+  from a host that no longer answers. What will not work is sent back to the
+  agent once, before it finishes, under "Prove changes before finishing".
+
 - **A map of the project's code for HashCoder's larger models.** As a
   conversation begins, a model on your computer of 15 billion parameters or
   more, or a cloud model, is given a short map of the open project: a line
