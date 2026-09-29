@@ -14,8 +14,9 @@
 // WHY IT EXISTS. Every change to how the agent reads, edits, plans or checks
 // its work is a guess until it is measured. This gives each change a number:
 // how many of a fixed set of tasks the agent finishes correctly, and what it
-// cost in minutes, steps, failed edits and tokens. A change to the agent ships
-// when that number rises, or holds while the cost falls.
+// cost in minutes, steps, failed edits, tokens, and seconds the model spent
+// reading its requests. A change to the agent ships when that number rises,
+// or holds while the cost falls.
 //
 // WHAT RUNS. The real app: src/ is served over HTTP and opened in headless
 // Chrome, the HashCoder panel is opened, a task is typed into it and Run is
@@ -466,8 +467,26 @@ async function answerNative(cmd, args) {
 }
 
 // ── The page: the real app, with a stand-in for its native side ──
+// How long the model spent reading each request, from the last line of each
+// answer the local model server sends. The server counts every token of the
+// request whether it read it or took it from what it had already read, so
+// the token count cannot show a request that reused its start: the time can.
 const shim = () => `<script>
 try { if (!localStorage.getItem('atelier')) localStorage.setItem('atelier', JSON.stringify({ host: ${JSON.stringify(OLLAMA)} })); } catch {}
+(function () {
+  const chatAt = ${JSON.stringify(OLLAMA)} + '/api/chat';
+  const plain = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    const res = await plain(input, init);
+    if (String(input && input.url || input) === chatAt && res.ok && res.body) {
+      res.clone().text().then((text) => {
+        const last = text.trim().split('\\n').map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter((x) => x && x.done).pop();
+        if (last && last.prompt_eval_duration != null) plain('/__bench/reading', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ns: last.prompt_eval_duration, tokens: last.prompt_eval_count || 0 }) }).catch(() => {});
+      }).catch(() => {});
+    }
+    return res;
+  };
+})();
 window.__TAURI_INTERNALS__ = {
   invoke: async (cmd, args) => {
     const res = await fetch('/__bench/invoke', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cmd, args: args || {} }) });
@@ -590,6 +609,11 @@ const server = createServer(async (req, res) => {
     const { cmd, args } = await readBody(req);
     try { return json({ ok: true, value: (await answerNative(cmd, args)) ?? null }); }
     catch (e) { return json({ ok: false, error: String(e?.message || e) }); }
+  }
+  if (url.pathname === '/__bench/reading') {
+    const { ns } = await readBody(req);
+    if (current) current.reading.push(Number(ns) || 0);
+    return json({ ok: true });
   }
   if (url.pathname === '/__bench/event') {
     const { msg } = await readBody(req);
@@ -795,7 +819,7 @@ async function runTask(port, model, task, n) {
   const ws = path.join(ROOT, 'runs', `r${n}`, 'project');
   fs.mkdirSync(path.dirname(ws), { recursive: true });
   fs.cpSync(path.join(task.dir, 'project'), ws, { recursive: true });
-  current = { ws: fs.realpathSync(ws), usage: [], audit: [], checkpoints: new Map() };
+  current = { ws: fs.realpathSync(ws), usage: [], audit: [], checkpoints: new Map(), reading: [] };
   job = { model, ws: current.ws, prompt: task.prompt, minutes: task.minutes || opt.minutes };
   const profile = path.join(ROOT, 'runs', `r${n}`, 'browser');
   const result = await new Promise((resolve) => {
@@ -812,6 +836,7 @@ async function runTask(port, model, task, n) {
   const record = {
     task: task.id, kind: task.kind, model, pass: verdict.pass, notes: verdict.notes, notRun: !!result.failed && result.seconds == null,
     seconds: result.seconds ?? null, timedOut: !!result.timedOut, tokens: usage,
+    reading: Math.round(current.reading.reduce((t, ns) => t + ns, 0) / 1e8) / 10,
     asks: result.asks || [], pageErrors: result.pageErrors || [], ...measure(result.history), answer: answer.slice(0, 1500),
     shown: String(result.lastBubble || '').slice(-1500), trail: trailOf(result.history),
   };
@@ -824,10 +849,10 @@ const fmt = (n) => Number(n || 0).toLocaleString('en-US');
 
 function printTable(model, rows) {
   console.log(`\nHashCoder benchmark · ${model}`);
-  console.log('  task                    result  min    steps  tools  failed  edits failed  tokens in / out');
+  console.log('  task                    result  min    reading s  steps  tools  failed  edits failed  tokens in / out');
   for (const r of rows) {
     console.log(`  ${r.task.padEnd(24)}${(r.notRun ? 'not run' : r.pass ? 'pass' : 'FAIL').padEnd(8)}${String(r.seconds == null ? '-' : (r.seconds / 60).toFixed(1)).padEnd(7)}` +
-      `${String(r.steps).padEnd(7)}${String(r.calls).padEnd(7)}${String(r.failedCalls).padEnd(8)}${String(r.failedEdits).padEnd(14)}${fmt(r.tokens.input)} / ${fmt(r.tokens.output)}`);
+      `${String(r.reading ?? '-').padEnd(11)}${String(r.steps).padEnd(7)}${String(r.calls).padEnd(7)}${String(r.failedCalls).padEnd(8)}${String(r.failedEdits).padEnd(14)}${fmt(r.tokens.input)} / ${fmt(r.tokens.output)}`);
   }
   const passed = rows.filter((r) => r.pass).length;
   const notRun = rows.filter((r) => r.notRun).length;
@@ -854,6 +879,7 @@ function printComparison(rows, earlierFile) {
     console.log(`  passed ${sum(was, (r) => (r.pass ? 1 : 0))} then, ${sum(shared, (r) => (r.pass ? 1 : 0))} now`);
     console.log(`  minutes ${(sum(was, (r) => r.seconds || 0) / 60).toFixed(1)} then, ${(sum(shared, (r) => r.seconds || 0) / 60).toFixed(1)} now`);
     console.log(`  tokens in ${fmt(sum(was, (r) => r.tokens.input))} then, ${fmt(sum(shared, (r) => r.tokens.input))} now`);
+    if (was.every((r) => r.reading != null)) console.log(`  seconds reading requests ${sum(was, (r) => r.reading).toFixed(1)} then, ${sum(shared, (r) => r.reading || 0).toFixed(1)} now`);
     console.log(`  failed edits ${sum(was, (r) => r.failedEdits)} then, ${sum(shared, (r) => r.failedEdits)} now`);
     for (const r of shared) {
       const t = then.get(r.task);
