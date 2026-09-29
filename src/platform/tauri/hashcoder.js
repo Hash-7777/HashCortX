@@ -88,10 +88,11 @@
       // computes the new file and calls through here — so this is the only
       // place the finished result is known without reading the file again.
       if (record) record.after = ends.text;
-      /* Return a structured result instead of Tauri's null so the UI
-         shows something meaningful rather than displaying "null" */
+      // A code file this left unbalanced where it balanced before is said at once (js/code/balance.js).
+      const check = window.HCCodeBalance?.introduced(path.split(/[\\/]/).pop() || path, before, ends.text) || '';
       return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
-        ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}) });
+        ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}),
+        ...(check ? { check } : {}) });
     },
 
     async listDir(path) {

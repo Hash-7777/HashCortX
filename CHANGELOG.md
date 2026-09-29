@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder says at once when an edit breaks a file.** After a change to
+  a JavaScript, TypeScript, CSS, Python, Rust, Go or other C-like file, the
+  text is read the way a parser starts to read it. When the file balanced
+  before the change and its brackets or quotes do not after, the answer to
+  the edit names the line and what is left open, so the model puts it right
+  before it goes on. It is a note, never a refusal, and every source file in
+  this repository reads as balanced by it.
+
 - **HashCoder keeps a plan for a request with several parts.** Asked for
   three or more separate changes, a model on your computer of 5 billion
   parameters or more, or a cloud model, lists the steps first and marks
