@@ -65,6 +65,7 @@ console.log('\nHashCoder:');
 {
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('offers update_plan, keeping what it was given for the panel and the loop', /name: 'update_plan'/.test(tools) && /HC\.code\.plan = plan;/.test(tools));
+  ok('a larger model keeps its plan with the tool, not written out in a reply held to a few sentences', /Complex tasks → keep the plan with update_plan rather than in your reply/.test(tools) && !/announce the plan/.test(tools));
   ok('to a mid-sized model too, but not a small one', /MID_MODEL_TOOLS = \[\.\.\.HC\.code\.SMALL_MODEL_TOOLS, [^\]]*'update_plan'/.test(tools) && !/SMALL_MODEL_TOOLS = \[[^\]]*update_plan/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
   ok('clears the plan for each request', /HC\.code\.plan = null; \}   \/\/ a plan is for one request/.test(mode));

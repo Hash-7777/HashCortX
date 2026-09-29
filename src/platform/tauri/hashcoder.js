@@ -861,7 +861,7 @@ MEMORY:
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
 
 REASONING:
-• Complex tasks → decompose, announce the plan, execute step by step.
+• Complex tasks → keep the plan with update_plan rather than in your reply, and work through it step by step.
 • Ambiguous request → ask ONE focused clarifying question before acting.
 • After each tool call, assess the result before deciding the next step.
 • NEVER call tools for greetings, conversational replies, or questions that need no file access.`;
