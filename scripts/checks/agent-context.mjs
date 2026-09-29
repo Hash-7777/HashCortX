@@ -241,7 +241,7 @@ console.log('\nA long task keeps its request:');
   check('a note sending the agent back is not taken for a new request, however many there are',
     out.some((m) => m.content === 'Fix the loop in range.js') && out.some((m) => m.role === 'tool') && !/Earlier in this conversation/.test(out[0].content));
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  check('the note is marked where HashCoder adds it, and so is a nudge from the step budget', /\{ role: 'user', content: back\.message, note: true \}/.test(mode) && /\{ role: 'user', content: verdict\.nudge, note: true \}/.test(mode));
+  check('the note is marked where HashCoder adds it, and so is a nudge from the step budget', /\{ role: 'user', content: back\.message, note: true \}/.test(mode) && /\[verdict\.nudge, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\{ role: 'user', content: told, note: true \}/.test(mode));
 }
 {
   const asked = (i) => ({ role: 'user', content: 'request ' + i, images: ['QUJD'] });

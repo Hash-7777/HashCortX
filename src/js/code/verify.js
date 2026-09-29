@@ -28,6 +28,8 @@
 //     included, unless the request says to leave the files alone: such a
 //     model ends a run by explaining the fix, or by asking the person for
 //     what a search would have found.
+//   · When the agent tries to finish with steps of its own plan still open
+//     (js/code/plan.js), it is sent back once to do them (planCheck).
 //   · A model on this computer under 15B that changed files is sent back once
 //     more, with the request quoted, to check each thing it asked for against
 //     the files and do what is missing (reviewCheck). Such a model's usual
@@ -281,10 +283,12 @@
   const PROVE_STEP = 'Sent back to run the tests before finishing';
   const REVIEW_STEP = 'Sent back to check the work against the request';
   const REVIEW_SAYS = 'check your work against the request';
+  const PLAN_STEP = 'Sent back to finish the steps of its plan';
+  const PLAN_SAYS = 'your plan still has open steps';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -428,20 +432,38 @@
   }
 
   /**
+   * When the agent tries to finish with steps of its own plan still open
+   * (js/code/plan.js), the note sending it back once to do them, mark them
+   * done, or say why one cannot be done; otherwise null. A reply that ends
+   * by asking the person something is not sent back.
+   */
+  function planCheck(plan, reply, sentBack = 0, limit = 1) {
+    const open = plan && Array.isArray(plan.steps) ? plan.steps.filter((x) => x && x.status !== 'done') : [];
+    if (!open.length || sentBack >= limit || /\?\s*$/.test(String(reply || '').trim())) return null;
+    return {
+      kind: 'plan',
+      step: PLAN_STEP,
+      message: `${APP_NOTE} ${PLAN_SAYS}: ${open.map((x) => `"${x.step}"`).join('; ')}. Do them now. If one is already done, ` +
+        'mark it done with update_plan; if one cannot be done, say why in your answer.',
+    };
+  }
+
+  /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
-   * mid-sized model a change asked for and not begun; then, while proving
-   * is switched on (`prove`), a change to code nothing proved, and on a small
-   * or mid-sized model on this computer (`size`) the work checked against the
-   * request. `sent` counts, by kind, how often this run was sent back;
-   * `shown` gives the request as the person sees it, without the text of
-   * what they attached.
+   * mid-sized model a change asked for and not begun; then steps of its own
+   * plan left open (`plan`); then, while proving is switched on (`prove`), a
+   * change to code nothing proved, and on a small or mid-sized model on this
+   * computer (`size`) the work checked against the request. `sent` counts,
+   * by kind, how often this run was sent back; `shown` gives the request as
+   * the person sees it, without the text of what they attached.
    */
-  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null } = {}) {
+  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null } = {}) {
     if (!log || !String(reply || '').trim()) return null;
     const request = requestIn(messages);
     const local = size === 'small' || size === 'mid';
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
+      || planCheck(plan, reply, sent.plan || 0)
       || (prove ? stopCheck(log, checks, reply, sent.prove || 0) : null)
       || (prove && local ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
   }
@@ -466,6 +488,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, reviewCheck, sendBack, noteStep,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, sendBack, noteStep,
   };
 })();

@@ -137,6 +137,9 @@
     /** How much of a command's output the model is given whole; set for the model in use by the Coder panel. */
     outputLimit: 20000,
 
+    /** The plan update_plan keeps for the request in progress (js/code/plan.js); the Coder panel clears it for each request. */
+    plan: null,
+
     /**
      * The stop key of the agent run in progress, set by the Coder panel. Every
      * command the agent starts carries it, so stopping the run can end them
@@ -410,6 +413,20 @@
         reason:  'What this change does',
       },
       fn: (p) => HC.code.patchFile(p.path, p.search, p.replace, p.reason, p.edits, p.all === true),
+    },
+    {
+      // A checklist the model keeps for a request with several parts (js/code/plan.js).
+      name: 'update_plan',
+      description: 'A short plan for a request of three or more separate changes: every step first, then the whole list again as each is done. Not for one change.',
+      parameters: {
+        steps: { type: 'array', description: 'Every step of the plan, in order.', items: { type: 'object', properties: { step: { type: 'string' }, status: { type: 'string', enum: ['todo', 'doing', 'done'] } }, required: ['step', 'status'] } },
+      },
+      fn: (p) => {
+        const plan = window.HCCodePlan ? window.HCCodePlan.fromCall(p) : { error: 'update_plan is not available in this build.' };
+        if (plan.error) throw new Error(plan.error);
+        HC.code.plan = plan;
+        return window.HCCodePlan.answer(plan);
+      },
     },
     {
       name: 'list_dir',
@@ -750,6 +767,7 @@ PATCH RULES (most common failure mode):
 TOOL ROUTING:
 • File name unknown/fuzzy  → fuzzy_find(dir, query)
 • Find code by content     → grep_code(dir, pattern, file_ext?)
+• Three or more separate changes → update_plan first, then again as each is done
 • Targeted edit            → patch_file
 • New file / full rewrite  → write_file
 • A screenshot, diagram, mockup or photo → view_image, then say what is in
@@ -847,7 +865,7 @@ REASONING:
 
   // ── A small local model ────────────────────────────────────
   //
-  // A model of a few billion parameters given twenty tools and two thousand
+  // A model of a few billion parameters given every tool and two thousand
   // words of instructions mostly did not start: it described the change, or
   // wrote its calls as text, and changed nothing. It gets the tools a coding
   // task needs and a short set of steps instead; everything else is the same.
@@ -888,7 +906,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   // ── A mid-sized local model ────────────────────────────────
   //
   // A model of five to fifteen billion parameters calls tools well, but it
-  // reads slowly, and the full instructions and all twenty tools are more
+  // reads slowly, and the full instructions and every tool are more
   // than twice what it needs to read before every step that is not already
   // cached. Given them, it also asked the person for what it could have
   // looked up. It gets the tools a coding task needs, pictures, and
@@ -898,8 +916,8 @@ ${HC.code.TOOL_TEXT_RULE}`;
   // sentence before each step: it wrote the sentence in place of the call, or
   // the call as text after it.
 
-  /** The tools a mid-sized model is offered; find_photos only when it builds a site. */
-  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos'];
+  /** The tools a mid-sized model is offered, a plan among them; find_photos only when it builds a site. */
+  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan'];
 
   HC.code.MID_MODEL_PROMPT = `You are HashCoder, a coding agent with the person's project open. You work by calling tools: do the task, do not only describe it.
 
@@ -907,7 +925,7 @@ How to work:
 1. Find: list_dir shows a folder, grep_code finds where something is written, fuzzy_find finds a file by a rough name. Never guess a path.
 2. Read a file with read_file before you change it. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
 3. Change part of a file with patch_file: search is text copied exactly from the file, without line numbers; replace is the new text. Several changes to one file go in one call, the rest in edits. If the search is not found, copy the lines it shows you and try again.
-4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true.
+4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true. For three or more changes, list them first with update_plan and mark each done.
 5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path].
 6. Before you finish, read the request again and make sure every thing it asks for is done. Then finish with two or three sentences: what you changed, and what passed.
 

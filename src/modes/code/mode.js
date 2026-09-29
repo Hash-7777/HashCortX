@@ -31,11 +31,10 @@
     search_knowledge: 'KB', execute_python: 'PYTHON',
     current_datetime: 'TIME', calculate: 'CALC',
     remember_fact: 'REMEMBER', recall_facts: 'RECALL',
-    placeholder_images: 'IMAGES', find_photos: 'PHOTOS',
+    placeholder_images: 'IMAGES', find_photos: 'PHOTOS', update_plan: 'PLAN',
   };
   const toolVerb = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
 
-  /** The one argument worth showing beside the verb. */
   // ── Which model to try when one will not answer ─────────────────────────
   //
   // Whether a failure is worth moving on from, and which model to reach for.
@@ -47,8 +46,10 @@
   const classifyRouterError = (err) => FAILOVER().classifyError(err);
   const sortChainByQuality = (chain) => FAILOVER().orderChain(chain, _routerStreaks);
 
+  /** The one argument worth showing beside the verb. */
   function toolObject(name, args) {
     const a = args || {};
+    if (name === 'update_plan') return window.HCCodePlan?.stepLine(a) || '';
     if (name === 'shell_run') {
       return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
     }
@@ -2010,7 +2011,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, prove: 0, review: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0 };   // how often this run was sent back, for each reason
       let stalledIterations = 0;
       let lastStop = null;
       let thinkEl = appendThinking(contentEl);
@@ -2027,11 +2028,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         setStatus(`${label ? label + ' · ' : ''}Thinking…`, 'thinking');
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
 
-        // A nudge is passed on a COPY, so it never persists into
-        // conversationMsgs and colour the next user turn.
-        const baseMsgs = verdict.nudge
-          ? [...messages, { role: 'user', content: verdict.nudge, note: true }]
-          : messages;
+        // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
+        const told = [verdict.nudge, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n');
+        const baseMsgs = told ? [...messages, { role: 'user', content: told, note: true }] : messages;
         const callMessages = compressHistory(baseMsgs);
 
         cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
@@ -2161,7 +2160,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const finalText = turn.content || '';
         // Sent back before finishing, for a change not made, not proven, or not checked against the request (js/code/verify.js).
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
-          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest });
+          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan });
         if (back) {
           sent[back.kind]++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
@@ -2253,7 +2252,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const { signal } = runAbort;
       // Every command this run starts carries its key, so Stop can end them.
       const stopKey = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      if (HC?.code) HC.code.shellCancelKey = stopKey;
+      if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; }   // a plan is for one request
 
       setStatus('Thinking…', 'thinking');
       cdrTraceReset('Run started');

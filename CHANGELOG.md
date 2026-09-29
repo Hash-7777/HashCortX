@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder keeps a plan for a request with several parts.** Asked for
+  three or more separate changes, a model on your computer of 5 billion
+  parameters or more, or a cloud model, lists the steps first and marks
+  each as it is done; you see the plan as a step in the run, with how many
+  steps are done. While steps are open the plan is read back to the model
+  at each step, and finishing with some still open sends it back once to do
+  them, mark them done, or say why one cannot be done.
+
 - **HashCoder knows the project from its first step.** When a conversation
   begins, the model is told what is in the project's top folder and given
   the project's notes for coding agents, its AGENTS.md or CLAUDE.md, with

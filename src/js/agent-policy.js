@@ -37,6 +37,7 @@
     web_search: 'read',
     placeholder_images: 'read',
     recall_facts: 'read',
+    update_plan: 'read',   // keeps a checklist; changes nothing on disk
     write_file: 'write',
     patch_file: 'write',
     delete_file: 'write',

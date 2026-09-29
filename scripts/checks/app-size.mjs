@@ -698,7 +698,9 @@ const LINE_BUDGET = {
   // the rules being in js/agent-context.js.
   // 2635, down one: the system turn, with the project's notes beside it, is
   // built by js/code/context.js systemTurn.
-  'modes/code/mode.js': 2635,
+  // 2634, down one: a nudge and the plan read back go on one copy of the
+  // request, and the misplaced comment above toolObject moved onto it.
+  'modes/code/mode.js': 2634,
 };
 
 console.log('\nFile sizes go down, never up:');
