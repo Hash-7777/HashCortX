@@ -170,6 +170,40 @@
     return progress;
   }
 
+  // ── The same file changed again and again ──────────────────────────────
+  //
+  // An agent whose change does not work often changes the same file again,
+  // and again, each time around the damage, without reading why it failed.
+  // Edits to one file are counted since the last check that passed; at
+  // EDIT_LOOP of them, and again at twice that, the agent is told to stop and
+  // read the file and the error before changing it once more.
+
+  const EDIT_LOOP = 4;
+  const EDIT_TOOLS = new Set(['write_file', 'patch_file']);
+
+  /**
+   * The note for this turn's edits, or ''. `counts` is a Map the loop keeps
+   * for the run; `passed` whether a check passed in this turn, which starts
+   * every count again.
+   */
+  function editLoop(counts, calls, passed, limit = EDIT_LOOP) {
+    if (!counts) return '';
+    if (passed) { counts.clear(); return ''; }
+    let note = '';
+    for (const call of calls || []) {
+      if (!call || !EDIT_TOOLS.has(call.name)) continue;
+      const path = String((call.arguments && call.arguments.path) || '');
+      if (!path) continue;
+      const times = (counts.get(path) || 0) + 1;
+      counts.set(path, times);
+      if (times !== limit && times !== limit * 2) continue;
+      note = `Note from HashCortX, not from the person: you have changed, or tried to change, ${path.split(/[\\/]/).pop()} ` +
+        `${times} times in this run with no check passing since. Stop changing it for a moment: read the file as it is now ` +
+        'and the last error in full, find the cause, and make the one change that fixes it. If something outside this file is in the way, say what.';
+    }
+    return note;
+  }
+
   /**
    * Whether what a tool handed back says it failed. A tool may fail by
    * answering `{ error }` or `{ ok: false }` rather than by throwing; counted
@@ -237,7 +271,7 @@
 
   window.HCAgentPolicy = {
     TOOL_EFFECT, BUDGET, MAX_PARALLEL, RUN_BUDGET,
-    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult,
+    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult, EDIT_LOOP, editLoop,
     newRunBudget, runBudgetExceeded, chargeRunBudget,
   };
 })();

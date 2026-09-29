@@ -2012,7 +2012,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
       const sent = { make: 0, plan: 0, prove: 0, review: 0 };   // how often this run was sent back, for each reason
-      let stalledIterations = 0;
+      let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
+      const edited = new Map();
       let lastStop = null;
       let thinkEl = appendThinking(contentEl);
 
@@ -2029,7 +2030,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
 
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
-        const told = [verdict.nudge, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n');
+        const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
         const baseMsgs = told ? [...messages, { role: 'user', content: told, note: true }] : messages;
         const callMessages = compressHistory(baseMsgs);
 
@@ -2071,6 +2072,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           // whatever order they finish in: the provider APIs require each tool
           // result to follow its call, and a shuffled history is rejected.
           const results = new Map();
+          const checked = proof ? proof.checks.length : 0;   // checks before this turn's calls
 
           async function runOne(call) {
             // Shell preview goes to the terminal before the command runs.
@@ -2141,6 +2143,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             await Promise.allSettled(batch.map(runOne));
           }
 
+          loopNote = policy.editLoop(edited, turn.tool_calls, !!proof && proof.checks.slice(checked).some((c) => c.pass)) || loopNote;
           // Original order, so every result follows the call it answers.
           for (const call of turn.tool_calls) {
             H.appendToolResult(messages, call, results.get(call) ?? JSON.stringify({ error: 'no result' }));

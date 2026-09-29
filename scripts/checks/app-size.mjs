@@ -700,7 +700,9 @@ const LINE_BUDGET = {
   // built by js/code/context.js systemTurn.
   // 2634, down one: a nudge and the plan read back go on one copy of the
   // request, and the misplaced comment above toolObject moved onto it.
-  'modes/code/mode.js': 2634,
+  // 2637, up three: the loop counts each turn's edits to a file, with
+  // whether a check passed in it, for js/agent-policy.js editLoop.
+  'modes/code/mode.js': 2637,
 };
 
 console.log('\nFile sizes go down, never up:');

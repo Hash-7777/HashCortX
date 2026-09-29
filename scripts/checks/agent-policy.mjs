@@ -195,5 +195,28 @@ console.log('\nA tool that answers with a failure has failed:');
     /const failed = HCAgentPolicy\.failedResult\(result\);/.test(run) && /tracker\.push\(\{ name, ok: !failed,/.test(run) && /failed \? "failed" : "done"/.test(run));
 }
 
+console.log('\nThe same file changed again and again:');
+{
+  const { editLoop, EDIT_LOOP } = sandbox.HCAgentPolicy;
+  const edit = (path) => ({ name: 'patch_file', arguments: { path, search: 'a', replace: 'b' } });
+  const counts = new Map();
+  const notes = [];
+  for (let i = 1; i <= EDIT_LOOP * 2; i++) notes.push(editLoop(counts, [edit('/p/src/text.js')], false));
+  check('says nothing for the first few changes to a file', notes.slice(0, EDIT_LOOP - 1).every((n) => n === ''));
+  check(`tells the agent to stop and read at ${EDIT_LOOP} changes, naming the file, and again at twice that`,
+    /text\.js 4 times in this run with no check passing since/.test(notes[EDIT_LOOP - 1]) && /read the file as it is now and the last error in full/.test(notes[EDIT_LOOP - 1])
+    && notes.slice(EDIT_LOOP, EDIT_LOOP * 2 - 1).every((n) => n === '') && /8 times/.test(notes[EDIT_LOOP * 2 - 1]));
+  check('marks the note as from the app', notes[EDIT_LOOP - 1].startsWith('Note from HashCortX, not from the person:'));
+  check('a check that passes starts every count again', editLoop(counts, [edit('/p/src/text.js')], true) === '' && counts.size === 0);
+  const other = new Map();
+  editLoop(other, [edit('/p/a.js'), edit('/p/b.js'), { name: 'read_file', arguments: { path: '/p/a.js' } }], false);
+  check('files are counted apart, and reading is not changing', other.get('/p/a.js') === 1 && other.get('/p/b.js') === 1 && other.size === 2);
+  check('whole rewrites count too', (() => { const m = new Map(); editLoop(m, [{ name: 'write_file', arguments: { path: '/p/x.py' } }], false); return m.get('/p/x.py') === 1; })());
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('HashCoder counts each turn\'s edits, with whether a check passed in it, and says the note once',
+    /loopNote = policy\.editLoop\(edited, turn\.tool_calls, !!proof && proof\.checks\.slice\(checked\)\.some\(\(c\) => c\.pass\)\) \|\| loopNote;/.test(mode)
+    && /\[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\('\\n\\n'\); loopNote = '';/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);
 process.exit(fail ? 1 : 0);

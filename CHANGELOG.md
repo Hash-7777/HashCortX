@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder notices when it keeps changing the same file.** When the
+  agent has changed, or tried to change, one file four times with no check
+  passing since, it is told to stop, read the file as it is and the last
+  error in full, and make the one change that fixes the cause, or say what
+  is in the way; again at eight. A check that passes starts every count
+  again.
+
 - **HashCoder says at once when an edit breaks a file.** After a change to
   a JavaScript, TypeScript, CSS, Python, Rust, Go or other C-like file, the
   text is read the way a parser starts to read it. When the file balanced
