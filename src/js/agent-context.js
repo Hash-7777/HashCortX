@@ -281,10 +281,20 @@
       note = `[Earlier in this conversation, not repeated here: ${asked.length} earlier request${asked.length === 1 ? '' : 's'} ` +
         `(${asked.join('; ')}), answered with ${calls} tool call${calls === 1 ? '' : 's'}.]`;
     }
-    const head = systemMsg
-      ? [note ? Object.assign({}, systemMsg, { content: systemMsg.content + '\n' + note }) : systemMsg]
+    // The project's notes (`notes` on the system message, js/code/context.js
+    // projectNotes) are read at the start of the first request kept: text
+    // from the project goes where the person's words do, not among the
+    // instructions, and stays in the same place until earlier requests roll.
+    const bare = systemMsg && 'notes' in systemMsg ? Object.assign({}, systemMsg) : systemMsg;
+    if (bare !== systemMsg) delete bare.notes;
+    const head = bare
+      ? [note ? Object.assign({}, bare, { content: bare.content + '\n' + note }) : bare]
       : (note ? [{ role: 'system', content: note }] : []);
-    return budgetToolResults(hideOldResults(head.concat(kept.map(withContext)), opts), opts);
+    const shown = kept.map(withContext);
+    const notes = systemMsg && typeof systemMsg.notes === 'string' ? systemMsg.notes.trim() : '';
+    const first = notes ? shown.findIndex(isRequest) : -1;
+    if (first >= 0) shown[first] = Object.assign({}, shown[first], { content: `${notes}\n\n${shown[first].content || ''}` });
+    return budgetToolResults(hideOldResults(head.concat(shown), opts), opts);
   }
 
   window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory };

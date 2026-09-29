@@ -278,6 +278,27 @@ console.log('\nWhat the app adds to one request:');
   check('a short run is sent as it is', JSON.stringify(hideOldResults(few)) === JSON.stringify(few));
 }
 
+console.log('\nThe project\'s notes:');
+{
+  const system = { role: 'system', content: 'rules', notes: 'NOTES from AGENTS.md' };
+  const msgs = [system, user('Add a flag'), asst('done'), user('And a test')];
+  const out = compressHistory(msgs);
+  check('are read at the start of the first request, before the person\'s words', out[1].content === 'NOTES from AGENTS.md\n\nAdd a flag' && out[3].content === 'And a test');
+  check('are not in the instructions, nor sent as a field', out[0].content === 'rules' && !('notes' in out[0]));
+  check('the saved conversation keeps them where they were', system.notes === 'NOTES from AGENTS.md' && msgs[1].content === 'Add a flag');
+  const run = [system, user('Fix it')];
+  const at = [];
+  for (let i = 0; i < 12; i++) {
+    run.push({ role: 'assistant', content: '', tool_calls: [{ id: 'n' + i, function: { name: 'read_file', arguments: '{}' } }] }, tool('x'.repeat(500), 'n' + i));
+    at.push(compressHistory(run)[1].content);
+  }
+  check('and stay the same from one step to the next', at.every((c) => c === at[0]) && at[0].startsWith('NOTES'));
+  const convo = [system]; for (let i = 1; i <= 6; i++) convo.push(user('r' + i), asst('done'));
+  const rolled = compressHistory(convo);
+  check('when earlier requests roll away, the first request kept carries them', rolled.filter((m) => /^NOTES/.test(m.content || '')).length === 1 && /^NOTES[^]*r3$/.test(rolled[1].content));
+  check('a note from the app is never the one to carry them', compressHistory([system, { role: 'user', content: 'n', note: true }, user('ask')])[2].content.startsWith('NOTES'));
+}
+
 console.log('\nDegenerate inputs:');
 check('a non-array is not fatal', budgetToolResults(null).length === 0 && compressHistory(null).length === 0);
 check('an empty array is not fatal', budgetToolResults([]).length === 0);

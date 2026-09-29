@@ -210,5 +210,14 @@ console.log('\nThe instructions stay the same from one request to the next:');
   ok('a site\'s tools, once offered in a conversation, stay offered', /conversationMsgs\.some\(\(m\) => m\.site\)/.test(mode));
 }
 
+console.log('\nThe project is known from the start of a conversation:');
+{
+  const mode = src('modes', 'code', 'mode.js');
+  ok('its top folder and its notes are read once a project, with its checks', /sharedState\.projectChecks = \{ root, checks, \.\.\.\(await window\.HCCodeContext\?\.readProject\(root, io\)\) \}/.test(mode));
+  ok('the top folder is named in the instructions, sized to the model', /window\.HCCodeContext\?\.projectPicture\(known\.entries, sharedState\.size\)/.test(mode));
+  ok('the notes go with the instructions for the first request to carry, marked as any material is', /window\.HCCodeContext\.systemTurn\(sysPrompt\(\), sharedState\.projectChecks\?\.root === sharedState\.projectRoot \? sharedState\.projectChecks : null, sharedState\.size, window\.HCSources\?\.mark\)/.test(mode));
+  ok('every place the instructions are set sets both', !/conversationMsgs\[0\]\.content = sysPrompt\(\)/.test(mode) && (mode.match(/conversationMsgs\[0\] = systemTurn\(\)/g) || []).length === 3 && /conversationMsgs = \[systemTurn\(\)\]/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

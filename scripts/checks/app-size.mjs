@@ -696,7 +696,9 @@ const LINE_BUDGET = {
   // for js/code/context.js, so the instructions stay the same between requests.
   // 2636, down six: a comment on what the model is shown says it in a line,
   // the rules being in js/agent-context.js.
-  'modes/code/mode.js': 2636,
+  // 2635, down one: the system turn, with the project's notes beside it, is
+  // built by js/code/context.js systemTurn.
+  'modes/code/mode.js': 2635,
 };
 
 console.log('\nFile sizes go down, never up:');

@@ -796,10 +796,7 @@
       if (!folder || typeof folder !== 'string') return;
       sharedState.projectRoot = folder;
       HC?.guard?.setProjectRoot?.(folder);
-      // Keep system prompt current so the model always sees the real project root.
-      if (conversationMsgs.length && conversationMsgs[0]?.role === 'system') {
-        conversationMsgs[0].content = sysPrompt();
-      }
+      if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();   // the real project root, always
       syncProjectLabel();
       syncTerminalPrompt();
       setExplorerRootLabel(folder);
@@ -1982,8 +1979,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       ];
       if (root) {
         lines.push(`Project root: ${root}`);
-        const checks = sharedState.projectChecks?.root === root ? window.HCCodeVerify?.checksLine(sharedState.projectChecks.checks) : '';
-        if (checks) lines.push(checks);
+        const known = sharedState.projectChecks?.root === root ? sharedState.projectChecks : null;   // read once a project (js/code/verify.js, js/code/context.js)
+        for (const line of [known && window.HCCodeVerify?.checksLine(known.checks), known && window.HCCodeContext?.projectPicture(known.entries, sharedState.size)]) if (line) lines.push(line);
         lines.push(`6. If the project directory is empty or new, immediately start creating files — do NOT explore the filesystem first.`);
       } else {
         lines.push(`No project open. Home: ${homeDir || 'unknown'}. Ask user to open a folder for write ops.`);
@@ -1993,6 +1990,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
     }
+
+    // The instructions, with the project's notes for the first request to carry (js/code/context.js).
+    const systemTurn = () => window.HCCodeContext.systemTurn(sysPrompt(), sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks : null, sharedState.size, window.HCSources?.mark);
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.
     const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, window.HCAgentContext.optionsFor(sharedState.size, sharedState.local));
@@ -2220,9 +2220,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // The project's own test, lint and build commands, found once per project.
       const root = sharedState.projectRoot;
       if (root && sharedState.projectChecks?.root !== root && window.HCCodeVerify && HC?.code) {
-        const checks = await window.HCCodeVerify.readProjectChecks(root, { list: (d) => HC.code.listDir(d), read: (f) => HC.code.readFile(f) });
-        sharedState.projectChecks = { root, checks };
-        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
+        const io = { list: (d) => HC.code.listDir(d), read: (f) => HC.code.readFile(f) };
+        const checks = await window.HCCodeVerify.readProjectChecks(root, io);
+        sharedState.projectChecks = { root, checks, ...(await window.HCCodeContext?.readProject(root, io)) };   // and its top folder and notes
+        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }
 
       // A small or mid-sized local model gets fewer tools and shorter instructions (platform/tauri/hashcoder.js).
@@ -2233,13 +2234,11 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       sharedState.local = !/^cloud:/.test(model); if (HC?.code) HC.code.outputLimit = window.HCAgentContext.optionsFor(size, sharedState.local).shellOutput;   // sized to the model (js/agent-context.js)
       if (size !== sharedState.size) {
         sharedState.size = size;
-        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0].content = sysPrompt();
+        if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }
 
       // Bootstrap conversation on first message
-      if (!conversationMsgs.length) {
-        conversationMsgs = [{ role: 'system', content: sysPrompt() }];
-      }
+      if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
       const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })() }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) });

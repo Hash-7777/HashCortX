@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder knows the project from its first step.** When a conversation
+  begins, the model is told what is in the project's top folder and given
+  the project's notes for coding agents, its AGENTS.md or CLAUDE.md, with
+  your first request: text from the project that it follows for how to
+  build, test and write code there, and that cannot ask it for anything you
+  did not. A line in the notes addressed to AI systems about something else
+  is left out, as in any material a model reads. How much of each it is
+  given follows the size of the model.
+
 - **A model on your computer finishes what you asked.** Under 15 billion
   parameters, a model that changed files is sent back once before it
   finishes, with your request quoted, to check each thing it asked for and
