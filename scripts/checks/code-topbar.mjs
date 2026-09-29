@@ -25,5 +25,14 @@ ok('the app\'s own exit button still leaves every mode', /\$\("hcSafeExitModeBtn
 ok('the shortcut goes back to the tab HashCoder was opened from, by the name that tab is kept under',
   /if \(state\.tab !== tab\) state\[`_pre\$\{tab\}Tab`\] = state\.tab;/.test(app) && /if \(isCodeMode\(\)\) setTab\(state\._precodeTab \|\| 'chats'\);/.test(app) && !/_preCoderTab/.test(app + mode));
 
+console.log('\nStarting over:');
+ok('New chat is said in words, where the + was, and says the conversation is kept',
+  /<button type="button" class="cdr-new-btn" id="cdrClearChatBtn" title="Start a new conversation\. This one is kept in History\.">\s*<svg[^>]*>[\s\S]*?<\/svg>\s*<span>New chat<\/span>/.test(panel) && !/class="cdr-icon-btn" id="cdrClearChatBtn"/.test(panel));
+ok('...and it keeps it: the conversation goes to History before a new one starts',
+  /if \(clearBtn\)\s+clearBtn\.addEventListener\('click', clearChat\);/.test(mode) && /function clearChat\(\) \{\n\s+saveCurrentSession\(\);/.test(mode));
+const css = src('modes', 'code', 'mode.css');
+ok('it is a flat button with a hairline, its icon drawn with the panel\'s own stroke',
+  /\.cdr-new-btn \{[^}]*border: 1px solid var\(--cdr-border-strong\);[^}]*background: transparent;/.test(css) && /\.cdr-new-btn svg \{ width: 14px; height: 14px; \}/.test(css) && /\.cdr-new-btn:focus-visible/.test(css));
+
 console.log(`\n${pass} passed, ${fail} failed  (HashCoder's top bar)`);
 process.exit(fail ? 1 : 0);

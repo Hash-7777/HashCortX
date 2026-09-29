@@ -385,6 +385,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **New chat says so.** HashCoder's bar starts a new conversation with a
+  button that reads "New chat" where a bare plus was; the conversation it
+  replaces is kept in History, as before.
+
 - **A HashCoder run reads as a few short lines.** Each step is one line on
   a dashed rail, its file named from the project's folder, with a dot that
   fills when the step is done and turns red when it failed; a file written
