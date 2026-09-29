@@ -72,7 +72,7 @@ Reads outside the project folder ask. Reading modifies nothing, but an agent's p
 
 **"Inside the project folder" means where the path really leads.** A symlink is written exactly like an ordinary folder, so comparing two strings cannot say where a path goes. The renderer cannot resolve a link, so it asks Rust (`fs_path_inside_root`), which follows every link in the path — including for a file that does not exist yet, which is the case a write presents. A path it cannot resolve raises the dialog rather than being allowed or refused outright.
 
-**What HashCoder reads on its own never raises a dialog.** The Symbols list reads the files in the project's top folder without anyone asking for them. It goes through a check of its own (`allowedWithoutAsking` in `guard.js`) that allows only a read or a listing the table above allows with no dialog: inside the project by where the path really leads, and not protected. Anything else is left out rather than asked about, and no notice is shown. What it reads is written to the audit log like any other read, and Rust applies the same folder boundary and denylist to it.
+**What HashCoder reads on its own never raises a dialog.** The Symbols list, and the map of the project a larger model is given (below), read files without anyone asking for them. It goes through a check of its own (`allowedWithoutAsking` in `guard.js`) that allows only a read or a listing the table above allows with no dialog: inside the project by where the path really leads, and not protected. Anything else is left out rather than asked about, and no notice is shown. What it reads is written to the audit log like any other read, and Rust applies the same folder boundary and denylist to it.
 
 Choosing **Allow for session** on a file also covers the folder it is in, so reading a second file next to the first does not ask again. That grant never extends to shell commands, which stay exact. On a web page it covers the **host** you granted and only that host, matched whole — so allowing one site for the session does not quietly allow another whose name merely begins with it.
 
@@ -386,6 +386,12 @@ These are commonly assumed, and worth naming because an earlier version of this 
 ## HashCoder's lessons about a project
 
 Off until you switch on **Keep lessons about each project** in Settings → HashCoder. While it is on, a model on your computer of 15 billion parameters or more, or a cloud model, may keep short lessons about the open project: one line each, a dozen a project, in the app's own storage and never inside the project. A lesson that looks like a key or holds an email address is refused. At the start of the next conversation on that project the lessons are given to the model in use, beside the project's `AGENTS.md` and framed the same way; lessons a model on your computer kept are never given to a cloud model. **Forget all lessons** removes every one (`src/js/code/lessons.js`).
+
+---
+
+## HashCoder's map of a project
+
+When a conversation begins with a model on your computer of 15 billion parameters or more, or a cloud model, HashCoder reads the open project and gives the model a map of its code with the first request, beside the project's `AGENTS.md`: each source file's path and the names of the functions, classes and types it defines, with a function's parameter names. No value is included: a constant is named, never what it holds, and a name or a path that looks like a key or holds an email address is left out. The files are read through the check that never raises a dialog, described above: only inside the open project and never a protected path. Hidden folders, folders of dependencies and build output, what the top `.gitignore` names plainly, minified files and files over 300 KB are not read, and reading stops at 8 folders deep, 400 folders, 300 files, 3,000,000 characters or 4 seconds. A cloud model receives the map as it would any file it reads; smaller models on your computer are not given one (`src/js/code/codemap.js`).
 
 ---
 

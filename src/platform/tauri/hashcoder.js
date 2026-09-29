@@ -101,6 +101,12 @@
       return HC.invoke('fs_list_dir', { path });
     },
 
+    /** A folder's entries for the app's own reading (js/code/codemap.js), where no question is needed; anywhere else it is left out, unasked. */
+    async listQuietly(path) {
+      if (!(await HC.guard.allowedWithoutAsking('list', path))) throw new Error(`Not listed without asking: ${path}`);
+      return HC.invoke('fs_list_dir', { path });
+    },
+
     /**
      * A file's whole text for the app's own reading (js/code/codemap.js):
      * readFile gives a long file a window at a time, numbered, for the

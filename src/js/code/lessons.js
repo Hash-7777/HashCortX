@@ -34,7 +34,7 @@
   const KEY = 'hashcoder_lessons_v1';
   const PER_PROJECT = 12;
   const MAX_CHARS = 200;
-  const SECRET = /\b(sk-[A-Za-z0-9_-]{8,}|gsk_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{16,}|xai-[A-Za-z0-9]{8,}|hf_[A-Za-z0-9]{8,}|ghp_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,})|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
+  const SECRET = /\b(sk-[A-Za-z0-9_-]{8,}|[sr]k_(?:live|test)_[A-Za-z0-9]{8,}|gsk_[A-Za-z0-9]{8,}|AIza[0-9A-Za-z_-]{16,}|xai-[A-Za-z0-9]{8,}|hf_[A-Za-z0-9]{8,}|ghp_[A-Za-z0-9]{8,}|AKIA[0-9A-Z]{12,})|-----BEGIN [A-Z ]*PRIVATE KEY-----/;
   const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/;
 
   function read(storage) {
@@ -58,7 +58,7 @@
     if (!key) return { error: 'No project is open, so there is nothing to keep a lesson about.' };
     if (!line) return { error: 'save_lesson needs text: one short line.' };
     if (line.length > MAX_CHARS) return { error: `A lesson is one short line, at most ${MAX_CHARS} characters. Say it in fewer words.` };
-    if (SECRET.test(line) || EMAIL.test(line)) return { error: 'That looks like a key, a secret or an email address, which is never kept. Nothing was saved.' };
+    if (looksPrivate(line)) return { error: 'That looks like a key, a secret or an email address, which is never kept. Nothing was saved.' };
     const store = read(storage);
     const list = Array.isArray(store[key]) ? store[key].filter((x) => x && typeof x.text === 'string') : [];
     const old = String(replaces || '').replace(/\s+/g, ' ').trim();
@@ -86,10 +86,13 @@
       ...lessons.map((l) => `- ${l}`)].join('\n');
   }
 
+  /** Whether text looks like a key, a secret or holds an email address: never kept, and left out of the project map (js/code/codemap.js). */
+  const looksPrivate = (text) => SECRET.test(String(text)) || EMAIL.test(String(text));
+
   /** Every lesson, for every project, gone. */
   function forgetAll(storage) {
     try { storage.removeItem(KEY); return true; } catch { return false; }
   }
 
-  window.HCCodeLessons = { KEY, PER_PROJECT, MAX_CHARS, save, forProject, notes, forgetAll };
+  window.HCCodeLessons = { KEY, PER_PROJECT, MAX_CHARS, save, forProject, notes, forgetAll, looksPrivate };
 })();

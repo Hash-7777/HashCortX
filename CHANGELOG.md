@@ -10,6 +10,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A map of the project's code for HashCoder's larger models.** As a
+  conversation begins, a model on your computer of 15 billion parameters or
+  more, or a cloud model, is given a short map of the open project: a line
+  a file, naming the functions, classes and types it defines and a
+  function's parameters, the files most used by other files first, cut to a
+  fixed size, smaller for a model on your computer. It holds names only,
+  never a value, and a name or path that looks like a key or holds an email
+  address is left out. The project is read without a permission question:
+  a file that would need one, hidden folders, folders of dependencies and
+  build output, what the top .gitignore names and minified files are left
+  out, and reading stops at fixed limits.
+
 - **HashCoder can keep lessons about each project.** With "Keep lessons
   about each project" switched on in Settings (it starts off), a model on
   your computer of 15 billion parameters or more, or a cloud model, may

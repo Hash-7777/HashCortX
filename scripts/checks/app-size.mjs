@@ -710,7 +710,9 @@ const LINE_BUDGET = {
   // conversation (js/code/lessons.js).
   // 2535, down thirty-eight: the Symbols list finds what a file defines
   // through js/code/codemap.js instead of patterns of its own.
-  'modes/code/mode.js': 2535,
+  // 2543, up eight: a larger model is given a map of the project's code,
+  // made as a conversation begins (js/code/codemap.js).
+  'modes/code/mode.js': 2543,
 };
 
 console.log('\nFile sizes go down, never up:');

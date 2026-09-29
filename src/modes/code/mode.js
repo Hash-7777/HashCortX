@@ -1953,7 +1953,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     // The instructions, with the project's notes for the first request to carry (js/code/context.js).
     const systemTurn = () => window.HCCodeContext.systemTurn(sysPrompt(), sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks : null, sharedState.size, window.HCSources?.mark,
-      cdrPrefs().lessons === true && sharedState.size === 'full' && window.HCCodeLessons ? window.HCCodeLessons.notes(window.HCCodeLessons.forProject(localStorage, sharedState.projectRoot, { local: sharedState.local })) : '');   // js/code/lessons.js
+      cdrPrefs().lessons === true && sharedState.size === 'full' && window.HCCodeLessons ? window.HCCodeLessons.notes(window.HCCodeLessons.forProject(localStorage, sharedState.projectRoot, { local: sharedState.local })) : '',   // js/code/lessons.js
+      sharedState.size === 'full' && sharedState.codeMap?.root === sharedState.projectRoot ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : '');   // js/code/codemap.js
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.
     const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, window.HCAgentContext.optionsFor(sharedState.size, sharedState.local));
@@ -2209,7 +2210,14 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
       const local = !/^cloud:/.test(model);   // output sized to the model (js/agent-context.js); lessons, when switched on, kept for this project (js/code/lessons.js)
       if (HC?.code) { HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
-      if (size !== sharedState.size || local !== sharedState.local) {   // a cloud model is never given lessons a model on this computer kept
+      // A larger model is given a map of the project's code, made as a conversation begins and kept for it (js/code/codemap.js).
+      const mapped = size === 'full' && !!root && !!window.HCCodeMap && !!HC?.code?.readQuietly && (!conversationMsgs.length || sharedState.codeMap?.root !== root);
+      if (mapped) {
+        setStatus('Mapping the project…', 'thinking');
+        sharedState.codeMap = { root, ...(await window.HCCodeMap.forProject(root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => ({ ranked: [], read: 0 }))) };
+        cdrTraceAdd('Map', `${sharedState.codeMap.read} files read, ${sharedState.codeMap.ranked.length} with definitions`, 'ok');
+      }
+      if (size !== sharedState.size || local !== sharedState.local || mapped) {   // a cloud model is never given lessons a model on this computer kept
         sharedState.size = size; sharedState.local = local;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }
