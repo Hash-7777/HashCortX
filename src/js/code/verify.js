@@ -491,14 +491,15 @@
 
   /**
    * The note sending the agent back once with what the check of a site it
-   * changed found will not work (js/code/site.js): each finding, to fix, or
-   * to answer where it is not right.
+   * changed found will not work, or falls short of the standard a site is
+   * held to (js/code/site.js): each finding, to fix, or to answer where it
+   * is not right.
    */
   function siteNote(findings) {
     return {
       kind: 'site',
       step: SITE_STEP,
-      message: `${APP_NOTE} ${SITE_SAYS}, and these will not work:\n${(findings || []).map((f) => `- ${f}`).join('\n')}\n` +
+      message: `${APP_NOTE} ${SITE_SAYS}, and these will not work, or let the page down:\n${(findings || []).map((f) => `- ${f}`).join('\n')}\n` +
         'Fix each one now, then finish. If one is not right, say why in your answer instead of changing anything for it.',
     };
   }

@@ -165,5 +165,30 @@ console.log('\nWhat it hands back:');
 }
 ok('it never returns an unbounded list', look(Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`f${i}.css`, '']))).length <= 24);
 
+console.log('\nThe standard a site is held to:');
+{
+  const page = (body, head = '') => `<!doctype html><html><head><link rel="stylesheet" href="style.css">${head}</head><body>${body}<script src="app.js"></script></body></html>`;
+  const std = (files) => look(files).filter((f) => f.level === 'standard').map((f) => f.what).join(' | ');
+  const REVEAL_CSS = '.reveal { opacity: 0; transition: opacity .6s; }\n.reveal.in { opacity: 1; }\n@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; } }\n';
+  const REVEAL_JS = "new IntersectionObserver((es) => es.forEach((e) => e.target.classList.add('in'))).observe(document.body);\n";
+  const two = '<section class="reveal">One real section</section><section class="reveal">Two real sections</section>';
+  ok('content hidden by a class until a script shows it is found, naming the class', /content starts hidden until a script shows it \(\.reveal\)/.test(std({ 'index.html': page(two), 'style.css': REVEAL_CSS, 'app.js': REVEAL_JS })));
+  ok('...and so is content a script hides itself', /content starts hidden until a script shows it:/.test(std({ 'index.html': page('<p>A real paragraph of text</p>'), 'style.css': 'p { margin: 0; }\n@media (prefers-reduced-motion: reduce) { p { opacity: 1; } }', 'app.js': "document.querySelectorAll('p').forEach((p) => { p.style.opacity = '0'; });\nsetTimeout(() => document.body.classList.add('ready'), 9);\n" })));
+  ok('...said as short of the standard, not as broken', (look({ 'index.html': page(two), 'style.css': REVEAL_CSS, 'app.js': REVEAL_JS }).find((f) => /starts hidden/.test(f.what)) || {}).level === 'standard');
+  ok('a menu, a modal or a tooltip meant to start hidden is not', !/starts hidden/.test(std({ 'index.html': page('<div class="menu">a</div><div class="menu">b</div><div class="modal">c</div><div class="modal">d</div>'), 'style.css': '.menu, .modal { opacity: 0; }\n@media (prefers-reduced-motion: reduce) {}', 'app.js': "btn.onclick = () => m.classList.toggle('open');" })));
+  ok('nor something hidden only in a state, such as on hover', !/starts hidden/.test(std({ 'index.html': page('<a class="card">a</a><a class="card">b</a>'), 'style.css': '.card:hover .x { opacity: 0; }\n.card:hover { opacity: 0; }\n@media (prefers-reduced-motion: reduce) {}', 'app.js': "a.classList.add('x');" })));
+  ok('nor a class on one element only, nor with no script to show anything', !/starts hidden/.test(std({ 'index.html': page('<section class="reveal">only one</section>'), 'style.css': REVEAL_CSS, 'app.js': REVEAL_JS })) && !/starts hidden/.test(std({ 'index.html': page(two), 'style.css': REVEAL_CSS, 'app.js': 'console.log(1);' })));
+  ok('an animation that runs forever is found, naming it', /an animation runs forever \(\.hero-glow\)/.test(std({ 'index.html': page('<div class="hero-glow"></div>'), 'style.css': '.hero-glow { animation: glow 3s ease-in-out infinite; }\n@keyframes glow { to { opacity: .5; } }\n@media (prefers-reduced-motion: reduce) { .hero-glow { animation: none; } }', 'app.js': '' })));
+  ok('a spinner or a loader is not, nor an animation that ends', !/runs forever/.test(std({ 'index.html': page('<i class="spinner"></i>'), 'style.css': '.spinner { animation: spin 1s linear infinite; }\n.title { animation: rise .8s ease-out 1; }\n@keyframes spin { to { transform: rotate(1turn); } }\n@media (prefers-reduced-motion: reduce) {}', 'app.js': '' })));
+  ok('a blur behind a bar that stays on screen is found', /a blur sits behind a bar that stays on screen \(\.site-header\)/.test(std({ 'index.html': page('<header class="site-header">h</header>'), 'style.css': '.site-header { position: sticky; top: 0; backdrop-filter: blur(12px); }', 'app.js': '' })));
+  ok('...the bar and its blur in two rules for the same selector too', /a blur sits behind a bar/.test(std({ 'index.html': page('<nav class="bar">h</nav>'), 'style.css': '.bar { position: fixed; }\n.bar { -webkit-backdrop-filter: blur(8px); }', 'app.js': '' })));
+  ok('a blur on something that scrolls with the page is not', !/a blur sits/.test(std({ 'index.html': page('<div class="card">c</div>'), 'style.css': '.card { backdrop-filter: blur(8px); }\n.bar { position: sticky; }', 'app.js': '' })));
+  ok('movement with no "reduce motion" rule is found', /nothing follows a visitor's "reduce motion" setting/.test(std({ 'index.html': page('<h1 class="t">x</h1>'), 'style.css': '.t { animation: rise 1s ease-out; }\n@keyframes rise { from { opacity: 0; } }', 'app.js': '' })));
+  ok('...and not when the page has one, or does not move', !/reduce motion/.test(std({ 'index.html': page('<h1 class="t">x</h1>'), 'style.css': '.t { animation: rise 1s ease-out; }\n@keyframes rise { from { opacity: 0; } }\n@media (prefers-reduced-motion: reduce) { .t { animation: none; } }', 'app.js': '' })) && !/reduce motion/.test(std({ 'index.html': page('<h1>x</h1>'), 'style.css': 'h1 { color: red; }', 'app.js': '' })));
+  ok('pictures with no width and height are counted, the first named', /2 pictures have no width and height in index\.html \(a\.jpg\)/.test(std({ 'index.html': page('<img src="img/a.jpg" alt="a"><img src="b.jpg" width="4" alt="b"><img src="c.jpg" width="4" height="3" alt="c">'), 'style.css': 'img { display: block; }', 'app.js': '' })));
+  ok('work that is not a site is not held to it', std({ 'report.md': '# A real report with enough words in it to count' }) === '');
+  ok('the Swarm is not asked to repair any of it', !C.repairNote(look({ 'index.html': page(two), 'style.css': REVEAL_CSS, 'app.js': REVEAL_JS })).includes('starts hidden'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/project-check.js)`);
 process.exit(fail ? 1 : 0);

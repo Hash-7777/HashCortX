@@ -96,11 +96,11 @@ console.log('\nHashCoder:');
   ok('checks a site once a run, while proving is switched on, only when the run changed one',
     /if \(!S \|\| !C \|\| !proof \|\| sent\.site \|\| cdrPrefs\(\)\.prove === false \|\| !root \|\| !S\.worthChecking\(proof\.changed\)\) return null;/.test(mode));
   ok('reading the files without asking', /S\.gather\(proof\.changed, root, \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \}\)\.catch\(\(\) => null\)/.test(mode));
-  ok('and sends back only what will not work', /C\.inspect\(files\)\.filter\(\(f\) => f\.level === 'broken'\)/.test(mode) && /window\.HCCodeVerify\.siteNote\(broken\)/.test(mode));
+  ok('and sends back what will not work and what falls short of the standard, never what is only unfinished', /C\.inspect\(files\)\.filter\(\(f\) => f\.level === 'broken' \|\| f\.level === 'standard'\)/.test(mode) && /window\.HCCodeVerify\.siteNote\(broken\)/.test(mode));
   ok('before a second look, when nothing else sent it back', /\|\| \(finalText\.trim\(\) \? \(await siteLook\(\)\) \|\| \(await secondLook\(\)\) : null\);/.test(mode) && /site: 0 \};/.test(mode));
   const boot = src('boot.js');
   ok('it is loaded before the modes', boot.indexOf("'/js/code/site.js'") > 0 && boot.indexOf("'/js/code/site.js'") < boot.indexOf("'/modes/boot.js'") && boot.indexOf("'/js/swarm/project-check.js'") < boot.indexOf("'/modes/boot.js'"));
-  ok('Settings says so under proving changes', /A site it changed is read the way a browser would, and what will not work is sent back to be fixed\./.test(src('core', 'settings', 'panel.html')));
+  ok('Settings says so under proving changes', /A site it changed is read the way a browser would, and what will not work, or lets the page down, is sent back to be fixed\./.test(src('core', 'settings', 'panel.html')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/site.js)`);

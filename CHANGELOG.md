@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A finished site is held to a standard, not only to working.** The check
+  of a site's files, with no model, now also finds content that starts
+  hidden until a script shows it (search engines, link previews and a
+  visitor whose script fails see nothing there), an animation that runs
+  forever, a blur behind a bar that stays on screen, movement with no rule
+  for a visitor who asked for less of it, and pictures with no width and
+  height. HashCoder sends these back to the agent once with what will not
+  work; the Agent Swarm lists them without asking for a repair.
+
 - **HashCoder is told when an edit takes away something not asked
   about.** Each file an agent writes is compared with what it held before,
   with no model: a function, class or type gone from code, an id, section,

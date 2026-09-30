@@ -1974,7 +1974,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const S = window.HCCodeSite, C = window.HCSwarmProjectCheck, root = sharedState.projectRoot;
         if (!S || !C || !proof || sent.site || cdrPrefs().prove === false || !root || !S.worthChecking(proof.changed)) return null;
         const files = await S.gather(proof.changed, root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => null);
-        const broken = files && files.size ? C.inspect(files).filter((f) => f.level === 'broken').map((f) => f.what) : [];
+        const broken = files && files.size ? C.inspect(files).filter((f) => f.level === 'broken' || f.level === 'standard').map((f) => f.what) : [];
         cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} that will not work` : 'Site: nothing found that will not work', broken.length ? 'warn' : 'ok');
         return broken.length ? window.HCCodeVerify.siteNote(broken) : null;
       };

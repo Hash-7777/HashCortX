@@ -6,9 +6,9 @@
 // stylesheet that is not there, and say it is done. So when a run changes a
 // page, a stylesheet or a script, the site's files are gathered here and
 // read by the check the Agent Swarm's work goes through
-// (js/swarm/project-check.js), which needs no model. What will not work is
-// handed back to the agent once, before it finishes (js/code/verify.js
-// siteNote).
+// (js/swarm/project-check.js), which needs no model. What will not work, and
+// what falls short of the standard a site is held to, is handed back to the
+// agent once, before it finishes (js/code/verify.js siteNote).
 //
 // The files gathered: every page, stylesheet and script in each folder the
 // run changed one in, and the stylesheets and scripts those pages load from

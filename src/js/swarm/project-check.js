@@ -182,6 +182,103 @@
     return [...stuck].map(([cls, props]) => ({ file: fixed.get([...props][0]), props: [...props], cls }));
   }
 
+  // ── The standard a site is held to ────────────────────────────────────
+  //
+  // What works for a person looking at the page and still lets the page
+  // down: content that starts hidden until a script shows it, which search
+  // engines, link previews and a visitor whose script fails never see; an
+  // animation that never ends; a blur behind a bar that stays on screen,
+  // redrawn on every scroll; movement with no rule for a visitor who asked
+  // for less of it; pictures with no size, so the page jumps as each one
+  // arrives. Reported at their own level, 'standard', below "will not work".
+
+  /** Class names of things meant to start hidden: menus, dialogs, tooltips and the like. */
+  const MEANT_HIDDEN = /menu|nav|modal|dialog|drop|popup|popover|tooltip|toast|overlay|drawer|panel|tab|accordion|collapse|hidden|sr-only|visually|skip|lightbox|cart|search|mobile|open|active|show/i;
+  /** Class names of things that run while something is happening. */
+  const WHILE_BUSY = /spin|load|progress|busy|skeleton/i;
+
+  /** A stylesheet's rules, `{ selector, decls, media }`, rules inside @media and the like kept with their condition. */
+  function rulesOf(css, media = '') {
+    const s = String(css).replace(/\/\*[\s\S]*?\*\//g, '');
+    const out = [];
+    let i = 0;
+    while (i < s.length) {
+      const open = s.indexOf('{', i);
+      if (open < 0) break;
+      let prelude = s.slice(i, open);
+      prelude = prelude.slice(Math.max(prelude.lastIndexOf(';'), prelude.lastIndexOf('}')) + 1).trim();
+      let depth = 1, j = open + 1;
+      while (j < s.length && depth) { if (s[j] === '{') depth++; else if (s[j] === '}') depth--; j++; }
+      const body = s.slice(open + 1, j - 1);
+      if (/^@(?:media|supports|layer|container)\b/i.test(prelude)) out.push(...rulesOf(body, `${media} ${prelude}`.trim()));
+      else if (prelude && !prelude.startsWith('@')) {
+        const decls = new Map();
+        for (const d of body.split(';')) { const at = d.indexOf(':'); if (at > 0) decls.set(d.slice(0, at).trim().toLowerCase(), d.slice(at + 1).trim().toLowerCase()); }
+        out.push({ selector: prelude, decls, media });
+      }
+      i = j;
+    }
+    return out;
+  }
+
+  /** The element each selector of a rule styles: the last part of each, with nothing after a colon. */
+  const subjects = (selector) => String(selector).split(',').map((sel) => sel.trim().split(/\s*[\s>+~]\s*/).pop() || '');
+
+  /** What in a site's files falls short of the standard: `[{ file, what }]`. */
+  function standard(files) {
+    const css = [], js = [], pages = [];
+    for (const [n, f] of files) {
+      const name = lower(n), text = String((f && f.content) || '');
+      if (isCss(name)) css.push(text);
+      else if (isJs(name)) js.push(text);
+      else if (isHtml(name)) { pages.push({ name, text }); for (const m of text.matchAll(/<style[\s>]([\s\S]*?)<\/style>/gi)) css.push(m[1]); for (const m of text.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi)) js.push(m[1]); }
+    }
+    if (!pages.length) return [];
+    const style = css.join('\n'), script = js.join('\n'), rules = rulesOf(style);
+    const reduced = (r) => /prefers-reduced-motion\s*:\s*reduce/i.test(r.media);
+    const out = [];
+    const named = (list) => list.slice(0, 3).join(', ');
+
+    // Hidden until a script shows it.
+    const used = new Map();
+    for (const p of pages) for (const m of p.text.matchAll(/\bclass\s*=\s*["']([^"']*)["']/gi)) for (const c of m[1].split(/\s+/)) if (c) used.set(c, (used.get(c) || 0) + 1);
+    const shows = /classList\.(?:add|toggle|replace)\(|IntersectionObserver|\.style\.opacity\s*=/.test(script);
+    const hidden = new Set();
+    for (const r of rules) {
+      if (reduced(r) || !(r.decls.get('opacity') === '0' || r.decls.get('visibility') === 'hidden')) continue;
+      for (const last of subjects(r.selector)) {
+        if (last.includes(':')) continue;   // hidden in a state, such as :hover
+        for (const c of [...last.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)].map((m) => m[1])) if (!MEANT_HIDDEN.test(c) && (used.get(c) || 0) >= 2) hidden.add(`.${c}`);
+      }
+    }
+    if (shows && (hidden.size || /\.style\.opacity\s*=\s*["']?0["']?\s*;/.test(script))) {
+      out.push({ file: 'styles', what: `content starts hidden until a script shows it${hidden.size ? ` (${named([...hidden])})` : ''}: search engines, link previews and a visitor whose script fails see nothing there. Start it visible, and hide only what is still below the screen once the visitor starts to scroll` });
+    }
+
+    // An animation that never ends.
+    const endless = rules.filter((r) => !reduced(r) && (/\binfinite\b/.test(r.decls.get('animation') || '') || r.decls.get('animation-iteration-count') === 'infinite') && !WHILE_BUSY.test(r.selector)).map((r) => r.selector);
+    if (endless.length) out.push({ file: 'styles', what: `an animation runs forever (${named(endless)}): the page keeps drawing and the battery keeps working while nothing changes. Let it end, or run it only while something is happening` });
+
+    // A blur behind a bar that stays on screen.
+    const stays = new Set(rules.filter((r) => /^(?:sticky|fixed)\b/.test(r.decls.get('position') || '')).map((r) => r.selector));
+    const blurred = rules.filter((r) => stays.has(r.selector) && ['backdrop-filter', '-webkit-backdrop-filter'].some((k) => r.decls.has(k) && r.decls.get(k) !== 'none')).map((r) => r.selector);
+    if (blurred.length) out.push({ file: 'styles', what: `a blur sits behind a bar that stays on screen (${named([...new Set(blurred)])}): everything behind it is blurred again on every scroll, more than older phones and laptops keep up with. A solid background looks the same` });
+
+    // Movement with no rule for less of it.
+    const moves = /@keyframes\b/.test(style) || /IntersectionObserver/.test(script);
+    if (moves && !/prefers-reduced-motion/.test(style + script)) out.push({ file: 'styles', what: 'the page moves, and nothing follows a visitor\'s "reduce motion" setting: add @media (prefers-reduced-motion: reduce) that stops the animations and shows everything at once' });
+
+    // Pictures with no size.
+    for (const p of pages) {
+      const unsized = [...p.text.matchAll(/<img\b[^>]*>/gi)].map((m) => m[0]).filter((tag) => !/\bwidth\s*=/.test(tag) || !/\bheight\s*=/.test(tag));
+      if (!unsized.length) continue;
+      const first = (/\bsrc\s*=\s*["']([^"']+)["']/i.exec(unsized[0]) || [])[1] || '';
+      const shown = first && !/^(?:[a-z]+:)?\[/i.test(first) ? ` (${baseName(first) || first})` : '';   // a blank address is named once, above
+      out.push({ file: p.name, what: `${unsized.length} picture${unsized.length === 1 ? ' has' : 's have'} no width and height in ${p.name}${shown}: the page jumps as each one arrives. Give each its width and height` });
+    }
+    return out;
+  }
+
   /**
    * What is wrong with the work, in the order a person would meet it.
    *
@@ -292,6 +389,8 @@
     for (const s of stuckStyles(files).slice(0, MAX_NAMED)) {
       add('broken', s.file, `${s.file} sets ${s.props.join(' and ')} on elements directly, then switches on .${s.cls} to change ${s.props.length === 1 ? 'it' : 'them'} — a style set directly wins over any class, so those elements stay as the script left them${s.props.includes('opacity') ? ', invisible' : ''}. Set the starting style in the stylesheet, or change it back from the script`);
     }
+
+    for (const s of standard(files)) add('standard', s.file, s.what);
 
     // A photograph shown without the credit its licence asks for — js/swarm/photos.js.
     const P = typeof window !== 'undefined' && window.HCSwarmPhotos;
