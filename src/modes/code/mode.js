@@ -1969,14 +1969,16 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           return found.ok ? null : V.freshReviewNote(found.problems);
         } catch (e) { if (signal?.aborted) throw e; return null; }   // a second look that fails holds nothing up
       };
-      // A site the run changed, read the way a browser would, once before it is called done (js/code/site.js).
+      // A site the run changed, read the way a browser would each time it would finish, and sent back once (js/code/site.js).
       const siteLook = async () => {
         const S = window.HCCodeSite, C = window.HCSwarmProjectCheck, root = sharedState.projectRoot;
-        if (!S || !C || !proof || sent.site || cdrPrefs().prove === false || !root || !S.worthChecking(proof.changed)) return null;
+        if (!S || !C || !proof || cdrPrefs().prove === false || !root || !S.worthChecking(proof.changed)) return null;
         const files = await S.gather(proof.changed, root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => null);
-        const broken = files && files.size ? C.inspect(files).filter((f) => f.level === 'broken' || f.level === 'standard').map((f) => f.what) : [];
-        cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} that will not work` : 'Site: nothing found that will not work', broken.length ? 'warn' : 'ok');
-        return broken.length ? window.HCCodeVerify.siteNote(broken) : null;
+        if (!files || !files.size) return null;
+        const broken = C.inspect(files).filter((f) => f.level === 'broken' || f.level === 'standard').map((f) => f.what);
+        proof.siteRead(broken.length);   // said under the answer (js/code/verify.js proofLine)
+        cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
+        return broken.length && !sent.site ? window.HCCodeVerify.siteNote(broken) : null;
       };
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();

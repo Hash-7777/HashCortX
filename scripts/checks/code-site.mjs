@@ -93,8 +93,10 @@ console.log('\nWhat the agent is sent back with:');
 console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('checks a site once a run, while proving is switched on, only when the run changed one',
-    /if \(!S \|\| !C \|\| !proof \|\| sent\.site \|\| cdrPrefs\(\)\.prove === false \|\| !root \|\| !S\.worthChecking\(proof\.changed\)\) return null;/.test(mode));
+  ok('reads a site each time the run would finish, while proving is switched on, only when the run changed one',
+    /if \(!S \|\| !C \|\| !proof \|\| cdrPrefs\(\)\.prove === false \|\| !root \|\| !S\.worthChecking\(proof\.changed\)\) return null;/.test(mode));
+  ok('keeps what each reading found, for the line under the answer, and sends the agent back once only',
+    /proof\.siteRead\(broken\.length\);/.test(mode) && /return broken\.length && !sent\.site \? window\.HCCodeVerify\.siteNote\(broken\) : null;/.test(mode));
   ok('reading the files without asking', /S\.gather\(proof\.changed, root, \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \}\)\.catch\(\(\) => null\)/.test(mode));
   ok('and sends back what will not work and what falls short of the standard, never what is only unfinished', /C\.inspect\(files\)\.filter\(\(f\) => f\.level === 'broken' \|\| f\.level === 'standard'\)/.test(mode) && /window\.HCCodeVerify\.siteNote\(broken\)/.test(mode));
   ok('before a second look, when nothing else sent it back', /\|\| \(finalText\.trim\(\) \? \(await siteLook\(\)\) \|\| \(await secondLook\(\)\) : null\);/.test(mode) && /site: 0 \};/.test(mode));

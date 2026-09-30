@@ -246,14 +246,24 @@
   function proofLog() {
     let step = 0;
     let lastCodeEdit = -1;
+    let lastEdit = -1;
+    let site = null;
     const changed = [];
     const checks = [];
     return {
       edited(path) {
         step++;
+        lastEdit = step;
         if (path && !changed.includes(path)) changed.push(path);
         if (isCode(path)) lastCodeEdit = step;
       },
+      /** The site check read the site the run changed (js/code/site.js), and found this many things to fix. */
+      siteRead(found) {
+        step++;
+        site = { found: Math.max(0, Number(found) || 0), step };
+      },
+      /** The last reading of the site, when no file changed after it, or null. */
+      siteAfter() { return site && site.step > lastEdit ? { ...site } : null; },
       ran(command, args, result) {
         step++;
         const kind = commandKind(command, args);
@@ -529,20 +539,26 @@
 
   /**
    * One line for the person saying what was proven after the last change, or
-   * '' when no code was changed. Worked out from the record alone.
+   * '' when no code was changed and no site was read. Worked out from the
+   * record alone.
    */
   function proofLine(log) {
-    if (!log || !log.codeChanged) return '';
+    if (!log) return '';
+    // A site read after the last change is said, and so is what that reading cannot tell.
+    const site = typeof log.siteAfter === 'function' ? log.siteAfter() : null;
+    const seen = site ? `${site.found ? `Read as a browser would: ${site.found} thing${site.found === 1 ? '' : 's'} still found to fix.` : 'Read as a browser would: nothing found to fix.'} Not seen on screen.` : '';
+    const and = (sentence) => (seen ? `${sentence} ${seen}` : sentence);
+    if (!log.codeChanged) return seen;
     const after = log.since();
     const lastOf = (kind) => after.filter((c) => c.kind === kind).pop();
     const test = lastOf('test');
     if (test && test.pass) {
-      return `Checked after the last change: ${line(test)} passed${test.scope === 'part' ? ', for part of the project' : ''}.`;
+      return and(`Checked after the last change: ${line(test)} passed${test.scope === 'part' ? ', for part of the project' : ''}.`);
     }
-    if (test) return `Not proven: ${line(test)} failed after the last change.`;
+    if (test) return and(`Not proven: ${line(test)} failed after the last change.`);
     const other = after.filter((c) => c.pass).pop();
-    if (other) return `Not tested: ${line(other)} passed after the last change, but no test ran.`;
-    return 'Not checked: no test ran after the last change.';
+    if (other) return and(`Not tested: ${line(other)} passed after the last change, but no test ran.`);
+    return seen || 'Not checked: no test ran after the last change.';
   }
 
   window.HCCodeVerify = {

@@ -240,6 +240,21 @@ console.log('\nWhat the person is told:');
   log.ran('npm', ['test'], { code: 1 });
   ok('a failed test', /^Not proven: `npm test` failed/.test(V.proofLine(log)));
   log.ran('node', ['--test', 'test/range.test.js'], { code: 0 });
+  {
+    const site = V.proofLog();
+    site.edited('/p/index.html'); site.edited('/p/style.css');
+    ok('a site changed and never read says nothing, as before', V.proofLine(site) === '');
+    site.siteRead(0);
+    ok('a site read after the last change says so, and that it was not seen on screen', V.proofLine(site) === 'Read as a browser would: nothing found to fix. Not seen on screen.', V.proofLine(site));
+    site.siteRead(2);
+    ok('...and what is still found, from the last reading', V.proofLine(site) === 'Read as a browser would: 2 things still found to fix. Not seen on screen.');
+    site.edited('/p/style.css');
+    ok('a reading before the last change is not said', V.proofLine(site) === '');
+    site.edited('/p/app.js'); site.siteRead(0);
+    ok('with a script changed and no test run, the reading takes the place of "no test ran"', V.proofLine(site) === 'Read as a browser would: nothing found to fix. Not seen on screen.');
+    site.ran('npm', ['test'], { code: 0 }); site.siteRead(1);
+    ok('...and follows a test that passed', /^Checked after the last change: `npm test` passed\. Read as a browser would: 1 thing still found to fix\. Not seen on screen\.$/.test(V.proofLine(site)), V.proofLine(site));
+  }
   ok('a test that passed for part of the project says so', /^Checked after the last change: `node --test test\/range\.test\.js` passed, for part of the project\.$/.test(V.proofLine(log)), V.proofLine(log));
   log.ran('npm', ['test'], { code: 0 });
   ok('the whole test suite passing says so plainly', V.proofLine(log) === 'Checked after the last change: `npm test` passed.');

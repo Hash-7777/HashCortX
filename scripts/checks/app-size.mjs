@@ -722,7 +722,9 @@ const LINE_BUDGET = {
   // code that chose where to go.
   // 2546, up one: a request's asks go with it and to the checks before
   // finishing (js/code/asks.js), and what is left of its plan is said.
-  'modes/code/mode.js': 2546,
+  // 2548, up two: a site is read each time the run would finish, and what
+  // the last reading found is said under the answer (verify.js proofLine).
+  'modes/code/mode.js': 2548,
 };
 
 console.log('\nFile sizes go down, never up:');

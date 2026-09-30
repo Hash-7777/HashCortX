@@ -418,6 +418,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder says what it checked on a site, and what it could not.** A
+  site is read the way a browser would each time the agent would finish,
+  and the line under the answer says what the last reading found and that
+  the page was not seen on screen: "Read as a browser would: nothing found
+  to fix. Not seen on screen." A run that changed only pages and
+  stylesheets said nothing at all, and one with a script said only that no
+  test ran.
+
 - **New chat says so.** HashCoder's bar starts a new conversation with a
   button that reads "New chat" where a bare plus was; the conversation it
   replaces is kept in History, as before.
