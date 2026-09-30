@@ -290,12 +290,14 @@
   const PLAN_SAYS = 'your plan still has open steps';
   const FRESH_STEP = 'Sent back with what a second look found';
   const FRESH_SAYS = 'a second look at your changes, with a clean slate, found';
+  const ASKS_STEP = 'Sent back to go through each ask of the request';
+  const ASKS_SAYS = 'go through the request ask by ask';
   const SITE_STEP = 'Sent back with what the site check found';
   const SITE_SAYS = 'the site you changed was read the way a browser reads it';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -439,6 +441,24 @@
   }
 
   /**
+   * What sends the agent back once to go through a request of several asks
+   * (js/code/asks.js) one by one, or null: only after it changed a file, and
+   * never for a reply that asks the person something. It is told to do what
+   * is missing and then say, for each ask, done or not done and why.
+   */
+  function asksCheck(log, asks, reply, sentBack = 0, limit = 1) {
+    const list = Array.isArray(asks) ? asks : [];
+    if (!log || !log.changed.length || list.length < 3 || sentBack >= limit) return null;
+    if (/\?\s*$/.test(String(reply || '').trim())) return null;   // asking the person something
+    return {
+      kind: 'asks',
+      step: ASKS_STEP,
+      message: `${APP_NOTE} before you finish, ${ASKS_SAYS}:\n${list.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n` +
+        'For each one not done yet, do it now with the tools. Then finish with one short line per ask: done, or not done and why.',
+    };
+  }
+
+  /**
    * When the agent tries to finish with steps of its own plan still open
    * (js/code/plan.js), the note sending it back once to do them, mark them
    * done, or say why one cannot be done; otherwise null. A reply that ends
@@ -488,19 +508,22 @@
    * order: a change written into the reply and not made, or on a small or
    * mid-sized model a change asked for and not begun; then steps of its own
    * plan left open (`plan`); then, while proving is switched on (`prove`), a
-   * change to code nothing proved, and on a small or mid-sized model on this
-   * computer (`size`) the work checked against the request. `sent` counts,
+   * change to code nothing proved, and a request of several asks (`asks`)
+   * gone through ask by ask, or, on a small or mid-sized model on this
+   * computer (`size`), the work checked against the request as a whole. `sent` counts,
    * by kind, how often this run was sent back; `shown` gives the request as
    * the person sees it, without the text of what they attached.
    */
-  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null } = {}) {
+  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null, asks = null } = {}) {
     if (!log || !String(reply || '').trim()) return null;
     const request = requestIn(messages);
     const local = size === 'small' || size === 'mid';
+    const listed = Array.isArray(asks) && asks.length >= 3;   // a request of several asks is checked ask by ask, in place of as a whole
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
       || planCheck(plan, reply, sent.plan || 0)
       || (prove ? stopCheck(log, checks, reply, sent.prove || 0) : null)
-      || (prove && local ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
+      || (prove && listed ? asksCheck(log, asks, reply, sent.asks || 0) : null)
+      || (prove && local && !listed ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
   }
 
   /**
@@ -523,6 +546,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, freshReviewNote, siteNote, sendBack, noteStep,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep,
   };
 })();

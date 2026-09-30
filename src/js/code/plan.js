@@ -80,5 +80,11 @@
     return `${plan.steps.length} step${plan.steps.length === 1 ? '' : 's'}, ${done} done`;
   }
 
-  window.HCCodePlan = { STATUS, MAX_STEPS, fromCall, openSteps, answer, recite, stepLine };
+  /** What is left of a plan when a run ends, for the person: "Not done from its plan: a; b.", or ''. */
+  function leftLine(plan) {
+    const open = openSteps(plan);
+    return open.length ? `Not done from its plan: ${open.map((x) => x.step).join('; ')}.` : '';
+  }
+
+  window.HCCodePlan = { STATUS, MAX_STEPS, fromCall, openSteps, answer, recite, stepLine, leftLine };
 })();

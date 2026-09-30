@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **63,100 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,200 lines of Rust**, measured on 30 September 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **63,200 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,200 lines of Rust**, measured on 30 September 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -33,7 +33,7 @@ HashCortX/
 │   │   ├── virtual-os/       3,309  virtual project desktop
 │   │   ├── systems/          3,232  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,461  chain / vote / failover
-│   │   ├── code/             2,545  the HashCoder agent loop
+│   │   ├── code/             2,546  the HashCoder agent loop
 │   │   ├── finance/          2,357  financial document analysis
 │   │   └── sandbox/            535  security scanner
 │   │
@@ -165,7 +165,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             2,873  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             3,007  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the record of what proved a change and what
 │   │   │                            sends it back before finishing, the files
@@ -181,8 +181,9 @@ HashCortX/
 │   │   │                            what each source file defines, for the
 │   │   │                            Symbols list and the map of the project
 │   │   │                            a larger model is given, a site it
-│   │   │                            changed, read as a browser would, and
-│   │   │                            the steps of a run as the reply shows them
+│   │   │                            changed, read as a browser would, the
+│   │   │                            steps of a run as the reply shows them,
+│   │   │                            and a request's asks as a checklist
 │   │   ├── swarm/            4,509  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
@@ -291,7 +292,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 167 files,
+├── scripts/checks/                  the automated frontend checks — 168 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -421,7 +422,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,528-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 8,286 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 8,322 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

@@ -720,7 +720,9 @@ const LINE_BUDGET = {
   // js/code/steps.js, which the mode calls.
   // 2545, down eight: the X that left HashCoder is gone, and with it the
   // code that chose where to go.
-  'modes/code/mode.js': 2545,
+  // 2546, up one: a request's asks go with it and to the checks before
+  // finishing (js/code/asks.js), and what is left of its plan is said.
+  'modes/code/mode.js': 2546,
 };
 
 console.log('\nFile sizes go down, never up:');

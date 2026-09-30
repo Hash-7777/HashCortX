@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder goes through a request ask by ask.** A request with three
+  asks or more, joined by "also", semicolons, new lines or a list, is split
+  into its asks with no model involved; the numbered list goes with the
+  request, and before finishing the agent is sent back once to do what is
+  missing and say, for each ask, done or not done and why. It follows
+  "Prove changes before finishing". Whatever is left of the agent's plan
+  when a run ends, or is stopped, is said under the answer.
+
 - **HashCoder checks a website before calling it done.** When a run
   changes a page, a stylesheet or a script, the site's files are read the
   way a browser would, by the same check the Agent Swarm's work goes

@@ -25,10 +25,12 @@
    * The app's addition to one request, or '' when there is none. `site` is
    * the bar a site is held to when the request builds one; `activeFile` the
    * file open in the project, if any; `facts` remembered facts that bear on
-   * the request, as `{ key, value }`.
+   * the request, as `{ key, value }`; `asks` the request's asks as a list,
+   * when it has several (js/code/asks.js checklist).
    */
-  function forRequest({ site = '', activeFile = '', facts = [] } = {}) {
+  function forRequest({ site = '', activeFile = '', facts = [], asks = '' } = {}) {
     const lines = [];
+    if (asks) lines.push(String(asks));
     if (site) lines.push(String(site));
     if (activeFile) lines.push(`Active file: ${activeFile}`);
     const known = (Array.isArray(facts) ? facts : []).filter((f) => f && f.key);

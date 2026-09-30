@@ -158,6 +158,9 @@
     /** The plan update_plan keeps for the request in progress (js/code/plan.js); the Coder panel clears it for each request. */
     plan: null,
 
+    /** The asks of the request in progress, when it has several (js/code/asks.js); the Coder panel sets them for each request. */
+    asks: [],
+
     /** Where save_lesson keeps a lesson, `{ root, local }`, or null while lessons are switched off; set by the Coder panel. */
     lessonsFor: null,
 

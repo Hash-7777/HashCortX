@@ -1955,7 +1955,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, fresh: 0, site: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -2132,7 +2132,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const finalText = turn.content || '';
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
-          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan })
+          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks })
           || (finalText.trim() ? (await siteLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
@@ -2149,8 +2149,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           cdrTraceAdd('Done', (label || 'Agent') + ' · ' + finalText.length + ' chars', 'ok');
           appendTextToBubble(contentEl, finalText);
         }
-        // What was proven, from the record rather than from the reply; kept with the answer, so a saved conversation says it too.
-        const proven = proof && window.HCCodeVerify.proofLine(proof);
+        // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
+        const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
         sharedState.proven = proven || ''; if (proven) appendTextToBubble(contentEl, `*${proven}*`);
         return finalText;
       }
@@ -2168,7 +2168,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // "continue" would help or repeat the same loop.
       const stop = lastStop || { reason: 'unknown', message: 'Stopped. Reply to continue.' };
       cdrTraceAdd('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
-      appendTextToBubble(contentEl, `*${stop.message}*`);
+      appendTextToBubble(contentEl, `*${[stop.message, window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ')}*`);
       return '';
     }
 
@@ -2219,7 +2219,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
-      const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })() }) || '';
+      const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
+      const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
 
@@ -2233,7 +2234,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const { signal } = runAbort;
       // Every command this run starts carries its key, so Stop can end them.
       const stopKey = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; }   // a plan is for one request
+      if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; HC.code.asks = asks; }   // a plan, and a checklist, are for one request
 
       setStatus('Running', 'thinking');
       cdrTraceReset('Run started');

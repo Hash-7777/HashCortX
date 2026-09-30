@@ -68,9 +68,9 @@ console.log('\nHashCoder:');
   ok('a larger model keeps its plan with the tool, not written out in a reply held to a few sentences', /Complex tasks → keep the plan with update_plan rather than in your reply/.test(tools) && !/announce the plan/.test(tools));
   ok('to a mid-sized model too, but not a small one', /MID_MODEL_TOOLS = \[\.\.\.HC\.code\.SMALL_MODEL_TOOLS, [^\]]*'update_plan'/.test(tools) && !/SMALL_MODEL_TOOLS = \[[^\]]*update_plan/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
-  ok('clears the plan for each request', /HC\.code\.plan = null; \}   \/\/ a plan is for one request/.test(mode));
+  ok('clears the plan for each request', /HC\.code\.plan = null; HC\.code\.asks = asks; \}   \/\/ a plan, and a checklist, are for one request/.test(mode));
   ok('reads it back on a copy, never saved', /const told = \[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\[\.\.\.messages, \{ role: 'user', content: told, note: true \}\]/.test(mode));
-  ok('and hands it to the finishing checks', /plan: HC\?\.code\?\.plan \}\)/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, fresh: 0, site: 0 \};/.test(mode));
+  ok('and hands it to the finishing checks', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks \}\)/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0 \};/.test(mode));
   ok('the run shows the step as a plan, with how far it is', /update_plan: 'PLAN'/.test(mode) && /if \(name === 'update_plan'\) return window\.HCCodePlan\?\.stepLine\(a\)/.test(mode));
   ok('it is loaded before the mode', src('boot.js').indexOf("'/js/code/plan.js'") > 0 && src('boot.js').indexOf("'/js/code/plan.js'") < src('boot.js').indexOf("'/modes/boot.js'"));
 }
