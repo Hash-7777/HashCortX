@@ -418,6 +418,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Photo searches look for the thing itself.** HashCoder's photo tool and
+  the Agent Swarm's photo searches now ask for what the site shows or
+  sells, "quadcopter drone" for a shop that sells drones, and never for
+  pictures taken with it, such as "drone photography", which found
+  landscapes for a product page.
+
 - **HashCoder says what it checked on a site, and what it could not.** A
   site is read the way a browser would each time the agent would finish,
   and the line under the answer says what the last reading found and that

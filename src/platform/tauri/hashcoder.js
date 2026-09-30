@@ -645,7 +645,7 @@
       // Real photographs of the site's subject, by the search the Agent Swarm
       // uses (js/swarm/photos.js), under the same setting.
       name: 'find_photos',
-      description: 'Find real photographs of a subject for a website: openly licensed photos from Openverse, each with the credit its licence asks for. Use this, not placeholder_images, whenever a site should show its subject, such as a jewellery shop, a bakery or a hotel. Give the subject in two to four plain words. Use the addresses it returns exactly, never write any other image address, and credit each photo the page shows where a visitor can read it, such as a footer line linked to its page. When it finds none, draw the imagery with CSS or inline SVG.',
+      description: 'Find real photographs of a subject for a website: openly licensed photos from Openverse, each with the credit its licence asks for. Use this, not placeholder_images, whenever a site should show its subject, such as a jewellery shop, a bakery or a hotel. Give the subject in two to four plain words, naming the thing itself the page shows or sells: for a shop that sells drones, "quadcopter drone", not pictures taken with one, such as "drone photography". Use the addresses it returns exactly, never write any other image address, and credit each photo the page shows where a visitor can read it, such as a footer line linked to its page. When it finds none, draw the imagery with CSS or inline SVG.',
       parameters: {
         subject: { type: 'string', description: 'Two to four plain words, such as "diamond engagement ring"' },
         count: { type: 'number', description: 'Optional: how many photos, 1 to 10, 6 unless given' },

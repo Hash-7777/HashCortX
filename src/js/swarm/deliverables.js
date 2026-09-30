@@ -310,7 +310,7 @@ Rules:
 - List the work itself, not a plan to do the work. A campaign means the positioning, the copy for each channel, the calendar and how it is measured — not "a campaign plan" as one document. An analysis means the segments, the figures and the recommendation. Break the result into the parts it really has.
 - "bar" is what it means for THIS result to be done well: statements that could be checked by looking at the result. Only include a statement that applies to this task.
 - Give the last deliverable to the agent that finishes, and make it the thing the person actually receives.
-- For a website that would show photographs, "photos" is up to 3 short searches for real photographs of its subject, two to four plain words each, such as "diamond engagement ring". Name the thing pictured, never a person's or a business's name. Otherwise leave it empty.
+- For a website that would show photographs, "photos" is up to 3 short searches for real photographs of its subject, two to four plain words each, such as "diamond engagement ring". Name the thing itself the site shows or sells, never pictures taken with it: for a shop that sells drones, "quadcopter drone", not "drone photography". Never a person's or a business's name. Otherwise leave it empty.
 Return only JSON, no markdown:
 {"kind":"build|fix|analysis|writing|answer|general","items":[{"name":"file.ext","owner":"planner|coder|analyst|writer|validator|supervisor|specialist","required":true,"format":"what this deliverable is"}],"bar":["a checkable statement about this result"],"photos":["a short search"]}`;
 

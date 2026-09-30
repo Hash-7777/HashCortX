@@ -250,5 +250,11 @@ console.log('\nA short piece or a question owes the answer itself:');
   ok('the run uses it for a small task without asking a model', /effortOf\(task\) === "small"\) \{\s*const plan = D\.forSmall\(task\);/.test(ask));
 }
 
+{
+  const text = readFileSync(join(root, 'src', 'js', 'swarm', 'deliverables.js'), 'utf8');
+  ok('photo searches ask for the thing itself the site shows or sells, never pictures taken with it',
+    /Name the thing itself the site shows or sells, never pictures taken with it: for a shop that sells drones, "quadcopter drone", not "drone photography"\./.test(text));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/deliverables.js)`);
 process.exit(fail ? 1 : 0);

@@ -159,6 +159,7 @@ console.log('\nReal photographs of a site\'s subject:');
   vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
   const tool = box.window.HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'find_photos');
   ok('HashCoder has a tool for them', !!tool && /Openverse/.test(tool.description) && /credit/.test(tool.description));
+  ok('...that asks for the thing itself, never pictures taken with it', /naming the thing itself the page shows or sells: for a shop that sells drones, "quadcopter drone", not pictures taken with one/.test(tool.description));
   const photo = (n) => ({ url: `https://live.example.org/p${n}.jpg`, title: `Diamond ring ${n}`, creator: 'A. Maker', license: 'by', license_version: '2.0', width: 1600, height: 1000, foreign_landing_url: `https://example.org/photo/${n}` });
   answer = [photo(1), photo(2), photo(3)];
   box.window.HCSwarmPhotos.allowed = () => true;
