@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder starts with the project's latest commits.** When a
+  conversation begins, the titles of the open project's latest commits,
+  newest first, go to the model beside the project's notes: five for a
+  small model, eight for a mid-sized one, ten for a larger one. They are
+  read from git's own log in the project, with no command run; never who
+  made a commit or their address.
+
 - **HashCoder goes through a request ask by ask.** A request with three
   asks or more, joined by "also", semicolons, new lines or a list, is split
   into its asks with no model involved; the numbered list goes with the
@@ -627,6 +634,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Swarm's "Done in" for each agent.
 
 ### Fixed
+
+- **HashCoder reads a long project file whole at the start.** A project's
+  `AGENTS.md` or `package.json` of more than 400 lines was read the way the
+  model reads a file, a first window of numbered lines, so the notes came
+  with line numbers in them and the project's test command could be missed.
+  They are now read whole, with no permission question.
 
 - **HashCoder's bar has no X.** It sat where a close button for the
   conversation would, and took you to chat instead. HashCoder is left with

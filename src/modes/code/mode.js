@@ -2192,7 +2192,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // The project's own test, lint and build commands, found once per project.
       const root = sharedState.projectRoot;
       if (root && sharedState.projectChecks?.root !== root && window.HCCodeVerify && HC?.code) {
-        const io = { list: (d) => HC.code.listDir(d), read: (f) => HC.code.readFile(f) };
+        const io = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f), whole: (f) => HC.code.readWholeQuietly(f), drop: window.HCCodeLessons?.looksPrivate };   // whole, unasked (js/code/context.js)
         const checks = await window.HCCodeVerify.readProjectChecks(root, io);
         sharedState.projectChecks = { root, checks, ...(await window.HCCodeContext?.readProject(root, io)) };   // and its top folder and notes
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();

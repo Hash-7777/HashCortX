@@ -118,6 +118,13 @@
       return HC.invoke('fs_read_file', { path });
     },
 
+    /** The same, however long the file, whose end matters (js/code/context.js recentCommits): refused over two megabytes, never cut. */
+    async readWholeQuietly(path) {
+      if (!(await HC.guard.allowedWithoutAsking('read', path))) throw new Error(`Not read without asking: ${path}`);
+      const file = await HC.invoke('fs_read_base64', { path, maxBytes: 2000000 });
+      return new TextDecoder().decode(Uint8Array.from(atob(file.base64), (c) => c.charCodeAt(0)));
+    },
+
     async deleteFile(path, reason = '') {
       // A deletion is the change most worth being able to take back. What the
       // file holds is recorded before asking, so the question can say when

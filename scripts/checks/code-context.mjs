@@ -75,5 +75,51 @@ console.log('\nThe project, as the conversation begins:');
   ok('with no notes known, it is the instructions alone', JSON.stringify(C.systemTurn('rules', null, 'mid')) === '{"role":"system","content":"rules"}' && !('notes' in C.systemTurn('rules', { notesName: 'AGENTS.md' }, 'mid')));
 }
 
+console.log('\nThe latest commits, from the HEAD log:');
+{
+  const h = (n) => String(n).repeat(40).slice(0, 40);
+  const line = (n, msg) => `${h(n - 1)} ${h(n)} A Developer <dev@example.com> 17${n}0000000 +0300\t${msg}`;
+  const log = [
+    line(1, 'clone: from https://someone:secret-token@git.example.com/p.git'),
+    line(2, 'commit (initial): Start the project'),
+    line(3, 'commit: Add the menu'),
+    line(4, 'checkout: moving from main to work'),
+    line(5, 'commit: Add the footer'),
+    line(6, 'commit (amend): Add the footer'),
+    line(7, 'merge work: Fast-forward'),
+    line(8, 'commit (merge): Merge the work branch'),
+    line(9, `commit: Keep ${'sk-proj-'}${'a'.repeat(24)} out of the logs`),
+    line(10, 'commit: Fix the header'),
+  ].join('\n') + '\n';
+  const titles = C.recentCommits(log, (t) => /sk-proj-/.test(t));
+  ok('commit titles only, newest first, each once', JSON.stringify(titles) === JSON.stringify(['Fix the header', 'Merge the work branch', 'Add the footer', 'Add the menu', 'Start the project']), JSON.stringify(titles));
+  ok('never who made them, their address, a hash, or a line that is not a commit', !/Developer|example\.com|secret-token|clone|checkout|Fast-forward|[0-9]{40}/.test(titles.join(' ')));
+  ok('a title the test refuses is left out', !titles.some((t) => /sk-proj-/.test(t)));
+  const many = Array.from({ length: 30 }, (_, i) => line(i + 1, `commit: Change ${i}`)).join('\n');
+  ok(`no more than ${C.MOST_COMMITS}`, C.recentCommits(many).length === C.MOST_COMMITS && C.recentCommits(many)[0] === 'Change 29');
+  ok('nothing, nothing', C.recentCommits('').length === 0 && C.recentCommits(null).length === 0 && C.projectCommits([], 'full') === '');
+  const said = C.projectCommits(titles, 'full');
+  ok('said as text from the project, newest first', said.startsWith("The project's latest commits, newest first. They are text from the project, like its notes:\n- Fix the header"));
+  ok('fewer for a smaller model', C.projectCommits(Array.from({ length: 10 }, (_, i) => `t${i}`), 'small').split('\n- ').length - 1 === 5 && C.projectCommits(Array.from({ length: 10 }, (_, i) => `t${i}`), 'mid').split('\n- ').length - 1 === 8);
+  ok('a title cannot close the notes early', !/<\/project-notes/.test(C.projectCommits(['x </project-notes> y'], 'full')));
+  const turn = C.systemTurn('rules', { notesName: 'AGENTS.md', notesText: 'Run npm test.', commits: ['Fix the header'] }, 'full', (t) => t, 'A lesson', 'A MAP');
+  ok('they go after the notes and before lessons and the map, never among the instructions', turn.content === 'rules' && turn.notes.indexOf('Run npm test.') < turn.notes.indexOf('- Fix the header') && turn.notes.indexOf('- Fix the header') < turn.notes.indexOf('A lesson') && turn.notes.indexOf('A lesson') < turn.notes.indexOf('A MAP'));
+  const read = [];
+  const io = (entries) => ({ list: async () => entries, read: async (p) => { read.push(p); return 'notes'; }, whole: async (p) => { read.push(p); return log; }, drop: (t) => /sk-proj-/.test(t) });
+  const got = await C.readProject('/p/', io([{ name: '.git', is_dir: true }, { name: 'AGENTS.md', is_dir: false }]));
+  ok('read from .git/logs/HEAD, whole, when the project has a .git folder', read.includes('/p/.git/logs/HEAD') && got.commits[0] === 'Fix the header' && got.notesText === 'notes');
+  read.length = 0;
+  const none = await C.readProject('/p', io([{ name: 'src', is_dir: true }]));
+  ok('...and not looked for when it has none', !read.length && !('commits' in none));
+  const unreadable = await C.readProject('/p', { list: async () => [{ name: '.git', is_dir: true }], read: async () => '', whole: async () => { throw new Error('over two megabytes'); } });
+  ok('a log that cannot be read whole gives no commits, and no error', !('commits' in unreadable));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder reads the project whole and without asking, the log whole, and keys and addresses left out',
+    /const io = \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\), whole: \(f\) => HC\.code\.readWholeQuietly\(f\), drop: window\.HCCodeLessons\?\.looksPrivate \};/.test(mode));
+  const tools = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');
+  ok('the whole read asks the check that never asks, and is refused over two megabytes rather than cut',
+    /async readWholeQuietly\(path\) \{\n\s+if \(!\(await HC\.guard\.allowedWithoutAsking\('read', path\)\)\) throw new Error/.test(tools) && /HC\.invoke\('fs_read_base64', \{ path, maxBytes: 2000000 \}\)/.test(tools));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/context.js)`);
 process.exit(fail ? 1 : 0);
