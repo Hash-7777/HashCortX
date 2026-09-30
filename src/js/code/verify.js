@@ -434,7 +434,7 @@
       kind: 'review',
       step: REVIEW_STEP,
       message: `${APP_NOTE} before you finish, ${REVIEW_SAYS}. The request was:\n\n${quoted}\n\n` +
-        'Go through each thing it asks for and make sure the files now do it; read a file again if you are not sure. ' +
+        'Go through each thing it asks for and make sure the files now do it; read a file again if you are not sure. Put back anything you removed that it did not ask to remove. ' +
         'If something is missing or wrong, fix it now. If everything is done, change nothing more and finish with what ' +
         'you changed and what passed.',
     };
@@ -454,7 +454,7 @@
       kind: 'asks',
       step: ASKS_STEP,
       message: `${APP_NOTE} before you finish, ${ASKS_SAYS}:\n${list.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n` +
-        'For each one not done yet, do it now with the tools. Then finish with one short line per ask: done, or not done and why.',
+        'For each one not done yet, do it now with the tools, and put back anything you removed that no ask asked to remove. Then finish with one short line per ask: done, or not done and why.',
     };
   }
 

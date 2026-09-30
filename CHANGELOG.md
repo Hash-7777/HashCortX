@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder is told when an edit takes away something not asked
+  about.** Each file an agent writes is compared with what it held before,
+  with no model: a function, class or type gone from code, an id, section,
+  table, form or footer gone from a page, a heading or picture gone from a
+  Markdown file. One the request does not name, even by a word of its name,
+  is said in the edit's answer with a request to put it back if it was not
+  asked for; it never stops the edit. The second look and the checks
+  against the request look for the same.
+
 - **HashCoder starts with the project's latest commits.** When a
   conversation begins, the titles of the open project's latest commits,
   newest first, go to the model beside the project's notes: five for a

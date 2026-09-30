@@ -79,7 +79,7 @@ ok('nothing left, nothing said', P.leftLine({ steps: [{ step: 'page', status: 'd
 console.log('\nHashCoder:');
 const mode = src('modes', 'code', 'mode.js');
 ok('splits each request, and sends the list with it', /const asks = window\.HCCodeAsks\?\.split\(task\) \|\| \[\];/.test(mode) && /asks: window\.HCCodeAsks\?\.checklist\(asks\) \}\)/.test(mode));
-ok('keeps them for that request only, as it does the plan', /HC\.code\.plan = null; HC\.code\.asks = asks; \}/.test(mode));
+ok('keeps them for that request only, as it does the plan', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; \}/.test(mode));
 ok('gives them to the checks before finishing, and counts how often it sent the run back for them', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks \}\)/.test(mode) && /review: 0, asks: 0,/.test(mode));
 ok('says what is left of its plan under the answer, and when it stops early',
   /const proven = \[proof && window\.HCCodeVerify\.proofLine\(proof\), window\.HCCodePlan\?\.leftLine\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\(' '\);/.test(mode)

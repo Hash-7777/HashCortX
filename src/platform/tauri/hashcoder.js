@@ -88,11 +88,13 @@
       // computes the new file and calls through here — so this is the only
       // place the finished result is known without reading the file again.
       if (record) record.after = ends.text;
-      // A code file this left unbalanced where it balanced before is said at once (js/code/balance.js).
+      // A code file this left unbalanced where it balanced before is said at once (js/code/balance.js),
+      // and so is anything it took away that the request does not name (js/code/keep.js).
       const check = window.HCCodeBalance?.introduced(path.split(/[\\/]/).pop() || path, before, ends.text) || '';
+      const removed = window.HCCodeKeep?.note(path.split(/[\\/]/).pop() || path, before, ends.text, HC.code.request) || '';
       return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
         ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}),
-        ...(check ? { check } : {}) });
+        ...(check ? { check } : {}), ...(removed ? { removed } : {}) });
     },
 
     async listDir(path) {
@@ -167,6 +169,9 @@
 
     /** The asks of the request in progress, when it has several (js/code/asks.js); the Coder panel sets them for each request. */
     asks: [],
+
+    /** The person's words for the request in progress, so an edit can say what it took away that they do not name (js/code/keep.js). */
+    request: '',
 
     /** Where save_lesson keeps a lesson, `{ root, local }`, or null while lessons are switched off; set by the Coder panel. */
     lessonsFor: null,

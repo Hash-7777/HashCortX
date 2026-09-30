@@ -2234,7 +2234,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const { signal } = runAbort;
       // Every command this run starts carries its key, so Stop can end them.
       const stopKey = `run-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; HC.code.asks = asks; }   // a plan, and a checklist, are for one request
+      if (HC?.code) { HC.code.shellCancelKey = stopKey; HC.code.plan = null; HC.code.asks = asks; HC.code.request = task; }   // a plan, a checklist and the request's words are for one request
 
       setStatus('Running', 'thinking');
       cdrTraceReset('Run started');

@@ -30,7 +30,7 @@
 
   const INSTRUCTIONS = `You review a change a coding agent made to a project, with a clean slate: you are shown only what the person asked for, the changes, and what was run to check them.
 
-Look for: something the request asks for that the changes do not do; a mistake that would make the code fail or behave wrongly; a change the request did not ask for; placeholder or unfinished code; a test or check changed so that it passes, rather than the code fixed.
+Look for: something the request asks for that the changes do not do; a mistake that would make the code fail or behave wrongly; a change the request did not ask for, above all anything removed or rewritten that it did not ask to change; placeholder or unfinished code; a test or check changed so that it passes, rather than the code fixed.
 Do not ask for changes of style, names or more tests unless the request wants them. Report only what you are sure of from what you are shown.
 
 Answer in one of two ways and nothing else. Either the one line

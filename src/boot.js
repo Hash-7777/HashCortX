@@ -85,6 +85,7 @@
     '/js/code/codemap.js',
     '/js/code/site.js',
     '/js/code/asks.js',
+    '/js/code/keep.js',
     '/js/code/steps.js',
     '/js/code/attach.js',
     '/js/code/live.js',
