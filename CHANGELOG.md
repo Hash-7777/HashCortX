@@ -708,6 +708,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Three checks run on Windows.** The benchmark's cloud check imported a
+  module by a `C:\` path, which is not an address a module can be loaded
+  from; the PDF check turned its folder's address into a path that does
+  not exist on Windows; and the content policy check compared file names
+  written with backslashes against ones written with forward slashes.
+
 - **A Windows checkout passes the checks.** Git for Windows checks text
   files out with CRLF line endings by default, and fourteen checks that
   read the source as text failed on a fresh clone. The repository now

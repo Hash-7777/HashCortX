@@ -28,9 +28,11 @@
 // ==============================================================
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+/** A file's place in the repository, written with forward slashes on every system. */
+const rel = (file) => file.slice(root.length + 1).split(sep).join('/');
 const confText = readFileSync(join(root, 'src-tauri', 'tauri.conf.json'), 'utf8');
 
 let pass = 0, fail = 0;
@@ -184,7 +186,7 @@ function hostsInSource() {
         try { host = new URL(m[1]).host; } catch { continue; }
         // Built from a variable at runtime — nothing to pin.
         if (host.includes('$') || host.includes('{')) continue;
-        if (!found.has(host)) found.set(host, `${file.slice(root.length + 1)}:${i + 1}`);
+        if (!found.has(host)) found.set(host, `${rel(file)}:${i + 1}`);
       }
     });
   }
@@ -209,7 +211,7 @@ for (const [host, where] of sourceHosts) {
 console.log('\nA connected system is reached by the native side, never by the page:');
 for (const host of REACHED_NATIVELY.keys()) {
   ok(`${host} is not one the page may fetch`, !connectHosts.has(host), 'the page has no reason to call a connected system itself — take it out of connect-src');
-  const naming = sourceFiles(join(root, 'src')).filter((f) => f.endsWith('.js') && readFileSync(f, 'utf8').includes(host)).map((f) => f.slice(root.length + 1));
+  const naming = sourceFiles(join(root, 'src')).filter((f) => f.endsWith('.js') && readFileSync(f, 'utf8').includes(host)).map(rel);
   ok(`${host} is named only among the ready-made connections`, naming.join() === 'src/js/mcp/presets.js', `named in ${naming.join(', ') || 'no file'}`);
 }
 

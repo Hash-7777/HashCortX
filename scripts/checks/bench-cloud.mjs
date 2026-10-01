@@ -2,13 +2,14 @@
 // Cloud models in the HashCoder benchmark — scripts/bench/coder/cloud.mjs.
 // The keys here are made up. Run with: npm run check:bench-cloud
 // ============================================================
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { readFileSync } from 'node:fs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
-const C = await import(join(root, 'scripts', 'bench', 'coder', 'cloud.mjs'));
+// A module is imported by its address: a Windows path, C:\..., is not one.
+const C = await import(pathToFileURL(join(root, 'scripts', 'bench', 'coder', 'cloud.mjs')).href);
 const P = C.loadProviders(join(root, 'src'));
 
 let pass = 0, fail = 0;

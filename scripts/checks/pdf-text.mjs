@@ -87,7 +87,8 @@ console.log('\nEvery PDF is opened with code generation off:');
   // Everywhere the app opens a PDF, not only here: a PDF is untrusted input,
   // and the option has to be on every call to mean anything.
   const { readdirSync, statSync } = await import('node:fs');
-  const srcRoot = new URL('../../src/', import.meta.url).pathname;
+  // As a path, not an address's path: on Windows that is /C:/..., which no folder is.
+  const srcRoot = fileURLToPath(new URL('../../src/', import.meta.url));
   const files = [];
   const walk = (d) => { for (const e of readdirSync(d)) { if (e === 'vendor') continue; const f = d + e; if (statSync(f).isDirectory()) walk(f + '/'); else if (f.endsWith('.js')) files.push(f); } };
   walk(srcRoot);
