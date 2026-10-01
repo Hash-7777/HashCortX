@@ -91,6 +91,12 @@ console.log('\nEvery local call is sized:');
   ok('the chat and the agents say what a model cannot do before asking it', (app.match(/HCLocalContext\.refusalFor\(/g) || []).length === 2);
   ok('a model only for search is listed but not offered', /HCLocalContext\.embedsOnly\(infos\[i\]\)/.test(app) && /opt\.disabled = true; opt\.textContent = `\$\{m\} \(for search only\)`/.test(app) && /markSearchOnly\(safeHost\(\), models\)/.test(app));
   ok('it loads before the chat', src('boot.js').indexOf("'/js/local-context.js'") < src('boot.js').indexOf("'/js/app.js'"));
+  // A window is memory the model holds for as long as it is loaded: the
+  // conversation is never given a larger one than it needs because of what it
+  // contains or how much of it is remembered.
+  ok('the chat asks for the room the request needs, never a larger window of its own',
+    !/\bfloor:/.test(app) && !/const numCtx\s*=\s*hasAttachedFileContext/.test(app) && !/streamWithModelValue\(\{[^}]*numCtx/.test(app));
+  ok('files attached to a short request leave it the smallest window', L.sizeFor([{ role: 'user', content: '[ATTACHED FILES - use this content when answering]\nsmall' }]).numCtx === 8192);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-context.js)`);

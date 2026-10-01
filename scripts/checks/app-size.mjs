@@ -205,7 +205,9 @@ const LINE_BUDGET = {
   // 6530, up two: a local model app that is running and refuses this app's
   // page is told apart from one that is off, with the setting to change
   // (js/local-client.js refusedHint).
-  'js/app.js': 6530,
+  // 6524, down six: a chat to a model on this computer is no longer given a
+  // larger window of its own, so the three places that chose one are gone.
+  'js/app.js': 6524,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

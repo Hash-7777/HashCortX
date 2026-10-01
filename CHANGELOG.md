@@ -444,6 +444,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A chat with a model on this computer is given the window it needs, and
+  no more.** The window a model reads a conversation into is memory it holds
+  for as long as it stays loaded. Files attached to a short request, or a
+  long memory setting, used to raise it to 16,384 or 8,192 whatever the
+  request held; it is now sized from the request alone, in the same steps,
+  and a model already loaded with a window that fits keeps it.
+
 - **Decorative motion rests when nobody is using the window.** After a
   minute without a mouse, key or touch, the drone rotors, the circuit
   backdrop and the whole launch screen pause, and any touch starts them

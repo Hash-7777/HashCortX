@@ -2859,8 +2859,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const estTokens   = Math.round(totalChars / 3.8);
     const historyMsgs = messages.filter(m => m.role !== "system" && !m._pending).length;
     const sysMsgs     = messages.filter(m => m.role === "system").length;
-    const hasPreviewAttachments = messages.some(m => /\[ATTACHED FILES - use this content when answering\]/.test(m.content || ""));
-    const numCtx      = Math.max(hasPreviewAttachments ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096), HCLocalContext.sizeFor(messages).numCtx);
+    const numCtx      = HCLocalContext.sizeFor(messages).numCtx;
 
     previewMeta.textContent =
       `${messages.length} msg${messages.length !== 1 ? "s" : ""} · ~${estTokens.toLocaleString()} tokens`;
@@ -4682,8 +4681,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.messages.push(userMsg);
     ensureChatIdForCurrentMessages();
     const messages = buildOllamaMessages();
-    const hasAttachedFileContext = messages.some(m => /\[ATTACHED FILES - use this content when answering\]/.test(m.content || ""));
-    const numCtx = hasAttachedFileContext ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096);
     const compareMsg = {
       role: "assistant",
       content: "",
@@ -4718,7 +4715,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
           messages: messages.map(m => ({ ...m, images: m.images ? m.images.slice() : undefined })),
           signal: ctrl.signal,
           temperature,
-          numCtx,
           onStats: (stats) => {
             if (stats?.eval_count && stats?.eval_duration) {
               branch.tps = Math.max(1, Math.round(stats.eval_count / (stats.eval_duration / 1e9)));
@@ -4856,8 +4852,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const ctrl = new AbortController();
     state.abort = ctrl;
     const temperature = (v => Number.isFinite(v) ? Math.max(0, Math.min(2, v)) : 0.7)(parseFloat(tempEl.value));
-    const hasAttachedFileContext = messages.some(m => /\[ATTACHED FILES - use this content when answering\]/.test(m.content || ""));
-    const numCtx = hasAttachedFileContext ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096);
     const isCloud = modelEl.value.startsWith("cloud:");
     const onCloudToken = (delta) => {
       if (!assistant.firstTokenAt) assistant.firstTokenAt = Date.now();
@@ -4931,7 +4925,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         const refused = HCLocalContext.refusalFor(await HCLocalContext.infoOf(host, modelEl.value), modelEl.value, messages);
         if (refused) throw new Error(refused);
         // Room for all of it, or Ollama drops the start — the instructions (js/local-context.js).
-        const numCtxNow = await HCLocalContext.numCtx(host, modelEl.value, messages, { floor: numCtx });
+        const numCtxNow = await HCLocalContext.numCtx(host, modelEl.value, messages);
         const reply = await HCLocal.chat(host, { model: modelEl.value, messages, temperature, numCtx: numCtxNow }, {
           signal: ctrl.signal,
           onThinking: (t) => showThinking(assistant, t),
@@ -5045,7 +5039,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (pinned) msgs.scrollTop = msgs.scrollHeight;
   }
 
-  async function streamWithModelValue({ modelValue, messages, onToken, onStats, signal, temperature, numCtx }) {
+  async function streamWithModelValue({ modelValue, messages, onToken, onStats, signal, temperature }) {
     if (!modelValue) throw new Error("No model selected.");
     if (modelValue.startsWith("cloud:")) {
       if (privacyLocalEl.checked) throw new Error("Blocked by Privacy: Local only.");
@@ -5057,7 +5051,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     const host = safeHost();
     trackLocalModel(modelValue);
-    const numCtxNow = await HCLocalContext.numCtx(host, modelValue, messages, { floor: numCtx });
+    const numCtxNow = await HCLocalContext.numCtx(host, modelValue, messages);
     const reply = await HCLocal.chat(host, { model: modelValue, messages, temperature, numCtx: numCtxNow }, { signal, onToken: (t) => onToken(t) });
     if (reply.last && typeof onStats === "function") onStats(reply.last);
   }
