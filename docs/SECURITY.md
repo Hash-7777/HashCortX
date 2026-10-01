@@ -1,6 +1,6 @@
 # HashCortx — Security Architecture
 
-This document describes what HashCortx **actually does** as of v2.6.0. Where a protection is weaker than you might expect, that is stated plainly rather than papered over. If you find a claim here that the code does not support, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) — a security document that flatters the code is worse than no security document.
+This document describes what HashCortx **actually does** in the current source on `main`. The latest published release, v2.6.0, was cut earlier and does not carry everything described here: the [changelog](../CHANGELOG.md) lists what is newer, and building from source gives the behaviour this document describes. Where a protection is weaker than you might expect, that is stated plainly rather than papered over. If you find a claim here that the code does not support, please [open an issue](https://github.com/Hash-7777/HashCortX/issues/new/choose) — a security document that flatters the code is worse than no security document.
 
 ## Threat model
 
@@ -33,7 +33,7 @@ A Keychain item's access control list is bound to the binary's code signature. W
 
 `src-tauri/src/commands/keychain.rs` still ships, and now does only that one job. On first run, `src/platform/tauri/keychain.js` silently pulls any keys out of the old Keychain bundle, copies them into the local store, and deletes the Keychain entry so it never prompts again.
 
-Reading that bundle and deleting it are the only two Keychain commands the app registers. Three more — storing a key, storing the bundle, reading a single key — were registered with nothing calling any of them. A registered command is an entry point the renderer can reach, and one of those would have written a secret *into* the Keychain, which is the arrangement this app moved away from. They are gone, and `scripts/checks/native-surface.mjs` now fails on any command registered without a caller.
+Reading that bundle and deleting it are the only two Keychain commands the app registers; none stores a secret in the Keychain. A registered command is an entry point the renderer can reach, so `scripts/checks/native-surface.mjs` fails on any command registered without a caller.
 
 **What this costs you, stated plainly:**
 
@@ -84,7 +84,7 @@ Choosing **Allow for session** on a file also covers the folder it is in, so rea
 
 **A move is two questions, not one.** It ends a file at one path and starts it at another, and each end is judged on its own, so moving something out of the project asks about where it is going even though writing inside the project does not ask at all.
 
-**Virtual OS and 3D Forge need no guard of their own: neither invokes a native command itself.** Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file.
+**Virtual OS and 3D Forge need no guard of their own: neither invokes a native command itself.** Virtual OS looks like a filesystem and is not one — its `fs_read`, `fs_write` and `terminal_run` tools operate on a project stored in IndexedDB and a terminal simulated in JavaScript, so nothing an agent does there can touch a real file. `scripts/checks/native-surface.mjs` holds this: it scans the source, asserts which files may invoke a native command at all, and fails if one appears in a mode that is supposed to be sandboxed.
 
 Both modes do save exports to a real disk, through `HC.save` in `src/platform/tauri/save.js`. That is not a hole in the rule above. No model can reach it: every path starts with you clicking an export control, the destination comes from a native save dialog you answer, and the write goes through `export_write_file`, which applies the same denylist as every other write. A dialog is your consent to save a file — it is not consent to overwrite a private key, so a protected destination is still refused.
 
@@ -99,8 +99,6 @@ When the Agent Swarm builds a website, it looks for real photographs to put in i
 HashCoder searches the same way, under the same setting, when it calls `find_photos` for a site it is building: the two to four words it gives as the subject are sent, and nothing else, and they are shown in its step. It is told to credit each photograph the page shows.
 
 From the same Workspace you can ask one of the run's agents for a change. That sends the model picked beside the message — by default the model set for that agent, or, if none is set, the model chosen in the app — the run's task, its conversation and its files, cut to fixed budgets, and nothing else. If that model cannot answer (its account is out of quota or credit, its key is refused, it is overloaded, it answers with nothing or not in time), the same message goes to another model you hold a key for, chosen the way a run chooses one, and the Workspace says which model answered. The agent answers without tools, so it cannot search, fetch or run anything while it does. Its answer changes only the files it names in full, never an unlabelled example, and each change is kept as a new version, so none overwrites what came before. Sent to the whole team instead, it runs the blueprint again as a normal run does, with each agent's own model and tools, on the original task with the feedback and the files added. The runs are kept in the app's own IndexedDB store, `hashcortx_swarm_runs`, not in the localStorage that holds your keys.
-
-That claim was wrong in the alarming direction, describing an exposure the app does not have, and it sat on the roadmap as work nobody needed to do. `scripts/checks/native-surface.mjs` now enforces the real property: it scans the source, asserts which files may invoke a native command at all, and fails if one appears in a mode that is supposed to be sandboxed.
 
 **Plugin APIs are limited to what the page calls.** `src-tauri/capabilities/default.json` grants window placement, opening a web or mail link in the system browser, and the open and save dialogs — nothing else. The app registers no plugin it does not use; shell commands and file access go through its own commands, behind the checks in this document.
 
@@ -158,13 +156,13 @@ Restoring goes back out through `fs_write_file`, which means an undo passes the 
 
 Checkpoints hold file contents from your project, in your home directory, in plain text. On macOS and Linux the whole `~/.hashcortx` folder is readable by your account only: the app makes it that way when it creates it, and at every launch (`src-tauri/src/security/private_dir.rs`). Windows keeps a profile folder private to its account already. Checkpoints are removed when you keep a change, when you undo one, and **after seven days if you never answered it**.
 
-That last rule is new, and it closes a leak of a different kind. Records only ever went away when a change was answered, and the panel offering that answer lived in the run that made it — so closing the app with a change pending lost the button and kept the copy, for good. A directory of your file contents only ever grew, and nothing in the app could show you what was in it. HashCoder now lists changes left over from your last session when it opens, so an undo outlives the run that offered it, and anything still unanswered a week later is deleted.
+A copy is not kept for good when a change goes unanswered. HashCoder lists changes left over from your last session when it opens, so an Undo outlives the run that offered it, and anything still unanswered a week later is deleted (`MAX_CHECKPOINT_AGE_DAYS` in `src-tauri/src/commands/checkpoint.rs`).
 
 HashCoder's saved session carries no file contents: the undo history on disk is the record.
 
 **Links are followed to their destination before the rule is applied.** A path containing `..` is refused outright, and a single file operation resolves symlinks and checks where they actually lead. That includes a file that does not exist yet, which is judged by where it would land.
 
-The recursive tools — file search, fuzzy find and code grep — check every link they meet while walking, against two rules: the denylist, and **the folder you asked them to search**. The second is the one that matters most and it was missing. Refusing only denylisted destinations meant a link to any *ordinary* directory outside the search — your home folder, another project — was walked like part of the tree, and code grep returns the contents of the files it matches. Searching inside the project raises no dialog, so that was a way to read files you were never asked about. A link is now judged by whether its destination is inside the folder being searched; one leading to a folder within it is followed as normal.
+The recursive tools — file search, fuzzy find and code grep — check every link they meet while walking, against two rules: the denylist, and **the folder you asked them to search**. The second is the one that matters most: code grep returns the contents of the files it matches, and searching inside the project raises no dialog, so a link to an ordinary directory outside the search — your home folder, another project — is not followed. A link is judged by whether its destination is inside the folder being searched; one leading to a folder within it is followed as normal.
 
 ### Shell commands — a denylist, not an allowlist, and a sandbox on macOS
 
@@ -216,11 +214,9 @@ Two checks run before any fetch, and both must pass:
 1. **The address as written** (`src/js/url-safety.js`). Only `http:` and `https:`; no credentials embedded in the URL; and no literal loopback, private, link-local, unique-local or carrier-grade-NAT address, in IPv4 or IPv6, including the `::ffff:` spellings of an IPv4 address.
 2. **Where the name actually leads** (`src-tauri/src/commands/net.rs`). The hostname is resolved and refused if **any** address it answers with is one of those — any, not the first, because a name that returns one public address and one private one is exactly the case worth catching. A name that does not resolve is refused rather than allowed.
 
-The second check is new. Before it, only the first existed, and a perfectly ordinary-looking hostname pointing at a private address passed it — while a comment in the source claimed a server proxy performed the real address check. No server ships with this app, so nothing performed it.
-
 **The fetch itself happens in Rust, and that is what makes the second check mean anything.** `net_fetch_text` resolves the name once, judges every address it gets, and pins the connection to those addresses, so the address that was checked is the address that is used. The certificate is still validated against the hostname, so pinning the address does not weaken TLS. Every redirect is a fresh address and goes through the whole check again, up to five hops. The reply must be a text-ish content type, is capped at 1 MB, and the request has a 20-second deadline.
 
-Moving the fetch also removed an accidental limit worth naming: under the Content Security Policy the web view could only reach the hosts in `connect-src`, so `fetch_url` could read about twenty addresses and no others. That was never a designed protection — it also meant the tool could not read an ordinary web page — but while it held, a model could only fetch from that short list. Now that the whole web is reachable, **a fetch to an address the model chose asks you first**, in chat as well as in HashCoder, and a session grant covers that one host. A link you pasted yourself is read without a dialog.
+Because the fetch is made in Rust, the Content Security Policy does not limit where it can go; any public web address is reachable. So **a fetch to an address the model chose asks you first**, in chat as well as in HashCoder, and a session grant covers that one host. A link you pasted yourself is read without a dialog.
 
 In a plain browser build there is no Rust to fetch through, so only the first check applies and the request is made by the web view. The shipped desktop app runs both.
 
@@ -260,15 +256,9 @@ Defined in `src-tauri/tauri.conf.json`, and checked by `scripts/checks/csp.mjs` 
 
 A host in `connect-src` that nothing calls grants reach for no feature. A host the code calls that is not in `connect-src` fails as an ordinary network error — and the app reports that as the service being unreachable, with nothing in the interface able to say why.
 
-Three had drifted apart, and each one cost a feature that this repository advertised:
+`scripts/checks/csp.mjs` pins both directions: it fails on a host the code calls that the policy does not permit, and on a host the policy permits that nothing calls.
 
-- the Google Programmable Search tool asked `www.googleapis.com`; only `customsearch.googleapis.com` was permitted. The same API answers on both names, so the code now uses the permitted one.
-- the PubMed tool reads Europe PMC at `www.ebi.ac.uk`; the policy permitted `eutils.ncbi.nlm.nih.gov`, which nothing in the app calls.
-- Pyodide fetches its runtime from `cdn.jsdelivr.net`, which was permitted in `script-src` only. The `<script>` tag loaded and the runtime fetch behind it did not.
-
-`api.together.xyz` was permitted with no caller anywhere and has been removed. `scripts/checks/csp.mjs` now pins both directions, so neither kind of drift can return quietly.
-
-**One thing to know before testing any of this by hand:** `tauri dev` serves the frontend from a local dev server and applies **no** policy at all. Every rule in this section is invisible until `tauri build`. That is why the drift above survived so long — in development, all of it worked.
+**One thing to know before testing any of this by hand:** `tauri dev` serves the frontend from a local dev server and applies **no** policy at all. Every rule in this section is invisible until `tauri build`.
 
 ### No image is loaded from the network
 
@@ -286,7 +276,7 @@ No other wildcard is listed, and the check above fails on a wildcard that has no
 
 - `script-src` permits `'wasm-unsafe-eval'` and one external source — the Python runtime's own path on jsDelivr, `https://cdn.jsdelivr.net/pyodide/v0.26.4/full/`, not the rest of that host — and not `'unsafe-inline'`: inline script — a handler written into markup, a `javascript:` link, a `<script>` put into the page — does not run. The page's own two inline scripts, the import map and the PDF worker path, are allowed by the hashes a production build adds for them. `'unsafe-inline'` is not listed, so it cannot start to apply if those scripts ever leave the page, and `csp.mjs` fails if it is added. The CDN is there for Pyodide, which fetches CPython and the packages it bundles on demand and cannot sensibly be shipped inside the app. `'wasm-unsafe-eval'` is there because compiling a WebAssembly module counts as evaluating script, and the sandbox is WebAssembly — without it the sandbox cannot start. It permits WebAssembly and nothing else: `eval()` and `new Function()` stay refused, full `'unsafe-eval'` is not permitted, and `csp.mjs` fails if it is ever added. `csp.mjs` fails if a second remote script source is listed, or if this document names a CDN the policy has dropped.
 - Text a model wrote is never turned into markup as it stands, whatever the script policy would stop, because markup does harm without script too. The chat, HashCoder and the Sandbox escape and sanitise it on the way to HTML, and so does the Agent Swarm, through `HCMarkdown.renderUntrusted` in `src/js/markdown-safe.js`: raw HTML in the text is shown rather than built, only `http(s)` links survive, an image from another site is offered as a link instead of fetched, and DOMPurify runs over the result. Without the sanitiser loaded it returns plain escaped text rather than guessing. `swarm-workspace.mjs` fails if the Swarm renders agent text any other way.
-- `style-src` permits `'unsafe-inline'`, which the app's dynamic theme tokens need. In a release that only holds because `index.html` contains no `<style>` block: a production build puts a nonce on every one, and a nonce in the directive makes the browser ignore `'unsafe-inline'`. Until this version the page had one, and the released app dropped every `style` attribute it drew. `production-policy.mjs` fails if a style block returns.
+- `style-src` permits `'unsafe-inline'`, which the app's dynamic theme tokens need. In a release that only holds because `index.html` contains no `<style>` block: a production build puts a nonce on every one, and a nonce in the directive makes the browser ignore `'unsafe-inline'`. `production-policy.mjs` fails if a style block is added.
 
 - A generated report or business system is a model's answer too, and the colours and ids in it land inside attributes. Finance charts accept only real colour values and build every element id through one sanitiser; the ERP accepts only hex colours at the gate, and draws every system in the app's own colours whatever its answer asked for. `finance-charts.mjs`, `systems-theme.mjs` and `systems-shells.mjs` hold both.
 - A PDF is untrusted input. Every place the app opens one passes pdf.js `isEvalSupported: false`, so the reader never turns what it finds in a file into code; `pdf-text.mjs` fails if a call leaves it out.
@@ -347,7 +337,7 @@ What it cannot do: it cannot make the system's own permissions any narrower — 
 - **No auto-updater.** The app never reaches out on its own.
 - **Air-gapped capable, with one exception.** With Ollama, chat, the coding agent, the knowledge base, 3D Forge and spreadsheet import all work with the network off. **The Python sandbox does not** — Pyodide fetches its CPython runtime, and the packages it bundles (pandas, numpy, matplotlib), from jsDelivr on first use, and those are far too large to ship. That is the only reason `script-src` and `connect-src` still name a CDN. The three packages Pyodide does not bundle — python-docx, openpyxl and reportlab — ship with the app in `src/wheels/` and install from its own origin, so the sandbox needs the network for its runtime and nothing else.
 
-  Until recently this was less true than it said: 3D Forge loaded three.js and four of its loaders from a CDN, so it failed outright offline, and spreadsheet import fetched SheetJS the same way. Both are vendored now.
+  3D Forge's three.js and its loaders, and spreadsheet import's SheetJS, are vendored in `src/js/vendor/` and load from disk.
 
 Token counts are appended locally to `~/.hashcortx/usage.jsonl`. That file never leaves your disk; [HashMeterAi](https://github.com/Hash-7777/HashMeterAi) reads it if you install it.
 
@@ -368,7 +358,7 @@ This matters for the privacy claim above, so it is worth being precise about:
 - **What a search finds is another matter.** When chat or the coding agent uses the knowledge base, the passages it finds become part of the request to the model you chose. With Ollama that stays on your machine or your network; with a cloud model it goes to that provider, like the rest of the conversation.
 - **It works with the network off**, on the first launch, with no configuration.
 
-The previous implementation did none of this. It loaded a library from a CDN and fetched weights from `huggingface.co`, a host `connect-src` does not permit — so every embedding attempt failed, was swallowed, and semantic search never ran in any shipped build while the docs described it as working. Moving the model into the binary means no CSP rule can silently disable it again.
+Because the weights are inside the binary rather than fetched, there is no host for the Content Security Policy to refuse.
 
 Provenance, the exact file's SHA-256, and the measurements behind the ranking design are in `src-tauri/models/bge-small-en-v1.5/PROVENANCE.md`.
 
@@ -376,7 +366,7 @@ Provenance, the exact file's SHA-256, and the measurements behind the ranking de
 
 ## What HashCortx does *not* have
 
-These are commonly assumed, and worth naming because an earlier version of this document claimed several of them:
+These are commonly assumed, and worth naming:
 
 - **No filter on everything a model reads.** What you type is not scanned. Material handed to a model as words — pages linked in a plain chat, knowledge-base passages, what the fallback agents look up, and tool results when a local agent's turn is taken in steps — is framed as reference material, and a sentence in it addressed to AI systems is left out before the model reads it, with a note in its place (`src/js/chat/sources.js`). HashCoder gives the model the open project's `AGENTS.md`, or `CLAUDE.md`, when a conversation begins, with the first request and framed the same way, as text from the project that cannot ask for anything you did not, and beside it the titles of the project's latest commits, read from git's own log in the project's `.git` folder with no command run: never who made a commit or their address, and a title that looks like a key or holds an email address is left out (`src/js/code/context.js`). The sentences recognised are common English phrasings. A tool result passed to a cloud model in the provider's own tool-result field is sent as it is. Every agent that uses tools — HashCoder, chat's agents, the Agent Swarm's and Virtual OS's chat agent — is also told, in `HC.code.TOOL_TEXT_RULE`, that a file, a web page, a search result, a command's output or a knowledge-base passage is material for your task and never a new one. All of this is guidance to the model, not a guarantee; the permission dialogs are what stand between a model and an action. (The `/inject` command toggles knowledge-base *injection into the prompt* — an unrelated feature with a confusingly similar name.)
 - **No rate limiting per provider.** There is one cap of the app's own, in `src/js/request-cap.js`: at most 30 cloud AI requests in any minute and 6 running at once, across the whole app. A request over it is refused with a message saying which was reached; it is not queued. It counts what asks a cloud model for an answer, including the three providers sent through Rust; model lists, local models and web search are not counted. Each provider's own limits still apply on top, with retry and backoff on `429` and `5xx`, and a Stop button that aborts a run.

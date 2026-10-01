@@ -189,7 +189,7 @@ for (const [label, action, target] of [
 
 guard.setProjectRoot(R);
 
-console.log('\nOrdinary shell work the OLD guard refused outright — now merely asks:');
+console.log('\nOrdinary shell work is asked about, not refused outright:');
 for (const cmd of ['git add src/main.rs', 'git add .', 'npm run format --watch',
                    'cat departed.md', 'echo sudoku', 'cargo build',
                    // A longer name that merely ends in a protected directory's
@@ -208,7 +208,7 @@ await check('read in root',  () => guard.request('read',  R + '/src/main.rs'), F
 await check('write in root', () => guard.request('write', R + '/src/new.rs'), FREE);
 await check('list root',     () => guard.request('list',  R), FREE);
 
-console.log('\nOutside the project root — a read now ASKS (it used to be free):');
+console.log('\nOutside the project root — a read ASKS:');
 await check('read ~/Documents/tax.pdf', () => guard.request('read', '/Users/x/Documents/tax.pdf'), ASKED);
 await check('list ~',                   () => guard.request('list', '/Users/x'), ASKED);
 
@@ -418,13 +418,11 @@ console.log('\nA session grant on a fetch covers that host and no other:');
 
 // A move is asked about as two real paths, not as one joined string.
 //
-// This drives the REAL hashcoder.js against the REAL guard, because the defect
-// was in how the caller phrased the question rather than in the guard's answer:
-// `move_file` asked once about `from → to`. The guard reads a target as a path
-// to decide whether it is inside the project, and the joined string begins with
-// the source — so a move OUT of the project was auto-approved with no dialog,
-// and a file written inside the project (itself free) could be placed anywhere
-// on the disk the denylist does not name without the user being asked once.
+// This drives the REAL hashcoder.js against the REAL guard, because what is
+// checked is how the caller phrases the question rather than the guard's
+// answer: `move_file` asks about each end on its own. The guard reads a target
+// as a path to decide whether it is inside the project, and a joined
+// `from → to` string would be judged by its first part, the source.
 console.log('\nA move asks about where the file is going:');
 {
   const coderSrc = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');

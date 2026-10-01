@@ -100,7 +100,7 @@ console.log('\nWhat this check CANNOT do, recorded so it is not mistaken for mor
 {
   // A public name that resolves to a private address passes here. It has to:
   // the renderer cannot resolve a name. This is why net_resolve_is_public
-  // exists in Rust, and why removing that call would reopen the hole.
+  // exists in Rust, and why that call has to stay.
   ok('a public hostname is allowed on its face, whatever it resolves to',
     U.isSafeExternalUrl('http://internal.example.com/') === true);
 }

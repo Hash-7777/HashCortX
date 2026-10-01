@@ -7,22 +7,19 @@
 // widened by accident and for nobody to notice — nothing fails, a request
 // simply becomes possible.
 //
-// Two properties are pinned here, both of them holes that were open:
+// Two properties are pinned here:
 //
 //   • No image may be loaded from the network. Every picture this app shows is
-//     a bundled asset, a data: URL or a blob:. While https: was allowed, a
-//     markdown image in a model's reply fetched an arbitrary host the moment
-//     the reply was drawn — a request the user never saw, carrying whatever
-//     the model chose to put in the URL.
+//     a bundled asset, a data: URL or a blob:, so img-src names nothing
+//     remote. A model's reply can name any address, and nothing it writes is
+//     fetched as the reply is drawn.
 //
-//   • A wildcard host must have a caller. connect-src listed http://*:1234,
-//     http://*:8080 and http://*:11435 for "self-hosted model servers"; no
-//     line in this app has ever connected to any of them, so they granted
-//     plaintext access to every host on those ports for no feature.
+//   • A wildcard host must have a caller. A wildcard in connect-src grants
+//     plaintext access to every host on its port, so one is listed only for
+//     a feature that connects to it.
 //
-// It also checks the config's own comment against the config's own value,
-// because the warning above the policy said no wildcard was ever used while
-// four were listed below it.
+// It also checks the config's own comment against the config's own value, so
+// the warning above the policy cannot disagree with the policy below it.
 //
 // Run with: npm run check:csp
 // ==============================================================

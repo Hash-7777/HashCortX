@@ -352,8 +352,8 @@ fn normalize_command(command: &str) -> String {
 
 /// `rm` asked to be both recursive and forceful, in any spelling.
 ///
-/// Catches `rm -rf`, `rm -fR`, `rm -r -f`, `rm --recursive --force`, and the
-/// combined-flag forms, which the old literal list missed entirely.
+/// Catches `rm -rf`, `rm -fR`, `rm -r -f`, `rm --recursive --force`, and every
+/// other combined-flag form.
 fn is_rm_destructive(normalized: &str) -> bool {
     let tokens: Vec<&str> = normalized.split(' ').collect();
     if !tokens.contains(&"rm") {

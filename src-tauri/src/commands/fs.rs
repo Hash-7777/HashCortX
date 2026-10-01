@@ -104,10 +104,9 @@ fn resolve_for_containment(path: &Path) -> Option<PathBuf> {
 /// Is `path` genuinely inside `root`, once every link in it has been followed?
 ///
 /// The Permission Guard auto-approves reading, listing, searching and writing
-/// inside the folder the user opened, and asks about everything else. It decided
-/// that by comparing the two strings, which a symlink defeats completely: a link
-/// inside the project is spelled like a path inside the project, so a file
-/// anywhere on the disk could be read or written with no dialog at all. The
+/// inside the folder the user opened, and asks about everything else. A string
+/// comparison cannot decide that: a symlink is spelled like an ordinary path,
+/// so only where the path really leads can say whether it is inside. The
 /// renderer cannot resolve a link, so the question is answered here.
 ///
 /// `false` on anything unresolvable, which makes the guard ask rather than
@@ -849,10 +848,9 @@ mod tests {
     fn a_search_does_not_follow_a_link_out_of_the_folder_it_was_given() {
         // The denylist is a list of secrets. The boundary the Permission Guard
         // actually promises is the folder the user opened — searching inside it
-        // raises no dialog — so a link to any ordinary directory outside it was
-        // enough to have file contents returned from somewhere the user was
-        // never asked about. Nothing here is denylisted; the folder simply is
-        // not the one being searched.
+        // raises no dialog — so a link to any ordinary directory outside it is
+        // not followed. Nothing here is denylisted; the folder simply is not
+        // the one being searched.
         let (root, _turn) = temp_root("outside");
         let elsewhere = root.join("elsewhere");
         fs::create_dir_all(&elsewhere).unwrap();

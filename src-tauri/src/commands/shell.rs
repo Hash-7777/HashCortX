@@ -742,8 +742,8 @@ mod tests {
 
     #[test]
     fn a_command_that_reads_stdin_gets_eof_instead_of_hanging() {
-        // stdin is null, so `cat` sees end-of-file immediately. Before this it
-        // inherited the app's stdin and could block until the app was killed.
+        // stdin is null, so `cat` sees end-of-file immediately rather than
+        // waiting on the app's own stdin.
         let mut cmd = prepare("cat", &[], &None, Caller::Person).unwrap();
         let mut child = cmd.spawn().expect("cat should spawn");
         let (code, timed_out, _) = wait_with_timeout(&mut child, Duration::from_secs(5), &StopFlag::register(None));

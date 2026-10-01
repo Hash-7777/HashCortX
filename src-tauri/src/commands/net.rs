@@ -101,8 +101,8 @@ pub fn is_private_ip(ip: &IpAddr) -> bool {
 /// What a name resolved to, and why it was refused if it was.
 ///
 /// The addresses come back with the verdict because the fetch needs to connect
-/// to the very ones that were just judged. Resolving again to make the
-/// connection is the hole this whole file exists to close.
+/// to the very ones that were just judged: the connection is made to those
+/// addresses, never to a second resolution of the name.
 struct Resolution {
     addresses: Vec<IpAddr>,
     refusal: Option<String>,
