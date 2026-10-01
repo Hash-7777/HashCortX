@@ -431,6 +431,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **"Not done" is not an ending.** A model on this computer that answers
+  a request for a change by saying part of it is not done is sent back
+  once to do it, or to say why it cannot be done.
+
 - **A small model's tests are run for it.** Told to run the project's
   tests after a change, a model under 5 billion parameters often answered
   that they had passed, without running them. HashCoder now runs the test

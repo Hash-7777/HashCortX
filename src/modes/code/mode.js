@@ -1956,7 +1956,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {

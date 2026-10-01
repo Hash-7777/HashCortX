@@ -152,6 +152,24 @@ console.log('\nWhen the agent is sent back:');
   ok('... through the same tool, and so the same permission, as any command, and the run says so', /object: forced \? window\.HCCodeVerify\.RAN_STEP : back\.step/.test(mode) && V.RAN_STEP === 'Ran the tests itself, as the change had not been tested');
 }
 
+console.log('\nAn answer saying part of the work is not done, from a model on this computer:');
+{
+  const ask = [{ role: 'user', content: 'Create index.html and styles.css for a pricing page.' }];
+  const note = V.undoneCheck(ask, 'Not done. The styles.css file has not been created yet.');
+  ok('sent back once to do it now, or to say why it cannot be', note && note.kind === 'undone' && V.isAppNote(note.message)
+    && /your answer says part of the work is not done\. Do it now with the tools: write_file for a file that is not there yet, patch_file for a change to one that is\. Then finish\. If it cannot be done here, say why\./.test(note.message), note?.message);
+  ok('as the step it was', V.noteStep(note.message) === 'Sent back to do what it said was not done');
+  ok('in the words such a model uses', ['The tests were not fixed.', 'Not yet done: the footer.', 'The menu is not implemented.', 'styles.css has not been written'].every((r) => V.undoneCheck(ask, r) !== null));
+  ok('once', V.undoneCheck(ask, 'Not done.', 1) === null);
+  ok('not for an answer that says it is done, nor for one that only uses the words', V.undoneCheck(ask, 'Done: both files are created.') === null && V.undoneCheck(ask, 'Created the page; nothing was left out.') === null);
+  ok('not for a question, nor a request that says to change nothing', V.undoneCheck([{ role: 'user', content: 'Why is the header not fixed?' }], 'It was not fixed because the build failed.') === null
+    && V.undoneCheck([{ role: 'user', content: 'Which migrations were not done? Just answer.' }], 'Two were not done.') === null);
+  const log = V.proofLog(); log.edited('/p/index.html');
+  const back = (size, prove = true) => V.sendBack(log, ask, 'Not done: styles.css has not been created.', { checks: {}, size, prove, sent: {} });
+  ok('on a small or mid-sized model, with proving on, before anything else it would be sent back for', back('small')?.kind === 'undone' && back('mid')?.kind === 'undone');
+  ok('not on a larger one, nor with proving off', back('full')?.kind !== 'undone' && back('small', false) === null);
+}
+
 console.log('\nAn empty answer:');
 {
   const ask = [{ role: 'user', content: 'Rename getUsr to getUser everywhere.' }];
@@ -317,7 +335,7 @@ console.log('\nThe Coder uses it:');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
     /window\.HCCodeVerify\.sendBack\(proof, messages, finalText,\s*\{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest, plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks \}\)/.test(mode)
-    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0 \};/.test(mode));
+    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0 \};/.test(mode));
   ok('the switch is on unless turned off', /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));

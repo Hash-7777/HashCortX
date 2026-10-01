@@ -304,6 +304,8 @@
   const ASKS_SAYS = 'go through the request ask by ask';
   const SITE_STEP = 'Sent back with what the site check found';
   const SITE_SAYS = 'the site you changed was read the way a browser reads it';
+  const UNDONE_STEP = 'Sent back to do what it said was not done';
+  const UNDONE_SAYS = 'your answer says part of the work is not done';
   const NAMED_STEP = 'Sent back to find the files its answer names';
   const NAMED_SAYS = 'which the project does not have';
   /** The step when the app ran the test itself, for a small model that had not. */
@@ -311,7 +313,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -433,6 +435,29 @@
         'tools: grep_code finds where a name or a piece of text is written, read_file shows a file, patch_file changes it, ' +
         'and shell_run runs the tests. Ask the person only for what the files and the tests cannot tell you. If it should ' +
         'not be changed, say why.',
+    };
+  }
+
+  // ── Said not done ─────────────────────────────────────────────────────
+  //
+  // Sent back to go through a request's asks, and again with what the site
+  // check found, a small model answered "Not done: styles.css has not been
+  // created yet" both times, and finished there. A model on this computer
+  // whose answer to a request for a change says part of it is not done is
+  // sent back once to do it now, or to say why it cannot be done.
+
+  const NOT_DONE = /\bnot (?:yet )?(?:been )?(?:done|created|made|added|written|fixed|implemented|changed|updated)\b|\b(?:has|have|was|were|is|are) not (?:yet )?(?:been )?(?:done|created|made|added|written|fixed|implemented)\b/i;
+
+  /** The note for an answer that says part of the work is not done, or null. */
+  function undoneCheck(messages, reply, sentBack = 0, limit = 1) {
+    if (sentBack >= limit || !NOT_DONE.test(String(reply || ''))) return null;
+    const request = requestIn(messages);
+    if (!CHANGE_WORDS.test(request) || KEEP_FILES.test(request)) return null;
+    return {
+      kind: 'undone',
+      step: UNDONE_STEP,
+      message: `${APP_NOTE} ${UNDONE_SAYS}. Do it now with the tools: write_file for a file that is not there yet, patch_file ` +
+        'for a change to one that is. Then finish. If it cannot be done here, say why.',
     };
   }
 
@@ -577,7 +602,9 @@
   /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
-   * mid-sized model a change asked for and not begun; then steps of its own
+   * mid-sized model a change asked for and not begun; then, on such a model
+   * with proving switched on, an answer saying part of the work is not done;
+   * then steps of its own
    * plan left open (`plan`); then, while proving is switched on (`prove`), a
    * change to code nothing proved, and a request of several asks (`asks`)
    * gone through ask by ask, or, on a small or mid-sized model on this
@@ -593,6 +620,7 @@
     if (!log || (!String(reply || '').trim() && !local)) return null;
     const listed = Array.isArray(asks) && asks.length >= 3;   // a request of several asks is checked ask by ask, in place of as a whole
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
+      || (prove && local ? undoneCheck(messages, reply, sent.undone || 0) : null)
       || planCheck(plan, reply, sent.plan || 0)
       || (prove ? stopCheck(log, checks, reply, sent.prove || 0) : null)
       || (prove && listed ? asksCheck(log, asks, reply, sent.asks || 0) : null)
@@ -625,6 +653,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
   };
 })();
