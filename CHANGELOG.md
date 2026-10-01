@@ -667,6 +667,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A request's checklist leaves out what only describes the problem.**
+  "npm test fails in this project" was listed as an ask to do, beside the
+  real ones, and a request of one ask went through HashCoder's checklist. A
+  part of a request now counts as an ask when it starts with what to do
+  ("fix the menu", "do not touch the tests"), says what is wanted, or asks
+  a question; a sentence about the situation is left out, whatever verbs it
+  holds as nouns.
+
 - **HashCoder reads a long project file whole at the start.** A project's
   `AGENTS.md` or `package.json` of more than 400 lines was read the way the
   model reads a file, a first window of numbered lines, so the notes came

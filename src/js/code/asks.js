@@ -6,9 +6,11 @@
 // person asking again. The request is split into its asks here, with no
 // model: new lines and list items first, then sentences, then the joins
 // people put between asks ("also", "and also", "and I want"). A piece is an
-// ask when it asks for something, a verb of change or "I want", "can you";
-// a piece that only describes the situation is left out of the list, and
-// the request itself always goes whole.
+// ask when it asks for something: it starts with a verb of change ("fix the
+// menu", "do not touch the tests"), says "I want", "can you", "please", or
+// is a question. A piece that only describes the situation ("npm test fails
+// in this project") is left out of the list, however many verbs it has as
+// nouns, and the request itself always goes whole.
 //
 // With three asks or more, the list goes with the request
 // (js/code/context.js forRequest), and the agent is sent back once before
@@ -33,9 +35,15 @@
 
   /** Verbs that ask for something to be done. */
   const VERBS = 'fix|add|change|make|remove|delete|drop|build|create|write|update|rename|move|replace|use|put|show|hide|set|turn|implement|improve|redesign|refactor|check|test|clean|convert|translate|increase|reduce|align|centre|center|enable|disable|support|keep|give|bring|swap|resize|shorten|lengthen|simplify|tell|explain|find|investigate|look';
-  const ASKING = new RegExp(`\\b(?:${VERBS}|want|need|should|must|can (?:you|we|u)|could you|please|let me know)\\b`, 'i');
-  /** A question is an ask too: it wants an answer. */
-  const QUESTION = /\?\s*$|^(?:why|how|what|where|when|which|who|does|do|is|are|can|could|should|will|would)\b/i;
+  /** A few more that start an ask, but are too often nouns to join two ("the menu and open state"). */
+  const STARTING = `${VERBS}|analy[sz]e|review|audit|run|install|download|deploy|commit|push|start|stop|open|close|design|style|optimi[sz]e|debug|handle|split|merge|copy|clone|list|sort|connect|let`;
+  /** An ask starts with its verb, after a word or two of manner ("please just fix"), or with "do not". */
+  const STARTS = new RegExp(`^(?:(?:please|pls|plz|kindly|just|now|then|so|ok|okay)[\\s,]+)*(?:(?:do not|don't|dont|never)\\s+\\w|(?:${STARTING})\\b)`, 'i');
+  /** Or it says it wants something, wherever in the piece. */
+  const WANTS = /\b(?:want|wanna|need|needs|should|must|have to|has to|would like|i'd like|can (?:you|we|u)|could you|please|pls|let me know)\b/i;
+  /** A question is an ask too: it wants an answer. "Do not ..." is not a question. */
+  const QUESTION = /\?\s*$|^(?:why|how|what|where|when|which|who|does|do(?!\s+not\b)|is|are|can|could|should|will|would)\b/i;
+  const asking = (piece) => STARTS.test(piece) || WANTS.test(piece) || QUESTION.test(piece);
 
   /** The joins people put between asks, inside one sentence. */
   const JOINS = [
@@ -80,7 +88,7 @@
     const asks = [];
     for (const raw of pieces) {
       const ask = tidy(raw);
-      if (ask.split(' ').length < 2 || !(ASKING.test(ask) || QUESTION.test(ask))) continue;
+      if (ask.split(' ').length < 2 || !asking(ask)) continue;
       const key = ask.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);

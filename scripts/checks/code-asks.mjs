@@ -33,6 +33,10 @@ check('a list, one ask a line', '- add a login page\n- make the button blue\n* d
 check('items numbered on one line', '1. fix x in the nav 2. add y to the page 3. remove z from the list', ['fix x in the nav', 'add y to the page', 'remove z from the list']);
 check('two asks joined by "and" when each is a full ask', 'make the header red and make it round and add a shadow under it', ['make the header red', 'make it round', 'add a shadow under it']);
 check('a sentence that only describes the situation is left out', 'the site looks bad on phones. make it responsive, also fix the menu and add a footer', ['make it responsive', 'fix the menu', 'add a footer']);
+check('a sentence that describes, with verbs in it as nouns, is left out', 'the header looks broken on phones and the test page has a check box. fix the header, also add a footer and I want a dark mode',
+  ['fix the header', 'add a footer', 'I want a dark mode']);
+check('"do not" starts an ask, whatever it keeps from being done, and is not a question', 'fix the menu, also add a footer. Do not touch the tests', ['fix the menu', 'add a footer', 'Do not touch the tests']);
+check('please and a word of manner before the verb', 'please just fix the menu, also now add a footer, also ok remove the banner', ['please just fix the menu', 'now add a footer', 'ok remove the banner']);
 check('a question is an ask: it wants an answer', 'I want all the tabs the same size , and tell me how the settings highlight that letter , and does the app look at the memory?',
   ['I want all the tabs the same size', 'tell me how the settings highlight that letter', 'does the app look at the memory?']);
 check('a question with no verb of change is an ask too', 'fix the menu, also add a footer, and why is the header blue?', ['fix the menu', 'add a footer', 'why is the header blue?']);
@@ -42,6 +46,7 @@ check('an address with a stop in it is not a sentence break', 'look at https://e
 
 console.log('\nWhat is one request, not a list:');
 ok('a single ask', A.split('fix the bug in app.js').length === 0);
+ok('one ask, with the situation and a rule around it, is one request', A.split('npm test fails in this project. Fix the code so the tests pass. Do not change the tests.').length === 0);
 ok('two asks: a request of two parts is its own checklist', A.split('fix the menu, also add a footer').length === 0);
 ok('a list of qualities, not of asks', A.split('make it faster, cleaner and nicer').length === 0 && A.split('red, green, and blue buttons please').length === 0);
 ok('"and" inside a short phrase is not a join', A.split('use search and replace to rename getUser everywhere').length === 0);
