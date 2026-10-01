@@ -731,7 +731,10 @@ const LINE_BUDGET = {
   // sent back to find them (js/code/verify.js namedPaths).
   // 2552, up one: the test a small model was told to run and did not is
   // run for it (js/code/verify.js stopCheck).
-  'modes/code/mode.js': 2552,
+  // 2553, up one: a model on this computer is shown a small project whole
+  // as a conversation begins, where a larger one gets the map
+  // (js/code/context.js wholeProject).
+  'modes/code/mode.js': 2553,
 };
 
 console.log('\nFile sizes go down, never up:');

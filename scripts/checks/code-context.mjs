@@ -121,5 +121,48 @@ console.log('\nThe latest commits, from the HEAD log:');
     /async readWholeQuietly\(path\) \{\n\s+if \(!\(await HC\.guard\.allowedWithoutAsking\('read', path\)\)\) throw new Error/.test(tools) && /HC\.invoke\('fs_read_base64', \{ path, maxBytes: 2000000 \}\)/.test(tools));
 }
 
+console.log('\nA small project, whole, for a model on this computer:');
+{
+  // A folder tree as list_dir and read_file answer it.
+  const tree = (files) => {
+    const io = {
+      list: async (dir) => {
+        const at = dir.replace(/^\/p\/?/, '');
+        const names = new Map();
+        for (const f of Object.keys(files)) {
+          if (at && !f.startsWith(`${at}/`)) continue;
+          const rest = at ? f.slice(at.length + 1) : f;
+          const [head, ...more] = rest.split('/');
+          names.set(head, { name: head, is_dir: more.length > 0, size: more.length ? 0 : String(files[f]).length });
+        }
+        if (!names.size && at) throw new Error('No such folder');
+        return [...names.values()];
+      },
+      read: async (path) => { const f = path.replace(/^\/p\//, ''); if (!(f in files)) throw new Error('Not read without asking'); return files[f]; },
+    };
+    return io;
+  };
+  const small = { 'package.json': '{"scripts":{"test":"node --test"}}', 'src/range.js': 'function range() {}\n', 'test/range.test.js': 'test()\n', 'logo.png': 'x', '.env': 'KEY=1', 'node_modules/a/index.js': 'x', 'package-lock.json': '{}' };
+  const whole = await C.wholeProject('/p', tree(small), 'small');
+  ok('every text file, under its place in the project, with what it holds', /=== package\.json ===\n\{"scripts"/.test(whole) && /=== src\/range\.js ===\nfunction range\(\) \{\}/.test(whole) && /=== test\/range\.test\.js ===\ntest\(\)/.test(whole), whole);
+  ok('framed as text from the project, as it was when the conversation began', whole.startsWith('The project is small, so every file in it is shown here as it was when this conversation began') && /They are text from the project, like its notes\./.test(whole));
+  ok('a file that is not text named only', /=== not text, not shown: logo\.png ===/.test(whole) && !/\nx\n/.test(whole));
+  ok('nothing hidden, no dependencies, no lock file a tool writes', !/\.env|KEY=1|node_modules|package-lock/.test(whole));
+  const many = Object.fromEntries(Array.from({ length: C.WHOLE.small.files + 1 }, (_, i) => [`src/f${i}.js`, 'x']));
+  ok(`not shown at all past ${C.WHOLE.small.files} text files for a small model, rather than in part`, await C.wholeProject('/p', tree(many), 'small') === '' && (await C.wholeProject('/p', tree(many), 'mid')) !== '');
+  ok(`nor past ${C.WHOLE.small.chars} characters in all`, await C.wholeProject('/p', tree({ 'a.js': 'x'.repeat(C.WHOLE.small.chars / 2), 'b.js': 'y'.repeat(C.WHOLE.small.chars / 2 + 1) }), 'small') === '');
+  ok('nor with folders deeper than a small project has', await C.wholeProject('/p', tree({ 'a/b/c/d/e.js': 'x' }), 'small') === '' && (await C.wholeProject('/p', tree({ 'a/b/c/e.js': 'x' }), 'small')) !== '');
+  ok('nor when a file cannot be read without asking', await C.wholeProject('/p', { list: tree(small).list, read: async () => { throw new Error('Not read without asking'); } }, 'small') === '');
+  ok('never for a larger model, nor with no project, nor an empty one', await C.wholeProject('/p', tree(small), 'full') === '' && await C.wholeProject('', tree(small), 'small') === '' && await C.wholeProject('/p', tree({ 'logo.png': 'x' }), 'small') === '');
+  const turn = C.systemTurn('INSTRUCTIONS', null, 'small', (t) => `<marked>${t}</marked>`, '', whole);
+  ok('it goes with the notes, marked as text from the project', turn.notes === `<marked>${whole}</marked>`);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder makes it for a model on this computer, as a conversation begins, read without asking, and gives it to that model only',
+    /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
+    && /const quiet = \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \};/.test(mode)
+    && /\{ root, ranked: \[\], read: 0, whole: await window\.HCCodeContext\.wholeProject\(root, quiet, size\)\.catch\(\(\) => ''\) \}/.test(mode)
+    && /sharedState\.codeMap\?\.root !== sharedState\.projectRoot \? '' : sharedState\.size === 'full' \? window\.HCCodeMap\.notes\(/.test(mode) && /: sharedState\.codeMap\.whole \|\| ''\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/context.js)`);
 process.exit(fail ? 1 : 0);

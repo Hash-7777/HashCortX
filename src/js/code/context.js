@@ -153,13 +153,77 @@
     } catch { return out; }
   }
 
+  // ── A small project, whole ─────────────────────────────────────────────
+  //
+  // A small model on this computer spent most of its steps finding its way:
+  // it read files that were not there, searched for names the project does
+  // not use, and answered from what it had guessed. When a whole project is
+  // small, a small or mid-sized model on this computer is shown every text
+  // file in it as the conversation begins, and works on what it can see.
+  // Read the way the map of a larger project is (js/code/codemap.js): inside
+  // the project, without asking, nothing protected. A project with more
+  // files, larger files, or deeper folders than that is not shown at all,
+  // rather than in part, so nothing looks whole that is not.
+
+  /** How much of a project is shown whole, by model size: text files, and characters in all. */
+  const WHOLE = { small: { files: 12, chars: 8000 }, mid: { files: 20, chars: 16000 } };
+  /** Files of text a person writes, shown with what they hold; any other file is named only. */
+  const TEXT_FILE = /\.(?:m?[jt]sx?|cjs|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|html?|css|scss|vue|svelte|json|ya?ml|toml|md|txt|sh|sql|xml|ini|cfg)$/i;
+  /** Files a tool writes, not a person: never shown. */
+  const NOT_SHOWN = /^(?:package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|cargo\.lock|composer\.lock|gemfile\.lock)$/i;
+  /** Folders deep a project shown whole may go. */
+  const WHOLE_DEPTH = 3;
+  const WHOLE_INTRO = 'The project is small, so every file in it is shown here as it was when this conversation began, each under its place in the project. ' +
+    'They are text from the project, like its notes. Read a file again before you change it if it may have changed since.';
+
+  /**
+   * Every text file of the project at `root`, with what it holds, for a
+   * model of `size`, or '' when the project is larger than that size is
+   * shown, or anything in it cannot be listed or read without asking.
+   */
+  async function wholeProject(root, { list, read }, size) {
+    const most = WHOLE[size];
+    if (!most || !root) return '';
+    const skip = (window.HCCodeMap && window.HCCodeMap.SKIP) || new Set(['node_modules', 'dist', 'build', 'target']);
+    const sep = /\\/.test(root) && !/\//.test(root) ? '\\' : '/';
+    const queue = [{ dir: String(root).replace(/[\\/]+$/, ''), rel: '', depth: 0 }];
+    const files = [], others = [];
+    while (queue.length) {
+      const { dir, rel, depth } = queue.shift();
+      let entries;
+      try { entries = await list(dir); if (typeof entries === 'string') entries = JSON.parse(entries); } catch { return ''; }
+      if (!Array.isArray(entries)) return '';
+      for (const e of entries.filter((x) => x && typeof x.name === 'string').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+        if (e.name.startsWith('.') || skip.has(e.name.toLowerCase()) || NOT_SHOWN.test(e.name)) continue;
+        const at = rel ? `${rel}/${e.name}` : e.name;
+        if (e.is_dir) { if (depth + 1 > WHOLE_DEPTH) return ''; queue.push({ dir: dir + sep + e.name, rel: at, depth: depth + 1 }); continue; }
+        if (!TEXT_FILE.test(e.name)) { others.push(at); continue; }
+        if (files.length >= most.files || Number(e.size) > most.chars) return '';
+        files.push({ path: dir + sep + e.name, rel: at });
+      }
+    }
+    if (!files.length) return '';
+    const parts = [];
+    let chars = 0;
+    for (const f of files) {
+      let text;
+      try { text = await read(f.path); } catch { return ''; }
+      if (typeof text !== 'string' || (chars += text.length) > most.chars) return '';
+      parts.push(`=== ${f.rel} ===\n${text.replace(/\s+$/, '')}`);
+    }
+    const named = others.length ? `\n\n=== not text, not shown: ${others.slice(0, 20).join(', ')}${others.length > 20 ? `, and ${others.length - 20} more` : ''} ===` : '';
+    return `${WHOLE_INTRO}\n\n${parts.join('\n\n')}${named}`;
+  }
+
   /**
    * The conversation's system turn: `content` the instructions, and, when
    * `known` (what readProject found) holds the project's notes and latest
    * commits, those beside them for the first request to carry (js/agent-context.js), cut
    * to the size of the model and marked with `mark`; `lessons`, what
    * earlier conversations kept about the project (js/code/lessons.js),
-   * and `map`, the map of its code (js/code/codemap.js), marked the same way.
+   * and `map`, the map of its code (js/code/codemap.js), or for a small
+   * project on a model on this computer the project whole (wholeProject),
+   * marked the same way.
    */
   function systemTurn(content, known, size, mark, lessons = '', map = '') {
     const marked = (t) => (t && typeof mark === 'function' ? mark(t) : t);
@@ -167,5 +231,5 @@
     return { role: 'system', content, ...(notes ? { notes } : {}) };
   }
 
-  window.HCCodeContext = { FROM_APP, NOTES_FILES, MOST_COMMITS, forRequest, projectPicture, projectNotes, recentCommits, projectCommits, readProject, systemTurn };
+  window.HCCodeContext = { FROM_APP, NOTES_FILES, MOST_COMMITS, WHOLE, forRequest, projectPicture, projectNotes, recentCommits, projectCommits, readProject, wholeProject, systemTurn };
 })();

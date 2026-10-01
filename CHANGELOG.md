@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A small project, shown whole.** A model on this computer under 15
+  billion parameters is shown every text file of a small project as a
+  conversation begins, read without asking like the map a larger model is
+  given: up to 12 files and 8,000 characters for a model under 5 billion,
+  20 and 16,000 for a larger one. A bigger project is not shown in part.
+
 - **HashCoder sends back an answer that names a file that is not
   there.** Asked which file works out the tax, a small model searched once,
   found nothing, and answered with a file and a rate it made up. A search
