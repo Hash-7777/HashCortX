@@ -105,6 +105,41 @@
     return starts;
   }
 
+  /** A line with every space and tab taken out, to compare two lines spaced differently. */
+  const squash = (line) => line.replace(/\s+/g, '');
+
+  /** Where the character that is not a space numbered `k`, from 0, sits in `line`, or its length. */
+  function nthSolid(line, k) {
+    let n = 0;
+    for (let i = 0; i < line.length; i++) if (!/\s/.test(line[i]) && n++ === k) return i;
+    return line.length;
+  }
+
+  /** Just after the first `k` characters of `line` that are not spaces. */
+  const afterSolid = (line, k) => (k > 0 ? nthSolid(line, k - 1) + 1 : 0);
+
+  /**
+   * The file's line `have` with the change `from` to `to` made to it, its own
+   * spacing kept. `from` and `to` are the search and replacement lines as a
+   * model wrote them, spaced its own way: a line they agree on is the file's
+   * line unchanged, and for one they do not, only the part that differs, as
+   * the replacement writes it, goes into the file's line: what replaces
+   * something there in place of it, and what only adds or only takes away
+   * with the spaces the replacement puts around it.
+   */
+  function respace(have, from, to) {
+    const a = squash(from), b = squash(to);
+    if (a === b) return have;
+    let p = 0;
+    while (p < a.length && p < b.length && a[p] === b[p]) p++;
+    let q = 0;
+    while (q < a.length - p && q < b.length - p && a[a.length - 1 - q] === b[b.length - 1 - q]) q++;
+    if (a.length - q > p && b.length - q > p) {
+      return have.slice(0, nthSolid(have, p)) + to.slice(nthSolid(to, p), afterSolid(to, b.length - q)) + have.slice(afterSolid(have, a.length - q));
+    }
+    return have.slice(0, afterSolid(have, p)) + to.slice(afterSolid(to, p), nthSolid(to, b.length - q)) + have.slice(nthSolid(have, a.length - q));
+  }
+
   /**
    * The replacement moved to the indentation the file really has: the part of
    * each line's indentation the search had is swapped for the file's.
@@ -121,7 +156,8 @@
    * Stages: as written; with CRLF endings matched; with all line endings read
    * as LF; with the line numbers of a numbered read taken off; with spaces at
    * the ends of lines ignored; with indentation ignored, the replacement then
-   * indented as the file is. Throws a message the model can act on when the
+   * indented as the file is; with the spacing inside lines ignored, each
+   * changed line then spaced as the file's (respace). Throws a message the model can act on when the
    * passage is not unique, or not there, and then shows the passage most like
    * it with its line numbers. With `every`, a passage found as written more
    * than once is changed everywhere it appears, as a rename needs; a passage
@@ -163,18 +199,22 @@
       if (exact.length > 1) throw new Error(`search string found ${exact.length} times in "${name}" ${numbers}. Add more surrounding lines to make it unique.`);
       if (exact.length === 1) return { text: back(splice(have, exact[0], want.length, put, trailingNewline)), how: numbers };
     }
+    // A small model wrote spaces into what it copied, "getUsr  }" for
+    // "getUsr }", "users. getUsr" for "users.getUsr", and every edit missed.
     const stages = [
-      ['with spaces at the ends of lines ignored', (a, b) => a.trimEnd() === b.trimEnd(), false],
-      ['with its indentation adjusted to the file', (a, b) => a.trim() === b.trim(), true],
+      ['with spaces at the ends of lines ignored', (a, b) => a.trimEnd() === b.trimEnd(), 'keep'],
+      ['with its indentation adjusted to the file', (a, b) => a.trim() === b.trim(), 'indent'],
+      ['with the spacing inside its lines ignored', (a, b) => squash(a) === squash(b), 'respace'],
     ];
-    for (const [how, same, moveIndent] of stages) {
+    for (const [how, same, fit] of stages) {
       const found = findLines(have, want, same);
       const said = numbers ? `${how}, ${numbers}` : how;
       if (found.length > 1) throw new Error(`search string found ${found.length} times in "${name}" ${said}. Add more surrounding lines to make it unique.`);
       if (found.length === 1) {
         const at = found[0];
         const first = want.findIndex((l) => l.trim());
-        const lines = moveIndent ? reindent(put, indentOf(want[first]), indentOf(have[at + first])) : put;
+        const indented = fit === 'keep' ? put : reindent(put, indentOf(want[first]), indentOf(have[at + first]));
+        const lines = fit === 'respace' && put.length === want.length ? put.map((l, j) => respace(have[at + j], want[j], l)) : indented;
         return { text: back(splice(have, at, want.length, lines, trailingNewline)), how: said };
       }
     }

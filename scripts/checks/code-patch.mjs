@@ -81,6 +81,23 @@ console.log('\nSeveral edits to one file, all or none:');
   ok('an edit with no search text is refused', /no search text/.test(throws(() => P.applyEdits('x', [{ search: 'x', replace: 'y' }, { replace: 'z' }], 'f'))));
 }
 
+console.log('\nAn edit copied with spaces of its own inside its lines:');
+{
+  const stage = (file, search, replace) => { try { const r = P.applyEdits(file, [{ search, replace }], 'f'); return r; } catch (e) { return { error: e.message }; } };
+  const one = (file, search, replace) => { try { return P.applyPatch(file, search, replace, 'f'); } catch (e) { return `ERR ${e.message}`; } };
+  ok('found, and the change made with the file\'s own spacing kept', one("const { getUsr } = require('./users');\n", "const { getUsr  } = require('./users');", "const { getUser  } = require('./users');") === "const { getUser } = require('./users');\n");
+  ok('... a space put after a dot, as a small model wrote it', one('  return users.getUsr(id) + 1;\n', '  return users. getUsr(id) + 1;', '  return users. getUser(id) + 2;') === '  return users.getUser(id) + 2;\n');
+  ok('... what replaces a word goes in its place, the spaces around it the file\'s', one('const users = require(1);\n', 'const users  = require(1);', 'const people  = require(1);') === 'const people = require(1);\n');
+  ok('... and what is taken away leaves the line spaced as the replacement has it', one('  x = a + b;\n', '  x  = a + b;', '  x  = b;') === '  x = b;\n' && one('  foo(a, b);\n', '  foo(a ,b);', '  foo(a);') === '  foo(a);\n');
+  ok('... what is added comes with the spaces the replacement puts around it', one('  return x;\n', '  return x ;', '  return x + 1;') === '  return x + 1;\n');
+  ok('lines it does not change are the file\'s, as they are', one('a  =  1;\nb = 2;\n', 'a = 1;\nb  = 2;', 'a = 1;\nb  = 3;') === 'a  =  1;\nb = 3;\n');
+  const said = stage('const a = 1;\n', 'const  a = 1;', 'const  a = 2;');
+  ok('the edit says how it was found', /with the spacing inside its lines ignored/.test(said.notes?.join(' ') || JSON.stringify(said)), JSON.stringify(said));
+  ok('it must still be there once', /found 2 times/.test(one('a = 1;\na = 1;\n', 'a  = 1;', 'a = 2;')));
+  ok('and an edit whose words are not in the file is still not found', /not found/.test(one('  return users.getUsr(id);\n', '  return users. getUsr(0);', '  return users. getUser(0);')));
+  ok('a stricter stage is used first: indentation, then spacing', P.applyPatch('  a = 1;\n', 'a = 1;', 'a = 2;', 'f') === '  a = 2;\n');
+}
+
 console.log('\nText that is only the chat\'s markers is not written:');
 {
   ok('a file written as one marker from the chat is refused, saying what it is', /The content is "<tool_response>", a marker from the chat, not the file's text, so nothing was written/.test(P.onlyMarkers('<tool_response>')));

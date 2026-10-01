@@ -418,6 +418,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **An edit copied with stray spaces still lands.** A small model put
+  spaces of its own into the passage it was replacing, `getUsr  }` for
+  `getUsr }`, and every edit missed. `patch_file` now also finds a passage
+  that differs from the file only in the spaces inside its lines, when it
+  is there once, and makes the change with the file's own spacing kept.
+
 - **Photo searches look for the thing itself.** HashCoder's photo tool and
   the Agent Swarm's photo searches now ask for what the site shows or
   sells, "quadcopter drone" for a shop that sells drones, and never for
