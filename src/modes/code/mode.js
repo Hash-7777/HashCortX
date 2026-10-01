@@ -448,6 +448,7 @@
         if (open) $('cdrSessionsSearch')?.focus();
       };
       historyBtn?.addEventListener('click', (e) => { e.stopPropagation(); showHistory(!history?.classList.contains('open')); });
+      $('cdrDebugBtn')?.addEventListener('click', exportDebug);
       $('cdrSessionsClose')?.addEventListener('click', () => showHistory(false));
       history?.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { if (history?.classList.contains('open')) showHistory(false); });
@@ -1473,13 +1474,13 @@
       const proj = window.HCCodeExport.exportBaseName(sharedState.projectRoot);
 
       if (fmt === 'txt') {
-        const out = buildPlainText();
+        const out = window.HCCodeExport.buildPlainText(conversationMsgs, exportOpts());
         await downloadBlob(out, 'text/plain', `hashcortx-${proj}-${ts}.txt`);
       } else if (fmt === 'md') {
-        const out = buildMarkdown();
+        const out = window.HCCodeExport.buildMarkdown(conversationMsgs, exportOpts());
         await downloadBlob(out, 'text/markdown', `hashcortx-${proj}-${ts}.md`);
       } else if (fmt === 'code') {
-        const out = buildCodeOnly();
+        const out = window.HCCodeExport.buildCodeOnly(conversationMsgs);
         if (!out.trim()) { window._H.themedAlert('No fenced code blocks found in this conversation.', 'Export'); return; }
         await downloadBlob(out, 'text/plain', `hashcortx-${proj}-code-${ts}.txt`);
       } else if (fmt === 'pdf') {
@@ -1491,9 +1492,6 @@
     // fences the same way the chat's renderer does, so the code-only export
     // holds every block the person saw.
     const exportOpts = () => ({ projectRoot: sharedState.projectRoot });
-    function buildMarkdown()  { return window.HCCodeExport.buildMarkdown(conversationMsgs, exportOpts()); }
-    function buildPlainText() { return window.HCCodeExport.buildPlainText(conversationMsgs, exportOpts()); }
-    function buildCodeOnly()  { return window.HCCodeExport.buildCodeOnly(conversationMsgs); }
 
     // Goes through HC.save: the old <a download> is cancelled outright by
     // this webview (see platform/tauri/save.js), so this reported "Exported"
@@ -1510,6 +1508,8 @@
       setTimeout(() => setStatus('Ready', ''), 2400);
     }
 
+    // The whole conversation as the model was sent it, with its trace (js/code/debug-export.js).
+    const exportDebug = () => window.HCCodeDebug.exportRun({ messages: conversationMsgs, trace: cdrTraceEntries, sharedState, routing: routing?.router, coderModel, prefs: cdrPrefs(), H: window._H, save: downloadBlob, exportBaseName: window.HCCodeExport.exportBaseName });
     async function exportAsPdf(filename) {
       // jsPDF is loaded as window.jspdf.jsPDF (UMD bundle, included in index.html)
       const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;

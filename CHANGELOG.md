@@ -10,6 +10,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder can export a conversation with its trace, for finding what
+  went wrong.** A button in the top bar, beside History, writes one markdown
+  file: the facts of the run (the app, the platform, the project, the model
+  and how HashCoder was set up for it), the trace with its times, and the
+  conversation as the model was sent it, with the instructions, each
+  request, each call with its arguments, each result, and each note the app
+  added, told apart from what the person wrote. Results and instructions are
+  folded, and nothing in a result can end its own block. Whatever is shaped
+  like a key is replaced and counted before it is written; the contents of
+  files the agent read are otherwise as they came back, so the file is for
+  you and whoever you choose to show it to (`js/code/debug-export.js`).
+
 - **A slow local model is not asked the extra question.** When a request
   does not say whether it needs a tool, an agent on a model on this computer
   first asks the model to decide, and again after each tool has run; each

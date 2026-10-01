@@ -91,6 +91,7 @@
     '/js/code/live.js',
     '/js/code/router.js',
     '/js/code/export.js',
+    '/js/code/debug-export.js',
     '/js/export-format.js',
     '/js/rag-search.js',
     '/js/rag-store.js',
