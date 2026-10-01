@@ -202,7 +202,10 @@ const LINE_BUDGET = {
   // 6538, down three: a comment on images in replies says what the page does
   // now in fewer lines.
   // 6528, down ten: a usage line's shape is js/providers.js usageRecord.
-  'js/app.js': 6528,
+  // 6530, up two: a local model app that is running and refuses this app's
+  // page is told apart from one that is off, with the setting to change
+  // (js/local-client.js refusedHint).
+  'js/app.js': 6530,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

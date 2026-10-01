@@ -141,5 +141,19 @@ console.log('\nThe app uses it:');
   ok('it loads after the line reader and before the chat', boot.indexOf("'/js/stream/sse.js'") < boot.indexOf("'/js/local-client.js'") && boot.indexOf("'/js/local-client.js'") < boot.indexOf("'/js/app.js'"));
 }
 
+console.log('\nA local model app that refuses this app:');
+{
+  const hint = C.refusedHint(403, 'http://tauri.localhost');
+  ok('a 403 says it is running and refused this app, by its address', /is running but refused this app, whose address is http:\/\/tauri\.localhost/.test(hint));
+  ok('with the setting to change, and how on Windows', /setting OLLAMA_ORIGINS to http:\/\/tauri\.localhost and restarting Ollama/.test(hint) && /setx OLLAMA_ORIGINS "http:\/\/tauri\.localhost"/.test(hint));
+  ok('an address that is not one is never put in the command', !/setx/.test(C.refusedHint(403, 'tauri://localhost')) && !/setx/.test(C.refusedHint(403, 'http://a" & del x')) && /OLLAMA_ORIGINS/.test(C.refusedHint(403, null)));
+  ok('any other answer is not a refusal', C.refusedHint(404, 'http://tauri.localhost') === '' && C.refusedHint(500, 'x') === '' && C.refusedHint(undefined, 'x') === '');
+  const app = src('js', 'app.js');
+  ok('the app keeps the answer\'s status, says which it is, and shows what to do',
+    /if \(!r\.ok\) throw Object\.assign\(new Error\(`HTTP \$\{r\.status\}`\), \{ status: r\.status \}\);/.test(app)
+    && /const refused = window\.HCLocal\.refusedHint\(err\?\.status, location\.origin\), down = refused \? "Local host refused this app" : "Local host offline";/.test(app)
+    && /if \(refused\) showError\(new Error\(refused\), "The local model app refused HashCortx"\);/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-client.js)`);
 process.exit(fail ? 1 : 0);

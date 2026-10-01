@@ -3681,7 +3681,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     setStatus("warn", "Connecting…");
     try {
       const r = await fetch(`${safeHost()}/api/tags`, { cache: "no-store", signal: makeSignal(5000) });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
       const data = await r.json();
       if (seq !== loadModelsSeq) return;
       const models = (data.models || []).map(ollamaModelName).filter(Boolean);
@@ -3713,8 +3713,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } catch (err) {
       if (seq !== loadModelsSeq) return;
       addLocalAppModels(seq);
-      // Local host offline — show cloud models so the user can still chat
-      modelEl.innerHTML = `<option value="" disabled>(Local host offline)</option>`;
+      // Local host offline, or running and refusing this app's page (js/local-client.js) — show cloud models so the user can still chat
+      const refused = window.HCLocal.refusedHint(err?.status, location.origin), down = refused ? "Local host refused this app" : "Local host offline";
+      if (refused) showError(new Error(refused), "The local model app refused HashCortx");
+      modelEl.innerHTML = `<option value="" disabled>(${down})</option>`;
       populateCloudModels();
       // Restore a saved cloud model selection if any
       const savedModel = SAVED.model || "";
@@ -3723,7 +3725,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       } else {
       }
       const hasCloud = CLOUD_MODELS.some(g => (g.keyEl().value || "").trim());
-      setStatus(hasCloud ? "warn" : "err", hasCloud ? "Local host offline · cloud ready" : "Local host offline");
+      setStatus(hasCloud ? "warn" : "err", hasCloud ? `${down} · cloud ready` : down);
     }
   }
 

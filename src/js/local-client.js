@@ -168,5 +168,21 @@
     }).then((r) => !!(r && r.ok), () => false);
   }
 
-  window.HCLocal = { body, thinkTags, read, chat, warm };
+  /**
+   * What to tell the person when the local model app answered 403: it is
+   * running, and refused this app's page, which is not the same as being
+   * off. Ollama answers a page only from the addresses it allows, and on
+   * Windows this app's page comes from one it does not allow by default,
+   * http://tauri.localhost; the app said only "Local host offline". '' for
+   * any other answer.
+   */
+  function refusedHint(status, origin) {
+    if (Number(status) !== 403) return "";
+    const from = /^https?:\/\/[^\s"]+$/.test(String(origin || "")) ? String(origin) : "";
+    if (!from) return "The local model app is running but refused this app. Allow this app's address in its OLLAMA_ORIGINS setting, then restart it.";
+    return `The local model app is running but refused this app, whose address is ${from}. Allow it by setting OLLAMA_ORIGINS to ${from} and restarting Ollama; ` +
+      `on Windows, run setx OLLAMA_ORIGINS "${from}" and reopen Ollama.`;
+  }
+
+  window.HCLocal = { body, thinkTags, read, chat, warm, refusedHint };
 })();

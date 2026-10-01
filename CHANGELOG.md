@@ -708,6 +708,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCortx says when Ollama refuses it.** On Windows the app's page
+  comes from `http://tauri.localhost`, an address Ollama does not answer
+  by default: it answered 403, and the app said only "Local host offline".
+  It now says the local model app is running and refused this app, and
+  how to allow it with `OLLAMA_ORIGINS`; the README says so for Windows.
+
 - **Three checks run on Windows.** The benchmark's cloud check imported a
   module by a `C:\` path, which is not an address a module can be loaded
   from; the PDF check turned its folder's address into a path that does

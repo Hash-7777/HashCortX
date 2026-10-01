@@ -65,7 +65,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,528  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,530  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        567  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -97,11 +97,13 @@ HashCortX/
 │   │   ├── local-apps.js       201  models on another local model app: found
 │   │   │                            on the usual ports, offered, and read the
 │   │   │                            way an Ollama reply is
-│   │   ├── local-client.js     172  the one request to a local model and the one
+│   │   ├── local-client.js     188  the one request to a local model and the one
 │   │   │                            reading of its reply: words, thinking and
 │   │   │                            tool calls as they arrive, each answer
-│   │   │                            ending where its window does; and loading
-│   │   │                            a model while the message is written
+│   │   │                            ending where its window does; loading
+│   │   │                            a model while the message is written; and
+│   │   │                            what to say when the local model app
+│   │   │                            refuses this app
 │   │   ├── tool-text.js        434  a tool call a model wrote in its words, in
 │   │   │                            each of the ways local models write one,
 │   │   │                            its JSON broken by a file's text included
@@ -427,7 +429,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,528-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 8,489 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 8,494 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

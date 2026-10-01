@@ -130,6 +130,8 @@ Needs Node 18+ and Rust via `rustup`, plus **macOS:** Xcode Command Line Tools Â
 
 **On Windows, run `cd ~` first.** An administrator PowerShell starts in `C:\Windows\System32`, and a checkout there fails to bundle with a misleading "file not found".
 
+**On Windows, allow the app in Ollama.** The app's page comes from `http://tauri.localhost`, which Ollama refuses until it is allowed. Run `setx OLLAMA_ORIGINS "http://tauri.localhost"` and reopen Ollama; until then the app says that the local model app refused it.
+
 **Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); on an older processor the app exits before a window appears. Build without the embedding model instead, and search falls back to keywords:
 
 ```bash
@@ -139,7 +141,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 8,489 source checks
+npm run check                                     # 8,494 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 206 Rust tests
 ```
 
