@@ -727,7 +727,9 @@ const LINE_BUDGET = {
   // 2550, up two: a path a model writes from the project's folder is
   // written out from it before the tool runs, in both places tools run
   // (js/code/paths.js).
-  'modes/code/mode.js': 2550,
+  // 2551, up one: an answer naming files the project does not have is
+  // sent back to find them (js/code/verify.js namedPaths).
+  'modes/code/mode.js': 2551,
 };
 
 console.log('\nFile sizes go down, never up:');

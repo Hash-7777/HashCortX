@@ -337,7 +337,7 @@
     async grepCode(dir, pattern, fileExt = null) {
       const ok = await HC.guard.request('search', dir, `Grep: ${pattern}`);
       if (!ok) throw await HC.code.refused('search', dir);
-      return HC.invoke('fs_grep', { dir, pattern, fileExt });
+      return HC.code.linesFound(await HC.invoke('fs_grep', { dir, pattern, fileExt }), pattern);
     },
   };
 
@@ -400,6 +400,36 @@
   HC.code.leaveAlone = (path) => {
     const why = window.HCCodeKeep?.leftAlone(HC.code.request, path);
     if (why) throw new Error(why);
+  };
+
+  /**
+   * Which of these paths, inside the project, lead to no file (js/code/verify.js
+   * namedPaths): each folder listed without asking (guard allowedWithoutAsking),
+   * names compared without case, as the Mac's and Windows' disks do. A path
+   * that cannot be listed without asking is left out, not called missing.
+   */
+  HC.code.notThereOf = async (paths) => {
+    const missing = [];
+    for (const path of paths || []) {
+      const cut = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+      let names = [];
+      try { const list = await HC.code.listQuietly(path.slice(0, cut)); names = Array.isArray(list) ? list.map((e) => String(e?.name || '').toLowerCase()) : []; }
+      catch (e) { if (/without asking/.test(String(e?.message || e))) continue; }
+      if (!names.includes(path.slice(cut + 1).toLowerCase())) missing.push(path);
+    }
+    return missing;
+  };
+
+  /**
+   * What a search inside the files tells the model: the lines it found, or,
+   * when there are none, that nothing is known yet and what to try. Told only
+   * "[]", a small model answered anyway, naming a file and a value it made up.
+   */
+  HC.code.linesFound = (list, pattern) => {
+    if (!Array.isArray(list) || list.length) return list;
+    const words = [...new Set((String(pattern || '').match(/[A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,}/g) || []).map((w) => w.toLowerCase()))];
+    const next = words.length > 1 ? `a shorter word from it, such as ${words.slice(-2).reverse().map((w) => `"${w}"`).join(' or ')}` : 'a different word';
+    return { matches: [], note: `No line in these files contains "${pattern}", so nothing is known about it yet. Search ${next}, or list_dir the project, before you answer or change anything.` };
   };
 
   /**

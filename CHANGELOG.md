@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder sends back an answer that names a file that is not
+  there.** Asked which file works out the tax, a small model searched once,
+  found nothing, and answered with a file and a rate it made up. A search
+  that finds nothing now says nothing is known yet and what to try, and an
+  answer that names a file by its place in the project, where the project
+  has none, is sent back once to find it.
+
 - **What a request says to leave alone is left alone.** When a request
   says not to change the tests, or names a file to leave as it is,
   HashCoder refuses every write, deletion and move of those, saying what to

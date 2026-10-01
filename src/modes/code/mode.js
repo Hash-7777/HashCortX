@@ -1956,7 +1956,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1981,6 +1981,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
         return broken.length && !sent.site ? window.HCCodeVerify.siteNote(broken) : null;
       };
+      const namedLook = async (reply) => (cdrPrefs().prove === false || sent.named ? null : window.HCCodeVerify.namedNote(await HC.code.notThereOf(window.HCCodeVerify.namedPaths(reply, sharedState.projectRoot, proof?.changed)), sharedState.projectRoot));   // files an answer names that are not there
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();
       let lastStop = null;
@@ -2134,10 +2135,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
-        // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), or with what the site check or a second look found.
+        // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks })
-          || (finalText.trim() ? (await siteLook()) || (await secondLook()) : null);
+          || (finalText.trim() ? (await namedLook(finalText)) || (await siteLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
           messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });

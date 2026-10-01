@@ -141,6 +141,33 @@ console.log('\nWhen the agent is sent back:');
   ok('a command that needs a shell is named, not given as a call', !/shell_run/.test(V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.')?.message || 'shell_run'));
 }
 
+console.log('\nFiles an answer names that the project does not have:');
+{
+  const root = '/p/app';
+  const named = (t, touched) => JSON.stringify(V.namedPaths(t, root, touched));
+  ok('a file named by its place in the project, written out from it', named('The tax is worked out in `src/calculateTax.js`, at 10%.') === '["/p/app/src/calculateTax.js"]');
+  ok('each once, a full path inside the project too', named('See src/a.js and src/a.js and /p/app/lib/b.py.') === '["/p/app/src/a.js","/p/app/lib/b.py"]');
+  ok('not a bare name, which could be anywhere in the project', named('It is in tax.js and package.json.') === '[]');
+  ok('not an address, a path outside the project, or one starting "./" or "../"', named('See https://example.org/docs/a.js, /usr/lib/x.so, ./lib/u.js and ../other/x.js.') === '[]');
+  ok('not inside a code block, where a path is read from its own file', named('Done.\n```js\nimport a from "lib/util.js";\n```') === '[]');
+  ok('not a file the run changed, deleted or moved', named('Moved src/old.js to src/new.js.', ['/p/app/src/old.js', '/p/app/src/new.js']) === '[]');
+  ok('not a number, a unit or a fraction', named('It runs at 1/2.5 speed, 40 km/h.') === '[]');
+  ok('nothing with no project open', JSON.stringify(V.namedPaths('src/a.js', '')) === '[]');
+  ok(`no more than ${5} looked for`, V.namedPaths(Array.from({ length: 9 }, (_, i) => `src/f${i}.js`).join(' '), root).length === 5);
+  const note = V.namedNote(['/p/app/src/calculateTax.js'], root);
+  ok('sent back once to find it, told nothing may be made up', note && note.kind === 'named' && V.isAppNote(note.message)
+    && /your answer names src\/calculateTax\.js, which the project does not have\. Nothing in an answer may be made up/.test(note.message) && /If it cannot be found, say so\./.test(note.message), note?.message);
+  ok('and a saved conversation shows the step it was', V.noteStep(note.message) === 'Sent back to find the files its answer names');
+  ok('nothing missing, nothing said', V.namedNote([], root) === null && V.namedNote(null, root) === null);
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder looks for them first when it would finish, once, with proving switched on, and quietly',
+    /const namedLook = async \(reply\) => \(cdrPrefs\(\)\.prove === false \|\| sent\.named \? null : window\.HCCodeVerify\.namedNote\(await HC\.code\.notThereOf\(window\.HCCodeVerify\.namedPaths\(reply, sharedState\.projectRoot, proof\?\.changed\)\), sharedState\.projectRoot\)\);/.test(mode)
+    && /\(await namedLook\(finalText\)\) \|\| \(await siteLook\(\)\)/.test(mode));
+  const tools = src('platform', 'tauri', 'hashcoder.js');
+  ok('each folder is listed without asking, and a path that cannot be is left out, not called missing',
+    /const list = await HC\.code\.listQuietly\(path\.slice\(0, cut\)\);/.test(tools) && /if \(\/without asking\/\.test\(String\(e\?\.message \|\| e\)\)\) continue;/.test(tools));
+}
+
 console.log('\nA change written into the reply instead of made:');
 {
   const fence = (lang, n) => '```' + lang + '\n' + Array.from({ length: n }, (_, i) => `line ${i}`).join('\n') + '\n```';
@@ -270,7 +297,7 @@ console.log('\nThe Coder uses it:');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
     /window\.HCCodeVerify\.sendBack\(proof, messages, finalText,\s*\{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest, plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks \}\)/.test(mode)
-    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0 \};/.test(mode));
+    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0 \};/.test(mode));
   ok('the switch is on unless turned off', /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));

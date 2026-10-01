@@ -304,10 +304,12 @@
   const ASKS_SAYS = 'go through the request ask by ask';
   const SITE_STEP = 'Sent back with what the site check found';
   const SITE_SAYS = 'the site you changed was read the way a browser reads it';
+  const NAMED_STEP = 'Sent back to find the files its answer names';
+  const NAMED_SAYS = 'which the project does not have';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -514,6 +516,53 @@
     };
   }
 
+  // ── Files an answer names that are not there ──────────────────────────
+  //
+  // Asked where something is, a small model searched once, found nothing,
+  // and answered with a file and a rate it made up. A file an answer names
+  // by its place in the project, where the project has none, is sent back
+  // once, to be found before it is named. Only a path with a folder in it
+  // counts, a bare name being anywhere in the project; code blocks, where a
+  // path is read from its own file, addresses, paths starting "./" or "../",
+  // paths outside the project and files the run changed are left out.
+
+  const NAMED = /(?:^|[\s`'"(\[*])((?:\/?[\w@-][\w@.-]*\/)+[\w@.-]*\.[A-Za-z][A-Za-z0-9]{0,5})(?=[\s`'")\],.:;!?*]|$)/g;
+  /** No more than this many are looked for. */
+  const MOST_NAMED = 5;
+
+  /** The files `reply` names by their place in the project at `root`, written out from it. */
+  function namedPaths(reply, root, touched = []) {
+    const base = String(root || '').replace(/[\\/]+$/, '');
+    if (!base) return [];
+    const F = window.HCFences;
+    const prose = F && F.splitFences ? F.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+    const text = prose.replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, ' ');
+    const slash = (p) => String(p).replace(/\\/g, '/');
+    const changed = new Set((touched || []).map(slash));
+    const out = [];
+    for (const m of text.matchAll(NAMED)) {
+      const said = m[1];
+      if (said.split('/').includes('..')) continue;
+      const full = said.startsWith('/') ? said : `${base}/${said}`;
+      if (!slash(full).startsWith(`${slash(base)}/`) || changed.has(slash(full)) || out.includes(full)) continue;
+      out.push(full);
+      if (out.length === MOST_NAMED) break;
+    }
+    return out;
+  }
+
+  /** The note for files an answer names that the project does not have, or null for none. */
+  function namedNote(missing, root) {
+    if (!Array.isArray(missing) || !missing.length) return null;
+    const base = String(root || '').replace(/[\\/]+$/, '');
+    const shown = missing.map((p) => (base && p.startsWith(`${base}/`) ? p.slice(base.length + 1) : p));
+    return {
+      kind: 'named',
+      step: NAMED_STEP,
+      message: `${APP_NOTE} your answer names ${shown.join(', ')}, ${NAMED_SAYS}. Nothing in an answer may be made up: find the right file with grep_code or list_dir, read it, and answer from what it says. If it cannot be found, say so.`,
+    };
+  }
+
   /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
@@ -563,6 +612,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, namedPaths, namedNote,
   };
 })();

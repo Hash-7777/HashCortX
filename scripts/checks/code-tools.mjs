@@ -105,6 +105,28 @@ console.log('\nWhat a search by file name tells the model:');
     && /names only: to find text inside files, use grep_code/.test(HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'fuzzy_find').description));
 }
 
+console.log('\nWhat a search inside the files tells the model:');
+{
+  const lines = [{ path: '/p/src/billing/tax.js', line_no: 3, line: 'const RATE = 0.14;' }];
+  ok('the lines it found, as they came', HC.code.linesFound(lines, 'RATE') === lines);
+  const none = HC.code.linesFound([], 'calculateTax');
+  ok('nothing found: nothing is known yet, and a shorter word from it to try', none.matches.length === 0
+    && /No line in these files contains "calculateTax", so nothing is known about it yet\. Search a shorter word from it, such as "tax" or "calculate", or list_dir the project, before you answer or change anything\./.test(none.note), none.note);
+  ok('... or a different word, for a word with no parts', /Search a different word, or list_dir/.test(HC.code.linesFound([], 'tax').note));
+  ok('an answer that is not a list is passed on as it is', HC.code.linesFound('error', 'x') === 'error');
+  ok('the tool uses it', /return HC\.code\.linesFound\(await HC\.invoke\('fs_grep', \{ dir, pattern, fileExt \}\), pattern\);/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
+console.log('\nWhich files named in an answer are not there:');
+{
+  const folders = { '/p/src': [{ name: 'Tax.js' }, { name: 'billing' }], '/p/src/billing': [{ name: 'order.js' }] };
+  HC.guard = { allowedWithoutAsking: async (action, target) => target !== '/p/private' };
+  HC.invoke = async (cmd, { path }) => { if (!(path in folders)) throw new Error(`No such file or directory: ${path}`); return folders[path]; };
+  const missing = await HC.code.notThereOf(['/p/src/tax.js', '/p/src/billing/order.js', '/p/src/calculateTax.js', '/p/lib/x.js', '/p/private/a.js']);
+  ok('a file whose folder does not have it, or whose folder is not there', JSON.stringify(missing) === '["/p/src/calculateTax.js","/p/lib/x.js"]', JSON.stringify(missing));
+  ok('... names compared without case, as the disk does, and one that cannot be listed without asking left out', !missing.includes('/p/src/tax.js') && !missing.includes('/p/private/a.js'));
+}
+
 console.log('\nA path just outside the project:');
 {
   const top = { '/work/runs/r3/project': [{ name: 'src', is_dir: true }, { name: 'package.json' }] };
