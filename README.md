@@ -141,7 +141,7 @@ npx tauri build -- --no-default-features
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 8,533 source checks
+npm run check                                     # 8,584 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 213 Rust tests
 ```
 

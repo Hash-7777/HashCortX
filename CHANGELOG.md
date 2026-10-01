@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **How long a local model stays loaded is a setting.** Settings, General,
+  "Free a local model's memory after": Ollama's own setting, which is five
+  minutes unless it was changed on the server, or 2 minutes, 5, 10, 30 or
+  an hour. A model held after you stop using it is memory your other
+  programs are waiting for, and a shorter time frees it sooner. A time that
+  would hold a model for good, or unload it after every answer, is not
+  offered, and nothing is sent until you choose one
+  (`js/local-keep.js`).
+
 - **A build that would close at once on its own computer is stopped, with
   the command that works.** The embedding runtime needs a processor with
   AVX2 and BMI2, and an app built with it closes without a window or a

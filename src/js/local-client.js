@@ -9,8 +9,8 @@
 // window and its own lifetime for the model.
 //
 // A model is kept loaded for as long as Ollama keeps any model after a
-// request — five minutes unless the person set it otherwise — and never for
-// good. Held for good, a model marked to make room for another was kept by the
+// request — five minutes unless the person set it otherwise, here in Settings
+// (js/local-keep.js) or on the server — and never for good. Held for good, a model marked to make room for another was kept by the
 // next request to it, and on a computer short of memory the other model
 // waited until it was given up on.
 //
@@ -46,11 +46,15 @@
     const limit = Number.isFinite(numPredict) && numPredict > 0 ? numPredict : room;
     if (limit) options.num_predict = limit;
     if (Number.isFinite(temperature)) options.temperature = temperature;
+    // A time the caller asks for wins; otherwise the one the person chose in
+    // Settings, if they chose one (js/local-keep.js); otherwise Ollama's own.
+    const K = typeof window !== "undefined" && window.HCLocalKeep;
+    const kept = keepAlive !== undefined ? keepAlive : (K && K.value()) || undefined;
     return {
       model,
       messages,
       stream,
-      ...(keepAlive !== undefined ? { keep_alive: keepAlive } : {}),
+      ...(kept !== undefined ? { keep_alive: kept } : {}),
       ...(json ? { format: json === true ? "json" : json } : {}),
       ...(Array.isArray(tools) && tools.length ? { tools } : {}),
       ...(typeof think === "boolean" ? { think } : {}),

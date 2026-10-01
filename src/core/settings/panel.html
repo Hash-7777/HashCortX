@@ -56,6 +56,11 @@
       </div>
 
       <div class="field">
+        <label>Free a local model's memory after <span class="field-note">— how long a model stays loaded once you stop using it. A shorter time frees memory for your other programs; a longer one answers your next message without loading it again. A step that takes longer than this, such as a long test run, loads the model again.</span></label>
+        <select class="control" id="localKeepAlive"></select>
+      </div>
+
+      <div class="field">
         <label>Other local model apps <span class="field-note">— a model server on this computer, found on the usual ports; add any other port it uses</span></label>
         <input class="control" id="localAppPorts" placeholder="Other ports, e.g. 1235, 9090" spellcheck="false" />
         <div class="field-note" id="localAppsFound"></div>

@@ -117,6 +117,7 @@
     '/js/trace-live.js',
     '/js/trace-time.js',
     '/js/local-context.js',
+    '/js/local-keep.js',
     '/js/local-client.js',
     '/js/local-apps.js',
     '/js/tool-text.js',
