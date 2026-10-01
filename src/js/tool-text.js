@@ -22,6 +22,8 @@
 //   bare JSON or a json block, at the start or the end of the reply, and
 //   several of them one after another, one call per line
 //   bare JSON as the last lines of a reply, after words saying what it is for
+//   bare JSON opening the reply, followed by the result the model guessed
+//   and a call opening the reply whose JSON a file's unescaped text broke
 //
 // and the keys each spells a call with: name, tool, tool_name, action; and
 // arguments, parameters, args, tool_input, action_input, input — or the
@@ -309,22 +311,123 @@
     return calls.length && calls.every((c) => c.length) ? calls.flat() : [];
   }
 
+  /** A value written the way a call is: a name and its arguments, to any tool, offered or not. */
+  function callShaped(v) {
+    if (Array.isArray(v)) return v.some(callShaped);
+    if (!v || typeof v !== "object") return false;
+    if (Array.isArray(v.tool_calls)) return true;
+    const fn = v.function && typeof v.function === "object" ? v.function : v;
+    return NAME_KEYS.some((k) => typeof fn[k] === "string") && ARG_KEYS.some((k) => fn[k] !== undefined);
+  }
+
+  /** Whether `text` holds another call: a marked one, or a JSON value that is one to an offered tool or is written as one. */
+  function holdsCall(text, known) {
+    if (marked(text, known).length) return true;
+    for (let at = text.indexOf("{"); at >= 0; at = text.indexOf("{", at + 1)) {
+      const end = closing(text, at);
+      if (end < 0) continue;
+      let value;
+      try { value = jsonValue(text.slice(at, end + 1)); } catch { continue; }
+      if (callShaped(value) || callsOfValue(value).some((c) => known.has(c.name))) return true;
+    }
+    return false;
+  }
+
+  /**
+   * A call that opens the reply, followed by what it cannot have seen yet. A
+   * small model writes its call and then the answer it expects, as a block
+   * of JSON or as words, and goes on as if the tool had run: it never did.
+   * The opening call is read, and what follows it is dropped as the guess it
+   * is. Only when nothing after it is written as another call: calls with
+   * words or code between them are left as the rules above read them.
+   */
+  function opening(text, known) {
+    const t = String(text).replace(/^(`{3,}|~{3,})[^\n]*\n/, "");
+    if (!t.startsWith("{")) return [];
+    const end = closing(t, 0);
+    if (end < 0) return [];
+    let calls;
+    try { calls = callsOfValue(jsonValue(t.slice(0, end + 1))); } catch { return []; }
+    if (calls.length !== 1 || !known.has(calls[0].name) || holdsCall(t.slice(end + 1), known)) return [];
+    return calls;
+  }
+
+  /** `t` with new lines, returns and tabs inside its strings written as escapes, strings found by their quotes. */
+  function escapedControls(t) {
+    let out = "";
+    let quote = false;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (quote && c === "\\") { out += c + (t[i + 1] || ""); i++; continue; }
+      if (c === '"') quote = !quote;
+      out += quote && c === "\n" ? "\\n" : quote && c === "\r" ? "\\r" : quote && c === "\t" ? "\\t" : c;
+    }
+    return out;
+  }
+
+  /** One argument's value as a model wrote it: JSON if it is, else the text between its quotes, as written. */
+  function valueOf(raw) {
+    const v = raw.trim();
+    try { return jsonValue(v); } catch { /* not JSON as it stands */ }
+    try { return JSON.parse(escapedControls(v)); } catch { /* quotes left bare inside */ }
+    const quoted = /^"([\s\S]*)"$/.exec(v);
+    return quoted ? quoted[1] : v;
+  }
+
+  /**
+   * A call whose JSON does not parse because a file's text went into it as it
+   * is in the file: new lines, quotes and backslashes unescaped. A small model
+   * wrote most whole files this way, and not one of them ran. Read only when
+   * the reply opens with a call to an offered tool whose arguments are known
+   * (`params`, by tool): new lines inside its strings are escaped and it is
+   * read again; failing that, each argument runs from its key to the next,
+   * and a value that is not JSON is the text between its quotes, as written.
+   * A call written after it is not part of it, and is left for later.
+   */
+  function repaired(text, known, params) {
+    let t = String(text).replace(/^(`{3,}|~{3,})[^\n]*\n/, "");
+    const head = /^\{\s*"(?:name|tool|tool_name|function)"\s*:\s*"([\w.-]+)"\s*,\s*"(?:arguments|parameters|args|input)"\s*:\s*\{/.exec(t);
+    const keys = head && known.has(head[1]) && params && Array.isArray(params[head[1]]) ? params[head[1]] : null;
+    if (!keys || !keys.length) return [];
+    const later = t.slice(head[0].length).search(/\n\s*(?:(?:`{3,}|~{3,})[^\n]*\n\s*)?\{\s*"(?:name|tool|tool_name)"\s*:/);
+    if (later >= 0) t = t.slice(0, head[0].length + later);
+    t = t.replace(/\s*(?:`{3,}|~{3,})\s*$/, "").trim();
+    try {
+      const whole = callsOfValue(JSON.parse(escapedControls(t)));
+      if (whole.length === 1 && whole[0].name === head[1]) return whole;
+    } catch { /* read argument by argument */ }
+    const body = t.slice(head[0].length).replace(/\}\s*\}\s*$/, "");
+    const at = [];
+    for (const key of keys) {
+      const m = new RegExp(`(?:^|,)\\s*"${key}"\\s*:`).exec(body);
+      if (m) at.push({ key, start: m.index, from: m.index + m[0].length });
+    }
+    if (!at.length) return [];
+    at.sort((a, b) => a.start - b.start);
+    const args = {};
+    at.forEach((a, i) => { args[a.key] = valueOf(body.slice(a.from, i + 1 < at.length ? at[i + 1].start : body.length)); });
+    return [{ name: head[1], arguments: args }];
+  }
+
   /** Thinking written at the start of a reply, between think tags, is not part of it. */
   const withoutThinking = (text) => String(text || "").replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "");
 
   /**
    * The tool calls a reply wrote in its words, to tools in `names`, as
    * [{ name, arguments }]. Empty when there are none, or when any unmarked
-   * one names a tool that was not offered.
+   * one names a tool that was not offered. Given each tool's argument names
+   * (`params`), a call opening the reply whose JSON is broken is read too.
    */
-  function callsIn(text, names) {
+  function callsIn(text, names, params = null) {
     const known = new Set(names || []);
     const t = withoutThinking(text).trim();
     if (!known.size || !t) return [];
     const tagged = marked(t, known);
     if (tagged.length) return tagged.filter((c) => known.has(c.name));
     const plain = unmarked(t);
-    return plain.length && plain.every((c) => known.has(c.name)) ? plain : [];
+    if (plain.length && plain.every((c) => known.has(c.name))) return plain;
+    const first = opening(t, known);
+    return first.length ? first : repaired(t, known, params);
   }
 
   window.HCToolText = { callsIn, callOf, parseJson, kwargs, withoutThinking };

@@ -667,6 +667,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder runs the calls a small model writes and then talks past.**
+  A model on this computer that writes its tool call as text often goes on
+  to write the result it expects, such as a test run that passed, and the
+  call was dropped with it; the call now runs and the made-up result is
+  dropped. A call whose arguments break JSON because a file's text went in
+  as it is, quotes and new lines unescaped, is read argument by argument: a
+  3B model wrote most whole files that way, and none of them were saved.
+
 - **HashCoder finds the files a model names from the project's folder.**
   A path written as `src/app.js` or `./src/app.js` was read from wherever
   the app was started, and refused as outside the project: a 3B model

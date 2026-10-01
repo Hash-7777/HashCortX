@@ -76,6 +76,31 @@ ok('calls in a row inside a json block, with commas between', T.callsIn(`${F}jso
   ok('... and calls in a row there', T.callsIn('Two steps.\n{"name": "web_search", "arguments": {}}\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'web_search,current_datetime');
   ok('... the last one, when an example came earlier among the words', T.callsIn('A call looks like\n{"name": "web_search", "arguments": {}}\nso here is mine:\n{"name": "current_datetime", "arguments": {}}', names).map((c) => c.name).join() === 'current_datetime');
 }
+console.log('\nA call whose JSON a file\'s unescaped text broke, on a model on this computer:');
+{
+  const tools = ['write_file', 'patch_file', 'shell_run', 'web_search'];
+  const params = { write_file: ['path', 'content', 'replace_whole', 'reason'], patch_file: ['path', 'search', 'replace', 'all', 'reason'], shell_run: ['command', 'args'] };
+  const Q = '"""';
+  const read = (t) => T.callsIn(t, tools, params);
+  const doc = read(`{"name": "write_file", "arguments": {"path":"/p/stats.py", "content":"${Q}Helpers.${Q}\n\ndef mean(values):\n    return sum(values) / len(values)\n"}}`);
+  ok('a file\'s text with its own quotes and new lines, as the file has them', doc.length === 1 && doc[0].arguments.path === '/p/stats.py' && doc[0].arguments.content === `${Q}Helpers.${Q}\n\ndef mean(values):\n    return sum(values) / len(values)\n`, JSON.stringify(doc));
+  const bare = read('{"name": "write_file", "arguments": {"path":"/p/t.py", "content":import unittest\n\nunittest.main(), "reason":"Fixed."}}');
+  ok('a file\'s text written with no quotes at all, up to the next argument', bare.length === 1 && bare[0].arguments.content === 'import unittest\n\nunittest.main()' && bare[0].arguments.reason === 'Fixed.', JSON.stringify(bare));
+  const lines = read('{"name": "write_file", "arguments": {"path":"/p/a.html","content":"<div class=\\"x\\">\n  hi\n</div>\n","reason":"page"}}');
+  ok('new lines left bare in text otherwise escaped: read as JSON, the escapes kept as meant', lines.length === 1 && lines[0].arguments.content === '<div class="x">\n  hi\n</div>\n', JSON.stringify(lines));
+  const patch = read('{"name": "patch_file", "arguments": {"path":"/p/a.js","search":"const x = "a";","replace":"const x = "b";","all":true}}');
+  ok('each argument of an edit, a true or false read as one', patch.length === 1 && patch[0].arguments.search === 'const x = "a";' && patch[0].arguments.replace === 'const x = "b";' && patch[0].arguments.all === true);
+  const two = read('{"name": "write_file", "arguments": {"path":"/p/r.js","content":"const a = "x";\n"}}\n{"name": "shell_run", "arguments": {"command":"npm","args":["test"]}}');
+  ok('a call written after it is not part of its text', two.length === 1 && two[0].name === 'write_file' && two[0].arguments.content === 'const a = "x";\n', JSON.stringify(two));
+  ok('only a call that opens the reply', read('Here: {"name": "write_file", "arguments": {"path":"/p/a","content":"a "b" c"}}').length === 0);
+  ok('only to a tool offered, whose argument names are known', read('{"name": "delete_files", "arguments": {"path":"/p/a "b""}}').length === 0
+    && T.callsIn('{"name": "write_file", "arguments": {"path":"/p/a","content":"a "b" c"}}', tools).length === 0);
+  ok('a call that parses is read as it was', JSON.stringify(read('{"name": "shell_run", "arguments": {"command": "npm", "args": ["test"]}}')) === '[{"name":"shell_run","arguments":{"command":"npm","args":["test"]}}]');
+  const shape = src('js', 'agent-shape.js');
+  ok('the local model\'s turn is the one given the argument names, from the tools it was offered',
+    /toolCallsInText\(msg && msg\.content, \(tools \|\| \[\]\)\.map\(\(t\) => t && t\.function && t\.function\.name\), argumentNames\(tools\)\)/.test(shape));
+}
+
 console.log('\nEach way a call is spelled:');
 ok('action and action_input', one('{"action": "web_search", "action_input": {"query": "x"}}'));
 ok('tool and tool_input as a string', one('{"tool": "web_search", "tool_input": "{\\"query\\": \\"x\\"}"}'));
@@ -90,7 +115,16 @@ ok('a tool that was not offered, bare', T.callsIn('{"name":"delete_files","argum
 ok('an answer showing an example among its words', T.callsIn('Call it like this: {"name":"web_search","arguments":{}} and you are done.', names).length === 0);
 ok('a json example with words before and after it', T.callsIn(`Like this:\n${F}json\n{"name":"web_search","arguments":{}}\n${F}\nThat is the format.`, names).length === 0);
 ok('ordinary JSON with a name in it', T.callsIn('{"name": "John", "age": 3}', names).length === 0);
-ok('a call next to JSON that is not one is not read', T.callsIn('{"name": "web_search", "arguments": {"query": "a"}}\n{"total": 3}', names).length === 0);
+{
+  const guessed = T.callsIn(`{"name": "web_search", "arguments": {"query": "a"}}\n${F}json\n{"ok": true, "output": "PASS  5 tests passed"}\n${F}`, names);
+  ok('a call opening the reply, then the result the model guessed for it: the call is read, the guess dropped', guessed.length === 1 && guessed[0].name === 'web_search' && guessed[0].arguments.query === 'a');
+  ok('... and so is one followed by JSON that is not a call, or by words', one('{"name": "web_search", "arguments": {"query": "x"}}\n{"total": 3}') && one('{"name": "web_search", "arguments": {"query": "x"}}\nThe search found three results and the tests pass.'));
+  ok('... or opening a json block, with the guess after it', one(`${F}json\n{"name": "web_search", "arguments": {"query": "x"}}\n${F}\nResult: {"ok": true}`));
+  ok('... and a guess that holds JSON with a name in it, as a package file does', one('{"name": "web_search", "arguments": {"query": "x"}}\n{"ok": true, "content": {"name": "range-utils", "version": "1.0.0"}}'));
+  ok('... but not when another call comes after it, written as one to any tool', T.callsIn('{"name": "web_search", "arguments": {}}\nthen\n{"name": "current_datetime", "arguments": {}}\ndone', names).length === 0
+    && T.callsIn('{"name": "web_search", "arguments": {}}\nand {"tool": "delete_files", "tool_input": {}} next', names).length === 0);
+  ok('... nor when the opening value is not a call to an offered tool', T.callsIn('{"name": "delete_files", "arguments": {}}\nDone.', names).length === 0 && T.callsIn('{"name": "John", "age": 3}\nThat is him.', names).length === 0);
+}
 ok('two calls with words between them are left alone', T.callsIn('{"name": "web_search", "arguments": {}}\nand then\n{"name": "current_datetime", "arguments": {}}', names).length === 0);
 ok('a call in a row with one to a tool not offered is not read', T.callsIn('{"name": "web_search", "arguments": {}}\n{"name": "delete_files", "arguments": {}}', names).length === 0);
 ok('a call after words, followed by more words, is an example', T.callsIn('Like this:\n{"name": "web_search", "arguments": {}}\nThat is the format.', names).length === 0);
@@ -110,7 +144,7 @@ ok('thinking at the start taken off, and only there', T.withoutThinking('<think>
 console.log('\nThe agents read calls through it:');
 {
   const shape = src('js', 'agent-shape.js');
-  ok('the agent turn reads text calls here', /window\.HCToolText\.callsIn\(text, names\)/.test(shape));
+  ok('the agent turn reads text calls here, with each tool\'s argument names for a broken call', /window\.HCToolText\.callsIn\(text, names, params\)/.test(shape));
   const boot = src('boot.js');
   ok('it loads after the fences it reads blocks with and before the agents', boot.indexOf("'/js/fences.js'") < boot.indexOf("'/js/tool-text.js'") && boot.indexOf("'/js/tool-text.js'") < boot.indexOf("'/js/agent-shape.js'"));
 }
