@@ -11,7 +11,7 @@
 
     async readFile(path, startLine = null, endLine = null) {
       const ok = await HC.guard.request('read', path, 'Reading file');
-      if (!ok) throw new Error(`Permission denied: read ${path}`);
+      if (!ok) throw await HC.code.refused('read', path);
       // A PDF is not text, so fs_read_file answers with a sentence describing
       // it. That sentence used to be everything the agent could get: it could
       // see the file existed and never read a word. The bytes come back
@@ -56,7 +56,7 @@
         );
       }
       const ok = await HC.guard.request('write', path, reason);
-      if (!ok) throw new Error(`Permission denied: write ${path}`);
+      if (!ok) throw await HC.code.refused('write', path);
       // Recorded after approval and before the write, so the copy is of what
       // the file actually held at the moment it was replaced.
       const record = await HC.undo.capture(path);
@@ -99,7 +99,7 @@
 
     async listDir(path) {
       const ok = await HC.guard.request('list', path, 'Listing directory');
-      if (!ok) throw new Error(`Permission denied: list ${path}`);
+      if (!ok) throw await HC.code.refused('list', path);
       return HC.invoke('fs_list_dir', { path });
     },
 
@@ -148,7 +148,7 @@
 
     async searchFiles(dir, pattern) {
       const ok = await HC.guard.request('search', dir, `Pattern: ${pattern}`);
-      if (!ok) throw new Error(`Permission denied: search ${dir}`);
+      if (!ok) throw await HC.code.refused('search', dir);
       return HC.invoke('fs_search_files', { dir, pattern });
     },
 
@@ -241,7 +241,7 @@
 
     async viewImage(path, reason = '') {
       const ok = await HC.guard.request('read', path, reason || 'Looking at an image');
-      if (!ok) throw new Error(`Permission denied: read ${path}`);
+      if (!ok) throw await HC.code.refused('read', path);
       const file = await HC.invoke('fs_read_base64', { path });
       const name = String(path).split(/[\\/]/).pop() || path;
       HC.code.pendingVision.push({ path, name, base64: file.base64 });
@@ -308,7 +308,7 @@
       // long file short and describes a binary one, and either would be
       // written back over the file. The text work is in js/code/patch.js.
       const ok = await HC.guard.request('read', path, 'Reading file');
-      if (!ok) throw new Error(`Permission denied: read ${path}`);
+      if (!ok) throw await HC.code.refused('read', path);
       let file;
       try { file = await HC.invoke('fs_read_base64', { path }); }
       catch (e) { throw new Error(`patch_file failed: "${path}" could not be read (${e?.message || e}). Use write_file to create a new file.`); }
@@ -326,13 +326,13 @@
 
     async fuzzyFind(dir, query) {
       const ok = await HC.guard.request('search', dir, `Fuzzy find: ${query}`);
-      if (!ok) throw new Error(`Permission denied: search ${dir}`);
+      if (!ok) throw await HC.code.refused('search', dir);
       return HC.code.namesFound(await HC.invoke('fs_fuzzy_find', { dir, query }), query);
     },
 
     async grepCode(dir, pattern, fileExt = null) {
       const ok = await HC.guard.request('search', dir, `Grep: ${pattern}`);
-      if (!ok) throw new Error(`Permission denied: search ${dir}`);
+      if (!ok) throw await HC.code.refused('search', dir);
       return HC.invoke('fs_grep', { dir, pattern, fileExt });
     },
   };
@@ -364,6 +364,32 @@
     const files = (Array.isArray(list) ? list : []).map((m) => ({ path: m.path, match: (NAME_MATCH.find(([n]) => (Number(m.score) || 0) <= n) || NAME_MATCH[4])[1] }));
     if (files.length) return { files, note: 'Closest first.' };
     return { files, note: `No file is named like "${query}". fuzzy_find looks at file names only: to find where a name or text is written inside the files, use grep_code.` };
+  };
+
+  /**
+   * The place inside the open project a path just outside it most likely
+   * meant, or ''. Copying the project's long folder name, a small model
+   * dropped a word of it, and every write it made was refused as outside the
+   * project with nothing to say where it had gone wrong. From the first part
+   * of the path that names something in the project's top folder; a path
+   * already inside the project gets no other.
+   */
+  HC.code.meant = async (path) => {
+    const root = String(HC.guard?.projectRoot?.() || '').replace(/[\\/]+$/, '');
+    const raw = String(path || '').replace(/\\/g, '/');
+    if (!root || !raw || raw.startsWith(`${root.replace(/\\/g, '/')}/`)) return '';
+    let top = [];
+    try { top = await HC.code.listQuietly(root); } catch { return ''; }
+    const names = new Set((Array.isArray(top) ? top : []).map((e) => e && e.name).filter(Boolean));
+    const parts = raw.split('/').filter(Boolean);
+    const at = parts.findIndex((part, i) => i > 0 && names.has(part));
+    return at > 0 ? `${root}/${parts.slice(at).join('/')}` : '';
+  };
+
+  /** A refusal, saying where inside the project a path just outside it most likely meant (meant). */
+  HC.code.refused = async (action, path) => {
+    const meant = await HC.code.meant(path).catch(() => '');
+    return new Error(`Permission denied: ${action} ${path}${meant ? `. That is outside the open project. The same place inside it is ${meant}: use that path.` : ''}`);
   };
 
   /**

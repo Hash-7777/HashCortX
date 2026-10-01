@@ -105,6 +105,21 @@ console.log('\nWhat a search by file name tells the model:');
     && /names only: to find text inside files, use grep_code/.test(HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'fuzzy_find').description));
 }
 
+console.log('\nA path just outside the project:');
+{
+  const top = { '/work/runs/r3/project': [{ name: 'src', is_dir: true }, { name: 'package.json' }] };
+  HC.guard = { projectRoot: () => '/work/runs/r3/project', allowedWithoutAsking: async () => true };
+  HC.invoke = async (cmd, { path }) => { if (!(path in top)) throw new Error('No such folder'); return top[path]; };
+  ok('the place inside the project it most likely meant, from the first part naming something at the top',
+    await HC.code.meant('/work/runs-x/r3/project/src/text.js') === '/work/runs/r3/project/src/text.js' && await HC.code.meant('/tmp/elsewhere/package.json') === '/work/runs/r3/project/package.json');
+  ok('none for a path already inside, or one naming nothing the project has', await HC.code.meant('/work/runs/r3/project/src/a.js') === '' && await HC.code.meant('/etc/hosts') === '' && await HC.code.meant('') === '');
+  const refusal = await HC.code.refused('write', '/work/runs-x/r3/project/src/text.js');
+  ok('a refusal says so, and which path to use', refusal.message === 'Permission denied: write /work/runs-x/r3/project/src/text.js. That is outside the open project. The same place inside it is /work/runs/r3/project/src/text.js: use that path.', refusal.message);
+  ok('and is plain when there is nothing to say', (await HC.code.refused('read', '/etc/hosts')).message === 'Permission denied: read /etc/hosts');
+  const tools = src('platform', 'tauri', 'hashcoder.js');
+  ok('every read, write, listing and search refused says it', (tools.match(/if \(!ok\) throw await HC\.code\.refused\('(?:read|write|list|search)', (?:path|dir)\);/g) || []).length === 8 && !/throw new Error\(`Permission denied: (?:read|write|list|search) /.test(tools));
+}
+
 console.log('\nA read of a path with no file:');
 {
   const missing = HC.code.notThere(new Error("ENOENT: no such file or directory, stat '/p/range.js'"));

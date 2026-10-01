@@ -667,6 +667,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder finds the files a model names from the project's folder.**
+  A path written as `src/app.js` or `./src/app.js` was read from wherever
+  the app was started, and refused as outside the project: a 3B model
+  wrote every path that way and read nothing. It is now written out from
+  the open project before the tool runs, and judged like any other path. A
+  path refused just outside the project, as when a model copies the
+  project's long folder name with a word missing, is answered with the
+  same place inside it.
+
 - **A request's checklist leaves out what only describes the problem.**
   "npm test fails in this project" was listed as an ask to do, beside the
   real ones, and a request of one ask went through HashCoder's checklist. A

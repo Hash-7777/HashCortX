@@ -329,6 +329,7 @@
       if (signal?.aborted) break;
       const turn = await callWithRouter(messages, tools, temperature, signal);
       if (turn && turn.tool_calls && turn.tool_calls.length) {
+        for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(c.arguments, sharedState.projectRoot);   // as in the agent loop below
         H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls);
         for (const call of turn.tool_calls) {
           if (signal?.aborted) return;
@@ -2029,6 +2030,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         thinkEl?.finish(said); thinkEl = null;
 
         if (turn.tool_calls?.length) {
+          for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(c.arguments, sharedState.projectRoot);   // "src/a.js" is the project's, not a connected system's (js/code/paths.js)
           H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls); // always append to real history
 
           // Independent reads run together. A turn that opens six files used to

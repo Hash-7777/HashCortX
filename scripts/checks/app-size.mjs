@@ -724,7 +724,10 @@ const LINE_BUDGET = {
   // finishing (js/code/asks.js), and what is left of its plan is said.
   // 2548, up two: a site is read each time the run would finish, and what
   // the last reading found is said under the answer (verify.js proofLine).
-  'modes/code/mode.js': 2548,
+  // 2550, up two: a path a model writes from the project's folder is
+  // written out from it before the tool runs, in both places tools run
+  // (js/code/paths.js).
+  'modes/code/mode.js': 2550,
 };
 
 console.log('\nFile sizes go down, never up:');

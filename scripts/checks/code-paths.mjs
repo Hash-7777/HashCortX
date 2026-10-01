@@ -49,6 +49,31 @@ console.log('A file is shown by its name on every system:');
     old(win('C:', 'Users', 'me', 'main.js')) === win('C:', 'Users', 'me', 'main.js'));
 }
 
+console.log('\nA path written from the project\'s folder is the project\'s:');
+{
+  const root = '/work/app';
+  ok('a path from the folder', P.fromRoot('src/a.js', root) === '/work/app/src/a.js');
+  ok('the same with "./" in front, once or twice', P.fromRoot('./src/a.js', root) === '/work/app/src/a.js' && P.fromRoot('././a.js', root) === '/work/app/a.js');
+  ok('"." and "./" are the folder itself', P.fromRoot('.', root) === root && P.fromRoot('./', root) === root);
+  ok('a root given with a trailing separator', P.fromRoot('a.js', '/work/app/') === '/work/app/a.js');
+  ok('a Windows project is written out with its own separator', P.fromRoot('src/a.js', win('C:', 'work', 'app')) === win('C:', 'work', 'app') + BS + 'src/a.js');
+  ok('a full path is left as written, inside the project or not', P.fromRoot('/work/app/a.js', root) === '/work/app/a.js' && P.fromRoot('/etc/hosts', root) === '/etc/hosts');
+  ok('a Windows full path, and one from the drive\'s top, are left as written', P.fromRoot(win('C:', 'x', 'a.js'), root) === win('C:', 'x', 'a.js') && P.fromRoot(BS + 'x', root) === BS + 'x');
+  ok('a path from a home folder is left as written', P.fromRoot('~/.ssh/id_rsa', root) === '~/.ssh/id_rsa');
+  ok('a path climbing with ".." is left as written, for the guard to refuse', P.fromRoot('../secret.txt', root) === '../secret.txt' && P.fromRoot('src/../../x', root) === 'src/../../x' && P.fromRoot(win('src', '..', '..', 'x'), root) === win('src', '..', '..', 'x'));
+  ok('nothing open, nothing written out', P.fromRoot('src/a.js', '') === 'src/a.js' && P.fromRoot('src/a.js', null) === 'src/a.js');
+  ok('an empty path, or one that is not a string, is left alone', P.fromRoot('', root) === '' && P.fromRoot(undefined, root) === undefined && P.fromRoot(7, root) === 7);
+  const args = { path: 'src/a.js', search: 'src/b.js', from: './old.js', to: 'new/old.js', dir: '.', cwd: 'sub', content: 'x' };
+  const out = P.argsFromRoot(args, root);
+  ok('in a tool call, every place is written out: a file, both ends of a move, a folder, where a command runs',
+    out.path === '/work/app/src/a.js' && out.from === '/work/app/old.js' && out.to === '/work/app/new/old.js' && out.dir === root && out.cwd === '/work/app/sub');
+  ok('and nothing else in it, and the call as given is not changed', out.search === 'src/b.js' && out.content === 'x' && args.path === 'src/a.js');
+  ok('a call with nothing to write out comes back as it was', P.argsFromRoot({ path: '/work/app/a.js' }, root).path === '/work/app/a.js' && P.argsFromRoot(null, root) === null);
+  const writesOut = /for \(const c of turn\.tool_calls\) if \(!window\.HCMcp\?\.systemOf\?\.\(c\.name\)\) c\.arguments = window\.HCCodePaths\.argsFromRoot\(c\.arguments, sharedState\.projectRoot\);[^\n]*\n\s*H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls\);/g;
+  ok('HashCoder writes out its own tools\' places before they are kept or run, in both places tools run, and never a connected system\'s',
+    (modeSrc.match(writesOut) || []).length === 2 && (modeSrc.match(/H\.appendAssistantToolCallTurn\(/g) || []).length === 2);
+}
+
 console.log('\nA project file is shown by its place in the project:');
 {
   ok('inside a Mac project', P.relativeFromRoot('/work/app/src/a.js', '/work/app') === 'src/a.js');
