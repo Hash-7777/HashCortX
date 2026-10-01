@@ -68,11 +68,12 @@
         await HC.undo.drop(record);
         throw new Error(`Permission denied: replace ${path}, which Undo could not restore`);
       }
-      // A JSON file this would break is not written, nor, when the agent asked
+      // A file that would hold nothing but the chat's own markers, or a JSON file
+      // this would break, is not written, nor, when the agent asked
       // for it by write_file, a file rewritten whole for a change to part of it
       // (js/code/patch.js). patch_file writes through here with neither check of its own.
       const before = record?.existed ? record.content : null;
-      const broken = window.HCCodePatch?.breaks(path, before, String(content))
+      const broken = window.HCCodePatch?.onlyMarkers(String(content)) || window.HCCodePatch?.breaks(path, before, String(content))
         || (asked ? window.HCCodePatch?.wholeRewrite(path.split(/[\\/]/).pop() || path, before, String(content), whole) : '');
       if (broken) {
         await HC.undo.drop(record);

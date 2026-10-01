@@ -340,6 +340,25 @@
     catch (e) { return `This would leave "${name}" as JSON that does not parse (${e.message}), so nothing was written. Fix the edit and try again.`; }
   }
 
+  // ── Text that is only the chat's markers ────────────────────────────────
+
+  /** The markers a local model's chat is written with, which are never a file's text. */
+  const MARKER = /<\/?(?:tool_response|tool_call|tool_result|function_results?|think)>|<\|[a-z_]{2,30}\|>|\[\/?(?:TOOL_CALLS|TOOL_RESULTS|INST|ARGS)\]/gi;
+
+  /**
+   * Why a file must not be written with this, or ''. A small model wrote
+   * "<tool_response>" as the whole of a file it had just read, a marker from
+   * its chat in place of the file's text, and the file's code was gone. Only
+   * text that is nothing but markers is refused: a file that mentions them
+   * among other text, as a parser of them does, is written.
+   */
+  function onlyMarkers(text) {
+    const t = String(text == null ? '' : text);
+    if (!t.trim() || t.replace(MARKER, '').trim()) return '';
+    return `The content is "${t.trim().slice(0, 60)}", a marker from the chat, not the file's text, so nothing was written. ` +
+      'Write the file\'s complete new text, or use patch_file to change part of it.';
+  }
+
   // ── A whole file rewritten for a change to part of it ──────────────────
 
   /** Files shorter than this many lines may be rewritten whole without saying so. */
@@ -399,5 +418,5 @@
     return { text: text.replace(/\n/g, '\r\n'), kept: true };
   }
 
-  window.HCCodePatch = { applyPatch, applyEdits, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
+  window.HCCodePatch = { applyPatch, applyEdits, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();

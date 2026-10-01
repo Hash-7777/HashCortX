@@ -81,6 +81,16 @@ console.log('\nSeveral edits to one file, all or none:');
   ok('an edit with no search text is refused', /no search text/.test(throws(() => P.applyEdits('x', [{ search: 'x', replace: 'y' }, { replace: 'z' }], 'f'))));
 }
 
+console.log('\nText that is only the chat\'s markers is not written:');
+{
+  ok('a file written as one marker from the chat is refused, saying what it is', /The content is "<tool_response>", a marker from the chat, not the file's text, so nothing was written/.test(P.onlyMarkers('<tool_response>')));
+  ok('... and as several of them, in the ways local models write them', ['<tool_response>\n</tool_response>', '<|im_end|>', '<tool_call></tool_call>', '[TOOL_CALLS]', '  <|eot_id|>\n'].every((t) => P.onlyMarkers(t) !== ''));
+  ok('a file that mentions them among other text is written, as a parser of them is', P.onlyMarkers('// reads <tool_call> tags\nconst open = "<tool_call>";\n') === '' && P.onlyMarkers('def f():\n    return "<|im_end|>"\n') === '');
+  ok('ordinary text, and an empty file, are left to the other checks', P.onlyMarkers('<div>hi</div>') === '' && P.onlyMarkers('') === '' && P.onlyMarkers('  \n') === '');
+  ok('every write goes through it, patch_file\'s included, before anything is written',
+    /const broken = window\.HCCodePatch\?\.onlyMarkers\(String\(content\)\) \|\| window\.HCCodePatch\?\.breaks\(path, before, String\(content\)\)/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
 console.log('\nA JSON file an edit would break is not written:');
 {
   ok('valid before and broken after is refused, saying where', /does not parse/.test(P.breaks('/p/config.json', '{"a": 1}', '{"a": 1,}')));

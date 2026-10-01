@@ -667,6 +667,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A file is never written as the chat's own markers.** A small model
+  wrote `<tool_response>` as the whole of a file it had just read, and the
+  file's code was gone until Undo. A write whose text is nothing but such
+  markers is refused, saying what to write instead.
+
 - **HashCoder runs the calls a small model writes and then talks past.**
   A model on this computer that writes its tool call as text often goes on
   to write the result it expects, such as a test run that passed, and the
