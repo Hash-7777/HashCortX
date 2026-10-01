@@ -1984,7 +1984,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const namedLook = async (reply) => (cdrPrefs().prove === false || sent.named ? null : window.HCCodeVerify.namedNote(await HC.code.notThereOf(window.HCCodeVerify.namedPaths(reply, sharedState.projectRoot, proof?.changed)), sharedState.projectRoot));   // files an answer names that are not there
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();
-      let lastStop = null;
+      let lastStop = null, forced = null;   // forced: a turn the app takes for a small model, running the test it was told to (verify.js stopCheck)
       let thinkEl = appendThinking(contentEl);
 
       for (;;) {
@@ -2009,7 +2009,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
         let turn;
         try {
-          turn = await callWithRouter(callMessages, tools, temperature, signal, coderModel, thinkEl);
+          turn = forced || await callWithRouter(callMessages, tools, temperature, signal, coderModel, thinkEl); forced = null;
         } catch (e) {
           thinkEl?.remove(); thinkEl = null;
           cdrTraceAdd('Error', e?.message || String(e), 'err');
@@ -2141,8 +2141,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           || (finalText.trim() ? (await namedLook(finalText)) || (await siteLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
-          messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
-          appendStep(contentEl, { verb: 'CHECK', object: back.step, status: '' });
+          if (back.run && sharedState.size === 'small') forced = { content: '', tool_calls: [{ name: 'shell_run', arguments: back.run }] };   // its word that the test passed is not kept
+          else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
+          appendStep(contentEl, { verb: 'CHECK', object: forced ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
           thinkEl = appendThinking(contentEl);
           continue;

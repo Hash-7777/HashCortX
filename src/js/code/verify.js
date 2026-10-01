@@ -306,6 +306,8 @@
   const SITE_SAYS = 'the site you changed was read the way a browser reads it';
   const NAMED_STEP = 'Sent back to find the files its answer names';
   const NAMED_SAYS = 'which the project does not have';
+  /** The step when the app ran the test itself, for a small model that had not. */
+  const RAN_STEP = 'Ran the tests itself, as the change had not been tested';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
@@ -321,9 +323,15 @@
    * wrote it into its reply as text.
    */
   function callFor(commandLine) {
+    const run = runOf(commandLine);
+    return run ? ` with shell_run: command ${JSON.stringify(run.command)}, args ${JSON.stringify(run.args)}` : '';
+  }
+
+  /** A command line as shell_run's arguments, `{ command, args }`, or null when it needs a shell to mean what it says. */
+  function runOf(commandLine) {
     const words = String(commandLine || '').trim().split(/\s+/).filter(Boolean);
-    if (!words.length || /["'`|&;<>$*?(){}\\]/.test(commandLine)) return '';
-    return ` with shell_run: command ${JSON.stringify(words[0])}, args ${JSON.stringify(words.slice(1))}`;
+    if (!words.length || /["'`|&;<>$*?(){}\\]/.test(commandLine)) return null;
+    return { command: words[0], args: words.slice(1) };
   }
 
   /**
@@ -349,7 +357,10 @@
         'Then finish by saying which checks passed. If it cannot be made to pass, say what still fails and why.'
       : `${APP_NOTE} you changed ${files} and no test has run since. Run \`${test}\` now${callFor(test)}. If it fails, read the failure and fix it. ` +
         'Then finish by saying which checks passed. If it cannot run here, say so and why.';
-    return { kind: 'prove', step: PROVE_STEP, message };
+    // The test as a call the app can make itself: a small model told to run it
+    // said it had passed, and never ran it; HashCoder runs it for one.
+    const run = failed ? null : runOf(test);
+    return { kind: 'prove', step: PROVE_STEP, message, ...(run ? { run } : {}) };
   }
 
   // ── A change written into the reply instead of made ─────────────────────
@@ -570,14 +581,16 @@
    * plan left open (`plan`); then, while proving is switched on (`prove`), a
    * change to code nothing proved, and a request of several asks (`asks`)
    * gone through ask by ask, or, on a small or mid-sized model on this
-   * computer (`size`), the work checked against the request as a whole. `sent` counts,
+   * computer (`size`), the work checked against the request as a whole. An
+   * empty answer from a model on this computer is checked too. `sent` counts,
    * by kind, how often this run was sent back; `shown` gives the request as
    * the person sees it, without the text of what they attached.
    */
   function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null, asks = null } = {}) {
-    if (!log || !String(reply || '').trim()) return null;
     const request = requestIn(messages);
     const local = size === 'small' || size === 'mid';
+    // An empty answer from a model on this computer is checked like any other: a small model ended runs with its change untested that way.
+    if (!log || (!String(reply || '').trim() && !local)) return null;
     const listed = Array.isArray(asks) && asks.length >= 3;   // a request of several asks is checked ask by ask, in place of as a whole
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
       || planCheck(plan, reply, sent.plan || 0)
@@ -612,6 +625,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, namedPaths, namedNote,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote,
   };
 })();

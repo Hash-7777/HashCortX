@@ -729,7 +729,9 @@ const LINE_BUDGET = {
   // (js/code/paths.js).
   // 2551, up one: an answer naming files the project does not have is
   // sent back to find them (js/code/verify.js namedPaths).
-  'modes/code/mode.js': 2551,
+  // 2552, up one: the test a small model was told to run and did not is
+  // run for it (js/code/verify.js stopCheck).
+  'modes/code/mode.js': 2552,
 };
 
 console.log('\nFile sizes go down, never up:');

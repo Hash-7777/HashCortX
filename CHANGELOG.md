@@ -431,6 +431,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A small model's tests are run for it.** Told to run the project's
+  tests after a change, a model under 5 billion parameters often answered
+  that they had passed, without running them. HashCoder now runs the test
+  itself then, through the same permission as any command, and the model
+  goes on from the real result; its word is not kept. An empty answer from
+  a model on this computer is checked like any other.
+
 - **An edit copied with stray spaces still lands.** A small model put
   spaces of its own into the passage it was replacing, `getUsr  }` for
   `getUsr }`, and every edit missed. `patch_file` now also finds a passage

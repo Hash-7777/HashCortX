@@ -139,6 +139,26 @@ console.log('\nWhen the agent is sent back:');
   const refail = (() => { const l = V.proofLog(); l.edited('/p/range.js'); l.ran('npm', ['test'], { code: 1 }); return V.stopCheck(l, { test: 'npm test' }, 'Done.'); })();
   ok('... and after a failure, to make the fix rather than describe it', /run it again with shell_run: command "npm", args \["test"\]; make the fix, do not describe it/.test(refail?.message || ''), refail?.message);
   ok('a command that needs a shell is named, not given as a call', !/shell_run/.test(V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.')?.message || 'shell_run'));
+
+  // A small model told to run the test said it had passed and never ran it: the app runs it.
+  ok('the test not yet run comes with the call that runs it, for the app to make', JSON.stringify(told?.run) === JSON.stringify({ command: 'python3', args: ['-m', 'unittest'] }));
+  ok('... not after a failure, when the code must change first, nor for a command that needs a shell', refail && !('run' in refail)
+    && !('run' in (V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.') || {})));
+  ok('a command line as the call\'s arguments, or none when it needs a shell', JSON.stringify(V.runOf('npm test')) === '{"command":"npm","args":["test"]}' && V.runOf('npm test | tee x') === null && V.runOf('') === null);
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder runs it for a small model in place of asking, and does not keep its word that it passed',
+    /if \(back\.run && sharedState\.size === 'small'\) forced = \{ content: '', tool_calls: \[\{ name: 'shell_run', arguments: back\.run \}\] \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
+    && /turn = forced \|\| await callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\); forced = null;/.test(mode));
+  ok('... through the same tool, and so the same permission, as any command, and the run says so', /object: forced \? window\.HCCodeVerify\.RAN_STEP : back\.step/.test(mode) && V.RAN_STEP === 'Ran the tests itself, as the change had not been tested');
+}
+
+console.log('\nAn empty answer:');
+{
+  const ask = [{ role: 'user', content: 'Rename getUsr to getUser everywhere.' }];
+  const log = V.proofLog(); log.edited('/p/src/users.js');
+  const empty = (size) => V.sendBack(log, ask, '', { checks: { test: 'npm test' }, size, sent: {} });
+  ok('from a model on this computer, after a change nothing proved: checked like any other, the test given to run', empty('small')?.kind === 'prove' && JSON.stringify(empty('small').run) === '{"command":"npm","args":["test"]}' && empty('mid')?.kind === 'prove');
+  ok('from a larger model: nothing, as before', empty('full') === null);
 }
 
 console.log('\nFiles an answer names that the project does not have:');
