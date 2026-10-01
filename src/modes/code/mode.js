@@ -380,7 +380,7 @@
       welcomeHtml = welcomeHtml || $('cdrMessages')?.querySelector('.cdr-welcome')?.outerHTML || '';
       wireWelcome();
       // Files and pictures attached to the next request — js/code/attach.js.
-      window.HCCodeAttach?.mount({ panel: $('coder-mode-wrap'), input: $('cdrTaskInput'), button: $('cdrAttachBtn'), picker: $('cdrAttachInput'), list: $('cdrAttachList') });
+      window.HCCodeAttach?.mount({ panel: $('coder-mode-wrap'), input: $('cdrTaskInput'), button: $('cdrAttachBtn'), picker: $('cdrAttachInput'), list: $('cdrAttachList'), model: () => coderModel || window._H?.selectedModel?.() || '' });
       restoreCoderState();
       // Deliberately NOT inside restoreCoderState: that returns early when there
       // is no saved session, and a change waiting to be kept or undone has
@@ -527,7 +527,7 @@
       if (modelPicker) {
         modelPicker.addEventListener('change', () => {
           coderModel = modelPicker.value || null;
-          warnIfSmall();
+          warnIfSmall(); window.HCCodeAttach?.refresh();   // the note about pictures follows the model
         });
       }
     }
@@ -918,7 +918,7 @@
       return esc(text).replace(/\n/g, '<br>');
     }
 
-    function appendUserMsg(text) {
+    function appendUserMsg(text, pictures) {
       const msgs = $('cdrMessages');
       if (!msgs) return;
       msgs.querySelector('.cdr-welcome')?.remove();
@@ -926,7 +926,7 @@
       el.className = 'cdr-msg user';
       const svgCopy = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
       el.innerHTML = `
-        <div class="cdr-user-bubble">${esc(text)}</div>
+        <div class="cdr-user-bubble">${window.HCCodeAttach?.picturesHtml(pictures) || ''}${esc(text)}</div>
         <div class="cdr-msg-actions">
           <button class="cdr-action-btn cdr-act-copy">${svgCopy} copy</button>
         </div>`;
@@ -1224,7 +1224,7 @@
       let reply = null;
       conversationMsgs.forEach((m, i) => {
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
-        if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content); reply = null; return; }
+        if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
         if (m.content && m.tool_calls?.length && !window.HCCodeLive.looksLikeCalls(m.content)) appendTextToBubble(reply, m.content);   // what it said before the step
         for (const c of m.tool_calls || []) {
@@ -2102,7 +2102,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
       // Show the request, with what is attached to it (js/code/attach.js).
       const request = window.HCCodeAttach ? window.HCCodeAttach.take(task) : { content: task, images: [] };
-      appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(request.content) : task);
+      appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(request.content) : task, request.pictures);
 
       // Auto-extract memory from user message
       try { window._H?.memAutoExtract?.(task); } catch {}
@@ -2140,7 +2140,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
       const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
       const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
-      conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images } : {}),
+      conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images, thumbs: request.thumbs } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
 
       const runBtn  = $('cdrRunBtn');

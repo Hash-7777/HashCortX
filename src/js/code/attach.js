@@ -11,9 +11,12 @@
 // panel. Chat listens for pasting and dropping on the whole window, so while
 // HashCoder is open those are handled here and not passed on.
 //
-// Pictures are not kept when the conversation is saved: the store it is saved
-// in has a small quota, shared with everything else the app keeps there. The
-// request says a picture was attached; the picture itself is not written.
+// A picture is drawn in the conversation, in the message it was sent with, as
+// a small preview that opens full size on a click. The picture sent to the
+// model is not kept when the conversation is saved: the store it is saved in
+// has a small quota, shared with everything else the app keeps there. The
+// previews are, newest first, up to a budget, so a conversation still shows
+// what was attached after the app is reopened.
 //
 // The first part is pure and checked by scripts/checks/code-attach.mjs; the
 // panel wiring below it runs only in the app.
@@ -30,6 +33,11 @@
   const TEXT_BUDGET = 60000;
   /** A picture is scaled to fit this many pixels on its longer side before it is sent. */
   const PICTURE_SIDE = 1600;
+  /** The preview drawn in the conversation: scaled to this side, and kept small. */
+  const THUMB_SIDE = 360;
+  const THUMB_CHARS = 60000;
+  /** Characters of previews kept in a saved conversation, newest first. */
+  const THUMB_STORE_BUDGET = 400000;
 
   const TEXT_NAME = /\.(txt|md|markdown|mdx|rst|csv|tsv|log|json|jsonc|yml|yaml|toml|ini|env|xml|html?|css|scss|less|m?[jt]sx?|cjs|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|zsh|bash|sql|vue|svelte|lua|dart)$/i;
   const PICTURE_NAME = /\.(png|jpe?g|gif|webp|bmp)$/i;
@@ -74,21 +82,89 @@
     return `${text.slice(0, at)}\n\nAttached: ${names}`;
   }
 
-  /** Messages as they are saved: pictures left out, and said to be. */
+  /**
+   * Messages as they are saved: the pictures left out, and said to be, and the
+   * previews kept, newest first, while they fit the budget.
+   */
   function forStorage(messages) {
-    return (Array.isArray(messages) ? messages : []).map((m) => {
-      if (!m || !Array.isArray(m.images) || !m.images.length) return m;
-      const { images, ...rest } = m;
+    const list = Array.isArray(messages) ? messages : [];
+    const keep = new Set();
+    let room = THUMB_STORE_BUDGET;
+    for (let i = list.length - 1; i >= 0; i--) {
+      const t = list[i] && list[i].thumbs;
+      const size = Array.isArray(t) ? t.reduce((n, x) => n + String(x).length, 0) : 0;
+      if (size && size <= room) { keep.add(i); room -= size; }
+    }
+    return list.map((m, i) => {
+      // A message with no picture comes back as the very same object.
+      if (!m || (!Array.isArray(m.thumbs) && !(Array.isArray(m.images) && m.images.length))) return m;
+      const { thumbs, ...bare } = m;
+      const kept = keep.has(i) ? { ...bare, thumbs } : bare;
+      if (!Array.isArray(m.images) || !m.images.length) return kept;
+      const { images, ...rest } = kept;
       return { ...rest, content: `${rest.content || ''} [${images.length === 1 ? 'A picture was' : `${images.length} pictures were`} here; pictures are not kept when a conversation is saved.]`.trim() };
     });
   }
 
-  // ── The panel ───────────────────────────────────────────────────────────
+  /**
+   * Whether the model can read pictures: true or false for a cloud model, which
+   * its provider decides, and null for one whose abilities are not known here.
+   */
+  function canSee(modelValue) {
+    const H = window._H, P = window.HCProviders;
+    const v = String(modelValue || '');
+    if (!v.startsWith('cloud:') || !H || !H.parseCloudModel || !P || !P.readsImages) return null;
+    const { provider, modelId } = H.parseCloudModel(v);
+    return !!P.readsImages(provider, modelId);
+  }
+
+  const SAFE_PICTURE = /^data:image\/(?:jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+  const full = new Map();   // preview id -> the picture at full size, while the conversation is open
+  let ids = 0;
+
+  /**
+   * The previews of a message's pictures as markup for its bubble. Each is
+   * `{ thumb, full, name }`, or just the preview's data address, as a saved
+   * conversation has it. Only a picture written as data is drawn: nothing
+   * here is fetched.
+   */
+  function picturesHtml(list) {
+    const items = (Array.isArray(list) ? list : []).map((p) => (typeof p === 'string' ? { thumb: p, full: p, name: '' } : p))
+      .filter((p) => p && SAFE_PICTURE.test(String(p.thumb || '')));
+    if (!items.length) return '';
+    const buttons = items.map((p, i) => {
+      const id = ++ids;
+      if (p.full && SAFE_PICTURE.test(String(p.full))) full.set(id, p.full);
+      const label = `Open picture ${i + 1}${p.name ? `: ${p.name}` : ''}`;
+      return `<button type="button" class="cdr-user-pic" data-pic="${id}" data-name="${esc(p.name || '')}" title="${esc(label)}" aria-label="${esc(label)}"><img src="${p.thumb}" alt="" draggable="false"></button>`;
+    }).join('');
+    return `<div class="cdr-user-pics">${buttons}</div>`;
+  }
+
+    // ── The panel ───────────────────────────────────────────────────────────
 
   let files = [];
   let onChange = () => {};
+  let modelOf = () => '';
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  /** A small preview of a loaded picture, JPEG, made smaller again if it is not small enough. */
+  function thumbOf(img) {
+    for (const [side, quality] of [[THUMB_SIDE, 0.72], [260, 0.6], [180, 0.5]]) {
+      const scale = Math.min(1, side / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.width * scale));
+      canvas.height = Math.max(1, Math.round(img.height * scale));
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const url = canvas.toDataURL('image/jpeg', quality);
+      if (url.length <= THUMB_CHARS) return url;
+    }
+    return '';
+  }
 
   /** A picture file as base64 JPEG, scaled to fit PICTURE_SIDE. */
   function pictureOf(file) {
@@ -106,7 +182,7 @@
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
-        resolve({ dataUrl, base64: dataUrl.split(',')[1] });
+        resolve({ dataUrl, base64: dataUrl.split(',')[1], thumb: thumbOf(img) });
       };
       img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('the picture could not be read')); };
       img.src = url;
@@ -155,15 +231,17 @@
         `<span class="cdr-attach-kind">${what}</span>` +
         `<button type="button" class="cdr-attach-remove" data-at="${i}" title="Remove ${esc(f.name)}" aria-label="Remove ${esc(f.name)}">` +
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button></span>';
-    }).join('') + (left && left.length ? `<span class="cdr-attach-left">Not attached: ${esc(left.join('; '))}</span>` : '');
+    }).join('') + (left && left.length ? `<span class="cdr-attach-left">Not attached: ${esc(left.join('; '))}</span>` : '') +
+      (files.some((f) => f.kind === 'picture') && canSee(modelOf()) === false ? '<span class="cdr-attach-left">The chosen model cannot read pictures. Pick one that can, such as Gemini, Anthropic or OpenAI, or the picture is not seen.</span>' : '');
   }
 
   /**
    * Wire the button, the hidden file picker, pasting into the box and dropping
    * onto the panel. `changed` runs when the attachments change.
    */
-  function mount({ panel, input, button, picker, list, changed }) {
+  function mount({ panel, input, button, picker, list, changed, model }) {
     listEl = list;
+    if (typeof model === 'function') modelOf = model;
     onChange = typeof changed === 'function' ? changed : () => {};
     if (!panel || panel.dataset.attachWired) return;
     panel.dataset.attachWired = '1';
@@ -205,16 +283,49 @@
     files = [];
     render();
     onChange();
+    const pictures = taken.filter((f) => f.kind === 'picture' && f.thumb);
     return {
       content: requestContent(task, taken),
       images: taken.filter((f) => f.kind === 'picture').map((f) => f.base64),
       names: taken.map((f) => f.name),
+      // What the conversation draws: each picture's preview, and it at full size to open.
+      pictures: pictures.map((f) => ({ thumb: f.thumb, full: f.dataUrl, name: f.name })),
+      thumbs: pictures.map((f) => f.thumb),
     };
+  }
+
+  /** A picture, full size, over the panel; a click, or Escape, closes it. */
+  function enlarge(src, name) {
+    if (!SAFE_PICTURE.test(String(src || ''))) return;
+    const host = document.getElementById('coder-mode-wrap') || document.body;
+    host.querySelector('.cdr-lightbox')?.remove();
+    const back = document.activeElement;
+    const box = document.createElement('div');
+    box.className = 'cdr-lightbox';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-label', name ? `Picture: ${name}` : 'Picture');
+    box.innerHTML = `<img src="${src}" alt="${esc(name || 'Attached picture')}">${name ? `<div class="cdr-lightbox-name">${esc(name)}</div>` : ''}<button type="button" class="cdr-lightbox-close" aria-label="Close the picture"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg></button>`;
+    const close = () => { document.removeEventListener('keydown', onKey, true); box.remove(); if (back && back.focus) back.focus(); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+    box.addEventListener('click', close);
+    document.addEventListener('keydown', onKey, true);
+    host.appendChild(box);
+    box.querySelector('.cdr-lightbox-close').focus();
+  }
+
+  // A preview in a message opens its picture, wherever the message is drawn.
+  if (typeof document !== 'undefined') {
+    document.addEventListener('click', (e) => {
+      const b = e.target && e.target.closest && e.target.closest('.cdr-user-pic');
+      if (b) enlarge(full.get(Number(b.dataset.pic)) || (b.querySelector('img') || {}).src, b.dataset.name);
+    });
   }
 
   window.HCCodeAttach = {
     MAX_FILES, MAX_PICTURES, TEXT_BUDGET, PICTURE_SIDE,
-    kindOf, requestContent, shownRequest, forStorage, mount, take, add,
+    THUMB_SIDE, THUMB_CHARS, THUMB_STORE_BUDGET, SAFE_PICTURE,
+    kindOf, requestContent, shownRequest, forStorage, canSee, picturesHtml, enlarge, mount, take, add, refresh: () => render(),
     count: () => files.length,
   };
 })();

@@ -87,6 +87,49 @@ console.log('\nWhat is saved:');
   ok('what the Coder holds is not changed', msgs[1].images.length === 2);
 }
 
+console.log('\nA picture is seen in the conversation, and kept as a preview:');
+{
+  // Data addresses are built here, so this file holds no long string of its own.
+  const pic = (n) => `data:image/jpeg;base64,${'QUJD'.repeat(n)}`;
+  const kept = A.forStorage([
+    { role: 'user', content: 'old', images: ['AAAA'], thumbs: [pic(2000)] },
+    { role: 'user', content: 'newer', images: ['BBBB'], thumbs: [pic(10), pic(10)] },
+    { role: 'assistant', content: 'done' },
+  ]);
+  ok('the preview is kept when the picture is not', Array.isArray(kept[1].thumbs) && kept[1].thumbs.length === 2 && !kept[1].images);
+  ok('and the message still says a picture was there', /A picture was here/.test(kept[1].content));
+  ok('a preview from an earlier save, with no picture left, is kept as it is', A.forStorage([{ role: 'user', content: 'x', thumbs: [pic(5)] }])[0].thumbs.length === 1);
+  const many = [];
+  for (let i = 0; i < 12; i++) many.push({ role: 'user', content: `m${i}`, thumbs: [pic(15000)] });   // 60,000 characters each
+  const saved = A.forStorage(many);
+  const total = saved.reduce((n, m) => n + (m.thumbs ? m.thumbs.reduce((k, t) => k + t.length, 0) : 0), 0);
+  ok('previews are kept up to a budget, so the store is not filled', total <= A.THUMB_STORE_BUDGET && total > 0, String(total));
+  ok('the newest are the ones kept', !!saved[11].thumbs && !saved[0].thumbs && saved.filter((m) => m.thumbs).length === Math.floor(A.THUMB_STORE_BUDGET / pic(15000).length));
+  ok('one preview over the whole budget is not kept, and does not stop the others', !A.forStorage([{ role: 'user', content: 'a', thumbs: [pic(120000)] }, { role: 'user', content: 'b', thumbs: [pic(5)] }])[0].thumbs
+    && !!A.forStorage([{ role: 'user', content: 'a', thumbs: [pic(120000)] }, { role: 'user', content: 'b', thumbs: [pic(5)] }])[1].thumbs);
+
+  const html = A.picturesHtml([{ thumb: pic(4), full: pic(8), name: 'shot "1".png' }, pic(3)]);
+  ok('each preview is a button that opens its picture', (html.match(/<button type="button" class="cdr-user-pic"/g) || []).length === 2 && /<img src="data:image\/jpeg;base64,/.test(html));
+  ok('with a name a screen reader can say, safely written', /aria-label="Open picture 1: shot &quot;1&quot;\.png"/.test(html) && /aria-label="Open picture 2"/.test(html));
+  ok('and the picture itself is not written into the page twice: only the preview is', !html.includes(pic(8)));
+  ok('nothing is drawn that is not a picture written as data: an address, a script, a bad type', A.picturesHtml(['https://example.com/a.jpg', 'javascript:alert(1)', 'data:text/html;base64,QUJD', 'data:image/jpeg;base64,QUJD" onerror="x']) === '');
+  ok('no pictures, no markup', A.picturesHtml([]) === '' && A.picturesHtml(null) === '' && A.picturesHtml(undefined) === '');
+  ok('a preview the app wrote is accepted by the rule that decides', A.SAFE_PICTURE.test(pic(3)) && !A.SAFE_PICTURE.test('data:image/svg+xml;base64,QUJD'));
+}
+
+console.log('\nThe person is told when the model cannot see:');
+{
+  const providers = { readsImages: (provider, id) => provider !== 'cerebras' };
+  const box = { window: { _H: { parseCloudModel: (v) => { const [, provider, ...rest] = v.split(':'); return { provider, modelId: rest.join(':') }; } }, HCProviders: providers } };
+  vm.createContext(box);
+  vm.runInContext(src('js', 'code', 'attach.js'), box, { filename: 'attach.js' });
+  const B = box.window.HCCodeAttach;
+  ok('a cloud model whose provider cannot read pictures is said so', B.canSee('cloud:cerebras:gpt-oss-120b') === false);
+  ok('one that can is not', B.canSee('cloud:gemini:gemini-3.8-flash') === true);
+  ok('a model on this computer is not judged here: nothing is said', B.canSee('qwen2.5-coder:3b') === null && B.canSee('') === null);
+  ok('the note reaches the box, and follows the model', /canSee\(modelOf\(\)\) === false/.test(src('js', 'code', 'attach.js')) && /window\.HCCodeAttach\?\.refresh\(\)/.test(src('modes', 'code', 'mode.js')));
+}
+
 console.log('\nThe panel and the Coder use it:');
 {
   const panel = src('modes', 'code', 'panel.html');
@@ -95,6 +138,8 @@ console.log('\nThe panel and the Coder use it:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the Coder wires it when the panel mounts', /HCCodeAttach\?\.mount\(\{ panel: \$\('coder-mode-wrap'\)/.test(mode));
   ok('a request takes what is attached, pictures included', /HCCodeAttach\.take\(task\)/.test(mode) && /images: request\.images/.test(mode));
+  ok('the message is drawn with its pictures, and keeps their previews with it', /appendUserMsg\(window\.HCCodeAttach \? window\.HCCodeAttach\.shownRequest\(request\.content\) : task, request\.pictures\)/.test(mode) && /thumbs: request\.thumbs/.test(mode) && /shownRequest\(m\.content\) : m\.content, m\.thumbs\)/.test(mode));
+  ok('the bubble holds them above the words', /<div class="cdr-user-bubble">\$\{window\.HCCodeAttach\?\.picturesHtml\(pictures\) \|\| ''\}\$\{esc\(text\)\}<\/div>/.test(mode));
   ok('a saved conversation and a saved session leave the pictures out', (mode.match(/HCCodeAttach\.forStorage\(conversationMsgs\)/g) || []).length === 2);
   ok('the conversation shows the names, not the files', (mode.match(/HCCodeAttach\.shownRequest\(/g) || []).length >= 2);
   const boot = src('boot.js');

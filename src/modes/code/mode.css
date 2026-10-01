@@ -253,6 +253,29 @@ body.coder-mode #app { display: none; }
   background: var(--surface-raised); white-space: pre-wrap; word-break: break-word; line-height: 1.55; font-size: 13.5px;
 }
 
+/* The pictures sent with a request, drawn in the bubble they were sent in: a
+   small preview each, opening full size on a click. Flat, as the rest is. */
+.cdr-user-pics { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; line-height: 0; }
+.cdr-user-pic {
+  padding: 0; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm); overflow: hidden;
+  background: var(--surface-sunken); cursor: zoom-in; line-height: 0;
+}
+.cdr-user-pic img { display: block; width: auto; height: auto; max-width: 240px; max-height: 160px; }
+.cdr-user-pic:hover { border-color: var(--cdr-text-muted); }
+.cdr-user-pic:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cdr-lightbox {
+  position: fixed; inset: 0; z-index: 9500; display: flex; align-items: center; justify-content: center;
+  padding: 72px 28px 40px; background: var(--surface-0); cursor: zoom-out;
+}
+.cdr-lightbox img { max-width: min(94vw, 1600px); max-height: 86vh; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm); }
+.cdr-lightbox-name { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; color: var(--cdr-text-muted); font-size: 12px; pointer-events: none; }
+.cdr-lightbox-close {
+  position: absolute; top: 56px; right: 18px; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm); background: transparent; color: var(--cdr-text); cursor: pointer;
+}
+.cdr-lightbox-close:hover { border-color: var(--cdr-text-muted); }
+.cdr-lightbox-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 /* What HashCoder did and said. */
 .cdr-msg.assistant { display: flex; flex-direction: column; gap: 8px; }
 .cdr-msg-role { color: var(--cdr-text-muted); font-size: 11.5px; letter-spacing: 0.04em; }

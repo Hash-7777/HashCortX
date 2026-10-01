@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A picture attached in HashCoder is seen in the conversation.** The
+  message it was sent with shows a small preview of each picture, which
+  opens full size on a click and closes with Escape, instead of only naming
+  the file. The previews are kept, newest first and within a fixed budget,
+  when the conversation is saved, so they are there after the app is
+  reopened; the picture sent to the model is still not kept. The box says so
+  when the chosen model cannot read pictures, rather than sending one that is
+  not seen (`js/code/attach.js`).
+
 - **HashCoder can export a conversation with its trace, for finding what
   went wrong.** A button in the top bar, beside History, writes one markdown
   file: the facts of the run (the app, the platform, the project, the model
