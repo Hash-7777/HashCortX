@@ -114,10 +114,20 @@
 
    Paused rather than cancelled, so an animation resumes where it stopped
    instead of snapping back to its first frame.
+
+   The launch screen shares the rule when the window is quiet. It is the one
+   place where the decoration is the whole screen, it waits for a click for as
+   long as it is left, and its own rules are written against its id, which a
+   class cannot outrank. Joining this rule needs the same declaration rather
+   than another one.
    ══════════════════════════════════════════════════════════════ */
 html.hc-power-idle *,
 html.hc-power-idle *::before,
-html.hc-power-idle *::after {
+html.hc-power-idle *::after,
+html.hc-power-quiet .intro-screen,
+html.hc-power-quiet .intro-screen *,
+html.hc-power-quiet .intro-screen *::before,
+html.hc-power-quiet .intro-screen *::after {
   animation-play-state: paused !important;
   transition: none !important;
 }
@@ -131,10 +141,11 @@ html.hc-power-idle .circuit-spot {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   Quiet — the window is visible but not focused, on a machine with
-   no hardware renderer. There the decorations are not free: the
-   drone rotors alone spin better than once a second, for as long as
-   the window is open behind somebody else's.
+   Quiet — the window is visible but nobody is using it: either
+   nothing has touched it for a minute, or it is not focused on a
+   machine with no hardware renderer. The decorations are not free:
+   the drone rotors alone spin better than once a second, for as long
+   as the window is open.
 
    This names what may stop rather than what must keep going. Pausing
    everything and exempting the important things would put every

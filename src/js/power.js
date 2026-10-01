@@ -44,6 +44,19 @@
 // decorations instead means the failure mode is a decoration that keeps
 // animating, which costs a little power and misleads nobody.
 //
+// A fourth case needs no particular machine. A window that is visible and in
+// front can still be unattended: the launch screen waits for a click for as
+// long as it is left, and a chat can sit open on a second screen all day.
+// Left like that, the decorations alone keep the processor and the graphics
+// chip working for as long as the window exists.
+//
+//   resting  nothing has touched the window, by pointer, key or touch, for a
+//            minute. The same named decorations pause, and the first touch
+//            of any kind starts them again.
+//
+// Resting uses the quiet state's own mechanism, so it can pause exactly what
+// quiet can and nothing else.
+//
 // Checked by scripts/checks/power.mjs.
 // ==============================================================
 
@@ -60,6 +73,8 @@
   // state. base.css pauses the same list under `.hc-power-quiet`, and
   // scripts/checks/power.mjs fails if the two ever disagree.
   const DECORATIVE = [
+    // First because the stylesheet names it first, and the check compares order.
+    '.intro-screen',
     '.drone-bg',
     '.drone-inline',
     '.brand-drone',
@@ -68,20 +83,61 @@
     '.circuit-spot',
   ];
 
-  // Only where the processor is drawing. On a machine with a GPU this whole
-  // state never happens, and a window you can see keeps its motion.
+  // How long without a pointer, key or touch before the decorations rest. Long
+  // enough that nobody reading a reply, thinking, or watching a model work
+  // sees motion stop; short enough that a window left open does not draw for
+  // hours.
+  const REST_AFTER_MS = 60000;
+  const ACTIVITY = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart'];
+  let lastActive = Date.now();
+  let resting = false;
+  let restTimer = null;
+
+  // Only where the processor is drawing. On a machine with a GPU the
+  // unfocused case never happens, and a window you can see keeps its motion.
   const softwareRenderer = () => !!(window.HCHost && window.HCHost.software);
 
-  /** Visible, unfocused, and paying for every frame. */
+  /**
+   * Visible, and either unattended, or unfocused on a machine paying for every
+   * frame.
+   */
   function isQuiet() {
-    return visible && !focused && softwareRenderer();
+    return visible && (resting || (!focused && softwareRenderer()));
+  }
+
+  /**
+   * Rest once a minute has passed without activity. One timer at most is ever
+   * pending, and none while resting or hidden, so an unattended window costs
+   * no wake-ups at all.
+   */
+  function armRest() {
+    if (restTimer || resting || !visible) return;
+    restTimer = setTimeout(() => {
+      restTimer = null;
+      if (!visible || resting) return;
+      if (Date.now() - lastActive >= REST_AFTER_MS) {
+        resting = true;
+        apply();
+      } else {
+        armRest();
+      }
+    }, Math.max(1000, REST_AFTER_MS - (Date.now() - lastActive)));
+  }
+
+  function noteActivity() {
+    lastActive = Date.now();
+    if (resting) {
+      resting = false;
+      apply();
+    }
+    armRest();
   }
 
   const reducedMotion = () =>
     !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   function state() {
-    return { visible, focused, reducedMotion: reducedMotion(), quiet: isQuiet() };
+    return { visible, focused, reducedMotion: reducedMotion(), quiet: isQuiet(), resting };
   }
 
   function apply() {
@@ -121,7 +177,12 @@
     const next = !document.hidden;
     if (next === visible) return;
     visible = next;
+    // Coming back is attention, and a window nobody can see needs no timer.
+    resting = false;
+    if (visible) lastActive = Date.now();
+    else if (restTimer) { clearTimeout(restTimer); restTimer = null; }
     apply();
+    armRest();
   }
   function onFocus() {
     if (focused) return;
@@ -137,6 +198,9 @@
   document.addEventListener('visibilitychange', onVisibility);
   window.addEventListener('focus', onFocus);
   window.addEventListener('blur', onBlur);
+  // Passive and in the capture phase: noticing activity must never delay it,
+  // and nothing in the page can stop the event before it is seen.
+  for (const ev of ACTIVITY) window.addEventListener(ev, noteActivity, { passive: true, capture: true });
 
   window.HCPower = {
     /** Is the window on screen at all? */
@@ -147,8 +211,11 @@
     prefersReducedMotion: reducedMotion,
     /** Current state, as passed to listeners. */
     state,
-    /** Visible, unfocused, and drawing in software: decorations may rest. */
+    /** Visible and unattended, or unfocused and drawing in software: decorations may rest. */
     isQuiet,
+    /** Nothing has touched the window for a minute. */
+    isResting: () => resting,
+    REST_AFTER_MS,
     /** The decorations that state is allowed to stop. Nothing else. */
     DECORATIVE,
     /**
@@ -180,4 +247,5 @@
   };
 
   apply();
+  armRest();
 })();

@@ -444,6 +444,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Decorative motion rests when nobody is using the window.** After a
+  minute without a mouse, key or touch, the drone rotors, the circuit
+  backdrop and the whole launch screen pause, and any touch starts them
+  again. The launch screen waits for a click for as long as it is left, and
+  with its motion running it kept the processor and the graphics chip
+  working the whole time. What reports progress is never paused
+  (`js/power.js`).
+
 - **A model reading in circles is told to stop reading.** After two steps
   that changed nothing, HashCoder told the model to read the file an error
   points to, the very thing it was repeating; it now says that what it read

@@ -38,8 +38,30 @@ const docListeners = {};
 const winListeners = {};
 let reduced = false;
 
+// A clock and timers that only move when told to, so a minute of nobody
+// touching the window can be driven in an instant, and so what is pending at
+// any moment can be counted.
+let now = 1_000_000;
+let nextTimer = 1;
+const pending = [];
+function advance(ms) {
+  const end = now + ms;
+  for (;;) {
+    pending.sort((a, b) => a.due - b.due);
+    const next = pending[0];
+    if (!next || next.due > end) break;
+    pending.shift();
+    now = next.due;
+    next.fn();
+  }
+  now = end;
+}
+
 const sandbox = {
   console,
+  Date: { now: () => now },
+  setTimeout(fn, ms) { const id = nextTimer++; pending.push({ id, due: now + ms, fn }); return id; },
+  clearTimeout(id) { const i = pending.findIndex((t) => t.id === id); if (i >= 0) pending.splice(i, 1); },
   document: {
     hidden: false,
     hasFocus: () => true,
@@ -185,6 +207,92 @@ console.log('\nBlurred on a machine that can draw — nothing changes at all:');
   check('no SVG is paused', !svgCalls.some((c) => c.startsWith('pause:')), svgCalls.join(','));
   fire(winListeners, 'focus');
   sandbox.window.HCHost = undefined;
+}
+
+console.log('\nUnattended — the decorations rest after a minute, and wake on any touch:');
+{
+  const R = power.REST_AFTER_MS;
+  const states = [];
+  const off = power.onChange((s) => states.push(s.resting));
+  check('the wait is a minute', R === 60000);
+  check('one timer is waiting for it, no more', pending.length === 1, String(pending.length));
+
+  svgCalls.length = 0;
+  advance(R - 1000);
+  check('just short of a minute nothing rests',
+    !power.isResting() && !rootClasses.has('hc-power-quiet') && power.shouldAnimate() === true);
+
+  advance(1500);
+  check('after a minute it rests', power.isResting() === true);
+  check('and counts as quiet', power.isQuiet() === true && rootClasses.has('hc-power-quiet'));
+  check('the idle class is not set — that is for a window nobody can see', !rootClasses.has('hc-power-idle'));
+  check('decorative loops are told to rest', power.shouldAnimate() === false);
+  check('the window still counts as visible, so what is drawn for meaning keeps drawing',
+    power.isVisible() === true && power.state().visible === true);
+  check('only the ornamental SVG is paused',
+    svgCalls.includes('pause:a') && !svgCalls.includes('pause:b'), svgCalls.join(','));
+  check('while resting no timer is pending, so an unattended window wakes nothing', pending.length === 0, String(pending.length));
+  check('listeners are told', states[states.length - 1] === true);
+
+  svgCalls.length = 0;
+  fire(winListeners, 'pointermove');
+  check('a touch wakes it', power.isResting() === false);
+  check('the class comes off', !rootClasses.has('hc-power-quiet'));
+  check('the decorations are started again', svgCalls.includes('unpause:a'), svgCalls.join(','));
+  check('and loops may run', power.shouldAnimate() === true);
+  check('listeners are told that too', states[states.length - 1] === false);
+  check('and the wait begins again', pending.length === 1, String(pending.length));
+
+  // Activity moves the minute along; it is not a minute from the first event.
+  advance(50000);
+  fire(winListeners, 'pointerdown');
+  advance(50000);
+  check('a touch partway through postpones it', power.isResting() === false);
+  advance(11000);
+  check('and a minute after the last touch it rests', power.isResting() === true);
+
+  for (const ev of ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart']) {
+    fire(winListeners, ev);
+    check(`${ev} wakes it`, power.isResting() === false);
+    advance(R + 500);
+    check(`...and after another minute it rests again`, power.isResting() === true);
+  }
+  fire(winListeners, 'keydown');
+
+  // A window nobody can see has no use for the timer, and coming back is
+  // attention in itself.
+  advance(R + 500);
+  sandbox.document.hidden = true;
+  fire(docListeners, 'visibilitychange');
+  check('hiding ends resting and cancels the timer', !power.isResting() && pending.length === 0, String(pending.length));
+  sandbox.document.hidden = false;
+  fire(docListeners, 'visibilitychange');
+  check('coming back does not start resting at once', !power.isResting() && pending.length === 1);
+  advance(R + 500);
+  check('it rests again a minute later', power.isResting() === true);
+
+  // The unfocused case is for machines that draw in software. This is not.
+  sandbox.window.HCHost = { software: false };
+  fire(winListeners, 'pointermove');
+  advance(R + 500);
+  check('on a machine with a graphics chip it rests too', power.isResting() === true);
+  fire(winListeners, 'pointermove');
+  sandbox.window.HCHost = undefined;
+
+  off();
+}
+
+console.log('\nThe launch screen is one of the things that rests:');
+{
+  const base = readFileSync(join(here, '..', '..', 'src', 'css', 'base.css'), 'utf8');
+  const rule = base.match(/html\.hc-power-quiet \.intro-screen,[^{]*\{([^}]*)\}/);
+  check('the stylesheet pauses it', !!rule);
+  check('and the rule is important, because the launch screen is styled by id',
+    !!rule && /animation-play-state:\s*paused\s*!important/.test(rule[1]));
+  check('the module names it', power.DECORATIVE.includes('.intro-screen'));
+  const html = readFileSync(join(here, '..', '..', 'src', 'index.html'), 'utf8');
+  check('and the element carries the class, or the rule reaches nothing',
+    /<div id="intro-screen" class="intro-screen">/.test(html));
 }
 
 console.log('\nWhat may be stopped is named, and named in one place:');
