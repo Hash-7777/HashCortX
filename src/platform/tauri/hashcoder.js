@@ -55,6 +55,7 @@
           'Do not pass null — provide the complete file text.'
         );
       }
+      HC.code.leaveAlone(path);   // what the request says to leave as it is (js/code/keep.js)
       const ok = await HC.guard.request('write', path, reason);
       if (!ok) throw await HC.code.refused('write', path);
       // Recorded after approval and before the write, so the copy is of what
@@ -129,6 +130,7 @@
     },
 
     async deleteFile(path, reason = '') {
+      HC.code.leaveAlone(path);
       // A deletion is the change most worth being able to take back. What the
       // file holds is recorded before asking, so the question can say when
       // Undo will not be able to bring it back.
@@ -263,6 +265,7 @@
 
     async moveFile(from, to, reason = '') {
       if (!from || !to) throw new Error('move_file: both from and to are required.');
+      HC.code.leaveAlone(from); HC.code.leaveAlone(to);
       // Each end is asked about on its own, as the path it actually is.
       //
       // This used to ask once, about the string `from → to`. The guard reads
@@ -391,6 +394,12 @@
   HC.code.refused = async (action, path) => {
     const meant = await HC.code.meant(path).catch(() => '');
     return new Error(`Permission denied: ${action} ${path}${meant ? `. That is outside the open project. The same place inside it is ${meant}: use that path.` : ''}`);
+  };
+
+  /** Refuses a change to what the person's request says to leave as it is: the tests, or a file it names. */
+  HC.code.leaveAlone = (path) => {
+    const why = window.HCCodeKeep?.leftAlone(HC.code.request, path);
+    if (why) throw new Error(why);
   };
 
   /**

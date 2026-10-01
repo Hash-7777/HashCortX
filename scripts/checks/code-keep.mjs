@@ -61,6 +61,26 @@ console.log('\nLimits:');
   ok('a file of no kind it reads takes nothing away', K.note('notes.txt', 'a\nb\n', '', 'x') === '');
 }
 
+console.log('\nWhat the request says to leave as it is:');
+{
+  const r = 'python3 -m unittest fails in this project. Fix stats.py so the tests pass. Do not change the tests.';
+  ok('a file of tests, when the request says not to change the tests: refused, with what to change instead',
+    K.leftAlone(r, '/p/tests/test_stats.py') === 'The request says not to change the tests, so test_stats.py was not changed. Change the code the tests check instead, so that they pass as they are.');
+  ok('... by the names and folders test runners look for, on either system', ['/p/test/range.test.js', '/p/src/clamp.test.js', '/p/src/a.spec.ts', '/p/__tests__/a.js', '/p/pkg/a_test.go', '/p/test.js', 'C:\\p\\tests\\x.py'].every((p) => K.leftAlone(r, p) !== ''));
+  ok('... and nothing else, however its name reads', ['/p/stats.py', '/p/src/latest.js', '/p/src/contest.js', '/p/src/attest.py', '/p/testing-guide.md'].every((p) => K.leftAlone(r, p) === ''));
+  ok('in the ways a person says it', ['Leave the tests alone and fix it.', 'Keep the existing tests unchanged.', 'The tests must not be changed.', "Don't touch the test files."].every((t) => K.leftAlone(t, '/p/test/a.test.js') !== ''));
+  ok('a request that asks for the tests to change, or says nothing of them, leaves them open', K.leftAlone('Rename it everywhere, including where it is tested.', '/p/test/a.test.js') === ''
+    && K.leftAlone('Add tests for clamp in test/clamp.test.js.', '/p/test/clamp.test.js') === '' && K.leftAlone('Fix the bug and update the tests.', '/p/test/a.test.js') === '');
+  ok('a file the request names to leave as it is', K.leftAlone('Fix the login, and do not touch config/app.json.', '/p/config/app.json') === 'The request says to leave config/app.json as it is, so it was not changed.'
+    && K.leftAlone('Fix it, but do not edit `README.md`', '/p/README.md') !== '' && K.leftAlone('Fix the login, and do not touch config/app.json.', '/p/config/other.json') === '');
+  ok('no request, or no path, nothing', K.leftAlone('', '/p/test/a.js') === '' && K.leftAlone(r, '') === '');
+  const tools = src('platform', 'tauri', 'hashcoder.js');
+  ok('every write, edit, deletion and move of HashCoder\'s is refused for it, before anything is asked or done',
+    /HC\.code\.leaveAlone\(path\);   \/\/ what the request says to leave as it is \(js\/code\/keep\.js\)\n\s*const ok = await HC\.guard\.request\('write', path, reason\);/.test(tools)
+    && /async deleteFile\(path, reason = ''\) \{\n\s*HC\.code\.leaveAlone\(path\);/.test(tools) && /HC\.code\.leaveAlone\(from\); HC\.code\.leaveAlone\(to\);/.test(tools)
+    && /const why = window\.HCCodeKeep\?\.leftAlone\(HC\.code\.request, path\);\n\s*if \(why\) throw new Error\(why\);/.test(tools));
+}
+
 console.log('\nHashCoder:');
 {
   const tools = src('platform', 'tauri', 'hashcoder.js');

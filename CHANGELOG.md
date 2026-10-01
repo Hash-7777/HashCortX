@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **What a request says to leave alone is left alone.** When a request
+  says not to change the tests, or names a file to leave as it is,
+  HashCoder refuses every write, deletion and move of those, saying what to
+  change instead. A small model whose code failed a test had changed the
+  test until it passed.
+
 - **A finished site is held to a standard, not only to working.** The check
   of a site's files, with no model, now also finds content that starts
   hidden until a script shows it (search engines, link previews and a
