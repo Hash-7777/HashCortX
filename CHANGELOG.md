@@ -437,6 +437,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A model reading in circles is told to stop reading.** After two steps
+  that changed nothing, HashCoder told the model to read the file an error
+  points to, the very thing it was repeating; it now says that what it read
+  is above, and to make the change.
+
 - **"Not done" is not an ending.** A model on this computer that answers
   a request for a change by saying part of it is not done is sent back
   once to do it, or to say why it cannot be done.

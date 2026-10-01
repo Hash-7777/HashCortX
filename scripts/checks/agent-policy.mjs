@@ -131,6 +131,7 @@ console.log('\nAn agent repeating itself is told to do something different:');
 {
   const out = shouldContinue({ iteration: 6, stalledIterations: 2 });
   check('after two steps that changed nothing it goes on, told to do something different', out.continue && out.reason === 'repeating' && /Do something different/.test(out.nudge));
+  check('... not to read again what it has read, and to make the change with what is above', /What you read is above: do not read it again\. Make the change now with patch_file, its search copied from the file as it is above, or finish and say what is in the way\./.test(out.nudge) && !/read the file the error/.test(out.nudge));
   check('one such step is not yet repeating', shouldContinue({ iteration: 6, stalledIterations: 1 }).reason === 'within-budget');
   check('and at the stall limit it stops, as before', shouldContinue({ iteration: 6, stalledIterations: BUDGET.stallLimit }).reason === 'stalled');
 }

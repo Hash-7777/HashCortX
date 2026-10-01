@@ -143,7 +143,7 @@
           ? 'Every step of your plan is done, and your last steps changed nothing. Finish now: say in two or three sentences what you changed and what you checked. If something is still wrong, fix it instead.'
           : progress.changed
             ? 'Your last steps looked at files again and changed nothing. If the change is complete, finish now with what you changed and what you checked; if it is not, make the next change.'
-            : 'Your last steps repeated what you had already done and changed nothing. Do something different: read the file the error or the result points to and change it, or finish and say what is in the way.' };
+            : 'Your last steps repeated what you had already done and changed nothing. Do something different. What you read is above: do not read it again. Make the change now with patch_file, its search copied from the file as it is above, or finish and say what is in the way.' };
     }
     return { continue: true, reason: 'within-budget' };
   }
