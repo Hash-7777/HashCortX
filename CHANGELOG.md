@@ -708,6 +708,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Windows checkout passes the checks.** Git for Windows checks text
+  files out with CRLF line endings by default, and fourteen checks that
+  read the source as text failed on a fresh clone. The repository now
+  keeps LF in every text file on every system (`.gitattributes`); the
+  benchmark's task about a file with Windows line endings keeps its own.
+
 - **A file is never written as the chat's own markers.** A small model
   wrote `<tool_response>` as the whole of a file it had just read, and the
   file's code was gone until Undo. A write whose text is nothing but such

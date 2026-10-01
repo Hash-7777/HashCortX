@@ -1,0 +1,7 @@
+# Text files keep LF line endings in every checkout, on every system. The
+# checks read the source as text, and a Windows checkout made with CRLF
+# endings failed fourteen of them.
+* text=auto eol=lf
+
+# The benchmark's task about a file with Windows line endings keeps them.
+scripts/bench/coder/tasks/js-crlf-edit/** -text
