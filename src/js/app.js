@@ -2860,7 +2860,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const historyMsgs = messages.filter(m => m.role !== "system" && !m._pending).length;
     const sysMsgs     = messages.filter(m => m.role === "system").length;
     const hasPreviewAttachments = messages.some(m => /\[ATTACHED FILES - use this content when answering\]/.test(m.content || ""));
-    const numCtx      = hasPreviewAttachments ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096);
+    const numCtx      = Math.max(hasPreviewAttachments ? 16384 : (HISTORY_LIMIT > 0 ? 8192 : 4096), HCLocalContext.sizeFor(messages).numCtx);
 
     previewMeta.textContent =
       `${messages.length} msg${messages.length !== 1 ? "s" : ""} · ~${estTokens.toLocaleString()} tokens`;
@@ -2875,7 +2875,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       <span>History: <b>${historyMsgs} msg${historyMsgs !== 1 ? 's' : ''}</b></span>
       <span>System: <b>${sysMsgs}</b></span>
       <span>~Tokens: <b>${estTokens.toLocaleString()}</b></span>
-      <span>num_ctx: <b>${numCtx.toLocaleString()}</b></span>
+      <span>num_ctx: <b>at least ${numCtx.toLocaleString()}</b></span>
       <span>Model: <b>${cloudModelLabel(modelEl.value) || '—'}</b></span>
     </div>`);
 
