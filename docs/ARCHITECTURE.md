@@ -294,6 +294,9 @@ HashCortX/
 │   │       └── private_dir.rs 146   ~/.hashcortx, readable by its owner only
 │   ├── models/bge-small-en-v1.5/    bundled embedding model, MIT, 34 MB
 │   │                                compiled into the binary; PROVENANCE.md
+│   ├── build.rs                     the build script; stops a build that would
+│   │                                close at once on the computer making it
+│   ├── cpu_check.rs                 the decision it makes, and its tests
 │   ├── capabilities/default.json
 │   ├── icons/
 │   ├── Cargo.toml

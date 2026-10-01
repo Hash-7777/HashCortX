@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A build that would close at once on its own computer is stopped, with
+  the command that works.** The embedding runtime needs a processor with
+  AVX2 and BMI2, and an app built with it closes without a window or a
+  message on an older one. Building on such a processor now stops with a
+  message that says so and names the build without the runtime. A build for
+  another computer can go on by setting `HASHCORTX_ALLOW_ANY_CPU=1`.
+
 - **A small project, shown whole.** A model on this computer under 15
   billion parameters is shown every text file of a small project as a
   conversation begins, read without asking like the map a larger model is

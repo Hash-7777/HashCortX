@@ -5,6 +5,12 @@
 mod commands;
 mod security;
 
+// The build script's decision about the embedding runtime, run as tests here.
+#[cfg(test)]
+#[allow(dead_code)]
+#[path = "../cpu_check.rs"]
+mod cpu_check;
+
 use commands::{
     audit::{audit_log_append, audit_log_read},
     checkpoint::{
