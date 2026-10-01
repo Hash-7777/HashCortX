@@ -82,6 +82,28 @@ input, textarea, [contenteditable="true"],
   -webkit-user-select: text;
 }
 
+/* Every conversation and result a person may want to copy from: the chat's,
+   HashCoder's, Virtual OS's, Finance's, the ERP agent's and the Swarm's. Kept in step with
+   the list main.js lets the context menu open on (scripts/checks/selectable.mjs). */
+#messages *,
+.cdr-messages *,
+.void-chat-msgs *,
+.fin-chat-messages *,
+#sysAgentLog *,
+.amk-ws-message *,
+#sbxLog * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+/* What is clicked rather than read stays unselectable, so a drag over a step's
+   heading or a button does not select its label. */
+#messages button, #messages summary, .cdr-messages button, .cdr-messages summary,
+.void-chat-msgs button, .fin-chat-messages button,
+#sysAgentLog button, .amk-ws-message button, #sbxLog button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 ::-webkit-scrollbar             { width:4px; height:4px; }
 ::-webkit-scrollbar-track       { background:transparent; }
 ::-webkit-scrollbar-thumb       { background:var(--hc-border); border-radius:2px; }

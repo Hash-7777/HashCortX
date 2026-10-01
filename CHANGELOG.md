@@ -751,6 +751,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Text can be copied from HashCoder and from every conversation in the
+  app.** The app is built like a native one, where nothing can be selected
+  unless it is opted in, and only the main chat's messages had been. The
+  messages, steps and errors in HashCoder, and the conversations in Virtual
+  OS, Finance, the ERP and the Agent Swarm, can now be selected, and the
+  right-click menu opens on them. Buttons and a step's heading are still not
+  selected by dragging across them, and the rest of the app is as it was
+  (`scripts/checks/selectable.mjs`).
+
 - **HashCoder tells you what the model you chose said, not what the last
   one it tried said.** When a model could not answer, HashCoder tried every
   provider you had a key for and then reported the last failure, so a

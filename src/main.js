@@ -458,7 +458,7 @@
   document.addEventListener('contextmenu', (e) => {
     const t = e.target;
     if (!t) { e.preventDefault(); return; }
-    const ok = t.closest('input, textarea, [contenteditable="true"], .messages .msg .bubble, pre, code, .selectable');
+    const ok = t.closest('input, textarea, [contenteditable="true"], .messages .msg .bubble, pre, code, .selectable, #messages, .cdr-messages, .void-chat-msgs, .fin-chat-messages, #sysAgentLog, .amk-ws-message, #sbxLog');
     if (!ok) e.preventDefault();
   });
 
