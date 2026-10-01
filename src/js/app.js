@@ -6128,7 +6128,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       return reply.content;
     };
     const out = await HCDecide.run({
-      messages, tools, context, shape: HCAgentShape, route: (text) => (window.HCMcp?.speaksOf(text) ? null : HCIntent.route(text, names)),
+      messages, tools, context, shape: HCAgentShape, skipDeciding: HCLocalSpeed.isSlow(host, model), route: (text) => (window.HCMcp?.speaksOf(text) ? null : HCIntent.route(text, names)),
       ask: (msgs, schema) => chat(msgs, { json: schema }),
       answer: async (msgs, toolsRun) => {
         if (assistant.content) { assistant.content = ""; updateLastBubble(""); }   // only the last answer stands

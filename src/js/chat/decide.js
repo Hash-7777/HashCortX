@@ -113,9 +113,14 @@
    * detail)` hears each step; `needsTool` says the app knows the request needs
    * a tool, so the first decision must name one — answering a question about a
    * connected system's records without reading them could only invent them.
+   * `skipDeciding` says the model writes slowly here (js/local-speed.js): it is
+   * not asked whether the request needs a tool when the app cannot tell, and
+   * not asked for a further step once a tool has run, because each of those
+   * questions costs what it costs to write its answer. A tool the app has
+   * already chosen, or that the request must have, is still asked for.
    * Returns { text, calls }.
    */
-  async function run({ messages, tools, ask, answer, runTool, shape, route, context, onEvent = () => {}, maxSteps = 6, needsTool = false }) {
+  async function run({ messages, tools, ask, answer, runTool, shape, route, context, onEvent = () => {}, maxSteps = 6, needsTool = false, skipDeciding = false }) {
     const convo = messages.slice();
     const sys = convo.findIndex((m) => m.role === "system");
     const told = guide(tools);
@@ -141,9 +146,10 @@
       if (step === 1 && plain && plain.tool === "none") break;
       if (step === 1 && plain && plain.arguments) decision = { tool: plain.tool, arguments: plain.arguments };
       else {
-        onEvent("deciding", step);
         const only = step === 1 && plain ? plain.tool : undefined;
         const must = needsTool && !calls.length;
+        if (skipDeciding && !only && !must) break;
+        onEvent("deciding", step);
         decision = read(await ask([...shape.toolTurnsInWords(convo), { role: "user", content: must ? MUST : DECIDE }], schema(tools, only, { none: !must })), tools);
       }
       if (!decision || decision.tool === "none") break;

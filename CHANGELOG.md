@@ -10,6 +10,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A slow local model is not asked the extra question.** When a request
+  does not say whether it needs a tool, an agent on a model on this computer
+  first asks the model to decide, and again after each tool has run; each
+  of those answers costs what writing it costs, which on a model that
+  writes under ten tokens a second is seconds on every question. The app now
+  remembers how fast each model writes here, from the counts Ollama sends
+  with each reply, and for a model known to be that slow it answers at once
+  when it cannot tell, and answers from the result once a tool has run. A
+  tool the app has already chosen, or that a request must have, such as
+  reading a connected system's records, is still decided as before, and a
+  model not yet measured is not treated as slow (`js/local-speed.js`).
+
 - **How long a local model stays loaded is a setting.** Settings, General,
   "Free a local model's memory after": Ollama's own setting, which is five
   minutes unless it was changed on the server, or 2 minutes, 5, 10, 30 or

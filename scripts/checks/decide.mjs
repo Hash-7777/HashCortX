@@ -37,14 +37,14 @@ const tools = [fn('web_search', { query: { type: 'string' } }, ['query']), fn('c
 const names = tools.map((t) => t.function.name);
 
 /** Runs the loop with scripted decisions and answers; records what each call was sent. */
-async function play({ decisions = [], answers = ['The answer.'], request = 'hi', context, route = (t) => I.route(t, names), results = {}, needsTool = false }) {
+async function play({ decisions = [], answers = ['The answer.'], request = 'hi', context, route = (t) => I.route(t, names), results = {}, needsTool = false, skipDeciding = false }) {
   const asked = [];
   const answered = [];
   const answeredAfter = [];
   const ran = [];
   const out = await D.run({
     messages: [{ role: 'system', content: 'Agent rules.' }, { role: 'user', content: 'earlier' }, { role: 'assistant', content: 'earlier answer' }, { role: 'user', content: request }],
-    tools, shape, context, route, needsTool,
+    tools, shape, context, route, needsTool, skipDeciding,
     ask: async (msgs, schema) => { asked.push({ msgs, schema }); return decisions.shift() ?? '{"tool":"none","arguments":{}}'; },
     answer: async (msgs, toolsRun) => { answered.push(msgs); answeredAfter.push(toolsRun); return answers.shift() ?? 'The answer.'; },
     runTool: async (call) => { ran.push(call); return results[call.name] ?? '{"ok":true}'; },
@@ -98,6 +98,31 @@ console.log('\nWhen the app knows the request needs a tool:');
   ok('the first decision must name one, and is asked for one', !first.schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none') && first.msgs.at(-1).content === D.MUST);
   ok('after it has read, the model may decide it has enough', second.schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none') && second.msgs.at(-1).content === D.DECIDE && r.ran.length === 1);
   ok('without it, the first decision may be none, as before', (await play({ request: 'the records', route: null })).asked[0].schema.anyOf.some((x) => x.properties.tool.enum[0] === 'none'));
+}
+
+console.log('\nA model that writes slowly is asked only what must be asked:');
+{
+  const unsure = () => ({ request: 'Is Pluto a planet?', decisions: ['{"tool":"web_search","arguments":{"query":"Pluto"}}'] });
+  const slow = await play({ ...unsure(), skipDeciding: true });
+  ok('when the app cannot tell, no decision is asked for: it answers at once, with no tool', slow.asked.length === 0 && slow.ran.length === 0 && slow.answered.length === 1 && slow.answeredAfter[0] === 0);
+  const fast = await play(unsure());
+  ok('a model that is not slow is asked, as before', fast.asked.length === 2 && fast.ran.length === 1);
+
+  const sum = await play({ request: 'What is 1234 * 5678?', decisions: ['{"tool":"calculate","arguments":{"expression":"1234*5678"}}', '{"tool":"none","arguments":{}}'], skipDeciding: true });
+  ok('a tool the app chose is still run, with the model writing its arguments', sum.asked.length === 1 && sum.asked[0].schema.properties.tool.enum.join() === 'calculate' && sum.ran.length === 1 && sum.ran[0].arguments.expression === '1234*5678');
+  ok('and once it has run, the model is not asked whether to use another: it answers with the result', sum.answered.length === 1 && sum.answeredAfter[0] === 1 && /1234\*5678/.test(JSON.stringify(sum.answered[0])));
+  const sumFast = await play({ request: 'What is 1234 * 5678?', decisions: ['{"tool":"calculate","arguments":{"expression":"1234*5678"}}', '{"tool":"none","arguments":{}}'] });
+  ok('the same request on a model that is not slow is asked a second time', sumFast.asked.length === 2);
+
+  const clock = await play({ request: 'What day of the week is it today?', skipDeciding: true });
+  ok('a call the app can write itself costs the model nothing at all', clock.ran[0].name === 'current_datetime' && clock.asked.length === 0 && clock.answered.length === 1);
+
+  const must = await play({ request: 'the records', route: null, needsTool: true, skipDeciding: true, decisions: ['{"tool":"web_search","arguments":{"query":"records"}}', '{"tool":"none","arguments":{}}'] });
+  ok('a request that must have a tool still has it decided: answering without would invent it', must.asked.length === 1 && must.asked[0].msgs.at(-1).content === D.MUST && must.ran.length === 1);
+  ok('and once it has read, the model answers', must.answered.length === 1 && must.answeredAfter[0] === 1);
+
+  const plainWrite = await play({ request: 'Write a haiku about autumn.', skipDeciding: true });
+  ok('a request to write goes straight to the answer either way', plainWrite.asked.length === 0 && plainWrite.answered.length === 1);
 }
 
 console.log('\nThe app takes the first step when the request is plain:');
@@ -158,6 +183,7 @@ console.log('\nThe chat uses it for local agents:');
   ok('with the app\'s first step and what is remembered passed apart', /route: \(text\) => \(window\.HCMcp\?\.speaksOf\(text\) \? null : HCIntent\.route\(text, names\)\)/.test(app) && /context: memBlock/.test(app) && /if \(memBlock && !localSteps\)/.test(app));
   ok('decisions are held to their schema at no randomness; answers stream', /json: schema/.test(app) && /temperature: json \? 0 : temperature/.test(app) && /HCDecide\.shower\(onFinalToken\)/.test(app));
   ok('a model that thinks is not asked to for a decision or to read back a result, only when Ollama says it thinks', /caps\?\.includes\("thinking"\)/.test(app) && /think: \(json \|\| plain\) && thinks \? false : undefined/.test(app) && /plain: toolsRun > 0/.test(app));
+  ok('a model known to write slowly on this computer skips the step, a model not measured yet does not', /skipDeciding: HCLocalSpeed\.isSlow\(host, model\)/.test(app));
   const boot = src('boot.js');
   ok('it loads after what it reads calls with, and before the chat', boot.indexOf("'/js/agent-shape.js'") > 0 && boot.indexOf("'/js/chat/intent.js'") < boot.indexOf("'/js/chat/decide.js'") && boot.indexOf("'/js/chat/decide.js'") < boot.indexOf("'/js/app.js'"));
 }

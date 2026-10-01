@@ -149,7 +149,11 @@
     });
     if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${String(await res.text()).slice(0, 300)}`);
     const lines = (lineReader || window.HCStreamSSE.jsonLines)(res.body);
-    return read(lines, { onToken, onThinking });
+    const reply = await read(lines, { onToken, onThinking });
+    // How fast it wrote, kept for the steps that cost more where a model is slow (js/local-speed.js).
+    const S = typeof window !== "undefined" && window.HCLocalSpeed;
+    if (S && reply.last) S.record(host, request.model, reply.last);
+    return reply;
   }
 
   const warming = new Map();   // host|model|window -> when it was last asked for
