@@ -751,6 +751,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A long message in HashCoder's top bar no longer runs under the
+  buttons.** The status is cut with an ellipsis at the edge of its place,
+  the model picker and the buttons keep theirs, and the whole message is
+  the status's title.
+
 - **HashCortx says when Ollama refuses it.** On Windows the app's page
   comes from `http://tauri.localhost`, an address Ollama does not answer
   by default: it answered 403, and the app said only "Local host offline".

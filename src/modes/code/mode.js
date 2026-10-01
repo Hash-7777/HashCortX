@@ -988,7 +988,7 @@
       const dot  = $('cdrStatusDot');
       const txt  = $('cdrStatusText');
       if (dot) dot.className = 'cdr-status-dot' + (type ? ' ' + type : '');
-      if (txt) txt.textContent = text || 'Ready';
+      if (txt) { txt.textContent = text || 'Ready'; txt.title = text || ''; }
     }
 
     // ── Chat rendering ────────────────────────────────────────

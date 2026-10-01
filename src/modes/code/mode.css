@@ -52,6 +52,11 @@ body.coder-mode #app { display: none; }
 }
 .cdr-top-left, .cdr-top-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .cdr-top-right { gap: 6px; flex: none; }
+/* The left side takes the room the right side leaves, and only the status
+   gives way inside it: a long message is cut with an ellipsis (the whole of it
+   is the status's title) instead of running under the model picker. */
+.cdr-top-left { flex: 1 1 auto; }
+.cdr-top-left > :not(.cdr-status) { flex-shrink: 0; }
 .cdr-brand { font-size: 14px; font-weight: 600; letter-spacing: 0.01em; white-space: nowrap; }
 .cdr-brand b, .cdr-welcome-title b { color: var(--accent-2); font-weight: 600; }
 .cdr-top-sep { width: 1px; height: 18px; background: var(--cdr-border-strong); flex: none; margin: 0 4px; }
@@ -65,7 +70,8 @@ body.coder-mode #app { display: none; }
 .cdr-project:hover { border-color: var(--accent); }
 .cdr-project span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.cdr-status { display: inline-flex; align-items: center; gap: 7px; color: var(--cdr-text-muted); font-size: 12px; white-space: nowrap; }
+.cdr-status { display: inline-flex; align-items: center; gap: 7px; min-width: 0; flex: 0 1 auto; color: var(--cdr-text-muted); font-size: 12px; white-space: nowrap; }
+.cdr-status-word { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cdr-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--cdr-text-muted); flex: none; }
 .cdr-status-dot.ok, .cdr-status-dot.done { background: var(--ok); }
 /* Still: the reply is where work is shown moving (js/code/live.js). */
