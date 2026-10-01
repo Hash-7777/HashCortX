@@ -81,43 +81,6 @@
     return "routable";
   }
 
-  /** Whether this failure means "try a different model". */
-  const isRoutable = (err) => classifyError(err) === "routable";
-
-  /**
-   * The models to try, best first — with one exception that matters.
-   *
-   * The first in the chain is what the person actually chose, and it stays
-   * first however it is ranked. Being quietly moved off the model somebody
-   * picked, because the app thinks it knows better, is not a failover.
-   *
-   * Among the rest, a model that has failed repeatedly is pushed to the back
-   * before quality is considered at all: a frontier model that is refusing
-   * every request is worth less right now than a smaller one that answers.
-   */
-  function orderChain(chain, streaks = new Map(), heavyFailures = 3) {
-    const list = Array.isArray(chain) ? chain : [];
-    return list
-      .map((m, i) => ({
-        m,
-        i,
-        rank: rankOf(m && m.model),
-        fails: streaks.get(`${m && m.label}:${m && m.model}`) || 0,
-      }))
-      .sort((a, b) => {
-        if (a.i === 0) return -1;
-        if (b.i === 0) return 1;
-        const aTired = a.fails >= heavyFailures;
-        const bTired = b.fails >= heavyFailures;
-        if (aTired !== bTired) return aTired ? 1 : -1;
-        if (b.rank !== a.rank) return b.rank - a.rank;
-        // Everything else equal, the order they were offered in — so the
-        // result is the same every time rather than depending on the sort.
-        return a.i - b.i;
-      })
-      .map((x) => x.m);
-  }
-
   // Providers with a free tier. Between models of the same class one of these
   // comes first, so a failover never quietly moves somebody onto an account
   // that bills them while a free one would have answered.
@@ -179,16 +142,5 @@
     };
   }
 
-  /**
-   * The models a run may move through, the chosen one first. A job given to a
-   * model on this computer stays on it: no cloud model follows, since choosing
-   * a local model is often the point — its project and what it read are not
-   * to go to a cloud provider because the local model failed. A cloud job may
-   * move on to the fallbacks. `selected` is the chosen model's value.
-   */
-  function withFallbacks(selected, primary, fallbacks) {
-    return String(selected || "").startsWith("cloud:") ? [primary, ...(fallbacks || [])] : [primary];
-  }
-
-  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, isRoutable, orderChain, withFallbacks, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
+  window.HCChatFailover = { tierOf, rankOf, strengthOf, classifyError, agentTurns, AGENT_MOVES_ON, TIER_RANK, FREE_TIER };
 })();

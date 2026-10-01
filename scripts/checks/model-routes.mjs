@@ -41,6 +41,9 @@ ok('the app\'s own 404 wording is a retired model', R.failureKind(E(P.cloudHttpE
 ok('a model the provider decommissioned is retired', R.failureKind(E('Groq error 400: {"error":{"message":"The model `x-70b` has been decommissioned and is no longer supported.')) === 'retired');
 ok('a decommission notice cut off mid-sentence is still retired', R.failureKind(E('Groq error 400: {"error":{"message":"The model `x` has been decommissioned and is no longer supported. Pleas')) === 'retired');
 ok('model_not_found is retired', R.failureKind(E('{"error":{"code":"model_not_found"}}')) === 'retired');
+ok('a model a provider says it has discontinued is retired', R.failureKind(E('This model has been discontinued. Please migrate to gemini-3.8-flash.')) === 'retired' && R.failureKind(E('models/gemini-3.7-flash is discontinued')) === 'retired');
+ok('so is one sunset, or at its end of life', R.failureKind(E('Gemini 3.7 Flash was sunset on 1 October')) === 'retired' && R.failureKind(E('The gemini-3.7-flash model reached end of life')) === 'retired');
+ok('but a connection that was discontinued is not a model that is gone', R.failureKind(E('Connection discontinued')) === 'other' && R.failureKind(E('stream discontinued by the network')) === 'busy');
 ok('the app\'s own 429 wording is a limit', R.failureKind(E(P.cloudHttpError('groq', 429, ''))) === 'limit');
 // It was a limit, which shut the whole account and — before a limit that names
 // no quota was retried — sent the same request again two seconds later.

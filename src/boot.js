@@ -89,6 +89,7 @@
     '/js/code/steps.js',
     '/js/code/attach.js',
     '/js/code/live.js',
+    '/js/code/router.js',
     '/js/code/export.js',
     '/js/export-format.js',
     '/js/rag-search.js',

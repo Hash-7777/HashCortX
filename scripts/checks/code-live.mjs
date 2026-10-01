@@ -49,8 +49,9 @@ console.log('\nThe words reach it as they are written:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl\) \{\s*return contentEl \? window\.HCCodeLive\.start\(contentEl/.test(mode));
   ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
-    && /H\.runModelTurn\(\{ adapter, messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true \}\)/.test(mode));
-  ok('a model asked again starts the line again', /live\?\.reset\?\.\(\);/.test(mode));
+    && /router\.turn\(\{ messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true, reset: live\?\.reset \}\)/.test(mode));
+  const routerSrc = src('js', 'code', 'router.js');
+  ok('a model asked again starts the line again: the routing calls it before every try, and again before a retry', (routerSrc.match(/request\.reset\(\)/g) || []).length >= 2 && /typeof request\.reset === 'function'/.test(routerSrc));
   const shape = src('js', 'agent-shape.js');
   ok('the router passes the listeners to the client', /function routeOnce\(\{[^}]*onText, onThinking, cache \}/.test(shape) && /\.\.\.\(onText \? \{ onText \} : \{\}\)/.test(shape));
   const app = src('js', 'app.js');

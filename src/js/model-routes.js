@@ -62,7 +62,7 @@
   const RETIRED_KEY = 'hc_retired_models_v1';
   const RETIRED_FOR_MS = 14 * 24 * 60 * 60 * 1000;
 
-  const RETIRED = /decommission|deprecated|no longer (?:supported|available|exists|offered)|model\b.{0,40}\b(?:not (?:be )?found|does not exist|doesn'?t exist|not available|is not supported|was retired|renamed or retired|unavailable for your)|no such model|unknown model|model_not_found|model_decommissioned|invalid model|not a valid model|is not found for api version/i;
+  const RETIRED = /decommission|deprecated|no longer (?:supported|available|exists|offered)|model\b.{0,40}\b(?:not (?:be )?found|does not exist|doesn'?t exist|not available|is not supported|was retired|renamed or retired|unavailable for your)|no such model|unknown model|model_not_found|model_decommissioned|invalid model|not a valid model|is not found for api version|\bmodels?\b.{0,80}\b(?:discontinu\w*|sunset\w*|end of life)|\b(?:discontinu\w*|sunset\w*|end of life).{0,80}\bmodels?\b|\b(?:gemini|gpt|claude|llama|mistral|qwen|deepseek|kimi|nemotron)[\w.-]*.{0,80}\b(?:discontinu\w*|sunset\w*)/i;
   const KEY = /api key|api-key|apikey|unauthori[sz]ed|forbidden|invalid.{0,12}key|missing.{0,12}key|rejected the api key|http 40[13]\b|permission denied/i;
   // 402 is here on purpose: an account out of credit is spent in the way that
   // matters — the same model will refuse again, and another provider is the

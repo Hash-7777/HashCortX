@@ -751,6 +751,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder tells you what the model you chose said, not what the last
+  one it tried said.** When a model could not answer, HashCoder tried every
+  provider you had a key for and then reported the last failure, so a
+  person who chose Gemini was shown Cerebras's empty account, and one who
+  chose Nemotron was shown a quota for a model they had never picked. It now
+  uses the routing the chat's agents use: the model you chose is asked
+  first, a model the provider says is gone, including one it calls
+  discontinued, is moved off at once and not asked again for two weeks, and
+  the picker stops offering it. Every move is said in the conversation and
+  the trace. When nothing can answer, the message begins with your model and
+  what it said. A model that cannot read pictures is not tried while a
+  picture is being sent, and when one is chosen that cannot, the message
+  says so in plain words (`js/code/router.js`).
+
 - **A long message in HashCoder's top bar no longer runs under the
   buttons.** The status is cut with an ellipsis at the edge of its place,
   the model picker and the buttons keep theirs, and the whole message is

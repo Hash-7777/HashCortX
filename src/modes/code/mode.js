@@ -35,17 +35,6 @@
   };
   const toolVerb = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
 
-  // ── Which model to try when one will not answer ─────────────────────────
-  //
-  // Whether a failure is worth moving on from, and which model to reach for.
-  // In src/js/chat/failover.js, where the ranking can be handed a name — which
-  // is how it was found that a family name was matching before the variant, so
-  // every "-mini" and "-lite" was ranked alongside the model it is the cheap
-  // version of.
-  const FAILOVER = () => window.HCChatFailover;
-  const classifyRouterError = (err) => FAILOVER().classifyError(err);
-  const sortChainByQuality = (chain) => FAILOVER().orderChain(chain, _routerStreaks);
-
   /** The one argument worth showing beside the verb. */
   function toolObject(name, args) {
     const a = args || {};
@@ -176,62 +165,28 @@
   // The tools as a model is offered them — platform/tauri/hashcoder.js.
   const buildLegacyTools = () => HC?.code?.toolList?.() || [];
 
-  // ── Auto-router ────────────────────────────────────────────
-  // Provider fallback order for coding tasks; an entry is used only when its key is saved.
-  const ROUTER_FALLBACKS = [
-    { keyId: 'groqKey',       provider: 'groq',       model: 'llama-3.3-70b-versatile',           label: 'Groq'      },
-    { keyId: 'cerebrasKey',   provider: 'cerebras',   model: 'llama-3.3-70b',                     label: 'Cerebras'  },
-    { keyId: 'sambaKey',      provider: 'samba',      model: 'Meta-Llama-3.3-70B-Instruct',       label: 'SambaNova' },
-    { keyId: 'openRouterKey', provider: 'openrouter', model: 'meta-llama/llama-4-maverick:free',  label: 'OpenRouter'},
-    { keyId: 'geminiKey',     provider: 'gemini',     model: 'gemini-2.5-flash',                  label: 'Gemini'    },
-    { keyId: 'openaiKey',     provider: 'openai',     model: 'gpt-4o',                            label: 'OpenAI'    },
-    { keyId: 'anthropicKey',  provider: 'anthropic',  model: 'claude-sonnet-4-20250514',          label: 'Anthropic' },
-    { keyId: 'deepseekKey',   provider: 'deepseek',   model: 'deepseek-chat',                     label: 'DeepSeek'  },
-    { keyId: 'moonshotKey',   provider: 'moonshot',   model: 'kimi-k2.6',                         label: 'Moonshot'  },
-    { keyId: 'mistralKey',    provider: 'mistral',    model: 'mistral-large-latest',              label: 'Mistral'   },
-    { keyId: 'nvidiaKey',     provider: 'nvidia',     model: 'openai/gpt-oss-20b',                label: 'NVIDIA'    },
-  ];
+  // ── Routing ────────────────────────────────────────────────
+  // One routing a run (js/code/router.js): the model chosen first, then the
+  // ones the shared rules move it to when it cannot answer, each move said, and
+  // the run stays on the one that took over. startRun clears it, so the next
+  // run starts again from the model chosen.
+  let routing = null;
+  let routeNotice = () => {};   // set in the panel, where the conversation is
 
-  function getAdapter(modelValue) {
+  function routerFor(selected) {
+    if (routing && routing.selected === selected) return routing.router;
     const H = window._H;
-    if (modelValue && modelValue.startsWith('cloud:')) {
-      const parsed = (H?.parseCloudModel && H.parseCloudModel(modelValue)) || { provider: '', modelId: modelValue };
-      if (parsed.provider === 'gemini')    return { kind: 'gemini',    model: parsed.modelId, label: 'Gemini' };
-      if (parsed.provider === 'anthropic') return { kind: 'anthropic', model: parsed.modelId, label: 'Anthropic' };
-      return { kind: 'openai', provider: parsed.provider, model: parsed.modelId, label: parsed.provider };
-    }
-    return { kind: 'ollama', model: modelValue || 'llama3.2', label: 'Local' };
+    const router = window.HCCodeRouter.create({
+      selected, send: H.runModelTurn,
+      adapterOf: (v) => window.HCAgentShape.selectAgentAdapter(v, { parseCloudModel: H.parseCloudModel, providers: window.HCProviders }),
+      available: () => H.getAvailableCloudModels(),
+      readsImages: (v) => { const p = H.parseCloudModel(v); return !!window.HCProviders.readsImages(p.provider, p.modelId); },
+      failover: window.HCChatFailover, routes: window.HCModelRoutes,
+      say: (text) => routeNotice(text),
+    });
+    routing = { selected, router };
+    return router;
   }
-
-  function buildRouterChain(overrideModel) {
-    const H = window._H;
-    const selected = overrideModel || H?.selectedModel?.() || '';
-    const primary = getAdapter(selected);
-    const fallbacks = [];
-
-    // Fetch live available models so fallback IDs never go stale.
-    const liveModels = (typeof window._H?.getAvailableCloudModels === 'function') ? window._H.getAvailableCloudModels() : [];
-
-    for (const fb of ROUTER_FALLBACKS) {
-      const key = (document.getElementById(fb.keyId)?.value || '').trim();
-      if (!key || (!window.HC?.isTauri && window.HCProviders?.get(fb.provider)?.bridge)) continue; // only the app can send those
-      if (primary.kind === 'openai' && primary.provider === fb.provider) continue;
-
-      // Pick the best live model for this provider instead of a hardcoded ID.
-      const providerModels = liveModels.filter(m => m.provider === fb.provider);
-      let modelId = fb.model; // hardcoded safety fallback
-      if (providerModels.length) {
-        providerModels.sort((a, b) => (b.tier || 0) - (a.tier || 0));
-        const parsed = H?.parseCloudModel ? H.parseCloudModel(providerModels[0].value) : null;
-        if (parsed?.modelId) modelId = parsed.modelId;
-      }
-
-      const fbKind = fb.provider === 'gemini' ? 'gemini' : fb.provider === 'anthropic' ? 'anthropic' : 'openai';
-      fallbacks.push({ kind: fbKind, provider: fb.provider, model: modelId, label: fb.label });
-    }
-    return FAILOVER().withFallbacks(selected, primary, fallbacks);   // a job on a local model stays local
-  }
-
 
   function setRouterChip(label, state) {
     const chip = document.getElementById('cdrRouterChip');
@@ -248,68 +203,14 @@
     if (lbl) { lbl.textContent = label || ''; }
   }
 
-  // ── Error classification for solid auto-routing ──
-  // transient: retry SAME model (network / 5xx / timeout)
-  // routable:  try NEXT model (quota / auth / 404 / unavailable)
-  // fatal:     stop chain immediately (4xx bad request shape)
-
-  // Session-scoped failure streak counter — models that fail 3x get demoted.
-  const _routerStreaks = new Map();
-
   async function callWithRouter(messages, tools, temperature, signal, modelOverride, live) {
-    const H = window._H;
-    let chain = buildRouterChain(modelOverride);
-    if (!chain.length) {
-      throw new Error('No model available. Select a model from the dropdown or add an API key in Settings.');
-    }
-    // Sort: same-tier-or-higher first (preserves quality). Demote any model with ≥3 fails this session.
-    chain = sortChainByQuality(chain);
-    setRouterChip(chain[0].label || 'Auto', '');
-
-    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-    for (let i = 0; i < chain.length; i++) {
-      const adapter = chain[i];
-      const key = adapter.label + ':' + adapter.model;
-      if (i > 0) setRouterChip(`> ${adapter.label}`, 'routing');
-
-      let lastErr = null;
-      for (let attempt = 0; attempt < 2; attempt++) {  // up to 2 retries for transient errors on SAME model
-        try {
-          // Routing lives in app.js — one copy of which client each provider
-          // needs, shared by every mode.
-          live?.reset?.();   // what an earlier try wrote is not this one's (js/code/live.js)
-          const result = await H.runModelTurn({ adapter, messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true });
-          // Success — reset streak, update chip, return
-          _routerStreaks.set(key, 0);
-          if (i > 0) setRouterChip(adapter.label, 'switched');
-          return result;
-        } catch (e) {
-          if (signal?.aborted) throw e;
-          lastErr = e;
-          const cls = classifyRouterError(e);
-          if (cls === 'transient' && attempt === 0) {
-            setRouterChip(`${adapter.label} retry…`, 'routing');
-            await sleep(900);
-            continue;  // retry same model
-          }
-          if (cls === 'fatal') throw e;
-          break; // routable → fall through to next adapter
-        }
-      }
-      // Demote on streak
-      const streak = (_routerStreaks.get(key) || 0) + 1;
-      _routerStreaks.set(key, streak);
-      if (i < chain.length - 1) {
-        const reason = /\b401|403\b/.test(String(lastErr?.message)) ? 'key rejected'
-                     : /\b429|rate|quota/i.test(String(lastErr?.message)) ? 'rate-limited'
-                     : /\b404|unavailable|no.?such/i.test(String(lastErr?.message)) ? 'unavailable'
-                     : 'failed';
-        setRouterChip(`${adapter.label} ${reason} > ${chain[i + 1].label}`, 'routing');
-        continue;
-      }
-      throw lastErr || new Error('All routes failed');
-    }
+    const selected = modelOverride || window._H?.selectedModel?.() || '';
+    if (!selected) throw new Error('No model available. Select a model from the dropdown or add an API key in Settings.');
+    const router = routerFor(selected);
+    const result = await router.turn({ messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true, reset: live?.reset });
+    const moved = router.model !== selected;
+    setRouterChip(moved ? router.label(router.model) : '', moved ? 'switched' : '');
+    return result;
   }
 
   // Tier ordering — keep quality high during failover.
@@ -670,13 +571,15 @@
       autoOpt.value = '';
       autoOpt.textContent = 'Auto';
       dest.appendChild(autoOpt);
+      const gone = (opt) => !!window.HCModelRoutes?.isRetired(opt.value);
+      if (coderModel && window.HCModelRoutes?.isRetired(coderModel)) coderModel = null;
       src.querySelectorAll('optgroup, option').forEach(node => {
         if (node.tagName === 'OPTGROUP') {
           const group = document.createElement('optgroup');
           group.label = node.label;
-          node.querySelectorAll('option').forEach(opt => group.appendChild(opt.cloneNode(true)));
+          node.querySelectorAll('option').forEach(opt => { if (!gone(opt)) group.appendChild(opt.cloneNode(true)); });
           if (group.childElementCount) dest.appendChild(group);
-        } else if (node.tagName === 'OPTION') {
+        } else if (node.tagName === 'OPTION' && !gone(node)) {
           dest.appendChild(node.cloneNode(true));
         }
       });
@@ -982,6 +885,14 @@
       }
       container.appendChild(section);
     }
+
+    // A move to another model, or a model found gone, said in the conversation
+    // and the trace; the picker stops offering one that is gone (js/code/router.js).
+    routeNotice = (text) => {
+      cdrTraceAdd('Model', text, 'warn');
+      if (activeContentEl) window.HCCodeSteps.add(activeContentEl, { verb: 'MODEL', object: text });
+      if (/\bgone\b/.test(text)) populateModelPicker();
+    };
 
     // ── Status helpers ────────────────────────────────────────
     function setStatus(text, type) {
@@ -2183,6 +2094,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const taskInput = $('cdrTaskInput');
       const task = taskInput?.value?.trim();
       if (!task) { taskInput?.focus(); return; }
+      routing = null;   // each run starts again from the model chosen (js/code/router.js)
 
       // Clear input and resize
       taskInput.value = '';

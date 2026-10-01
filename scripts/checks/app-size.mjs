@@ -739,7 +739,10 @@ const LINE_BUDGET = {
   // 2553, up one: a model on this computer is shown a small project whole
   // as a conversation begins, where a larger one gets the map
   // (js/code/context.js wholeProject).
-  'modes/code/mode.js': 2553,
+  // 2465, down 88: the panel's own list of providers to try, its chain and
+  // its ordering are gone, the run being routed by js/code/router.js with the
+  // rules the chat's agents use.
+  'modes/code/mode.js': 2465,
 };
 
 console.log('\nFile sizes go down, never up:');

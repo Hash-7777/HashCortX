@@ -5708,7 +5708,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const key = (keyEl.value || "").trim();
     if (!key) throw new Error(HCProviders.keyMissing(provider));
     if (hasImages && !HCProviders.readsImages(provider, model)) {
-      throw new Error(`${provider}:${model} cannot read PDF page images. Select OpenAI, Gemini, Anthropic, OpenRouter vision, NVIDIA vision, or a Groq vision model for image-only PDFs.`);
+      throw new Error(`${provider}:${model} cannot read pictures. Pick a model that can (OpenAI, Gemini, Anthropic, or a vision model from OpenRouter, NVIDIA or Groq), or send the request without the picture.`);
     }
     const requestMessages = hasImages ? toOpenAIVision(messages) : textMessages;
     const body = {

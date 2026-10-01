@@ -88,54 +88,6 @@ console.log('\nA failure is sorted into what to do about it:');
   // ends somebody's work for no reason. The first is the cheaper mistake.
   ok('something it does not recognise is treated as worth trying elsewhere',
     F.classifyError(new Error('something nobody has seen before')) === 'routable');
-  ok('and isRoutable agrees with the sorting',
-    F.isRoutable(new Error('429')) && !F.isRoutable(new Error('timed out'))
-    && !F.isRoutable({ name: 'AbortError' }));
-}
-
-console.log('\nThe model somebody chose stays the one that is tried first:');
-{
-  // Being quietly moved off the model you picked, because the app thinks it
-  // knows better, is not a failover.
-  const chain = [model('local', 'tiny-1b'), model('groq', 'gpt-4o'), model('gemini', 'gemini-2.5-pro')];
-  const order = F.orderChain(chain);
-  ok('the choice is first even when it ranks last', order[0].model === 'tiny-1b');
-  ok('and the rest follow by how capable they are',
-    order.slice(1).every((m, i, a) => i === 0 || F.rankOf(a[i - 1].model) >= F.rankOf(m.model)));
-}
-
-console.log('\nA model that keeps failing goes to the back:');
-{
-  const chain = [
-    model('primary', 'tiny-1b'),
-    model('a', 'gpt-4o'),
-    model('b', 'llama-3.3-70b'),
-  ];
-  const streaks = new Map([['a:gpt-4o', 5]]);
-  const order = F.orderChain(chain, streaks);
-  ok('the choice is still first', order[0].model === 'tiny-1b');
-  // A frontier model refusing every request is worth less right now than a
-  // smaller one that answers.
-  ok('the one that keeps failing is tried after the one that works',
-    order[1].model === 'llama-3.3-70b', order.map((m) => m.model).join(' → '));
-  ok('but it is still tried rather than dropped',
-    order.some((m) => m.model === 'gpt-4o'));
-  ok('a couple of failures is not enough to demote it',
-    F.orderChain(chain, new Map([['a:gpt-4o', 2]]))[1].model === 'gpt-4o');
-}
-
-console.log('\nThe same chain always comes back in the same order:');
-{
-  // Two models of equal rank must not swap places between runs, or a failover
-  // becomes something nobody can reproduce.
-  const chain = [model('p', 'x'), model('a', 'llama-3.3-70b'), model('b', 'qwen2.5-72b')];
-  const once = F.orderChain(chain).map((m) => m.label).join();
-  const twice = F.orderChain(chain).map((m) => m.label).join();
-  ok('two runs give the same order', once === twice, `${once} then ${twice}`);
-  ok('and equal ranks keep the order they were offered in', once === 'p,a,b', once);
-  ok('an empty chain is an empty chain',
-    F.orderChain([]).length === 0 && F.orderChain(null).length === 0);
-  ok('nothing is lost from the chain', F.orderChain(chain).length === chain.length);
 }
 
 console.log('\nThe chat moves on the way every agent mode does:');
@@ -259,18 +211,6 @@ console.log('\nHow the chat uses it:');
   ok('"Look it up" turns on an agent that can search when the one in use cannot', /grounded: \["web_search", "builtin_researcher"/.test(preset) && /setActiveAgent\(needs\[1\]\)/.test(preset));
   ok('"Work it out" turns on one that can run Python', /compute: \["code_interpreter", "builtin_hash_ai"/.test(preset));
   ok('"Use my notes" says when a cloud model means the notes are not read', /preset === "knowledge"/.test(preset) && /never sent to a cloud model/.test(preset));
-}
-
-console.log('\nThe models a Coder run may move through:');
-{
-  const chosen = { kind: 'ollama', model: 'qwen2.5-coder:7b' };
-  const fallbacks = [{ kind: 'openai', provider: 'groq' }, { kind: 'gemini', provider: 'gemini' }];
-  ok('a job on a model on this computer stays on it', F.withFallbacks('qwen2.5-coder:7b', chosen, fallbacks).length === 1
-    && F.withFallbacks('local:1234/some-model', chosen, fallbacks).length === 1 && F.withFallbacks('', chosen, fallbacks).length === 1);
-  const cloud = F.withFallbacks('cloud:groq:openai/gpt-oss-20b', chosen, fallbacks);
-  ok('a cloud job may move on, the chosen model first', cloud.length === 3 && cloud[0] === chosen && cloud[2].provider === 'gemini');
-  const coder = readFileSync(join(root, 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  ok('the Coder builds its chain this way', /return FAILOVER\(\)\.withFallbacks\(selected, primary, fallbacks\);/.test(coder) && !/chain\.push\(\{ kind: fbKind/.test(coder));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/failover.js)\n`);
