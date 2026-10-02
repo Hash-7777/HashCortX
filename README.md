@@ -136,6 +136,7 @@ Needs Node 18+ and Rust via `rustup`, plus **macOS:** Xcode Command Line Tools Â
 
 ```bash
 npx tauri build -- --no-default-features
+npm run tauri dev -- -- --no-default-features     # and to develop
 ```
 
 Before a pull request, run what CI runs on Linux, macOS and Windows:

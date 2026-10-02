@@ -141,6 +141,16 @@ jobs:
         if: runner.os == 'Windows'
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      # The Windows installer is built without the embedding model (README),
+      # and a default build refuses on a processor without AVX2. So the
+      # configuration that ships there is checked and tested on its own: the
+      # steps above never compile it.
+      - name: cargo check without the embedding model
+        run: cargo check --manifest-path src-tauri/Cargo.toml --all-targets --no-default-features
+
+      - name: cargo test without the embedding model
+        run: cargo test --manifest-path src-tauri/Cargo.toml --no-default-features
+
       # The security code is where a warning is most worth reading, so
       # clippy runs — but it does not fail the build yet, because the
       # existing code has never been linted and a red CI that everyone
