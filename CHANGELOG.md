@@ -818,6 +818,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A local model app that refuses HashCortx is no longer reported as
+  being off.** On Windows the app's page comes from `http://tauri.localhost`,
+  which Ollama refuses until it is allowed. A browser hides the status of an
+  answer the server did not allow, so the refusal arrived as "Failed to
+  fetch", and the footer read "Local host offline" while Ollama was running,
+  with the message that says what to do never shown. When a request to the
+  model app fails with no answer, a second request that asks for none is
+  made: it succeeds only when something is listening, which tells a refusal
+  from an app that is off. The footer then says the host refused HashCortx,
+  and the message gives the setting to change.
+
 - **The page reader trusts the certificates the computer trusts.** The
   reader HashCoder and the chat use to open a web page after a search
   brought its own fixed list of certificate roots, which replaced the

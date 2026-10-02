@@ -3712,8 +3712,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } catch (err) {
       if (seq !== loadModelsSeq) return;
       addLocalAppModels(seq);
-      // Local host offline, or running and refusing this app's page (js/local-client.js) — show cloud models so the user can still chat
-      const refused = window.HCLocal.refusedHint(err?.status, location.origin), down = refused ? "Local host refused this app" : "Local host offline";
+      // Local host offline, or running and refusing this app's page (js/local-client.js; a refusal arrives with no status, so a silent one is probed) — show cloud models so the user can still chat
+      const refused = window.HCLocal.refusedHint(err?.status ?? (err?.name !== "AbortError" && await window.HCLocal.probe(`${safeHost()}/api/tags`) ? 403 : 0), location.origin), down = refused ? "Local host refused this app" : "Local host offline";
       if (refused) showError(new Error(refused), "The local model app refused HashCortx");
       modelEl.innerHTML = `<option value="" disabled>(${down})</option>`;
       populateCloudModels();

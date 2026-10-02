@@ -192,5 +192,21 @@
       `on Windows, run setx OLLAMA_ORIGINS "${from}" and reopen Ollama.`;
   }
 
-  window.HCLocal = { body, thinkTags, read, chat, warm, refusedHint };
+  /**
+   * Whether something is listening at `url`, when a request to it failed with
+   * no answer to read. A page cannot see the answer of a server that did not
+   * allow it (Ollama's 403 to an address it does not know arrives as "Failed
+   * to fetch"), so a refusal and an app that is off look the same. A request
+   * that asks for no answer at all succeeds exactly when something answers,
+   * and fails when nothing does.
+   */
+  function probe(url, { fetchFn = (...a) => fetch(...a), ms = 3000 } = {}) {
+    const stop = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = stop ? setTimeout(() => stop.abort(), ms) : null;
+    return fetchFn(url, { mode: "no-cors", cache: "no-store", ...(stop ? { signal: stop.signal } : {}) })
+      .then(() => true, () => false)
+      .finally(() => { if (timer) clearTimeout(timer); });
+  }
+
+  window.HCLocal = { body, thinkTags, read, chat, warm, refusedHint, probe };
 })();

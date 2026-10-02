@@ -17,7 +17,7 @@ import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
-const sandbox = { window: {}, JSON, Math, Number, String, Array, Object, Map, Promise, Error, Date };
+const sandbox = { window: {}, JSON, Math, Number, String, Array, Object, Map, Promise, Error, Date, AbortController, setTimeout, clearTimeout, DOMException };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'local-client.js'), sandbox, { filename: 'local-client.js' });
 const C = sandbox.window.HCLocal;
@@ -151,8 +151,23 @@ console.log('\nA local model app that refuses this app:');
   const app = src('js', 'app.js');
   ok('the app keeps the answer\'s status, says which it is, and shows what to do',
     /if \(!r\.ok\) throw Object\.assign\(new Error\(`HTTP \$\{r\.status\}`\), \{ status: r\.status \}\);/.test(app)
-    && /const refused = window\.HCLocal\.refusedHint\(err\?\.status, location\.origin\), down = refused \? "Local host refused this app" : "Local host offline";/.test(app)
+    && /const refused = window\.HCLocal\.refusedHint\(err\?\.status \?\? \(err\?\.name !== "AbortError" && await window\.HCLocal\.probe\(`\$\{safeHost\(\)\}\/api\/tags`\) \? 403 : 0\), location\.origin\), down = refused \? "Local host refused this app" : "Local host offline";/.test(app)
     && /if \(refused\) showError\(new Error\(refused\), "The local model app refused HashCortx"\);/.test(app));
+}
+
+console.log('\nTelling a refusal from silence:');
+{
+  const seen = [];
+  const listening = async (url, init) => { seen.push({ url, init }); return { type: 'opaque', ok: false, status: 0 }; };
+  const nothing = async () => { throw new TypeError('Failed to fetch'); };
+  ok('something that answers, even without letting this page read it, is running', (await C.probe('http://127.0.0.1:11434/api/tags', { fetchFn: listening })) === true);
+  ok('and the request asks for no answer, and is not kept', seen[0].init.mode === 'no-cors' && seen[0].init.cache === 'no-store' && !!seen[0].init.signal);
+  ok('nothing listening is off', (await C.probe('http://127.0.0.1:11434/api/tags', { fetchFn: nothing })) === false);
+  ok('a server that never answers is given up on, not waited for', (await C.probe('http://x', { ms: 20, fetchFn: (url, init) => new Promise((_, reject) => init.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))) })) === false);
+  ok('an answer that is not opaque counts too', (await C.probe('http://x', { fetchFn: async () => ({}) })) === true);
+  const app = src('js', 'app.js');
+  ok('a timeout is not probed: a model app that answers too slowly is not told it refused', /err\?\.name !== "AbortError" && await window\.HCLocal\.probe/.test(app));
+  ok('an answer that did carry a status is not probed', /err\?\.status \?\? \(/.test(app));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-client.js)`);
