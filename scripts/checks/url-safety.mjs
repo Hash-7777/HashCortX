@@ -105,5 +105,17 @@ console.log('\nWhat this check CANNOT do, recorded so it is not mistaken for mor
     U.isSafeExternalUrl('http://internal.example.com/') === true);
 }
 
+console.log('\nAn IPv4 address inside an IPv6 one, however it is written:');
+{
+  const host = (u) => new URL(u).hostname;
+  ok('::ffff:127.0.0.1 as the URL parser writes it', U.isPrivateHostname(host('http://[::ffff:127.0.0.1]/')) && U.isPrivateHostname(host('http://[::ffff:169.254.169.254]/')) && U.isPrivateHostname(host('http://[::ffff:10.0.0.1]/')) && U.isPrivateHostname(host('http://[::ffff:192.168.1.1]/')));
+  ok('and a public one in the same form is not refused', !U.isPrivateHostname(host('http://[::ffff:8.8.8.8]/')));
+  ok('NAT64, which delivers to the IPv4 address inside it', U.isPrivateHostname('[64:ff9b::a9fe:a9fe]') && U.isPrivateHostname('[64:ff9b::7f00:1]') && U.isPrivateHostname(host('http://[64:ff9b::a9fe:a9fe]/')));
+  ok('6to4 and Teredo', U.isPrivateHostname('[2002:a9fe:a9fe::1]') && U.isPrivateHostname('[2001:0:a9fe:a9fe::1]') && U.isPrivateHostname('[2001::1]'));
+  ok('documentation and discard-only space', U.isPrivateHostname('[2001:db8::1]') && U.isPrivateHostname('[100::1]'));
+  ok('ordinary IPv6 addresses are left alone', !U.isPrivateHostname('[2606:4700:4700::1111]') && !U.isPrivateHostname('[2001:4860:4860::8888]') && !U.isPrivateHostname('[2a00:1450:4001::200e]'));
+  ok('a whole URL of these is not safe to fetch', !U.isSafeExternalUrl('http://[64:ff9b::a9fe:a9fe]/latest/meta-data') && !U.isSafeExternalUrl('https://[::ffff:127.0.0.1]:8080/'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/url-safety.js)`);
 process.exit(fail ? 1 : 0);

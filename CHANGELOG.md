@@ -410,6 +410,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **The check of a web address as written reads the translated forms too.**
+  A literal address such as `http://[64:ff9b::a9fe:a9fe]/` (NAT64),
+  `[2002:a9fe:a9fe::1]` (6to4) or `[::ffff:7f00:1]` (the way a browser writes
+  `::ffff:127.0.0.1`) was not recognised as an internal address by the page's
+  own check, which is the only check in a plain browser build. They are
+  refused before any request, as are the documentation and discard-only IPv6
+  ranges.
+
 - **The Windows safety list reads a delete command as it is, not as one
   spelling of it.** The refusal of a recursive delete on Windows matched
   literal text, so `rd /s /q` was refused and `rd /q /s`, `rd /s/q`,

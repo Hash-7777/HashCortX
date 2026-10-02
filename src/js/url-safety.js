@@ -68,6 +68,14 @@
     if (/^\[?::ffff:192\.168\./i.test(h)) return true;
     if (/^\[?::ffff:169\.254\./i.test(h)) return true;
     if (/^\[?::ffff:172\.(1[6-9]|2\d|3[01])\./i.test(h)) return true;
+    // The same address as a URL parser writes it, in hex: ::ffff:7f00:1 is ::ffff:127.0.0.1.
+    const mapped = /^\[?::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})\]?$/i.exec(h);
+    if (mapped) {
+      const hi = parseInt(mapped[1], 16), lo = parseInt(mapped[2], 16);
+      return isPrivateHostname(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+    // Other ways to carry an IPv4 address inside an IPv6 one, and space nobody's page is in: NAT64 (64:ff9b::), 6to4 (2002::), Teredo (2001::/32), documentation (2001:db8::) and discard-only (100::).
+    if (/^\[?(?:64:ff9b:|2002:|2001:0{0,4}:|2001:db8:|100::)/i.test(h)) return true;
     return false;
   }
 
