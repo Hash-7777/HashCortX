@@ -561,6 +561,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A small model is told to write paths from the project folder, and is
+  held to a lower temperature.** A model under about fifteen billion
+  parameters copies a long path from the top of the disk wrongly, a letter or
+  a word dropped, and then reads nothing; "src/app.js" it gets right, and the
+  app already writes it out in full before a tool runs. The instructions now
+  say to write paths from the project folder, and the tools offered to a
+  small or mid-sized model describe each place that way. The temperature the
+  agent asks for is also held by the size of the model: at most 0.1 for a
+  small one, 0.2 for a mid-sized one and 0.35 for a larger one, with the
+  setting as a ceiling and never a wish for more, so a model that copies
+  text exactly, writes arguments in a fixed shape and reports what it ran is
+  not sampling widely while it does. A setting below the ceiling is obeyed.
+  Larger models are told what they were told before.
+
 - **A command the safety list refuses says which one.** The message named
   only the program ("cmd"), which did not say what was refused. It now gives
   the command line, cut to 160 characters, and says no permission can

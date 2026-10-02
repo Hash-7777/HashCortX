@@ -1858,7 +1858,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
       const H = window._H;
-      const temperature = H?.selectedTemperature ? Math.min(H.selectedTemperature(), 0.35) : 0.15;
+      const temperature = window.HC.code.temperatureFor(sharedState.size, H?.selectedTemperature?.());
       activeContentEl = contentEl;
       const policy = window.HCAgentPolicy;
       let iter = 0;

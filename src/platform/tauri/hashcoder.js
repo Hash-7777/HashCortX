@@ -997,6 +997,20 @@ REASONING:
   HC.code.sizeOf = (billions) => (!(billions > 0) ? 'full'
     : billions < HC.code.SMALL_MODEL_BILLIONS ? 'small' : billions < HC.code.MID_MODEL_BILLIONS ? 'mid' : 'full');
 
+  /**
+   * The temperature the agent loop asks for. The slider is a ceiling on it
+   * and never a wish for more: an agent copies text exactly, writes paths and
+   * arguments in a fixed shape and reports what it ran, and a model that
+   * samples widely does each of those wrongly now and then. A small model
+   * does so most, so it is held lowest; a person who set the slider lower is
+   * obeyed. Without a figure, the loop asks for 0.15.
+   */
+  HC.code.TEMPERATURE_CEILING = { small: 0.1, mid: 0.2, full: 0.35 };
+  HC.code.temperatureFor = (size, chosen) => {
+    const ceiling = HC.code.TEMPERATURE_CEILING[size] ?? HC.code.TEMPERATURE_CEILING.full;
+    return Number.isFinite(chosen) ? Math.min(Math.max(chosen, 0), ceiling) : Math.min(0.15, ceiling);
+  };
+
   /** The tools a small model is offered. */
   HC.code.SMALL_MODEL_TOOLS = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'patch_file', 'write_file', 'shell_run', 'delete_file', 'move_file'];
 
@@ -1011,7 +1025,7 @@ How to work:
 
 Rules:
 - Call one tool at a time and wait for its result.
-- Use full paths inside the project.
+- Write paths from the project folder: src/app.js.
 - Do not change the tests unless the task asks for it.
 - If the task only asks a question, answer it and change nothing.
 
@@ -1048,7 +1062,7 @@ Rules:
 - Do not change the tests unless the request asks for it.
 - If the request only asks a question, answer it from the files and change nothing.
 - Never ask the person for what the files or the tests can tell you: an error, where something is, a value. Look it up.
-- Use full paths inside the project.
+- Write paths from the project folder: src/app.js.
 - A picture file, such as a screenshot or a mockup: view_image, then say what is in it.
 - Rename or move a file with move_file, not a shell command, so it can be undone.
 
@@ -1062,8 +1076,32 @@ ${HC.code.TOOL_TEXT_RULE}`;
   HC.code.toolsFor = (size, list, site) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     if (!names) return list;
-    return list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site));
+    return HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site)));
   };
+
+  /**
+   * The tools with every place they take described as a path from the
+   * project's folder, for a model of the sizes that are told to write one so
+   * (js/code/paths.js writes it out in full before a tool runs). A model
+   * under about fifteen billion parameters copies a long path from the top of
+   * the disk wrongly, a letter or a word dropped, and then reads nothing;
+   * "src/app.js" it gets right. The tools themselves are not changed, and a
+   * larger model is left to describe places as they were.
+   */
+  HC.code.shortPlaces = (list) => list.map((tool) => {
+    const props = tool.function && tool.function.parameters && tool.function.parameters.properties;
+    if (!props) return tool;
+    const next = {};
+    for (const [key, spec] of Object.entries(props)) {
+      const d = spec && typeof spec.description === 'string' ? spec.description : '';
+      let words = d;
+      if (/^Absolute directory path$/.test(d)) words = 'Project folder, such as src, or . for all';
+      else if (/^Absolute path\b/.test(d)) words = `Project path${d.slice('Absolute path'.length)}`;
+      else if (key === 'cwd' && /absolute path/i.test(d)) words = 'Project folder to run in (omit for the project itself)';
+      next[key] = words === d ? spec : { ...spec, description: words };
+    }
+    return { ...tool, function: { ...tool.function, parameters: { ...tool.function.parameters, properties: next } } };
+  });
 
   /** The instructions for a model of this size. */
   HC.code.promptFor = (size) => (size === 'small' ? HC.code.SMALL_MODEL_PROMPT : size === 'mid' ? HC.code.MID_MODEL_PROMPT : HC.code.SYSTEM_PROMPT);

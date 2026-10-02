@@ -94,6 +94,46 @@ console.log('\nA mid-sized local model:');
   ok('its instructions and tools take under half the smallest window, and under half what a larger model is sent', est('mid') < 4096 && est('mid') < est('full') * 0.5, `${est('mid')} of ${est('full')}`);
 }
 
+console.log('\nSmall and mid-sized models write paths from the project folder:');
+{
+  // A model under about fifteen billion parameters copies a long path from the
+  // top of the disk wrongly; "src/app.js" it gets right, and js/code/paths.js
+  // writes it out in full before any tool runs.
+  const list = HC.code.toolList();
+  const places = (tools) => tools.flatMap((t) => Object.entries(t.function.parameters.properties).filter(([k]) => ['path', 'dir', 'from', 'to', 'cwd'].includes(k)).map(([k, v]) => [`${t.function.name}.${k}`, v.description || '']));
+  for (const size of ['small', 'mid']) {
+    const prompt = HC.code.promptFor(size);
+    ok(`the ${size} instructions say to write paths from the project folder`, /Write paths from the project folder: src\/app\.js/.test(prompt) && !/full paths/i.test(prompt));
+    const given = HC.code.toolsFor(size, list, 'a site');
+    const shown = places(given);
+    ok(`no tool offered to a ${size} model describes a place as absolute`, shown.length > 0 && shown.every(([, d]) => !/absolute/i.test(d)), shown.filter(([, d]) => /absolute/i.test(d)).map(([n]) => n).join());
+    ok(`and each says where a path starts`, shown.filter(([n]) => !/^(grep_code|fuzzy_find)\./.test(n)).every(([, d]) => /^Project (path|folder)/.test(d)), shown.filter(([, d]) => !/^Project (path|folder)/.test(d)).map(([n]) => n).join());
+  }
+  const full = HC.code.toolsFor('full', list, '');
+  ok('a larger model is left to describe places as they were', full === list && places(full).some(([, d]) => /^Absolute/.test(d)));
+  const small = HC.code.toolsFor('small', list, '');
+  const byName = new Map(list.map((t) => [t.function.name, t]));
+  ok('only the wording changes: every tool keeps its name, arguments, types and which are required',
+    small.every((t) => { const o = byName.get(t.function.name); const a = t.function.parameters, b = o.function.parameters;
+      return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(Object.keys(b.properties)) && JSON.stringify(a.required) === JSON.stringify(b.required)
+        && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type) && t.function.description === o.function.description; }));
+  ok('the tools the app holds are not changed in place', places(list).some(([, d]) => /^Absolute/.test(d)));
+  const fetchTool = list.find((t) => t.function.name === 'fetch_url');
+  ok('an address is not a path: it is described as it was', !fetchTool || HC.code.shortPlaces([fetchTool])[0].function.parameters.properties.url.description === fetchTool.function.parameters.properties.url.description);
+}
+
+console.log('\nThe temperature the agent loop asks for:');
+{
+  const T = HC.code.temperatureFor;
+  ok('a small model is held lowest, a larger one highest', T('small', 1) === 0.1 && T('mid', 1) === 0.2 && T('full', 1) === 0.35);
+  ok('the slider is a ceiling and not a wish for more: a lower setting is obeyed', T('small', 0.05) === 0.05 && T('mid', 0.15) === 0.15 && T('full', 0) === 0);
+  ok('it is never below nothing', T('small', -3) === 0);
+  ok('without a figure the loop asks for 0.15, or the ceiling when that is lower', T('full', undefined) === 0.15 && T('mid', NaN) === 0.15 && T('small', null) === 0.1);
+  ok('a size it does not know is held like a larger model', T('huge', 2) === 0.35 && T(undefined, 2) === 0.35);
+  const mode = src('modes', 'code', 'mode.js');
+  ok('the agent loop asks it, with the size the run was set up for', /const temperature = window\.HC\.code\.temperatureFor\(sharedState\.size, H\?\.selectedTemperature\?\.\(\)\);/.test(mode) && !/Math\.min\(H\.selectedTemperature\(\), 0\.35\)/.test(mode));
+}
+
 console.log('\nWhat a search by file name tells the model:');
 {
   const found = HC.code.namesFound([{ path: '/p/stats.py', name: 'stats.py', score: 0 }, { path: '/p/tests/test_stats.py', name: 'test_stats.py', score: 2 }, { path: '/p/stat.py', name: 'stat.py', score: 10 }], 'stats.py');
