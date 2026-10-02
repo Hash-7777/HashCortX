@@ -41,7 +41,7 @@ use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, ToSocketAddrs};
 use std::time::Duration;
 use ureq::config::Config;
-use ureq::tls::{TlsConfig, TlsProvider};
+use ureq::tls::{RootCerts, TlsConfig, TlsProvider};
 use ureq::http::Uri;
 use ureq::unversioned::resolver::{ResolvedSocketAddrs, Resolver};
 use ureq::unversioned::transport::{DefaultConnector, NextTimeout};
@@ -66,6 +66,10 @@ fn is_private_v4(ip: &Ipv4Addr) -> bool {
         || o[0] == 0
         // Reserved 240.0.0.0/4.
         || o[0] >= 240
+        // 192.0.0.0/24 (reserved for protocol assignments) and 198.18.0.0/15
+        // (network benchmarking): neither is a place a public page lives.
+        || (o[0] == 192 && o[1] == 0 && o[2] == 0)
+        || (o[0] == 198 && (o[1] == 18 || o[1] == 19))
 }
 
 fn is_private_v6(ip: &Ipv6Addr) -> bool {
@@ -87,6 +91,31 @@ fn is_private_v6(ip: &Ipv6Addr) -> bool {
     }
     if let Some(v4) = ip.to_ipv4() {
         return is_private_v4(&v4);
+    }
+    // Other ways to carry an IPv4 address inside an IPv6 one. A network that
+    // translates them delivers the packet to the IPv4 address, so that is the
+    // address to judge: 64:ff9b::a9fe:a9fe is 169.254.169.254.
+    let v4_of = |hi: u16, lo: u16| Ipv4Addr::new((hi >> 8) as u8, hi as u8, (lo >> 8) as u8, lo as u8);
+    // NAT64, the well-known prefix 64:ff9b::/96 (the address in the last 32 bits).
+    if seg[0] == 0x64 && seg[1] == 0xff9b && seg[2..6].iter().all(|s| *s == 0) {
+        return is_private_v4(&v4_of(seg[6], seg[7]));
+    }
+    // NAT64's local-use prefix 64:ff9b:1::/48 is private by definition.
+    if seg[0] == 0x64 && seg[1] == 0xff9b && seg[2] == 1 {
+        return true;
+    }
+    // 6to4, 2002::/16 (the address in bits 16 to 48).
+    if seg[0] == 0x2002 {
+        return is_private_v4(&v4_of(seg[1], seg[2]));
+    }
+    // Teredo, 2001::/32: the server's address and the client's, which is
+    // written inverted; either one being somewhere private is enough.
+    if seg[0] == 0x2001 && seg[1] == 0 {
+        return is_private_v4(&v4_of(seg[2], seg[3])) || is_private_v4(&v4_of(!seg[6], !seg[7]));
+    }
+    // Documentation, 2001:db8::/32, and the discard-only prefix, 100::/64.
+    if (seg[0] == 0x2001 && seg[1] == 0x0db8) || (seg[0] == 0x0100 && seg[1..4].iter().all(|s| *s == 0)) {
+        return true;
     }
     false
 }
@@ -393,9 +422,18 @@ fn pinned_agent(host: &str, addresses: Vec<IpAddr>, port: u16) -> Agent {
         // not compile in — and the mismatch is not a build error or a failed
         // request but a PANIC on the first https address, inside a command the
         // renderer called. The crate is built against the platform's own TLS.
+        //
+        // And trust what the computer trusts. Left alone, the client brings a
+        // fixed list of roots of its own, which REPLACES the system's: a page
+        // whose certificate chain ends anywhere else (Google's and Cloudflare's
+        // pages on Windows, a school or office network that inspects HTTPS) was
+        // refused as "unable to find any user-specified roots". Reading a page
+        // sends nothing private, so the system's own judgement is the right one;
+        // an expired or self-signed certificate is still refused.
         .tls_config(
             TlsConfig::builder()
                 .provider(TlsProvider::NativeTls)
+                .root_certs(RootCerts::PlatformVerifier)
                 .build(),
         )
         // Followed by hand instead, so every hop is checked like a first
@@ -599,6 +637,40 @@ mod tests {
         assert!(is_private_ip(&ip("::ffff:192.168.1.1")));
         assert!(is_private_ip(&ip("::ffff:169.254.169.254")));
         assert!(!is_private_ip(&ip("::ffff:8.8.8.8")));
+    }
+
+    #[test]
+    fn an_ipv4_address_carried_inside_other_ipv6_forms_is_judged_as_ipv4() {
+        // NAT64: on an IPv6-only network that translates, this reaches the
+        // cloud metadata address.
+        for s in ["64:ff9b::a9fe:a9fe", "64:ff9b::7f00:1", "64:ff9b::a00:1", "64:ff9b::c0a8:101", "64:ff9b:1::1"] {
+            assert!(is_private_ip(&ip(s)), "{s} should be private");
+        }
+        assert!(!is_private_ip(&ip("64:ff9b::808:808")), "NAT64 to 8.8.8.8 is public");
+        // 6to4 carries the address in bits 16 to 48.
+        assert!(is_private_ip(&ip("2002:a9fe:a9fe::1")));
+        assert!(is_private_ip(&ip("2002:7f00:1::")));
+        assert!(!is_private_ip(&ip("2002:808:808::1")));
+        // Teredo: the server's address after the prefix, the client's inverted at the end.
+        assert!(is_private_ip(&ip("2001:0:a9fe:a9fe::1")));
+        assert!(is_private_ip(&ip("2001:0:808:808:0:0:5601:fefe")), "client 169.254.1.1 is link-local");
+        assert!(!is_private_ip(&ip("2001:0:808:808:0:0:f7f7:f7f7")), "server 8.8.8.8, client 8.8.8.8");
+        // Documentation and discard-only space is nobody's page.
+        assert!(is_private_ip(&ip("2001:db8::1")));
+        assert!(is_private_ip(&ip("100::1")));
+        // And an ordinary address is still ordinary.
+        assert!(!is_private_ip(&ip("2606:4700:4700::1111")));
+        assert!(!is_private_ip(&ip("2001:4860:4860::8888")));
+    }
+
+    #[test]
+    fn two_more_ipv4_ranges_that_are_not_public() {
+        for s in ["192.0.0.1", "192.0.0.254", "198.18.0.1", "198.19.255.254"] {
+            assert!(is_private_ip(&ip(s)), "{s} should be private");
+        }
+        for s in ["192.0.1.1", "198.17.255.255", "198.20.0.1", "193.0.0.1"] {
+            assert!(!is_private_ip(&ip(s)), "{s} should be public");
+        }
     }
 
     #[test]

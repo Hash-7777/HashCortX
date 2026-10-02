@@ -410,6 +410,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **The page reader refuses more kinds of address that are not on the public
+  internet.** An IPv4 address carried inside an IPv6 one by NAT64, 6to4 or
+  Teredo is now judged as the IPv4 address it stands for, so a translated
+  form of an internal address is refused like its plain form; the
+  documentation and discard-only IPv6 ranges and two IPv4 ranges reserved
+  for protocols and benchmarking are refused too.
+
 - **The desktop side's libraries are up to date with their fixes.** Three
   libraries it is built with, among them the XML reader under the one that
   reads property-list files, are updated to the versions their published
@@ -791,6 +798,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Swarm's "Done in" for each agent.
 
 ### Fixed
+
+- **The page reader trusts the certificates the computer trusts.** The
+  reader HashCoder and the chat use to open a web page after a search
+  brought its own fixed list of certificate roots, which replaced the
+  system's. A page whose certificate chain ended anywhere outside that list
+  (Google's and Cloudflare's pages on Windows, or a school or office network
+  that inspects HTTPS) failed with "unable to find any user-specified
+  roots", in a chat that otherwise worked. It now judges a certificate the
+  way the computer does; an expired or self-signed one is still refused.
+  Requests that carry a key keep the fixed list.
 
 - **The window opens where a person can reach it, and where it was left.**
   On a 1366 by 768 laptop the first window came out 32 pixels taller than
