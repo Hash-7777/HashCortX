@@ -3,6 +3,7 @@
 //
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:3b --task js-fix-range
+//     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --runs 2
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --compare <earlier results.json>
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --src <another copy of src/>
 //     HASHCORTX_BENCH_KEY_ANTHROPIC=... node scripts/bench/coder/run.mjs --model cloud:anthropic:<model>
@@ -92,6 +93,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { startScriptedModel, SCRIPTED_MODEL } from './scripted-model.mjs';
 import { loadProviders, keysFrom, hostsFor, refusal, scrubber } from './cloud.mjs';
+import { repeatedLines, comparisonLines } from './tally.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.join(here, '..', '..', '..');
@@ -100,7 +102,7 @@ const resultsDir = path.join(repo, 'node_modules', '.coder-bench');
 const PREFIX = 'hashcortx-coder-bench-';
 
 // ── Options ─────────────────────────────────────────────────────
-const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false, minutes: 10, budget: 20, rest: 15, work: null, out: null, compare: null, quiet: false, src: null, ollama: null };
+const opt = { models: [], tasks: [], runs: 1, keep: false, selfTest: false, smoke: false, minutes: 10, budget: 20, rest: 15, work: null, out: null, compare: null, quiet: false, src: null, ollama: null };
 {
   const argv = process.argv.slice(2);
   const next = (i) => {
@@ -111,6 +113,7 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false,
     const a = argv[i];
     if (a === '--model') opt.models.push(next(i++));
     else if (a === '--task') opt.tasks.push(next(i++));
+    else if (a === '--runs') opt.runs = Number(next(i++));
     else if (a === '--minutes') opt.minutes = Number(next(i++));
     else if (a === '--budget') opt.budget = Number(next(i++));
     else if (a === '--rest') opt.rest = Number(next(i++));
@@ -127,6 +130,7 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false,
   }
   if (opt.smoke) { opt.models = [SCRIPTED_MODEL]; opt.tasks = ['js-fix-range']; opt.minutes = 3; opt.quiet = true; }
   if (!opt.selfTest && !opt.models.length) usage('name a model with --model');
+  if (!Number.isInteger(opt.runs) || opt.runs < 1 || opt.runs > 5) usage('--runs must be a whole number from 1 to 5');
   if (!(opt.minutes > 0)) usage('--minutes must be a positive number');
   if (!(opt.budget > 0)) usage('--budget must be a positive number of minutes');
   if (!(opt.rest >= 0)) usage('--rest must be zero or more seconds');
@@ -135,6 +139,7 @@ const opt = { models: [], tasks: [], keep: false, selfTest: false, smoke: false,
 function usage(why) {
   console.log(`${why}\n\n` +
     'node scripts/bench/coder/run.mjs --model <local model, or cloud:<provider>:<model>> [--model ...] [--task <id> ...]\n' +
+    '                                 [--runs <times each task is run, 1 to 5>]\n' +
     '                                 [--minutes <per task>] [--budget <minutes in all>] [--rest <seconds between tasks>]\n' +
     '                                 [--compare <results.json>] [--src <folder>] [--ollama <local url>]\n' +
     '                                 [--keep] [--work <folder>]\n' +
@@ -886,24 +891,9 @@ function printComparison(rows, earlierFile) {
   try { earlier = JSON.parse(fs.readFileSync(earlierFile, 'utf8')); } catch (e) { console.log(`\nCould not read ${earlierFile} to compare: ${e.message}`); return; }
   for (const model of new Set(rows.map((r) => r.model))) {
     const now = rows.filter((r) => r.model === model);
-    const then = new Map((earlier.runs || []).filter((r) => r.model === model).map((r) => [r.task, r]));
-    // Only tasks that ran both times: one that never reached the agent says nothing.
-    const ran = (r) => r && !r.notRun && !(r.notes || []).some((note) => /^the run did not complete/.test(note));
-    const shared = now.filter((r) => ran(r) && ran(then.get(r.task)));
-    if (!shared.length) { console.log(`\nNothing to compare for ${model} in ${earlierFile}.`); continue; }
-    const sum = (list, f) => list.reduce((t, r) => t + f(r), 0);
-    const was = shared.map((r) => then.get(r.task));
-    console.log(`\nAgainst ${earlier.commit || 'the earlier run'} · ${model} · ${shared.length} tasks in both`);
-    console.log(`  passed ${sum(was, (r) => (r.pass ? 1 : 0))} then, ${sum(shared, (r) => (r.pass ? 1 : 0))} now`);
-    console.log(`  minutes ${(sum(was, (r) => r.seconds || 0) / 60).toFixed(1)} then, ${(sum(shared, (r) => r.seconds || 0) / 60).toFixed(1)} now`);
-    console.log(`  tokens in ${fmt(sum(was, (r) => r.tokens.input))} then, ${fmt(sum(shared, (r) => r.tokens.input))} now`);
-    if (shared.some((r) => r.tokens.cacheRead) || was.some((r) => r.tokens.cacheRead)) console.log(`  tokens from a provider's cache ${fmt(sum(was, (r) => r.tokens.cacheRead || 0))} then, ${fmt(sum(shared, (r) => r.tokens.cacheRead || 0))} now`);
-    if (was.every((r) => r.reading != null) && shared.every((r) => r.reading != null)) console.log(`  seconds reading requests ${sum(was, (r) => r.reading).toFixed(1)} then, ${sum(shared, (r) => r.reading || 0).toFixed(1)} now`);
-    console.log(`  failed edits ${sum(was, (r) => r.failedEdits)} then, ${sum(shared, (r) => r.failedEdits)} now`);
-    for (const r of shared) {
-      const t = then.get(r.task);
-      if (t.pass !== r.pass) console.log(`  ${r.task}: ${t.pass ? 'passed' : 'failed'} then, ${r.pass ? 'passes' : 'fails'} now`);
-    }
+    const lines = comparisonLines(model, now, (earlier.runs || []).filter((r) => r.model === model), earlier.commit);
+    // Counted per run (scripts/bench/coder/tally.mjs), so a task run twice sets beside one run once.
+    console.log(lines ? `\n${lines.join('\n')}` : `\nNothing to compare for ${model} in ${earlierFile}.`);
   }
 }
 
@@ -934,17 +924,20 @@ async function main() {
   let n = 0;
   const stopAt = Date.now() + opt.budget * 60_000;
   for (const model of opt.models) {
-    for (const task of tasks) {
+    // Each task is run `--runs` times, the whole set once and then again, so a slow
+    // spell on this computer does not fall on one task's runs alone.
+    for (let again = 1; again <= opt.runs; again++) for (const task of tasks) {
       if (Date.now() > stopAt) {
-        rows.push({ task: task.id, kind: task.kind, model, pass: false, notRun: true, notes: ['the time budget for this run was used up'], seconds: null, tokens: { input: 0, output: 0 }, asks: [], pageErrors: [], steps: 0, calls: 0, failedCalls: 0, failedEdits: 0, looseEdits: 0, byTool: {}, answer: '', shown: '' });
+        rows.push({ task: task.id, run: again, kind: task.kind, model, pass: false, notRun: true, notes: ['the time budget for this run was used up'], seconds: null, tokens: { input: 0, output: 0 }, asks: [], pageErrors: [], steps: 0, calls: 0, failedCalls: 0, failedEdits: 0, looseEdits: 0, byTool: {}, answer: '', shown: '' });
         continue;
       }
       if (n > 0 && opt.rest) await new Promise((r) => setTimeout(r, opt.rest * 1000));
       n++;
-      process.stdout.write(`  ${model}  ${task.id} ... `);
+      process.stdout.write(`  ${model}  ${task.id}${opt.runs > 1 ? ` (run ${again} of ${opt.runs})` : ''} ... `);
       let row = await runTask(port, model, task, n);
       // A run that never reached the agent says nothing about it: try once more.
       if (row.notRun) { n++; row = await runTask(port, model, task, n); }
+      row.run = again;
       rows.push(row);
       console.log(`${row.notRun ? 'NOT RUN' : row.pass ? 'pass' : 'FAIL'}${row.seconds != null ? ` in ${(row.seconds / 60).toFixed(1)} min` : ''}${row.pass ? '' : ' · ' + row.notes.join('; ')}`);
     }
@@ -953,8 +946,12 @@ async function main() {
   }
   server.close();
 
-  for (const model of opt.models) printTable(model, rows.filter((r) => r.model === model));
-  const report = { started: started.toISOString(), ...state, minutesPerTask: opt.minutes, models: opt.models, runs: rows };
+  for (const model of opt.models) {
+    const mine = rows.filter((r) => r.model === model);
+    if (opt.runs > 1) { console.log(`\nHashCoder benchmark · ${model} · each task run ${opt.runs} times`); console.log(repeatedLines(mine).join('\n')); }
+    else printTable(model, mine);
+  }
+  const report = { started: started.toISOString(), ...state, minutesPerTask: opt.minutes, runsPerTask: opt.runs, models: opt.models, runs: rows };
   fs.mkdirSync(resultsDir, { recursive: true });
   const out = opt.out ? path.resolve(opt.out) : path.join(resultsDir, `results-${started.toISOString().replace(/[:.]/g, '-')}.json`);
   fs.writeFileSync(out, JSON.stringify(report, null, 2));
@@ -968,13 +965,15 @@ async function smoke() {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const row = await runTask(server.address().port, SCRIPTED_MODEL, tasks[0], 1);
   server.close();
+  // What the app told the agent is read from the trail: a step that sends it back is folded into the run's count of steps in what the person sees.
+  const told = (row.trail || []).join('\n');
   const wrong = [
     [!row.pass, `the task did not pass: ${row.notes.join('; ')}`],
-    [!/Sent back to make the change in the files/.test(row.shown), 'the agent was not sent back to make the change it wrote into its reply'],
+    [!/your reply shows code, but no file in the project was changed/.test(told), 'the agent was not sent back to make the change it wrote into its reply'],
     [row.failedEdits > 0, 'an edit failed'],
     [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
-    [!/Sent back to run the tests/.test(row.shown), 'the agent was not sent back to prove its change'],
-    [!/Sent back to check the work against the request/.test(row.shown), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
+    [!/no test has run since\. Run `npm test` now/.test(told), 'the agent was not sent back to prove its change'],
+    [!/before you finish, check your work against the request/.test(told), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
     [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);

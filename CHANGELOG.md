@@ -561,6 +561,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The HashCoder benchmark can run each task more than once.** One run of
+  one task says little: a small model that passes a task once may fail it
+  the next time with nothing changed, so a change that moves a result by one
+  task may be noise. `--runs 2` runs the whole set twice, in the order given
+  and then again, and reports passes out of runs for each task, how many
+  tasks passed every run, none, or some (the noise a change has to beat),
+  and, against an earlier results file, per run, so a task run twice sets
+  beside one run once. A run that never reached the agent is left out of
+  every count. The scripted smoke run now reads what the app told the agent
+  from the trail, since the steps that send it back are folded into one
+  count in what a person sees (`scripts/bench/coder/tally.mjs`).
+
 - **A small model is told to write paths from the project folder, and is
   held to a lower temperature.** A model under about fifteen billion
   parameters copies a long path from the top of the disk wrongly, a letter or
