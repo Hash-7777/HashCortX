@@ -818,6 +818,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Two free models that no longer exist are not offered.** The list a new
+  person sees before any provider has been asked still held two OpenRouter
+  models that OpenRouter had removed, so a first call could fail. They are
+  replaced with two that its catalogue lists today as free and able to call
+  tools: Gemma 4 26B, which also reads pictures, and Laguna S 2.1
+  (`data/cloud-models.js`).
+
 - **A window that starts hidden is shown even when the page cannot start.**
   The window is created hidden and the page shows it once it has put it in
   place, so a script that failed to load, or a crash before the page ran,

@@ -51,9 +51,9 @@
       { value: "cloud:openrouter:nvidia/nemotron-3-super-120b-a12b:free",  label: "Nemotron 3 Super (free) · OpenRouter",   shortLabel: "Nemotron 3 Super (free)" },
       { value: "cloud:openrouter:google/gemma-4-31b-it:free",              label: "Gemma 4 31B (free) · OpenRouter",        shortLabel: "Gemma 4 31B (free)" },
       { value: "cloud:openrouter:qwen/qwen3.8-27b:free",                   label: "Qwen3.8 27B (free) · OpenRouter",        shortLabel: "Qwen3.8 27B (free)" },
-      { value: "cloud:openrouter:inclusionai/ling-3.0-flash-vl:free",      label: "Ling 3.0 Flash VL (free) · OpenRouter",  shortLabel: "Ling 3.0 Flash VL (free)" },
+      { value: "cloud:openrouter:google/gemma-4-26b-a4b-it:free",           label: "Gemma 4 26B (free) · OpenRouter",        shortLabel: "Gemma 4 26B (free)" },
       { value: "cloud:openrouter:nvidia/nemotron-3.5-lightning:free",      label: "Nemotron 3.5 Lightning (free) · OpenRouter", shortLabel: "Nemotron 3.5 Lightning (free)" },
-      { value: "cloud:openrouter:z-ai/glm-5.2:free",                       label: "GLM 5.2 (free) · OpenRouter",            shortLabel: "GLM 5.2 (free)" },
+      { value: "cloud:openrouter:poolside/laguna-s-2.1:free",              label: "Laguna S 2.1 (free) · OpenRouter",       shortLabel: "Laguna S 2.1 (free)" },
     ],
     // Cerebras — confirmed stable model IDs from cerebras.ai/models
     cerebras: [
