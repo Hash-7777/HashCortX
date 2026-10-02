@@ -175,8 +175,11 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
     let full = format!("{} {}", command, args.join(" "));
 
     if denylist::is_command_denied(&full) {
+        // The whole line, cut: the program alone ("cmd") does not say what was refused.
+        let shown: String = full.trim().chars().take(160).collect();
         return Err(format!(
-            "Command is blocked by the security denylist: {command}"
+            "Refused by the app's safety list, which no permission can override: {shown}. \
+             If you mean it, run it yourself in a terminal."
         ));
     }
     // The command text is checked against protected locations too. Without this,
@@ -681,7 +684,9 @@ mod tests {
     #[test]
     fn prepare_refuses_a_denylisted_command() {
         let err = prepare("sh", &["-c".into(), "sudo rm -rf /".into()], &None, Caller::Person).unwrap_err();
-        assert!(err.contains("denylist"));
+        assert!(err.contains("safety list"));
+        // It says which command, not only the program ("sh"), so the person can tell what was refused.
+        assert!(err.contains("sh -c sudo rm -rf /"), "{err}");
     }
 
     #[test]

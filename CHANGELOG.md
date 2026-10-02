@@ -410,6 +410,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **The Windows safety list reads a delete command as it is, not as one
+  spelling of it.** The refusal of a recursive delete on Windows matched
+  literal text, so `rd /s /q` was refused and `rd /q /s`, `rd /s/q`,
+  `del /s /f /q`, `Remove-Item -Force -Recurse` and `ri x -r -fo` ran. The
+  switches are now read wherever they stand and however they are shortened,
+  in Command Prompt and in PowerShell, one command at a time. Also refused:
+  `Remove-Item -Recurse` on its own, `robocopy` mirroring a folder, `iex`
+  and `Invoke-Expression`, text piped into `cmd`, `powershell` or `pwsh`, a
+  PowerShell started with an encoded command, `certutil -urlcache`,
+  `bitsadmin /transfer`, `schtasks /create`, and .NET's delete of a folder or
+  file. Ordinary work (`rd` of an empty folder, `del old.log`, `robocopy src
+  dist /e`, `powershell -File build.ps1`) still runs. These are refused in
+  the native code whatever is answered to a permission question.
+
 - **The page reader refuses more kinds of address that are not on the public
   internet.** An IPv4 address carried inside an IPv6 one by NAT64, 6to4 or
   Teredo is now judged as the IPv4 address it stands for, so a translated
@@ -512,6 +526,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   filter; the permission dialogs still decide what runs.
 
 ### Changed
+
+- **A command the safety list refuses says which one.** The message named
+  only the program ("cmd"), which did not say what was refused. It now gives
+  the command line, cut to 160 characters, and says no permission can
+  override it.
 
 - **A chat with a model on this computer is given the window it needs, and
   no more.** The window a model reads a conversation into is memory it holds
