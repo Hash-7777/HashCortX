@@ -203,11 +203,12 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
     let mut cmd = match caller {
         Caller::Person => Command::new(command),
         Caller::Agent => crate::security::agent_sandbox::command(command)?,
+        Caller::AgentOffline => crate::security::agent_sandbox::command_offline(command)?,
     };
     cmd.args(args);
     // An agent's command given no folder runs in the open project.
-    let opened = match (caller, cwd) {
-        (Caller::Agent, None) => {
+    let opened = match (caller.is_agent(), cwd) {
+        (true, None) => {
             crate::security::root_jail::root().map(|r| r.to_string_lossy().into_owned())
         }
         _ => None,
@@ -232,7 +233,7 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         // wherever they like; it is their terminal.
         match caller {
             Caller::Person => crate::commands::fs::guard_path(dir),
-            Caller::Agent => crate::commands::fs::guard_agent_path(dir),
+            Caller::Agent | Caller::AgentOffline => crate::commands::fs::guard_agent_path(dir),
         }
         .map_err(|why| format!("Working directory refused: {why}"))?;
         cmd.current_dir(dir);
@@ -260,6 +261,16 @@ enum Caller {
     /// The agent: no settings named like a secret, and on macOS the system
     /// sandbox (security/agent_sandbox.rs).
     Agent,
+    /// The agent, for a command the page let through without a question
+    /// because it can only read the project or run its own checks: the same,
+    /// and the network closed. Refused where it cannot be closed.
+    AgentOffline,
+}
+
+impl Caller {
+    fn is_agent(self) -> bool {
+        matches!(self, Caller::Agent | Caller::AgentOffline)
+    }
 }
 
 /// Words that mark an environment setting as a secret, when one of them is a
@@ -503,8 +514,10 @@ pub async fn shell_run(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
+    offline: Option<bool>,
 ) -> Result<ShellOutput, String> {
-    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key, Caller::Agent)).await
+    let caller = if offline == Some(true) { Caller::AgentOffline } else { Caller::Agent };
+    super::off_main(move || run_blocking(command, args, cwd, timeout_ms, cancel_key, caller)).await
 }
 
 #[tauri::command]
@@ -514,9 +527,11 @@ pub async fn shell_run_stream(
     cwd: Option<String>,
     timeout_ms: Option<u64>,
     cancel_key: Option<String>,
+    offline: Option<bool>,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
-    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, Caller::Agent, on_chunk)).await
+    let caller = if offline == Some(true) { Caller::AgentOffline } else { Caller::Agent };
+    super::off_main(move || run_stream_blocking(command, args, cwd, timeout_ms, cancel_key, caller, on_chunk)).await
 }
 
 fn run_blocking(
@@ -528,7 +543,7 @@ fn run_blocking(
     caller: Caller,
 ) -> Result<ShellOutput, String> {
     let mut cmd = prepare(&command, &args, &cwd, caller)?;
-    if caller == Caller::Agent {
+    if caller.is_agent() {
         without_secrets(&mut cmd);
     }
     let timeout = resolve_timeout(timeout_ms);
@@ -583,7 +598,7 @@ fn run_stream_blocking(
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
     let mut cmd = prepare(&command, &args, &cwd, caller)?;
-    if caller == Caller::Agent {
+    if caller.is_agent() {
         without_secrets(&mut cmd);
     }
     let timeout = resolve_timeout(timeout_ms);
@@ -1022,5 +1037,38 @@ mod tests {
         assert!(!agent.stdout.contains("secret") && agent.code != 0, "the agent read it: {} {}", agent.stdout, agent.stderr);
         assert_eq!(typed.stdout, "secret");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn a_command_asked_to_stay_offline_cannot_reach_the_network_and_an_ordinary_one_can() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-sandbox-scratch")
+            .join(format!("offline-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let _turn = crate::security::root_jail::test_turn();
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+        // Something listening on this computer, which is all the network a test needs.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let line = format!("/usr/bin/nc -z -w 2 127.0.0.1 {}", listener.local_addr().unwrap().port());
+        let cwd = Some(dir.to_string_lossy().into_owned());
+        let ordinary = run_blocking("sh".into(), vec!["-c".into(), line.clone()], cwd.clone(), None, None, Caller::Agent).unwrap();
+        let offline = run_blocking("sh".into(), vec!["-c".into(), line], cwd.clone(), None, None, Caller::AgentOffline).unwrap();
+        assert_eq!(ordinary.code, 0, "an ordinary agent command keeps the network: {}", ordinary.stderr);
+        assert_ne!(offline.code, 0, "the offline command reached the network");
+        // Ordinary work, and the agent's other limits, are the same offline.
+        let work = run_blocking("sh".into(), vec!["-c".into(), "echo fine".into()], cwd, None, None, Caller::AgentOffline).unwrap();
+        assert_eq!(work.stdout, "fine\n");
+        drop(listener);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    #[test]
+    fn where_the_network_cannot_be_closed_an_offline_command_is_refused_not_run_open() {
+        let err = prepare("echo", &["hi".into()], &None, Caller::AgentOffline).unwrap_err();
+        assert!(err.contains("network closed"), "{err}");
     }
 }

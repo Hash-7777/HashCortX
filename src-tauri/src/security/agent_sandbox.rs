@@ -97,6 +97,17 @@ fn quoted(path: &str) -> String {
 /// The sandbox profile for an agent's command, for the account whose home
 /// directory is `home`.
 pub fn profile(home: &Path) -> String {
+    profile_with(home, false)
+}
+
+/// The same, and every network operation refused, loopback included: for a
+/// command that runs the project's own code without a person having been
+/// asked, so that code cannot send anything anywhere.
+pub fn profile_offline(home: &Path) -> String {
+    profile_with(home, true)
+}
+
+fn profile_with(home: &Path, offline: bool) -> String {
     let home = home.to_string_lossy();
     let home = home.trim_end_matches('/');
     let under = |rel: &str| format!("{home}/{rel}");
@@ -125,9 +136,10 @@ pub fn profile(home: &Path) -> String {
     }
 
     format!(
-        "(version 1)\n(allow default)\n(deny file-read* file-write*\n  {})\n(deny file-write*\n  {})\n",
+        "(version 1)\n(allow default)\n(deny file-read* file-write*\n  {})\n(deny file-write*\n  {})\n{}",
         private.join("\n  "),
-        start_up.join("\n  ")
+        start_up.join("\n  "),
+        if offline { "(deny network*)\n" } else { "" }
     )
 }
 
@@ -141,14 +153,25 @@ pub fn command(program: &str) -> Result<Command, String> {
     command_with(Path::new(TOOL), program, dirs::home_dir().as_deref())
 }
 
+/// As `command`, with the network closed (`profile_offline`).
+#[cfg(target_os = "macos")]
+pub fn command_offline(program: &str) -> Result<Command, String> {
+    command_in(Path::new(TOOL), program, dirs::home_dir().as_deref(), true)
+}
+
 #[cfg(target_os = "macos")]
 fn command_with(tool: &Path, program: &str, home: Option<&Path>) -> Result<Command, String> {
+    command_in(tool, program, home, false)
+}
+
+#[cfg(target_os = "macos")]
+fn command_in(tool: &Path, program: &str, home: Option<&Path>, offline: bool) -> Result<Command, String> {
     let home = home.filter(|h| h.is_absolute()).ok_or_else(|| UNAVAILABLE.to_string())?;
     if !tool.is_file() {
         return Err(UNAVAILABLE.to_string());
     }
     let mut cmd = Command::new(tool);
-    cmd.arg("-p").arg(profile(home)).arg(program);
+    cmd.arg("-p").arg(profile_with(home, offline)).arg(program);
     Ok(cmd)
 }
 
@@ -156,6 +179,13 @@ fn command_with(tool: &Path, program: &str, home: Option<&Path>) -> Result<Comma
 #[cfg(not(target_os = "macos"))]
 pub fn command(program: &str) -> Result<Command, String> {
     Ok(Command::new(program))
+}
+
+/// Elsewhere there is nothing that closes the network, so a command asked to
+/// run without it is refused rather than run with it.
+#[cfg(not(target_os = "macos"))]
+pub fn command_offline(_program: &str) -> Result<Command, String> {
+    Err("This system has no way to run a command with the network closed, so it was not run. Ask for it in Manual or Accept edits mode.".to_string())
 }
 
 #[cfg(test)]
@@ -167,6 +197,16 @@ mod tests {
         let p = profile(Path::new("/Users/a\"b\\c"));
         assert!(p.contains("(subpath \"/Users/a\\\"b\\\\c/.ssh\")"));
         assert!(!p.contains("/Users/a\"b"));
+    }
+
+    #[test]
+    fn the_offline_profile_is_the_same_with_the_network_closed() {
+        let home = Path::new("/Users/someone");
+        let plain = profile(home);
+        let offline = profile_offline(home);
+        assert!(!plain.contains("network"), "an ordinary command keeps its network");
+        assert!(offline.starts_with(&plain), "everything the ordinary profile refuses is still refused");
+        assert!(offline.ends_with("(deny network*)\n"));
     }
 
     #[test]
@@ -262,6 +302,26 @@ mod macos_tests {
         assert!(!ok && !agents.join("new.plist").exists());
         let (ok, out, _) = run(&home, &format!("cat '{h}/Library/LaunchAgents/existing.plist'"));
         assert!(ok && out == "plist");
+        let _ = fs::remove_dir_all(&home);
+    }
+
+    #[test]
+    fn a_command_that_must_stay_offline_cannot_reach_even_this_computer() {
+        use std::net::TcpListener;
+        let home = scratch("offline");
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let line = format!("/usr/bin/nc -z -w 2 127.0.0.1 {port}");
+        // The ordinary sandbox leaves the network alone: the port answers.
+        let (ok, _, err) = run(&home, &line);
+        assert!(ok, "the ordinary sandbox should reach a port on this computer: {err}");
+        // The offline one refuses it, and the command fails.
+        let out = command_in(Path::new(TOOL), "sh", Some(&home), true).unwrap().args(["-c", &line]).output().unwrap();
+        assert!(!out.status.success(), "the offline sandbox reached the network");
+        // Ordinary work that needs no network is untouched.
+        let work = command_in(Path::new(TOOL), "sh", Some(&home), true).unwrap().args(["-c", "echo fine"]).output().unwrap();
+        assert!(work.status.success() && String::from_utf8_lossy(&work.stdout) == "fine\n");
+        drop(listener);
         let _ = fs::remove_dir_all(&home);
     }
 

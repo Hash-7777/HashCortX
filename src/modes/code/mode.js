@@ -449,6 +449,7 @@
       };
       historyBtn?.addEventListener('click', (e) => { e.stopPropagation(); showHistory(!history?.classList.contains('open')); });
       $('cdrDebugBtn')?.addEventListener('click', exportDebug);
+      window.HCCodePermissionBar?.mount($('cdrPermMode'), HC.guard);
       $('cdrSessionsClose')?.addEventListener('click', () => showHistory(false));
       history?.addEventListener('click', (e) => e.stopPropagation());
       document.addEventListener('click', () => { if (history?.classList.contains('open')) showHistory(false); });
@@ -1995,6 +1996,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             const ms = Math.round(performance.now() - t0);
             cdrTraceAdd('Tool', call.name + ' · ' + ms + 'ms', ok ? 'ok' : 'err');
             finalizeToolBlock(toolEl, resultStr, ok, ms);
+            if (!ok && /safety list|protected location/.test(resultStr)) HC.guard?.noteBlocked?.();   // a refused place counts toward Auto asking about everything
 
             // A row is offered only for a change that happened. A refused or
             // failed call has no record of its own, and the row would pick up
@@ -2208,6 +2210,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const contentEl = appendAssistantBubble('HashCoder');
       const bubble = contentEl?.closest('.cdr-msg');
       bubble?.classList.add('running');   // copy, reply and regen wait for the answer
+      HC.guard?.beginRun?.(); HC.guard?.setChecks?.(sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks.checks : null);   // what may run unasked is judged for this run (js/code/permissions.js)
       try {
         if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
         const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
@@ -2215,6 +2218,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         saveCoderState();
         setStatus('Ready', '');
       } finally {
+        HC.guard?.endRun?.();
         settleSteps(contentEl);
         bubble?.classList.remove('running');
       }

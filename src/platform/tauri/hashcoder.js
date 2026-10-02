@@ -209,8 +209,10 @@
       // the same string — which also puts it in front of the guard's own
       // checks and into the audit log.
       const shown = cwd ? `${display} (in ${cwd})` : display;
-      const ok = await HC.guard.request('shell', shown, reason);
+      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd });
       if (!ok) throw new Error(`Permission denied: shell ${shown}`);
+      // A check let through without a question runs with the network closed (js/code/permissions.js).
+      const offline = HC.guard.takeOffline?.(shown) === true;
 
       // Stream when there is somewhere to stream to. A command the agent ran
       // handed back everything at once when it finished, so a two-minute build
@@ -226,10 +228,10 @@
           if (chunk.kind === 'stderr') stderr += line; else stdout += line;
           try { HC.code.onShellChunk(chunk, display); } catch { /* a sink must never break a run */ }
         };
-        await HC.invoke('shell_run_stream', { command, args, cwd, cancelKey: HC.code.shellCancelKey, onChunk: channel });
+        await HC.invoke('shell_run_stream', { command, args, cwd, cancelKey: HC.code.shellCancelKey, offline, onChunk: channel });
         return { stdout, stderr, code, timedOut: false, truncated: false };
       }
-      return HC.invoke('shell_run', { command, args, cwd, cancelKey: HC.code.shellCancelKey });
+      return HC.invoke('shell_run', { command, args, cwd, cancelKey: HC.code.shellCancelKey, offline });
     },
 
     /**

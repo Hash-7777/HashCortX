@@ -10,6 +10,32 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **You choose how much HashCoder may do without asking.** A menu beside the
+  box a request is written in, with three choices. **Manual** asks before
+  every change: a file written or edited, one moved or deleted, a command, a
+  web page; reading the project stays free. **Accept edits** is what
+  HashCoder has always done and stays the default: files in the project are
+  written without a question, and a command, a deletion or a web page asks.
+  **Auto** is Accept edits and a short, fixed list of commands that run
+  without a question: reading and searching inside the project (`ls`, `cat`,
+  `grep`, `rg`, `find` by name and the like), git's read-only commands, and
+  the project's own test, lint, type check and build. It is a list and not
+  the model's judgement: a command is a program and its arguments with no
+  shell syntax, every argument must be one the program is known to take, a
+  flag that runs another program or writes a file is not on the list, every
+  place it names must really lead inside the project and not be a file of
+  secrets, and a name that climbs out of the project asks. A check runs the
+  project's code, which may be a test the agent wrote a moment ago, so it
+  runs with the network closed (on macOS, in the sandbox; where nothing can
+  close the network a check asks, and the native side refuses to start one
+  it was told to keep offline). Auto asks again by itself once a file that
+  says how checks run, or that git reads, has been changed in the run, after
+  two attempts at a protected place, and after forty commands in a row with
+  no question, and each command it let through is in the audit log. It is
+  never restored when the app is reopened. Nothing a mode allows reaches
+  what Rust refuses outright, and none applies outside a HashCoder run
+  (`js/code/permissions.js`, `js/code/permission-bar.js`).
+
 - **HashCoder is sent back when a page states details that nothing it read
   or was told says.** Asked for a site for a real shop, a model that could
   not open the shop's own page wrote one anyway: a street number, a year the

@@ -142,8 +142,8 @@ npm run tauri dev -- -- --no-default-features     # and to develop
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 8,902 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 219 Rust tests
+npm run check                                     # 9,423 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 222 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3.7 MB of interface source that ships as written.

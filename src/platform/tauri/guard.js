@@ -362,6 +362,22 @@
   // and listing only (allowedWithoutAsking).
   const QUIET_ACTIONS = new Set(['read', 'list']);
 
+  // How much HashCoder may do without asking (js/code/permissions.js): Manual,
+  // Accept edits (the default, what AUTO_APPROVE_IN_ROOT is) or Auto. It
+  // applies while a HashCoder run is going and only then, so nothing else in
+  // the app, and nothing the person does themselves, is held to it. Every
+  // mode leaves what Rust refuses as it is.
+  let _mode = null;
+  let _run = null;
+  let _checks = null;
+  const _offline = new Set();   // commands let through as a check, to be run with the network closed
+  const modes = () => window.HCCodePermissions;
+  const modeNow = () => {
+    if (_mode === null) _mode = modes() ? modes().readMode() : 'edits';
+    return _run ? _mode : 'edits';
+  };
+  const freeInProject = (action) => (modes() ? modes().freeInProject(modeNow(), action) : AUTO_APPROVE_IN_ROOT.has(action));
+
   // Directory of a path, for coarse session grants.
   function parentDir(target) {
     const norm = String(target || '').replace(/\/+$/, '');
@@ -478,6 +494,34 @@
       return _projectRoot;
     },
 
+    /** The mode HashCoder runs in: 'ask', 'edits' or 'auto'. */
+    mode() {
+      if (_mode === null) _mode = modes() ? modes().readMode() : 'edits';
+      return _mode;
+    },
+
+    /** Choose the mode. Manual and Accept edits are kept; Auto is for this session only. */
+    setMode(mode) {
+      if (!modes() || !modes().IDS.includes(mode)) return false;
+      _mode = mode;
+      modes().writeMode(mode);
+      auditLog('mode', 'permissions', mode);
+      return true;
+    },
+
+    /** A HashCoder run begins or ends: what it has done is counted from here, and the mode applies while it lasts. */
+    beginRun() { _run = modes() ? modes().createRun() : null; _offline.clear(); },
+    endRun() { _run = null; _offline.clear(); },
+
+    /** Whether a command the guard let through unasked must run with the network closed; asked once per approval. */
+    takeOffline(target) { return _offline.delete(target); },
+
+    /** What the open project names for its own checks, for Auto. */
+    setChecks(checks) { _checks = checks || null; },
+
+    /** The native side refused a command for a protected place: counted toward Auto asking about everything. */
+    noteBlocked() { if (_run) _run.blocked(); },
+
     /**
      * Answer no to every question waiting: the one open now, and those queued
      * behind it, which are never shown. Called when a run is stopped, so an
@@ -502,9 +546,10 @@
     },
 
       // Request permission for an action. Returns true if approved.
-    async request(action, target, reason = '') {
+    async request(action, target, reason = '', detail = null) {
       // Hard-blocked — reject immediately, no dialog
       if (isHardBlocked(action, target)) {
+        if (_run) _run.blocked();
         auditLog('deny-hard', action, target);
         HC.guard.notify(`Blocked: ${action} on protected path`, 'danger');
         return false;
@@ -513,9 +558,23 @@
       // Auto-approve read/list/search/write/patch inside the open project root —
       // the user already chose this folder. "Inside" means where the path really
       // leads, not how it is spelled, so a link out of the project still asks.
-      if (AUTO_APPROVE_IN_ROOT.has(action) && await isInProjectRoot(target)) {
+      if (freeInProject(action) && await isInProjectRoot(target)) {
         auditLog('allow-project-root', action, target);
+        if (_run && (action === 'write' || action === 'patch')) _run.wrote(target);
         return true;
+      }
+
+      // Auto: a command that only reads, or runs the project's own checks (js/code/permissions.js).
+      if (action === 'shell' && _run && _mode === 'auto' && detail && modes()) {
+        const closable = /^mac/i.test(String(HC.code?.platform?.os || ''));   // where a command can be run with the network closed (agent_sandbox.rs)
+        const d = await modes().autoDecision({ ...detail, root: _projectRoot, checks: _checks, run: _run, inside: isInProjectRoot, blocked: (p) => isHardBlocked('read', p), offline: closable });
+        if (d.auto) {
+          auditLog('allow-auto', action, `${target} — ${d.why}`);
+          _run.ran();
+          if (d.tier === 'check') _offline.add(target);
+          return true;
+        }
+        if (d.paused && !_run.toldPaused) { _run.toldPaused = true; HC.guard.notify(d.why, 'info'); }
       }
 
       const key = `${action}::${target}`;
@@ -564,6 +623,7 @@
           return false;
         }
         auditLog(choice, action, target);
+        if (_run) { _run.answered(); if (choice !== 'deny' && ['write', 'patch', 'delete'].includes(action)) _run.wrote(target); }
 
         if (choice === 'allow-session') {
           _session.set(key, 'allow');

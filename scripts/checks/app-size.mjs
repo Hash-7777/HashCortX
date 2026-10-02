@@ -744,7 +744,10 @@ const LINE_BUDGET = {
   // rules the chat's agents use.
   // 2475, up ten: the details its pages state as fact are looked for in what
   // the run was told and read, and sent back once (js/code/facts.js).
-  'modes/code/mode.js': 2475,
+  // 2479, up four: how much HashCoder may do without asking is counted from
+  // the start of a run to its end, a refusal by the native side is counted,
+  // and the menu that chooses it is mounted (js/code/permissions.js).
+  'modes/code/mode.js': 2479,
 };
 
 console.log('\nFile sizes go down, never up:');

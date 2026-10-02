@@ -50,7 +50,7 @@ ok('copy, reply and regen wait for the answer', /\.cdr-msg\.running \.cdr-msg-ac
 const mode = src('modes', 'code', 'mode.js');
 console.log('\nHashCoder:');
 ok('draws every step through it, and settles a reply when its run ends, however it ends',
-  /const el = window\.HCCodeSteps\.add\(contentEl, step\);/.test(mode) && /bubble\?\.classList\.add\('running'\);/.test(mode) && /\} finally \{\n\s+settleSteps\(contentEl\);\n\s+bubble\?\.classList\.remove\('running'\);/.test(mode));
+  /const el = window\.HCCodeSteps\.add\(contentEl, step\);/.test(mode) && /bubble\?\.classList\.add\('running'\);/.test(mode) && /\} finally \{\n\s+HC\.guard\?\.endRun\?\.\(\);\n\s+settleSteps\(contentEl\);\n\s+bubble\?\.classList\.remove\('running'\);/.test(mode));
 ok('a saved conversation is drawn as a finished run reads', /msgs\.querySelectorAll\('\.cdr-msg\.assistant \.cdr-msg-content'\)\.forEach\(settleSteps\);/.test(mode));
 ok('changes left from a last session keep their own list', /appendStep\(group, \{\n\s+flat: true,/.test(mode));
 ok('a change row takes the place of the step that made it', /if \(ok && \['write_file', 'patch_file', 'delete_file', 'move_file'\]\.includes\(call\.name\)\) toolEl\?\.remove\(\);/.test(mode));

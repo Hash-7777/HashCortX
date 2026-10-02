@@ -437,6 +437,13 @@ body.coder-mode #app { display: none; }
 .cdr-run-btn:hover { filter: brightness(1.08); }
 .cdr-stop-btn { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
 .cdr-input-actions { display: flex; align-items: center; gap: 6px; }
+/* How much HashCoder may do without asking: a small menu, quiet until hovered. */
+.cdr-perm {
+  height: 30px; max-width: 140px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--cdr-text-dim); font: inherit; font-size: 12px; cursor: pointer;
+}
+.cdr-perm:hover { color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-perm:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* What is attached to the next request, above the words. */
 .cdr-attach-list { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
