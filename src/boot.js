@@ -84,6 +84,7 @@
     '/js/code/lessons.js',
     '/js/code/codemap.js',
     '/js/code/site.js',
+    '/js/code/facts.js',
     '/js/code/asks.js',
     '/js/code/keep.js',
     '/js/code/steps.js',

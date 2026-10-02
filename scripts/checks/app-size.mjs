@@ -742,7 +742,9 @@ const LINE_BUDGET = {
   // 2465, down 88: the panel's own list of providers to try, its chain and
   // its ordering are gone, the run being routed by js/code/router.js with the
   // rules the chat's agents use.
-  'modes/code/mode.js': 2465,
+  // 2475, up ten: the details its pages state as fact are looked for in what
+  // the run was told and read, and sent back once (js/code/facts.js).
+  'modes/code/mode.js': 2475,
 };
 
 console.log('\nFile sizes go down, never up:');

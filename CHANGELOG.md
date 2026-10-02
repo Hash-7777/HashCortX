@@ -10,6 +10,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder is sent back when a page states details that nothing it read
+  or was told says.** Asked for a site for a real shop, a model that could
+  not open the shop's own page wrote one anyway: a street number, a year the
+  shop opened and its opening hours were guesses, the name was spelled as it
+  had been typed, and some lines were left on the page in square brackets.
+  Nothing said which details were found and which were made up. When a run
+  changes a page or a text file, what it holds is now read for the details a
+  visitor takes as fact and could check (an address, a phone number, an
+  email, a year it began, how long it has been open, opening hours, a link
+  to an account on a social network) and each is looked for in what the run
+  was told or read: your own words, a page or a search it opened, a note it
+  recalled, a connected system, and a file of the project it had not
+  written itself. A file it wrote earlier is not a source, so a guess read
+  back is not confirmed by being read. A detail found nowhere is sent back to
+  the agent once, to find it, take it out, or say it is a guess; what is
+  still unconfirmed when the run ends is said under the answer, with any
+  line of square brackets still on the page. When a picture was attached,
+  what it shows cannot be searched, so only the brackets are held against
+  the run (`js/code/facts.js`).
+
 - **A picture attached in HashCoder is seen in the conversation.** The
   message it was sent with shows a small preview of each picture, which
   opens full size on a click and closes with Escape, instead of only naming

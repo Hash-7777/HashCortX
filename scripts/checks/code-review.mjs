@@ -79,7 +79,7 @@ console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
   ok('keeps what each changed file held, from the undo records', /window\.HCCodeReview\?\.track\(changes, p, HC\?\.undo\?\.lastFor\?\.\(p\)\)/.test(mode));
-  ok('asks for a second look only when nothing else sent the agent back, the files its answer names and the site check included, and it answered', /\|\| \(finalText\.trim\(\) \? \(await namedLook\(finalText\)\) \|\| \(await siteLook\(\)\) \|\| \(await secondLook\(\)\) : null\);/.test(mode));
+  ok('asks for a second look only when nothing else sent the agent back, the files its answer names and the site check included, and it answered', /\|\| \(finalText\.trim\(\) \? \(await namedLook\(finalText\)\) \|\| \(await siteLook\(\)\) \|\| \(await factsLook\(\)\) \|\| \(await secondLook\(\)\) : null\);/.test(mode));
   ok('of the same model, with no tools and nothing of the conversation', /await callWithRouter\(R\.messages\(\(window\.HCCodeAttach\?\.shownRequest \|\| String\)\(V\.requestIn\(messages\)\), V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(mode));
   ok('a second look that fails holds nothing up, but Stop still stops', /catch \(e\) \{ if \(signal\?\.aborted\) throw e; return null; \}/.test(mode));
   ok('the run shows the step', /verb: 'REVIEW', object: found\.ok \? 'looks right'/.test(mode));

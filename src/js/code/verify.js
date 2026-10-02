@@ -308,12 +308,14 @@
   const UNDONE_SAYS = 'your answer says part of the work is not done';
   const NAMED_STEP = 'Sent back to find the files its answer names';
   const NAMED_SAYS = 'which the project does not have';
+  const FACTS_STEP = 'Sent back to confirm the details it wrote';
+  const FACTS_SAYS = 'were read for details a visitor would take as fact';
   /** The step when the app ran the test itself, for a small model that had not. */
   const RAN_STEP = 'Ran the tests itself, as the change had not been tested';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -552,6 +554,28 @@
     };
   }
 
+  /**
+   * The note sending the agent back once with the details its files state as
+   * fact that nothing it was given or read says, and the lines of square
+   * brackets that would show on a page (js/code/facts.js): each to confirm,
+   * take out, or say is a guess.
+   */
+  function factsNote(found, root) {
+    if (!found || !found.total) return null;
+    const F = window.HCCodeFacts;
+    const where = (i) => `${i.shown} (${F && F.KIND[i.kind] ? F.KIND[i.kind] : 'detail'}, in ${F ? F.nameIn(i.path, root) : i.path})`;
+    const told = found.unsourced.length ? `\nNothing you were told or read says these, and a visitor would take each as fact:\n${found.unsourced.slice(0, 8).map((i) => `- ${where(i)}`).join('\n')}` : '';
+    const open = found.placeholders.length ? `\nThese show on the page as unfinished text, where a visitor would read them:\n${found.placeholders.slice(0, 8).map((i) => `- ${i.shown} (in ${F ? F.nameIn(i.path, root) : i.path})`).join('\n')}` : '';
+    return {
+      kind: 'facts',
+      step: FACTS_STEP,
+      message: `${APP_NOTE} the files you changed ${FACTS_SAYS}.${told}${open}\n` +
+        'For each detail: if the person gave it, or a page you opened says it, find that and keep it exactly as written there. If not, look for it with web_search or fetch_url. ' +
+        'If you cannot find it, take it out of the page: a guess must never stand as a fact, and square brackets must never be left on a page. ' +
+        'Spell the name as the sources spell it. Then finish, and say in your answer which details you could not confirm.',
+    };
+  }
+
   // ── Files an answer names that are not there ──────────────────────────
   //
   // Asked where something is, a small model searched once, found nothing,
@@ -653,6 +677,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
+    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
   };
 })();
