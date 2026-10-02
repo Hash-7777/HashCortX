@@ -145,6 +145,23 @@ pub fn run() {
             // path. See src/commands/swarm_site.rs.
             swarm_site_open,
         ])
+        // The window starts hidden and the page shows it once it has put it
+        // in place (src/main.js). If the page never gets that far (a script
+        // that did not load, a crash before it runs), a window that never
+        // appears looks like an app that did not open. After a while it is
+        // shown regardless, so the person sees the page's own error.
+        .setup(|app| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_secs(10));
+                    if !window.is_visible().unwrap_or(true) {
+                        let _ = window.show();
+                    }
+                });
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running HashCortx");
 }

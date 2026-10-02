@@ -264,6 +264,8 @@
 
   function fail(message, err) {
     console.error(`[HashCortx] ${message}`, err || '');
+    // The window starts hidden and main.js, which would show it, is not going to run.
+    try { window.__TAURI_INTERNALS__?.invoke('plugin:window|show'); } catch (_) { /* the page still shows the message */ }
     const app = document.getElementById('mainApp');
     if (app) { app.style.visibility = 'visible'; app.style.pointerEvents = 'auto'; }
     const intro = document.getElementById('intro-screen');

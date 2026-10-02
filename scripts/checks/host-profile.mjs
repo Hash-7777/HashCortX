@@ -317,5 +317,17 @@ console.log('\nThe window opens where a person can reach it, and where it was le
     'without it the call is refused at runtime and a maximized window comes back ordinary');
 }
 
+console.log('\nA window that starts hidden is shown even when the page cannot get that far:');
+{
+  const conf = readFileSync(join(root, 'src-tauri', 'tauri.conf.json'), 'utf8');
+  ok('the window starts hidden, and main.js is what shows it', /"visible":\s*false/.test(conf) && /plugin:window\|show/.test(src('main.js')));
+  const boot = src('boot.js');
+  const fail_ = boot.slice(boot.indexOf('function fail('), boot.indexOf('(async function boot()'));
+  ok('a script that fails to load asks the window to show, before it paints its message', /plugin:window\|show/.test(fail_) && fail_.indexOf('plugin:window|show') < fail_.indexOf('createElement'));
+  const lib = readFileSync(join(root, 'src-tauri', 'src', 'lib.rs'), 'utf8');
+  ok('the native side shows it anyway after a while, from its own thread', /\.setup\(\|app\|/.test(lib) && /get_webview_window\("main"\)/.test(lib) && /Duration::from_secs\(10\)/.test(lib) && /is_visible\(\)/.test(lib) && /window\.show\(\)/.test(lib));
+  ok('and only a window still hidden', /if !window\.is_visible\(\)\.unwrap_or\(true\)/.test(lib), 'a window the page has shown, or one whose state cannot be read, is left alone');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (what this machine is)`);
 process.exit(fail ? 1 : 0);

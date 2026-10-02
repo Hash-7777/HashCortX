@@ -818,6 +818,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A window that starts hidden is shown even when the page cannot start.**
+  The window is created hidden and the page shows it once it has put it in
+  place, so a script that failed to load, or a crash before the page ran,
+  left no window at all, which looked like an app that did not open. The
+  page's own failure screen now asks for the window, and the native side
+  shows it after ten seconds if nothing has.
+
 - **The content policy no longer blocks the app's own channel to its native
   side.** `ipc:` and `http://ipc.localhost` were in the default sources but
   not in the one that governs connections, which replaces it, so every
