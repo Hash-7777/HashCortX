@@ -179,6 +179,25 @@ console.log('\nA model that cannot read pictures is not tried while one is sent:
   ok('and which models are offered while one is sent', W.HCCodeRouter.optionsFor(MODELS, { pictures: true, readsImages: SEES_PICTURES }).every((m) => SEES_PICTURES(m.value)) && W.HCCodeRouter.optionsFor(MODELS, {}).length === MODELS.length);
 }
 
+console.log('\nA picture sent to a chosen model that cannot read it:');
+{
+  const W = world();
+  const pictures = [{ role: 'user', content: 'see this', images: ['abc'] }];
+  const list = [
+    { value: 'cloud:cerebras:gpt-oss-120b', label: 'Cerebras GPT OSS 120B' },
+    { value: 'cloud:gemini:gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+    { value: 'cloud:groq:llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B' },
+  ];
+  const says = { 'cloud:cerebras:gpt-oss-120b': fails('cloud:cerebras cannot read pictures. Pick a model that can.') };
+  const r = run(W, 'cloud:cerebras:gpt-oss-120b', says, { messages: pictures, models: list });
+  const got = await r.turn().catch((e) => ({ content: `it ended: ${e.message}` }));
+  // A picture is the person's to place: when the model they chose cannot read
+  // it, the run says so in plain words and sends nothing to another company.
+  ok('a chosen model that cannot read pictures is asked once and says so', r.calls.join() === 'cloud:cerebras:gpt-oss-120b', r.calls.join());
+  ok('the person is told, in its own plain words, to pick one that can', /cannot read pictures\. Pick a model that can/.test(got.content), got.content);
+  ok('and the picture is not handed to another provider behind their back', !r.calls.some((c) => /gemini|groq/.test(c)) && r.told.length === 0, r.told.join());
+}
+
 console.log('\nWhat does not move:');
 {
   const W = world();
