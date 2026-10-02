@@ -25,6 +25,7 @@ console.log('The line a run folds to:');
 ok('how many steps, one or many', S.stepsLine(1) === '1 step' && S.stepsLine(12) === '12 steps' && S.stepsLine(0) === '0 steps');
 ok('and how many failed, only when some did', S.stepsLine(3, 1) === '3 steps · 1 failed' && S.stepsLine(3, 0) === '3 steps');
 ok('nonsense counts read as none', S.stepsLine('x', -2) === '0 steps');
+ok('a list counts the changes gathered out of it, as the run\'s own count does: 15 left and 11 gathered is 26 steps', S.stepsHeld(15, 11) === 26 && S.stepsLine(S.stepsHeld(15, 11), 2) === '26 steps · 2 failed' && S.stepsHeld(3) === 3 && S.stepsHeld('x', -1) === 0);
 ok('the changes are headed with what is asked of the person', S.changesTitle(1) === '1 change — keep or undo' && S.changesTitle(3) === '3 changes — keep or undo');
 
 const steps = src('js', 'code', 'steps.js');
@@ -33,6 +34,7 @@ ok('a <details>, so it opens from the keyboard, with its verb, object and result
 ok('its verb and object are written as text, never as markup', /\$\{esc\(verb\)\}/.test(steps) && /\$\{esc\(object\)\}/.test(steps) && /title="\$\{esc\(object\)\}"/.test(steps));
 ok('it joins the list the reply ends with, or starts one', /last\.classList\.contains\('cdr-steps'\) && !last\.classList\.contains\('done'\)/.test(steps));
 ok('a finished run folds each list to its line, and the heading opens it again', /group\.classList\.add\('done'\)/.test(steps) && /head\.textContent = stepsLine\(/.test(steps) && /group\.classList\.toggle\('open'\)/.test(steps) && /setAttribute\('aria-expanded'/.test(steps));
+ok('the line is the steps left and the changes gathered out of the list', /changed\.forEach\(\(c\) => gatheredFrom\.set\(c\.parentElement/.test(steps) && /stepsLine\(stepsHeld\(steps\.length, gatheredFrom\.get\(group\.querySelector\('\.cdr-steps-list'\)\)\)/.test(steps));
 ok('its changes are gathered under the answer, so folding never hides Keep and Undo', /querySelectorAll\('\.cdr-steps-list > \.cdr-step--change'\)/.test(steps) && /box\.className = 'cdr-changes'/.test(steps));
 
 const live = src('js', 'code', 'live.js');

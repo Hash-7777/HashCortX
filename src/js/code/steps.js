@@ -28,6 +28,13 @@
     return `${n} step${n === 1 ? '' : 's'}${f ? ` · ${f} failed` : ''}`;
   }
 
+  /**
+   * How many steps a list held: those still in it and the changes gathered out
+   * of it below the answer. The run's own count (the one a stop says, "Stopped
+   * after 26 steps") takes a change for a step, so the line does.
+   */
+  const stepsHeld = (listed, gathered = 0) => Math.max(0, Number(listed) || 0) + Math.max(0, Number(gathered) || 0);
+
   /** The heading over a run's changes. */
   const changesTitle = (count) => `${count === 1 ? '1 change' : `${count} changes`} — keep or undo`;
 
@@ -72,6 +79,8 @@
   function settle(contentEl) {
     if (!contentEl) return;
     const changed = [...contentEl.querySelectorAll('.cdr-steps-list > .cdr-step--change')];
+    const gatheredFrom = new Map();
+    changed.forEach((c) => gatheredFrom.set(c.parentElement, (gatheredFrom.get(c.parentElement) || 0) + 1));
     if (changed.length) {
       const box = document.createElement('div');
       box.className = 'cdr-changes';
@@ -85,9 +94,9 @@
       group.classList.add('done');
       const head = group.querySelector('.cdr-steps-h');
       head.setAttribute('aria-expanded', 'false');
-      head.textContent = stepsLine(steps.length, group.querySelectorAll('.cdr-steps-list > .cdr-step--err').length);
+      head.textContent = stepsLine(stepsHeld(steps.length, gatheredFrom.get(group.querySelector('.cdr-steps-list'))), group.querySelectorAll('.cdr-steps-list > .cdr-step--err').length);
     });
   }
 
-  window.HCCodeSteps = { stepsLine, changesTitle, listFor, add, settle };
+  window.HCCodeSteps = { stepsLine, stepsHeld, changesTitle, listFor, add, settle };
 })();

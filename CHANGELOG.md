@@ -792,6 +792,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A finished run's step count matches the one its stop message gives.** A
+  run that was stopped said "Stopped after 26 steps" above a list folded to
+  "15 steps", because the changes it had made are gathered under the answer
+  with Keep and Undo and were left out of the list's count. The list now
+  counts them, so the two agree and the changes are still shown below it
+  (`js/code/steps.js`).
+
 - **Text can be copied from HashCoder and from every conversation in the
   app.** The app is built like a native one, where nothing can be selected
   unless it is opted in, and only the main chat's messages had been. The
