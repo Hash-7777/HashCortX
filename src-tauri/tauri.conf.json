@@ -133,6 +133,12 @@
       // src-tauri/src/commands/provider.rs, and the page never calls them.
       // api.kimi.ai was listed too; nothing there answers an API request.
       //
+      // ipc: and http://ipc.localhost are the app's own channel to its native
+      // side (the second is the one Windows uses). They are in default-src,
+      // but connect-src replaces default-src for connections, so they have to
+      // be here as well; without them every launch logged a policy error and
+      // every call fell back to the slower postMessage path.
+      //
       // scripts/checks/csp.mjs now pins both directions. Note that
       // `tauri dev` applies NO policy at all — these rules only take
       // effect in `tauri build`, which is why the drift went unseen.
@@ -157,7 +163,7 @@
       // plain search words the run's planner makes ("diamond engagement
       // ring") and nothing else, only while "Find real photos for websites"
       // is on in Settings and "Local only" is off (src/js/swarm/photos.js).
-      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/pyodide/v0.26.4/full/; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.openverse.org https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.mistral.ai https://generativelanguage.googleapis.com https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://api.x.ai https://api.together.xyz https://api.fireworks.ai https://api.z.ai https://dashscope-intl.aliyuncs.com https://router.huggingface.co https://api.deepinfra.com https://api.novita.ai https://api.venice.ai https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://www.ebi.ac.uk https://api.duckduckgo.com https://cdn.jsdelivr.net/pyodide/v0.26.4/full/ http://localhost:11434 http://127.0.0.1:11434 http://*:11434; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; script-src 'self' 'wasm-unsafe-eval' https://cdn.jsdelivr.net/pyodide/v0.26.4/full/; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://api.openverse.org https://api.anthropic.com https://api.openai.com https://openrouter.ai https://api.groq.com https://api.cerebras.ai https://api.mistral.ai https://generativelanguage.googleapis.com https://api.moonshot.ai https://api.moonshot.cn https://api.deepseek.com https://api.x.ai https://api.together.xyz https://api.fireworks.ai https://api.z.ai https://dashscope-intl.aliyuncs.com https://router.huggingface.co https://api.deepinfra.com https://api.novita.ai https://api.venice.ai https://api.tavily.com https://customsearch.googleapis.com https://en.wikipedia.org https://www.ebi.ac.uk https://api.duckduckgo.com https://cdn.jsdelivr.net/pyodide/v0.26.4/full/ http://localhost:11434 http://127.0.0.1:11434 http://*:11434; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'"
     }
   },
 

@@ -212,9 +212,17 @@ for (const host of REACHED_NATIVELY.keys()) {
   ok(`${host} is named only among the ready-made connections`, naming.join() === 'src/js/mcp/presets.js', `named in ${naming.join(', ') || 'no file'}`);
 }
 
+// The app's own channel to its native side: the runtime makes these requests,
+// no file of ours builds the address. Connections are governed by connect-src
+// alone (it replaces default-src), so without them every call is refused by the
+// policy and falls back to the slower postMessage path.
+const RUNTIME_OWN = ['ipc:', 'http://ipc.localhost'];
+console.log("\nThe runtime's own channel is allowed to connect:");
+for (const entry of RUNTIME_OWN) ok(`connect-src allows ${entry}`, connectSrc.includes(entry), 'the native bridge is refused by the policy and falls back to a slower path on every launch');
+
 console.log('\nEvery address connect-src allows is one something builds:');
 for (const entry of connectSrc) {
-  if (!entry.startsWith('http') || entry.includes('*')) continue;
+  if (!entry.startsWith('http') || entry.includes('*') || RUNTIME_OWN.includes(entry)) continue;
   ok(`${entry} has a caller`, sourceHosts.has(hostOf(entry)),
     'nothing in the app builds this address — remove it rather than grant reach no feature needs');
 }

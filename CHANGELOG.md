@@ -818,6 +818,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The content policy no longer blocks the app's own channel to its native
+  side.** `ipc:` and `http://ipc.localhost` were in the default sources but
+  not in the one that governs connections, which replaces it, so every
+  launch of a built app logged a policy error and fell back to a slower
+  path for every call. Both are now allowed to connect, and the check that
+  pins the policy knows them as the runtime's own.
+
 - **A local model app that refuses HashCortx is no longer reported as
   being off.** On Windows the app's page comes from `http://tauri.localhost`,
   which Ollama refuses until it is allowed. A browser hides the status of an
