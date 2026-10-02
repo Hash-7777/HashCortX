@@ -20,15 +20,44 @@
     });
   })();
 
-  // ── Window position & size: remember last state, center on first launch ──
-  // Saves position + size to localStorage every 3 s; restores on next launch.
-  // Falls back to tauri.conf.json "center: true" on first launch.
+  // ── Window position & size: behave like an ordinary window ───────────────
+  // Opens where it was left, at the size it was left, maximized if it was
+  // maximized, and never somewhere a person cannot reach. Falls back to
+  // tauri.conf.json (centered) on first launch.
+  //
+  // Every number here is in PHYSICAL pixels, the unit the window commands
+  // speak, and every check is made against the monitors' WORK AREAS: the screen
+  // minus the taskbar. Three things went wrong before, each only on a screen
+  // smaller than the one the app was written on:
+  //
+  //   · The size was capped at the work area, but the cap was applied to the
+  //     INNER size. The title bar and the frame sit outside it, so on a 1366 x
+  //     768 laptop the window came out 32 px taller than the space it had, with
+  //     its title bar above the top edge of the screen. The cap now measures
+  //     the frame and caps the whole window.
+  //   · A saved position was never checked. One saved on a monitor that is no
+  //     longer plugged in put the window where nothing could show it, and a
+  //     position read while the window was minimized (Windows reports -32000,
+  //     -32000 for it) did the same. A position is used only when the title bar
+  //     would be on a screen; otherwise the window is centered.
+  //   · Maximized was not remembered at all, and the position was saved by a
+  //     three-second poll that only ran while the window had focus, so a window
+  //     closed soon after a move came back where it had been before it.
+  //
+  // The first window a person ever sees is a little smaller than their screen
+  // rather than the whole of it: an ordinary window, not a maximized one that
+  // happens to have a title bar.
   (async function initWindowState() {
     if (!window.__TAURI_INTERNALS__) return;
     const invoke = window.__TAURI_INTERNALS__.invoke;
     if (!invoke) return;
 
-    const readSavedWindowValue = (key) => {
+    const STATE_KEY = 'hc_win_state';
+    // Older builds kept the position and the size under these two keys.
+    const LEGACY_POS = 'hc_win_pos';
+    const LEGACY_SIZE = 'hc_win_size';
+
+    const readJson = (key) => {
       try {
         const raw = localStorage.getItem(key);
         return raw ? JSON.parse(raw) : null;
@@ -37,115 +66,187 @@
       }
     };
     const finite = (value) => Number.isFinite(Number(value));
-    const showWindow = async () => {
-      try { await invoke('plugin:window|show'); } catch (_) {}
+    const call = async (command, args) => {
+      try { return await invoke(command, args); } catch (_) { return null; }
+    };
+    const showWindow = () => call('plugin:window|show');
+
+    // Where the window goes, as numbers: no calls, no storage, no page. The
+    // check runs this very function against real displays
+    // (scripts/checks/host-profile.mjs), so it must stay self-contained.
+    //
+    //   saved  { x, y, width, height, maximized }, any part may be missing:
+    //          x and y the outer position, width and height the inner size
+    //   now    { width, height }, the inner size the window has now
+    //   pad    { w, h }, the frame around the content: outer minus inner
+    //   areas  every monitor's work area, { x, y, w, h }
+    //   here   the work area the window is on now
+    //   scale  that display's scale factor
+    //
+    // Returns { x, y, width, height, maximized } for set_position and set_size,
+    // or null when there is nothing to measure against.
+    const planWindow = ({ saved, now, pad, areas, here, scale }) => {
+      const MIN_LOGICAL = { w: 960, h: 640 };   // tauri.conf.json minWidth, minHeight
+      const REACH_W = 160;                      // pixels of title bar that must be on a screen
+      const REACH_H = 48;                       // and the height of the strip that must be
+      const FIRST_MARGIN = { x: 24, y: 16 };    // desktop left showing on a first launch
+      const clamp = (value, low, high) => Math.min(Math.max(value, low), Math.max(low, high));
+      const reachable = (x, y, w, h, area) => {
+        const bar = Math.min(REACH_H, h);
+        const across = Math.min(x + w, area.x + area.w) - Math.max(x, area.x);
+        return across >= Math.min(REACH_W, w) && y >= area.y && y + bar <= area.y + area.h;
+      };
+
+      if (!here || !now || !(now.width > 0) || !(now.height > 0)) return null;
+      const p = pad || { w: 0, h: 0 };
+      const choseSize = !!(saved && saved.width > 0 && saved.height > 0);
+      const chosePlace = !!(saved && Number.isFinite(saved.x) && Number.isFinite(saved.y));
+      let outerW = (choseSize ? saved.width : now.width) + p.w;
+      let outerH = (choseSize ? saved.height : now.height) + p.h;
+
+      // The screen the window will live on: the one its saved position is
+      // reachable on, else the one it opened on.
+      let area = here;
+      let place = null;
+      if (chosePlace) {
+        const home = (areas || []).find((a) => reachable(saved.x, saved.y, outerW, outerH, a));
+        if (home) { area = home; place = { x: saved.x, y: saved.y }; }
+      }
+
+      // A first launch leaves some desktop showing; a size someone chose is theirs.
+      const margin = choseSize ? { x: 0, y: 0 } : FIRST_MARGIN;
+      const minW = Math.round(MIN_LOGICAL.w * (scale || 1)) + p.w;
+      const minH = Math.round(MIN_LOGICAL.h * (scale || 1)) + p.h;
+      outerW = Math.min(area.w, Math.max(Math.min(minW, area.w), Math.min(outerW, area.w - 2 * margin.x)));
+      outerH = Math.min(area.h, Math.max(Math.min(minH, area.h), Math.min(outerH, area.h - 2 * margin.y)));
+
+      const x = place ? clamp(place.x, area.x, area.x + area.w - outerW) : Math.round(area.x + (area.w - outerW) / 2);
+      const y = place ? clamp(place.y, area.y, area.y + area.h - outerH) : Math.round(area.y + (area.h - outerH) / 2);
+      return {
+        x, y,
+        width: Math.max(1, outerW - p.w),
+        height: Math.max(1, outerH - p.h),
+        maximized: !!(saved && saved.maximized),
+      };
     };
 
-    // The largest the window may be, in the units set_size speaks.
-    //
-    // tauri.conf.json opens at 1380 x 860, which is larger than a 1366 x 768
-    // laptop panel — a size that is entirely ordinary and still sold. On a
-    // fresh profile there is no saved size to correct it, so the first window
-    // a person ever sees does not fit on their screen. It is easy to miss
-    // because the second launch restores whatever the first one was squeezed
-    // to, so it only ever happens once, to somebody who has never used the app
-    // before.
-    //
-    // The same cap is applied to a restored size, for the case that reaches
-    // everyone: a size saved on an external display, then reopened on the
-    // laptop alone.
-    //
-    // UNITS. `inner_size` and `set_size` are PHYSICAL pixels; `screen.avail*`
-    // is CSS pixels. On a display with a device pixel ratio of two those
-    // differ by a factor of two, and comparing them directly would halve every
-    // window on every Retina Mac. The screen is converted up rather than the
-    // window converted down, so the arithmetic stays in whole device pixels.
-    const workAreaCap = () => {
-      try {
+    // What was saved, if anything usable: { x, y, width, height, maximized }.
+    const loadSaved = () => {
+      const state = readJson(STATE_KEY);
+      const pos = state || readJson(LEGACY_POS);
+      const size = state || readJson(LEGACY_SIZE);
+      const out = {};
+      if (pos && finite(pos.x) && finite(pos.y)) { out.x = Math.round(Number(pos.x)); out.y = Math.round(Number(pos.y)); }
+      if (size && finite(size.width) && finite(size.height) && Number(size.width) > 0 && Number(size.height) > 0) {
+        out.width = Math.round(Number(size.width));
+        out.height = Math.round(Number(size.height));
+      }
+      out.maximized = !!(state && state.maximized);
+      return (out.x !== undefined || out.width !== undefined || out.maximized) ? out : null;
+    };
+
+    const areaOf = (monitor) => {
+      const a = monitor && monitor.workArea;
+      if (!a || !a.position || !a.size || !(a.size.width > 0) || !(a.size.height > 0)) return null;
+      return { x: a.position.x, y: a.position.y, w: a.size.width, h: a.size.height };
+    };
+    // Every work area there is, and the one the window is on now.
+    const measureScreens = async () => {
+      const list = await call('plugin:window|available_monitors');
+      const areas = (Array.isArray(list) ? list : []).map(areaOf).filter(Boolean);
+      let here = areaOf(await call('plugin:window|current_monitor')) || areas[0] || null;
+      if (!here) {
+        // No monitor answer: the page's own idea of the screen is the primary one.
         const ratio = window.devicePixelRatio || 1;
         const w = Math.floor((window.screen?.availWidth || 0) * ratio);
         const h = Math.floor((window.screen?.availHeight || 0) * ratio);
-        return (w > 0 && h > 0) ? { w, h } : null;
-      } catch (_) {
-        // No screen to measure means no opinion: leave the window as it is.
-        return null;
+        if (w > 0 && h > 0) {
+          here = { x: Math.round((window.screen?.availLeft || 0) * ratio), y: Math.round((window.screen?.availTop || 0) * ratio), w, h };
+          areas.push(here);
+        }
       }
+      return { areas, here };
+    };
+    // The title bar and frame around the content: outer minus inner.
+    const framePad = async () => {
+      const outer = await call('plugin:window|outer_size');
+      const inner = await call('plugin:window|inner_size');
+      const innerOk = inner && finite(inner.width) && finite(inner.height) ? inner : null;
+      if (outer && innerOk && outer.width >= innerOk.width && outer.height >= innerOk.height) {
+        return { w: outer.width - innerOk.width, h: outer.height - innerOk.height, inner: innerOk };
+      }
+      return { w: 0, h: 0, inner: innerOk };
+    };
+
+    // The position and size of the window as it is, worth keeping. Null while
+    // the answer would be wrong: minimized, or not yet drawn.
+    let lastNormal = null;
+    const measure = async () => {
+      if (await call('plugin:window|is_minimized')) return null;
+      const maximized = !!(await call('plugin:window|is_maximized'));
+      if (maximized) return { maximized: true };
+      const pos = await call('plugin:window|outer_position');
+      const size = await call('plugin:window|inner_size');
+      if (!pos || !size || !(size.width >= 200) || !(size.height >= 150)) return null;
+      // Windows parks a minimized window at -32000, -32000.
+      if (pos.x <= -30000 || pos.y <= -30000) return null;
+      return { x: pos.x, y: pos.y, width: size.width, height: size.height, maximized: false };
+    };
+    const save = async () => {
+      try {
+        const now = await measure();
+        if (!now) return;
+        if (!now.maximized) lastNormal = now;
+        // While maximized, the place that comes back on un-maximizing is the
+        // last ordinary one, which is not what the window reports now.
+        const keep = now.maximized ? (lastNormal || {}) : now;
+        localStorage.setItem(STATE_KEY, JSON.stringify({ ...keep, maximized: !!now.maximized }));
+        localStorage.removeItem(LEGACY_POS);
+        localStorage.removeItem(LEGACY_SIZE);
+      } catch (_) {}
+    };
+    let saveTimer = null;
+    const saveSoon = () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(save, 400);
     };
 
     try {
-      // Restore size before position so the OS does not visibly re-place the frame.
-      // Whatever the size comes from — storage, or the size the window opened
-      // at — it is held to what the display can actually show.
-      const savedSize = readSavedWindowValue('hc_win_size');
-      let current = null;
-      try { current = await invoke('plugin:window|inner_size'); } catch (_) {}
+      const { areas, here } = await measureScreens();
+      const pad = await framePad();
+      const scale = Number(await call('plugin:window|scale_factor')) || 1;
+      const plan = planWindow({ saved: loadSaved(), now: pad.inner, pad, areas, here, scale });
 
-      const wanted = (savedSize && finite(savedSize.width) && finite(savedSize.height))
-        ? { width: Math.round(Number(savedSize.width)), height: Math.round(Number(savedSize.height)) }
-        : (current && finite(current.width) && finite(current.height))
-          ? { width: Math.round(Number(current.width)), height: Math.round(Number(current.height)) }
-          : null;
-
-      if (wanted) {
-        const cap = workAreaCap();
-        const target = cap
-          ? { width: Math.min(wanted.width, cap.w), height: Math.min(wanted.height, cap.h) }
-          : wanted;
-        // Only ask for a change when there is one. A set_size that matches the
-        // current size is a needless round trip and a needless frame.
-        const differs = !current ||
-          target.width !== Math.round(Number(current.width)) ||
-          target.height !== Math.round(Number(current.height));
-        if (differs) {
-          try {
-            await invoke('plugin:window|set_size', { value: { Physical: target } });
-          } catch (_) {}
+      if (plan) {
+        // Size before position, so the frame is placed once. A size that
+        // already matches is not set again: that is a needless frame.
+        if (plan.width !== pad.inner.width || plan.height !== pad.inner.height) {
+          await call('plugin:window|set_size', { value: { Physical: { width: plan.width, height: plan.height } } });
         }
-      }
-
-      // Restore saved position, or center once after the restored size is known.
-      const savedPos = readSavedWindowValue('hc_win_pos');
-      if (savedPos && finite(savedPos.x) && finite(savedPos.y)) {
-        try {
-          await invoke('plugin:window|set_position', {
-            value: {
-              Physical: {
-                x: Math.round(Number(savedPos.x)),
-                y: Math.round(Number(savedPos.y))
-              }
-            }
-          });
-        } catch (_) {
-          try { await invoke('plugin:window|center'); } catch (_2) {}
-        }
+        await call('plugin:window|set_position', { value: { Physical: { x: plan.x, y: plan.y } } });
+        lastNormal = { x: plan.x, y: plan.y, width: plan.width, height: plan.height, maximized: false };
+        // Maximized comes after the ordinary bounds, which are what the window
+        // returns to when it is un-maximized.
+        if (plan.maximized) await call('plugin:window|maximize');
       } else {
-        try { await invoke('plugin:window|center'); } catch (_) {}
+        // Nothing to measure against: leave what tauri.conf.json made, centered.
+        await call('plugin:window|center');
       }
 
-      // Save position + size every 3 s (only when changed)
-      let lastX, lastY, lastW, lastH;
-      // Polling the window's own geometry costs two Tauri IPC round trips, and
-      // it ran every three seconds forever — including while the window was
-      // hidden or the user was in another app, where by definition it cannot
-      // have moved. Skipping those turns removes almost all of the calls
-      // without changing when a real move gets saved.
-      setInterval(async () => {
-        if (document.hidden || !document.hasFocus()) return;
+      // Keep it from here on. Moving and resizing say so; a short wait folds a
+      // drag into one write. If the events are not available the old, slower
+      // check stands in for them.
+      const listen = window.__TAURI__ && window.__TAURI__.event && window.__TAURI__.event.listen;
+      let listening = false;
+      if (typeof listen === 'function') {
         try {
-          const pos = await invoke('plugin:window|outer_position');
-          if (pos && (pos.x !== lastX || pos.y !== lastY)) {
-            lastX = pos.x; lastY = pos.y;
-            localStorage.setItem('hc_win_pos', JSON.stringify({ x: pos.x, y: pos.y }));
-          }
+          await Promise.all([listen('tauri://move', saveSoon), listen('tauri://resize', saveSoon)]);
+          listening = true;
         } catch (_) {}
-        try {
-          const size = await invoke('plugin:window|inner_size');
-          if (size && (size.width !== lastW || size.height !== lastH)) {
-            lastW = size.width; lastH = size.height;
-            localStorage.setItem('hc_win_size', JSON.stringify({ width: size.width, height: size.height }));
-          }
-        } catch (_) {}
-      }, 3000);
+      }
+      if (!listening) setInterval(() => { if (!document.hidden) saveSoon(); }, 3000);
+      document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
+      saveSoon();
     } catch (_) {
     } finally {
       await showWindow();

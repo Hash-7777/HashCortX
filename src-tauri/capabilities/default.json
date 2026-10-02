@@ -11,6 +11,7 @@
     "core:window:allow-inner-size",
     "core:window:allow-set-size",
     "core:window:allow-center",
+    "core:window:allow-maximize",
     "core:window:allow-show",
     "opener:allow-open-url",
     "opener:allow-default-urls",

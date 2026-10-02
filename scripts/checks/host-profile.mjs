@@ -199,70 +199,122 @@ console.log('\nThe toolbar reserves space only where something is drawn in it:')
     'an empty answer must not produce an `is-` class');
 }
 
-console.log('\nThe window is not opened larger than the screen:');
+console.log('\nThe window opens where a person can reach it, and where it was left:');
 {
   const main = src('main.js');
-  const block = main.slice(main.indexOf('The largest the window may be'),
-                           main.indexOf('Restore saved position'));
-
-  ok('there is a cap taken from the display work area',
-    /screen\?\.availWidth/.test(block) && /screen\?\.availHeight/.test(block),
-    'without it the configured size opens off the edge of a 1366x768 panel');
-  ok('the window size is held to it', /Math\.min\(wanted\.width/.test(block));
-
-  // THE TRAP. inner_size and set_size are physical pixels; screen.avail* is
-  // CSS pixels. On a device pixel ratio of two they differ by a factor of two,
-  // so comparing them raw would halve the window on every Retina display —
-  // a regression for every existing user, to fix a machine none of them have.
-  ok('the screen is converted to the units set_size speaks',
-    /devicePixelRatio/.test(block),
-    'comparing physical window pixels to CSS screen pixels halves the window on a Retina display');
-  ok('and converted UP, so the comparison stays in device pixels',
-    /availWidth\s*\|\|\s*0\)\s*\*\s*ratio/.test(block),
-    'dividing the window down instead would round away real pixels');
-
-  // A size saved on an external display and reopened on the laptop alone is
-  // the case that reaches people who are not on their first launch.
-  ok('a restored size is capped too, not only the opening one',
-    /savedSize && finite\(savedSize\.width\)/.test(block) && /Math\.min\(wanted\.width/.test(block));
-
-  // No screen to measure is not a reason to guess at one.
-  ok('an unmeasurable screen leaves the window alone',
-    /return null;/.test(block) && /cap\s*\?/.test(block));
-  ok('and a size that already fits is not re-set',
-    /if \(differs\)/.test(block),
-    'a set_size matching the current size is a needless frame');
 
   // Regex over source proves the shape, not the arithmetic. So the REAL
   // function is lifted out of main.js and run against real displays — a
   // retyped copy here would only prove that the copy works.
-  const fn = /const workAreaCap = \(\) => \{[\s\S]*?\n    \};/.exec(main);
-  ok('the cap function can be read out of main.js', !!fn);
+  const fn = /const planWindow = \(\{[^)]*\}\) => \{[\s\S]*?\n    \};/.exec(main);
+  ok('the placement function can be read out of main.js', !!fn);
+
   if (fn) {
-    const capOn = (availWidth, availHeight, devicePixelRatio) => {
-      const box = { window: { screen: { availWidth, availHeight }, devicePixelRatio } };
-      vm.createContext(box);
-      return vm.runInContext(`(() => { ${fn[0]} return workAreaCap(); })()`, box);
+    const box = {};
+    vm.createContext(box);
+    const plan = vm.runInContext(`(() => { ${fn[0]} return planWindow; })()`, box);
+
+    // The machine the report came from: a 1366x768 panel with a taskbar and no
+    // scaling. Windows draws a title bar and a frame around the content, so
+    // the window is 16 px wider and 39 px taller than the page inside it.
+    const LAPTOP = { areas: [{ x: 0, y: 0, w: 1366, h: 728 }], here: { x: 0, y: 0, w: 1366, h: 728 }, pad: { w: 16, h: 39 }, scale: 1 };
+    const outerOf = (r, pad) => ({ x: r.x, y: r.y, w: r.width + pad.w, h: r.height + pad.h });
+    const inside = (o, a) => o.x >= a.x && o.y >= a.y && o.x + o.w <= a.x + a.w && o.y + o.h <= a.y + a.h;
+    const run = (d, saved, now) => plan({ ...d, saved, now: now || { width: 1380, height: 860 } });
+
+    // THE BUG THIS REPLACED. The cap was taken on the inner size, so the frame
+    // went on top of it: 1366 x 728 of page inside a window 1382 x 767, on a
+    // screen with 1366 x 728 to give. Measured on the machine, not assumed.
+    const first = run(LAPTOP, null);
+    const firstOuter = outerOf(first, LAPTOP.pad);
+    ok('a first launch on a 1366x768 laptop fits the whole window, frame and all',
+      inside(firstOuter, LAPTOP.areas[0]), JSON.stringify(firstOuter));
+    ok('and does not fill the screen edge to edge',
+      firstOuter.w < 1366 && firstOuter.h < 728, 'it should read as a window, not a maximized one');
+    ok('and is centered on it',
+      Math.abs(firstOuter.x - (1366 - firstOuter.w) / 2) <= 1 && Math.abs(firstOuter.y - (728 - firstOuter.h) / 2) <= 1);
+    ok('and is not asked to start maximized', first.maximized === false);
+    ok('and stays above the size the app is designed for',
+      first.width >= 960 && first.height >= 640, `${first.width}x${first.height}`);
+
+    // A screen with room to spare gets the configured size, not a smaller one.
+    const BIG = { areas: [{ x: 0, y: 0, w: 1920, h: 1040 }], here: { x: 0, y: 0, w: 1920, h: 1040 }, pad: { w: 16, h: 39 }, scale: 1 };
+    const big = run(BIG, null);
+    ok('a screen with room for it keeps the configured 1380x860', big.width === 1380 && big.height === 860, `${big.width}x${big.height}`);
+
+    // A Retina Mac. The monitor reports its work area in physical pixels, as
+    // the window commands do, so nothing is converted and nothing is halved.
+    const MAC = { areas: [{ x: 0, y: 50, w: 3024, h: 1838 }], here: { x: 0, y: 50, w: 3024, h: 1838 }, pad: { w: 0, h: 56 }, scale: 2 };
+    const mac = run(MAC, null, { width: 2760, height: 1720 });
+    ok('a window that already fits a Retina display is untouched', mac.width === 2760 && mac.height === 1720, `${mac.width}x${mac.height}`);
+
+    // What was left is what comes back, when it can be reached.
+    const kept = run(LAPTOP, { x: 120, y: 20, width: 984, height: 661, maximized: false });
+    ok('a saved position and size that fit are used exactly',
+      kept.x === 120 && kept.y === 20 && kept.width === 984 && kept.height === 661, JSON.stringify(kept));
+    const remembered = run(LAPTOP, { x: 120, y: 20, width: 984, height: 661, maximized: true });
+    ok('maximized is remembered, with the ordinary bounds kept for un-maximizing',
+      remembered.maximized === true && remembered.x === 120 && remembered.width === 984);
+
+    // And when it cannot be reached it is brought back, not trusted.
+    const MONITORS = {
+      areas: [{ x: 0, y: 0, w: 1366, h: 728 }, { x: 1366, y: 0, w: 1920, h: 1040 }],
+      here: { x: 0, y: 0, w: 1366, h: 728 }, pad: { w: 16, h: 39 }, scale: 1,
     };
-    // The machine the report came from: 1366x768 panel, a taskbar, no scaling.
-    const dell = capOn(1366, 728, 1);
-    ok('a 1366x768 laptop caps at its own panel', dell.w === 1366 && dell.h === 728,
-      JSON.stringify(dell));
-    ok('and the configured 1380x860 window is cut down to fit it',
-      Math.min(1380, dell.w) === 1366 && Math.min(860, dell.h) === 728);
+    const away = run(LAPTOP, { x: 4000, y: 300, width: 1000, height: 600, maximized: false });
+    ok('a position on a monitor that is gone is brought onto the screen',
+      inside(outerOf(away, LAPTOP.pad), LAPTOP.areas[0]), JSON.stringify(away));
+    const left = run(LAPTOP, { x: -1800, y: 100, width: 1000, height: 600, maximized: false });
+    ok('and so is one far to the left', inside(outerOf(left, LAPTOP.pad), LAPTOP.areas[0]));
+    const parked = run(LAPTOP, { x: -32000, y: -32000, width: 1000, height: 600, maximized: false });
+    ok('the place Windows parks a minimized window is never used', inside(outerOf(parked, LAPTOP.pad), LAPTOP.areas[0]));
+    // The state the old build saved on this very laptop: a position of
+    // (-8, -19), title bar above the top edge of the screen.
+    const old = run(LAPTOP, { x: -8, y: -19, width: 1366, height: 705, maximized: false });
+    ok('the position the old build saved, title bar above the screen, is repaired',
+      inside(outerOf(old, LAPTOP.pad), LAPTOP.areas[0]) && old.y >= 0, JSON.stringify(old));
+    const huge = run(LAPTOP, { x: 0, y: 0, width: 3000, height: 2000, maximized: false });
+    ok('a saved size larger than the screen is held to it', inside(outerOf(huge, LAPTOP.pad), LAPTOP.areas[0]));
+    const tiny = run(LAPTOP, { x: 100, y: 100, width: 300, height: 200, maximized: false });
+    ok('a saved size below the design minimum is raised to it', tiny.width >= 960 && tiny.height >= 640, `${tiny.width}x${tiny.height}`);
 
-    // A Retina Mac. The window is already smaller than the cap, so this must
-    // change nothing — which is only true if the ratio was applied.
-    const mac = capOn(1512, 944, 2);
-    ok('a Retina display caps in device pixels, not CSS pixels',
-      mac.w === 3024 && mac.h === 1888, JSON.stringify(mac));
-    ok('so a window that already fits a Mac is untouched',
-      Math.min(2760, mac.w) === 2760 && Math.min(1720, mac.h) === 1720,
-      'if the ratio were missing this would clamp to 1512 and halve the window');
+    // A second monitor is somewhere the window may legitimately be.
+    const second = run(MONITORS, { x: 2000, y: 100, width: 1200, height: 800, maximized: false });
+    ok('a window left on a second monitor stays there', second.x === 2000 && second.y === 100, JSON.stringify(second));
+    const wide = run(MONITORS, { x: 1500, y: 100, width: 3000, height: 2000, maximized: false });
+    ok('and is held to that monitor, not the first one',
+      wide.x >= 1366 && inside(outerOf(wide, MONITORS.pad), MONITORS.areas[1]), JSON.stringify(wide));
 
-    ok('a screen that reports nothing produces no cap', capOn(0, 0, 1) === null);
-    ok('and a missing screen does not throw', capOn(undefined, undefined, undefined) === null);
+    // No measurement is not a reason to guess.
+    ok('no screen to measure means no plan', plan({ ...LAPTOP, here: null, saved: null, now: { width: 1380, height: 860 } }) === null);
+    ok('and no window size to start from means none either', plan({ ...LAPTOP, saved: null, now: null }) === null);
+
+    // Whatever was saved, the window always ends up reachable on a screen.
+    let seed = 12345;
+    const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+    let strays = 0;
+    for (let i = 0; i < 300; i++) {
+      const saved = { x: rnd(9000) - 4500, y: rnd(5000) - 2500, width: 200 + rnd(4000), height: 150 + rnd(3000), maximized: false };
+      const r = run(LAPTOP, saved);
+      if (!inside(outerOf(r, LAPTOP.pad), LAPTOP.areas[0])) strays++;
+    }
+    ok('300 saved states, scattered across and far beyond the screen, all come back on it', strays === 0, `${strays} ended up outside`);
   }
+
+  // The rest is plumbing, and regex is enough to pin that it is connected.
+  const flat = main.replace(/\s+/g, ' ');
+  ok('the window is measured against the monitors work areas, not the page',
+    /available_monitors/.test(main) && /workArea/.test(main));
+  ok('a move or a resize is what triggers a save', /tauri:\/\/move/.test(main) && /tauri:\/\/resize/.test(main));
+  ok('a minimized window is never saved', /is_minimized/.test(main) && /-30000/.test(main));
+  ok('maximized is read, saved and restored',
+    /is_maximized/.test(main) && /plugin:window\|maximize/.test(main) && /maximized: !!now\.maximized/.test(flat));
+  ok('what older builds saved is still read, then dropped',
+    /hc_win_pos/.test(main) && /hc_win_size/.test(main) && /removeItem\(LEGACY_POS\)/.test(main));
+  const caps = readFileSync(join(root, 'src-tauri', 'capabilities', 'default.json'), 'utf8');
+  ok('the window is allowed to be maximized, which restoring it needs',
+    /"core:window:allow-maximize"/.test(caps),
+    'without it the call is refused at runtime and a maximized window comes back ordinary');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (what this machine is)`);

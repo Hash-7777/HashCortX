@@ -792,6 +792,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The window opens where a person can reach it, and where it was left.**
+  On a 1366 by 768 laptop the first window came out 32 pixels taller than
+  the screen's usable area, with its title bar above the top edge, because
+  the size was capped without counting the title bar and frame. A saved
+  position was never checked, so one saved on a monitor that is no longer
+  plugged in, or read while the window was minimized, put the window where
+  nothing could show it. A maximized window was not remembered, and the
+  position was saved by a poll that ran only while the window had focus. The
+  window now opens centered, a little smaller than the screen, on a first
+  launch; remembers its size, position and whether it was maximized, and the
+  ordinary size it returns to; saves on a move or resize rather than on a
+  timer; and is placed again, centered, when its saved position would leave
+  the title bar out of reach on every screen. States saved by earlier
+  versions are read once and repaired. The placement is one function of
+  numbers (`planWindow` in `main.js`), which its check runs against a laptop,
+  a large monitor, a Retina screen, two monitors, a monitor that has gone,
+  Windows' minimized position and 300 scattered states.
+
 - **A finished run's step count matches the one its stop message gives.** A
   run that was stopped said "Stopped after 26 steps" above a list folded to
   "15 steps", because the changes it had made are gathered under the answer
