@@ -96,7 +96,7 @@
       flushProse();
       open = { char: fence[0], size: fence.length, indent: m[1].length, info: info.trim(), rawInfo: info, lang: info.trim().split(/\s+/)[0] || '', body: [] };
     }
-    if (open) closeBlock();
+    if (open) { closeBlock(); pieces[pieces.length - 1].unclosed = true; }   // a block the text ended inside: the answer was cut off
     flushProse();
     return pieces;
   }

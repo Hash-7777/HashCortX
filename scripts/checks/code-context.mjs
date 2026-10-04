@@ -158,9 +158,9 @@ console.log('\nA small project, whole, for a model on this computer:');
   ok('it goes with the notes, marked as text from the project', turn.notes === `<marked>${whole}</marked>`);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   ok('HashCoder makes it for a model on this computer, as a conversation begins, read without asking, and gives it to that model only',
-    /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
+    /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local \|\| light\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
     && /const quiet = \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \};/.test(mode)
-    && /\{ root, ranked: \[\], read: 0, whole: await window\.HCCodeContext\.wholeProject\(root, quiet, size\)\.catch\(\(\) => ''\) \}/.test(mode)
+    && /\{ root, ranked: \[\], read: 0, whole: await window\.HCCodeContext\.wholeProject\(root, quiet, light \? 'mid' : size\)\.catch\(\(\) => ''\) \}/.test(mode)
     && /sharedState\.codeMap\?\.root !== sharedState\.projectRoot \? '' : sharedState\.size === 'full' \? window\.HCCodeMap\.notes\(/.test(mode) && /: sharedState\.codeMap\.whole \|\| ''\);/.test(mode));
 }
 

@@ -185,7 +185,7 @@
       `- App: HashCortx${facts.version ? ` ${String(facts.version).replace(/^v/i, 'v')}` : ''}${facts.platform ? ` on ${facts.platform}` : ''}`,
       facts.projectRoot ? `- Project: ${facts.projectRoot}` : '- Project: none open',
       `- Model: ${facts.label ? `${facts.label} (${facts.model || 'unknown'})` : facts.model || 'unknown'}${facts.chosen && facts.chosen !== facts.model ? `, after moving off ${facts.chosen}` : ''}`,
-      `- Set up for: ${facts.size || 'unknown'}${facts.local === true ? ', a model on this computer' : facts.local === false ? ', a cloud model' : ''}${Number.isFinite(facts.temperature) ? `, temperature ${facts.temperature}` : ''}`,
+      `- Set up for: ${facts.size || 'unknown'}${facts.light ? ', light mode (no tools; files read from its answer)' : ''}${facts.local === true ? ', a model on this computer' : facts.local === false ? ', a cloud model' : ''}${Number.isFinite(facts.temperature) ? `, temperature ${facts.temperature}` : ''}`,
     ];
     if (settings) head.push(`- Settings: ${settings}`);
     head.push(
@@ -216,7 +216,7 @@
     const router = routing && routing.router;
     const model = (router && router.model) || chosen;
     return {
-      model, chosen, label: router && router.label ? router.label(model) : '', size: sharedState.size || '', local: sharedState.local,
+      model, chosen, label: router && router.label ? router.label(model) : '', size: sharedState.size || '', local: sharedState.local, light: !!sharedState.light,
       temperature: Number.isFinite(temperature) ? temperature : undefined,
     };
   }

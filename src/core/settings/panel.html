@@ -449,6 +449,14 @@
         <div class="field-note">The model is chosen in the HashCoder bar. Models smaller than 7B often stop early or skip steps; use 7B or larger for real work.</div>
       </div>
       <div class="field">
+        <label for="cdrSetLight">Light mode <span class="field-note">A small model writes whole files in plain words and HashCortX does the tool work for it: each file still asks before it is written, can be undone, and the tests are run for it.</span></label>
+        <select class="control" id="cdrSetLight">
+          <option value="auto">Models under 5B</option>
+          <option value="always">Models under 15B</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+      <div class="field">
         <label class="check-row">
           <input type="checkbox" id="cdrSetProve" class="check-box" checked />
           <span><b>Prove changes before finishing</b> <span class="field-note">After changing code, HashCoder is sent back to run the project's own tests. What was checked is said under each answer either way.</span></span>

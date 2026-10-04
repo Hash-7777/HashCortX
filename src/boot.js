@@ -93,6 +93,7 @@
     '/js/code/permission-bar.js',
     '/js/code/attach.js',
     '/js/code/live.js',
+    '/js/code/light.js',
     '/js/code/follow.js',
     '/js/code/router.js',
     '/js/code/export.js',

@@ -769,7 +769,12 @@ const LINE_BUDGET = {
   // it made is kept (js/code/router.js keptNote).
   // 2478, up one: the switch that lets HashCoder use long-term memory, off
   // until it is turned on, is wired.
-  'modes/code/mode.js': 2478,
+  // 2489, up eleven: light mode for small models. The panel asks js/code/light.js
+  // whether a run is in it, offers no tools then, shows the model its history
+  // as plain text, turns the files in its answer into the calls a larger model
+  // makes, asks again for a file not written whole, has the tests run for it,
+  // and wires the setting that chooses which models get it.
+  'modes/code/mode.js': 2489,
 };
 
 console.log('\nFile sizes go down, never up:');

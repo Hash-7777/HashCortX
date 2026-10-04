@@ -297,11 +297,11 @@ console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
   ok('makes the map for a larger model only, as a conversation begins or when the project changes',
-    /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
+    /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local \|\| light\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
     && /sharedState\.codeMap = size === 'full' \? \{ root, \.\.\.\(await window\.HCCodeMap\.forProject\(root, quiet\)/.test(mode));
   ok('reading the project without asking, and going on without a map when it cannot',
     /const quiet = \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \};/.test(mode) && /window\.HCCodeMap\.forProject\(root, quiet\)\.catch\(\(\) => \(\{ ranked: \[\], read: 0 \}\)\)/.test(mode));
-  ok('and starts the conversation again with it', /if \(size !== sharedState\.size \|\| local !== sharedState\.local \|\| mapped\) \{/.test(mode));
+  ok('and starts the conversation again with it', /if \(size !== sharedState\.size \|\| local !== sharedState\.local \|\| light !== sharedState\.light \|\| mapped\) \{/.test(mode));
   ok('it is given to a larger model, for this project, sized for a model here or in the cloud, keys and addresses left out',
     /sharedState\.codeMap\?\.root !== sharedState\.projectRoot \? '' : sharedState\.size === 'full' \? window\.HCCodeMap\.notes\(sharedState\.codeMap\.ranked, \{ local: sharedState\.local, drop: window\.HCCodeLessons\?\.looksPrivate \}\) :/.test(mode));
   ok('the Symbols list is read through it, whole and without asking', /window\.HCCodeMap\.definitions\(await HC\.code\.readQuietly\(f\.path\), lang\)/.test(mode) && /window\.HCCodeMap\.langOf\(f\.name\)/.test(mode));

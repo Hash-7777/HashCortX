@@ -369,7 +369,7 @@ console.log('\nThe app uses it, and shows what a system says as text:');
   ok('the plain routing steps aside for records', /window\.HCMcp\?\.speaksOf\(text\) \? null : HCIntent\.route\(text, names\)/.test(app));
   const coder = src('modes', 'code', 'mode.js');
   ok('the Coder offers them for the request, and holds back a conversation a model may not see', /const run = window\.HCMcp \? await window\.HCMcp\.forRun\(coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \|\| '', conversationMsgs\)/.test(coder)
-    && /const tools = \[\.\.\.own, \.\.\.run\.tools\];/.test(coder) && /if \(run\.refusal\) \{ appendTextToBubble\(contentEl, run\.refusal\);[^\n]*return; \}/.test(coder));
+    && /const tools = sharedState\.light \? \[\] : \[\.\.\.own, \.\.\.run\.tools\];/.test(coder) && /if \(run\.refusal\) \{ appendTextToBubble\(contentEl, run\.refusal\);[^\n]*return; \}/.test(coder));
   ok('... runs them through the one gate, memory rule included', /def = window\.HCMcp \? window\.HCMcp\.toolFor\(call\.name, own\) : own;/.test(coder) && /def\.fn \? def\.fn\(call\.arguments \|\| \{\}\) : def\.execute\(call\.arguments \|\| \{\}\)/.test(coder));
   ok('... in the run itself only: the second look at its changes is offered no tools at all', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(coder) && !/runMultiTurn/.test(coder));
   ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(coder) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(coder));

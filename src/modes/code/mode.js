@@ -498,6 +498,7 @@
       const prefs = cdrPrefs();
       const lessonsEl = $('cdrSetLessons');
       if (lessonsEl) { lessonsEl.checked = prefs.lessons === true; lessonsEl.addEventListener('change', () => cdrSavePrefs({ lessons: lessonsEl.checked })); }
+      const lightEl = $('cdrSetLight'); if (lightEl) { lightEl.value = ['auto', 'always', 'off'].includes(prefs.light) ? prefs.light : 'auto'; lightEl.addEventListener('change', () => { cdrSavePrefs({ light: lightEl.value }); warnIfSmall(); }); }   // which models get light mode (js/code/light.js)
       const memEl = $('cdrSetMemory'); if (memEl) { memEl.checked = prefs.memory === true; memEl.addEventListener('change', () => { cdrSavePrefs({ memory: memEl.checked }); if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn(); }); }   // off by default: HashCoder neither saves nor sends long-term memory
       $('cdrForgetLessons')?.addEventListener('click', async () => { if (await window._H.themedConfirm('Forget every lesson HashCoder kept, for every project?', 'Lessons')) window.HCCodeLessons?.forgetAll(localStorage); });
       const proveEl = $('cdrSetProve');
@@ -552,9 +553,10 @@
       const model = coderModel || window._H?.selectedModel?.() || '';
       const info = /^cloud:/.test(model) || !model ? null
         : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
-      const small = !!(info?.billions && info.billions < SMALL_MODEL_WARN_BILLIONS);
+      const billions = info?.billions ?? window.HCCodeLight?.billionsInName(model), light = !!window.HCCodeLight?.applies(HC?.code?.sizeOf?.(billions), cdrPrefs().light);
+      const small = !!(billions && billions < SMALL_MODEL_WARN_BILLIONS);
       const spills = info ? await Promise.resolve(window.HCLocalFit?.describe(window.HashCortxRuntime?.getHost?.(), model)).catch(() => '') : '';   // part of it runs on the processor (js/local-fit.js)
-      el.textContent = [small ? `${info.billions}B is a small model: it may stop early or skip steps. 7B or larger works better.` : '', spills].filter(Boolean).join(' ');
+      el.textContent = [light ? `${billions}B runs in light mode: it writes whole files and HashCortX does the tool work. 7B or larger handles bigger tasks better.` : small ? `${billions}B is a small model: it may stop early or skip steps. 7B or larger works better.` : '', spills].filter(Boolean).join(' ');
       el.hidden = !el.textContent;
     }
 
@@ -1835,6 +1837,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         lines.push(`No project open. Home: ${homeDir || 'unknown'}. Ask user to open a folder for write ops.`);
       }
 
+      // A model in light mode writes whole files in plain text, and is told that, where it runs and the project, not the tool rules (js/code/light.js).
+      if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra].filter(Boolean).join('\n');
       const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
@@ -1864,7 +1868,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1923,7 +1927,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
         const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
         const baseMsgs = told ? [...messages, { role: 'user', content: told, note: true }] : messages;
-        const callMessages = bare ? [{ role: 'system', content: window.HCCodeTalk.SHORT_SYSTEM }, ...compressHistory(baseMsgs).filter((m) => m.role !== 'system')] : compressHistory(baseMsgs);
+        const callMessages = bare ? [{ role: 'system', content: window.HCCodeTalk.SHORT_SYSTEM }, ...compressHistory(baseMsgs).filter((m) => m.role !== 'system')] : sharedState.light ? window.HCCodeLight.callMessages(compressHistory(baseMsgs)) : compressHistory(baseMsgs);
 
         cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
         let turn;
@@ -1944,6 +1948,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           contentEl.appendChild(errDiv);
           scrollMessages();
           throw e;
+        }
+        // Light mode: the files in its answer become the calls a larger model makes, and a file not written whole is asked for again, twice at most (js/code/light.js).
+        const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path)) : null;
+        if (lit?.calls.length) turn = { ...turn, content: lit.said, tool_calls: lit.calls };
+        if (lit?.note && sent.light++ < 2) {
+          if (lit.calls.length) loopNote = lit.note;
+          else { thinkEl?.finish(''); messages.push({ role: 'assistant', content: turn.content }, { role: 'user', content: lit.note, note: true }); appendStep(contentEl, { verb: 'CHECK', object: 'Asked to write a file again, whole', status: '' }); thinkEl = appendThinking(contentEl, { checking: true }); continue; }
         }
         // What the model said before a step stays in the reply, where it said it;
         // a call written as text does not, and an answer is drawn below instead.
@@ -2063,7 +2074,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           || (finalText.trim() ? (await namedLook(finalText)) || (await siteLook()) || (await factsLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
-          if (back.run && sharedState.size === 'small') forced = { content: '', tool_calls: [{ name: 'shell_run', arguments: back.run }] };   // its word that the test passed is not kept
+          if (back.run && (sharedState.size === 'small' || sharedState.light)) forced = { content: '', tool_calls: [{ name: 'shell_run', arguments: back.run }] };   // its word that the test passed is not kept
           else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
           appendStep(contentEl, { verb: 'CHECK', object: forced ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
@@ -2130,20 +2141,20 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // A small or mid-sized local model gets fewer tools and shorter instructions (platform/tauri/hashcoder.js).
       const model = coderModel || window._H?.selectedModel?.() || '';
       const info = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
-      const size = HC?.code?.sizeOf?.(info?.billions) || 'full';
+      const size = HC?.code?.sizeOf?.(info?.billions ?? window.HCCodeLight?.billionsInName(model)) || 'full', light = !!window.HCCodeLight?.applies(size, cdrPrefs().light);   // a size the model app does not report is read from the name
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
       const local = !/^cloud:/.test(model);   // output sized to the model (js/agent-context.js); lessons, when switched on, kept for this project (js/code/lessons.js)
       if (HC?.code) { HC.code.memoryOn = cdrPrefs().memory === true; HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
       // A larger model is given a map of the project's code, and a model on this computer a small project whole, made as a conversation begins and kept for it (js/code/codemap.js, js/code/context.js).
-      const mapped = (size === 'full' ? !!window.HCCodeMap : local) && !!root && !!HC?.code?.readQuietly && (!conversationMsgs.length || sharedState.codeMap?.root !== root);
+      const mapped = (size === 'full' ? !!window.HCCodeMap : local || light) && !!root && !!HC?.code?.readQuietly && (!conversationMsgs.length || sharedState.codeMap?.root !== root);
       if (mapped) {
         setStatus('Mapping the project…', 'thinking');
         const quiet = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) };
-        sharedState.codeMap = size === 'full' ? { root, ...(await window.HCCodeMap.forProject(root, quiet).catch(() => ({ ranked: [], read: 0 }))) } : { root, ranked: [], read: 0, whole: await window.HCCodeContext.wholeProject(root, quiet, size).catch(() => '') };
+        sharedState.codeMap = size === 'full' ? { root, ...(await window.HCCodeMap.forProject(root, quiet).catch(() => ({ ranked: [], read: 0 }))) } : { root, ranked: [], read: 0, whole: await window.HCCodeContext.wholeProject(root, quiet, light ? 'mid' : size).catch(() => '') };
         cdrTraceAdd('Map', sharedState.codeMap.whole ? 'the whole project, shown' : `${sharedState.codeMap.read} files read, ${sharedState.codeMap.ranked.length} with definitions`, 'ok');
       }
-      if (size !== sharedState.size || local !== sharedState.local || mapped) {   // a cloud model is never given lessons a model on this computer kept
-        sharedState.size = size; sharedState.local = local;
+      if (size !== sharedState.size || local !== sharedState.local || light !== sharedState.light || mapped) {   // a cloud model is never given lessons a model on this computer kept
+        sharedState.size = size; sharedState.local = local; sharedState.light = light;
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }
 
@@ -2205,7 +2216,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
       // Once a request in this conversation has built a site, its tools stay offered: a list that changes between requests is read again whole.
       const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => (t.function.name !== 'save_lesson' || !!HC.code.lessonsFor) && (HC.code.memoryOn || !/^(remember_fact|recall_facts)$/.test(t.function.name)));
-      const tools = [...own, ...run.tools];
+      const tools = sharedState.light ? [] : [...own, ...run.tools];   // light mode: no tools; the app reads files out of the answer (js/code/light.js)
       const contentEl = appendAssistantBubble('HashCoder');
       const bubble = contentEl?.closest('.cdr-msg');
       bubble?.classList.add('running');   // copy, reply and regen wait for the answer

@@ -10,6 +10,25 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Light mode for small models in HashCoder.** A model of a few billion
+  parameters is poor at the machinery of tool calls, so for one under 5B
+  (or under 15B, by a setting under Settings → HashCoder: Models under 5B,
+  Models under 15B, or Off) HashCoder offers no tools and a short
+  instruction. The model answers in plain words, writing each file it
+  changes whole after a `FILE:` line and asking for a file it needs with
+  `READ:`, and the app turns that answer into the same steps a larger
+  model takes: each file still asks before it is written, can be undone,
+  and is recorded, and the project's tests are run for it. A file written
+  much shorter than it is, or one the answer was cut off inside, is not
+  written and is asked for again whole; one written again exactly as it is
+  ends the work; code shown with no file named is asked to be named. The
+  model reads its own steps back as plain text, and the app's notes to it
+  say how changes are made here. When the model app does not say how
+  large a model is, the size is read from its name, so a small cloud model
+  is sized too. The note under the request box says when a model runs in
+  light mode, and the debugging export says a run was in it
+  (`js/code/light.js`).
+
 - **HashCoder answers a greeting without reading its tools first, and sets
   aside a reply that is the tools written back.** A small or mid-sized model
   reads a request's instructions and tools before it writes a word, and
