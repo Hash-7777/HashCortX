@@ -569,6 +569,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The sign that HashCoder is working says what it is doing.** The turning
+  ring and the shimmering "Thinking" are gone. Five small marks with a
+  diamond among them move beside a label that follows what has happened: it
+  thinks, thinks it through when the model's own thinking arrives, writes
+  when its words arrive, chooses the next step while a call is written, and
+  after a step it says what it is reading ("Studying app.js", "Reading the
+  output of npm test", "Reading the search results", "Working out what went
+  wrong" after a failed step), or that it is checking its work. Each has a
+  movement of its own: a slow swell, a light running along, quick,
+  drawn together, the diamond turning. The marks move by transform and
+  opacity alone, on five marks, stand still for someone who asked for less
+  motion, and are not among the decorations that rest after a minute without
+  a mouse, since they report state. A second look at the changes, which is a
+  model call with nothing else on the screen, shows the line too
+  (`js/code/live.js`).
+
 - **The HashCoder benchmark can run each task more than once.** One run of
   one task says little: a small model that passes a task once may fail it
   the next time with nothing changed, so a change that moves a result by one

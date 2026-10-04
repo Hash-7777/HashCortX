@@ -1,19 +1,31 @@
 // ==============================================================
 // The live line under a HashCoder reply while the model works
 //
-// Three dots said only that something was waiting. This says what: thinking,
-// for how long, and, where the model's answer arrives as it is written (a
-// model on this computer), the answer itself as it grows. A tool call being
-// written is not shown as text, since it is not words for the person; the
-// line says a step is being chosen instead. It is the one sign of work in the
-// panel: a turning ring and the label drawn in a moving light.
+// Three dots said only that something was waiting. This says what: the model
+// thinking, or reading what the last step brought back (the page it fetched,
+// the file it opened, the output of the command), or writing, or choosing its
+// next step, for how long, and, where the model's answer arrives as it is
+// written (a model on this computer), the answer itself as it grows. What it
+// says comes from what has happened, not from a timer: the step that just
+// ended, the model's own thinking arriving, its words arriving, a call being
+// written. A tool call being written is not shown as text, since it is not
+// words for the person. It is the one sign of work in the panel: five small
+// marks in a row, a diamond among them, that move the way of what is going
+// on (a slow swell for thinking, a light running along for reading, quick
+// for writing, drawn together for choosing, the diamond turning for checking)
+// beside the words that say it.
+//
+// It reports state, so it is not one of the decorations that rest after a
+// minute without a mouse (js/power.js). It moves by transform and opacity
+// alone, on five marks, and stands still for someone who asked for less
+// motion.
 //
 // When the turn ends the caller decides what stays: the words the model said
 // before a step stay in the reply as a line of their own, and everything else
 // goes, the answer being drawn in its place.
 //
-// looksLikeCalls and elapsed are pure and checked by scripts/checks/code-live.mjs;
-// start draws into the panel.
+// looksLikeCalls, elapsed, phaseOf and afterOf are pure and checked by
+// scripts/checks/code-live.mjs; start draws into the panel.
 // Loaded before the Coder mode and published as window.HCCodeLive.
 // ==============================================================
 
@@ -39,6 +51,84 @@
     return code != null && /^(json|tool_code|)$/i.test(first.lang || '') && (!code || /^[{[]/.test(code));
   }
 
+  const PLACES = new Set(['read_file', 'view_image', 'write_file', 'patch_file', 'delete_file', 'list_dir']);
+  const MOST = 36;
+  const cut = (t) => (t.length > MOST ? `${t.slice(0, MOST - 1).trimEnd()}…` : t);
+
+  /** What a step worked on, short enough to read at a glance: a file by its name, a page by its host, a command as typed. */
+  function brief(tool, object) {
+    const o = String(object == null ? '' : object).trim();
+    if (!o) return '';
+    if (tool === 'fetch_url') { try { return new URL(o).host.replace(/^www\./, ''); } catch { /* not an address: shown as it is */ } }
+    if (PLACES.has(tool)) { const name = o.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || o; return cut(tool === 'list_dir' ? `${name}/` : name); }
+    return cut(o);
+  }
+
+  /** What the model is doing after a step: what it is looking at, in words that say so. */
+  const READING = {
+    read_file: (o) => (o ? `Studying ${o}` : 'Studying the file'),
+    view_image: (o) => (o ? `Looking at ${o}` : 'Looking at the picture'),
+    list_dir: (o) => (o ? `Taking in the layout of ${o}` : 'Taking in the layout'),
+    grep_code: () => 'Going through the matches',
+    fuzzy_find: () => 'Going through the matches',
+    search_files: () => 'Going through the matches',
+    web_search: () => 'Reading the search results',
+    fetch_url: (o) => (o ? `Reading ${o}` : 'Reading the page'),
+    shell_run: (o) => (o ? `Reading the output of ${o}` : 'Reading the output'),
+    execute_python: () => 'Reading the result',
+    write_file: (o) => (o ? `Checking its change to ${o}` : 'Checking its change'),
+    patch_file: (o) => (o ? `Checking its change to ${o}` : 'Checking its change'),
+    move_file: () => 'Checking the move',
+    delete_file: () => 'Checking the deletion',
+    update_plan: () => 'Planning the next step',
+    find_photos: () => 'Choosing pictures',
+    placeholder_images: () => 'Choosing pictures',
+    search_knowledge: () => 'Reading your notes',
+    recall_facts: () => 'Reading your notes',
+    calculate: () => 'Working it out',
+    current_datetime: () => 'Working it out',
+    remember_fact: () => 'Noting that down',
+    save_lesson: () => 'Noting that down',
+  };
+
+  /**
+   * What the line says and how its marks move.
+   *
+   *   text      the model's words so far ('' before any)
+   *   thinking  its own thinking has begun to arrive
+   *   after     the step that just ended, `{ tool, object, failed }`
+   *   checking  the answer is being checked, or the model sent back to
+   *
+   * Returns `{ phase, label }`; the phase names how the marks move.
+   */
+  function phaseOf({ text = '', thinking = false, after = null, checking = false } = {}) {
+    if (text) return looksLikeCalls(text) ? { phase: 'choosing', label: 'Choosing the next step' } : { phase: 'writing', label: 'Writing' };
+    if (thinking) return { phase: 'reasoning', label: 'Thinking it through' };
+    if (checking) return { phase: 'checking', label: 'Checking its work' };
+    if (after && after.tool) {
+      if (after.failed) return { phase: 'reading', label: 'Working out what went wrong' };
+      const o = brief(after.tool, after.object);
+      const say = READING[after.tool];
+      return { phase: 'reading', label: say ? say(o) : 'Analyzing the result' };
+    }
+    return { phase: 'thinking', label: 'Thinking' };
+  }
+
+  /**
+   * The step that decides what the model reads next, from a turn's calls and
+   * their results: the last call that is not a change to the plan, else the
+   * last. `objectOf(name, args)` gives what a call worked on. null for none.
+   */
+  function afterOf(calls, results, objectOf = () => '') {
+    const list = Array.isArray(calls) ? calls.filter(Boolean) : [];
+    if (!list.length) return null;
+    const call = [...list].reverse().find((c) => c.name !== 'update_plan') || list[list.length - 1];
+    const got = results && typeof results.get === 'function' ? results.get(call) : null;
+    let object = '';
+    try { object = objectOf(call.name, call.arguments) || ''; } catch { /* the step's name is enough */ }
+    return { tool: call.name, object, failed: typeof got === 'string' && /^\s*\{\s*"error"/.test(got) };
+  }
+
   /** How long, as the line shows it: 7s, 1m 05s. */
   function elapsed(ms) {
     const s = Math.max(0, Math.floor(Number(ms) / 1000) || 0);
@@ -50,11 +140,11 @@
    * `scroll()` keeps the newest in view. Returns the handle the loop passes
    * to the model call (text, thinking, reset) and ends with finish(kept).
    */
-  function start(container, { render = (t) => t, scroll = () => {} } = {}) {
+  function start(container, { render = (t) => t, scroll = () => {}, after = null, checking = false } = {}) {
     const el = document.createElement('div');
     el.className = 'cdr-live';
-    el.innerHTML = '<div class="cdr-live-status" role="status"><span class="cdr-live-ring" aria-hidden="true"></span>' +
-      '<span class="cdr-live-label">Thinking</span><span class="cdr-live-time">0s</span></div>' +
+    el.innerHTML = '<div class="cdr-live-status" role="status"><span class="cdr-marks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
+      '<span class="cdr-live-label"></span><span class="cdr-live-time" aria-hidden="true">0s</span></div>' +
       '<div class="cdr-live-text cdr-msg-text" hidden></div>';
     container.appendChild(el);
     const labelEl = el.querySelector('.cdr-live-label');
@@ -62,8 +152,17 @@
     const textEl = el.querySelector('.cdr-live-text');
     const began = Date.now();
     let text = '';
+    let reasoning = false;
     let frame = 0;
     let done = false;
+    // The label and the marks' movement follow what has happened; written only when they change.
+    const say = () => {
+      const now = phaseOf({ text, thinking: reasoning, after, checking });
+      if (el.dataset.phase !== now.phase) el.dataset.phase = now.phase;
+      if (labelEl.textContent !== now.label) labelEl.textContent = now.label;
+      return now;
+    };
+    say();
     // A line taken off the page by any other route stops its own clock.
     const tick = setInterval(() => { if (!el.isConnected) { done = true; clearInterval(tick); return; } timeEl.textContent = elapsed(Date.now() - began); }, 1000);
 
@@ -71,7 +170,7 @@
       frame = 0;
       if (done) return;
       const calls = looksLikeCalls(text);
-      labelEl.textContent = !text ? 'Thinking' : calls ? 'Choosing the next step' : 'Writing';
+      say();
       textEl.hidden = !text || calls;
       if (!textEl.hidden) textEl.innerHTML = render(text);
       scroll();
@@ -83,9 +182,9 @@
       /** More of the answer: `full` is all of it so far. */
       text(delta, full) { text = full != null ? String(full) : text + String(delta || ''); later(); },
       /** The model is thinking before it answers. */
-      thinking() { if (!text) { labelEl.textContent = 'Thinking'; } },
+      thinking() { if (!text && !reasoning) { reasoning = true; say(); } },
       /** Another model is being asked: what the last one wrote is gone. */
-      reset() { text = ''; later(); },
+      reset() { text = ''; reasoning = false; later(); },
       /**
        * End the line. With `kept`, the element stays as that text, a line of
        * the reply; without it, it is removed.
@@ -104,5 +203,5 @@
     };
   }
 
-  window.HCCodeLive = { start, looksLikeCalls, elapsed };
+  window.HCCodeLive = { start, looksLikeCalls, elapsed, phaseOf, afterOf, brief };
 })();

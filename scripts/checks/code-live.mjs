@@ -16,7 +16,7 @@ import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
-const sandbox = { window: {} };
+const sandbox = { window: {}, URL };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'fences.js'), sandbox, { filename: 'fences.js' });
 vm.runInContext(src('js', 'code', 'live.js'), sandbox, { filename: 'live.js' });
@@ -37,6 +37,40 @@ console.log('A call being written is not shown as words:');
   for (const t of words) ok(`${JSON.stringify(t.slice(0, 18))} is words`, !L.looksLikeCalls(t));
 }
 
+console.log('\nWhat the line says, from what has happened:');
+{
+  const P = (o) => L.phaseOf(o);
+  ok('before anything has happened it thinks', P({}).phase === 'thinking' && P({}).label === 'Thinking');
+  ok('its own thinking arriving is thinking it through', P({ thinking: true }).phase === 'reasoning' && P({ thinking: true }).label === 'Thinking it through');
+  ok('words arriving are writing', P({ text: 'I will' }).phase === 'writing' && P({ text: 'I will' }).label === 'Writing');
+  ok('a call being written is choosing the next step, and not shown as words', P({ text: '{"name": "read_file"' }).phase === 'choosing' && P({ text: '{"name": "read_file"' }).label === 'Choosing the next step');
+  ok('words win over thinking, and a check over neither', P({ text: 'x', thinking: true }).phase === 'writing' && P({ checking: true }).phase === 'checking' && P({ checking: true, thinking: true }).phase === 'reasoning');
+  const after = (tool, object, failed = false) => P({ after: { tool, object, failed } });
+  ok('after a file is read, it studies that file by its name', after('read_file', 'src/js/app.js').label === 'Studying app.js' && after('read_file', 'C:\\p\\a.css').label === 'Studying a.css' && after('read_file', '').label === 'Studying the file');
+  ok('after a page is fetched, it reads that host', after('fetch_url', 'https://www.example.org/a/b?q=1').label === 'Reading example.org');
+  ok('after a search, a look through the matches, or a web search, it reads them', after('grep_code', 'TODO').label === 'Going through the matches' && after('web_search', 'drones').label === 'Reading the search results');
+  ok('after a command, it reads that command\'s output', after('shell_run', 'npm test').label === 'Reading the output of npm test' && after('shell_run', '').label === 'Reading the output');
+  ok('after a change, it checks the change', after('patch_file', 'src/a.js').label === 'Checking its change to a.js' && after('write_file', 'index.html').label === 'Checking its change to index.html');
+  ok('after listing a folder, the folder by its name', after('list_dir', '/p/src/').label === 'Taking in the layout of src/');
+  ok('after a step that failed, whatever it was, it works out what went wrong', after('read_file', 'a.js', true).label === 'Working out what went wrong' && after('shell_run', 'x', true).phase === 'reading');
+  ok('after a step it has no words for, it analyzes the result', after('some_other_tool', 'x').label === 'Analyzing the result' && after('sys_crm_lookup', '').phase === 'reading');
+  ok('what it worked on is cut when long', L.brief('shell_run', 'x'.repeat(90)).length === 36 && L.brief('shell_run', 'x'.repeat(90)).endsWith('…'));
+  ok('a step with no name says nothing of one', P({ after: {} }).phase === 'thinking' && P({ after: null }).phase === 'thinking');
+}
+
+console.log('\nThe step that decides what it reads next:');
+{
+  const calls = [{ name: 'read_file', arguments: { path: '/p/a.js' } }, { name: 'update_plan', arguments: {} }];
+  const results = new Map([[calls[0], '{"ok":true}'], [calls[1], '{"ok":true}']]);
+  const A = L.afterOf(calls, results, (n, a) => a.path || '');
+  ok('the last call that is not a change to the plan', A.tool === 'read_file' && A.object === '/p/a.js' && A.failed === false);
+  ok('a plan alone is the plan', L.afterOf([calls[1]], results).tool === 'update_plan');
+  ok('a failed call is told from its result', L.afterOf([calls[0]], new Map([[calls[0], '{"error":"not found"}']])).failed === true && L.afterOf([calls[0]], new Map([[calls[0], 'plain text']])).failed === false);
+  ok('an object that cannot be worked out is left out, not a crash', L.afterOf([calls[0]], results, () => { throw new Error('x'); }).object === '');
+  ok('no calls, no step', L.afterOf([], results) === null && L.afterOf(null, null) === null);
+  ok('a map of results that is missing is no failure', L.afterOf([calls[0]], undefined).failed === false);
+}
+
 console.log('\nHow long a wait reads:');
 {
   ok('seconds', L.elapsed(7400) === '7s');
@@ -47,7 +81,9 @@ console.log('\nHow long a wait reads:');
 console.log('\nThe words reach it as they are written:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl\) \{\s*return contentEl \? window\.HCCodeLive\.start\(contentEl/.test(mode));
+  ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl, now = \{\}\) \{[^\n]*\n\s*return contentEl \? window\.HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, \.\.\.now \}\)/.test(mode));
+  ok('after tools run it is told which step ended last, and after a note from the app that it is checking', /appendThinking\(contentEl, \{ after: window\.HCCodeLive\.afterOf\(turn\.tool_calls, results, toolObject\) \}\)/.test(mode) && /appendThinking\(contentEl, \{ checking: true \}\);\n\s+continue;/.test(mode));
+  ok('a second look, which is a model call with nothing else on screen, has the line, and takes it away however it ends', /const wait = appendThinking\(contentEl, \{ checking: true \}\);/.test(mode) && /finally \{ wait\?\.remove\(\); \}/.test(mode));
   ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
     && /router\.turn\(\{ messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true, reset: live\?\.reset \}\)/.test(mode));
   const routerSrc = src('js', 'code', 'router.js');
@@ -69,6 +105,22 @@ console.log('\nThe words reach it as they are written:');
     && /HCStreamSSE\.anthropicReply\(r, \{ onText, onThinking, fail:/.test(anthropic));
   const boot = src('boot.js');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
+}
+
+console.log('\nThe marks:');
+{
+  const live = src('js', 'code', 'live.js');
+  const css = src('modes', 'code', 'mode.css');
+  ok('five marks, hidden from a screen reader, beside a label read out as a status', /role="status"><span class="cdr-marks" aria-hidden="true"><i><\/i><i><\/i><i><\/i><i><\/i><i><\/i><\/span>/.test(live));
+  ok('the clock, which changes every second, is not read out', /class="cdr-live-time" aria-hidden="true"/.test(live));
+  ok('a movement for each thing it can be doing', ['reasoning', 'reading', 'writing', 'choosing', 'checking'].every((p) => new RegExp(`\\.cdr-live\\[data-phase="${p}"\\]`).test(css)));
+  const frames = [...css.matchAll(/@keyframes (cdr-(?:swell|scan|gather|turn)[\w-]*) \{((?:[^{}]|\{[^{}]*\})*)\}/g)];
+  ok('all of them are keyframes of the marks', frames.length === 7, frames.map((f) => f[1]).join());
+  ok('which change transform and opacity and nothing else, so the page does no layout or paint for them', frames.every(([, , body]) => [...body.matchAll(/([a-z-]+)\s*:/g)].every((m) => ['opacity', 'transform'].includes(m[1]))));
+  ok('only the marks animate, five of them', (css.match(/\.cdr-marks i[^{]*\{[^}]*animation/g) || []).length >= 5 && !/filter:|box-shadow:[^;}]*;[^}]*animation/.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
+  ok('they stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
+  ok('it reports state, so it is not one of the decorations that rest', !/cdr-live|cdr-marks/.test(src('js', 'power.js')) && !/cdr-live|cdr-marks/.test(src('css', 'base.css')));
+  ok('and uses no colour of its own but the theme\'s', !/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
 }
 
 console.log('\nThe line never outlives its run:');

@@ -1008,8 +1008,8 @@
     }
 
     /** The live line while the model works: what it is doing, how long, and its words as they arrive (js/code/live.js). */
-    function appendThinking(contentEl) {
-      return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages }) : null;
+    function appendThinking(contentEl, now = {}) {   // `now`: the step that just ended, or that the answer is being checked (js/code/live.js)
+      return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages, ...now }) : null;
     }
 
     /** One step of a run, a tool call or a file change alike, kept in view (js/code/steps.js). */
@@ -1879,12 +1879,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const R = window.HCCodeReview, V = window.HCCodeVerify, shown = R && R.diffText(changes, window.HCDiff.diffLines);
         if (!shown || !R.worthReview({ size: sharedState.size, prove: cdrPrefs().prove !== false, files: shown.files, changed: shown.changed, reviewed: sent.fresh })) return null;
         cdrTraceAdd('Review', 'A second look at the changes', 'run');
+        const wait = appendThinking(contentEl, { checking: true });   // a model call with nothing else on the screen
         try {
           const said = await callWithRouter(R.messages((window.HCCodeAttach?.shownRequest || String)(V.requestIn(messages)), V.proofLine(proof), shown.text), [], 0, signal, coderModel);
           const found = R.verdict(said?.content);
           appendStep(contentEl, { verb: 'REVIEW', object: found.ok ? 'looks right' : `${found.problems.length} to look at`, status: '' });
           return found.ok ? null : V.freshReviewNote(found.problems);
-        } catch (e) { if (signal?.aborted) throw e; return null; }   // a second look that fails holds nothing up
+        } catch (e) { if (signal?.aborted) throw e; return null; } finally { wait?.remove(); }   // a second look that fails holds nothing up
       };
       // A site the run changed, read the way a browser would each time it would finish, and sent back once (js/code/site.js).
       const siteLook = async () => {
@@ -2056,7 +2057,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           if (policy.iterationMadeProgress(turn.tool_calls, seenReadTargets)) stalledIterations = 0;
           else stalledIterations++;
 
-          thinkEl = appendThinking(contentEl);
+          thinkEl = appendThinking(contentEl, { after: window.HCCodeLive.afterOf(turn.tool_calls, results, toolObject) });
           continue;
         }
 
@@ -2073,7 +2074,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
           appendStep(contentEl, { verb: 'CHECK', object: forced ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
-          thinkEl = appendThinking(contentEl);
+          thinkEl = appendThinking(contentEl, { checking: true });
           continue;
         }
         if (!finalText.trim()) {

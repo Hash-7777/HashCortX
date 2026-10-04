@@ -39,11 +39,11 @@ ok('its changes are gathered under the answer, so folding never hides Keep and U
 
 const live = src('js', 'code', 'live.js');
 console.log('\nThe one sign of work:');
-ok('the live line is a turning ring and its label, read out as a status', /class="cdr-live-status" role="status"><span class="cdr-live-ring" aria-hidden="true">/.test(live));
+ok('the live line is five small marks and its label, read out as a status', /class="cdr-live-status" role="status"><span class="cdr-marks" aria-hidden="true">/.test(live));
 const css = src('modes', 'code', 'mode.css');
-ok('the ring turns and the label is drawn in a moving light', /\.cdr-live-ring \{[^}]*animation: cdr-spin/.test(css) && /\.cdr-live-label \{[^}]*animation: cdr-shimmer/.test(css));
-ok('...and neither moves for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-live-ring, \.cdr-live-label \{ animation: none; \}/.test(css));
-ok('the dot beside the status in the bar stays still', /\.cdr-status-dot\.thinking, \.cdr-status-dot\.run, \.cdr-status-dot\.running \{ background: var\(--accent-2\); \}/.test(css) && !/cdr-pulse/.test(css) && !/cdr-live-dot/.test(live + css));
+ok('the marks move, in a way for each thing the model can be doing', /\.cdr-marks i \{[^}]*animation: cdr-swell/.test(css) && /\.cdr-live\[data-phase="writing"\] \.cdr-marks i/.test(css));
+ok('...and stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
+ok('the dot beside the status in the bar stays still', /\.cdr-status-dot\.thinking, \.cdr-status-dot\.run, \.cdr-status-dot\.running \{ background: var\(--accent-2\); \}/.test(css) && !/cdr-pulse/.test(css) && !/cdr-live-dot/.test(live + css));   // the bar's dot never pulses
 ok('a folded list is hidden, and a step in a list is a short line', /\.cdr-steps\.done:not\(\.open\) \.cdr-steps-list \{ display: none; \}/.test(css) && /\.cdr-steps-list \.cdr-step-head \{[^}]*min-height: 22px/.test(css));
 ok('copy, reply and regen wait for the answer', /\.cdr-msg\.running \.cdr-msg-actions \{ display: none; \}/.test(css));
 

@@ -752,7 +752,9 @@ const LINE_BUDGET = {
   // 2484, up four: a greeting to a small or mid-sized model is answered without
   // its tools, and a reply that is the tools written back is set aside
   // (js/code/talk.js).
-  'modes/code/mode.js': 2484,
+  // 2485, up one: a second look, which is a model call with nothing else on
+  // the screen, shows the live line (js/code/live.js).
+  'modes/code/mode.js': 2485,
 };
 
 console.log('\nFile sizes go down, never up:');
