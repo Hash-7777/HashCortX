@@ -945,6 +945,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder is told that what the app remembers about you is not page
+  content.** The few remembered facts sent with a request were marked only
+  as context not to recite, so a model asked to replace a blank on a page
+  could fill it with a name remembered from another conversation. They are
+  now marked as being about the person, to understand the request, and not
+  to be written into a file or a page unless the request asks; and the
+  note that sends a page back for its details says that only what the
+  person gave in this conversation, or a page the agent opened, counts as a
+  source. This is an instruction to the model, not a filter on what it
+  writes (`js/code/context.js`, `js/code/verify.js`).
+
 - **HashCoder's debugging export says what the run was, whenever it is
   made.** The export read the model, the set-up and the temperature from
   what was picked at the moment of exporting, and its trace lived only in

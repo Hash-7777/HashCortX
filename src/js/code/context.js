@@ -35,7 +35,8 @@
     if (activeFile) lines.push(`Active file: ${activeFile}`);
     const known = (Array.isArray(facts) ? facts : []).filter((f) => f && f.key);
     if (known.length) {
-      lines.push('Memory (silent context, do not recite):');
+      // About the person, not the work: a name kept from another conversation is not the name a page needs.
+      lines.push('What the app remembers about the person, to understand the request. Never write it into a file or a page unless the request asks for it:');
       known.forEach((f) => lines.push(`  - ${f.key}: ${String(f.value).slice(0, 120)}`));
     }
     return lines.length ? [FROM_APP, ...lines].join('\n') : '';

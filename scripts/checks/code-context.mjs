@@ -26,8 +26,8 @@ console.log('What the app adds to one request:');
   ok('says it is from the app, not from the person', all.startsWith(C.FROM_APP) && /not from the person/.test(C.FROM_APP));
   ok('carries the bar a site is held to', /BUILDING THIS SITE/.test(all));
   ok('names the file open', /Active file: \/p\/index\.html/.test(all));
-  ok('and remembered facts, marked not to be recited', /Memory \(silent context, do not recite\):\n {2}- stack: plain HTML/.test(all));
-  ok('a long fact is cut short', C.forRequest({ facts: [{ key: 'k', value: 'v'.repeat(500) }] }).length < 250);
+  ok('and remembered facts, marked as about the person and never to be written into a file or a page unasked', /What the app remembers about the person, to understand the request\. Never write it into a file or a page unless the request asks for it:\n {2}- stack: plain HTML/.test(all));
+  ok('a long fact is cut short', (() => { const t = C.forRequest({ facts: [{ key: 'k', value: 'v'.repeat(500) }] }); return /v{120}/.test(t) && !/v{121}/.test(t); })());
   ok('nothing to add is nothing at all, not an empty heading', C.forRequest({}) === '' && C.forRequest() === '' && C.forRequest({ facts: [null, {}] }) === '');
   ok('no file open, no line for one', !/Active file/.test(C.forRequest({ site: 'x' })));
 }

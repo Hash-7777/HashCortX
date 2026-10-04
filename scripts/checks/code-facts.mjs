@@ -174,6 +174,7 @@ console.log('\nWhat the agent and the person are told:');
   ok('each detail is named with what it is and the file it is in, from the project\'s folder', /9 Orchard Road \(address, in index\.html\)/.test(note.message) && /Since 1988 \(year, in index\.html\)/.test(note.message), note.message);
   ok('the lines of brackets are named too', /\[11:00 AM – 10:00 PM Daily\] \(in index\.html\)/.test(note.message));
   ok('it says what to do: keep what a source says, search, or take it out; never leave a guess or brackets', /find that and keep it/.test(note.message) && /web_search or fetch_url/.test(note.message) && /take it out of the page/.test(note.message) && /square brackets must never be left/.test(note.message));
+  ok('only what the person said in this conversation counts, and what the app remembers about them is no source for a page', /if the person gave it in this conversation/.test(note.message) && /What the app remembers about the person is not a source for a page/.test(note.message));
   ok('it asks for the name as the sources spell it, and for the answer to say what was not confirmed', /Spell the name as the sources spell it/.test(note.message) && /say in your answer which details you could not confirm/.test(note.message));
   ok('and when it comes back in a saved conversation it has the same step', V.noteStep(note.message) === note.step);
   ok('nothing found, no note', V.factsNote({ total: 0, unsourced: [], placeholders: [] }, '/p') === null && V.factsNote(null, '/p') === null);
