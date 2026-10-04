@@ -454,6 +454,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **Long-term memory has a switch, and HashCoder uses it only when you turn
+  it on.** Memory holds short facts about you, saved from what you write,
+  and the ones that match go with your requests to whichever model answers,
+  cloud ones included. Settings → Memory has **Remember facts about me**:
+  off, nothing is saved from what you write and nothing remembered is sent
+  to any model, while the facts already kept stay until you delete them.
+  Settings → HashCoder has **Use my long-term memory**, off until turned on:
+  off, a HashCoder request saves nothing to memory, carries no remembered
+  facts, and the memory tools are neither offered nor answered. The Memory
+  page and `docs/SECURITY.md` say where memory goes
+  (`src/core/memory/store.js`).
+
 - **A task stays on the side you chose, this computer or the cloud.** When a
   model fails, the run moves to another model on the same side only: a local
   model to another local one, and now a cloud model to another cloud one,

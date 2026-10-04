@@ -70,7 +70,7 @@ console.log('\nHashCoder:');
   ok('a small or mid-sized model is never offered it', !/MID_MODEL_TOOLS = \[[^\]]*save_lesson/.test(tools) && !/SMALL_MODEL_TOOLS = \[[^\]]*save_lesson/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
   ok('the panel says where only when switched on, for a large model', /HC\.code\.lessonsFor = cdrPrefs\(\)\.lessons === true && root && size === 'full' \? \{ root, local \} : null;/.test(mode));
-  ok('and offers the tool only then', /\.filter\(\(t\) => t\.function\.name !== 'save_lesson' \|\| !!HC\.code\.lessonsFor\)/.test(mode));
+  ok('and offers the tool only then', /\.filter\(\(t\) => \(t\.function\.name !== 'save_lesson' \|\| !!HC\.code\.lessonsFor\)/.test(mode));
   ok('lessons are read into the start of a conversation only when switched on, for the model in use', /cdrPrefs\(\)\.lessons === true && sharedState\.size === 'full' && window\.HCCodeLessons \? window\.HCCodeLessons\.notes\(window\.HCCodeLessons\.forProject\(localStorage, sharedState\.projectRoot, \{ local: sharedState\.local \}\)\) : ''/.test(mode));
   ok('a switch from a model on this computer to a cloud one rebuilds them', /if \(size !== sharedState\.size \|\| local !== sharedState\.local(?: \|\| mapped)?\) \{/.test(mode));
   ok('the switch starts off, and Forget asks first', /lessonsEl\.checked = prefs\.lessons === true;/.test(mode) && /themedConfirm\('Forget every lesson HashCoder kept, for every project\?'/.test(mode));

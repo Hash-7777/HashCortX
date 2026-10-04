@@ -833,7 +833,8 @@
         key:   { type: 'string', description: 'Short label for the fact (e.g. "preferred_framework", "project_stack", "lint_rules")' },
         value: { type: 'string', description: 'The fact itself, in natural language.' },
       },
-      fn: (p) => { if (window._H?.memAdd) return window._H.memAdd(p.key, p.value); return { ok: false, error: 'Memory not available' }; },
+      // HashCoder uses long-term memory only when its own switch in Settings is on (HC.code.memoryOn, set per run).
+      fn: (p) => { if (!HC.code.memoryOn) return { ok: false, error: MEMORY_OFF }; if (window._H?.memAdd) return window._H.memAdd(p.key, p.value); return { ok: false, error: 'Memory not available' }; },
     },
     {
       name: 'recall_facts',
@@ -842,6 +843,7 @@
         query: { type: 'string', description: 'Keywords to search memory for. Empty string returns most recent facts.' },
       },
       fn: (p) => {
+        if (!HC.code.memoryOn) return { ok: false, error: MEMORY_OFF };
         if (window._H?.memRecall) {
           const facts = window._H.memRecall(p.query || '', 8);
           return { facts: facts.map(f => ({ key: f.key, value: f.value, saved_at: new Date(f.ts).toISOString() })) };
@@ -856,6 +858,14 @@
    * string argument with that description; every argument is required except
    * the ones that are optional by name.
    */
+  // Long-term memory is the person's own facts, kept across conversations. HashCoder
+  // saves and reads them only when its switch in Settings is on; off, the tools
+  // refuse and the instructions do not mention them.
+  const MEMORY_OFF = 'HashCoder does not use long-term memory unless it is switched on in Settings, under HashCoder.';
+  const MEMORY_SECTION = `MEMORY:
+• remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
+
+`;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -971,10 +981,7 @@ BUILDING A UI:
 
 ${HC.code.TOOL_TEXT_RULE}
 
-MEMORY:
-• remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
-
-REASONING:
+${MEMORY_SECTION}REASONING:
 • Complex tasks → keep the plan with update_plan rather than in your reply, and work through it step by step.
 • Ambiguous request → ask ONE focused clarifying question before acting.
 • After each tool call, assess the result before deciding the next step.
@@ -1124,7 +1131,8 @@ ${HC.code.TOOL_TEXT_RULE}`;
   });
 
   /** The instructions for a model of this size. */
-  HC.code.promptFor = (size) => (size === 'small' ? HC.code.SMALL_MODEL_PROMPT : size === 'mid' ? HC.code.MID_MODEL_PROMPT : HC.code.SYSTEM_PROMPT);
+  /** The instructions for a model of this size; the memory section only while HashCoder may use memory. */
+  HC.code.promptFor = (size, memory = false) => (size === 'small' ? HC.code.SMALL_MODEL_PROMPT : size === 'mid' ? HC.code.MID_MODEL_PROMPT : memory ? HC.code.SYSTEM_PROMPT : HC.code.SYSTEM_PROMPT.replace(MEMORY_SECTION, ''));
 
   /**
    * One line telling the model which machine it is working on.

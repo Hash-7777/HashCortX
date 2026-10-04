@@ -5471,7 +5471,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       },
       statusLabel: a => `Saving to memory: ${(a.key || "").slice(0, 50)}`,
       async execute({ key, value }) {
-        return memAdd(key, value);
+        return window.HCMemoryStore.memOn() ? memAdd(key, value) : { ok: false, error: "Long-term memory is switched off in Settings, so nothing was saved." };
       }
     },
     recall_facts: {
@@ -5942,7 +5942,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Keyword recall misses semantic matches (e.g. "what animal do I love"
     // won't match a saved "likes: cats"). Always merge in the most recent
     // facts so the model has baseline context even when keywords don't overlap.
-    const recentTop = memLoad().slice(-12).reverse();
+    const recentTop = window.HCMemoryStore.memRecent(12);
     const seen = new Set(scored.map(f => f.key.toLowerCase()));
     const recalled = scored.slice();
     for (const f of recentTop) {
@@ -6162,7 +6162,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     let toolContext = null;
     try {
       const scored = memRecall(userText, 4);
-      const recent = memLoad().slice(-5).reverse();
+      const recent = window.HCMemoryStore.memRecent(5);
       const seen = new Set(scored.map(f => f.key.toLowerCase()));
       const merged = scored.slice();
       for (const f of recent) {
@@ -6192,7 +6192,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Inject memories into context for non-tool-calling models too
     try {
       const scored = memRecall(userText, 8);
-      const recentTop = memLoad().slice(-12).reverse();
+      const recentTop = window.HCMemoryStore.memRecent(12);
       const seen = new Set(scored.map(f => f.key.toLowerCase()));
       const recalled = scored.slice();
       for (const f of recentTop) {

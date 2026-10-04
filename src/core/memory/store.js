@@ -32,6 +32,12 @@
 
     const MEM_KEY = "hashui_agent_memory_v1";
     const MEM_MAX_FACTS = 500;
+    // The switch in Settings > Memory. Off, nothing is saved from what is
+    // written and nothing remembered is sent to any model; the facts already
+    // kept stay, to be read, edited or deleted. On unless switched off.
+    const ON_KEY = "hc_memory_on";
+    function memOn() { try { return localStorage.getItem(ON_KEY) !== "0"; } catch { return true; } }
+    function setMemOn(on) { try { localStorage.setItem(ON_KEY, on ? "1" : "0"); } catch {} }
 
     function memLoad() {
       try {
@@ -84,6 +90,7 @@
     // Synonym groups so semantically related queries hit the same facts.
     // E.g. asking "what do I love" matches a saved "likes" / "favorite".
     function memRecall(query, limit = 6) {
+      if (!memOn()) { _lastRecalled = []; return []; }
       const projectOnly = deps.currentProject()?.memoryMode === "project";
       const arr = memLoad().filter(f => {
         const pid = f.projectId || deps.DEFAULT_PROJECT_ID;
@@ -105,6 +112,7 @@
       // The patterns are in js/memory.js and return what they found without
       // storing it, so they can be run over any text in a check. Deciding what
       // is kept stays here.
+      if (!memOn()) return [];
       const found = HCMemory.extractFacts(text);
       for (const f of found) memAdd(f.key, f.value);
       return found;
@@ -116,6 +124,7 @@
     function memAutoExtractFromAssistant(text) {
       // Patterns in js/memory.js, for the same reason as the user-side ones:
       // they return what they found and the storing is decided here.
+      if (!memOn()) return [];
       const found = HCMemory.extractFactsFromAssistant(text);
       for (const f of found) memAdd(f.key, f.value);
       return found;
@@ -123,11 +132,13 @@
 
     // Expose for other modes (coder, swarm) to call after their assistant turns
     try { window.memAutoExtractFromAssistant = memAutoExtractFromAssistant; } catch {}
+    /** The most recent facts, newest first, for a model's context: none while memory is off. */
+    function memRecent(n) { return memOn() ? memLoad().slice(-n).reverse() : []; }
     function memClear() { try { localStorage.removeItem(MEM_KEY); } catch {} }
   window.HCMemoryStore = {
     init,
     MEM_KEY,
-    memLoad, memSave, memAdd, memRecall, memClear, lastRecalledIds,
-    memAutoExtract, memAutoExtractFromAssistant,
+    memLoad, memSave, memAdd, memRecall, memRecent, memClear, lastRecalledIds,
+    memAutoExtract, memAutoExtractFromAssistant, memOn, setMemOn,
   };
 })();

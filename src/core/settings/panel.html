@@ -482,6 +482,12 @@
         </details>
         <button class="ghost set-btn" type="button" id="cdrForgetLessons" title="Remove every lesson kept, for every project">Forget all lessons</button>
       </div>
+      <div class="field">
+        <label class="check-row">
+          <input type="checkbox" id="cdrSetMemory" class="check-box" />
+          <span><b>Use my long-term memory</b> <span class="field-note">Off: HashCoder saves nothing you tell it to Memory and sends nothing from it. On: what you write may be saved there, and up to four remembered facts that match a request go with it, to whichever model runs it, cloud ones included.</span></span>
+        </label>
+      </div>
       <div class="field" id="cdrKb">
         <label class="check-row">
           <input type="checkbox" id="cdrKbState" class="check-box" />
@@ -523,8 +529,12 @@
           <span id="memCountBadge" class="field-note">0 facts</span>
         </label>
         <div class="mem-blurb">
-          Stored only on this computer. Used quietly as background context for every chat — local and cloud models alike. Edit, export, or wipe at any time.
+          Stored only on this computer. While it is on, facts are saved from what you write and the ones that match are sent with your chats and agents, to local and cloud models alike. HashCoder uses it only when its own switch is on. Edit, export, or wipe at any time.
         </div>
+        <label class="check-row">
+          <input type="checkbox" id="memOnToggle" class="check-box" checked />
+          <span><b>Remember facts about me</b> <span class="field-note">Off: nothing is saved from what you write and nothing remembered is sent to any model. The facts below stay until you delete them.</span></span>
+        </label>
         <div class="mem-tools">
           <input class="control" id="memSearchInput" placeholder="Search facts…" spellcheck="false" />
           <button class="ghost mem-tool" type="button" id="memMapBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><circle cx="5" cy="5" r="1.6"/><circle cx="19" cy="5" r="1.6"/><circle cx="5" cy="19" r="1.6"/><circle cx="19" cy="19" r="1.6"/><line x1="6.4" y1="6.4" x2="10.3" y2="10.3"/><line x1="17.6" y1="6.4" x2="13.7" y2="10.3"/><line x1="6.4" y1="17.6" x2="10.3" y2="13.7"/><line x1="17.6" y1="17.6" x2="13.7" y2="13.7"/></svg>Map</button>

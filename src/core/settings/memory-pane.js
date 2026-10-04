@@ -41,7 +41,14 @@
     // facts are read from it rather than handed in. Thirteen dependencies down
     // to nine, and the pane and the agent tools demonstrably share one store
     // rather than being passed the same four names and trusted to.
-    const { memAdd, memClear, memLoad, memSave } = window.HCMemoryStore;
+    const { memAdd, memClear, memLoad, memSave, memOn, setMemOn } = window.HCMemoryStore;
+
+    // The switch for the whole of long-term memory (store.js memOn).
+    const onToggle = $("memOnToggle");
+    if (onToggle) {
+      onToggle.checked = memOn();
+      onToggle.addEventListener("change", () => setMemOn(onToggle.checked));
+    }
 
     function fmtRelative(ts) {
       const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
@@ -70,7 +77,7 @@
       if (!filtered.length) {
         list.innerHTML = `<div class="mem-empty">${
           all.length === 0
-            ? "No memories yet. The agent will save preferences and details automatically as you chat — or use <b>+ Add</b> to enter one manually."
+            ? (memOn() ? "No memories yet. Preferences and details are saved as you chat, or use <b>+ Add</b> to enter one." : "No memories. Remembering is switched off; <b>+ Add</b> still enters one by hand.")
             : "No facts match your search."
         }</div>`;
         return;

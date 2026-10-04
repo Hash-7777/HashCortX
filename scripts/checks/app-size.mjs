@@ -767,7 +767,9 @@ const LINE_BUDGET = {
   // the comment on rebuilding the rows says it in fewer lines.
   // 2477, up one: an error that ends a run after it changed files says what
   // it made is kept (js/code/router.js keptNote).
-  'modes/code/mode.js': 2477,
+  // 2478, up one: the switch that lets HashCoder use long-term memory, off
+  // until it is turned on, is wired.
+  'modes/code/mode.js': 2478,
 };
 
 console.log('\nFile sizes go down, never up:');

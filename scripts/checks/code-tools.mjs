@@ -62,7 +62,7 @@ console.log('\nA small local model:');
   const list = HC.code.toolList();
   ok('the Coder gives it only those tools and those instructions',
     HC.code.toolsFor('small', list, 'a site').map((t) => t.function.name).sort().join() === [...HC.code.SMALL_MODEL_TOOLS].sort().join() && HC.code.promptFor('small') === HC.code.SMALL_MODEL_PROMPT
-    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\)/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size\)/.test(mode));
+    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\)/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size, cdrPrefs\(\)\.memory === true\)/.test(mode));
   ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode) && /const size = HC\?\.code\?\.sizeOf\?\.\(info\?\.billions\) \|\| 'full';/.test(mode));
 }
 
@@ -72,7 +72,8 @@ console.log('\nThe size of a model decides how HashCoder is set up for it:');
   ok('under 5 billion small, under 15 mid-sized, larger or unknown given everything', sizes.every(([b, want]) => HC.code.sizeOf(b) === want),
     sizes.filter(([b, want]) => HC.code.sizeOf(b) !== want).map(([b]) => b).join());
   const list = HC.code.toolList();
-  ok('a larger model is offered every tool and the full instructions', HC.code.toolsFor('full', list, '') === list && HC.code.promptFor('full') === HC.code.SYSTEM_PROMPT);
+  ok('a larger model is offered every tool and the full instructions', HC.code.toolsFor('full', list, '') === list && HC.code.promptFor('full', true) === HC.code.SYSTEM_PROMPT);
+  ok('...which mention long-term memory only while HashCoder may use it', !/remember_fact/.test(HC.code.promptFor('full')) && /remember_fact \/ recall_facts/.test(HC.code.promptFor('full', true)) && /REASONING:/.test(HC.code.promptFor('full')));
 }
 
 console.log('\nA mid-sized local model:');
@@ -355,7 +356,7 @@ console.log('\nThe instructions stay the same from one request to the next:');
   const at = mode.indexOf('    function sysPrompt(extra) {');
   const sys = mode.slice(at, mode.indexOf('\n    }\n', at));
   ok('nothing that belongs to one request is in them', sys.length > 500 && !/memRecall|activeFile|siteBrief|Date\.now|new Date/.test(sys));
-  ok('the file open and remembered facts go with the request instead', /activeFile: root && sharedState\.activeFile, facts: \(\(\) => \{ try \{ return window\._H\?\.memRecall\?\.\(task, 4\)/.test(mode));
+  ok('the file open goes with the request, and remembered facts only while HashCoder may use memory', /activeFile: root && sharedState\.activeFile, facts: cdrPrefs\(\)\.memory !== true \? \[\] : \(\(\) => \{ try \{ return window\._H\?\.memRecall\?\.\(task, 4\)/.test(mode));
   ok('a site\'s tools, once offered in a conversation, stay offered', /conversationMsgs\.some\(\(m\) => m\.site\)/.test(mode));
   ok('every model call says the conversation will be sent again', /router\.turn\(\{[^}]*cache: true[^}]*\}\)/.test(mode) && (mode.match(/cache: true/g) || []).length === 1);
 }
@@ -366,7 +367,7 @@ console.log('\nThe project is known from the start of a conversation:');
   ok('its top folder and its notes are read once a project, with its checks', /sharedState\.projectChecks = \{ root, checks, \.\.\.\(await window\.HCCodeContext\?\.readProject\(root, io\)\) \}/.test(mode));
   ok('the top folder is named in the instructions, sized to the model', /window\.HCCodeContext\?\.projectPicture\(known\.entries, sharedState\.size\)/.test(mode));
   ok('the notes go with the instructions for the first request to carry, marked as any material is', /window\.HCCodeContext\.systemTurn\(sysPrompt\(\), sharedState\.projectChecks\?\.root === sharedState\.projectRoot \? sharedState\.projectChecks : null, sharedState\.size, window\.HCSources\?\.mark,/.test(mode));
-  ok('every place the instructions are set sets both', !/conversationMsgs\[0\]\.content = sysPrompt\(\)/.test(mode) && (mode.match(/conversationMsgs\[0\] = systemTurn\(\)/g) || []).length === 3 && /conversationMsgs = \[systemTurn\(\)\]/.test(mode));
+  ok('every place the instructions are set sets both', !/conversationMsgs\[0\]\.content = sysPrompt\(\)/.test(mode) && (mode.match(/conversationMsgs\[0\] = systemTurn\(\)/g) || []).length === 4 && /conversationMsgs = \[systemTurn\(\)\]/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

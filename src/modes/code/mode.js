@@ -498,6 +498,7 @@
       const prefs = cdrPrefs();
       const lessonsEl = $('cdrSetLessons');
       if (lessonsEl) { lessonsEl.checked = prefs.lessons === true; lessonsEl.addEventListener('change', () => cdrSavePrefs({ lessons: lessonsEl.checked })); }
+      const memEl = $('cdrSetMemory'); if (memEl) { memEl.checked = prefs.memory === true; memEl.addEventListener('change', () => { cdrSavePrefs({ memory: memEl.checked }); if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn(); }); }   // off by default: HashCoder neither saves nor sends long-term memory
       $('cdrForgetLessons')?.addEventListener('click', async () => { if (await window._H.themedConfirm('Forget every lesson HashCoder kept, for every project?', 'Lessons')) window.HCCodeLessons?.forgetAll(localStorage); });
       const proveEl = $('cdrSetProve');
       if (proveEl) {
@@ -1834,7 +1835,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         lines.push(`No project open. Home: ${homeDir || 'unknown'}. Ask user to open a folder for write ops.`);
       }
 
-      const richBase = (HC?.code?.promptFor?.(sharedState.size) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
+      const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
     }
@@ -2115,7 +2116,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(request.content) : task, request.pictures);
 
       // Auto-extract memory from user message
-      try { window._H?.memAutoExtract?.(task); } catch {}
+      if (cdrPrefs().memory === true) { try { window._H?.memAutoExtract?.(task); } catch {} }   // long-term memory only when HashCoder's own switch is on
 
       // The project's own test, lint and build commands, found once per project.
       const root = sharedState.projectRoot;
@@ -2132,7 +2133,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const size = HC?.code?.sizeOf?.(info?.billions) || 'full';
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
       const local = !/^cloud:/.test(model);   // output sized to the model (js/agent-context.js); lessons, when switched on, kept for this project (js/code/lessons.js)
-      if (HC?.code) { HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
+      if (HC?.code) { HC.code.memoryOn = cdrPrefs().memory === true; HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
       // A larger model is given a map of the project's code, and a model on this computer a small project whole, made as a conversation begins and kept for it (js/code/codemap.js, js/code/context.js).
       const mapped = (size === 'full' ? !!window.HCCodeMap : local) && !!root && !!HC?.code?.readQuietly && (!conversationMsgs.length || sharedState.codeMap?.root !== root);
       if (mapped) {
@@ -2149,7 +2150,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
       const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
-      const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
+      const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: cdrPrefs().memory !== true ? [] : (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images, thumbs: request.thumbs } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
 
@@ -2203,7 +2204,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
       // Once a request in this conversation has built a site, its tools stay offered: a list that changes between requests is read again whole.
-      const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => t.function.name !== 'save_lesson' || !!HC.code.lessonsFor);
+      const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => (t.function.name !== 'save_lesson' || !!HC.code.lessonsFor) && (HC.code.memoryOn || !/^(remember_fact|recall_facts)$/.test(t.function.name)));
       const tools = [...own, ...run.tools];
       const contentEl = appendAssistantBubble('HashCoder');
       const bubble = contentEl?.closest('.cdr-msg');
