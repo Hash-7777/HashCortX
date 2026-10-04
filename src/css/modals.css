@@ -44,7 +44,7 @@
     color: var(--gold-2);
   }
   html[data-theme="light"] .error-banner {
-    background: linear-gradient(180deg, rgba(167,83,83,0.10), rgba(167,83,83,0.04));
+    background: rgba(167,83,83,0.07);
     border-color: rgba(167,83,83,0.24);
     color: #7e3737;
   }

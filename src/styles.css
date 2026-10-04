@@ -1160,6 +1160,7 @@ header.topbar .badge-row #activeAgentChip.agent-chip:hover {
     linear-gradient(180deg, rgba(245,215,122,0.18), rgba(201,169,110,0.07)),
     rgba(8,10,16,0.78) !important;
 }
+header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear svg { width: 9px; height: 9px; display: block; }
 header.topbar .badge-row #activeAgentChip.agent-chip .clear:hover,
 header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
   color: #ffd1d1 !important;

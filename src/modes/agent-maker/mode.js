@@ -2049,7 +2049,7 @@ ${modelListStr}`;
             <button class="bp-action-btn" data-bp-rename="${bp.id}" title="Rename">
               <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="11" height="11"><path d="M11 2.5a1.5 1.5 0 0 1 2.12 2.12L5 13H3v-2L11 2.5z"/></svg>
             </button>
-            <button class="bp-action-btn bp-delete" data-bp-delete="${bp.id}" title="Delete">×</button>
+            <button class="bp-action-btn bp-delete" data-bp-delete="${bp.id}" title="Delete" aria-label="Delete"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
           </div>
         </div>`).join("");
     }

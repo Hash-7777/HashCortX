@@ -921,6 +921,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An error says what failed above why, and its close mark is centred.** The
+  heading and the message sat side by side, so a long message wrapped in a
+  narrow column beside a wide heading, and the close button held a typed
+  multiplication sign that sat below the middle of its box. The heading is now
+  above the message, the box is flat, and the mark is drawn and centred. The
+  same drawn mark replaces the typed one on the Swarm result, the blueprint,
+  project and file removers, the active agent chip and the two Systems dialogs.
+- **The Swarm result keeps room for the conversation on a short window.** Below
+  900 pixels the header, the conversation and the files shared the height, and
+  on a laptop the conversation was left a few lines tall. Each half now keeps
+  a usable height and the result scrolls.
+
 - **A patch whose changes are all in its list of edits is made.** A model
   sometimes puts every change in the list and repeats the first one's passage
   at the top without its replacement, or leaves the top empty, and the call

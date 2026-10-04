@@ -638,6 +638,7 @@ body.forge-studio-mode #app { display: none; }
 }
 
 .frg-project-delete {
+  display: grid; place-items: center; padding: 0;
   position: absolute;
   top: 7px;
   right: 7px;

@@ -271,7 +271,7 @@
         <div class="frg-project-name">${escapeHtml(project.name || "Forge Project")}</div>
         <div class="frg-project-meta">${escapeHtml(project.route || project.plan?.route || "parametric")} · ${escapeHtml((project.plan?.nodes?.length || 0) + " mesh parts")} · ${escapeHtml(new Date(project.updatedAt || project.createdAt || Date.now()).toLocaleDateString())}</div>
         <div class="frg-project-prompt">${escapeHtml(project.prompt || project.plan?.name || "")}</div>
-        <button class="frg-project-delete" data-frg-project-delete="${escapeHtml(project.id)}" title="Delete project">×</button>
+        <button class="frg-project-delete" data-frg-project-delete="${escapeHtml(project.id)}" title="Delete project" aria-label="Delete project"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
     `).join("");
   }

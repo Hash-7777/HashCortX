@@ -79,6 +79,9 @@
   const txtInput = $("txtFile");
   const statusDot = $("statusDot");
   const statusText = $("statusText");
+  // The cross on a chip, a message or a button, drawn: as a character it arrived at whatever weight
+  // and baseline the platform font gave it, beside icons that are drawn. Defined first: the agent chip uses it too.
+  const REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
   const activeTitle = $("activeTitle");
   // Helper: update model subtitle + cloud/RAG badges together
   // Provider SVG icons — 14×14, minimal, no fills unless noted.
@@ -1633,7 +1636,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     activeAgentChip.style.display = "";
     activeAgentChip.className = "agent-chip";
     activeAgentChip.title = `Active agent: ${agent.name}`;
-    activeAgentChip.innerHTML = `<span class="ico">${agentIconSvg(agent)}</span><span class="agent-chip-name">${escapeHtml(agent.name)}</span><span class="clear agent-chip-clear" title="Deactivate agent">×</span>`;
+    activeAgentChip.innerHTML = `<span class="ico">${agentIconSvg(agent)}</span><span class="agent-chip-name">${escapeHtml(agent.name)}</span><span class="clear agent-chip-clear" title="Deactivate agent">${REMOVE_SVG}</span>`;
     activeAgentChip.querySelector(".clear").addEventListener("click", (e) => {
       e.stopPropagation();
       setActiveAgent(null);
@@ -3011,10 +3014,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k chars` : `${n} chars`;
   }
 
-  // The cross on a chip, drawn: as a character it arrived at whatever weight
-  // and baseline the platform font gave it, beside icons that are drawn.
-  const REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
-
   function fileKindIcon(kind) {
     const k = kind || "file";
     if (k === "pdf") {
@@ -3764,7 +3763,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   function showError(err, title = "Request failed") {
     const msg = err?.message || String(err || "Unknown error");
-    errorSlot.innerHTML = `<div class="error-banner"><b>${escapeHtml(title)}</b><span>${escapeHtml(msg)}</span><button type="button" class="error-close" aria-label="Dismiss the message: ${escapeHtml(title)}" title="Close">&times;</button></div>`;
+    errorSlot.innerHTML = `<div class="error-banner"><b>${escapeHtml(title)}</b><span>${escapeHtml(msg)}</span><button type="button" class="error-close" aria-label="Dismiss the message: ${escapeHtml(title)}" title="Close">${REMOVE_SVG}</button></div>`;
   }
   function clearError() { errorSlot.innerHTML = ""; }
   errorSlot?.addEventListener("click", (e) => {

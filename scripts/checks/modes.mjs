@@ -175,7 +175,7 @@ console.log('\nA mode that cannot open says so plainly:');
   const app = read('js/app.js');
   check('the error box takes a heading, "Request failed" unless told otherwise', /function showError\(err, title = "Request failed"\)/.test(app) && /<b>\$\{escapeHtml\(title\)\}<\/b>/.test(app));
   check('a mode that cannot open is headed so, and missing 3D graphics is said in words', /failed to open: \$\{\/webgl\/i\.test\([^)]*\)\) \? "it needs 3D graphics/.test(app) && /, "Could not open"\);/.test(app));
-  check('the heading stays on one line beside the message', /\.error-banner b \{[^}]*white-space: nowrap/.test(read('css/modes.css')));
+  check('the heading stands above the message, and the close mark is drawn and centred in its box', /\.error-banner b \{[^}]*grid-column: 1/.test(read('css/modes.css')) && /\.error-banner \.error-close \{[^}]*place-items: center/.test(read('css/modes.css')) && /class="error-close"[^>]*>\$\{REMOVE_SVG\}<\/button>/.test(read('js/app.js')) && !/error-close[^`]*&times;/.test(read('js/app.js')));
 }
 
 // ── 4. Reachable, in both directions ─────────────────────────────────────

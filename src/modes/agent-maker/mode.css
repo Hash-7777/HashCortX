@@ -881,7 +881,8 @@ img.amk-empty-logo {
 .amk-ws-btn:disabled { opacity: 0.45; cursor: default; }
 .amk-ws-primary { background: var(--amk-ui); border-color: var(--amk-ui); color: var(--accent-ink); }
 .amk-ws-primary:hover { background: var(--amk-ui-b); color: var(--accent-ink); }
-.amk-ws-close { width: var(--control-h-sm); padding: 0; font-size: 17px; line-height: 1; color: var(--danger); }
+.amk-ws-close { width: var(--control-h-sm); padding: 0; display: inline-grid; place-items: center; color: var(--danger); }
+.amk-ws-close svg { display: block; }
 .amk-ws-status { font-size: 11px; color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amk-ws-status.ok { color: var(--ok); }
 .amk-ws-status.err { color: var(--danger); }
@@ -981,7 +982,8 @@ img.amk-empty-logo {
 .amk-ws-empty { padding: var(--space-6); text-align: center; font-size: 12.5px; color: var(--muted); }
 
 @media (max-width: 900px) {
-  .amk-ws-body { grid-template-columns: 1fr; grid-template-rows: 45% 1fr; }
+  /* Each half keeps a usable height; on a short window the body scrolls instead of squeezing the conversation to a sliver. */
+  .amk-ws-body { grid-template-columns: 1fr; grid-template-rows: minmax(360px, 55%) minmax(280px, 1fr); overflow-y: auto; }
   .amk-ws-convo { border-right: none; border-bottom: 1px solid var(--amk-line); }
 }
 

@@ -968,7 +968,7 @@ const FinanceMode = (() => {
             <span class="fin-file-name">${escHtml(f.name)}</span>
             <span class="fin-file-meta">${escHtml(meta)}</span>
           </span>
-          <button class="fin-file-remove" type="button" data-remove-file="${i}" title="Remove file" aria-label="Remove ${escHtml(f.name)}">×</button>
+          <button class="fin-file-remove" type="button" data-remove-file="${i}" title="Remove file" aria-label="Remove ${escHtml(f.name)}"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>`;
     }).join("");
   }
