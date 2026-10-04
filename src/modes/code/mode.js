@@ -991,7 +991,7 @@
         const stopBtn = $('cdrStopBtn');
         if (runBtn)  runBtn.style.display = 'none';
         if (stopBtn) stopBtn.style.display = '';
-        runAbort = new AbortController();
+        runAbort = new AbortController(); sharedState.runBegan = Date.now();
         runSingleTurn(runAbort.signal).catch(() => {}).finally(() => {
           if (runBtn)  runBtn.style.display = '';
           if (stopBtn) stopBtn.style.display = 'none';
@@ -1007,7 +1007,7 @@
 
     /** The live line while the model works: what it is doing, how long, and its words as they arrive (js/code/live.js). */
     function appendThinking(contentEl, now = {}) {   // `now`: the step that just ended, or that the answer is being checked (js/code/live.js)
-      return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages, ...now }) : null;
+      return contentEl ? window.HCCodeLive.start(contentEl, { render: renderMarkdown, scroll: scrollMessages, began: sharedState.runBegan, ...now }) : null;   // its clock counts from when the request was sent
     }
 
     /** One step of a run, a tool call or a file change alike, kept in view (js/code/steps.js). */
@@ -2110,7 +2110,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const taskInput = $('cdrTaskInput');
       const task = taskInput?.value?.trim();
       if (!task) { taskInput?.focus(); return; }
-      routing = null;   // each run starts again from the model chosen (js/code/router.js)
+      routing = null; sharedState.runBegan = Date.now();   // each run starts again from the model chosen (js/code/router.js), and its clock from now
 
       // Clear input and resize
       taskInput.value = '';

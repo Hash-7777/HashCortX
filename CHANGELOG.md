@@ -612,20 +612,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   HashCoder's Permissions section now points to the menu beside Run, where
   Manual, Accept edits and Auto are chosen.
 
-- **The sign that HashCoder is working says what it is doing.** The turning
-  ring and the shimmering "Thinking" are gone. Five small marks with a
-  diamond among them move beside a label that follows what has happened: it
-  thinks, thinks it through when the model's own thinking arrives, writes
-  when its words arrive, chooses the next step while a call is written, and
-  after a step it says what it is reading ("Studying app.js", "Reading the
-  output of npm test", "Reading the search results", "Working out what went
-  wrong" after a failed step), or that it is checking its work. Each has a
-  movement of its own: a slow swell, a light running along, quick,
-  drawn together, the diamond turning. The marks move by transform and
-  opacity alone, on five marks, stand still for someone who asked for less
-  motion, and are not among the decorations that rest after a minute without
-  a mouse, since they report state. A second look at the changes, which is a
-  model call with nothing else on the screen, shows the line too
+- **The sign that HashCoder is working says what it is doing, and for how
+  long the request has taken.** The turning ring and the shimmering
+  "Thinking" are gone. A small mesh of dots, five across and three down on
+  faint hairlines, moves beside a label that follows what has happened: it
+  thinks (more slowly once the model's own thinking arrives), writes when
+  its words arrive, chooses the next step while a call is written, and after
+  a step it says what it is reading ("Studying app.js", "Reading the output
+  of npm test", "Reading the search results", "Working out what went wrong"
+  after a failed step), or that it is checking its work. Each has a movement
+  of its own: a wave crossing the mesh, a light sweeping along it, quicker,
+  drawn to the centre, rings from the centre. The clock beside it counts from
+  the moment the request was sent until the answer, not from each step. The
+  dots move by transform and opacity alone, stand still for someone who asked
+  for less motion, and are not among the decorations that rest after a minute
+  without a mouse, since they report state. A second look at the changes,
+  which is a model call with nothing else on the screen, shows the line too
   (`js/code/live.js`).
 
 - **The HashCoder benchmark can run each task more than once.** One run of

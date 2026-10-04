@@ -41,7 +41,7 @@ console.log('\nWhat the line says, from what has happened:');
 {
   const P = (o) => L.phaseOf(o);
   ok('before anything has happened it thinks', P({}).phase === 'thinking' && P({}).label === 'Thinking');
-  ok('its own thinking arriving is thinking it through', P({ thinking: true }).phase === 'reasoning' && P({ thinking: true }).label === 'Thinking it through');
+  ok('its own thinking arriving is still said as thinking, and moves more slowly', P({ thinking: true }).phase === 'reasoning' && P({ thinking: true }).label === 'Thinking');
   ok('words arriving are writing', P({ text: 'I will' }).phase === 'writing' && P({ text: 'I will' }).label === 'Writing');
   ok('a call being written is choosing the next step, and not shown as words', P({ text: '{"name": "read_file"' }).phase === 'choosing' && P({ text: '{"name": "read_file"' }).label === 'Choosing the next step');
   ok('words win over thinking, and a check over neither', P({ text: 'x', thinking: true }).phase === 'writing' && P({ checking: true }).phase === 'checking' && P({ checking: true, thinking: true }).phase === 'reasoning');
@@ -76,12 +76,17 @@ console.log('\nHow long a wait reads:');
   ok('seconds', L.elapsed(7400) === '7s');
   ok('minutes and seconds', L.elapsed(65000) === '1m 05s' && L.elapsed(600000) === '10m 00s');
   ok('nothing is not negative', L.elapsed(-5) === '0s' && L.elapsed(undefined) === '0s');
+  const live = src('js', 'code', 'live.js'), mode = src('modes', 'code', 'mode.js');
+  ok('the clock counts from when the request was sent, and shows that from its first frame', /began: since = null \} = \{\}\) \{\n    const began = Number\.isFinite\(since\) && since > 0 && since <= Date\.now\(\) \? since : Date\.now\(\);/.test(live)
+    && /aria-hidden="true">\$\{elapsed\(Date\.now\(\) - began\)\}<\/span>/.test(live));
+  ok('every live line of a request is given that moment, set as the request is sent and as a reply is asked for again', /HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, began: sharedState\.runBegan, \.\.\.now \}\)/.test(mode)
+    && /routing = null; sharedState\.runBegan = Date\.now\(\);/.test(mode) && /runAbort = new AbortController\(\); sharedState\.runBegan = Date\.now\(\);/.test(mode));
 }
 
 console.log('\nThe words reach it as they are written:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl, now = \{\}\) \{[^\n]*\n\s*return contentEl \? window\.HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, \.\.\.now \}\)/.test(mode));
+  ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl, now = \{\}\) \{[^\n]*\n\s*return contentEl \? window\.HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, began: sharedState\.runBegan, \.\.\.now \}\)/.test(mode));
   ok('after tools run it is told which step ended last, and after a note from the app that it is checking', /appendThinking\(contentEl, \{ after: window\.HCCodeLive\.afterOf\(turn\.tool_calls, results, toolObject\) \}\)/.test(mode) && /appendThinking\(contentEl, \{ checking: true \}\);\n\s+continue;/.test(mode));
   ok('a second look, which is a model call with nothing else on screen, has the line, and takes it away however it ends', /const wait = appendThinking\(contentEl, \{ checking: true \}\);/.test(mode) && /finally \{ wait\?\.remove\(\); \}/.test(mode));
   ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
@@ -107,17 +112,21 @@ console.log('\nThe words reach it as they are written:');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
 }
 
-console.log('\nThe marks:');
+console.log('\nThe mesh:');
 {
   const live = src('js', 'code', 'live.js');
   const css = src('modes', 'code', 'mode.css');
-  ok('five marks, hidden from a screen reader, beside a label read out as a status', /role="status"><span class="cdr-marks" aria-hidden="true"><i><\/i><i><\/i><i><\/i><i><\/i><i><\/i><\/span>/.test(live));
+  ok('fifteen dots, hidden from a screen reader, beside a label read out as a status', /const MESH = `<span class="cdr-marks" aria-hidden="true">\$\{'<i><\/i>'\.repeat\(15\)\}<\/span>`/.test(live) && /role="status">\$\{MESH\}/.test(live));
+  ok('five across and three down, on hairlines through their middles that do not move', /\.cdr-marks \{[^}]*grid-template-columns: repeat\(5, 3px\); grid-auto-rows: 3px; gap: 3px;/.test(css)
+    && /\.cdr-marks::before \{[^}]*inset: 1px;[^}]*repeating-linear-gradient\(to right, var\(--accent\) 0 1px, transparent 1px 6px\), repeating-linear-gradient\(to bottom, var\(--accent\) 0 1px, transparent 1px 6px\)/.test(css)
+    && !/\.cdr-marks::before \{[^}]*animation/.test(css));
+  ok('each dot knows its column, its row and its ring from the centre, and the centre is the second accent', /nth-child\(5n\+2\) \{ --c: 1; \}/.test(css) && /nth-child\(5n\) \{ --c: 4; --ring: 2; \}/.test(css) && /nth-child\(n\+11\) \{ --r: 2; \}/.test(css) && /nth-child\(8\) \{ --ring: 0; background: var\(--accent-2\); \}/.test(css));
   ok('the clock, which changes every second, is not read out', /class="cdr-live-time" aria-hidden="true"/.test(live));
   ok('a movement for each thing it can be doing', ['reasoning', 'reading', 'writing', 'choosing', 'checking'].every((p) => new RegExp(`\\.cdr-live\\[data-phase="${p}"\\]`).test(css)));
-  const frames = [...css.matchAll(/@keyframes (cdr-(?:swell|scan|gather|turn)[\w-]*) \{((?:[^{}]|\{[^{}]*\})*)\}/g)];
-  ok('all of them are keyframes of the marks', frames.length === 7, frames.map((f) => f[1]).join());
+  const frames = [...css.matchAll(/@keyframes (cdr-(?:wave|sweep|gather|ring)) \{((?:[^{}]|\{[^{}]*\})*)\}/g)];
+  ok('a wave, a sweep, a gathering and rings: the keyframes of the mesh', frames.length === 4, frames.map((f) => f[1]).join());
   ok('which change transform and opacity and nothing else, so the page does no layout or paint for them', frames.every(([, , body]) => [...body.matchAll(/([a-z-]+)\s*:/g)].every((m) => ['opacity', 'transform'].includes(m[1]))));
-  ok('only the marks animate, five of them', (css.match(/\.cdr-marks i[^{]*\{[^}]*animation/g) || []).length >= 5 && !/filter:|box-shadow:[^;}]*;[^}]*animation/.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
+  ok('only the dots animate, timed from where each one is', (css.match(/\.cdr-marks i[^{]*\{[^}]*animation/g) || []).length >= 5 && /animation-delay: calc\(\(var\(--c\) \+ var\(--r\)\) \* 0\.12s\)/.test(css) && /animation-delay: calc\(var\(--ring\) \* 0\.16s\)/.test(css) && !/filter:|box-shadow:[^;}]*;[^}]*animation/.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
   ok('they stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
   ok('it reports state, so it is not one of the decorations that rest', !/cdr-live|cdr-marks/.test(src('js', 'power.js')) && !/cdr-live|cdr-marks/.test(src('css', 'base.css')));
   ok('and uses no colour of its own but the theme\'s', !/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));

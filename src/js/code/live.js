@@ -9,15 +9,18 @@
 // says comes from what has happened, not from a timer: the step that just
 // ended, the model's own thinking arriving, its words arriving, a call being
 // written. A tool call being written is not shown as text, since it is not
-// words for the person. It is the one sign of work in the panel: five small
-// marks in a row, a diamond among them, that move the way of what is going
-// on (a slow swell for thinking, a light running along for reading, quick
-// for writing, drawn together for choosing, the diamond turning for checking)
-// beside the words that say it.
+// words for the person. It is the one sign of work in the panel: a small
+// mesh of dots, five across and three down on faint hairlines, its centre
+// in the second accent, that moves the way of what is going on (a wave
+// crossing it for thinking, slower while the model's own thinking arrives,
+// a light sweeping along for reading, quicker for writing, drawn to the
+// centre for choosing, rings from the centre for checking) beside the words
+// that say it. The clock beside it counts from the moment the request was
+// sent, not from the step, so it says how long the whole request has taken.
 //
 // It reports state, so it is not one of the decorations that rest after a
 // minute without a mouse (js/power.js). It moves by transform and opacity
-// alone, on five marks, and stands still for someone who asked for less
+// alone, on fifteen dots, and stands still for someone who asked for less
 // motion.
 //
 // When the turn ends the caller decides what stays: the words the model said
@@ -103,7 +106,7 @@
    */
   function phaseOf({ text = '', thinking = false, after = null, checking = false } = {}) {
     if (text) return looksLikeCalls(text) ? { phase: 'choosing', label: 'Choosing the next step' } : { phase: 'writing', label: 'Writing' };
-    if (thinking) return { phase: 'reasoning', label: 'Thinking it through' };
+    if (thinking) return { phase: 'reasoning', label: 'Thinking' };
     if (checking) return { phase: 'checking', label: 'Checking its work' };
     if (after && after.tool) {
       if (after.failed) return { phase: 'reading', label: 'Working out what went wrong' };
@@ -135,22 +138,26 @@
     return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
   }
 
+  /** The mesh: fifteen dots, five across and three down; the stylesheet places and moves them. */
+  const MESH = `<span class="cdr-marks" aria-hidden="true">${'<i></i>'.repeat(15)}</span>`;
+
   /**
    * Start the line in `container`. `render(text)` gives the HTML for words,
-   * `scroll()` keeps the newest in view. Returns the handle the loop passes
-   * to the model call (text, thinking, reset) and ends with finish(kept).
+   * `scroll()` keeps the newest in view, `began` is when the request was
+   * sent (now, when not given). Returns the handle the loop passes to the
+   * model call (text, thinking, reset) and ends with finish(kept).
    */
-  function start(container, { render = (t) => t, scroll = () => {}, after = null, checking = false } = {}) {
+  function start(container, { render = (t) => t, scroll = () => {}, after = null, checking = false, began: since = null } = {}) {
+    const began = Number.isFinite(since) && since > 0 && since <= Date.now() ? since : Date.now();
     const el = document.createElement('div');
     el.className = 'cdr-live';
-    el.innerHTML = '<div class="cdr-live-status" role="status"><span class="cdr-marks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
-      '<span class="cdr-live-label"></span><span class="cdr-live-time" aria-hidden="true">0s</span></div>' +
+    el.innerHTML = `<div class="cdr-live-status" role="status">${MESH}` +
+      `<span class="cdr-live-label"></span><span class="cdr-live-time" aria-hidden="true">${elapsed(Date.now() - began)}</span></div>` +
       '<div class="cdr-live-text cdr-msg-text" hidden></div>';
     container.appendChild(el);
     const labelEl = el.querySelector('.cdr-live-label');
     const timeEl = el.querySelector('.cdr-live-time');
     const textEl = el.querySelector('.cdr-live-text');
-    const began = Date.now();
     let text = '';
     let reasoning = false;
     let frame = 0;

@@ -246,7 +246,7 @@ console.log('\nThe Coder is wired to it:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the run is routed by the shared routing, with the model chosen first', /window\.HCCodeRouter\.create\(\{/.test(mode) && /failover: window\.HCChatFailover, routes: window\.HCModelRoutes/.test(mode));
   ok('the panel keeps no list of providers or chain of its own', !/ROUTER_FALLBACKS|buildRouterChain|sortChainByQuality|_routerStreaks|withFallbacks/.test(mode));
-  ok('each run starts again from the model chosen', /routing = null;\s*\/\/ each run starts again from the model chosen/.test(mode));
+  ok('each run starts again from the model chosen', /routing = null;[^\n]*\/\/ each run starts again from the model chosen/.test(mode));
   ok('a move and a model found gone are said in the conversation and the trace', /routeNotice = \(text\) => \{[\s\S]{0,260}cdrTraceAdd\('Model', text, 'warn'\)[\s\S]{0,200}HCCodeSteps\.add\(activeContentEl/.test(mode));
   ok('the picker stops offering a model that is gone', /isRetired\(opt\.value\)/.test(mode) && /populateModelPicker\(\)/.test(mode));
   const boot = src('boot.js');
