@@ -128,6 +128,17 @@
     },
 
     /**
+     * The pending changes one conversation made: those whose ids it kept
+     * (`ids`), and, for a conversation saved before ids were kept, every one
+     * saved before it was put away (`upTo`, a time in ms). A change belongs
+     * to the conversation that made it, so a new one starts with none.
+     */
+    ofSession(list, { ids = [], upTo = 0 } = {}) {
+      const own = new Set(Array.isArray(ids) ? ids : []);
+      return (Array.isArray(list) ? list : []).filter((r) => r && (own.has(r.id) || (upTo > 0 && Date.parse(r.saved_at) <= upTo)));
+    },
+
+    /**
      * The full record for an id, contents and all.
      *
      * Fetched when someone asks to see or undo a change, rather than for every

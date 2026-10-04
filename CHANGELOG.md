@@ -947,6 +947,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A new HashCoder conversation starts with no files from the last one.**
+  Every change still waiting to be kept or undone was drawn into the
+  conversation a launch starts, and New chat left the files the last
+  conversation changed in the file panel's Session files. Each conversation
+  now keeps which changes it made, and opening it again from Sessions shows
+  those still waiting, with Keep and Undo; a conversation saved before this
+  shows those saved before it was put away. A new conversation, and one
+  opened from Sessions, list only the files they change
+  (`platform/tauri/undo.js` ofSession).
+
 - **HashCoder follows an answer only while you are at the end of it.** The
   conversation was moved to its last line on every frame of an answer, and
   the whole answer was drawn again each frame, so scrolling up to read

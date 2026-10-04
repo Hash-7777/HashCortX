@@ -190,9 +190,9 @@ console.log('\nThe run\'s own facts, kept with its conversation:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the facts are taken as each run ends and saved with the conversation', /sharedState\.lastRun = window\.HCCodeDebug\.runFacts\(\{ routing, coderModel, sharedState, H: window\._H, temperature: HC\?\.code\?\.temperatureFor/.test(mode)
     && /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries,/.test(mode));
-  ok('a session keeps them, and opening one again brings them back', /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries\.slice\(-300\) \}/.test(mode)
+  ok('a session keeps them, and opening one again brings them back', /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries\.slice\(-300\),/.test(mode)
     && /conversationMsgs = session\.msgs\.slice\(\); sharedState\.lastRun = session\.run \|\| null; cdrTraceEntries = Array\.isArray\(session\.trace\)/.test(mode));
-  ok('the conversation kept at launch takes its own into Sessions, and a new one starts with none', /sharedState\.lastRun = state\.run \|\| null; cdrTraceEntries = Array\.isArray\(state\.trace\) \? state\.trace : \[\]; conversationMsgs = state\.chatHistory; saveCurrentSession\(\); conversationMsgs = \[\]; sharedState\.lastRun = null; cdrTraceEntries = \[\];/.test(mode)
+  ok('the conversation kept at launch takes its own into Sessions, and a new one starts with none', /sharedState\.lastRun = state\.run \|\| null; cdrTraceEntries = Array\.isArray\(state\.trace\) \? state\.trace : \[\]; conversationMsgs = state\.chatHistory; saveCurrentSession\(\); conversationMsgs = \[\]; sharedState\.lastRun = null; cdrTraceEntries = \[\];/.test(mode.replace(/ sharedState\.change(?:Ids|sUpTo) = [^;]+;/g, ''))
     && /activeContentEl = null; sharedState\.lastRun = null; cdrTraceEntries = \[\];/.test(mode));
   ok('the export is handed them', /exportRun\(\{ messages: conversationMsgs, trace: cdrTraceEntries, run: sharedState\.lastRun,/.test(mode));
 }

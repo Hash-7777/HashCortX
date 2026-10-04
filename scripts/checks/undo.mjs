@@ -187,7 +187,7 @@ console.log('\nThe file is recorded as the change left it:');
   ok('a record with no id is left alone, and a failure never throws', threw === null && calls.filter(c => c.name === 'checkpoint_seal').length === 1);
 }
 
-console.log('\nChanges left from a last session are one row a file:');
+console.log('\nChanges left waiting are one row a file:');
 {
   const { undo } = load();
   const list = [
@@ -204,7 +204,28 @@ console.log('\nChanges left from a last session are one row a file:');
   ok('nothing gives nothing', undo.byFile([]).length === 0 && undo.byFile(null).length === 0);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   ok('the Coder draws them by file, and undoes a file newest change first',
-    /HC\.undo\.byFile\(await HC\.undo\.pending\(\)\)/.test(mode) && /for \(const r of summary\.records\) await HC\.undo\.restore\(r, \{ ask: askUndo \}\);/.test(mode));
+    /HC\.undo\.byFile\(HC\.undo\.ofSession\(await HC\.undo\.pending\(\), session\)\)/.test(mode) && /for \(const r of summary\.records\) await HC\.undo\.restore\(r, \{ ask: askUndo \}\);/.test(mode));
+}
+
+console.log('\nA change waiting belongs to the conversation that made it:');
+{
+  const { undo } = load();
+  const list = [
+    { id: 'a1', path: '/p/a.html', saved_at: '2026-10-01T10:00:00+00:00' },
+    { id: 'b1', path: '/p/b.html', saved_at: '2026-10-02T10:00:00+00:00' },
+    { id: 'c1', path: '/p/c.html', saved_at: '2026-10-03T10:00:00+00:00' },
+  ];
+  ok('its own ids pick out its own changes', undo.ofSession(list, { ids: ['b1'] }).map((r) => r.id).join() === 'b1');
+  ok('a conversation saved before ids were kept takes those saved before it was put away', undo.ofSession(list, { upTo: Date.parse('2026-10-02T12:00:00+00:00') }).map((r) => r.id).join() === 'a1,b1');
+  ok('a new conversation has none', undo.ofSession(list, {}).length === 0 && undo.ofSession(list).length === 0 && undo.ofSession(null, { ids: ['a1'] }).length === 0);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('nothing waiting is drawn into the conversation a launch starts', !/restorePendingChanges\(\)\.catch/.test(mode) && mode.split('\n').filter((l) => !/^\s*(?:\/\/|\*)/.test(l) && /restorePendingChanges\(/.test(l)).length === 2);
+  ok('each change made is kept as the conversation\'s own, saved with it, and shown when its session is opened', /if \(checkpoint\?\.id\) \(sharedState\.changeIds = sharedState\.changeIds \|\| \[\]\)\.push\(checkpoint\.id\);/.test(mode)
+    && /changes: sharedState\.changeIds \|\| \[\],/.test(mode) && /changes: sharedState\.changeIds \|\| \[\], changesUpTo: sharedState\.changesUpTo \|\| 0 \}/.test(mode)
+    && /restorePendingChanges\(\{ ids: sharedState\.changeIds, upTo: sharedState\.changesUpTo \}\)/.test(mode));
+  ok('the conversation kept at launch takes its changes, or for an older one the time it was put away', /sharedState\.changeIds = Array\.isArray\(state\.changes\) \? state\.changes : \[\]; sharedState\.changesUpTo = Array\.isArray\(state\.changes\) \? 0 : Date\.now\(\);/.test(mode));
+  ok('a new conversation, and one opened from Sessions, list only the files they change', /function clearSessionFiles\(\) \{ _aiSessionFiles\.clear\(\); document\.getElementById\('cdrAISessionSection'\)\?\.remove\(\); \}/.test(mode)
+    && /sharedState\.changeIds = \[\]; sharedState\.changesUpTo = 0; clearSessionFiles\(\);/.test(mode) && /sharedState\.changesUpTo = session\.changesUpTo \|\| 0; clearSessionFiles\(\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/undo.js)`);

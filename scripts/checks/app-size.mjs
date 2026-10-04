@@ -762,7 +762,10 @@ const LINE_BUDGET = {
   // restore of the last one is gone.
   // 2482, down one: following the answer as it is written is decided by
   // js/code/follow.js, which the panel calls.
-  'modes/code/mode.js': 2482,
+  // 2476, down six: a change waiting to be kept or undone is shown with the
+  // session that made it, picked out by platform/tauri/undo.js ofSession, and
+  // the comment on rebuilding the rows says it in fewer lines.
+  'modes/code/mode.js': 2476,
 };
 
 console.log('\nFile sizes go down, never up:');

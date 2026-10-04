@@ -170,7 +170,7 @@ Restoring goes back out through `fs_write_file`, which means an undo passes the 
 
 Checkpoints hold file contents from your project, in your home directory, in plain text. On macOS and Linux the whole `~/.hashcortx` folder is readable by your account only: the app makes it that way when it creates it, and at every launch (`src-tauri/src/security/private_dir.rs`). Windows keeps a profile folder private to its account already. Checkpoints are removed when you keep a change, when you undo one, and **after seven days if you never answered it**.
 
-A copy is not kept for good when a change goes unanswered. HashCoder lists changes left over from your last session when it opens, so an Undo outlives the run that offered it, and anything still unanswered a week later is deleted (`MAX_CHECKPOINT_AGE_DAYS` in `src-tauri/src/commands/checkpoint.rs`).
+A copy is not kept for good when a change goes unanswered. Each conversation keeps which changes it made, and opening it again from Sessions lists those still waiting, so an Undo outlives the run that offered it; a new conversation lists none. Anything still unanswered a week later is deleted (`MAX_CHECKPOINT_AGE_DAYS` in `src-tauri/src/commands/checkpoint.rs`).
 
 HashCoder's saved session carries no file contents: the undo history on disk is the record. Of a picture attached to a request it keeps only a small preview, so the conversation still shows it, in the app's own storage and within a fixed budget (`src/js/code/attach.js`); the picture sent to the model is not kept.
 

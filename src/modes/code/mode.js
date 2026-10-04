@@ -303,6 +303,7 @@
           homeDir: sharedState.homeDir,
           chatHistory: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs,   // pictures are not kept
           activeFile: sharedState.activeFile, run: sharedState.lastRun || null, trace: cdrTraceEntries,   // the last run's facts and trace, for an export (js/code/debug-export.js)
+          changes: sharedState.changeIds || [],   // the changes this conversation made, shown with it when it is opened again
           ts: Date.now(),
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -324,7 +325,7 @@
           renderExplorerTree(state.projectRoot).catch(() => {});
         }
         // A new launch starts a new conversation: the last is kept in Sessions and the project stays open (leaving HashCoder and coming back never comes here).
-        if (Array.isArray(state.chatHistory) && state.chatHistory.length) { sharedState.lastRun = state.run || null; cdrTraceEntries = Array.isArray(state.trace) ? state.trace : []; conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; sharedState.lastRun = null; cdrTraceEntries = []; saveCoderState(); }
+        if (Array.isArray(state.chatHistory) && state.chatHistory.length) { sharedState.lastRun = state.run || null; cdrTraceEntries = Array.isArray(state.trace) ? state.trace : []; sharedState.changeIds = Array.isArray(state.changes) ? state.changes : []; sharedState.changesUpTo = Array.isArray(state.changes) ? 0 : Date.now(); conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; sharedState.lastRun = null; cdrTraceEntries = []; sharedState.changeIds = []; sharedState.changesUpTo = 0; saveCoderState(); }
       } catch (e) { console.warn('[CoderMode] restore state failed:', e); }
     }
     function clearCoderState() {
@@ -379,12 +380,7 @@
       wireWelcome();
       // Files and pictures attached to the next request — js/code/attach.js.
       window.HCCodeAttach?.mount({ panel: $('coder-mode-wrap'), input: $('cdrTaskInput'), button: $('cdrAttachBtn'), picker: $('cdrAttachInput'), list: $('cdrAttachList'), model: () => coderModel || window._H?.selectedModel?.() || '' });
-      restoreCoderState();
-      // Deliberately NOT inside restoreCoderState: that returns early when there
-      // is no saved session, and a change waiting to be kept or undone has
-      // nothing to do with whether the last conversation was saved. Reading the
-      // records is the whole point — they are the part that survives.
-      restorePendingChanges().catch((e) => console.warn('[CoderMode] pending changes:', e));
+      restoreCoderState();   // a change waiting to be kept or undone is shown with the session that made it (restoreSession), never in a new one
       syncTerminalPrompt();
       updateCoderStatus();
     }
@@ -737,6 +733,8 @@
       setStatus('Files cleared', 'ok');
     }
 
+    // A new conversation, or one opened from Sessions, lists only the files it changes.
+    function clearSessionFiles() { _aiSessionFiles.clear(); document.getElementById('cdrAISessionSection')?.remove(); }
     function addAIFileToExplorer(filePath, kind) {
       if (!filePath || typeof filePath !== 'string') return;
       if (_aiSessionFiles.has(filePath)) return;
@@ -1082,7 +1080,7 @@
       const now = new Date();
       const date = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
                    now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice(), run: sharedState.lastRun || null, trace: cdrTraceEntries.slice(-300) };
+      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice(), run: sharedState.lastRun || null, trace: cdrTraceEntries.slice(-300), changes: sharedState.changeIds || [], changesUpTo: sharedState.changesUpTo || 0 };
       const sessions = loadSessions();
       sessions.unshift(session);
       saveSessions(sessions);
@@ -1158,7 +1156,9 @@
       if (!session?.msgs?.length) return;
       $('cdrSessionsPanel')?.classList.remove('open');
       conversationMsgs = session.msgs.slice(); sharedState.lastRun = session.run || null; cdrTraceEntries = Array.isArray(session.trace) ? session.trace : [];   // what an export says of it
+      sharedState.changeIds = Array.isArray(session.changes) ? session.changes.slice() : []; sharedState.changesUpTo = session.changesUpTo || 0; clearSessionFiles();
       renderConversation();
+      restorePendingChanges({ ids: sharedState.changeIds, upTo: sharedState.changesUpTo }).catch((e) => console.warn('[CoderMode] pending changes:', e));   // its changes still waiting, with it
       setStatus('Ready', '');
     }
 
@@ -1394,7 +1394,7 @@
     function clearChat() {
       saveCurrentSession();
       conversationMsgs = [];
-      activeContentEl = null; sharedState.lastRun = null; cdrTraceEntries = [];
+      activeContentEl = null; sharedState.lastRun = null; cdrTraceEntries = []; sharedState.changeIds = []; sharedState.changesUpTo = 0; clearSessionFiles();
       // Clear what is on DISK too, not just what is in memory.
       //
       // Without this, "New chat" emptied the screen while localStorage still
@@ -1594,8 +1594,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       setTimeout(() => setStatus('Ready', ''), 2400);
     }
 
-    // Shared by the rows drawn as the agent works and the rows drawn for changes
-    // left over from a previous session.
+    // Shared by the rows drawn as the agent works and those of a session opened again.
     const CHANGE_ICONS = {
       svgAccept: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
       svgReject: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
@@ -1606,28 +1605,22 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     const askUndo = (message) => window._H.themedConfirm(message, 'Undo');
 
     /**
-     * Draw the changes left unanswered when the app last closed.
-     *
-     * Keep and Undo only ever existed for the run that made the change: the row
-     * lives in the message list, and the record it acts on lived in a map in
-     * memory. Both went at shutdown, while the saved copy of the file stayed on
-     * disk — so a change the user had not answered became one they could no
-     * longer undo, and the copy sat in the home directory for good.
-     *
-     * The records themselves are the durable part, so they are what the list is
-     * rebuilt from. Summaries only; the contents are fetched if someone asks.
+     * Draw the changes a conversation opened from Sessions left unanswered
+     * (`session`: its change ids, or for an older one a time, HC.undo.ofSession).
+     * The records on disk are the durable part, so the rows are rebuilt from
+     * them. Summaries only; the contents are fetched if someone asks.
      */
-    async function restorePendingChanges() {
+    async function restorePendingChanges(session) {
       const msgs = $('cdrMessages');
       if (!msgs || !HC?.undo?.pending) return;
       // One row a file, however many times it was changed (platform/tauri/undo.js byFile).
-      const pending = HC.undo.byFile(await HC.undo.pending());
+      const pending = HC.undo.byFile(HC.undo.ofSession(await HC.undo.pending(), session));
       if (!pending.length) return;
 
       const { svgAccept, svgReject } = CHANGE_ICONS;
       const group = document.createElement('div');
       group.className = 'cdr-change-group';
-      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} file${pending.length === 1 ? '' : 's'} changed in your last session \u2014 keep or undo</div>`;
+      group.innerHTML = `<div class="cdr-change-group-title">${pending.length} file${pending.length === 1 ? '' : 's'} changed in this session and waiting \u2014 keep or undo</div>`;
 
       for (const summary of pending) {
         const name = baseName(summary.path);
@@ -1705,6 +1698,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // What the file held before this change. Captured by HC.code.undo at the
       // moment of the write, which is the only point where it still exists.
       const checkpoint = HC?.undo?.lastFor(path) || null;
+      if (checkpoint?.id) (sharedState.changeIds = sharedState.changeIds || []).push(checkpoint.id);   // the conversation's own, shown with it when opened again
       const canUndo = !!HC?.undo?.canRestore(checkpoint);
       const target = activeContentEl || $('cdrMessages')?.querySelector('.cdr-msg.assistant:last-of-type .cdr-msg-content');
       if (!target) return;
