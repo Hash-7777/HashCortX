@@ -27,22 +27,15 @@
   //
   // Every number here is in PHYSICAL pixels, the unit the window commands
   // speak, and every check is made against the monitors' WORK AREAS: the screen
-  // minus the taskbar. Three things went wrong before, each only on a screen
-  // smaller than the one the app was written on:
+  // minus the taskbar.
   //
-  //   · The size was capped at the work area, but the cap was applied to the
-  //     INNER size. The title bar and the frame sit outside it, so on a 1366 x
-  //     768 laptop the window came out 32 px taller than the space it had, with
-  //     its title bar above the top edge of the screen. The cap now measures
-  //     the frame and caps the whole window.
-  //   · A saved position was never checked. One saved on a monitor that is no
-  //     longer plugged in put the window where nothing could show it, and a
-  //     position read while the window was minimized (Windows reports -32000,
-  //     -32000 for it) did the same. A position is used only when the title bar
-  //     would be on a screen; otherwise the window is centered.
-  //   · Maximized was not remembered at all, and the position was saved by a
-  //     three-second poll that only ran while the window had focus, so a window
-  //     closed soon after a move came back where it had been before it.
+  //   · The size is capped at the work area counting the title bar and the
+  //     frame, which sit outside the inner size, so the whole window fits.
+  //   · A saved position is used only when its title bar would be on a screen
+  //     that exists (a monitor can be unplugged, and a minimized window is
+  //     reported at an off-screen position); otherwise the window is centered.
+  //   · Maximized is remembered, and the position and size are saved when the
+  //     window moves or is resized.
   //
   // The first window a person ever sees is a little smaller than their screen
   // rather than the whole of it: an ordinary window, not a maximized one that

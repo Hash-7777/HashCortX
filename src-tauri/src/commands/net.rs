@@ -94,7 +94,7 @@ fn is_private_v6(ip: &Ipv6Addr) -> bool {
     }
     // Other ways to carry an IPv4 address inside an IPv6 one. A network that
     // translates them delivers the packet to the IPv4 address, so that is the
-    // address to judge: 64:ff9b::a9fe:a9fe is 169.254.169.254.
+    // address to judge.
     let v4_of = |hi: u16, lo: u16| Ipv4Addr::new((hi >> 8) as u8, hi as u8, (lo >> 8) as u8, lo as u8);
     // NAT64, the well-known prefix 64:ff9b::/96 (the address in the last 32 bits).
     if seg[0] == 0x64 && seg[1] == 0xff9b && seg[2..6].iter().all(|s| *s == 0) {
@@ -423,13 +423,12 @@ fn pinned_agent(host: &str, addresses: Vec<IpAddr>, port: u16) -> Agent {
         // request but a PANIC on the first https address, inside a command the
         // renderer called. The crate is built against the platform's own TLS.
         //
-        // And trust what the computer trusts. Left alone, the client brings a
-        // fixed list of roots of its own, which REPLACES the system's: a page
-        // whose certificate chain ends anywhere else (Google's and Cloudflare's
-        // pages on Windows, a school or office network that inspects HTTPS) was
-        // refused as "unable to find any user-specified roots". Reading a page
-        // sends nothing private, so the system's own judgement is the right one;
-        // an expired or self-signed certificate is still refused.
+        // And trust what the computer trusts. The client's own default is a
+        // fixed list of roots that replaces the system's; here the system's
+        // are used, so a page whose certificate chain ends in a root the
+        // computer has is read, including on a network that inspects HTTPS.
+        // Reading a page sends nothing private. An expired or self-signed
+        // certificate is still refused.
         .tls_config(
             TlsConfig::builder()
                 .provider(TlsProvider::NativeTls)

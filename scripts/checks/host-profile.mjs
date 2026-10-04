@@ -214,17 +214,17 @@ console.log('\nThe window opens where a person can reach it, and where it was le
     vm.createContext(box);
     const plan = vm.runInContext(`(() => { ${fn[0]} return planWindow; })()`, box);
 
-    // The machine the report came from: a 1366x768 panel with a taskbar and no
-    // scaling. Windows draws a title bar and a frame around the content, so
-    // the window is 16 px wider and 39 px taller than the page inside it.
+    // A small laptop: a 1366x768 panel with a taskbar and no scaling. Windows
+    // draws a title bar and a frame around the content, so the window is 16 px
+    // wider and 39 px taller than the page inside it.
     const LAPTOP = { areas: [{ x: 0, y: 0, w: 1366, h: 728 }], here: { x: 0, y: 0, w: 1366, h: 728 }, pad: { w: 16, h: 39 }, scale: 1 };
     const outerOf = (r, pad) => ({ x: r.x, y: r.y, w: r.width + pad.w, h: r.height + pad.h });
     const inside = (o, a) => o.x >= a.x && o.y >= a.y && o.x + o.w <= a.x + a.w && o.y + o.h <= a.y + a.h;
     const run = (d, saved, now) => plan({ ...d, saved, now: now || { width: 1380, height: 860 } });
 
-    // THE BUG THIS REPLACED. The cap was taken on the inner size, so the frame
-    // went on top of it: 1366 x 728 of page inside a window 1382 x 767, on a
-    // screen with 1366 x 728 to give. Measured on the machine, not assumed.
+    // The cap is taken on the whole window, frame included: the frame sits
+    // outside the page, so a cap on the page alone leaves the window taller
+    // than the space there is.
     const first = run(LAPTOP, null);
     const firstOuter = outerOf(first, LAPTOP.pad);
     ok('a first launch on a 1366x768 laptop fits the whole window, frame and all',
@@ -268,10 +268,9 @@ console.log('\nThe window opens where a person can reach it, and where it was le
     ok('and so is one far to the left', inside(outerOf(left, LAPTOP.pad), LAPTOP.areas[0]));
     const parked = run(LAPTOP, { x: -32000, y: -32000, width: 1000, height: 600, maximized: false });
     ok('the place Windows parks a minimized window is never used', inside(outerOf(parked, LAPTOP.pad), LAPTOP.areas[0]));
-    // The state the old build saved on this very laptop: a position of
-    // (-8, -19), title bar above the top edge of the screen.
+    // A saved state with the title bar above the top edge of the screen.
     const old = run(LAPTOP, { x: -8, y: -19, width: 1366, height: 705, maximized: false });
-    ok('the position the old build saved, title bar above the screen, is repaired',
+    ok('a saved position with the title bar above the screen is repaired',
       inside(outerOf(old, LAPTOP.pad), LAPTOP.areas[0]) && old.y >= 0, JSON.stringify(old));
     const huge = run(LAPTOP, { x: 0, y: 0, width: 3000, height: 2000, maximized: false });
     ok('a saved size larger than the screen is held to it', inside(outerOf(huge, LAPTOP.pad), LAPTOP.areas[0]));

@@ -453,13 +453,10 @@ fn segments(normalized: &str) -> Vec<Vec<&str>> {
     out
 }
 
-/// A delete that is recursive and does not ask, however it is spelled.
-///
-/// `rd /s /q`, `rd /q /s`, `rd /s/q`, `rd path /s /q`, `del /q /s`,
-/// `del /s /f /q`, `del /f/s/q`, `erase /s /q`, and in PowerShell
-/// `Remove-Item -Force -Recurse`, `ri x -r -fo`, `Remove-Item -Recurse` alone,
-/// and `rd` or `del` given those parameters. The fixed shapes in
-/// `BLOCKED_WINDOWS_COMMANDS` named one order of the switches; this reads them.
+/// A delete that is recursive and does not ask, read from its switches
+/// wherever they stand and however they are shortened: `/s` with `/q` or `/f`
+/// for Command Prompt, and `-Recurse` (or any shortening of it) for
+/// PowerShell, where `rd`, `del` and `erase` are names for `Remove-Item`.
 fn is_windows_delete_destructive(normalized: &str) -> bool {
     segments(normalized).iter().any(|tokens| {
         if !tokens.iter().any(|t| WINDOWS_DELETERS.contains(&program_name(t))) {

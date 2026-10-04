@@ -1,12 +1,11 @@
 // ==============================================================
 // Details about a business that nothing the agent was given or read says
 //
-// Asked for a site for a real shop, a model that could not find the shop's
-// page wrote one anyway: a street number, a year it opened and a set of opening
-// hours that were its own guesses, with the name spelled as it had been typed.
-// All of it read as fact, and some of it was left on the page in square
-// brackets, as if a visitor would know to look past them. Nothing told the
-// person which details were found and which were made up.
+// A model that cannot find a business's own page can still write a page for
+// it, and what it writes then reads as fact: an address, a year, opening
+// hours. Nothing tells the person which details were found and which were
+// guessed, and a line left in square brackets is no better, since a visitor
+// reads it as part of the page.
 //
 // When a run changes a page or a text file, what it holds is read here for the
 // details a visitor takes as fact and could check: an address, a phone number,

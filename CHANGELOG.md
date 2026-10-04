@@ -36,25 +36,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   what Rust refuses outright, and none applies outside a HashCoder run
   (`js/code/permissions.js`, `js/code/permission-bar.js`).
 
-- **HashCoder is sent back when a page states details that nothing it read
-  or was told says.** Asked for a site for a real shop, a model that could
-  not open the shop's own page wrote one anyway: a street number, a year the
-  shop opened and its opening hours were guesses, the name was spelled as it
-  had been typed, and some lines were left on the page in square brackets.
-  Nothing said which details were found and which were made up. When a run
-  changes a page or a text file, what it holds is now read for the details a
-  visitor takes as fact and could check (an address, a phone number, an
-  email, a year it began, how long it has been open, opening hours, a link
-  to an account on a social network) and each is looked for in what the run
-  was told or read: your own words, a page or a search it opened, a note it
-  recalled, a connected system, and a file of the project it had not
-  written itself. A file it wrote earlier is not a source, so a guess read
-  back is not confirmed by being read. A detail found nowhere is sent back to
-  the agent once, to find it, take it out, or say it is a guess; what is
-  still unconfirmed when the run ends is said under the answer, with any
-  line of square brackets still on the page. When a picture was attached,
-  what it shows cannot be searched, so only the brackets are held against
-  the run (`js/code/facts.js`).
+- **HashCoder is sent back when a page it wrote states details that
+  nothing it read or was told says.** When a run changes a page or a text
+  file, what it holds is read for the details a visitor takes as fact and
+  could check: an address, a phone number, an email, a year it began, how
+  long it has been open, opening hours, and a link to an account on a social
+  network. Each is looked for in what the run was told or read: your own
+  words, a page or a search it opened, a note it recalled, a connected
+  system, and a file of the project it had not written itself. A file it
+  wrote earlier is not a source, so a guess read back is not confirmed by
+  being read. A detail found nowhere is sent back to the agent once, to find
+  it, take it out, or say it is a guess; what is still unconfirmed when the
+  run ends is said under the answer, together with any line of square
+  brackets left on the page. When a picture was attached, what it shows
+  cannot be searched, so only the brackets are held against the run
+  (`js/code/facts.js`).
 
 - **A picture attached in HashCoder is seen in the conversation.** The
   message it was sent with shows a small preview of each picture, which
@@ -436,34 +432,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
-- **The check of a web address as written reads the translated forms too.**
-  A literal address such as `http://[64:ff9b::a9fe:a9fe]/` (NAT64),
-  `[2002:a9fe:a9fe::1]` (6to4) or `[::ffff:7f00:1]` (the way a browser writes
-  `::ffff:127.0.0.1`) was not recognised as an internal address by the page's
-  own check, which is the only check in a plain browser build. They are
-  refused before any request, as are the documentation and discard-only IPv6
-  ranges.
+- **The Windows safety list reads a command's switches, not its spelling.**
+  A recursive delete that does not ask is refused in Command Prompt and in
+  PowerShell wherever its switches stand and however they are shortened, one
+  command of a line at a time. Also refused: mirroring or purging a folder
+  with `robocopy`, evaluating text with `iex` or `Invoke-Expression`, text
+  piped into `cmd`, `powershell` or `pwsh`, a PowerShell started with an
+  encoded command, downloads by `certutil` and `bitsadmin`, creating a
+  scheduled task, and .NET's delete of a folder or file. Ordinary work runs
+  as before. These are refused in the native code whatever is answered to a
+  permission question.
 
-- **The Windows safety list reads a delete command as it is, not as one
-  spelling of it.** The refusal of a recursive delete on Windows matched
-  literal text, so `rd /s /q` was refused and `rd /q /s`, `rd /s/q`,
-  `del /s /f /q`, `Remove-Item -Force -Recurse` and `ri x -r -fo` ran. The
-  switches are now read wherever they stand and however they are shortened,
-  in Command Prompt and in PowerShell, one command at a time. Also refused:
-  `Remove-Item -Recurse` on its own, `robocopy` mirroring a folder, `iex`
-  and `Invoke-Expression`, text piped into `cmd`, `powershell` or `pwsh`, a
-  PowerShell started with an encoded command, `certutil -urlcache`,
-  `bitsadmin /transfer`, `schtasks /create`, and .NET's delete of a folder or
-  file. Ordinary work (`rd` of an empty folder, `del old.log`, `robocopy src
-  dist /e`, `powershell -File build.ps1`) still runs. These are refused in
-  the native code whatever is answered to a permission question.
-
-- **The page reader refuses more kinds of address that are not on the public
-  internet.** An IPv4 address carried inside an IPv6 one by NAT64, 6to4 or
-  Teredo is now judged as the IPv4 address it stands for, so a translated
-  form of an internal address is refused like its plain form; the
-  documentation and discard-only IPv6 ranges and two IPv4 ranges reserved
-  for protocols and benchmarking are refused too.
+- **The page reader and the check of a web address refuse an address that is
+  not on the public internet, however it is written.** An IPv4 address
+  carried inside an IPv6 one (NAT64, 6to4, Teredo or the mapped form) is
+  judged as the IPv4 address it stands for, the documentation and
+  discard-only IPv6 ranges are refused, and so are the IPv4 ranges reserved
+  for protocols and for benchmarking. The page's own check, the only one in
+  a plain browser build, applies the same rules before any request.
 
 - **The desktop side's libraries are up to date with their fixes.** Three
   libraries it is built with, among them the XML reader under the one that
@@ -911,39 +897,35 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and the message gives the setting to change.
 
 - **The page reader trusts the certificates the computer trusts.** The
-  reader HashCoder and the chat use to open a web page after a search
-  brought its own fixed list of certificate roots, which replaced the
-  system's. A page whose certificate chain ended anywhere outside that list
-  (Google's and Cloudflare's pages on Windows, or a school or office network
-  that inspects HTTPS) failed with "unable to find any user-specified
-  roots", in a chat that otherwise worked. It now judges a certificate the
-  way the computer does; an expired or self-signed one is still refused.
-  Requests that carry a key keep the fixed list.
+  reader HashCoder and the chat use to open a web page after a search now
+  judges a certificate with the roots the system trusts, in place of a fixed
+  list of its own, so a page whose certificate chain ends in a root the
+  system has is read, including on a network that inspects HTTPS. An
+  expired or self-signed certificate is still refused. Requests that carry a
+  key keep the fixed list.
 
 - **The window opens where a person can reach it, and where it was left.**
-  On a 1366 by 768 laptop the first window came out 32 pixels taller than
-  the screen's usable area, with its title bar above the top edge, because
-  the size was capped without counting the title bar and frame. A saved
-  position was never checked, so one saved on a monitor that is no longer
-  plugged in, or read while the window was minimized, put the window where
-  nothing could show it. A maximized window was not remembered, and the
-  position was saved by a poll that ran only while the window had focus. The
-  window now opens centered, a little smaller than the screen, on a first
-  launch; remembers its size, position and whether it was maximized, and the
-  ordinary size it returns to; saves on a move or resize rather than on a
-  timer; and is placed again, centered, when its saved position would leave
-  the title bar out of reach on every screen. States saved by earlier
-  versions are read once and repaired. The placement is one function of
-  numbers (`planWindow` in `main.js`), which its check runs against a laptop,
-  a large monitor, a Retina screen, two monitors, a monitor that has gone,
-  Windows' minimized position and 300 scattered states.
+  The first window could be taller than the screen's usable area, with its
+  title bar above the top edge, because the size was capped without
+  counting the title bar and frame. A saved position is now checked, so one
+  saved on a monitor that is no longer plugged in, or read while the window
+  was minimized, no longer puts the window where nothing can show it. A
+  maximized window is remembered, and the position is saved when the window
+  moves or is resized, not by a poll that ran only while it had focus. The
+  window opens centered, a little smaller than the screen, on a first
+  launch; remembers its size, position, whether it was maximized and the
+  ordinary size it returns to; and is centered again when its saved position
+  would leave the title bar out of reach on every screen. States saved by
+  earlier versions are read once and repaired. The placement is one function
+  of numbers (`planWindow` in `main.js`), which its check runs against a
+  laptop, a large monitor, a Retina screen, two monitors, a monitor that has
+  gone and scattered states.
 
-- **A finished run's step count matches the one its stop message gives.** A
-  run that was stopped said "Stopped after 26 steps" above a list folded to
-  "15 steps", because the changes it had made are gathered under the answer
-  with Keep and Undo and were left out of the list's count. The list now
-  counts them, so the two agree and the changes are still shown below it
-  (`js/code/steps.js`).
+- **A finished run's step count matches the one its stop message gives.**
+  The line a finished run folds to left out the changes the run made, which
+  are gathered under the answer with Keep and Undo, while the message that
+  says a run stopped counted them. The line now counts them too, so the two
+  agree and the changes are still shown below it (`js/code/steps.js`).
 
 - **Text can be copied from HashCoder and from every conversation in the
   app.** The app is built like a native one, where nothing can be selected
