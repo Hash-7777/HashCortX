@@ -124,6 +124,7 @@
     '/js/local-context.js',
     '/js/local-keep.js',
     '/js/local-speed.js',
+    '/js/local-fit.js',
     '/js/local-client.js',
     '/js/local-apps.js',
     '/js/tool-text.js',

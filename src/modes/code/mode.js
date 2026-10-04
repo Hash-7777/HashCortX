@@ -558,8 +558,9 @@
       const info = /^cloud:/.test(model) || !model ? null
         : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
       const small = !!(info?.billions && info.billions < SMALL_MODEL_WARN_BILLIONS);
-      el.hidden = !small;
-      el.textContent = small ? `${info.billions}B is a small model: it may stop early or skip steps. 7B or larger works better.` : '';
+      const spills = info ? await Promise.resolve(window.HCLocalFit?.describe(window.HashCortxRuntime?.getHost?.(), model)).catch(() => '') : '';   // part of it runs on the processor (js/local-fit.js)
+      el.textContent = [small ? `${info.billions}B is a small model: it may stop early or skip steps. 7B or larger works better.` : '', spills].filter(Boolean).join(' ');
+      el.hidden = !el.textContent;
     }
 
     // Models known to reliably support structured tool/function calling.
@@ -2192,7 +2193,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (stopBtn) stopBtn.style.display = 'none';
         runAbort = null;
         if (HC?.code?.shellCancelKey === stopKey) HC.code.shellCancelKey = null;
-        setRouterChip('Auto', '');
+        setRouterChip('Auto', ''); warnIfSmall();   // the model is loaded now, so where it runs can be read
         // Light up HashNotch. app.js fires this for a chat turn, but Coder
         // has its own loop and never reached that line — so the one kind of run
         // long enough that you would switch away from it was the one that never

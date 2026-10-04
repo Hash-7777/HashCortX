@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **A model that does not fit in the graphics memory is said so.** Ollama
+  reports how much of a loaded model is in graphics memory. When some of it
+  is and some is not, the note under the box a request is written in says
+  how much runs on the processor and in main memory, that answers are slower
+  and the computer is under more load, how fast the model has been writing
+  here when that is known, and that a smaller model or a shorter conversation
+  would fit. It is read after each run, since a model is listed only once it
+  is loaded. A model wholly in graphics memory, one on a computer with none,
+  and one in the cloud say nothing (`js/local-fit.js`).
+
 - **You choose how much HashCoder may do without asking.** A menu beside the
   box a request is written in, with three choices. **Manual** asks before
   every change: a file written or edited, one moved or deleted, a command, a

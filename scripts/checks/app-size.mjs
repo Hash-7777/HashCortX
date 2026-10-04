@@ -747,7 +747,9 @@ const LINE_BUDGET = {
   // 2479, up four: how much HashCoder may do without asking is counted from
   // the start of a run to its end, a refusal by the native side is counted,
   // and the menu that chooses it is mounted (js/code/permissions.js).
-  'modes/code/mode.js': 2479,
+  // 2480, up one: where a model on this computer runs is read after each run,
+  // and said when part of it runs on the processor (js/local-fit.js).
+  'modes/code/mode.js': 2480,
 };
 
 console.log('\nFile sizes go down, never up:');
