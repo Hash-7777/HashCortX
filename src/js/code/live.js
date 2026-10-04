@@ -138,6 +138,9 @@
     return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
   }
 
+  /** How often, at most, the words of an answer being written are drawn again. */
+  const DRAW_EVERY = 90;
+
   /** The mesh: fifteen dots, five across and three down; the stylesheet places and moves them. */
   const MESH = `<span class="cdr-marks" aria-hidden="true">${'<i></i>'.repeat(15)}</span>`;
 
@@ -161,6 +164,8 @@
     let text = '';
     let reasoning = false;
     let frame = 0;
+    let waiting = 0;
+    let drawn = 0;
     let done = false;
     // The label and the marks' movement follow what has happened; written only when they change.
     const say = () => {
@@ -176,13 +181,21 @@
     function paint() {
       frame = 0;
       if (done) return;
+      drawn = Date.now();
       const calls = looksLikeCalls(text);
       say();
       textEl.hidden = !text || calls;
       if (!textEl.hidden) textEl.innerHTML = render(text);
       scroll();
     }
-    const later = () => { if (!frame && !done) frame = requestAnimationFrame(paint); };
+    // Words are drawn at most every DRAW_EVERY ms: drawing the whole answer on
+    // every frame of a fast one kept the page too busy to scroll smoothly.
+    const later = () => {
+      if (frame || waiting || done) return;
+      const wait = DRAW_EVERY - (Date.now() - drawn);
+      if (wait > 0) waiting = setTimeout(() => { waiting = 0; if (!done) frame = requestAnimationFrame(paint); }, wait);
+      else frame = requestAnimationFrame(paint);
+    };
     scroll();
 
     return {
@@ -200,6 +213,7 @@
         done = true;
         clearInterval(tick);
         if (frame) cancelAnimationFrame(frame);
+        if (waiting) clearTimeout(waiting);
         if (!kept) { el.remove(); return null; }
         el.className = 'cdr-msg-text cdr-said';
         el.innerHTML = render(kept);
@@ -210,5 +224,5 @@
     };
   }
 
-  window.HCCodeLive = { start, looksLikeCalls, elapsed, phaseOf, afterOf, brief };
+  window.HCCodeLive = { DRAW_EVERY, start, looksLikeCalls, elapsed, phaseOf, afterOf, brief };
 })();

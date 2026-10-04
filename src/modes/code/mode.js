@@ -904,10 +904,9 @@
     }
 
     // ── Chat rendering ────────────────────────────────────────
-    function scrollMessages() {
-      const el = $('cdrMessages');
-      if (el) el.scrollTop = el.scrollHeight;
-    }
+    // The answer is followed only while the reader is at the end, and a request just sent is always shown (js/code/follow.js).
+    let follow = null;
+    function scrollMessages(force) { follow = follow || window.HCCodeFollow.create(() => $('cdrMessages')); if (force === true) follow.toEnd(); else follow.keep(); }
 
     // A reply is model text, which a file or page the agent read can shape, so
     // it is drawn the way chat and the Swarm draw theirs: HTML in it is shown
@@ -937,7 +936,7 @@
         }).catch(() => {});
       });
       msgs.appendChild(el);
-      scrollMessages();
+      scrollMessages(true);
     }
 
     function appendAssistantBubble(roleLabel) {

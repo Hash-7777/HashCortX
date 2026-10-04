@@ -947,6 +947,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder follows an answer only while you are at the end of it.** The
+  conversation was moved to its last line on every frame of an answer, and
+  the whole answer was drawn again each frame, so scrolling up to read
+  something was pulled back down and the panel stuttered. It now follows
+  only while the reader is at the end: scrolling up, by the wheel, a key or
+  a finger, lets go at once, and scrolling back to the end follows again. A
+  request just sent is always shown. The words of an answer being written
+  are drawn at a bounded rate rather than on every frame
+  (`js/code/follow.js`, `js/code/live.js`).
+
 - **HashCoder is told that what the app remembers about you is not page
   content.** The few remembered facts sent with a request were marked only
   as context not to recite, so a model asked to replace a blank on a page
