@@ -189,7 +189,9 @@ const BUDGET = {
   // prompt became a bar built from the shared tokens.
   // 38, and the rest below down with it: styling nothing in the app used —
   // the old system-stats bar, a startup meter, a project row — was removed.
-  'css/modals.css': 38,
+  // 37: the permission bar's buttons, badge and mark are drawn from the theme
+  // tokens, so its own tints of one fixed blue are gone.
+  'css/modals.css': 37,
   'modes/virtual-os/mode.css': 52,
   // 30, down from 46: the terminal look the chat took on in coding mode went.
   // HashCoder hides the chat whenever it is open, so none of it could be seen.

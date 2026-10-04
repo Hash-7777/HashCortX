@@ -947,6 +947,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The permission bar is flat, and nothing spins after you allow.** Once an
+  action was allowed, the bar reported it running by turning its shield
+  round in place. The shield now stays still and a short line runs along
+  the bar's top edge while the action runs. The bar itself is drawn from
+  the theme: a flat surface on a hairline, the request as one sentence
+  ("Allow HashCortX to write index.html") with the action in the accent, or
+  in the danger colour for a command or a deletion, Deny and Allow for
+  session as quiet outlined buttons, and Allow once filled in the accent.
+  Its own fixed blue tints, gradients and blur are gone.
+
 - **A new HashCoder conversation starts with no files from the last one.**
   Every change still waiting to be kept or undone was drawn into the
   conversation a launch starts, and New chat left the files the last

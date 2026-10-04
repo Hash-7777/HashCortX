@@ -231,7 +231,7 @@
       return;
     }
     bar.classList.add('open', 'working');
-    if (titleEl) titleEl.textContent = 'Working —';
+    if (titleEl) titleEl.textContent = 'Running';
     if (actEl) { actEl.textContent = String(job.action || 'FETCH').toUpperCase(); actEl.className = 'hc-perm-badge ' + (job.action || 'fetch'); }
     if (tgtEl) { tgtEl.textContent = job.label; tgtEl.title = job.label; }
     if (rsnEl) rsnEl.textContent = 'You allowed this. It is running now.';
@@ -251,7 +251,7 @@
 
       // The bar may have been reporting a fetch a moment ago; it is asking now.
       // Without this the question kept the working headline and read as
-      // "Working — FETCH …" with Allow and Deny underneath it.
+      // "Running fetch …" with Allow and Deny underneath it.
       const titleEl = document.getElementById('hc-perm-title');
       if (titleEl) titleEl.textContent = 'Allow HashCortX to';
       actEl.textContent = BADGE[action] || String(action).toUpperCase();

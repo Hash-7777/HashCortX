@@ -130,7 +130,7 @@ assert('overlapping jobs are counted, not toggled',
 assert('done is idempotent', /if \(settled\) return;/.test(src));
 assert('asking restores the question headline',
   /titleEl\.textContent = 'Allow HashCortX to'/.test(src),
-  'a prompt after a fetch would otherwise still read "Working —"');
+  'a prompt after a fetch would otherwise still read "Running"');
 assert('a question always wins over a report',
   /if \(_asking\) return;/.test(src),
   'an unanswered request is the only thing that blocks');
