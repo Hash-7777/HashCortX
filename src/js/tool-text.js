@@ -24,6 +24,8 @@
 //   bare JSON as the last lines of a reply, after words saying what it is for
 //   bare JSON opening the reply, followed by the result the model guessed
 //   and a call opening the reply whose JSON a file's unescaped text broke
+//   a plan in words with each step a json block holding one whole call
+//   any of these with a closing bracket written once too often
 //
 // and the keys each spells a call with: name, tool, tool_name, action; and
 // arguments, parameters, args, tool_input, action_input, input — or the
@@ -250,6 +252,18 @@
   }
 
   /**
+   * A value with the closing brackets a model wrote one too many times taken
+   * off: `{…}}}` read as the value it closes. Anything else after the value
+   * leaves the text as it is.
+   */
+  function withoutStrayClose(t) {
+    const s = String(t).trim();
+    if (!/^[[{]/.test(s)) return s;
+    const end = closing(s, 0);
+    return end > 0 && /^[\s}\]]+$/.test(s.slice(end + 1)) ? s.slice(0, end + 1) : s;
+  }
+
+  /**
    * Whole values written one after another, with nothing between them but
    * space, commas or semicolons, or [] when anything else is there. A small
    * model asked for its next steps often writes one call per line, and often
@@ -301,7 +315,7 @@
     // A fence with nothing in it, as a model may leave after its call, holds no call and hides none.
     const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code" && String(p.code || "").trim());
     const loose = String(text).replace(/^\s*(`{3,}|~{3,})[ \t]*\n/, "").replace(/\n[ \t]*(`{3,}|~{3,})\s*$/, "");
-    const body = (edge ? edge.code : loose).trim();
+    const body = withoutStrayClose((edge ? edge.code : loose).trim());
     if (!/^[[{]/.test(body)) return edge ? [] : afterWords(loose);
     // A whole value, or whole values in a row: not the first object inside some prose.
     let values;
@@ -409,6 +423,32 @@
     return [{ name: head[1], arguments: args }];
   }
 
+  /**
+   * A plan written out step by step, each step a json block holding one call:
+   * the way a mid-sized model writes when it means to work but describes the
+   * work instead. Read only when the caller says which arguments each tool
+   * must have (`required`, by tool), and only blocks whose call names an
+   * offered tool and fills every one of them. The blocks are read in order
+   * and the reading stops at the first that is not such a call, a step left
+   * with a blank to fill in included: what follows it was written without a
+   * result to go on. An example among words is shown with its arguments
+   * empty or left out, so it stays an example.
+   */
+  function stepBlocks(text, known, required) {
+    if (!required || !window.HCFences || !window.HCFences.splitFences) return [];
+    const out = [];
+    for (const part of window.HCFences.splitFences(text)) {
+      if (part.type !== "code" || !/^(json|jsonc|)$/i.test(String(part.lang || ""))) continue;
+      let calls;
+      try { calls = callsOfValue(jsonValue(withoutStrayClose(part.code))); } catch { break; }
+      const c = calls.length === 1 ? calls[0] : null;
+      const needs = c && known.has(c.name) && Array.isArray(required[c.name]) ? required[c.name] : null;
+      if (!needs || !needs.every((k) => c.arguments[k] !== undefined && c.arguments[k] !== null && String(c.arguments[k]).trim() !== "")) break;
+      out.push(c);
+    }
+    return out;
+  }
+
   /** Thinking written at the start of a reply, between think tags, is not part of it. */
   const withoutThinking = (text) => String(text || "").replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "");
 
@@ -416,9 +456,11 @@
    * The tool calls a reply wrote in its words, to tools in `names`, as
    * [{ name, arguments }]. Empty when there are none, or when any unmarked
    * one names a tool that was not offered. Given each tool's argument names
-   * (`params`), a call opening the reply whose JSON is broken is read too.
+   * (`params`), a call opening the reply whose JSON is broken is read too;
+   * given the arguments each must have (`required`), a plan written as json
+   * blocks of calls between its words.
    */
-  function callsIn(text, names, params = null) {
+  function callsIn(text, names, params = null, required = null) {
     const known = new Set(names || []);
     const t = withoutThinking(text).trim();
     if (!known.size || !t) return [];
@@ -427,7 +469,9 @@
     const plain = unmarked(t);
     if (plain.length && plain.every((c) => known.has(c.name))) return plain;
     const first = opening(t, known);
-    return first.length ? first : repaired(t, known, params);
+    if (first.length) return first;
+    const fixed = repaired(t, known, params);
+    return fixed.length ? fixed : stepBlocks(t, known, required);
   }
 
   window.HCToolText = { callsIn, callOf, parseJson, kwargs, withoutThinking };

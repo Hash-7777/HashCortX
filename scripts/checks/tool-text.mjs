@@ -98,7 +98,7 @@ console.log('\nA call whose JSON a file\'s unescaped text broke, on a model on t
   ok('a call that parses is read as it was', JSON.stringify(read('{"name": "shell_run", "arguments": {"command": "npm", "args": ["test"]}}')) === '[{"name":"shell_run","arguments":{"command":"npm","args":["test"]}}]');
   const shape = src('js', 'agent-shape.js');
   ok('the local model\'s turn is the one given the argument names, from the tools it was offered',
-    /toolCallsInText\(msg && msg\.content, \(tools \|\| \[\]\)\.map\(\(t\) => t && t\.function && t\.function\.name\), argumentNames\(tools\)\)/.test(shape));
+    /toolCallsInText\(msg && msg\.content, \(tools \|\| \[\]\)\.map\(\(t\) => t && t\.function && t\.function\.name\), argumentNames\(tools\), requiredArguments\(tools\)\)/.test(shape));
 }
 
 console.log('\nEach way a call is spelled:');
@@ -136,6 +136,31 @@ ok('an answer that talks about the tags', T.callsIn('Models often wrap calls in 
 ok('with no tools offered, nothing is a call', T.callsIn('{"name":"web_search","arguments":{}}', []).length === 0);
 ok('an empty reply', T.callsIn('', names).length === 0 && T.callsIn(null, names).length === 0);
 
+console.log('\nA closing bracket written once too often:');
+ok('a bare call with one brace too many is read', one('{"name": "web_search", "arguments": {"query": "x"}}}'));
+ok('... and in a json block ending the reply', one(`Looking now.\n${F}json\n{"name": "web_search", "arguments": {"query": "x"}}}\n${F}`));
+ok('words before it and after the extra brace still make it an example', T.callsIn('It looks like {"name": "web_search", "arguments": {"query": "x"}}} and that is all.', names).length === 0);
+
+console.log('\nA plan whose steps are json blocks of calls:');
+{
+  const coder = ['write_file', 'read_file', 'grep_code'];
+  const must = { write_file: ['path', 'content'], read_file: ['path'], grep_code: ['dir', 'pattern'] };
+  const block = (v) => `${F}json\n${v}\n${F}`;
+  const plan = ['I will build the page step by step.', '### Step 1: the page', block('{"name": "write_file", "arguments": {"path": "index.html", "content": "<h1>Hello</h1>"}}}'),
+    '### Step 2: the styles', block('{"name": "write_file", "arguments": {"path": "style.css", "content": "h1 { color: teal; }"}}}'), '### Summary', 'The page is ready.'].join('\n');
+  const got = T.callsIn(plan, coder, null, must);
+  ok('each step read in order, the extra braces taken off', got.map((c) => `${c.name}:${c.arguments.path}`).join() === 'write_file:index.html,write_file:style.css');
+  ok('... with the arguments as written', got[0] && got[0].arguments.content === '<h1>Hello</h1>');
+  ok('... only when the caller says which arguments each tool must have', T.callsIn(plan, coder).length === 0);
+  const blank = ['First find it.', block('{"name": "grep_code", "arguments": {"dir": "src", "pattern": "Hello"}}'), 'Then read it.', block('{"name": "read_file", "arguments": {"path": "index.html", "start_line": <line>}}')].join('\n');
+  ok('the reading stops at a step left with a blank to fill in', T.callsIn(blank, coder, null, must).map((c) => c.name).join() === 'grep_code');
+  ok('a first step with a blank reads nothing', T.callsIn(['Read it.', block('{"name": "read_file", "arguments": {"path": <path>}}')].join('\n'), coder, null, must).length === 0);
+  ok('a step missing an argument it must have reads nothing', T.callsIn(['Like this:', block('{"name": "write_file", "arguments": {"path": "a.txt"}}'), 'That is all.'].join('\n'), coder, null, must).length === 0);
+  ok('an example with its arguments empty stays an example', T.callsIn(`Like this:\n${block('{"name":"grep_code","arguments":{}}')}\nThat is the format.`, coder, null, must).length === 0);
+  ok('a step naming a tool not offered reads nothing', T.callsIn(['Do it.', block('{"name": "delete_files", "arguments": {"path": "a"}}'), 'Done.'].join('\n'), coder, null, { delete_files: ['path'] }).length === 0);
+  ok('a code block of the page itself is passed over, not read as a step', T.callsIn(['Here is the page:', `${F}html\n<h1>x</h1>\n${F}`, 'Now save it.', block('{"name": "write_file", "arguments": {"path": "a.html", "content": "<h1>x</h1>"}}'), 'Done.'].join('\n'), coder, null, must).length === 1);
+}
+
 console.log('\nThe pieces:');
 ok('the first whole JSON value inside text', T.parseJson('Here: {"a": {"b": "}"}} done').a.b === '}');
 ok('keyword arguments with every kind of value', (() => { const k = T.kwargs('a="x, y", b=2.5, c=True, d=None, e=[1, 2]'); return k.a === 'x, y' && k.b === 2.5 && k.c === true && k.d === null && k.e.length === 2; })());
@@ -144,7 +169,8 @@ ok('thinking at the start taken off, and only there', T.withoutThinking('<think>
 console.log('\nThe agents read calls through it:');
 {
   const shape = src('js', 'agent-shape.js');
-  ok('the agent turn reads text calls here, with each tool\'s argument names for a broken call', /window\.HCToolText\.callsIn\(text, names, params\)/.test(shape));
+  ok('the agent turn reads text calls here, with each tool\'s argument names for a broken call', /window\.HCToolText\.callsIn\(text, names, params, required\)/.test(shape));
+  ok('the Ollama reply gives it the arguments each tool must have', /toolCallsInText\([^;]*argumentNames\(tools\), requiredArguments\(tools\)\)/.test(shape));
   const boot = src('boot.js');
   ok('it loads after the fences it reads blocks with and before the agents', boot.indexOf("'/js/fences.js'") < boot.indexOf("'/js/tool-text.js'") && boot.indexOf("'/js/tool-text.js'") < boot.indexOf("'/js/agent-shape.js'"));
 }

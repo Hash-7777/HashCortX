@@ -945,6 +945,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A model on this computer that writes its plan with the steps in it gets
+  the steps run.** A mid-sized local model asked to build something often
+  answered with a plan in words, each step a json block holding a whole
+  tool call, and often closed each call with one bracket too many. Neither
+  was read as a call, so the plan was shown as the answer and no file was
+  made. A call with a closing bracket written once too often is now read as
+  the call it closes. A plan whose steps are json blocks is read when each
+  block names a tool that was offered and fills every argument that tool
+  must have; the steps are read in order, the reading stops at the first
+  step left with a blank to fill in, and only the first runs, since the
+  rest were written before any result came back. An example among words,
+  shown with its arguments empty or left out, is still an example
+  (`js/tool-text.js`).
+
 - **The pickers in the Swarm result's composer stand above each other.** Who a
   message goes to and which model answers sat on one line, and a long model
   name pushed the second one out of the conversation column. They are now two

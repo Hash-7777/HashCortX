@@ -226,13 +226,16 @@
    * one (js/tool-text.js), to tools the agent has. The raw call used to be
    * shown as the answer for every way but three.
    */
-  function toolCallsInText(text, names, params = null) {
-    return window.HCToolText.callsIn(text, names, params).map((c) => ({ name: c.name, arguments: safeJsonParse(c.arguments) || {} }));
+  function toolCallsInText(text, names, params = null, required = null) {
+    return window.HCToolText.callsIn(text, names, params, required).map((c) => ({ name: c.name, arguments: safeJsonParse(c.arguments) || {} }));
   }
 
   /** Each offered tool's argument names, by tool, for reading a call whose JSON is broken (js/tool-text.js). */
   const argumentNames = (tools) => Object.fromEntries((tools || []).filter((t) => t && t.function && t.function.name)
     .map((t) => [t.function.name, Object.keys((t.function.parameters && t.function.parameters.properties) || {})]));
+  /** The arguments each tool must be given, by tool. */
+  const requiredArguments = (tools) => Object.fromEntries((tools || []).filter((t) => t && t.function && t.function.name)
+    .map((t) => [t.function.name, Array.isArray(t.function.parameters && t.function.parameters.required) ? t.function.parameters.required : []]));
 
   /**
    * What Ollama is sent: a call's arguments as an object, which is how it reads
@@ -307,14 +310,15 @@
   /**
    * Ollama's reply as the loop reads it: the calls in the field for them, or
    * failing that, a reply that is nothing but calls written as text, one
-   * whose JSON a file's unescaped text broke included. Of calls
+   * whose JSON a file's unescaped text broke included, or a plan whose steps
+   * are json blocks of whole calls. Of calls
    * written as text in a row, only the first is taken: the rest were written
    * before any result came back, so they are guesses, and the model writes
    * the next one knowing what the first returned.
    */
   function ollamaReply(msg, tools) {
     const given = Array.isArray(msg && msg.tool_calls) ? msg.tool_calls : [];
-    const written = given.length ? [] : toolCallsInText(msg && msg.content, (tools || []).map((t) => t && t.function && t.function.name), argumentNames(tools)).slice(0, 1);
+    const written = given.length ? [] : toolCallsInText(msg && msg.content, (tools || []).map((t) => t && t.function && t.function.name), argumentNames(tools), requiredArguments(tools)).slice(0, 1);
     const calls = [...given, ...written].map((c, i) => ({
       id: c.id || `call_${Date.now()}_${i}`,
       name: (c.function && c.function.name) || c.name,
