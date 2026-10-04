@@ -113,7 +113,7 @@ console.log('Outside a run, nothing is held to a mode:');
   await check('Manual does not stop a file being written when no HashCoder run is going', () => guard.request('write', `${R}/a.js`), FREE);
   await check('a command still asks, as it always did', () => shell('ls'), ASKED);
   guard.setMode('edits');
-  ok('the default is Accept edits', (guard.setMode('edits'), guard.mode() === 'edits'));
+  ok('with nothing chosen it is Manual, and a choice is taken', (() => { const first = makeWorld(guardSrc).guard.mode(); guard.setMode('edits'); return first === 'ask' && guard.mode() === 'edits'; })());
 }
 
 console.log('\nManual — every change asks, reading does not:');

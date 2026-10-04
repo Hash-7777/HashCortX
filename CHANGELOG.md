@@ -13,9 +13,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **You choose how much HashCoder may do without asking.** A menu beside the
   box a request is written in, with three choices. **Manual** asks before
   every change: a file written or edited, one moved or deleted, a command, a
-  web page; reading the project stays free. **Accept edits** is what
-  HashCoder has always done and stays the default: files in the project are
-  written without a question, and a command, a deletion or a web page asks.
+  web page; reading the project stays free. It is the mode until another is
+  chosen, so a first use asks before it changes anything. **Accept edits**
+  is what HashCoder did before this menu: files in the project are written
+  without a question, and a command, a deletion or a web page asks.
   **Auto** is Accept edits and a short, fixed list of commands that run
   without a question: reading and searching inside the project (`ls`, `cat`,
   `grep`, `rg`, `find` by name and the like), git's read-only commands, and

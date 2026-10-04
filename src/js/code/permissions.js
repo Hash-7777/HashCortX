@@ -5,11 +5,13 @@
 //
 //   Manual       every change asks: a file written or edited, one moved or
 //                deleted, a command, a web page. Reading inside the project
-//                is free, since an agent that cannot read cannot work.
-//   Accept edits what it always was. Inside the open project a file may be
-//                written or edited without a question, because Undo can put
-//                it back; a command, a deletion, a move out of the project
-//                and a web page ask.
+//                is free, since an agent that cannot read cannot work. This
+//                is the mode until the person has chosen another, so a first
+//                use asks before it changes anything.
+//   Accept edits inside the open project a file may be written or edited
+//                without a question, because Undo can put it back; a
+//                command, a deletion, a move out of the project and a web
+//                page ask.
 //   Auto         edits as above, and a short, fixed list of commands runs
 //                without a question: reading and searching inside the
 //                project, git's read-only commands, and the project's own
@@ -75,12 +77,12 @@
 
   const defaultStore = () => { try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } };
 
-  /** The mode kept, 'edits' when none is. Auto is never restored. */
+  /** The mode kept, Manual when none was ever chosen. Auto is never restored. */
   function readMode(store = defaultStore()) {
     try {
       const v = store ? String(store.getItem(KEY) || '') : '';
-      return v === 'ask' || v === 'edits' ? v : 'edits';
-    } catch { return 'edits'; }
+      return v === 'ask' || v === 'edits' ? v : 'ask';
+    } catch { return 'ask'; }
   }
 
   /** Keep a choice. Auto is held for this session only and written nowhere. */

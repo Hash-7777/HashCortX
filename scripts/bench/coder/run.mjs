@@ -492,6 +492,8 @@ async function answerNative(cmd, args) {
 // the token count cannot show a request that reused its start: the time can.
 const shim = () => `<script>
 try { if (!localStorage.getItem('atelier')) localStorage.setItem('atelier', JSON.stringify({ host: ${JSON.stringify(OLLAMA)} })); } catch {}
+// The tasks write files in their own folder with no one to answer a question, so the benchmark runs in Accept edits (js/code/permissions.js).
+try { localStorage.setItem('hc_coder_permission_mode', 'edits'); } catch {}
 ${cloudModels.length ? `try { localStorage.setItem('hc_api_bundle_v2', ${JSON.stringify(JSON.stringify(CLOUD.bundle))}); localStorage.setItem('hc_migrated_v2', '1'); } catch {}` : ''}
 (function () {
   const chatAt = ${JSON.stringify(OLLAMA)} + '/api/chat';
