@@ -43,7 +43,7 @@
     <div class="modal-body settings-pane" id="settingsPane">
       <div class="set-sec">Connection</div>
       <div class="field">
-        <label>Ollama endpoints <span class="field-note">— your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
+        <label>Ollama endpoints <span class="field-note">Your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
         <div class="host-row">
           <select class="control host-preset" id="hostPreset"></select>
           <input class="control" id="host" value="http://127.0.0.1:11434" spellcheck="false" placeholder="http://127.0.0.1:11434 or http://&lt;LAN-ip&gt;:11434" />
@@ -56,12 +56,12 @@
       </div>
 
       <div class="field">
-        <label>Free a local model's memory after <span class="field-note">— how long a model stays loaded once you stop using it. A shorter time frees memory for your other programs; a longer one answers your next message without loading it again. A step that takes longer than this, such as a long test run, loads the model again.</span></label>
+        <label>Free a local model's memory after <span class="field-note">How long a model stays loaded once you stop using it. Shorter frees memory sooner; longer answers your next message without loading it again. A step that takes longer than this, such as a long test run, loads the model again.</span></label>
         <select class="control" id="localKeepAlive"></select>
       </div>
 
       <div class="field">
-        <label>Other local model apps <span class="field-note">— a model server on this computer, found on the usual ports; add any other port it uses</span></label>
+        <label>Other local model apps <span class="field-note">A model server on this computer, found on the usual ports; add any other port it uses</span></label>
         <input class="control" id="localAppPorts" placeholder="Other ports, e.g. 1235, 9090" spellcheck="false" />
         <div class="field-note" id="localAppsFound"></div>
       </div>
@@ -75,7 +75,7 @@
 
       <div class="field">
         <div class="range-row">
-          <label>Temperature <span class="field-note">— low is exact and repeatable, high is inventive</span></label>
+          <label>Temperature <span class="field-note">Low is exact and repeatable, high is inventive</span></label>
           <span class="val" id="tempVal">0.7</span>
         </div>
         <input type="range" id="temp" min="0" max="2" step="0.1" value="0.7" />
@@ -83,7 +83,7 @@
 
       <div class="field">
         <div class="range-row">
-          <label>Memory depth <span class="field-note">— turns of conversation sent to the model</span></label>
+          <label>Memory depth <span class="field-note">Turns of conversation sent to the model</span></label>
           <span class="val" id="historyVal">20</span>
         </div>
         <input type="range" id="historyDepth" min="0" max="40" step="2" value="20" />
@@ -98,14 +98,14 @@
       <div class="field">
         <label class="check-row">
           <input type="checkbox" id="privacyLocal" class="check-box" />
-          <span><b>Local only</b> <span class="field-note">— ask me first before any chat is sent to a cloud model</span></span>
+          <span><b>Local only</b> <span class="field-note">Ask me first before any chat is sent to a cloud model</span></span>
         </label>
       </div>
 
       <div class="field">
         <label class="check-row">
           <input type="checkbox" id="swarmPhotos" class="check-box" checked />
-          <span><b>Find real photos for websites</b> <span class="field-note">— the Agent Swarm, and HashCoder when it builds a site, search Openverse for openly licensed photos with a few words about the site's subject. Off, or with Local only on, sites draw their images instead</span></span>
+          <span><b>Find real photos for websites</b> <span class="field-note">The Agent Swarm, and HashCoder when it builds a site, search Openverse for openly licensed photos using a few words about the subject. Off, or with Local only on, sites draw their images instead.</span></span>
         </label>
       </div>
 
@@ -116,7 +116,7 @@
       <div class="lm-intro">
         <div class="lm-intro-text">
           <b>Run a model on this computer.</b> It costs nothing, needs no key, and not one
-          word leaves the machine. Four steps — this page checks each one for you.
+          word leaves the machine. Four steps; this page checks each one for you.
         </div>
         <button class="ghost lm-recheck" type="button" id="lmRecheck">Check again</button>
       </div>
@@ -129,9 +129,8 @@
             <span class="lm-pill" id="lmPill1">Checking…</span>
           </div>
           <div class="lm-step-body">
-            <p>Ollama is the free program that actually runs the model. HashCortX only talks
-              to it over your own network loopback — it never installs it, never changes your
-              system files, and never asks for your password.</p>
+            <p>Ollama is the free program that runs the model. HashCortX only talks to it. It
+              never installs it, changes your system files or asks for your password.</p>
             <div class="lm-os" id="lmOsHint">Reading your system…</div>
             <div class="lm-cmd" id="lmInstallCmdRow" hidden>
               <code id="lmInstallCmd"></code>
@@ -151,8 +150,8 @@
             <span class="lm-pill" id="lmPill2">Checking…</span>
           </div>
           <div class="lm-step-body">
-            <p>Pick the row that matches the memory in your machine, then run the command.
-              It downloads once and works offline forever after.</p>
+            <p>Pick the row that matches your computer's memory, then run the command. It
+              downloads once and works offline after that.</p>
             <table class="lm-table">
               <thead>
                 <tr><th>Your memory</th><th>Model</th><th>Download</th><th>Licence</th></tr>
@@ -174,8 +173,8 @@
             <span class="lm-pill" id="lmPill3">Checking…</span>
           </div>
           <div class="lm-step-body">
-            <p>Nothing to do for most people — the address below is where Ollama listens by
-              default. Change it only if the model runs on another machine on your network.</p>
+            <p>Nothing to do for most people: this is where Ollama listens by default. Change
+              it only if the model runs on another computer on your network.</p>
             <div class="lm-endpoint">
               <code id="lmHostEcho">http://127.0.0.1:11434</code>
               <button class="ghost lm-test" type="button" id="lmTestBtn">Test</button>
@@ -191,12 +190,11 @@
             <span class="lm-pill" id="lmPill4">Checking…</span>
           </div>
           <div class="lm-step-body">
-            <p>Close this window and choose your model in the picker at the top of the
-              screen. Local models sit above the cloud ones in the list.</p>
+            <p>Close this window and choose your model in the picker at the top. Local models
+              are listed above the cloud ones.</p>
             <p>They work in <b>Chat</b>, <b>HashCoder</b>, <b>Swarm</b>, <b>Forge</b> and the
-              knowledge base. With one downloaded, the whole app runs with the network off —
-              the only exception is the Python sandbox, which fetches its runtime the first
-              time you use it.</p>
+              knowledge base. With one downloaded, the whole app runs with the network off,
+              except the Python sandbox, which fetches its runtime the first time you use it.</p>
             <p class="lm-note">A smaller model that fits in memory beats a larger one that
               does not. If replies crawl, drop a size.</p>
           </div>
@@ -225,106 +223,106 @@
       </div>
       <div class="set-sec" data-api-group>Model providers</div>
       <div class="field">
-        <label for="groqKey">Groq API key <span class="field-note">— free at <b>console.groq.com</b></span></label>
+        <label for="groqKey">Groq API key <span class="field-note">Free at <b>console.groq.com</b></span></label>
         <input class="control" id="groqKey" type="password" placeholder="gsk_…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="geminiKey">Google AI Studio key <span class="field-note">— free at <b>aistudio.google.com</b></span></label>
+        <label for="geminiKey">Google AI Studio key <span class="field-note">Free at <b>aistudio.google.com</b></span></label>
         <input class="control" id="geminiKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="openaiKey">OpenAI API key <span class="field-note">— <b>platform.openai.com</b> · GPT-4o, o3-mini</span></label>
+        <label for="openaiKey">OpenAI API key <span class="field-note"><b>platform.openai.com</b> · GPT-4o, o3-mini</span></label>
         <input class="control" id="openaiKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="anthropicKey">Anthropic API key <span class="field-note">— <b>console.anthropic.com</b> · Claude Sonnet, Claude Opus</span></label>
+        <label for="anthropicKey">Anthropic API key <span class="field-note"><b>console.anthropic.com</b> · Claude Sonnet, Claude Opus</span></label>
         <input class="control" id="anthropicKey" type="password" placeholder="sk-ant-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="moonshotKey">Moonshot (Kimi) API key <span class="field-note">— <b>platform.kimi.ai</b> / <b>platform.kimi.com</b> · long context · a Kimi Code key (sk-kimi-…) from <b>kimi.com/code</b> works too, sent by the app itself</span></label>
+        <label for="moonshotKey">Moonshot (Kimi) API key <span class="field-note"><b>platform.kimi.ai</b> or <b>platform.kimi.com</b> · long context · a Kimi Code key (sk-kimi-…) from <b>kimi.com/code</b> works too</span></label>
         <input class="control" id="moonshotKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="deepseekKey">DeepSeek API key <span class="field-note">— <b>platform.deepseek.com</b> · V3, R1</span></label>
+        <label for="deepseekKey">DeepSeek API key <span class="field-note"><b>platform.deepseek.com</b> · V3, R1</span></label>
         <input class="control" id="deepseekKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="mistralKey">Mistral AI API key <span class="field-note">— <b>console.mistral.ai</b> · Large, Codestral</span></label>
+        <label for="mistralKey">Mistral AI API key <span class="field-note"><b>console.mistral.ai</b> · Large, Codestral</span></label>
         <input class="control" id="mistralKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="cerebrasKey">Cerebras API key <span class="field-note">— free at <b>cloud.cerebras.ai</b></span></label>
+        <label for="cerebrasKey">Cerebras API key <span class="field-note">Free at <b>cloud.cerebras.ai</b></span></label>
         <input class="control" id="cerebrasKey" type="password" placeholder="csk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="xaiKey">xAI (Grok) API key <span class="field-note">— <b>console.x.ai</b> · Grok</span></label>
+        <label for="xaiKey">xAI (Grok) API key <span class="field-note"><b>console.x.ai</b> · Grok</span></label>
         <input class="control" id="xaiKey" type="password" placeholder="xai-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="togetherKey">Together AI API key <span class="field-note">— <b>api.together.ai</b> · hundreds of open models</span></label>
+        <label for="togetherKey">Together AI API key <span class="field-note"><b>api.together.ai</b> · hundreds of open models</span></label>
         <input class="control" id="togetherKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="fireworksKey">Fireworks AI API key <span class="field-note">— <b>fireworks.ai</b> · fast open models</span></label>
+        <label for="fireworksKey">Fireworks AI API key <span class="field-note"><b>fireworks.ai</b> · fast open models</span></label>
         <input class="control" id="fireworksKey" type="password" placeholder="fw_…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="zaiKey">Z.ai API key <span class="field-note">— <b>z.ai</b> · GLM, strong at code</span></label>
+        <label for="zaiKey">Z.ai API key <span class="field-note"><b>z.ai</b> · GLM, strong at code</span></label>
         <input class="control" id="zaiKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="qwenKey">Alibaba Qwen API key <span class="field-note">— <b>modelstudio.console.alibabacloud.com</b> · Qwen</span></label>
+        <label for="qwenKey">Alibaba Qwen API key <span class="field-note"><b>modelstudio.console.alibabacloud.com</b> · Qwen</span></label>
         <input class="control" id="qwenKey" type="password" placeholder="sk-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="huggingfaceKey">Hugging Face token <span class="field-note">— free at <b>huggingface.co/settings/tokens</b></span></label>
+        <label for="huggingfaceKey">Hugging Face token <span class="field-note">Free at <b>huggingface.co/settings/tokens</b></span></label>
         <input class="control" id="huggingfaceKey" type="password" placeholder="hf_…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="deepinfraKey">DeepInfra API key <span class="field-note">— <b>deepinfra.com</b> · open models, cheap</span></label>
+        <label for="deepinfraKey">DeepInfra API key <span class="field-note"><b>deepinfra.com</b> · open models, cheap</span></label>
         <input class="control" id="deepinfraKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="novitaKey">Novita API key <span class="field-note">— <b>novita.ai</b> · open models</span></label>
+        <label for="novitaKey">Novita API key <span class="field-note"><b>novita.ai</b> · open models</span></label>
         <input class="control" id="novitaKey" type="password" placeholder="sk_…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="veniceKey">Venice API key <span class="field-note">— <b>venice.ai</b> · private by default</span></label>
+        <label for="veniceKey">Venice API key <span class="field-note"><b>venice.ai</b> · private by default</span></label>
         <input class="control" id="veniceKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="cloudflareAccount">Cloudflare account ID <span class="field-note">— free at <b>dash.cloudflare.com</b> · needs no card · 32 characters, 0-9 and a-f</span></label>
+        <label for="cloudflareAccount">Cloudflare account ID <span class="field-note">Free at <b>dash.cloudflare.com</b> · needs no card · 32 characters, 0-9 and a-f</span></label>
         <input class="control" id="cloudflareAccount" type="text" placeholder="0123456789abcdef0123456789abcdef" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="cloudflareKey">Cloudflare API token <span class="field-note">— the token for that account · sent by the app itself, since its servers refuse a web page</span></label>
+        <label for="cloudflareKey">Cloudflare API token <span class="field-note">The token for that account · sent by the app itself, since its servers refuse a web page</span></label>
         <input class="control" id="cloudflareKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="sambaKey">SambaNova API key <span class="field-note">— free at <b>cloud.sambanova.ai</b> · sent by the app itself, since its servers refuse a web page</span></label>
+        <label for="sambaKey">SambaNova API key <span class="field-note">Free at <b>cloud.sambanova.ai</b> · sent by the app itself, since its servers refuse a web page</span></label>
         <input class="control" id="sambaKey" type="password" placeholder="…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="openRouterKey">OpenRouter key <span class="field-note">— free models at <b>openrouter.ai</b></span></label>
+        <label for="openRouterKey">OpenRouter key <span class="field-note">Free models at <b>openrouter.ai</b></span></label>
         <input class="control" id="openRouterKey" type="password" placeholder="sk-or-v1-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="nvidiaKey">NVIDIA NIM key <span class="field-note">— from <b>build.nvidia.com</b> · sent by the app itself, since its servers refuse a web page</span></label>
+        <label for="nvidiaKey">NVIDIA NIM key <span class="field-note">From <b>build.nvidia.com</b> · sent by the app itself, since its servers refuse a web page</span></label>
         <input class="control" id="nvidiaKey" type="password" placeholder="nvapi-…" spellcheck="false" autocomplete="off" />
       </div>
 
       <div class="set-sec" data-api-group>Web search</div>
 
       <div class="field">
-        <label for="tavilyKey">Tavily key <span class="field-note">— search built for models, free 1000/mo at <b>tavily.com</b></span></label>
+        <label for="tavilyKey">Tavily key <span class="field-note">Search built for models, free 1000/mo at <b>tavily.com</b></span></label>
         <input class="control" id="tavilyKey" type="password" placeholder="tvly-…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="googleKey">Google Search key <span class="field-note">— optional</span></label>
+        <label for="googleKey">Google Search key <span class="field-note">Optional</span></label>
         <input class="control" id="googleKey" type="password" placeholder="AIzaSy…" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field">
-        <label for="googleCx">Google search engine ID <span class="field-note">— the <b>cx</b> value that goes with the key above</span></label>
+        <label for="googleCx">Google search engine ID <span class="field-note">The <b>cx</b> value that goes with the key above</span></label>
         <input class="control" id="googleCx" placeholder="0123abc:xyz…" spellcheck="false" autocomplete="off" />
       </div>
 
@@ -402,13 +400,13 @@
         <input class="control" id="connUrl" placeholder="https://erp.example.com/mcp" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field" id="connSecretRow">
-        <label for="connSecret"><span id="connSecretLabel">Key</span> <span class="field-note" id="connSecretNote"></span></label>
+        <label for="connSecret"><span class="field-name" id="connSecretLabel">Key</span> <span class="field-note" id="connSecretNote"></span></label>
         <input class="control" id="connSecret" type="password" placeholder="Paste it here" spellcheck="false" autocomplete="off" />
       </div>
       <div class="field" id="connReadOnlyRow" hidden>
         <label class="check-row">
           <input type="checkbox" id="connReadOnly" class="check-box" checked />
-          <span><b>Reading only</b> <span class="field-note">— connect through the service's own address that can only read, so nothing can be changed through it</span></span>
+          <span><b>Reading only</b> <span class="field-note">Connect through the service's own address that can only read, so nothing can be changed through it</span></span>
         </label>
       </div>
       <details class="conn-more" id="connMore">
@@ -453,27 +451,48 @@
       <div class="field">
         <label class="check-row">
           <input type="checkbox" id="cdrSetProve" class="check-box" checked />
-          <span><b>Prove changes before finishing</b> <span class="field-note">— after changing code, HashCoder is sent back to run the project's own tests before it finishes (a model under 5B that does not has them run for it), and a model on this computer under 15B is also sent back once to check its work against the request. A request of several asks is gone through ask by ask. An answer from a model on this computer saying part of the work is not done is sent back to do it. A site it changed is read the way a browser would, and what will not work, or lets the page down, is sent back to be fixed. An answer that names a file the project does not have is sent back to find it. After a larger change, a larger model takes a second look at it with a clean slate and fixes what that finds. What was checked is said under each answer either way.</span></span>
+          <span><b>Prove changes before finishing</b> <span class="field-note">After changing code, HashCoder is sent back to run the project's own tests. What was checked is said under each answer either way.</span></span>
         </label>
+        <details class="set-more">
+          <summary>What gets checked</summary>
+          <ul>
+            <li>A model under 5B that does not run the tests has them run for it.</li>
+            <li>A model on this computer under 15B is also sent back once to check its work against the request.</li>
+            <li>A request of several asks is gone through ask by ask.</li>
+            <li>An answer from a model on this computer saying part of the work is not done is sent back to do it.</li>
+            <li>A site it changed is read the way a browser would, and what will not work, or lets the page down, is sent back to be fixed.</li>
+            <li>An answer that names a file the project does not have is sent back to find it.</li>
+            <li>The details a page states as fact are checked against what it was told and read.</li>
+            <li>After a larger change, a larger model takes a second look at it with a clean slate and fixes what that finds.</li>
+          </ul>
+        </details>
       </div>
       <div class="field">
         <label class="check-row">
           <input type="checkbox" id="cdrSetLessons" class="check-box" />
-          <span><b>Keep lessons about each project</b> <span class="field-note">— a model of 15B or more, or a cloud model, may save short notes on how a project is built and tested, kept in HashCortx, never in the project, and read at the start of the next conversation on it. Lessons a model on this computer kept never go to a cloud model.</span></span>
+          <span><b>Keep lessons about each project</b> <span class="field-note">May save short notes on how a project is built and tested. Kept in HashCortx, never in the project.</span></span>
         </label>
+        <details class="set-more">
+          <summary>How lessons are kept</summary>
+          <ul>
+            <li>A model of 15B or more, or a cloud model, may save them.</li>
+            <li>They are read at the start of the next conversation on that project.</li>
+            <li>Lessons a model on this computer kept never go to a cloud model.</li>
+          </ul>
+        </details>
         <button class="ghost set-btn" type="button" id="cdrForgetLessons" title="Remove every lesson kept, for every project">Forget all lessons</button>
       </div>
       <div class="field" id="cdrKb">
         <label class="check-row">
           <input type="checkbox" id="cdrKbState" class="check-box" />
-          <span><b>Use my knowledge base</b> <span class="field-note">— the same switch as in Agents: while it is on, HashCoder can look up your documents</span></span>
+          <span><b>Use my knowledge base</b> <span class="field-note">The same switch as in Agents: while it is on, HashCoder can look up your documents</span></span>
         </label>
         <div class="field-note" id="cdrKbRows"></div>
       </div>
       <div class="field">
         <label class="check-row">
           <input type="checkbox" id="cdrSetTerminal" class="check-box" />
-          <span><b>Show the terminal when HashCoder opens</b> <span class="field-note">— the terminal button in its bar opens it at any time</span></span>
+          <span><b>Show the terminal when HashCoder opens</b> <span class="field-note">The terminal button in its bar opens it at any time</span></span>
         </label>
       </div>
 
@@ -489,7 +508,7 @@
 
       <div class="set-sec">Permissions</div>
       <div class="field">
-        <div class="field-note">What you allowed for this session. After a reset, HashCoder asks again before any change or command.</div>
+        <div class="field-note">What you allowed for this session. After a reset, HashCoder asks again before any change or command. How much it may do without asking is chosen with the menu beside the Run button: Manual, Accept edits or Auto.</div>
         <div class="host-row">
           <button class="ghost set-btn set-btn-danger" type="button" id="cdrResetPermsBtn">Reset permissions</button>
         </div>

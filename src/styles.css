@@ -926,6 +926,8 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   text-transform: none;
   font-weight: 400;
 }
+/* ...except a name set by the page (the Key label of a connection), which is the label itself. */
+#settingsOverlay .field > label > .field-name { font-weight: inherit; }
 /* A key, a URL and a model id are literals — those stay monospaced, because
    character-for-character legibility is the whole point of them. */
 #settingsOverlay .control,

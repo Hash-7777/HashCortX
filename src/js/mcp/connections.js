@@ -558,6 +558,7 @@
       fixed.hidden = !kind.url;
       fixed.textContent = kind.url ? `Connects to ${Pre().addressOf(kind, { readOnly: readOnly() })}` : "";
     };
+    const sentence = (t) => t.charAt(0).toUpperCase() + t.slice(1);   // a preset's note is written to follow its name; it now sits under it
     const choose = (p) => {
       kind = p;
       for (const b of kinds.children) b.setAttribute("aria-checked", String(b.dataset.kind === p.id));
@@ -565,10 +566,10 @@
       if ($("connUrlRow")) $("connUrlRow").hidden = !!p.url;
       if (p.address && $("connUrl")) {
         $("connUrl").placeholder = p.address.placeholder;
-        if ($("connUrlNote")) $("connUrlNote").textContent = `— ${p.address.note}`;
+        if ($("connUrlNote")) $("connUrlNote").textContent = sentence(p.address.note);
       }
       if ($("connSecretLabel")) $("connSecretLabel").textContent = p.key.label;
-      if ($("connSecretNote")) $("connSecretNote").textContent = `— ${p.key.note}`;
+      if ($("connSecretNote")) $("connSecretNote").textContent = sentence(p.key.note);
       if ($("connReadOnlyRow")) $("connReadOnlyRow").hidden = !p.readOnlyUrl;
       if ($("connAuth")) $("connAuth").value = p.auth;
       if ($("connNote")) $("connNote").textContent = "";

@@ -233,8 +233,15 @@
   .settings-pane .set-sec[hidden],
   .settings-pane button[hidden] { display: none; }
   .field-note { color: var(--muted); font-weight: 400; }
-  .check-row { display: flex; align-items: center; gap: var(--set-2); cursor: pointer; }
-  .check-box { width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; flex: 0 0 16px; }
+  /* A setting's help sits on its own line under its name, in short plain
+     words, and the longer detail is one click away (.set-more). */
+  .field > label > .field-note, .range-row > label > .field-note, .check-row > span > .field-note { display: block; margin-top: 2px; line-height: 1.5; max-width: 68ch; }
+  .check-row { display: flex; align-items: flex-start; gap: var(--set-2); cursor: pointer; }
+  .check-box { width: 16px; height: 16px; accent-color: var(--ok); cursor: pointer; flex: 0 0 16px; margin-top: 2px; }
+  .set-more { margin: 2px 0 0 calc(16px + var(--set-2)); color: var(--muted); }
+  .set-more > summary { cursor: pointer; color: var(--text-dim); width: max-content; }
+  .set-more > summary:hover { color: var(--text); }
+  .set-more > ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; line-height: 1.5; max-width: 68ch; }
   .range-ends {
     display: flex; justify-content: space-between; align-items: center;
     color: var(--muted); margin-top: var(--set-2);

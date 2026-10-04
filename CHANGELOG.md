@@ -569,6 +569,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Settings read shorter and sit in order.** Each setting's help now stands
+  on its own line under its name, in plain words, with no dash in front of it
+  and a capital letter to start. The long explanations (what "Prove changes
+  before finishing" checks, how project lessons are kept) are one click away
+  under "What gets checked" and "How lessons are kept", with nothing taken out
+  of them; the details check is now listed there too. A checkbox lines up with
+  the first line of its text and not with the middle of a paragraph. The
+  connection form's hints read the same way, and its "Key" label is as heavy
+  as the others. The Local model page and the HashCoder tab say less, and
+  HashCoder's Permissions section now points to the menu beside Run, where
+  Manual, Accept edits and Auto are chosen.
+
 - **The sign that HashCoder is working says what it is doing.** The turning
   ring and the shimmering "Thinking" are gone. Five small marks with a
   diamond among them move beside a label that follows what has happened: it
