@@ -6470,6 +6470,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // had no access to it and fell back to DuckDuckGo's instant-answer
     // endpoint, which returns nothing for most developer queries.
     tavilySearch,
+    tavilyReady: () => !!(tavilyKeyEl.value || "").trim(),   // a key is set: HashCoder's search says which service it asks about
     runOneTool,
     // The knowledge base, for modes that are not chat. The Coder called the
     // last two of these, and the three after them, before the bridge had them.

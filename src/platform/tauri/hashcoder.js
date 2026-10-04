@@ -776,17 +776,31 @@
         const query = String(p.query || '').trim();
         if (!query) return JSON.stringify({ error: 'query is required' });
 
+        // The words are chosen by the model and go to a search service, so the
+        // person is asked first, as for a web page, once for each service they
+        // would reach; "allow for session" covers the host.
+        const shown = query.length > 80 ? `${query.slice(0, 80)}...` : query;
+        const ask = async (target) => {
+          const ok = await HC.guard.request('fetch', target, `Searching the web for "${shown}"`);
+          if (!ok) throw new Error(`Permission denied: web search for "${shown}"`);
+          return HC.guard.busy?.(target);
+        };
+
         // Prefer the real search engine the app already supports. Coder mode
         // had no access to it and always used DuckDuckGo's instant-answer API,
         // which answers "what is a capybara" and almost nothing a developer
         // would ask — while the tool described itself as a web search.
-        try {
-          const viaTavily = await window._H?.tavilySearch?.(query, 5);
-          if (viaTavily) return JSON.stringify({ query, source: 'tavily', results: viaTavily });
-        } catch { /* fall through to the free endpoint */ }
+        if (window._H?.tavilyReady?.()) {
+          const job = await ask('https://api.tavily.com/search');
+          try {
+            const viaTavily = await window._H?.tavilySearch?.(query, 5);
+            if (viaTavily) return JSON.stringify({ query, source: 'tavily', results: viaTavily });
+          } catch { /* fall through to the free endpoint */ } finally { job?.done(); }
+        }
 
+        const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+        const job = await ask(url);
         try {
-          const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
           const resp = await fetch(url);
           if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
           const data = await resp.json();
@@ -809,7 +823,7 @@
           return JSON.stringify({ query, source: 'duckduckgo-instant-answer', results });
         } catch (err) {
           return JSON.stringify({ error: err.message, message: 'Search is unavailable. Answer from your own knowledge and say so.' });
-        }
+        } finally { job?.done(); }
       },
     },
     {

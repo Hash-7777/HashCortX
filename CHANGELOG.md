@@ -454,6 +454,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **HashCoder asks before it searches the web.** The words it searches for are
+  the model's choice and go to a search service. The question now shows the
+  words and the host, Tavily when a key is set and otherwise DuckDuckGo, and
+  asks about each separately if the first gives nothing. "Allow for session"
+  covers the host. If you say no, nothing is sent and the model is told the
+  search was refused, not that search is unavailable. Chat's own web search is
+  unchanged.
 - **HashCoder asks before it searches for photos.** The words it gives as a
   site's subject go to Openverse, a service you did not choose and it did.
   Each search now comes with a question showing the words and the host, as

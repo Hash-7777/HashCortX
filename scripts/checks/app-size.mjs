@@ -209,7 +209,9 @@ const LINE_BUDGET = {
   // larger window of its own, so the three places that chose one are gone.
   // 6523, down one: the drawn close mark is defined once, before the chip that
   // uses it, and the error box and the agent chip draw it.
-  'js/app.js': 6523,
+  // 6524, up one: the page says whether a search key is set (_H.tavilyReady),
+  // so HashCoder's web search can name the service the question is about.
+  'js/app.js': 6524,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

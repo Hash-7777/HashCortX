@@ -272,6 +272,62 @@ console.log('\nReal photographs of a site\'s subject:');
   ok('a small model is not offered it', !box.window.HC.code.SMALL_MODEL_TOOLS.includes('find_photos'));
 }
 
+console.log('\nA web search asks first, for each service it would reach:');
+{
+  const box = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set, setTimeout, clearTimeout, AbortController, encodeURIComponent };
+  box.HC = box.window.HC = {};
+  const questions = [];
+  let allow = true;
+  let working = 0;
+  box.HC.guard = { request: async (action, target, reason) => { questions.push({ action, target, reason }); return allow; }, busy: () => { working++; return { done: () => { working--; } }; } };
+  const sent = [];
+  box.fetch = async (url) => { sent.push(String(url)); return { ok: true, json: async () => ({ AbstractText: 'A capybara is a rodent.', Heading: 'Capybara', AbstractURL: 'https://example.org/capybara', RelatedTopics: [] }) }; };
+  let keyed = false;
+  let tavilyAnswer = [{ title: 'Doc', snippet: 'text', url: 'https://example.org/d' }];
+  box.window._H = { tavilyReady: () => keyed, tavilySearch: async () => { sent.push('tavily'); return tavilyAnswer; } };
+  vm.createContext(box);
+  vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
+  const tool = box.window.HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'web_search');
+  const reset = () => { questions.length = 0; sent.length = 0; allow = true; };
+
+  reset();
+  const free = JSON.parse(await tool.fn({ query: 'capybara facts' }));
+  ok('with no search key, the person is asked about DuckDuckGo, with the words, before anything is sent',
+    questions.length === 1 && questions[0].action === 'fetch' && /^https:\/\/api\.duckduckgo\.com\/\?q=capybara%20facts/.test(questions[0].target) && /capybara facts/.test(questions[0].reason) && sent.length === 1 && free.source === 'duckduckgo-instant-answer' && working === 0);
+
+  reset(); keyed = true;
+  const viaKey = JSON.parse(await tool.fn({ query: 'rust lifetimes' }));
+  ok('with a key set, the question is about Tavily, and the free service is not reached when Tavily answers',
+    questions.length === 1 && questions[0].target === 'https://api.tavily.com/search' && /rust lifetimes/.test(questions[0].reason) && viaKey.source === 'tavily' && !sent.some((u) => /duckduckgo/.test(u)) && working === 0);
+
+  reset(); tavilyAnswer = null;
+  await tool.fn({ query: 'rust lifetimes' });
+  ok('if Tavily gives nothing, DuckDuckGo is a second service and is asked about separately',
+    questions.length === 2 && questions[1].target.startsWith('https://api.duckduckgo.com/') && sent.some((u) => /duckduckgo/.test(u)) && working === 0);
+  tavilyAnswer = [{ title: 'Doc', snippet: 'text', url: 'https://example.org/d' }];
+
+  reset(); allow = false;
+  let refused = '';
+  try { await tool.fn({ query: 'rust lifetimes' }); } catch (e) { refused = String(e.message); }
+  ok('when the person says no to Tavily, nothing is sent anywhere and the model is told so, not that search is unavailable',
+    /^Permission denied: web search/.test(refused) && sent.length === 0 && questions.length === 1 && working === 0);
+
+  reset(); keyed = false; allow = false;
+  refused = '';
+  try { await tool.fn({ query: 'capybara facts' }); } catch (e) { refused = String(e.message); }
+  ok('...and the same for DuckDuckGo', /^Permission denied: web search/.test(refused) && sent.length === 0 && working === 0);
+
+  reset();
+  const none = JSON.parse(await tool.fn({ query: '   ' }));
+  ok('an empty query asks nothing and sends nothing', !!none.error && questions.length === 0 && sent.length === 0);
+
+  reset();
+  const long = 'x'.repeat(300);
+  await tool.fn({ query: long });
+  ok('a long query is shown cut short in the question but sent whole', questions[0].reason.length < 120 && sent[0].includes('x'.repeat(300)));
+  ok('the page says whether a search key is set, so the question names the right service', /tavilyReady: \(\) => !!\(tavilyKeyEl\.value/.test(src('js', 'app.js')));
+}
+
 console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
 {
   const box = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
