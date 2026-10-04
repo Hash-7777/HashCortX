@@ -323,10 +323,8 @@
           setExplorerRootLabel(state.projectRoot);
           renderExplorerTree(state.projectRoot).catch(() => {});
         }
-        if (Array.isArray(state.chatHistory) && state.chatHistory.length) {
-          conversationMsgs = state.chatHistory;
-          renderConversation();
-        }
+        // A new launch starts a new conversation: the last is kept in Sessions and the project stays open (leaving HashCoder and coming back never comes here).
+        if (Array.isArray(state.chatHistory) && state.chatHistory.length) { conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; saveCoderState(); }
       } catch (e) { console.warn('[CoderMode] restore state failed:', e); }
     }
     function clearCoderState() {
@@ -440,7 +438,7 @@
         $('stab-hashcoder')?.click();
       });
       const history = $('cdrSessionsPanel');
-      const historyBtn = $('cdrHistoryBtn');
+      const historyBtn = $('cdrSessionsBtn');
       const showHistory = (open) => {
         history?.classList.toggle('open', open);
         historyBtn?.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1120,7 +1118,7 @@
       const q = (filter || '').trim().toLowerCase();
       const sessions = q ? all.filter(s => (s.title || '').toLowerCase().includes(q)) : all;
       if (!sessions.length) {
-        list.innerHTML = `<div class="cdr-sessions-empty">${q ? 'No chats match your search.' : 'Past conversations will appear here.'}</div>`;
+        list.innerHTML = `<div class="cdr-sessions-empty">${q ? 'No sessions match your search.' : 'Past sessions will appear here.'}</div>`;
         return;
       }
       // SVGs (no emoji — terminal-themed icons)

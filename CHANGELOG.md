@@ -593,6 +593,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder's past conversations are called Sessions, and a launch starts a
+  new one.** The clock-only History button is now a button that says Sessions,
+  beside New chat, and the panel it opens is named the same. Opening HashCortX
+  starts a new conversation; the last one is kept in Sessions and the project
+  stays open. Going out of HashCoder and coming back in the same launch leaves
+  the conversation as it was.
+
 - **Settings read shorter and sit in order.** Each setting's help now stands
   on its own line under its name, in plain words, with no dash in front of it
   and a capital letter to start. The long explanations (what "Prove changes

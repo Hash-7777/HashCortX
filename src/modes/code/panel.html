@@ -8,7 +8,7 @@
 <div id="coder-mode-wrap">
 
   <!-- One bar: where you are, which model, and four ways out of the
-       conversation — history, the terminal, settings, and leaving. Everything
+       conversation — sessions, the terminal, settings, and leaving. Everything
        used less often than that is in Settings, under HashCoder. -->
   <div class="cdr-top">
     <div class="cdr-top-left">
@@ -33,12 +33,13 @@
         <span class="cdr-ctx-count" id="cdrContextCount" hidden></span>
       </span>
       <span class="cdr-top-sep" aria-hidden="true"></span>
-      <button type="button" class="cdr-new-btn" id="cdrClearChatBtn" title="Start a new conversation. This one is kept in History.">
+      <button type="button" class="cdr-new-btn" id="cdrClearChatBtn" title="Start a new conversation. This one is kept in Sessions.">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         <span>New chat</span>
       </button>
-      <button type="button" class="cdr-icon-btn" id="cdrHistoryBtn" title="History" aria-expanded="false" aria-controls="cdrSessionsPanel">
+      <button type="button" class="cdr-new-btn cdr-sessions-btn" id="cdrSessionsBtn" title="Past conversations" aria-expanded="false" aria-controls="cdrSessionsPanel">
         <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>
+        <span>Sessions</span>
       </button>
       <button type="button" class="cdr-icon-btn" id="cdrDebugBtn" title="Export this conversation with its trace, for debugging">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v10M8 10.5l4 4 4-4"/><path d="M5 19h14"/></svg>
@@ -167,18 +168,18 @@
       </div>
     </div>
 
-    <!-- Past conversations, opened from the clock in the bar. -->
-    <div class="cdr-right" id="cdrSessionsPanel" role="dialog" aria-label="History">
+    <!-- Past conversations, opened from Sessions in the bar. -->
+    <div class="cdr-right" id="cdrSessionsPanel" role="dialog" aria-label="Sessions">
       <div class="cdr-sessions-hd">
-        <span class="cdr-pane-label">History</span>
+        <span class="cdr-pane-label">Sessions</span>
         <span class="cdr-sessions-hd-actions">
           <button type="button" class="cdr-text-btn" id="cdrSessionsClearAllBtn" title="Delete every saved conversation">Clear all</button>
           <button type="button" class="cdr-text-btn" id="cdrSessionsClose" title="Close">Close</button>
         </span>
       </div>
-      <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search conversations" autocomplete="off" spellcheck="false"/>
+      <input type="search" id="cdrSessionsSearch" class="cdr-sessions-search" placeholder="Search sessions" autocomplete="off" spellcheck="false"/>
       <div class="cdr-sessions-body" id="cdrSessionsList">
-        <div class="cdr-sessions-empty">Past conversations will appear here.</div>
+        <div class="cdr-sessions-empty">Past sessions will appear here.</div>
       </div>
     </div>
 

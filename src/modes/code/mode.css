@@ -123,6 +123,10 @@ body.coder-mode #app { display: none; }
   background: transparent; color: var(--cdr-text-dim); font-size: 12.5px; cursor: pointer; white-space: nowrap;
 }
 .cdr-new-btn svg { width: 14px; height: 14px; }
+/* Sessions: the same words-and-drawn-icon button, quiet until it is the open one. */
+.cdr-sessions-btn { border-color: transparent; }
+.cdr-sessions-btn:hover { border-color: var(--cdr-border-strong); }
+.cdr-sessions-btn[aria-expanded="true"] { color: var(--cdr-text); border-color: var(--cdr-border-strong); }
 .cdr-new-btn:hover { color: var(--cdr-text); border-color: var(--accent); }
 .cdr-icon-btn:focus-visible, .cdr-project:focus-visible, .cdr-text-btn:focus-visible, .cdr-new-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 

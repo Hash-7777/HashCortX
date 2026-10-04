@@ -758,7 +758,9 @@ const LINE_BUDGET = {
   // (js/code/talk.js).
   // 2485, up one: a second look, which is a model call with nothing else on
   // the screen, shows the live line (js/code/live.js).
-  'modes/code/mode.js': 2485,
+  // 2483, down two: a new launch starts a new conversation, and the old
+  // restore of the last one is gone.
+  'modes/code/mode.js': 2483,
 };
 
 console.log('\nFile sizes go down, never up:');
