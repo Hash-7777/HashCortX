@@ -714,7 +714,16 @@
         if (!P) throw new Error('find_photos is not available in this build.');
         const draw = 'Draw the imagery with CSS or inline SVG instead, and write no image address.';
         if (!P.allowed()) return JSON.stringify({ photos: [], note: `"Find real photos for websites" is off in Settings, or Local only is on, so no search was made. ${draw}` });
-        const { photos } = await P.find({ searches: [p.subject], fetch: (...a) => fetch(...a) });
+        // The words go to a service the person did not choose, picked by the model, so
+        // it is asked first like a web page is, and "allow for session" covers the host.
+        const words = P.searchesOf([p.subject])[0];
+        if (words) {
+          const ok = await HC.guard.request('fetch', P.searchUrl(words), `Searching Openverse for photos of "${words}"`);
+          if (!ok) throw new Error(`Permission denied: photo search for "${words}"`);
+        }
+        const job = words ? HC.guard.busy?.(P.searchUrl(words)) : null;
+        let photos;
+        try { ({ photos } = await P.find({ searches: [p.subject], fetch: (...a) => fetch(...a) })); } finally { job?.done(); }
         const list = photos.slice(0, Math.min(Math.max(parseInt(p.count) || 6, 1), P.MAX_PHOTOS))
           .map((x) => ({ url: x.url, title: x.title, shape: x.shape, credit: P.creditOf(x), page: x.page }));
         return JSON.stringify(list.length

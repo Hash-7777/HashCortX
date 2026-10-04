@@ -230,6 +230,10 @@ console.log('\nReal photographs of a site\'s subject:');
   box.HC = box.window.HC = {};
   let asked = [];
   let answer = [];
+  const questions = [];
+  let allow = true;
+  let working = 0;
+  box.HC.guard = { request: async (action, target, reason) => { questions.push({ action, target, reason }); return allow; }, busy: () => { working++; return { done: () => { working--; } }; } };
   box.fetch = async (url) => { asked.push(String(url)); return { ok: true, json: async () => ({ results: answer }) }; };
   vm.createContext(box);
   vm.runInContext(src('js', 'swarm', 'photos.js'), box, { filename: 'photos.js' });
@@ -245,13 +249,24 @@ console.log('\nReal photographs of a site\'s subject:');
     asked.length === 1 && /q=diamond%20ring/.test(asked[0]) && found.photos.length === 2
     && found.photos[0].url === 'https://live.example.org/p1.jpg' && /by A\. Maker \(CC BY 2\.0\)/.test(found.photos[0].credit) && found.photos[0].page === 'https://example.org/photo/1');
   ok('and says they are to be used exactly and credited', /exactly/.test(found.note) && /Credit each one/.test(found.note));
+  ok('the person is asked first, as for a web page, with the words and the host, and the wait shows while it runs',
+    questions.length === 1 && questions[0].action === 'fetch' && /^https:\/\/api\.openverse\.org\/v1\/images\/\?q=diamond%20ring/.test(questions[0].target) && /diamond ring/.test(questions[0].reason) && working === 0);
+  allow = false; asked = [];
+  let refused = '';
+  try { await tool.fn({ subject: 'diamond ring' }); } catch (e) { refused = String(e.message); }
+  ok('when the person says no, nothing is searched and the model is told so', asked.length === 0 && /^Permission denied: photo search/.test(refused) && working === 0);
+  allow = true;
   answer = [];
   const none = JSON.parse(await tool.fn({ subject: 'xyzzy plugh' }));
   ok('with none found, it says to draw the imagery and write no address', none.photos.length === 0 && /write no image address/.test(none.note));
   box.window.HCSwarmPhotos.allowed = () => false;
   asked = [];
   const off = JSON.parse(await tool.fn({ subject: 'diamond ring' }));
-  ok('with the setting off or Local only on, nothing is searched', asked.length === 0 && off.photos.length === 0 && /off in Settings/.test(off.note));
+  const askedBefore = questions.length;
+  ok('with the setting off or Local only on, nothing is searched, and nobody is asked', asked.length === 0 && questions.length === askedBefore && off.photos.length === 0 && /off in Settings/.test(off.note));
+  box.window.HCSwarmPhotos.allowed = () => true;
+  ok('words that cannot be a search are not asked about or sent', (await tool.fn({ subject: '!!' }), questions.length === askedBefore && asked.length === 0));
+  box.window.HCSwarmPhotos.allowed = () => false;
   const prompt = box.window.HC.code.SYSTEM_PROMPT;
   ok('the instructions send a site that shows its subject to it, and name the image hosts that are gone', /find_photos\(subject\)/.test(prompt) && /via\.placeholder\.com and source\.unsplash\.com no longer serve images/.test(prompt));
   ok('a small model is not offered it', !box.window.HC.code.SMALL_MODEL_TOOLS.includes('find_photos'));

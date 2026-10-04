@@ -86,6 +86,9 @@
     };
   }
 
+  /** The address one search is sent to: the only thing about the site that leaves the computer. */
+  const searchUrl = (q) => `${ENDPOINT}?q=${encodeURIComponent(q)}&license=${LICENCES}&mature=false&page_size=${PER_SEARCH}`;
+
   /**
    * The photographs for a set of searches: each search asked once, results
    * that cannot be used dropped, one photograph per title so a series of
@@ -100,7 +103,7 @@
     const searched = [];
     for (const q of qs) {
       if (signal && signal.aborted) break;
-      const url = `${ENDPOINT}?q=${encodeURIComponent(q)}&license=${LICENCES}&mature=false&page_size=${PER_SEARCH}`;
+      const url = searchUrl(q);
       let data = null;
       const own = typeof AbortController !== 'undefined' ? new AbortController() : null;
       const stop = () => own && own.abort();
@@ -178,5 +181,5 @@ Every photograph the site shows must be credited where a visitor can read it —
     else wire();
   }
 
-  window.HCSwarmPhotos = { ENDPOINT, PREF_KEY, LICENCES, MAX_PHOTOS, searchesOf, photoOf, find, creditOf, briefOf, uncredited, allowed, wire };
+  window.HCSwarmPhotos = { ENDPOINT, PREF_KEY, LICENCES, MAX_PHOTOS, searchesOf, searchUrl, photoOf, find, creditOf, briefOf, uncredited, allowed, wire };
 })();

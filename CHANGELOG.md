@@ -454,6 +454,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **HashCoder asks before it searches for photos.** The words it gives as a
+  site's subject go to Openverse, a service you did not choose and it did.
+  Each search now comes with a question showing the words and the host, as
+  reading a web page does, and "allow for session" covers the host for the
+  rest of the session. If you say no, nothing is sent and the model is told
+  to draw the imagery instead. With the setting off or Local only on, nothing
+  is asked and nothing is sent, as before.
 - **The Windows safety list reads a command's switches, not its spelling.**
   A recursive delete that does not ask is refused in Command Prompt and in
   PowerShell wherever its switches stand and however they are shortened, one
