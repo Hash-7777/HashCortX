@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder answers a greeting without reading its tools first, and sets
+  aside a reply that is the tools written back.** A small or mid-sized model
+  reads a request's instructions and tools before it writes a word, and
+  they are most of what it reads, so on a modest computer even "hi" could
+  wait a long time. A greeting, a thanks, or a one-line question about what
+  HashCoder is (and nothing else: no file, no path, no code) is now sent to
+  such a model without tools, without the project's map and with a one-line
+  instruction. A small model given tools sometimes answers with the list of
+  tool definitions as JSON in place of a reply; that is recognised, set
+  aside, and the model is asked again without tools (`js/code/talk.js`).
+
 - **A model that does not fit in the graphics memory is said so.** Ollama
   reports how much of a loaded model is in graphics memory. When some of it
   is and some is not, the note under the box a request is written in says

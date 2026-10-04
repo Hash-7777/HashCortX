@@ -749,7 +749,10 @@ const LINE_BUDGET = {
   // and the menu that chooses it is mounted (js/code/permissions.js).
   // 2480, up one: where a model on this computer runs is read after each run,
   // and said when part of it runs on the processor (js/local-fit.js).
-  'modes/code/mode.js': 2480,
+  // 2484, up four: a greeting to a small or mid-sized model is answered without
+  // its tools, and a reply that is the tools written back is set aside
+  // (js/code/talk.js).
+  'modes/code/mode.js': 2484,
 };
 
 console.log('\nFile sizes go down, never up:');

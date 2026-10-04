@@ -88,6 +88,7 @@
     '/js/code/asks.js',
     '/js/code/keep.js',
     '/js/code/steps.js',
+    '/js/code/talk.js',
     '/js/code/permissions.js',
     '/js/code/permission-bar.js',
     '/js/code/attach.js',

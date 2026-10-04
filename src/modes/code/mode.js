@@ -1863,6 +1863,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       activeContentEl = contentEl;
       const policy = window.HCAgentPolicy;
       let iter = 0;
+      // A greeting to a small or mid-sized model is answered without the tools and instructions it would read first, and so is a request after it wrote its tools back as its reply (js/code/talk.js).
+      let bare = (sharedState.size === 'small' || sharedState.size === 'mid') && !!window.HCCodeTalk?.onlySmallTalk(messages), echoed = false;
+      if (bare) tools = [];
       // Progress tracking, so the loop can tell an agent that is working from
       // one that is going in circles. The old fixed cap could not: it stopped
       // both at the same number and reported both as "paused".
@@ -1927,7 +1930,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
         const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
         const baseMsgs = told ? [...messages, { role: 'user', content: told, note: true }] : messages;
-        const callMessages = compressHistory(baseMsgs);
+        const callMessages = bare ? [{ role: 'system', content: window.HCCodeTalk.SHORT_SYSTEM }, ...compressHistory(baseMsgs).filter((m) => m.role !== 'system')] : compressHistory(baseMsgs);
 
         cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
         let turn;
@@ -2059,6 +2062,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
+        if (!echoed && window.HCCodeTalk?.echoesTools(finalText, tools)) { echoed = bare = true; tools = []; thinkEl = appendThinking(contentEl); cdrTraceAdd('Check', 'The model wrote its tool list back as its reply: asking again without tools', 'warn'); continue; }
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks })
@@ -2152,7 +2156,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
       const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
-      const context = window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
+      const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images, thumbs: request.thumbs } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
 
