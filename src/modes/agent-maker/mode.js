@@ -937,6 +937,7 @@ const SwarmMaker = (() => {
       setRunStatus(ran ? "done" : "error", doneLabel);
       updateTraceDot(ran ? "done" : "error");
       saveBlueprints();
+      if (done.run || kept.run) await window.HCSwarmRuns.saveRun({ ...(done.run || kept.run), trace: window.HCSwarmDebug.traceRows(document.getElementById("amkTraceEntries")) }).catch(() => {});   // the run keeps the trace it left, for a report on it (js/swarm/debug-report.js)
       if (!again) window.HCSwarmWorkspace.open(bp, bp.lastRunId || kept.run?.id);
       // The result stays in the Swarm tab. It used to be pushed into the
       // normal chat as well — into whichever chat happened to be open.

@@ -165,6 +165,7 @@
     '/js/swarm/site.js',
     '/js/swarm/web-brief.js',
     '/js/swarm/runs.js',
+    '/js/swarm/debug-report.js',
     '/js/swarm/workspace-view.js',
     '/js/swarm/talk.js',
     '/js/swarm/workspace.js',

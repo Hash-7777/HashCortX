@@ -442,7 +442,7 @@ console.log('\nThe Result says what was made, and when:');
   const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.css'), 'utf8');
   ok('the Result button is the last in the canvas bar, larger and in its own colour', /<button class="amk-btn amk-result-btn" id="amkViewChatBtn"[\s\S]*?<\/button>\s*<\/div>/.test(panel) && /\.amk-result-btn \{[^}]*height: 34px;[^}]*background: var\(--ok\)/.test(css));
   ok('Close is a labelled button at the right of the header', /<button class="amk-ws-close" id="amkWsClose" type="button" title="Close the result \(Esc\)"[^>]*>[\s\S]*?<span>Close<\/span><\/button>/.test(panel) && /\.amk-ws-close \{[^}]*height: 32px/.test(css));
-  ok('every action has a drawn mark beside its words', ['amkWsOpen', 'amkWsDownload', 'amkWsCopy', 'amkWsExport', 'amkWsDelete'].every((id) => new RegExp(`id="${id}" type="button"[^>]*><svg[^>]*aria-hidden="true">`).test(panel)));
+  ok('every action has a drawn mark beside its words', ['amkWsOpen', 'amkWsDownload', 'amkWsCopy', 'amkWsExport', 'amkWsDebug', 'amkWsDelete'].every((id) => new RegExp(`id="${id}" type="button"[^>]*><svg[^>]*aria-hidden="true">`).test(panel)));
   ok('each agent\'s mark takes the colour of its role, and a turn arrives smoothly unless less motion is asked for', /\.amk-ws-turn\[data-role="researcher"\]/.test(css) && /animation: amkTurnIn/.test(css) && /prefers-reduced-motion: reduce\) \{ \.amk-ws-turn \{ animation: none; \}/.test(css));
 }
 

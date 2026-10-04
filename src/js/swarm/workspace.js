@@ -58,6 +58,7 @@
     $('amkWsDelete')?.addEventListener('click', deleteRun);
     $('amkWsFinish')?.addEventListener('click', finishPass);
     $('amkWsOpen')?.addEventListener('click', openInBrowser);
+    $('amkWsDebug')?.addEventListener('click', exportDebug);
     $('amkWsTabs')?.addEventListener('keydown', onTabKey);
     $('amkWsSend')?.addEventListener('click', send);
     $('amkWsTo')?.addEventListener('change', drawComposer);
@@ -695,6 +696,17 @@
       status(`Opened v${state.rev} in the browser`, 'ok');
     } catch (err) {
       status(`Could not open it: ${err?.message || err}`, 'err');
+    }
+  }
+
+  /** The run on screen, written out for finding what went wrong (js/swarm/debug-report.js). */
+  async function exportDebug() {
+    status('Writing the report…');
+    try {
+      const done = await window.HCSwarmDebug.exportReport({ blueprint: state.blueprint, run: state.run, host: $('amkTraceEntries'), save: deps.saveFile, label: deps.label, settings: { 'Local only': $('privacyLocal')?.checked ? 'on' : 'off', 'Find real photos': $('swarmPhotos')?.checked ? 'on' : 'off' } });
+      status(done ? 'Saved the report' : 'Nothing to report yet: run the swarm first.', done ? 'ok' : 'err');
+    } catch (err) {
+      status(`Could not write the report: ${err?.message || err}`, 'err');
     }
   }
 

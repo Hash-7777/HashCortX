@@ -29,6 +29,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   light mode, and the debugging export says a run was in it
   (`js/code/light.js`).
 
+- **Export for bugs, in the Agent Swarm's Result.** One markdown file with
+  what is needed to find what went wrong in a run: the blueprint (its
+  shape and how answers are joined), when it ran and how many passes, who
+  failed, each agent's role, model, temperature, tools and instructions,
+  who hands work to whom, the trace, every turn with each failure marked,
+  every version of the files and the files of the newest. A run now keeps
+  the trace it left, so the report has it after the app is reopened.
+  Anything shaped like a key is replaced and counted, by the same rules as
+  HashCoder's export (`js/swarm/debug-report.js`).
+
+
 - **HashCoder answers a greeting without reading its tools first, and sets
   aside a reply that is the tools written back.** A small or mid-sized model
   reads a request's instructions and tools before it writes a word, and
