@@ -947,6 +947,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Settings: text can be copied, each key's page is a click away, and no
+  empty command box is shown.** Nothing in Settings could be selected, so a
+  command, an address or a note could not be copied by hand; its text is now
+  selectable and the context menu opens on it, while its buttons stay
+  unselectable. Where each provider's key comes from is now a link that opens
+  that provider's key page in the browser, instead of a name to type in. The
+  Local model page showed the install command's box with nothing in it on
+  Windows, and on every computer until the system was read, because the
+  box's display rule won over its hidden attribute; a row with no command for
+  this computer is now hidden.
+
 - **The permission bar is flat, and nothing spins after you allow.** Once an
   action was allowed, the bar reported it running by turning its shield
   round in place. The shield now stays still and a short line runs along

@@ -83,7 +83,8 @@ input, textarea, [contenteditable="true"],
 }
 
 /* Every conversation and result a person may want to copy from: the chat's,
-   HashCoder's, Virtual OS's, Finance's, the ERP agent's and the Swarm's. Kept in step with
+   HashCoder's, Virtual OS's, Finance's, the ERP agent's and the Swarm's, and
+   Settings, whose notes hold commands, addresses and where to get keys. Kept in step with
    the list main.js lets the context menu open on (scripts/checks/selectable.mjs). */
 #messages *,
 .cdr-messages *,
@@ -91,7 +92,8 @@ input, textarea, [contenteditable="true"],
 .fin-chat-messages *,
 #sysAgentLog *,
 .amk-ws-message *,
-#sbxLog * {
+#sbxLog *,
+.settings-pane * {
   user-select: text;
   -webkit-user-select: text;
 }
@@ -99,7 +101,7 @@ input, textarea, [contenteditable="true"],
    heading or a button does not select its label. */
 #messages button, #messages summary, .cdr-messages button, .cdr-messages summary,
 .void-chat-msgs button, .fin-chat-messages button,
-#sysAgentLog button, .amk-ws-message button, #sbxLog button {
+#sysAgentLog button, .amk-ws-message button, #sbxLog button, .settings-pane button, .settings-pane summary {
   user-select: none;
   -webkit-user-select: none;
 }
@@ -978,6 +980,10 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   border: 1px solid var(--line);
   color: var(--gold-2);
 }
+/* Where to get each key: the host, a link that opens its key page in the
+   browser (src/platform/index.js opens any outside link there). */
+#settingsOverlay .field-note .key-link { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; cursor: pointer; }
+#settingsOverlay .field-note .key-link:hover { color: var(--text); }
 /* The provider filter is prose, not a key. */
 #settingsOverlay input.lm-search { font-family: var(--sans); font-size: var(--set-body); }
 #settingsOverlay .lm-link { font-family: var(--sans); font-size: var(--set-body); }

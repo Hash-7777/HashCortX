@@ -90,5 +90,24 @@ console.log('\nThe window is kept on the app:');
   ok('and refuses by default', /_ => false,/.test(nav));
 }
 
+console.log('\nWhere to get each key, in Settings:');
+{
+  const panel = readFileSync(join(root, 'src', 'core', 'settings', 'panel.html'), 'utf8');
+  const pane = panel.slice(panel.indexOf('id="apisPane"'), panel.indexOf('id="aboutPane"'));
+  const links = [...pane.matchAll(/<a class="key-link" href="([^"]+)">([^<]+)<\/a>/g)].map((m) => ({ href: m[1], text: m[2] }));
+  ok('each provider names where its key comes from as a link', links.length >= 20 && !/Free at <b>|<span class="field-note"><b>[a-z.]+\.[a-z]+<\/b>/.test(pane), String(links.length));
+  ok('each goes over https to the host it shows, so the words say where it leads', links.every((l) => { const u = new URL(l.href); const shown = new URL(`https://${l.text}`); return u.protocol === 'https:' && (u.host === shown.host || u.host.endsWith(`.${shown.host.replace(/^www\./, '')}`) || shown.host.endsWith(`.${u.host.replace(/^www\./, '')}`) || u.host.replace(/^www\./, '') === shown.host.replace(/^www\./, '')); }),
+    links.map((l) => `${l.text} -> ${l.href}`).join(', '));
+  {
+    const { click, invoked } = page();
+    click(links[0].href);
+    ok('and a click on one opens it in the system browser', invoked.length === 1 && invoked[0].args.url === links[0].href);
+  }
+  const styles = readFileSync(join(root, 'src', 'styles.css'), 'utf8');
+  ok('they look like links', /#settingsOverlay \.field-note \.key-link \{[^}]*text-decoration: underline/.test(styles));
+  const modals = readFileSync(join(root, 'src', 'css', 'modals.css'), 'utf8');
+  ok('a command row with nothing for this computer is hidden, not shown empty', /\.lm-cmd\[hidden\] \{ display: none; \}/.test(modals) && /id="lmInstallCmdRow" hidden/.test(panel));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (links and navigation)`);
 process.exit(fail ? 1 : 0);

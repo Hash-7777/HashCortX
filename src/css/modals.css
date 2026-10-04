@@ -381,6 +381,8 @@
     scrollbar-width: none;
   }
   .lm-cmd code::-webkit-scrollbar, .lm-endpoint code::-webkit-scrollbar { display: none; }
+  /* A row with no command for this computer is hidden: display above would otherwise win over the attribute. */
+  .lm-cmd[hidden] { display: none; }
   .lm-copy, .lm-test {
     flex: 0 0 auto;
   }
