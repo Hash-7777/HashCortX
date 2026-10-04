@@ -47,20 +47,47 @@
 
   const tidy = (text, max) => String(text == null ? '' : text).replace(/^Error:\s*/i, '').replace(/\s+/g, ' ').trim().slice(0, max);
 
+  /** Names as a sentence lists them: "A", "A and B", "A, B and C"; past four, the first three and how many more. */
+  function listed(names) {
+    const shown = names.length > 4 ? [...names.slice(0, 3), `${names.length - 3} more`] : names;
+    return shown.length > 1 ? `${shown.slice(0, -1).join(', ')} and ${shown[shown.length - 1]}` : (shown[0] || '');
+  }
+
   /**
    * What to tell the person when no model could answer. `hops` are the
    * failures in the order they happened, `{ model, error }`, the model the
    * person chose first. The first is quoted as it said it; the rest are
-   * named with the reason in a few words. Nothing here leads with the last.
+   * gathered by the reason each gave, in a few words. What to do next
+   * follows from the first: a passing trouble at the provider (overloaded,
+   * a server error, no answer in time) is worth trying again in a moment.
+   * Nothing here leads with the last.
    */
   function explain({ hops, label, kindOf, reasonOf }) {
     if (!Array.isArray(hops) || hops.length < 2) return null;
     const first = hops[0];
-    const said = tidy(first.error && first.error.message, 320);
-    const rest = hops.slice(1).map((h) => `${label(h.model)} (${tidy(reasonOf(kindOf(h.error), h.error), 90)})`);
-    const shown = rest.length > 5 ? [...rest.slice(0, 5), `and ${rest.length - 5} more`] : rest;
-    return `${label(first.model)} did not answer${said ? `. It said: ${said.replace(/[.!?]+$/, '')}.` : '.'} ` +
-      `Then ${shown.join('; ')} could not either. Nothing else you have set up could take over: pick another model, or put right the account named first.`;
+    const passing = ['busy', 'slow'].includes(kindOf(first.error));
+    let said = tidy(first.error && first.error.message, 320);
+    if (passing) said = said.replace(/[.\s]*\btry again\b[^.]*\.?$/i, '');
+    const why = new Map();
+    for (const h of hops.slice(1)) {
+      const reason = tidy(reasonOf(kindOf(h.error), h.error), 90);
+      if (!why.has(reason)) why.set(reason, []);
+      why.get(reason).push(label(h.model));
+    }
+    const rest = [...why].map(([reason, names]) => `${listed(names)} (${reason})`);
+    return `${label(first.model)} did not answer${said ? `: ${said.replace(/[.!?]+$/, '')}.` : '.'} ` +
+      `No other model you have set up could take over: ${rest.join('; ')}. ` +
+      (passing ? 'That is usually brief at the provider: try again in a moment, or pick another model.' : 'Pick another model, or put right the account named first.');
+  }
+
+  /**
+   * Said under an error that ended a run after it had changed files: what it
+   * made is still there, and the run can be carried on. '' when it changed
+   * nothing. `names` are the files, by name.
+   */
+  function keptNote(names) {
+    const files = [...new Set((Array.isArray(names) ? names : []).filter(Boolean))];
+    return files.length ? `What it changed before this is kept: ${listed(files)}. Send a message to carry on from there.` : '';
   }
 
   /**
@@ -140,5 +167,5 @@
     };
   }
 
-  window.HCCodeRouter = { hasPictures, optionsFor, explain, create };
+  window.HCCodeRouter = { hasPictures, optionsFor, listed, explain, keptNote, create };
 })();

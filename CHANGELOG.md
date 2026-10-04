@@ -947,6 +947,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **When no model can answer, HashCoder says so in fewer words, and says
+  what the run had already made.** The message named every model tried
+  after the first one by one, each with its reason. The models that failed
+  for the same reason are now named together, once ("this account is out of
+  quota", "the key was refused"), and what to do follows from the first
+  failure: an overloaded provider, a server error or no answer in time is
+  usually brief, so it says to try again in a moment. An error that ends a
+  run after it has changed files now says those files are kept and that a
+  message carries on from there, so a failure on the last step no longer
+  reads as if nothing was done (`js/code/router.js`).
+
 - **Settings: text can be copied, each key's page is a click away, and no
   empty command box is shown.** Nothing in Settings could be selected, so a
   command, an address or a note could not be copied by hand; its text is now

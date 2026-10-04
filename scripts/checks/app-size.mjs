@@ -765,7 +765,9 @@ const LINE_BUDGET = {
   // 2476, down six: a change waiting to be kept or undone is shown with the
   // session that made it, picked out by platform/tauri/undo.js ofSession, and
   // the comment on rebuilding the rows says it in fewer lines.
-  'modes/code/mode.js': 2476,
+  // 2477, up one: an error that ends a run after it changed files says what
+  // it made is kept (js/code/router.js keptNote).
+  'modes/code/mode.js': 2477,
 };
 
 console.log('\nFile sizes go down, never up:');

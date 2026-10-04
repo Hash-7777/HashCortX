@@ -89,11 +89,11 @@ console.log('The model the person chose is the one they are told about:');
     'cloud:openai:gpt-4o': fails('429 You exceeded your current quota'),
   });
   const e = await error(r.turn());
-  ok('with nothing left to take over, the message begins with the model that was chosen', !!e && /^Gemini 3\.8 Flash did not answer\./.test(e.message), e && e.message);
-  ok('in its own words', /It said: Gemini rate limit reached: quota exceeded for gemini-3\.8-flash\./.test(e.message), e.message);
+  ok('with nothing left to take over, the message begins with the model that was chosen', !!e && /^Gemini 3\.8 Flash did not answer:/.test(e.message), e && e.message);
+  ok('in its own words', /did not answer: Gemini rate limit reached: quota exceeded for gemini-3\.8-flash\./.test(e.message), e.message);
   ok('and does not begin with whichever was tried last', !/^(Cerebras|OpenRouter|GPT)/.test(e.message));
-  ok('what was tried after it is named, with the reason in a few words', /Then .*Cerebras GPT OSS 120B/.test(e.message) && /could not either/.test(e.message), e.message);
-  ok('and the person is told what to do', /pick another model, or put right the account named first/.test(e.message));
+  ok('what was tried after it is named, gathered by the reason in a few words', /No other model you have set up could take over: OpenRouter Llama 4 Maverick, GPT-4o, Gemini 3\.7 Flash and 2 more \(this account is out of quota\)\./.test(e.message), e.message);
+  ok('and the person is told what to do', /Pick another model, or put right the account named first\./.test(e.message));
   ok('the original failure is kept for anyone who needs it', e.cause instanceof Error);
 }
 {
@@ -109,7 +109,7 @@ console.log('The model the person chose is the one they are told about:');
     'cloud:openai:gpt-4o': fails('429 quota'),
   });
   const e = await error(r.turn());
-  ok('a failure of the chosen Nemotron is reported as Nemotron\'s', /^NVIDIA Nemotron 3 Super did not answer\. It said: NVIDIA 429/.test(e.message) && !/^Cerebras/.test(e.message), e.message);
+  ok('a failure of the chosen Nemotron is reported as Nemotron\'s', /^NVIDIA Nemotron 3 Super did not answer: NVIDIA 429/.test(e.message) && !/^Cerebras/.test(e.message), e.message);
 }
 
 console.log('\nWhen another model can take over, it does, and it is said:');
@@ -234,15 +234,23 @@ console.log('\nThe message when no model could answer:');
   const kindOf = W.HCModelRoutes.failureKind, reasonOf = W.HCModelRoutes.reasonText;
   ok('one failure is nobody\'s to explain: it is thrown as it was', R.explain({ hops: [{ model: 'a', error: new Error('x') }], label, kindOf, reasonOf }) === null && R.explain({ hops: [], label, kindOf, reasonOf }) === null);
   const text = R.explain({ hops: [{ model: 'a', error: new Error('Error: 429 slow down') }, { model: 'b', error: new Error('503 overloaded') }, { model: 'c', error: new Error('model not found') }], label, kindOf, reasonOf });
-  ok('the first is quoted, the rest named with a reason', /^Alpha did not answer\. It said: 429 slow down\. Then Beta \(the provider is overloaded\); Gamma \(the provider says this model is gone\) could not either\./.test(text), text);
+  ok('the first is quoted, the rest named with a reason', /^Alpha did not answer: 429 slow down\. No other model you have set up could take over: Beta \(the provider is overloaded\); Gamma \(the provider says this model is gone\)\. Pick another model, or put right the account named first\.$/.test(text), text);
+  const grouped = R.explain({ hops: [{ model: 'a', error: new Error('Provider server error (504). Try again shortly.') }, { model: 'b', error: new Error('429 quota exceeded') }, { model: 'c', error: new Error('401 invalid key') }, { model: 'd', error: new Error('429 quota exceeded') }], label, kindOf, reasonOf });
+  ok('those that failed for the same reason are named together, once', /Beta and d \(this account is out of quota\); Gamma \(the key was refused\)\./.test(grouped), grouped);
+  ok('a passing trouble at the provider says to try again in a moment, and does not say it twice', /^Alpha did not answer: Provider server error \(504\)\. /.test(grouped) && /try again in a moment, or pick another model\.$/.test(grouped) && (grouped.match(/try again/gi) || []).length === 1, grouped);
   const many = R.explain({ hops: Array.from({ length: 9 }, (_, i) => ({ model: `m${i}`, error: new Error('429') })), label, kindOf, reasonOf });
-  ok('a long list is cut: five named, then how many more', /and 3 more/.test(many) && !/m6/.test(many), many);
+  ok('a long list is cut: three named, then how many more', /m1, m2, m3 and 5 more/.test(many) && !/m4/.test(many), many);
+  ok('names are listed as a sentence lists them', R.listed(['A']) === 'A' && R.listed(['A', 'B']) === 'A and B' && R.listed(['A', 'B', 'C']) === 'A, B and C' && R.listed([]) === '');
+  ok('an error after the run changed files says what it made is kept, each file once', R.keptNote(['index.html', 'style.css', 'index.html']) === 'What it changed before this is kept: index.html and style.css. Send a message to carry on from there.');
+  ok('and says nothing when it changed nothing', R.keptNote([]) === '' && R.keptNote(null) === '');
   const long = R.explain({ hops: [{ model: 'a', error: new Error('word '.repeat(200)) }, { model: 'b', error: new Error('x') }], label, kindOf, reasonOf });
   ok('what the first said is cut to a sentence or two, not a page', long.length < 600, String(long.length));
 }
 
 console.log('\nThe Coder is wired to it:');
 {
+  const modeSrc = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('an error that ends a run says which files it had changed are kept, unless the person stopped it', /const kept = signal\?\.aborted \? '' : window\.HCCodeRouter\.keptNote\(proof \? proof\.changed\.map\(baseName\) : \[\]\);/.test(modeSrc) && /\$\{kept \? `<br><br>\$\{esc\(kept\)\}` : ''\}/.test(modeSrc));
   const mode = src('modes', 'code', 'mode.js');
   ok('the run is routed by the shared routing, with the model chosen first', /window\.HCCodeRouter\.create\(\{/.test(mode) && /failover: window\.HCChatFailover, routes: window\.HCModelRoutes/.test(mode));
   ok('the panel keeps no list of providers or chain of its own', !/ROUTER_FALLBACKS|buildRouterChain|sortChainByQuality|_routerStreaks|withFallbacks/.test(mode));

@@ -1938,7 +1938,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           errDiv.style.borderLeft = '2px solid var(--cdr-error)';
           errDiv.style.paddingLeft = '10px';
           errDiv.style.margin = '8px 0';
-          errDiv.innerHTML = `<b>Error</b><br>${esc(e?.message || String(e))}`;
+          const kept = signal?.aborted ? '' : window.HCCodeRouter.keptNote(proof ? proof.changed.map(baseName) : []);   // an error after the work was done says the work is there
+          errDiv.innerHTML = `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}`;
           contentEl.appendChild(errDiv);
           scrollMessages();
           throw e;
