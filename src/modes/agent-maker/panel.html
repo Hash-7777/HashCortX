@@ -88,7 +88,6 @@
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
           <span class="btn-label">Auto Layout</span>
         </button>
-        <button class="amk-btn" id="amkViewChatBtn" title="The last run: what each agent said and the files it made">Result</button>
         <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
         <div class="amk-canvas-sep"></div>
         <div class="amk-zoom-ctrl">
@@ -98,6 +97,11 @@
           <button class="amk-zoom-btn" id="amkZoomResetBtn" title="Reset zoom" style="font-size:11px;">&#8962;</button>
         </div>
         <span class="amk-canvas-hint">Scroll to zoom &middot; Drag background to pan &middot; Shift+click node to connect</span>
+        <!-- The way to a run's work, so it stands at the right end in its own colour. -->
+        <button class="amk-btn amk-result-btn" id="amkViewChatBtn" title="The last run: what each agent said and the files it made">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>
+          <span class="btn-label">Result</span>
+        </button>
       </div>
 
       <!-- SVG DAG canvas -->
@@ -232,16 +236,17 @@
       </div>
       <label class="amk-ws-pick"><span>Run</span><select id="amkWsRuns" aria-label="Past runs"></select></label>
       <label class="amk-ws-pick"><span>Version</span><select id="amkWsVersions" aria-label="Versions of the files"></select></label>
-      <div class="amk-ws-actions">
-        <button class="amk-ws-btn" id="amkWsCopy" type="button">Copy result</button>
-        <button class="amk-ws-btn" id="amkWsExport" type="button">Export result .md</button>
-        <button class="amk-ws-btn amk-ws-primary" id="amkWsOpen" type="button">Open in browser</button>
-        <button class="amk-ws-btn" id="amkWsDownload" type="button">Download site</button>
-        <button class="amk-ws-btn amk-ws-primary" id="amkWsFinish" type="button" hidden>Run the agents that did not finish</button>
-        <button class="amk-ws-btn" id="amkWsDelete" type="button">Delete run</button>
-        <span class="amk-ws-status" id="amkWsStatus" role="status" aria-live="polite"></span>
-        <button class="amk-ws-btn amk-ws-close" id="amkWsClose" type="button" aria-label="Close the result"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-      </div>
+      <button class="amk-ws-close" id="amkWsClose" type="button" title="Close the result (Esc)" aria-label="Close the result"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg><span>Close</span></button>
+    </div>
+    <div class="amk-ws-actions">
+      <button class="amk-ws-btn amk-ws-primary" id="amkWsOpen" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg><span>Open in browser</span></button>
+      <button class="amk-ws-btn" id="amkWsDownload" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span>Download site</span></button>
+      <button class="amk-ws-btn amk-ws-primary" id="amkWsFinish" type="button" hidden><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15"/><path d="M4 20v-5h5"/></svg><span>Run the agents that did not finish</span></button>
+      <span class="amk-ws-sep" aria-hidden="true"></span>
+      <button class="amk-ws-btn" id="amkWsCopy" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span>Copy result</span></button>
+      <button class="amk-ws-btn" id="amkWsExport" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></svg><span>Export result .md</span></button>
+      <span class="amk-ws-status" id="amkWsStatus" role="status" aria-live="polite"></span>
+      <button class="amk-ws-btn amk-ws-delete" id="amkWsDelete" type="button"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg><span>Delete run</span></button>
     </div>
     <div class="amk-ws-body">
       <section class="amk-ws-convo" aria-label="Conversation">

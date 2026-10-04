@@ -426,5 +426,25 @@ console.log('\nA team stays on the side it was chosen on, this computer or the c
   ok('every run and every agent fails over through the shared routes, which never cross the line', /window\.HCModelRoutes\.createRun\(\{ options: menuModels/.test(swarm) && /ROUTES\.createRun\(\{ options: deps\.models/.test(src('js', 'swarm', 'ask.js')));
 }
 
+console.log('\nThe Result says what was made, and when:');
+{
+  const F = '`'.repeat(3);
+  const files = { 'index.html': { content: '<h1>x</h1>' }, 'style.css': { content: 'h1{}' }, 'app.js': { content: 'x' } };
+  const page = '<!DOCTYPE html>\n<html><body>' + 'x'.repeat(600) + '</body></html>';
+  ok('a team result that is the page itself names the run\'s files in reading order instead', (V.madeInstead(page, files) || []).join() === 'index.html,style.css,app.js');
+  ok('...as does one that is code blocks with a line or two of words', !!V.madeInstead(`Here it is.\n${F}html\n${'y'.repeat(600)}\n${F}`, files));
+  ok('a result in words is shown as words', V.madeInstead('The team looked at three suppliers and recommends the second, for its price and delivery times. ' .repeat(8), files) === null);
+  ok('with no files there is nothing to point at', V.madeInstead(page, {}) === null);
+  const own = V.madeInstead(`FILE: style.css\n${F}css\n${'a'.repeat(500)}\n${F}\nFILE: index.html\n${F}html\n<h1>x</h1>\n${F}\nFILE: gone.js\n${F}js\nx\n${F}`, files, { own: true });
+  ok('an agent\'s turn names only the files it wrote that the run still has', (own || []).join() === 'index.html,style.css');
+  ok('a turn keeps its time, shown as the hour and minute', V.turnsView({ turns: [{ who: 'you', text: 'x', at: Date.UTC(2026, 0, 2, 9, 5) }] })[0].at === Date.UTC(2026, 0, 2, 9, 5) && /^\d\d:\d\d$/.test(V.clock(Date.UTC(2026, 0, 2, 9, 5))) && V.clock(0) === '');
+  const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'panel.html'), 'utf8');
+  const css = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.css'), 'utf8');
+  ok('the Result button is the last in the canvas bar, larger and in its own colour', /<button class="amk-btn amk-result-btn" id="amkViewChatBtn"[\s\S]*?<\/button>\s*<\/div>/.test(panel) && /\.amk-result-btn \{[^}]*height: 34px;[^}]*background: var\(--ok\)/.test(css));
+  ok('Close is a labelled button at the right of the header', /<button class="amk-ws-close" id="amkWsClose" type="button" title="Close the result \(Esc\)"[^>]*>[\s\S]*?<span>Close<\/span><\/button>/.test(panel) && /\.amk-ws-close \{[^}]*height: 32px/.test(css));
+  ok('every action has a drawn mark beside its words', ['amkWsOpen', 'amkWsDownload', 'amkWsCopy', 'amkWsExport', 'amkWsDelete'].every((id) => new RegExp(`id="${id}" type="button"[^>]*><svg[^>]*aria-hidden="true">`).test(panel)));
+  ok('each agent\'s mark takes the colour of its role, and a turn arrives smoothly unless less motion is asked for', /\.amk-ws-turn\[data-role="researcher"\]/.test(css) && /animation: amkTurnIn/.test(css) && /prefers-reduced-motion: reduce\) \{ \.amk-ws-turn \{ animation: none; \}/.test(css));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);

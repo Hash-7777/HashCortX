@@ -624,6 +624,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The Agent Swarm's Result is easier to read and to act on.** The Result
+  button stands at the right end of the canvas bar, larger and in its own
+  colour. In the Result, Close is a labelled button at the top right; the
+  actions are on a row of their own, each with a drawn mark beside its
+  words, Open in browser first and Delete run set apart at the end. Each
+  voice in the conversation has its mark in the colour of its role, the
+  time it spoke, and its words in a card edged in that colour; the
+  person's own messages sit on the right; a failure is marked as one. A
+  team result, or an agent's turn, that is the files themselves is said in
+  a sentence with a button for each file that opens it, and the full
+  answer is a click away. A turn arrives with a short fade, and stands
+  still for someone who asked for less motion.
+
 - **HashCoder's past conversations are called Sessions, and a launch starts a
   new one.** The clock-only History button is now a button that says Sessions,
   beside New chat, and the panel it opens is named the same. Opening HashCortX

@@ -348,6 +348,13 @@ body.agent-maker-mode #app { display: none; }
   background: var(--amk-line); flex-shrink: 0;
 }
 
+.amk-result-btn {
+  margin-left: 14px; height: 34px; padding: 0 18px; gap: 8px;
+  font-size: 11.5px; font-weight: 700;
+  background: var(--ok); border-color: var(--ok); color: var(--accent-ink);
+}
+.amk-result-btn:hover { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); opacity: 0.88; }
+.amk-result-btn svg { flex: none; }
 .amk-canvas-hint {
   font-size: 10px; color: var(--muted); margin-left: auto;
   font-family: var(--mono); letter-spacing: 0.06em;
@@ -852,62 +859,97 @@ img.amk-empty-logo {
   background: var(--bg-0);
   border-top: 1px solid var(--amk-line);
   animation: amkPreviewIn 0.18s ease-out;
+  /* The colour of each kind of voice in the conversation. */
+  --ws-you: var(--accent);
+  --ws-team: var(--ok);
 }
 .amk-ws[hidden] { display: none; }
 .amk-ws-head {
   display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;
-  padding: var(--space-2) var(--space-4);
-  border-bottom: 1px solid var(--amk-line);
+  padding: var(--space-3) var(--space-4) var(--space-2);
   background: var(--surface-1);
 }
-.amk-ws-heading { display: flex; flex-direction: column; min-width: 0; flex: 1 1 220px; }
-.amk-ws-title { font-size: 13px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.amk-ws-sub { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.amk-ws-pick { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.amk-ws-heading { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.amk-ws-title { font-size: 15px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-sub { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-pick { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
 .amk-ws-pick select {
-  height: var(--control-h-sm); max-width: 260px; padding: 0 6px;
+  height: 30px; max-width: 280px; padding: 0 8px;
   background: var(--surface-0); color: var(--text);
-  border: 1px solid var(--amk-line); border-radius: var(--radius-xs); font-size: 11.5px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm); font-size: 12px;
 }
-.amk-ws-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* Close is a labelled button at the right of the header, not a small mark among the actions. */
+.amk-ws-close {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px 0 10px;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: var(--surface-0); color: var(--text); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.amk-ws-close:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.amk-ws-close svg { display: block; flex: none; }
+.amk-ws-actions {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 0 var(--space-4) var(--space-3);
+  background: var(--surface-1); border-bottom: 1px solid var(--amk-line);
+}
+.amk-ws-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--amk-line); }
 .amk-ws-btn {
-  height: var(--control-h-sm); padding: 0 10px;
-  font-size: 11.5px; font-weight: 600; white-space: nowrap;
-  border: 1px solid var(--amk-line); border-radius: var(--radius-xs);
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 12px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm);
   background: transparent; color: var(--text-dim); cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
+.amk-ws-btn svg { flex: none; }
 .amk-ws-btn:hover { background: var(--amk-dim); color: var(--text); }
 .amk-ws-btn:disabled { opacity: 0.45; cursor: default; }
+.amk-ws-btn:focus-visible, .amk-ws-close:focus-visible { outline: 2px solid var(--amk-ui); outline-offset: 2px; }
 .amk-ws-primary { background: var(--amk-ui); border-color: var(--amk-ui); color: var(--accent-ink); }
 .amk-ws-primary:hover { background: var(--amk-ui-b); color: var(--accent-ink); }
-.amk-ws-close { width: var(--control-h-sm); padding: 0; display: inline-grid; place-items: center; color: var(--danger); }
-.amk-ws-close svg { display: block; }
-.amk-ws-status { font-size: 11px; color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-delete { margin-left: auto; }
+.amk-ws-delete:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.amk-ws-status { font-size: 11.5px; color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amk-ws-status.ok { color: var(--ok); }
 .amk-ws-status.err { color: var(--danger); }
 
-.amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 40%) 1fr; }
-.amk-ws-convo { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); }
-.amk-ws-turns { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
-.amk-ws-turn { border: 1px solid var(--amk-line); border-radius: var(--radius-sm); background: var(--surface-0); }
-.amk-ws-turn.you { background: var(--amk-dim); }
-.amk-ws-turn.team { border-color: var(--amk-ui); }
-.amk-ws-turn.error, .amk-ws-turn.skipped { border-color: var(--danger-soft); }
-.amk-ws-turn-head { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--amk-line); }
+.amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 40%) 1fr; }
+.amk-ws-convo { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); background: var(--surface-0); }
+.amk-ws-turns { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); scroll-behavior: smooth; }
+/* A turn is a voice: its mark and name, then what it said. Each agent's mark
+   takes the colour of its role (--tone), the person's is the accent, and the
+   team's result is set apart in the colour of something finished. */
+.amk-ws-turn { --tone: var(--amk-ui); display: flex; flex-direction: column; gap: 6px; animation: amkTurnIn 0.22s ease-out both; }
+.amk-ws-turn[data-role="researcher"], .amk-ws-turn[data-role="analyst"] { --tone: var(--info); }
+.amk-ws-turn[data-role="writer"], .amk-ws-turn[data-role="supervisor"] { --tone: var(--accent-2); }
+.amk-ws-turn[data-role="critic"], .amk-ws-turn[data-role="planner"] { --tone: var(--warn); }
+.amk-ws-turn[data-role="validator"], .amk-ws-turn[data-role="aggregator"] { --tone: var(--ok); }
+.amk-ws-turn.you { --tone: var(--ws-you); align-items: flex-end; }
+.amk-ws-turn.team { --tone: var(--ws-team); }
+.amk-ws-turn-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.amk-ws-turn.you .amk-ws-turn-head { flex-direction: row-reverse; }
 .amk-ws-avatar {
-  width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
+  width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; background: var(--amk-dim); color: var(--amk-bright);
+  color: var(--tone); background: var(--surface-1); border: 1px solid var(--tone);
 }
 /* The mark is drawn, so it sits on the same baseline and takes the colour
    around it, whatever the platform font would have done with a typed one. */
-.amk-ws-avatar svg { width: 13px; height: 13px; }
-.amk-ws-name { font-size: 12px; font-weight: 700; color: var(--text); }
-.amk-ws-role { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-.amk-ws-badge { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--danger); }
-.amk-ws-turn-body { padding: 10px 12px; font-size: 12.5px; line-height: 1.6; color: var(--text-dim); overflow-wrap: anywhere; }
-.amk-ws-turn-body.folded { max-height: 260px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, var(--text) 70%, transparent); mask-image: linear-gradient(to bottom, var(--text) 70%, transparent); }
+.amk-ws-avatar svg { width: 14px; height: 14px; }
+.amk-ws-name { font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.amk-ws-role { font-size: 11.5px; color: var(--muted); }
+.amk-ws-time { margin-left: auto; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.amk-ws-turn.you .amk-ws-time { margin-left: 0; margin-right: auto; }
+.amk-ws-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--danger); }
+.amk-ws-turn-body {
+  padding: 10px 14px; font-size: 13px; line-height: 1.6; color: var(--text-dim); overflow-wrap: anywhere;
+  border: 1px solid var(--amk-line); border-left: 2px solid var(--tone); border-radius: var(--radius-sm); background: var(--surface-1);
+}
+.amk-ws-turn.you .amk-ws-turn-body { max-width: 88%; border: 1px solid var(--amk-line); border-right: 2px solid var(--tone); background: var(--amk-dim); color: var(--text); }
+.amk-ws-turn.team .amk-ws-turn-body { border-color: var(--tone); border-left-width: 3px; }
+.amk-ws-turn.error .amk-ws-turn-body, .amk-ws-turn.skipped .amk-ws-turn-body { border-color: var(--danger-soft); border-left-color: var(--danger); }
+.amk-ws-turn-body.folded { max-height: 240px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, var(--text) 70%, transparent); mask-image: linear-gradient(to bottom, var(--text) 70%, transparent); }
+.amk-ws-turn-body > :last-child { margin-bottom: 0; }
 .amk-ws-turn-body p { margin: 0 0 8px; }
 .amk-ws-turn-body a { color: var(--amk-ui); }
 .amk-ws-turn-body code { font-family: var(--mono); font-size: 11.5px; }
@@ -915,12 +957,25 @@ img.amk-empty-logo {
   margin: 8px 0; padding: 8px 10px; overflow-x: auto;
   background: var(--surface-sunken); border: 1px solid var(--amk-line); border-radius: var(--radius-xs);
 }
+/* What the team made, said in words with a way to each file, in place of the files pasted out. */
+.amk-ws-made { display: flex; flex-direction: column; gap: 8px; }
+.amk-ws-made p { margin: 0; color: var(--text); }
+.amk-ws-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.amk-ws-chip {
+  display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm); background: var(--surface-0);
+  color: var(--text); font: 500 11.5px/1 var(--mono); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.amk-ws-chip:hover { border-color: var(--tone); background: var(--amk-dim); }
+.amk-ws-chip svg { flex: none; color: var(--tone); }
 .amk-ws-fold {
-  margin: 0 12px 10px; padding: 3px 10px; font-size: 11px; font-weight: 600;
-  border: 1px solid var(--amk-line); border-radius: var(--radius-xs);
+  align-self: flex-start; padding: 4px 12px; font-size: 11.5px; font-weight: 600;
+  border: 1px solid var(--amk-line); border-radius: var(--radius-sm);
   background: transparent; color: var(--text-dim); cursor: pointer;
 }
 .amk-ws-fold:hover { background: var(--amk-dim); color: var(--text); }
+@keyframes amkTurnIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .amk-ws-turn { animation: none; } .amk-ws-turns { scroll-behavior: auto; } }
 .amk-ws-turn.pending .amk-ws-turn-head { border-bottom: none; }
 .amk-ws-working { font-size: 11px; color: var(--muted); animation: dot-blink 1.4s ease-in-out infinite; }
 
@@ -999,7 +1054,7 @@ img.amk-empty-logo {
 .amk-canvas-toolbar { flex-wrap: wrap; row-gap: 6px; }
 
 /* Hide text labels on toolbar at medium-narrow */
-@media (max-width: 1100px) {  .amk-canvas-hint { display: none; }
+@media (max-width: 1100px) {  .amk-canvas-hint { display: none; } .amk-result-btn { margin-left: auto; }
   .amk-run-status { display: none; }
   .amk-active-name { display: none; }
 }

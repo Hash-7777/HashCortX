@@ -22,7 +22,7 @@
   /** Who a turn is from, and how it reads. */
   function turnView(run, turn) {
     const who = String(turn?.who || '');
-    const base = { who, text: String(turn?.text ?? ''), status: turn?.status || 'ok', statusLabel: STATUS_LABEL[turn?.status] || '' };
+    const base = { who, text: String(turn?.text ?? ''), at: Number(turn?.at) || 0, status: turn?.status || 'ok', statusLabel: STATUS_LABEL[turn?.status] || '' };
     if (who === 'you') return { ...base, kind: 'you', name: 'You', icon: '', role: '' };
     if (who === 'team') return { ...base, kind: 'team', name: 'Team result', icon: '', role: 'result' };
     const agent = (run?.agents || []).find((a) => a.id === who);
@@ -75,6 +75,31 @@
     return `v${version?.rev} · ${by}${n ? ` · ${n} file${n === 1 ? '' : 's'}` : ''}`;
   }
 
+  /**
+   * When the team's result is the site itself rather than words about it:
+   * the files to name in its place, in reading order, or null. A result is
+   * the site when it opens as a page, or when what is left of it once its
+   * code blocks are taken out is a sentence or two; and only when the run
+   * has files to point at.
+   */
+  function madeInstead(text, files, { own = false } = {}) {
+    const t = String(text || '').trim();
+    // An agent's turn names the files it wrote itself, by FILE lines; the team's result stands for them all.
+    const named = own ? [...t.matchAll(/^\s*(?:FILE|File|Filename)\s*:\s*[`*]*([^\s`*]+)/gm)].map((m) => m[1]).filter((n) => files && files[n]) : null;
+    const names = fileOrder(own ? [...new Set(named)] : Object.keys(files || {}));
+    if (!names.length) return null;
+    if (!own && /^(?:<!doctype html|<html[\s>])/i.test(t)) return names;
+    const words = t.replace(/(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n\1[ \t]*(?:\n|$)|$)/g, ' ').replace(/^\s*(?:FILE|File|Filename)\s*:.*$/gm, ' ').replace(/\s+/g, ' ').trim();
+    return t.length > 400 && words.length < 200 ? names : null;
+  }
+
+  /** A turn's time of day, as the conversation shows it: 14:05. '' when unknown. */
+  function clock(at) {
+    if (!(Number(at) > 0)) return '';
+    const d = new Date(Number(at));
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }
+
   /** Whether a turn is long enough to start folded. */
   function startsFolded(text) {
     const t = String(text || '');
@@ -111,6 +136,5 @@
   }
 
   window.HCSwarmWorkspaceView = {
-    turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded, compareChoices, fileChanges, afterDelete,
-  };
+    turnView, turnsView, fileOrder, hasPage, timeAgo, runLabel, versionLabel, startsFolded, compareChoices, fileChanges, afterDelete, madeInstead, clock };
 })();

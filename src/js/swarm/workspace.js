@@ -222,10 +222,10 @@
       return;
     }
     const V = VIEW();
-    const render = (text) => window.HCMarkdown.renderUntrusted(text, { marked: window.marked, purify: window.DOMPurify });
     box.replaceChildren(...V.turnsView(run).map((t) => {
       const el = document.createElement('article');
       el.className = `amk-ws-turn ${t.kind}${t.status !== 'ok' ? ' ' + t.status : ''}`;
+      if (t.role) el.dataset.role = String(t.role).toLowerCase();   // its colour (mode.css --tone)
       const head = document.createElement('div');
       head.className = 'amk-ws-turn-head';
       const avatar = document.createElement('span');
@@ -247,12 +247,31 @@
       if (t.statusLabel) {
         const badge = document.createElement('span');
         badge.className = 'amk-ws-badge';
-        badge.textContent = t.statusLabel;
+        badge.append(mark(FAILED_SVG), t.statusLabel);
         head.append(badge);
+      }
+      const when = V.clock(t.at);
+      if (when) {
+        const time = document.createElement('span');
+        time.className = 'amk-ws-time';
+        time.textContent = when;
+        head.append(time);
       }
       const body = document.createElement('div');
       body.className = 'amk-ws-turn-body';
-      body.innerHTML = render(t.text);
+      // The team's result that is the site itself is said in words, with a way to each file; the answer itself is a click away.
+      const made = t.kind === 'you' || t.status !== 'ok' ? null : V.madeInstead(t.text, currentFiles(), { own: t.kind === 'agent' });
+      if (made) {
+        body.append(madeSummary(made, t.kind === 'agent'));
+        const full = document.createElement('div');
+        full.className = 'amk-ws-turn-body';
+        full.hidden = true;
+        renderInto(full, t.text);
+        const more = foldButton('Show the full answer', 'Hide the full answer', () => { full.hidden = !full.hidden; return !full.hidden; });
+        el.append(head, body, more, full);
+        return el;
+      }
+      renderInto(body, t.text);
       el.append(head, body);
       if (V.startsFolded(t.text)) {
         body.classList.add('folded');
@@ -272,6 +291,48 @@
     }));
     if (state.asking && state.asking.runId === run.id) box.append(pendingTurn(state.asking));
     box.scrollTop = box.scrollHeight;
+  }
+
+  // Marks drawn from these fixed strings only; nothing an agent wrote reaches them.
+  const FAILED_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>';
+  const FILE_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2.5H4.5A1.5 1.5 0 0 0 3 4v8a1.5 1.5 0 0 0 1.5 1.5h7A1.5 1.5 0 0 0 13 12V6.5Z"/><path d="M9 2.5v4h4"/></svg>';
+  const mark = (svg) => document.importNode(new DOMParser().parseFromString(svg, 'image/svg+xml').documentElement, true);
+
+  /** Agent text, rendered through the shared sanitiser: the one place this file writes markup. */
+  function renderInto(el, text) {
+    el.innerHTML = window.HCMarkdown.renderUntrusted(text, { marked: window.marked, purify: window.DOMPurify });
+  }
+
+  /** What the team made, named, each file a button that opens it. */
+  function madeSummary(names, own = false) {
+    const box = document.createElement('div');
+    box.className = 'amk-ws-made';
+    const say = document.createElement('p');
+    const n = `${names.length} file${names.length === 1 ? '' : 's'}`;
+    say.textContent = own ? `Wrote ${n}. Open one to read it as it is now.` : `The team's answer is the work itself: ${n}. Open one to read it, or the site in the browser.`;
+    const chips = document.createElement('div');
+    chips.className = 'amk-ws-chips';
+    for (const n of names) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'amk-ws-chip';
+      b.append(mark(FILE_SVG), n);
+      b.addEventListener('click', () => { state.file = n; drawFiles(); $('amkWsTabs')?.querySelector(`[data-file="${CSS.escape(n)}"]`)?.focus(); });
+      chips.append(b);
+    }
+    box.append(say, chips);
+    return box;
+  }
+
+  /** A button that shows and hides more, saying which it will do. `flip()` returns whether it is now shown. */
+  function foldButton(show, hide, flip) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'amk-ws-fold';
+    b.textContent = show;
+    b.setAttribute('aria-expanded', 'false');
+    b.addEventListener('click', () => { const open = flip(); b.textContent = open ? hide : show; b.setAttribute('aria-expanded', String(open)); });
+    return b;
   }
 
   /** The line that stands for an answer on its way. */
