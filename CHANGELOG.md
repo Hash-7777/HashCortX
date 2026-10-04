@@ -945,6 +945,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The pickers in the Swarm result's composer stand above each other.** Who a
+  message goes to and which model answers sat on one line, and a long model
+  name pushed the second one out of the conversation column. They are now two
+  rows, each as wide as the column, and a longer name is cut with an ellipsis.
+
 - **An error says what failed above why, and its close mark is centred.** The
   heading and the message sat side by side, so a long message wrapped in a
   narrow column beside a wide heading, and the close button held a typed

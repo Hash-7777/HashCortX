@@ -888,7 +888,7 @@ img.amk-empty-logo {
 .amk-ws-status.err { color: var(--danger); }
 
 .amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 40%) 1fr; }
-.amk-ws-convo { min-height: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); }
+.amk-ws-convo { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); }
 .amk-ws-turns { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .amk-ws-turn { border: 1px solid var(--amk-line); border-radius: var(--radius-sm); background: var(--surface-0); }
 .amk-ws-turn.you { background: var(--amk-dim); }
@@ -931,6 +931,10 @@ img.amk-empty-logo {
 }
 .amk-ws-composer-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .amk-ws-composer-row .amk-ws-btn { flex-shrink: 0; }
+/* Who it goes to and which model answers stand above each other, each as wide as the column, so a long model name is cut with an ellipsis and never runs out of it. */
+.amk-ws-composer-pick { flex-direction: column; align-items: stretch; gap: 6px; }
+.amk-ws-composer-pick .amk-ws-pick { display: grid; grid-template-columns: 3.5em minmax(0, 1fr); align-items: center; gap: 8px; min-width: 0; }
+.amk-ws-composer-pick .amk-ws-pick select { width: 100%; max-width: none; min-width: 0; text-overflow: ellipsis; }
 /* A global button rule sets display, which beats the hidden attribute; every Workspace button is hidden when it says so. */
 .amk-ws-btn[hidden] { display: none; }
 .amk-ws-base { font-size: 11px; color: var(--amk-bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

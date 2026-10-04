@@ -406,6 +406,15 @@ console.log('\nA button the Workspace hides stays hidden:');
   ok('... among them "Run the agents that did not finish", hidden while none is left', /finish\.hidden = !left;/.test(src('js', 'swarm', 'workspace.js')) && /id="amkWsFinish"[^>]*class="amk-ws-btn|class="amk-ws-btn[^"]*" id="amkWsFinish"/.test(src('modes', 'agent-maker', 'panel.html')));
 }
 
+console.log('\nThe pickers in the composer stand above each other:');
+{
+  const html = src('modes', 'agent-maker', 'panel.html');
+  const css = src('modes', 'agent-maker', 'mode.css');
+  ok('who it goes to and which model answers are two rows, not two things on one line', /<div class="amk-ws-composer-row amk-ws-composer-pick">\s*<label class="amk-ws-pick"><span>To<\/span>[\s\S]*?<label class="amk-ws-pick"><span>Model<\/span>/.test(html));
+  ok('...each as wide as the column, and cut with an ellipsis when its name is longer', /\.amk-ws-composer-pick \{[^}]*flex-direction: column/.test(css) && /\.amk-ws-composer-pick \.amk-ws-pick select \{[^}]*width: 100%;[^}]*min-width: 0;[^}]*text-overflow: ellipsis/.test(css));
+  ok('...and the conversation column may shrink below what its content would like, so nothing in it can push out', /\.amk-ws-convo \{[^}]*min-width: 0/.test(css));
+}
+
 console.log('\nA team stays on the side it was chosen on, this computer or the cloud:');
 {
   const swarm = src('modes', 'agent-maker', 'mode.js');
