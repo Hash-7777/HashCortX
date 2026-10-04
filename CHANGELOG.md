@@ -945,6 +945,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's debugging export says what the run was, whenever it is
+  made.** The export read the model, the set-up and the temperature from
+  what was picked at the moment of exporting, and its trace lived only in
+  memory. An export made after the app was reopened, or from a session
+  opened again, named whichever model was picked since and showed no
+  trace. Each run's facts (the model that answered, the one chosen when
+  the run moved off it, the set-up, the temperature it was really sent)
+  and its trace are now kept with the conversation and its session, and
+  the export uses them. What the app added to a request (the checklist,
+  the site brief, what memory held) is shown with the request, folded,
+  since it was sent with it (`js/code/debug-export.js`).
+
 - **A model on this computer that writes its plan with the steps in it gets
   the steps run.** A mid-sized local model asked to build something often
   answered with a plan in words, each step a json block holding a whole

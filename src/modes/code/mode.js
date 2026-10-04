@@ -302,7 +302,7 @@
           projectRoot: sharedState.projectRoot,
           homeDir: sharedState.homeDir,
           chatHistory: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs,   // pictures are not kept
-          activeFile: sharedState.activeFile,
+          activeFile: sharedState.activeFile, run: sharedState.lastRun || null, trace: cdrTraceEntries,   // the last run's facts and trace, for an export (js/code/debug-export.js)
           ts: Date.now(),
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -324,7 +324,7 @@
           renderExplorerTree(state.projectRoot).catch(() => {});
         }
         // A new launch starts a new conversation: the last is kept in Sessions and the project stays open (leaving HashCoder and coming back never comes here).
-        if (Array.isArray(state.chatHistory) && state.chatHistory.length) { conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; saveCoderState(); }
+        if (Array.isArray(state.chatHistory) && state.chatHistory.length) { sharedState.lastRun = state.run || null; cdrTraceEntries = Array.isArray(state.trace) ? state.trace : []; conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; sharedState.lastRun = null; cdrTraceEntries = []; saveCoderState(); }
       } catch (e) { console.warn('[CoderMode] restore state failed:', e); }
     }
     function clearCoderState() {
@@ -1083,7 +1083,7 @@
       const now = new Date();
       const date = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
                    now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice() };
+      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice(), run: sharedState.lastRun || null, trace: cdrTraceEntries.slice(-300) };
       const sessions = loadSessions();
       sessions.unshift(session);
       saveSessions(sessions);
@@ -1158,7 +1158,7 @@
     function restoreSession(session) {
       if (!session?.msgs?.length) return;
       $('cdrSessionsPanel')?.classList.remove('open');
-      conversationMsgs = session.msgs.slice();
+      conversationMsgs = session.msgs.slice(); sharedState.lastRun = session.run || null; cdrTraceEntries = Array.isArray(session.trace) ? session.trace : [];   // what an export says of it
       renderConversation();
       setStatus('Ready', '');
     }
@@ -1395,7 +1395,7 @@
     function clearChat() {
       saveCurrentSession();
       conversationMsgs = [];
-      activeContentEl = null;
+      activeContentEl = null; sharedState.lastRun = null; cdrTraceEntries = [];
       // Clear what is on DISK too, not just what is in memory.
       //
       // Without this, "New chat" emptied the screen while localStorage still
@@ -1509,7 +1509,7 @@
     }
 
     // The whole conversation as the model was sent it, with its trace (js/code/debug-export.js).
-    const exportDebug = () => window.HCCodeDebug.exportRun({ messages: conversationMsgs, trace: cdrTraceEntries, sharedState, routing: routing?.router, coderModel, prefs: cdrPrefs(), H: window._H, save: downloadBlob, exportBaseName: window.HCCodeExport.exportBaseName });
+    const exportDebug = () => window.HCCodeDebug.exportRun({ messages: conversationMsgs, trace: cdrTraceEntries, run: sharedState.lastRun, sharedState, routing: routing?.router, coderModel, prefs: cdrPrefs(), H: window._H, save: downloadBlob, exportBaseName: window.HCCodeExport.exportBaseName });
     async function exportAsPdf(filename) {
       // jsPDF is loaded as window.jspdf.jsPDF (UMD bundle, included in index.html)
       const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
@@ -2196,7 +2196,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (stopBtn) stopBtn.style.display = 'none';
         runAbort = null;
         if (HC?.code?.shellCancelKey === stopKey) HC.code.shellCancelKey = null;
-        setRouterChip('Auto', ''); warnIfSmall();   // the model is loaded now, so where it runs can be read
+        sharedState.lastRun = window.HCCodeDebug.runFacts({ routing, coderModel, sharedState, H: window._H, temperature: HC?.code?.temperatureFor?.(sharedState.size, window._H?.selectedTemperature?.()) }); saveCoderState(); setRouterChip('Auto', ''); warnIfSmall();   // the run's facts kept with the conversation, for an export; the model is loaded now, so where it runs can be read
         // Light up HashNotch. app.js fires this for a chat turn, but Coder
         // has its own loop and never reached that line — so the one kind of run
         // long enough that you would switch away from it was the one that never

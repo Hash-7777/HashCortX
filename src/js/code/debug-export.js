@@ -10,10 +10,14 @@
 //
 //   • The facts of the run: the app, the platform, the project, the model and
 //     how HashCoder was set up for it, the settings that change what it does.
-//   • The trace, as the panel recorded it, with its times.
+//     They are the run's own, kept with the conversation as it ends, so an
+//     export made after the app was reopened, or from a session opened again,
+//     names the model that answered and not the one picked since.
+//   • The trace, as the panel recorded it, with its times, kept the same way.
 //   • The conversation as the model was sent it: the instructions, each
-//     request, each call the agent made with its arguments, each result, and
-//     each note the app added, told apart from what the person wrote.
+//     request with what the app added to it, each call the agent made with its
+//     arguments, each result, and each note the app added, told apart from
+//     what the person wrote.
 //
 // Long text is folded so the file reads from the top and opens where wanted;
 // a block of code is fenced with more backticks than any it holds, so nothing
@@ -117,7 +121,7 @@
    *   messages   the conversation as the model was sent it
    *   trace      the panel's trace entries, { elapsed, stage, message, status }
    *   facts      what to say about the run: { version, platform, projectRoot,
-   *              model, label, size, local, temperature, settings: { name: value } }
+   *              model, chosen, label, size, local, temperature, settings: { name: value } }
    *   exportedAt a Date, or its text
    */
   function buildDebug({ messages = [], trace = [], facts = {}, exportedAt = new Date() } = {}) {
@@ -154,6 +158,8 @@
         body.push(`### ${n} · note from the app, not from the person`, '', fenced(safe(cut(m.content, MAX_CHARS)), 'text'), '');
       } else if (m.role === 'user') {
         body.push(`### ${n} · the person`, '', safe(cut(m.content, MAX_CHARS)) + pictures, '');
+        // Sent with the request, after it (js/agent-context.js): the checklist, the site brief, what memory held.
+        if (typeof m.context === 'string' && m.context.trim()) body.push('<details><summary>Added by the app to this request</summary>', '', fenced(safe(cut(m.context, MAX_CHARS)), 'text'), '', '</details>', '');
       } else if (m.role === 'assistant') {
         const made = callsOf(m);
         body.push(`### ${n} · the agent${made.length ? ` — ${count(made.length, 'call', 'calls')}` : ''}`, '');
@@ -178,7 +184,7 @@
       `- Exported: ${stamp}`,
       `- App: HashCortx${facts.version ? ` ${String(facts.version).replace(/^v/i, 'v')}` : ''}${facts.platform ? ` on ${facts.platform}` : ''}`,
       facts.projectRoot ? `- Project: ${facts.projectRoot}` : '- Project: none open',
-      `- Model: ${facts.label ? `${facts.label} (${facts.model || 'unknown'})` : facts.model || 'unknown'}`,
+      `- Model: ${facts.label ? `${facts.label} (${facts.model || 'unknown'})` : facts.model || 'unknown'}${facts.chosen && facts.chosen !== facts.model ? `, after moving off ${facts.chosen}` : ''}`,
       `- Set up for: ${facts.size || 'unknown'}${facts.local === true ? ', a model on this computer' : facts.local === false ? ', a cloud model' : ''}${Number.isFinite(facts.temperature) ? `, temperature ${facts.temperature}` : ''}`,
     ];
     if (settings) head.push(`- Settings: ${settings}`);
@@ -200,26 +206,43 @@
   }
 
   /**
+   * What a run was, taken as it ends and kept with its conversation: the
+   * model that answered last and the one chosen, how HashCoder was set up for
+   * it and the temperature it was really sent. `routing` is the run's
+   * `{ selected, router }` (js/code/router.js).
+   */
+  function runFacts({ routing, coderModel, sharedState = {}, H = {}, temperature } = {}) {
+    const chosen = (routing && routing.selected) || coderModel || (H.selectedModel && H.selectedModel()) || '';
+    const router = routing && routing.router;
+    const model = (router && router.model) || chosen;
+    return {
+      model, chosen, label: router && router.label ? router.label(model) : '', size: sharedState.size || '', local: sharedState.local,
+      temperature: Number.isFinite(temperature) ? temperature : undefined,
+    };
+  }
+
+  /**
    * The panel's side of it, the one part that reads the page: gather the facts
    * of the run, build the file and hand it to `save(text, mime, name)`.
-   * Returns false when there is nothing to export.
+   * `run` is the facts kept as the conversation's last run ended; without
+   * them the export says what is set now. Returns false when there is
+   * nothing to export.
    */
-  async function exportRun({ messages, trace, sharedState = {}, routing, coderModel, prefs = {}, H = {}, save, exportBaseName, doc = typeof document !== 'undefined' ? document : null }) {
+  async function exportRun({ messages, trace, run = null, sharedState = {}, routing, coderModel, prefs = {}, H = {}, save, exportBaseName, doc = typeof document !== 'undefined' ? document : null }) {
     if (!(messages || []).length && !(trace || []).length) {
       if (H.themedAlert) H.themedAlert('There is nothing to export yet: run something first.', 'Export for debugging');
       return false;
     }
-    const model = (routing && routing.model) || coderModel || (H.selectedModel && H.selectedModel()) || '';
+    const now = run && run.model ? run : runFacts({ routing: routing ? { router: routing } : null, coderModel, sharedState, H, temperature: H.selectedTemperature ? H.selectedTemperature() : undefined });
     const badge = doc && doc.querySelector && doc.querySelector('.hc-toolbar-badge');
     const facts = {
       version: badge && badge.textContent, platform: sharedState.platform && sharedState.platform.os, projectRoot: sharedState.projectRoot,
-      model, label: routing && routing.label ? routing.label(model) : '', size: sharedState.size, local: sharedState.local,
-      temperature: H.selectedTemperature ? H.selectedTemperature() : undefined,
+      ...now,
       settings: { 'Prove changes': prefs.prove !== false ? 'on' : 'off', Lessons: prefs.lessons === true ? 'on' : 'off' },
     };
     await save(buildDebug({ messages, trace, facts }), 'text/markdown', debugFileName(exportBaseName(sharedState.projectRoot)));
     return true;
   }
 
-  window.HCCodeDebug = { MAX_CHARS, MAX_SYSTEM, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, exportRun };
+  window.HCCodeDebug = { MAX_CHARS, MAX_SYSTEM, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun };
 })();

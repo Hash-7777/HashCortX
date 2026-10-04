@@ -170,6 +170,33 @@ console.log('\nThe file\'s name and the button:');
   ok('the app version comes from the page, and the settings from the person\'s choices', /HashCortx v9\.9\.9 on macOS/.test(saved.content) && /Prove changes off · Lessons on/.test(saved.content) && /temperature 0\.2/.test(saved.content));
 }
 
+console.log('\nThe run\'s own facts, kept with its conversation:');
+{
+  const facts = D.runFacts({ routing: { selected: 'cloud:openrouter:big', router: { model: 'cloud:groq:llama', label: (v) => `Label of ${v}` } }, sharedState: { size: 'mid', local: false }, H: { selectedModel: () => 'later-pick' }, temperature: 0.2 });
+  ok('the model that answered last, the one chosen, the set-up and the temperature sent', facts.model === 'cloud:groq:llama' && facts.chosen === 'cloud:openrouter:big' && facts.label === 'Label of cloud:groq:llama' && facts.size === 'mid' && facts.local === false && facts.temperature === 0.2);
+  const solo = D.runFacts({ routing: null, coderModel: '', sharedState: {}, H: { selectedModel: () => 'qwen-local' } });
+  ok('with no routing, the model picked, and no temperature claimed', solo.model === 'qwen-local' && solo.chosen === 'qwen-local' && solo.temperature === undefined);
+  let saved = null;
+  await D.exportRun({
+    messages: [{ role: 'user', content: 'Build it' }], trace: [], run: facts, sharedState: { projectRoot: '/work/site', size: '' },
+    routing: null, coderModel: '', H: { selectedModel: () => 'later-pick', selectedTemperature: () => 0.9 },
+    doc: { querySelector: () => null }, save: async (content) => { saved = content; }, exportBaseName: () => 'site',
+  });
+  ok('an export after the app was reopened names the run\'s model, not the one picked since', /- Model: Label of cloud:groq:llama \(cloud:groq:llama\), after moving off cloud:openrouter:big/.test(saved) && !/later-pick/.test(saved));
+  ok('... and how it was set up and the temperature it was sent', /- Set up for: mid, a cloud model, temperature 0\.2/.test(saved) && !/0\.9/.test(saved));
+  const text = D.buildDebug({ messages: [{ role: 'user', content: 'Build it', context: 'Note from the app: the checklist' }], trace: [], facts: {} });
+  ok('what the app added to a request is shown with it, folded', /### 1 · the person\n\nBuild it\n\n<details><summary>Added by the app to this request<\/summary>/.test(text) && /the checklist/.test(text));
+  ok('a request with nothing added shows no fold', !/Added by the app/.test(D.buildDebug({ messages: [{ role: 'user', content: 'Hi' }], facts: {} })));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('the facts are taken as each run ends and saved with the conversation', /sharedState\.lastRun = window\.HCCodeDebug\.runFacts\(\{ routing, coderModel, sharedState, H: window\._H, temperature: HC\?\.code\?\.temperatureFor/.test(mode)
+    && /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries,/.test(mode));
+  ok('a session keeps them, and opening one again brings them back', /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries\.slice\(-300\) \}/.test(mode)
+    && /conversationMsgs = session\.msgs\.slice\(\); sharedState\.lastRun = session\.run \|\| null; cdrTraceEntries = Array\.isArray\(session\.trace\)/.test(mode));
+  ok('the conversation kept at launch takes its own into Sessions, and a new one starts with none', /sharedState\.lastRun = state\.run \|\| null; cdrTraceEntries = Array\.isArray\(state\.trace\) \? state\.trace : \[\]; conversationMsgs = state\.chatHistory; saveCurrentSession\(\); conversationMsgs = \[\]; sharedState\.lastRun = null; cdrTraceEntries = \[\];/.test(mode)
+    && /activeContentEl = null; sharedState\.lastRun = null; cdrTraceEntries = \[\];/.test(mode));
+  ok('the export is handed them', /exportRun\(\{ messages: conversationMsgs, trace: cdrTraceEntries, run: sharedState\.lastRun,/.test(mode));
+}
+
 console.log('\nIt is in the panel:');
 {
   const html = src('modes', 'code', 'panel.html');
