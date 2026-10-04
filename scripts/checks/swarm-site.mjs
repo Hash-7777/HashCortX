@@ -158,5 +158,16 @@ ok('a page really written in it, with no stylesheet, still gets it',
 ok('a whole class name is told from a word inside one',
   S.tailwindClass('bg-white') && S.tailwindClass('md:p-8') && !S.tailwindClass('product-grid') && !S.tailwindClass('text') && !S.tailwindClass('site-header'));
 
+console.log('\nA script written for a server is not put into the page:');
+{
+  const server = "const express = require('express');\nconst app = express();\napp.listen(3000);";
+  const html = build([['index.html', { lang: 'html', content: page('<h1>x</h1><script src="script.js"></script>') }], ['script.js', { lang: 'js', content: 'window.ran = 1;' }], ['server.js', { lang: 'js', content: server }]]);
+  ok('one the page does not link, that loads modules the way a server does, is left out', !/require\('express'\)/.test(html) && /window\.ran = 1/.test(html));
+  ok('the page is told why, among its notes', S.buildPage(new Map([['index.html', { lang: 'html', content: page() }], ['server.js', { lang: 'js', content: server }]])).notes.some((n) => n.kind === 'server' && /written for a server/.test(n.what)));
+  ok('what a server has is told apart from what a page has', S.forServer("import express from 'express';") && S.forServer('module.exports = {}') && S.forServer('const p = process.env.PORT') && S.forServer('#!/usr/bin/env node\nx()') && S.forServer('app.listen(PORT)')
+    && !S.forServer("document.querySelector('h1')") && !S.forServer("import { items } from './catalogue.js';") && !S.forServer('fetch("/api/items")'));
+  ok('a page that links such a script still gets it, as written', /require\('express'\)/.test(build([['index.html', { lang: 'html', content: page('<script src="server.js"></script>') }], ['server.js', { lang: 'js', content: server }]])));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/site.js)`);
 process.exit(fail ? 1 : 0);

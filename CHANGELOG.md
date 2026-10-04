@@ -978,6 +978,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Swarm site's server script is no longer put into the page.** A script
+  the page does not link was added to it so nothing the agents wrote was
+  dropped, and that included one written for a server, which then failed
+  in the browser when the site was opened or downloaded. A script that
+  loads modules the way a server does, or reaches for what only a server
+  has, is now left out unless the page links it, and the page's notes say
+  so. Copy in the Result now says so when there is no clipboard to copy to
+  (`js/swarm/site.js`).
+
 - **When no model can answer, HashCoder says so in fewer words, and says
   what the run had already made.** The message named every model tried
   after the first one by one, each with its reason. The models that failed

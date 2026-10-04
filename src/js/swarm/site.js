@@ -60,6 +60,17 @@
   const styleTag = (name, css) => `<style>/* ${name} */\n${styleSafe(css)}\n</style>`;
   const scriptTag = (name, js) => `<script>/* ${name} */\n${scriptSafe(js)}\n</script>`;
 
+  /**
+   * Whether a script is written for a server rather than a page: it loads
+   * modules the way Node does, or reaches for what only a server has. One
+   * the page does not link and that is for a server would only throw there.
+   */
+  function forServer(js) {
+    const t = String(js || '');
+    return /^#!.*\bnode\b/.test(t) || /\brequire\s*\(\s*['"][\w@./-]+['"]\s*\)/.test(t) || /\bmodule\.exports\b/.test(t) || /\bprocess\.(?:env|argv|exit)\b/.test(t)
+      || /\bfrom\s+['"](?:node:|express|http|https|fs|path|os|child_process)['"]/.test(t) || /\.listen\s*\(\s*(?:\d+|port|PORT)/.test(t);
+  }
+
   /** An SVG file as an address a page can use in place of its file name. */
   const svgUri = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(String(svg).trim())}`;
 
@@ -136,6 +147,7 @@
     for (const [name, f] of list) {
       if (f === entry || inlined.has(name)) continue;
       if (name.endsWith('.css')) extraCss.push(styleTag(name, f.content));
+      else if ((name.endsWith('.js') || name.endsWith('.mjs')) && forServer(f.content)) notes.push({ kind: 'server', name, what: `${name} is written for a server, not a page, so it was left out of the page` });
       else if (name.endsWith('.js') || name.endsWith('.mjs')) extraJs.push(scriptFor(name, f));
     }
     if (extraCss.length) html = insertBefore(html, /<\/head>/i, extraCss.join('\n'), 'start');
@@ -159,5 +171,5 @@
   /** The one page, or null when there is no page among the files. */
   const buildSite = (files) => buildPage(files).html;
 
-  window.HCSwarmSite = { buildSite, buildPage, scriptSafe, styleSafe, svgUri, tailwindClass };
+  window.HCSwarmSite = { buildSite, buildPage, scriptSafe, styleSafe, svgUri, tailwindClass, forServer };
 })();

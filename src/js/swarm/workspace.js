@@ -598,7 +598,8 @@
   }
 
   function copyText(text, done) {
-    navigator.clipboard.writeText(text).then(() => status(done, 'ok'), () => status('Could not copy', 'err'));
+    try { navigator.clipboard.writeText(text).then(() => status(done, 'ok'), () => status('Could not copy', 'err')); }
+    catch { status('Could not copy: the clipboard is not available here', 'err'); }   // no clipboard at all must still say so
   }
 
   function copyResult() { const t = resultText(); if (t) copyText(t, 'Copied the result'); }
