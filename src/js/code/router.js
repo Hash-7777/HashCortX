@@ -21,7 +21,8 @@
 //   • When no model can answer, the message leads with the one the person
 //     chose, in its own words, and then lists what was tried after it.
 //
-// A job on a model on this computer stays on it, as everywhere else.
+// A job stays on its side, as everywhere else: one on a model on this computer
+// stays on this computer, and one on a cloud model never moves to a local one.
 //
 // The pieces it uses are passed in, so the checks run the real rules against
 // scripted models. Published as window.HCCodeRouter. Checked by

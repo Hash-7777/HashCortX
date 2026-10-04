@@ -186,8 +186,29 @@ console.log('\nA job given to a local model stays local:');
   const small = R.createRun({ options: () => mixed, fits: (v) => cloud(v), store: memory() });
   ok('a local model too small for the job is started as chosen, not swapped for a cloud one', small.start('llama3.2:3b') === 'llama3.2:3b');
   ok('... and when it fails, nothing in the cloud takes over', small.next('llama3.2:3b', E('x', {})) === 'qwen2.5-coder:7b' && !cloud(small.next('qwen2.5-coder:7b', E('x', {})) || ''));
-  const up = R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind: 'limit', options: mixed, store: memory() });
-  ok('a cloud job may still fall back to a local model', up.some((v) => !cloud(v)));
+}
+
+console.log('\nA job given to a cloud model stays in the cloud:');
+{
+  const local = [
+    { value: 'llama3.2:3b', label: 'llama3.2:3b' },
+    { value: 'local:lmstudio:qwen2.5-7b', label: 'qwen2.5-7b' },
+  ];
+  const mixed = [...opts, ...local];
+  const cloud = (v) => v.startsWith('cloud:');
+  for (const kind of ['retired', 'limit', 'key', 'busy', 'slow', 'size', 'empty', 'other']) {
+    const next = R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind, wide: true, options: mixed, store: memory() });
+    ok(`after a cloud model fails (${kind}), no model on this computer is offered`, next.every(cloud));
+  }
+  ok('... another cloud model still is', R.nextRoutes({ failed: 'cloud:groq:openai/gpt-oss-120b', kind: 'busy', options: mixed, store: memory() }).length > 0);
+  const onlyLocalLeft = R.createRun({ options: () => [{ value: 'cloud:groq:openai/gpt-oss-120b', label: 'a' }, ...local], store: memory() });
+  ok('with no other cloud model, the run is told there is nothing left, not handed to this computer', onlyLocalLeft.next('cloud:groq:openai/gpt-oss-120b', E('x', {})) === null);
+  const spent = R.createRun({ options: () => [{ value: 'cloud:groq:openai/gpt-oss-120b', label: 'a' }, ...local], fits: (v) => !cloud(v), store: memory() });
+  ok('a cloud model too small for the job is started as chosen, not swapped for one on this computer', spent.start('cloud:groq:openai/gpt-oss-120b') === 'cloud:groq:openai/gpt-oss-120b');
+  const gone = R.createRun({ options: () => [{ value: 'cloud:groq:old-model', label: 'old' }, ...local], store: memory() });
+  gone.next('cloud:groq:old-model', E(P.cloudHttpError('groq', 404, '')));
+  ok('a model reported gone is not replaced by one on this computer either', gone.start('cloud:groq:old-model') === 'cloud:groq:old-model' || cloud(gone.start('cloud:groq:old-model')));
+  ok('both directions hold from the model names alone: local is any name without the cloud prefix', R.providerOf('local:lmstudio:x') === 'local' && R.providerOf('qwen2.5-coder:7b') === 'local' && R.providerOf('cloud:groq:m') === 'groq');
 }
 
 console.log('\nA streamed answer is waited on while it keeps arriving:');

@@ -446,9 +446,11 @@
     const pick = $('amkWsModel');
     const picked = pick.value;
     const own = run?.agents.find((a) => a.id === (to.value || lead))?.model || '';
+    // Only models on the agent's side, this computer or the cloud: a cloud team is not offered a slow local model, nor a local one a cloud model.
+    const local = (v) => window.HCModelRoutes.providerOf(v) === 'local';
     pick.replaceChildren(
       new Option(own ? `Its own: ${deps.label(own)}` : 'Its own model', ''),
-      ...deps.models().filter((m) => m.value !== own).map((m) => new Option(m.label, m.value)),
+      ...deps.models().filter((m) => m.value !== own && (!own || local(m.value) === local(own))).map((m) => new Option(m.label, m.value)),
     );
     pick.value = [...pick.options].some((o) => o.value === picked) ? picked : '';
     const busy = !!state.asking;

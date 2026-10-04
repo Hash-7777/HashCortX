@@ -204,6 +204,18 @@ console.log('\nWhat does not move:');
   const local = run(W, 'qwen2.5-coder:3b', { 'qwen2.5-coder:3b': fails('429 rate limit exceeded') });
   const e = await error(local.turn());
   ok('a job on a model on this computer stays there, and ends with its own error', !!e && e.message === '429 rate limit exceeded' && local.calls.length === 1 && local.told.length === 0);
+  // A cloud job is not handed to a model on this computer either, with one installed and every cloud model failing.
+  const locals = [{ value: 'qwen2.5-coder:3b', label: 'qwen2.5-coder:3b' }, { value: 'local:lmstudio:qwen2.5-7b', label: 'qwen2.5-7b' }];
+  const withLocal = [...MODELS.slice(0, 2), ...locals];   // two cloud models and two on this computer
+  const downAll = Object.fromEntries(MODELS.map((m) => [m.value, fails('503 service unavailable')]));
+  const W2 = world();   // what one run finds spent is shared with every run of the same world
+  const cloudOnly = run(W2, 'cloud:gemini:gemini-3.8-flash', downAll, { models: withLocal });
+  const noLocal = await error(cloudOnly.turn());
+  ok('a job on a cloud model is never handed to one on this computer, even when every cloud model has failed', !!noLocal && cloudOnly.calls.every((c) => c.startsWith('cloud:')) && !cloudOnly.calls.includes('qwen2.5-coder:3b') && !cloudOnly.told.some((t) => /qwen2\.5/.test(t)), cloudOnly.calls.join());
+  const W3 = world();
+  const spent = run(W3, 'cloud:gemini:gemini-3.8-flash', { 'cloud:gemini:gemini-3.8-flash': fails('429 rate limit exceeded') }, { models: withLocal });
+  await spent.turn();
+  ok('...but another cloud model still takes over', spent.calls.length === 2 && spent.calls[1].startsWith('cloud:') && !/qwen/.test(spent.calls.join()), spent.calls.join());
   const bad = run(W, 'cloud:gemini:gemini-3.8-flash', { 'cloud:gemini:gemini-3.8-flash': fails('400 invalid argument: the request body is wrong') });
   const f = await error(bad.turn());
   ok('a failure no other model could fix is the model\'s own, as it said it', !!f && f.message === '400 invalid argument: the request body is wrong' && bad.calls.length === 1);

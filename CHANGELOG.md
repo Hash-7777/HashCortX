@@ -454,6 +454,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **A task stays on the side you chose, this computer or the cloud.** When a
+  model fails, the run moves to another model on the same side only: a local
+  model to another local one, and now a cloud model to another cloud one,
+  never to a model on this computer, so a cloud task can no longer start
+  loading a model on your machine and slow it down. With none left on that
+  side the run ends with the model's own error. The same holds for HashCoder's
+  router, for a model replaced before a run starts, and for the Agent Swarm,
+  3D Forge, the ERP and Virtual OS. A new Swarm team is designed only from the
+  models on the side of the one you picked, and the picker for asking one of
+  its agents for a change lists that agent's side only.
 - **HashCoder asks before it searches the web.** The words it searches for are
   the model's choice and go to a search service. The question now shows the
   words and the host, Tavily when a key is set and otherwise DuckDuckGo, and

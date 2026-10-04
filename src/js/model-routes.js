@@ -42,7 +42,12 @@
 //   empty     an answer with nothing in it: other providers, then this one
 //   other     anything else: this provider's others, then the rest
 //
-// A local model hands over only to another local model, whatever the kind.
+// A model never hands over across the line between this computer and the
+// cloud, in either direction, whatever the kind of failure: a local model
+// hands over only to another local one, a cloud model only to another cloud
+// one. Choosing a side is the point — a job kept off the cloud, or a slow
+// computer left alone — so with no model left on that side the run ends with
+// its own error.
 //
 // A retired model is remembered for two weeks, so the next run skips it
 // rather than rediscovering it. Retirement is permanent, but a "not found" can
@@ -182,7 +187,9 @@
     if (shutsAccount) shut.add(providerOf(failed));
     // A model that makes pictures is never the fallback for one that writes.
     const pictures = (v) => PICTURE_MODEL.test(String(v || ''));
-    const usable = (options || []).filter((o) => o && o.value && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)) && (pictures(failed) || !pictures(o.value)));
+    // The side the job is on, local or cloud, is the side its replacement is on.
+    const local = (v) => providerOf(v) === 'local';
+    const usable = (options || []).filter((o) => o && o.value && (!failed || local(o.value) === local(failed)) && !skip.has(o.value) && !shut.has(providerOf(o.value)) && !isRetired(o.value, now, store) && (!fits || fits(o.value)) && (pictures(failed) || !pictures(o.value)));
     // Models that answer in time first, strongest first within that — a model
     // that ran out of time, or a free giant never yet heard from, goes after
     // the rest however large it is (js/model-speed.js).
