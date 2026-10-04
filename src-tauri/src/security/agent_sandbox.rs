@@ -171,7 +171,7 @@ fn command_in(tool: &Path, program: &str, home: Option<&Path>, offline: bool) ->
         return Err(UNAVAILABLE.to_string());
     }
     let mut cmd = Command::new(tool);
-    cmd.arg("-p").arg(profile_with(home, offline)).arg(program);
+    cmd.arg("-p").arg(if offline { profile_offline(home) } else { profile(home) }).arg(program);
     Ok(cmd)
 }
 
