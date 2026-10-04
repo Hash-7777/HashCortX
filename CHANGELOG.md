@@ -864,6 +864,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A list a tool returns no longer breaks a Gemini conversation.** Gemini
+  takes a tool's result as one object, and a result that is a list (a
+  folder's contents) or a bare value was sent as it was, so the request was
+  refused, and since the result stays in the conversation every turn after
+  it was refused too. A list is now sent under `result`, other values the
+  same way, and text that is not JSON under `text` (`js/agent-shape.js`).
+
 - **Two free models that no longer exist are not offered.** The list a new
   person sees before any provider has been asked still held two OpenRouter
   models that OpenRouter had removed, so a first call could fail. They are

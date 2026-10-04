@@ -608,7 +608,24 @@
     return [{ type: 'text', text: String(system), cache_control: mark }];
   }
 
+  /**
+   * A tool's result as Gemini takes it, the `response` of a function response,
+   * which must be one JSON object. A listing comes back as an array and a
+   * count or a line of text as a bare value, and Gemini refuses the whole
+   * request that carries one: the conversation then fails on every turn that
+   * follows, since the result stays in it. An object is sent as it is, any
+   * other JSON under `result`, and text that is not JSON under `text`.
+   */
+  function geminiResponseOf(content) {
+    let value = content;
+    if (typeof content === 'string') {
+      try { value = JSON.parse(content); } catch { return { text: content }; }
+    }
+    return value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value === undefined ? null : value };
+  }
+
   window.HCAgentShape = {
+    geminiResponseOf,
     markReusable,
     closeInterruptedTurn,
     wasCutOff,

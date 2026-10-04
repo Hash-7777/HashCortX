@@ -5838,7 +5838,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (m.role === "tool") {
         contents.push({
           role: "user",
-          parts: [{ functionResponse: { name: m.name, response: safeJsonParse(m.content) || { text: String(m.content) } } }]
+          parts: [{ functionResponse: { name: m.name, response: HCAgentShape.geminiResponseOf(m.content) } }]
         });
         continue;
       }

@@ -450,6 +450,18 @@ console.log('\nA caller that sends its conversation again says so:');
   ok('and not told when it does not', !('cache' in seen({ adapter: { kind: 'anthropic', model: 'm' }, messages: [], tools: [] })));
 }
 
+console.log('\nA tool\'s result as Gemini takes it:');
+{
+  const R = A.geminiResponseOf;
+  ok('an object is sent as it is', JSON.stringify(R('{"ok":true,"bytes":12}')) === '{"ok":true,"bytes":12}' && R({ a: 1 }).a === 1);
+  ok('a listing, which comes back as an array, goes under result', JSON.stringify(R('[{"name":"index.html","size":8136}]')) === '{"result":[{"name":"index.html","size":8136}]}' && Array.isArray(R([1, 2]).result));
+  ok('an empty listing too', JSON.stringify(R('[]')) === '{"result":[]}');
+  ok('a bare number, string, true or null goes under result', R('5').result === 5 && R('"fine"').result === 'fine' && R('true').result === true && R('null').result === null && R(7).result === 7 && R(undefined).result === null);
+  ok('text that is not JSON is kept, under text, not lost', JSON.stringify(R('plain words')) === '{"text":"plain words"}' && JSON.stringify(R('')) === '{"text":""}');
+  ok('whatever it is, what is sent is one object and never a list', ['[1]', '[]', '5', '"x"', 'null', 'oops', '', '{"a":1}', '{}'].every((c) => { const r = R(c); return r && typeof r === 'object' && !Array.isArray(r); }));
+  ok('the Gemini turn takes it from here', /response: HCAgentShape\.geminiResponseOf\(m\.content\)/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8')));
+}
+
 console.log('\nA failed call names the model that failed:');
 {
   const failing = (kind) => ({ [kind]: () => Promise.reject(new Error('boom')) });
