@@ -275,7 +275,7 @@ console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder gives it with such a request, never to a small model',
     /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(site\) lines\.push\(String\(site\)\);/.test(src('js', 'code', 'context.js'))
-    && /const context = window\.HCCodeContext\?\.forRequest\(\{ site, activeFile: root && sharedState\.activeFile, facts:/.test(mode) && /\.\.\.\(context \? \{ context \} : \{\}\), \.\.\.\(site \? \{ site: true \} : \{\}\)/.test(mode));
+    && /const context = window\.HCCodeTalk\?\.isSmallTalk\(task\) \? null : window\.HCCodeContext\?\.forRequest\(\{ site, activeFile: root && sharedState\.activeFile, facts:/.test(mode) && /\.\.\.\(context \? \{ context \} : \{\}\), \.\.\.\(site \? \{ site: true \} : \{\}\)/.test(mode));
 }
 
 console.log('\nThe instructions stay the same from one request to the next:');

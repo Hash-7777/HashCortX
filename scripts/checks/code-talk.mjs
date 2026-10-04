@@ -18,6 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { window: {}, JSON, String, Array, Object, Set, RegExp };
 vm.createContext(box);
+vm.runInContext(src('js', 'fences.js'), box, { filename: 'fences.js' });
 vm.runInContext(src('js', 'code', 'talk.js'), box, { filename: 'talk.js' });
 const T = box.window.HCCodeTalk;
 
@@ -61,7 +62,8 @@ console.log('\nA model that writes its tools back:');
   const echoOne = '[{"type":"function","function":{"name":"list_dir","description":"List files and subdirectories in a folder. Returns names, types, and sizes. Start from the project root to explore structure.","parameters":{"type":"object","required":["path"],"properties":{"path":{"type":"string","description":"Absolute directory path"}}}}}]';
   ok('one definition written back', T.echoesTools(echoOne, tools));
   ok('all of them', T.echoesTools(JSON.stringify(tools), tools));
-  ok('inside a code fence', T.echoesTools('```json\n' + JSON.stringify(tools) + '\n```', tools));
+  ok('inside a code fence', T.echoesTools('```json\n' + JSON.stringify(tools) + '\n```', tools) && T.echoesTools('Here:\n```\n' + JSON.stringify(tools) + '\n```', tools));
+  ok('...or one the model never closed', T.echoesTools('```json\n' + JSON.stringify(tools), tools));
   ok('a single definition, not in a list', T.echoesTools(JSON.stringify(tools[0]), tools));
   ok('a listing cut off before it closed', T.echoesTools(JSON.stringify(tools).slice(0, -25), tools));
   ok('a real call is not that', !T.echoesTools('{"name":"list_dir","arguments":{"path":"."}}', tools) && !T.echoesTools('[{"type":"function","function":{"name":"list_dir","arguments":"{\\"path\\":\\".\\"}"}}]', tools));
@@ -81,6 +83,7 @@ console.log('\nWhere it is used:');
   ok('a reply that is the tools written back is set aside, once, and asked again without them', /HCCodeTalk\?\.echoesTools\(finalText, tools\)/.test(mode) && /echoed = bare = true/.test(mode));
   ok('a greeting is not sent with the project\'s map or files either', /const context = window\.HCCodeTalk\?\.isSmallTalk\(task\) \? null : window\.HCCodeContext\?\.forRequest\(/.test(mode));
   ok('the module is loaded before the Coder', boot.indexOf("'/js/code/talk.js'") > 0 && boot.indexOf("'/js/code/talk.js'") < boot.indexOf("'/modes/boot.js'"));
+  ok('it reads a code block through the fence module and has no fence pattern of its own', /window\.HCFences\.jsonBlock\(t\)/.test(src('js', 'code', 'talk.js')) && !/`{3}/.test(src('js', 'code', 'talk.js').replace(/\/\/.*$/gm, '')));
   ok('it touches nothing but the text it is given', !/\bdocument\b|localStorage|fetch\(|invoke\(/.test(src('js', 'code', 'talk.js').replace(/\/\/.*$/gm, '')));
   ok('the check is part of npm run check', /npm run check:code-talk/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }

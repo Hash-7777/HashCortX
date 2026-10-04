@@ -63,7 +63,9 @@
   function echoesTools(text, tools) {
     let t = String(text == null ? '' : text).trim();
     if (t.length < 20) return false;
-    t = t.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    // Inside a code block, as models often write it (the fence module reads the block).
+    const block = window.HCFences && window.HCFences.jsonBlock ? window.HCFences.jsonBlock(t) : null;
+    if (block != null) t = block.trim();
     const names = new Set((Array.isArray(tools) ? tools : []).map(nameIn).filter(Boolean));
     if (!names.size) return false;
     let parsed = null;
