@@ -298,11 +298,8 @@
     },
 
     async patchFile(path, search, replace, reason = '', more = null, all = false) {
-      if (!search) throw new Error('patch_file: search string is required and must not be empty.');
-      if (replace == null) throw new Error('patch_file: replace string is required (use "" to delete).');
-      // Further edits to the same file, made with the first: all or none.
-      const edits = [{ search: String(search), replace: String(replace), all: all === true }]
-        .concat(Array.isArray(more) ? more.map((e) => ({ search: e && e.search, replace: e && e.replace, all: !!e && e.all === true })) : []);
+      // The first change at the top and further edits to the same file in `more`, made together: all or none (js/code/patch.js).
+      const edits = window.HCCodePatch.editsOf(search, replace, all, more);
 
       // The file's real bytes, not what read_file shows the model: that cuts a
       // long file short and describes a binary one, and either would be

@@ -886,6 +886,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A patch whose changes are all in its list of edits is made.** A model
+  sometimes puts every change in the list and repeats the first one's passage
+  at the top without its replacement, or leaves the top empty, and the call
+  was refused for want of a replacement although every change was there. The
+  changes are now taken from the list, in order. A passage at the top with no
+  replacement that the list does not hold is still refused, since what to
+  put there is not said (`js/code/patch.js`).
+
 - **A list a tool returns no longer breaks a Gemini conversation.** Gemini
   takes a tool's result as one object, and a result that is a list (a
   folder's contents) or a bare value was sent as it was, so the request was

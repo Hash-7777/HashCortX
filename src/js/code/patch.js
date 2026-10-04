@@ -276,6 +276,26 @@
   }
 
   /**
+   * The edits a patch_file call asks for, as a list: the passage and its
+   * replacement given at the top, then the rest in `more`. A model that puts
+   * every change in `more` often repeats the first one's passage at the top
+   * and leaves its replacement off, or leaves the top off altogether; the
+   * changes are all there, so they are taken from `more` and nothing is lost.
+   * A passage at the top with no replacement and nothing in `more` that holds
+   * it is still refused, since what to put there is not said. Throws the
+   * message the model is shown.
+   */
+  function editsOf(search, replace, all, more) {
+    const rest = (Array.isArray(more) ? more : []).filter((e) => e && typeof e === 'object')
+      .map((e) => ({ search: e.search, replace: e.replace, all: e.all === true }));
+    const top = search != null && search !== '';
+    if (top && replace != null) return [{ search: String(search), replace: String(replace), all: all === true }, ...rest];
+    if (rest.length && (!top || rest.some((e) => e.search === search))) return rest;
+    if (!top) throw new Error('patch_file: search string is required and must not be empty.');
+    throw new Error('patch_file: replace string is required (use "" to delete).');
+  }
+
+  /**
    * Several edits to one file, applied in order, all of them or none.
    *
    * Each edit is looked for in the file as the edits before it left it. When
@@ -458,5 +478,5 @@
     return { text: text.replace(/\n/g, '\r\n'), kept: true };
   }
 
-  window.HCCodePatch = { applyPatch, applyEdits, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
+  window.HCCodePatch = { applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();
