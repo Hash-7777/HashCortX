@@ -74,6 +74,7 @@
   // answer — even though nothing about it is a rate limit. It used to be caught
   // only by the word "billing" happening to appear in one provider's answer,
   // which is luck rather than a rule.
+  const KEY_REFUSED = /rejected the (?:API )?key \(HTTP 40[13]\)/i;
   const LIMIT = /rate.?limit|quota|\b429\b|\b402\b|too many requests|free.?tier|insufficient.{0,12}(?:credit|balance|fund)|no credit left|out of credit|billing|exceeded|tokens per (?:minute|day)/i;
   // Checked before a limit, because a request too large for a per-minute budget
   // names the budget. Waiting does not shrink a request, and another model on
@@ -117,7 +118,12 @@
     if (RETIRED.test(msg)) return 'retired';
     if (err && err.empty) return 'empty';
     if (SIZE.test(msg)) return 'size';
-    // Before the key: a quota message often says whose key ran out.
+    // A refused key, by its status or the app's own words for it, before any
+    // limit: the hint beside it, or the provider's sentence, can name a free
+    // tier or billing, and a refused key read as a spent quota sends a person
+    // to the wrong place to put it right.
+    if ((err && (err.status === 401 || err.status === 403)) || KEY_REFUSED.test(msg)) return 'key';
+    // Before the key words: a quota message often says whose key ran out.
     if (LIMIT.test(msg)) return 'limit';
     if (KEY.test(msg)) return 'key';
     if (BUSY.test(msg)) return 'busy';

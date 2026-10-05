@@ -54,6 +54,17 @@ ok('an answer with nothing in it is empty', R.failureKind(E('returned an empty a
 ok('every kind has words for the trace', ['retired', 'limit', 'key', 'busy', 'slow', 'size', 'empty'].every((k) => R.reasonText(k) !== 'it failed'));
 ok('a quota message naming the key is still a limit', R.failureKind(E('Rate limit reached for this API key')) === 'limit');
 ok('the app\'s own 401 wording is a refused key', R.failureKind(E(P.cloudHttpError('openai', 401, ''))) === 'key');
+{
+  const providers = ['groq', 'gemini', 'openrouter', 'cerebras', 'samba', 'openai', 'anthropic', 'moonshot', 'nvidia', 'deepseek', 'mistral', 'xai', 'together', 'fireworks', 'zai', 'qwen', 'huggingface', 'deepinfra', 'novita', 'venice', 'cloudflare'];
+  const misread = [];
+  for (const p of providers) for (const status of [401, 403]) for (const said of ['', 'Invalid key', 'This key has no billing set up', 'quota project not set']) {
+    const kind = R.failureKind(E(P.cloudHttpError(p, status, JSON.stringify({ error: { message: said } }))));
+    if (kind !== 'key') misread.push(`${p} ${status} "${said}" as ${kind}`);
+  }
+  ok('every provider\'s refused key is read as one, whatever its hint or its own sentence says about a free tier, billing or quota', misread.length === 0, misread.slice(0, 4).join('; '));
+  ok('... and so is a refused key known only by its status', R.failureKind(E('free tier', { status: 401 })) === 'key' && R.failureKind(E('billing', { status: 403 })) === 'key');
+  ok('... while a 429 and a 402 are still limits', R.failureKind(E(P.cloudHttpError('cloudflare', 429, ''))) === 'limit' && R.failureKind(E(P.cloudHttpError('samba', 402, ''))) === 'limit');
+}
 ok('the app\'s own 503 wording is busy', R.failureKind(E(P.cloudHttpError('gemini', 503, ''))) === 'busy');
 ok('a provider that cannot be reached is busy, so the run moves on', R.failureKind(E('Failed to fetch')) === 'busy' && R.failureKind(E('Load failed')) === 'busy');
 ok('a timeout is slow', R.failureKind(E('Agent timeout after 150s')) === 'slow');

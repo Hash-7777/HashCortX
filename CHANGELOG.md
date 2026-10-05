@@ -1065,11 +1065,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
-- **A refused key is said as one when the next agent starts.** An account
-  set aside because its key was refused was described to every later agent
-  of the run as out of quota, which points at the wrong thing to fix. Why
-  an account was set aside is now kept with it, and the note says the key
-  was refused (`js/model-routes.js`).
+- **A refused key is said as one, in every mode.** An account set aside
+  because its key was refused was described to every later agent of the run
+  as out of quota, which points at the wrong thing to fix; why an account
+  was set aside is now kept with it, and the note says the key was refused.
+  A refused key (HTTP 401 or 403) is also read as one before any word that
+  sounds like a limit, so a provider whose hint or answer mentions a free
+  tier, billing or quota is no longer taken to be out of quota
+  (`js/model-routes.js`, which the chat, HashCoder, the Agent Swarm, the 3D
+  Forge, the ERP builder and Finance all read).
 
 - **A finished Swarm run is also put right for template text and files
   nothing loads.** The round that puts right what the app finds in the work
