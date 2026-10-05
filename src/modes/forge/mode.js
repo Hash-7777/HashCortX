@@ -836,7 +836,7 @@
       renderer.toneMappingExposure = 1.12;
     }
     renderer.shadowMap.enabled = !soft;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
     mount.innerHTML = "";
     mount.appendChild(renderer.domElement);
 
