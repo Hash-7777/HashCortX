@@ -18,9 +18,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   written with require and module.exports, the files the run changed are
   read for what joins them: a function called from a file that never loads
   it, a name taken from a file that does not export it, a file loaded that
-  exports nothing, and a file that exports an object of names loaded whole
-  and called as a function; each is sent back with the line that joins it
-  up (`js/code/wiring.js`). And when the request shows how a script is
+  exports nothing, a file that exports an object of names loaded whole
+  and called as a function, and a file loaded from a place where the
+  project has none, with the one file of that name when there is one; each
+  is sent back with the line that joins it up (`js/code/wiring.js`). And when the request shows how a script is
   used, such as `node bin/count.js --lines notes.txt`, and the run changed
   that script, the command is run once before it finishes, so the model
   sees what it really prints; a request showing the old use and the new

@@ -7,11 +7,12 @@
 // its own, and the project stops working.
 //
 // This reads the project's CommonJS files (require and module.exports) and
-// finds four such gaps in the files a run changed: a file that calls a
+// finds five such gaps in the files a run changed: a file that calls a
 // function another file of the project defines, without loading it or
 // defining it itself; a file that takes a name from another file that does
-// not export it; a file another loads that exports nothing; and a file
-// loaded whole and called as a function when it exports an object of names. Each is said
+// not export it; a file another loads that exports nothing; a file
+// loaded whole and called as a function when it exports an object of names;
+// and a file loaded from a place where the project has none. Each is said
 // with what would join it up. Files written as ES modules, and names the
 // language has itself, are left alone.
 //
@@ -50,6 +51,26 @@
     return [base, `${base}.js`, `${base}.cjs`, `${base}/index.js`].find((p) => paths.includes(p)) || '';
   }
 
+  /** Whether `spec`, required from `from`, is a file among `all` (every file of the project, any kind): a script, data, or a folder's index. */
+  function found(from, spec, all) {
+    const parts = String(from).split('/').slice(0, -1);
+    for (const seg of spec.split('/')) {
+      if (seg === '.' || !seg) continue;
+      if (seg === '..') parts.pop(); else parts.push(seg);
+    }
+    const base = parts.join('/');
+    return [base, `${base}.js`, `${base}.cjs`, `${base}.json`, `${base}/index.js`].some((p) => all.includes(p));
+  }
+
+  /** A relative require of a file the project does not have, with the one file of that name it does have when there is one. */
+  function missing(from, spec, paths) {
+    const name = spec.split('/').pop().replace(/\.c?js$/i, '');
+    const same = paths.filter((p) => p !== from && p.split('/').pop().replace(/\.c?js$/i, '') === name);
+    return same.length === 1
+      ? `${from} loads '${spec}', and there is no such file: the file is ${same[0]}, so write require('${relative(from, same[0])}') in its place.`
+      : `${from} loads '${spec}', and there is no such file: name the file by its place from the folder ${from} is in.`;
+  }
+
   /** What a file loads (`{ spec, names, whole }` for each require) and what it exports, by name, and whether it exports at all. */
   function shapeOf(text) {
     const t = String(text || '');
@@ -73,6 +94,7 @@
   function gaps(files, changed) {
     const js = (files || []).filter((f) => JS.test(f.path));
     const paths = js.map((f) => f.path);
+    const all = (files || []).map((f) => f.path);
     const shape = new Map(js.map((f) => [f.path, shapeOf(f.text)]));
     const defines = new Map(js.map((f) => [f.path, (M() ? M().definitions(f.text, 'js') : []).map((d) => d.name)]));
     const owner = new Map();
@@ -85,6 +107,8 @@
       const mine = new Set([...defines.get(f.path), ...s.loads.flatMap((l) => [...l.names, l.whole].filter(Boolean))]);
       for (const l of s.loads) {
         const to = target(f.path, l.spec, paths);
+        // Only a script or data file is looked for: anything else may be a file the project shows by name only.
+        if (!to && touched.has(f.path) && /^\.\.?\//.test(l.spec) && /(?:^|\/)[^./]+(?:\.(?:c?js|json))?$/i.test(l.spec) && !found(f.path, l.spec, all)) out.push({ path: f.path, say: missing(f.path, l.spec, paths) });
         if (!to || shape.get(to).esm) continue;
         if (!touched.has(f.path) && !touched.has(to)) continue;
         if (!shape.get(to).exports) { out.push({ path: to, say: `${to} exports nothing, and ${f.path} loads it: add module.exports = { ${defines.get(to).join(', ')} }; at its end.` }); continue; }
@@ -112,5 +136,5 @@
     return { kind: 'wiring', step: 'Sent back: files that use each other are not joined up', message: `${NOTE} the files you changed use each other, and are not joined up:\n${found.slice(0, 8).map((g) => `- ${g.say}`).join('\n')}\nMake these changes, keeping everything else in those files as it is, then finish.` };
   }
 
-  window.HCCodeWiring = { relative, target, shapeOf, gaps, note };
+  window.HCCodeWiring = { relative, target, found, missing, shapeOf, gaps, note };
 })();

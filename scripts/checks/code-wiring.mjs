@@ -4,8 +4,8 @@
 // Loads the REAL src/js/code/wiring.js, with the reading of definitions in
 // src/js/code/merge.js, and holds that in the files a run changed it finds a
 // function called from another file without being loaded, a name taken that
-// is not exported, and a loaded file that exports nothing, each with the line
-// that joins it up; and that joined-up files, untouched files, ES modules and
+// is not exported, a loaded file that exports nothing, and a file loaded from
+// a place the project has no file, each with the line that joins it up; and that joined-up files, untouched files, ES modules and
 // the language's own names are left alone.
 //
 // Run with: npm run check:code-wiring
@@ -52,6 +52,22 @@ console.log('What is not joined up:');
   const g = W.gaps([{ path: 'src/clamp.js', text: 'function clamp(v) { return v; }\nmodule.exports = { clamp };\n' }, { path: 'test/clamp.test.js', text: "const clamp = require('../src/clamp');\nclamp(1);\n" }], ['test/clamp.test.js']);
   ok('a file loaded whole and called as a function, when it exports an object of names, with the line to write instead', g.length === 1 && /calls clamp\(\.\.\.\), but src\/clamp\.js exports an object holding clamp: write const \{ clamp \} = require\('\.\.\/src\/clamp'\);/.test(g[0].say), g.map((x) => x.say).join());
   ok('...not when the file exports the function itself', W.gaps([{ path: 'a.js', text: 'function go() {}\nmodule.exports = go;\n' }, { path: 'b.js', text: "const go = require('./a');\ngo();\n" }], ['b.js']).length === 0);
+}
+
+{
+  const clampFile = { path: 'src/clamp.js', text: 'function clamp(v) { return v; }\nmodule.exports = { clamp };\n' };
+  const g = W.gaps([clampFile, { path: 'src/clamp.test.js', text: "const { clamp } = require('../clamp');\nclamp(1);\n" }], ['src/clamp.test.js']);
+  ok('a file loaded from a place the project has no file, with the one file of its name and the line to write', g.length === 1 && g[0].say === "src/clamp.test.js loads '../clamp', and there is no such file: the file is src/clamp.js, so write require('./clamp') in its place.", g.map((x) => x.say).join());
+  const two = W.gaps([clampFile, { path: 'lib/clamp.js', text: 'module.exports = {};\n' }, { path: 'test/a.test.js', text: "const { clamp } = require('./clamp');\n" }], ['test/a.test.js']);
+  ok('...and, when two files share its name, says to name it by its place', two.length === 1 && /test\/a\.test\.js loads '\.\/clamp', and there is no such file: name the file by its place/.test(two[0].say), two.map((x) => x.say).join());
+  const fine = [
+    clampFile,
+    { path: 'config.json', text: '{}\n' },
+    { path: 'src/util/index.js', text: 'module.exports = {};\n' },
+    { path: 'src/app.js', text: "const { clamp } = require('./clamp');\nconst cfg = require('../config.json');\nconst util = require('./util');\nconst fs = require('node:fs');\nconst lodash = require('lodash');\nconst pic = require('./logo.png');\nconst a = require('./a.b.c');\nclamp(1);\n" },
+  ];
+  ok('...not a file that is there, data, a folder\'s index, a package, the language\'s own, or a file of another kind', W.gaps(fine, ['src/app.js']).length === 0, W.gaps(fine, ['src/app.js']).map((x) => x.say).join());
+  ok('...nor in a file the run did not change', W.gaps([clampFile, { path: 'src/clamp.test.js', text: "const { clamp } = require('../clamp');\n" }], ['src/clamp.js']).length === 0);
 }
 
 console.log('\nWhat is left alone:');
