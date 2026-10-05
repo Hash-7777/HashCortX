@@ -78,6 +78,8 @@ ok('lorem ipsum', /lorem ipsum/.test(said({ 'index.html': `<p>Lorem ipsum dolor 
 ok('a made-up name', /made-up name/.test(said({ 'about.md': 'Written by John Doe, who does not exist at all.' })));
 ok('example.com', /example\.com/.test(said({ 'index.html': `<a href="https://example.com">Contact</a>${FULL}` })));
 ok('work left for someone else', /left for someone else/.test(said({ 'app.js': '// TODO: wire this up properly later on' })));
+ok('a made-up name in a script\'s comment, explaining the code, is not template text', !/made-up name/.test(said({ 'parse.py': 'def name_of(path):\n    # e.g. "john_doe_resume.pdf" -> "John Doe"\n    return path.title()\n' })) && !/made-up name|example\.com/.test(said({ 'app.js': '/* sample: Jane Doe, https://example.com */\n// John Doe\nconst x = 1;' })));
+ok('...one in a script\'s strings, which reach a page, still is, and so is a link in a comment-free line', /made-up name/.test(said({ 'posts.js': 'const posts = [{ author: "John Doe", title: "First post", body: "Opening the shop this spring." }];\nwindow.POSTS = posts;\n' })) && /made-up name/.test(said({ 'data.py': 'AUTHOR = "Jane Doe"\nTITLE = "Notes from the kitchen"\nYEAR = 2026\n' })));
 ok('a real page says none of this', !/still has/.test(said({ 'index.html': FULL })));
 
 console.log('\nAn address that is known not to answer:');

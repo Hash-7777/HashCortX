@@ -72,6 +72,18 @@
   const isHtml = (n) => /\.html?$/.test(n);
   const isCss = (n) => /\.css$/.test(n);
   const isJs = (n) => /\.m?js$/.test(n);
+
+  /**
+   * What of a file can reach a reader, for the check on text left from a
+   * template: a script without its comments, where an example such as a file
+   * named for John Doe explains the code and is shown to nobody; anything
+   * else whole. A script's strings stay, since those reach a page.
+   */
+  function readable(name, text) {
+    if (/\.(?:[cm]?[jt]sx?)$/.test(name)) return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:\\'"`])\/\/[^\n]*/g, '$1');
+    if (/\.(?:py|rb|sh|ya?ml|toml|r)$/.test(name)) return text.replace(/(^|\s)#[^\n]*/g, '$1');
+    return text;
+  }
   const asMap = (files) => (files && typeof files.get === 'function' ? files : new Map(Object.entries(files || {})));
 
   // A value left for someone else to decide, written where the browser reads
@@ -305,7 +317,9 @@
 
       if (text.trim().length < EMPTY_CHARS) { add('broken', name, `${name} is empty`); continue; }
 
-      for (const [re, said] of TEMPLATE_TEXT) if (re.test(text)) { add('weak', name, `${name} still has ${said} in it`, true); break; }
+      const shown = readable(name, text);
+      // A TODO is work left wherever it is written, a comment included; the rest only where a reader meets it.
+      for (const [re, said] of TEMPLATE_TEXT) if (re.test(said === 'work left for someone else' ? text : shown)) { add('weak', name, `${name} still has ${said} in it`, true); break; }
 
       const stop = (isCss(name) || isJs(name)) ? fault(text, name) : null;
       if (stop) add('broken', name, /never closed/.test(stop.what) ? `${name} stops in the middle: ${stop.what}${stop.line ? ` (line ${stop.line})` : ''}` : `${name} does not parse: on line ${stop.line}, ${stop.what}`);

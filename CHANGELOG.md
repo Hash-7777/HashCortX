@@ -1083,6 +1083,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Text left from a template is looked for where a reader meets it.** A
+  script's comment that explains the code, such as a file named for John Doe,
+  was taken for a placeholder and sent a finished Swarm run back to be put
+  right. A script is now read without its comments for a made-up name, an
+  example address and the like, its strings still read; a TODO counts
+  wherever it is written (`js/swarm/project-check.js`).
+
 - **The Sandbox's agents run on the boss's model.** Each scanning agent
   was given the app's main model when the Sandbox started, and kept it, so a
   cloud boss was joined by agents on a model on this computer. An agent
