@@ -23,8 +23,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   up (`js/code/wiring.js`). And when the request shows how a script is
   used, such as `node bin/count.js --lines notes.txt`, and the run changed
   that script, the command is run once before it finishes, so the model
-  sees what it really prints. Each happens at most twice in a run, the
-  example once, and only while Prove changes is on.
+  sees what it really prints; a request showing the old use and the new
+  one has each run, three at most. Each happens at most twice in a run, the
+  examples once, and only while Prove changes is on.
 
 - **Light mode for small models in HashCoder.** A model of a few billion
   parameters is poor at the machinery of tool calls, so for one under 5B

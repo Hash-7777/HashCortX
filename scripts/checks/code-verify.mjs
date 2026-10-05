@@ -146,8 +146,8 @@ console.log('\nWhen the agent is sent back:');
     && !('run' in (V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.') || {})));
   ok('a command line as the call\'s arguments, or none when it needs a shell', JSON.stringify(V.runOf('npm test')) === '{"command":"npm","args":["test"]}' && V.runOf('npm test | tee x') === null && V.runOf('') === null);
   const mode = src('modes', 'code', 'mode.js');
-  ok('HashCoder runs it for a small model in place of asking, and does not keep its word that it passed',
-    /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light \|\| back\.kind === 'example'\)\) forced = \{ content: '', tool_calls: \[\{ name: 'shell_run', arguments: back\.run \}\] \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
+  ok('HashCoder runs it for a small model in place of asking, each command with an id of its own, and does not keep its word that it passed',
+    /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light \|\| back\.kind === 'example'\)\) forced = \{ content: '', tool_calls: \(back\.runs \|\| \[back\.run\]\)\.map\(\(run, i\) => \(\{ id: `ran_\$\{Date\.now\(\)\}_\$\{i\}`, name: 'shell_run', arguments: run \}\)\) \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
     && /turn = forced \|\| await callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\); forced = null;/.test(mode));
   ok('... through the same tool, and so the same permission, as any command, and the run says so', /object: forced \? window\.HCCodeVerify\.RAN_STEP : back\.step/.test(mode) && V.RAN_STEP === 'Ran the tests itself, as the change had not been tested');
 }
@@ -374,10 +374,14 @@ console.log('\nThe example the request gives, run:');
   ok('the first example running a file the run changed, as a command and its arguments', JSON.stringify(V.exampleOf(req, ['bin/count.js'])) === JSON.stringify({ command: 'node', args: ['bin/count.js', 'notes.txt'] }));
   ok('nothing when the run did not change that file', V.exampleOf(req, ['src/other.js']) === null && V.exampleOf('Fix the tests.', ['bin/count.js']) === null);
   ok('python, and a path written from the folder', JSON.stringify(V.exampleOf('Try `python3 ./tool.py --dry-run in.csv` after.', ['tool.py'])) === JSON.stringify({ command: 'python3', args: ['tool.py', '--dry-run', 'in.csv'] }));
+  ok('every example running a file the run changed, each once: the old use and the new one', JSON.stringify(V.examplesOf(req, ['bin/count.js'])) === JSON.stringify([{ command: 'node', args: ['bin/count.js', 'notes.txt'] }, { command: 'node', args: ['bin/count.js', '--lines', 'notes.txt'] }]));
+  ok('...the same command twice is run once, three at most, and none is none', V.examplesOf('Run node a.js x.txt, then node a.js x.txt again, node a.js -v, node a.js -q, node a.js -z.', ['a.js']).length === 3 && V.examplesOf('Run node a.js x.txt and node a.js x.txt.', ['a.js']).length === 1 && V.examplesOf('Fix it.', ['a.js']).length === 0);
+  const both = V.exampleNote(V.examplesOf(req, ['bin/count.js']));
+  ok('a note for several runs them all, in order, and names each', both.runs.length === 2 && both.run === both.runs[0] && /`node bin\/count\.js notes\.txt`[^`]*, and `node bin\/count\.js --lines notes\.txt`/.test(both.message) && /what each prints/.test(both.message) && V.exampleNote([]) === null);
   const n = V.exampleNote({ command: 'node', args: ['bin/count.js', '--lines', 'notes.txt'] });
   ok('the note carries the command to run, says what to look for, and is a step of its own', n.kind === 'example' && n.run.command === 'node' && /`node bin\/count\.js --lines notes\.txt`/.test(n.message) && V.noteStep(n.message) === V.EXAMPLE_STEP && V.exampleNote(null) === null);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  ok('HashCoder runs it once, with Prove changes on, for any model', /\(!sent\.example && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.exampleOf\(/.test(mode) && /back\.kind === 'example'\)\) forced/.test(mode) && /example: 0 \};/.test(mode));
+  ok('HashCoder runs it once, with Prove changes on, for any model', /\(!sent\.example && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.examplesOf\(/.test(mode) && /back\.kind === 'example'\)\) forced/.test(mode) && /example: 0 \};/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/verify.js)`);

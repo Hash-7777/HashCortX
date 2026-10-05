@@ -428,7 +428,8 @@
   // A request often says how the change will be used: "used as node
   // bin/count.js --lines notes.txt". When the run changed the script such a
   // command runs, that command is run once before the run finishes, so the
-  // model sees what it really prints rather than what it expects.
+  // model sees what it really prints rather than what it expects. A request
+  // that shows the old use and the new one gives two, and each is run.
 
   const EXAMPLE = /(?:^|[\s`'"(])(node|python3?|deno|bun)\s+((?:\.\/)?(?:[\w.-]+\/)*[\w.-]*\w\.(?:m?js|cjs|ts|py))(?![\w.])/g;
 
@@ -446,25 +447,39 @@
     return out;
   }
 
-  /** The first example command in the request that runs a file the run changed (`changed`, paths from the project's folder): `{ command, args }`, or null. */
-  function exampleOf(request, changed) {
+  /** The example commands in the request that run a file the run changed (`changed`, paths from the project's folder), each once and three at most: `[{ command, args }]`. */
+  function examplesOf(request, changed) {
     const done = new Set((changed || []).map((p) => String(p).replace(/^\.\//, '')));
     const text = String(request || '');
+    const out = [];
+    const seen = new Set();
     for (const m of text.matchAll(EXAMPLE)) {
       const file = m[2].replace(/^\.\//, '');
       if (!done.has(file)) continue;
-      return { command: m[1], args: [file, ...argsAfter(text.slice(m.index + m[0].length))] };
+      const run = { command: m[1], args: [file, ...argsAfter(text.slice(m.index + m[0].length))] };
+      const key = [run.command, ...run.args].join(' ');
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(run);
+      if (out.length === 3) break;
     }
-    return null;
+    return out;
+  }
+
+  /** The first of them, or null. */
+  function exampleOf(request, changed) {
+    return examplesOf(request, changed)[0] || null;
   }
 
   const EXAMPLE_STEP = 'Ran the example the request gives';
 
-  /** The run sent back to try the example: run by the app for a small model, asked of a larger one. */
-  function exampleNote(run) {
-    if (!run) return null;
-    const shown = [run.command, ...run.args].join(' ');
-    return { kind: 'example', step: EXAMPLE_STEP, run, message: `${APP_NOTE} the request shows how this is used: \`${shown}\`. Run it${callFor(shown)}, read what it prints, and fix the code if it is not what the request asks for. Then finish.` };
+  /** The run sent back to try the examples, one or several: run by the app, `runs` in order and `run` the first. */
+  function exampleNote(given) {
+    const runs = (Array.isArray(given) ? given : [given]).filter(Boolean);
+    if (!runs.length) return null;
+    const shown = runs.map((r) => [r.command, ...r.args].join(' '));
+    const how = shown.map((c) => `\`${c}\`${callFor(c)}`).join(', and ');
+    return { kind: 'example', step: EXAMPLE_STEP, run: runs[0], runs, message: `${APP_NOTE} the request shows how this is used. Run ${how}, read what ${runs.length > 1 ? 'each prints' : 'it prints'}, and fix the code if it is not what the request asks for. Then finish.` };
   }
 
   // ── A change written into the reply instead of made ─────────────────────
@@ -777,6 +792,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    exampleOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
+    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
   };
 })();

@@ -2073,10 +2073,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light })
-          || (finalText.trim() ? (await namedLook(finalText)) || (await projectLook()) || (!sent.example && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.exampleOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || (await secondLook()) : null);
+          || (finalText.trim() ? (await namedLook(finalText)) || (await projectLook()) || (!sent.example && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
-          if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example')) forced = { content: '', tool_calls: [{ name: 'shell_run', arguments: back.run }] };   // its word that the test passed is not kept
+          if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example')) forced = { content: '', tool_calls: (back.runs || [back.run]).map((run, i) => ({ id: `ran_${Date.now()}_${i}`, name: 'shell_run', arguments: run })) };   // its word that the test passed is not kept
           else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
           appendStep(contentEl, { verb: 'CHECK', object: forced ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
