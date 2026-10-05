@@ -25,7 +25,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   that script, the command is run once before it finishes, so the model
   sees what it really prints; a request showing the old use and the new
   one has each run, three at most. Each happens at most twice in a run, the
-  examples once, and only while Prove changes is on.
+  examples once, and only while Prove changes is on. A run about to stop for
+  going round in circles after changing code has the project's test run once
+  first when nothing has tested the change, or is told once that its last
+  test failed, and stops only after that.
 
 - **Light mode for small models in HashCoder.** A model of a few billion
   parameters is poor at the machinery of tool calls, so for one under 5B

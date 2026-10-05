@@ -1868,7 +1868,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1920,7 +1920,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           changed: proof ? proof.changed.length : 0,   // an agent that has made its change, or finished its plan, is told to finish
           planDone: !!HC?.code?.plan && !!window.HCCodePlan && !window.HCCodePlan.openSteps(HC.code.plan).length,
         });
-        if (!verdict.continue) { lastStop = verdict; break; }
+        if (!verdict.continue) { const untested = verdict.reason === 'stalled' && !sent.stall++ && cdrPrefs().prove !== false && window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, '', 0, 1); if (!untested) { lastStop = verdict; break; } stalledIterations = 0; if (untested.run) forced = { content: '', tool_calls: [{ id: `ran_${Date.now()}_0`, name: 'shell_run', arguments: untested.run }] }; else messages.push({ role: 'user', content: untested.message, note: true }); }   // a run that stalls after changing code has its test run, or its failure said, once before it stops (js/code/verify.js stopCheck)
         iter++;
 
         setStatus(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
