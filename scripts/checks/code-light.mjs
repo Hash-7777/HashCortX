@@ -24,6 +24,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { window: {}, JSON, String, Array, Object, Map, Set, Number, RegExp, Error };
 vm.createContext(box);
 vm.runInContext(src('js', 'fences.js'), box, { filename: 'fences.js' });
+vm.runInContext(src('js', 'code', 'merge.js'), box, { filename: 'merge.js' });
 vm.runInContext(src('js', 'code', 'light.js'), box, { filename: 'light.js' });
 const L = box.window.HCCodeLight;
 const T = '`'.repeat(3);
@@ -120,7 +121,7 @@ console.log('\nWhat the model reads back:');
 console.log('\nWhat it is told:');
 {
   ok('the instruction is short, since a small model reads it at every step', L.SYSTEM.length < 1100, String(L.SYSTEM.length));
-  ok('...names the two things to write, the rule about paths, tests and questions, and that it calls no tools', /FILE: index\.html/.test(L.SYSTEM) && /READ: /.test(L.SYSTEM) && /A file at its top is written by its name alone/.test(L.SYSTEM) && /When the work is done, answer with that one sentence and no FILE blocks/.test(L.SYSTEM) && /from the project folder/.test(L.SYSTEM) && /Do not change test files/.test(L.SYSTEM) && /Answer a question in plain words/.test(L.SYSTEM) && /do not call tools/.test(L.SYSTEM));
+  ok('...names the two things to write, the rule about paths, tests and questions, and that it calls no tools', /FILE: index\.html/.test(L.SYSTEM) && /READ: /.test(L.SYSTEM) && /A file at its top is written by its name alone/.test(L.SYSTEM) && /When the work is done, answer with that one sentence and no FILE blocks/.test(L.SYSTEM) && /from the project folder/.test(L.SYSTEM) && /Do not change test files/.test(L.SYSTEM) && /Do not add comments saying what you changed/.test(L.SYSTEM) && /Answer a question in plain words/.test(L.SYSTEM) && /do not call tools/.test(L.SYSTEM));
 }
 
 console.log('\nWhat the app does with an answer:');
@@ -152,6 +153,52 @@ console.log('\nWhat the app does with an answer:');
   const told = L.callMessages([{ role: 'user', content: 'Note from HashCortX, not from the person: make the change now with patch_file.', note: true }]);
   ok('a note from the app, written for a model with tools, is followed by how changes are made here', /Here there are no tools: a file is changed by writing it whole in a FILE block/.test(told[0].content));
   ok('after files are written it is told, once and last, how to say it is done', /Wrote a\.html\.\n\nWrote b\.css\.\n\nWrite a FILE block only for a file that must still change\. If the work is done, answer with one sentence/.test(note) && (note.match(/If the work is done/g) || []).length === 1, note);
+}
+
+console.log('\nThe other ways a small model names a file:');
+{
+  const T = '`'.repeat(3);
+  const known = ['src/users.js', 'src/api.js', 'test/users.test.js', 'src/range.js', 'config/app.json', 'timeparse.py'];
+  const P = (text, hints = []) => L.parseReply(text, { known, hints });
+  const heads = P(`Here are the files:\n\n### src/users.js\n${T}javascript\nfunction getUser() {}\n${T}\n\n### \`src/api.js\`\n${T}js\nconst { getUser } = require('./users');\n${T}`);
+  ok('a heading naming one file names the block under it', heads.writes.map((w) => w.path).join() === 'src/users.js,src/api.js' && heads.writes.every((w) => w.guessed));
+  const header = P(`=== src/range.js ===\n${T}js\nfunction range() {}\n${T}`);
+  ok('the "=== path ===" header the project is shown with names a block, and is no guess', header.writes.length === 1 && header.writes[0].path === 'src/range.js' && !header.writes[0].guessed);
+  const bare = P('I fixed it.\n\n=== src/range.js ===\nfunction range(a, b) {\n  return [a, b];\n}\n\nAfter this change the tests should pass.');
+  ok('a section under such a header with no fence is the file, the sentences after it left out', bare.writes.length === 1 && bare.writes[0].content === 'function range(a, b) {\n  return [a, b];\n}\n' && /I fixed it/.test(bare.said));
+  const sentence = P(`Here is the updated \`range.js\` file:\n${T}js\nfunction range() { return []; }\n${T}`);
+  ok('a sentence just above naming one file names it, matched to the project by its name', sentence.writes.length === 1 && sentence.writes[0].path === 'src/range.js' && sentence.writes[0].guessed);
+  const comment = P(`${T}js\n// src/api.js\nconst a = 1;\n${T}`);
+  ok('a comment naming a file as the first line names the block, and is left out of the file', comment.writes.length === 1 && comment.writes[0].path === 'src/api.js' && comment.writes[0].content === 'const a = 1;\n');
+  const pyComment = P(`${T}python\n# timeparse.py\ndef f():\n    pass\n${T}`);
+  ok('...in Python too', pyComment.writes.length === 1 && pyComment.writes[0].path === 'timeparse.py');
+  const two = P(`Change src/users.js and src/api.js:\n${T}js\nx()\n${T}`);
+  ok('a sentence naming two files names neither', two.writes.length === 0);
+  const wrongLang = P(`Update config/app.json:\n${T}python\nprint(1)\n${T}`);
+  ok('a name the block\'s language does not fit is not taken', wrongLang.writes.length === 0);
+  const shell = P(`Then run this in src/users.js:\n${T}sh\nnpm test\n${T}`);
+  ok('a command block is never a file', shell.writes.length === 0);
+  const lone = P(`${T}json\n{ "port": 8080 }\n${T}\nI changed the port.`, ['config/app.json']);
+  ok('a lone unnamed block is the one file the request names that it fits', lone.writes.length === 1 && lone.writes[0].path === 'config/app.json' && lone.writes[0].guessed && !/8080/.test(lone.said));
+  ok('...but not when the request names two it could be', P(`${T}js\nx\n${T}`, ['src/users.js', 'src/api.js']).writes.length === 0);
+  ok('a path ending a sentence is read without its full stop', L.pathsIn('Add parse_duration(text) to timeparse.py. It reads durations').join() === 'timeparse.py' && L.pathsIn('put them in test/clamp.test.js, and run').join() === 'test/clamp.test.js');
+  ok('the project\'s files are read from how it is shown', L.knownFiles('intro\n\n=== src/a.js ===\nx\n\n=== b.css ===\ny\n\n=== not text, not shown: logo.png ===').join() === 'src/a.js,b.css');
+}
+
+console.log('\nA guessed name, checked against the file it would replace:');
+{
+  const T = '`'.repeat(3);
+  const clamp = 'function clamp(v, lo, hi) {\n  return Math.min(hi, Math.max(lo, v));\n}\nmodule.exports = { clamp };\n';
+  const tests = L.parseReply(`1. Add tests for \`clamp\` in \`src/clamp.js\`:\n${T}js\ntest('below', () => {});\n${T}`, { known: ['src/clamp.js'] });
+  const p = L.plan(tests, { 'src/clamp.js': clamp });
+  ok('code that shares nothing with the file a sentence named is not written over it, and is asked to be named', p.calls.length === 0 && /did not say which file it is for/.test(p.note));
+  const fix = L.parseReply(`Here is the fix for \`src/clamp.js\`:\n${T}js\nfunction clamp(v, lo, hi) {\n  return v < lo ? lo : v > hi ? hi : v;\n}\n${T}`, { known: ['src/clamp.js'] });
+  const q = L.plan(fix, { 'src/clamp.js': clamp });
+  ok('code that redefines the file\'s own function is written', q.calls.length === 1 && /v < lo \? lo/.test(q.calls[0].arguments.content));
+  const big = ['function a() {', '  return 1;', '}', ...Array.from({ length: 40 }, (_, i) => `function f${i}() { return ${i}; }`), 'module.exports = { a };'].join('\n') + '\n';
+  const part = L.plan(L.parseReply(`FILE: big.js\n${T}js\nfunction a() {\n  return 2;\n}\n${T}`), { 'big.js': big });
+  ok('one function of a long file is fitted into it, not refused as too short', part.calls.length === 1 && /return 2;/.test(part.calls[0].arguments.content) && /function f39\(\)/.test(part.calls[0].arguments.content) && part.note === '');
+  ok('Node\'s own test runner is named for a project that uses it, and only then', /require\('node:test'\)/.test(L.testHint('=== package.json ===\n{ "scripts": { "test": "node --test" } }')) && L.testHint('{ "scripts": { "test": "jest" } }') === '');
 }
 
 console.log('\nThe loop reads an answer through it:');

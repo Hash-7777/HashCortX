@@ -637,7 +637,7 @@
    * by kind, how often this run was sent back; `shown` gives the request as
    * the person sees it, without the text of what they attached.
    */
-  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null, asks = null } = {}) {
+  function sendBack(log, messages, reply, { checks = null, prove = true, size = 'full', sent = {}, shown = null, plan = null, asks = null, light = false } = {}) {
     const request = requestIn(messages);
     const local = size === 'small' || size === 'mid';
     // An empty answer from a model on this computer is checked like any other: a small model ended runs with its change untested that way.
@@ -646,7 +646,7 @@
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
       || (prove && local ? undoneCheck(messages, reply, sent.undone || 0) : null)
       || planCheck(plan, reply, sent.plan || 0)
-      || (prove ? stopCheck(log, checks, reply, sent.prove || 0) : null)
+      || (prove ? stopCheck(log, checks, reply, sent.prove || 0, light ? 3 : 2) : null)   // a model in light mode is given one more round to fix a failing test
       || (prove && listed ? asksCheck(log, asks, reply, sent.asks || 0) : null)
       || (prove && local && !listed ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
   }

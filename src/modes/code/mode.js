@@ -1838,7 +1838,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       }
 
       // A model in light mode writes whole files in plain text, and is told that, where it runs and the project, not the tool rules (js/code/light.js).
-      if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra].filter(Boolean).join('\n');
+      if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, window.HCCodeLight.testHint(sharedState.codeMap?.whole), HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra].filter(Boolean).join('\n');
       const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '');
@@ -1950,7 +1950,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           throw e;
         }
         // Light mode: the files in its answer become the calls a larger model makes, and a file not written whole is asked for again, twice at most (js/code/light.js).
-        const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path)) : null;
+        const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path), { known: window.HCCodeLight.knownFiles(sharedState.codeMap?.whole), hints: window.HCCodeLight.pathsIn(HC.code.request) }) : null;
         if (lit?.calls.length) turn = { ...turn, content: lit.said, tool_calls: lit.calls };
         if (lit?.note && sent.light++ < 2) {
           if (lit.calls.length) loopNote = lit.note;
@@ -2070,7 +2070,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!echoed && window.HCCodeTalk?.echoesTools(finalText, tools)) { echoed = bare = true; tools = []; thinkEl = appendThinking(contentEl); cdrTraceAdd('Check', 'The model wrote its tool list back as its reply: asking again without tools', 'warn'); continue; }
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
-          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks })
+          { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light })
           || (finalText.trim() ? (await namedLook(finalText)) || (await siteLook()) || (await factsLook()) || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;

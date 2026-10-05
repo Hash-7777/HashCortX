@@ -21,7 +21,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and is recorded, and the project's tests are run for it. A file written
   much shorter than it is, or one the answer was cut off inside, is not
   written and is asked for again whole; one written again exactly as it is
-  ends the work; code shown with no file named is asked to be named. The
+  ends the work; code shown with no file named is asked to be named. A
+  small model names its files in other ways too, and those are read: the
+  "=== path ===" lines the project is shown to it with, a heading or a
+  sentence just above a block naming one file, a comment naming the file
+  as a block's first line, and a lone block for the one file the request
+  names. A name read from a heading or a sentence is matched to the
+  project's files, must fit the block's language, and never replaces a
+  file the code has nothing in common with. An answer holding only some of
+  a file's functions has them fitted into the file in place, new ones
+  added before its exports, and the modules they load and the names they
+  export joined to the file's own (`js/code/merge.js`). It is told to
+  write no comments about what it changed, and, for a project whose tests
+  run on Node's own runner, how those tests are written. A failing test
+  gives it one more round to fix it. The
   model reads its own steps back as plain text, and the app's notes to it
   say how changes are made here. When the model app does not say how
   large a model is, the size is read from its name, so a small cloud model

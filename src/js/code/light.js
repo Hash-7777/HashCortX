@@ -51,6 +51,7 @@
     '- Paths are from the project folder. A file at its top is written by its name alone, such as index.html; one in a folder with the folder, such as src/app.js. Use the paths the project already has.',
     '- Write only the files that must change or be created, each one in full. Keep everything in them that you were not asked to change exactly as it is.',
     '- Do not change test files unless asked to.',
+    '- Do not add comments saying what you changed.',
     '- Answer a question in plain words and write no FILE blocks.',
     '- After the files, say in one sentence what you did. The tests are run for you.',
     '- When the work is done, answer with that one sentence and no FILE blocks.',
@@ -103,48 +104,158 @@
     return !!last && last.type === 'code' && last.unclosed === true;
   }
 
+  // ── Which file a block is for ────────────────────────────────────────
+  //
+  // Told to write FILE: above each file, a small model names it every other
+  // way as well: the "=== path ===" headers the project is shown to it with,
+  // a heading or a bold line, a sentence just above the block, or a comment
+  // as the block's first line. Each is read, the explicit ones first. A name
+  // read from a sentence or a heading is a guess, so it must look like a file
+  // and match the block's language, and it is matched to the project's own
+  // files (`known`) by its name when its folder is left out.
+
+  const EXT = 'm?js|cjs|jsx|ts|tsx|json|py|html?|css|scss|md|txt|ya?ml|toml|sh|rb|go|rs|java|c|h|cpp|vue|svelte|sql|xml|ini|cfg|env';
+  const PATH_TOKEN = new RegExp(`(?:^|[\\s\`'"*(\\[])((?:[\\w.-]+/)*[\\w-][\\w.-]*\\.(?:${EXT}))(?=$|[\\s\`'"*):,;\\]]|\\.(?:\\s|$))`, 'gi');
+  const HEADER_LINE = new RegExp(`^\\s*={2,}\\s*((?:[\\w.-]+/)*[\\w.-]+\\.(?:${EXT}))\\s*={2,}\\s*$`, 'i');
+  const COMMENT_LINE = new RegExp(`^\\s*(?://|#|/\\*|<!--|--)\\s*((?:[\\w.-]+/)*[\\w.-]+\\.(?:${EXT}))\\s*(?:\\*/|-->)?\\s*$`, 'i');
+  /** The languages a block may say it is in, by file ending. */
+  const LANGS = { js: ['js', 'javascript', 'node', 'jsx'], mjs: ['js', 'javascript'], cjs: ['js', 'javascript'], jsx: ['jsx', 'js', 'javascript'], ts: ['ts', 'typescript'], tsx: ['tsx', 'ts', 'typescript'],
+    json: ['json', 'jsonc'], py: ['py', 'python', 'python3'], html: ['html', 'xml'], htm: ['html'], css: ['css'], scss: ['scss', 'css'], md: ['md', 'markdown'], sh: ['sh', 'bash', 'shell'] };
+  const TERMINAL = /^(?:bash|sh|zsh|shell|console|terminal|powershell|cmd|text|txt|plaintext|output|log)$/i;
+
+  /** Whether a block in `lang` can be the file `path`: any block when it names no language. */
+  function fits(path, lang) {
+    const l = String(lang || '').toLowerCase();
+    if (!l) return true;
+    const ext = String(path).split('.').pop().toLowerCase();
+    return (LANGS[ext] || [ext]).includes(l);
+  }
+
+  /** The paths a line names, each once. */
+  function pathsIn(line) {
+    return [...new Set([...String(line || '').matchAll(PATH_TOKEN)].map((m) => m[1].replace(/[.,:;]+$/, '')))];
+  }
+
+  /** A name as the project has it: as written, or the one known file of that name when the folder was left out. */
+  function resolve(name, known) {
+    const p = cleanPath(name);
+    if (!p || !known || !known.length || known.includes(p)) return p;
+    const base = p.split('/').pop();
+    const same = known.filter((k) => k.split('/').pop() === base);
+    return same.length === 1 ? same[0] : p;
+  }
+
+  /**
+   * A line for the instructions when the project's tests run on Node's own
+   * runner, which small models mistake for another framework: '' otherwise.
+   * `whole` is the project as the model is shown it.
+   */
+  function testHint(whole) {
+    return /"test"\s*:\s*"node --test/.test(String(whole || ''))
+      ? "This project's tests use Node's own runner: const test = require('node:test'); const assert = require('node:assert'); then assert.strictEqual(actual, expected). There is no expect()."
+      : '';
+  }
+
+  /** The project's files, read from the "=== path ===" headers it is shown to a model with (js/code/context.js wholeProject). */
+  function knownFiles(whole) {
+    return [...String(whole || '').matchAll(/^=== ([^=\n]+?) ===$/gm)].map((m) => m[1].trim()).filter((p) => !/^not text/.test(p));
+  }
+
+  /** The text of a section after a "=== path ===" header, written without a fence: to the next header, the sentences after it left out. */
+  function sectionText(lines) {
+    const body = lines.slice();
+    const prose = (l) => /^[A-Z][^{};=<>()\[\]]*[.:!]$/.test(l.trim()) && l.trim().split(/\s+/).length >= 4;
+    while (body.length && (!body[body.length - 1].trim() || prose(body[body.length - 1]))) body.pop();
+    while (body.length && !body[0].trim()) body.shift();
+    return body.join('\n');
+  }
+
   /**
    * What a model's answer holds: the files it wrote whole (`writes`, in
-   * order, the last of a name winning), the files it asked to see (`reads`),
-   * what it said besides (`said`), and whether it was cut off (`cut`).
-   * A code block with no file named is part of what it said.
+   * order, the last of a name winning, each `{ path, content, guessed }`),
+   * the files it asked to see (`reads`), what it said besides (`said`), and
+   * whether it was cut off (`cut`). `known` are the project's files, `hints`
+   * the files the request names: a lone block that names no file is the one
+   * file the request names, when its language fits.
    */
-  function parseReply(text) {
+  function parseReply(text, { known = [], hints = [] } = {}) {
     const F = window.HCFences;
     const src = String(text == null ? '' : text);
     const out = { writes: [], reads: [], said: '', cut: false };
     if (!F) { out.said = src; return out; }
     const pieces = F.splitFences(src);
     const byPath = new Map();
+    const unnamed = [];
+    const keep = (path, content, guessed) => {
+      const w = { path, content: content.endsWith('\n') ? content : `${content}\n`, guessed: !!guessed };
+      if (byPath.has(path)) out.writes[byPath.get(path)] = w;
+      else { byPath.set(path, out.writes.length); out.writes.push(w); }
+    };
+    const lastLine = (piece) => {
+      const lines = piece && piece.type === 'text' ? piece.text.split(/\r?\n/) : [];
+      let k = lines.length - 1;
+      while (k >= 0 && !lines[k].trim()) k--;
+      return { lines, k, line: k >= 0 ? lines[k] : '' };
+    };
     let said = '';
     pieces.forEach((p, i) => {
       if (p.type === 'text') {
-        const lines = p.text.split(/\r?\n/);
-        let k = lines.length - 1;
-        while (k >= 0 && !lines[k].trim()) k--;
-        const named = k >= 0 && pieces[i + 1] && pieces[i + 1].type === 'code' ? FILE_LINE.exec(lines[k]) : null;
-        lines.forEach((line, n) => {
-          const read = READ_LINE.exec(line);
+        const { lines, k, line } = lastLine(p);
+        const nextIsCode = pieces[i + 1] && pieces[i + 1].type === 'code';
+        const naming = nextIsCode && (FILE_LINE.test(line) || HEADER_LINE.test(line));
+        let section = null;
+        lines.forEach((l, n) => {
+          const read = READ_LINE.exec(l);
           if (read) { const path = cleanPath(read[1]); if (path && !out.reads.includes(path)) out.reads.push(path); return; }
-          if (named && n === k) return;
-          said += line + (n < lines.length - 1 ? '\n' : '');
+          if (naming && n === k) return;
+          // A "=== path ===" header with the file under it and no fence: the section runs to the next header.
+          const head = HEADER_LINE.exec(l);
+          if (head && !(naming && n === k)) {
+            if (section) { const body = sectionText(section.lines); if (body) keep(resolve(section.path, known), body, false); }
+            section = { path: head[1], lines: [] };
+            return;
+          }
+          if (section) { section.lines.push(l); return; }
+          said += l + (n < lines.length - 1 ? '\n' : '');
         });
+        if (section) {
+          const body = sectionText(section.lines);
+          if (body) keep(resolve(section.path, known), body, false);
+          else said += `=== ${section.path} ===\n`;
+        }
         return;
       }
-      const before = pieces[i - 1];
-      const lines = before && before.type === 'text' ? before.text.split(/\r?\n/) : [];
-      let k = lines.length - 1;
-      while (k >= 0 && !lines[k].trim()) k--;
-      const named = k >= 0 ? FILE_LINE.exec(lines[k]) : null;
-      const path = named ? cleanPath(named[1]) : '';
+      const { line } = lastLine(pieces[i - 1]);
+      const firstLine = String(p.code).split('\n')[0];
+      let path = '';
+      let code = p.code;
+      let guessed = false;
+      const file = FILE_LINE.exec(line) || HEADER_LINE.exec(line);
+      const comment = COMMENT_LINE.exec(firstLine);
+      if (file) path = resolve(file[1], known);
+      else if (comment && fits(comment[1], p.lang)) { path = resolve(comment[1], known); code = String(p.code).split('\n').slice(1).join('\n'); }
+      else if (!TERMINAL.test(p.lang || '')) {
+        // A heading or the sentence just above the block, naming one file only.
+        const named = pathsIn(line).filter((n) => fits(n, p.lang));
+        if (named.length === 1 && line.length <= 200) { path = resolve(named[0], known); guessed = true; }
+      }
       // A block the answer ended inside is half a file: it is never written, and the answer counts as cut off.
       if (path && p.unclosed) return;
-      if (path) {
-        const content = p.code.endsWith('\n') ? p.code : `${p.code}\n`;
-        if (byPath.has(path)) out.writes[byPath.get(path)] = { path, content };
-        else { byPath.set(path, out.writes.length); out.writes.push({ path, content }); }
-      } else said += fenced(p.info, p.code);
+      if (path) keep(path, code, guessed);
+      else {
+        if (!TERMINAL.test(p.lang || '') && !p.unclosed) unnamed.push({ index: out.writes.length, code: p.code, lang: p.lang, at: said.length, text: fenced(p.info, p.code) });
+        said += fenced(p.info, p.code);
+      }
     });
+    // One block naming no file, in an answer that wrote no other, is the one file the request names that it can be.
+    const asked = [...new Set((hints || []).map((h) => resolve(h, known)))];
+    if (!out.writes.length && unnamed.length === 1) {
+      const fit = asked.filter((h) => fits(h, unnamed[0].lang));
+      if (fit.length === 1) {
+        keep(fit[0], unnamed[0].code, true);
+        said = said.replace(unnamed[0].text, '');
+      }
+    }
     out.said = said.replace(/\n{3,}/g, '\n\n').trim();
     out.cut = cutOff(src);
     return out;
@@ -168,12 +279,35 @@
    * answer was cut off inside, nor one written again exactly as it is.
    * `calls` empty and `note` '' is a plain answer: the model has finished.
    */
+  /** Whether code shares a top-level definition with the file, or the file is not code that defines any. */
+  function sharesDefinition(M, now, content, path) {
+    const lang = M.langOf(path);
+    if (!lang) return true;
+    const had = M.definitions(now, lang).map((d) => d.name);
+    return !had.length || M.definitions(content, lang).some((d) => had.includes(d.name));
+  }
+
   function plan(parsed, current) {
-    const short = shrunk(parsed.writes, current);
+    const M = window.HCCodeMerge;
+    const notes = [];
+    const unsure = [];
+    const writes = [];
+    for (const w of parsed.writes) {
+      const now = current && current[w.path];
+      let content = w.content;
+      if (typeof now === 'string' && M) {
+        // Part of the file, fitted in; a guessed name kept only for code that has something in common with the file it would replace.
+        const fitted = M.fit(now, content, w.path);
+        if (fitted != null) content = fitted;
+        else if (w.guessed && !sharesDefinition(M, now, content, w.path)) { unsure.push(w.path); continue; }
+      }
+      writes.push({ ...w, content });
+    }
+    const short = shrunk(writes, current);
     // A file written again exactly as it already is changes nothing: the model is done with it.
     const same = (w) => typeof (current && current[w.path]) === 'string' && current[w.path].replace(/\s+$/, '') === w.content.replace(/\s+$/, '');
-    const calls = callsFor({ ...parsed, writes: parsed.writes.filter((w) => !short.includes(w.path) && !same(w)) });
-    const notes = [];
+    const calls = callsFor({ ...parsed, writes: writes.filter((w) => !short.includes(w.path) && !same(w)) });
+    if (unsure.length) notes.push(`${NOTE} the code in your answer did not say which file it is for, and it is not ${named(unsure)}, so nothing was written for it. Put a line FILE: and the path just above each file you write, with the whole file in the block.`);
     if (short.length) notes.push(`${NOTE} ${named(short)} would have been written much shorter than ${short.length > 1 ? 'they are' : 'it is'}, so ${short.length > 1 ? 'they were' : 'it was'} not written. Write ${short.length > 1 ? 'each one' : 'it'} again in full, keeping every part you were not asked to change.`);
     if (!parsed.writes.length && !parsed.reads.length && /(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1/.test(parsed.said)) notes.push(`${NOTE} your answer shows code, but no file was named for it, so nothing was written. If it belongs in a file, write a line FILE: followed by the file's path just above the code block, with the whole file in the block.`);
     if (parsed.cut) notes.push(`${NOTE} your answer was cut off inside a file, so that file was not written. Write it again, complete, and nothing else.`);
@@ -183,11 +317,13 @@
   /**
    * A model's answer, read for the loop: `{ calls, note, said }`, the calls
    * carrying ids as a model's own would. `read(path)` gives a file as it is
-   * now, to catch one written much shorter; a file it cannot read is new, or
-   * not one to read without asking, and is taken as new.
+   * now, to catch one written much shorter and to fit a part of it in; a
+   * file it cannot read is new, or not one to read without asking, and is
+   * taken as new. `opts` are parseReply's: the project's files and the files
+   * the request names.
    */
-  async function turnOf(text, read) {
-    const parsed = parseReply(text);
+  async function turnOf(text, read, opts = {}) {
+    const parsed = parseReply(text, opts);
     const current = {};
     for (const w of parsed.writes) { try { current[w.path] = await read(w.path); } catch { /* new, or not read without asking */ } }
     const { calls, note } = plan(parsed, current);
@@ -282,5 +418,5 @@
     return out.map(({ fromTool, doneHint, ...m }) => (doneHint ? { ...m, content: `${m.content.replace(`\n\n${DONE_HINT}`, '')}\n\n${DONE_HINT}` } : m));
   }
 
-  window.HCCodeLight = { SYSTEM, applies, billionsInName, parseReply, callsFor, shrunk, plan, turnOf, callMessages, cutOff };
+  window.HCCodeLight = { SYSTEM, applies, billionsInName, parseReply, callsFor, shrunk, plan, turnOf, callMessages, cutOff, pathsIn, knownFiles, resolve, fits, testHint };
 })();
