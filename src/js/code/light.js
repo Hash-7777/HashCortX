@@ -225,7 +225,7 @@
         };
         lines.forEach((l, n) => {
           const read = READ_LINE.exec(l);
-          if (read) { const path = cleanPath(read[1]); if (path && !out.reads.includes(path)) out.reads.push(path); return; }
+          if (read) { const path = resolve(read[1], known); if (path && !out.reads.includes(path)) out.reads.push(path); return; }
           if (naming && n === k) return;
           // A "=== path ===" header, or a FILE: line, with the file under it and no fence: the section runs to the next one.
           const head = HEADER_LINE.exec(l);
@@ -410,7 +410,7 @@
     const body = String(message.content == null ? '' : message.content);
     let error = '';
     try { const j = JSON.parse(body); if (j && typeof j === 'object' && j.error) error = String(j.error); } catch { /* plain text */ }
-    if (error && name === 'read_file' && /ENOENT|no such file|There is no file/i.test(error)) return `There is no file at ${a.path}. To create it, write it whole in a FILE block.`;
+    if (error && name === 'read_file' && /ENOENT|no such file|There is no file/i.test(error)) return `There is no file at ${a.path}. A file already in the project is named by its place in it, its folders included, as the project shows it; READ it by that name before you change it. Only a new file is written whole in a FILE block.`;
     if (error) return `That did not work${a.path ? ` for ${a.path}` : ''}: ${clip(error, 400)}`;
     if (name === 'write_file') return `Wrote ${a.path}.`;
     if (name === 'read_file') return `${a.path}:\n${TICKS}\n${clip(body, 6000)}\n${TICKS}`;

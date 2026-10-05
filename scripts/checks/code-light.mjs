@@ -92,6 +92,13 @@ console.log('\nReading an answer:');
   const mixed = L.parseReply(`FILE: a.js\nconst a = 1;\nmodule.exports = { a };\n\nFILE: b.js\n${T}js\nconst b = 2;\n${T}`);
   ok('a file with no fence and one in a fence after it are both written', mixed.writes.map((w) => w.path).join() === 'a.js,b.js' && /const a = 1;/.test(mixed.writes[0].content) && mixed.writes[1].content === 'const b = 2;\n', JSON.stringify(mixed.writes));
   ok('a FILE: line with no fence that climbs out of the project is not taken', L.parseReply('FILE: ../x.js\nconst x = 1;\n').writes.length === 0);
+
+  // A file asked for by its name alone is the project's one file of that name.
+  const known = ['src/limits.js', 'src/a/index.js', 'src/b/index.js', 'README.md'];
+  ok('a file asked for without its folder is read as the project\'s one file of that name', L.parseReply('READ: limits.js', { known }).reads.join() === 'src/limits.js');
+  ok('...a name two files share, or one the project does not have, is read as written', L.parseReply('READ: index.js\nREAD: new.js', { known }).reads.join() === 'index.js,new.js');
+  ok('...and one written with its folder is read as written', L.parseReply('READ: src/limits.js\nREAD: README.md', { known }).reads.join() === 'src/limits.js,README.md');
+  ok('...a path that climbs out of the project is still not taken', L.parseReply('READ: ../limits.js', { known }).reads.length === 0);
 }
 
 console.log('\nWhat it becomes:');
@@ -180,7 +187,7 @@ console.log('\nWhat the app does with an answer:');
   const note = conv[conv.length - 1].content;
   const missing = L.callMessages([{ role: 'user', content: 'Make it' }, { role: 'assistant', content: '', tool_calls: [{ id: 'r1', function: { name: 'read_file', arguments: JSON.stringify({ path: 'a.html' }) } }] },
     { role: 'tool', tool_call_id: 'r1', content: JSON.stringify({ error: "ENOENT: no such file or directory, stat 'a.html'. There is no file at that path: find it by name with fuzzy_find" }) }]);
-  ok('a file it asked to see that is not there is said in its own terms: write it in a FILE block, with no tool named', missing[missing.length - 1].content === 'There is no file at a.html. To create it, write it whole in a FILE block.');
+  ok('a file it asked to see that is not there is said in its own terms: read an existing one by its place, write only a new one, with no tool named', missing[missing.length - 1].content === 'There is no file at a.html. A file already in the project is named by its place in it, its folders included, as the project shows it; READ it by that name before you change it. Only a new file is written whole in a FILE block.');
   const unnamed = L.plan(L.parseReply('Here are the tests:\n```js\ntest(1)\n```\nSave them.'), {});
   ok('code with no file named for it is sent back to be named, not silently dropped', unnamed.calls.length === 0 && /no file was named for it/.test(unnamed.note) && /FILE: followed by the file's path/.test(unnamed.note));
   ok('a plain answer in words is not sent back', L.plan(L.parseReply('It is in src/app.js, line 3.'), {}).note === '');

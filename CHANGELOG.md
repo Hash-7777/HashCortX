@@ -48,7 +48,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   to the next `FILE:` line, when it is written as code (any text, for a
   file of words). A name read from a heading or a sentence is matched to the
   project's files, must fit the block's language, and never replaces a
-  file the code has nothing in common with. An answer holding only some of
+  file the code has nothing in common with. A file asked for by its name
+  alone, with no folder, is read from the project's one file of that name,
+  and one that is not there is answered with how a file already in the
+  project is named, only a new file being written whole. An answer holding
+  only some of
   a file's functions has them fitted into the file in place, new ones
   added before its exports, and the modules they load and the names they
   export joined to the file's own (`js/code/merge.js`). It is told to
