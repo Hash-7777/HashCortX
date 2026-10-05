@@ -446,5 +446,29 @@ console.log('\nOne question, answered by whichever model can:');
   ok('a model that runs out of time is left for another', r3.text === 'late but answered' && r3.model !== 'cloud:groq:llama-3.3-70b');
 }
 
+console.log('\nA request is sized before a model is chosen for it:');
+{
+  vm.runInContext(src('js', 'model-limits.js'), sandbox, { filename: 'model-limits.js' });
+  const L = sandbox.window.HCModelLimits;
+  const store = memory();
+  R.forgetCooling();
+  L.learn('cloud:groq:qwen/qwen3.8-27b', E('Groq error 413: Request too large for model `qwen/qwen3.8-27b` service tier `on_demand` on input tokens per minute (ITPM): Limit 8000, Requested 12000'), 12000, 1024, Date.now(), store);
+  const pick = [{ value: 'cloud:gemini:gemini-3.6-flash', label: 'g' }, { value: 'cloud:groq:qwen/qwen3.8-27b', label: 'q' }, { value: 'cloud:cerebras:gpt-oss-120b', label: 'c' }];
+  const strength = (o) => ({ 'cloud:groq:qwen/qwen3.8-27b': 3, 'cloud:cerebras:gpt-oss-120b': 2, 'cloud:gemini:gemini-3.6-flash': 1 })[o.value];
+  const busy = E('Google Gemini is overloaded right now.');
+  const big = R.createRun({ options: () => pick, strength, store });
+  big.measure([[{ role: 'user', content: 'x'.repeat(36000) }]]);
+  ok('a run with no test of its own passes over a model the measured request does not fit, however strong', big.next('cloud:gemini:gemini-3.6-flash', busy) === 'cloud:cerebras:gpt-oss-120b');
+  const small = R.createRun({ options: () => pick, strength, store });
+  small.measure([[{ role: 'user', content: 'hi' }]]);
+  ok('... and still gives it a request that fits', small.next('cloud:gemini:gemini-3.6-flash', busy) === 'cloud:groq:qwen/qwen3.8-27b');
+  const unmeasured = R.createRun({ options: () => pick, strength, store });
+  ok('... and a run that has measured nothing judges nothing by size', unmeasured.next('cloud:gemini:gemini-3.6-flash', busy) === 'cloud:groq:qwen/qwen3.8-27b');
+  const ask = src('js', 'swarm', 'ask.js');
+  ok('the Swarm\'s questions, its plan and its repair pass over a model their request does not fit, the repair sized by the whole project it sends', /fits: fitsFor\(\[task\], 512\)/.test(ask) && /fits: fitsFor\(\[task\], 1024\)/.test(ask) && /fits: fitsFor\(messages, 2048\)/.test(ask) && /window\.HCModelLimits\.canHold\(v, window\.HCModelLimits\.estimateTokens\(parts\), need\)/.test(ask));
+  const app = src('js', 'app.js');
+  ok('the chat measures the conversation it is about to send, and moves on from a request too large for a model', /routes\.measure\(\[messages\]\);/.test(app) && /\["retired", "limit", "key", "busy", "slow", "empty", "size"\]\.includes\(window\.HCModelRoutes\.failureKind\(err\)\)/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model routes)`);
 if (fail) process.exit(1);

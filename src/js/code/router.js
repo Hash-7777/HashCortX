@@ -111,13 +111,16 @@
       return (hit && hit.label) || String(value || '').replace(/^cloud:[^:]*:/, '');
     };
     const hops = [];
-    const now = { pictures: false };
+    const now = { pictures: false, input: 0 };
     const cloud = String(selected || '').startsWith('cloud:');
     const run = cloud
       ? routes.createRun({
         options: () => optionsFor(available(), { pictures: now.pictures, readsImages }),
         label, note: (text) => say(text),
         strength: (o) => failover.strengthOf(o.value, o.label),
+        // A model whose budget the request in flight does not fit is passed
+        // over before it is asked (js/model-limits.js), not after it refuses.
+        fits: (v) => !window.HCModelLimits || window.HCModelLimits.canHold(v, now.input, 1024),
       })
       : null;
     const stopped = (request, err) => (request.signal && request.signal.aborted) || (err && err.name === 'AbortError');
@@ -152,6 +155,7 @@
       label,
       async turn(request) {
         now.pictures = hasPictures(request && request.messages);
+        now.input = window.HCModelLimits ? window.HCModelLimits.estimateTokens([request && request.messages, request && request.tools]) : 0;
         try {
           return await turns.turn(request);
         } catch (err) {

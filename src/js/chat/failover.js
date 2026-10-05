@@ -122,6 +122,8 @@
     return {
       get model() { return model; },
       async turn(request) {
+        // The routing judges which model can hold this request by its size (js/model-routes.js measure).
+        if (routes && typeof routes.measure === 'function') routes.measure([request.messages, request.tools]);
         for (;;) {
           try {
             // The model is named on the request, so a failure names it whole.

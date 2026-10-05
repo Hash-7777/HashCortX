@@ -75,7 +75,7 @@ HashCortX/
 │   │   │                            with each model's limits
 │   │   ├── cloud-catalogue.js  113  keeping those lists, and what each provider
 │   │   │                            answered last time
-│   │   ├── model-limits.js     268  how long an answer each request asks for, and
+│   │   ├── model-limits.js     280  how long an answer each request asks for, and
 │   │   │                            the limits a provider names when it refuses
 │   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
@@ -83,7 +83,7 @@ HashCortX/
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
-│   │   ├── model-routes.js     429  which model a run asks next, by why the last
+│   │   ├── model-routes.js     439  which model a run asks next, by why the last
 │   │   │                            one failed, what it can hold and how it has
 │   │   │                            answered; models a provider says are gone;
 │   │   │                            waiting on a stream; a call cancelled when
@@ -156,7 +156,7 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/             1,072  what a model is told, which to try next
+│   │   ├── chat/             1,074  what a model is told, which to try next
 │   │   │                            (an agent's turns too), the web searches
 │   │   │                            an agent makes, what its code printed,
 │   │   │                            what a model thought before it answered,
@@ -176,7 +176,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             6,083  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             6,087  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the record of what proved a change and what
 │   │   │                            sends it back before finishing, the files
@@ -203,7 +203,7 @@ HashCortX/
 │   │   │                            read says, and how much it may do
 │   │   │                            without asking (Manual, Accept edits,
 │   │   │                            Auto) with the menu that chooses it
-│   │   ├── swarm/            4,945  Agent Swarm: what kind of task it is,
+│   │   ├── swarm/            4,953  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
 │   │   │                            how strong each model is for its roles,

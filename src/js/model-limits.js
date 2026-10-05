@@ -12,7 +12,10 @@
 //    write, and the app threw that away when it built the menu.
 //  - A free account has a budget per minute that counts the question and the
 //    longest answer together. A model with one of those cannot be handed a
-//    long job at all, and the app kept handing it one.
+//    long job at all, and the app kept handing it one. Some providers now
+//    keep two budgets, one for the question (input tokens per minute) and
+//    one for the answer (output tokens per minute): a question larger than
+//    the first is refused whatever is asked of the answer.
 //  - When a provider refuses a request it says exactly why — the limit, what
 //    was asked for, the parameter it does not take — and the app kept only
 //    the first two hundred characters of that, to show a person.
@@ -111,7 +114,7 @@
     const l = listed.get(value) || {};
     const t = learnedOf(value, now, store);
     const tighter = (a, b) => (a && b ? Math.min(a, b) : a || b);
-    return { ctx: tighter(l.ctx, num(t.ctx)), out: tighter(l.out, num(t.out)), tpm: num(t.tpm), tools: l.tools, drop: t.drop || [] };
+    return { ctx: tighter(l.ctx, num(t.ctx)), out: tighter(l.out, num(t.out)), tpm: num(t.tpm), itpm: num(t.itpm), otpm: num(t.otpm), tools: l.tools, drop: t.drop || [] };
   }
 
   // ── sizing a request ──────────────────────────────────────────────
@@ -149,6 +152,11 @@
     if (info.out) limits.push(info.out);
     if (info.ctx) limits.push(info.ctx - inputTokens - Math.max(256, Math.ceil(info.ctx * 0.03)));
     if (info.tpm) limits.push(info.tpm - inputTokens - 128);
+    // A budget for the question alone leaves the answer as long as anything
+    // else allows, unless the question does not fit in it, when there is no
+    // room at all; a budget for the answer caps it.
+    if (info.itpm && inputTokens > info.itpm - 64) limits.push(-1);
+    if (info.otpm) limits.push(info.otpm);
     return limits.length ? Math.floor(Math.min(...limits)) : undefined;
   }
 
@@ -214,7 +222,9 @@
     const s = String(text || '');
     const got = {};
     let m;
-    if ((m = s.match(/tokens per min(?:ute)?\s*\(TPM\)\s*:\s*Limit\s*(\d+)/i))) got.tpm = +m[1];
+    if ((m = s.match(/(?<!input |output )tokens per min(?:ute)?\s*\(TPM\)\s*:\s*Limit\s*(\d+)/i))) got.tpm = +m[1];
+    if ((m = s.match(/input tokens per min(?:ute)?\s*\(ITPM\)\s*:\s*Limit\s*(\d+)/i))) got.itpm = +m[1];
+    if ((m = s.match(/output tokens per min(?:ute)?\s*\(OTPM\)\s*:\s*Limit\s*(\d+)/i))) got.otpm = +m[1];
     if ((m = s.match(/maximum context length is\s*(\d+)/i)) || (m = s.match(/(\d+) maximum context length/i))
       || (m = s.match(/exceeds? the maximum number of tokens allowed\s*\((\d+)\)/i))
       || (m = s.match(/while limit is\s*(\d+)/i)) || (m = s.match(/prompt is too long: \d+ tokens > (\d+) maximum/i))
@@ -251,6 +261,8 @@
     const before = infoOf(value, now, store);
     const patch = {};
     if (got.tpm && got.tpm !== before.tpm) patch.tpm = got.tpm;
+    if (got.itpm && got.itpm !== before.itpm) patch.itpm = got.itpm;
+    if (got.otpm && got.otpm !== before.otpm) patch.otpm = got.otpm;
     if (got.ctx && (!before.ctx || got.ctx < before.ctx)) patch.ctx = got.ctx;
     if (got.out && (!before.out || got.out < before.out)) patch.out = got.out;
     const newDrops = (got.drop || []).filter((p) => !before.drop.includes(p));

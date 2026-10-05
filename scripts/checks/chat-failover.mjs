@@ -201,6 +201,11 @@ console.log('\nHow the chat uses it:');
 {
   const app = readFileSync(join(root, 'src', 'js', 'app.js'), 'utf8');
   const loop = app.slice(app.indexOf('async function runAgentLoop'), app.indexOf('async function runAgentLiteFlow'));
+  const sizes = [];
+  const measured = F.agentTurns({ start: 'cloud:groq:a', send: async () => ({ content: 'ok' }), adapterOf: () => ({ kind: 'openai', model: 'a' }),
+    routes: { measure: (parts) => sizes.push(parts), next: () => null }, failureKind: () => 'other', reasonText: () => '' });
+  await measured.turn({ messages: [{ role: 'user', content: 'hello' }], tools: [{ name: 't' }] });
+  ok('each turn is measured for the routing before it is sent', sizes.length === 1 && sizes[0][0][0].content === 'hello' && sizes[0][1][0].name === 't');
   ok('the agent loop sends every turn through it', /HCChatFailover\.agentTurns\(\{/.test(loop) && /await turns\.turn\(\{ messages, tools, temperature, signal \}\)/.test(loop) && !/runModelTurn\(\{/.test(loop));
   ok('... a local model gets no routes', /routes: modelEl\.value\.startsWith\("cloud:"\)/.test(loop));
   ok('the last turn tells the model the tools are over, rather than only leaving them off', /content: AGENT_CLOSING_TURN/.test(loop) && /No more tools can be used now/.test(app));

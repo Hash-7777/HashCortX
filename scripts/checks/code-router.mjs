@@ -32,7 +32,7 @@ function world() {
   const box = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, Date, RegExp };
   box.localStorage = { getItem: (k) => (data.has(k) ? data.get(k) : null), setItem: (k, v) => data.set(k, String(v)), removeItem: (k) => data.delete(k) };
   vm.createContext(box);
-  for (const f of [['js', 'chat', 'failover.js'], ['js', 'model-routes.js'], ['js', 'code', 'router.js']]) vm.runInContext(src(...f), box, { filename: f.join('/') });
+  for (const f of [['js', 'chat', 'failover.js'], ['js', 'model-routes.js'], ['js', 'model-limits.js'], ['js', 'code', 'router.js']]) vm.runInContext(src(...f), box, { filename: f.join('/') });
   box.window.HCModelRoutes.forgetCooling();
   return box.window;
 }
@@ -74,6 +74,29 @@ function run(W, selected, says, { messages = [{ role: 'user', content: 'hi' }], 
 }
 const fails = (message, extra = {}) => Object.assign(new Error(message), extra);
 const error = async (promise) => { try { await promise; return null; } catch (e) { return e; } };
+
+console.log('A model whose budget the request does not fit is passed over before it is asked:');
+{
+  const three = [
+    { value: 'cloud:gemini:gemini-3.8-flash', label: 'Gemini 3.8 Flash' },
+    { value: 'cloud:groq:llama-3.3-70b-versatile', label: 'Groq Llama 3.3 70B' },
+    { value: 'cloud:cerebras:gpt-oss-120b', label: 'Cerebras GPT OSS 120B' },
+  ];
+  const budget = (W) => W.HCModelLimits.learn('cloud:groq:llama-3.3-70b-versatile', fails('Groq error 413: Request too large for model `llama-3.3-70b-versatile` service tier `on_demand` on input tokens per minute (ITPM): Limit 8000, Requested 12000'), 12000, 1024);
+  const big = [{ role: 'user', content: 'x'.repeat(36000) }];
+  const W = world();
+  budget(W);
+  const r = run(W, 'cloud:gemini:gemini-3.8-flash', { 'cloud:gemini:gemini-3.8-flash': fails('Google Gemini is overloaded right now. Try again in a few seconds.'), 'cloud:groq:llama-3.3-70b-versatile': fails('Groq error 413: Request too large') }, { messages: big, models: three });
+  const answer = await r.turn();
+  ok('a request larger than a model\'s learnt budget goes to one it fits, and the small one is never asked', answer.content === 'answered by cloud:cerebras:gpt-oss-120b' && !r.calls.includes('cloud:groq:llama-3.3-70b-versatile'), r.calls.join(' > '));
+  const W2 = world();
+  budget(W2);
+  const r2 = run(W2, 'cloud:gemini:gemini-3.8-flash', { 'cloud:gemini:gemini-3.8-flash': fails('Google Gemini is overloaded right now. Try again in a few seconds.'), 'cloud:cerebras:gpt-oss-120b': fails('Cerebras is overloaded right now.') }, { models: three });
+  const small = await r2.turn();
+  ok('... while a request that fits it is still given to it', small.content === 'answered by cloud:groq:llama-3.3-70b-versatile', r2.calls.join(' > '));
+  const routerSrc = src('js', 'code', 'router.js');
+  ok('the request in flight is measured each turn, and the run passes over what it does not fit', /now\.input = window\.HCModelLimits \? window\.HCModelLimits\.estimateTokens\(\[request && request\.messages, request && request\.tools\]\) : 0;/.test(routerSrc) && /fits: \(v\) => !window\.HCModelLimits \|\| window\.HCModelLimits\.canHold\(v, now\.input, 1024\)/.test(routerSrc));
+}
 
 console.log('The model the person chose is the one they are told about:');
 {

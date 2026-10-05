@@ -23,6 +23,13 @@
   'use strict';
 
   /**
+   * Whether a model can take a request of `parts` and answer at least `need`
+   * tokens, as js/model-limits.js knows it: a model whose budget a request
+   * would not fit is passed over before it is asked, not after it refuses.
+   */
+  const fitsFor = (parts, need) => (v) => !window.HCModelLimits || window.HCModelLimits.canHold(v, window.HCModelLimits.estimateTokens(parts), need);
+
+  /**
    * Ask the person for details only they can give, before a run builds
    * something about them — js/swarm/clarify.js decides what to ask.
    *
@@ -35,7 +42,7 @@
     const trace = deps.trace;
     if (!C.mayNeedDetails(task)) { trace("The task is not about you · starting", "ok"); return task; }
     trace("Checking whether the task needs details only you can give", "wait");
-    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
+    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn"), fits: fitsFor([task], 512) });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
     let questions = null;
     for (let i = 0; model && i < 3 && questions === null; i++) {
@@ -178,7 +185,7 @@
       return plan;
     }
     trace("Working out what this task needs handed back", "wait");
-    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
+    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn"), fits: fitsFor([task], 1024) });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
     let answered = null;
     let from = "";
@@ -244,7 +251,8 @@
       { role: "user", content: `THE PROJECT AS IT STANDS:${CTX.fencesOf(files)}${note}` },
     ];
     trace(`Asking for ${findings.filter((f) => f.level === "broken" || f.fixable).length} of them to be put right`, "wait");
-    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
+    // The whole project goes with the request, so a model whose budget it does not fit is passed over before it is asked.
+    const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn"), fits: fitsFor(messages, 2048) });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
     for (let i = 0; model && i < 4; i++) {
       if (signal?.aborted) return null;

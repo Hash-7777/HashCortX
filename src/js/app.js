@@ -4887,7 +4887,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         // model is replaced from another provider first, and an image
         // generator is never the fallback for a conversation.
         const routes = window.HCModelRoutes.createRun({ options: () => getAvailableCloudModels().filter(m => !m.imageGen), label: cloudModelLabel,
-          strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) });
+          strength: (o) => window.HCChatFailover.strengthOf(o.value, o.label) }); routes.measure([messages]);   // passes over a model whose budget this conversation does not fit
         let failoverCount = 0;
         while (true) {
           const { provider, modelId } = parseCloudModel(currentModelValue);
@@ -4908,7 +4908,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             if (err.name === "AbortError") throw err;
             // Out of quota or credit, a refused key, gone, busy, empty or never
             // started: another model can answer. Anything else is the request's own fault.
-            if (!["retired", "limit", "key", "busy", "slow", "empty"].includes(window.HCModelRoutes.failureKind(err)) || failoverCount >= 5) throw err;
+            if (!["retired", "limit", "key", "busy", "slow", "empty", "size"].includes(window.HCModelRoutes.failureKind(err)) || failoverCount >= 5) throw err;
             const fallback = routes.next(currentModelValue, err);
             if (!fallback) throw err; // no fallback available — surface original error
             failoverCount++;

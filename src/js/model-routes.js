@@ -235,7 +235,10 @@
    *              when leaving them out would leave nothing to ask
    *   fits(v)    whether a model can hold this job — the question and an answer
    *              long enough — as js/model-limits.js knows it; a model that
-   *              cannot is not asked while one that can is left
+   *              cannot is not asked while one that can is left. Without one,
+   *              the run judges by the request last measured (measure), so a
+   *              model whose budget it does not fit is passed over before it
+   *              is asked rather than after it refuses
    *   note(msg)  where to say that a model is gone
    *   label(v)   how a model is named in that message
    */
@@ -244,12 +247,19 @@
     const shut = opts.shut || (() => []);
     const note = opts.note || (() => {});
     const label = opts.label || ((v) => v);
-    const { strength, fits } = opts;
+    const { strength } = opts;
     const store = opts.store || defaultStore();
+    const sized = { input: 0 };
+    const L = () => (typeof window !== 'undefined' && window.HCModelLimits) || null;
+    const fits = opts.fits || ((v) => !sized.input || !L() || L().canHold(v, sized.input, 1024, Date.now(), store));
     const tried = [];
     const avoid = [];
     return {
       tried,
+      /** Take the size of the request about to be sent, for a run with no `fits` of its own. */
+      measure(parts) {
+        sized.input = L() ? L().estimateTokens(parts) : 0;
+      },
       /** The chosen model, unless its provider has said it is gone. */
       start(value) {
         if (!value) return value;

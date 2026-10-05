@@ -1083,6 +1083,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A request too large for a model's per-minute budget goes to one it
+  fits.** A provider's newer refusal, a budget for the question alone (input
+  tokens per minute) or for the answer alone (output tokens per minute), was
+  not read, so nothing was learnt and the next agent sent the same request
+  to the same model. Both are now read and remembered with the model, and
+  every run sizes the request in flight before it picks a model: the
+  chat's, the Agents', HashCoder's, Finance's, and the Swarm's agents,
+  questions, plan and repair, which sends the whole project. A model whose
+  budget a request does not fit is passed over before it is asked, and is
+  still given requests that fit. The chat now also moves to another model
+  when a request is too large for the one it chose (`js/model-limits.js`,
+  `js/model-routes.js`).
+
 - **The start screen says what is true.** Its lines said model routing, the
   interface and the agents were ready, on a timer, though nothing had been
   checked; they now say each one has loaded, which is all that is known
