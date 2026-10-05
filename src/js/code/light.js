@@ -171,6 +171,17 @@
   }
 
   /**
+   * Whether text written under a FILE: line with no fence is the file: any
+   * text for a file of words, and for code at least one line written as code,
+   * so a FILE: line followed by a sentence about the change writes nothing.
+   */
+  const WORDS_FILE = /\.(?:md|markdown|txt|text|rst)$/i;
+  function looksLikeFile(body, path) {
+    if (WORDS_FILE.test(path)) return true;
+    return String(body).split('\n').some((l) => /[{}();=<>[\]]\s*$|^\s*(?:<[!a-zA-Z/]|[.#]?[\w-]+\s*\{|(?:def|class|import|from|const|let|var|function|return|export|module)\b)/.test(l));
+  }
+
+  /**
    * What a model's answer holds: the files it wrote whole (`writes`, in
    * order, the last of a name winning, each `{ path, content, guessed }`),
    * the files it asked to see (`reads`), what it said besides (`said`), and
@@ -204,25 +215,30 @@
         const nextIsCode = pieces[i + 1] && pieces[i + 1].type === 'code';
         const naming = nextIsCode && (FILE_LINE.test(line) || HEADER_LINE.test(line));
         let section = null;
+        // A section ends as a file when it holds one; a FILE: line over plain sentences is said, not written.
+        const close = () => {
+          const path = cleanPath(section.path);
+          const words = section.loose && WORDS_FILE.test(path);
+          const body = sectionText(section.lines) || (words ? section.lines.join('\n').trim() : '');
+          if (body && path && (!section.loose || looksLikeFile(body, path))) keep(resolve(path, known), body, false);
+          else said += `${[section.head, ...section.lines].join('\n')}\n`;
+        };
         lines.forEach((l, n) => {
           const read = READ_LINE.exec(l);
           if (read) { const path = cleanPath(read[1]); if (path && !out.reads.includes(path)) out.reads.push(path); return; }
           if (naming && n === k) return;
-          // A "=== path ===" header with the file under it and no fence: the section runs to the next header.
+          // A "=== path ===" header, or a FILE: line, with the file under it and no fence: the section runs to the next one.
           const head = HEADER_LINE.exec(l);
-          if (head && !(naming && n === k)) {
-            if (section) { const body = sectionText(section.lines); if (body) keep(resolve(section.path, known), body, false); }
-            section = { path: head[1], lines: [] };
+          const loose = !head && FILE_LINE.exec(l);
+          if (head || loose) {
+            if (section) close();
+            section = { path: (head || loose)[1], head: l, loose: !!loose, lines: [] };
             return;
           }
           if (section) { section.lines.push(l); return; }
           said += l + (n < lines.length - 1 ? '\n' : '');
         });
-        if (section) {
-          const body = sectionText(section.lines);
-          if (body) keep(resolve(section.path, known), body, false);
-          else said += `=== ${section.path} ===\n`;
-        }
+        if (section) close();
         return;
       }
       const { line } = lastLine(pieces[i - 1]);

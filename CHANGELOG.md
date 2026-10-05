@@ -44,7 +44,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   "=== path ===" lines the project is shown to it with, a heading or a
   sentence just above a block naming one file, a comment naming the file
   as a block's first line, and a lone block for the one file the request
-  names. A name read from a heading or a sentence is matched to the
+  names. A file written under its `FILE:` line with no fence is read too,
+  to the next `FILE:` line, when it is written as code (any text, for a
+  file of words). A name read from a heading or a sentence is matched to the
   project's files, must fit the block's language, and never replaces a
   file the code has nothing in common with. An answer holding only some of
   a file's functions has them fitted into the file in place, new ones

@@ -76,6 +76,22 @@ console.log('\nReading an answer:');
   ok('a path that climbs out of the project is not taken', L.parseReply(`FILE: ../outside.js\n${T}\nx\n${T}`).writes.length === 0 && L.parseReply(`FILE: a/../../b.js\n${T}\nx\n${T}`).writes.length === 0 && L.parseReply(`READ: ../x`).reads.length === 0);
   ok('nothing, or text that is not a string, gives nothing', L.parseReply('').writes.length === 0 && L.parseReply(null).said === '' && L.parseReply(undefined).reads.length === 0);
   ok('an answer cut off inside a block is said to be, and a whole one is not', L.parseReply(`FILE: a.js\n${T}\nhalf a fi`).cut === true && L.parseReply(`FILE: a.js\n${T}\nall of it\n${T}`).cut === false && L.parseReply('plain words').cut === false);
+
+  // A FILE: line with the file under it and no fence.
+  const page = L.parseReply('FILE: index.html\n<!DOCTYPE html>\n<html>\n<body>\n  <h1>Pricing</h1>\n</body>\n</html>\n\nThe page was made with a heading and three plans.\n\nFILE: styles.css\nh1 {\n  text-align: center;\n}\n');
+  ok('a file written under a FILE: line with no fence is written, each to the next FILE: line',
+    page.writes.map((w) => w.path).join() === 'index.html,styles.css' && /^<!DOCTYPE html>\n[\s\S]*<\/html>\n$/.test(page.writes[0].content) && page.writes[1].content === 'h1 {\n  text-align: center;\n}\n', JSON.stringify(page.writes));
+  ok('...the sentence after a file is not part of it', !!page.writes[0] && !/three plans/.test(page.writes[0].content));
+  const told = L.parseReply('FILE: src/app.js\nI changed the function so that it returns the total.');
+  ok('a FILE: line over sentences about the change writes nothing, and the words are kept as said', told.writes.length === 0 && /FILE: src\/app\.js/.test(told.said) && /returns the total/.test(told.said));
+  ok('...a sentence that starts with a word code also uses is still a sentence', L.parseReply('FILE: src/app.js\nReturn values are now rounded.\nFrom here the tests pass.').writes.length === 0);
+  const notes = L.parseReply('FILE: NOTES.md\nThe release moves to Friday.\n');
+  ok('a file of words is written from plain sentences', notes.writes.length === 1 && notes.writes[0].path === 'NOTES.md');
+  const py = L.parseReply('FILE: stats.py\ndef mean(values):\n    return sum(values) / len(values)\n');
+  ok('a Python file under a FILE: line is written', py.writes.length === 1 && /def mean/.test(py.writes[0].content));
+  const mixed = L.parseReply(`FILE: a.js\nconst a = 1;\nmodule.exports = { a };\n\nFILE: b.js\n${T}js\nconst b = 2;\n${T}`);
+  ok('a file with no fence and one in a fence after it are both written', mixed.writes.map((w) => w.path).join() === 'a.js,b.js' && /const a = 1;/.test(mixed.writes[0].content) && mixed.writes[1].content === 'const b = 2;\n', JSON.stringify(mixed.writes));
+  ok('a FILE: line with no fence that climbs out of the project is not taken', L.parseReply('FILE: ../x.js\nconst x = 1;\n').writes.length === 0);
 }
 
 console.log('\nWhat it becomes:');
