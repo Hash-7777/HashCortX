@@ -315,7 +315,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -365,6 +365,106 @@
     // said it had passed, and never ran it; HashCoder runs it for one.
     const run = failed ? null : runOf(test);
     return { kind: 'prove', step: PROVE_STEP, message, ...(run ? { run } : {}) };
+  }
+
+  // ── A name the request changes, still there ────────────────────────────
+  //
+  // Asked to rename something everywhere, or to change one word to another,
+  // a model changes some places and says it changed them all, or says it was
+  // already done. When the request names what is to change and what into, the
+  // project is read before the run finishes, and every place the old one is
+  // still written is sent back, by file and line.
+
+  const QUOTE = `["'\u2018\u2019\u201c\u201d\`]`;
+  const RENAME = /\brename\s+(?:the\s+)?(?:function|method|variable|class|constant|field|property|component)?\s*([`'"]?)([A-Za-z_$][\w$]*)\1\s+(?:to|into|as)\s+[`'"]?([A-Za-z_$][\w$]*)[`'"]?/i;
+  /** A name written as code: quoted, or with a capital inside it, an underscore or a digit. Not a word like "it". */
+  const codeName = (quoted, name) => !!quoted || /[a-z][A-Z]|[_$\d]/.test(name);
+  const CHANGE = new RegExp(`\\b(?:change|replace|rename|turn)\\b[^.\\n]{0,60}?(?:from\\s+)?${QUOTE}([^"'\u2018\u2019\u201c\u201d\`\\n]{1,40})${QUOTE}\\s+(?:to|with|into)\\s+${QUOTE}([^"'\u2018\u2019\u201c\u201d\`\\n]{1,40})${QUOTE}`, 'i');
+  const PLACE = /\bin\s+[`'"]?((?:[\w.-]+\/)*[\w.-]+\.\w{1,5})[`'"]?/i;
+
+  /** What a request changes and into what, and the one file it is in when it names one: `{ from, to, file }`, or null. */
+  function renameOf(request) {
+    const t = String(request || '');
+    const r = RENAME.exec(t);
+    const m = r && codeName(r[1], r[2]) ? [r[0], r[2], r[3]] : CHANGE.exec(t);
+    if (!m || m[1] === m[2]) return null;
+    const everywhere = /\beverywhere\b|\bin (?:this|the) (?:project|code)\b|\ball\b/i.test(t);
+    const place = PLACE.exec(t);
+    return { from: m[1], to: m[2], file: !everywhere && place ? place[1] : '' };
+  }
+
+  /** The files of a project as the model is shown it, from its "=== path ===" sections (js/code/context.js wholeProject). */
+  function filesOfWhole(whole) {
+    const out = [];
+    const parts = String(whole || '').split(/^=== ([^=\n]+?) ===$/m);
+    for (let i = 1; i + 1 < parts.length; i += 2) if (!/^not text/.test(parts[i])) out.push({ path: parts[i].trim(), text: parts[i + 1].replace(/^\n/, '') });
+    return out;
+  }
+
+  /** Where the old name is still written: `[{ path, lines }]`, a word on its own, only in the named file when there is one. */
+  function leftovers(rename, files) {
+    if (!rename) return [];
+    const word = new RegExp(`(^|[^\\w$])${rename.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w$])`);
+    const named = rename.file ? String(rename.file).replace(/^\.\//, '') : '';
+    return (files || []).filter((f) => !named || f.path === named || f.path.endsWith(`/${named}`))
+      .map((f) => ({ path: f.path, lines: String(f.text).split('\n').map((l, n) => (word.test(l) ? n + 1 : 0)).filter(Boolean) }))
+      .filter((f) => f.lines.length);
+  }
+
+  const RENAME_STEP = 'Sent back: the old name is still written';
+
+  /** The note sending a run back to the places the old name is still written, or null. */
+  function renameNote(rename, left) {
+    if (!rename || !left || !left.length) return null;
+    const where = left.slice(0, 8).map((f) => `- ${f.path}: line${f.lines.length === 1 ? '' : 's'} ${f.lines.slice(0, 12).join(', ')}`).join('\n');
+    return {
+      kind: 'rename', step: RENAME_STEP,
+      message: `${APP_NOTE} the request changes ${JSON.stringify(rename.from)} to ${JSON.stringify(rename.to)}, and ${JSON.stringify(rename.from)} is still written here:\n${where}\nChange each of these to ${JSON.stringify(rename.to)}, a comment that names it included, keeping everything else in those files as it is, then finish.`,
+    };
+  }
+
+  // ── The example the request gives, run ─────────────────────────────────
+  //
+  // A request often says how the change will be used: "used as node
+  // bin/count.js --lines notes.txt". When the run changed the script such a
+  // command runs, that command is run once before the run finishes, so the
+  // model sees what it really prints rather than what it expects.
+
+  const EXAMPLE = /(?:^|[\s`'"(])(node|python3?|deno|bun)\s+((?:\.\/)?(?:[\w.-]+\/)*[\w.-]*\w\.(?:m?js|cjs|ts|py))(?![\w.])/g;
+
+  /** The arguments after a command in prose: flags and file-like words, up to the end of the sentence or clause. */
+  function argsAfter(rest) {
+    const out = [];
+    for (const raw of String(rest).split(/[ \t]+/)) {
+      if (!raw) continue;
+      const end = /[.,;:`'")]$/.test(raw);
+      const word = raw.replace(/[.,;:`'")]+$/, '');
+      if (!/^--?[\w-]+(?:=[\w./-]+)?$/.test(word) && !/^[\w-]*[./][\w./-]*\w$/.test(word)) break;
+      out.push(word);
+      if (end) break;
+    }
+    return out;
+  }
+
+  /** The first example command in the request that runs a file the run changed (`changed`, paths from the project's folder): `{ command, args }`, or null. */
+  function exampleOf(request, changed) {
+    const done = new Set((changed || []).map((p) => String(p).replace(/^\.\//, '')));
+    const text = String(request || '');
+    for (const m of text.matchAll(EXAMPLE)) {
+      const file = m[2].replace(/^\.\//, '');
+      if (!done.has(file)) continue;
+      return { command: m[1], args: [file, ...argsAfter(text.slice(m.index + m[0].length))] };
+    }
+    return null;
+  }
+
+  const EXAMPLE_STEP = 'Ran the example the request gives';
+
+  /** The run sent back to try the example: run by the app for a small model, asked of a larger one. */
+  function exampleNote(run) {
+    if (!run) return null;
+    const shown = [run.command, ...run.args].join(' ');
+    return { kind: 'example', step: EXAMPLE_STEP, run, message: `${APP_NOTE} the request shows how this is used: \`${shown}\`. Run it${callFor(shown)}, read what it prints, and fix the code if it is not what the request asks for. Then finish.` };
   }
 
   // ── A change written into the reply instead of made ─────────────────────
@@ -677,6 +777,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
+    exampleOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
   };
 })();

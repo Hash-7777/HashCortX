@@ -10,6 +10,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder reads the project before it finishes, for what a model often
+  leaves undone.** When a request renames something, or changes one quoted
+  word to another, every place the old one is still written, comments
+  included, is sent back by file and line, only in the file the request
+  names when it names one (`js/code/verify.js` renameOf). In a project
+  written with require and module.exports, the files the run changed are
+  read for what joins them: a function called from a file that never loads
+  it, a name taken from a file that does not export it, a file loaded that
+  exports nothing, and a file that exports an object of names loaded whole
+  and called as a function; each is sent back with the line that joins it
+  up (`js/code/wiring.js`). And when the request shows how a script is
+  used, such as `node bin/count.js --lines notes.txt`, and the run changed
+  that script, the command is run once before it finishes, so the model
+  sees what it really prints. Each happens at most twice in a run, the
+  example once, and only while Prove changes is on.
+
 - **Light mode for small models in HashCoder.** A model of a few billion
   parameters is poor at the machinery of tool calls, so for one under 5B
   (or under 15B, by a setting under Settings → HashCoder: Models under 5B,

@@ -214,7 +214,7 @@ console.log('\nThe loop reads an answer through it:');
   ok('in light mode it is offered no tools and reads its history as plain text', /const tools = sharedState\.light \? \[\] :/.test(mode) && /sharedState\.light \? window\.HCCodeLight\.callMessages\(compressHistory\(baseMsgs\)\)/.test(mode));
   ok('...is told the light instructions, not the tool rules', /if \(sharedState\.light && window\.HCCodeLight\) return \[window\.HCCodeLight\.SYSTEM,/.test(mode));
   ok('...its answer becomes the calls a larger model makes, and a file not written whole is asked for again, twice at most', /window\.HCCodeLight\.turnOf\(turn\.content,/.test(mode) && /if \(lit\?\.calls\.length\) turn = \{ \.\.\.turn, content: lit\.said, tool_calls: lit\.calls \};/.test(mode) && /if \(lit\?\.note && sent\.light\+\+ < 2\)/.test(mode));
-  ok('...and the tests are run for it', /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light\)\) forced/.test(mode));
+  ok('...and the tests are run for it', /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light \|\| back\.kind === 'example'\)\) forced/.test(mode));
   ok('...and is shown the project whole, at the larger budget', /local \|\| light\) && !!root/.test(mode) && /wholeProject\(root, quiet, light \? 'mid' : size\)/.test(mode));
   const panel = src('core', 'settings', 'panel.html');
   ok('the setting is in Settings under HashCoder: models under 5B, under 15B, or off, and the panel reads it', /<select class="control" id="cdrSetLight">\s*<option value="auto">Models under 5B<\/option>\s*<option value="always">Models under 15B<\/option>\s*<option value="off">Off<\/option>/.test(panel)

@@ -147,7 +147,7 @@ console.log('\nWhen the agent is sent back:');
   ok('a command line as the call\'s arguments, or none when it needs a shell', JSON.stringify(V.runOf('npm test')) === '{"command":"npm","args":["test"]}' && V.runOf('npm test | tee x') === null && V.runOf('') === null);
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder runs it for a small model in place of asking, and does not keep its word that it passed',
-    /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light\)\) forced = \{ content: '', tool_calls: \[\{ name: 'shell_run', arguments: back\.run \}\] \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
+    /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light \|\| back\.kind === 'example'\)\) forced = \{ content: '', tool_calls: \[\{ name: 'shell_run', arguments: back\.run \}\] \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
     && /turn = forced \|\| await callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\); forced = null;/.test(mode));
   ok('... through the same tool, and so the same permission, as any command, and the run says so', /object: forced \? window\.HCCodeVerify\.RAN_STEP : back\.step/.test(mode) && V.RAN_STEP === 'Ran the tests itself, as the change had not been tested');
 }
@@ -200,7 +200,7 @@ console.log('\nFiles an answer names that the project does not have:');
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder looks for them first when it would finish, once, with proving switched on, and quietly',
     /const namedLook = async \(reply\) => \(cdrPrefs\(\)\.prove === false \|\| sent\.named \? null : window\.HCCodeVerify\.namedNote\(await HC\.code\.notThereOf\(window\.HCCodeVerify\.namedPaths\(reply, sharedState\.projectRoot, proof\?\.changed\)\), sharedState\.projectRoot\)\);/.test(mode)
-    && /\(await namedLook\(finalText\)\) \|\| \(await siteLook\(\)\)/.test(mode));
+    && /\(await namedLook\(finalText\)\) \|\| \(await projectLook\(\)\) \|\| [^\n]*?\(await siteLook\(\)\)/.test(mode));
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('each folder is listed without asking, and a path that cannot be is left out, not called missing',
     /const list = await HC\.code\.listQuietly\(path\.slice\(0, cut\)\);/.test(tools) && /if \(\/without asking\/\.test\(String\(e\?\.message \|\| e\)\)\) continue;/.test(tools));
@@ -335,7 +335,7 @@ console.log('\nThe Coder uses it:');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
     /window\.HCCodeVerify\.sendBack\(proof, messages, finalText,\s*\{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest, plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode)
-    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0 \};/.test(mode));
+    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0 \};/.test(mode));
   ok('the switch is on unless turned off', /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));
@@ -347,6 +347,37 @@ console.log('\nThe Coder uses it:');
   ok('what was proven is kept with the answer and said again when the conversation is opened, as Settings promises',
     /sharedState\.proven = proven \|\| '';/.test(mode) && /content: finalText, \.\.\.\(sharedState\.proven \? \{ proven: sharedState\.proven \} : \{\}\)/.test(mode)
     && /if \(m\.proven\) appendTextToBubble\(reply, `\*\$\{m\.proven\}\*`\);/.test(render) && /What was checked is said under each answer either way/.test(settings));
+}
+
+console.log('\nA name the request changes, still there:');
+{
+  const r = V.renameOf('Rename the function getUsr to getUser everywhere in this project, including where it is called and tested.');
+  ok('a rename is read, everywhere', r && r.from === 'getUsr' && r.to === 'getUser' && r.file === '');
+  const w = V.renameOf('In src/greet.js change the greeting word from "Hello" to "Hi" in both functions.');
+  ok('a quoted word changed to another is read, in the file the request names', w && w.from === 'Hello' && w.to === 'Hi' && w.file === 'src/greet.js');
+  ok('a request that changes nothing by name reads as none', V.renameOf('Fix the bug in the basket total.') === null && V.renameOf('Rename it to something better.') === null);
+  const files = V.filesOfWhole('Intro\n\n=== src/users.js ===\nfunction getUser(id) {}\n\n=== src/report.js ===\nconst u = users.getUsr(1);\n// getUsrs is another name\n\n=== src/greet.js ===\nreturn `Hello, ${name}`;\n\n=== not text, not shown: a.png ===');
+  ok('the project is read back into its files', files.map((f) => f.path).join() === 'src/users.js,src/report.js,src/greet.js');
+  const left = V.leftovers(r, files);
+  ok('every place the old name is still written, by file and line, as a word on its own', left.length === 1 && left[0].path === 'src/report.js' && left[0].lines.join() === '1');
+  ok('only in the named file, when the request names one', V.leftovers(w, files).map((f) => f.path).join() === 'src/greet.js' && V.leftovers({ ...w, file: 'src/other.js' }, files).length === 0);
+  const note = V.renameNote(r, left);
+  ok('the note names each place, and is a step of its own', note.kind === 'rename' && /"getUsr" is still written here:\n- src\/report\.js: line 1/.test(note.message) && V.isAppNote(note.message) && V.noteStep(note.message) === V.RENAME_STEP);
+  ok('nothing left, no note', V.renameNote(r, []) === null);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder looks before it finishes, each twice at most, with Prove changes on', /const projectLook = async \(\) => \{ const V = window\.HCCodeVerify, W = window\.HCCodeWiring, root = sharedState\.projectRoot, r = sent\.rename < 2 && V\.renameOf\(V\.requestIn\(messages\)\), wire = sent\.wiring < 2 && W && proof\?\.changed\.length; if \(!root \|\| cdrPrefs\(\)\.prove === false/.test(mode) && /rename: 0, wiring: 0, example: 0 \};/.test(mode));
+}
+
+console.log('\nThe example the request gives, run:');
+{
+  const req = 'bin/count.js prints how many words a file has: node bin/count.js notes.txt. Add a --lines option, used as node bin/count.js --lines notes.txt, that prints how many lines.';
+  ok('the first example running a file the run changed, as a command and its arguments', JSON.stringify(V.exampleOf(req, ['bin/count.js'])) === JSON.stringify({ command: 'node', args: ['bin/count.js', 'notes.txt'] }));
+  ok('nothing when the run did not change that file', V.exampleOf(req, ['src/other.js']) === null && V.exampleOf('Fix the tests.', ['bin/count.js']) === null);
+  ok('python, and a path written from the folder', JSON.stringify(V.exampleOf('Try `python3 ./tool.py --dry-run in.csv` after.', ['tool.py'])) === JSON.stringify({ command: 'python3', args: ['tool.py', '--dry-run', 'in.csv'] }));
+  const n = V.exampleNote({ command: 'node', args: ['bin/count.js', '--lines', 'notes.txt'] });
+  ok('the note carries the command to run, says what to look for, and is a step of its own', n.kind === 'example' && n.run.command === 'node' && /`node bin\/count\.js --lines notes\.txt`/.test(n.message) && V.noteStep(n.message) === V.EXAMPLE_STEP && V.exampleNote(null) === null);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder runs it once, with Prove changes on, for any model', /\(!sent\.example && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.exampleOf\(/.test(mode) && /back\.kind === 'example'\)\) forced/.test(mode) && /example: 0 \};/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/verify.js)`);

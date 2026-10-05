@@ -776,7 +776,10 @@ const LINE_BUDGET = {
   // as plain text, turns the files in its answer into the calls a larger model
   // makes, asks again for a file not written whole, has the tests run for it,
   // and wires the setting that chooses which models get it.
-  'modes/code/mode.js': 2489,
+  // 2491, up two: the project is read before a run finishes, for a name the
+  // request changes that is still written (js/code/verify.js renameOf) and
+  // for files the run changed that are not joined up (js/code/wiring.js).
+  'modes/code/mode.js': 2491,
 };
 
 console.log('\nFile sizes go down, never up:');
