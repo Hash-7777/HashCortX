@@ -124,6 +124,20 @@ console.log('\nWhat it becomes:');
   ];
   ok('a file loading another of its name, a package, another package\'s module, or itself inside a longer line is left as written',
     others.every(([p, c]) => { const r = wrote(p, c); return r.calls[0].arguments.content === c && !/cannot load itself/.test(r.note); }));
+  // A comment about the rename.
+  const rename = { from: 'getUsr', to: 'getUser', file: '' };
+  const renamed = (path, content) => L.plan({ writes: [{ path, content, guessed: false }], reads: [], said: '', cut: false }, {}, { rename });
+  const users = renamed('src/users.js', "function getUser(id) { // Renamed getUsr to getUser\n  return find(id);\n}\n// Changed getUsr to getUser\nconst url = 'http://x/getUsr'; // getUsr was the old name\nmodule.exports = { getUser };\n");
+  ok('a comment about the rename is left out of its line, the code kept, and a comment line on its own goes',
+    users.calls[0].arguments.content === "function getUser(id) {\n  return find(id);\n}\nconst url = 'http://x/getUsr';\nmodule.exports = { getUser };\n" && /a comment about the rename named "getUsr" again/.test(users.note) && /src\/users\.js \(line 1, 4, 5\)/.test(users.note), users.calls[0].arguments.content);
+  ok('...in Python too', renamed('users.py', 'def get_user(i):  # renamed from getUsr\n    return i\n').calls[0].arguments.content === 'def get_user(i):\n    return i\n');
+  const kept = ["const s = '// renamed getUsr to getUser';\n", '// getUsrCount is not the same name, renamed\n', '// Reads the user with this id.\n', '/* Renamed getUsr to getUser */\n'];
+  ok('a comment sign inside quoted text, a longer name, a comment that does not name it, and a block comment are left alone',
+    kept.every((c) => { const r = renamed('src/a.js', c); return r.calls[0].arguments.content === c && !/rename named/.test(r.note); }));
+  ok('...as is every comment when the request renames nothing, and a file that is not code',
+    L.plan({ writes: [{ path: 'src/a.js', content: '// Renamed getUsr to getUser\n', guessed: false }], reads: [], said: '', cut: false }, {}).calls[0].arguments.content === '// Renamed getUsr to getUser\n'
+    && renamed('NOTES.md', '// Renamed getUsr to getUser\n').calls[0].arguments.content === '// Renamed getUsr to getUser\n');
+  ok('the panel passes the request\'s rename to light mode', /rename: window\.HCCodeVerify\?\.renameOf\(window\.HCCodeVerify\.requestIn\(messages\)\)/.test(src('modes', 'code', 'mode.js')));
   const lines = (n) => Array.from({ length: n }, (_, i) => `line ${i}`).join('\n');
   const current = { 'big.js': lines(100), 'small.js': lines(10), 'same.js': lines(100) };
   const shorter = L.shrunk([{ path: 'big.js', content: lines(40) }, { path: 'small.js', content: lines(2) }, { path: 'same.js', content: lines(90) }, { path: 'new.js', content: lines(1) }], current);

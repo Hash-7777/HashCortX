@@ -338,17 +338,59 @@
     return { content: lines.length ? kept.join('\n') : content, lines };
   }
 
-  function plan(parsed, current) {
+  // A comment about the rename itself. Asked to rename a name, a small model
+  // writes a comment saying that it did, and the comment names the old name
+  // again. With the request's rename (js/code/verify.js renameOf), a line
+  // comment that names the old name and the new one, or says it was renamed
+  // or changed, is left out of the line; the code on the line is kept.
+  const NARRATES = /\b(?:renam|chang|replac|previous|formerly|was\b|old\b|now\b)/i;
+  const LINE_MARK = [[/\.(?:[cm]?[jt]sx?|java|c|cc|cpp|h|hpp|cs|go|rs|swift|kt|php|dart)$/i, '//'], [/\.(?:py|rb|sh|ya?ml|toml|r)$/i, '#']];
+
+  /** Where a line's comment starts, outside any quoted text: -1 when it has none. */
+  function commentAt(line, mark) {
+    let quote = '';
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (quote) { if (c === '\\') i++; else if (c === quote) quote = ''; continue; }
+      if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+      if (line.startsWith(mark, i)) return i;
+    }
+    return -1;
+  }
+
+  /** `content` with the comments about `rename` left out, and the numbers of the lines they were on. */
+  function withoutRenameNotes(content, path, rename) {
+    const kind = rename && rename.from && rename.to && LINE_MARK.find(([ext]) => ext.test(String(path || '')));
+    if (!kind) return { content, lines: [] };
+    const mark = kind[1];
+    const old = new RegExp(`(^|[^\\w$])${rename.from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w$])`);
+    const lines = [];
+    const out = [];
+    String(content).split('\n').forEach((line, n) => {
+      const at = commentAt(line, mark);
+      const note = at < 0 ? '' : line.slice(at + mark.length);
+      if (!note || !old.test(note) || !(note.includes(rename.to) || NARRATES.test(note))) { out.push(line); return; }
+      lines.push(n + 1);
+      const code = line.slice(0, at).replace(/\s+$/, '');
+      if (code.trim()) out.push(code);
+    });
+    return { content: lines.length ? out.join('\n') : content, lines };
+  }
+
+  function plan(parsed, current, { rename = null } = {}) {
     const M = window.HCCodeMerge;
     const notes = [];
     const unsure = [];
     const writes = [];
     const selfLoads = [];
+    const renameNotes = [];
     for (const w of parsed.writes) {
       const now = current && current[w.path];
       const self = withoutSelfLoads(w.content, w.path);
       if (self.lines.length) selfLoads.push(`${w.path} (line ${self.lines.join(', ')})`);
-      let content = self.content;
+      const told = withoutRenameNotes(self.content, w.path, rename);
+      if (told.lines.length) renameNotes.push(`${w.path} (line ${told.lines.join(', ')})`);
+      let content = told.content;
       if (typeof now === 'string' && M) {
         // Part of the file, fitted in; a guessed name kept only for code that has something in common with the file it would replace.
         const fitted = M.fit(now, content, w.path);
@@ -361,6 +403,7 @@
     // A file written again exactly as it already is changes nothing: the model is done with it.
     const same = (w) => typeof (current && current[w.path]) === 'string' && current[w.path].replace(/\s+$/, '') === w.content.replace(/\s+$/, '');
     const calls = callsFor({ ...parsed, writes: writes.filter((w) => !short.includes(w.path) && !same(w)) });
+    if (renameNotes.length) notes.push(`${NOTE} a comment about the rename named "${rename.from}" again, so it was left out of ${renameNotes.join(' and ')}. Write no comment about what you changed.`);
     if (selfLoads.length) notes.push(`${NOTE} a file cannot load itself, so the line that did was left out of ${selfLoads.join(' and ')}. Load a file only from another file that uses it.`);
     if (unsure.length) notes.push(`${NOTE} the code in your answer did not say which file it is for, and it is not ${named(unsure)}, so nothing was written for it. Put a line FILE: and the path just above each file you write, with the whole file in the block.`);
     if (short.length) notes.push(`${NOTE} ${named(short)} would have been written much shorter than ${short.length > 1 ? 'they are' : 'it is'}, so ${short.length > 1 ? 'they were' : 'it was'} not written. Write ${short.length > 1 ? 'each one' : 'it'} again in full, keeping every part you were not asked to change.`);
@@ -374,14 +417,14 @@
    * carrying ids as a model's own would. `read(path)` gives a file as it is
    * now, to catch one written much shorter and to fit a part of it in; a
    * file it cannot read is new, or not one to read without asking, and is
-   * taken as new. `opts` are parseReply's: the project's files and the files
-   * the request names.
+   * taken as new. `opts` are parseReply's, the project's files and the files
+   * the request names, and `rename`, what the request renames.
    */
   async function turnOf(text, read, opts = {}) {
     const parsed = parseReply(text, opts);
     const current = {};
     for (const w of parsed.writes) { try { current[w.path] = await read(w.path); } catch { /* new, or not read without asking */ } }
-    const { calls, note } = plan(parsed, current);
+    const { calls, note } = plan(parsed, current, opts);
     const stamp = Date.now();
     return { calls: calls.map((c, i) => ({ id: `light_${stamp}_${i}`, ...c })), note, said: parsed.said };
   }

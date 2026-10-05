@@ -61,9 +61,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a file's functions has them fitted into the file in place, new ones
   added before its exports, and the modules they load and the names they
   export joined to the file's own (`js/code/merge.js`). It is told to
-  write no comments about what it changed, and, for a project whose tests
-  run on Node's own runner, how those tests are written. A failing test
-  gives it one more round to fix it. The
+  write no comments about what it changed and, for a project whose tests
+  run on Node's own runner, how those tests are written. When the request
+  renames a name, a line comment naming the old name with the new one, or
+  saying it was renamed or changed, is left out of what is written, the
+  code on its line kept. A failing test gives it one more round to fix it. The
   model reads its own steps back as plain text, and the app's notes to it
   say how changes are made here. When the model app does not say how
   large a model is, the size is read from its name, so a small cloud model
