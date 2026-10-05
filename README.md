@@ -4,10 +4,12 @@
 
 # HashCortx
 
-**The local-first AI workspace.**
+### Every AI model. One desktop. Nothing leaves without you.
 
-Chat, a coding agent, agent teams and five more workspaces in one desktop app.<br>
-Your keys, your models, your machine. No backend, no telemetry, no account.
+Chat, a coding agent, agent teams, a 3D CAD forge and an ERP builder,<br>
+on your keys and your machine. No backend, no telemetry, no account.
+
+**In the making since 1 May 2026.**
 
 <a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
 <a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
@@ -31,49 +33,49 @@ Your keys, your models, your machine. No backend, no telemetry, no account.
 
 <br>
 
-<img src="docs/assets/screenshots/hero.png" alt="HashCortx on opening: the app mark, and a start-up list reporting the runtime, model routing, the interface, the agent runtime and the content security policy ready, above a prompt to begin" width="100%">
+<img src="docs/assets/screenshots/hero.png" alt="HashCortx on opening: the app mark, and a start-up list for the runtime, model routing, the interface, the agent runtime and the content security policy, above a prompt to begin" width="100%">
 
 <br>
 
-## Why HashCortx
+| | |
+|---|---|
+| **Nothing phones home** | No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address. |
+| **Every model, side by side** | Eleven cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want. |
+| **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
+| **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
-- **Nothing phones home.** No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address.
-- **Any model, all at once.** Eleven cloud providers, Ollama, and any other model app on your computer that serves the common chat format, side by side, with your own keys. Run fully local when you want to.
-- **An agent that asks first.** Commands, deletions, web pages it picks and anything outside your project need your approval. Every file change is a diff you can keep or undo.
-- **Readable to the last line.** MIT licensed. Vanilla JavaScript and Rust, no bundler, no minified app code.
-
-> This page describes `main`. Changes made since v2.6.0 reach the download with the next release; the [changelog](CHANGELOG.md) lists them.
+> This page describes `main`. What changed since v2.6.0 reaches the download with the next release; the [changelog](CHANGELOG.md) lists it.
 
 ## Eight workspaces
 
-| Workspace | What it does |
+| | |
 |---|---|
-| **Chats** | Multi-provider chat with projects, attachments, memory and a local knowledge base |
-| **HashCoder** | A coding agent on your real project: file tree, edits as diffs, terminal, Undo |
-| **3D Forge** | Describe a part, get a dimensioned solid. Exports STL, OBJ, 3MF and STEP in millimetres |
-| **Finance** | Statements, CSV, PDF and XLSX, or the records of a system you connect, read into a list of figures, with every total, card and chart worked out by the app from that list, and updated when you edit it |
+| **Chats** | Every provider in one conversation, with projects, attachments, memory and a local knowledge base |
+| **HashCoder** | A coding agent on your real project: file tree, diffs, terminal, Undo |
+| **Agent Swarm** | Teams of agents on any mix of models, built on a canvas or designed from your task |
+| **3D Forge** | Describe a part, get a dimensioned solid. STL, OBJ, 3MF and STEP, in millimetres |
+| **ERP** | Describe your business; its agent builds a working app with records, stages and books, exported as one HTML file |
+| **Finance** | Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
-| **ERP** | Tell its agent about your business; it builds a working app with linked records and books, then changes it, updates its records and answers questions about them when you ask. It can also answer from a system you connect and bring its records in. Exported as one HTML file |
-| **Agent Swarm** | Teams of agents in chain or vote, on any mix of models, with past runs to reopen. Agents can look things up in a system you connect, never change it |
-| **Virtual OS** | A simulated project desktop an agent builds inside |
+| **Virtual OS** | A simulated desktop an agent builds a project inside |
 
-Plus **Agents**, nine built-in specialists and a builder for your own, and **Split**, one prompt answered by two models side by side.
-
-Agents can also work with a business system you connect in **Settings → Connections**, such as an ERP that offers its records over MCP. A system signs in with a key or through your browser, and the key or the sign-in stays with the app and is never shown to a page or a model; records go only to models on your computer unless you allow otherwise, and every change to a record asks you first, showing exactly what will be sent. In the ERP, the agent only reads a connected system: it answers from its records, and brings records into a table only after showing you each one. Odoo, GitHub, Stripe and Supabase are ready-made choices, and GitHub and Supabase connect reading-only unless you say otherwise. HashCoder uses a connected system when a task is about one, such as opening a pull request, with each change asked first. See [SECURITY.md](docs/SECURITY.md#connected-systems).
+Plus **Agents**, nine built-in specialists and a builder for your own, **Split**, one prompt answered by two models side by side, and **Connections**: a business system you connect over MCP (Odoo, GitHub, Stripe and Supabase are ready-made), whose key never reaches a page or a model and whose every change asks you first. [How](docs/SECURITY.md#connected-systems).
 
 ## HashCoder
 
-The agent works on your real files. Inside the project it moves freely; every edit appears as a diff with **Keep** and **Undo**, and tests run in the built-in terminal. Attach a screenshot, a picture, a PDF or a text file to a request by the paperclip, by pasting or by dropping it in. A picture is drawn in the conversation and opens full size on a click. For a website it finds real, openly licensed photos of the subject and credits them on the page, under the same setting as the Agent Swarm. It works with cloud models and with models on your own computer: a local model is given instructions and tools sized to it, and one under 15 billion parameters, such as a 7B, checks its work against your request before it finishes; one under 5 billion that does not run your tests after a change has them run for it. After a larger change, a larger model takes a second look at its own work with a clean slate, and fixes what that finds. A larger model is also given a map of the project's code as each conversation begins: which files define what, the most used first. A model on your computer is shown a small project whole instead. A request of several asks is listed ask by ask, and the agent goes back through the list before it finishes; whatever is left of its plan is said under the answer. An edit that takes away something your request does not name, a function, a section of a page or a heading, is flagged to the agent to put back, and what your request says to leave alone, such as the tests, is left alone. Before it calls a website done, its pages, stylesheets and scripts are read the way a browser would, and what will not work, or lets the page down, is sent back to be fixed: content hidden until a script runs, an animation that never ends, a blur behind a bar that stays on screen, no rule for reduced motion, pictures with no size. An answer that names a file your project does not have is sent back to find it. Switch on lessons in Settings and it keeps short notes on how each project is built and tested for the next conversation on it.
+It works on your real files. Every edit is a diff with **Keep** and **Undo**, tests run in the built-in terminal, and screenshots, PDFs and files attach by paste or drop.
+
+- **Proves its work.** It runs your tests after a change, reads a website the way a browser would before calling it done, and sends itself back for what it left unfinished: a renamed name still written somewhere, files that do not load each other, the example your request gave.
+- **Fits the model.** Cloud models get a map of your code; small local models get a light mode that writes whole files while HashCoder does the tool work.
+- **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
 
 ## Agent Swarm
 
-Build a team on a canvas, start from a template, or describe the task and have one designed. A team is sized to its task: a short piece of writing or a question goes to one writer, and a team on your computer's own models is a few agents that take turns. Watch each agent work in the live trace, then open the result: every agent's part, the files it made and every version of them. When some agents did not finish, the result offers to run just those, and the ones that depend on them, keeping what the rest wrote. A website the team builds can show real, openly licensed photographs found on Openverse, credited on the page; this sends a few search words about the site's subject and can be turned off in Settings (see [SECURITY.md](docs/SECURITY.md)).
+Build a team on a canvas, start from a template, or describe the task and have one designed, sized to the job. Watch every agent in the live trace, then open the result: each agent's part, the files it made and every version of them. Agents that did not finish can be run again on their own. A website a team builds can show real, openly licensed photographs, credited on the page.
 
 <img src="docs/assets/screenshots/agent-swarm.png" alt="Agent Swarm: a four-agent team mid-run on a canvas, with the live trace below" width="100%">
-
-## 3D Forge and ERP
 
 <table>
 <tr>
@@ -82,21 +84,21 @@ Build a team on a canvas, start from a template, or describe the task and have o
 </tr>
 <tr>
 <td><b>3D Forge.</b> A described object becomes real parts with real dimensions, ready to print or open in CAD.</td>
-<td><b>ERP.</b> Tell the agent in the corner about your business and it builds the app: records, stages and books. Ask it to change the app, record what happened, or tell you about your records.</td>
+<td><b>ERP.</b> Tell the agent about your business and it builds the app. Ask it to change the app, record what happened, or answer from your records.</td>
 </tr>
 </table>
 
-## Security
+## Security, stated plainly
 
 <img src="docs/assets/screenshots/permission.png" alt="HashCoder asking permission to run npm test in the project, with Deny, Allow for session and Allow once" width="100%">
 
-- **You approve what matters.** Commands, deletions, web pages the model picks and anything outside the open project raise this bar. Every decision is written to `~/.hashcortx/audit.log`.
-- **A blocklist compiled into Rust** refuses keys, credentials and system folders, whether they are asked for as a file or named in a command.
-- **On macOS, agent commands run in the system sandbox,** which keeps them out of your keys, keychains, shell start-up files and the app's own data however a command is written. On every system they start without environment settings named like secrets.
-- **A task on a local model stays local,** and cloud AI requests are capped at 30 a minute and 6 at once.
-- **Stated plainly:** API keys are stored on disk unencrypted, protected by your user account; the build is not code-signed.
+- **You approve what matters**, and every decision is written to `~/.hashcortx/audit.log`.
+- **A blocklist compiled into Rust** refuses keys, credentials and system folders, as files or inside commands.
+- **On macOS, agent commands run in the system sandbox**, kept out of your keys, keychains, shell start-up files and the app's own data.
+- **A task on a local model stays local**, and cloud requests are capped at 30 a minute and 6 at once.
+- **What it is not:** keys are stored unencrypted, protected by your user account, and the build is not code-signed.
 
-Everything the app does, and what it does not, is in [SECURITY.md](docs/SECURITY.md).
+Everything it does, and does not, is in [SECURITY.md](docs/SECURITY.md).
 
 ## Install
 
@@ -108,9 +110,9 @@ xattr -dr com.apple.quarantine /Applications/HashCortx.app
 
 **Windows.** Run the installer from the [latest release](https://github.com/Hash-7777/HashCortX/releases/latest). It is built without the embedding model, so it starts on any 64-bit PC and searches the knowledge base by keyword.
 
-**Linux and Intel Macs.** Build from source (below).
+**Linux and Intel Macs.** Build from source, below.
 
-Then open **Settings → API keys**, add a key and press **Test**. Or skip keys and run a model on your own machine: **Settings → Local model** walks you through it.
+Then open **Settings → API keys**, add a key and press **Test**, or run a model on your own machine with **Settings → Local model**.
 
 <details>
 <summary><b>Build from source</b></summary>
@@ -132,7 +134,7 @@ Needs Node 18+ and Rust via `rustup`, plus **macOS:** Xcode Command Line Tools �
 
 **On Windows, allow the app in Ollama.** The app's page comes from `http://tauri.localhost`, which Ollama refuses until it is allowed. Run `setx OLLAMA_ORIGINS "http://tauri.localhost"` and reopen Ollama; until then the app says that the local model app refused it.
 
-**Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); an app built with it closes before a window appears on an older processor. Building on such a processor stops with a message that says so and gives the command below. Build without the embedding model instead, and search falls back to keywords:
+**Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); an app built with it closes before a window appears on an older processor. Building on such a processor stops with a message that says so. Build without the embedding model instead, and search falls back to keywords:
 
 ```bash
 npx tauri build -- --no-default-features
@@ -142,11 +144,11 @@ npm run tauri dev -- -- --no-default-features     # and to develop
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 9,965 source checks
+npm run check                                     # 10,019 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 222 Rust tests
 ```
 
-Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3.7 MB of interface source that ships as written.
+Tauri v2 · Rust · vanilla JavaScript with no bundler, served as written.
 [Architecture](docs/ARCHITECTURE.md) · [Security](docs/SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md)
 
 </details>
@@ -161,13 +163,11 @@ Tauri v2 · Rust · vanilla JavaScript with no bundler, about 3.7 MB of interfac
 
 **Does my code leave my machine?** Only inside a request to the model you chose. There is no HashCortx server.
 
-**Are my API keys encrypted?** No. They sit in the app's own folder, protected by your user account. [Why](docs/SECURITY.md#where-api-keys-live).
+**Are my keys encrypted?** No. They sit in the app's own folder, protected by your user account. [Why](docs/SECURITY.md#where-api-keys-live).
 
 **Was it built with AI?** Yes, with AI coding models under human architecture, review and correction. Every product and security decision is the author's.
 
 More in the [Wiki](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
-
-## Keyboard shortcuts
 
 | Shortcut | Action |
 |---|---|
@@ -184,13 +184,13 @@ More in the [Wiki](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 | [**HashMeterAi**](https://github.com/Hash-7777/HashMeterAi) | An honest local meter for your AI usage | Apache-2.0 |
 | [**HashNotch**](https://github.com/Hash-7777/HashNotch) | Turns the MacBook notch into a live activity island | GPL-3.0 |
 
-They connect through files on your disk, not a service. HashCortx records token counts in `~/.hashcortx/usage.jsonl` for **HashMeterAi**, and posts a short "finished" notice for **HashNotch**: a title, never a prompt or an answer.
+They connect through files on your disk, not a service: HashCortx records token counts in `~/.hashcortx/usage.jsonl` for **HashMeterAi**, and posts a short "finished" notice, a title and never a prompt or an answer, for **HashNotch**.
 
 <br>
 
 <div align="center">
 
-**HashCortx** · by [Seif Hashish](https://github.com/Hash-7777) · [MIT](LICENSE)
+**HashCortx** · since 1 May 2026 · by [Seif Hashish](https://github.com/Hash-7777) · [MIT](LICENSE)
 
 [Download](https://github.com/Hash-7777/HashCortX/releases/latest) · [Website](https://hashcortx.com) · [Wiki](https://github.com/Hash-7777/HashCortX/wiki) · [Discussions](https://github.com/Hash-7777/HashCortX/discussions)
 
