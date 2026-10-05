@@ -160,7 +160,12 @@ console.log('\nWhat it hands back:');
   const found = look({ 'index.html': `<a href="cart.html">Cart</a><p>Lorem ipsum dolor sit</p>${FULL}` });
   ok('the worst comes first', C.linesOf(found)[0].includes('points at'));
   ok('it counts both kinds', C.summaryOf(found) === '1 thing that will not work and 1 that is unfinished');
-  ok('a note to fix carries only what will not work', C.repairNote(found).includes('points at') && !C.repairNote(found).includes('Lorem'));
+  ok('a note to fix carries what will not work and the template text left in, and says what to do with it', C.repairNote(found).includes('points at') && /still has lorem ipsum in it/.test(C.repairNote(found)) && /replaced with the real details the task gives, or taken out/.test(C.repairNote(found)));
+  ok('template text alone is worth a round of putting right', C.needsRepair(look({ 'index.html': `<p>Lorem ipsum dolor sit</p>${FULL}` })) && C.needsRepair(found));
+  const unlinked = look({ 'index.html': `<link rel="stylesheet" href="styles.css">${FULL}`, 'styles.css': 'body { color: red; }', 'style.css': 'body { color: blue; }' });
+  ok('...and so is a stylesheet no page loads, asked to be loaded or folded in', C.needsRepair(unlinked) && /no page loads style\.css/.test(C.repairNote(unlinked)) && /loaded by the page that needs it, or its content is moved/.test(C.repairNote(unlinked)));
+  const unstyledOnly = look({ 'index.html': `<div class="hero-wrap">x</div><link rel="stylesheet" href="s.css">${FULL}`, 's.css': 'body { color: red; }' });
+  ok('...but what only a person can judge, such as a class nothing styles, is reported and not asked for', !C.needsRepair(unstyledOnly.filter((f) => !f.fixable && f.level !== 'broken')) && unstyledOnly.filter((f) => /nothing styles/.test(f.what)).every((f) => !f.fixable));
   ok('nothing wrong means nothing to ask', C.repairNote([]) === '' && C.summaryOf([]) === '');
 }
 ok('it never returns an unbounded list', look(Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`f${i}.css`, '']))).length <= 24);

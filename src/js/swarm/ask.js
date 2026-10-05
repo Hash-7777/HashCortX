@@ -243,7 +243,7 @@
       { role: "system", content: "You put right faults that have been found in a project by reading its files. Change only what you are asked to change. Return every file you change complete, each in its own fenced block with its file name after the language, and write nothing else." },
       { role: "user", content: `THE PROJECT AS IT STANDS:${CTX.fencesOf(files)}${note}` },
     ];
-    trace(`Asking for ${C.linesOf(findings.filter((f) => f.level === "broken")).length} of them to be put right`, "wait");
+    trace(`Asking for ${findings.filter((f) => f.level === "broken" || f.fixable).length} of them to be put right`, "wait");
     const routes = ROUTES.createRun({ options: deps.models, label: deps.label, note: (m) => trace(m, "warn") });
     let model = routes.start(deps.chosen() || deps.models()[0]?.value || "");
     for (let i = 0; model && i < 4; i++) {

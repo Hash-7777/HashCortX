@@ -129,7 +129,7 @@ console.log('\nOne round is asked for what will not work at all:');
 {
   const repair = bodyOf('repairWork');
   const run = bodyOf('runSwarm');
-  ok('nothing is asked when nothing is broken', /if \(!kept\.run \|\| !found\.some\(f => f\.level === "broken"\)\) return kept;/.test(repair));
+  ok('nothing is asked when nothing needs putting right', /if \(!kept\.run \|\| !window\.HCSwarmProjectCheck\.needsRepair\(found\)\) return kept;/.test(repair));
   ok('the asking is in js/swarm/ask.js, beside the run\'s other calls', /HCSwarmAsk\.askForRepair\(/.test(repair));
   ok('it is given the project, not the conversation', /HCSwarmRuns\.currentFiles\(kept\.run\)/.test(repair));
   ok('a model that will not answer costs the repair and nothing else', /if \(!answer\) return kept;/.test(repair));

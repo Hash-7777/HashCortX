@@ -797,7 +797,7 @@ const SwarmMaker = (() => {
    */
   async function repairWork(kept, blueprint, signal) {
     const found = reportOnWork(kept.run, blueprint);
-    if (!kept.run || !found.some(f => f.level === "broken")) return kept;
+    if (!kept.run || !window.HCSwarmProjectCheck.needsRepair(found)) return kept;   // what will not work, or is unfinished but fixed in the files alone
     setRunStatus("running", "Putting right what was found");
     const answer = await window.HCSwarmAsk.askForRepair(window.HCSwarmRuns.currentFiles(kept.run), found, signal, askDeps());
     if (!answer) return kept;

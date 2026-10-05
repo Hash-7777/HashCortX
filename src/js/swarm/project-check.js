@@ -289,7 +289,8 @@
     const files = asMap(filesIn);
     const names = new Set([...files.keys()].map(lower));
     const out = [];
-    const add = (level, file, what) => { if (out.length < MAX_FINDINGS) out.push({ level, file, what }); };
+    // `fixable`: unfinished, but put right by a change to the files alone, so it is asked for with what will not work.
+    const add = (level, file, what, fixable) => { if (out.length < MAX_FINDINGS) out.push({ level, file, what, ...(fixable ? { fixable: true } : {}) }); };
 
     // What the team said it would hand back.
     for (const name of owed || []) {
@@ -304,7 +305,7 @@
 
       if (text.trim().length < EMPTY_CHARS) { add('broken', name, `${name} is empty`); continue; }
 
-      for (const [re, said] of TEMPLATE_TEXT) if (re.test(text)) { add('weak', name, `${name} still has ${said} in it`); break; }
+      for (const [re, said] of TEMPLATE_TEXT) if (re.test(text)) { add('weak', name, `${name} still has ${said} in it`, true); break; }
 
       const stop = (isCss(name) || isJs(name)) ? fault(text, name) : null;
       if (stop) add('broken', name, /never closed/.test(stop.what) ? `${name} stops in the middle: ${stop.what}${stop.line ? ` (line ${stop.line})` : ''}` : `${name} does not parse: on line ${stop.line}, ${stop.what}`);
@@ -376,7 +377,7 @@
         const name = lower(rawName);
         if (!(isCss(name) || isJs(name)) || loaded.has(name)) continue;
         if (isJs(name) && SERVER_CODE.test(String(file.content || ''))) add('weak', name, `${name} is server code, which a site opened in a browser never runs`);
-        else add('weak', name, `no page loads ${name}, so nothing in it reaches the site`);
+        else add('weak', name, `no page loads ${name}, so nothing in it reaches the site`, true);
       }
       if (styled.size) {
         const used = new Set();
@@ -421,11 +422,19 @@
   }
 
   /** What to ask the team to put right, or '' when nothing needs asking. */
-  function repairNote(findings) {
-    const lines = linesOf((Array.isArray(findings) ? findings : []).filter((f) => f.level === 'broken'));
-    if (!lines.length) return '';
-    return `\n\nTHESE WERE FOUND IN THE WORK AND MUST BE PUT RIGHT. Each one was read from the files themselves, not guessed at:\n${lines.map((l) => `- ${l}`).join('\n')}\nReturn the complete files you change, each in its own fenced block with its name, and change nothing else.`;
+  /** What a repair is asked to put right: what will not work, and what is unfinished but fixed in the files alone. */
+  const toRepair = (findings) => (Array.isArray(findings) ? findings : []).filter((f) => f.level === 'broken' || f.fixable);
+
+  /** Whether anything found is worth a round of putting right. */
+  function needsRepair(findings) {
+    return toRepair(findings).length > 0;
   }
 
-  window.HCSwarmProjectCheck = { inspect, linesOf, summaryOf, repairNote, DEAD_HOSTS };
+  function repairNote(findings) {
+    const lines = linesOf(toRepair(findings));
+    if (!lines.length) return '';
+    return `\n\nTHESE WERE FOUND IN THE WORK AND MUST BE PUT RIGHT. Each one was read from the files themselves, not guessed at:\n${lines.map((l) => `- ${l}`).join('\n')}\nText left from a template is replaced with the real details the task gives, or taken out where it gives none. A file no page loads is loaded by the page that needs it, or its content is moved into a file the page does load. Return the complete files you change, each in its own fenced block with its name, and change nothing else.`;
+  }
+
+  window.HCSwarmProjectCheck = { inspect, linesOf, summaryOf, needsRepair, repairNote, DEAD_HOSTS };
 })();

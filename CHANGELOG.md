@@ -1057,6 +1057,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A finished Swarm run is also put right for template text and files
+  nothing loads.** The round that puts right what the app finds in the work
+  ran only for what will not work at all, so lorem ipsum left in a file, or
+  a stylesheet no page loads, was reported and shipped. Those two are now
+  asked for in the same round, with what to do about each: the template
+  text replaced with the details the task gives or taken out, the file
+  loaded by the page that needs it or folded into one it loads. What only a
+  person can judge is still reported and not asked for
+  (`js/swarm/project-check.js`).
+
 - **Each agent of a Swarm run is told the run's own files.** A saved team
   keeps the list of files written into its instructions when it was made,
   and a run that owed other files told every agent both lists, so the page
