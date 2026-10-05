@@ -1057,6 +1057,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Each agent of a Swarm run is told the run's own files.** A saved team
+  keeps the list of files written into its instructions when it was made,
+  and a run that owed other files told every agent both lists, so the page
+  linked one stylesheet and the plan's went unused. The list and the bar in
+  each agent's instructions are now rewritten for the run on the copy it
+  works from; the saved team is unchanged. What kind of site a run builds
+  (a blog of entries, a game, a dashboard) is now read from the request
+  itself, not from the details given in answer to the team's questions, so
+  a published article among a portfolio's details no longer asks for a file
+  of blog posts (`js/swarm/deliverables.js`).
+
 - **The 3D Forge's opening mark is drawn once, in its own white, in front of
   the floor.** A second copy of the mark, tinted gold and offset by a few
   hundredths, sat behind it and gave every stroke a ghost edge; it is gone.

@@ -97,6 +97,7 @@ console.log('\nA run asks a model what it owes, and is never stopped by the answ
   ok('and says which it used', /planned what this run owes/.test(ask) && /Worked out what this run owes from the task/.test(ask));
 
   const apply = bodyOf('applyDeliverables');
+  ok('a run tells each agent its own files and bar, on the copy it works from', /bpCopy\.agents = DELIVERABLES\.intoInstructions\(bpCopy\.agents, plan\);/.test(apply));
   ok('the plan sets what the team owes', /artifactContracts = DELIVERABLES\.contractsOf\(plan\)/.test(apply));
   ok('the bar it is held to', /qualityGates = plan\.bar/.test(apply));
   ok('and the room it gets, without an older task\'s room winning', /budgetControls = DELIVERABLES\.budgetsFor\(plan\)/.test(apply) && !/\.\.\.\(bpCopy\.budgetControls/.test(apply));

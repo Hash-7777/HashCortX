@@ -207,6 +207,21 @@ ok('then the stylesheet', D.filesOf(D.derive(SHOP))[1] === 'styles.css');
 ok('a plan with no files has none', D.filesOf(D.derive(MARKET)).length === 0);
 ok('the summary names what is owed', /deliverable/.test(D.summaryOf(D.derive(SHOP))));
 
+console.log('\nEach agent told the run\'s own files:');
+{
+  const saved = [
+    { id: 'a', name: 'Coder', systemPrompt: 'You write code.\n\nORCHESTRATION CONTRACT:\n- Task category: code_build.\n- Required artifacts: index.html, styles.css, script.js.\n- Quality gates: old bar.\n- Keep dependency context under 4000 chars.' },
+    { id: 'b', name: 'Writer', systemPrompt: 'You write words.' },
+    { id: 'c', name: 'Bare' },
+  ];
+  const plan = { kind: 'build', items: [{ name: 'index.html', owner: 'coder' }, { name: 'style.css', owner: 'coder' }], bar: ['no placeholder text', 'every link works'] };
+  const told = D.intoInstructions(saved, plan);
+  ok('the list a saved team carries is replaced by the run\'s, and its bar too', /- Required artifacts: index\.html, style\.css\.\n/.test(told[0].systemPrompt) && /- Quality gates: no placeholder text; every link works\.\n/.test(told[0].systemPrompt) && !/styles\.css|script\.js|old bar/.test(told[0].systemPrompt));
+  ok('... the rest of its instructions are kept, and an agent without the lines is left as it is', /^You write code\./.test(told[0].systemPrompt) && /Keep dependency context under 4000 chars\.$/.test(told[0].systemPrompt) && told[1] === saved[1] && told[2] === saved[2]);
+  ok('... the saved team is not changed, and a plan with no files changes nothing', /styles\.css/.test(saved[0].systemPrompt) && D.intoInstructions(saved, { items: [], bar: [] })[0] === saved[0]);
+  ok('... and a name with a dollar sign is written as it is', /- Required artifacts: \$x\.js\./.test(D.intoInstructions(saved, { items: [{ name: '$x.js' }], bar: [] })[0].systemPrompt));
+}
+
 console.log('\nWhat was asked for, not what was asked about:');
 {
   const task = 'Build a jewelery basic e-commerce website for Luis Diamond, a diamond rings brand';
@@ -216,6 +231,9 @@ console.log('\nWhat was asked for, not what was asked about:');
   ok('... and the model deciding the deliverables is not shown it', !/payment gateway/.test(D.messages(skipped)[1].content));
   const given = `${task}\n\nDetails from the person who asked. Use them exactly:\n- Which payment provider? Stripe checkout with order storage`;
   ok('an answer that was given still counts', D.piecesOf(given).some((p) => p.id === 'server'));
+  const folio = 'a portfolio website for a nurse\n\nDetails from the person who asked. Use them exactly, and do not add to them or invent others of the same kind:\n- Any publications or projects to highlight? Published article on wound care, 2021; ran the ward news board\n- Anything to show as numbers? Charts of patient scores from my study';
+  ok('a kind of site is read from the request, not from an answer: a published article does not make a portfolio a blog', !D.piecesOf(folio).some((p) => ['posts', 'charts', 'game'].includes(p.id)), D.piecesOf(folio).map((p) => p.id).join());
+  ok('... while a request that asks for one still gets it, details or not', D.piecesOf(`Build a website with a blog for my bakery\n\nDetails from the person who asked. Use them exactly:\n- Your name? Mina`).some((p) => p.id === 'posts') && D.askedOnly(folio) === 'a portfolio website for a nurse');
 
   const fromModel = { kind: 'build', items: ['index.html', 'styles.css', 'script.js', 'products.json', 'config.json', 'logo.png', 'README.md', '.env.example', 'catalogue.js', 'server.js'].map((name) => ({ name, owner: 'coder' })), bar: [] };
   const plan = D.merge(fromModel, skipped);

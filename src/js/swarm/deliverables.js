@@ -131,6 +131,7 @@
     },
     {
       id: 'game',
+      requestOnly: true,   // a kind of site, said by the request (askedOnly)
       when: /\b(games?|playable|players?|scores?|leaderboards?|levels?|enemies|puzzles?|arcade|platformer|shooters?|snake|tetris|pong)\b/i,
       files: [{ name: 'game.js', format: 'the game: its loop, state, input and rules' }],
       bar: [
@@ -141,6 +142,7 @@
     },
     {
       id: 'charts',
+      requestOnly: true,   // a kind of site, said by the request (askedOnly)
       when: /\b(dashboards?|charts?|graphs?|analytics|visuali[sz]|kpis?|metrics|report(?:ing)? screens?|statistics)\b/i,
       files: [{ name: 'charts.js', format: 'the figures and how each one is drawn' }],
       bar: [
@@ -150,6 +152,7 @@
     },
     {
       id: 'posts',
+      requestOnly: true,   // a kind of site, said by the request (askedOnly)
       when: /\b(blogs?|posts?|articles?|news|journals?|changelogs?|updates? pages?|recipes?)\b/i,
       files: [{ name: 'posts.js', format: 'the entries as data — title, date, summary and body' }],
       bar: ['the entries are data in their own file, each with a title, a date and real body text, and the page is built from them'],
@@ -195,10 +198,21 @@
    */
   const requestOf = (task) => String(task || '').replace(/\n\nNot given:[\s\S]*$/, '');
 
+  /**
+   * The request alone, without the details given in answer to the team's
+   * questions. What kind of site it is (a blog of entries, a game, a
+   * dashboard) is said by the request; an answer is a fact to show, and "a
+   * published article" in a pharmacist's answers asked for a file of blog
+   * posts on a portfolio. A feature chosen in an answer, such as a payment
+   * provider, still counts through the whole request.
+   */
+  const askedOnly = (task) => requestOf(task).replace(/\n\nDetails from the person who asked\.[\s\S]*$/, '');
+
   function piecesOf(task, kind) {
     const t = requestOf(task);
     if ((kind || kindOf(t)) !== 'build') return [];
-    return PIECES.filter((p) => p.when.test(t));
+    const own = askedOnly(task);
+    return PIECES.filter((p) => p.when.test(p.requestOnly ? own : t));
   }
 
   /** Extra pages the request names, beyond the first. */
@@ -516,6 +530,25 @@ Return only JSON, no markdown:
     }));
   }
 
+  /**
+   * The agents of a run told the run's own files and bar. A saved team keeps
+   * the contract written into its instructions when it was made, so a run that
+   * owed other files told each agent both lists: the page linked the team's
+   * stylesheet and the plan's went unused. The lines are rewritten on the
+   * run's copy, and agents without them are left as they are.
+   */
+  function intoInstructions(agents, plan) {
+    const names = contractsOf(plan || {}).map((a) => a.name).filter(Boolean).join(', ');
+    const bar = ((plan && plan.bar) || []).join('; ');
+    return (agents || []).map((a) => {
+      if (!a || typeof a.systemPrompt !== 'string') return a;
+      let p = a.systemPrompt;
+      if (names) p = p.replace(/^- Required artifacts: .*$/m, () => `- Required artifacts: ${names}.`);
+      if (bar) p = p.replace(/^- Quality gates: .*$/m, () => `- Quality gates: ${bar}.`);
+      return p === a.systemPrompt ? a : { ...a, systemPrompt: p };
+    });
+  }
+
   // ── Who writes what ──────────────────────────────────────────────
   //
   // THE DEFECT THIS REPLACES. Every agent was handed the same list — "Required
@@ -665,7 +698,7 @@ Return only JSON, no markdown:
   window.HCSwarmDeliverables = {
     forSmall,
     MAX_ITEMS, MAX_BAR, PIECES, ALWAYS,
-    kindOf, piecesOf, requestOf, withoutUnasked, extraPagesOf, derive, messages, readPlan, normalise, merge,
+    kindOf, piecesOf, requestOf, askedOnly, intoInstructions, withoutUnasked, extraPagesOf, derive, messages, readPlan, normalise, merge,
     filesOf, budgetsFor, contractsOf, summaryOf, agentMatches, fitScore, assign, ownershipNote,
   };
 })();

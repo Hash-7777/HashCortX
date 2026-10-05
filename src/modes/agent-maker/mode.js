@@ -753,7 +753,7 @@ const SwarmMaker = (() => {
   function applyDeliverables(bpCopy, plan) {
     bpCopy.deliverableKind = plan.kind;
     bpCopy.artifactContracts = DELIVERABLES.contractsOf(plan);
-    bpCopy.qualityGates = plan.bar; bpCopy.photos = plan.photos || [];
+    bpCopy.qualityGates = plan.bar; bpCopy.photos = plan.photos || []; bpCopy.agents = DELIVERABLES.intoInstructions(bpCopy.agents, plan);   // each agent told this run's files, not the ones the team was saved with
     // The plan is the authority here: it was made for the task being run, and
     // whatever the team was carrying was made for an earlier one.
     bpCopy.budgetControls = DELIVERABLES.budgetsFor(plan);
