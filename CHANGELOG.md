@@ -1083,6 +1083,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The Sandbox's agents run on the boss's model.** Each scanning agent
+  was given the app's main model when the Sandbox started, and kept it, so a
+  cloud boss was joined by agents on a model on this computer. An agent
+  nobody has picked a model for now follows the boss, in its menu and when
+  it scans; one picked by hand keeps its model.
+
 - **A request too large for a model's per-minute budget goes to one it
   fits.** A provider's newer refusal, a budget for the question alone (input
   tokens per minute) or for the answer alone (output tokens per minute), was

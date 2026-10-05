@@ -289,6 +289,9 @@ console.log('\nShared files naming a mode go down, never up:');
   // The first screen claims nothing it did not check: the lines say each part
   // loaded, which is all that is true when main.js runs.
   const main = read('main.js');
+  const sandbox = read('modes/sandbox/mode.js');
+  check('a Sandbox agent nobody picked a model for runs on the boss\'s model, and follows the boss when it changes', /const workerModel = \(agent\.chosen && agent\.modelValue\) \|\| currentModel;/.test(sandbox) && /getElementById\("sbxModelSelect"\)\?\.addEventListener\("change", sbxFollowBoss\)/.test(sandbox) && /sbxActiveAgents\.forEach\(\(a\) => \{ if \(!a\.chosen\) a\.modelValue = boss; \}\)/.test(sandbox));
+  check('... and one picked by hand keeps its model', /sbxActiveAgents\[i\]\.modelValue = sel\.value; sbxActiveAgents\[i\]\.chosen = true;/.test(sandbox));
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }
 

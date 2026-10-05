@@ -143,9 +143,11 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
   function sbxPopulateModels() {
     const bossEl = document.getElementById("sbxModelSelect");
     sbxFillSelect(bossEl, bossEl?.value);
-    // Re-fill each agent slot's select too
+    // Re-fill each agent slot's select too: one nobody picked a model for follows the boss.
     document.querySelectorAll(".sbx-agent-model-sel").forEach(s => {
-      sbxFillSelect(s, s.value);
+      const agent = sbxActiveAgents[Number(s.dataset.agentIdx)];
+      sbxFillSelect(s, agent && !agent.chosen ? bossEl?.value : s.value);
+      if (agent && !agent.chosen) agent.modelValue = s.value;
     });
     sbxUpdateAgentCountLabel();
   }
@@ -181,7 +183,8 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
       sel.className = "sbx-model-select sbx-agent-model-sel";
       sel.dataset.agentIdx = i;
       sbxFillSelect(sel, agent.modelValue);
-      sel.addEventListener("change", () => { sbxActiveAgents[i].modelValue = sel.value; });
+      // Picked by hand, the agent keeps its model; until then it follows the boss.
+      sel.addEventListener("change", () => { sbxActiveAgents[i].modelValue = sel.value; sbxActiveAgents[i].chosen = true; });
       row.appendChild(badge);
       row.appendChild(sel);
       container.appendChild(row);
@@ -195,7 +198,7 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     const nextAgent = pool[sbxActiveAgents.length % pool.length];
     const defaultModel = document.getElementById("sbxModelSelect")?.value ||
                          document.getElementById("model")?.value || "";
-    sbxActiveAgents.push({ ...nextAgent, modelValue: defaultModel });
+    sbxActiveAgents.push({ ...nextAgent, modelValue: defaultModel, chosen: false });
     sbxRenderAgentSlots();
   }
 
@@ -206,8 +209,16 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
   }
 
   function sbxInitAgents() {
-    const defaultModel = document.getElementById("model")?.value || "";
-    sbxActiveAgents = AGENTS.map(a => ({ ...a, modelValue: defaultModel }));
+    const defaultModel = document.getElementById("sbxModelSelect")?.value || document.getElementById("model")?.value || "";
+    sbxActiveAgents = AGENTS.map(a => ({ ...a, modelValue: defaultModel, chosen: false }));
+    sbxRenderAgentSlots();
+  }
+
+  /** The boss changed: every agent nobody picked a model for moves with it. */
+  function sbxFollowBoss() {
+    const boss = document.getElementById("sbxModelSelect")?.value || "";
+    if (!boss) return;
+    sbxActiveAgents.forEach((a) => { if (!a.chosen) a.modelValue = boss; });
     sbxRenderAgentSlots();
   }
 
@@ -373,7 +384,8 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     let agentResults = [];
     try {
       const agentPromises = sbxActiveAgents.map(async (agent) => {
-        const workerModel = agent.modelValue || currentModel;
+        // An agent nobody picked a model for runs on the boss's, whatever the menus showed when it was added.
+        const workerModel = (agent.chosen && agent.modelValue) || currentModel;
         sbxLog(agent.label, `Scanning… (${workerModel.split(":").pop().slice(0,24)})`);
         let result = "";
         try {
@@ -510,6 +522,7 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     }
 
     sbxInitAgents();
+    document.getElementById("sbxModelSelect")?.addEventListener("change", sbxFollowBoss);
   }
 
   if (document.readyState === "loading") {
