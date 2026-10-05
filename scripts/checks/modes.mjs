@@ -292,6 +292,9 @@ console.log('\nShared files naming a mode go down, never up:');
   const sandbox = read('modes/sandbox/mode.js');
   check('a Sandbox agent nobody picked a model for runs on the boss\'s model, and follows the boss when it changes', /const workerModel = \(agent\.chosen && agent\.modelValue\) \|\| currentModel;/.test(sandbox) && /getElementById\("sbxModelSelect"\)\?\.addEventListener\("change", sbxFollowBoss\)/.test(sandbox) && /sbxActiveAgents\.forEach\(\(a\) => \{ if \(!a\.chosen\) a\.modelValue = boss; \}\)/.test(sandbox));
   check('... and one picked by hand keeps its model', /sbxActiveAgents\[i\]\.modelValue = sel\.value; sbxActiveAgents\[i\]\.chosen = true;/.test(sandbox));
+  const coder = read('modes/code/mode.js');
+  check('HashCoder lists its file panel and its symbols without ever asking', /const entries = await HC\.code\.listQuietly\(dir\);/.test(coder) && /for \(const f of \(await HC\.code\.listQuietly\(root\)\) \|\| \[\]\)/.test(coder) && !/HC\.code\.listDir\(/.test(coder));
+  check('... and a last project whose folder cannot be opened again is closed at launch, not listed', /Promise\.resolve\(HC\?\.guard\?\.setProjectRoot\?\.\(state\.projectRoot\)\)\.then\(\(set\) => \(set \|\| !HC\?\.isTauri \? renderExplorerTree\(state\.projectRoot\) : projectGone\(state\.projectRoot\)\)\)/.test(coder) && /function projectGone\(root\) \{ clearFilesPanel\(\);/.test(coder));
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }
 

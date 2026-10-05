@@ -782,7 +782,9 @@ const LINE_BUDGET = {
   // 2491, up two: the project is read before a run finishes, for a name the
   // request changes that is still written (js/code/verify.js renameOf) and
   // for files the run changed that are not joined up (js/code/wiring.js).
-  'modes/code/mode.js': 2491,
+  // 2490, down one: a project folder that cannot be opened again at launch is
+  // closed rather than listed, and the file panel lists without asking.
+  'modes/code/mode.js': 2490,
 };
 
 console.log('\nFile sizes go down, never up:');

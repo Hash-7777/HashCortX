@@ -473,7 +473,7 @@
   }
 
   HC.guard = {
-    // Set the current project root — all paths inside are auto-approved for safe actions
+    // Set the current project root — all paths inside are auto-approved for safe actions. Resolves to the folder opened, or undefined if it could not be.
     setProjectRoot(path) {
       _projectRoot = path || null;
       // Pre-seed session so the agent never has to wait for a dialog within the project

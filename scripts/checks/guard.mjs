@@ -368,6 +368,12 @@ console.log('\nReading the app does on its own never asks:');
   guard.clearProjectRoot();
   sandbox.HC.invoke = () => Promise.resolve(true);
   await check('with no project open, nothing is read', () => quiet('read', R + '/src/main.rs'), { allowed: false, asked: false });
+  // HashCoder reopens the last project only when its folder can be opened again.
+  sandbox.HC.invoke = (cmd, args) => (cmd === 'fs_set_root' ? Promise.resolve(args.path) : Promise.resolve());
+  assert('opening a project folder says so', !!(await guard.setProjectRoot(R)));
+  sandbox.HC.invoke = (cmd) => (cmd === 'fs_set_root' ? Promise.reject(new Error('that folder cannot be opened')) : Promise.resolve());
+  assert('a folder that cannot be opened says so too', !(await guard.setProjectRoot(R + '-moved')));
+  sandbox.HC.invoke = () => Promise.resolve(true);
   guard.setProjectRoot(R);
 
   guard.notify = notify;

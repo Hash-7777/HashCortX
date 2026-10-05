@@ -320,9 +320,9 @@
           sharedState.homeDir = state.homeDir || sharedState.homeDir;
           sharedState.activeFile = state.activeFile || null;
           syncProjectLabel();
-          HC?.guard?.setProjectRoot?.(state.projectRoot);
           setExplorerRootLabel(state.projectRoot);
-          renderExplorerTree(state.projectRoot).catch(() => {});
+          // A folder moved or deleted since is not opened again, and nothing asks about it.
+          Promise.resolve(HC?.guard?.setProjectRoot?.(state.projectRoot)).then((set) => (set || !HC?.isTauri ? renderExplorerTree(state.projectRoot) : projectGone(state.projectRoot))).catch(() => {});
         }
         // A new launch starts a new conversation: the last is kept in Sessions and the project stays open (leaving HashCoder and coming back never comes here).
         if (Array.isArray(state.chatHistory) && state.chatHistory.length) { sharedState.lastRun = state.run || null; cdrTraceEntries = Array.isArray(state.trace) ? state.trace : []; sharedState.changeIds = Array.isArray(state.changes) ? state.changes : []; sharedState.changesUpTo = Array.isArray(state.changes) ? 0 : Date.now(); conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; sharedState.lastRun = null; cdrTraceEntries = []; sharedState.changeIds = []; sharedState.changesUpTo = 0; saveCoderState(); }
@@ -710,6 +710,7 @@
       if (sidebar) sidebar.classList.add('open');
       saveCoderState();
     }
+    function projectGone(root) { clearFilesPanel(); const body = $('cdrExplorerBody'); if (body) body.innerHTML = `<div class="cdr-tree-empty">${esc(baseName(root))} could not be opened again; it may have been moved or deleted. Open a project to start.</div>`; }   // the last project's folder, at launch
 
     async function openFile() {
       const file = await pickFile();
@@ -786,10 +787,8 @@
       if (!container) return;
       if (!parentEl) container.innerHTML = '<div class="cdr-tree-empty">Loading…</div>';
       try {
-        // Use HC.code.listDir so the guard can log the access in the audit trail.
-        // The permission dialog is suppressed because the user explicitly opened this
-        // project folder, so the guard treats it as session-trusted.
-        const entries = await HC.code.listDir(dir);
+        // The app's own reading: listed inside the open project without a question, never asked about outside it.
+        const entries = await HC.code.listQuietly(dir);
         if (!parentEl) container.innerHTML = '';
         if (!entries?.length) {
           if (!parentEl) container.innerHTML = '<div class="cdr-tree-empty">Empty directory</div>';
@@ -844,7 +843,7 @@
       if (!window.HC?.isTauri || !root || !window.HCCodeMap) return;
       const symbols = {}; // path → [{name, kind, line}]
       try {
-        for (const f of (await HC.code.listDir(root)) || []) {
+        for (const f of (await HC.code.listQuietly(root)) || []) {
           const lang = !f.is_dir && !f.name.startsWith('.') && window.HCCodeMap.langOf(f.name);
           if (!lang) continue;
           // Read whole and without asking: a file the project would need a question for is left out.

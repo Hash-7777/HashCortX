@@ -1096,6 +1096,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder no longer asks a question of its own at launch.** It reopens
+  the last project when it starts, and when that folder had been moved or
+  deleted it asked permission to list it, a question nobody had caused. A
+  project whose folder cannot be opened again is now closed, and the file
+  panel says so. The file panel and the symbols list read the project
+  without ever asking, as the app's own reading does elsewhere: whatever
+  would need a question is left out (`src/modes/code/mode.js`).
+
 - **HashCoder does not write a Word file, a PDF or a picture as text.** A
   model asked for a Word document wrote its XML as the file's text, which
   never opens. Writing a packed file (Word, Excel, PowerPoint, PDF, an
