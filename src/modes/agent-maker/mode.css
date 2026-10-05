@@ -361,7 +361,7 @@ body.agent-maker-mode #app { display: none; }
 }
 
 .amk-result-btn {
-  margin-left: 4px; padding: 6px 16px; gap: 7px; flex-shrink: 0;
+  margin-left: 4px; padding: 6px 16px; gap: 7px; flex-shrink: 0; align-self: flex-start;
   font-weight: 700;
   background: var(--ok); border-color: var(--ok); color: var(--accent-ink);
 }
