@@ -1083,6 +1083,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The start screen says what is true.** Its lines said model routing, the
+  interface and the agents were ready, on a timer, though nothing had been
+  checked; they now say each one has loaded, which is all that is known
+  when they are written.
+
 - **A refused key is said as one, in every mode.** An account set aside
   because its key was refused was described to every later agent of the run
   as out of quota, which points at the wrong thing to fix; why an account

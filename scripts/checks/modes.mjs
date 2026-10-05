@@ -285,5 +285,12 @@ console.log('\nShared files naming a mode go down, never up:');
   }
 }
 
+{
+  // The first screen claims nothing it did not check: the lines say each part
+  // loaded, which is all that is true when main.js runs.
+  const main = read('main.js');
+  check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (mode contract)`);
 process.exit(fail ? 1 : 0);

@@ -418,12 +418,14 @@
       setTimeout(() => {
         if (!exited && loadingBar) loadingBar.classList.add('done');
       }, 360);
+      // main.js runs after every script has loaded, so each line says that much
+      // and no more: nothing here has reached a model or checked a provider.
       setOk(statOllama, '[ ok ]');
-      if (txtOllama) txtOllama.textContent = 'model routing · ready';
+      if (txtOllama) txtOllama.textContent = 'model routing · loaded';
       setOk(statDrone, '[ ok ]');
-      if (txtDrone) txtDrone.textContent = 'interface core · ready';
+      if (txtDrone) txtDrone.textContent = 'interface core · loaded';
       setOk(statAgents, '[ ok ]');
-      if (txtAgents) txtAgents.textContent = 'agents · runtime ready';
+      if (txtAgents) txtAgents.textContent = 'agents · loaded';
       setOk(statWarm, '[ ok ]');
       if (txtWarm) txtWarm.textContent = 'HashCortx ready · awaiting operator';
     };
