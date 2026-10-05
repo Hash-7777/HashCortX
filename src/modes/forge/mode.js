@@ -1274,6 +1274,7 @@
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      toneMapped: false,
     });
     mat.userData.logoTexture = texture;
     return mat;
@@ -1304,6 +1305,7 @@
       opacity: 0,
       side: THREE.DoubleSide,
       depthWrite: false,
+      toneMapped: false,   // the picture's own colours, as the plain intro image shows them; the scene's grading turned its white cream
     }), { userData: { ready } });
   }
 
@@ -1345,7 +1347,7 @@
     if (node.type !== "logo" && node.type !== "logo_img") {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-    }
+    } else mesh.renderOrder = 2;   // a see-through picture drawn after the floor grid, so the grid behind it does not cross it
     // A part that cuts is drawn as an outline, so a bore and a boss do not
     // look identical until the model is fused.
     applyMaterialRoleLook(mesh, node);
@@ -3369,17 +3371,12 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
       name: "HashCortx intro mark",
       _introLogo: true,
       nodes: [
-        // A third copy of the mark used to sit behind these two, scaled up,
-        // offset and tinted teal, to give the logo a halo. It was the last
-        // teal in the app and it read as a smudge behind the artwork.
+        // One copy of the mark. A second, tinted and offset by a few
+        // hundredths, sat behind it and drew every stroke twice.
         { id: "hcx_main", name: "HashCortx logo", role: "surface", type: "logo_img",
           position: [0, 0.2, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
           params: { width: 4.0, height: 2.6, src: "/assets/hashcortx-logo.png" },
           color: "#ffffff", opacity: 0.98 },
-        { id: "hcx_gold_sheen", name: "Gold sheen overlay", role: "detail", type: "logo_img",
-          position: [-0.03, 0.22, 0.04], rotation: [0, 0, 0], scale: [1, 1, 1],
-          params: { width: 4.05, height: 2.63, src: "/assets/hashcortx-logo.png" },
-          color: "#c9a96e", opacity: 0.22 },
       ],
     };
   }

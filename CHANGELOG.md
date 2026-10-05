@@ -1057,6 +1057,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The 3D Forge's opening mark is drawn once, in its own white, in front of
+  the floor.** A second copy of the mark, tinted gold and offset by a few
+  hundredths, sat behind it and gave every stroke a ghost edge; it is gone.
+  The scene's colour grading no longer turns the picture's white to cream, so
+  the 3D mark matches the plain image it takes over from, and it is drawn
+  after the floor grid, so the grid behind it no longer crosses its strokes.
+
 - **A Swarm site's server script is no longer put into the page.** A script
   the page does not link was added to it so nothing the agents wrote was
   dropped, and that included one written for a server, which then failed
