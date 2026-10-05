@@ -24,6 +24,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { window: {}, JSON, String, Array, Object, Map, Set, Number, RegExp, Error };
 vm.createContext(box);
 vm.runInContext(src('js', 'fences.js'), box, { filename: 'fences.js' });
+vm.runInContext(src('js', 'code', 'digest.js'), box, { filename: 'digest.js' });
 vm.runInContext(src('js', 'code', 'merge.js'), box, { filename: 'merge.js' });
 vm.runInContext(src('js', 'code', 'light.js'), box, { filename: 'light.js' });
 const L = box.window.HCCodeLight;
@@ -116,6 +117,23 @@ console.log('\nWhat the model reads back:');
   const long = L.callMessages([{ role: 'assistant', content: '', tool_calls: [call('9', 'read_file', { path: 'big.txt' })] }, { role: 'tool', tool_call_id: '9', name: 'read_file', content: 'x'.repeat(20000) }]);
   ok('a very long result is cut, and says how much', long[1].content.length < 7000 && /\[cut: \d+ more characters\]/.test(long[1].content));
   ok('an empty or missing conversation gives an empty one', L.callMessages([]).length === 0 && L.callMessages(null).length === 0);
+
+  // A command's record is read as text: how it ended, then its own lines.
+  const ran = (record) => L.callMessages([{ role: 'assistant', content: '', tool_calls: [call('7', 'shell_run', { command: 'npm', args: ['test'] })] },
+    { role: 'tool', tool_call_id: '7', name: 'shell_run', content: JSON.stringify(record, null, 2) }])[1].content;
+  const failed = ran({ stdout: 'not ok 1 - range\n  expected: 5\n  actual: 4\n', stderr: '', code: 1, timedOut: false, truncated: false, stopped: false });
+  ok('a command\'s record is shown with its exit code and its own line breaks, not as escaped JSON',
+    /^The output of npm test \(exit code 1, it failed\):\n```\nnot ok 1 - range\n  expected: 5\n  actual: 4\n```/.test(failed) && !/\\n|"stdout"/.test(failed));
+  ok('a passing run says exit code 0, and the error stream follows the output', /\(exit code 0\):\n```\nok 1\nwarn\n```/.test(ran({ stdout: 'ok 1\n', stderr: 'warn\n', code: 0 })));
+  ok('a run out of time says so, and one that printed nothing says that', /\(it ran out of time and was stopped\):\n```\n\(it printed nothing\)\n```/.test(ran({ stdout: '', stderr: '', code: -1, timedOut: true })));
+  const passes = Array.from({ length: 400 }, (_, i) => `ok ${i + 1} - case ${i + 1}`).join('\n');
+  const buried = ran({ stdout: `${passes}\nnot ok 401 - the one that broke\n# pass 400\n# fail 1\n`, stderr: '', code: 1 });
+  ok('a long run keeps its failure and its ending, not only its start', buried.length < 3200 && /not ok 401 - the one that broke/.test(buried) && /# fail 1/.test(buried) && /ok 1 - case 1\n/.test(buried));
+  const digest = box.window.HCCodeDigest; box.window.HCCodeDigest = undefined;
+  const plainCut = ran({ stdout: `${passes}\n# fail 1\n`, stderr: '', code: 1 });
+  box.window.HCCodeDigest = digest;
+  ok('without the digest a long run keeps its start and its end', plainCut.length < 3200 && /ok 1 - case 1\n/.test(plainCut) && /# fail 1/.test(plainCut) && /\[cut: \d+ characters\]/.test(plainCut));
+  ok('a result that is not a command\'s record is shown as it came', /The output of npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')));
 }
 
 console.log('\nWhat it is told:');

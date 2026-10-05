@@ -371,6 +371,22 @@
 
   const clip = (text, max) => { const s = String(text == null ? '' : text); return s.length > max ? `${s.slice(0, max)}\n[cut: ${s.length - max} more characters]` : s; };
 
+  /**
+   * A command's record as a person would read it: how it ended first, then
+   * what it printed with its own line breaks. A long output keeps the lines
+   * that report a failure and its ending (js/code/digest.js) rather than only
+   * its start, where a test runner lists what passed.
+   */
+  function runText(body, max) {
+    let r = null;
+    try { r = JSON.parse(body); } catch { /* plain text */ }
+    if (!r || typeof r !== 'object' || (typeof r.stdout !== 'string' && typeof r.stderr !== 'string')) return null;
+    const shorten = (t) => (t.length <= max ? t : window.HCCodeDigest ? window.HCCodeDigest.digestText(t, max) : `${t.slice(0, max >> 1)}\n[cut: ${t.length - max} characters]\n${t.slice(-(max >> 1))}`);
+    const printed = [r.stdout, r.stderr].map((s) => String(s || '').replace(/\s+$/, '')).filter(Boolean).join('\n');
+    const ended = r.timedOut ? 'it ran out of time and was stopped' : r.stopped ? 'it was stopped' : typeof r.code === 'number' ? `exit code ${r.code}${r.code === 0 ? '' : ', it failed'}` : '';
+    return { ended, printed: printed ? shorten(printed) : '(it printed nothing)' };
+  }
+
   /** One result, as a person's note to the model. */
   function resultText(message, call) {
     const a = call ? argsOf(call) : {};
@@ -382,7 +398,12 @@
     if (error) return `That did not work${a.path ? ` for ${a.path}` : ''}: ${clip(error, 400)}`;
     if (name === 'write_file') return `Wrote ${a.path}.`;
     if (name === 'read_file') return `${a.path}:\n${TICKS}\n${clip(body, 6000)}\n${TICKS}`;
-    if (name === 'shell_run') return `The output of ${[a.command, ...(Array.isArray(a.args) ? a.args : [])].filter(Boolean).join(' ')}:\n${TICKS}\n${clip(body, 2500)}\n${TICKS}`;
+    if (name === 'shell_run') {
+      const command = [a.command, ...(Array.isArray(a.args) ? a.args : [])].filter(Boolean).join(' ');
+      const run = runText(body, 2500);
+      if (run) return `The output of ${command}${run.ended ? ` (${run.ended})` : ''}:\n${TICKS}\n${run.printed}\n${TICKS}`;
+      return `The output of ${command}:\n${TICKS}\n${clip(body, 2500)}\n${TICKS}`;
+    }
     return clip(body, 1500);
   }
 

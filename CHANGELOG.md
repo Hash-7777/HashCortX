@@ -34,7 +34,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   changes whole after a `FILE:` line and asking for a file it needs with
   `READ:`, and the app turns that answer into the same steps a larger
   model takes: each file still asks before it is written, can be undone,
-  and is recorded, and the project's tests are run for it. A file written
+  and is recorded, and the project's tests are run for it. A command's
+  result is given to it as text: how it ended, then what it printed, a long
+  output keeping its failures and its ending. A file written
   much shorter than it is, or one the answer was cut off inside, is not
   written and is asked for again whole; one written again exactly as it is
   ends the work; code shown with no file named is asked to be named. A
