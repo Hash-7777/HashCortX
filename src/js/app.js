@@ -4944,7 +4944,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     } catch (err) {
       if (err.name !== "AbortError") showError(err);
     } finally {
-      if (assistant.thinking) assistant.thoughtMs = (assistant.firstTokenAt || Date.now()) - (assistant.thoughtStart || assistant.startedAt);
+      if (assistant.thinking) assistant.thoughtMs = (assistant.firstTokenAt || Date.now()) - (assistant.thoughtStart || assistant.startedAt); if (assistant.content) assistant.content = HCPromptPrivacy.withoutQuotes(assistant.content, buildOllamaMessages().filter((m) => m.role === "system").map((m) => m.content));   // an answer does not repeat its instructions (js/prompt-privacy.js)
       // If the stream completed but produced no content, surface a clear error
       // instead of leaving an empty bubble with no indication of what happened.
       if (!assistant.content && !assistant.images?.length) {
@@ -5060,7 +5060,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // the right endpoint with the stored key, and local ones talk to Ollama
   // directly. It used to live at the bottom of the file inside a swarm
   // implementation nothing could reach.
-  async function ollamaChat(model, messages, onToken, signal, { json } = {}) {   // json: a local model must answer in JSON
+  async function ollamaChat(model, given, onToken, signal, { json } = {}) { const messages = json ? given : HCAgentShape.withPrivacyRule(given, HCPromptPrivacy.RULE), kept = (text) => (json ? text : HCPromptPrivacy.withoutQuotes(text, HCAgentShape.appTextOf(messages)));   // json: a local model must answer in JSON; any other answer is told, and kept from, its instructions (js/prompt-privacy.js)
     if (model && model.startsWith("cloud:")) {
       let full = "";
       await streamWithModelValue({
@@ -5071,7 +5071,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         signal,
         temperature: 0.7,
       });
-      return full;
+      return kept(full);
     }
     const host = window.HashCortxRuntime ? window.HashCortxRuntime.getHost() : "http://localhost:11434";
     // Read through js/local-client.js, which gathers whole lines across chunk
@@ -5079,7 +5079,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const reply = await HCLocal.chat(host, { model, messages, json, numCtx: await HCLocalContext.numCtx(host, model, messages) }, {
       signal, onToken: onToken ? (tok, full) => onToken(tok, full) : undefined,
     });
-    return reply.content;
+    return kept(reply.content);
   }
 
   // HISTORY_LIMIT is declared near the memory-depth slider block above.
@@ -5093,7 +5093,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const projectInstructions = (currentProject()?.instructions || "").trim();
     const baseSys = (agent && agent.systemPrompt) ? agent.systemPrompt.trim() : systemEl.value.trim();
     const modeSys = isForgeMode() ? FORGE_ARCHITECT_PROMPT : "";
-    const sys = [baseSys, modeSys, projectInstructions ? `[PROJECT INSTRUCTIONS]\n${projectInstructions}` : ""].filter(Boolean).join("\n\n");
+    const sys = [baseSys, modeSys, projectInstructions ? `[PROJECT INSTRUCTIONS]\n${projectInstructions}` : "", HCPromptPrivacy.RULE].filter(Boolean).join("\n\n");   // the last line: instructions are private (js/prompt-privacy.js)
     if (sys) arr.push({ role: "system", content: sys });
 
     const all = state.messages;
@@ -6132,7 +6132,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       answer: async (msgs, toolsRun) => {
         if (assistant.content) { assistant.content = ""; updateLastBubble(""); }   // only the last answer stands
         const view = HCDecide.shower(onFinalToken);
-        const text = await chat(msgs, { onToken: view.onToken, plain: toolsRun > 0 });
+        const text = HCPromptPrivacy.withoutQuotes(await chat(msgs, { onToken: view.onToken, plain: toolsRun > 0 }), msgs.filter((m) => m.role === "system").map((m) => m.content));   // not its instructions (js/prompt-privacy.js)
         view.finish(text, HCAgentShape.toolCallsInText(text, names).length > 0);
         return text;
       },

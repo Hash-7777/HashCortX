@@ -547,7 +547,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   agent's own instructions and keeps the app's behind what is typed, and a
   team exported to a file carries its own instructions only. HashCoder's
   conversation export leaves out the notes the app sent the model, which
-  travelled as messages from the person (`js/prompt-privacy.js`).
+  travelled as messages from the person (`js/prompt-privacy.js`). Every
+  model, in every mode, is told its instructions are private, and a
+  paragraph of a finished answer that repeats twelve words of them, or of a
+  note the app sent, in a row is taken out, its code never; an answer that
+  was nothing else is a short refusal. docs/SECURITY.md says what this
+  catches and what it does not.
 
 - **Long-term memory has a switch, and HashCoder uses it only when you turn
   it on.** Memory holds short facts about you, saved from what you write,

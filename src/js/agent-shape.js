@@ -535,8 +535,27 @@
    * finishCutOff) and says on the result whether it had to, and whether it
    * is still cut off.
    */
+  /**
+   * The app's own text in a request: its instructions and the notes it added,
+   * which an answer is not to repeat (js/prompt-privacy.js).
+   */
+  const appTextOf = (messages) => (messages || []).filter((m) => m && (m.role === 'system' || m.note || /^Note from HashCortx?,? not from the person/i.test(String(m.content || '')))).map((m) => String(m.content || ''));
+
+  /** The request with the line about private instructions after its instructions, given once. */
+  function withPrivacyRule(messages, rule) {
+    const list = Array.isArray(messages) ? messages : [];
+    const at = list.findIndex((m) => m && m.role === 'system');
+    if (at < 0) return [{ role: 'system', content: rule }, ...list];
+    if (String(list[at].content || '').includes(rule)) return list;
+    return list.map((m, i) => (i === at ? { ...m, content: `${m.content || ''}\n\n${rule}` } : m));
+  }
+
   function routeModelTurn(request, fns, deps) {
     const started = Date.now();
+    // Every model is told its instructions are private, and an answer that
+    // repeats them, or a note the app sent, is not kept as it came.
+    const PP = typeof window !== 'undefined' && window.HCPromptPrivacy;
+    if (PP && request && Array.isArray(request.messages)) request = { ...request, messages: withPrivacyRule(request.messages, PP.RULE) };
     const first = routeLearning(request, fns, deps);
     if (!first || typeof first.then !== 'function') return first;
     // A continuation is the rest of an answer, not a whole one: not held to JSON.
@@ -548,6 +567,7 @@
       const S = typeof window !== 'undefined' && window.HCModelSpeed;
       const text = String((turn && turn.content) || '');
       if (S && request.modelValue && text.trim()) S.record(request.modelValue, { ms: Date.now() - started, chars: text.length });
+      if (PP && text && !request.json) { const kept = PP.withoutQuotes(text, appTextOf(request.messages)); if (kept !== text) return { ...turn, content: kept }; }
       return turn;
     });
   }
@@ -658,5 +678,7 @@
     extractPythonFence,
     selectAgentAdapter,
     routeModelTurn,
+    withPrivacyRule,
+    appTextOf,
   };
 })();

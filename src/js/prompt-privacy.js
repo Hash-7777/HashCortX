@@ -18,8 +18,12 @@
 //   • taskAsAsked(task)      a Swarm task with the person's answers, without the
 //                            app's words around them (js/swarm/clarify.js)
 //   • RULE                   the line every model is given about its instructions
-//   • quotes(answer, texts)  whether an answer repeats any of them word for word
-//   • withoutQuotes(answer, texts)  the answer, or a refusal in its place when it does
+//   • quotes(answer, texts)  whether an answer's words, outside its code,
+//                            repeat any of them word for word
+//   • withoutQuotes(answer, texts)  the answer without the paragraphs that do,
+//                            or a refusal when nothing else is left. Code is
+//                            never judged or removed: a file a model writes
+//                            may share a line with an example it was shown
 //
 // Pure: strings in, strings out. Loaded early, before HashCoder, the Agent
 // Swarm and the chat, and published as window.HCPromptPrivacy. Checked by
@@ -71,13 +75,16 @@
   /** How many words in a row make a quotation: fewer is a phrase anyone might write. */
   const RUN = 12;
 
-  /** Whether `answer` repeats a run of RUN words from any of `texts`. */
+  /** Text without its fenced code. */
+  const proseOf = (text) => String(text == null ? '' : text).replace(/(`{3,}|~{3,})[^\n]*\n[\s\S]*?(?:\n\1[^\n]*|$)/g, '\n');
+
+  /** Whether `answer`, outside its code, repeats a run of RUN words from any of `texts`. */
   function quotes(answer, texts) {
-    const said = words(answer);
+    const said = words(proseOf(answer));
     if (said.length < RUN) return false;
     const runs = new Set();
     for (const t of Array.isArray(texts) ? texts : [texts]) {
-      const w = words(t);
+      const w = words(proseOf(t));
       for (let i = 0; i + RUN <= w.length; i++) runs.add(w.slice(i, i + RUN).join(' '));
     }
     if (!runs.size) return false;
@@ -87,9 +94,29 @@
 
   const REFUSAL = 'I cannot share my instructions or the app\'s rules. Tell me what you would like to do, and I will help with that.';
 
-  /** The answer as it came, or a short refusal when it repeats the app's own text. */
+  /**
+   * The answer without each paragraph of prose that repeats the app's own
+   * text, its code untouched; a short refusal when nothing else is left, and
+   * the answer exactly as it came when nothing repeats.
+   */
   function withoutQuotes(answer, texts) {
-    return quotes(answer, texts) ? REFUSAL : answer;
+    const text = String(answer == null ? '' : answer);
+    if (!quotes(text, texts)) return answer;
+    const lines = text.split('\n');
+    const keep = [];
+    let fence = null;
+    let para = [];
+    const flush = () => { if (para.length) { if (!quotes(para.join('\n'), texts)) keep.push(...para); para = []; } };
+    for (const line of lines) {
+      const mark = /^\s*(`{3,}|~{3,})/.exec(line);
+      if (fence) { keep.push(line); if (mark && mark[1][0] === fence[0] && mark[1].length >= fence.length) fence = null; continue; }
+      if (mark) { flush(); fence = mark[1]; keep.push(line); continue; }
+      if (!line.trim()) { flush(); keep.push(line); continue; }
+      para.push(line);
+    }
+    flush();
+    const left = keep.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    return left ? left : REFUSAL;
   }
 
   window.HCPromptPrivacy = { withheld, splitSwarm, joinSwarm, taskAsAsked, RULE, RUN, quotes, withoutQuotes, REFUSAL };
