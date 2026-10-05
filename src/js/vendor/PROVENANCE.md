@@ -155,7 +155,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
   upstream security fixes published since 11.4.1, the version it replaced.
   12.0.0 is a new major version and was not taken.
 - **Used by:** chat, to draw `mermaid` code blocks in a reply, with
-  `securityLevel: "strict"` (`src/js/app.js`).
+  `securityLevel: "strict"` (`src/js/chat/diagrams.js`). It is not loaded at
+  startup; it is added the first time a conversation shows a diagram.
 - **Licence:** MIT. The notice below is reproduced as the licence requires.
   The bundle also carries the licence comments of the libraries built into
   it, at the end of the file.

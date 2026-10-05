@@ -980,14 +980,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     finishKeyMigration();
   });
 
-  try {
-    window.mermaid?.initialize?.({
-      startOnLoad: false,
-      securityLevel: "strict",
-      theme: "dark",
-    });
-  } catch {}
-
   function loadAgents() {
     try {
       const raw = localStorage.getItem("atelier_agents");
@@ -3862,7 +3854,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     msgs.scrollTop = msgs.scrollHeight;
     updateContextIndicator();
     requestAnimationFrame(() => {
-      renderMermaidDiagrams();
+      window.HCDiagrams?.draw(msgs);
       window.HC_CODE?.afterRender?.();
     });
   }
@@ -4346,15 +4338,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     };
     return renderer;
   })();
-
-  function renderMermaidDiagrams() {
-    if (!window.mermaid) return;
-    try {
-      window.mermaid.run({ nodes: msgs.querySelectorAll(".mermaid:not([data-processed='true'])") });
-    } catch (err) {
-      console.warn("[mermaid] render failed:", err);
-    }
-  }
 
   function formatContent(text) {
     if (!window.marked || !markdownRenderer) return fallbackFormatContent(text);

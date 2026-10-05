@@ -705,6 +705,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Mermaid, the library that draws diagrams, is loaded only when one is
+  shown.** It is the largest library the app ships and was loaded at every
+  start, though most sessions never show a diagram. It is now added the
+  first time a conversation holds a diagram, set up with the same strict
+  settings, and kept for the rest of the session; a library that fails to
+  load is tried again with the next diagram (`src/js/chat/diagrams.js`).
+
 - **The macOS menu bar is the app's own.** The app menu no longer carries
   the system's Services list, entries other installed apps register that
   act on text selected here. About HashCortx says the version once, not

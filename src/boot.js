@@ -121,6 +121,7 @@
     '/js/chat/sources.js',
     '/js/chat/intent.js',
     '/js/chat/decide.js',
+    '/js/chat/diagrams.js',
     '/js/model-speed.js',
     '/js/model-routes.js',
     '/js/markdown-safe.js',
