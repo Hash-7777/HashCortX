@@ -49,7 +49,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   ends the work; code shown with no file named is asked to be named. A
   line in which a file loads itself, a require or import of its own path or
   a Python import of its own module, is left out of what is written, and
-  the model is told which line it was. A
+  the model is told which line it was. A JavaScript file that would declare
+  one name twice at its top in a way the language refuses, a const, a let,
+  a class or an import among them, is not written, and the name and its
+  lines are said. A
   small model names its files in other ways too, and those are read: the
   "=== path ===" lines the project is shown to it with, a heading or a
   sentence just above a block naming one file, a comment naming the file

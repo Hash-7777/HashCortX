@@ -124,6 +124,28 @@ console.log('\nWhat it becomes:');
   ];
   ok('a file loading another of its name, a package, another package\'s module, or itself inside a longer line is left as written',
     others.every(([p, c]) => { const r = wrote(p, c); return r.calls[0].arguments.content === c && !/cannot load itself/.test(r.note); }));
+  // A name declared twice.
+  const pasted = wrote('src/api.js', "const { getUser } = require('./users');\n\nfunction userResponse(id) {\n  return getUser(id);\n}\n\nfunction getUser(id) {\n  return null;\n}\n\nmodule.exports = { userResponse };\n");
+  ok('a file that loads a name and defines it too is not written, and the name and both lines are said',
+    pasted.calls.length === 0 && /src\/api\.js was not written: it declares getUser twice \(lines 1 and 7\)/.test(pasted.note) && /Then write src\/api\.js again, whole\./.test(pasted.note), pasted.note);
+  const forms = [
+    "const a = 1;\nconst a = 2;\n",
+    "class A {}\nfunction A() {}\n",
+    "import { a } from './x.js';\nexport const a = 1;\n",
+    "import b, { c as a } from './x.js';\nlet a = 2;\n",
+    "const { x, y: a } = require('./x');\nvar a = 1;\n",
+    "export default function a() {}\nconst a = 1;\n",
+  ];
+  ok('...with a const, a let, a class or an import among them, in each of their forms', forms.every((c) => wrote('src/m.js', c).calls.length === 0), forms.filter((c) => wrote('src/m.js', c).calls.length).join(' | '));
+  const allowed = [
+    "function a() {}\nfunction a() {}\n",
+    "var a = 1;\nvar a = 2;\n",
+    "function f(a: string): void;\nfunction f(a: number): void;\nfunction f(a) {}\n",
+    "const a = 1;\nfunction g() {\n  const a = 2;\n  return a;\n}\n",
+    "const { a } = require('./x');\nconst b = a;\n",
+  ];
+  ok('...not two functions or two vars, which the language allows, nor a name declared again inside a function', allowed.every((c, i) => wrote(i === 2 ? 'src/m.ts' : 'src/m.js', c).calls.length === 1), allowed.filter((c, i) => !wrote(i === 2 ? 'src/m.ts' : 'src/m.js', c).calls.length).join(' | '));
+  ok('...nor a file that is not JavaScript', wrote('stats.py', 'def a():\n    pass\n\ndef a():\n    pass\n').calls.length === 1 && wrote('NOTES.md', 'const a = 1;\nconst a = 2;\n').calls.length === 1);
   // A comment about the rename.
   const rename = { from: 'getUsr', to: 'getUser', file: '' };
   const renamed = (path, content) => L.plan({ writes: [{ path, content, guessed: false }], reads: [], said: '', cut: false }, {}, { rename });

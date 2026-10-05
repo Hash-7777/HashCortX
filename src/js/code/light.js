@@ -377,6 +377,44 @@
     return { content: lines.length ? out.join('\n') : content, lines };
   }
 
+  // A name declared twice at the top of a JavaScript file. A small model
+  // pastes one file into another, or loads a name and defines it too, and the
+  // file then does not load at all. Two functions or two vars of one name are
+  // allowed by the language; with a const, a let, a class or an import among
+  // them it is an error, so such a file is not written and the lines are said.
+  const NAME = '[A-Za-z_$][\\w$]*';
+  const DECLS = [
+    [new RegExp(`^(?:export\\s+(?:default\\s+)?)?(?:async\\s+)?function\\s*\\*?\\s*(${NAME})\\s*\\(`), 'function'],
+    [new RegExp(`^(?:export\\s+(?:default\\s+)?)?class\\s+(${NAME})\\b`), 'lexical'],
+    [new RegExp(`^(?:export\\s+)?(const|let|var)\\s+(${NAME})\\s*=`), 'binding'],
+  ];
+
+  /** The names declared twice at the top of a JavaScript file in a way the language refuses: `[{ name, lines }]`. */
+  function twiceDeclared(content, path) {
+    if (!/\.(?:[cm]?js|jsx|ts|tsx)$/i.test(String(path || ''))) return [];
+    const seen = new Map();
+    const add = (name, kind, n) => { if (!seen.has(name)) seen.set(name, []); seen.get(name).push({ kind, line: n + 1 }); };
+    String(content).split('\n').forEach((line, n) => {
+      for (const [re, kind] of DECLS) {
+        const m = re.exec(line);
+        if (!m) continue;
+        if (kind === 'binding') add(m[2], m[1] === 'var' ? 'var' : 'lexical', n); else add(m[1], kind, n);
+        return;
+      }
+      const taken = /^(const|let|var)\s+\{([^}]*)\}\s*=/.exec(line);
+      if (taken) for (const part of taken[2].split(',')) { const local = part.split(':').pop().split('=')[0].trim(); if (local) add(local, taken[1] === 'var' ? 'var' : 'lexical', n); }
+      const imported = /^import\s+(.+?)\s+from\s+['"]/.exec(line);
+      if (imported) {
+        const spec = imported[1];
+        const named = /\{([^}]*)\}/.exec(spec);
+        if (named) for (const part of named[1].split(',')) { const local = part.split(/\s+as\s+/).pop().trim(); if (local) add(local, 'lexical', n); }
+        const lead = spec.replace(/\{[^}]*\}/, '').replace(/\*\s+as\s+/, '').split(',')[0].trim();
+        if (lead) add(lead, 'lexical', n);
+      }
+    });
+    return [...seen].filter(([, ds]) => ds.length > 1 && ds.some((d) => d.kind === 'lexical')).map(([name, ds]) => ({ name, lines: ds.map((d) => d.line) }));
+  }
+
   function plan(parsed, current, { rename = null } = {}) {
     const M = window.HCCodeMerge;
     const notes = [];
@@ -400,9 +438,11 @@
       writes.push({ ...w, content });
     }
     const short = shrunk(writes, current);
+    const twice = writes.map((w) => ({ path: w.path, names: twiceDeclared(w.content, w.path) })).filter((t) => t.names.length);
     // A file written again exactly as it already is changes nothing: the model is done with it.
     const same = (w) => typeof (current && current[w.path]) === 'string' && current[w.path].replace(/\s+$/, '') === w.content.replace(/\s+$/, '');
-    const calls = callsFor({ ...parsed, writes: writes.filter((w) => !short.includes(w.path) && !same(w)) });
+    const calls = callsFor({ ...parsed, writes: writes.filter((w) => !short.includes(w.path) && !same(w) && !twice.some((t) => t.path === w.path)) });
+    for (const t of twice) notes.push(`${NOTE} ${t.path} was not written: it declares ${t.names.map((d) => `${d.name} twice (lines ${d.lines.join(' and ')})`).join(', and ')}, and a file that does that does not load. Declare each name once: a name loaded from another file is not defined again, and no other file is copied in. Then write ${t.path} again, whole.`);
     if (renameNotes.length) notes.push(`${NOTE} a comment about the rename named "${rename.from}" again, so it was left out of ${renameNotes.join(' and ')}. Write no comment about what you changed.`);
     if (selfLoads.length) notes.push(`${NOTE} a file cannot load itself, so the line that did was left out of ${selfLoads.join(' and ')}. Load a file only from another file that uses it.`);
     if (unsure.length) notes.push(`${NOTE} the code in your answer did not say which file it is for, and it is not ${named(unsure)}, so nothing was written for it. Put a line FILE: and the path just above each file you write, with the whole file in the block.`);
