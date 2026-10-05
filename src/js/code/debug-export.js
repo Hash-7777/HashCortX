@@ -14,10 +14,11 @@
 //     export made after the app was reopened, or from a session opened again,
 //     names the model that answered and not the one picked since.
 //   • The trace, as the panel recorded it, with its times, kept the same way.
-//   • The conversation as the model was sent it: the instructions, each
-//     request with what the app added to it, each call the agent made with its
-//     arguments, each result, and each note the app added, told apart from
-//     what the person wrote.
+//   • The conversation as the model was sent it: each request, each call the
+//     agent made with its arguments, and each result. The app's own text, its
+//     instructions, what it added to a request and the notes it sent, is
+//     marked where it stood with its kind and its length, never its words
+//     (js/prompt-privacy.js).
 //
 // Long text is folded so the file reads from the top and opens where wanted;
 // a block of code is fenced with more backticks than any it holds, so nothing
@@ -39,7 +40,8 @@
 
   /** Text cut to this many characters per message, with a note of what was left out. */
   const MAX_CHARS = 60000;
-  const MAX_SYSTEM = 30000;
+  /** The app's own text, in a report: js/prompt-privacy.js, or its kind and length when that did not load. */
+  const withheld = (kind, text) => (window.HCPromptPrivacy ? window.HCPromptPrivacy.withheld(kind, text) : `[${kind}: ${String(text == null ? '' : text).length} characters, not included]`);
 
   // What a key looks like, by the shapes each provider the app offers gives
   // them (scripts/checks/secret-scan.mjs holds the same list for the commit
@@ -152,14 +154,14 @@
       const n = i + 1;
       const pictures = Array.isArray(m.images) && m.images.length ? `\n\n[${count(m.images.length, 'picture', 'pictures')} with this message, not included in this file]` : '';
       if (m.role === 'system') {
-        const text = safe(cut(m.content, MAX_SYSTEM));
-        body.push(`### ${n} · instructions`, '', `<details><summary>${count(String(m.content || '').length, 'character', 'characters')}</summary>`, '', fenced(text, 'text'), '', '</details>', '');
+        body.push(`### ${n} · instructions`, '', withheld('instructions', m.content), '');
       } else if (m.role === 'user' && isAppNote(m)) {
-        body.push(`### ${n} · note from the app, not from the person`, '', fenced(safe(cut(m.content, MAX_CHARS)), 'text'), '');
+        const kind = (window.HCCodeVerify && window.HCCodeVerify.noteStep && window.HCCodeVerify.noteStep(m.content)) || '';
+        body.push(`### ${n} · note from the app${kind ? `: ${kind}` : ''}`, '', withheld('note', m.content), '');
       } else if (m.role === 'user') {
         body.push(`### ${n} · the person`, '', safe(cut(m.content, MAX_CHARS)) + pictures, '');
         // Sent with the request, after it (js/agent-context.js): the checklist, the site brief, what memory held.
-        if (typeof m.context === 'string' && m.context.trim()) body.push('<details><summary>Added by the app to this request</summary>', '', fenced(safe(cut(m.context, MAX_CHARS)), 'text'), '', '</details>', '');
+        if (typeof m.context === 'string' && m.context.trim()) body.push(withheld('added by the app to this request', m.context), '');
       } else if (m.role === 'assistant') {
         const made = callsOf(m);
         body.push(`### ${n} · the agent${made.length ? ` — ${count(made.length, 'call', 'calls')}` : ''}`, '');
@@ -244,5 +246,5 @@
     return true;
   }
 
-  window.HCCodeDebug = { MAX_CHARS, MAX_SYSTEM, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun };
+  window.HCCodeDebug = { MAX_CHARS, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun };
 })();

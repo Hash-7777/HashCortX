@@ -132,6 +132,17 @@ console.log('\nWhole-chat exports:');
   const txt = X.buildPlainText(msgs, { date: 'D' });
   ok('text names the speakers', txt.includes('>>> USER') && txt.includes('<<< AGENT'));
   ok('text leaves the system prompt out', !txt.includes('hidden'));
+  const withNotes = [
+    { role: 'user', content: 'fix it' },
+    { role: 'assistant', content: '', tool_calls: [{ id: 't1', function: { name: 'read_file', arguments: '{}' } }] },
+    { role: 'tool', tool_call_id: 't1', content: 'TOOL RESULT TEXT' },
+    { role: 'user', content: 'Note from HashCortX, not from the person: run the tests now.', note: true },
+    { role: 'user', content: 'a note marked only by its flag', note: true },
+    { role: 'assistant', content: 'done' },
+  ];
+  const both = X.buildMarkdown(withNotes, { date: 'D' }) + X.buildPlainText(withNotes, { date: 'D' });
+  ok('a note the app added for the model is not exported as if the person wrote it', !/run the tests now|marked only by its flag/.test(both));
+  ok('...nor a tool\'s result, nor an empty turn of calls; what was said is', !/TOOL RESULT TEXT/.test(both) && /fix it/.test(both) && /done/.test(both) && (X.buildMarkdown(withNotes, { date: 'D' }).match(/## Agent/g) || []).length === 1);
   ok('text with no project does not print an empty project line', !txt.includes('Project:'));
   ok('a message with no content does not print the word undefined',
     !X.buildMarkdown([{ role: 'user' }], { date: 'D' }).includes('undefined'));

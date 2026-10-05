@@ -28,6 +28,7 @@ function ok(label, cond, detail = '') {
 
 const box = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, Date, RegExp };
 vm.createContext(box);
+vm.runInContext(src('js', 'prompt-privacy.js'), box, { filename: 'prompt-privacy.js' });
 vm.runInContext(src('js', 'code', 'debug-export.js'), box, { filename: 'debug-export.js' });
 const D = box.window.HCCodeDebug;
 
@@ -91,14 +92,14 @@ console.log('\nThe trace, with its times:');
 
 console.log('\nThe conversation, as the model was sent it:');
 {
-  ok('the instructions are folded, with how long they are', /### 1 · instructions\n\n<details><summary>27 characters<\/summary>/.test(text));
+  ok('the instructions are marked where they stood, with how long they are, and their words are not written', /### 1 · instructions\n\n\[instructions: 27 characters, the app's own, not included\]/.test(text) && !/You are HashCoder|Rules\.\.\./.test(text));
   ok('the person\'s request is written as they wrote it', /### 2 · the person\n\nFix the spacing on the home page\./.test(text));
   ok('a call the agent made is named, with its arguments written out', /### 3 · the agent — 1 call\n\n\*\*`read_file`\*\*\n\n```json\n\{\n  "path": "src\/style\.css"\n\}\n```/.test(text));
   ok('words the agent wrote beside a call are kept', /### 5 · the agent — 1 call\n\nNow the edit\./.test(text));
   ok('a result is named after the call it answers, even when it does not say so', /### 4 · result of `read_file`\n/.test(text));
   ok('and folded, with how long it is', /### 4 · result of `read_file`\n\n<details><summary>19 characters<\/summary>/.test(text));
   ok('a result that says it failed is marked', /### 6 · result of `patch_file` — failed/.test(text));
-  ok('a note the app added is told apart from what the person wrote', /### 7 · note from the app, not from the person/.test(text) && !/### 7 · the person/.test(text));
+  ok('a note the app added is told apart from what the person wrote, by its length and not its words', /### 7 · note from the app\n\n\[note: \d+ characters, the app's own, not included\]/.test(text) && !/### 7 · the person/.test(text) && !/no test has run since/.test(text));
   ok('a picture is said to have been sent and not written out', /### 8 · the person\n\nsee this\n\n\[1 picture with this message, not included in this file\]/.test(text) && !/aGVsbG8/.test(text));
 }
 
@@ -116,7 +117,7 @@ console.log('\nLong text is cut, and says how much:');
   ok('a result is cut to the limit', t.includes('x'.repeat(100)) && !t.includes('x'.repeat(D.MAX_CHARS + 1)));
   ok('with a note of what was left out', /\[cut: 1,234 more characters\]/.test(t));
   ok('and the full length is still stated in its heading', new RegExp(`${(D.MAX_CHARS + 1234).toLocaleString('en-US')} characters`).test(t));
-  ok('the instructions have a limit of their own', D.cut('y'.repeat(D.MAX_SYSTEM + 5), D.MAX_SYSTEM).endsWith('[cut: 5 more characters]'));
+  ok('long text is cut and says how much was left out', D.cut('y'.repeat(D.MAX_CHARS + 5), D.MAX_CHARS).endsWith('[cut: 5 more characters]'));
 }
 
 console.log('\nWhat is shaped like a key is replaced, wherever it appears:');
@@ -185,7 +186,7 @@ console.log('\nThe run\'s own facts, kept with its conversation:');
   ok('an export after the app was reopened names the run\'s model, not the one picked since', /- Model: Label of cloud:groq:llama \(cloud:groq:llama\), after moving off cloud:openrouter:big/.test(saved) && !/later-pick/.test(saved));
   ok('... and how it was set up and the temperature it was sent', /- Set up for: mid, a cloud model, temperature 0\.2/.test(saved) && !/0\.9/.test(saved));
   const text = D.buildDebug({ messages: [{ role: 'user', content: 'Build it', context: 'Note from the app: the checklist' }], trace: [], facts: {} });
-  ok('what the app added to a request is shown with it, folded', /### 1 · the person\n\nBuild it\n\n<details><summary>Added by the app to this request<\/summary>/.test(text) && /the checklist/.test(text));
+  ok('what the app added to a request is marked with it, by its length and not its words', /### 1 · the person\n\nBuild it\n\n\[added by the app to this request: \d+ characters, the app's own, not included\]/.test(text) && !/the checklist/.test(text));
   ok('a request with nothing added shows no fold', !/Added by the app/.test(D.buildDebug({ messages: [{ role: 'user', content: 'Hi' }], facts: {} })));
   const mode = src('modes', 'code', 'mode.js');
   ok('the facts are taken as each run ends and saved with the conversation', /sharedState\.lastRun = window\.HCCodeDebug\.runFacts\(\{ routing, coderModel, sharedState, H: window\._H, temperature: HC\?\.code\?\.temperatureFor/.test(mode)

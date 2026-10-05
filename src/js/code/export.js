@@ -34,8 +34,13 @@
     return window.HCFences.codeBlocks(text).map(({ lang, code }) => ({ lang, code }));
   }
 
-  /** Messages that belong in an export: what the person and the agent said. */
-  const spoken = (msgs) => (Array.isArray(msgs) ? msgs : []).filter((m) => m && m.role !== 'system');
+  /**
+   * Messages that belong in an export: what the person and the agent said.
+   * Not the instructions, not a tool's result, and not a note the app added
+   * for the model, which travels as a message from the person.
+   */
+  const appNote = (m) => !!m.note || /^Note from HashCortx?,? not from the person/i.test(String(m.content || ''));
+  const spoken = (msgs) => (Array.isArray(msgs) ? msgs : []).filter((m) => m && ((m.role === 'user' && !appNote(m)) || (m.role === 'assistant' && String(m.content || '').trim())));
 
   const header = (title, opts) => {
     const lines = [title, 'Date: ' + (opts.date || new Date().toLocaleString())];

@@ -139,6 +139,8 @@ HashCortX/
 │   │   │                            for text a model wrote
 │   │   ├── fences.js           139  code fences, read as the chat draws them —
 │   │   │                            everything that looks for code uses it
+│   │   ├── prompt-privacy.js    96  the app's own instructions, kept to the
+│   │   │                            model: never shown, exported or repeated
 │   │   ├── export-format.js    471  the shared half of every export, and the
 │   │   │                            chat's PDF layout
 │   │   ├── diff.js             223  line and word diffs behind the change views

@@ -536,6 +536,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **The app's own instructions stay between the app and the model.** What
+  the app tells a model, its instructions, the notes it adds to a
+  conversation, the sections it adds to a Swarm agent and the framing around
+  sources, is no longer shown or written out. HashCoder's debugging export
+  and the Swarm's mark each by its kind and length; the Swarm's report keeps
+  an agent's own instructions, the answers given to the team's questions
+  and the plan's files, without the app's words around them; the chat's
+  context preview and its Copy JSON do the same; the Swarm's editor shows an
+  agent's own instructions and keeps the app's behind what is typed, and a
+  team exported to a file carries its own instructions only. HashCoder's
+  conversation export leaves out the notes the app sent the model, which
+  travelled as messages from the person (`js/prompt-privacy.js`).
+
 - **Long-term memory has a switch, and HashCoder uses it only when you turn
   it on.** Memory holds short facts about you, saved from what you write,
   and the ones that match go with your requests to whichever model answers,

@@ -31,6 +31,7 @@
   'use strict';
 
   const D = () => window.HCCodeDebug;
+  const PP = () => window.HCPromptPrivacy;
   const MAX_FILE = 40000;
 
   const cell = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|').replace(/\s+/g, ' ').trim();
@@ -84,7 +85,12 @@
       body.push(edges.length ? `Who hands work to whom: ${edges.map((e) => `${name(e.from)} → ${name(e.to)}`).join(', ')}.` : 'No links between the agents: each works on its own.', '');
       const lead = (run && run.leadAgentId) || bp.finalOutputAgentId;
       if (lead) body.push(`The lead, whose answer is the result: ${name(lead)}.`, '');
-      for (const a of agents) if (a.systemPrompt) body.push(...folded(`Instructions for ${a.name}`, safe(D().cut(a.systemPrompt, D().MAX_CHARS))));
+      // An agent's own instructions are the team's, shown in the Swarm; what the app adds after them is not (js/prompt-privacy.js).
+      for (const a of agents) {
+        if (!a.systemPrompt) continue;
+        const { own, app } = PP().splitSwarm(a.systemPrompt);
+        body.push(...folded(`Instructions for ${a.name}`, `${safe(D().cut(own, D().MAX_CHARS))}${app ? `\n\n${PP().withheld('added by the app', app)}` : ''}`));
+      }
     }
 
     body.push('## Trace', '');
@@ -101,7 +107,7 @@
       const who = t.who === 'you' ? 'the person' : t.who === 'team' ? 'the team\'s result' : `${name(t.who)}${(agents.find((a) => a.id === t.who) || {}).role ? ` (${agents.find((a) => a.id === t.who).role})` : ''}`;
       const mark = t.status === 'error' ? ' — failed' : t.status === 'skipped' ? ' — did not run' : t.status === 'resume' ? ' — run again for the agents that did not finish' : '';
       body.push(`### ${i + 1} · ${who}${mark}`, '', `At ${stamp(t.at)}.`, '');
-      const text = safe(D().cut(t.text, D().MAX_CHARS));
+      const text = safe(D().cut(t.who === 'you' ? PP().taskAsAsked(t.text) : t.text, D().MAX_CHARS));
       if (text.length > 1500) body.push(...folded(count(String(t.text || '').length, 'character', 'characters'), text, 'markdown'));
       else body.push(D().fenced(text, 'markdown'), '');
     });
@@ -134,10 +140,11 @@
       '',
       '## The task',
       '',
-      D().fenced(safe(String((run && (run.work || run.task)) || bp.task || '')), 'text'),
+      D().fenced(safe(PP().taskAsAsked(String((run && (run.work || run.task)) || bp.task || ''))), 'text'),
       '',
     );
-    if (run && run.plan) head.push(...folded('What it was to hand back (the plan)', safe(JSON.stringify(run.plan, null, 2)), 'json'));
+    // The plan's files, but not the bar it was held to: the app's own rules for the work.
+    if (run && run.plan) head.push(...folded('What it was to hand back (the plan)', safe(JSON.stringify({ ...run.plan, bar: (run.plan.bar || []).length ? PP().withheld('the bar', (run.plan.bar || []).join('\n')) : [] }, null, 2)), 'json'));
     return [...head, ...body].join('\n');
   }
 

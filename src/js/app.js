@@ -2855,7 +2855,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       else messages.splice(messages.length - 1, 0, { role: "system", content: toolContext });
     }
 
-    _previewPayload = messages;
+    _previewPayload = messages.map((m, i) => ({ ...m, content: m.role === "system" ? HCPromptPrivacy.withheld(i === 0 ? "instructions" : "sources the app added", m.content) : toolContext && String(m.content || "").startsWith(toolContext) ? `${HCPromptPrivacy.withheld("sources the app added", toolContext)}${m.content.slice(toolContext.length)}` : m.content }));   // shown and copied without the app's own words (js/prompt-privacy.js)
 
     // ── Stats ──
     const totalChars  = JSON.stringify(messages.map(m => ({ role: m.role, content: m.content }))).length;
@@ -2881,7 +2881,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       <span>Model: <b>${cloudModelLabel(modelEl.value) || '—'}</b></span>
     </div>`);
 
-    messages.forEach((m, i) => {
+    _previewPayload.forEach((m, i) => {
       const isPending = !!m._pending;
       const hasImg    = m.images?.length;
       const imgNote   = hasImg ? `\n\n[+ ${m.images.length} image(s) attached]` : "";

@@ -1567,7 +1567,7 @@ ${modelListStr}`;
     agent.name        = g("amkFName")?.value.trim()   || agent.name;
     agent.icon        = g("amkFIcon")?.dataset.val     || agent.icon;
     agent.role        = g("amkFRole")?.value           || agent.role;
-    agent.systemPrompt= g("amkFSystem")?.value.trim()  || agent.systemPrompt;
+    agent.systemPrompt= g("amkFSystem")?.value.trim() ? window.HCPromptPrivacy.joinSwarm(g("amkFSystem").value.trim(), agent.systemPrompt) : agent.systemPrompt;   // the app's sections stay behind what was typed (js/prompt-privacy.js)
     agent.model       = g("amkFModel")?.value          || "";
     agent.memory      = g("amkFMemory")?.value         || "project";
     agent.temperature = parseFloat(g("amkFTemp")?.value) || 0.7;
@@ -1977,7 +1977,7 @@ ${modelListStr}`;
       </div>
       <div class="amk-form-group">
         <label>System Prompt</label>
-        <textarea id="amkFSystem" rows="5" placeholder="You are a…">${escHtml(agent.systemPrompt||"")}</textarea>
+        <textarea id="amkFSystem" rows="5" placeholder="You are a…">${escHtml(window.HCPromptPrivacy.splitSwarm(agent.systemPrompt || "").own)}</textarea>
       </div>
       <div class="amk-form-group">
         <label>Memory</label>
@@ -2395,7 +2395,7 @@ function _polishToast(text, isError) {
       const bp = getActive();
       if (!bp) { await amkAlert("No active blueprint to export."); return; }
       await swarmSave((bp.name || "blueprint").replace(/\s+/g, "_") + ".json",
-        JSON.stringify(bp, null, 2), "application/json;charset=utf-8");
+        JSON.stringify({ ...bp, agents: (bp.agents || []).map((a) => ({ ...a, systemPrompt: window.HCPromptPrivacy.splitSwarm(a.systemPrompt || "").own })) }, null, 2), "application/json;charset=utf-8");   // each agent's own instructions, without the app's sections
     });
 
     // God Agent modal

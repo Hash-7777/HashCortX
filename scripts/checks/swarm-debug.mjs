@@ -19,6 +19,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
+vm.runInContext(src('js', 'prompt-privacy.js'), sandbox, { filename: 'prompt-privacy.js' });
 vm.runInContext(src('js', 'code', 'debug-export.js'), sandbox, { filename: 'debug-export.js' });
 sandbox.window.HCCodeDebug = sandbox.window.HCCodeDebug;
 vm.runInContext(src('js', 'swarm', 'debug-report.js'), sandbox, { filename: 'debug-report.js' });
@@ -65,6 +66,21 @@ ok('each agent\'s instructions, folded', /<summary>Instructions for Planner<\/su
 ok('the trace as a table, every row', /\| 61\.2s \| Planner \| err \| Planner failed: 504 \|/.test(text) && /\| 0\.0s \| Orchestrator \| boss \|/.test(text));
 ok('every turn, a failure marked as one', /### 2 · Planner \(planner\) — failed/.test(text) && /### 1 · the person/.test(text) && /### 4 · the team's result/.test(text));
 ok('every version, and the newest files', /- v1, by the team, at 2026-01-02 10:03:00: changed index\.html\./.test(text) && /<summary>index\.html · html · 1 line<\/summary>/.test(text) && /<h1>Bakery<\/h1>/.test(text));
+
+console.log('\nThe app\'s own words do not reach it:');
+{
+  const asked = 'Build a site for a nurse\n\nDetails from the person who asked. Use them exactly, and do not add to them or invent others of the same kind:\n- Your name? Mina\n\nNot given: Any brand colours? These were left unanswered and will not be asked again: never ask for them.';
+  const contract = 'Write the page.\n\nSTRICT CODE-BUILD CONTRACT:\n- Do not create DOCX.\n\nORCHESTRATION CONTRACT:\n- Required artifacts: index.html.';
+  const r = R.buildReport({
+    blueprint: { name: 'B', agents: [] },
+    run: { ...run, task: asked, work: asked, plan: { kind: 'build', items: [{ name: 'index.html' }], bar: ['no placeholder text, no lorem ipsum'] },
+      agents: [{ id: 'c', name: 'Coder', role: 'coder', systemPrompt: contract }], turns: [{ who: 'you', text: asked, at: Date.UTC(2026, 0, 2, 10, 0, 0) }] },
+    trace: [], facts: {},
+  });
+  ok('an agent\'s own instructions are kept, the sections the app adds are marked by length and not written', /Write the page\.\n\n\[added by the app: \d+ characters, the app's own, not included\]/.test(r) && !/CONTRACT|Do not create DOCX|Required artifacts/.test(r));
+  ok('the task and the person\'s turn keep the answers and the question left unanswered, not the app\'s words about them', /Details from the person who asked:\n- Your name\? Mina/.test(r) && /Left unanswered: Any brand colours\?/.test(r) && !/Use them exactly|will not be asked again|never ask/.test(r));
+  ok('the plan keeps its files, and its bar is marked by length and not written', /"name": "index\.html"/.test(r) && /"bar": "\[the bar: \d+ characters, the app's own, not included\]"/.test(r) && !/lorem ipsum/.test(r));
+}
 
 console.log('\nWhat must not reach it:');
 ok('a key in an agent\'s instructions is replaced, and the count is said', !text.includes(KEY) && /\[redacted: looked like a key\]/.test(text) && /- Keys: 1 string shaped like a key was replaced/.test(text));
