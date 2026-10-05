@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **64,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,200 lines of Rust**, measured on 1 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **68,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,800 lines of Rust**, measured on 5 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -27,13 +27,13 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── forge/            3,724  offline parametric part generator
+│   │   ├── forge/            3,721  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
 │   │   ├── virtual-os/       3,309  virtual project desktop
 │   │   ├── systems/          3,232  ERP: the system full screen, and its agent
-│   │   ├── agent-maker/      2,461  chain / vote / failover
-│   │   ├── code/             2,553  the HashCoder agent loop
+│   │   ├── agent-maker/      2,462  chain / vote / failover
+│   │   ├── code/             2,491  the HashCoder agent loop
 │   │   ├── finance/          2,357  financial document analysis
 │   │   └── sandbox/            535  security scanner
 │   │
@@ -83,7 +83,7 @@ HashCortX/
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
 │   │   │                            by how it answers, not only by its name
-│   │   ├── model-routes.js     414  which model a run asks next, by why the last
+│   │   ├── model-routes.js     429  which model a run asks next, by why the last
 │   │   │                            one failed, what it can hold and how it has
 │   │   │                            answered; models a provider says are gone;
 │   │   │                            waiting on a stream; a call cancelled when
@@ -103,17 +103,17 @@ HashCortX/
 │   │   ├── local-speed.js       95  how fast each local model writes on this
 │   │   │                            computer, so a step that costs a slow
 │   │   │                            model a long wait can be left out
-│   │   ├── local-client.js     196  the one request to a local model and the one
+│   │   ├── local-client.js     212  the one request to a local model and the one
 │   │   │                            reading of its reply: words, thinking and
 │   │   │                            tool calls as they arrive, each answer
 │   │   │                            ending where its window does; loading
 │   │   │                            a model while the message is written; and
 │   │   │                            what to say when the local model app
 │   │   │                            refuses this app
-│   │   ├── tool-text.js        434  a tool call a model wrote in its words, in
+│   │   ├── tool-text.js        478  a tool call a model wrote in its words, in
 │   │   │                            each of the ways local models write one,
 │   │   │                            its JSON broken by a file's text included
-│   │   ├── agent-shape.js      641  images, tools and tool results per provider,
+│   │   ├── agent-shape.js      684  images, tools and tool results per provider,
 │   │   │                            tools told in words to a model that cannot
 │   │   │                            take them, carrying on an answer that was
 │   │   │                            cut off, timing every answer, and tool calls
@@ -132,14 +132,14 @@ HashCortX/
 │   │   │                            chunking must cover the whole text
 │   │   ├── memory.js           285  reading facts from a message, ranking them
 │   │   ├── vector-map.js       404  placing memory vectors on a flat picture
-│   │   ├── url-safety.js        95  addresses the fetch tool may reach
+│   │   ├── url-safety.js       103  addresses the fetch tool may reach
 │   │   ├── page-text.js        107  a fetched web page, as text a model can read
 │   │   ├── pdf-text.js         125  a PDF, as text
 │   │   ├── markdown-safe.js    208  link sanitiser, escaping, and the renderer
 │   │   │                            for text a model wrote
 │   │   ├── fences.js           139  code fences, read as the chat draws them —
 │   │   │                            everything that looks for code uses it
-│   │   ├── prompt-privacy.js    96  the app's own instructions, kept to the
+│   │   ├── prompt-privacy.js   123  the app's own instructions, kept to the
 │   │   │                            model: never shown, exported or repeated
 │   │   ├── export-format.js    471  the shared half of every export, and the
 │   │   │                            chat's PDF layout
@@ -156,7 +156,7 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/             1,114  what a model is told, which to try next
+│   │   ├── chat/             1,072  what a model is told, which to try next
 │   │   │                            (an agent's turns too), the web searches
 │   │   │                            an agent makes, what its code printed,
 │   │   │                            what a model thought before it answered,
@@ -166,7 +166,7 @@ HashCortX/
 │   │   │                            asked, and a
 │   │   │                            local agent's turn in steps: the app or the
 │   │   │                            model decides, the app acts, the model answers
-│   │   ├── mcp/              1,243  connected systems over MCP: which of a
+│   │   ├── mcp/              1,244  connected systems over MCP: which of a
 │   │   │                            system's tools only read, each tool pinned
 │   │   │                            to what was switched on, what an agent is
 │   │   │                            told of one switched off, the protocol in
@@ -176,7 +176,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             3,451  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             6,083  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the record of what proved a change and what
 │   │   │                            sends it back before finishing, the files
@@ -203,7 +203,7 @@ HashCortX/
 │   │   │                            read says, and how much it may do
 │   │   │                            without asking (Manual, Accept edits,
 │   │   │                            Auto) with the menu that chooses it
-│   │   ├── swarm/            4,608  Agent Swarm: what kind of task it is,
+│   │   ├── swarm/            4,945  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
 │   │   │                            how strong each model is for its roles,
@@ -275,12 +275,12 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs     1,021   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs     1,074   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  666   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since
-│   │   │   ├── net.rs         801   resolves a hostname and refuses private ones
+│   │   │   ├── net.rs         872   resolves a hostname and refuses private ones
 │   │   │   ├── provider.rs    694   SambaNova, NVIDIA and Kimi Code, at six
 │   │   │   │                        fixed addresses and nowhere else; and a
 │   │   │   │                        model app on this computer, by port
@@ -290,7 +290,7 @@ HashCortX/
 │   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,301   filesystem bridge, applies the denylist;
+│   │   │   ├── fs.rs        1,299   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all
 │   │   │   ├── keychain.rs    102   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
@@ -300,8 +300,8 @@ HashCortX/
 │   │   │   ├── notch.rs       201   HashNotch live-activity ping
 │   │   │   └── audit.rs       231   append-only audit log, bounded
 │   │   └── security/
-│   │       ├── agent_sandbox.rs 288 macOS sandbox around the agent's commands
-│   │       ├── denylist.rs    818   hardcoded blocked paths and commands
+│   │       ├── agent_sandbox.rs 348 macOS sandbox around the agent's commands
+│   │       ├── denylist.rs  1,069   hardcoded blocked paths and commands
 │   │       ├── navigation.rs   75   the window shows the app and nothing else
 │   │       └── private_dir.rs 146   ~/.hashcortx, readable by its owner only
 │   ├── models/bge-small-en-v1.5/    bundled embedding model, MIT, 34 MB
