@@ -33,9 +33,16 @@
   };
   const ORDER = ["researcher","writer","critic","coder","analyst","validator","supervisor","planner","aggregator","custom"];
 
-  /** The mark for a role, or the plain one when a team names a role of its own. */
+  /**
+   * The mark for the team's result, beside its turns and on the Result
+   * button: a page with a tick, the finished work. Not a role anyone picks.
+   */
+  const RESULT_SVG = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="15" height="15" aria-hidden="true"><path d="M9.5 1.5H4A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.5Z"/><path d="M9.5 1.5v4h4"/><path d="m5.5 10 1.8 1.8 3.4-3.6"/></svg>`;
+
+  /** The mark for a role, the result's own for the team, or the plain one when a team names a role of its own. */
   function svgFor(role) {
-    return ROLE_SVGS[String(role || '').trim().toLowerCase()] || ROLE_SVGS.custom;
+    const key = String(role || '').trim().toLowerCase();
+    return key === 'result' ? RESULT_SVG : ROLE_SVGS[key] || ROLE_SVGS.custom;
   }
 
   /** The mark for the person asking, beside their turns. */
@@ -54,5 +61,5 @@
     return host.firstElementChild;
   }
 
-  window.HCSwarmRoleIcons = { ROLE_SVGS, ORDER, svgFor, YOU_SVG, nodeFor };
+  window.HCSwarmRoleIcons = { ROLE_SVGS, ORDER, svgFor, YOU_SVG, RESULT_SVG, nodeFor };
 })();

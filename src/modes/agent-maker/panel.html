@@ -61,45 +61,47 @@
     <div class="amk-canvas-panel">
 
       <div class="amk-canvas-toolbar">
-        <!-- The values the templates, the God Agent and a run use (scripts/checks/swarm-menus.mjs). -->
-        <select class="amk-topology-select" id="amkTopologySelect" title="The team's shape. A label: the lines on the canvas decide who works after whom.">
-          <option value="pipeline">Pipeline</option>
-          <option value="sequential">Sequential</option>
-          <option value="parallel">Parallel</option>
-          <option value="hierarchical">Hierarchical</option>
-          <option value="debate">Debate</option>
-          <option value="reflexion">Reflexion</option>
-          <option value="router">Router</option>
-          <option value="mesh">Mesh</option>
-        </select>
-        <select class="amk-topology-select" id="amkAggregationSelect" title="How the agents' answers become one result">
-          <option value="synthesis">Synthesis</option>
-          <option value="concat">Concat</option>
-          <option value="best_of_n">Best of N</option>
-          <option value="voting">Voting</option>
-          <option value="hierarchical">Hierarchical</option>
-        </select>
-        <div class="amk-canvas-sep"></div>
-        <button class="amk-btn" id="amkAddAgentToCanvasBtn">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span class="btn-label">Add Agent</span>
-        </button>
-        <button class="amk-btn" id="amkAutoLayoutBtn">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          <span class="btn-label">Auto Layout</span>
-        </button>
-        <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
-        <div class="amk-canvas-sep"></div>
-        <div class="amk-zoom-ctrl">
-          <button class="amk-zoom-btn" id="amkZoomOutBtn" title="Zoom out">&#8722;</button>
-          <span class="amk-zoom-val" id="amkZoomVal">100%</span>
-          <button class="amk-zoom-btn" id="amkZoomInBtn" title="Zoom in">+</button>
-          <button class="amk-zoom-btn" id="amkZoomResetBtn" title="Reset zoom" style="font-size:11px;">&#8962;</button>
+        <div class="amk-canvas-tools">
+          <!-- The values the templates, the God Agent and a run use (scripts/checks/swarm-menus.mjs). -->
+          <select class="amk-topology-select" id="amkTopologySelect" title="The team's shape. A label: the lines on the canvas decide who works after whom.">
+            <option value="pipeline">Pipeline</option>
+            <option value="sequential">Sequential</option>
+            <option value="parallel">Parallel</option>
+            <option value="hierarchical">Hierarchical</option>
+            <option value="debate">Debate</option>
+            <option value="reflexion">Reflexion</option>
+            <option value="router">Router</option>
+            <option value="mesh">Mesh</option>
+          </select>
+          <select class="amk-topology-select" id="amkAggregationSelect" title="How the agents' answers become one result">
+            <option value="synthesis">Synthesis</option>
+            <option value="concat">Concat</option>
+            <option value="best_of_n">Best of N</option>
+            <option value="voting">Voting</option>
+            <option value="hierarchical">Hierarchical</option>
+          </select>
+          <div class="amk-canvas-sep"></div>
+          <button class="amk-btn" id="amkAddAgentToCanvasBtn" title="Add an agent to the canvas" aria-label="Add agent">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="btn-label">Add Agent</span>
+          </button>
+          <button class="amk-btn" id="amkAutoLayoutBtn" title="Arrange the agents on the canvas" aria-label="Auto layout">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="btn-label">Auto Layout</span>
+          </button>
+          <button class="amk-btn" id="amkExportBlueprintBtn">Export JSON</button>
+          <div class="amk-canvas-sep"></div>
+          <div class="amk-zoom-ctrl">
+            <button class="amk-zoom-btn" id="amkZoomOutBtn" title="Zoom out">&#8722;</button>
+            <span class="amk-zoom-val" id="amkZoomVal">100%</span>
+            <button class="amk-zoom-btn" id="amkZoomInBtn" title="Zoom in">+</button>
+            <button class="amk-zoom-btn" id="amkZoomResetBtn" title="Reset zoom" style="font-size:11px;">&#8962;</button>
+          </div>
+          <span class="amk-canvas-hint">Scroll to zoom &middot; Drag background to pan &middot; Shift+click node to connect</span>
         </div>
-        <span class="amk-canvas-hint">Scroll to zoom &middot; Drag background to pan &middot; Shift+click node to connect</span>
-        <!-- The way to a run's work, so it stands at the right end in its own colour. -->
+        <!-- The way to a run's work: at the right end of the bar, in its own colour, beside the tools whatever their width. -->
         <button class="amk-btn amk-result-btn" id="amkViewChatBtn" title="The last run: what each agent said and the files it made">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H8l-4 4z"/><path d="M8 9h8M8 12h5"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 1.5H4A1.5 1.5 0 0 0 2.5 3v10A1.5 1.5 0 0 0 4 14.5h8a1.5 1.5 0 0 0 1.5-1.5V5.5Z"/><path d="M9.5 1.5v4h4"/><path d="m5.5 10 1.8 1.8 3.4-3.6"/></svg>
           <span class="btn-label">Result</span>
         </button>
       </div>

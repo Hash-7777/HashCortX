@@ -688,8 +688,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Changed
 
 - **The Agent Swarm's Result is easier to read and to act on.** The Result
-  button stands at the right end of the canvas bar, larger and in its own
-  colour. In the Result, Close is a labelled button at the top right; the
+  button stands at the right end of the canvas bar in its own colour, with
+  a drawn mark of a finished page, and keeps that place on the bar's first
+  row however narrow the canvas is; the bar's other tools wrap among
+  themselves, and the hint about zooming shows only where it fits. The
+  team's own turns carry the same mark. In the Result, Close is a labelled button at the top right; the
   actions are on a row of their own, each with a drawn mark beside its
   words, Open in browser first and Delete run set apart at the end. Each
   voice in the conversation has its mark in the colour of its role, the

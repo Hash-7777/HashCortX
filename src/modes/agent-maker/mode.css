@@ -327,7 +327,19 @@ body.agent-maker-mode #app { display: none; }
   background: rgba(4, 3, 12, 0.60);
   backdrop-filter: blur(8px);
   flex-shrink: 0;
-  flex-wrap: wrap;
+}
+/* The tools wrap among themselves; the Result button keeps the right end. */
+.amk-canvas-tools {
+  display: flex; align-items: center; gap: 8px; row-gap: 6px;
+  flex: 1; min-width: 0; flex-wrap: wrap;
+}
+/* Sized by the bar's own width, which the side panels decide, not the window's:
+   the hint shows only where it fits on the row, and a narrow bar keeps its
+   buttons to their marks so the row does not break. */
+.amk-canvas-toolbar { container-type: inline-size; }
+@container (max-width: 1420px) { .amk-canvas-hint { display: none; } }
+@container (max-width: 900px) {
+  .amk-canvas-tools .amk-btn span.btn-label { display: none; }
 }
 
 .amk-topology-select {
@@ -349,8 +361,8 @@ body.agent-maker-mode #app { display: none; }
 }
 
 .amk-result-btn {
-  margin-left: 14px; height: 34px; padding: 0 18px; gap: 8px;
-  font-size: 11.5px; font-weight: 700;
+  margin-left: 4px; padding: 6px 16px; gap: 7px; flex-shrink: 0;
+  font-weight: 700;
   background: var(--ok); border-color: var(--ok); color: var(--accent-ink);
 }
 .amk-result-btn:hover { background: var(--ok); border-color: var(--ok); color: var(--accent-ink); opacity: 0.88; }
@@ -1051,10 +1063,9 @@ img.amk-empty-logo {
 ══════════════════════════════════════════════════════════════ */
 
 /* Toolbar wraps gracefully */
-.amk-canvas-toolbar { flex-wrap: wrap; row-gap: 6px; }
 
 /* Hide text labels on toolbar at medium-narrow */
-@media (max-width: 1100px) {  .amk-canvas-hint { display: none; } .amk-result-btn { margin-left: auto; }
+@media (max-width: 1100px) {  .amk-canvas-hint { display: none; }
   .amk-run-status { display: none; }
   .amk-active-name { display: none; }
 }
@@ -1064,6 +1075,7 @@ img.amk-empty-logo {
   .amk-body { grid-template-columns: 220px 1fr; }
   .amk-inspector-panel { display: none; }
   .amk-btn span.btn-label { display: none; }
+  .amk-result-btn span.btn-label { display: inline; }
 }
 
 /* Single panel below 640px — hide blueprints, show canvas + toggle */

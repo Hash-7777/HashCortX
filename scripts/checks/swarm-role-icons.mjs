@@ -39,8 +39,9 @@ console.log('Every role has a mark, and it is drawn:');
   ok('each one is sized, so it cannot arrive at the page\'s font size', I.ORDER.every((r) => /width="\d+"/.test(I.ROLE_SVGS[r])));
   ok('a role the app does not know still gets a mark', I.svgFor('quartermaster') === I.ROLE_SVGS.custom && I.svgFor('') === I.ROLE_SVGS.custom);
   ok('a role is read whatever its case and spacing', I.svgFor('  Coder ') === I.ROLE_SVGS.coder);
+  ok('the team\'s result has a mark of its own, not the plain one, and no one picks it as a role', I.svgFor('result') === I.RESULT_SVG && I.RESULT_SVG !== I.ROLE_SVGS.custom && /^<svg /.test(I.RESULT_SVG) && /stroke="currentColor"/.test(I.RESULT_SVG) && /width="\d+"/.test(I.RESULT_SVG) && !I.ORDER.includes('result'));
   ok('the person asking has one too', /^<svg /.test(I.YOU_SVG));
-  ok('no mark is a picture typed as text', !PICTURE.test(JSON.stringify(I.ROLE_SVGS) + I.YOU_SVG));
+  ok('no mark is a picture typed as text', !PICTURE.test(JSON.stringify(I.ROLE_SVGS) + I.YOU_SVG + I.RESULT_SVG));
 }
 
 console.log('\nNothing in the Swarm carries a typed picture:');
