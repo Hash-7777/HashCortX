@@ -1083,6 +1083,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A command written with a flag runs, its other arguments given apart.**
+  HashCoder split a whole line written as the command, but not one such as
+  `mkdir -p` given with its folder apart, which then failed as a program that
+  does not exist. A program named bare is now split the same way, its words
+  going before the rest; a program named by a path that holds a space is
+  left whole.
+
 - **A Swarm build that is not a website is held to a program's rules, not a
   page's.** Every code build was given the website contract (pictures, a
   cart, motion, frontend code only), and the team used when none is designed

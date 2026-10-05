@@ -214,6 +214,11 @@ console.log('\nWhere a command runs:');
   let refused = '';
   try { await HC.code.shellRun('cat a.txt | grep x', []); } catch (e) { refused = String(e.message); }
   ok('a line that needs a shell is refused, saying what to do', /not a shell line/.test(refused) && sent.length === 5);
+  await HC.code.shellRun('mkdir -p', ['/work/factory eyes']);
+  ok('a program written with a flag, its other arguments given apart, is split and the flag goes first', sent[5].command === 'mkdir' && JSON.stringify(sent[5].args) === '["-p","/work/factory eyes"]', JSON.stringify(sent[5]));
+  await HC.code.shellRun('/Applications/My Tool/bin/tool', ['--version']);
+  ok('...while a program named by a path that holds a space is left whole', sent[6].command === '/Applications/My Tool/bin/tool' && JSON.stringify(sent[6].args) === '["--version"]', JSON.stringify(sent[6]));
+  sent.splice(5);
   ok('a wildcard or a variable needs a shell too', HC.code.splitCommandLine('ls *.js') === null && HC.code.splitCommandLine('echo $HOME') === null);
   ok('on Windows a backslash separates folders', JSON.stringify(HC.code.splitCommandLine('python C:\\proj\\test.py', { windows: true })) === '["python","C:\\\\proj\\\\test.py"]');
   ok('elsewhere a backslash is an escape, which needs a shell', HC.code.splitCommandLine('python C:\\proj\\test.py') === null);

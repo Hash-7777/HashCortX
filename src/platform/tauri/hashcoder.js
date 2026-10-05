@@ -191,13 +191,19 @@
       // is split into the program and its arguments as a person would read it;
       // one that needs a shell is refused with what to do instead, rather than
       // failing as a program that does not exist.
-      if ((!Array.isArray(args) || !args.length) && /\s/.test(String(command || '').trim())) {
-        const words = splitCommandLine(String(command).trim(), { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
+      // With its arguments given apart, a command such as "mkdir -p" still
+      // carries one of them: a program named bare, with no folder in it, is
+      // split the same way and its words go before the rest, so a program
+      // whose own path holds a space is left whole.
+      const given = Array.isArray(args) && args.length ? args : [];
+      const line = String(command || '').trim();
+      if (/\s/.test(line) && (!given.length || /^[\w.+-]+\s/.test(line))) {
+        const words = splitCommandLine(line, { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
         if (!words) {
           throw new Error('shell_run runs one program with its arguments, not a shell line: pipes, redirects, ' +
             'wildcards and variables are not available. Pass the program as command and each argument in args.');
         }
-        [command, ...args] = words;
+        [command, ...args] = [...words, ...given];
       }
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
