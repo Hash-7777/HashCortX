@@ -142,7 +142,26 @@ console.log('\nWhat an agent on a build is held to:');
   ok('a maker writes the files it owns', /complete frontend code only/.test(c('Frontend Developer', 'coder')));
   ok('a checker writes fixes, not a report', /Do not write a general review report/.test(c('Critic', 'validator')));
   ok('the finisher writes the finished files', /Merge and polish concrete files/.test(c('Final Polisher', 'supervisor')));
-  ok('and the Swarm takes it from here, keeping no copy', /HCSwarmTeamShape\.codeContractFor\(agent\)/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')) && !/function codeContractFor/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')));
+  ok('and the Swarm takes it from here, keeping no copy', /HCSwarmTeamShape\.codeContractFor\(agent, web\)/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')) && !/function codeContractFor/.test(readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8')));
+}
+
+console.log('\nA build that is not a website:');
+{
+  const W = T.isWebBuild;
+  const py = { items: [{ name: 'fetch_resumes.py' }, { name: 'rag_app.py' }, { name: 'requirements.txt' }] };
+  ok('a plan of scripts and a manifest is not a website, whatever the request calls it', W('build a mini rag app that searches resumes', py) === false && W('build a web scraper app', py) === false);
+  ok('...a plan with a page, a stylesheet or a component is', W('anything', { items: [{ name: 'index.html' }] }) && W('x', { items: [{ name: 'src/App.tsx' }] }) && W('x', { items: [{ name: 'styles.css' }, { name: 'server.js' }] }));
+  ok('...and with no plan yet, the request\'s words decide', W('build a landing page for my bakery') && W('a portfolio website for a pharmacist') && !W('write a python command-line tool that renames photos') && !W('build a rest service in go'));
+  const c = (name, role) => T.codeContractFor({ name, role }, false);
+  const all = [c('Planner', 'analyst'), c('Lead Developer', 'coder'), c('Integration Engineer', 'coder'), c('Critic', 'validator'), c('Final Polisher', 'supervisor'), c('Helper', 'custom')];
+  ok('each agent of such a build is held to the build contract, told it is not a website, and told nothing of a page', all.every((x) => /STRICT CODE-BUILD CONTRACT/.test(x) && /This is not a website/.test(x) && !/cart|frontend|HTTPS image|NO_BACKEND_NEEDED|animation CSS|responsive layout, and polished motion/.test(x)));
+  ok('...a planner briefs the parts, files, data and how it runs; a maker writes complete runnable files', /how it is run/.test(c('Planner', 'analyst')) && /Output complete code only/.test(c('Lead Developer', 'coder')) && /ready to run/.test(c('Lead Developer', 'coder')));
+  ok('...a checker looks for what does not resolve or join up, and the finisher for every file owed', /imports or names that do not resolve/.test(c('Critic', 'validator')) && /every file the plan owes is complete/.test(c('Final Polisher', 'supervisor')));
+  ok('...while a website build is held to the website rules as before', /complete frontend code only/.test(T.codeContractFor({ name: 'Frontend Developer', role: 'coder' }, true)) && T.codeContractFor({ name: 'Frontend Developer', role: 'coder' }) === T.codeContractFor({ name: 'Frontend Developer', role: 'coder' }, true));
+  const mode = readFileSync(join(root, 'src/modes/agent-maker/mode.js'), 'utf8');
+  ok('a run takes the saved team\'s contract off and gives each agent the rules for this task, by its plan', /hardenGodBlueprint\(\{ \.\.\.structuredClone\(bp\), agents: structuredClone\(bp\.agents\)\.map\(\(a\) => \(\{ \.\.\.a, systemPrompt: window\.HCPromptPrivacy\.splitSwarm\(a\.systemPrompt \|\| ""\)\.own \}\)\) \}, task, \[\], window\.HCSwarmTeamShape\.isWebBuild\(task, plan\)\)/.test(mode));
+  ok('...and the trace says which rules they were', /\$\{window\.HCSwarmTeamShape\.isWebBuild\(task, plan\) \? "Website" : "Code-build"\} rules applied to this run only/.test(mode));
+  ok('the team used when none is designed for a build is written for any code, not a shop', /name: "Lead Developer"/.test(mode) && /name: "Integration Engineer"/.test(mode) && !/cart\/interaction requirements|non-persistent cart state|Implement complete cart|working cart, applied animations/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/swarm/team-shape.js)`);

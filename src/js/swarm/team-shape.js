@@ -137,9 +137,46 @@
     };
   }
 
-  /** What an agent on a build is held to, by what it does: a brief, the files it owns, fixes, or the finished files. */
-  function codeContractFor(agent) {
+  // A website is built from pages, stylesheets and components; a program,
+  // a service or a data pipeline is not, and holding one to a website's
+  // rules (pictures, a cart, motion, "frontend code only") steered every
+  // agent of a Python build at a page nobody asked for.
+  const WEB_FILE = /\.(?:html?|css|scss|less|jsx|tsx|vue|svelte|astro)$/i;
+  const WEB_WORDS = /\b(web ?sites?|web ?pages?|landing pages?|home ?pages?|web ?apps?|front-?end|user interface|ui|portfolio|online (?:store|shop)|shop|store|e-?commerce|blog|dashboard|single[- ]page)\b/i;
+
+  /** Whether a build is a website: by the files its plan owes when there is one, by its words when not. */
+  function isWebBuild(task, plan) {
+    const items = (plan && Array.isArray(plan.items)) ? plan.items : [];
+    if (items.length) return items.some((i) => WEB_FILE.test(String((i && i.name) || i || '')));
+    return WEB_WORDS.test(String(task || ''));
+  }
+
+  /** What an agent on a build that is not a website is held to: the same roles, without a page's rules. */
+  function softwareContractFor(name) {
+    const common = "\n\nSTRICT CODE-BUILD CONTRACT:\n- Do not create DOCX, PDF, reports, slide decks, or downloadable documents.\n- Do not call unrelated external URLs or fetch templates unless the user explicitly asks.\n- Keep prose minimal and only use it when your assigned output contract requires it.\n- Pass compact, structured output to downstream agents; avoid long essays.\n- This is not a website: write no pages, stylesheets, pictures or animation unless the task asks for them.";
+    if (/research|planner|spec|designer|analyst/.test(name) && !/coder|front|back/.test(name)) {
+      return common + "\n- Output a compact implementation brief only: what is built, its parts, the file list and what each file holds, the data and libraries it uses, how it is run, and acceptance criteria.\n- Keep the brief under 900 words.";
+    }
+    if (/back|server|api|front|html|css|style|js|coder|developer|engineer/.test(name)) {
+      return common + "\n- Output complete code only: the files your role owns, each in one fenced block named with its exact file name, ready to run.\n- Every name a file uses is defined or imported, errors are handled where they can happen, and each dependency is listed in the project's own manifest.\n- Do not output partial snippets. Do not write commentary outside code fences.";
+    }
+    if (/critic|validator|qa|review/.test(name)) {
+      return common + "\n- Validate the produced files. Output only concrete fixes or corrected full code blocks with filenames.\n- Explicitly reject missing files, imports or names that do not resolve, parts that are not joined up, unhandled errors, and dependencies not in the manifest.\n- Do not write a general review report.";
+    }
+    if (/boss|supervisor|polish|aggregator/.test(name)) {
+      return common + "\n- Merge and polish concrete files into final code blocks only. Remove duplicate prose, specs, and reports.\n- Before final output, ensure every file the plan owes is complete, every file refers to the others correctly, and the instructions for running it are right.";
+    }
+    return common;
+  }
+
+  /**
+   * What an agent on a build is held to, by what it does: a brief, the files
+   * it owns, fixes, or the finished files. `web` false for a build that is not
+   * a website (isWebBuild).
+   */
+  function codeContractFor(agent, web = true) {
     const name = `${agent.name || ""} ${agent.role || ""}`.toLowerCase();
+    if (!web) return softwareContractFor(name);
     const common = "\n\nSTRICT CODE-BUILD CONTRACT:\n- Do not create DOCX, PDF, reports, slide decks, or downloadable documents.\n- Do not call unrelated external URLs or fetch templates unless the user explicitly asks.\n- Keep prose minimal and only use it when your assigned output contract requires it.\n- Pass compact, structured output to downstream agents; avoid long essays.\n- For website tasks, visible images, working interactions, responsive layout, and polished motion are required implementation details, not optional decoration.";
     if (/research|planner|spec|designer|analyst/.test(name) && !/coder|front|back/.test(name)) {
       return common + "\n- Output a compact implementation brief only: brand direction, page sections, data/content needs, file list, image strategy, interaction strategy, and acceptance criteria.\n- For websites with product/gallery imagery, specify remote HTTPS image URLs and inline fallback behavior; do not leave image sourcing to downstream guessing.\n- Keep the brief under 900 words.";
@@ -159,5 +196,5 @@
     return common;
   }
 
-  window.HCSwarmTeamShape = { codeContractFor, toolsFor, oneWriter, trimTo, kindOf, layersOf, edgesOf, delivererOf };
+  window.HCSwarmTeamShape = { codeContractFor, isWebBuild, toolsFor, oneWriter, trimTo, kindOf, layersOf, edgesOf, delivererOf };
 })();

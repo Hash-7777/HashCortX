@@ -1083,6 +1083,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Swarm build that is not a website is held to a program's rules, not a
+  page's.** Every code build was given the website contract (pictures, a
+  cart, motion, frontend code only), and the team used when none is designed
+  was written for a shop, so a Python build's agents were steered at a page
+  nobody asked for. Whether a build is a website is now read from the files
+  its plan owes, or its words before there is a plan; one that is not is
+  held to the same roles without a page's rules, the run replaces any
+  contract a saved team carries with the one for its task, and the trace
+  says which. The fallback team is written for any code
+  (`js/swarm/team-shape.js`).
+
 - **Text left from a template is looked for where a reader meets it.** A
   script's comment that explains the code, such as a file named for John Doe,
   was taken for a placeholder and sent a finished Swarm run back to be put

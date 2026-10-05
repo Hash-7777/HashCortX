@@ -869,12 +869,12 @@ const SwarmMaker = (() => {
     const codeRun = isCodeBuildTask(task);
     const runBp = applyDeliverables(
       codeRun
-        ? hardenGodBlueprint(structuredClone(bp), task, [])
+        ? hardenGodBlueprint({ ...structuredClone(bp), agents: structuredClone(bp.agents).map((a) => ({ ...a, systemPrompt: window.HCPromptPrivacy.splitSwarm(a.systemPrompt || "").own })) }, task, [], window.HCSwarmTeamShape.isWebBuild(task, plan))   // the rules for this task, not those the team was saved with
         : deliverablesForRun(structuredClone(bp), work),
       plan,
     );
     const added = runBp.agents.filter(a => !bp.agents.some(b => b.id === a.id)).map(a => a.name);
-    if (codeRun) traceAdd("Orchestrator", `Website rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
+    if (codeRun) traceAdd("Orchestrator", `${window.HCSwarmTeamShape.isWebBuild(task, plan) ? "Website" : "Code-build"} rules applied to this run only${added.length ? ` · added ${added.join(", ")}` : ""} · the saved team is unchanged`, "wait");
     traceAdd("Orchestrator", `This run owes ${DELIVERABLES.summaryOf({ items: runBp.artifactContracts || [], pieces: [] })} · ${(runBp.artifactContracts || []).map(a => a.name).join(", ")}`, "boss");
 
     // Reset all node statuses
@@ -999,11 +999,11 @@ const SwarmMaker = (() => {
       aggregation: "concat",
       supervisorModel: modelAt(0),
       agents: codeTask ? [
-        { id: "a1", name: "Planner / Specifier", role: "analyst", systemPrompt: "Create a compact implementation brief with deliverables, sections, files, assumptions, acceptance criteria, image URL strategy, animation strategy, and cart/interaction requirements.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.4, model: modelAt(3) },
-        { id: "a2", name: "Frontend Developer", role: "coder", systemPrompt: "Produce complete frontend files only with filename-tagged code fences. Use visible remote HTTPS images with inline fallback SVG/data URI behavior, polished responsive CSS, and working event hooks.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.35, model: modelAt(1) },
-        { id: "a3", name: "Interaction Engineer", role: "coder", systemPrompt: "Implement complete cart and UI interaction logic. If no backend is needed, output NO_BACKEND_NEEDED plus complete frontend JavaScript fixes for add/remove/quantity/count/total/empty-state/localStorage.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(4) },
-        { id: "a4", name: "Validator / Critic", role: "validator", systemPrompt: "Validate files against the quality gates. Reject broken image paths, missing fallbacks, unwired buttons, non-persistent cart state, and unused animations. Output concrete fixes or corrected full code blocks only.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(2) },
-        { id: "a5", name: "Final Polisher / Supervisor", role: "supervisor", systemPrompt: "Merge and polish all artifacts into final complete code blocks only. Ensure visible images, working cart, applied animations, responsive layout, and exact file references. Remove duplicated prose, specs, reports, and incomplete snippets.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.3, model: modelAt(0) },
+        { id: "a1", name: "Planner / Specifier", role: "analyst", systemPrompt: "Create a compact implementation brief: what is built and its parts, the files and what each holds, the data it uses, assumptions, and acceptance criteria.", tools: [], memory: "project", timeout: 120, retries: 1, temperature: 0.4, model: modelAt(3) },
+        { id: "a2", name: "Lead Developer", role: "coder", systemPrompt: "Write the complete files your part of the plan owns, each in a code fence named with its exact file name, ready to run.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.35, model: modelAt(1) },
+        { id: "a3", name: "Integration Engineer", role: "coder", systemPrompt: "Write the remaining files and what joins the parts: what loads what, how data moves between them, and how errors are handled, complete and ready to run.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(4) },
+        { id: "a4", name: "Validator / Critic", role: "validator", systemPrompt: "Check the files against the plan and the request: missing files, names that do not resolve, parts not joined up, unhandled errors. Output concrete fixes or corrected full code blocks only.", tools: [], memory: "project", timeout: 150, retries: 1, temperature: 0.25, model: modelAt(2) },
+        { id: "a5", name: "Final Polisher / Supervisor", role: "supervisor", systemPrompt: "Merge everything into the final complete files, each in a named code fence, every file referring to the others correctly. Remove duplicated prose, specs, reports, and incomplete snippets.", tools: [], memory: "project", timeout: 180, retries: 1, temperature: 0.3, model: modelAt(0) },
       ] : [
         { id: "a1", name: "Lead Planner", role: "analyst", systemPrompt: "Create the plan, assumptions, dependencies, risks, and acceptance criteria.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.45, model: modelAt(2) },
         { id: "a2", name: "Specialist Analyst", role: "analyst", systemPrompt: "Handle the main specialist workstream and produce compact findings.", tools: ["memory"], memory: "project", timeout: 120, retries: 1, temperature: 0.55, model: modelAt(1) },
@@ -1226,8 +1226,8 @@ const SwarmMaker = (() => {
       systemPrompt: "Create the compact plan, assumptions, deliverables, dependencies, and acceptance criteria for the task."
     });
     if (isCodeBuildTask(desc) && !has(/front|html|css|javascript|developer|coder/)) out.push({
-      name: "Frontend Developer", role: "coder", temperature: 0.35, tools: [],
-      systemPrompt: "Produce complete frontend files only, with filename-tagged code fences."
+      name: window.HCSwarmTeamShape.isWebBuild(desc) ? "Frontend Developer" : "Developer", role: "coder", temperature: 0.35, tools: [],
+      systemPrompt: "Produce the complete files the plan owes, with filename-tagged code fences."
     });
     if (!has(/critic|validator|qa|review/)) out.push({
       name: "Validator", role: "validator", temperature: 0.25, tools: [],
@@ -1248,7 +1248,7 @@ const SwarmMaker = (() => {
     }));
   }
 
-  function hardenGodBlueprint(parsed, desc, providerModels) {
+  function hardenGodBlueprint(parsed, desc, providerModels, web = window.HCSwarmTeamShape.isWebBuild(desc)) {   // web: a website's rules, or a program's (js/swarm/team-shape.js)
     if (!parsed || !Array.isArray(parsed.agents)) return parsed;
     const codeTask = isCodeBuildTask(desc);
     const bigTask = isBigAssignment(desc);
@@ -1277,7 +1277,7 @@ const SwarmMaker = (() => {
       agent.timeout = Math.max(agent.timeout || 120, /coder|developer|front|back|boss|supervisor|critic|validator/i.test(nameRole) ? 150 : 90);
       agent.temperature = /critic|validator|boss|supervisor|coder|developer/i.test(nameRole) ? Math.min(agent.temperature ?? 0.5, 0.4) : (agent.temperature ?? 0.6);
       if (codeTask && !/STRICT CODE-BUILD CONTRACT/.test(agent.systemPrompt || "")) {
-        agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}${window.HCSwarmTeamShape.codeContractFor(agent)}`;
+        agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}${window.HCSwarmTeamShape.codeContractFor(agent, web)}`;
       } else if (!codeTask && /boss|supervisor|polish|aggregator|synthes/i.test(nameRole) && !/LEAD SYNTHESIS CONTRACT/.test(agent.systemPrompt || "")) {
         agent.systemPrompt = `${agent.systemPrompt || `You are ${agent.name}.`}\n\nLEAD SYNTHESIS CONTRACT:\n- Produce the final answer only after reconciling specialist outputs.\n- State key assumptions, tradeoffs, risks, and acceptance criteria when useful.\n- Remove duplicated intermediate reasoning and deliver one coherent result.`;
       }
