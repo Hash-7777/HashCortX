@@ -705,6 +705,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The released app is built optimised as a whole and without symbol
+  tables.** The release build now optimises across crates, compiles each
+  crate as one unit and leaves out the symbol tables, so the app file is
+  smaller. A panic still unwinds as before. Development builds and the
+  checks are unchanged (`src-tauri/Cargo.toml`, `[profile.release]`).
+
 - **Mermaid, the library that draws diagrams, is loaded only when one is
   shown.** It is the largest library the app ships and was loaded at every
   start, though most sessions never show a diagram. It is now added the

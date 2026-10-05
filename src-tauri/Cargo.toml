@@ -225,3 +225,28 @@ getrandom = "0.3"
 # so keys survive DMG rebuilds without prompts or loss.
 [target.'cfg(target_os = "macos")'.dependencies]
 security-framework = "2"
+
+# ==============================================================
+# Release build
+#
+# How the app that people download is compiled. `cargo build` and the checks
+# use the dev profile and are not affected; only `--release`, which is what
+# `npm run tauri build` makes, reads this.
+#
+#   lto = "thin"         optimises across crates, not only within each one,
+#                        for a smaller and usually faster binary, at less
+#                        build time than a full link-time pass.
+#   codegen-units = 1    compiles each crate as one unit, so the optimiser
+#                        sees all of it. The release build takes longer.
+#   strip = true         leaves the symbol tables out of the shipped binary.
+#                        The app sends no crash reports, so nothing reads
+#                        them; a panic still prints its message.
+#
+# panic is left at its default, unwinding, on purpose. "abort" ends the
+# process at the first panic without unwinding, which changes how a failure
+# behaves; that is a decision of its own, not a size setting.
+# ==============================================================
+[profile.release]
+lto           = "thin"
+codegen-units = 1
+strip         = true
