@@ -1057,6 +1057,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A refused key is said as one when the next agent starts.** An account
+  set aside because its key was refused was described to every later agent
+  of the run as out of quota, which points at the wrong thing to fix. Why
+  an account was set aside is now kept with it, and the note says the key
+  was refused (`js/model-routes.js`).
+
 - **A finished Swarm run is also put right for template text and files
   nothing loads.** The round that puts right what the app finds in the work
   ran only for what will not work at all, so lorem ipsum left in a file, or

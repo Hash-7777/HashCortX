@@ -100,14 +100,15 @@
   const COOL_ACCOUNT_MS = 30 * 60 * 1000;
   const COOL_MODEL_MS = 5 * 60 * 1000;
   const cooling = new Map();
-  function coolDown(key, ms, now = Date.now()) { cooling.set(key, Math.max(cooling.get(key) || 0, now + ms)); }
+  const coolWhy = new Map();   // why: 'key' (the key was refused) or 'limit' (out of quota), so a note says the right one
+  function coolDown(key, ms, now = Date.now(), why = 'limit') { cooling.set(key, Math.max(cooling.get(key) || 0, now + ms)); coolWhy.set(key, why); }
   function coolingNow(prefix, now = Date.now()) {
     const out = [];
     for (const [k, until] of cooling) { if (until <= now) cooling.delete(k); else if (k.startsWith(prefix)) out.push(k.slice(prefix.length)); }
     return out;
   }
   /** Forget what recent runs learnt — for the checks, and for a person who has just added credit. */
-  function forgetCooling() { cooling.clear(); }
+  function forgetCooling() { cooling.clear(); coolWhy.clear(); }
 
   /** What kind of failure an error is — see the table at the top. */
   function failureKind(err) {
@@ -260,7 +261,8 @@
         const cold = !gone && (coolingNow('p:').includes(providerOf(value)) || coolingNow('m:').includes(value));
         if (cold) {
           const warm = nextRoutes({ failed: value, kind: 'limit', wide: coolingNow('p:').includes(providerOf(value)), options: options(), tried: coolingNow('m:'), avoid: coolingNow('p:'), strength, fits, store })[0];
-          if (warm) { note(`${label(value)} was just found out of quota — using ${label(warm)}`); return warm; }
+          const refused = coolingNow('p:').includes(providerOf(value)) && coolWhy.get(`p:${providerOf(value)}`) === 'key';
+          if (warm) { note(`${label(value)} ${refused ? 'refused this account\'s key a moment ago' : 'was just found out of quota'} — using ${label(warm)}`); return warm; }
         }
         if (!gone && (!fits || fits(value))) return value;
         const next = nextRoutes({ failed: value, kind: gone ? 'retired' : 'other', options: options(), strength, fits, store })[0];
@@ -280,7 +282,7 @@
           note(`${label(culprit)} is gone — it will not be asked again for two weeks`);
         }
         const wide = kind === 'key' || (kind === 'limit' && coversAccount(err));
-        if (wide) { avoid.push(providerOf(culprit)); coolDown(`p:${providerOf(culprit)}`, COOL_ACCOUNT_MS); }
+        if (wide) { avoid.push(providerOf(culprit)); coolDown(`p:${providerOf(culprit)}`, COOL_ACCOUNT_MS, Date.now(), kind === 'key' ? 'key' : 'limit'); }
         else if (kind === 'limit') coolDown(`m:${culprit}`, COOL_MODEL_MS);
         if (kind === 'slow' && typeof window !== 'undefined' && window.HCModelSpeed) window.HCModelSpeed.recordTimeout(culprit, Date.now(), store);
         for (const m of [failed, culprit]) if (m && !tried.includes(m)) tried.push(m);
