@@ -2,6 +2,7 @@
 // HashCortx — Rust library entry point
 // ==============================================================
 
+mod app_menu;
 mod commands;
 mod security;
 
@@ -44,7 +45,8 @@ pub fn run() {
     // kept readable by this account only (src/security/private_dir.rs).
     security::private_dir::tighten_app_root();
 
-    tauri::Builder::default()
+    // On macOS, the menu bar without the system's Services list (app_menu.rs).
+    app_menu::on(tauri::Builder::default())
         // The window shows the app and nothing else: any navigation away from
         // it is refused. Links open in the system browser from the page.
         .plugin(security::navigation::guard())

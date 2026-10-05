@@ -687,6 +687,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The macOS menu bar is the app's own.** The app menu no longer carries
+  the system's Services list, entries other installed apps register that
+  act on text selected here. About HashCortx says the version once, not
+  again in brackets as the build, and that the project began on 1 May 2026.
+  The Edit, View and Window menus are as they were, so copy, paste, undo and
+  full screen work as before. Other platforms are unchanged
+  (`src-tauri/src/app_menu.rs`).
+
 - **The Agent Swarm's Result is easier to read and to act on.** The Result
   button stands at the right end of the canvas bar in its own colour, with
   a drawn mark of a finished page, and keeps that place on the bar's first

@@ -86,7 +86,9 @@ console.log('\nThe window is kept on the app:');
 {
   const lib = readFileSync(join(root, 'src-tauri', 'src', 'lib.rs'), 'utf8');
   const nav = readFileSync(join(root, 'src-tauri', 'src', 'security', 'navigation.rs'), 'utf8');
-  ok('the navigation guard is registered, first', /tauri::Builder::default\(\)\s*(?:\/\/[^\n]*\n\s*)*\.plugin\(security::navigation::guard\(\)\)/.test(lib));
+  ok('the navigation guard is registered, first', /(?:app_menu::on\()?tauri::Builder::default\(\)\)?\s*(?:\/\/[^\n]*\n\s*)*\.plugin\(security::navigation::guard\(\)\)/.test(lib));
+  const appMenu = readFileSync(join(here, '..', '..', 'src-tauri', 'src', 'app_menu.rs'), 'utf8');
+  ok('...the menu set before it registers no plugin of its own', !/\.plugin\(/.test(appMenu));
   ok('and refuses by default', /_ => false,/.test(nav));
 }
 
