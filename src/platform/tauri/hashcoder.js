@@ -500,7 +500,12 @@
         replace_whole: { type: 'boolean', description: 'Optional: true when an existing file is meant to be replaced whole, not edited.' },
         reason:  'Why you are writing this file',
       },
-      fn: (p) => HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true }),
+      fn: (p) => {
+        // A Word, Excel or PDF file, an archive or a picture is packed, not text: written as text it never opens.
+        const packed = /\.(?:docx|xlsx|pptx|pdf|odt|ods|zip|png|jpe?g|gif|webp|ico)$/i.exec(String(p.path || ''));
+        if (packed) throw new Error(`A ${packed[0]} file is packed, not text, so writing it as text makes a file that does not open. Make it with execute_python (python-docx for .docx, openpyxl for .xlsx, reportlab for .pdf) and save it to /output/<name>.`);
+        return HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true });
+      },
     },
     {
       name: 'patch_file',

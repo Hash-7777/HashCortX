@@ -1083,6 +1083,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder does not write a Word file, a PDF or a picture as text.** A
+  model asked for a Word document wrote its XML as the file's text, which
+  never opens. Writing a packed file (Word, Excel, PowerPoint, PDF, an
+  archive or a picture) as text is now refused, saying to make it in the
+  Python sandbox with the library for its kind and save it to `/output/`.
+
 - **A command written with a flag runs, its other arguments given apart.**
   HashCoder split a whole line written as the command, but not one such as
   `mkdir -p` given with its folder apart, which then failed as a program that

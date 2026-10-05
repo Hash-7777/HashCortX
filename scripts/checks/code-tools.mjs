@@ -193,6 +193,22 @@ console.log('\nA read of a path with no file:');
   ok('read_file uses it', /HC\.code\.readFile\(p\.path, p\.start_line \?\? null, p\.end_line \?\? null\)\.catch\(\(e\) => \{ throw HC\.code\.notThere\(e\); \}\)/.test(src('platform', 'tauri', 'hashcoder.js')));
 }
 
+console.log('\nA packed file is not written as text:');
+{
+  const write = HC.code.TOOL_DEFINITIONS.find((t) => t.name === 'write_file');
+  const wrote = [];
+  const keep = HC.code.writeFile;
+  HC.code.writeFile = async (path) => { wrote.push(path); return { ok: true }; };
+  const refusal = async (path) => { try { await write.fn({ path, content: '<w:document>...</w:document>' }); return ''; } catch (e) { return String(e.message); } };
+  const said = await refusal('/work/Proposal.docx');
+  ok('a Word file written as text is refused, saying how to make one, and nothing reaches the disk', /A \.docx file is packed, not text/.test(said) && /execute_python \(python-docx for \.docx/.test(said) && /\/output\/<name>/.test(said) && wrote.length === 0, said);
+  ok('...and so is a spreadsheet, a PDF, an archive or a picture, whatever the case of its name', (await Promise.all(['/w/a.XLSX', '/w/b.pdf', '/w/c.zip', '/w/d.png', '/w/e.jpeg'].map(refusal))).every((m) => /is packed, not text/.test(m)) && wrote.length === 0);
+  await write.fn({ path: '/work/README.md', content: '# Title' });
+  await write.fn({ path: '/work/logo.svg', content: '<svg/>' });
+  ok('...while text files, a drawing written as text among them, are written as before', wrote.join() === '/work/README.md,/work/logo.svg');
+  HC.code.writeFile = keep;
+}
+
 console.log('\nWhere a command runs:');
 {
   const asked = [];
