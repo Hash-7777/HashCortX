@@ -414,12 +414,17 @@
       return `FILE: ${a.path}\n${ticks}\n${body.replace(/\n$/, '')}\n${ticks}`;
     }
     if (name === 'read_file') return `READ: ${a.path}`;
-    if (name === 'shell_run') return `RUN: ${[a.command, ...(Array.isArray(a.args) ? a.args : [])].filter(Boolean).join(' ')}`;
+    // A command in light mode is one HashCortX ran, never the model: it is said in the result, not as a line the model wrote.
+    if (name === 'shell_run') return '';
     return `${name}`;
   }
 
   /** Added to each of the app's notes, which name tools this model does not have. */
-  const NO_TOOLS = 'Here there are no tools: a file is changed by writing it whole in a FILE block, and a file is seen by writing READ: and its path.';
+  const NO_TOOLS = 'Here there are no tools: a file is changed by writing it whole in a FILE block, and a file is seen by writing READ: and its path. ' +
+    'Commands and tests are run by HashCortX after your change; never write a RUN line or what a command printed.';
+
+  /** How a note written for a model with tools names a tool's arguments: words this model cannot act on. */
+  const TOOL_ARGS = / (?:with|using) shell_run: command "[^"]*", args \[[^\]]*\]/g;
 
   /** Said after files are written, so a model that has finished knows how to say so. */
   const DONE_HINT = 'Write a FILE block only for a file that must still change. If the work is done, answer with one sentence saying what you did, and no FILE blocks.';
@@ -456,8 +461,8 @@
     if (name === 'shell_run') {
       const command = [a.command, ...(Array.isArray(a.args) ? a.args : [])].filter(Boolean).join(' ');
       const run = runText(body, 2500);
-      if (run) return `The output of ${command}${run.ended ? ` (${run.ended})` : ''}:\n${TICKS}\n${run.printed}\n${TICKS}`;
-      return `The output of ${command}:\n${TICKS}\n${clip(body, 2500)}\n${TICKS}`;
+      if (run) return `HashCortX ran ${command}${run.ended ? ` (${run.ended})` : ''}:\n${TICKS}\n${run.printed}\n${TICKS}`;
+      return `HashCortX ran ${command}:\n${TICKS}\n${clip(body, 2500)}\n${TICKS}`;
     }
     return clip(body, 1500);
   }
@@ -477,21 +482,22 @@
       if (!m) continue;
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
         const said = String(m.content || '').trim();
-        out.push({ role: 'assistant', content: [said, ...m.tool_calls.map(callText)].filter(Boolean).join('\n\n') });
+        const content = [said, ...m.tool_calls.map(callText)].filter(Boolean).join('\n\n');
+        if (content) out.push({ role: 'assistant', content });   // a turn that was only the app's command is not the model's
       } else if (m.role === 'tool') {
         const note = resultText(m, calls.get(m.tool_call_id));
         const last = out[out.length - 1];
-        if (last && last.role === 'user' && last.fromTool) last.content += `\n\n${note}`;
+        if (last && last.role === 'user' && (last.fromTool || last.fromApp)) { last.content += `\n\n${note}`; last.fromTool = true; }
         else out.push({ role: 'user', content: note, fromTool: true });
         const called = calls.get(m.tool_call_id);
         if (called && called.function && called.function.name === 'write_file' && !out[out.length - 1].doneHint) { out[out.length - 1].content += `\n\n${DONE_HINT}`; out[out.length - 1].doneHint = true; }
       } else if (m.role === 'user' && (m.note || String(m.content || '').startsWith(NOTE))) {
         // The app's notes are written for a model with tools; this one changes files only by writing them.
-        out.push({ ...m, content: `${m.content}\n\n${NO_TOOLS}` });
+        out.push({ ...m, content: `${String(m.content).replace(TOOL_ARGS, '')}\n\n${NO_TOOLS}`, fromApp: true });
       } else out.push(m);
     }
     // The hint goes once, at the end of the note it belongs to.
-    return out.map(({ fromTool, doneHint, ...m }) => (doneHint ? { ...m, content: `${m.content.replace(`\n\n${DONE_HINT}`, '')}\n\n${DONE_HINT}` } : m));
+    return out.map(({ fromTool, fromApp, doneHint, ...m }) => (doneHint ? { ...m, content: `${m.content.replace(`\n\n${DONE_HINT}`, '')}\n\n${DONE_HINT}` } : m));
   }
 
   window.HCCodeLight = { SYSTEM, applies, billionsInName, parseReply, callsFor, shrunk, plan, turnOf, callMessages, cutOff, pathsIn, knownFiles, resolve, fits, testHint };

@@ -148,10 +148,10 @@ console.log('\nWhat the model reads back:');
   const out = L.callMessages(history);
   ok('no tool call and no tool result is left in what the model reads', out.every((m) => m.role !== 'tool' && !m.tool_calls));
   ok('the system turn and the person\'s own turn are as they were', out[0].content === 'S' && out[1].content === 'Fix the bug');
-  ok('its own calls are shown as the text it was told to write: a file whole, a file asked for, a command run', /FILE: src\/a\.js\n```\na\nb\n```/.test(out[2].content) && /READ: src\/b\.js/.test(out[2].content) && /^Changing it\./.test(out[2].content) && out.some((m) => /^RUN: npm test$/.test(m.content)));
+  ok('its own calls are shown as the text it was told to write: a file whole, a file asked for; a command the app ran is not one of its lines', /FILE: src\/a\.js\n```\na\nb\n```/.test(out[2].content) && /READ: src\/b\.js/.test(out[2].content) && /^Changing it\./.test(out[2].content) && !out.some((m) => m.role === 'assistant' && /RUN|npm test/.test(m.content)));
   ok('results are said by the person: the file written, the file read, the command\'s output, a refusal in words',
-    /Wrote src\/a\.js\./.test(out[3].content) && /src\/b\.js:\n```\ncontents of b\n```/.test(out[3].content) && /The output of npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')) && /That did not work for src\/c\.js: Permission denied: write src\/c\.js/.test(out.map((m) => m.content).join('\n')));
-  ok('the results that follow one turn are one note, so the roles alternate after the person\'s own turn', out.map((m) => m.role).join() === 'system,user,assistant,user,assistant,user,assistant,user,assistant');
+    /Wrote src\/a\.js\./.test(out[3].content) && /src\/b\.js:\n```\ncontents of b\n```/.test(out[3].content) && /HashCortX ran npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')) && /That did not work for src\/c\.js: Permission denied: write src\/c\.js/.test(out.map((m) => m.content).join('\n')));
+  ok('the results that follow one turn are one note, a command the app ran joins it, and the roles alternate after the person\'s own turn', out.map((m) => m.role).join() === 'system,user,assistant,user,assistant,user,assistant', out.map((m) => m.role).join());
   ok('what is read back parses to the same files that were written', L.parseReply(out[2].content).writes[0].path === 'src/a.js' && L.parseReply(out[2].content).writes[0].content === 'a\nb\n' && L.parseReply(out[2].content).reads[0] === 'src/b.js');
   const tricky = L.callMessages([{ role: 'assistant', content: '', tool_calls: [call('9', 'write_file', { path: 'README.md', content: `Run ${T}npm i${T} first\n` })] }]);
   ok('a file that holds a fence is shown in a longer one, and reads back whole', L.parseReply(tricky[0].content).writes[0].content === `Run ${T}npm i${T} first\n`);
@@ -161,10 +161,10 @@ console.log('\nWhat the model reads back:');
 
   // A command's record is read as text: how it ended, then its own lines.
   const ran = (record) => L.callMessages([{ role: 'assistant', content: '', tool_calls: [call('7', 'shell_run', { command: 'npm', args: ['test'] })] },
-    { role: 'tool', tool_call_id: '7', name: 'shell_run', content: JSON.stringify(record, null, 2) }])[1].content;
+    { role: 'tool', tool_call_id: '7', name: 'shell_run', content: JSON.stringify(record, null, 2) }])[0].content;
   const failed = ran({ stdout: 'not ok 1 - range\n  expected: 5\n  actual: 4\n', stderr: '', code: 1, timedOut: false, truncated: false, stopped: false });
   ok('a command\'s record is shown with its exit code and its own line breaks, not as escaped JSON',
-    /^The output of npm test \(exit code 1, it failed\):\n```\nnot ok 1 - range\n  expected: 5\n  actual: 4\n```/.test(failed) && !/\\n|"stdout"/.test(failed));
+    /^HashCortX ran npm test \(exit code 1, it failed\):\n```\nnot ok 1 - range\n  expected: 5\n  actual: 4\n```/.test(failed) && !/\\n|"stdout"/.test(failed));
   ok('a passing run says exit code 0, and the error stream follows the output', /\(exit code 0\):\n```\nok 1\nwarn\n```/.test(ran({ stdout: 'ok 1\n', stderr: 'warn\n', code: 0 })));
   ok('a run out of time says so, and one that printed nothing says that', /\(it ran out of time and was stopped\):\n```\n\(it printed nothing\)\n```/.test(ran({ stdout: '', stderr: '', code: -1, timedOut: true })));
   const passes = Array.from({ length: 400 }, (_, i) => `ok ${i + 1} - case ${i + 1}`).join('\n');
@@ -174,7 +174,14 @@ console.log('\nWhat the model reads back:');
   const plainCut = ran({ stdout: `${passes}\n# fail 1\n`, stderr: '', code: 1 });
   box.window.HCCodeDigest = digest;
   ok('without the digest a long run keeps its start and its end', plainCut.length < 3200 && /ok 1 - case 1\n/.test(plainCut) && /# fail 1/.test(plainCut) && /\[cut: \d+ characters\]/.test(plainCut));
-  ok('a result that is not a command\'s record is shown as it came', /The output of npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')));
+  const sentBack = L.callMessages([{ role: 'user', content: 'Fix it' },
+    { role: 'user', content: 'Note from HashCortX, not from the person: `npm test` failed after your last change. Read the failure, change the code to fix the cause, and run it again with shell_run: command "npm", args ["test"]; make the fix, do not describe it.', note: true },
+    { role: 'assistant', content: '', tool_calls: [call('8', 'shell_run', { command: 'npm', args: ['test'] })] },
+    { role: 'tool', tool_call_id: '8', name: 'shell_run', content: JSON.stringify({ stdout: 'not ok 1\n', stderr: '', code: 1 }) }]);
+  ok('a note written for a model with tools loses the tool\'s arguments and says commands are run by HashCortX',
+    !/shell_run|args \[/.test(sentBack[1].content) && /run it again; make the fix/.test(sentBack[1].content) && /never write a RUN line or what a command printed/.test(sentBack[1].content), sentBack[1].content);
+  ok('...and the command HashCortX ran after it joins that note, with no turn of the model\'s between', sentBack.length === 2 && sentBack.map((m) => m.role).join() === 'user,user' && /HashCortX ran npm test \(exit code 1, it failed\)/.test(sentBack[1].content) && !('fromApp' in sentBack[1]));
+  ok('a result that is not a command\'s record is shown as it came', /HashCortX ran npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')));
 }
 
 console.log('\nWhat it is told:');

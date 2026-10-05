@@ -36,7 +36,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   model takes: each file still asks before it is written, can be undone,
   and is recorded, and the project's tests are run for it. A command's
   result is given to it as text: how it ended, then what it printed, a long
-  output keeping its failures and its ending. A file written
+  output keeping its failures and its ending. A command is said to be one
+  HashCortX ran, never shown as a line the model wrote, and the app's notes
+  reach it without the tool arguments it cannot use. A file written
   much shorter than it is, or one the answer was cut off inside, is not
   written and is asked for again whole; one written again exactly as it is
   ends the work; code shown with no file named is asked to be named. A
