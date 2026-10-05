@@ -106,6 +106,24 @@ console.log('\nWhat it becomes:');
   const parsed = L.parseReply(`FILE: a.js\n${T}\nA\n${T}\nREAD: b.js`);
   const calls = L.callsFor(parsed);
   ok('its files become write_file calls and the files it asked to see read_file calls, files first', calls.map((c) => c.name).join() === 'write_file,read_file' && calls[0].arguments.path === 'a.js' && calls[0].arguments.content === 'A\n' && calls[1].arguments.path === 'b.js');
+  // A file that loads itself.
+  const wrote = (path, content, current = {}) => L.plan({ writes: [{ path, content, guessed: false }], reads: [], said: '', cut: false }, current);
+  const selfJs = wrote('src/clamp.js', "const { clamp } = require('./clamp');\n\nfunction clamp(v, lo, hi) {\n  return Math.min(Math.max(v, lo), hi);\n}\n\nmodule.exports = { clamp };\n");
+  ok('a JavaScript file that requires itself is written without that line, and the model is told which',
+    selfJs.calls.length === 1 && !/require\('\.\/clamp'\)/.test(selfJs.calls[0].arguments.content) && /^\nfunction clamp/.test(selfJs.calls[0].arguments.content) && /cannot load itself/.test(selfJs.note) && /src\/clamp\.js \(line 1\)/.test(selfJs.note), selfJs.note);
+  const selfPy = wrote('stats.py', 'import unittest\nfrom stats import mean, median\n\n\ndef mean(values):\n    return sum(values) / len(values)\n');
+  ok('a Python file that imports itself is written without that line, other imports kept', /^import unittest\n\n\ndef mean/.test(selfPy.calls[0].arguments.content) && /stats\.py \(line 2\)/.test(selfPy.note));
+  ok('...by its package path or from its own package as well', /line 1, 2/.test(wrote('app/stats.py', 'import app.stats\nfrom .stats import mean\nx = 1\n').note));
+  ok('...an import, a folder\'s index and a path that climbs back in all count', /line 1/.test(wrote('src/a.mjs', "import { a } from './a.mjs';\nexport const a = 1;\n").note) && /line 1/.test(wrote('src/util/index.js', "const u = require('../util');\nmodule.exports = {};\n").note) && /line 1/.test(wrote('src/x.js', "require('../src/x');\nmodule.exports = 1;\n").note));
+  const others = [
+    ['test/clamp.test.js', "const { clamp } = require('../src/clamp');\n"],
+    ['src/clamp.js', "const util = require('./clamp-util');\nconst lib = require('clamp');\n"],
+    ['tests/test_stats.py', 'from stats import mean\nimport stats\n'],
+    ['app/stats.py', 'from other.stats import mean\n'],
+    ['src/clamp.js', "module.exports = load(require('./clamp'));\n"],
+  ];
+  ok('a file loading another of its name, a package, another package\'s module, or itself inside a longer line is left as written',
+    others.every(([p, c]) => { const r = wrote(p, c); return r.calls[0].arguments.content === c && !/cannot load itself/.test(r.note); }));
   const lines = (n) => Array.from({ length: n }, (_, i) => `line ${i}`).join('\n');
   const current = { 'big.js': lines(100), 'small.js': lines(10), 'same.js': lines(100) };
   const shorter = L.shrunk([{ path: 'big.js', content: lines(40) }, { path: 'small.js', content: lines(2) }, { path: 'same.js', content: lines(90) }, { path: 'new.js', content: lines(1) }], current);

@@ -40,6 +40,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   much shorter than it is, or one the answer was cut off inside, is not
   written and is asked for again whole; one written again exactly as it is
   ends the work; code shown with no file named is asked to be named. A
+  line in which a file loads itself, a require or import of its own path or
+  a Python import of its own module, is left out of what is written, and
+  the model is told which line it was. A
   small model names its files in other ways too, and those are read: the
   "=== path ===" lines the project is shown to it with, a heading or a
   sentence just above a block naming one file, a comment naming the file

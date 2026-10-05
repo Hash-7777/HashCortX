@@ -303,14 +303,52 @@
     return !had.length || M.definitions(content, lang).some((d) => had.includes(d.name));
   }
 
+  // A file that loads itself. A small model copies the line that loads a
+  // module into the module, and the file then fails to load: in JavaScript
+  // the name is declared twice, in Python the import is circular. Such a
+  // line is never right, so it is left out of what is written, and said.
+  const JS_SELF = /^\s*(?:(?:const|let|var)\s+[^=]+=\s*require\(\s*(['"])([^'"]+)\1\s*\)(?:\.\w+)?|require\(\s*(['"])([^'"]+)\3\s*\)|import\s+(?:[^'"]+\s+from\s+)?(['"])([^'"]+)\5)\s*;?\s*$/;
+  const PY_SELF = /^\s*(?:from\s+(\.?)([\w.]+)\s+import\s+[\w*, ()]+|import\s+([\w.]+)(?:\s+as\s+\w+)?)\s*$/;
+  const dirOf = (p) => p.split('/').slice(0, -1);
+  const noExt = (p) => p.replace(/\.(?:[cm]?js|jsx|ts|tsx)$/, '').replace(/\/index$/, '');
+
+  /** `content` without the lines that load the file at `path` itself, and those lines' numbers. */
+  function withoutSelfLoads(content, path) {
+    const p = String(path || '').replace(/\\/g, '/').replace(/^\.\//, '');
+    const js = /\.(?:[cm]?js|jsx|ts|tsx)$/.test(p), py = /\.py$/.test(p);
+    if (!js && !py) return { content, lines: [] };
+    const self = noExt(p);
+    const module = p.split('/').pop().replace(/\.py$/, '');
+    const dotted = p.replace(/\.py$/, '').split('/').join('.');
+    const loadsSelf = (line) => {
+      if (js) {
+        const m = JS_SELF.exec(line);
+        const spec = m && (m[2] || m[4] || m[6]);
+        if (!spec || !/^\.\.?\//.test(spec)) return false;
+        const parts = dirOf(p);
+        for (const s of spec.split('/')) { if (s === '..') parts.pop(); else if (s !== '.') parts.push(s); }
+        return noExt(parts.join('/')) === self;
+      }
+      const m = PY_SELF.exec(line);
+      const name = m && (m[2] || m[3]);
+      return !!name && (name === module || name === dotted);
+    };
+    const lines = [];
+    const kept = String(content).split('\n').filter((l, n) => (loadsSelf(l) ? (lines.push(n + 1), false) : true));
+    return { content: lines.length ? kept.join('\n') : content, lines };
+  }
+
   function plan(parsed, current) {
     const M = window.HCCodeMerge;
     const notes = [];
     const unsure = [];
     const writes = [];
+    const selfLoads = [];
     for (const w of parsed.writes) {
       const now = current && current[w.path];
-      let content = w.content;
+      const self = withoutSelfLoads(w.content, w.path);
+      if (self.lines.length) selfLoads.push(`${w.path} (line ${self.lines.join(', ')})`);
+      let content = self.content;
       if (typeof now === 'string' && M) {
         // Part of the file, fitted in; a guessed name kept only for code that has something in common with the file it would replace.
         const fitted = M.fit(now, content, w.path);
@@ -323,6 +361,7 @@
     // A file written again exactly as it already is changes nothing: the model is done with it.
     const same = (w) => typeof (current && current[w.path]) === 'string' && current[w.path].replace(/\s+$/, '') === w.content.replace(/\s+$/, '');
     const calls = callsFor({ ...parsed, writes: writes.filter((w) => !short.includes(w.path) && !same(w)) });
+    if (selfLoads.length) notes.push(`${NOTE} a file cannot load itself, so the line that did was left out of ${selfLoads.join(' and ')}. Load a file only from another file that uses it.`);
     if (unsure.length) notes.push(`${NOTE} the code in your answer did not say which file it is for, and it is not ${named(unsure)}, so nothing was written for it. Put a line FILE: and the path just above each file you write, with the whole file in the block.`);
     if (short.length) notes.push(`${NOTE} ${named(short)} would have been written much shorter than ${short.length > 1 ? 'they are' : 'it is'}, so ${short.length > 1 ? 'they were' : 'it was'} not written. Write ${short.length > 1 ? 'each one' : 'it'} again in full, keeping every part you were not asked to change.`);
     if (!parsed.writes.length && !parsed.reads.length && /(`{3,}|~{3,})[^\n]*\n[\s\S]*?\n\1/.test(parsed.said)) notes.push(`${NOTE} your answer shows code, but no file was named for it, so nothing was written. If it belongs in a file, write a line FILE: followed by the file's path just above the code block, with the whole file in the block.`);
