@@ -538,7 +538,8 @@ const LINE_BUDGET = {
   // in js/forge/ask-subject.js, and the mode only calls them — four lines more
   // than the classifier it replaced, with two new files carrying the work.
   // 3721, down three: the intro mark is one copy of the picture, not two.
-  'modes/forge/mode.js': 3721,
+  // 3722, up one: the keyboard help names Ctrl rather than Command off a Mac.
+  'modes/forge/mode.js': 3722,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

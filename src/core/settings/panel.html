@@ -43,13 +43,13 @@
     <div class="modal-body settings-pane" id="settingsPane">
       <div class="set-sec">Connection</div>
       <div class="field">
-        <label>Ollama endpoints <span class="field-note">Your Mac (127.0.0.1) or any PC on your LAN running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
+        <label>Ollama endpoints <span class="field-note">This computer (127.0.0.1), or any computer on your network running <code>OLLAMA_HOST=0.0.0.0:11434 ollama serve</code></span></label>
         <div class="host-row">
           <select class="control host-preset" id="hostPreset"></select>
           <input class="control" id="host" value="http://127.0.0.1:11434" spellcheck="false" placeholder="http://127.0.0.1:11434 or http://&lt;LAN-ip&gt;:11434" />
         </div>
         <div class="host-row">
-          <input class="control" id="hostLabel" placeholder="Label (e.g. My Mac, Home PC, Office workstation)" spellcheck="false" />
+          <input class="control" id="hostLabel" placeholder="Label (e.g. Laptop, Home PC, Office workstation)" spellcheck="false" />
           <button class="ghost set-btn" type="button" id="saveHostBtn" title="Save the current URL as a preset">Save</button>
           <button class="ghost set-btn set-btn-danger" type="button" id="deleteHostBtn" title="Delete the selected custom preset" hidden>Delete</button>
         </div>

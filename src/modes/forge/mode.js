@@ -3664,6 +3664,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
 
   async function mount() {
     mounted = true;
+    if (!/mac/i.test(navigator.platform || navigator.userAgent || "")) document.querySelectorAll(".frg-help [data-key]").forEach((b) => { b.textContent = b.dataset.key; });   // the help names this computer's keys: Command on a Mac, Ctrl elsewhere
     // The plain intro image is only for the first mark. A model already open
     // is drawn again at once, and nothing should sit over it.
     if (activePlan) $("frgIntroMark")?.classList.add("gone");

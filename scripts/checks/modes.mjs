@@ -305,5 +305,16 @@ console.log('\nShared files naming a mode go down, never up:');
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }
 
+console.log('\nWords that fit any computer, not only a Mac:');
+{
+  const settings = read('core/settings/panel.html');
+  const app = read('js/app.js');
+  check('the connection settings and the local preset say this computer, not this Mac', !/Your Mac|My Mac/.test(settings) && /This computer \(127\.0\.0\.1\)/.test(settings) && /label: "Local \(this computer\)"/.test(app) && !/this Mac\)/.test(app));
+  const forgeHelp = read('modes/forge/panel.html').match(/<div class="frg-help">[^\n]*/)?.[0] || '';
+  check('Forge\'s help names Ctrl off a Mac', /<b data-key="Ctrl\+Z">&#8984;Z<\/b> undo/.test(forgeHelp) && /<b data-key="Ctrl\+Y">/.test(forgeHelp)
+    && /document\.querySelectorAll\("\.frg-help \[data-key\]"\)\.forEach\(\(b\) => \{ b\.textContent = b\.dataset\.key; \}\)/.test(read('modes/forge/mode.js')));
+  check('Virtual OS calls its file window Files', !/>Show Finder<|>Finder<|"Show Finder"|"Hide Finder"/.test(read('modes/virtual-os/panel.html') + read('modes/virtual-os/mode.js')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (mode contract)`);
 process.exit(fail ? 1 : 0);

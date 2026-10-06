@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Words that fit Windows too.** Settings named the local connection
+  "Your Mac" and its preset "Local (this Mac)", 3D Forge's help named the
+  Command key on every computer, and Virtual OS called its file window
+  Finder. They now say this computer, name Ctrl off a Mac, and call the
+  window Files.
+
 - **HashCoder's model menu lists each model once, and keeps its choice.**
   Every model in a group of the main menu, such as Google's, was listed
   twice, once in its group and once again below. And the model picked in

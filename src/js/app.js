@@ -2004,7 +2004,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // "+ Save" and it persists like any other preset.
   const BUILTIN_PRESETS = [
     { label: "Off — disable local Ollama", url: "",                        builtin: true },
-    { label: "Local (this Mac)",           url: "http://127.0.0.1:11434",  builtin: true },
+    { label: "Local (this computer)",      url: "http://127.0.0.1:11434",  builtin: true },
     { label: "Local (alt: localhost)",     url: "http://localhost:11434",  builtin: true },
   ];
   function loadHostPresets() {

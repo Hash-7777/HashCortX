@@ -636,7 +636,7 @@ const VoidStudio = (() => {
     if (wrap) wrap.classList.toggle("finder-collapsed", finderCollapsed);
     const btn = $("voidFinderToggleBtn");
     if (btn) {
-      btn.textContent = finderCollapsed ? "Show Finder" : "Hide Finder";
+      btn.textContent = finderCollapsed ? "Show Files" : "Hide Files";
       btn.classList.toggle("active", !finderCollapsed);
     }
   }
