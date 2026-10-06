@@ -182,6 +182,17 @@ fn resolve(path: &Path) -> Option<PathBuf> {
 ///
 /// `Ok(())` or a refusal saying which boundary it fell outside, in the words a
 /// person would use about their own folders.
+/// A path as a person writes it. Resolving a path on Windows gives it the
+/// long-path prefix, `\\?\` (or `\\?\UNC\` for a share), which is the
+/// system's own spelling and means nothing to the person reading a message.
+fn shown(path: &Path) -> String {
+    let text = path.display().to_string();
+    if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{share}");
+    }
+    text.strip_prefix(r"\\?\").map(str::to_string).unwrap_or(text)
+}
+
 pub fn check(path: &str) -> Result<(), String> {
     let s = state().lock().map_err(|_| "the path table is unavailable.".to_string())?;
     let Some(real) = resolve(Path::new(path)) else {
@@ -198,7 +209,7 @@ pub fn check(path: &str) -> Result<(), String> {
     Err(match &s.root {
         Some(root) => format!(
             "\"{path}\" is outside the open project ({}), and has not been approved.",
-            root.display()
+            shown(root)
         ),
         None => format!("\"{path}\" has not been approved, and no project folder is open."),
     })
@@ -225,6 +236,13 @@ mod tests {
     use super::*;
 
     use super::test_turn as turn;
+
+    #[test]
+    fn a_path_in_a_message_has_no_long_path_prefix() {
+        assert_eq!(shown(Path::new(r"\\?\C:\Users\a\project")), r"C:\Users\a\project");
+        assert_eq!(shown(Path::new(r"\\?\UNC\server\share\project")), r"\\server\share\project");
+        assert_eq!(shown(Path::new("/Users/a/project")), "/Users/a/project");
+    }
 
     /// A folder to test in, under the build directory rather than the system
     /// temporary one — on macOS that resolves inside /private/var, which the
