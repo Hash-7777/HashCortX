@@ -112,8 +112,8 @@
       const models = [];
       let token = '';
       for (let page = 0; page < 20; page++) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000&key=${encodeURIComponent(apiKey)}${token ? `&pageToken=${encodeURIComponent(token)}` : ''}`;
-        const j = await getJson('Google', url);
+        const url = `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000${token ? `&pageToken=${encodeURIComponent(token)}` : ''}`;
+        const j = await getJson('Google', url, { 'x-goog-api-key': apiKey });
         models.push(...(j.models || []));
         token = j.nextPageToken || '';
         if (!token) break;

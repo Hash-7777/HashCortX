@@ -62,6 +62,7 @@ console.log('\nGoogle and Wikipedia:');
   const g = recorder(() => json({ items: [{ title: 'T', snippet: 's', link: 'https://a.b' }] }));
   const out = await W.google('q', 3, { key: 'k', cx: 'c', fetch: g.fetch });
   ok('Google is asked on the one host the CSP permits', g.asked[0].url.startsWith('https://customsearch.googleapis.com/customsearch/v1?') && out[0].url === 'https://a.b');
+  ok('the key goes in a header, never in the address', g.asked[0].init.headers['x-goog-api-key'] === 'k' && !/[?&]key=/.test(g.asked[0].url));
   ok('... and only with both its key and its engine id', (await W.google('q', 3, { key: 'k', fetch: g.fetch })) === null);
   const w = recorder((url) => (url.includes('list=search')
     ? json({ query: { search: [{ title: 'Node.js' }] } })

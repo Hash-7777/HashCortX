@@ -100,10 +100,12 @@ console.log('\nGroq — limits carried, only chat models kept:');
 console.log('\nGoogle — every page read, limits carried:');
 {
   const model = (id, extra = {}) => ({ name: `models/${id}`, displayName: id.toUpperCase(), supportedGenerationMethods: ['generateContent'], inputTokenLimit: 1048576, outputTokenLimit: 65536, ...extra });
-  on([/models\?pageSize=1000&key=k$/, respond(200, { models: [model('gemini-2.5-pro'), model('gemini-1.5-pro'), model('text-embedding-004', { supportedGenerationMethods: ['embedContent'] })], nextPageToken: 'P2' })],
+  on([/models\?pageSize=1000$/, respond(200, { models: [model('gemini-2.5-pro'), model('gemini-1.5-pro'), model('text-embedding-004', { supportedGenerationMethods: ['embedContent'] })], nextPageToken: 'P2' })],
     [/pageToken=P2/, respond(200, { models: [model('gemini-99-ultra'), model('gemma-4-31b-it', { inputTokenLimit: 131072, outputTokenLimit: 8192 }), model('gemini-3.1-flash-image-preview'), model('gemini-2.5-flash-preview-tts'), model('gemini-2.5-flash-native-audio')] })]);
   const got = await F.gemini('k');
   ok('it asks for a thousand to a page', /pageSize=1000/.test(calls[0].url));
+  ok('the key goes in Google\'s own header, on every page', calls.every((c) => c.headers['x-goog-api-key'] === 'k'));
+  ok('... and never in the address, which a failed request prints', calls.every((c) => !/[?&]key=/.test(c.url)));
   ok('it reads the second page', calls.length === 2 && /pageToken=P2/.test(calls[1].url));
   ok('a model on the second page is offered', !!find(got, 'gemini-99-ultra'));
   ok('the models/ prefix is stripped and Google\'s own name used', !!find(got, 'gemini-2.5-pro') && find(got, 'gemini-2.5-pro').shortLabel === 'GEMINI-2.5-PRO');

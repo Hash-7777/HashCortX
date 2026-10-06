@@ -103,7 +103,7 @@ console.log('\nThe words reach it as they are written:');
     /async function agentTurnOpenAI\(\{[^}]*onText, onThinking \}\)/.test(openai) && /stream: !!onText/.test(openai)
     && /HCStreamSSE\.openAIReply\(r, \{ onText, onThinking, fail:/.test(openai));
   const gemini = app.slice(app.indexOf('async function agentTurnGemini'), app.indexOf('// Pick the right adapter'));
-  ok('so does Gemini', /agentTurnGemini\(\{[^}]*onText, onThinking \}\)/.test(gemini) && /onText \? "streamGenerateContent\?alt=sse&" : "generateContent\?"/.test(gemini)
+  ok('so does Gemini', /agentTurnGemini\(\{[^}]*onText, onThinking \}\)/.test(gemini) && /onText \? "streamGenerateContent\?alt=sse" : "generateContent"/.test(gemini)
     && /HCStreamSSE\.geminiReply\(r, \{ onText, onThinking, fail:/.test(gemini));
   const anthropic = app.slice(app.indexOf('async function agentTurnAnthropic'), app.indexOf('async function agentTurnGemini'));
   ok('and Anthropic', /agentTurnAnthropic\(\{[^}]*onText, onThinking, cache \}\)/.test(anthropic) && /\.\.\.\(onText \? \{ stream: true \} : \{\}\)/.test(anthropic)

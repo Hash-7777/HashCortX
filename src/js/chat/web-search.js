@@ -73,9 +73,10 @@
   async function google(query, limit = 5, { key, cx, fetch: fetchFn } = {}) {
     if (!key || !cx) return null;
     try {
-      // Not www.googleapis.com: connect-src permits only this name.
-      const url = `https://customsearch.googleapis.com/customsearch/v1?key=${encodeURIComponent(key)}&cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`;
-      const r = await get(fetchFn)(url, { referrerPolicy: "no-referrer" });
+      // Not www.googleapis.com: connect-src permits only this name. The key
+      // goes in a header, never the address, which a failed request prints.
+      const url = `https://customsearch.googleapis.com/customsearch/v1?cx=${encodeURIComponent(cx)}&q=${encodeURIComponent(query)}&num=${limit}`;
+      const r = await get(fetchFn)(url, { referrerPolicy: "no-referrer", headers: { "x-goog-api-key": key } });
       if (!r.ok) return null;
       const data = await r.json();
       return (data.items || []).map((it) => ({ title: it.title, snippet: it.snippet || "", url: it.link }));

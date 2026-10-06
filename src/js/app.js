@@ -2412,7 +2412,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
 
   const API_PROVIDERS = [
     { id: "groq",       name: "Groq",        keyId: "groqKey",       testUrl: "https://api.groq.com/openai/v1/models",           auth: "bearer" },
-    { id: "gemini",     name: "Gemini",      keyId: "geminiKey",     testUrl: "https://generativelanguage.googleapis.com/v1beta/models?key=", auth: "query" },
+    { id: "gemini",     name: "Gemini",      keyId: "geminiKey",     testUrl: "https://generativelanguage.googleapis.com/v1beta/models", auth: "google" },
     { id: "openai",     name: "OpenAI",      keyId: "openaiKey",     testUrl: "https://api.openai.com/v1/models",               auth: "bearer" },
     { id: "anthropic",  name: "Anthropic",   keyId: "anthropicKey",  testUrl: null,                                             auth: null }, // no public test endpoint
     { id: "moonshot",   name: "Moonshot (Kimi)", keyId: "moonshotKey", testUrl: null,                                             auth: "moonshot" },
@@ -2463,9 +2463,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     if (!provider.testUrl) return { ok: true, note: "Key present — test on first use" };
     try {
-      const url = provider.auth === "query" ? `${provider.testUrl}${encodeURIComponent(key)}` : provider.testUrl;
-      const headers = provider.auth === "bearer" ? { Authorization: `Bearer ${key}` } : {};
-      const r = await fetch(url, { method: "GET", referrerPolicy: "no-referrer", headers, signal: makeSignal(8000) });
+      // A key never goes in the address, which a failed request prints to the console.
+      const headers = provider.auth === "bearer" ? { Authorization: `Bearer ${key}` } : provider.auth === "google" ? { "x-goog-api-key": key } : {};
+      const r = await fetch(provider.testUrl, { method: "GET", referrerPolicy: "no-referrer", headers, signal: makeSignal(8000) });
       if (r.ok) return { ok: true };
       const txt = await r.text().catch(() => "");
       return { ok: false, error: cloudHttpError(provider.id, r.status, txt) };
@@ -3487,9 +3487,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
     };
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${encodeURIComponent(key)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent`,
       { method: "POST", referrerPolicy: "no-referrer",
-        headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal }
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal }
     );
     if (!res.ok) throw await httpFailure("gemini", res);
     const data = await res.json();
@@ -3562,8 +3562,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
       });
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?alt=sse&key=${encodeURIComponent(key)}`,
-        { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal }
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent?alt=sse`,
+        { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal }
       );
       if (!res.ok) throw await httpFailure("gemini", res);
       for await (const line of window.HCStreamSSE.sseLines(res.body)) {
@@ -5855,8 +5855,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
       ...(tools.length ? { tools } : {})
     });
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${onText ? "streamGenerateContent?alt=sse&" : "generateContent?"}key=${encodeURIComponent(key)}`;   // streamed when watched
-    const r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal });
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:${onText ? "streamGenerateContent?alt=sse" : "generateContent"}`;   // streamed when watched
+    const r = await fetch(url, { method: "POST", referrerPolicy: "no-referrer", headers: { "Content-Type": "application/json", "x-goog-api-key": key }, body: JSON.stringify(body), signal });
     if (!r.ok) throw await httpFailure("gemini", r);
     const data = await window.HCStreamSSE.geminiReply(r, { onText, onThinking, fail: (f) => HCProviders.bodyFailure("gemini", f) });   // js/stream/sse.js
     const parts = data.candidates?.[0]?.content?.parts || [];

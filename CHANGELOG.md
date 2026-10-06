@@ -536,6 +536,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **A key travels in a request header, never in the address.** Requests to
+  Google, for chat, its model list, the key test in Settings and its web
+  search, carry the key in Google's own header. A check reads every script
+  the app ships and fails on an address built with a key.
+
 - **The app's own instructions stay between the app and the model.** What
   the app tells a model, its instructions, the notes it adds to a
   conversation, the sections it adds to a Swarm agent and the framing around

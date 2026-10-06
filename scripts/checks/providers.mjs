@@ -89,7 +89,7 @@ console.log('\nEvery provider the settings screen offers is in the table:');
 console.log('\nEvery entry in the table is complete:');
 for (const [id, p] of Object.entries(P.PROVIDERS)) {
   ok(`${id} has a label`, typeof p.label === 'string' && p.label.length > 0);
-  ok(`${id} says how it authenticates`, ['bearer', 'anthropic', 'query'].includes(p.auth), `got ${p.auth}`);
+  ok(`${id} says how it authenticates`, ['bearer', 'anthropic', 'google'].includes(p.auth), `got ${p.auth}`);
   ok(`${id} names somewhere to reach it`, !!(p.chatUrl || p.host || (p.hosts && p.hosts.length) || p.bridge));
   if (p.chatUrl) ok(`${id} uses https`, new URL(p.chatUrl).protocol === 'https:');
 }
@@ -402,6 +402,26 @@ console.log('\nWhat somebody is told when a request failed:');
   // A wall of provider HTML in an error box helps nobody.
   ok('a long server response is cut down',
     E('groq', 400, 'x'.repeat(5000), null).length < 300);
+}
+
+// A failed request's address is printed to the web view's console, and from
+// there into any log or report that copies it, so no request the app makes
+// may carry a key in its address. Every script the app ships is read.
+console.log('\nNo key travels in an address:');
+{
+  const { readdirSync, statSync } = await import('node:fs');
+  const walk = (dir) => readdirSync(dir).flatMap((n) => {
+    const p = join(dir, n);
+    if (n === 'vendor') return [];
+    return statSync(p).isDirectory() ? walk(p) : /\.(js|html)$/.test(n) ? [p] : [];
+  });
+  const found = [];
+  for (const file of walk(join(root, 'src'))) {
+    readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
+      if (/[?&](key|api_key|apikey|token|access_token)=\$\{|[?&](key|api_key|apikey)="\s*\+/i.test(line)) found.push(`${file.slice(root.length + 1)}:${i + 1}`);
+    });
+  }
+  ok('no script builds an address with a key in it', found.length === 0, found.join(', '));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/providers.js)`);

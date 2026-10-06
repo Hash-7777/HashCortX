@@ -102,11 +102,11 @@
     },
     gemini: {
       label: 'Google AI Studio',
-      // Gemini puts the model and the action in the path and the key in the
-      // query, so there is no single URL to name — only the host it lives on,
-      // which is what the CSP check needs.
+      // Gemini puts the model and the action in the path, so there is no
+      // single URL to name — only the host it lives on, which is what the CSP
+      // check needs. The key goes in its own header, never in the address.
       host: 'https://generativelanguage.googleapis.com',
-      auth: 'query',
+      auth: 'google',
     },
     // ── Added after measuring, not after guessing ──────────────────────
     //
