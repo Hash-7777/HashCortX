@@ -420,7 +420,7 @@ console.log('\nA team stays on the side it was chosen on, this computer or the c
   const swarm = src('modes', 'agent-maker', 'mode.js');
   const ws = src('js', 'swarm', 'workspace.js');
   ok('the models a new team is designed from are those on the side of the model the person chose for the design',
-    /const allOpts = Array\.from\(document\.getElementById\("model"\)\?\.options \|\| \[\]\)[\s\S]*?\(window\.HCModelRoutes\.providerOf\(o\.value\) === "local"\) === \(window\.HCModelRoutes\.providerOf\(modelValue\) === "local"\)/.test(swarm));
+    /const allOpts = window\.HCModelRoutes\.notCooling\(Array\.from\(document\.getElementById\("model"\)\?\.options \|\| \[\]\)[\s\S]*?\(window\.HCModelRoutes\.providerOf\(o\.value\) === "local"\) === \(window\.HCModelRoutes\.providerOf\(modelValue\) === "local"\)/.test(swarm));
   ok('every model it assigns, spreads agents across or fits one to comes from that list', /const providerModels = window\.HCModelSpeed\.order\(unordered/.test(swarm) && /fitToOffered\(v, allOpts\.map\(o => o\.value\), providerModels, modelValue\)/.test(swarm));
   ok('when an agent is asked for a change, the picker lists only models on the agent\'s own side', /const local = \(v\) => window\.HCModelRoutes\.providerOf\(v\) === 'local';/.test(ws) && /m\.value !== own && \(!own \|\| local\(m\.value\) === local\(own\)\)/.test(ws));
   ok('every run and every agent fails over through the shared routes, which never cross the line', /window\.HCModelRoutes\.createRun\(\{ options: menuModels/.test(swarm) && /ROUTES\.createRun\(\{ options: deps\.models/.test(src('js', 'swarm', 'ask.js')));

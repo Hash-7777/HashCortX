@@ -166,6 +166,23 @@ console.log('\nOne run keeps what it has learnt:');
   ok('... but every provider cooling is no reason to stop', !!allCooling.next('cloud:gemini:gemini-2.5-pro', E('Agent timeout after 90s')));
 }
 
+console.log('\nWhat a run found out of quota is known to the rest of the app:');
+{
+  R.forgetCooling();
+  const run = R.createRun({ options: () => opts, store: memory() });
+  ok('nothing is cooling to begin with', !R.isCooling('cloud:gemini:gemini-2.5-pro'));
+  run.next('cloud:gemini:gemini-2.5-pro', E(P.cloudHttpError('gemini', 429, '')));
+  ok('a model a run found out of quota is', R.isCooling('cloud:gemini:gemini-2.5-pro'));
+  ok('... a model of another provider is not', !R.isCooling('cloud:groq:openai/gpt-oss-120b'));
+  const offered = [{ value: 'cloud:gemini:gemini-2.5-pro' }, { value: 'cloud:groq:openai/gpt-oss-120b' }];
+  ok('... so a list of options leaves it out', R.notCooling(offered).map((o) => o.value).join() === 'cloud:groq:openai/gpt-oss-120b');
+  ok('... unless every one is cooling, when none is left out', R.notCooling([offered[0]]).length === 1);
+  ok('... and once its time has passed, neither is it', !R.isCooling('cloud:gemini:gemini-2.5-pro', Date.now() + 31 * 60 * 1000));
+  R.forgetCooling();
+  const god = readFileSync(join(here, '..', '..', 'src', 'modes', 'agent-maker', 'mode.js'), 'utf8');
+  ok('a new team is not given a model found out of quota', /const allOpts = window\.HCModelRoutes\.notCooling\(Array\.from\(document\.getElementById\("model"\)/.test(god));
+}
+
 console.log('\nA model that cannot hold the job is not asked while one that can is left:');
 {
   const small = (v) => v !== 'cloud:groq:openai/gpt-oss-120b' && v !== 'cloud:groq:openai/gpt-oss-20b';

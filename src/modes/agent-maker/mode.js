@@ -1319,14 +1319,14 @@ const SwarmMaker = (() => {
     // Build one strong representative model per provider for God Agent to assign.
     // For big assignments, choose frontier/famous/larger models instead of the first dropdown option.
     const bigTask = isBigAssignment(desc);
-    const allOpts = Array.from(document.getElementById("model")?.options || [])
+    const allOpts = window.HCModelRoutes.notCooling(Array.from(document.getElementById("model")?.options || [])
       .map(o => ({ value: o.value, label: o.textContent || o.label || o.value }))
       // A model a provider has said is gone is not offered to a new team, nor
       // one on the other side of the model it is designed on: a cloud team
       // given a local model loaded it on the machine mid-run, and a local
-      // team keeps its task off the cloud (js/model-routes.js).
+      // team keeps its task off the cloud; nor, unless every one was, one found out of quota a short while ago (js/model-routes.js).
       .filter(o => o.value && !o.disabled && !o.value.startsWith("─") && !window.HCModelRoutes.isRetired(o.value)
-        && (window.HCModelRoutes.providerOf(o.value) === "local") === (window.HCModelRoutes.providerOf(modelValue) === "local"));
+        && (window.HCModelRoutes.providerOf(o.value) === "local") === (window.HCModelRoutes.providerOf(modelValue) === "local")));
     const providerOptions = {};   // provider → [{ value, label }]
     allOpts.forEach(o => {
       const provider = o.value.startsWith("cloud:") ? o.value.split(":")[1] : "local";

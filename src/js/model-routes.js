@@ -108,6 +108,10 @@
     for (const [k, until] of cooling) { if (until <= now) cooling.delete(k); else if (k.startsWith(prefix)) out.push(k.slice(prefix.length)); }
     return out;
   }
+  /** Whether a model, or its account, was found out of quota or refused a short while ago. */
+  function isCooling(value, now = Date.now()) { return coolingNow('p:', now).includes(providerOf(value)) || coolingNow('m:', now).includes(String(value || '')); }
+  /** The options not cooling, or all of them when every one is. */
+  function notCooling(options, now = Date.now()) { const fresh = options.filter((o) => !isCooling(o.value, now)); return fresh.length ? fresh : options; }
   /** Forget what recent runs learnt — for the checks, and for a person who has just added credit. */
   function forgetCooling() { cooling.clear(); coolWhy.clear(); }
 
@@ -435,5 +439,5 @@
     }
   }
 
-  window.HCModelRoutes = { coversAccount, forgetCooling, failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, askWithFailover, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
+  window.HCModelRoutes = { coversAccount, isCooling, notCooling, forgetCooling, failureKind, providerOf, markRetired, isRetired, listRetired, forgetRetired, nextRoutes, createRun, quietSignal, callWithin, askWithFailover, reasonText, RETIRED_KEY, RETIRED_FOR_MS };
 })();

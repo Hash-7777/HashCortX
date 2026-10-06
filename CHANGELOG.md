@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **God Agent no longer gives a new team a model just found out of
+  quota.** A model a run had just found out of quota, or whose account had
+  run out, was still offered to God Agent, which could put it on every
+  agent, so each one failed over at its start. Such models are now left
+  out of what God Agent may choose for a short while, unless every model
+  is.
+
 - **A diagram Mermaid cannot read is shown as its text.** A diagram a model
   wrote with a mistake in it was replaced by Mermaid's large error picture,
   and the chat warned about it again every time it was drawn. Each diagram
