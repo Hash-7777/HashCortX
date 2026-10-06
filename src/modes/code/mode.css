@@ -458,7 +458,7 @@ body.coder-mode #app { display: none; }
   height: 32px; padding: 0 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .cdr-run-btn { border: 1px solid var(--accent); background: var(--accent); color: var(--surface-0); }
-.cdr-run-btn:hover { filter: brightness(1.08); }
+.cdr-run-btn:hover { background: var(--accent); border-color: var(--accent); filter: brightness(1.08); }
 .cdr-stop-btn { border: 1px solid var(--danger); background: transparent; color: var(--danger); }
 .cdr-input-actions { display: flex; align-items: center; gap: 6px; }
 /* How much HashCoder may do without asking: a small menu, quiet until hovered. */

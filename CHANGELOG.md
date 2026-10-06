@@ -8,6 +8,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A filled button keeps its colour under the pointer.** HashCoder's Run,
+  the permission bar's Allow once and Finance's Analyze lost their fill while
+  the pointer was over them, and their dark label sat on the dark page, so
+  the button about to be pressed could not be read. Each now keeps its fill
+  on hover. A check reads every stylesheet for a button filled under dark
+  text whose hover would empty it (`scripts/checks/filled-hover.mjs`).
+
 ## [3.0.0] — 2026-10-06
 
 The harness release. HashCoder proves and checks its own work, fitted to the

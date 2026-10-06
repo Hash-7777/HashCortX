@@ -1830,7 +1830,7 @@ body.intro-exiting #intro-screen .logo-glow {
 .hc-perm-btn--deny { color: var(--text-dim); }
 .hc-perm-btn--deny:hover { color: var(--danger); border-color: var(--danger); }
 .hc-perm-btn--allow { background: var(--accent); border-color: var(--accent); color: var(--surface-0); font-weight: 600; }
-.hc-perm-btn--allow:hover { border-color: var(--accent); opacity: .88; }
+.hc-perm-btn--allow:hover { background: var(--accent); border-color: var(--accent); opacity: .88; }
 
 /* Working: the same bar, reporting instead of asking. There are no buttons,
    because there is nothing to decide; the decision was already made. The

@@ -1134,7 +1134,7 @@ body.finance-mode #app > *:not(#finance-wrap) { display: none !important; }
   gap: 5px;
   transition: opacity .14s;
 }
-.fin-send-btn:hover    { opacity: .88; }
+.fin-send-btn:hover    { background: var(--fin-primary); opacity: .88; }
 .fin-send-btn:disabled { opacity: .38; cursor: not-allowed; }/* ── Status bar ────────────────────────────────────────────────────── */
 .fin-status {
   flex-shrink: 0;
