@@ -116,7 +116,9 @@
 
       if (!HC.isTauri) return browserDownload(name, bytes, mime);
 
-      const options = { defaultPath: name, title: (opts && opts.title) || 'Save' };
+      // `folder` is where the dialog opens, when the caller has a better place than the last one used.
+      const folder = opts && opts.folder ? String(opts.folder).replace(/[/\\]+$/, '') : '';
+      const options = { defaultPath: folder ? `${folder}${folder.includes('\\') && !folder.includes('/') ? '\\' : '/'}${name}` : name, title: (opts && opts.title) || 'Save' };
       const filter = window.HCExport?.dialogFilter?.(name);
       if (filter) options.filters = [filter];
 

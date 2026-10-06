@@ -1488,9 +1488,9 @@
     // Goes through HC.save: the old <a download> is cancelled outright by
     // this webview (see platform/tauri/save.js), so this reported "Exported"
     // over a file that was never written.
-    async function downloadBlob(content, mime, filename) {
+    async function downloadBlob(content, mime, filename, opts = {}) {
       try {
-        const result = await window.HC.save.file(filename, content, { mime });
+        const result = await window.HC.save.file(filename, content, { mime, ...opts });
         if (!result.saved) { setStatus('Ready', ''); return; }
         setStatus(`Exported · ${filename}`, 'ok');
       } catch (e) {
@@ -1500,8 +1500,8 @@
       setTimeout(() => setStatus('Ready', ''), 2400);
     }
 
-    // The whole conversation as the model was sent it, with its trace (js/code/debug-export.js).
-    const exportDebug = () => window.HCCodeDebug.exportRun({ messages: conversationMsgs, trace: cdrTraceEntries, run: sharedState.lastRun, sharedState, routing: routing?.router, coderModel, prefs: cdrPrefs(), H: window._H, save: downloadBlob, exportBaseName: window.HCCodeExport.exportBaseName });
+    // The whole conversation as the model was sent it, with its trace (js/code/debug-export.js), offered in Downloads rather than the project, where it could be committed with it.
+    const exportDebug = () => window.HCCodeDebug.exportRun({ messages: conversationMsgs, trace: cdrTraceEntries, run: sharedState.lastRun, sharedState, routing: routing?.router, coderModel, prefs: cdrPrefs(), H: window._H, save: (t, m, n) => downloadBlob(t, m, n, { folder: window.HCCodeDebug.downloadsOf(sharedState.homeDir) }), exportBaseName: window.HCCodeExport.exportBaseName });
     async function exportAsPdf(filename) {
       // jsPDF is loaded as window.jspdf.jsPDF (UMD bundle, included in index.html)
       const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;

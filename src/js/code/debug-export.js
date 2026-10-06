@@ -141,7 +141,7 @@
     const stamp = exportedAt instanceof Date ? exportedAt.toLocaleString() : String(exportedAt);
 
     const body = [];
-    body.push('## Trace', '');
+    body.push('## Trace of the last run', '');
     if (!steps.length) body.push('Nothing was recorded.', '');
     else {
       body.push('| Time | Stage | Status | What |', '| ---: | --- | --- | --- |');
@@ -186,7 +186,7 @@
       `- Exported: ${stamp}`,
       `- App: HashCortx${facts.version ? ` ${String(facts.version).replace(/^v/i, 'v')}` : ''}${facts.platform ? ` on ${facts.platform}` : ''}`,
       facts.projectRoot ? `- Project: ${facts.projectRoot}` : '- Project: none open',
-      `- Model: ${facts.label ? `${facts.label} (${facts.model || 'unknown'})` : facts.model || 'unknown'}${facts.chosen && facts.chosen !== facts.model ? `, after moving off ${facts.chosen}` : ''}`,
+      `- Model of the last run: ${facts.label ? `${facts.label} (${facts.model || 'unknown'})` : facts.model || 'unknown'}${facts.chosen && facts.chosen !== facts.model ? `, after moving off ${facts.chosen}` : ''}`,
       `- Set up for: ${facts.size || 'unknown'}${facts.light ? ', light mode (no tools; files read from its answer)' : ''}${facts.local === true ? ', a model on this computer' : facts.local === false ? ', a cloud model' : ''}${Number.isFinite(facts.temperature) ? `, temperature ${facts.temperature}` : ''}`,
     ];
     if (settings) head.push(`- Settings: ${settings}`);
@@ -246,5 +246,11 @@
     return true;
   }
 
-  window.HCCodeDebug = { MAX_CHARS, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun };
+  /** The Downloads folder in a home folder, written the way that home is, or '' when there is none. */
+  function downloadsOf(home) {
+    const h = String(home || '').trim().replace(/[/\\]+$/, '');
+    return h ? `${h}${h.includes('\\') && !h.includes('/') ? '\\' : '/'}Downloads` : '';
+  }
+
+  window.HCCodeDebug = { MAX_CHARS, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun, downloadsOf };
 })();

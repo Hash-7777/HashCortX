@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's export for debugging is offered in Downloads, and says
+  whose model it names.** Its save dialog opened where the last file was
+  saved, often the project, where the export could be committed with it;
+  it now opens in Downloads. Its model line and its trace are the last
+  run's, and now say so, since earlier turns may have used another model.
+
 - **A cloud reply's footer shows what the provider counted.** The token
   counts a provider sends with its answer were written to the usage log
   but not to the reply, so a cloud reply's footer and its export said

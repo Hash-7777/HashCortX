@@ -75,7 +75,7 @@ console.log('The facts of the run, at the top:');
   ok('it is a markdown file with a title', /^# HashCoder debug export\n/.test(text));
   ok('when, which app and on what', /- Exported: Friday 2 October 2026, 02:14/.test(text) && /- App: HashCortx v2\.6\.0 on macOS/.test(text));
   ok('the project', /- Project: \/work\/site/.test(text));
-  ok('the model, by name and by value', /- Model: Gemini 3\.8 Flash \(cloud:gemini:gemini-3\.8-flash\)/.test(text));
+  ok('the model, by name and by value', /- Model of the last run: Gemini 3\.8 Flash \(cloud:gemini:gemini-3\.8-flash\)/.test(text));
   ok('how HashCoder was set up for it', /- Set up for: full, a cloud model, temperature 0\.35/.test(text));
   ok('the settings that change what it does', /- Settings: Prove changes on · Lessons off/.test(text));
   ok('what is in it: messages, calls, failures, notes and trace entries', /- Size: 8 messages · 2 tool calls \(1 failed\) · 1 note from the app · 2 trace entries/.test(text), text.split('\n').find((l) => /^- Size/.test(l)));
@@ -167,7 +167,7 @@ console.log('\nThe file\'s name and the button:');
     save: async (content, mime, name) => { saved = { content, mime, name }; }, exportBaseName: (r) => r.split('/').pop(),
   });
   ok('it saves a markdown file named for the project', done === true && saved.mime === 'text/markdown' && /^hashcoder-debug-site-\d{4}-\d\d-\d\d-\d{4}\.md$/.test(saved.name), saved && saved.name);
-  ok('the model is the one the run was moved to, by its label', /- Model: Label of cloud:groq:llama \(cloud:groq:llama\)/.test(saved.content));
+  ok('the model is the one the run was moved to, by its label', /- Model of the last run: Label of cloud:groq:llama \(cloud:groq:llama\)/.test(saved.content));
   ok('the app version comes from the page, and the settings from the person\'s choices', /HashCortx v9\.9\.9 on macOS/.test(saved.content) && /Prove changes off · Lessons on/.test(saved.content) && /temperature 0\.2/.test(saved.content));
 }
 
@@ -183,7 +183,7 @@ console.log('\nThe run\'s own facts, kept with its conversation:');
     routing: null, coderModel: '', H: { selectedModel: () => 'later-pick', selectedTemperature: () => 0.9 },
     doc: { querySelector: () => null }, save: async (content) => { saved = content; }, exportBaseName: () => 'site',
   });
-  ok('an export after the app was reopened names the run\'s model, not the one picked since', /- Model: Label of cloud:groq:llama \(cloud:groq:llama\), after moving off cloud:openrouter:big/.test(saved) && !/later-pick/.test(saved));
+  ok('an export after the app was reopened names the run\'s model, not the one picked since', /- Model of the last run: Label of cloud:groq:llama \(cloud:groq:llama\), after moving off cloud:openrouter:big/.test(saved) && !/later-pick/.test(saved));
   ok('... and how it was set up and the temperature it was sent', /- Set up for: mid, a cloud model, temperature 0\.2/.test(saved) && !/0\.9/.test(saved));
   const text = D.buildDebug({ messages: [{ role: 'user', content: 'Build it', context: 'Note from the app: the checklist' }], trace: [], facts: {} });
   ok('what the app added to a request is marked with it, by its length and not its words', /### 1 · the person\n\nBuild it\n\n\[added by the app to this request: \d+ characters, the app's own, not included\]/.test(text) && !/the checklist/.test(text));
@@ -204,11 +204,22 @@ console.log('\nIt is in the panel:');
   const mode = src('modes', 'code', 'mode.js');
   ok('a button in the top bar, with words for what it does', /<button type="button" class="cdr-icon-btn" id="cdrDebugBtn" title="Export this conversation with its trace, for debugging">/.test(html));
   ok('it is wired to the export, with the whole conversation and the trace', /\$\('cdrDebugBtn'\)\?\.addEventListener\('click', exportDebug\)/.test(mode) && /exportDebug = \(\) => window\.HCCodeDebug\.exportRun\(\{ messages: conversationMsgs, trace: cdrTraceEntries,/.test(mode));
-  ok('and saves through the same door the other exports use', /save: downloadBlob/.test(mode) && /window\.HC\.save\.file\(filename, content/.test(mode));
+  ok('and saves through the same door the other exports use', /save: \(t, m, n\) => downloadBlob\(t, m, n,/.test(mode) && /window\.HC\.save\.file\(filename, content/.test(mode));
   ok('the export in Settings is still there', /id="cdrExportBtn"/.test(src('core', 'settings', 'panel.html')));
   const boot = src('boot.js');
   ok('the module loads before the panel', boot.indexOf("'/js/code/debug-export.js'") > boot.indexOf("'/js/code/export.js'") && boot.indexOf("'/js/code/debug-export.js'") < boot.indexOf("'/js/app.js'"));
   ok('this check is part of npm run check', /npm run check:code-debug/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
+}
+
+console.log('\nThe export is offered outside the project:');
+{
+  ok('in the Downloads folder of a Windows home', D.downloadsOf('C:\\Users\\a') === 'C:\\Users\\a\\Downloads');
+  ok('... and of a Mac or Linux one', D.downloadsOf('/Users/a/') === '/Users/a/Downloads' && D.downloadsOf('') === '');
+  const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder opens the dialog there', /save: \(t, m, n\) => downloadBlob\(t, m, n, \{ folder: window\.HCCodeDebug\.downloadsOf\(sharedState\.homeDir\) \}\)/.test(panel) && /window\.HC\.save\.file\(filename, content, \{ mime, \.\.\.opts \}\)/.test(panel));
+  const save = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'save.js'), 'utf8');
+  ok('... which starts the save dialog in the folder it is given', /defaultPath: folder \? `\$\{folder\}/.test(save));
+  ok('the model line and the trace say they are the last run\'s', /- Model of the last run:/.test(src('js', 'code', 'debug-export.js')) && /'## Trace of the last run'/.test(src('js', 'code', 'debug-export.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/debug-export.js)`);
