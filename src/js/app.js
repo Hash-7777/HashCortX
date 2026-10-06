@@ -5076,7 +5076,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const projectInstructions = (currentProject()?.instructions || "").trim();
     const baseSys = (agent && agent.systemPrompt) ? agent.systemPrompt.trim() : systemEl.value.trim();
     const modeSys = isForgeMode() ? FORGE_ARCHITECT_PROMPT : "";
-    const sys = [baseSys, modeSys, projectInstructions ? `[PROJECT INSTRUCTIONS]\n${projectInstructions}` : "", HCPromptPrivacy.RULE].filter(Boolean).join("\n\n");   // the last line: instructions are private (js/prompt-privacy.js)
+    const sys = [baseSys, modeSys, projectInstructions ? `[PROJECT INSTRUCTIONS]\n${projectInstructions}` : "", agent ? "" : HCChatContext.PLAIN_CHAT_RULE, HCPromptPrivacy.RULE].filter(Boolean).join("\n\n");   // no agent: no tools (js/chat/context.js); the last line: instructions are private (js/prompt-privacy.js)
     if (sys) arr.push({ role: "system", content: sys });
 
     const all = state.messages;

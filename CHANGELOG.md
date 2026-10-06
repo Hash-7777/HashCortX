@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A plain chat no longer claims to search the web.** With no agent on, a
+  chat has no tools, and a model asked to search answered as though it had,
+  with a result it made up. It is now told it cannot search or run code
+  there, never to give a result it did not receive, and that the "Look it
+  up" button turns on an agent that can.
+
 - **HashCoder no longer asks a question of its own at launch.** It reopens
   the last project when it starts, and when that folder had been moved or
   deleted it asked permission to list it, a question nobody had caused. A

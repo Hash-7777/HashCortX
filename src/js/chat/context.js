@@ -128,5 +128,10 @@
     return words.length > 3 ? `${words.slice(0, 3).join(" ")}…` : words.join(" ");
   }
 
-  window.HCChatContext = { buildAttachedFileContext, estimatePromptTokens, deriveTitle, MIN_PER_FILE };
+  // A plain chat has no tools, and a model asked to search the web answered
+  // as though it had, with a result and a date it made up. It is told what it
+  // cannot do here, and what the person can turn on that can.
+  const PLAIN_CHAT_RULE = 'This conversation has no tools: you cannot search the web or run code in it, and a web page reaches you only when the person links it and it could be read. Never say you are searching, browsing or running anything, and never give a result you did not receive. When asked to search, or for anything current, say that this chat cannot look it up, and that the "Look it up" button turns on an agent that can.';
+
+  window.HCChatContext = { buildAttachedFileContext, estimatePromptTokens, deriveTitle, MIN_PER_FILE, PLAIN_CHAT_RULE };
 })();

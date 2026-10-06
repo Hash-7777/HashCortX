@@ -141,5 +141,15 @@ console.log('\nA conversation is named after the first thing said in it:');
     C.deriveTitle([{ role: 'user', content: 'a    b    c    d' }]) === 'a b c…');
 }
 
+console.log('\nA plain chat is told it has no tools:');
+{
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const rule = C.PLAIN_CHAT_RULE;
+  ok('it says the chat cannot search or run code', /cannot search the web or run code/.test(rule));
+  ok('... that nothing may be claimed as done or found', /Never say you are searching/.test(rule) && /never give a result you did not receive/.test(rule));
+  ok('... and names the button that turns on an agent that can', /"Look it up" button/.test(rule) && /data-preset="grounded"[^>]*>Look it up</.test(readFileSync(join(here, '..', '..', 'src', 'index.html'), 'utf8')));
+  ok('it goes only to a chat with no agent, before the privacy line', /agent \? "" : HCChatContext\.PLAIN_CHAT_RULE, HCPromptPrivacy\.RULE\]/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/context.js)\n`);
 process.exit(fail === 0 ? 0 : 1);
