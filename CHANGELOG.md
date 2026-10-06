@@ -1109,6 +1109,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A Swarm team that writes a program's files keeps them as files.** A
+  team's answer often names each file in the words just above its code,
+  such as "Save the following code as `todo.py`:", and such a run ended
+  with "This run made no files", its code only in the conversation. A
+  block with no name of its own now takes the one file name in the line or
+  two above it, when the block's language is written in that kind of file,
+  never over a file already there, and not in a reply to a change request.
+
 - **On Windows, HashCoder's `mkdir`, `dir`, `copy` and the rest work the
   first time.** They are part of cmd rather than programs, so starting one
   by itself failed as a program not found, and the model then asked again

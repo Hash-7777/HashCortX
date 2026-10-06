@@ -81,6 +81,25 @@ ok('names are kept in lower case, which is how the preview looks them up',
 ok('a file with no language takes one from its extension', P.extractProjectFiles(`${B} page.html\n<p>x</p>\n${B}`).get('page.html').lang === 'html');
 ok('prose with no code gives no files', P.extractProjectFiles('Nothing to build.').size === 0);
 ok('nothing gives no files', P.extractProjectFiles('').size === 0 && P.extractProjectFiles(null).size === 0);
+console.log('\nA name in the sentence above a block:');
+{
+  const answer = [
+    '### 1. Application Code (`todo.py`)', '', 'Save the following code as `todo.py`:', '', `${B}python`, 'import json', 'print("todo")', B, '',
+    '### 2. Unit Test Suite (`test_todo.py`)', '', 'Save the following code as `test_todo.py`:', '', `${B}python`, 'import unittest', B, '',
+    '#### Run the Unit Tests', '', 'Run `test_todo.py` with Python\'s own runner:', '', `${B}bash`, 'python -m unittest test_todo.py -v', B,
+  ].join('\n');
+  const got = P.extractProjectFiles(answer);
+  ok('a file named only in the words above its block is found', got.get('todo.py')?.content === 'import json\nprint("todo")' && got.get('test_todo.py')?.content === 'import unittest');
+  ok('... in the block\'s own language', got.get('todo.py')?.lang === 'python');
+  ok('a command shown to run a file is not taken for the file', got.size === 2);
+  ok('a line naming two files names neither', P.extractProjectFiles(`Compare \`a.py\` and \`b.py\`:\n${B}python\nx = 1\n${B}`).size === 0);
+  ok('a name the block\'s language is not written in is not its name', P.extractProjectFiles(`Then open \`index.html\`:\n${B}python\nx = 1\n${B}`).size === 0);
+  ok('a name of its own wins over the words above', [...P.extractProjectFiles(`Save as \`a.py\`:\n${B}python b.py\nx = 1\n${B}`).keys()].join() === 'b.py');
+  ok('it never replaces a file the project already has', !P.extractProjectFiles(`Change \`todo.py\` like this:\n${B}python\nx = 1\n${B}`, { existing: ['todo.py'] }).has('todo.py'));
+  ok('... nor the first block of that name in the same answer', P.extractProjectFiles(`Save as \`a.py\`:\n${B}python\nfirst\n${B}\nThen in \`a.py\`:\n${B}python\nsecond\n${B}`).get('a.py').content === 'first');
+  ok('a reply to a change request does not read names from its words', P.extractProjectFiles(`Change \`styles.css\` like this:\n${B}css\nh1{}\n${B}`, { guess: false }).size === 0);
+}
+
 console.log('\nA reply to a change request changes only the files it names:');
 const named = (text) => [...P.extractProjectFiles(text, { guess: false })].map(([k, v]) => `${k}=${v.content}`);
 ok('a named file is found', named(`${B}css styles.css\nh1{}\n${B}`).join() === 'styles.css=h1{}');
