@@ -328,9 +328,6 @@
         if (Array.isArray(state.chatHistory) && state.chatHistory.length) { sharedState.lastRun = state.run || null; cdrTraceEntries = Array.isArray(state.trace) ? state.trace : []; sharedState.changeIds = Array.isArray(state.changes) ? state.changes : []; sharedState.changesUpTo = Array.isArray(state.changes) ? 0 : Date.now(); conversationMsgs = state.chatHistory; saveCurrentSession(); conversationMsgs = []; sharedState.lastRun = null; cdrTraceEntries = []; sharedState.changeIds = []; sharedState.changesUpTo = 0; saveCoderState(); }
       } catch (e) { console.warn('[CoderMode] restore state failed:', e); }
     }
-    function clearCoderState() {
-      try { localStorage.removeItem(STATE_KEY); } catch {}
-    }
 
     // ── Mount / destroy ───────────────────────────────────────
     function mount() {
@@ -1397,16 +1394,10 @@
       saveCurrentSession();
       conversationMsgs = [];
       activeContentEl = null; sharedState.lastRun = null; cdrTraceEntries = []; sharedState.changeIds = []; sharedState.changesUpTo = 0; clearSessionFiles();
-      // Clear what is on DISK too, not just what is in memory.
-      //
-      // Without this, "New chat" emptied the screen while localStorage still
-      // held the old conversation, and restoreCoderState() put it straight
-      // back on the next launch. Since the app's data directory is keyed by
-      // bundle identifier rather than by the binary, a rebuild does not clear
-      // it either — so the same conversation kept reappearing with no way to
-      // get rid of it. clearCoderState() existed for exactly this and was
-      // never called from anywhere.
-      clearCoderState();
+      // What is on disk follows, or restoreCoderState() would put the old
+      // conversation back on the next launch. It is saved again empty rather
+      // than removed: the project is still open, and the next launch opens it.
+      saveCoderState();
       const msgs = $('cdrMessages');
       if (msgs) {
         msgs.innerHTML = welcomeHtml;

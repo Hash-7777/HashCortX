@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **New chat in HashCoder no longer closes the project at the next launch.**
+  New chat removed everything HashCoder keeps between launches, the open
+  project with the conversation, so the next launch opened with no project.
+  It now keeps the project and an empty conversation; the old one is in
+  Sessions, as before.
+
 - **Two quick clicks on the Swarm's Result no longer ask to delete the
   run.** Delete run sat at the far right of the Result's buttons, exactly
   where the Result button that opens it is, so the second click of a double

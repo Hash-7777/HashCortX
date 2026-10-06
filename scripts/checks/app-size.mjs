@@ -788,7 +788,9 @@ const LINE_BUDGET = {
   // for files the run changed that are not joined up (js/code/wiring.js).
   // 2490, down one: a project folder that cannot be opened again at launch is
   // closed rather than listed, and the file panel lists without asking.
-  'modes/code/mode.js': 2490,
+  // 2481, down 9: New chat saves the empty conversation instead of
+  // removing what is kept, so the open project survives a restart.
+  'modes/code/mode.js': 2481,
 };
 
 console.log('\nFile sizes go down, never up:');

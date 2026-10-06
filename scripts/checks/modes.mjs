@@ -295,6 +295,10 @@ console.log('\nShared files naming a mode go down, never up:');
   const coder = read('modes/code/mode.js');
   check('HashCoder lists its file panel and its symbols without ever asking', /const entries = await HC\.code\.listQuietly\(dir\);/.test(coder) && /for \(const f of \(await HC\.code\.listQuietly\(root\)\) \|\| \[\]\)/.test(coder) && !/HC\.code\.listDir\(/.test(coder));
   check('... and a last project whose folder cannot be opened again is closed at launch, not listed', /Promise\.resolve\(HC\?\.guard\?\.setProjectRoot\?\.\(state\.projectRoot\)\)\.then\(\(set\) => \(set \|\| !HC\?\.isTauri \? renderExplorerTree\(state\.projectRoot\) : projectGone\(state\.projectRoot\)\)\)/.test(coder) && /function projectGone\(root\) \{ clearFilesPanel\(\);/.test(coder));
+  {
+    const fresh = coder.slice(coder.indexOf('function clearChat()'), coder.indexOf('function exportChat()'));
+    check('New chat saves the empty conversation with the project still in it, so the next launch opens the project', /saveCoderState\(\);/.test(fresh) && !/localStorage\.removeItem\(STATE_KEY\)/.test(coder) && /projectRoot: sharedState\.projectRoot,/.test(coder));
+  }
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }
 
