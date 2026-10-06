@@ -925,7 +925,9 @@ img.amk-empty-logo {
 .amk-ws-status.ok { color: var(--ok); }
 .amk-ws-status.err { color: var(--danger); }
 
-.amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 40%) 1fr; }
+/* minmax(0, 1fr): a plain 1fr track grows to its widest line, which put the
+   file bar, and Copy file with it, past the window's edge. */
+.amk-ws-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(320px, 40%) minmax(0, 1fr); }
 .amk-ws-convo { min-height: 0; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--amk-line); background: var(--surface-0); }
 .amk-ws-turns { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); scroll-behavior: smooth; }
 /* A turn is a voice: its mark and name, then what it said. Each agent's mark
@@ -1018,7 +1020,7 @@ img.amk-empty-logo {
 .amk-ws-message:disabled { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) { .amk-ws-working { animation: none; } }
 
-.amk-ws-work { min-height: 0; display: flex; flex-direction: column; }
+.amk-ws-work { min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 .amk-ws-tabs { display: flex; gap: 2px; padding: 6px 10px 0; overflow-x: auto; flex-shrink: 0; border-bottom: 1px solid var(--amk-line); }
 .amk-ws-tabs[hidden] { display: none; }
 .amk-ws-tab {
@@ -1029,12 +1031,16 @@ img.amk-empty-logo {
 }
 .amk-ws-tab[aria-selected="true"] { background: var(--surface-0); border-color: var(--amk-line); color: var(--text); }
 .amk-ws-pane { flex: 1; min-height: 0; overflow: auto; }
+/* Above the pane, not inside it, so it stays in view however far a long line
+   is scrolled to the side. */
 .amk-ws-filebar {
-  position: sticky; top: 0; display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
   padding: 6px 12px; font-size: 11px; color: var(--muted);
   background: var(--bg-0); border-bottom: 1px solid var(--amk-line);
 }
-.amk-ws-filebar .amk-ws-btn { margin-left: auto; }
+.amk-ws-filebar[hidden] { display: none; }
+.amk-ws-filebar > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-filebar .amk-ws-btn { margin-left: auto; flex: none; }
 .amk-ws-compare {
   height: var(--control-h-sm); max-width: 280px; padding: 0 6px;
   background: var(--surface-0); color: var(--text);

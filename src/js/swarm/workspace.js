@@ -369,11 +369,14 @@
   function drawFiles() {
     const tabs = $('amkWsTabs');
     const pane = $('amkWsPane');
+    const bar = $('amkWsFilebar');
     const files = currentFiles();
     const names = VIEW().fileOrder(Object.keys(files));
     if (!names.length) {
       tabs.hidden = true;
       tabs.replaceChildren();
+      bar.hidden = true;
+      bar.replaceChildren();
       pane.replaceChildren(empty(state.run ? 'This run made no files. Its result is in the conversation.' : ''));
       drawHeader();
       return;
@@ -393,12 +396,11 @@
       return b;
     }));
     const file = files[state.file];
-    const bar = document.createElement('div');
-    bar.className = 'amk-ws-filebar';
     const lines = String(file.content).split('\n').length;
     const about = document.createElement('span');
     about.textContent = `${state.file} · ${file.lang || 'text'} · ${lines} line${lines === 1 ? '' : 's'}`;
-    bar.append(about, comparePicker());
+    bar.replaceChildren(about, comparePicker());
+    bar.hidden = false;
     const copy = document.createElement('button');
     copy.type = 'button';
     copy.className = 'amk-ws-btn';
@@ -406,12 +408,12 @@
     copy.addEventListener('click', () => copyText(file.content, `Copied ${state.file}`));
     bar.append(copy);
     if (state.compare) {
-      pane.replaceChildren(bar, ...changesView(file));
+      pane.replaceChildren(...changesView(file));
     } else {
       const pre = document.createElement('pre');
       pre.className = 'amk-ws-code';
       pre.textContent = file.content;
-      pane.replaceChildren(bar, pre);
+      pane.replaceChildren(pre);
     }
     drawHeader();
   }

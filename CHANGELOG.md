@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A file with a long line no longer pushes Copy file out of the Swarm's
+  Result.** The files column grew to the width of the file's longest line,
+  so the file bar, and Copy file with it, ended past the window's edge. The
+  column now stays within the panel, the file scrolls inside it, and the
+  file bar sits above the file, where it stays in view however far a line
+  is scrolled to the side.
+
 - **An agent that "Look it up" or "Work it out" turns on ends with its
   chat.** The chip turns on an agent with the tool it needs, and that agent
   stayed on for every chat after it, so a later question took the agent's

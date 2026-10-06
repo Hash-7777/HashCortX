@@ -448,5 +448,16 @@ console.log('\nThe Result says what was made, and when:');
   ok('each agent\'s mark takes the colour of its role, and a turn arrives smoothly unless less motion is asked for', /\.amk-ws-turn\[data-role="researcher"\]/.test(css) && /animation: amkTurnIn/.test(css) && /prefers-reduced-motion: reduce\) \{ \.amk-ws-turn \{ animation: none; \}/.test(css));
 }
 
+console.log('\nA long line keeps the file bar on screen:');
+{
+  const css = src('modes', 'agent-maker', 'mode.css');
+  const panel = src('modes', 'agent-maker', 'panel.html');
+  ok('the files column cannot grow to its widest line', /\.amk-ws-body \{[^}]*grid-template-columns: minmax\(320px, 40%\) minmax\(0, 1fr\);/.test(css) && /\.amk-ws-work \{[^}]*min-width: 0;/.test(css));
+  ok('the file bar sits above the scrolling pane, not inside it', /id="amkWsTabs"[^]*?id="amkWsFilebar"[^]*?id="amkWsPane"/.test(panel)
+    && /pane\.replaceChildren\(pre\)/.test(ws) && /pane\.replaceChildren\(\.\.\.changesView\(file\)\)/.test(ws) && !/position: sticky/.test(css.slice(css.indexOf('.amk-ws-filebar {'), css.indexOf('}', css.indexOf('.amk-ws-filebar {')))));
+  ok('... and is hidden with the tabs when a run made no files', /bar\.hidden = true;\s*bar\.replaceChildren\(\);/.test(ws));
+  const actions = panel.slice(panel.indexOf('class="amk-ws-actions"'), panel.indexOf('class="amk-ws-body"'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);
