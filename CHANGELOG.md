@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A cloud reply's footer shows what the provider counted.** The token
+  counts a provider sends with its answer were written to the usage log
+  but not to the reply, so a cloud reply's footer and its export said
+  "0 in" and an output count guessed from the text. They now show the
+  provider's own counts when it sends them.
+
 - **A no from you is told to HashCoder's model as yours.** A refused
   read came back to the model as a bare "Permission denied", which it told
   you was the file system's doing. A refusal now says you were asked and

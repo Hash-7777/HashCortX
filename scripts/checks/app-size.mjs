@@ -217,7 +217,9 @@ const LINE_BUDGET = {
   // js/chat/web-search.js, which also runs the services in turn.
   // 6501, up one: an agent turned on by "Look it up" or "Work it out" is
   // turned off again by New chat, unless it was chosen by hand.
-  'js/app.js': 6501,
+  // 6504, up three: a cloud reply's footer shows the counts the provider
+  // measured, carried back from the stream that read them.
+  'js/app.js': 6504,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

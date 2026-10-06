@@ -106,6 +106,14 @@ console.log('\nEvery path that finishes a model turn records:');
     (wrapper.match(/streamCloudModelOnce\(/g) || []).length >= 1
     && !/\bfetch\(|providerPost\(|bridgedRequest\(/.test(wrapper));
 }
+console.log('\nA cloud reply shows the counts its provider measured:');
+{
+  const once = appjs.slice(appjs.indexOf('async function streamCloudModelOnce('), appjs.indexOf('// Token usage — one recorder'));
+  const wrapper = appjs.slice(appjs.indexOf('async function streamCloudModel('), appjs.indexOf('async function streamCloudModelOnce('));
+  check('the stream hands back what it measured', /return captured;/.test(once) && (wrapper.match(/used = await once\(\);/g) || []).length === 2 && /return used;/.test(wrapper));
+  check('the chat puts it on the reply, so its footer and export are not "0 in"', /const used = await streamCloudModel\([^\n]*\);\s*if \(used\) Object\.assign\(assistant, \{ inputTokens: used\.inputTokens \|\| assistant\.inputTokens, outputTokens: used\.outputTokens \|\| assistant\.outputTokens \}\);/.test(appjs));
+  check('a Gemini chunk without the prompt\'s count keeps the one already read', /inputTokens: evt\.usageMetadata\.promptTokenCount \|\| captured\?\.inputTokens \|\| 0/.test(once));
+}
 const paths = ['streamCloudModelOnce', 'streamChat', 'agentTurnOllama', 'agentTurnOpenAI',
                'agentTurnAnthropic', 'agentTurnGemini'];
 for (const name of paths) {

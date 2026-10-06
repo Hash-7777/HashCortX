@@ -3513,19 +3513,20 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   async function streamCloudModel(provider, modelId, messages, temperature, onToken, signal, onThinking) {
     const w = window.HCFirstSign.watch(provider, modelId, signal);
     const label = cloudModelLabel(`cloud:${provider}:${modelId}`);
-    let started = false;
+    let started = false, used = null;
     const tell = (t) => { started = true; w.sign(); onToken(t); };
     const once = () => streamCloudModelOnce(provider, modelId, messages, temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); });
     try {
       try {
-        await once();
+        used = await once();
       } catch (err) {
         // A refusal that names a limit is learnt and the request sent once more,
         // sized by it — before any of the answer has arrived (js/model-limits.js).
         if (w.stalled() || started || !window.HCModelLimits.learn(`cloud:${provider}:${modelId}`, err, window.HCModelLimits.estimateTokens([messages]), 1500).retry) throw err;
-        await once();
+        used = await once();
       }
       if (!started) throw Object.assign(new Error(`${label} answered with nothing`), { empty: true });
+      return used;
     } catch (err) {
       throw w.stalled() ? w.stallError(label) : err;
     } finally {
@@ -3570,7 +3571,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       for await (const line of window.HCStreamSSE.sseLines(res.body)) {
         const evt = window.HCStreamSSE.eventFromLine(line);
         if (!evt) continue;
-        if (evt.usageMetadata) captured = { inputTokens: evt.usageMetadata.promptTokenCount || 0, outputTokens: evt.usageMetadata.candidatesTokenCount || 0 };
+        if (evt.usageMetadata) captured = { inputTokens: evt.usageMetadata.promptTokenCount || captured?.inputTokens || 0, outputTokens: evt.usageMetadata.candidatesTokenCount || captured?.outputTokens || 0 };
         // Gemini can split one reply across several parts in a single event.
         for (const text of window.HCStreamSSE.geminiTexts(evt)) onToken(text);
       }
@@ -3643,6 +3644,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Record the real token usage for this response (measured-only — skipped
     // when the provider reported none). Best-effort; never blocks the chat.
     if (captured) recordUsage(modelId, captured.inputTokens, captured.outputTokens);
+    return captured;   // the counts the provider measured, for the reply's own footer
   }
 
 
@@ -4885,7 +4887,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
               assistant.content = text;
               assistant.images = images;
             } else {
-              await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, (t) => showThinking(assistant, t));
+              const used = await streamCloudModel(provider, modelId, messages, temperature, onCloudToken, ctrl.signal, (t) => showThinking(assistant, t));
+              if (used) Object.assign(assistant, { inputTokens: used.inputTokens || assistant.inputTokens, outputTokens: used.outputTokens || assistant.outputTokens });   // measured by the provider, where it says
             }
             break; // success
           } catch (err) {
