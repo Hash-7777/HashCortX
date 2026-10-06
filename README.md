@@ -33,7 +33,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 <br>
 
-<img src="docs/assets/screenshots/hero.png" alt="HashCortx on opening: the app mark, and a start-up list for the runtime, model routing, the interface, the agent runtime and the content security policy, above a prompt to begin" width="100%">
+<img src="docs/assets/screenshots/hero.png" alt="HashCortx 3.0 on opening: the app mark, and a start-up list for the runtime, model routing, the interface, the agents and the content security policy" width="100%">
 
 <br>
 
@@ -74,7 +74,7 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
-<img src="docs/assets/screenshots/coder.png" alt="HashCoder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
+<img src="docs/assets/screenshots/coder.png" alt="HashCoder: a run on a local model that added validation to a route, shown as a diff with Keep and Undo, with the passing test run said under the answer" width="100%">
 
 ## Agent Swarm
 
@@ -85,7 +85,7 @@ Build a team on a canvas, start from a template, or describe the task and have o
 <table>
 <tr>
 <td width="50%"><img src="docs/assets/screenshots/3d-forge.png" alt="3D Forge: a desk lamp generated as four parts, 69 by 100 by 69 millimetres"></td>
-<td width="50%"><img src="docs/assets/screenshots/erp.png" alt="ERP: a bicycle workshop system built by its agent, with the agent's conversation open beside it"></td>
+<td width="50%"><img src="docs/assets/screenshots/erp.png" alt="ERP: a guesthouse system built by its agent, its reservations by status, with the agent's conversation open beside it"></td>
 </tr>
 <tr>
 <td><b>3D Forge.</b> A described object becomes real parts with real dimensions, ready to print or open in CAD.</td>
