@@ -489,6 +489,20 @@
     min-width: 260px;
     color: var(--text);
   }
+  /* A diagram Mermaid could not read: its own text, as written (js/chat/diagrams.js). */
+  .mermaid.mermaid-unread {
+    min-width: 0;
+    white-space: pre;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-dim);
+  }
+  .mermaid-note {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
   .diff-box {
     margin-top: 12px;
     padding: 10px 12px;

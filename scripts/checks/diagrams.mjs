@@ -27,24 +27,27 @@ function ok(label, cond) {
 
 // A page that records the scripts added to it, and a Mermaid that records
 // what it was asked to do. `arrive` and `fail` finish the last script added.
+// The stand-in Mermaid reads any text but one starting "bad", and draws a
+// picture into each node it is given.
 function page() {
   const added = [];
   const warned = [];
-  const calls = { initialize: [], run: [] };
+  const calls = { initialize: [], run: [], parse: [] };
   const mermaid = {
     initialize: (o) => calls.initialize.push(o),
+    parse: async (text, o) => { calls.parse.push(text); if (!/^bad/.test(text)) return { diagramType: 'flowchart' }; if (o && o.suppressErrors) return false; throw new Error('Parse error'); },
     run: async ({ nodes }) => {
       calls.run.push(nodes.length);
-      for (const n of nodes) n.processed = true;
+      for (const n of nodes) { n.processed = true; n.drawn = true; }
     },
   };
   const box = {
-    Promise, Error, Array, Object,
+    Promise, Error, Array, Object, Map, Set, WeakSet,
     console: { warn: (...a) => warned.push(a.join(' ')) },
   };
   box.window = box;
   box.document = {
-    createElement: () => ({}),
+    createElement: (tag) => ({ tag }),
     head: { appendChild: (el) => added.push(el) },
   };
   vm.createContext(box);
@@ -58,9 +61,16 @@ function page() {
   };
 }
 
-// A conversation holding `n` diagrams, drawn or not.
-function conversation(n) {
-  const nodes = Array.from({ length: n }, () => ({ processed: false }));
+// A conversation holding `n` diagrams, drawn or not, each with its text.
+function node(text = 'flowchart LR; A-->B') {
+  const n = { processed: false, drawn: false, textContent: text, classes: new Set(), before: (el) => { n.note = el; } };
+  n.setAttribute = (k, v) => { if (k === 'data-processed') n.processed = v === 'true'; };
+  n.querySelector = (sel) => (sel === 'svg' && n.drawn ? {} : null);
+  n.classList = { add: (c) => n.classes.add(c), contains: (c) => n.classes.has(c) };
+  return n;
+}
+function conversation(n, texts = []) {
+  const nodes = Array.from({ length: n }, (_, i) => node(texts[i]));
   const undrawn = () => nodes.filter((x) => !x.processed);
   return {
     nodes,
@@ -107,6 +117,7 @@ console.log('\nThe first diagram loads Mermaid, once:');
   ok('with the strict security level', s.securityLevel === 'strict');
   ok('and not drawing on its own at load', s.startOnLoad === false);
   ok('in the dark theme', s.theme === 'dark');
+  ok('and drawing no error picture of its own', s.suppressErrorRendering === true);
 
   const later = conversation(1);
   ok('a later diagram is drawn', (await p.D.draw(later)) === 1);
@@ -143,6 +154,39 @@ console.log('\nA diagram Mermaid cannot draw is left as text:');
   await p.tick();
   ok('the draw resolves rather than throws', (await p.D.draw(bad)) === 0);
   ok('with a warning', p.warned.some((w) => /bad diagram/.test(w)));
+}
+
+console.log('\nA diagram Mermaid cannot read is shown as its text, not drawn:');
+{
+  const p = page();
+  const chat = conversation(2, ['bad flowchart (2-5 minutes)', 'flowchart LR; A-->B']);
+  const pending = p.D.draw(chat);
+  await p.tick();
+  await p.arrive();
+  ok('only the one it can read is drawn', (await pending) === 1 && p.calls.run[0] === 1 && chat.nodes[1].drawn && !chat.nodes[0].drawn);
+  const bad = chat.nodes[0];
+  ok('the other keeps its own text', bad.textContent === 'bad flowchart (2-5 minutes)' && bad.classes.has('mermaid-unread'));
+  ok('... is marked done, so it is not tried again', bad.processed === true);
+  ok('... under a line that says why', bad.note && bad.note.tag === 'p' && /could not be drawn, so its text is shown/.test(bad.note.textContent));
+  ok('... with one line in the console', p.warned.filter((w) => /could not be drawn/.test(w)).length === 1);
+  const again = conversation(1, ['bad flowchart (2-5 minutes)']);
+  ok('the same text drawn again is not read again', (await p.D.draw(again)) === 0 && p.calls.parse.filter((t) => /^bad/.test(t)).length === 1);
+  ok('... nor warned about again', p.warned.filter((w) => /could not be drawn/.test(w)).length === 1 && again.nodes[0].processed === true);
+}
+
+console.log('\nOne Mermaid read but could not draw is left as text too:');
+{
+  const p = page();
+  const chat = conversation(1, ['flowchart LR; X-->Y']);
+  const pending = p.D.draw(chat);
+  await p.tick();
+  await p.arrive();
+  await pending;
+  const later = conversation(1, ['flowchart LR; C-->D']);
+  p.D.load().then((m) => { m.run = async ({ nodes }) => { for (const n of nodes) n.processed = true; }; });
+  await p.tick();
+  await p.D.draw(later);
+  ok('a node left with no picture is shown as its text', later.nodes[0].classes.has('mermaid-unread') && later.nodes[0].textContent === 'flowchart LR; C-->D');
 }
 
 {

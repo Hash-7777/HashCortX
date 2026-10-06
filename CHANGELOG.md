@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A diagram Mermaid cannot read is shown as its text.** A diagram a model
+  wrote with a mistake in it was replaced by Mermaid's large error picture,
+  and the chat warned about it again every time it was drawn. Each diagram
+  is now read before it is drawn; one that cannot be is left as its own
+  text, set as code under a line saying it could not be drawn, and the
+  console says so once.
+
 - **New chat in HashCoder no longer closes the project at the next launch.**
   New chat removed everything HashCoder keeps between launches, the open
   project with the conversation, so the next launch opened with no project.
