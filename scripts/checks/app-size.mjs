@@ -215,7 +215,9 @@ const LINE_BUDGET = {
   // which loads it the first time a conversation shows a diagram.
   // 6500, down seven: an agent's web search asks first, from
   // js/chat/web-search.js, which also runs the services in turn.
-  'js/app.js': 6500,
+  // 6501, up one: an agent turned on by "Look it up" or "Work it out" is
+  // turned off again by New chat, unless it was chosen by hand.
+  'js/app.js': 6501,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

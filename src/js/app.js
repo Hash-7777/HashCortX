@@ -1131,6 +1131,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (typeof replyBanner !== "undefined") replyBanner.classList.remove("visible");
     if (typeof editBanner !== "undefined") editBanner.classList.remove("visible");
     input.value = ""; input.style.height = "auto";
+    if (state.presetAgent?.on === state.activeAgentId) setActiveAgent(state.presetAgent.before); state.presetAgent = null;   // a chip's agent ends with its chat
     renderPending();
     setActiveTitle("New Conversation");
     render();
@@ -1767,7 +1768,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         <div class="agent-actions">${editBtn}</div>`;
       row.addEventListener("click", (e) => {
         if (e.target.closest(".edit-agent") || e.target.closest(".del-agent")) return;
-        setActiveAgent(agent.id === state.activeAgentId ? null : agent.id);
+        state.presetAgent = null; setActiveAgent(agent.id === state.activeAgentId ? null : agent.id);   // chosen here, it stays
         toggleAgentsPanel(false);
       });
       const editEl = row.querySelector(".edit-agent");
@@ -3781,7 +3782,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // "not found". Pick the agent that has the tool when the one in use lacks it.
     const needs = { grounded: ["web_search", "builtin_researcher", "Researcher"], compute: ["code_interpreter", "builtin_hash_ai", "HashCortx"] }[preset];
     if (needs && !(getActiveAgent()?.tools || []).includes(needs[0])) {
-      setActiveAgent(needs[1]);
+      state.presetAgent = { on: needs[1], before: state.activeAgentId }; setActiveAgent(needs[1]);   // for this chat only: newChat
       setStatus("ok", `${needs[2]} agent on, so the answer can ${preset === "grounded" ? "search the web" : "run Python"}`);
     }
     // Notes are read only on the plain-chat path, only when context is on, and

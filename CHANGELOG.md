@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An agent that "Look it up" or "Work it out" turns on ends with its
+  chat.** The chip turns on an agent with the tool it needs, and that agent
+  stayed on for every chat after it, so a later question took the agent's
+  slower path. New chat now puts back the agent that was on before, unless
+  the agent was since chosen by hand.
+
 - **A plain chat no longer claims to search the web.** With no agent on, a
   chat has no tools, and a model asked to search answered as though it had,
   with a result it made up. It is now told it cannot search or run code

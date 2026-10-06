@@ -151,5 +151,14 @@ console.log('\nA plain chat is told it has no tools:');
   ok('it goes only to a chat with no agent, before the privacy line', /agent \? "" : HCChatContext\.PLAIN_CHAT_RULE, HCPromptPrivacy\.RULE\]/.test(app));
 }
 
+console.log('\nAn agent a starter chip turned on lasts for its chat:');
+{
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('the chip remembers the agent it replaced', /state\.presetAgent = \{ on: needs\[1\], before: state\.activeAgentId \}; setActiveAgent\(needs\[1\]\);/.test(app));
+  const fresh = app.slice(app.indexOf('function newChat()'), app.indexOf('function loadChat('));
+  ok('New chat puts that one back, only while the chip\'s agent is still on', /if \(state\.presetAgent\?\.on === state\.activeAgentId\) setActiveAgent\(state\.presetAgent\.before\); state\.presetAgent = null;/.test(fresh));
+  ok('an agent chosen by hand is kept', /state\.presetAgent = null; setActiveAgent\(agent\.id === state\.activeAgentId \? null : agent\.id\);/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/chat/context.js)\n`);
 process.exit(fail === 0 ? 0 : 1);
