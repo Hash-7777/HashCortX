@@ -89,9 +89,14 @@ default = ["local-embeddings"]
 # Note the separator: the Tauri CLI has no --no-default-features of its own,
 # it forwards what follows `--` to cargo. Through npm that needs two, because
 # npm consumes the first: npm run tauri build -- -- --no-default-features
-local-embeddings = ["dep:ort", "dep:tokenizers"]
+# The processor check runs first with it, so a build that would make an app
+# this computer cannot open is refused in seconds (cpu-check/Cargo.toml).
+local-embeddings = ["dep:ort", "dep:tokenizers", "dep:hashcortx-cpu-check"]
 
 [dependencies]
+
+# Built only with local-embeddings, for its build script: cpu-check/Cargo.toml.
+hashcortx-cpu-check = { path = "cpu-check", optional = true }
 
 # ── Core Tauri framework ──────────────────────────────────────
 # The runtime that creates the window, WebView, IPC bridge, and

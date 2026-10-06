@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A build on a processor without AVX2 is refused at its start.** The
+  refusal came from the app's own build script, which Cargo runs only after
+  Tauri and most of what it needs are compiled, so on an older computer it
+  came after minutes of work. A small package with no dependencies now asks
+  the same question within the first moments of a build, and the message
+  also says how to run the tests on such a computer.
+
 - **Light mode no longer shows a test run the model made up.** In light
   mode HashCortX runs the commands, never the model, yet a small model
   wrote a RUN line and a passing result for a test that did not exist, and

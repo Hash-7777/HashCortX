@@ -311,6 +311,9 @@ HashCortX/
 │   ├── build.rs                     the build script; stops a build that would
 │   │                                close at once on the computer making it
 │   ├── cpu_check.rs                 the decision it makes, and its tests
+│   ├── cpu-check/                   a package with no dependencies whose build
+│   │                                script asks the same, so the refusal comes
+│   │                                before the rest is compiled
 │   ├── capabilities/default.json
 │   ├── icons/
 │   ├── Cargo.toml

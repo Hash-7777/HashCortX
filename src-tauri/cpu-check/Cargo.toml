@@ -1,0 +1,22 @@
+# ==============================================================
+# HashCortx — the processor check, made to run first
+#
+# The main crate's build script asks whether this computer can run the
+# embedding runtime, but Cargo runs that script only after Tauri and most of
+# what it needs are compiled: on a computer that cannot, the refusal came
+# after several minutes of work. This package has no dependencies, so its
+# build script, which asks the same question with the same words
+# (../cpu_check.rs), runs within the first seconds of a build. It is a
+# dependency of the app only while local-embeddings is on, and holds no
+# code of its own.
+# ==============================================================
+[package]
+name = "hashcortx-cpu-check"
+version = "0.0.0"
+edition = "2021"
+license = "MIT"
+publish = false
+build = "build.rs"
+
+[lib]
+path = "lib.rs"

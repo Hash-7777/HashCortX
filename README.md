@@ -134,11 +134,12 @@ Needs Node 18+ and Rust via `rustup`, plus **macOS:** Xcode Command Line Tools Â
 
 **On Windows, allow the app in Ollama.** The app's page comes from `http://tauri.localhost`, which Ollama refuses until it is allowed. Run `setx OLLAMA_ORIGINS "http://tauri.localhost"` and reopen Ollama; until then the app says that the local model app refused it.
 
-**Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); an app built with it closes before a window appears on an older processor. Building on such a processor stops with a message that says so. Build without the embedding model instead, and search falls back to keywords:
+**Older x86-64 processors (without AVX2).** The default build links an ONNX Runtime that needs AVX2 and BMI2 (Intel Haswell, AMD Excavator and newer); an app built with it closes before a window appears on an older processor. Building on such a processor stops with a message that says so, early in the build, before the app itself is compiled. Build without the embedding model instead, and search falls back to keywords:
 
 ```bash
 npx tauri build -- --no-default-features
 npm run tauri dev -- -- --no-default-features     # and to develop
+cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and to test
 ```
 
 Before a pull request, run what CI runs on Linux, macOS and Windows:

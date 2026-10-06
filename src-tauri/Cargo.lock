@@ -1640,6 +1640,7 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "getrandom 0.3.4",
+ "hashcortx-cpu-check",
  "keyring",
  "ort",
  "security-framework 2.11.1",
@@ -1654,6 +1655,10 @@ dependencies = [
  "tokenizers",
  "ureq",
 ]
+
+[[package]]
+name = "hashcortx-cpu-check"
+version = "0.0.0"
 
 [[package]]
 name = "heck"

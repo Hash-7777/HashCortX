@@ -8,8 +8,9 @@
 // person can be told is where the app is built.
 //
 // This file holds the decision and the words, with nothing that reads the
-// machine, so a test can give it every case. build.rs reads the facts and
-// calls it; src/lib.rs includes it under test.
+// machine, so a test can give it every case. cpu-check/build.rs reads the
+// facts and calls it within the first seconds of a build, build.rs does the
+// same again later, and src/lib.rs includes it under test.
 // ==============================================================
 
 /// What a build knows about itself and the computer making it.
@@ -64,6 +65,10 @@ pub fn refusal() -> String {
          Through npm that needs two separators:\n\
          \n\
          \x20   npm run tauri build -- -- --no-default-features\n\
+         \n\
+         To run the tests here, leave it out the same way:\n\
+         \n\
+         \x20   cargo test --no-default-features\n\
          \n\
          Searching the knowledge base then works by keyword, and nothing else\n\
          changes. To build with the runtime anyway, for another computer, set\n\
@@ -145,6 +150,7 @@ mod tests {
         let text = refusal();
         assert!(text.contains("npx tauri build -- --no-default-features"));
         assert!(text.contains("npm run tauri build -- -- --no-default-features"));
+        assert!(text.contains("cargo test --no-default-features"));
         assert!(text.contains(&format!("{OVERRIDE}=1")));
         assert!(text.contains("AVX2 and BMI2"));
     }
