@@ -1,188 +1,137 @@
 ══════════════════════════════════════════════════════════════
-  HashCortX — Modes Guide
-  v2.5.0  ·  github.com/Hash-7777/HashCortX
+  HashCortx — Workspaces Guide
+  v3.0.0  ·  github.com/Hash-7777/HashCortX
 ══════════════════════════════════════════════════════════════
 
-HashCortX has 11 modes, each built for a specific type of work.
-They all share your API keys and model picker — switch freely.
+HashCortx has eight workspaces, plus Agents, Split and
+Connections. They share your keys, your local models and the
+model menu, so you can move between them freely.
+
 
 ──────────────────────────────────────────────────────────────
 1. CHATS
 ──────────────────────────────────────────────────────────────
-Your main conversation workspace. Talk to any model you have
-an API key for — Groq, Gemini, OpenAI, Anthropic, Cerebras,
-DeepSeek, Moonshot, Mistral, OpenRouter, SambaNova, NVIDIA,
-or a local model via Ollama. The model menu is each provider's own list for your
-key; Settings → API keys → Update model lists asks again. Supports file attachments, chat history, and projects 
-to keep conversations organised. 
-Use /commands in the input bar to access shortcuts.
+Talk to any model you have a key for: Groq, Gemini, OpenAI,
+Anthropic, Moonshot (Kimi), DeepSeek, Mistral, Cerebras,
+SambaNova, OpenRouter and NVIDIA. Or run a model on this
+computer through Ollama or another local model app.
+
+Chats keep projects, attachments, memory (with its own switch
+in Settings) and a local knowledge base. Type / in the box for
+commands. When a model fails, the next one is tried on the
+same side you chose: this computer, or the cloud.
 
 
 ──────────────────────────────────────────────────────────────
-2. AGENTS
+2. HASHCODER
 ──────────────────────────────────────────────────────────────
-Pre-built specialist agents ready to use. Each agent has a
-custom system prompt and a curated set of tools tuned for its
-job. Included agents:
+A coding agent on your real project: file tree, diffs with
+Keep and Undo, a terminal, and attachments by paste or drop.
 
-  • Personal Assistant  — direct, calibrated, senior-engineer
-                          style responses
-  • Quick Assistant     — short and accurate answers, fast
-  • Research Agent      — iterative web search with sourcing
-  • Deep Research       — long-form, source-grounded analysis
-  • Senior Engineer     — ship-ready code and product advice
-  • Page Analyzer       — fetches and reads URLs you provide
-  • PubMed Agent        — searches peer-reviewed medical
-                          literature, cites every claim
-  • Drug Interaction    — clinical pharmacology checks with
-                          safety-first framing
-  • ATS CV Auditor      — resume analysis against 2026 ATS
-                          standards and recruiter filters
+Around the model sits a harness. HashCortx decides what the
+model is shown, what it may do without asking, and what it
+has to prove before a run may end:
 
-You can also build your own custom agents from the Agent Maker
-tab and run them here.
+  • It runs your project's tests after a change, reads a
+    changed website the way a browser would, and sends itself
+    back for what it left unfinished.
+  • A request with several asks is checked ask by ask.
+  • A model under 5B works in light mode: it writes whole
+    files and HashCortx does the tool work for it. Larger and
+    cloud models get a map of your code and a second look at
+    larger changes.
+
+The menu beside the box sets how much it may do without
+asking: Manual (the start), Accept edits, or Auto.
 
 
 ──────────────────────────────────────────────────────────────
-3. CODE  (HashCortX Coder)
+3. AGENT SWARM
 ──────────────────────────────────────────────────────────────
-A full coding agent that reads, writes, and edits files using
-real tools — not just text suggestions. It has its own chat
-history separate from the main Chats tab, its own file explorer, 
-its own model picker, and an auto-router that tries the other
-providers you have keys for automatically,
-if one rate-limits or fails. Supports all cloud providers and
-local models. Use it to write features, debug, refactor, or
-explain any codebase.
+Teams of agents on any mix of models. Build a team on the
+canvas, start from a template, or describe the task and have
+one designed for it, sized to the work and to your computer.
 
-
-──────────────────────────────────────────────────────────────
-4. SPLIT
-──────────────────────────────────────────────────────────────
-Side-by-side model comparison. Pick two models and send the
-same prompt to both at once. See their answers next to each
-other in real time. Useful for comparing quality, speed, and
-style between providers before committing to one model for a
-task.
+What the team owes is worked out from your request. A task
+about you asks first for the details only you can give. The
+Result holds each agent's part, every file and every version,
+opens a site in your browser, runs again only the agents that
+did not finish, and exports a report for finding bugs.
 
 
 ──────────────────────────────────────────────────────────────
-5. 3D FORGE
+4. 3D FORGE
 ──────────────────────────────────────────────────────────────
-Architecture-first 3D planning agent. Describe what you want
-to build in 3D and the agent designs geometry, data flow, and
-swarm task plans. It outputs structured node/mesh plans that
-can feed into a build pipeline. Best for spatial design
-thinking, game-level layout, generative architecture concepts,
-and agentic 3D workflow planning.
+Describe a part and get a dimensioned solid, in millimetres.
+Exports STL, OBJ, 3MF and STEP, with a printability report.
 
 
 ──────────────────────────────────────────────────────────────
-6. FINANCE AI
+5. ERP
 ──────────────────────────────────────────────────────────────
-Full-screen financial analysis studio. Attach a bank statement,
-CSV, PDF, or XLSX file, or type your figures, and get a report
-with cards (money in, money out, set aside, what is left, the
-saving rate), charts, the list of your figures, an analysis and
-recommendations.
+Opens on an empty business app you can type into straight
+away. Tell its agent about your business and it builds the
+app: records, stages and books, exported as one HTML file.
+Ask it to change the design, to record what happened, or to
+answer from your records; you see each change before it is
+made, and can undo it. It can also read a connected system.
 
-The AI reads your figures and lists them; the app adds them up.
-Every total, card and chart is worked out from that one list, so
-they always agree. Press Edit Data and change a figure, add one
-or remove one, and everything updates as you type. The analysis
-is the AI's, written from the figures as they first were: ask
-again to have it rewritten from your edits.
 
-Rules the AI follows:
-  • Never makes up numbers — everything comes from your file
-  • Never gives investment advice or predictions
-  • Clearly flags anything it cannot calculate from the data
-  • Can produce example/demo reports if you explicitly ask for
-    "dummy data" or "show me how it looks"
-
-Has its own model picker so you can choose a capable model
-independently of the rest of the app.
+──────────────────────────────────────────────────────────────
+6. FINANCE
+──────────────────────────────────────────────────────────────
+Attach a statement, CSV, PDF or XLSX, or type your figures.
+The model lists the figures; the app does every sum, so every
+card, chart and total agrees. Edit a figure and everything
+updates. It can also report from a connected system.
 
 
 ──────────────────────────────────────────────────────────────
 7. SANDBOX
 ──────────────────────────────────────────────────────────────
-Security scanner powered by a swarm of models. Paste code,
-a script, or any text and the sandbox analyses it for malware
-patterns, trojans, prompt injections, and suspicious logic.
-Each model in the swarm gives an independent verdict, then the
-results are combined. Designed for checking untrusted code or
-AI-generated output before running it.
+Paste untrusted code or text, and a team of agents inspects
+it for malware, prompt injection and suspicious logic.
 
 
 ──────────────────────────────────────────────────────────────
-8. ERP  (Systems Builder)
+8. VIRTUAL OS
 ──────────────────────────────────────────────────────────────
-The ERP opens on an empty business app (customers, products,
-orders, invoices) you can type into straight away. Press the
-logo in the corner to talk to its agent: tell it about your
-business and it asks what it needs, then builds the app for it.
-Ask it to change the app, to record what happened ("Omar paid
-invoice 12"; you see the change before it is made, and can
-undo it), or anything about your records.
+A simulated desktop with its own files, in which an agent
+builds a project.
 
 
 ──────────────────────────────────────────────────────────────
-9. AGENT SWARM  (Swarm Designer)
+AGENTS, SPLIT AND CONNECTIONS
 ──────────────────────────────────────────────────────────────
-Design, build, and run multi-agent pipelines. Define agents,
-assign them roles and tools, connect them in a flow, and run
-the whole swarm on a task. Includes voting mode (all agents
-answer independently and results are compared) and chain mode
-(each agent refines the previous agent's output step by step).
-Best for complex tasks that benefit from multiple perspectives
-or sequential specialised reasoning.
+Agents: nine built-in specialists — HashCortx, HashCortx
+Lite, Researcher, Deep Research, Coder, URL Reader, Published
+Papers Researcher, Medical Lexi-Check and ATS CV Auditor —
+and a builder for your own.
 
+Split: one prompt, answered by two models side by side.
 
-──────────────────────────────────────────────────────────────
-10. VIRTUAL OS
-──────────────────────────────────────────────────────────────
-A virtual project desktop and AI file builder. Gives you a
-simulated file system, a workspace, and an AI that can create,
-edit, and organise files within that environment. Use it to
-plan project structures, scaffold repos, or have the AI build
-and iterate on a set of files as if it were working inside a
-real project directory.
-
-
-──────────────────────────────────────────────────────────────
-11. AGENT MAKER
-──────────────────────────────────────────────────────────────
-Build your own custom agents. Give an agent a name, icon,
-description, system prompt, and a selection of tools from the
-available tool set. Saved agents appear in the Agents tab and
-can be used in swarms. No code required — everything is
-configured through the UI.
+Connections: a business system connected over MCP, from
+Settings → Connections. Odoo, GitHub, Stripe and Supabase are
+ready-made. Reading asks once; every change asks every time.
 
 
 ══════════════════════════════════════════════════════════════
-  GENERAL TIPS
+  GETTING STARTED
 ══════════════════════════════════════════════════════════════
 
-  • Add your API keys in the Settings panel (top-right gear
-    icon). You only need keys for the providers you want to use.
+  • Add a key in Settings → API keys and press Test, or set
+    up a model on this computer in Settings → Local model.
 
-  • The main model picker (top of the sidebar) applies to all
-    modes unless a mode has its own picker (Code and Finance AI
-    do). Set it to a model you have access to.
+  • There is no HashCortx server. Your chats, keys and files
+    stay on this computer, and each request goes only to the
+    model, search or system it is for. docs/SECURITY.md lists
+    every address.
 
-  • The auto-router in Coder mode will fall back through the
-    other providers you have keys for — so even if one API
-    rate-limits you mid-session, the work keeps going.
-
-  • All data and chat history stays on your machine. Nothing
-    is sent anywhere except the API call to your chosen
-    provider.
-
-  • Keyboard shortcut: Cmd/Ctrl + Shift + N starts a new chat
-    from anywhere in the app.
+  • Shortcuts: Cmd/Ctrl + Shift + C opens or leaves
+    HashCoder, Cmd/Ctrl + Shift + N starts a new chat, and
+    Cmd/Ctrl + K opens the model menu.
 
 ══════════════════════════════════════════════════════════════
   github.com/Hash-7777/HashCortX  ·  MIT License
-  Built by Seif Hashish  ·  HashCortX.com
+  Built by Seif Hashish  ·  hashcortx.com
 ══════════════════════════════════════════════════════════════
