@@ -29,6 +29,7 @@ const SwarmMaker = (() => {
   let shiftSelectFrom   = null; // agent id we started edge-drawing from
   let mounted           = false;
   let tplPanelOpen      = false;
+  let taskBefore        = null;   // { id, task }: the active blueprint's task when the bar's current edit began
 
   const STORE_KEY = "hashui_swarm_blueprints";
   const NODE_W = 164, NODE_H = 74, H_GAP = 64, V_GAP = 44;
@@ -1533,6 +1534,8 @@ ${modelListStr}`;
       // No more agents than the task was sized for — js/swarm/team-shape.js.
       const cut = window.HCSwarmTeamShape.trimTo(parsed.agents, agentBounds.max);
       if (cut) { parsed.agents = cut.agents; parsed.dag = { nodes: cut.agents.map(a => a.id), edges: cut.edges }; parsed.finalOutputAgentId = cut.deliverer; ensureEdgeReasons(parsed); }
+      // Typed in the bar for this new team, the goal is not the blueprint that was open's task: that one gets its own back.
+      if (taskBefore && desc === document.getElementById("amkTaskInput")?.value?.trim()) { const was = blueprints.find(b => b.id === taskBefore.id); if (was) was.task = taskBefore.task; taskBefore = null; }
       const bp = createBlueprint(enforceTwoWordName(parsed.name || "God Swarm"), parsed);
       bp.description = parsed.description || desc;
       bp.task = desc;
@@ -2108,9 +2111,9 @@ ${modelListStr}`;
     const src = document.getElementById("model");
     const godDst = document.getElementById("amkGodModelSelect");
     if (src && godDst) { godDst.innerHTML = src.innerHTML; godDst.value = src.value; }
-    // The task already typed in the bar is the goal, not a blank box asking again.
+    // The task typed in the bar is the goal, not a blank box asking again, and follows the bar unless the goal was written here.
     const goal = document.getElementById("amkGodTextarea"), typed = (document.getElementById("amkTaskInput")?.value || "").trim();
-    if (goal && typed && !goal.value.trim()) goal.value = typed;
+    if (goal && typed && (!goal.value.trim() || goal.value === goal.dataset.fromTask)) goal.value = goal.dataset.fromTask = typed;
   }
   function closeGodModal() {
     if (_godAbortCtrl) { _godAbortCtrl.abort(); _godAbortCtrl = null; }
@@ -2353,10 +2356,11 @@ function _polishToast(text, isError) {
       renderBlueprintList();
     });
 
-    // Task autosave — persist typed task into active blueprint
+    // Task autosave — persist typed task into active blueprint, noting the task it had when this edit began
+    document.getElementById("amkTaskInput")?.addEventListener("focus", () => { const bp = getActive(); taskBefore = bp ? { id: bp.id, task: bp.task ?? "" } : null; });
     document.getElementById("amkTaskInput")?.addEventListener("input", () => {
       const bp = getActive();
-      if (bp) { bp.task = document.getElementById("amkTaskInput").value; saveBlueprints(); renderBlueprintList(); }
+      if (bp) { if (taskBefore?.id !== bp.id) taskBefore = { id: bp.id, task: bp.task ?? "" }; bp.task = document.getElementById("amkTaskInput").value; saveBlueprints(); renderBlueprintList(); }
     });
 
     // The Workspace: src/js/swarm/workspace.js, given what only this mode has.

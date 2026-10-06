@@ -461,5 +461,13 @@ console.log('\nA long line keeps the file bar on screen, and Delete is not under
   ok('a Delete click in the moment after the panel opened is not taken as one', /state\.openedAt = Date\.now\(\);/.test(ws) && /if \(Date\.now\(\) - \(state\.openedAt \|\| 0\) < OPEN_GRACE_MS\) return;/.test(ws));
 }
 
+console.log('\nGod Agent takes the task in the bar, and the open blueprint keeps its own:');
+{
+  const swarm = src('modes', 'agent-maker', 'mode.js');
+  ok('the goal follows the bar, unless it was written in the goal box itself', /if \(goal && typed && \(!goal\.value\.trim\(\) \|\| goal\.value === goal\.dataset\.fromTask\)\) goal\.value = goal\.dataset\.fromTask = typed;/.test(swarm));
+  ok('the blueprint\'s task is noted when an edit of the bar begins', /getElementById\("amkTaskInput"\)\?\.addEventListener\("focus", \(\) => \{ const bp = getActive\(\); taskBefore = bp \? \{ id: bp\.id, task: bp\.task \?\? "" \} : null; \}\);/.test(swarm));
+  ok('... and given back when the text typed became a new team\'s goal', /if \(taskBefore && desc === document\.getElementById\("amkTaskInput"\)\?\.value\?\.trim\(\)\) \{ const was = blueprints\.find\(b => b\.id === taskBefore\.id\); if \(was\) was\.task = taskBefore\.task; taskBefore = null; \}\s*const bp = createBlueprint\(/.test(swarm));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
 process.exit(fail ? 1 : 0);

@@ -54,7 +54,7 @@ console.log('\nHow the Agent Swarm uses it:');
   ok('a team is offered only models on the side of the model it is designed on', /\(window\.HCModelRoutes\.providerOf\(o\.value\) === "local"\) === \(window\.HCModelRoutes\.providerOf\(modelValue\) === "local"\)/.test(mode));
   ok('the questions before a run and the summary after it use the team\'s own model', /const teamModel = \(bp\) => bp\?\.supervisorModel \|\| \(bp\?\.agents \|\| \[\]\)\.find\(a => a\.model\)\?\.model/.test(mode)
     && /chosen: \(\) => teamModel\(getActive\(\)\)/.test(mode) && /const supervisorModel = teamModel\(bp\);/.test(mode));
-  ok('the God Agent\'s goal starts as the task already typed', /if \(goal && typed && !goal\.value\.trim\(\)\) goal\.value = typed;/.test(mode));
+  ok('the God Agent\'s goal starts as the task already typed', /if \(goal && typed && \(!goal\.value\.trim\(\) \|\| goal\.value === goal\.dataset\.fromTask\)\) goal\.value = goal\.dataset\.fromTask = typed;/.test(mode));
   ok('the team open last time is open again, or the newest, so Run has one', /const reopen = blueprints\.find\(b => b\.id === readActive\(\)\) \|\| blueprints\[0\]; if \(reopen\) setActive\(reopen\.id\);/.test(mode) && /localStorage\.setItem\(ACTIVE_KEY, id \|\| ""\)/.test(mode));
   ok('every agent\'s model and the supervisor\'s are held to what was offered', /const fit = \(v\) => window\.HCSwarmModelStrength\.fitToOffered\(v, allOpts\.map\(o => o\.value\), providerModels, modelValue\);/.test(mode) && /model: a\.model \? fit\(a\.model\) : ""/.test(mode));
   ok('it loads before the mode', src('boot.js').indexOf("'/js/swarm/model-strength.js'") > 0);

@@ -647,7 +647,9 @@ const LINE_BUDGET = {
   // offerForRun and heldForModels; this is the wiring.
   // 2462, up one: a finished run keeps the trace it left, for the report on
   // it (js/swarm/debug-report.js).
-  'modes/agent-maker/mode.js': 2462,
+  // 2466, up four: a task typed in the bar for a new God Agent team is that
+  // team's goal, and the blueprint that was open keeps its own task.
+  'modes/agent-maker/mode.js': 2466,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

@@ -1109,6 +1109,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **God Agent designs for the task in the bar, and the team that was open
+  keeps its own task.** The goal box kept the first goal it was given, so
+  a second team was designed for the old task. And the task bar saves into
+  the open blueprint as it is typed, so a task typed there for a new God
+  Agent team replaced the open team's own. The goal box now follows the
+  bar unless a goal was written in it, and when the text in the bar becomes
+  a new team's goal, the team that was open gets back the task it had when
+  that typing began.
+
 - **God Agent no longer gives a new team a model just found out of
   quota.** A model a run had just found out of quota, or whose account had
   run out, was still offered to God Agent, which could put it on every
