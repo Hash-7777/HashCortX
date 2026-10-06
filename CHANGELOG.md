@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Light mode no longer shows a test run the model made up.** In light
+  mode HashCortX runs the commands, never the model, yet a small model
+  wrote a RUN line and a passing result for a test that did not exist, and
+  it was shown as part of the answer. A RUN line the model wrote, and the
+  result it wrote under it, are now left out; the app's own line under the
+  answer says what was really checked.
+
 - **Small wording in HashCoder and the local model steps.** Closing a
   project said "Files cleared", and a project that could not be opened at
   launch said the same; the first now says the project was closed, the

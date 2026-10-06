@@ -182,6 +182,36 @@
   }
 
   /**
+   * A command in light mode is run by HashCortX after the change, never by
+   * the model, so a RUN line the model wrote, and the result it wrote under
+   * it, are made up: a small model reported its tests passing for a test
+   * file that did not exist. The line goes, and with it the block or the short
+   * paragraph after it that reads as a result. The app's own line under the
+   * answer says what was really checked.
+   */
+  const RESULT_WORDS = /\b(?:pass(?:ed|es|ing)?|fail(?:ed|s|ing|ure)?|errors?|ok|success(?:ful(?:ly)?)?|output|prints?|printed|works?)\b/i;
+  function withoutMadeUpRuns(said) {
+    const lines = String(said).split('\n');
+    const kept = [];
+    for (let i = 0; i < lines.length; i++) {
+      if (!/^\s*RUN:/i.test(lines[i])) { kept.push(lines[i]); continue; }
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim()) j++;
+      const fence = /^\s*(`{3,}|~{3,})/.exec(lines[j] || '');
+      if (fence) {
+        let end = j + 1;
+        while (end < lines.length && !lines[end].trim().startsWith(fence[1])) end++;
+        i = end;
+        continue;
+      }
+      let e = j;
+      while (e < lines.length && lines[e].trim() && !/^\s*(?:RUN|FILE|READ):/i.test(lines[e])) e++;
+      i = e > j && e - j <= 3 && RESULT_WORDS.test(lines.slice(j, e).join(' ')) ? e - 1 : i;
+    }
+    return kept.join('\n');
+  }
+
+  /**
    * What a model's answer holds: the files it wrote whole (`writes`, in
    * order, the last of a name winning, each `{ path, content, guessed }`),
    * the files it asked to see (`reads`), what it said besides (`said`), and
@@ -272,7 +302,7 @@
         said = said.replace(unnamed[0].text, '');
       }
     }
-    out.said = said.replace(/\n{3,}/g, '\n\n').trim();
+    out.said = withoutMadeUpRuns(said).replace(/\n{3,}/g, '\n\n').trim();
     out.cut = cutOff(src);
     return out;
   }

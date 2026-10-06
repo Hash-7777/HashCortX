@@ -328,5 +328,15 @@ console.log('\nThe loop reads an answer through it:');
   ok('this check is part of npm run check', /npm run check:code-light/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nA run the model wrote for itself is left out:');
+{
+  const B3 = '`'.repeat(3);
+  const r = L.parseReply(`FILE: hello.py\n${B3}python\nprint("hi")\n${B3}\n\nRUN: node test_hello.js\n\nAll tests passed successfully!\n\nI made hello.py.`);
+  ok('the file is still written', r.writes.length === 1 && r.writes[0].path === 'hello.py');
+  ok('the RUN line and the result under it are gone, the rest kept', r.said === 'I made hello.py.', r.said);
+  ok('a result written as a block goes with it', L.parseReply(`RUN: npm test\n${B3}\nok 1 - adds\n${B3}\nDone.`).said === 'Done.');
+  ok('a sentence under it that reads as no result is kept', L.parseReply('RUN: npm test\nThis file is now in place and ready for you to try later on.').said === 'This file is now in place and ready for you to try later on.');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/light.js)`);
 process.exit(fail ? 1 : 0);
