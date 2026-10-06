@@ -298,6 +298,9 @@ console.log('\nShared files naming a mode go down, never up:');
   {
     const fresh = coder.slice(coder.indexOf('function clearChat()'), coder.indexOf('function exportChat()'));
     check('New chat saves the empty conversation with the project still in it, so the next launch opens the project', /saveCoderState\(\);/.test(fresh) && !/localStorage\.removeItem\(STATE_KEY\)/.test(coder) && /projectRoot: sharedState\.projectRoot,/.test(coder));
+    const picker = coder.slice(coder.indexOf('function populateModelPicker()'), coder.indexOf('function autoResize('));
+    check('HashCoder\'s model menu copies the main menu\'s own rows, so a model in a group is listed once', /\[\.\.\.src\.children\]\.forEach\(node => \{/.test(picker) && !/querySelectorAll\('optgroup, option'\)/.test(picker));
+    check('... keeps the model picked there across a restart, while the menu offers it', /const wanted = coderModel \|\| cdrPrefs\(\)\.model \|\| null; coderModel = wanted && \[\.\.\.dest\.options\]\.some\(\(o\) => o\.value === wanted\) \? wanted : null;/.test(picker) && /coderModel = modelPicker\.value \|\| null; cdrSavePrefs\(\{ model: coderModel \|\| '' \}\);/.test(coder));
   }
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }

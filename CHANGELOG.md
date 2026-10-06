@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's model menu lists each model once, and keeps its choice.**
+  Every model in a group of the main menu, such as Google's, was listed
+  twice, once in its group and once again below. And the model picked in
+  HashCoder was forgotten at a restart, so HashCoder used the one last
+  picked in Chats. The menu now copies the main menu's rows as they are,
+  and the model picked in HashCoder is kept while the menu still offers it.
+
 - **A Swarm team that writes a program's files keeps them as files.** A
   team's answer often names each file in the words just above its code,
   such as "Save the following code as `todo.py`:", and such a run ended

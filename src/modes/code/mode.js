@@ -520,7 +520,7 @@
       const modelPicker = $('cdrModelPicker');
       if (modelPicker) {
         modelPicker.addEventListener('change', () => {
-          coderModel = modelPicker.value || null;
+          coderModel = modelPicker.value || null; cdrSavePrefs({ model: coderModel || '' });
           warnIfSmall(); window.HCCodeAttach?.refresh();   // the note about pictures follows the model
         });
       }
@@ -569,8 +569,7 @@
       autoOpt.textContent = 'Auto';
       dest.appendChild(autoOpt);
       const gone = (opt) => !!window.HCModelRoutes?.isRetired(opt.value);
-      if (coderModel && window.HCModelRoutes?.isRetired(coderModel)) coderModel = null;
-      src.querySelectorAll('optgroup, option').forEach(node => {
+      [...src.children].forEach(node => {   // the menu's own rows: an option inside a group comes with its group, not again on its own
         if (node.tagName === 'OPTGROUP') {
           const group = document.createElement('optgroup');
           group.label = node.label;
@@ -580,6 +579,7 @@
           dest.appendChild(node.cloneNode(true));
         }
       });
+      const wanted = coderModel || cdrPrefs().model || null; coderModel = wanted && [...dest.options].some((o) => o.value === wanted) ? wanted : null;   // picked here before, kept across a restart while the menu offers it, which a retired model it is not
       dest.value = coderModel || src.value || '';
     }
 
