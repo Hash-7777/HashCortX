@@ -14,7 +14,7 @@ import vm from 'node:vm';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
-const sandbox = { window: {}, encodeURIComponent, JSON, Set };
+const sandbox = { window: {}, encodeURIComponent, JSON, Set, AbortSignal };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'chat', 'web-search.js'), sandbox, { filename: 'web-search.js' });
 const W = sandbox.window.HCWebSearch;
@@ -72,10 +72,77 @@ console.log('\nGoogle and Wikipedia:');
   ok('... and a failure there is an empty list', (await W.wikipedia('x', 3, { fetch: async () => { throw new Error('offline'); } })).length === 0);
 }
 
+console.log('\nA search a model chose asks first:');
+{
+  // Answers each service by its host, and records every question and request.
+  const services = (answers) => {
+    const asked = [];
+    const fetch = async (url, init) => {
+      asked.push({ url, init });
+      if (url.startsWith('https://api.tavily.com')) return json(answers.tavily || { results: [] });
+      if (url.startsWith('https://customsearch.googleapis.com')) return json(answers.google || {});
+      return url.includes('list=search') ? json({ query: { search: answers.wiki ? [{ title: 'Node.js' }] : [] } })
+        : json({ query: { pages: { 1: { title: 'Node.js', extract: 'A runtime.' } } } });
+    };
+    return { asked, fetch };
+  };
+  const person = (says) => {
+    const questions = [];
+    const jobs = [];
+    return {
+      questions, jobs,
+      ask: async (host, why) => { questions.push({ host, why }); return typeof says === 'function' ? says(host) : says; },
+      busy: (host) => { const job = { host, done: () => { job.ended = true; } }; jobs.push(job); return job; },
+    };
+  };
+  const keys = { tavily: 't', google: 'g', cx: 'c' };
+
+  const yes = person(true);
+  const s1 = services({ tavily: { answer: 'v26', results: [{ title: 'Node', content: 'c', url: 'https://nodejs.org' }] } });
+  const got = await W.search('latest node', { keys, ask: yes.ask, busy: yes.busy, fetch: s1.fetch });
+  ok('the question comes before anything is sent', yes.questions.length === 1 && s1.asked.length === 1);
+  ok('it names the service and the words', yes.questions[0].host === `${W.HOSTS.tavily}?q=latest+node` && /"latest node"/.test(yes.questions[0].why));
+  ok('a found answer is what the tool returns', got.source === 'tavily' && got.answer === 'v26' && got.results[0].url === 'https://nodejs.org');
+  ok('the search is shown as running, and ends', yes.jobs.length === 1 && yes.jobs[0].ended === true);
+  ok('each request keeps its own time', s1.asked[0].init.signal && typeof s1.asked[0].init.signal.aborted === 'boolean');
+
+  const no = person(false);
+  const s2 = services({});
+  const refused = await W.search('latest node', { keys, ask: no.ask, busy: no.busy, fetch: s2.fetch });
+  ok('a "no" sends nothing at all', refused.declined === true && s2.asked.length === 0);
+  ok('... and is not asked again for the next service', no.questions.length === 1);
+
+  const thenNo = person((host) => !host.startsWith(W.HOSTS.google));
+  const s3 = services({});
+  const half = await W.search('latest node', { keys, ask: thenNo.ask, busy: thenNo.busy, fetch: s3.fetch });
+  ok('a "no" to a later service stops there', half.declined === true && thenNo.questions.length === 2 && s3.asked.every((a) => a.url.startsWith('https://api.tavily.com')));
+
+  const plain = person(true);
+  const s4 = services({ wiki: true });
+  const wiki = await W.search('node', { keys: {}, ask: plain.ask, busy: plain.busy, fetch: s4.fetch });
+  ok('with no key only Wikipedia is asked about, and reached', plain.questions.length === 1 && plain.questions[0].host.startsWith(`${W.HOSTS.wiki}?q=`) && wiki.source === 'wiki' && /no Tavily or Google key/.test(wiki.note));
+  ok('every address a search reaches is the one its question named', s4.asked.every((a) => a.url.startsWith(W.HOSTS.wiki)));
+
+  const long = person(true);
+  await W.asking('pubmed', 'x'.repeat(200), async () => [], { ask: long.ask, busy: long.busy });
+  ok('a long query is shortened in the question', long.questions[0].why.length < 140 && long.questions[0].host.startsWith(`${W.HOSTS.pubmed}?q=`));
+  const again = person(true);
+  await W.asking('wiki', 'bread', async () => [], { ask: again.ask, busy: again.busy });
+  await W.asking('wiki', 'butter', async () => [], { ask: again.ask, busy: again.busy });
+  const origin = (u) => new URL(u).origin;
+  ok('two searches of one service share its host, so one grant covers both', origin(again.questions[0].host) === origin(again.questions[1].host));
+  ok('... and are different questions, so a "no" to one is not a "no" to the next', again.questions[0].host !== again.questions[1].host);
+}
+
 console.log('\nHow the chat uses it:');
 {
   const app = src('js', 'app.js');
   ok('each key is read at the moment of asking and handed only to its own service', /HCWebSearch\.tavily\(query, limit, \{ key: \(tavilyKeyEl\.value/.test(app) && /HCWebSearch\.google\(query, limit, \{ key: googleKeyEl\.value\.trim\(\), cx: googleCxEl/.test(app));
+  ok('the agent\'s web search, Wikipedia and PubMed tools each ask first', /HCWebSearch\.search\(query, \{ keys:[^\n]*\.\.\.searchAsks \}\)/.test(app)
+    && /HCWebSearch\.asking\("wiki", query,[^\n]*searchAsks\)/.test(app) && /HCWebSearch\.asking\("pubmed", query,[^\n]*searchAsks\)/.test(app));
+  ok('... through the permission bar, as a web page does', /const searchAsks = \{ ask: \(host, why\) => \(window\.HC\?\.guard \? HC\.guard\.request\("fetch", host, why\)/.test(app));
+  ok('... and wait on the answer rather than racing it', ['web_search', 'wikipedia', 'pubmed_search'].every((t) => /^\s*ownLimit: true/m.test(app.slice(app.indexOf(`    ${t}: {`), app.indexOf('async execute', app.indexOf(`    ${t}: {`))))));
+  ok('a "no" reaches the model as the person\'s choice', (app.match(/if \((found|wiki|papers)\.declined\) return \{ error: "The user declined this search\." \};/g) || []).length === 3);
   ok('it loads before the chat', src('boot.js').indexOf("'/js/chat/web-search.js'") > 0 && src('boot.js').indexOf("'/js/chat/web-search.js'") < src('boot.js').indexOf("'/js/app.js'"));
 }
 

@@ -5148,6 +5148,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     HCWebSearch.tavily(query, limit, { key: (tavilyKeyEl.value || "").trim(), signal: makeSignal(12000) });
   const googleSearch = (query, limit = 5) =>
     HCWebSearch.google(query, limit, { key: googleKeyEl.value.trim(), cx: googleCxEl.value.trim() });
+  // A search whose words a model chose asks first, as a web page does.
+  const searchAsks = { ask: (host, why) => (window.HC?.guard ? HC.guard.request("fetch", host, why) : true), busy: (host) => window.HC?.guard?.busy?.(host) };
 
   // Where the agent's fetch tool may go. The rules are in js/url-safety.js so
   // they can be checked; nothing tested them before.
@@ -5199,10 +5201,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   // Europe PMC indexes PubMed + preprints + life-sciences journals, returns JSON with abstracts, CORS-friendly.
-  async function pubmedSearch(query, limit = 5) {
+  async function pubmedSearch(query, limit = 5, signal) {
     try {
       const url = `https://www.ebi.ac.uk/europepmc/webservices/rest/search?query=${encodeURIComponent(query)}&format=json&resultType=core&pageSize=${limit}&sort=CITED+desc`;
-      const r = await fetch(url, { referrerPolicy: "no-referrer" });
+      const r = await fetch(url, { referrerPolicy: "no-referrer", signal });
       if (!r.ok) return [];
       const data = await r.json();
       const results = (data.resultList?.result || []).map(p => ({
@@ -5347,27 +5349,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         required: ["query"]
       },
       statusLabel: a => `Searching the web: ${(a.query || "").slice(0, 60)}`,
+      ownLimit: true,   // each search asks first, then keeps its own time: js/chat/web-search.js
       async execute({ query }) {
         if (!query) return { error: "query is required" };
-        const tav = await tavilySearch(query);
-        if (tav && (tav.results.length || tav.answer)) {
-          tav.results.forEach(r => addToRAG(r.title, r.snippet, `tavily:${r.url}`));
-          return {
-            answer: tav.answer || null,
-            results: tav.results.map(r => ({ title: r.title, snippet: r.snippet, url: r.url }))
-          };
-        }
-        const goog = await googleSearch(query);
-        if (goog && goog.length) {
-          goog.forEach(r => addToRAG(r.title, r.snippet, `google:${r.url}`));
-          return { results: goog.map(r => ({ title: r.title, snippet: r.snippet, url: r.url })) };
-        }
-        const wiki = await wikipediaSearch(query);
-        if (wiki.length) {
-          wiki.forEach(r => addToRAG(r.title, r.snippet, `wiki:${r.url}`));
-          return { results: wiki.map(r => ({ title: r.title, snippet: r.snippet, url: r.url })), note: "Wikipedia fallback (no Tavily/Google key set)." };
-        }
-        return { results: [], note: "No results." };
+        const found = await HCWebSearch.search(query, { keys: { tavily: (tavilyKeyEl.value || "").trim(), google: googleKeyEl.value.trim(), cx: googleCxEl.value.trim() }, ...searchAsks });
+        if (found.declined) return { error: "The user declined this search." };
+        found.results.forEach(r => addToRAG(r.title, r.snippet, `${found.source}:${r.url}`));
+        const { source, ...answer } = found;
+        return answer;
       }
     },
     wikipedia: {
@@ -5378,9 +5367,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         required: ["query"]
       },
       statusLabel: a => `Checking Wikipedia: ${(a.query || "").slice(0, 60)}`,
+      ownLimit: true,
       async execute({ query }) {
         if (!query) return { error: "query is required" };
-        const wiki = await wikipediaSearch(query, 3);
+        const wiki = await HCWebSearch.asking("wiki", query, (signal) => HCWebSearch.wikipedia(query, 3, { signal }), searchAsks);
+        if (wiki.declined) return { error: "The user declined this search." };
         wiki.forEach(r => addToRAG(r.title, r.snippet, `wiki:${r.url}`));
         return { results: wiki };
       }
@@ -5435,9 +5426,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         required: ["query"]
       },
       statusLabel: a => `Searching PubMed: ${(a.query || "").slice(0, 60)}`,
+      ownLimit: true,
       async execute({ query, limit }) {
         if (!query) return { error: "query is required" };
-        const papers = await pubmedSearch(query, Math.min(10, Math.max(1, limit || 5)));
+        const papers = await HCWebSearch.asking("pubmed", query, (signal) => pubmedSearch(query, Math.min(10, Math.max(1, limit || 5)), signal), searchAsks);
+        if (papers.declined) return { error: "The user declined this search." };
         papers.forEach(p => addToRAG(p.title, `${p.authors} (${p.year}). ${p.abstract}`, `pubmed:${p.pmid || p.doi || p.url}`));
         return { papers };
       }

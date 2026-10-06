@@ -536,6 +536,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- **Chat's agents ask before they search.** The words of a web search, a
+  Wikipedia lookup or a PubMed search are the model's choice and go to a
+  search service, so each now asks first, naming the service and the words,
+  as reading a web page already did. "Allow for session" covers that
+  service; a "no" covers that one search and ends it there. An agent on a
+  model that cannot call tools still searches once with your own message,
+  without asking.
+
 - **A key travels in a request header, never in the address.** Requests to
   Google, for chat, its model list, the key test in Settings and its web
   search, carry the key in Google's own header. A check reads every script
