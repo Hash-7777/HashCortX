@@ -707,7 +707,7 @@
       if (sidebar) sidebar.classList.add('open');
       saveCoderState();
     }
-    function projectGone(root) { clearFilesPanel(); const body = $('cdrExplorerBody'); if (body) body.innerHTML = `<div class="cdr-tree-empty">${esc(baseName(root))} could not be opened again; it may have been moved or deleted. Open a project to start.</div>`; }   // the last project's folder, at launch
+    function projectGone(root) { clearFilesPanel(); const body = $('cdrExplorerBody'); if (body) body.innerHTML = `<div class="cdr-tree-empty">${esc(baseName(root))} could not be opened again; it may have been moved or deleted. Open a project to start.</div>`; setStatus('Ready', ''); }   // the last project's folder, at launch: nothing was closed by the person
 
     async function openFile() {
       const file = await pickFile();
@@ -731,7 +731,7 @@
       const body = $('cdrExplorerBody');
       if (body) body.innerHTML = '<div class="cdr-tree-empty">Open a project or file to start.</div>';
       saveCoderState();
-      setStatus('Files cleared', 'ok');
+      setStatus('Project closed', 'ok');
     }
 
     // A new conversation, or one opened from Sessions, lists only the files it changes.
@@ -1069,7 +1069,7 @@
     // Cap session names to 3 words max (chat-mode pattern: enforceTwoWordName clone)
     function enforceThreeWordName(raw) {
       const words = String(raw || '').trim().split(/\s+/).filter(Boolean);
-      return words.slice(0, 3).join(' ') || 'New Chat';
+      return words.length > 3 ? `${words.slice(0, 3).join(' ')}…` : words.join(' ') || 'New Chat';   // cut, it says so; the whole request is the row's tooltip
     }
 
     function saveCurrentSession() {
@@ -1079,7 +1079,7 @@
       const now = new Date();
       const date = now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' +
                    now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-      const session = { id: Date.now(), title, date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice(), run: sharedState.lastRun || null, trace: cdrTraceEntries.slice(-300), changes: sharedState.changeIds || [], changesUpTo: sharedState.changesUpTo || 0 };
+      const session = { id: Date.now(), title, full: String(userMsgs[0].content || '').replace(/\s+/g, ' ').trim().slice(0, 300), date, msgs: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs.slice(), run: sharedState.lastRun || null, trace: cdrTraceEntries.slice(-300), changes: sharedState.changeIds || [], changesUpTo: sharedState.changesUpTo || 0 };
       const sessions = loadSessions();
       sessions.unshift(session);
       saveSessions(sessions);
@@ -1112,7 +1112,7 @@
       if (!list) return;
       const all = loadSessions();
       const q = (filter || '').trim().toLowerCase();
-      const sessions = q ? all.filter(s => (s.title || '').toLowerCase().includes(q)) : all;
+      const sessions = q ? all.filter(s => `${s.title || ''} ${s.full || ''}`.toLowerCase().includes(q)) : all;
       if (!sessions.length) {
         list.innerHTML = `<div class="cdr-sessions-empty">${q ? 'No sessions match your search.' : 'Past sessions will appear here.'}</div>`;
         return;
@@ -1126,7 +1126,7 @@
         return `
         <div class="cdr-session-item" data-idx="${realIdx}">
           <div class="cdr-session-row">
-            <div class="cdr-session-title">${esc(s.title)}</div>
+            <div class="cdr-session-title" title="${esc(s.full || s.title)}">${esc(s.title)}</div>
             <div class="cdr-session-actions">
               <button class="cdr-session-act" data-act="rename" title="Rename chat">${editSvg}</button>
               <button class="cdr-session-act cdr-session-del" data-act="delete" title="Delete chat">${deleteSvg}</button>

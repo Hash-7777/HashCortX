@@ -305,6 +305,15 @@ console.log('\nShared files naming a mode go down, never up:');
   check('the start screen says each part loaded, not that it is ready', /'model routing · loaded'/.test(main) && /'interface core · loaded'/.test(main) && /'agents · loaded'/.test(main) && !/routing · ready|core · ready|runtime ready/.test(main));
 }
 
+console.log('\nHashCoder says what happened, in full:');
+{
+  const coder = read('modes/code/mode.js');
+  check('closing a project says the project was closed, and a vanished one at launch is not reported as closed by the person', /setStatus\('Project closed', 'ok'\);/.test(coder) && /Open a project to start\.<\/div>`; setStatus\('Ready', ''\); \}/.test(coder) && !/Files cleared/.test(coder));
+  check('a session title cut to three words says it was cut, and keeps the whole request for its tooltip and the search', /words\.length > 3 \? `\$\{words\.slice\(0, 3\)\.join\(' '\)\}…`/.test(coder) && /full: String\(userMsgs\[0\]\.content/.test(coder) && /class="cdr-session-title" title="\$\{esc\(s\.full \|\| s\.title\)\}"/.test(coder) && /\$\{s\.full \|\| ''\}`\.toLowerCase\(\)\.includes\(q\)/.test(coder));
+  const lm = read('core/settings/local-model.js');
+  check('the local model steps say what to do when Ollama is installed but not running', /On this PC: if Ollama is installed, open it from the Start menu/.test(lm) && /On this Mac: if Ollama is installed, open it/.test(lm));
+}
+
 console.log('\nWords that fit any computer, not only a Mac:');
 {
   const settings = read('core/settings/panel.html');

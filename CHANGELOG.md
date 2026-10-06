@@ -1109,6 +1109,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Small wording in HashCoder and the local model steps.** Closing a
+  project said "Files cleared", and a project that could not be opened at
+  launch said the same; the first now says the project was closed, the
+  second says nothing. A session's title cut to three words now ends with
+  an ellipsis, shows the whole first request as its tooltip, and is found
+  by any word of that request. The local model steps told a person whose
+  Ollama was installed but stopped to download it; they now say to open it.
+
 - **HashCoder's export for debugging is offered in Downloads, and says
   whose model it names.** Its save dialog opened where the last file was
   saved, often the project, where the export could be committed with it;

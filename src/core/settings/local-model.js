@@ -86,11 +86,11 @@
     }
     const guidance = {
       macos: {
-        hint: "On this Mac: download the app, open it, and leave it running. Or use Homebrew:",
+        hint: "On this Mac: if Ollama is installed, open it and leave it running. If not, download the app, open it, and leave it running. Or use Homebrew:",
         cmd: "brew install ollama",
       },
       windows: {
-        hint: "On this PC: download OllamaSetup.exe and run it. It installs for you alone and never asks for an administrator.",
+        hint: "On this PC: if Ollama is installed, open it from the Start menu and leave it running. If not, download OllamaSetup.exe and run it. It installs for you alone and never asks for an administrator.",
         cmd: "",
       },
       linux: {
