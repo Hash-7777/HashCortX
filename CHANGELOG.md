@@ -1109,6 +1109,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A no from you is told to HashCoder's model as yours.** A refused
+  read came back to the model as a bare "Permission denied", which it told
+  you was the file system's doing. A refusal now says you were asked and
+  said no, or that the app protects that place, and the model is told not
+  to try another way. A question about a file outside the project on
+  Windows no longer shows the project with the system's long-path prefix.
+
 - **Words that fit Windows too.** Settings named the local connection
   "Your Mac" and its preset "Local (this Mac)", 3D Forge's help named the
   Command key on every computer, and Virtual OS called its file window

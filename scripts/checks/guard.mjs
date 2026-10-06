@@ -187,6 +187,13 @@ for (const [label, action, target] of [
   ['shell read ~/.pgpass',     'shell', 'cat ~/.pgpass'],
 ]) await check(label, () => guard.request(action, target), REFUSED);
 
+console.log('\nA refusal can say which kind of no it was:');
+{
+  const said = (ok, label) => { if (ok) { pass++; console.log(`  ok    ${label}`); } else { fail++; console.log(`  FAIL  ${label}`); } };
+  said(guard.isProtected('read', '/Users/x/.ssh/id_ed25519') === true, 'a key in ~/.ssh is a place the app protects');
+  said(guard.isProtected('read', '/Users/x/Documents/notes.txt') === false, 'an ordinary file is not, so a no about it was the person\'s');
+}
+
 guard.setProjectRoot(R);
 
 console.log('\nOrdinary shell work is asked about, not refused outright:');

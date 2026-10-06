@@ -141,7 +141,7 @@
       const ok = await HC.guard.request('delete', path, asked + lost);
       if (!ok) {
         await HC.undo.drop(record);
-        throw new Error(`Permission denied: delete ${path}`);
+        throw new Error(`Permission denied: delete ${path}. ${HC.code.whyNo('delete', path)}`);
       }
       if (record) record.after = '';
       const out = await HC.invoke('fs_delete_file', { path });
@@ -217,7 +217,7 @@
       // checks and into the audit log.
       const shown = cwd ? `${display} (in ${cwd})` : display;
       const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd });
-      if (!ok) throw new Error(`Permission denied: shell ${shown}`);
+      if (!ok) throw new Error(`Permission denied: shell ${shown}. ${HC.code.whyNo('shell', shown)}`);
       // A check let through without a question runs with the network closed (js/code/permissions.js).
       const offline = HC.guard.takeOffline?.(shown) === true;
 
@@ -283,9 +283,9 @@
       // the source. Two requests also mean the destination is checked against
       // the blocked prefixes, which are matched from the start of the target.
       const okFrom = await HC.guard.request('write', from, reason);
-      if (!okFrom) throw new Error(`Permission denied: move ${from}`);
+      if (!okFrom) throw new Error(`Permission denied: move ${from}. ${HC.code.whyNo('write', from)}`);
       const okTo = await HC.guard.request('write', to, reason ? `${reason} (moving ${from} here)` : `Moving ${from} here`);
-      if (!okTo) throw new Error(`Permission denied: move to ${to}`);
+      if (!okTo) throw new Error(`Permission denied: move to ${to}. ${HC.code.whyNo('write', to)}`);
       // Two records, because a move is two changes: the file stops existing at
       // one path and starts existing at another. Undoing the pair puts both
       // ends back. Captured before the move, which is the last moment the
@@ -390,10 +390,18 @@
     return at > 0 ? `${root}/${parts.slice(at).join('/')}` : '';
   };
 
-  /** A refusal, saying where inside the project a path just outside it most likely meant (meant). */
+  /**
+   * Why a permission came back no. A model read a bare "Permission denied" as
+   * the file system's own and told the person so, when it was their answer.
+   */
+  HC.code.whyNo = (action, target) => (HC.guard.isProtected?.(action, target)
+    ? 'The app protects this place, and no permission opens it.'
+    : 'The person was asked and said no. That was their choice, not a file-system permission: say so, and do not try another way to do it.');
+
+  /** A refusal, saying where inside the project a path just outside it most likely meant (meant), or whose no it was. */
   HC.code.refused = async (action, path) => {
     const meant = await HC.code.meant(path).catch(() => '');
-    return new Error(`Permission denied: ${action} ${path}${meant ? `. That is outside the open project. The same place inside it is ${meant}: use that path.` : ''}`);
+    return new Error(`Permission denied: ${action} ${path}. ${meant ? `That is outside the open project. The same place inside it is ${meant}: use that path.` : HC.code.whyNo(action, path)}`);
   };
 
   /** Refuses a change to what the person's request says to leave as it is: the tests, or a file it names. */
@@ -672,7 +680,7 @@
         // reaching the user's own network; neither has an opinion about a
         // public host. So the user is asked, and can grant the session.
         const ok = await HC.guard.request('fetch', url, p.reason || 'Reading a web page');
-        if (!ok) throw new Error(`Permission denied: fetch ${url}`);
+        if (!ok) throw new Error(`Permission denied: fetch ${url}. ${HC.code.whyNo('fetch', url)}`);
         // Same reason as the chat path: the wait after Allow is the fetch.
         const job = HC.guard.busy?.(url);
         try {

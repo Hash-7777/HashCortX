@@ -178,7 +178,12 @@ console.log('\nA path just outside the project:');
   ok('none for a path already inside, or one naming nothing the project has', await HC.code.meant('/work/runs/r3/project/src/a.js') === '' && await HC.code.meant('/etc/hosts') === '' && await HC.code.meant('') === '');
   const refusal = await HC.code.refused('write', '/work/runs-x/r3/project/src/text.js');
   ok('a refusal says so, and which path to use', refusal.message === 'Permission denied: write /work/runs-x/r3/project/src/text.js. That is outside the open project. The same place inside it is /work/runs/r3/project/src/text.js: use that path.', refusal.message);
-  ok('and is plain when there is nothing to say', (await HC.code.refused('read', '/etc/hosts')).message === 'Permission denied: read /etc/hosts');
+  const said = (await HC.code.refused('read', '/etc/hosts')).message;
+  ok('with no place to suggest, it says the no was the person\'s, not the file system\'s', said.startsWith('Permission denied: read /etc/hosts. The person was asked and said no.') && /not a file-system permission/.test(said) && /do not try another way/.test(said), said);
+  HC.guard.isProtected = (action, target) => target === '/etc/hosts';
+  ok('... and a place the app protects is named as that', (await HC.code.refused('read', '/etc/hosts')).message === 'Permission denied: read /etc/hosts. The app protects this place, and no permission opens it.');
+  delete HC.guard.isProtected;
+  ok('a delete, a move, a command and a page refused say whose no it was too', (src('platform', 'tauri', 'hashcoder.js').match(/throw new Error\(`Permission denied: (?:delete|shell|move|move to|fetch) \$\{\w+\}\. \$\{HC\.code\.whyNo\('(?:delete|shell|write|fetch)', \w+\)\}`\)/g) || []).length === 5);
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('every read, write, listing and search refused says it', (tools.match(/if \(!ok\) throw await HC\.code\.refused\('(?:read|write|list|search)', (?:path|dir)\);/g) || []).length === 8 && !/throw new Error\(`Permission denied: (?:read|write|list|search) /.test(tools));
 }

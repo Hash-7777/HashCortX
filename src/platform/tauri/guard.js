@@ -519,6 +519,9 @@
     /** What the open project names for its own checks, for Auto. */
     setChecks(checks) { _checks = checks || null; },
 
+    /** Whether a place is one the app protects, which no answer opens: a refusal says which kind of no it was. */
+    isProtected(action, target) { return isHardBlocked(action, target); },
+
     /** The native side refused a command for a protected place: counted toward Auto asking about everything. */
     noteBlocked() { if (_run) _run.blocked(); },
 
