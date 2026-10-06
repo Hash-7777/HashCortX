@@ -23,7 +23,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
 <img alt="Windows 10" src="https://img.shields.io/badge/Windows%2010-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 2.6.0" src="https://img.shields.io/badge/v2.6.0-2d333b?style=flat-square">
+<img alt="Version 3.0.0" src="https://img.shields.io/badge/v3.0.0-2d333b?style=flat-square">
 
 <br>
 
@@ -44,7 +44,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 | **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
 | **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
-> This page describes `main`. What changed since v2.6.0 reaches the download with the next release; the [changelog](CHANGELOG.md) lists it.
+> **Version 3.0.0, the harness release.** HashCoder now proves and checks its own work, fitted to the model it runs on. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0).
 
 ## Eight workspaces
 
@@ -61,13 +61,18 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 Plus **Agents**, nine built-in specialists and a builder for your own, **Split**, one prompt answered by two models side by side, and **Connections**: a business system you connect over MCP (Odoo, GitHub, Stripe and Supabase are ready-made), whose key never reaches a page or a model and whose every change asks you first. [How](docs/SECURITY.md#connected-systems).
 
-## HashCoder
+## HashCoder and its harness
 
-It works on your real files. Every edit is a diff with **Keep** and **Undo**, tests run in the built-in terminal, and screenshots, PDFs and files attach by paste or drop.
+It works on your real files. Every edit is a diff with **Keep** and **Undo**, tests run in the built-in terminal, and screenshots, PDFs and files attach by paste or drop. Around the model sits a harness: what the model is shown, what it may do without asking, and what it has to prove before a run may end are decided by HashCortx, not by the model.
+
+<img src="docs/assets/release/3.0.0/harness.svg" alt="The HashCoder harness: it reads the project, plans ask by ask, edits under your permission mode, proves the change with your tests, takes a second look at larger changes, and sends itself back until the work is proven. Small models get light mode, mid-sized models focused tools, larger and cloud models the full harness." width="100%">
+
+**Every run is checked by the app, not by the model's word.** It **reads** the project, its notes for agents and its latest commits; **plans** your request ask by ask; **edits** as diffs you keep or undo, under your permission mode; **proves** the change by running your tests and reading a site the way a browser does; takes a second look at larger changes as a **reviewer**; and **sends itself back** for missed asks, leftovers and unsourced details, until the work is proven. It is fitted to the model: under 5B, **light mode**, where the model writes whole files and HashCortx does the tool work and runs the tests; 5B to 15B, **focused tools** with the steps written out and a plan for longer requests; 15B and up, and cloud models, **the full harness**, with a map of your code, lessons per project and a reviewer for larger changes.
 
 - **Proves its work.** It runs your tests after a change, reads a website the way a browser would before calling it done, and sends itself back for what it left unfinished: a renamed name still written somewhere, files that do not load each other, the example your request gave.
 - **Fits the model.** Cloud models get a map of your code; small local models get a light mode that writes whole files while HashCoder does the tool work.
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
+- **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: an agent run that read a route, added validation shown as a diff with Keep and Undo, and ran the tests" width="100%">
 
@@ -146,7 +151,7 @@ Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
 npm run check                                     # 10,178 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 222 Rust tests
+cargo test --manifest-path src-tauri/Cargo.toml   # 223 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, served as written.

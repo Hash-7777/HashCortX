@@ -12,8 +12,8 @@ body:
     id: version
     attributes:
       label: HashCortx version
-      description: From the About panel, or the DMG filename you installed.
-      placeholder: "v2.0.0"
+      description: The badge beside the app's name in its top bar, or the name of the file you downloaded.
+      placeholder: "v3.0.0"
     validations:
       required: true
 
@@ -24,6 +24,8 @@ body:
       options:
         - macOS (Apple Silicon)
         - macOS (Intel)
+        - Windows
+        - Linux
         - Other
     validations:
       required: true

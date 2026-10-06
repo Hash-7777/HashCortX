@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-10-06
+
+The harness release. HashCoder proves and checks its own work, fitted to the
+model it runs on, from a small model on this computer to the cloud; the Agent
+Swarm designs its team from the task; HashCoder asks as much as you choose;
+business systems connect over MCP; and models from other local model apps
+are offered beside Ollama's.
+
 ### Added
 
 - **HashCoder reads the project before it finishes, for what a model often
@@ -2761,5 +2769,8 @@ First public release. macOS Apple Silicon, unsigned, 8.9 MB DMG.
 
 Development history predating the first public release was not kept as a changelog. The repository history begins on 2026-05-16.
 
-[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v3.0.0...HEAD
+[3.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0
+[2.6.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.6.0
+[2.5.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.5.0
 [2.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.0.0
