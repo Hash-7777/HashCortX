@@ -1109,6 +1109,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **On Windows, HashCoder's `mkdir`, `dir`, `copy` and the rest work the
+  first time.** They are part of cmd rather than programs, so starting one
+  by itself failed as a program not found, and the model then asked again
+  through cmd, two questions for one folder. They are now run through cmd
+  from the start, the question showing that, and an argument cmd would read
+  as part of a command is refused. For `mkdir`, a Unix `-p` is dropped and
+  forward slashes become backslashes.
+
 - **God Agent designs for the task in the bar, and the team that was open
   keeps its own task.** The goal box kept the first goal it was given, so
   a second team was designed for the old task. And the task bar saves into

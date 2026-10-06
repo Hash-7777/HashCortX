@@ -243,7 +243,19 @@ console.log('\nWhere a command runs:');
   HC.guard.projectRoot = () => 'C:\\work\\app';
   await HC.code.shellRun('node test\\run.js');
   ok('the app reads a Windows line as Windows does', sent[5].command === 'node' && JSON.stringify(sent[5].args) === '["test\\\\run.js"]', JSON.stringify(sent[5]));
+  await HC.code.shellRun('mkdir -p data/raw/2026');
+  ok('on Windows mkdir, part of cmd, is run through cmd, -p dropped and its slashes turned', sent[6].command === 'cmd' && JSON.stringify(sent[6].args) === '["/d","/c","mkdir","data\\\\raw\\\\2026"]', JSON.stringify(sent[6]));
+  ok('... and the question shows what really runs', asked[asked.length - 1].startsWith('cmd /d /c mkdir data\\raw\\2026'));
+  await HC.code.shellRun('dir', ['src']);
+  ok('so is dir, with its argument as given', sent[7].command === 'cmd' && JSON.stringify(sent[7].args) === '["/d","/c","dir","src"]');
+  let cmdRefused = '';
+  try { await HC.code.shellRun('del', ['a.txt&calc']); } catch (e) { cmdRefused = String(e.message); }
+  ok('an argument cmd would read as part of a command is refused, and nothing runs', /part of cmd on Windows/.test(cmdRefused) && sent.length === 8);
+  await HC.code.shellRun('node', ['-v']);
+  ok('a real program is started as it is', sent[8].command === 'node');
   delete HC.code.platform;
+  await HC.code.shellRun('mkdir', ['-p', 'a/b']);
+  ok('elsewhere mkdir is the program it is', sent[9].command === 'mkdir' && JSON.stringify(sent[9].args) === '["-p","a/b"]');
 }
 
 console.log('\nReal photographs of a site\'s subject:');

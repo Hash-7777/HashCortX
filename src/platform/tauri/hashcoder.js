@@ -205,6 +205,7 @@
         }
         [command, ...args] = [...words, ...given];
       }
+      [command, args] = throughCmd(command, Array.isArray(args) ? args : [], { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
       const display = [command, ...args].join(' ');
@@ -458,6 +459,29 @@
     return words.length ? words : null;
   }
   HC.code.splitCommandLine = splitCommandLine;
+
+  /**
+   * On Windows, a command that is part of cmd rather than a program of its
+   * own (mkdir, dir, copy, del and the rest) cannot be started by itself: it
+   * came back "program not found", and the model then asked again through
+   * cmd, two questions for one folder. It is run through cmd from the start,
+   * `cmd /d /c mkdir data\raw`, so the question shows what really runs. cmd
+   * reads & | < > ^ % ! ( ) and quotes for itself, so an argument holding one
+   * is refused rather than handed to it. For mkdir, the Unix -p is dropped,
+   * since cmd's mkdir makes the folders between on its own, and forward
+   * slashes become backslashes. Anywhere else, the command is left as it is.
+   */
+  const CMD_OWN = new Set(['mkdir', 'md', 'dir', 'copy', 'del', 'erase', 'type', 'echo', 'move', 'ren', 'rename', 'rd', 'rmdir', 'mklink', 'ver', 'vol']);
+  function throughCmd(command, args = [], { windows = false } = {}) {
+    const name = String(command || '').toLowerCase();
+    if (!windows || !CMD_OWN.has(name)) return [command, args];
+    if (args.some((a) => /[&|<>^%!()"\r\n]/.test(String(a)))) {
+      throw new Error(`${name} is part of cmd on Windows, and cmd would read a character in these arguments as part of a command. Use plain names, or write_file to make a file in a new folder.`);
+    }
+    const plain = name === 'mkdir' || name === 'md' ? args.filter((a) => a !== '-p').map((a) => String(a).replace(/\//g, '\\')) : args;
+    return ['cmd', ['/d', '/c', name, ...plain]];
+  }
+  HC.code.throughCmd = throughCmd;
 
   // ── Tool definitions ────────────────────────────────────────
 
