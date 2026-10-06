@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Two quick clicks on the Swarm's Result no longer ask to delete the
+  run.** Delete run sat at the far right of the Result's buttons, exactly
+  where the Result button that opens it is, so the second click of a double
+  click landed on it. It now sits after the export buttons, and a click on
+  it in the moment after the Result opened is not taken as one.
+
 - **A file with a long line no longer pushes Copy file out of the Swarm's
   Result.** The files column grew to the width of the file's longest line,
   so the file bar, and Copy file with it, ended past the window's edge. The

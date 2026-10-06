@@ -919,9 +919,10 @@ img.amk-empty-logo {
 .amk-ws-btn:focus-visible, .amk-ws-close:focus-visible { outline: 2px solid var(--amk-ui); outline-offset: 2px; }
 .amk-ws-primary { background: var(--amk-ui); border-color: var(--amk-ui); color: var(--accent-ink); }
 .amk-ws-primary:hover { background: var(--amk-ui-b); color: var(--accent-ink); }
-.amk-ws-delete { margin-left: auto; }
+/* Not at the far right of the row: that is where the Result button that
+   opens this panel sits, so a second click there would land on it. */
 .amk-ws-delete:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
-.amk-ws-status { font-size: 11.5px; color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.amk-ws-status { margin-left: auto; font-size: 11.5px; color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .amk-ws-status.ok { color: var(--ok); }
 .amk-ws-status.err { color: var(--danger); }
 

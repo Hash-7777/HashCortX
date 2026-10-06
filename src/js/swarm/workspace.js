@@ -40,6 +40,7 @@
   const VIEW = () => window.HCSwarmWorkspaceView;
   const TALK = () => window.HCSwarmTalk;
   const TEAM = '*team';
+  const OPEN_GRACE_MS = 600;
 
   let deps = null;
   let wired = false;
@@ -100,6 +101,7 @@
     if (!root || !deps) return;
     state.blueprint = blueprint || null;
     state.returnFocus = document.activeElement;
+    state.openedAt = Date.now();
     root.hidden = false;
     status('');
     note('');
@@ -152,6 +154,9 @@
   async function deleteRun() {
     const run = state.run;
     if (!run || state.asking) return;
+    // A click this soon after the panel opened is the second half of the
+    // click that opened it, not a decision to delete.
+    if (Date.now() - (state.openedAt || 0) < OPEN_GRACE_MS) return;
     const sure = await window._H.themedConfirm('Delete this run? Its conversation and every version of its files go with it.', 'Delete run');
     if (!sure) return;
     try {

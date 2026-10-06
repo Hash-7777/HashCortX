@@ -369,7 +369,7 @@ console.log('\nDeleting a run:');
   const c = V.afterDelete([{ id: 'r1' }], 'r1', 'r1');
   ok('deleting the only run leaves nothing to show and no last run', c.show === '' && c.lastRunId === '' && c.runs.length === 0);
   ok('the list given is not changed', runs.length === 3);
-  ok('the button asks first, in the app\'s own dialog', /async function deleteRun\(\)[\s\S]{0,200}_H\.themedConfirm\(/.test(ws));
+  ok('the button asks first, in the app\'s own dialog', /async function deleteRun\(\)[\s\S]{0,400}_H\.themedConfirm\(/.test(ws));
   ok('and removes the run from the store', /RUNS\(\)\.deleteRun\(run\.id\)/.test(ws));
   ok('it is off with no run on screen or while an agent answers', /amkWsDelete'\)\.disabled = !run \|\| !!state\.asking/.test(ws));
 }
@@ -448,7 +448,7 @@ console.log('\nThe Result says what was made, and when:');
   ok('each agent\'s mark takes the colour of its role, and a turn arrives smoothly unless less motion is asked for', /\.amk-ws-turn\[data-role="researcher"\]/.test(css) && /animation: amkTurnIn/.test(css) && /prefers-reduced-motion: reduce\) \{ \.amk-ws-turn \{ animation: none; \}/.test(css));
 }
 
-console.log('\nA long line keeps the file bar on screen:');
+console.log('\nA long line keeps the file bar on screen, and Delete is not under Result:');
 {
   const css = src('modes', 'agent-maker', 'mode.css');
   const panel = src('modes', 'agent-maker', 'panel.html');
@@ -457,6 +457,8 @@ console.log('\nA long line keeps the file bar on screen:');
     && /pane\.replaceChildren\(pre\)/.test(ws) && /pane\.replaceChildren\(\.\.\.changesView\(file\)\)/.test(ws) && !/position: sticky/.test(css.slice(css.indexOf('.amk-ws-filebar {'), css.indexOf('}', css.indexOf('.amk-ws-filebar {')))));
   ok('... and is hidden with the tabs when a run made no files', /bar\.hidden = true;\s*bar\.replaceChildren\(\);/.test(ws));
   const actions = panel.slice(panel.indexOf('class="amk-ws-actions"'), panel.indexOf('class="amk-ws-body"'));
+  ok('Delete run is not pushed to the far right, where the Result button is', !/\.amk-ws-delete \{[^}]*margin-left: auto/.test(css) && actions.indexOf('id="amkWsDelete"') < actions.indexOf('id="amkWsStatus"') && /\.amk-ws-status \{ margin-left: auto;/.test(css));
+  ok('a Delete click in the moment after the panel opened is not taken as one', /state\.openedAt = Date\.now\(\);/.test(ws) && /if \(Date\.now\(\) - \(state\.openedAt \|\| 0\) < OPEN_GRACE_MS\) return;/.test(ws));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (Swarm Workspace)`);
