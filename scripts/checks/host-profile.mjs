@@ -328,5 +328,14 @@ console.log('\nA window that starts hidden is shown even when the page cannot ge
   ok('and only a window still hidden', /if !window\.is_visible\(\)\.unwrap_or\(true\)/.test(lib), 'a window the page has shown, or one whose state cannot be read, is left alone');
 }
 
+console.log('\nWith no graphics card in use, the intro is still:');
+{
+  const styles = src('styles.css');
+  const rule = styles.slice(styles.indexOf('html.low-gpu #intro-sonar'));
+  ok('its sonar dots are left out', /html\.low-gpu #intro-sonar,\s*body\.low-gpu #intro-sonar \{\s*display: none;/.test(styles));
+  ok('the drones\' orbit is set in the stylesheet only, where the rest can hold it', !/class="drone-orbit intro-drone-[abc]" style="[^"]*animation/.test(src('index.html')) && /animation-play-state: paused;/.test(rule.slice(0, 1200)));
+  ok('its glow, logo, drones and call to click rest in place', ['.logo-glow', '.hc-logo-full', '.drone-orbit', '.cta'].every((c) => rule.includes(`html.low-gpu #intro-screen ${c}`)) && /animation: none;/.test(rule.slice(0, 900)));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (what this machine is)`);
 process.exit(fail ? 1 : 0);

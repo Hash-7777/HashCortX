@@ -1315,6 +1315,29 @@ body.low-gpu #intro-screen .drone-glow {
   will-change: auto !important;
 }
 
+/* With no graphics card in use, the page is drawn by the processor, and every
+   moving part of the intro is drawn again for every frame: the glow that
+   breathes, the floating logo, the orbiting drones, the glowing call to
+   click and the sonar's glowing dots held a laptop's processor at around a
+   third of its time for as long as the intro waited. They rest in place
+   here, and the dots are left out; the intro looks the same, only still. */
+html.low-gpu #intro-sonar,
+body.low-gpu #intro-sonar {
+  display: none;   /* glowing dots for rings that are already still */
+}
+html.low-gpu #intro-screen .logo-glow,
+html.low-gpu #intro-screen .hc-logo-full,
+html.low-gpu #intro-screen .drone-orbit,
+html.low-gpu #intro-screen .cta,
+body.low-gpu #intro-screen .logo-glow,
+body.low-gpu #intro-screen .hc-logo-full,
+body.low-gpu #intro-screen .drone-orbit,
+body.low-gpu #intro-screen .cta {
+  animation: none;
+  animation-play-state: paused;   /* the drones' orbit is set with !important (#intro-screen .drone-orbit); pausing holds it too */
+  will-change: auto;
+}
+
 html.low-gpu .hc-toolbar,
 html.low-gpu header.topbar,
 html.low-gpu .topbar .actions,

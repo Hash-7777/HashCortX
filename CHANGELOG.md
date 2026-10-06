@@ -1109,6 +1109,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **The intro rests when no graphics card is in use.** On a computer
+  where the window is drawn by the processor, the intro's breathing glow,
+  floating logo, orbiting drones, glowing call to click and sonar dots were
+  drawn again for every frame while it waited. In that case they now stay
+  still, and the dots are left out; with a graphics card nothing changes.
+
 - **A build on a processor without AVX2 is refused at its start.** The
   refusal came from the app's own build script, which Cargo runs only after
   Tauri and most of what it needs are compiled, so on an older computer it
