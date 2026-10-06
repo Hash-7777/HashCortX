@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 24" width="1280" height="24" aria-hidden="true">
+  <defs>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#8b6d2c"/>
+    <stop offset="0.28" stop-color="#c9a96e"/>
+    <stop offset="0.5" stop-color="#f6e7c1"/>
+    <stop offset="0.72" stop-color="#c9a96e"/>
+    <stop offset="1" stop-color="#8b6d2c"/>
+  </linearGradient>
+  <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0"/>
+    <stop offset="0.5" stop-color="#c9a96e" stop-opacity="0.85"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#c9a96e" stroke-opacity="0.06" stroke-width="1"/>
+  </pattern></defs>
+  <mask id="gap"><rect width="1280" height="24" fill="#fff"/><rect x="626.0" y="0" width="28" height="24" fill="#000"/></mask>
+  <rect x="0" y="11" width="1280" height="2" fill="url(#rule)" mask="url(#gap)"/>
+  <path d="M640.0 4 l8 8 l-8 8 l-8 -8z" fill="none" stroke="#c9a96e" stroke-width="1.8"/>
+  <circle cx="640.0" cy="12" r="2.2" fill="#c9a96e"/>
+</svg>
