@@ -13,7 +13,8 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 <a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
 <a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
-<a href="https://youtu.be/cmNI-UQ6d3w"><img alt="Watch the 3.0 film" src="https://img.shields.io/badge/Watch%203.0-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
+<a href="https://youtu.be/cmNI-UQ6d3w"><img alt="Watch the 3.0 release film" src="https://img.shields.io/badge/3.0%20release%20film-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
+<a href="https://youtu.be/133IOF1g9jo"><img alt="Watch HashCoder and Ollama" src="https://img.shields.io/badge/HashCoder%20%2B%20Ollama-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
 <a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
 <a href="https://news.ycombinator.com/item?id=49516181"><img alt="Discuss on Hacker News" src="https://img.shields.io/badge/Hacker%20News-ff6600?style=flat-square&logo=ycombinator&logoColor=ffffff"></a>
 <a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
