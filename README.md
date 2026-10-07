@@ -13,7 +13,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 
 <a href="https://github.com/Hash-7777/HashCortX/releases/latest"><img alt="Download" src="https://img.shields.io/badge/Download-238636?style=flat-square&logo=apple&logoColor=ffffff"></a>
 <a href="https://hashcortx.com"><img alt="Website" src="https://img.shields.io/badge/Website-373e47?style=flat-square&logo=googlechrome&logoColor=e8eaed"></a>
-<a href="https://youtu.be/On5wPdKZDfg"><img alt="Demo video" src="https://img.shields.io/badge/Demo-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
+<a href="https://youtu.be/cmNI-UQ6d3w"><img alt="Watch the 3.0 film" src="https://img.shields.io/badge/Watch%203.0-373e47?style=flat-square&logo=youtube&logoColor=e8eaed"></a>
 <a href="https://github.com/Hash-7777/HashCortX/wiki"><img alt="Wiki" src="https://img.shields.io/badge/Wiki-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
 <a href="https://news.ycombinator.com/item?id=49516181"><img alt="Discuss on Hacker News" src="https://img.shields.io/badge/Hacker%20News-ff6600?style=flat-square&logo=ycombinator&logoColor=ffffff"></a>
 <a href="https://github.com/Hash-7777/HashCortX/discussions"><img alt="Discussions" src="https://img.shields.io/badge/Discussions-373e47?style=flat-square&logo=github&logoColor=e8eaed"></a>
@@ -45,6 +45,27 @@ on your keys and your machine. No backend, no telemetry, no account.
 | **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
 > **Version 3.0.0, the harness release.** HashCoder now proves and checks its own work, fitted to the model it runs on. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0).
+
+## See it run
+
+<table>
+<tr>
+<td width="50%" valign="top">
+<a href="https://youtu.be/cmNI-UQ6d3w"><img src="docs/assets/videos/release-3.0.jpg" alt="Play the HashCortx 3.0 release film on YouTube: the app mark and the name HashCortx" width="100%"></a>
+<br>
+<b><a href="https://youtu.be/cmNI-UQ6d3w">The 3.0 release film</a></b> &middot; 0:58
+<br>
+Every model side by side, the harness, the Agent Swarm and each workspace, private by design.
+</td>
+<td width="50%" valign="top">
+<a href="https://youtu.be/133IOF1g9jo"><img src="docs/assets/videos/hashcoder-ollama.jpg" alt="Play the HashCoder and Ollama film on YouTube: the title The HashCoder Harness" width="100%"></a>
+<br>
+<b><a href="https://youtu.be/133IOF1g9jo">HashCoder, the harness and Ollama</a></b> &middot; 0:52
+<br>
+A 30B model on Ollama finishes only when the tests pass, then a 3B model codes in light mode.
+</td>
+</tr>
+</table>
 
 ## Eight workspaces
 
