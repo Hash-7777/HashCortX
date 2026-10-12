@@ -45,13 +45,14 @@ function load(win) {
 
 console.log('\nWhat it clears at launch:');
 const live = { hashui_agent_memory_v1: '[]', hashui_forge_projects: '[]', hashui_swarm_blueprints: '[]' };
-const { win, keys, deleted } = fakeWindow({ ...live, hashui_void_studio_meta_v1: '{"activeId":"p1"}' });
+const { win, keys, deleted } = fakeWindow({ ...live, hashui_void_studio_meta_v1: '{"activeId":"p1"}', hashui_system_ui_v1: '{}' });
 const R = load(win);
 ok('it publishes the list it clears', !!R && Array.isArray(R.RETIRED.databases) && Array.isArray(R.RETIRED.keys));
 ok('the list cannot be changed by other code', Object.isFrozen(R.RETIRED) && Object.isFrozen(R.RETIRED.databases) && Object.isFrozen(R.RETIRED.keys));
 ok('the Virtual OS projects and wallpaper are deleted', deleted.includes('hashui_void_studio_v1') && deleted.includes('hashui_wallpaper_v1'));
 ok('... and only those', deleted.length === R.RETIRED.databases.length, deleted.join(', '));
 ok('which project was open is removed', !keys.has('hashui_void_studio_meta_v1'));
+ok('the ERP\'s old panel record is removed', !keys.has('hashui_system_ui_v1'));
 ok('every saved setting still in use is kept', Object.keys(live).every((k) => keys.has(k)));
 
 console.log('\nIt never stops the app from opening:');

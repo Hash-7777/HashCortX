@@ -8,7 +8,6 @@ const SystemMaker = (() => {
   const STANDALONE = window.HCSystemStandalone || null;
   const STORE_KEY = STANDALONE ? `hcx_app_${STANDALONE.spec.id}` : "hashui_system_specs_v1";
   const DATA_KEY_PREFIX = "hashui_system_data_";
-  const UI_STORE_KEY = "hashui_system_ui_v1";
   const MAX_HISTORY = 12;
 
   let mounted = false;

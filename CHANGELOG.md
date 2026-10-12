@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   where nothing can open them any more, so they are deleted at launch
   (`src/js/retired-storage.js`). No other saved data is touched. To keep a
   project, open it in 3.0.0 and use Download ZIP before updating.
+- **Code that nothing used.** Provider marks, a list of local models, a
+  button label, a list of providers, a set of colours, a storage name, a
+  saved-run reader, two lists published by the permission rules and a Forge
+  read-out were each declared and never read; they are gone. The ERP's old
+  record of which side panels were folded, which nothing has read since the
+  ERP was rebuilt, is cleared at launch with the Virtual OS's data.
 
 ### Fixed
 

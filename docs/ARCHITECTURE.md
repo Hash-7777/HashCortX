@@ -27,10 +27,10 @@ HashCortX/
 │   │   ├── manifest.js              the only place a mode is named
 │   │   ├── boot.js                  turns that list into the stylesheet, the
 │   │   │                            tab button, the markup and the script
-│   │   ├── forge/            3,722  offline parametric part generator
+│   │   ├── forge/            3,710  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
-│   │   ├── systems/          3,232  ERP: the system full screen, and its agent
+│   │   ├── systems/          3,231  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,466  chain / vote / failover
 │   │   ├── code/             2,481  the HashCoder agent loop
 │   │   ├── finance/          2,357  financial document analysis
@@ -64,7 +64,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,504  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,487  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        567  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -150,7 +150,7 @@ HashCortX/
 │   │   ├── trace-time.js        88  when a trace line was written, as a stopwatch
 │   │   ├── model-plan.js     1,045  a generated 3D model's parts, made trustworthy
 │   │   ├── power.js            251  stops work nobody can see
-│   │   ├── retired-storage.js   39  clears what a removed workspace saved
+│   │   ├── retired-storage.js   41  clears what a removed feature saved
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
 │   │   ├── stream/             388  reading a streamed answer off the wire —
@@ -180,7 +180,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             6,123  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             6,122  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the record of what proved a change and what
 │   │   │                            sends it back before finishing, the files
@@ -207,7 +207,7 @@ HashCortX/
 │   │   │                            read says, and how much it may do
 │   │   │                            without asking (Manual, Accept edits,
 │   │   │                            Auto) with the menu that chooses it
-│   │   ├── swarm/            5,052  Agent Swarm: what kind of task it is,
+│   │   ├── swarm/            5,045  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
 │   │   │                            how strong each model is for its roles,
@@ -448,10 +448,10 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 ## Known architectural debt
 
-- `app.js` is still a 6,504-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
+- `app.js` is still a 6,487-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 9,976 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 9,977 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

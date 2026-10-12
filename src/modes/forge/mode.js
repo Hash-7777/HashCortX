@@ -99,7 +99,6 @@
   // Only used if src/js/model-plan.js has not loaded, which would mean the whole
   // deterministic stage is missing. It is the same list that module holds.
   const SHAPE_NAMES = window.HCForgePlanNormalize.SHAPE_NAMES;
-  const FORGE_ALLOWED_MODEL_PROVIDERS = new Set(["groq", "gemini", "cerebras", "samba", "sambanova", "openrouter", "local"]);
   const FORGE_PROVIDER_COOLDOWNS = new Map();
   let forgeProjects = [];
   // False once a read has failed, so a save cannot write an empty list over a
@@ -3687,18 +3686,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     if (abortCtrl) abortCtrl.abort();
   }
 
-  function debugState() {
-    return {
-      nodeCount: activePlan?.nodes?.length || 0,
-      sizeMm: activePlan?.sizeMm ?? null,
-      sizeStated: activePlan?.sizeStated === true,
-      mmPerUnit,
-      underfloorCount: selectableMeshes().filter((mesh) => mesh.userData?.underFloor).length,
-      activeProjectId,
-    };
-  }
-
-  window.ForgeMode = { mount, destroy, buildPlan, debugState };
+  window.ForgeMode = { mount, destroy, buildPlan };
 
   (window._registeredModes = window._registeredModes || {})["forge"] = {
     label:     "3D Forge",

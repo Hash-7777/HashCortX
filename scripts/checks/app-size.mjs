@@ -219,7 +219,9 @@ const LINE_BUDGET = {
   // turned off again by New chat, unless it was chosen by hand.
   // 6504, up three: a cloud reply's footer shows the counts the provider
   // measured, carried back from the stream that read them.
-  'js/app.js': 6504,
+  // 6487, down 17: provider marks, a local-model list and a label that
+  // nothing read.
+  'js/app.js': 6487,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -336,7 +338,8 @@ const LINE_BUDGET = {
   // answer, is not sent to a model that system keeps them from. The reading,
   // the matching and the keeping are js/systems/connected.js; this is the
   // wiring, the confirmation and the Undo.
-  'modes/systems/mode.js': 3232,
+  // 3231, down one: a storage key nothing has read since the rebuild.
+  'modes/systems/mode.js': 3231,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is
@@ -515,7 +518,8 @@ const LINE_BUDGET = {
   // than the classifier it replaced, with two new files carrying the work.
   // 3721, down three: the intro mark is one copy of the picture, not two.
   // 3722, up one: the keyboard help names Ctrl rather than Command off a Mac.
-  'modes/forge/mode.js': 3722,
+  // 3710, down 12: a provider list and a debugging read-out nothing used.
+  'modes/forge/mode.js': 3710,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

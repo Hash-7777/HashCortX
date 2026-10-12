@@ -224,12 +224,6 @@
     return run;
   }
 
-  async function getRun(id) {
-    if (!id) return null;
-    const store = (await db()).transaction(STORE, 'readonly').objectStore(STORE);
-    return (await done(store.get(String(id)))) || null;
-  }
-
   /** Every run of a blueprint, newest first. */
   async function runsFor(blueprintId) {
     const store = (await db()).transaction(STORE, 'readonly').objectStore(STORE);
@@ -269,6 +263,6 @@
     startRun, finishRun, unfinished,
     newRun, continueRun, withTurn, withVersion, currentFiles, filesFromText, recordRun, fromLegacyOutput,
     snapshotAgent, makeRunId,
-    saveRun, getRun, runsFor, deleteRun,
+    saveRun, runsFor, deleteRun,
   };
 })();

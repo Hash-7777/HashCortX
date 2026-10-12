@@ -421,6 +421,5 @@
   window.HCCodePermissions = {
     MODES, IDS, KEY, BLOCKS_BEFORE_ASKING_ALL, STREAK_BEFORE_ASKING,
     readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases,
-    READER_NAMES: Object.keys(READERS), GIT_NAMES: Object.keys(GIT),
   };
 })();

@@ -83,15 +83,6 @@
   // and baseline the platform font gave it, beside icons that are drawn. Defined first: the agent chip uses it too.
   const REMOVE_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>`;
   const activeTitle = $("activeTitle");
-  // Helper: update model subtitle + cloud/RAG badges together
-  // Provider SVG icons — 14×14, minimal, no fills unless noted.
-  const PROVIDER_ICONS = {
-    groq:        `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><path d="M7 1.5L8.8 5.5H13L9.5 8.2 10.8 12.5 7 10 3.2 12.5 4.5 8.2 1 5.5H5.2L7 1.5Z" stroke="#F59E0B" stroke-width="1.2" stroke-linejoin="round"/></svg>`,
-    gemini:      `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><polygon points="7,1.5 12.5,7 7,12.5 1.5,7" stroke="#4285F4" stroke-width="1.3" stroke-linejoin="round"/><circle cx="7" cy="7" r="1.5" fill="#4285F4"/></svg>`,
-    openrouter:  `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="1.5" fill="#8B5CF6"/><circle cx="2" cy="3.5" r="1" fill="#8B5CF6"/><circle cx="12" cy="3.5" r="1" fill="#8B5CF6"/><circle cx="2" cy="10.5" r="1" fill="#8B5CF6"/><circle cx="12" cy="10.5" r="1" fill="#8B5CF6"/><line x1="7" y1="7" x2="2" y2="3.5" stroke="#8B5CF6" stroke-width="1"/><line x1="7" y1="7" x2="12" y2="3.5" stroke="#8B5CF6" stroke-width="1"/><line x1="7" y1="7" x2="2" y2="10.5" stroke="#8B5CF6" stroke-width="1"/><line x1="7" y1="7" x2="12" y2="10.5" stroke="#8B5CF6" stroke-width="1"/></svg>`,
-    cerebras:    `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" stroke="#06B6D4" stroke-width="1.3"/><rect x="4.5" y="4.5" width="5" height="5" rx="1" stroke="#06B6D4" stroke-width="1"/><line x1="4.5" y1="2" x2="4.5" y2="0.5" stroke="#06B6D4" stroke-width="1" stroke-linecap="round"/><line x1="9.5" y1="2" x2="9.5" y2="0.5" stroke="#06B6D4" stroke-width="1" stroke-linecap="round"/><line x1="4.5" y1="12" x2="4.5" y2="13.5" stroke="#06B6D4" stroke-width="1" stroke-linecap="round"/><line x1="9.5" y1="12" x2="9.5" y2="13.5" stroke="#06B6D4" stroke-width="1" stroke-linecap="round"/></svg>`,
-    samba:       `<svg viewBox="0 0 14 14" width="13" height="13" fill="none" aria-hidden="true"><path d="M1.5 10Q4 3.5 7 7Q10 10.5 12.5 4" stroke="#EF4444" stroke-width="1.5" stroke-linecap="round"/><path d="M1.5 6.5Q4 0 7 3.5Q10 7 12.5 0.5" stroke="#EF4444" stroke-width="1" stroke-linecap="round" opacity="0.45"/></svg>`,
-  };
 
   const errorSlot = $("errorSlot");
   const chatsListEl  = $("chatsList");
@@ -2112,7 +2103,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   terminateBtn.addEventListener("click", async () => {
     if (terminateBtn.classList.contains("busy")) return;
     terminateBtn.classList.add("busy");
-    const originalLabel = terminateBtn.querySelector("svg").nextSibling;
     // Abort any live stream
     if (state.streaming) { try { state.abort?.abort(); } catch {} state.streaming = false; sendBtn.textContent = "Send"; }
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -3202,13 +3192,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     }
     return available;
-  }
-
-  function rememberLocalModels(names) {
-    trackedLocalModels.clear();
-    (names || []).forEach(name => {
-      if (name && !String(name).startsWith("cloud:")) trackedLocalModels.add(String(name));
-    });
   }
 
   function trackLocalModel(name) {

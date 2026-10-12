@@ -469,7 +469,6 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
       boss: bossLabel, agents: agentAttribution });
     renderSbxHistory();
 
-    const riskColors = { CRITICAL: "#ff4040", HIGH: "#ff9040", MEDIUM: "#ffe040", LOW: "#80e090", CLEAN: "#00ff41" };
     sbxLog("RESULT", `Risk: ${risk}`, risk === "CLEAN" ? "done" : risk === "LOW" ? "done" : "warn");
 
     if (scanBtn) scanBtn.disabled = false;
