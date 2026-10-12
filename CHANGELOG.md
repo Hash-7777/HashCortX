@@ -8,6 +8,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **Where a local model runs is a setting.** Settings, General, "Where local
+  models run": Automatic, the default, where Ollama puts as much of a model
+  as fits on the graphics chip and the rest in main memory; Graphics chip
+  only, fastest when the model fits; or Main memory, which runs it on the
+  processor and leaves the graphics chip free. Every request and warm-up to
+  Ollama carries the choice, and a model too big for the graphics chip alone
+  fails with a note on going back to Automatic. Other local model apps set
+  this in their own settings (`js/local-place.js`).
+
 ### Removed
 
 - **The Virtual OS workspace.** Its tab, its panel, its chat agent and the

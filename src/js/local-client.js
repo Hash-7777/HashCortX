@@ -20,6 +20,10 @@
 // counts. A model that writes its thinking into its words between think tags
 // has it taken out of the answer the same way.
 //
+// Where the model runs, on the graphics chip, in main memory or wherever
+// Ollama decides, is the person's choice in Settings (js/local-place.js), and
+// every request and warm-up carries it.
+//
 // `warm` loads a model ahead of the request that needs it, at the window that
 // request will use, so the first answer does not wait for the load.
 //
@@ -46,6 +50,9 @@
     const limit = Number.isFinite(numPredict) && numPredict > 0 ? numPredict : room;
     if (limit) options.num_predict = limit;
     if (Number.isFinite(temperature)) options.temperature = temperature;
+    // Where it runs, if the person chose (js/local-place.js); otherwise Ollama decides.
+    const P = typeof window !== "undefined" && window.HCLocalPlace;
+    if (P) Object.assign(options, P.options());
     // A time the caller asks for wins; otherwise the one the person chose in
     // Settings, if they chose one (js/local-keep.js); otherwise Ollama's own.
     const K = typeof window !== "undefined" && window.HCLocalKeep;
@@ -147,26 +154,37 @@
       body: JSON.stringify(body({ ...request, stream: true })),
       signal,
     });
-    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}: ${String(await res.text()).slice(0, 300)}`);
+    if (!res.ok) throw placed(new Error(`Ollama HTTP ${res.status}: ${String(await res.text()).slice(0, 300)}`));
     const lines = (lineReader || window.HCStreamSSE.jsonLines)(res.body);
-    const reply = await read(lines, { onToken, onThinking });
+    let reply;
+    try { reply = await read(lines, { onToken, onThinking }); } catch (err) { throw placed(err); }
     // How fast it wrote, kept for the steps that cost more where a model is slow (js/local-speed.js).
     const S = typeof window !== "undefined" && window.HCLocalSpeed;
     if (S && reply.last) S.record(host, request.model, reply.last);
     return reply;
   }
 
-  const warming = new Map();   // host|model|window -> when it was last asked for
+  /** A failure, with a way back added when the graphics chip alone could not hold the model. */
+  function placed(err) {
+    const P = typeof window !== "undefined" && window.HCLocalPlace;
+    const hint = P && err instanceof Error ? P.tooBigHint(err.message) : "";
+    if (hint) { try { err.message = `${err.message} ${hint}`; } catch {} }
+    return err;
+  }
+
+  const warming = new Map();   // host|model|window|place -> when it was last asked for
 
   /**
    * Load a model at the window its next request will use, so that request
-   * does not wait for it. Asked at most once a minute for the same window;
+   * does not wait for it. Asked at most once a minute for the same window and
+   * the same place to run;
    * a model already loaded at it answers at once. It stays loaded as long as
    * any model does, and no longer (see above).
    */
   function warm(host, model, numCtx, { fetchFn = (...a) => fetch(...a), now = Date.now() } = {}) {
     if (!host || !model || /^(?:cloud|local):/.test(String(model))) return Promise.resolve(false);
-    const key = `${host}|${model}|${numCtx}`;
+    const P = typeof window !== "undefined" && window.HCLocalPlace;
+    const key = `${host}|${model}|${numCtx}|${P ? P.value() : ""}`;
     if (warming.has(key) && now - warming.get(key) < 60000) return Promise.resolve(false);
     warming.set(key, now);
     return fetchFn(`${host}/api/chat`, {

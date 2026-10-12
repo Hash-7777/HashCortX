@@ -131,6 +131,7 @@
     '/js/trace-time.js',
     '/js/local-context.js',
     '/js/local-keep.js',
+    '/js/local-place.js',
     '/js/local-speed.js',
     '/js/local-fit.js',
     '/js/local-client.js',

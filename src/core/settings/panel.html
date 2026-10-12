@@ -61,6 +61,11 @@
       </div>
 
       <div class="field">
+        <label>Where local models run <span class="field-note">Automatic puts as much of a model as fits on the graphics chip and the rest in main memory. Graphics chip only is fastest when the model fits; a model too big for it may not load. Main memory runs it on the processor: slower, and the graphics chip stays free. Changing it loads the model again on its next answer. Applies to Ollama; other local model apps set this in their own settings.</span></label>
+        <select class="control" id="localPlace"></select>
+      </div>
+
+      <div class="field">
         <label>Other local model apps <span class="field-note">A model server on this computer, found on the usual ports; add any other port it uses</span></label>
         <input class="control" id="localAppPorts" placeholder="Other ports, e.g. 1235, 9090" spellcheck="false" />
         <div class="field-note" id="localAppsFound"></div>
