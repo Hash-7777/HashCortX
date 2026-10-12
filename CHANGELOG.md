@@ -8,6 +8,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Removed
+
+- **The Virtual OS workspace.** Its tab, its panel, its chat agent and the
+  files behind them are gone, with the checks that covered them. Nothing
+  else in the app depended on it; the zip writer it shared stays, for
+  3D Forge.
+- **What the Virtual OS saved is cleared when the app starts.** Its projects,
+  its wallpaper and which project was open lived in the app's own storage,
+  where nothing can open them any more, so they are deleted at launch
+  (`src/js/retired-storage.js`). No other saved data is touched. To keep a
+  project, open it in 3.0.0 and use Download ZIP before updating.
+
 ### Fixed
 
 - **A filled button keeps its colour under the pointer.** HashCoder's Run,

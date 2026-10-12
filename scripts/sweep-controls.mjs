@@ -59,7 +59,7 @@ const PAGE = join(srcDir, '__sweep.html');
 const PORT = 8899;
 const SECONDS_PER_MODE = 75;
 
-const MODES = ['Chat', 'Coder', 'Finance', 'Sandbox', 'ERP', 'Swarm', 'VirtualOS', 'Forge'];
+const MODES = ['Chat', 'Coder', 'Finance', 'Sandbox', 'ERP', 'Swarm', 'Forge'];
 // The Forge was left out for a long time because it needs a WebGL context and a
 // headless browser has none. It gets one in software, which is why the flag
 // below is passed — and why the browser is killed as a group the moment the
@@ -108,7 +108,7 @@ function sweepPage() {
       Chat: ['tabChats', null], Coder: ['tabCode', '#coder-mode-wrap'],
       Finance: ['tabFinance', '#finance-wrap'], Sandbox: ['tabSandbox', '#sandbox-wrap'],
       ERP: ['tabSystems', '#system-maker-wrap'], Swarm: ['tabAgentMaker', '#agent-maker-wrap'],
-      VirtualOS: ['tabVirtualOS', '#virtual-os-wrap'], Forge: ['tabForge', '#forge-mode-wrap'],
+      Forge: ['tabForge', '#forge-mode-wrap'],
     };
     const which = P.get('mode') || 'Chat';
     const K = 'sweep:' + which + ':';
@@ -141,7 +141,7 @@ function sweepPage() {
     }
     // Controls that leave the mode, restart the app, or ask the OS a question.
     const SKIP_ID = /^tab[A-Z]|^hcReloadAppBtn$|^refresh$|^toggleSide$|^openSettings$|^powerBtn$/;
-    const SKIP_TEXT = /^(chats?|coder|forge|finance|sandbox|erp|swarm|virtual\\s*os|split)$/i;
+    const SKIP_TEXT = /^(chats?|coder|forge|finance|sandbox|erp|swarm|split)$/i;
     // How many of the controls one click reveals are clicked in turn. A menu
     // has a handful of items; a list that a click fills has hundreds, and
     // clicking all of them would turn a half-minute pass into an hour.

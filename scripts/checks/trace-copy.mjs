@@ -51,7 +51,6 @@ ok('the Agent Swarm trace', selectable(src('modes', 'agent-maker', 'mode.css'), 
 ok('the ERP agent\'s conversation, where its steps are written', /\.sys-agent-log \{[^}]*user-select: text/.test(src('modes', 'systems', 'mode.css')));
 ok('the Forge trace', selectable(src('modes', 'forge', 'mode.css'), '.frg-trace-entries *'));
 ok('the Coder trace', selectable(src('modes', 'code', 'mode.css'), '.cdr-trace-entries *'));
-ok('the Virtual OS trace', selectable(src('modes', 'virtual-os', 'mode.css'), '.void-trace-entries *'));
 
 console.log('\nEvery trace with a Copy button copies it:');
 ok('the Agent Swarm has a Copy button', /id="amkTraceCopyBtn"/.test(src('modes', 'agent-maker', 'panel.html')));

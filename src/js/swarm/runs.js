@@ -12,9 +12,8 @@
 // so any change can be undone.
 //
 // Two halves. The functions that build and change a run are pure and are
-// checked without a browser. The storage underneath is IndexedDB, the same
-// kind of store the Virtual OS keeps its projects in, and is verified in the
-// headless browser.
+// checked without a browser. The storage underneath is IndexedDB, and is
+// verified in the headless browser.
 //
 // Loaded after js/swarm/project-files.js, before the Agent Swarm, and
 // published as window.HCSwarmRuns. Checked by scripts/checks/swarm-workspace.mjs.

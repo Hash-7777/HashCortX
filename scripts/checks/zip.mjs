@@ -2,9 +2,7 @@
 // The zip container — checks
 //
 // Loads the REAL src/js/io/zip.js. It was written so 3MF could be written, and
-// a second implementation had grown separately inside the Virtual OS for
-// downloading a folder — two ways of writing one format, one of them checked.
-// There is one now, and this is what holds it honest.
+// it is the one way this app writes the format; this is what holds it honest.
 //
 // Run with: npm run check:zip
 // ==============================================================

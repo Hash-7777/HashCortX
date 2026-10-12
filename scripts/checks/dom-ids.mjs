@@ -51,11 +51,6 @@ const srcDir = join(root, 'src');
 //   nvidiaModel          a setting written to storage that nothing ever read
 //   settingsNotes(+Toggle) a toggle for a pane that no longer exists
 //   amkPolishBtn         inside a 44-line function with no caller at all
-//   voidEditModeBtn      the Edit Mode toggle, so the flag it set could never
-//                        become true and the check behind it was a constant
-//   voidPrompt           a fallback for an input that does not exist, in a
-//                        function whose one caller always passes the text
-//   voidTermClearBtn     a listener for a button that is not in the markup
 //
 // The rule the emptiness enforces: an id that resolves to nothing means the
 // feature is gone, and the code should go with it. Adding an entry here is

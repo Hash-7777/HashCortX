@@ -8,9 +8,9 @@
 // This scans the source and asserts exactly which files may make one, so that
 // adding an ungated native call to a mode file fails CI rather than shipping.
 //
-// It also pins the fact that Virtual OS and 3D Forge reach the machine not at
-// all — which the docs got wrong for a long time in the alarming direction,
-// describing an unguarded native surface those modes do not have.
+// It also pins the fact that 3D Forge and the other sandboxed modes reach the
+// machine not at all — which the docs got wrong for a long time in the
+// alarming direction, describing an unguarded native surface they do not have.
 //
 // Run with: npm run check:native
 // ==============================================================
@@ -42,11 +42,9 @@ const ALLOWED = new Map([
 /**
  * Files that must reach the machine NOT AT ALL.
  *
- * Virtual OS looks like a filesystem and is not one: its fs_read / fs_write /
- * terminal_run tools operate on an IndexedDB project and a terminal simulated
- * in JavaScript. Neither it nor 3D Forge can touch a real file on its own,
- * which is why neither needs the guard — and why an HC.invoke appearing in
- * either is a change worth stopping to look at.
+ * None of these can touch a real file on its own, which is why none needs the
+ * guard — and why an HC.invoke appearing in one is a change worth stopping to
+ * look at.
  *
  * These modes do save exports to the disk, through HC.save. That is deliberate
  * and it is not a hole in this rule: the write lives in platform/tauri/save.js
@@ -54,7 +52,6 @@ const ALLOWED = new Map([
  * than the mode's, and the bytes still pass the denylist in Rust.
  */
 const MUST_BE_SANDBOXED = [
-  'modes/virtual-os/mode.js',
   'modes/forge/mode.js',
   'modes/finance/mode.js',
   'modes/agent-maker/mode.js',

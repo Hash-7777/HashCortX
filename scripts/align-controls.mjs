@@ -81,7 +81,7 @@ const driver = `<script>
     ['Chat', 'tabChats', null], ['Coder', 'tabCode', '#coder-mode-wrap'],
     ['Finance', 'tabFinance', '#finance-wrap'], ['Sandbox', 'tabSandbox', '#sandbox-wrap'],
     ['ERP', 'tabSystems', '#system-maker-wrap'], ['Swarm', 'tabAgentMaker', '#agent-maker-wrap'],
-    ['VirtualOS', 'tabVirtualOS', '#virtual-os-wrap'], ['Forge', 'tabForge', '#forge-mode-wrap'],
+    ['Forge', 'tabForge', '#forge-mode-wrap'],
   ];
   const labelOf = (b) => b.id ? '#' + b.id
     : ((b.textContent || '').trim().slice(0, 22) || '.' + String(b.className || '').split(' ').filter(Boolean).slice(0, 2).join('.'));

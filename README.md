@@ -68,7 +68,7 @@ A 30B model on Ollama finishes only when the tests pass, then a 3B model codes i
 </tr>
 </table>
 
-## Eight workspaces
+## Seven workspaces
 
 | | |
 |---|---|
@@ -79,7 +79,6 @@ A 30B model on Ollama finishes only when the tests pass, then a 3B model codes i
 | **ERP** | Describe your business; its agent builds a working app with records, stages and books, exported as one HTML file |
 | **Finance** | Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
-| **Virtual OS** | A simulated desktop an agent builds a project inside |
 
 Plus **Agents**, nine built-in specialists and a builder for your own, **Split**, one prompt answered by two models side by side, and **Connections**: a business system you connect over MCP (Odoo, GitHub, Stripe and Supabase are ready-made), whose key never reaches a page or a model and whose every change asks you first. [How](docs/SECURITY.md#connected-systems).
 
@@ -172,7 +171,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 10,189 source checks
+npm run check                                     # 9,926 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 223 Rust tests
 ```
 

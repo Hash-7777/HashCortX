@@ -468,8 +468,8 @@
   /**
    * Send one turn to whichever client the selected model needs.
    *
-   * This decision was written out five times — in chat, Coder, Finance, ERP,
-   * Swarm and Virtual OS — and three of those copies were wrong in the same
+   * This decision was written out in several places — chat, Coder, Finance,
+   * ERP and Swarm among them — and three of those copies were wrong in the same
    * way: they sent everything that was not Gemini to the OpenAI client,
    * including Anthropic. That posts an OpenAI body to /v1/messages, which
    * requires max_tokens and never answers with `choices`, so the call failed

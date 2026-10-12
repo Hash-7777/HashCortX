@@ -1,8 +1,8 @@
 // ==============================================================
 // Export formatting — the shared, testable half of every export
 //
-// HashCortx exports from five places: chat, Coder, Finance, ERP and Virtual
-// OS. Each grew its own CSV escaper, its own PDF text handling and its own
+// HashCortx exports from several places: chat, Coder, Finance and ERP among
+// them. Each grew its own CSV escaper, its own PDF text handling and its own
 // filename logic, so a fix in one never reached the others. Finance already
 // had a working PDF text sanitiser; chat and Coder did not, and produced
 // mangled text for any curly quote — which is most text a model writes.

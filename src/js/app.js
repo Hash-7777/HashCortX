@@ -1419,7 +1419,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // "split"  → side-by-side comparison mode for two selected models
   //            prompt chips. Still a normal chat, just a different skin +
   //            chip preset. Tabs don't blow away chat history.
-  const BUILTIN_BODY_MODE_CLASSES = ["agent-maker-mode","system-maker-mode","forge-studio-mode","virtual-os-mode","coder-mode","finance-mode"];
+  const BUILTIN_BODY_MODE_CLASSES = ["agent-maker-mode","system-maker-mode","forge-studio-mode","coder-mode","finance-mode"];
   const BUILTIN_APP_MODE_CLASSES  = ["canvas-mode","code-mode","forge-mode","sandbox-mode","system-maker-mode","agent-maker-mode"];
   let activeFullscreenMode = null;
   let modeTransitionToken = 0;

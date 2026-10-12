@@ -3,7 +3,7 @@
   v3.0.0  ·  github.com/Hash-7777/HashCortX
 ══════════════════════════════════════════════════════════════
 
-HashCortx has eight workspaces, plus Agents, Split and
+HashCortx has seven workspaces, plus Agents, Split and
 Connections. They share your keys, your local models and the
 model menu, so you can move between them freely.
 
@@ -91,13 +91,6 @@ updates. It can also report from a connected system.
 ──────────────────────────────────────────────────────────────
 Paste untrusted code or text, and a team of agents inspects
 it for malware, prompt injection and suspicious logic.
-
-
-──────────────────────────────────────────────────────────────
-8. VIRTUAL OS
-──────────────────────────────────────────────────────────────
-A simulated desktop with its own files, in which an agent
-builds a project.
 
 
 ──────────────────────────────────────────────────────────────

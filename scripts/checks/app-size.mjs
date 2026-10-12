@@ -337,32 +337,6 @@ const LINE_BUDGET = {
   // the matching and the keeping are js/systems/connected.js; this is the
   // wiring, the confirmation and the Undo.
   'modes/systems/mode.js': 3232,
-  // 3766, down from 3808. A second implementation of the zip format lived
-  // here — its own header writer, its own checksum — doing the same job as the
-  // one the 3D mode already had, and only one of the two was ever checked
-  // against a real archive tool. There is one now, at src/js/io/zip.js.
-  // 3731, down again. What a file may be called, where it sits, and whether a
-  // folder may be dropped somewhere that would make a loop — the whole of this
-  // mode's safety, since nothing real is underneath it — moved to
-  // src/js/vos/tree.js. Asking those rules a question found that a double
-  // slash in a path grew a folder called "untitled" between the two halves.
-  // 3640, down again. Whether anything usable comes out of a generation —
-  // four ways of finding a file's path in a model's answer, tried in order of
-  // how much each assumes — moved to src/js/vos/answer.js.
-  // 3563, down from 3808 where this began. The terminal's own workings —
-  // splitting a command when arguments are quoted, resolving a path against
-  // where you are standing, finding a name in a tree — moved to
-  // src/js/vos/shell.js. It runs nothing and never did; what it has to get
-  // right is behaving like the thing it imitates.
-  // 3510, down 35: an auto-assign nothing offered, a legacy alias, and the
-  // drag-and-drop path desktop icons stopped using for the pointer drag.
-  // 3511, up one: its chat agent is told that what its tools return is
-  // material, not instructions.
-  // 3517, up six: a job on a local model starts and fails over only on local
-  // models, and says so when there is none large enough.
-  // 3358, down 159: the Agent OS loop, which nothing in the app could start,
-  // with its prompt, its switch and its write counter. The chat keeps the tools.
-  'modes/virtual-os/mode.js': 3309,
   // 3820, up from 3756. The trace drawer could be read and never taken: no
   // selection, no copy, no file. Most of these lines are the two handlers and
   // the single reader that turns the entries into text for both. The rest is
@@ -861,7 +835,7 @@ console.log('\napp.js holds fewer separate responsibilities over time:');
 // mode's markup from being pasted into the shell because it was quicker.
 const MODE_WRAPS = [
   'sandbox-wrap', 'forge-mode-wrap', 'agent-maker-wrap',
-  'system-maker-wrap', 'virtual-os-wrap', 'coder-mode-wrap',
+  'system-maker-wrap', 'coder-mode-wrap',
 ];
 const MODE_MARKUP_BUDGET = 0;
 

@@ -121,7 +121,9 @@ console.log('\nLoad order is a decision, not an accident:');
 // 47, down from 54: styling nothing in the app used was removed.
 // 43, down three: the HashCoder panel's sheet was rewritten to style only
 // its own panel.
-const DUPLICATE_BUDGET = 43;
+// 42, down one: the Virtual OS logo, styled in two sheets, went with the
+// workspace.
+const DUPLICATE_BUDGET = 42;
 
 console.log('\nSelectors declared in more than one sheet go down, never up:');
 {
@@ -171,7 +173,6 @@ const IMPORTANT_BUDGET = {
   'modes/sandbox/mode.css': 14,
   // 10, not 11: one was a mention inside a comment.
   'modes/agent-maker/mode.css': 10,
-  'modes/virtual-os/mode.css': 11,
   // 0, down from 11: the HashCoder panel was redrawn with nothing to overrule.
   'modes/code/mode.css': 0,
   'modes/systems/mode.css': 6,

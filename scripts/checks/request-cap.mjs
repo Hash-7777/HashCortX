@@ -140,10 +140,6 @@ console.log('\nNo failover mistakes the cap for a provider\'s limit:');
   ok('the shared router reads it as a plain failure, not a limit, busy, key or slow', errs.every((e) => w.HCModelRoutes.failureKind(e) === 'other'));
   const chatRetry = /rate limit|overloaded|server error|429|503|529|5\d\d/;
   ok('chat does not retry it on another model', errs.every((e) => !chatRetry.test(e.message)));
-  const vos = src('modes', 'virtual-os', 'mode.js');
-  const m = vos.match(/function isRouteFailure\(err\) \{[\s\S]*?return (\/[\s\S]*?\/i)\.test\(msg\);/);
-  const vosRetry = m ? vm.runInNewContext(m[1]) : null;
-  ok('Virtual OS does not try another model for it', !!vosRetry && errs.every((e) => !vosRetry.test(e.message)));
 }
 
 console.log('\nIt is in place before anything can send:');

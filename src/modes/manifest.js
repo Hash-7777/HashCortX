@@ -33,7 +33,6 @@
       { id: 'sandbox',     host: '#app' },
       { id: 'systems',     host: '#mainApp' },
       { id: 'agent-maker', host: '#mainApp' },
-      { id: 'virtual-os',  host: '#mainApp' },
     ],
 
     /** Where a mode's files live. One convention, no per-mode exceptions. */

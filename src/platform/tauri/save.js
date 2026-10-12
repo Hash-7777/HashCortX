@@ -2,7 +2,7 @@
 // platform/tauri/save.js — putting a file the user asked for on their disk
 //
 // Everything this app can produce — a chat export, a Coder diff, Forge's GLB,
-// ERP's CSV, Virtual OS's zip, and every .docx/.xlsx/.pdf `execute_python`
+// ERP's CSV, and every .docx/.xlsx/.pdf `execute_python`
 // builds — was handed to the webview as `a.download = name; a.click()`.
 //
 // That never wrote a file, in any build, on any platform. A download is a

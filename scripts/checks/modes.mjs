@@ -256,7 +256,6 @@ const LEAK_BUDGET = {
   'forge': 6,
   'finance': 3,
   'agent-maker': 3,
-  'virtual-os': 3,
   'sandbox': 2,
   'systems': 2,
 };
@@ -322,7 +321,6 @@ console.log('\nWords that fit any computer, not only a Mac:');
   const forgeHelp = read('modes/forge/panel.html').match(/<div class="frg-help">[^\n]*/)?.[0] || '';
   check('Forge\'s help names Ctrl off a Mac', /<b data-key="Ctrl\+Z">&#8984;Z<\/b> undo/.test(forgeHelp) && /<b data-key="Ctrl\+Y">/.test(forgeHelp)
     && /document\.querySelectorAll\("\.frg-help \[data-key\]"\)\.forEach\(\(b\) => \{ b\.textContent = b\.dataset\.key; \}\)/.test(read('modes/forge/mode.js')));
-  check('Virtual OS calls its file window Files', !/>Show Finder<|>Finder<|"Show Finder"|"Hide Finder"/.test(read('modes/virtual-os/panel.html') + read('modes/virtual-os/mode.js')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (mode contract)`);

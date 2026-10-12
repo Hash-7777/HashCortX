@@ -64,7 +64,8 @@ const ACCENT_ONLY = new Set(['--accent', '--accent-2', '--accent-soft', '--accen
 console.log('\nEach mode declares an accent, and nothing else:');
 {
   const modeBlocks = [...vars.matchAll(/(body\.[a-z-]+|\.sbx-mode)\s*\{([^}]*)\}/g)];
-  check('every mode has a block', modeBlocks.length >= 7, `found ${modeBlocks.length}`);
+  const modeCount = (read('modes/manifest.js').match(/\{ id: '/g) || []).length;
+  check('every mode has a block', modeCount > 0 && modeBlocks.length >= modeCount, `found ${modeBlocks.length} for ${modeCount} modes`);
   for (const [, selector, body] of modeBlocks) {
     const declared = [...body.matchAll(/(--[a-z0-9-]+)\s*:/g)].map((m) => m[1]);
     const strays = declared.filter((d) => !ACCENT_ONLY.has(d));
@@ -93,7 +94,7 @@ for (const file of SHEETS.filter((f) => !f.endsWith('css/vars.css'))) {
 // ── 4. Corners come from the scale ───────────────────────────────────────
 //
 // The app had thirteen radii: 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 20, 22.
-// Coder's corners were sharp, Virtual OS's were round, everything else sat
+// One mode's corners were sharp, another's were round, everything else sat
 // between — which is most of why two modes at the same colour still read as
 // two products.
 //
@@ -175,7 +176,8 @@ const BUDGET = {
   // Not in css/. A second design system in its own --hc-* namespace, linked
   // last so it has the final say; recorded here so it can shrink but not grow.
   'styles.css': 23,
-  'css/vars.css': 31,
+  // 28, down from 31: the Virtual OS accent block went with the workspace.
+  'css/vars.css': 28,
   // 125, down six. The state colours and the per-module colours are worked
   // out against what they are drawn on (js/systems/contrast.js) rather than
   // written here, so the fixed ones they replaced are gone.
@@ -192,7 +194,6 @@ const BUDGET = {
   // 37: the permission bar's buttons, badge and mark are drawn from the theme
   // tokens, so its own tints of one fixed blue are gone.
   'css/modals.css': 37,
-  'modes/virtual-os/mode.css': 52,
   // 30, down from 46: the terminal look the chat took on in coding mode went.
   // HashCoder hides the chat whenever it is open, so none of it could be seen.
   'css/modes.css': 30,

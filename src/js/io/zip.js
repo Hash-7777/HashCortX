@@ -3,9 +3,8 @@
 //
 // Written for 3MF, which is a zip with three XML members inside it, and used by
 // anything here that has to hand somebody an archive. It sat under the 3D mode
-// for a while and a second, separate implementation grew in the Virtual OS —
-// two ways of writing the same format, one of them checked. A zip container is
-// not a feature of either mode, so it lives on its own now and both use it.
+// for a while; a zip container is not a feature of one mode, so it lives on
+// its own.
 //
 // It does the smallest possible thing: every member is STORED, not deflated.
 //

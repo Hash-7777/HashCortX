@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **68,000 lines of JavaScript** (plus ~20,000 more in vendored libraries) and **about 10,800 lines of Rust**, measured on 5 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **64,000 lines of JavaScript** (plus ~20,000 more in vendored libraries), measured on 13 October 2026, and **about 10,800 lines of Rust**, measured on 5 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -30,7 +30,6 @@ HashCortX/
 │   │   ├── forge/            3,722  offline parametric part generator
 │   │   │                            (lines of mode.js; each folder also holds
 │   │   │                            mode.css and panel.html)
-│   │   ├── virtual-os/       3,309  virtual project desktop
 │   │   ├── systems/          3,232  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,466  chain / vote / failover
 │   │   ├── code/             2,481  the HashCoder agent loop
@@ -149,6 +148,7 @@ HashCortX/
 │   │   ├── trace-time.js        88  when a trace line was written, as a stopwatch
 │   │   ├── model-plan.js     1,045  a generated 3D model's parts, made trustworthy
 │   │   ├── power.js            251  stops work nobody can see
+│   │   ├── retired-storage.js   39  clears what a removed workspace saved
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
 │   │   ├── stream/             388  reading a streamed answer off the wire —
@@ -250,9 +250,7 @@ HashCortX/
 │   │   │                            system's records read into a report
 │   │   ├── sandbox/             63  Sandbox: the instant pattern scan, run
 │   │   │                            before any model reads the code
-│   │   ├── vos/                773  Virtual OS: tree, shell, answers, saved project,
-│   │   │                            and which model is asked
-│   │   ├── io/zip.js           182  a stored zip, used by 3MF and downloads
+│   │   ├── io/zip.js           181  a stored zip, used by 3MF and downloads
 │   │   └── vendor/                  marked, highlight.js, DOMPurify, mermaid,
 │   │                                pdf.js, jsPDF, SheetJS, and three/ —
 │   │                                core + module + add-ons + utils, r184,
@@ -319,7 +317,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 190 files,
+├── scripts/checks/                  the automated frontend checks — 186 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
@@ -350,6 +348,8 @@ HashCortX/
 │   ├── model-names.mjs              provider, name and class of a model
 │   ├── memory.mjs                   what is remembered, and found again
 │   ├── save.mjs                     where a file the user exports ends up
+│   ├── retired-storage.mjs          what is cleared at launch, and that
+│   │                                nothing still in use is
 │   ├── forge.mjs                    what 3D Forge reports as finished
 │   ├── theme.mjs                    the colour budget per stylesheet
 │   ├── no-emoji.mjs                 no mark is a picture typed as text —
@@ -449,7 +449,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,504-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 10,189 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, the Virtual OS save, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 9,926 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

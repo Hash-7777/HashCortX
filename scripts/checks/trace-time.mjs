@@ -74,7 +74,6 @@ const TRACES = {
   'modes/code/mode.js': 'Coder',
   'modes/agent-maker/mode.js': 'Agent Swarm',
   'modes/finance/mode.js': 'Finance',
-  'modes/virtual-os/mode.js': 'Virtual OS',
   'modes/forge/mode.js': '3D Forge',
   'modes/systems/mode.js': 'ERP',
 };

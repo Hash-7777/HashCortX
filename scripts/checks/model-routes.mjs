@@ -299,14 +299,6 @@ ok('the Agent Swarm', routes(swarm));
 ok('... which no longer takes the first model of each provider in menu order', !/function getFailoverModels/.test(swarm));
 ok('the Systems builder', routes(systems));
 ok('the Forge', routes(forge));
-// Virtual OS picks and replaces its models itself; the same rule is held there.
-const vos = src('modes', 'virtual-os', 'mode.js');
-{
-  const vosModels = src('js', 'vos', 'models.js');
-  ok('Virtual OS knows a local model by the shared rule', /R \? R\.providerOf\(value\) === "local"/.test(vosModels) && /const isLocalModel = \(value\) => MODELS\(\)\.isLocal\(value\);/.test(vos));
-  ok('... its worker is chosen on the side the job started on (checked in vos-models.mjs)', /filter\(\(o\) => sameSide\(godValue, o\.value\) && isLarge\(o, "worker"\)\)/.test(vosModels));
-  ok('... and a job fails over only on its own side', /opts\.filter\(\(o\) => sameSide\(preferredValue, o\.value\) && isLarge\(o, role\)\)/.test(vosModels) && /MODELS\(\)\.routes\(preferredValue, role, availableModelOptions\(\)\)/.test(vos));
-}
 ok('the module loads before the modes', src('boot.js').indexOf("'/js/model-routes.js'") > src('boot.js').indexOf("'/js/chat/failover.js'")
   && src('boot.js').indexOf("'/js/model-routes.js'") < src('boot.js').indexOf("'/modes/manifest.js'"));
 

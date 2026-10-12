@@ -9,15 +9,13 @@
 // nothing at all when pressed. It is the most convincing kind of broken,
 // because everything about it looks like a working feature.
 //
-// It was not hypothetical. When this was first run it found four:
+// It was not hypothetical. When this was first run it found four, among them:
 //
 //   • the composer's context-injection toggle, which had no handler in any
 //     build — the only other way to switch the feature on was a slash command
 //     that called a function nobody had written, so it threw;
 //   • "View Audit Log" in the About dialog, offering to show a security record
-//     and doing nothing;
-//   • the second Close in the Virtual OS editor, which did not close;
-//   • a Stop button in the Virtual OS chat, permanently disabled.
+//     and doing nothing.
 //
 // Run with: npm run check:controls
 // ==============================================================
@@ -38,7 +36,6 @@ const srcDir = join(root, 'src');
  */
 const ALLOWED_UNREFERENCED = new Map([
   ['tabChats', 'the workspace tabs are handled together by one delegated listener on .tabs, matched by data-tab rather than by id'],
-  ['voidChatStopBtn', 'rendered disabled and never enabled — a placeholder for cancelling a Virtual OS chat turn, which that mode does not yet offer'],
 ]);
 
 function walk(dir, out = []) {

@@ -83,12 +83,11 @@ input, textarea, [contenteditable="true"],
 }
 
 /* Every conversation and result a person may want to copy from: the chat's,
-   HashCoder's, Virtual OS's, Finance's, the ERP agent's and the Swarm's, and
+   HashCoder's, Finance's, the ERP agent's and the Swarm's, and
    Settings, whose notes hold commands, addresses and where to get keys. Kept in step with
    the list main.js lets the context menu open on (scripts/checks/selectable.mjs). */
 #messages *,
 .cdr-messages *,
-.void-chat-msgs *,
 .fin-chat-messages *,
 #sysAgentLog *,
 .amk-ws-message *,
@@ -100,7 +99,7 @@ input, textarea, [contenteditable="true"],
 /* What is clicked rather than read stays unselectable, so a drag over a step's
    heading or a button does not select its label. */
 #messages button, #messages summary, .cdr-messages button, .cdr-messages summary,
-.void-chat-msgs button, .fin-chat-messages button,
+.fin-chat-messages button,
 #sysAgentLog button, .amk-ws-message button, #sbxLog button, .settings-pane button, .settings-pane summary {
   user-select: none;
   -webkit-user-select: none;
@@ -790,8 +789,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
 
 /* ── Mode back buttons — unified gold style, impossible to miss ──────── */
 .frg-btn#frgBackBtn,
-.amk-back-btn#amkBackBtn,
-.void-btn#voidBackBtn {
+.amk-back-btn#amkBackBtn {
   background: rgba(201,169,110,0.12) !important;
   border: 1px solid rgba(201,169,110,0.45) !important;
   color: #dfc38e !important;
@@ -802,8 +800,7 @@ body.hashcortx-fullscreen-active .hc-safe-exit-mode {
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .frg-btn#frgBackBtn:hover,
-.amk-back-btn#amkBackBtn:hover,
-.void-btn#voidBackBtn:hover {
+.amk-back-btn#amkBackBtn:hover {
   background: rgba(201,169,110,0.22) !important;
   border-color: rgba(201,169,110,0.75) !important;
   color: #f5d98a !important;
@@ -1181,7 +1178,6 @@ header.topbar .badge-row #activeAgentChip.agent-chip .agent-chip-clear:hover {
 .amk-logo,
 .frg-logo,
 .sys-logo,
-.void-logo,
 .hc-logo-full,
 .amk-empty-logo {
   filter: none !important;
