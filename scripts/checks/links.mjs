@@ -37,19 +37,21 @@ function page({ tauri = true } = {}) {
   if (tauri) sandbox.__TAURI_INTERNALS__ = { invoke: (cmd, args) => { invoked.push({ cmd, args }); return Promise.resolve(); } };
   vm.createContext(sandbox);
   vm.runInContext(src, sandbox, { filename: 'index.js' });
-  const click = (href, extra = {}) => {
+  // A press of a mouse button on a link: the left button arrives as a click,
+  // the middle and right as auxclick, as a browser sends them.
+  const press = (type) => (href, extra = {}) => {
     let prevented = false;
     const a = { getAttribute: () => href };
     const e = {
-      button: 0, isTrusted: true, defaultPrevented: false,
+      button: type === 'click' ? 0 : 1, isTrusted: true, defaultPrevented: false,
       target: { closest: () => (href == null ? null : a) },
       preventDefault() { prevented = true; },
       ...extra,
     };
-    for (const l of listeners.filter((x) => x.type === 'click')) l.fn(e);
+    for (const l of listeners.filter((x) => x.type === type)) l.fn(e);
     return prevented;
   };
-  return { HC: sandbox.HC, click, invoked, listeners };
+  return { HC: sandbox.HC, click: press('click'), aux: press('auxclick'), invoked, listeners };
 }
 
 console.log('Which addresses leave the app:');
@@ -74,8 +76,16 @@ console.log('\nA click on a link:');
   ok('leaves a script address alone', p.click('javascript:alert(1)') === false && p.invoked.length === 1);
   ok('leaves a click another handler dealt with alone', p.click('https://example.com/', { defaultPrevented: true }) === false && p.invoked.length === 1);
   ok('opens nothing for a click no person made', p.click('https://example.com/', { isTrusted: false }) === false && p.invoked.length === 1);
-  ok('nor for a middle or right click', p.click('https://example.com/', { button: 1 }) === false && p.invoked.length === 1);
+  ok('a click event for another button opens nothing', p.click('https://example.com/', { button: 1 }) === false && p.invoked.length === 1);
   ok('nor for a click that is not on a link', p.click(null) === false && p.invoked.length === 1);
+}
+{
+  const p = page();
+  ok('the middle button opens a web link in the system browser too, as a browser opens it in a new tab', p.aux('https://example.com/b') === true
+    && p.invoked.length === 1 && p.invoked[0].args.url === 'https://example.com/b');
+  ok('the right button does not', p.aux('https://example.com/', { button: 2 }) === false && p.invoked.length === 1);
+  ok('the middle button leaves an in-app link and a script address alone', p.aux('#top') === false && p.aux('javascript:alert(1)') === false && p.invoked.length === 1);
+  ok('nor opens anything for a press no person made', p.aux('https://example.com/', { isTrusted: false }) === false && p.invoked.length === 1);
 }
 {
   const p = page({ tauri: false });

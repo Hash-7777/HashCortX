@@ -46,6 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   of the canvas added another page-wide listener for every agent, so a long
   session ran more of them on every mouse move; the drag is now listened to
   once. A drag released outside the window ends when the pointer comes back.
+- **The middle mouse button opens a link in your browser**, as a left click
+  does. It did nothing in the window.
 
 ### Removed
 

@@ -304,7 +304,7 @@ Most third-party libraries are vendored into `src/js/vendor/` and load from disk
 
 Nothing in the app ever means to replace its page with another address, so `src-tauri/src/security/navigation.rs` refuses every navigation away from it — a link, a refresh written into markup, a script setting `location` — and the page carries on as it was. The only addresses the window may show are the app's own.
 
-A link a person clicks opens in the system browser instead, from `src/platform/index.js`: only a real click, only a web or mail address, and nothing on the app's own origin. `links.mjs` holds which clicks open what; the Rust side has its own tests for which addresses are the app's.
+A link a person clicks opens in the system browser instead, from `src/platform/index.js`: only a real click of the left or the middle button, only a web or mail address, and nothing on the app's own origin. `links.mjs` holds which clicks open what; the Rust side has its own tests for which addresses are the app's.
 
 ### Three providers are called from Rust
 

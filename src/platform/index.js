@@ -77,14 +77,18 @@ HC.externalLink = (href, base) => {
   return url.href;
 };
 if (HC.isTauri) {
-  document.addEventListener("click", (e) => {
-    if (e.defaultPrevented || e.button !== 0 || !e.isTrusted) return;
+  // A click, or the middle button, which in a browser opens a link in a new
+  // tab and in the window did nothing.
+  const openLink = (e) => {
+    if (e.defaultPrevented || !e.isTrusted) return;
     const a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
     const url = a && HC.externalLink(a.getAttribute("href"), location.href);
     if (!url) return;
     e.preventDefault();
     HC.invoke("plugin:opener|open_url", { url }).catch(() => {});
-  });
+  };
+  document.addEventListener("click", (e) => { if (e.button === 0) openLink(e); });
+  document.addEventListener("auxclick", (e) => { if (e.button === 1) openLink(e); });
 }
 
 // HashNotch ping — light up the notch "HashCortX finished" when a run
