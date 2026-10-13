@@ -155,7 +155,7 @@ console.log('\nWhat a search inside the files tells the model:');
     && /No line in these files contains "calculateTax", so nothing is known about it yet\. Search a shorter word from it, such as "tax" or "calculate", or list_dir the project, before you answer or change anything\./.test(none.note), none.note);
   ok('... or a different word, for a word with no parts', /Search a different word, or list_dir/.test(HC.code.linesFound([], 'tax').note));
   ok('an answer that is not a list is passed on as it is', HC.code.linesFound('error', 'x') === 'error');
-  ok('the tool uses it', /return HC\.code\.linesFound\(await HC\.invoke\('fs_grep', \{ dir, pattern, fileExt \}\), pattern\);/.test(src('platform', 'tauri', 'hashcoder.js')));
+  ok('the tool uses it', /const raw = await HC\.invoke\('fs_grep', \{ dir, pattern, fileExt \}\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(raw, pattern\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(all, pattern, true\);/.test(src('platform', 'tauri', 'hashcoder.js')));
 }
 
 console.log('\nWhich files named in an answer are not there:');
@@ -436,6 +436,45 @@ console.log('\nAn edit that leaves the file as it was is not a change:');
   T.undo.capture = async () => ({ existed: false, content: null });
   const fresh = await why(() => tool('write_file')({ path: '/p/new.css', content: '' }));
   ok('a new file is written, even an empty one', fresh === '' && writes === 2, fresh);
+}
+
+console.log('\ngrep_code reads a pattern written as a regular expression:');
+{
+  const box = { window: {}, console, TextEncoder };
+  box.HC = box.window.HC = {};
+  vm.createContext(box);
+  vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
+  const T = box.window.HC;
+  const plan = (p) => { const r = T.code.patternOf(p); return r.regex ? r.pieces.join(' | ') : 'plain'; };
+  ok('plain text stays plain text', plan('useState') === 'plain' && plan('foo.bar') === 'plain' && plan('price ($)') === 'plain');
+  ok('alternatives are searched by the plain text of each', plan('founded|established|since') === 'founded | established | since');
+  ok('a wildcard between words searches both', plan('over.*decade') === 'decade | over' && plan('function\\s+render') === 'function | render');
+  ok('an escaped character is plain text', plan('\\.modal-overlay\\s*\\{') === '.modal-overlay' && plan('fetchUser\\(id\\)') === 'fetchUser(id)');
+  ok('a group of alternatives inside one is read as one', plan('(get|set)User') === 'User');
+  ok('an alternative with nothing plain to search for, or a broken expression, is searched as plain text', plan('a|b') === 'plain' && plan('(unclosed|x') === 'plain');
+  const lines = { '/p/index.html': ['<p class="badge">Over 20 Years of Trusted Care</p>', '<h1>Orchard Crumb</h1>', '<p>Founded in the village</p>'], '/p/style.css': ['.modal-overlay {', '  inset: 0;'] };
+  T.guard = { request: async () => true };
+  const asked = [];
+  T.invoke = async (cmd, a) => {
+    if (cmd !== 'fs_grep') return null;
+    asked.push(a.pattern);
+    const out = [];
+    for (const [path, list] of Object.entries(lines)) list.forEach((line, n) => { if (line.toLowerCase().includes(String(a.pattern).toLowerCase())) out.push({ path, line_no: n + 1, line, context: line }); });
+    return out;
+  };
+  const tool = T.code.TOOL_DEFINITIONS.find((t) => t.name === 'grep_code').fn;
+  const found = await tool({ dir: '/p', pattern: '20|twenty|decade|years' });
+  ok('a pattern of alternatives finds the lines that hold any of them', Array.isArray(found) && found.length === 1 && found[0].line.includes('Over 20 Years'), JSON.stringify(found));
+  const across = await tool({ dir: '/p', pattern: 'over.*years|founded' });
+  ok('...each once, in the order of the files', Array.isArray(across) && across.map((m) => m.line_no).join() === '1,3', JSON.stringify(across));
+  const none = await tool({ dir: '/p', pattern: 'established|since' });
+  ok('nothing found says it was read as a regular expression', none && none.matches && none.matches.length === 0 && /matches "established\|since", read as a regular expression, case-insensitive/.test(none.note), JSON.stringify(none));
+  asked.length = 0;
+  const plainOne = await tool({ dir: '/p', pattern: 'Orchard' });
+  ok('plain text is one search, as before', Array.isArray(plainOne) && plainOne.length === 1 && asked.join() === 'Orchard');
+  const literal = await tool({ dir: '/p', pattern: '.modal-overlay {' });
+  ok('a line holding the pattern as plain text is found', Array.isArray(literal) && literal.length === 1);
+  ok('its description says a regular expression works', /regular expression/.test(T.code.TOOL_DEFINITIONS.find((t) => t.name === 'grep_code').parameters.pattern.description));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);

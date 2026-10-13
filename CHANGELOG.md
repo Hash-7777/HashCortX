@@ -167,6 +167,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   change, is sent back once, and if it still says so, a line under the
   answer names what this run did not change. Only what the run wrote
   decides it, never what the answer says (`js/code/verify.js`).
+- **HashCoder's search inside files reads a regular expression.** Models
+  write a search as a regular expression, such as `founded|established` or
+  `price.*total`, and grep_code searched for those characters as plain
+  text, found nothing, and said nothing was known about it. A pattern
+  written as an expression is now searched by the plain text each of its
+  alternatives must hold and matched whole, case-insensitive, and lines
+  holding the pattern as plain text still count; plain text is one search,
+  as before. When nothing matches, the answer says how the pattern was
+  read.
 
 ### Removed
 
