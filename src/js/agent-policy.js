@@ -12,7 +12,8 @@
 //     task was "paused", with no distinction between an agent that had
 //     finished, one that was still making progress, and one going in circles.
 //
-// Pure: no DOM, no IPC, no clock. Checked by scripts/checks/agent-policy.mjs.
+// No DOM, no IPC, no clock: what wrapUp needs from the app is handed to it.
+// Checked by scripts/checks/agent-policy.mjs.
 // ==============================================================
 
 (function () {
@@ -210,6 +211,46 @@
     return paths.filter((p) => typeof p === 'string' && p);
   }
 
+  // ── A run that stops before it finishes ────────────────────────────────
+  //
+  // A run that reached its step limit stopped where it was. The person saw a
+  // line saying it had stopped and nothing about what it had done, and the
+  // checks a run meets when it finishes (the site read as a browser reads it,
+  // the details a page states) never ran, so a page left with a line in
+  // square brackets or a guessed detail said nothing about it. Now, when a
+  // run stops at the step limit, or stops going round in circles after it
+  // changed files, the model is asked once, with no tools, to say what it
+  // changed, what it checked and what is left.
+
+  /** The note asking for that account, or '' when the stop needs none. `changed` is how many files the run changed. */
+  function wrapUpNote(reason, changed) {
+    const atLimit = reason === 'hard-limit' || reason === 'soft-limit';
+    if (!atLimit && !(reason === 'stalled' && changed > 0)) return '';
+    return 'Note from HashCortX, not from the person: this request has used all the steps it is given, so the run stops here and no tool can be called. ' +
+      'In a few short sentences, say what you changed and in which files, what you checked, and what is still not done, not checked or not confirmed. ' +
+      'Say only what the steps above show; if you did not check something, say so.';
+  }
+
+  /**
+   * Ask for that account, when the stop needs one. `check()` runs the
+   * finishing checks from the record first; `ask(messages)` makes one model
+   * call with no tools; `words(reply)` is the text kept. The note and the
+   * account are added to `messages`, so the conversation goes on from them.
+   * Returns the account, or '' when none was needed or none came. A stop the
+   * person made throws as it would anywhere; any other failure leaves the
+   * stop as it was.
+   */
+  async function wrapUp({ reason, changed = 0, signal = null, messages, check = null, ask, words = (r) => (r && r.content) || '' }) {
+    const note = signal && signal.aborted ? '' : wrapUpNote(reason, changed);
+    if (!note) return '';
+    if (check) await Promise.resolve().then(check).catch(() => null);
+    let said = '';
+    try { said = String(words(await ask([...messages, { role: 'user', content: note, note: true }])) || '').trim(); }
+    catch (e) { if (signal && signal.aborted) throw e; return ''; }
+    if (said) messages.push({ role: 'user', content: note, note: true }, { role: 'assistant', content: said });
+    return said;
+  }
+
   // ── The same file changed again and again ──────────────────────────────
   //
   // An agent whose change does not work often changes the same file again,
@@ -311,7 +352,7 @@
 
   window.HCAgentPolicy = {
     TOOL_EFFECT, BUDGET, MAX_PARALLEL, RUN_BUDGET,
-    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult, EDIT_LOOP, editLoop,
+    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult, EDIT_LOOP, editLoop, wrapUpNote, wrapUp,
     newRunBudget, runBudgetExceeded, chargeRunBudget,
   };
 })();

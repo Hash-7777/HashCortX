@@ -257,5 +257,34 @@ console.log('\nThe same file changed again and again:');
     && /\[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\('\\n\\n'\); loopNote = '';/.test(mode));
 }
 
+console.log('\nA run that stops before it finishes says what it did:');
+{
+  const { wrapUpNote, wrapUp } = sandbox.window.HCAgentPolicy;
+  check('at the step limit, an account is asked for, whether or not files changed', /used all the steps/.test(wrapUpNote('hard-limit', 0)) && /used all the steps/.test(wrapUpNote('soft-limit', 3)));
+  check('stuck after changing files, too; stuck with nothing changed, or stopped another way, not', wrapUpNote('stalled', 2) !== '' && wrapUpNote('stalled', 0) === '' && wrapUpNote('unknown', 5) === '');
+  check('it is the app speaking, says no tool can be called, and asks for what changed, what was checked and what is left, from the steps alone',
+    (() => { const n = wrapUpNote('hard-limit', 1); return n.startsWith('Note from HashCortX, not from the person:') && /no tool can be called/.test(n) && /what you changed and in which files, what you checked, and what is still not done, not checked or not confirmed/.test(n) && /if you did not check something, say so/.test(n); })());
+  const messages = [{ role: 'user', content: 'make a page' }];
+  let checked = 0, sent = null;
+  const said = await wrapUp({ reason: 'soft-limit', changed: 2, messages, check: () => { checked++; }, ask: async (m) => { sent = m; return { content: '  Changed index.html and style.css. Not checked in a browser.  ' }; } });
+  check('the finishing checks run first, and one call is made with the note last', checked === 1 && sent && sent.at(-1).note === true && /used all the steps/.test(sent.at(-1).content));
+  check('the account comes back, trimmed, and the conversation goes on from it', said === 'Changed index.html and style.css. Not checked in a browser.' && messages.length === 3 && messages[1].note === true && messages[2].role === 'assistant' && messages[2].content === said);
+  const quiet = [];
+  check('a failed call leaves the stop as it was', await wrapUp({ reason: 'hard-limit', messages: quiet, ask: async () => { throw new Error('quota'); } }) === '' && quiet.length === 0);
+  check('a failing check does not stop the account', await wrapUp({ reason: 'hard-limit', messages: [], check: () => { throw new Error('x'); }, ask: async () => ({ content: 'ok' }) }) === 'ok');
+  const ctrl = { aborted: false };
+  let threw = false;
+  try { await wrapUp({ reason: 'hard-limit', messages: [], signal: ctrl, ask: async () => { ctrl.aborted = true; throw new Error('Aborted'); } }); } catch { threw = true; }
+  check('a stop the person makes while it is asked is not swallowed', threw);
+  let asked = 0;
+  check('nothing is asked when the person already stopped the run, or the stop needs no account', await wrapUp({ reason: 'hard-limit', messages: [], signal: { aborted: true }, ask: async () => { asked++; } }) === '' && await wrapUp({ reason: 'stalled', changed: 0, messages: [], ask: async () => { asked++; } }) === '' && asked === 0);
+  check('an empty account adds nothing', await wrapUp({ reason: 'hard-limit', messages: quiet, ask: async () => ({ content: '   ' }) }) === '' && quiet.length === 0);
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('HashCoder asks for it as a run stops, with no tools, runs the site and details checks first, and keeps only words',
+    /const summary = await policy\.wrapUp\(\{ reason: stop\.reason, changed: proof \? proof\.changed\.length : 0, signal, messages, check: \(\) => proof\?\.changed\.length && cdrPrefs\(\)\.prove !== false && siteLook\(\)\.then\(factsLook\), words: \(r\) => window\.HCCodeLive\.wordsOf\(r\?\.content \|\| ''\)\.words,/.test(mode)
+    && /return callWithRouter\([^\n]*, \[\], temperature, signal, coderModel\)\.finally\(\(\) => wait\?\.remove\(\)\);/.test(mode));
+  check('...shows the account, then what the record shows beside it', /if \(summary\) appendTextToBubble\(contentEl, summary\);\s+appendTextToBubble\(contentEl, `\*\$\{\[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);
 process.exit(fail ? 1 : 0);

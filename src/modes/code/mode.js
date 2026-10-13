@@ -2089,6 +2089,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // dangling tool turns so the next user message does not produce an
       // invalid sequence like [tool, user], which most provider APIs reject.
       thinkEl?.remove(); thinkEl = null;
+      const stop = lastStop || { reason: 'unknown', message: 'Stopped. Reply to continue.' };
+      // At the step limit, or stuck after changing files, the finishing checks run from the record and the model says once, with no tools, what it did and what is left (js/agent-policy.js wrapUp).
+      const summary = await policy.wrapUp({ reason: stop.reason, changed: proof ? proof.changed.length : 0, signal, messages, check: () => proof?.changed.length && cdrPrefs().prove !== false && siteLook().then(factsLook), words: (r) => window.HCCodeLive.wordsOf(r?.content || '').words,
+        ask: (asked) => { const wait = appendThinking(contentEl, { checking: true }); cdrTraceAdd('Check', 'Asked for an account of the run at the step limit', 'run'); return callWithRouter(sharedState.light ? window.HCCodeLight.callMessages(compressHistory(asked)) : compressHistory(asked), [], temperature, signal, coderModel).finally(() => wait?.remove()); } });
       while (messages.length && messages[messages.length - 1].role === 'tool') messages.pop();
       while (messages.length && messages[messages.length - 1].role === 'assistant' &&
              Array.isArray(messages[messages.length - 1].tool_calls)) messages.pop();
@@ -2097,10 +2101,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // out of budget or spent four turns re-reading the same file, and the
       // user could not tell which — so they could not tell whether replying
       // "continue" would help or repeat the same loop.
-      const stop = lastStop || { reason: 'unknown', message: 'Stopped. Reply to continue.' };
       cdrTraceAdd('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
-      appendTextToBubble(contentEl, `*${[stop.message, window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ')}*`);
-      return '';
+      if (summary) appendTextToBubble(contentEl, summary);
+      appendTextToBubble(contentEl, `*${[stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ')}*`);   // what the record shows, beside the model's account
+      return summary;
     }
 
     // ── Main send ─────────────────────────────────────────────

@@ -93,6 +93,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   year as when the place began. The note sent back also says never to fill
   a gap with today's date, the current year or a worked-out number
   (`js/code/facts.js`, `js/code/verify.js`).
+- **A HashCoder run that stops at its step limit says what it did.** It
+  stopped with one line saying so, and the checks a finished run meets
+  never ran, so a page left with a line in square brackets or an
+  unconfirmed detail said nothing about it. Now, at the step limit, or when
+  a run goes round in circles after changing files, the site and details
+  checks run from the record, and the model is asked once, with no tools,
+  to say what it changed, what it checked and what is left. Its account is
+  shown with what the record shows beside it (`js/agent-policy.js`).
 
 ### Removed
 

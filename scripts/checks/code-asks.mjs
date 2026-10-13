@@ -88,7 +88,7 @@ ok('keeps them for that request only, as it does the plan', /HC\.code\.plan = nu
 ok('gives them to the checks before finishing, and counts how often it sent the run back for them', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode) && /review: 0, asks: 0,/.test(mode));
 ok('says what is left of its plan under the answer, and when it stops early',
   /const proven = \[proof && window\.HCCodeVerify\.proofLine\(proof\), window\.HCCodeFacts\?\.leftLine\(unconfirmed\), window\.HCCodePlan\?\.leftLine\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\(' '\);/.test(mode)
-  && /\[stop\.message, window\.HCCodePlan\?\.leftLine\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\(' '\)/.test(mode));
+  && /\[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\), window\.HCCodePlan\?\.leftLine\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\(' '\)/.test(mode));
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/asks.js'") > 0 && boot.indexOf("'/js/code/asks.js'") < boot.indexOf("'/modes/boot.js'"));
 ok('Settings says so under proving changes', /A request of several asks is gone through ask by ask\./.test(src('core', 'settings', 'panel.html')));
