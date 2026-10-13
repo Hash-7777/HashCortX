@@ -86,6 +86,7 @@ const SwarmMaker = (() => {
   let dagZoom = 1.0;
   let dagPan  = { x: 0, y: 0 };
   const DAG_ZOOM_MIN = 0.2, DAG_ZOOM_MAX = 3.0, DAG_ZOOM_STEP = 0.05;
+  let nodeDrag = null;   // the agent being dragged on the canvas: { id, g, mx, my, ox, oy }
 
   function _dagTransform() {
     const g = document.getElementById("amkDagContent");
@@ -1853,24 +1854,12 @@ ${modelListStr}`;
         selectAgent(agent.id);
       });
 
-      // Drag to reposition node
-      let dragging = false, dragStart = null;
+      // Drag to reposition node; the page-wide move and release are listened to once, in mount (nodeDrag).
       g.addEventListener("mousedown", (ev) => {
         if (ev.button !== 0 || ev.shiftKey) return;
         ev.stopPropagation();
-        dragging = true;
-        dragStart = { mx: ev.clientX, my: ev.clientY, ox: pos.x, oy: pos.y };
+        nodeDrag = { id: agent.id, g, mx: ev.clientX, my: ev.clientY, ox: pos.x, oy: pos.y };
       });
-      document.addEventListener("mousemove", (ev) => {
-        if (!dragging || !dragStart) return;
-        const nx = Math.max(0, dragStart.ox + (ev.clientX - dragStart.mx) / dagZoom);
-        const ny = Math.max(0, dragStart.oy + (ev.clientY - dragStart.my) / dagZoom);
-        nodePositions[agent.id] = { x: nx, y: ny };
-        g.setAttribute("transform", `translate(${nx}, ${ny})`);
-        const bp2 = getActive();
-        if (bp2) _redrawEdges(bp2);
-      });
-      document.addEventListener("mouseup", () => { dragging = false; dragStart = null; });
 
       nodesLayer.appendChild(g);
     }
@@ -2249,12 +2238,13 @@ function _polishToast(text, isError) {
     document.getElementById("amkZoomInBtn")?.addEventListener("click",    () => applyDagZoom(dagZoom + DAG_ZOOM_STEP));
     document.getElementById("amkZoomOutBtn")?.addEventListener("click",   () => applyDagZoom(dagZoom - DAG_ZOOM_STEP));
     document.getElementById("amkZoomResetBtn")?.addEventListener("click", () => { dagZoom = 1.0; dagPan = { x: 0, y: 0 }; _dagTransform(); });
-    // Scroll-wheel zoom at cursor position
+    // A pinch or a mouse wheel zooms about the pointer, two fingers on a trackpad move the canvas (js/wheel.js).
     document.getElementById("amkDagSvg")?.addEventListener("wheel", (e) => {
       e.preventDefault();
+      const did = window.HCWheel.read(e); if (!did) return;
+      if (did.pan) { dagPan.x += did.pan.dx; dagPan.y += did.pan.dy; _dagTransform(); return; }
       const r = document.getElementById("amkDagSvg").getBoundingClientRect();
-      applyDagZoom(dagZoom + (e.deltaY < 0 ? DAG_ZOOM_STEP : -DAG_ZOOM_STEP),
-        { x: e.clientX - r.left, y: e.clientY - r.top });
+      applyDagZoom(dagZoom * did.zoom, { x: e.clientX - r.left, y: e.clientY - r.top });
     }, { passive: false });
 
     // Canvas pan (drag on background)
@@ -2270,15 +2260,22 @@ function _polishToast(text, isError) {
         e.preventDefault();
       }
     });
+    const endDrag = () => { nodeDrag = null; if (panning) { panning = false; panStart = null; if (svgEl2) svgEl2.style.cursor = "grab"; } };
     document.addEventListener("mousemove", (e) => {
+      if ((nodeDrag || panning) && !e.buttons) return endDrag();   // released outside the window
+      if (nodeDrag) {
+        const nx = Math.max(0, nodeDrag.ox + (e.clientX - nodeDrag.mx) / dagZoom), ny = Math.max(0, nodeDrag.oy + (e.clientY - nodeDrag.my) / dagZoom);
+        nodePositions[nodeDrag.id] = { x: nx, y: ny };
+        nodeDrag.g.setAttribute("transform", `translate(${nx}, ${ny})`);
+        const bp2 = getActive(); if (bp2) _redrawEdges(bp2);
+        return;
+      }
       if (!panning || !panStart) return;
       dagPan.x = panStart.px + (e.clientX - panStart.mx);
       dagPan.y = panStart.py + (e.clientY - panStart.my);
       _dagTransform();
     });
-    document.addEventListener("mouseup", () => {
-      if (panning) { panning = false; panStart = null; if (svgEl2) svgEl2.style.cursor = "grab"; }
-    });
+    document.addEventListener("mouseup", endDrag);
 
     // Topology/Aggregation selects
     document.getElementById("amkTopologySelect")?.addEventListener("change", (e) => {

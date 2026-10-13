@@ -36,6 +36,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   now follow new text only while you are at the end: scrolling up lets go at
   once, scrolling back down follows again, and a message you send is always
   shown (`js/follow.js`, which HashCoder already used).
+- **The Agent Swarm canvas and the memory map follow the trackpad and the
+  mouse.** Both zoomed by a fixed step on every wheel event, so two fingers
+  on a trackpad zoomed wildly instead of moving the view, and a pinch jumped
+  in steps. Two fingers now move the view, a pinch zooms as far as the
+  fingers move, and a mouse wheel zooms one step for each notch, about the
+  pointer (`js/wheel.js`).
+- **Dragging an agent on the Agent Swarm canvas stays smooth.** Each redraw
+  of the canvas added another page-wide listener for every agent, so a long
+  session ran more of them on every mouse move; the drag is now listened to
+  once. A drag released outside the window ends when the pointer comes back.
 
 ### Removed
 

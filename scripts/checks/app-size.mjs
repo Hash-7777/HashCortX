@@ -632,7 +632,10 @@ const LINE_BUDGET = {
   // it (js/swarm/debug-report.js).
   // 2466, up four: a task typed in the bar for a new God Agent team is that
   // team's goal, and the blueprint that was open keeps its own task.
-  'modes/agent-maker/mode.js': 2466,
+  // 2463, down three: dragging an agent is listened to once in mount, in
+  // place of a page-wide listener for each agent at each redraw, and the
+  // canvas reads its wheel through js/wheel.js.
+  'modes/agent-maker/mode.js': 2463,
   // 2582, down from 2705. Reading money and adding it up moved to
   // src/js/finance/amounts.js. Asking it what it made of a figure found that a
   // debit written the way every ledger writes one — in brackets — was being

@@ -768,9 +768,19 @@
       if (node?.type === 'fact') { e.stopPropagation(); editFact(node.fact); }
     });
 
+    // A pinch or a mouse wheel zooms about the pointer, as far as the fingers
+    // or the wheel moved; two fingers on a trackpad move the map (js/wheel.js).
     svg.addEventListener('wheel', (e) => {
       e.preventDefault();
-      zoomAbout(atPoint(e), e.deltaY < 0 ? 1.12 : 1 / 1.12);
+      const did = window.HCWheel.read(e);
+      if (!did) return;
+      if (did.zoom) { zoomAbout(atPoint(e), did.zoom); return; }
+      const ctm = svg.getScreenCTM();
+      const v = view();
+      v.tx += did.pan.dx * (ctm ? 1 / ctm.a : 1);
+      v.ty += did.pan.dy * (ctm ? 1 / ctm.d : 1);
+      applyView();
+      writeJSON(VIEW_KEY, v);
     }, { passive: false });
   }
 
