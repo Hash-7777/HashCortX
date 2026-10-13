@@ -55,6 +55,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the camera did the same. A click now picks only when its press did not
   take hold of the gizmo and the pointer ended where it began
   (`js/forge/press.js`).
+- **A tool call a model types after a sentence no longer shows as a long
+  line of code.** HashCoder hid a call written as text only when it opened
+  the reply; one that came after a sentence was drawn as a single line of
+  code with a scroll bar while the model wrote it, and kept in the reply
+  above the step. The words stay and the call is left out, wherever it
+  starts, and the line says the model is choosing its next step. A JSON
+  block that is data, such as a package file, is still shown
+  (`js/code/live.js`).
 
 ### Removed
 

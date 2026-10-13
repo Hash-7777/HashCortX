@@ -9,7 +9,9 @@
 // says comes from what has happened, not from a timer: the step that just
 // ended, the model's own thinking arriving, its words arriving, a call being
 // written. A tool call being written is not shown as text, since it is not
-// words for the person. It is the one sign of work in the panel: a small
+// words for the person, wherever in the reply it starts: a model that says a
+// sentence and then writes its call as text had the call drawn as one long
+// line of code under the sentence (wordsOf). It is the one sign of work in the panel: a small
 // mesh of dots, five across and three down on faint hairlines, its centre
 // in the second accent, that moves the way of what is going on (a wave
 // crossing it for thinking, slower while the model's own thinking arrives,
@@ -27,7 +29,7 @@
 // before a step stay in the reply as a line of their own, and everything else
 // goes, the answer being drawn in its place.
 //
-// looksLikeCalls, elapsed, phaseOf and afterOf are pure and checked by
+// looksLikeCalls, wordsOf, elapsed, phaseOf and afterOf are pure and checked by
 // scripts/checks/code-live.mjs; start draws into the panel.
 // Loaded before the Coder mode and published as window.HCCodeLive.
 // ==============================================================
@@ -52,6 +54,37 @@
     const first = F.splitFences(t).find((p) => p.type === 'code' || String(p.text || '').trim());
     const code = first && first.type === 'code' ? String(first.code || '').trim() : null;
     return code != null && /^(json|tool_code|)$/i.test(first.lang || '') && (!code || /^[{[]/.test(code));
+  }
+
+  // A call written as text: the opening of a call object, or a tool-call tag.
+  const CALL_BODY = /^\s*(?:<tool_call>|<function|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
+  const CALL_LINE = /(^|\n)[ \t]*(?:<tool_call>|<function[=>]|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
+
+  /**
+   * The words of `text` for the person, `{ words, call }`: the text with any
+   * tool call written into it left out, a fenced one or a bare one, and
+   * everything after a bare one, which runs to the end of what has arrived.
+   * `call` says one was there. Blocks are read by js/fences.js.
+   */
+  function wordsOf(text) {
+    const t = String(text || '');
+    if (looksLikeCalls(t)) return { words: '', call: true };
+    const F = window.HCFences;
+    if (!F || !F.splitFences) return { words: t, call: false };
+    let words = '', call = false;
+    for (const p of F.splitFences(t)) {
+      if (p.type === 'code') {
+        const code = String(p.code || '');
+        // A finished block is a call only when it carries the call's arguments, so a package.json shown as data stays.
+        if (/^(json|tool_code|tool_call|)$/i.test(p.lang || '') && ((CALL_BODY.test(code) && (p.unclosed || /"(?:arguments|parameters|args|input)"\s*:/.test(code))) || (p.unclosed && !code.trim()))) { call = true; continue; }
+        words += '```' + (p.rawInfo || '') + '\n' + code + (p.unclosed ? '' : '\n```') + '\n';
+        continue;
+      }
+      const m = CALL_LINE.exec(p.text);
+      if (m) { words += p.text.slice(0, m.index + m[1].length); call = true; break; }
+      words += p.text;
+    }
+    return { words: words.replace(/\s+$/, ''), call };
   }
 
   const PLACES = new Set(['read_file', 'view_image', 'write_file', 'patch_file', 'delete_file', 'list_dir']);
@@ -105,7 +138,7 @@
    * Returns `{ phase, label }`; the phase names how the marks move.
    */
   function phaseOf({ text = '', thinking = false, after = null, checking = false } = {}) {
-    if (text) return looksLikeCalls(text) ? { phase: 'choosing', label: 'Choosing the next step' } : { phase: 'writing', label: 'Writing' };
+    if (text) return wordsOf(text).call ? { phase: 'choosing', label: 'Choosing the next step' } : { phase: 'writing', label: 'Writing' };
     if (thinking) return { phase: 'reasoning', label: 'Thinking' };
     if (checking) return { phase: 'checking', label: 'Checking its work' };
     if (after && after.tool) {
@@ -182,10 +215,10 @@
       frame = 0;
       if (done) return;
       drawn = Date.now();
-      const calls = looksLikeCalls(text);
+      const { words } = wordsOf(text);
       say();
-      textEl.hidden = !text || calls;
-      if (!textEl.hidden) textEl.innerHTML = render(text);
+      textEl.hidden = !words;
+      if (!textEl.hidden) textEl.innerHTML = render(words);
       scroll();
     }
     // Words are drawn at most every DRAW_EVERY ms: drawing the whole answer on
@@ -224,5 +257,5 @@
     };
   }
 
-  window.HCCodeLive = { DRAW_EVERY, start, looksLikeCalls, elapsed, phaseOf, afterOf, brief };
+  window.HCCodeLive = { DRAW_EVERY, start, looksLikeCalls, wordsOf, elapsed, phaseOf, afterOf, brief };
 })();

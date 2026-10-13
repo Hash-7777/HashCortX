@@ -1224,7 +1224,7 @@
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
         if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
-        if (m.content && m.tool_calls?.length && !window.HCCodeLive.looksLikeCalls(m.content)) appendTextToBubble(reply, m.content);   // what it said before the step
+        if (m.content && m.tool_calls?.length && window.HCCodeLive.wordsOf(m.content).words) appendTextToBubble(reply, window.HCCodeLive.wordsOf(m.content).words);   // what it said before the step, without a call it wrote as text
         for (const c of m.tool_calls || []) {
           const fn = c.function || c, result = results.get(c.id);
           let args = fn.arguments; try { args = typeof args === 'string' ? JSON.parse(args) : args; } catch { args = {}; }
@@ -1950,7 +1950,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
         // What the model said before a step stays in the reply, where it said it;
         // a call written as text does not, and an answer is drawn below instead.
-        const said = turn.tool_calls?.length && turn.content && !window.HCCodeLive.looksLikeCalls(turn.content) ? turn.content : '';
+        const said = turn.tool_calls?.length && turn.content ? window.HCCodeLive.wordsOf(turn.content).words : '';   // without a call it wrote as text (js/code/live.js)
         thinkEl?.finish(said); thinkEl = null;
 
         if (turn.tool_calls?.length) {

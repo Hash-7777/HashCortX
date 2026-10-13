@@ -37,6 +37,31 @@ console.log('A call being written is not shown as words:');
   for (const t of words) ok(`${JSON.stringify(t.slice(0, 18))} is words`, !L.looksLikeCalls(t));
 }
 
+console.log('\nA call written after words is left out of them:');
+{
+  const W = (t) => L.wordsOf(t);
+  const said = 'I will start with the page.\n\n1. **Create the `index.html` file:**\n\n';
+  const fenced = W(said + '```\n{"name": "write_file", "arguments": {"path": "index.html", "content": "<!DOCTYPE html>\\n<html');
+  ok('a call in a block after a sentence: the sentence stays, the call goes', fenced.call && fenced.words === said.trim() && !/write_file/.test(fenced.words));
+  const json = W(said + '```json\n{"name": "read_file", "arguments": {"path": "a.css"}}\n```\nThen I will style it.');
+  ok('a closed json call block goes, and the words after it stay', json.call && !/read_file/.test(json.words) && /Then I will style it\./.test(json.words));
+  const bare = W('Reading the stylesheet now.\n{"name": "read_file", "arguments": {"path": "a.css"');
+  ok('a bare call on its own line goes, with everything after it', bare.call && bare.words === 'Reading the stylesheet now.');
+  const tag = W('Next step.\n<tool_call>{"name": "list_dir"');
+  ok('a call in tool-call tags goes', tag.call && tag.words === 'Next step.');
+  const code = W('Here is the change:\n\n```js\nconst a = { name: 1 };\n```');
+  ok('real code stays, and is no call', !code.call && /```js\nconst a = \{ name: 1 \};\n```/.test(code.words));
+  const data = W('The file holds:\n\n```json\n{"version": 2}\n```');
+  ok('a json block that is data and not a call stays', !data.call && /"version": 2/.test(data.words));
+  const pkg = W('The project file:\n\n```json\n{"name": "shop", "version": "1.0.0"}\n```');
+  ok('a finished json block that names a package, not a call, stays', !pkg.call && /"name": "shop"/.test(pkg.words));
+  ok('a reply that is only a call has no words', W('{"name": "read_file"').words === '' && W('{"name": "read_file"').call);
+  ok('plain words are untouched', W('All done.').words === 'All done.' && !W('All done.').call);
+  ok('a call being written after words is said as choosing the next step', L.phaseOf({ text: said + '```\n{"name": "write_file"' }).phase === 'choosing');
+  const live = src('js', 'code', 'live.js');
+  ok('the live line draws only the words', /const \{ words \} = wordsOf\(text\);\s+say\(\);\s+textEl\.hidden = !words;\s+if \(!textEl\.hidden\) textEl\.innerHTML = render\(words\);/.test(live));
+}
+
 console.log('\nWhat the line says, from what has happened:');
 {
   const P = (o) => L.phaseOf(o);
@@ -143,10 +168,10 @@ console.log('\nWhat the model says before a step stays:');
 {
   const mode = src('modes', 'code', 'mode.js');
   ok('words said with a step are kept in the reply; a call written as text is not',
-    /const said = turn\.tool_calls\?\.length && turn\.content && !window\.HCCodeLive\.looksLikeCalls\(turn\.content\) \? turn\.content : '';\s*thinkEl\?\.finish\(said\);/.test(mode));
+    /const said = turn\.tool_calls\?\.length && turn\.content \? window\.HCCodeLive\.wordsOf\(turn\.content\)\.words : '';[^\n]*\s*thinkEl\?\.finish\(said\);/.test(mode));
   ok('a larger model is asked to say what it is doing before each step, one on this computer under 15B is not',
     /sharedState\.size === 'small' \|\| sharedState\.size === 'mid' \? '1\. One change at a time\. Use tool calls[^']*'\s*: '1\. One change at a time\. Before each tool call, say in one short sentence/.test(mode));
-  ok('a saved conversation draws those words before their step', /if \(m\.content && m\.tool_calls\?\.length && !window\.HCCodeLive\.looksLikeCalls\(m\.content\)\) appendTextToBubble\(reply, m\.content\);/.test(mode));
+  ok('a saved conversation draws those words before their step, without the call', /if \(m\.content && m\.tool_calls\?\.length && window\.HCCodeLive\.wordsOf\(m\.content\)\.words\) appendTextToBubble\(reply, window\.HCCodeLive\.wordsOf\(m\.content\)\.words\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/live.js)`);
