@@ -315,7 +315,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -692,6 +692,55 @@
     };
   }
 
+  // ── A search the answer says it made, when none ran ───────────────────
+  //
+  // A small model with no way to search wrote that it had searched the
+  // internet and found a business's site and its social accounts, and gave
+  // their phone number and address "according to" them. No search had run.
+  // An answer that says it searched, browsed or read a site, in a run where
+  // no search or page read happened since the request, is sent back once;
+  // if it still says so, the person is told under the answer.
+
+  const CLAIM = [
+    /\b(?:I|we)(?:'ve|\s+have)?\s+(?:just\s+|also\s+)?(?:searched|googled|browsed|looked\s+(?:it\s+|them\s+|this\s+)?up|checked\s+(?:online|their\s+(?:website|site|social\s+media)|the\s+(?:web|internet|website))|found\s+(?:it\s+|them\s+)?(?:online|on\s+the\s+(?:web|internet)))\b/i,
+    /\baccording\s+to\s+(?:the|their|its|his|her)\s+(?:website|official\s+(?:site|page)|social\s+media(?:\s+profiles?)?|online\s+(?:listing|profile)s?|google\s+(?:listing|profile))\b/i,
+    /\b(?:a|my)\s+(?:web\s+|online\s+|quick\s+)?search\s+(?:shows?|showed|found|finds|returned|revealed)\b/i,
+  ];
+  const WEB_TOOLS = new Set(['web_search', 'fetch_url']);
+  const CLAIM_STEP = 'Sent back: it said it searched, and nothing was searched';
+  const CLAIM_SAYS = 'no web search and no page read ran';
+
+  /** Whether `reply` says it searched or read a site, outside its code blocks. */
+  function claimsSearch(reply) {
+    const F = window.HCFences;
+    const prose = F && F.splitFences ? F.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+    return CLAIM.some((re) => re.test(prose));
+  }
+
+  /** Whether a web search or page read ran since the person's latest request. */
+  function searchedSince(messages) {
+    const list = Array.isArray(messages) ? messages : [];
+    let at = list.length - 1;
+    while (at >= 0 && !(list[at] && list[at].role === 'user' && !list[at].note)) at--;
+    return list.slice(Math.max(0, at)).some((m) => m && m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.some((c) => WEB_TOOLS.has(c && (c.name || (c.function && c.function.name)))));
+  }
+
+  /** The note sending an answer back for a search it says it made and did not, or null. */
+  function claimNote(reply, messages, sentBack = 0) {
+    if (sentBack || !claimsSearch(reply) || searchedSince(messages)) return null;
+    return {
+      kind: 'claim',
+      step: CLAIM_STEP,
+      message: `${APP_NOTE} your answer says you searched or read a site, and in this run ${CLAIM_SAYS}. Nothing may be said to come from a search that did not happen. ` +
+        'Take out what you said a search or a site gave, and every detail that came from it, from the answer and from the files. If you can search, search now; if not, say plainly that you could not look it up.',
+    };
+  }
+
+  /** What the person is told under an answer that still says it searched, or ''. */
+  function claimLine(reply, messages) {
+    return claimsSearch(reply) && !searchedSince(messages) ? `No web search or page read ran in this run: what the answer says one found does not come from one.` : '';
+  }
+
   // ── Files an answer names that are not there ──────────────────────────
   //
   // Asked where something is, a small model searched once, found nothing,
@@ -793,6 +842,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck,
+    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine,
   };
 })();

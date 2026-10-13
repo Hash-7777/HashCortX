@@ -1858,7 +1858,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -2065,7 +2065,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light })
-          || (finalText.trim() ? (await namedLook(finalText)) || (await projectLook()) || (!sent.example && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || keptLook() || (await secondLook()) : null);
+          || (finalText.trim() ? (await namedLook(finalText)) || (cdrPrefs().prove === false ? null : window.HCCodeVerify.claimNote(finalText, messages, sent.claim)) || (await projectLook()) || (!sent.example && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || keptLook() || (await secondLook()) : null);
         if (back) {
           sent[back.kind]++;
           if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example')) forced = { content: '', tool_calls: (back.runs || [back.run]).map((run, i) => ({ id: `ran_${Date.now()}_${i}`, name: 'shell_run', arguments: run })) };   // its word that the test passed is not kept
@@ -2083,7 +2083,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           appendTextToBubble(contentEl, finalText);
         }
         // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
-        const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
+        const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
         sharedState.proven = proven || ''; if (proven) appendTextToBubble(contentEl, `*${proven}*`);
         return finalText;
       }

@@ -125,6 +125,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   gone and not named in the request sends the run back once to put it back,
   and what is still gone is listed under the answer, with Undo to restore
   it (`js/code/keep.js`).
+- **An answer that says it searched, when nothing was searched, is sent
+  back.** A model with no way to search wrote that it had looked a business
+  up and gave details "according to" its website. If no web search or page
+  read ran in the run, such an answer is sent back once to take out what it
+  said a search gave, and if it still says so, a line under the answer says
+  no search ran (`js/code/verify.js`).
 
 ### Removed
 
