@@ -521,7 +521,10 @@ const LINE_BUDGET = {
   // 3721, down three: the intro mark is one copy of the picture, not two.
   // 3722, up one: the keyboard help names Ctrl rather than Command off a Mac.
   // 3710, down 12: a provider list and a debugging read-out nothing used.
-  'modes/forge/mode.js': 3710,
+  // 3712, up two: a click on the canvas picks a part only when its press did
+  // not take hold of the gizmo or turn the camera; the rule is in
+  // js/forge/press.js, and the mode notes where each press began.
+  'modes/forge/mode.js': 3712,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run

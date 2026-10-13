@@ -213,6 +213,7 @@
     '/js/forge/improve.js',
     '/js/forge/capability.js',
     '/js/forge/panel-html.js',
+    '/js/forge/press.js',
     '/js/forge/io/mesh.js',
     '/js/forge/io/scene.js',
     '/js/forge/io/stl.js',

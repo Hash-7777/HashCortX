@@ -35,7 +35,7 @@
   let initialized = false;
   let THREE = null;
   let OrbitControls = null;
-  let TransformControls = null;
+  let TransformControls = null, canvasPress = null;   // canvasPress: the last press on the canvas, { from, gizmo }
   let GLTFLoader = null;
   let GLTFExporter = null;
   let renderer = null;
@@ -868,6 +868,7 @@
     setSnapEnabled(false);
     transformControls.addEventListener("dragging-changed", (event) => {
       if (controls) controls.enabled = !event.value;
+      if (event.value && canvasPress) canvasPress.gizmo = true;   // the click this press ends in picks nothing (js/forge/press.js)
       // One drag is one step, however many frames it took. Recording each
       // frame would make undo walk back through the drag a pixel at a time.
       if (event.value) beginEdit();
@@ -881,6 +882,7 @@
     else scene.add(transformControls);
     raycaster = new THREE.Raycaster();
     pointer = new THREE.Vector2();
+    renderer.domElement.addEventListener("pointerdown", (e) => { canvasPress = { from: { x: e.clientX, y: e.clientY }, gizmo: !!transformControls?.dragging }; });   // where it began, and whether the gizmo, if it heard the press first, holds it
     renderer.domElement.addEventListener("click", handleCanvasClick);
     renderer.domElement.addEventListener("dblclick", handleCanvasDoubleClick);
     renderer.domElement.addEventListener("contextmenu", (event) => event.preventDefault());
@@ -1844,7 +1846,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
 
   function handleCanvasClick(event) {
     if (!renderer || !camera || !raycaster || !pointer || !modelGroup) return;
-    if (transformControls?.dragging) return;
+    if (!window.HCForgePress.isPick({ ...canvasPress, to: { x: event.clientX, y: event.clientY }, dragging: !!transformControls?.dragging })) return;   // a press that dragged the gizmo or turned the camera picks nothing (js/forge/press.js)
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;

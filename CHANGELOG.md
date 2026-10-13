@@ -48,6 +48,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   once. A drag released outside the window ends when the pointer comes back.
 - **The middle mouse button opens a link in your browser**, as a left click
   does. It did nothing in the window.
+- **Letting go of a 3D Forge gizmo keeps the part selected.** The gizmo
+  ends its drag before the browser sends the click that every press ends
+  in, so letting go of an arrow over empty space read as a click there: the
+  selection dropped and the arrows went with it. Letting go after turning
+  the camera did the same. A click now picks only when its press did not
+  take hold of the gizmo and the pointer ended where it began
+  (`js/forge/press.js`).
 
 ### Removed
 
