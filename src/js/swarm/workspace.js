@@ -220,6 +220,7 @@
     }
   }
 
+  let shownRunId;   // the run the conversation last showed
   function drawTurns() {
     const box = $('amkWsTurns');
     const run = state.run;
@@ -228,6 +229,7 @@
       return;
     }
     const V = VIEW();
+    const readingAt = box.scrollTop;   // where the reader is, kept when the same run is drawn again
     box.replaceChildren(...V.turnsView(run).map((t) => {
       const el = document.createElement('article');
       el.className = `amk-ws-turn ${t.kind}${t.status !== 'ok' ? ' ' + t.status : ''}`;
@@ -296,7 +298,9 @@
       return el;
     }));
     if (state.asking && state.asking.runId === run.id) box.append(pendingTurn(state.asking));
-    box.scrollTop = box.scrollHeight;
+    // Another run opens at its end; the same run drawn again follows only while the reader is at its end (js/follow.js), and otherwise stays where they are.
+    if (shownRunId !== run.id) { shownRunId = run.id; window.HCFollow.toEnd(box); }
+    else { window.HCFollow.keep(box); if (!window.HCFollow.following(box)) box.scrollTop = readingAt; }
   }
 
   // Marks drawn from these fixed strings only; nothing an agent wrote reaches them.

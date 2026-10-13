@@ -901,9 +901,9 @@
     }
 
     // ── Chat rendering ────────────────────────────────────────
-    // The answer is followed only while the reader is at the end, and a request just sent is always shown (js/code/follow.js).
+    // The answer is followed only while the reader is at the end, and a request just sent is always shown (js/follow.js).
     let follow = null;
-    function scrollMessages(force) { follow = follow || window.HCCodeFollow.create(() => $('cdrMessages')); if (force === true) follow.toEnd(); else follow.keep(); }
+    function scrollMessages(force) { follow = follow || window.HCFollow.create(() => $('cdrMessages')); if (force === true) follow.toEnd(); else follow.keep(); }
 
     // A reply is model text, which a file or page the agent read can shape, so
     // it is drawn the way chat and the Swarm draw theirs: HTML in it is shown
@@ -1304,7 +1304,7 @@
   <span class="cdr-trace-icon ${e.status}">${icon(e.status)}</span>
   <span class="cdr-trace-msg ${e.status}">${esc(e.message)}</span>
 </div>`).join('');
-      list.scrollTop = list.scrollHeight;
+      window.HCFollow.keep(list);
     }
 
     function terminalLog(text, className = '') {
@@ -1314,7 +1314,7 @@
       line.className = 'cdr-terminal-line' + (className ? ' ' + className : '');
       line.innerHTML = ansiToHtml(text);
       body.appendChild(line);
-      body.scrollTop = body.scrollHeight;
+      window.HCFollow.keep(body);
     }
     function clearTerminal() {
       const body = $('cdrTerminalBody');

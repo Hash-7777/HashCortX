@@ -1,22 +1,28 @@
 // ==============================================================
-// Following a HashCoder answer as it is written, and letting go
+// Following words as they are written, and letting go
 //
-// The conversation used to be moved to its last line on every frame of an
-// answer. Scrolling up to read something earlier was pulled straight back
-// down, and the two fought each other, which read as the panel stuttering.
+// A list that moves to its last line every time something is added fights a
+// reader who scrolls up to read something earlier: each new word pulls the
+// list back down, and the scroll seems stuck. The same happens when "near
+// the end" is judged by distance alone, since a small scroll up is still
+// near the end and is undone by the next word.
 //
-// It now follows the answer only while the reader is at the end of the
-// conversation. Scrolling up, by the wheel, a key or a finger, lets go at
-// once; scrolling back down to the end follows again. A new request is
-// always shown, since the person has just sent it.
+// So a list follows what is written only while the reader is at its end.
+// Scrolling up, by the wheel, a key, a finger or the scroll bar, lets go at
+// once; scrolling back down to the end follows again. A message the person
+// has just sent is always shown (toEnd), since they have just sent it.
 //
 // Being at the end is judged from where the scroll stands, never from a
 // guess: content that shrinks (a live line taken away) leaves the list at
 // its end, so it does not count as the reader moving up.
 //
-// `atEnd` and `next` are pure and checked by scripts/checks/code-follow.mjs;
-// `create` listens to the list. Loaded before the Coder mode and published
-// as window.HCCodeFollow.
+// Every place in the app that shows text as it arrives scrolls through here:
+// the chat, HashCoder, the Agent Swarm, the ERP's agent, 3D Forge, Finance,
+// the Sandbox, and the trace and terminal panels.
+//
+// `atEnd` and `next` are pure; `create`, `keep` and `toEnd` listen to the
+// list. Checked by scripts/checks/follow.mjs. Loaded before the app and every
+// mode, and published as window.HCFollow.
 // ==============================================================
 
 (function () {
@@ -70,5 +76,23 @@
     };
   }
 
-  window.HCCodeFollow = { SLACK, atEnd, next, create };
+  // One follower for each list, made the first time the list is scrolled
+  // through here, and gone with the list.
+  const followers = new WeakMap();
+  const followerOf = (el) => {
+    let f = followers.get(el);
+    if (!f) { f = create(() => el); followers.set(el, f); }
+    return f;
+  };
+
+  /** Keep `el` at its end while the reader is there; leave it where they put it otherwise. */
+  function keep(el) { if (el) followerOf(el).keep(); }
+
+  /** Move `el` to its end and follow it again: for something the person has just sent. */
+  function toEnd(el) { if (el) followerOf(el).toEnd(); }
+
+  /** Whether `el` is following what is written (a list never scrolled here is). */
+  const following = (el) => !el || !followers.has(el) || followers.get(el).following;
+
+  window.HCFollow = { SLACK, atEnd, next, create, keep, toEnd, following };
 })();

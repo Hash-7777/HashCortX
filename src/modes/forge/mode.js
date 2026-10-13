@@ -379,7 +379,7 @@
       `<span class="trace-msg trace-${statusCls}">${escapeHtml(message)}</span>` +
       (tokens ? `<span class="trace-tokens">${escapeHtml(String(tokens))}</span>` : "");
     host.appendChild(line);
-    host.scrollTop = host.scrollHeight;
+    window.HCFollow.keep(host);
     const summary = $("frgTraceSummary");
     if (summary) summary.textContent = `${label}: ${message}`;
     const dot = $("frgTraceDot");

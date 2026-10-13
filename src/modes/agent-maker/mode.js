@@ -1639,7 +1639,7 @@ ${modelListStr}`;
       `<span class="trace-msg trace-${statusCls}">${escHtml(message)}</span>` +
       (tokens ? `<span class="trace-tokens">${escHtml(String(tokens))}</span>` : "");
     list.appendChild(el);
-    list.scrollTop = list.scrollHeight;
+    window.HCFollow.keep(list);
     const summary = document.getElementById("amkTraceSummary");
     if (summary) summary.textContent = message.slice(0, 60);
     return el;

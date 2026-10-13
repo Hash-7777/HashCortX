@@ -221,7 +221,9 @@ const LINE_BUDGET = {
   // measured, carried back from the stream that read them.
   // 6487, down 17: provider marks, a local-model list and a label that
   // nothing read.
-  'js/app.js': 6487,
+  // 6486, down one: the chat follows a reply through js/follow.js, in place
+  // of its own scroll listener.
+  'js/app.js': 6486,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -753,7 +755,7 @@ const LINE_BUDGET = {
   // 2483, down two: a new launch starts a new conversation, and the old
   // restore of the last one is gone.
   // 2482, down one: following the answer as it is written is decided by
-  // js/code/follow.js, which the panel calls.
+  // js/follow.js, which the panel calls.
   // 2476, down six: a change waiting to be kept or undone is shown with the
   // session that made it, picked out by platform/tauri/undo.js ofSession, and
   // the comment on rebuilding the rows says it in fewer lines.

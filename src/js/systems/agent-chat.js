@@ -89,7 +89,7 @@
     more.textContent = `Show all ${rows.length} steps`;
   }
 
-  function scroll() { const log = $('sysAgentLog'); if (log) log.scrollTop = log.scrollHeight; }
+  function scroll() { window.HCFollow.keep($('sysAgentLog')); }   // only while the reader is at the end (js/follow.js)
 
   function render() {
     const log = $('sysAgentLog');
@@ -106,7 +106,7 @@
     const log = $('sysAgentLog');
     if (log) { if (turns.length === 1) log.textContent = ''; log.append(draw(turn)); }
     save();
-    scroll();
+    if (role === 'user') window.HCFollow.toEnd(log); else scroll();   // what the person sent is always shown
     return turn;
   }
 

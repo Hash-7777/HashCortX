@@ -252,7 +252,7 @@ const FinanceMode = (() => {
         <span class="fin-trace-msg ${e.status}">${escHtml(e.message)}</span>
         ${e.detail ? `<span class="fin-trace-detail">${escHtml(e.detail)}</span>` : ""}
       </div>`).join("");
-    list.scrollTop = list.scrollHeight;
+    window.HCFollow.keep(list);
   }
 
   function persistTraceOnly() {
@@ -1621,7 +1621,7 @@ const FinanceMode = (() => {
 
     div.appendChild(acts);
     el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
+    if (isUser) window.HCFollow.toEnd(el); else window.HCFollow.keep(el);   // what the person sent is always shown (js/follow.js)
     return div;
   }
 
@@ -1634,7 +1634,7 @@ const FinanceMode = (() => {
     div.id = id;
     div.innerHTML = `<div class="fin-msg-bubble"><div class="fin-thinking-dots"><span></span><span></span><span></span></div></div>`;
     el.appendChild(div);
-    el.scrollTop = el.scrollHeight;
+    window.HCFollow.keep(el);
     return id;
   }
 

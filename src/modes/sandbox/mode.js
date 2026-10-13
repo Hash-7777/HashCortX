@@ -232,7 +232,7 @@ Be direct. No hedging. No disclaimers about "consulting a professional".`;
     entry.className = "sbx-log-entry " + st;
     entry.innerHTML = `<span class="sbx-agent-tag">${window._H.escapeHtml(agentLabel)}</span><span class="sbx-log-text">${window._H.escapeHtml(text)}</span>`;
     logEl.appendChild(entry);
-    logEl.scrollTop = logEl.scrollHeight;
+    window.HCFollow.keep(logEl);
   }
 
   function sbxLogClear() {

@@ -25,6 +25,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   workspaces in two columns, the last tab sat beside an empty cell; a tab
   left alone on the last row now takes the whole row.
 
+### Fixed
+
+- **Scrolling up while a reply is being written stays where you put it, in
+  every workspace.** The chat judged "still at the end" by distance, so a
+  small scroll up was pulled back down by the next word, and finishing a
+  reply moved the conversation to its end however far up you were. The
+  Agent Swarm, the ERP's agent, 3D Forge, Finance, the Sandbox and the
+  trace and terminal panels moved to their end on every update. All of them
+  now follow new text only while you are at the end: scrolling up lets go at
+  once, scrolling back down follows again, and a message you send is always
+  shown (`js/follow.js`, which HashCoder already used).
+
 ### Removed
 
 - **The Virtual OS workspace.** Its tab, its panel, its chat agent and the

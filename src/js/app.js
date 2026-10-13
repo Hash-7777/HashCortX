@@ -2553,12 +2553,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   historyDepthSideEl.addEventListener("input", () =>
     applyMemoryDepth(parseInt(historyDepthSideEl.value, 10), 'side'));
 
-  // Scroll pinning
-  let pinned = true;
-  msgs.addEventListener("scroll", () => {
-    const dist = msgs.scrollHeight - msgs.scrollTop - msgs.clientHeight;
-    pinned = dist < 80;
-  });
+  // The conversation follows a reply only while the reader is at its end (js/follow.js).
+  let shownChatId;
 
   function loadTemplates() {
     try {
@@ -3808,6 +3804,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   function render() {
+    const readingAt = msgs.scrollTop;   // where the reader is, kept when the same chat is drawn again
     msgs.innerHTML = "";
     // Toggle the .has-chat class so the composer chips row only appears once
     // the conversation has actually started — keeps the empty splash clean.
@@ -3837,7 +3834,9 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       return;
     }
     state.messages.forEach((m, idx) => msgs.appendChild(renderMessage(m, idx)));
-    msgs.scrollTop = msgs.scrollHeight;
+    // Another chat opens at its end; the same chat drawn again stays where the reader is.
+    if (shownChatId !== state.currentChatId) { shownChatId = state.currentChatId; HCFollow.toEnd(msgs); }
+    else { HCFollow.keep(msgs); if (!HCFollow.following(msgs)) msgs.scrollTop = readingAt; }
     updateContextIndicator();
     requestAnimationFrame(() => {
       window.HCDiagrams?.draw(msgs);
@@ -4473,7 +4472,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.messages.push(assistant);
     state.streaming = true;
     sendBtn.textContent = "Stop";
-    pinned = true;
+    HCFollow.toEnd(msgs);   // the message just sent is shown
     if (tpsBtn) tpsBtn.className = "ping-btn tps-btn streaming";
     if (tpsVal) tpsVal.textContent = "…";
     render();
@@ -4485,7 +4484,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       last.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>
         <div class="thinking-status-label">${escapeHtml(label)}</div>
         ${sub ? `<div class="thinking-status-sub">${escapeHtml(sub)}</div>` : ""}`;
-      if (pinned) requestAnimationFrame(() => { msgs.scrollTop = msgs.scrollHeight; });
+      requestAnimationFrame(() => HCFollow.keep(msgs));
     };
 
     const _selectedIsCloud = modelEl.value.startsWith("cloud:");
@@ -4949,7 +4948,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       } else {
         last.textContent = _pendingBubbleText;   // raw — no escapeHtml, no regex
       }
-      if (pinned) msgs.scrollTop = msgs.scrollHeight;
+      HCFollow.keep(msgs);
     }
   }
   // What a model thinks before it answers is shown as it arrives, and kept,
@@ -4966,7 +4965,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       last.classList.add("thinking-bubble");
       last.innerHTML = `<div class="typing"><span></span><span></span><span></span></div>`;
       last.appendChild(HCThought.liveElement(assistant.thinking || ""));
-      if (pinned) msgs.scrollTop = msgs.scrollHeight;
+      HCFollow.keep(msgs);
     });
   }
   // Show a spinner in the last assistant bubble while an image is generating.
@@ -4975,7 +4974,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
     if (last) {
       last.innerHTML = `<div class="gen-img-loading"><div class="spinner"></div>Generating image with Nano Banana…</div>`;
-      if (pinned) msgs.scrollTop = msgs.scrollHeight;
+      HCFollow.keep(msgs);
     }
   }
   function flushPendingBubbleUpdate() {
@@ -5005,7 +5004,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const body = pane.querySelector(".compare-body");
     if (status) status.textContent = branch.error ? "error" : branch.done ? "done" : "streaming";
     if (body) body.textContent = branch.error || branch.content || "";
-    if (pinned) msgs.scrollTop = msgs.scrollHeight;
+    HCFollow.keep(msgs);
   }
 
   async function streamWithModelValue({ modelValue, messages, onToken, onStats, signal, temperature }) {
