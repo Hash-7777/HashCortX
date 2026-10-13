@@ -526,5 +526,21 @@
     return { text: body.endsWith('\n') ? body : `${body}\n`, note: `The <${tag}> tags around the whole file were taken out: a ${String(name).split('.').pop()} file holds only its code, and a browser reads the tag as broken code.` };
   }
 
-  window.HCCodePatch = { applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
+  // ── Text added at the end of a file ───────────────────────────────────
+
+  /**
+   * `before` with `add` at its end: on a line of its own, in the file's own
+   * line endings, and ending with one. A model that wanted to add a rule at
+   * the end of a long stylesheet spent step after step reading its last
+   * lines to find a passage to anchor a patch to.
+   */
+  function appended(before, add) {
+    const b = String(before == null ? '' : before), a = String(add == null ? '' : add);
+    const eol = crlfOnly(b) ? '\r\n' : '\n';
+    const piece = eol === '\r\n' ? a.replace(/\r?\n/g, '\r\n') : a;
+    const out = b + (b && !b.endsWith('\n') ? eol : '') + piece;
+    return !out || out.endsWith('\n') ? out : out + eol;
+  }
+
+  window.HCCodePatch = { appended, applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();

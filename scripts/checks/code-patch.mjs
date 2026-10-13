@@ -341,6 +341,25 @@ console.log('\npatch_file writes back the whole file:');
   disk.set('/p/own.css', '<style>\na { color: red; }\n</style>\n');
   err = await attempt('/p/own.css', 'color: red', 'color: blue');
   ok('a file patched in place keeps whatever it already held', !err && disk.get('/p/own.css') === '<style>\na { color: blue; }\n</style>\n', err);
+  // Added at the end.
+  disk.set('/p/end.css', 'a { color: red; }\n\n.nav { gap: 4px; }');
+  await writeTool.fn({ path: '/p/end.css', content: '@media (prefers-reduced-motion: reduce) {\n  * { animation: none; }\n}', append: true });
+  ok('append adds to the end on a line of its own, keeping all that was there, and ends the file with a newline', disk.get('/p/end.css') === 'a { color: red; }\n\n.nav { gap: 4px; }\n@media (prefers-reduced-motion: reduce) {\n  * { animation: none; }\n}\n', JSON.stringify(disk.get('/p/end.css')));
+  disk.set('/p/end.txt', 'one\r\ntwo\r\n');
+  await writeTool.fn({ path: '/p/end.txt', content: 'three\nfour', append: true });
+  ok('...in the file\'s own line endings', disk.get('/p/end.txt') === 'one\r\ntwo\r\nthree\r\nfour\r\n', JSON.stringify(disk.get('/p/end.txt')));
+  await writeTool.fn({ path: '/p/fresh.js', content: 'let a = 1;\n', append: true });
+  ok('...and a file that is not there yet is written new', disk.get('/p/fresh.js') === 'let a = 1;\n');
+  const bigCss = Array.from({ length: 1300 }, (_, i) => `.r${i} { margin: ${i}px; }`).join('\n') + '\n';
+  disk.set('/p/big.css', bigCss);
+  await writeTool.fn({ path: '/p/big.css', content: '.last { margin: 0; }', append: true });
+  ok('...from the whole of a long file, never a numbered window of it', disk.get('/p/big.css') === bigCss + '.last { margin: 0; }\n');
+  disk.set('/p/pic.png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01]));
+  let picErr = '';
+  try { await writeTool.fn({ path: '/p/pic.png', content: 'x', append: true }); } catch (e) { picErr = String(e.message); }
+  ok('...and is refused for a file that is not text', /packed, not text|not a text file/.test(picErr), picErr);
+  ok('the tool offers it', /add content to the end of the file/.test(JSON.stringify(writeTool.parameters)));
+  ok('appended keeps an empty file empty-safe', P.appended('', 'x') === 'x\n' && P.appended('a\n', '') === 'a\n');
 }
 
 console.log('\nWhich wrapped files lose the tag:');

@@ -534,12 +534,19 @@
         path:    'Absolute path (parent dirs are created automatically)',
         content: 'Complete file content as a string',
         replace_whole: { type: 'boolean', description: 'Optional: true when an existing file is meant to be replaced whole, not edited.' },
+        append: { type: 'boolean', description: 'Optional: true to add content to the end of the file, keeping all that is in it.' },
         reason:  'Why you are writing this file',
       },
-      fn: (p) => {
+      fn: async (p) => {
         // A Word, Excel or PDF file, an archive or a picture is packed, not text: written as text it never opens.
         const packed = /\.(?:docx|xlsx|pptx|pdf|odt|ods|zip|png|jpe?g|gif|webp|ico)$/i.exec(String(p.path || ''));
         if (packed) throw new Error(`A ${packed[0]} file is packed, not text, so writing it as text makes a file that does not open. Make it with execute_python (python-docx for .docx, openpyxl for .xlsx, reportlab for .pdf) and save it to /output/<name>.`);
+        // Added at the end of what the file holds, read as it really is, never as a numbered window (js/code/patch.js appended); no file yet is a new one.
+        if (p.append === true && p.content != null) {
+          if (!(await HC.guard.request('read', p.path, 'Reading file'))) throw await HC.code.refused('read', p.path);
+          const had = await HC.invoke('fs_read_base64', { path: p.path }).then((f) => window.HCCodePatch.textOf(window.HCCodePatch.bytesFromBase64(f.base64), p.path), () => null);   // a file that is not text is refused by textOf; one that is not there yet is written new
+          if (had != null) return HC.code.writeFile(p.path, window.HCCodePatch.appended(had, p.content), p.reason || `Adding to the end of ${p.path}`);
+        }
         return HC.code.writeFile(p.path, p.content, p.reason, { asked: true, whole: p.replace_whole === true });
       },
     },

@@ -131,6 +131,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   read ran in the run, such an answer is sent back once to take out what it
   said a search gave, and if it still says so, a line under the answer says
   no search ran (`js/code/verify.js`).
+- **HashCoder can add to the end of a file in one step.** To add a rule at
+  the end of a long stylesheet, a model read its last lines again and again
+  to find a passage to anchor an edit to. write_file now takes `append`,
+  which adds the text at the end of the whole file, on a line of its own and
+  in the file's own line endings (`js/code/patch.js`).
 
 ### Removed
 
