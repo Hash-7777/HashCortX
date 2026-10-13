@@ -141,6 +141,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   been asked for to make the findings go away. The note now asks for the
   smallest change that meets each finding, keeping the design the request
   asked for (`js/code/verify.js`).
+- **HashCoder stops a model from going round in circles on a wrong call.**
+  Asked to make a folder, a model called move_file with argument names the
+  tool does not take, was told only that two were required, and made the
+  same failing call again and again. An argument given under another usual
+  name, such as `src` for `from` or `file_path` for `path`, now reaches the
+  tool under its own name, and the model's own record of the call shows the
+  right one. A call missing what a tool needs is not made: the answer names
+  what is missing and shows the call written right. A call is not made
+  again exactly as it already failed while nothing has changed since, and
+  failing the same way again no longer counts as progress, so a run stuck
+  that way is told to change course and then stops. A read of a file, a
+  folder or a search that nothing in the run has changed since, and whose
+  answer the model is still shown whole, is answered with a line saying so
+  once, rather than read again. move_file refuses a move onto the same path
+  or into a folder inside it, before anyone is asked (`js/code/calls.js`).
 
 ### Removed
 

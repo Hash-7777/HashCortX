@@ -277,7 +277,11 @@
     },
 
     async moveFile(from, to, reason = '') {
-      if (!from || !to) throw new Error('move_file: both from and to are required.');
+      if (!from || !to) throw new Error('move_file was not run: it needs from, the path as it is now, and to, the path it should have. Call it as {"from": "…", "to": "…"}.');
+      // A move onto itself, or of a folder into a folder inside it, is not one: asked to make a folder, a model tried to move the Desktop into it.
+      const [a, b] = [from, to].map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, ''));
+      if (a === b) throw new Error(`move_file was not run: from and to are the same path, ${from}. To make a folder, use shell_run with command "mkdir" and the folder in args.`);
+      if (b.startsWith(a + '/')) throw new Error(`move_file was not run: ${to} is inside ${from}, and nothing can be moved into itself. To make a folder, use shell_run with command "mkdir" and the folder in args.`);
       HC.code.leaveAlone(from); HC.code.leaveAlone(to);
       // Each end is asked about on its own, as the path it actually is.
       //

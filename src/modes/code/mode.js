@@ -230,7 +230,7 @@
       if (signal?.aborted) break;
       const turn = await callWithRouter(messages, tools, temperature, signal);
       if (turn && turn.tool_calls && turn.tool_calls.length) {
-        for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(c.arguments, sharedState.projectRoot);   // as in the agent loop below
+        for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, tools.find((t) => t.function?.name === c.name)).args, sharedState.projectRoot);   // as in the agent loop below
         H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls);
         for (const call of turn.tool_calls) {
           if (signal?.aborted) return;
@@ -1899,7 +1899,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const projectLook = async () => { const V = window.HCCodeVerify, W = window.HCCodeWiring, root = sharedState.projectRoot, r = sent.rename < 2 && V.renameOf(V.requestIn(messages)), wire = sent.wiring < 2 && W && proof?.changed.length; if (!root || cdrPrefs().prove === false || (!r && !wire)) return null; const files = V.filesOfWhole(await window.HCCodeContext.wholeProject(root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }, 'mid').catch(() => '')); return (r && V.renameNote(r, V.leftovers(r, files))) || (wire && W.note(W.gaps(files, proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(root).replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || null; };
       const namedLook = async (reply) => (cdrPrefs().prove === false || sent.named ? null : window.HCCodeVerify.namedNote(await HC.code.notThereOf(window.HCCodeVerify.namedPaths(reply, sharedState.projectRoot, proof?.changed)), sharedState.projectRoot));   // files an answer names that are not there
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
-      const edited = new Map();
+      const edited = new Map(), asked = window.HCCodeCalls.memory(), schemaOf = (name) => (tools || []).find((t) => (t.function ? t.function.name : t.name) === name);   // asked: what this run's calls gave back (js/code/calls.js)
       let lastStop = null, forced = null;   // forced: a turn the app takes for a small model, running the test it was told to (verify.js stopCheck)
       if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) cdrTraceAdd('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
       let thinkEl = appendThinking(contentEl);
@@ -1956,7 +1956,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         thinkEl?.finish(said); thinkEl = null;
 
         if (turn.tool_calls?.length) {
-          for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(c.arguments, sharedState.projectRoot);   // "src/a.js" is the project's, not a connected system's (js/code/paths.js)
+          for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, schemaOf(c.name)).args, sharedState.projectRoot);   // "src" for "from" is read as "from" (js/code/calls.js), and "src/a.js" is the project's, not a connected system's (js/code/paths.js)
           H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls); // always append to real history
 
           // Independent reads run together. A turn that opens six files used to
@@ -1966,10 +1966,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           // sees the write. The rules live in js/agent-policy.js and are tested.
           const batches = policy.planBatches(turn.tool_calls);
 
-          // Results are collected per call and appended in the ORIGINAL order,
-          // whatever order they finish in: the provider APIs require each tool
-          // result to follow its call, and a shuffled history is rejected.
-          const results = new Map();
+          // Results are kept per call and appended in the ORIGINAL order, whatever order they finish in:
+          // the provider APIs require each tool result to follow its call, and reject a shuffled history.
+          const results = new Map(), failures = new Map();
           const checked = proof ? proof.checks.length : 0;   // checks before this turn's calls
 
           async function runOne(call) {
@@ -1987,12 +1986,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + baseName(pathHint) : ''), 'run');
             const t0 = performance.now();
             let resultStr, ok = true;
+            const early = asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name));   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
             try {
               const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name), def = window.HCMcp ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
               if (!def) throw new Error('Unknown tool: ' + call.name);
-              const raw = await (def.fn ? def.fn(call.arguments || {}) : def.execute(call.arguments || {}));
+              const raw = early ? early.result : await (def.fn ? def.fn(call.arguments || {}) : def.execute(call.arguments || {}));
               resultStr = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
-              if (!def.fn && raw?.error) ok = false;
+              if ((!def.fn && raw?.error) || (early && !early.ok)) ok = false;
             } catch (e) {
               resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
             }
@@ -2029,7 +2029,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               if (from) addAIFileToExplorer(from, 'delete');
               if (to) addAIFileToExplorer(to, 'write');
             }
-            results.set(call, resultStr);
+            results.set(call, resultStr); if (!ok) failures.set(call, resultStr); if (!early) asked.after(call, resultStr, ok);   // only calls really made are remembered
           }
 
           for (const batch of batches) {
@@ -2052,7 +2052,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
           // Is this agent still getting somewhere, or reading the same files
           // round and round? The stall counter is what tells them apart.
-          if (policy.iterationMadeProgress(turn.tool_calls, seenReadTargets)) stalledIterations = 0;
+          if (policy.iterationMadeProgress(turn.tool_calls, seenReadTargets, failures)) stalledIterations = 0;   // a call failing the way it failed before is not progress
           else stalledIterations++;
 
           thinkEl = appendThinking(contentEl, { after: window.HCCodeLive.afterOf(turn.tool_calls, results, toolObject) });

@@ -163,11 +163,23 @@
    * a long file, is new, and so is a plan with a step newly marked done. A
    * file the run has just changed is new to read again, and so is any folder
    * holding it: reading back a change is checking it.
+   *
+   * A call that failed is progress only the first time it fails that way.
+   * Asked to make a folder, a model called move_file six times with the
+   * wrong argument names, a little differently each time, and failed the
+   * same way each time; each counted as a new call, so nothing slowed it.
+   * `failures` holds what each failed call gave back; the failure is told
+   * from others by the tool and the start of its error.
    */
-  function iterationMadeProgress(calls, seenReadTargets) {
+  function iterationMadeProgress(calls, seenReadTargets, failures) {
     let progress = false;
     for (const call of calls || []) {
       if (!call) continue;
+      if (failures && failures.has(call)) {
+        const key = `fail::${call.name}::${errorStart(failures.get(call))}`;
+        if (!seenReadTargets || !seenReadTargets.has(key)) { if (seenReadTargets) seenReadTargets.add(key); progress = true; }
+        continue;
+      }
       if (effectOf(call.name) !== 'read') {
         const same = 'call::' + call.name + '::' + JSON.stringify(call.arguments || {});
         if (!seenReadTargets) { progress = true; continue; }
@@ -190,6 +202,13 @@
       }
     }
     return progress;
+  }
+
+  /** The start of a failed call's error, which says how it failed without the paths and values after. */
+  function errorStart(result) {
+    let text = String(result == null ? '' : result);
+    try { const o = JSON.parse(text); if (o && o.error != null) text = String(o.error); } catch { /* not JSON */ }
+    return text.replace(/\s+/g, ' ').trim().slice(0, 48);
   }
 
   /** What a read looks at, and exactly how: its target, then every argument it gave. */
