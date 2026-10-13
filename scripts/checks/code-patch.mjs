@@ -59,6 +59,16 @@ console.log('\nA passage copied imperfectly is still found, and only once:');
   const how = P.applyEdits(file, [{ search: 'if (a) {\n    return 1;\n}', replace: 'if (a) {\n    return 2;\n}' }], 'f').notes.join();
   ok('how a loose match was found is said', /indentation adjusted/.test(how), how);
   ok('an exact match says nothing more', P.applyEdits('a b', [{ search: 'b', replace: 'c' }], 'f').notes.length === 0);
+  // A passage copied with its nesting flattened, every line at one depth.
+  const page = '<main>\n    <div class="pill">\n        <span></span> Over twenty years\n    </div>\n</main>\n';
+  const flat = P.applyPatch(page, '<div class="pill">\n<span></span> Over twenty years\n</div>', '<div class="pill">\n<span></span> Trusted care\n</div>', 'f');
+  ok('a passage copied flat keeps each line at the depth of the line it replaces', flat === '<main>\n    <div class="pill">\n        <span></span> Trusted care\n    </div>\n</main>\n', JSON.stringify(flat));
+  const deeper = P.applyPatch(page, '<div class="pill">\n<span></span> Over twenty years\n</div>', '<div class="pill">\n<span></span> Over twenty years\n  <!-- x -->\n</div>', 'f');
+  ok('a replacement with another number of lines is indented as a whole, as before', deeper === '<main>\n    <div class="pill">\n    <span></span> Over twenty years\n      <!-- x -->\n    </div>\n</main>\n', JSON.stringify(deeper));
+  const wrap = P.applyPatch(file, 'if (a) {\n  return 1;\n}', 'if (a) {\n      return 1;\n}', 'f');
+  ok('what a line adds to its own depth is kept on top of the file\'s', wrap === 'function f() {\n    if (a) {\n            return 1;\n    }\n}\n', JSON.stringify(wrap));
+  const less = P.applyPatch(file, '  if (a) {\n    return 1;\n  }', '  if (a) {\n  return 1;\n  }', 'f');
+  ok('and what it takes away is taken from the file\'s depth', less === 'function f() {\n    if (a) {\n      return 1;\n    }\n}\n', JSON.stringify(less));
 }
 
 console.log('\nA passage that is not there:');

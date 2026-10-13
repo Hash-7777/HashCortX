@@ -150,6 +150,28 @@
   }
 
   /**
+   * The replacement indented line by line, when it has as many lines as the
+   * passage it replaces: each line takes the indentation of the file's line
+   * it stands in for, plus whatever the replacement adds to the search's own
+   * line, or less what it takes away. A model that copied a passage with its
+   * nesting flattened, every line at the same depth, had every line of its
+   * change moved to the depth of the first; the lines inside a block lost
+   * their place. null when a line cannot be placed this way.
+   */
+  function reindentEach(put, want, have, at) {
+    const out = [];
+    for (let j = 0; j < put.length; j++) {
+      const line = put[j];
+      if (!line.trim()) { out.push(line); continue; }
+      const w = indentOf(want[j]), p = indentOf(line), h = indentOf(have[at + j]);
+      if (p.startsWith(w)) out.push(h + line.slice(w.length));
+      else if (w.startsWith(p) && h.length >= w.length - p.length && h.endsWith(w.slice(p.length))) out.push(h.slice(0, h.length - (w.length - p.length)) + line.slice(p.length));
+      else return null;
+    }
+    return out;
+  }
+
+  /**
    * `content` with its one occurrence of `search` replaced by `replace`, and
    * how the passage was found: '' when as written.
    *
@@ -213,7 +235,7 @@
       if (found.length === 1) {
         const at = found[0];
         const first = want.findIndex((l) => l.trim());
-        const indented = fit === 'keep' ? put : reindent(put, indentOf(want[first]), indentOf(have[at + first]));
+        const indented = fit === 'keep' ? put : (fit === 'indent' && put.length === want.length && reindentEach(put, want, have, at)) || reindent(put, indentOf(want[first]), indentOf(have[at + first]));
         const lines = fit === 'respace' && put.length === want.length ? put.map((l, j) => respace(have[at + j], want[j], l)) : indented;
         return { text: back(splice(have, at, want.length, lines, trailingNewline)), how: said };
       }

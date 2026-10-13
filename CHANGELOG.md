@@ -79,6 +79,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   The tags are taken off as the file is written and the model is told; a
   file patched in place, or one where the tag is the file's own text, is
   left as it is (`js/code/patch.js`).
+- **An edit matched loosely keeps each line at its own depth.** When a
+  model copied a passage with its nesting flattened, HashCoder still found
+  it, but put every line of the change at the depth of the first, so the
+  lines inside a block lost their place. A change with as many lines as the
+  passage now gives each line the depth of the line it replaces
+  (`js/code/patch.js`).
 
 ### Removed
 
