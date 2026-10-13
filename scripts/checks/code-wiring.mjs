@@ -91,7 +91,7 @@ ok('a require finds the project file it names', W.target('src/invite.js', './val
 console.log('\nIt is used:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('HashCoder reads the project before finishing and sends a run back with the gaps in the files it changed', /W\.note\(W\.gaps\(files, proof\.changed\.map\(/.test(mode) && /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\)\) \|\| \(await projectLook\(\)\)/.test(mode));
+  ok('HashCoder reads the project before finishing and sends a run back with the gaps in the files it changed', /W\.note\(W\.gaps\(files, proof\.changed\.map\(/.test(mode) && /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\)\) \|\| \(await projectLook\(\)\)/.test(mode));
   const boot = src('boot.js');
   ok('it loads after the reading of definitions it uses', boot.indexOf("'/js/code/wiring.js'") > boot.indexOf("'/js/code/merge.js'") && boot.indexOf("'/js/code/wiring.js'") < boot.indexOf("'/js/app.js'"));
   ok('this check is part of npm run check', /npm run check:code-wiring/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));

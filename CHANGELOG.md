@@ -156,6 +156,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   answer the model is still shown whole, is answered with a line saying so
   once, rather than read again. move_file refuses a move onto the same path
   or into a folder inside it, before anyone is asked (`js/code/calls.js`).
+- **An edit that changes nothing is not shown as a change, and an answer
+  that says it changed what it did not is sent back.** A patch whose
+  replacement put back the text it found was written, listed with Keep and
+  Undo, and the model said it had updated the page; another answered "here
+  are the updated files" with the files in its reply and changed none. An
+  edit that leaves a file exactly as it was is now not written and fails,
+  saying nothing changed. An answer that says files were changed, in a run
+  that changed none, or that names a file as changed that the run did not
+  change, is sent back once, and if it still says so, a line under the
+  answer names what this run did not change. Only what the run wrote
+  decides it, never what the answer says (`js/code/verify.js`).
 
 ### Removed
 

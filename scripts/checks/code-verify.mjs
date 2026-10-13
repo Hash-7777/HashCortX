@@ -200,7 +200,7 @@ console.log('\nFiles an answer names that the project does not have:');
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder looks for them first when it would finish, once, with proving switched on, and quietly',
     /const namedLook = async \(reply\) => \(cdrPrefs\(\)\.prove === false \|\| sent\.named \? null : window\.HCCodeVerify\.namedNote\(await HC\.code\.notThereOf\(window\.HCCodeVerify\.namedPaths\(reply, sharedState\.projectRoot, proof\?\.changed\)\), sharedState\.projectRoot\)\);/.test(mode)
-    && /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\)\) \|\| \(await projectLook\(\)\) \|\| [^\n]*?\(await siteLook\(\)\)/.test(mode));
+    && /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\)\) \|\| \(await projectLook\(\)\) \|\| [^\n]*?\(await siteLook\(\)\)/.test(mode));
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('each folder is listed without asking, and a path that cannot be is left out, not called missing',
     /const list = await HC\.code\.listQuietly\(path\.slice\(0, cut\)\);/.test(tools) && /if \(\/without asking\/\.test\(String\(e\?\.message \|\| e\)\)\) continue;/.test(tools));
@@ -335,7 +335,7 @@ console.log('\nThe Coder uses it:');
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
     /window\.HCCodeVerify\.sendBack\(proof, messages, finalText,\s*\{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest, plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode)
-    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0 \};/.test(mode));
+    && /sent\[back\.kind\]\+\+;/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0 \};/.test(mode));
   ok('the switch is on unless turned off', /proveEl\.checked = prefs\.prove !== false/.test(mode));
   const settings = src('core', 'settings', 'panel.html');
   ok('and the switch it reads is in Settings', /id="cdrSetProve"/.test(settings));
@@ -365,7 +365,7 @@ console.log('\nA name the request changes, still there:');
   ok('the note names each place, and is a step of its own', note.kind === 'rename' && /"getUsr" is still written here:\n- src\/report\.js: line 1/.test(note.message) && V.isAppNote(note.message) && V.noteStep(note.message) === V.RENAME_STEP);
   ok('nothing left, no note', V.renameNote(r, []) === null);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  ok('HashCoder looks before it finishes, each twice at most, with Prove changes on', /const projectLook = async \(\) => \{ const V = window\.HCCodeVerify, W = window\.HCCodeWiring, root = sharedState\.projectRoot, r = sent\.rename < 2 && V\.renameOf\(V\.requestIn\(messages\)\), wire = sent\.wiring < 2 && W && proof\?\.changed\.length; if \(!root \|\| cdrPrefs\(\)\.prove === false/.test(mode) && /rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0 \};/.test(mode));
+  ok('HashCoder looks before it finishes, each twice at most, with Prove changes on', /const projectLook = async \(\) => \{ const V = window\.HCCodeVerify, W = window\.HCCodeWiring, root = sharedState\.projectRoot, r = sent\.rename < 2 && V\.renameOf\(V\.requestIn\(messages\)\), wire = sent\.wiring < 2 && W && proof\?\.changed\.length; if \(!root \|\| cdrPrefs\(\)\.prove === false/.test(mode) && /rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0 \};/.test(mode));
 }
 
 console.log('\nThe example the request gives, run:');
@@ -381,7 +381,7 @@ console.log('\nThe example the request gives, run:');
   const n = V.exampleNote({ command: 'node', args: ['bin/count.js', '--lines', 'notes.txt'] });
   ok('the note carries the command to run, says what to look for, and is a step of its own', n.kind === 'example' && n.run.command === 'node' && /`node bin\/count\.js --lines notes\.txt`/.test(n.message) && V.noteStep(n.message) === V.EXAMPLE_STEP && V.exampleNote(null) === null);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  ok('HashCoder runs it once, with Prove changes on, for any model', /\(!sent\.example && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.examplesOf\(/.test(mode) && /back\.kind === 'example'\)\) forced/.test(mode) && /example: 0, stall: 0, gone: 0, claim: 0 \};/.test(mode));
+  ok('HashCoder runs it once, with Prove changes on, for any model', /\(!sent\.example && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.examplesOf\(/.test(mode) && /back\.kind === 'example'\)\) forced/.test(mode) && /example: 0, stall: 0, gone: 0, claim: 0, said: 0 \};/.test(mode));
   ok('a run that stalls after changing code has its test run, or its failure said, once before it stops',
     /if \(!verdict\.continue\) \{ const untested = verdict\.reason === 'stalled' && !sent\.stall\+\+ && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.stopCheck\(proof, sharedState\.projectChecks\?\.checks, '', 0, 1\); if \(!untested\) \{ lastStop = verdict; break; \} stalledIterations = 0; if \(untested\.run\) forced = \{ content: '', tool_calls: \[\{ id: `ran_\$\{Date\.now\(\)\}_0`, name: 'shell_run', arguments: untested\.run \}\] \}; else messages\.push\(\{ role: 'user', content: untested\.message, note: true \}\); \}/.test(mode));
   // What that one check gives, from the real stopCheck: a change never tested is run, a failed test is said, a passed one or no change stops.
@@ -419,7 +419,45 @@ console.log('\nA search the answer says it made, when none ran:');
   ok('an answer that still says so is told under it', /^No web search or page read ran in this run/.test(V.claimLine(said[2], asked)) && V.claimLine(said[2], searched) === '' && V.claimLine('Done.', asked) === '');
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder asks it after the files its answer names, with Prove changes on, once, and says what is left under the answer',
-    /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\)\) \|\| \(await projectLook\(\)\)/.test(mode) && /window\.HCCodeVerify\.claimLine\(finalText, messages\)/.test(mode) && /gone: 0, claim: 0 \};/.test(mode));
+    /\(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\)\) \|\| \(await projectLook\(\)\)/.test(mode) && /window\.HCCodeVerify\.claimLine\(finalText, messages\)/.test(mode) && /gone: 0, claim: 0, said: 0 \};/.test(mode));
+}
+
+console.log('\nA change the answer says it made, when none was made:');
+{
+  const none = { changed: [] };
+  const one = { changed: ['/p/index.html'] };
+  const says = [
+    'Here is the updated HTML, CSS, and JavaScript files:\n```html\n<main>\n<h1>Pharmacy</h1>\n</main>\n```',
+    'I have updated the heading in index.html.',
+    "I've made the changes you asked for.",
+    'The colours have been updated to match the logo.',
+    '- Updated the footer with the opening hours.',
+    'I have completed all requested fixes and updates to the page.',
+  ];
+  for (const t of says) ok(`"${t.slice(0, 44).replace(/\n/g, ' ')}", with nothing changed, is a change said and not made`, V.saidChanged(t, none).none, JSON.stringify(V.saidChanged(t, none)));
+  const not = [
+    'I have not changed anything: the file is already as the request asks.',
+    "I didn't update the tests, as the request said not to.",
+    'I will update index.html once you confirm the colours.',
+    'The page shows the opening hours under the map.',
+    '```js\n// I updated the counter here\nlet n = 1;\nn++;\n```',
+  ];
+  for (const t of not) ok(`"${t.slice(0, 44).replace(/\n/g, ' ')}" is not`, !V.saidChanged(t, none).none, JSON.stringify(V.saidChanged(t, none)));
+  ok('a file named as changed that the run did not change is named, each in a list', JSON.stringify(V.saidChanged('I updated `index.html`, `style.css` and `script.js` to add the menu.', { changed: ['/p/index.html', '/p/script.js'] }).files) === '["style.css"]');
+  ok('...and as "has been rewritten"', JSON.stringify(V.saidChanged('style.css has been rewritten with the new colours.', one).files) === '["style.css"]');
+  ok('a file mentioned, not said to be changed, is not', V.saidChanged('I added a link to style.css in index.html.', one).files.length === 0 && V.saidChanged('index.html links style.css.', none).files.length === 0);
+  ok('a site address is not a file', V.saidChanged('Their page at www.orchard.example has been updated by its owner, and I updated index.html.', one).files.length === 0);
+  ok('a file changed in a folder is the same file named alone', V.saidChanged('I fixed src/app.js and updated app.js again.', { changed: ['/p/src/app.js'] }).files.length === 0);
+  const n = V.saidNote(says[1], none, 0);
+  ok('the answer is sent back once, by the app, saying a change is made only by a call that succeeds', n && n.kind === 'said' && V.isAppNote(n.message) && /your answer says files were changed, and this run did not change any file\. /.test(n.message) && /A change is made only by a tool call that succeeds/.test(n.message) && V.saidNote(says[1], none, 1) === null, n && n.message);
+  const f = V.saidNote('I updated index.html and style.css.', one, 0);
+  ok('...naming the files the run did not change', f && /your answer says style\.css was changed, and this run did not change style\.css\./.test(f.message), f && f.message);
+  ok('nothing said, nothing sent', V.saidNote('I updated index.html.', one, 0) === null && V.saidNote('Done.', none, 0) === null && V.saidNote(says[1], null, 0) === null);
+  ok('a saved conversation shows the note as its step', V.noteStep(n.message) === V.SAID_STEP);
+  ok('an answer that still says so is told under it, from the record', V.saidLine(says[1], none) === 'No file was changed in this run.' && V.saidLine('I updated index.html and style.css.', one) === 'Not changed in this run: style.css.' && V.saidLine('I updated index.html.', one) === '');
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder asks it after a search said and not made, with Prove changes on, once, and says what is left under the answer',
+    /window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\)\)/.test(mode) && /window\.HCCodeVerify\.saidLine\(finalText, proof\)/.test(mode) && /claim: 0, said: 0 \};/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/verify.js)`);

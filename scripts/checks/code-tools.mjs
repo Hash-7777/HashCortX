@@ -408,5 +408,35 @@ console.log('\nThe project is known from the start of a conversation:');
   ok('every place the instructions are set sets both', !/conversationMsgs\[0\]\.content = sysPrompt\(\)/.test(mode) && (mode.match(/conversationMsgs\[0\] = systemTurn\(\)/g) || []).length === 4 && /conversationMsgs = \[systemTurn\(\)\]/.test(mode));
 }
 
+console.log('\nAn edit that leaves the file as it was is not a change:');
+{
+  const box = { window: {}, console, TextEncoder, TextDecoder, atob, btoa };
+  box.HC = box.window.HC = {};
+  vm.createContext(box);
+  vm.runInContext(src('js', 'code', 'patch.js'), box, { filename: 'patch.js' });
+  vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
+  const T = box.window.HC;
+  let file = '<main>\n  <h1>Orchard Crumb</h1>\n</main>\n';
+  let writes = 0, dropped = 0;
+  T.guard = { request: async () => true };
+  T.undo = { capture: async () => ({ existed: true, content: file }), drop: async () => { dropped++; }, seal: async () => {} };
+  T.invoke = async (cmd, a) => {
+    if (cmd === 'fs_write_file') { writes++; file = a.content; return null; }
+    if (cmd === 'fs_read_base64') return { base64: Buffer.from(file).toString('base64') };
+    return null;
+  };
+  const tool = (name) => T.code.TOOL_DEFINITIONS.find((t) => t.name === name).fn;
+  const why = async (fn) => { try { await fn(); return ''; } catch (e) { return String(e.message); } };
+  const same = await why(() => tool('patch_file')({ path: '/p/index.html', search: '<h1>Orchard Crumb</h1>', replace: '<h1>Orchard Crumb</h1>' }));
+  ok('a patch whose replace puts back what is there is not written, and fails saying nothing changed', writes === 0 && dropped === 1 && /^Nothing was changed: index\.html already holds exactly this text, since what replace puts in is what is there now\..*never say it was changed\.$/.test(same), same);
+  const whole = await why(() => tool('write_file')({ path: '/p/index.html', content: file }));
+  ok('so is a file written whole with what it holds', writes === 0 && /^Nothing was changed: index\.html already holds exactly this text\. /.test(whole), whole);
+  const real = await why(() => tool('patch_file')({ path: '/p/index.html', search: '<h1>Orchard Crumb</h1>', replace: '<h1>Orchard Crumb Bakery</h1>' }));
+  ok('a real change is written as before', real === '' && writes === 1 && file.includes('Orchard Crumb Bakery'), real);
+  T.undo.capture = async () => ({ existed: false, content: null });
+  const fresh = await why(() => tool('write_file')({ path: '/p/new.css', content: '' }));
+  ok('a new file is written, even an empty one', fresh === '' && writes === 2, fresh);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

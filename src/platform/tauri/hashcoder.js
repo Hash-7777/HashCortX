@@ -46,7 +46,7 @@
       return P.linesWindow(text, startLine, endLine, name);
     },
 
-    async writeFile(path, content, reason = '', { asked = false, whole = false } = {}) {
+    async writeFile(path, content, reason = '', { asked = false, whole = false, edited = false } = {}) {
       /* Reject null/undefined content — prevents the literal string "null"
          from being written to files when the model omits the content arg */
       if (content == null) {
@@ -86,6 +86,12 @@
       // A file that had Windows line endings keeps them (js/code/patch.js).
       const ends = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
         || { text: String(content), kept: false };
+      // A write of what the file already holds changes nothing, and is not counted as a change: a patch whose replace was
+      // its search was written, shown with Keep and Undo, and the model said it had updated the file.
+      if (before != null && ends.text === before) {
+        await HC.undo.drop(record);
+        throw new Error(`Nothing was changed: ${path.split(/[\\/]/).pop() || path} already holds exactly this text${edited ? ', since what replace puts in is what is there now' : ''}. Make the change the request needs, or, if the file is already as it should be, say so; never say it was changed.`);
+      }
       await HC.invoke('fs_write_file', { path, content: ends.text });
       await HC.undo.seal(record);
       // The resulting text, kept alongside the previous text so the panel can
@@ -328,7 +334,7 @@
       let next;
       try { next = P.applyEdits(P.textOf(P.bytesFromBase64(file.base64), path), edits, path); }
       catch (e) { throw new Error(`patch_file failed: ${e?.message || e}`); }
-      const out = JSON.parse(await HC.code.writeFile(path, next.text, reason || `Patching ${path}`));
+      const out = JSON.parse(await HC.code.writeFile(path, next.text, reason || `Patching ${path}`, { edited: true }));
       // Said when a passage was found loosely, so the model can see the change
       // went where it meant.
       if (edits.length > 1) out.edits = edits.length;

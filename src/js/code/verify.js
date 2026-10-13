@@ -315,7 +315,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -741,6 +741,84 @@
     return claimsSearch(reply) && !searchedSince(messages) ? `No web search or page read ran in this run: what the answer says one found does not come from one.` : '';
   }
 
+  // ── A change the answer says it made, when none was made ─────────────
+  //
+  // Asked to use what a search found, a model answered "Here is the updated
+  // HTML, CSS and JavaScript" with the files in its reply, and changed none
+  // of them; the request had no word asking for a change, so nothing sent it
+  // back. Another said it had updated a page after a patch whose replace was
+  // its search. An answer that says files were changed, in a run that changed
+  // none, or that names a file as changed when this run did not change it,
+  // is sent back once; if it still says so, the person is told under the
+  // answer which files this run did not change. Only the record decides:
+  // what the run wrote, never what the answer says.
+
+  const VERBS = 'updated|changed|modified|edited|created|fixed|removed|deleted|replaced|rewritten|rewrote|refactored|renamed|moved|implemented|wrote|written|applied|added|completed|made the (?:changes?|edits?|fixes?)';
+  const SAID_CHANGE = [
+    new RegExp(`\\b(?:I|we)(?:'ve|\\s+have|\\s+just|\\s+now|\\s+also|\\s+successfully)*\\s+(?:${VERBS})\\b`, 'i'),
+    /\b(?:has|have|was|were)\s+(?:now\s+)?(?:been\s+)?(?:updated|changed|modified|edited|created|fixed|rewritten|replaced|applied)\b/i,
+    /\bhere (?:is|are) the (?:updated|modified|changed|new|fixed|revised) (?:files?|code|html|css|javascript|version|page)\b/i,
+    /^\s*(?:[-*]\s+|\d+\.\s+)?(?:\*\*)?(?:Updated|Changed|Modified|Edited|Created|Fixed|Rewrote|Replaced|Renamed)\b/im,
+  ];
+  /** A file named as what a change verb changed: "updated index.html", "style.css has been rewritten". */
+  const FILE = '`?((?:[\\w@-][\\w@.-]*/)*[\\w@-][\\w@.-]*\\.[A-Za-z][A-Za-z0-9]{0,5})`?';
+  const LIST = `${FILE}(?:\\*\\*)?(?:\\s*(?:,|and|&|\\+)\\s*(?:the\\s+)?(?:\\*\\*)?${FILE}(?:\\*\\*)?)*`;
+  const FILE_CHANGED = [
+    new RegExp(`\\b(?:updated|changed|modified|edited|created|fixed|rewrote|rewritten|replaced)\\s+(?:the\\s+)?(?:files?\\s+)?(?:\\*\\*)?(${LIST})`, 'gi'),
+    new RegExp(`${FILE}(?:\\*\\*)?\\s+(?:has|was)\\s+(?:now\\s+)?(?:been\\s+)?(?:updated|changed|modified|edited|created|fixed|rewritten|replaced)\\b`, 'gi'),
+  ];
+  const SAID_STEP = 'Sent back: it said files were changed that were not';
+  const SAID_SAYS = 'and this run did not change';
+
+  /** What `reply` says in words, outside its code blocks. */
+  const proseOf = (reply) => { const F = window.HCFences; return F && F.splitFences ? F.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || ''); };
+  const baseOf = (p) => String(p || '').split(/[\\/]/).pop().toLowerCase();
+
+  /**
+   * What an answer says was changed and this run did not change: `{ none,
+   * files }`, `none` when it says something was changed and the run changed
+   * nothing, `files` the files it names as changed that the run did not.
+   */
+  function saidChanged(reply, log) {
+    const prose = proseOf(reply);
+    const changed = new Set((log && log.changed ? log.changed : []).map(baseOf));
+    const none = !changed.size && SAID_CHANGE.some((re) => re.test(prose));
+    const files = [];
+    for (const re of FILE_CHANGED) {
+      for (const m of prose.matchAll(re)) {
+        for (const one of m[1].match(new RegExp(FILE, 'g')) || []) {
+          const name = one.replace(/`/g, '').replace(/[.,;:]+$/, '');
+          if (/^https?:|^www\./i.test(name) || /\.(?:com|org|net|io|dev|app)$/i.test(name)) continue;   // an address, not a file
+          if (!changed.has(baseOf(name)) && !files.includes(name)) files.push(name);
+        }
+      }
+    }
+    return { none, files: files.slice(0, 6) };
+  }
+
+  /** The note sending an answer back for changes it says it made and did not, or null. */
+  function saidNote(reply, log, sentBack = 0) {
+    if (sentBack || !log) return null;
+    const said = saidChanged(reply, log);
+    if (!said.none && !said.files.length) return null;
+    const what = said.files.length ? said.files.join(', ') : 'any file';
+    return {
+      kind: 'said',
+      step: SAID_STEP,
+      message: `${APP_NOTE} your answer says ${said.files.length ? `${what} ${said.files.length === 1 ? 'was' : 'were'}` : 'files were'} changed, ${SAID_SAYS} ${what}. ` +
+        'A change is made only by a tool call that succeeds. Make the change now with the tools; if it cannot be made, or the files are already as they should be, say that instead. ' +
+        'If you meant work from an earlier request, say so. Never say a file was changed when it was not.',
+    };
+  }
+
+  /** What the person is told under an answer that still says so, or ''. */
+  function saidLine(reply, log) {
+    if (!log) return '';
+    const said = saidChanged(reply, log);
+    if (said.files.length) return `Not changed in this run: ${said.files.join(', ')}.`;
+    return said.none ? 'No file was changed in this run.' : '';
+  }
+
   // ── Files an answer names that are not there ──────────────────────────
   //
   // Asked where something is, a small model searched once, found nothing,
@@ -842,6 +920,6 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine,
+    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
   };
 })();
