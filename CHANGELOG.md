@@ -72,6 +72,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   starts, and the line says the model is choosing its next step. A JSON
   block that is data, such as a package file, is still shown
   (`js/code/live.js`).
+- **A stylesheet or script HashCoder writes inside a page's tag loses the
+  tag.** A model copying from a page wrote `<style>` around a whole .css
+  file or `<script>` around a whole .js file; a browser reads the tag in
+  such a file as broken code, so the styles or the script never applied.
+  The tags are taken off as the file is written and the model is told; a
+  file patched in place, or one where the tag is the file's own text, is
+  left as it is (`js/code/patch.js`).
 
 ### Removed
 
