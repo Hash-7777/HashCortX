@@ -118,6 +118,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   searches first, asking as always, and the model starts from the results,
   which light mode shows it as plain words. A request to build a search box
   or an online shop is not taken as a lookup (`js/code/lookup.js`).
+- **What HashCoder took out unasked is put back, or said.** A model asked
+  to change a page's details rewrote it without its booking form; the write
+  noted the loss and the model carried on. Before a run finishes, each file
+  it changed is compared with what it held when the request began: what is
+  gone and not named in the request sends the run back once to put it back,
+  and what is still gone is listed under the answer, with Undo to restore
+  it (`js/code/keep.js`).
 
 ### Removed
 

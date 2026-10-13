@@ -315,7 +315,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */

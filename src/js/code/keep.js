@@ -89,6 +89,50 @@
     return `This change removed ${shown} from ${name}, which the request does not name. If that was not asked for, put it back now.`;
   }
 
+  // ── Still gone when the run would finish ─────────────────────────────
+  //
+  // The note in a write's result is a request, and a model that has rewritten
+  // a page often carries on without reading it: a booking form, its dialog
+  // and the script behind them were taken out of a page asked only to have
+  // its business details changed, and the run finished with them gone. So
+  // before a run finishes, each file it changed is compared with what it held
+  // when the request began, and what is gone and not named in the request
+  // sends the run back once; what is still gone after that is said under the
+  // answer.
+
+  const GONE_SAYS = 'were in the files when this request began and are gone now';
+  const GONE_STEP = 'Sent back to put back what it took out unasked';
+
+  /** What the run took out of the files it changed that the request does not name: `[{ path, name, things }]`. `changes` is review.js's record; a file it deleted is left out. */
+  function stillGone(changes, request) {
+    const out = [];
+    for (const [path, c] of changes || []) {
+      if (!c || c.unreadable || c.before == null || c.after == null || c.after === '') continue;
+      const name = String(path).split(/[\\/]/).pop() || String(path);
+      const things = removed(name, c.before, c.after).filter((t) => !named(t, request));
+      if (things.length) out.push({ path, name, things });
+    }
+    return out;
+  }
+
+  const listOf = (things) => things.slice(0, MOST_NAMED).join(', ') + (things.length > MOST_NAMED ? ` and ${things.length - MOST_NAMED} more` : '');
+
+  /** The note that sends the run back to put them back, or null for none. */
+  function goneNote(list) {
+    if (!Array.isArray(list) || !list.length) return null;
+    return {
+      kind: 'gone',
+      step: GONE_STEP,
+      message: `Note from HashCortX, not from the person: these ${GONE_SAYS}, and the request does not name them:\n${list.map((g) => `- ${listOf(g.things)} (in ${g.name})`).join('\n')}\n` +
+        'Put back each one the request did not ask you to remove, as it was, with what uses it. If one had to go for the request to be done, leave it out and say why in your answer.',
+    };
+  }
+
+  /** What the person is told under the answer, or ''. */
+  function goneLine(list) {
+    return Array.isArray(list) && list.length ? `Taken out without the request naming it: ${list.map((g) => `${listOf(g.things)} from ${g.name}`).join('; ')}. Undo the change to put it back.` : '';
+  }
+
   // ── What the request says to leave as it is ─────────────────────────
 
   const CHANGE = '(?:change|changing|edit|editing|modify|modifying|touch|touching|update|updating|rewrite|rewriting|delete|deleting|remove|removing)';
@@ -120,5 +164,5 @@
     return '';
   }
 
-  window.HCCodeKeep = { MOST_NAMED, inventory, removed, named, note, leftAlone, TEST_FILE };
+  window.HCCodeKeep = { MOST_NAMED, inventory, removed, named, note, leftAlone, TEST_FILE, stillGone, goneNote, goneLine, GONE_SAYS, GONE_STEP };
 })();

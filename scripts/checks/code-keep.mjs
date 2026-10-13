@@ -95,5 +95,32 @@ console.log('\nHashCoder:');
   ok('it is loaded after the definitions it reads and before the modes', boot.indexOf("'/js/code/codemap.js'") < boot.indexOf("'/js/code/keep.js'") && boot.indexOf("'/js/code/keep.js'") < boot.indexOf("'/modes/boot.js'"));
 }
 
+console.log('\nWhat a run took out unasked, still gone when it would finish:');
+{
+  const before = '<main>\n<section id="hero"><h1>Orchard Crumb</h1></section>\n<section id="booking"><form id="bookForm"></form></section>\n<dialog id="bookingModal"></dialog>\n</main>\n';
+  const after = '<main>\n<section id="hero"><h1>Orchard Crumb Bakery</h1></section>\n</main>\n';
+  const changes = new Map([
+    ['/p/index.html', { before, after, unreadable: false }],
+    ['/p/new.html', { before: null, after: '<p>new</p>', unreadable: false }],
+    ['/p/old.html', { before: '<section id="x"></section>', after: '', unreadable: false }],
+    ['/p/logo.png', { before: 'x', after: 'y', unreadable: true }],
+  ]);
+  const gone = K.stillGone(changes, 'change the bakery name and its contact details');
+  ok('what was in a changed file when the request began and is gone now is found, by file', gone.length === 1 && gone[0].name === 'index.html' && gone[0].things.includes('#bookingModal') && gone[0].things.includes('#bookForm') && gone[0].things.includes('#booking'), JSON.stringify(gone));
+  ok('a new file, a deleted one and one the app keeps no copy of are left out', !gone.some((g) => /new|old|logo/.test(g.name)));
+  ok('what the request names is not counted', K.stillGone(changes, 'remove the booking form and its modal').every((g) => !g.things.some((t) => /booking|bookForm/i.test(t))));
+  ok('a run that put it back has nothing gone', K.stillGone(new Map([['/p/index.html', { before, after: before.replace('Orchard Crumb', 'Orchard Crumb Bakery') }]]), 'rename it').length === 0);
+  const note = K.goneNote(gone);
+  ok('a note of its own kind, the app speaking, naming each thing and its file', note && note.kind === 'gone' && note.step === K.GONE_STEP && /^Note from HashCortX, not from the person:/.test(note.message) && /#bookingModal[^\n]*\(in index\.html\)/.test(note.message) && note.message.includes(K.GONE_SAYS));
+  ok('it says to put each back as it was, with what uses it, or say why it had to go', /Put back each one the request did not ask you to remove, as it was, with what uses it/.test(note.message) && /say why in your answer/.test(note.message));
+  ok('nothing gone, no note and no line', K.goneNote([]) === null && K.goneNote(null) === null && K.goneLine([]) === '' && K.goneLine(null) === '');
+  ok('what is still gone is said under the answer, with how to get it back', /^Taken out without the request naming it: [^.]*#bookingModal[^.]* from index\.html\. Undo the change to put it back\.$/.test(K.goneLine(gone)), K.goneLine(gone));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder looks after the details check and before a second look, sends the run back once, with Prove changes on', /\(await factsLook\(\)\) \|\| keptLook\(\) \|\| \(await secondLook\(\)\)/.test(mode) && /const keptLook = \(\) => \{ const K = window\.HCCodeKeep; if \(!K \|\| cdrPrefs\(\)\.prove === false\) return null; gone = K\.stillGone\(changes, HC\.code\.request\); return sent\.gone \? null : K\.goneNote\(gone\); \};/.test(mode) && /stall: 0, gone: 0 \};/.test(mode));
+  ok('...and says what is still gone under the answer', /window\.HCCodeKeep\?\.goneLine\(gone\)/.test(mode));
+  const verify = src('js', 'code', 'verify.js');
+  ok('a saved conversation shows the note as its step', /t\.includes\(window\.HCCodeKeep\.GONE_SAYS\) \? window\.HCCodeKeep\.GONE_STEP/.test(verify));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/keep.js)`);
 process.exit(fail ? 1 : 0);

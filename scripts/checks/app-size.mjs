@@ -792,7 +792,9 @@ const LINE_BUDGET = {
   // 2486, up one: a request that gives an address or asks for a lookup, on a
   // model given no web tools, is read or searched by the app first
   // (js/code/lookup.js).
-  'modes/code/mode.js': 2486,
+  // 2487, up one: what a run took out unasked and is still gone sends it back
+  // once before it finishes, then is said under the answer (js/code/keep.js).
+  'modes/code/mode.js': 2487,
 };
 
 console.log('\nFile sizes go down, never up:');

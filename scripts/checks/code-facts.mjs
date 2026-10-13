@@ -196,7 +196,7 @@ console.log('\nWhat the agent and the person are told:');
 console.log('\nWhere it is used:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('after the site check and before a second look, once', /\(await siteLook\(\)\) \|\| \(await factsLook\(\)\) \|\| \(await secondLook\(\)\)/.test(mode) && /found\.total && !sent\.facts \? window\.HCCodeVerify\.factsNote\(found, root\)/.test(mode));
+  ok('after the site check and before a second look, once', /\(await siteLook\(\)\) \|\| \(await factsLook\(\)\) \|\| keptLook\(\) \|\| \(await secondLook\(\)\)/.test(mode) && /found\.total && !sent\.facts \? window\.HCCodeVerify\.factsNote\(found, root\)/.test(mode));
   ok('counted by kind, like the others', /undone: 0, facts: 0/.test(mode));
   ok('the files are read as they are now, by the check that never asks, and against the whole conversation', /F\.check\(\{ files: await F\.gather\(proof\.changed, root, \(f\) => HC\.code\.readQuietly\(f\)\), messages \}\)/.test(mode));
   ok('what is left is said under the answer, with what was proven', /HCCodeFacts\?\.leftLine\(unconfirmed\)/.test(mode));
