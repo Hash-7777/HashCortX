@@ -19,6 +19,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   fails with a note on going back to Automatic. Other local model apps set
   this in their own settings (`js/local-place.js`).
 
+### Changed
+
+- **Agent Swarm's tab fills the last row of the sidebar.** With seven
+  workspaces in two columns, the last tab sat beside an empty cell; a tab
+  left alone on the last row now takes the whole row.
+
 ### Removed
 
 - **The Virtual OS workspace.** Its tab, its panel, its chat agent and the

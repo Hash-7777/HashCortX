@@ -52,7 +52,9 @@
     background-color: rgba(34,211,238,0.05);
   }
   .tab:hover svg { opacity: 1; color: var(--emerald); }
-  /* Workflow and Sandbox share the last row */
+  /* A tab alone on the last row takes the whole row, rather than leaving an
+     empty cell beside it. With seven workspaces that is Agent Swarm. */
+  .tabs > .tab:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .tab.active {
     background-color: rgba(34,211,238,0.08);
     border-color: rgba(34,211,238,0.32);
