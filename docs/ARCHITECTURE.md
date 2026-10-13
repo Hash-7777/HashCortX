@@ -2,7 +2,7 @@
 
 Tauri v2 desktop application. Rust core, native system webview, vanilla JavaScript frontend. No bundler, no framework, no build step for the frontend — `tauri.conf.json` serves `src/` directly via `"frontendDist": "../src"`.
 
-Roughly **64,000 lines of JavaScript** (plus ~20,000 more in vendored libraries), measured on 13 October 2026, and **about 10,800 lines of Rust**, measured on 5 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
+Roughly **64,000 lines of JavaScript** (plus ~20,000 more in vendored libraries), measured on 13 October 2026, and **about 10,900 lines of Rust**, measured on 14 October 2026, as are the per-file sizes below; the budgets that stop the large files growing are in `scripts/checks/app-size.mjs`, which is the place to look for a current figure.
 
 > This document describes the tree as it exists today. An earlier version described a planned `core/` + `platform/` split full of files that were never written; that plan is preserved at the bottom under *Abandoned plan* so the intent is not lost.
 
@@ -290,8 +290,9 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs     1,074   process execution: denylist, timeout, stop,
-│   │   │   │                        closed stdin, output cap, no secrets for the agent
+│   │   │   ├── shell.rs     1,209   process execution: denylist, timeout, stop,
+│   │   │   │                        closed stdin, output cap, no secrets for the agent,
+│   │   │   │                        programs found where tools are installed
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  666   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since

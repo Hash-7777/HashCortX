@@ -243,6 +243,11 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
     cmd.stdin(Stdio::null());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+    // Where programs are looked for, with the folders tools are installed in (`tool_path`).
+    #[cfg(unix)]
+    if let Some(path) = tool_path() {
+        cmd.env("PATH", path);
+    }
     // A process group of its own, so ending the command ends what it started
     // too (see `kill_tree`).
     #[cfg(unix)]
@@ -308,6 +313,93 @@ fn without_secrets(cmd: &mut Command) {
             cmd.env_remove(&name);
         }
     }
+}
+
+// ── Where programs are looked for ─────────────────────────────────────────
+//
+// An app started from the Dock or Finder on macOS is given only the system's
+// own folders to look for programs in, not the ones a terminal adds, so a
+// command asked for `npm`, `node` or anything installed with Homebrew was not
+// found ("No such file or directory"), though the same command worked in a
+// terminal. Every command started here looks in the folders tools are
+// usually installed in as well, those that exist on this computer, put before
+// the system's own as a terminal puts them. A folder the app was already
+// given keeps its place, so an app started from a terminal looks where that
+// terminal did. Nothing is read from the shell's start-up files, which agent
+// commands may not read either (security/agent_sandbox.rs).
+
+/// Folders in the home directory that tools are installed in.
+#[cfg(unix)]
+const HOME_TOOL_DIRS: &[&str] = &[
+    ".local/bin", ".cargo/bin", ".bun/bin", ".deno/bin", ".volta/bin", ".npm-global/bin",
+    "Library/pnpm", ".local/share/pnpm", "go/bin", ".pyenv/shims", ".asdf/shims", ".nodenv/shims", ".rbenv/shims",
+];
+/// Folders on the whole machine that tools are installed in.
+#[cfg(unix)]
+const SYSTEM_TOOL_DIRS: &[&str] = &[
+    "/opt/homebrew/bin", "/opt/homebrew/sbin", "/usr/local/bin", "/usr/local/sbin", "/opt/local/bin",
+    "/home/linuxbrew/.linuxbrew/bin", "/usr/local/go/bin", "/Library/Frameworks/Python.framework/Versions/Current/bin",
+];
+/// The system's own folders, before which the others go.
+#[cfg(unix)]
+const SYSTEM_DIRS: &[&str] = &["/usr/bin", "/bin", "/usr/sbin", "/sbin"];
+
+/// The newest Node.js version an nvm folder holds, from the names of its
+/// entries (`v20.11.1`), or None.
+#[cfg(unix)]
+fn newest_node(names: &[String]) -> Option<String> {
+    names
+        .iter()
+        .filter_map(|n| {
+            let parts: Vec<u64> = n.strip_prefix('v')?.split('.').map(|p| p.parse().ok()).collect::<Option<_>>()?;
+            (parts.len() == 3).then(|| (parts, n.clone()))
+        })
+        .max_by(|a, b| a.0.cmp(&b.0))
+        .map(|(_, n)| n)
+}
+
+/// `current` with every folder of `candidates` that `is_dir` finds and that it
+/// does not already hold, put before the first of the system's own folders,
+/// or at the end when it has none.
+#[cfg(unix)]
+fn with_tool_dirs(current: &str, candidates: &[String], is_dir: &dyn Fn(&str) -> bool) -> String {
+    let have: Vec<&str> = current.split(':').filter(|p| !p.is_empty()).collect();
+    let mut add: Vec<&str> = Vec::new();
+    for c in candidates {
+        if !have.contains(&c.as_str()) && !add.contains(&c.as_str()) && is_dir(c) {
+            add.push(c);
+        }
+    }
+    let at = have.iter().position(|p| SYSTEM_DIRS.contains(p)).unwrap_or(have.len());
+    let mut out: Vec<&str> = have[..at].to_vec();
+    out.extend(add);
+    out.extend(&have[at..]);
+    out.join(":")
+}
+
+/// The folders a command looks for programs in, worked out once.
+#[cfg(unix)]
+fn tool_path() -> Option<&'static String> {
+    static PATH: OnceLock<Option<String>> = OnceLock::new();
+    PATH.get_or_init(|| {
+        let current = std::env::var("PATH").unwrap_or_else(|_| SYSTEM_DIRS.join(":"));
+        let mut candidates: Vec<String> = Vec::new();
+        if let Some(home) = dirs::home_dir().filter(|h| h.is_absolute()) {
+            for d in HOME_TOOL_DIRS {
+                candidates.push(home.join(d).to_string_lossy().into_owned());
+            }
+            let nvm = home.join(".nvm/versions/node");
+            let names: Vec<String> = std::fs::read_dir(&nvm)
+                .map(|it| it.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+                .unwrap_or_default();
+            if let Some(v) = newest_node(&names) {
+                candidates.push(nvm.join(v).join("bin").to_string_lossy().into_owned());
+            }
+        }
+        candidates.extend(SYSTEM_TOOL_DIRS.iter().map(|d| d.to_string()));
+        Some(with_tool_dirs(&current, &candidates, &|p| std::path::Path::new(p).is_dir()))
+    })
+    .as_ref()
 }
 
 // ── Stopping a run's commands ─────────────────────────────────────────────
@@ -694,6 +786,49 @@ mod tests {
             MAX_TIMEOUT_MS as u128
         );
         assert_eq!(resolve_timeout(Some(5_000)).as_millis(), 5_000);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn programs_are_looked_for_where_tools_are_installed() {
+        let exists = |p: &str| ["/opt/homebrew/bin", "/usr/local/bin", "/Users/a/.cargo/bin"].contains(&p);
+        let candidates: Vec<String> = ["/Users/a/.cargo/bin", "/Users/a/.bun/bin", "/opt/homebrew/bin", "/usr/local/bin"].iter().map(|s| s.to_string()).collect();
+        // An app started from the Dock: the folders that exist go before the system's own.
+        assert_eq!(
+            with_tool_dirs("/usr/bin:/bin:/usr/sbin:/sbin", &candidates, &exists),
+            "/Users/a/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+        );
+        // An app started from a terminal keeps that terminal's order, and gains only what it lacked.
+        assert_eq!(
+            with_tool_dirs("/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin", &candidates, &exists),
+            "/usr/local/bin:/opt/homebrew/bin:/Users/a/.cargo/bin:/usr/bin:/bin"
+        );
+        // A folder that is not there is never added, and nothing is repeated.
+        assert!(!with_tool_dirs("/usr/bin", &candidates, &exists).contains(".bun"));
+        let twice: Vec<String> = ["/opt/homebrew/bin", "/opt/homebrew/bin"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(with_tool_dirs("/usr/bin", &twice, &exists), "/opt/homebrew/bin:/usr/bin");
+        // With none of the system's folders, they go at the end.
+        assert_eq!(with_tool_dirs("/custom", &candidates, &exists), "/custom:/Users/a/.cargo/bin:/opt/homebrew/bin:/usr/local/bin");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_newest_node_an_nvm_folder_holds_is_used() {
+        let names: Vec<String> = ["v18.19.0", "v20.9.0", "v20.11.1", "default", "v9.0.0"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(newest_node(&names).as_deref(), Some("v20.11.1"));
+        assert_eq!(newest_node(&["alias".to_string()]), None);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_command_finds_a_program_in_a_tool_folder() {
+        // The path is worked out once, from this process's PATH and this computer's folders; it holds the system's own.
+        let path = tool_path().expect("a path");
+        assert!(path.split(':').any(|p| p == "/usr/bin"));
+        let _turn = crate::security::root_jail::test_turn();
+        crate::security::root_jail::clear_root();
+        let out = run_blocking("sh".into(), vec!["-c".into(), "printf %s \"$PATH\"".into()], None, None, None, Caller::Person).unwrap();
+        assert_eq!(out.stdout, *path);
     }
 
     #[test]

@@ -176,6 +176,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   holding the pattern as plain text still count; plain text is one search,
   as before. When nothing matches, the answer says how the pattern was
   read.
+- **Commands find `npm`, `node` and Homebrew's tools in the app started
+  from the Dock.** An app started from the Dock or Finder on macOS is given
+  only the system's own folders to look for programs in, so an agent
+  command such as `npm test` failed with "No such file or directory" while
+  the same command worked in a terminal. Every command the app starts, on
+  macOS and Linux, now also looks in the folders tools are usually installed
+  in that exist on this computer, Homebrew's, `/usr/local/bin` and
+  per-person ones such as `~/.local/bin` and `~/.cargo/bin`, before the
+  system's own, as a terminal does. Nothing is read from the shell's
+  start-up files, and the safety list, the Permission Guard and the sandbox
+  apply as before (`commands/shell.rs`).
 
 ### Removed
 

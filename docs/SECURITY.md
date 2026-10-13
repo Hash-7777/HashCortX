@@ -208,6 +208,8 @@ An allowlist would be stronger than any of this. Treat the shell tool as what it
 
 **An agent's command starts without your secrets.** A command's output goes back to the model, and so to its provider, so every command the agent runs starts without the environment settings whose names mark them as secrets — any with `KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `PASS`, `PASSPHRASE`, `CREDENTIALS`, `AUTH` or `PAT` as a whole word of the name, and `DATABASE_URL`. `SSH_AUTH_SOCK` is kept: it is the path to your SSH agent, not a key, and git over SSH needs it. A command you type in the terminal keeps everything. The agent is told this, so a command that needs one of those settings is one to run yourself. This goes by name only: a secret kept in a setting with an ordinary name, or in a file the command can read, is not covered.
 
+**Where commands look for programs.** On macOS and Linux, every command the app starts, the agent's and the terminal's, looks for programs in the folders the app was started with and also in the folders tools are usually installed in, those that exist on this computer: Homebrew's, `/usr/local/bin`, and per-person ones such as `~/.local/bin` and `~/.cargo/bin`, put before the system's own as a terminal puts them. An app started from the Dock is otherwise given only the system's folders, so the agent could not find `npm`, `node` or anything installed with Homebrew. Nothing is read from your shell's start-up files to work this out. It decides only where a program is found: the safety list, the Permission Guard and the sandbox apply to every command as before.
+
 ### Every command run is bounded
 
 From `src-tauri/src/commands/shell.rs`:
