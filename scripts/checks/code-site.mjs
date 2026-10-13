@@ -86,7 +86,8 @@ console.log('\nWhat the agent is sent back with:');
   ok('a menu the script opens that nothing styles', broken.some((w) => /\.open, which nothing styles/.test(w)));
   ok('and nothing it would be wrong to report', !broken.some((w) => /stops in the middle|does not parse/.test(w)));
   const note = V.siteNote(broken);
-  ok('a note from the app, not from the person, with each finding and what to do', note.kind === 'site' && note.message.startsWith(V.APP_NOTE) && /read the way a browser reads it/.test(note.message) && /\n- script\.js sets opacity/.test(note.message) && /Fix each one now, then finish/.test(note.message));
+  ok('a note from the app, not from the person, with each finding and what to do', note.kind === 'site' && note.message.startsWith(V.APP_NOTE) && /read the way a browser reads it/.test(note.message) && /\n- script\.js sets opacity/.test(note.message) && /Fix each one now with the smallest change that meets it/.test(note.message) && /Then finish/.test(note.message));
+  ok('...keeping the design the request asked for, not taking out a section, a feature or a look', /keeping the design the request asked for: do not take out a section, a feature or a look to make a line go away/.test(note.message));
   ok('a saved conversation shows it as the step it was', V.noteStep(note.message) === note.step && note.step === 'Sent back with what the site check found');
 }
 

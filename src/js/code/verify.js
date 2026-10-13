@@ -665,7 +665,7 @@
       kind: 'site',
       step: SITE_STEP,
       message: `${APP_NOTE} ${SITE_SAYS}, and these will not work, or let the page down:\n${(findings || []).map((f) => `- ${f}`).join('\n')}\n` +
-        'Fix each one now, then finish. If one is not right, say why in your answer instead of changing anything for it.',
+        'Fix each one now with the smallest change that meets it, keeping the design the request asked for: do not take out a section, a feature or a look to make a line go away. Then finish. If one is not right, say why in your answer instead of changing anything for it.',
     };
   }
 

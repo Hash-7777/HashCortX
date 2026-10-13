@@ -136,6 +136,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   to find a passage to anchor an edit to. write_file now takes `append`,
   which adds the text at the end of the whole file, on a line of its own and
   in the file's own line endings (`js/code/patch.js`).
+- **Fixing what the site check found keeps the design.** Sent back with
+  what the check of a site found, a model took out parts of the look it had
+  been asked for to make the findings go away. The note now asks for the
+  smallest change that meets each finding, keeping the design the request
+  asked for (`js/code/verify.js`).
 
 ### Removed
 
