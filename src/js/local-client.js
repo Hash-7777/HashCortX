@@ -144,7 +144,13 @@
    * One request to a local model, read as it arrives. `request` is what
    * `body` takes; `lineReader` turns the response body into events.
    */
-  async function chat(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader } = {}) {
+  function chat(host, request, options) {
+    // Counted while it runs, so the title bar names the model answering (js/model-now.js).
+    const now = typeof window !== "undefined" && window.HCModelNow;
+    return now ? now.around(request && request.model, () => ask(host, request, options)) : ask(host, request, options);
+  }
+
+  async function ask(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader } = {}) {
     // A model on another local app is reached its own way (js/local-apps.js).
     const apps = typeof window !== "undefined" && window.HCLocalApps;
     if (apps && apps.isLocalApp(request.model)) return apps.chat(request.model, request, { signal, onToken, onThinking });

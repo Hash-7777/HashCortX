@@ -18,6 +18,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Ollama carries the choice, and a model too big for the graphics chip alone
   fails with a note on going back to Automatic. Other local model apps set
   this in their own settings (`js/local-place.js`).
+- **The title bar names the model answering, in every workspace.** A run
+  moves to another model when one is out of quota, refuses the key or is
+  too slow, and workspaces such as the Agent Swarm choose models of their
+  own, while the picker still shows the first choice. Beside the window
+  buttons a short line now names the model answering at that moment, with
+  a lit dot, and a count when more than one answers at once; hovering it
+  lists them. With nothing running it names the last model that answered.
+  The name is read from the request and never sent anywhere
+  (`js/model-now.js`).
 
 ### Changed
 

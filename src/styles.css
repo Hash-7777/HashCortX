@@ -263,6 +263,43 @@ html.is-linux .hc-toolbar-left { width: 0; }
   -webkit-app-region: drag;   /* empty strip — drag here */
 }
 
+/* The model answering now, or the last to answer (js/model-now.js). Placed
+   by position, left of the buttons, so a name of any length never moves the
+   centred title; cut with an ellipsis before it can reach it. A still dot,
+   lit while a model answers: it reports state, so it does not animate. */
+.hc-model-now {
+  position: absolute;
+  right: 92px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(50% - 170px);
+  font-family: var(--hc-font);
+  font-size: 11px;
+  color: var(--hc-text-dim);
+  -webkit-app-region: drag;
+}
+.hc-model-now[hidden] { display: none; }
+.hc-model-now-dot {
+  width: 6px; height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
+  -webkit-app-region: drag;
+}
+.hc-model-now-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-app-region: drag;
+}
+.hc-model-now.working { color: var(--hc-text); }
+.hc-model-now.working .hc-model-now-dot { color: var(--hc-green); opacity: 1; }
+
 /* Generic toolbar icon-button used in Phase 2+ */
 .hc-toolbar-btn {
   width: 28px; height: 28px;

@@ -2341,6 +2341,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     visibleCloudModels, ollamaModelName, getModelTier,
   } = HCModelNames;
   const cloudModelLabel = (val) => HCModelNames.cloudModelLabel(val, CLOUD_MODELS);
+  HCModelNow.setNamer(cloudModelLabel); HCModelNow.mount(document.querySelector(".hc-toolbar"));   // the model answering, in the title bar (js/model-now.js)
   const isImageGenModel = (val) => HCModelNames.isImageGenModel(val, CLOUD_MODELS);
 
 
@@ -2362,7 +2363,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // The one place a model turn is dispatched to a client. Every mode goes
   // through this, so a provider that needs its own request shape needs it
   // written down once instead of in each mode that happens to remember.
-  const runModelTurn = (request) =>
+  const turnModel = (r) => (r && (r.modelValue || (r.adapter && (r.adapter.kind === "ollama" ? r.adapter.model : `cloud:${r.adapter.provider}:${r.adapter.model}`)))) || "";
+  const runModelTurn = (request) => HCModelNow.around(turnModel(request), () =>   // named in the title bar while it answers (js/model-now.js)
     HCAgentShape.routeModelTurn(
       request,
       {
@@ -2372,7 +2374,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         openai: agentTurnOpenAI,
       },
       { parseCloudModel, providers: HCProviders },
-    );
+    ));
 
 
   // The settings field holding each provider's key. Kept here rather than in
@@ -3494,7 +3496,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const label = cloudModelLabel(`cloud:${provider}:${modelId}`);
     let started = false, used = null;
     const tell = (t) => { started = true; w.sign(); onToken(t); };
-    const once = () => streamCloudModelOnce(provider, modelId, messages, temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); });
+    const once = () => HCModelNow.around(`cloud:${provider}:${modelId}`, () => streamCloudModelOnce(provider, modelId, messages, temperature, tell, w.signal, (t) => { w.sign(); onThinking?.(t); }));   // named in the title bar while it answers (js/model-now.js)
     try {
       try {
         used = await once();
@@ -4865,7 +4867,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
             if (isImageGenModel(currentModelValue)) {
               assistant.firstTokenAt = Date.now();
               showImageGenLoading();
-              const { text, images } = await generateCloudImage(modelId, messages, ctrl.signal);
+              const { text, images } = await HCModelNow.around(currentModelValue, () => generateCloudImage(modelId, messages, ctrl.signal));
               assistant.content = text;
               assistant.images = images;
             } else {

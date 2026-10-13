@@ -135,6 +135,7 @@
     '/js/local-place.js',
     '/js/local-speed.js',
     '/js/local-fit.js',
+    '/js/model-now.js',
     '/js/local-client.js',
     '/js/local-apps.js',
     '/js/tool-text.js',

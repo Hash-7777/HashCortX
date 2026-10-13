@@ -223,7 +223,9 @@ const LINE_BUDGET = {
   // nothing read.
   // 6486, down one: the chat follows a reply through js/follow.js, in place
   // of its own scroll listener.
-  'js/app.js': 6486,
+  // 6488, up two: every model turn, cloud stream and picture is counted for
+  // the title bar's line naming the model answering (js/model-now.js).
+  'js/app.js': 6488,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
