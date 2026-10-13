@@ -225,7 +225,10 @@ const LINE_BUDGET = {
   // of its own scroll listener.
   // 6488, up two: every model turn, cloud stream and picture is counted for
   // the title bar's line naming the model answering (js/model-now.js).
-  'js/app.js': 6488,
+  // 6489, up one: the agent's page reader also hands HashCoder the page as it
+  // came, so its pictures, logo and contact details can be read
+  // (js/page-facts.js).
+  'js/app.js': 6489,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

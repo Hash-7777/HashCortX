@@ -153,6 +153,17 @@ const NOT_A_REQUEST = new Map([
   // Examples shown in an empty address field in Settings → Connections.
   ['your-company.odoo.com', 'an example in an empty address field, not an address'],
   ['erp.example.com', 'an example in an empty address field, not an address'],
+  ['duckduckgo.com', 'the base a search results page\'s own links are read against (js/page-facts.js), not fetched'],
+]);
+
+/**
+ * Addresses read through the app's page reader in Rust (net_fetch_text), the
+ * way every page the agent opens is read: resolved once, checked, and pinned
+ * (src-tauri/src/commands/net.rs). The page never fetches them itself, so its
+ * policy must not be widened for them.
+ */
+const READ_BY_THE_PAGE_READER = new Map([
+  ['html.duckduckgo.com', 'HashCoder\'s web search without a key reads the results page through the page reader (platform/tauri/hashcoder.js)'],
 ]);
 
 /**
@@ -200,9 +211,16 @@ const connectHosts = new Set(connectSrc.filter((s) => s.startsWith('http')).map(
 
 console.log('\nEvery address the app builds is one connect-src allows:');
 for (const [host, where] of sourceHosts) {
-  if (NOT_A_REQUEST.has(host) || REACHED_NATIVELY.has(host)) continue;
+  if (NOT_A_REQUEST.has(host) || REACHED_NATIVELY.has(host) || READ_BY_THE_PAGE_READER.has(host)) continue;
   ok(`${host} is allowed`, connectHosts.has(host),
     `${where} builds this address and the policy does not allow it — the request fails as a plain network error, which the app reports as the service being unreachable`);
+}
+
+console.log('\nA page the page reader reads is not one the page may fetch:');
+for (const host of READ_BY_THE_PAGE_READER.keys()) {
+  ok(`${host} is not in connect-src`, !connectHosts.has(host), 'it is read through net_fetch_text, which checks where it goes; the page has no reason to call it directly');
+  const naming = sourceFiles(join(root, 'src')).filter((f) => f.endsWith('.js') && readFileSync(f, 'utf8').includes(host)).map(rel);
+  ok(`${host} is requested only through the page reader`, naming.join() === 'src/platform/tauri/hashcoder.js' && /window\._H\.fetchPage\(`https:\/\/html\.duckduckgo\.com\/html\/\?q=/.test(readFileSync(join(root, 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8')), `named in ${naming.join(', ') || 'no file'}`);
 }
 
 console.log('\nA connected system is reached by the native side, never by the page:');

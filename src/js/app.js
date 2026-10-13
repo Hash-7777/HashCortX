@@ -5153,14 +5153,14 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
    * first: that refuses a literal private one with no round trip, and in a
    * browser build it is the only check there is.
    */
-  async function fetchUrl(url) {
+  async function fetchUrl(url, { raw = false } = {}) {   // raw: the markup and the address it was read from, for HashCoder (js/page-facts.js)
     if (!isSafeExternalUrl(url)) return null;
     if (!hostnameOf(url)) return null;
 
     if (window.HC?.isTauri) {
       try {
         const out = await HC.invoke("net_fetch_text", { url });
-        if (out?.ok) return HCPageText.stripHtml(out.text);
+        if (out?.ok) return raw ? { html: String(out.text || ''), url: out.finalUrl || url } : HCPageText.stripHtml(out.text);
         console.warn("[fetch_url] refused:", out?.reason || "the page could not be read");
         return null;
       } catch (e) {
@@ -5177,7 +5177,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const text = await r.text();
-      return HCPageText.stripHtml(text);
+      return raw ? { html: text, url: r.url || url } : HCPageText.stripHtml(text);
     } catch {
       return null;
     }
@@ -6463,6 +6463,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // One dispatcher for every mode. Modes that picked a client themselves
     // got Anthropic wrong; there is now one copy of that decision.
     runModelTurn,
+    fetchPage: (url) => fetchUrl(url, { raw: true }),
     // Settings → Update model lists, and what each provider said last time.
     refreshModelLists,
     // Every model the providers list for the keys set, less the ones gone. The

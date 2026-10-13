@@ -670,9 +670,10 @@
     },
     {
       name: 'fetch_url',
-      description: 'Read a web page and return its text. Use it after web_search to actually read what you found — a search result gives you a title and a snippet, not the documentation. Only public http(s) addresses; anything resolving to a private or local address is refused.',
+      description: 'Read a public web page. Returns its text, a section at a time for a long page (call again with offset to read on), and on the first read what else it holds: its title and description, its pictures with their addresses, what looks like its logo, the colours it declares, the phone numbers, email, address, opening hours and social accounts it gives, and links to its other pages, so you can read its About or Contact page next. Use it on an address the person gave, or after web_search to read what you found: a search result is a title and a snippet, not the page. Only public http(s) addresses; anything resolving to a private or local address is refused.',
       parameters: {
         url: { type: 'string', description: 'Absolute http(s) URL.' },
+        offset: { type: 'integer', description: 'Optional: where to continue a long page, the nextOffset of the last read.' },
       },
       fn: async (p) => {
         const url = String(p.url || '').trim();
@@ -688,7 +689,13 @@
         // Same reason as the chat path: the wait after Allow is the fetch.
         const job = HC.guard.busy?.(url);
         try {
-          return await viaChatTool('fetch_url', { url });
+          // The page as it came, read through the same checked reader as chat's (app.js fetchUrl), so what it holds besides its words can be given too (js/page-facts.js).
+          const page = window._H?.fetchPage ? await window._H.fetchPage(url) : null;
+          if (!page) return JSON.stringify({ error: `${url} could not be read: it may not exist, may refuse to be read by an app, or may not be a web page. Try the site's home page, or another result.` });
+          const T = window.HCPageText, F = window.HCPageFacts;
+          const win = T.windowOf(T.stripHtml(page.html), p.offset);
+          const first = !win.offset && !!F;
+          return JSON.stringify({ url: page.url, ...(first ? F.read(page.html, page.url) : {}), text: win.text + T.continuationNote(win, url), ...(win.truncated ? { nextOffset: win.nextOffset } : {}), ...(first ? { note: F.NOTE } : {}) });
         } finally {
           job?.done();
         }
@@ -815,7 +822,7 @@
     },
     {
       name: 'web_search',
-      description: 'Search the web for documentation, APIs, error messages or design references. With a Tavily key configured in Settings this is a real search engine. Without one it falls back to DuckDuckGo\'s instant-answer endpoint, which only knows encyclopedia-style facts and returns nothing for most developer queries — the result will say so plainly. Do not call it for things you already know.',
+      description: 'Search the web: documentation, error messages, design references, and a business, place, person or topic the request names. Uses Tavily when a key is set in Settings, otherwise DuckDuckGo\'s results. Each result is a title, an address and a snippet: read the ones that matter with fetch_url. Do not call it for things you already know.',
       parameters: {
         query: { type: 'string', description: 'What to search for' },
       },
@@ -843,6 +850,16 @@
             const viaTavily = await window._H?.tavilySearch?.(query, 5);
             if (viaTavily) return JSON.stringify({ query, source: 'tavily', results: viaTavily });
           } catch { /* fall through to the free endpoint */ } finally { job?.done(); }
+        }
+
+        // Without a key, DuckDuckGo's plain results page: real results, read through the same checked reader as a web page (js/page-facts.js searchResults).
+        if (window._H?.fetchPage && window.HCPageFacts) {
+          const job = await ask('https://html.duckduckgo.com/html/');
+          try {
+            const page = await window._H.fetchPage(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`);
+            const results = page ? window.HCPageFacts.searchResults(page.html) : [];
+            if (results.length) return JSON.stringify({ query, source: 'duckduckgo', results, note: 'Each result is a title and a snippet, not the page: read the ones that matter with fetch_url before relying on them.' });
+          } catch { /* fall through to the instant-answer endpoint */ } finally { job?.done(); }
         }
 
         const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;

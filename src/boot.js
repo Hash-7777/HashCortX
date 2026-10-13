@@ -108,6 +108,7 @@
     '/js/rag-store.js',
     '/js/url-safety.js',
     '/js/page-text.js',
+    '/js/page-facts.js',
     '/js/pdf-text.js',
     '/js/providers.js',
     '/js/request-cap.js',

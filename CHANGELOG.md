@@ -101,6 +101,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   checks run from the record, and the model is asked once, with no tools,
   to say what it changed, what it checked and what is left. Its account is
   shown with what the record shows beside it (`js/agent-policy.js`).
+- **HashCoder reads websites for what they hold, and looks things up.**
+  fetch_url gave the model only a page's words. It now also gives the
+  page's title and description, its pictures with their addresses, what
+  looks like its logo, the colours it declares, the phone numbers, email,
+  address, opening hours and social accounts it shows (from the page and
+  the structured data it publishes), and links to its other pages, so the
+  agent can read the About or Contact page next; a long page is read a part
+  at a time (`js/page-facts.js`). Without a Tavily key, web search now reads
+  DuckDuckGo's results page instead of an endpoint that knew only
+  encyclopedia facts. Every read and search still asks first.
 
 ### Removed
 
