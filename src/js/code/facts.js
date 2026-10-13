@@ -104,6 +104,10 @@
 
   const STREET = /\b(\d{1,4}[A-Za-z]?)\s+((?:[A-Z][\w'’.-]*\s+){1,4}?)(Street|St\.?|Road|Rd\.?|Avenue|Ave\.?|Boulevard|Blvd\.?|Square|Sq\.?|Lane|Ln\.?|Drive|Dr\.?|Way|Highway|Hwy\.?)(?![\w])/g;
   const ARABIC_STREET = /([\d٠-٩]{1,4})\s*(?:شارع|ش\.?)\s+([؀-ۿ]+(?:\s[؀-ۿ]+){0,2})/g;
+  /** Words a source uses for the year something began, and the months that may stand between. */
+  const BEGAN = '\\b(?:since|est\\.?|established|founded|opened|started|began|dating from|in business since|serving[^.\\n]{0,40}since|تأسست?|منذ)';
+  const MONTHS = '(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?';
+  const PERSON_SINCE = /\b(?:work(?:s|ed|ing)?|join(?:s|ed)?|employed|member|graduat\w*|stud(?:y|ies|ied|ying)|liv(?:es|ed|ing)|pharmacist|engineer|manager|doctor|student)\b[^.\n]*$/i;
   const YEAR_CUE = /\b(?:since|est\.?|established(?: in)?|founded(?: in)?)\s+((?:18|19|20)\d{2})\b/gi;
   const HOW_LONG = /\b(?:(?:for\s+)?(?:over|more than|nearly|almost)\s+([a-z]+(?:-[a-z]+)?|\d{1,3})\+?\s+(?:decades|years|generations)|(\d{1,3})\+?\s+years\s+(?:of|in)\b)/gi;
   const TIME = '\\d{1,2}(?::\\d{2})?\\s?(?:a\\.?m\\.?|p\\.?m\\.?)';
@@ -212,7 +216,17 @@
   function sourced(s, ev) {
     switch (s.kind) {
       case 'phone': return ev.phones.has(s.key);
-      case 'year': return new RegExp(`\\b${s.key}\\b`).test(ev.text);
+      // A year is confirmed only where a source gives it as the year something began: one that
+      // turns up anywhere, a date in a heading or the year a page was written, says nothing of that.
+      // A bare "since" after words about a person working, joining or studying there is when they
+      // began, not when the place did.
+      case 'year': {
+        for (const m of ev.text.matchAll(new RegExp(`${BEGAN}(?:\\s+(?:in|the year|${MONTHS}|\\d{1,2}(?:st|nd|rd|th)?|of|,))*\\s+${s.key}\\b`, 'gi'))) {
+          if (/^(?:since|منذ)/i.test(m[0]) && PERSON_SINCE.test(ev.text.slice(Math.max(0, m.index - 80), m.index))) continue;
+          return true;
+        }
+        return new RegExp(`\\b${s.key}\\s*[-–—:]\\s*(?:founded|established|opened)\\b`, 'i').test(ev.text);
+      }
       case 'years': return ev.squashed.includes(s.key);
       case 'hours': return ev.hours.has(s.key) || ev.squashed.replace(/ /g, '').includes(s.key.replace(/-/g, ''));
       case 'email': return ev.text.toLowerCase().includes(s.key);

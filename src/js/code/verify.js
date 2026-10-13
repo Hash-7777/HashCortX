@@ -687,6 +687,7 @@
       message: `${APP_NOTE} the files you changed ${FACTS_SAYS}.${told}${open}\n` +
         'For each detail: if the person gave it in this conversation, or a page you opened says it, find that and keep it exactly as written there. What the app remembers about the person is not a source for a page. If not, look for it with web_search or fetch_url. ' +
         'If you cannot find it, take it out of the page: a guess must never stand as a fact, and square brackets must never be left on a page. ' +
+        'Never fill a gap with today\'s date, the current year or a number you worked out: rewrite the sentence so it needs no such detail. ' +
         'Spell the name as the sources spell it. Then finish, and say in your answer which details you could not confirm.',
     };
   }

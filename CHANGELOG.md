@@ -85,6 +85,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   lines inside a block lost their place. A change with as many lines as the
   passage now gives each line the depth of the line it replaces
   (`js/code/patch.js`).
+- **A year a page says a business began in is confirmed only by a source
+  that says so.** HashCoder's check of the details a page states took a
+  year as confirmed if it appeared anywhere in what the run read, so a year
+  from an unrelated sentence, or the year someone started working there,
+  let a made-up founding year stand. It now needs a source that gives that
+  year as when the place began. The note sent back also says never to fill
+  a gap with today's date, the current year or a worked-out number
+  (`js/code/facts.js`, `js/code/verify.js`).
 
 ### Removed
 
