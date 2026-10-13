@@ -1900,6 +1900,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map();
       let lastStop = null, forced = null;   // forced: a turn the app takes for a small model, running the test it was told to (verify.js stopCheck)
+      if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) cdrTraceAdd('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
       let thinkEl = appendThinking(contentEl);
 
       for (;;) {

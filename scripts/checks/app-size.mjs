@@ -789,7 +789,10 @@ const LINE_BUDGET = {
   // 2485, up four: a run that stops at its step limit, or stuck after changing
   // files, runs its finishing checks and asks once for an account of what it
   // did (js/agent-policy.js wrapUp holds the rest).
-  'modes/code/mode.js': 2485,
+  // 2486, up one: a request that gives an address or asks for a lookup, on a
+  // model given no web tools, is read or searched by the app first
+  // (js/code/lookup.js).
+  'modes/code/mode.js': 2486,
 };
 
 console.log('\nFile sizes go down, never up:');

@@ -111,6 +111,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   at a time (`js/page-facts.js`). Without a Tavily key, web search now reads
   DuckDuckGo's results page instead of an endpoint that knew only
   encyclopedia facts. Every read and search still asks first.
+- **HashCoder looks things up for a model that cannot.** A small or
+  mid-sized model, or one in light mode, is given no web tools and used to
+  write what a search "found". When the request gives an address or asks
+  for something to be looked up, HashCoder now reads the address or
+  searches first, asking as always, and the model starts from the results,
+  which light mode shows it as plain words. A request to build a search box
+  or an online shop is not taken as a lookup (`js/code/lookup.js`).
 
 ### Removed
 

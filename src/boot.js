@@ -100,6 +100,7 @@
     '/js/code/merge.js',
     '/js/code/wiring.js',
     '/js/code/light.js',
+    '/js/code/lookup.js',
     '/js/code/router.js',
     '/js/code/export.js',
     '/js/code/debug-export.js',

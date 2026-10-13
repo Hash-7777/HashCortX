@@ -527,8 +527,8 @@
       return `FILE: ${a.path}\n${ticks}\n${body.replace(/\n$/, '')}\n${ticks}`;
     }
     if (name === 'read_file') return `READ: ${a.path}`;
-    // A command in light mode is one HashCortX ran, never the model: it is said in the result, not as a line the model wrote.
-    if (name === 'shell_run') return '';
+    // A command, a search or a page read in light mode is one HashCortX made, never the model: it is said in the result, not as a line the model wrote.
+    if (name === 'shell_run' || name === 'web_search' || name === 'fetch_url') return '';
     return `${name}`;
   }
 
@@ -577,7 +577,36 @@
       if (run) return `HashCortX ran ${command}${run.ended ? ` (${run.ended})` : ''}:\n${TICKS}\n${run.printed}\n${TICKS}`;
       return `HashCortX ran ${command}:\n${TICKS}\n${clip(body, 2500)}\n${TICKS}`;
     }
+    if (name === 'web_search' || name === 'fetch_url') return webText(name, a, body);
     return clip(body, 1500);
+  }
+
+  /**
+   * A search or a page HashCortX read for the model, as words: the results,
+   * or the page's title, how to reach the business, its logo, pictures,
+   * colours and other pages, then its text. The record itself is long JSON,
+   * which a small model reads poorly and which was cut before the page's text.
+   */
+  function webText(name, a, body) {
+    let j = null;
+    try { j = JSON.parse(body); } catch { return clip(body, 1500); }
+    if (!j || typeof j !== 'object') return clip(body, 1500);
+    if (name === 'web_search') {
+      const list = (Array.isArray(j.results) ? j.results : j.results && Array.isArray(j.results.results) ? j.results.results : []).slice(0, 6);
+      const answer = j.results && typeof j.results.answer === 'string' ? `${clip(j.results.answer, 600)}\n` : '';
+      if (!list.length && !answer) return `HashCortX searched the web for "${a.query}" and found nothing. Do not write what a search would have found: leave out what you do not know.`;
+      return `HashCortX searched the web for "${a.query}":\n${answer}${list.map((r) => `- ${clip(r.title || '', 120)}${r.url ? ` (${r.url})` : ''}${r.snippet || r.content ? `: ${clip(r.snippet || r.content, 260)}` : ''}`).join('\n')}\nThese are results, not the pages. Use only what they say.`;
+    }
+    const c = j.contact || {};
+    const lines = [
+      j.title && `Title: ${j.title}`, j.description && `Description: ${j.description}`,
+      ...['phones', 'emails', 'addresses', 'hours', 'social'].filter((k) => Array.isArray(c[k]) && c[k].length).map((k) => `${k[0].toUpperCase()}${k.slice(1)}: ${c[k].join('; ')}`),
+      Array.isArray(j.logos) && j.logos.length && `Logo: ${j.logos[0].url}`,
+      Array.isArray(j.colours) && j.colours.length && `Colours: ${j.colours.join(', ')}`,
+      Array.isArray(j.images) && j.images.length && `Pictures:\n${j.images.slice(0, 8).map((i) => `- ${i.url}${i.alt ? ` (${clip(i.alt, 80)})` : ''}`).join('\n')}`,
+      Array.isArray(j.links) && j.links.length && `Its other pages: ${j.links.slice(0, 8).map((l) => `${clip(l.text, 40)} (${l.url})`).join(', ')}`,
+    ].filter(Boolean);
+    return `HashCortX read ${j.url || a.url}:\n${lines.join('\n')}\n\nThe page's text:\n${clip(String(j.text || ''), 3000)}`;
   }
 
   /**
