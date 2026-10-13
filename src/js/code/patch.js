@@ -478,5 +478,31 @@
     return { text: text.replace(/\n/g, '\r\n'), kept: true };
   }
 
-  window.HCCodePatch = { applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, WHOLE_FROM_LINES, WHOLE_SHARE };
+  // ── A stylesheet or script written inside the tag a page would use ────
+
+  /** The tag a page wraps each kind of file in, by the file's extension. */
+  const WRAPPERS = [
+    [/\.(?:css|scss|sass|less)$/i, 'style'],
+    [/\.(?:m?js|cjs|ts|mts|cts)$/i, 'script'],
+  ];
+
+  /**
+   * `{ text, note }`: `text` without the tag around the whole of it when a
+   * stylesheet is written inside <style>...</style> or a script inside
+   * <script>...</script>, as a model copying from a page does. A browser
+   * reads the tag in such a file as broken code, so the rule after it, or
+   * the whole script, never runs. Only a tag that opens the file and closes
+   * at its end is taken off; one anywhere else is the file's own text.
+   */
+  function unwrapped(name, text) {
+    const t = String(text == null ? '' : text);
+    const tag = (WRAPPERS.find(([re]) => re.test(String(name || ''))) || [])[1];
+    if (!tag) return { text: t, note: '' };
+    const m = new RegExp(`^\\s*<${tag}\\b[^>]*>\\r?\\n?([\\s\\S]*?)\\r?\\n?\\s*</${tag}>\\s*$`, 'i').exec(t);
+    if (!m || new RegExp(`</?${tag}\\b`, 'i').test(m[1])) return { text: t, note: '' };
+    const body = m[1].replace(/^\s*\n/, '');
+    return { text: body.endsWith('\n') ? body : `${body}\n`, note: `The <${tag}> tags around the whole file were taken out: a ${String(name).split('.').pop()} file holds only its code, and a browser reads the tag as broken code.` };
+  }
+
+  window.HCCodePatch = { applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();

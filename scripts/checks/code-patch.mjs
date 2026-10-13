@@ -322,6 +322,27 @@ console.log('\npatch_file writes back the whole file:');
   disk.set('/p/index.html', page);
   err = await attempt('/p/index.html', '<p>line 3</p>', '<p>three</p>');
   ok('patch_file is never held to it, since it changes only its passage', !err && disk.get('/p/index.html').includes('<p>three</p>'), err);
+
+  // A stylesheet or script written inside the tag a page would use.
+  const css = JSON.parse(await writeTool.fn({ path: '/p/styles.css', content: '<style>\n:root { --primary: #123524; }\nbody { margin: 0; }\n</style>' }));
+  ok('write_file takes the <style> tags off a stylesheet written inside them, and says so', disk.get('/p/styles.css') === ':root { --primary: #123524; }\nbody { margin: 0; }\n' && /<style> tags around the whole file were taken out/.test(css.unwrapped || ''));
+  await writeTool.fn({ path: '/p/script.js', content: '<script>\nwindow.addEventListener("DOMContentLoaded", () => {});\n</script>' });
+  ok('...and the <script> tags off a script', disk.get('/p/script.js') === 'window.addEventListener("DOMContentLoaded", () => {});\n');
+  disk.set('/p/own.css', '<style>\na { color: red; }\n</style>\n');
+  err = await attempt('/p/own.css', 'color: red', 'color: blue');
+  ok('a file patched in place keeps whatever it already held', !err && disk.get('/p/own.css') === '<style>\na { color: blue; }\n</style>\n', err);
+}
+
+console.log('\nWhich wrapped files lose the tag:');
+{
+  const U = (n, t) => P.unwrapped(n, t);
+  ok('a stylesheet in each of its kinds', ['a.css', 'a.scss', 'a.less'].every((n) => U(n, '<style>a{}</style>').text === 'a{}\n'));
+  ok('a script in each of its kinds, with attributes on the tag', ['a.js', 'a.mjs', 'a.cjs', 'a.ts'].every((n) => U(n, '<script type="module">\nlet x;\n</script>\n').text === 'let x;\n'));
+  ok('a page keeps its tags', U('index.html', '<style>a{}</style>').note === '' && U('page.htm', '<script>x</script>').note === '');
+  ok('a component that starts with a script tag keeps it', U('App.vue', '<script>x</script>').note === '' && U('C.jsx', '<script>x</script>').note === '' && U('C.svelte', '<script>x</script>').note === '');
+  ok('a tag that does not wrap the whole file is the file\'s own text', U('a.js', 'const t = "<script>";\nconst u = "</script>";').note === '' && U('a.css', '/* x */\n<style>a{}</style>').note === '');
+  ok('two blocks one after another are left as written', U('a.css', '<style>a{}</style>\n<style>b{}</style>').note === '');
+  ok('a plain stylesheet is untouched', U('a.css', 'a { color: red; }\n').text === 'a { color: red; }\n' && U('a.css', 'a{}').note === '');
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/patch.js)`);

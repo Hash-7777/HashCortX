@@ -55,6 +55,9 @@
           'Do not pass null — provide the complete file text.'
         );
       }
+      // A stylesheet or script the agent wrote inside the tag a page would use loses the tag (js/code/patch.js unwrapped); a file patched in place is left as it is.
+      const bare = asked && window.HCCodePatch ? window.HCCodePatch.unwrapped(path, String(content)) : { text: content, note: '' };
+      content = bare.text;
       HC.code.leaveAlone(path);   // what the request says to leave as it is (js/code/keep.js)
       const ok = await HC.guard.request('write', path, reason);
       if (!ok) throw await HC.code.refused('write', path);
@@ -96,6 +99,7 @@
       const removed = window.HCCodeKeep?.note(path.split(/[\\/]/).pop() || path, before, ends.text, HC.code.request) || '';
       return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
         ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}),
+        ...(bare.note ? { unwrapped: bare.note } : {}),
         ...(check ? { check } : {}), ...(removed ? { removed } : {}) });
     },
 
