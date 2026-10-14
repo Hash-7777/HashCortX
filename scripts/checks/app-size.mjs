@@ -531,7 +531,9 @@ const LINE_BUDGET = {
   // 3712, up two: a click on the canvas picks a part only when its press did
   // not take hold of the gizmo or turn the camera; the rule is in
   // js/forge/press.js, and the mode notes where each press began.
-  'modes/forge/mode.js': 3712,
+  // 3710, down two: a prompt sent while a part is made waits for it (js/queue.js),
+  // and the run's try and finally fit on one line.
+  'modes/forge/mode.js': 3710,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
@@ -656,7 +658,9 @@ const LINE_BUDGET = {
   // 2357, up four: a request naming a connected system reads it first, as an
   // attachment, and a conversation holding records a model may not see is
   // not sent to it. The deciding is js/finance/connected.js; this is the wiring.
-  'modes/finance/mode.js': 2357,
+  // 2361, up four: a request sent while one is under way waits in the queue
+  // and is sent when it ends (js/queue.js).
+  'modes/finance/mode.js': 2361,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //

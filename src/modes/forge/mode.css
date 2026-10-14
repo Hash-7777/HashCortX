@@ -1278,3 +1278,12 @@ body.forge-studio-mode #app { display: none; }
   text-align: left;
 }
 .frg-more-item:hover { background: rgba(201,169,110,0.14); color: var(--text); }
+
+/* What is sent while a part is made hangs just below the prompt, over the
+   scene, until the part is done (js/queue.js). */
+.frg-prompt-wrap.hc-queue-host { z-index: 7; }   /* above the scene's toolbar while the card shows, below an open menu */
+.frg-prompt-wrap > .hc-queue {
+  position: absolute; top: calc(100% + 10px); left: 0; right: 0;
+  min-width: 320px; margin: 0;
+  background: linear-gradient(180deg, rgba(201,169,110,0.08), rgba(201,169,110,0.02) 60%), var(--surface-1);
+}

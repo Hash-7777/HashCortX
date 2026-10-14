@@ -78,7 +78,7 @@ const FinanceMode = (() => {
   let activeSessionId = null;
   let chatHistory     = [];
   let currentReport   = null;
-  let abortCtrl       = null;
+  let abortCtrl       = null, finQueue = null, finBusy = false;   // finQueue: what is sent while FinanceAI works waits for it (js/queue.js)
   let mounted         = false;
   let pendingFiles    = [];
   let traceEntries    = [];
@@ -409,6 +409,7 @@ const FinanceMode = (() => {
 
     const input = wrap.querySelector("#finInput");
     const send  = wrap.querySelector("#finSend");
+    finQueue = window.HCQueue ? window.HCQueue.forComposer({ input, before: wrap.querySelector(".fin-composer-box"), when: "Sends when FinanceAI finishes", send: () => submitPrompt(), outcome: () => ({ stopped: !!abortCtrl?.signal?.aborted, failed: !!document.getElementById("finStatusDot")?.classList.contains("error") }) }) : null;
     const fileInput = wrap.querySelector("#finFileInput");
     const attach = wrap.querySelector("#finAttachFile");
     input.addEventListener("keydown", (e) => {
@@ -1006,7 +1007,10 @@ const FinanceMode = (() => {
   }
 
   /* ── submit ─────────────────────────────────────────────────────── */
-  async function submitPrompt() {
+  // A request sent while one is under way ran beside it; now it waits in the queue and is sent when this one ends.
+  async function submitPrompt() { if (finBusy) { finQueue?.hold(); return; } finBusy = true; try { await submitNow(); } finally { finBusy = false; finQueue?.settle(); } }
+
+  async function submitNow() {
     const input = document.getElementById("finInput");
     const send  = document.getElementById("finSend");
     const filesForPrompt = pendingFiles.slice();

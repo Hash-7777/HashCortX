@@ -39,6 +39,7 @@
   let turns = [];
   let deps = null;
   let busy = false;
+  let queue = null, stopped = false;   // what is sent while the agent works, and whether it was stopped (js/queue.js)
   let current = null;   // the agent turn steps are being written under
 
   function save() { write(STORE_KEY, turns.slice(-MAX_KEPT).map(({ el, ...t }) => t)); }
@@ -154,7 +155,10 @@
   function settle() { current = null; }
 
   function setBusy(on) {
+    const was = busy;
     busy = !!on;
+    if (busy) stopped = false;
+    else if (was) queue?.settle();   // what was sent while it worked goes now, or back to the box if it was stopped
     const send = $('sysAgentSend');
     const stop = $('sysAgentStop');
     if (send) send.hidden = busy;
@@ -199,6 +203,7 @@
   function submit() {
     const box = $('sysAgentInput');
     const text = (box?.value || '').trim();
+    if (busy && text) { queue?.hold(); return; }   // it waits for the agent to finish (js/queue.js)
     if (!text || busy || !deps) return;
     box.value = '';
     deps.send(text);
@@ -216,7 +221,8 @@
     $('sysAgentFab')?.addEventListener('click', () => open(!isOpen()));
     $('sysAgentClose')?.addEventListener('click', () => open(false));
     $('sysAgentClear')?.addEventListener('click', () => { if (!busy) clear(); });
-    $('sysAgentStop')?.addEventListener('click', () => deps && deps.stop());
+    $('sysAgentStop')?.addEventListener('click', () => { stopped = true; if (deps) deps.stop(); });
+    queue = window.HCQueue ? window.HCQueue.forComposer({ input: $('sysAgentInput'), before: $('sysAgentForm'), when: 'Sends when the agent finishes', send: submit, outcome: () => ({ stopped }) }) : null;
     $('sysAgentForm')?.addEventListener('submit', (e) => { e.preventDefault(); submit(); });
     $('sysAgentInput')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }

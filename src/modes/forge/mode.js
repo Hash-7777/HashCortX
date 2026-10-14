@@ -64,7 +64,7 @@
   // model is one object. The design finished before any of it started.
   const REVEAL_MS = 260;
 
-  let abortCtrl = null;
+  let abortCtrl = null, frgLast = null, frgQueue = null;   // frgLast: the latest run, to tell whether it was stopped
   // Hand edits are undoable, all the way back to the model as it was built.
   // Each entry is the whole part list before and after one edit: transforms,
   // deletions and duplications are then one mechanism rather than three, and
@@ -2946,15 +2946,12 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
    * still ours: a second run replaces it before the first has unwound.
    */
   async function runGodAgent(useSample) {
+    if (abortCtrl && !useSample) { frgQueue?.hold(); return; }   // a prompt sent while a part is made waits for it, and is made next; it used to stop the part under way (js/queue.js)
     if (!await initThree()) return;
     if (abortCtrl) abortCtrl.abort();
     const ctrl = new AbortController();
-    abortCtrl = ctrl;
-    try {
-      await forgeRun(useSample, ctrl);
-    } finally {
-      if (abortCtrl === ctrl) abortCtrl = null;
-    }
+    abortCtrl = frgLast = ctrl;
+    try { await forgeRun(useSample, ctrl); } finally { if (abortCtrl === ctrl) abortCtrl = null; frgQueue?.settle(); }
   }
 
   async function forgeRun(useSample, ctrl) {
@@ -3425,6 +3422,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
       const back = window._H?.state?._preForgeTab || "chats";
       window._H?.setTab?.(back === "forge" ? "chats" : back);
     });
+    frgQueue = window.HCQueue && $("frgPrompt") ? window.HCQueue.forComposer({ input: $("frgPrompt"), host: $("frgPrompt").closest(".frg-prompt-wrap"), when: "Made when this part is done", send: () => runGodAgent(false), outcome: () => ({ stopped: !!frgLast?.signal?.aborted }) }) : null;
     $("frgPrompt")?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();

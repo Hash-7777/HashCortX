@@ -44,6 +44,7 @@
 
   let deps = null;
   let wired = false;
+  let queue = null, asked = {};   // what is sent while an agent answers, and how the last ask ended (js/queue.js)
   const state = { blueprint: null, runs: [], run: null, rev: 0, file: '', compare: 0, returnFocus: null, asking: null };
 
   function init(d) {
@@ -67,6 +68,7 @@
     $('amkWsMessage')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
+    queue = window.HCQueue && $('amkWsMessage') ? window.HCQueue.forComposer({ input: $('amkWsMessage'), before: $('amkWsMessage'), when: 'Sends when the agent answers', send: () => send(), outcome: () => asked }) : null;
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); } });
   }
 
@@ -347,6 +349,32 @@
 
   /** The line that stands for an answer on its way. */
   function pendingTurn(asking) {
+    const out = document.createDocumentFragment();
+    if (asking.message) {   // the message being asked, which left the box when it was sent
+      const you = document.createElement('article');
+      you.className = 'amk-ws-turn you pending';
+      const head = document.createElement('div');
+      head.className = 'amk-ws-turn-head';
+      const mark = document.createElement('span');
+      mark.className = 'amk-ws-avatar';
+      mark.replaceChildren(ICONS().nodeFor('you'));
+      mark.setAttribute('aria-hidden', 'true');
+      const who = document.createElement('span');
+      who.className = 'amk-ws-name';
+      who.textContent = 'You';
+      head.append(mark, who);
+      const body = document.createElement('div');
+      body.className = 'amk-ws-turn-body';
+      body.textContent = asking.message;
+      you.append(head, body);
+      out.append(you);
+    }
+    out.append(answerPending(asking));
+    return out;
+  }
+
+  /** The agent's turn while its answer is on its way. */
+  function answerPending(asking) {
     const agent = asking.team
       ? { name: 'The team', icon: '' }
       : state.run.agents.find((a) => a.id === asking.agentId) || { name: asking.agentId };
@@ -529,7 +557,7 @@
     const busy = !!state.asking;
     to.disabled = !run || busy;
     pick.disabled = !run || busy || to.value === TEAM;
-    $('amkWsMessage').disabled = !run || busy;
+    $('amkWsMessage').disabled = !run || !!state.asking?.team;   // free to type while an agent answers: what is sent then waits for it (js/queue.js)
     $('amkWsSend').hidden = busy;
     $('amkWsSend').disabled = !run;
     $('amkWsStop').hidden = !busy;
@@ -542,14 +570,18 @@
   /**
    * Send the message to the agent it is for, and keep what comes back.
    *
-   * The message stays in the box until an answer is kept, so a failure or a
-   * Stop loses nothing and needs no retyping. The answer is kept against the
-   * run it was asked of, even if the Workspace was closed while it was coming.
+   * The message leaves the box for the conversation while it is asked, so the
+   * box is free for the next one, which waits for this answer (js/queue.js).
+   * A failure or a Stop puts it back in the box, before anything typed since,
+   * so nothing is lost and nothing needs retyping. The answer is kept against
+   * the run it was asked of, even if the Workspace was closed while it was
+   * coming.
    */
   async function send() {
     const run = state.run;
     const box = $('amkWsMessage');
     const raw = box.value.trim();
+    if (raw && state.asking && !state.asking.team) { queue?.hold(); return; }
     if (!run || !raw || state.asking) return;
     const T = TALK();
     const who = T.addressee(run, raw);
@@ -561,7 +593,9 @@
     if (!who.text) { note(`Say what you would like ${agent.name} to do.`, 'err'); return; }
     const base = currentFiles();
     const rev = state.rev;
-    state.asking = { runId: run.id, agentId, controller: new AbortController() };
+    state.asking = { runId: run.id, agentId, message: raw, controller: new AbortController() };
+    asked = {};
+    box.value = '';
     note(`Asking ${agent.name}…`);
     draw();
     try {
@@ -581,7 +615,6 @@
       state.runs = state.runs.map((r) => (r.id === next.id ? next : r));
       if (state.run?.id === next.id) {
         state.run = next;
-        box.value = '';
         if (changed.length) { state.rev = latestRev(next); state.file = changed[0]; }
       }
       note(changed.length
@@ -592,11 +625,14 @@
       changed.length ? 'ok' : unnamedCode ? 'err' : '');
     } catch (err) {
       const stopped = err?.name === 'AbortError' || state.asking?.controller.signal.aborted;
-      note(stopped ? 'Stopped. Your message is still in the box.' : err?.held ? err.message : `${agent.name} could not answer: ${err?.message || err}`, stopped ? '' : 'err');
+      asked = { stopped, failed: !stopped };
+      box.value = box.value.trim() ? `${raw}\n\n${box.value.trim()}` : raw;   // back in the box, before anything typed since
+      note(stopped ? 'Stopped. Your message is back in the box.' : err?.held ? err.message : `${agent.name} could not answer: ${err?.message || err}`, stopped ? '' : 'err');
     } finally {
       state.asking = null;
       draw();
       if (isOpen()) box.focus();
+      queue?.settle();
     }
   }
 

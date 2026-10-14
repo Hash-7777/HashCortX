@@ -301,11 +301,15 @@ console.log('\nThe message box:');
   ok('the mode asks the agent with no tools, on the model it is given', /askAgent: async \(agent, messages, signal, model\) => \(await callAgentLLM\(model \|\| agent\.model, messages, signal, agent\.temperature\)\)/.test(mode));
   ok('the mode hands over its model list and how to name a model', /models: menuModels, label: \(v\) => menuModels\(\)\.find\(/.test(mode));
   ok('the change is made to the version on screen', /const base = currentFiles\(\);[\s\S]*?T\.withReply\(run, \{[^}]*base \}\)/.test(ws));
-  ok('the message is cleared only once the answer is kept', (() => {
+  ok('the message leaves the box while it is asked, shown as the person\'s turn, and a failure or a stop puts it back before anything typed since', (() => {
     const body = /async function send\(\)[\s\S]*?\n  \}\n/.exec(ws)?.[0] || '';
-    const saved = body.indexOf('saveRun(next)'); const cleared = body.indexOf("box.value = ''");
-    return saved > 0 && cleared > saved;
+    const asking = body.indexOf('state.asking = { runId: run.id, agentId, message: raw,'); const cleared = body.indexOf("box.value = '';");
+    return asking > 0 && cleared > asking && !/state\.run = next;\s*box\.value = ''/.test(body)
+      && /catch \(err\) \{[\s\S]*?box\.value = box\.value\.trim\(\) \? `\$\{raw\}\\n\\n\$\{box\.value\.trim\(\)\}` : raw;/.test(body)
+      && /if \(asking\.message\) \{[\s\S]*?body\.textContent = asking\.message;/.test(ws);
   })());
+  ok('a message sent while an agent answers waits for it, and the box stays open to type in', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws)
+    && /\$\('amkWsMessage'\)\.disabled = !run \|\| !!state\.asking\?\.team;/.test(ws) && /if \(isOpen\(\)\) box\.focus\(\);\s*queue\?\.settle\(\);/.test(ws));
   ok('Stop cancels the request', /state\.asking\?\.controller\.abort\(\)/.test(ws) && /signal: state\.asking\.controller\.signal/.test(ws));
   ok('the answer is kept against the run it was asked of', /state\.runs = state\.runs\.map\(\(r\) => \(r\.id === next\.id \? next : r\)\)/.test(ws));
 }

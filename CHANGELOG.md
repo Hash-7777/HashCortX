@@ -25,7 +25,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   kept (`js/queue.js`). The queue is a card that rises in above the box and
   hovers there, a light sweeping its edge and a dot pulsing beside a count,
   each message numbered as it slides in, and it lifts away when sent; the
-  motion stops for anyone who asks their system for less.
+  motion stops for anyone who asks their system for less. Finance, where a
+  second request ran beside the first, 3D Forge, where a new prompt stopped
+  the part being made, the ERP agent and the Agent Swarm's workspace queue
+  the same way; in Forge the card hangs below the prompt, and in the
+  Swarm's workspace the box stays open while an agent answers, the message
+  being asked shown in the conversation and put back in the box if the
+  answer fails or is stopped.
 - **Where a local model runs is a setting.** Settings, General, "Where local
   models run": Automatic, the default, where Ollama puts as much of a model
   as fits on the graphics chip and the rest in main memory; Graphics chip

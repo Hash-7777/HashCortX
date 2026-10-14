@@ -63,11 +63,13 @@
 
   /**
    * A queue for one composer. `input` is its text box; `before` the element
-   * the queue is drawn above; `when` what it says about when it is sent;
+   * the queue is drawn above, or `host` an element it is drawn at the end of
+   * (a one-line prompt in a bar, where it hangs below); `when` what it says
+   * about when it is sent;
    * `send()` sends what is in the box; `outcome()` says how the work that
    * just ended went, `{ stopped, failed }`.
    */
-  function forComposer({ input, before, when = 'Sends when the reply finishes', send = null, outcome = () => ({}) } = {}) {
+  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}) } = {}) {
     const q = create();
     const doc = (input && input.ownerDocument) || (typeof document !== 'undefined' ? document : null);
     let box = null, list = null;
@@ -83,7 +85,7 @@
     let leaving = 0;         // the timer of the card lifting away once the queue is sent
 
     function draw() {
-      if (!doc || !before || !before.parentNode) return;
+      if (!doc || !(host || (before && before.parentNode))) return;
       if (!box) {
         box = doc.createElement('div');
         box.className = 'hc-queue';
@@ -97,7 +99,7 @@
         list = doc.createElement('ol');
         list.className = 'hc-queue-list';
         box.append(head, list);
-        before.parentNode.insertBefore(box, before);
+        if (host) host.append(box); else before.parentNode.insertBefore(box, before);
         list.addEventListener('click', (e) => {
           const row = e.target.closest('.hc-queue-item');
           if (!row) return;
@@ -112,11 +114,12 @@
         shown = new Set();
         if (box.hidden || leaving) return;
         box.classList.add('hc-queue--leaving');
-        leaving = setTimeout(() => { leaving = 0; box.classList.remove('hc-queue--leaving'); if (!q.size) box.hidden = true; }, 220);
+        leaving = setTimeout(() => { leaving = 0; box.classList.remove('hc-queue--leaving'); if (!q.size) { box.hidden = true; host?.classList.remove('hc-queue-host'); } }, 220);
         return;
       }
       if (leaving) { clearTimeout(leaving); leaving = 0; box.classList.remove('hc-queue--leaving'); }
       box.hidden = false;
+      host?.classList.add('hc-queue-host');   // a host can rise above what the card hangs over while it shows
       box.querySelector('.hc-queue-count').textContent = items.length > 1 ? String(items.length) : '';
       list.textContent = '';
       items.forEach((m, i) => {

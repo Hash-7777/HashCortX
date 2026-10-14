@@ -154,6 +154,16 @@ console.log('\nThe workspaces:');
     && coder.indexOf('const added = messages === conversationMsgs') < coder.indexOf("turn = forced || await callWithRouter("));
   ok('...shown where it was read, outside the steps that fold, live and when drawn again', /window\.HCCodeSteps\.added\(contentEl, added\.text\); scrollMessages\(\);/.test(coder) && /if \(m\.role === 'user' && m\.added && reply\) \{ window\.HCCodeSteps\.added\(reply, m\.content\); return; \}/.test(coder));
   ok('...a stop or error hands the queue back, for a run and for Regenerate', /outcome = \{ stopped: e\.name === 'AbortError', failed: e\.name !== 'AbortError' \};/.test(coder) && /setRouterChip\('Auto', ''\); coderQueue\?\.settle\(\);/.test(coder));
+  const erp = src('js', 'systems', 'agent-chat.js');
+  ok('the ERP agent: a message sent while it works waits, and goes when it is no longer busy, or back to the box after Stop', /if \(busy && text\) \{ queue\?\.hold\(\); return; \}/.test(erp) && /else if \(was\) queue\?\.settle\(\);/.test(erp) && /\{ stopped = true; if \(deps\) deps\.stop\(\); \}/.test(erp));
+  const fin = src('modes', 'finance', 'mode.js');
+  ok('Finance: a request sent while one is under way waits for it, rather than running beside it', /async function submitPrompt\(\) \{ if \(finBusy\) \{ finQueue\?\.hold\(\); return; \} finBusy = true; try \{ await submitNow\(\); \} finally \{ finBusy = false; finQueue\?\.settle\(\); \} \}/.test(fin)
+    && /outcome: \(\) => \(\{ stopped: !!abortCtrl\?\.signal\?\.aborted, failed: !!document\.getElementById\("finStatusDot"\)\?\.classList\.contains\("error"\) \}\)/.test(fin));
+  const forge = src('modes', 'forge', 'mode.js');
+  ok('3D Forge: a prompt sent while a part is made waits and is made next, instead of stopping the part under way', /if \(abortCtrl && !useSample\) \{ frgQueue\?\.hold\(\); return; \}/.test(forge) && /finally \{ if \(abortCtrl === ctrl\) abortCtrl = null; frgQueue\?\.settle\(\); \}/.test(forge)
+    && forge.indexOf('frgQueue?.hold()') < forge.indexOf('if (abortCtrl) abortCtrl.abort();'));
+  const ws = src('js', 'swarm', 'workspace.js');
+  ok('the Agent Swarm: a message sent while an agent answers waits for that answer', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws) && /queue\?\.settle\(\);/.test(ws));
   const css = src('css', 'composer.css');
   const frames = [...css.matchAll(/@keyframes (hcq-[\w-]+) \{([^@]*?)\}\s*(?=@keyframes|\n\n|$)/g)];
   ok('the card\'s motion only moves and fades, never a shadow or a filter, so it costs the page next to nothing', frames.length >= 5 && frames.every(([, , body]) => !/(box-shadow|filter|width|height|top|left|background)\s*:/.test(body)), frames.map((f) => f[1]).join());
