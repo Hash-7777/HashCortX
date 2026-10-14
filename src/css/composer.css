@@ -242,41 +242,115 @@
   }
 
 
-  /* ========= Messages queued while a model works (js/queue.js) ========= */
+  /* ========= Messages queued while a model works (js/queue.js) =========
+     A card that floats just above the box while it waits: it rises in, hovers
+     a few pixels up and down, a thin light sweeps its top edge, and it lifts
+     away when the queue is sent. Every motion is a transform or an opacity on
+     a small element, and runs only while the card is shown (a hidden card is
+     display: none). Colours come from the workspace's own --accent, with a
+     plain one before it for an engine without color-mix. */
   .hc-queue {
-    margin: 0 0 8px;
-    padding: 8px 10px;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    background: rgba(255,255,255,0.025);
+    position: relative;
+    margin: 0 0 10px;
+    padding: 10px 10px 8px 12px;
+    border: 1px solid rgba(34,211,238,0.28);
+    border-color: color-mix(in srgb, var(--accent) 34%, transparent);
+    border-radius: var(--radius-md);
+    background: linear-gradient(180deg, rgba(34,211,238,0.07), rgba(34,211,238,0.015) 60%), rgba(10,12,14,0.86);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent), color-mix(in srgb, var(--accent) 2%, transparent) 60%), rgba(10,12,14,0.86);
+    box-shadow: 0 12px 30px -18px rgba(34,211,238,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow: 0 12px 30px -18px color-mix(in srgb, var(--accent) 70%, transparent), inset 0 1px 0 rgba(255,255,255,0.05);
+    overflow: hidden;
+    animation: hcq-in .34s cubic-bezier(.2,.8,.2,1) both, hcq-float 5.5s ease-in-out .34s infinite;
   }
   .hc-queue[hidden] { display: none; }
+  .hc-queue::before {
+    content: "";
+    position: absolute; top: 0; left: 0;
+    width: 35%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(34,211,238,0.9), transparent);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: hcq-sweep 3.2s cubic-bezier(.45,0,.55,1) infinite;
+    pointer-events: none;
+  }
+  .hc-queue--leaving { animation: hcq-out .22s ease-in both; }
+  .hc-queue--leaving::before { animation: none; opacity: 0; }
+
   .hc-queue-head {
-    display: flex; align-items: baseline; gap: 8px;
-    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 7px;
     font-size: 11px;
   }
-  .hc-queue-title { color: var(--text); font-weight: 600; }
-  .hc-queue-when { color: var(--muted); }
+  .hc-queue-pulse {
+    position: relative;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    flex: 0 0 auto;
+  }
+  .hc-queue-pulse::after {
+    content: "";
+    position: absolute; inset: -4px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    animation: hcq-ping 1.8s ease-out infinite;
+  }
+  .hc-queue-title { color: var(--text); font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; }
+  .hc-queue-count:not(:empty) {
+    min-width: 18px; height: 16px; padding: 0 5px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 10px; color: var(--accent);
+    border: 1px solid rgba(34,211,238,0.35);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 999px;
+  }
+  .hc-queue-when { margin-left: auto; color: var(--muted); }
+
   .hc-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .hc-queue-item {
-    display: flex; align-items: center; gap: 8px;
-    min-width: 0;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+    min-height: 32px; padding: 4px 4px 4px 8px;
     font-size: 12.5px;
-    color: var(--text-dim);
+    color: var(--text);
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.025);
+    transition: background .18s, border-color .18s, transform .18s;
   }
-  .hc-queue-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hc-queue-item:hover, .hc-queue-item:focus-within {
+    background: rgba(34,211,238,0.06);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border-color: rgba(34,211,238,0.24);
+    border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+    transform: translateX(2px);
+  }
+  .hc-queue-item--new { animation: hcq-item-in .3s cubic-bezier(.2,.8,.2,1) both; }
+  .hc-queue-n { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--accent); opacity: .85; }
+  .hc-queue-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
   .hc-queue-item button {
-    flex: 0 0 auto;
     display: inline-flex; align-items: center; justify-content: center;
-    height: 22px; min-width: 22px; padding: 0 7px;
+    height: 24px; min-width: 24px; padding: 0 8px;
     font: inherit; font-size: 11px;
     color: var(--text-dim);
     background: transparent;
     border: 1px solid transparent;
     border-radius: var(--radius-sm);
     cursor: pointer;
+    opacity: .6;
+    transition: opacity .15s, color .15s, border-color .15s;
   }
+  .hc-queue-item:hover button, .hc-queue-item:focus-within button { opacity: 1; }
   .hc-queue-item button:hover { color: var(--text); border-color: var(--line-strong); }
-  .hc-queue-item button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
-  .hc-queue-drop { padding: 0 4px; }
+  .hc-queue-item button:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hc-queue-drop { padding: 0 5px; }
+
+  @keyframes hcq-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+  @keyframes hcq-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+  @keyframes hcq-sweep { from { transform: translateX(-110%); } to { transform: translateX(300%); } }
+  @keyframes hcq-ping { from { opacity: .7; transform: scale(.6); } to { opacity: 0; transform: scale(1.6); } }
+  @keyframes hcq-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes hcq-out { to { opacity: 0; transform: translateY(-12px) scale(.98); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hc-queue, .hc-queue::before, .hc-queue-pulse::after, .hc-queue-item--new, .hc-queue--leaving { animation: none; }
+    .hc-queue-item:hover, .hc-queue-item:focus-within { transform: none; }
+  }

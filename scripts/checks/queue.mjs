@@ -154,6 +154,11 @@ console.log('\nThe workspaces:');
     && coder.indexOf('const added = messages === conversationMsgs') < coder.indexOf("turn = forced || await callWithRouter("));
   ok('...shown where it was read, outside the steps that fold, live and when drawn again', /window\.HCCodeSteps\.added\(contentEl, added\.text\); scrollMessages\(\);/.test(coder) && /if \(m\.role === 'user' && m\.added && reply\) \{ window\.HCCodeSteps\.added\(reply, m\.content\); return; \}/.test(coder));
   ok('...a stop or error hands the queue back, for a run and for Regenerate', /outcome = \{ stopped: e\.name === 'AbortError', failed: e\.name !== 'AbortError' \};/.test(coder) && /setRouterChip\('Auto', ''\); coderQueue\?\.settle\(\);/.test(coder));
+  const css = src('css', 'composer.css');
+  const frames = [...css.matchAll(/@keyframes (hcq-[\w-]+) \{([^@]*?)\}\s*(?=@keyframes|\n\n|$)/g)];
+  ok('the card\'s motion only moves and fades, never a shadow or a filter, so it costs the page next to nothing', frames.length >= 5 && frames.every(([, , body]) => !/(box-shadow|filter|width|height|top|left|background)\s*:/.test(body)), frames.map((f) => f[1]).join());
+  ok('...and stops for a person who asks for less motion', /@media \(prefers-reduced-motion: reduce\) \{\s*\.hc-queue, \.hc-queue::before, \.hc-queue-pulse::after, \.hc-queue-item--new, \.hc-queue--leaving \{ animation: none; \}/.test(css));
+  ok('...and a hidden card is not drawn at all, so nothing moves while nothing waits', /\.hc-queue\[hidden\] \{ display: none; \}/.test(css));
   ok('it loads before the app and every mode', src('boot.js').indexOf("'/js/queue.js'") > 0 && src('boot.js').indexOf("'/js/queue.js'") < src('boot.js').indexOf("'/js/app.js'"));
   ok('this check is part of npm run check', /npm run check:queue\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }

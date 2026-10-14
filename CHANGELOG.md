@@ -22,7 +22,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   checks hold it to the request and what was added. What is still queued
   when a run ends is sent next. A reply that was stopped or failed hands
   the queue back to the box instead, and anything being typed in the box is
-  kept (`js/queue.js`).
+  kept (`js/queue.js`). The queue is a card that rises in above the box and
+  hovers there, a light sweeping its edge and a dot pulsing beside a count,
+  each message numbered as it slides in, and it lifts away when sent; the
+  motion stops for anyone who asks their system for less.
 - **Where a local model runs is a setting.** Settings, General, "Where local
   models run": Automatic, the default, where Ollama puts as much of a model
   as fits on the graphics chip and the rest in main memory; Graphics chip

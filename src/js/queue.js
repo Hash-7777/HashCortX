@@ -79,16 +79,20 @@
       try { input.focus(); input.setSelectionRange(text.length, text.length); } catch { /* not focusable here */ }
     };
 
+    let shown = new Set();   // ids already drawn, so only a new message slides in
+    let leaving = 0;         // the timer of the card lifting away once the queue is sent
+
     function draw() {
       if (!doc || !before || !before.parentNode) return;
       if (!box) {
         box = doc.createElement('div');
         box.className = 'hc-queue';
+        box.hidden = true;
         box.setAttribute('role', 'region');
         box.setAttribute('aria-label', 'Queued messages');
         const head = doc.createElement('div');
         head.className = 'hc-queue-head';
-        head.innerHTML = '<span class="hc-queue-title">Queued</span><span class="hc-queue-when"></span>';
+        head.innerHTML = '<span class="hc-queue-pulse" aria-hidden="true"></span><span class="hc-queue-title">Queued</span><span class="hc-queue-count"></span><span class="hc-queue-when"></span>';
         head.querySelector('.hc-queue-when').textContent = when;
         list = doc.createElement('ol');
         list.className = 'hc-queue-list';
@@ -103,12 +107,26 @@
         });
       }
       const items = q.items;
-      box.hidden = !items.length;
+      // Sent or taken back whole: the card lifts away, then is hidden.
+      if (!items.length) {
+        shown = new Set();
+        if (box.hidden || leaving) return;
+        box.classList.add('hc-queue--leaving');
+        leaving = setTimeout(() => { leaving = 0; box.classList.remove('hc-queue--leaving'); if (!q.size) box.hidden = true; }, 220);
+        return;
+      }
+      if (leaving) { clearTimeout(leaving); leaving = 0; box.classList.remove('hc-queue--leaving'); }
+      box.hidden = false;
+      box.querySelector('.hc-queue-count').textContent = items.length > 1 ? String(items.length) : '';
       list.textContent = '';
-      for (const m of items) {
+      items.forEach((m, i) => {
         const row = doc.createElement('li');
-        row.className = 'hc-queue-item';
+        row.className = 'hc-queue-item' + (shown.has(m.id) ? '' : ' hc-queue-item--new');
         row.dataset.id = String(m.id);
+        const n = doc.createElement('span');
+        n.className = 'hc-queue-n';
+        n.setAttribute('aria-hidden', 'true');
+        n.textContent = String(i + 1).padStart(2, '0');
         const text = doc.createElement('span');
         text.className = 'hc-queue-text';
         text.textContent = m.text;
@@ -124,9 +142,10 @@
         drop.innerHTML = REMOVE_SVG;
         drop.setAttribute('aria-label', 'Remove this message from the queue');
         drop.title = 'Remove';
-        row.append(text, editBtn, drop);
+        row.append(n, text, editBtn, drop);
         list.append(row);
-      }
+      });
+      shown = new Set(items.map((m) => m.id));
     }
 
     /** Take a message back into the box to edit, before what is already there. */

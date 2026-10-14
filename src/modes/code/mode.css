@@ -452,7 +452,7 @@ body.coder-mode #app { display: none; }
   border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-md); background: var(--surface-1);
 }
 .cdr-input-wrap:focus-within { border-color: var(--accent); }
-.cdr-composer > .hc-queue { max-width: var(--cdr-col); margin: 0 auto 8px; border-color: var(--cdr-border-strong); background: var(--surface-1); }   /* as wide as the box it waits above (js/queue.js) */
+.cdr-composer > .hc-queue { max-width: var(--cdr-col); margin: 0 auto 10px; }   /* as wide as the box it waits above (js/queue.js) */
 .cdr-task-input {
   width: 100%; min-height: 44px; max-height: 320px; resize: none; padding: 4px 0;
   border: 0; outline: none; background: transparent; color: var(--cdr-text);
