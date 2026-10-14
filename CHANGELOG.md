@@ -206,6 +206,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   command has run: the model is told it would fail the same way, that its
   output is above, and to read and change the file it points to first. A
   test run again after a change always runs (`js/code/calls.js`).
+- **A call a model writes inside the tag results come back in is run.** A
+  model on this computer, after a few results, wrote its next calls inside
+  `<tool_response>` instead of `<tool_call>`; they were shown as its answer
+  and never ran. A whole call in that tag is now read as a call, and hidden
+  from the reply while it is written; a result copied into it is not
+  (`js/tool-text.js`).
 
 ### Removed
 

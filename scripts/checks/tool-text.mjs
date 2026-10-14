@@ -161,6 +161,16 @@ console.log('\nA plan whose steps are json blocks of calls:');
   ok('a code block of the page itself is passed over, not read as a step', T.callsIn(['Here is the page:', `${F}html\n<h1>x</h1>\n${F}`, 'Now save it.', block('{"name": "write_file", "arguments": {"path": "a.html", "content": "<h1>x</h1>"}}'), 'Done.'].join('\n'), coder, null, must).length === 1);
 }
 
+console.log('\nA call written inside the tag a result comes back in:');
+{
+  const names = ['read_file', 'patch_file', 'shell_run'];
+  const got = T.callsIn('<tool_response>\n{"name": "patch_file", "arguments": {"path": "src/range.js", "search": "n < end", "replace": "n <= end"}}\n</tool_response>', names);
+  ok('it is read as the call it is', got.length === 1 && got[0].name === 'patch_file' && got[0].arguments.replace === 'n <= end', JSON.stringify(got));
+  ok('...closed or not', T.callsIn('<tool_response>\n{"name": "shell_run", "arguments": {"command": "npm", "args": ["test"]}}', names).length === 1);
+  ok('a result copied into it is not a call', T.callsIn('<tool_response>\n{"error": "patch_file failed: search string not found"}\n</tool_response>', names).length === 0);
+  ok('nor is a folder listing whose entries have names', T.callsIn('<tool_response>[{"name": "index.html", "path": "/p/index.html", "is_dir": false}]</tool_response>', names).length === 0);
+}
+
 console.log('\nThe pieces:');
 ok('the first whole JSON value inside text', T.parseJson('Here: {"a": {"b": "}"}} done').a.b === '}');
 ok('keyword arguments with every kind of value', (() => { const k = T.kwargs('a="x, y", b=2.5, c=True, d=None, e=[1, 2]'); return k.a === 'x, y' && k.b === 2.5 && k.c === true && k.d === null && k.e.length === 2; })());

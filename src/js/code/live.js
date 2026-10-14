@@ -38,7 +38,7 @@
   'use strict';
 
   // How a reply that is calls written as text begins, outside a code block.
-  const CALL_START = /^\s*(?:[{[]|<tool_call>|<function|<\|?tool)/i;
+  const CALL_START = /^\s*(?:[{[]|<tool_call>|<tool_response>|<function|<\|?tool)/i;
 
   /**
    * Whether text so far is a tool call being written, rather than words for
@@ -57,8 +57,8 @@
   }
 
   // A call written as text: the opening of a call object, or a tool-call tag.
-  const CALL_BODY = /^\s*(?:<tool_call>|<function|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
-  const CALL_LINE = /(^|\n)[ \t]*(?:<tool_call>|<function[=>]|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
+  const CALL_BODY = /^\s*(?:<tool_call>|<tool_response>|<function|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
+  const CALL_LINE = /(^|\n)[ \t]*(?:<tool_call>|<tool_response>|<function[=>]|\[?\s*\{\s*"(?:name|function|tool)"\s*:)/i;
 
   /**
    * The words of `text` for the person, `{ words, call }`: the text with any

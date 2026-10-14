@@ -10,7 +10,9 @@
 //
 // The ways local models write a call are read here:
 //
-//   <tool_call>{"name": …, "arguments": …}</tool_call>, one or several
+//   <tool_call>{"name": …, "arguments": …}</tool_call>, one or several,
+//   and the same inside <tool_response>, the tag a result comes back in,
+//   which a model on this computer wrote its calls in once it had seen a few
 //   <|tool_call|>…<|/tool_call|>, and a list after <|tool_call|>
 //   <function=name>{…}</function>, and <function=name> with one
 //   <parameter=key>value</parameter> per argument, closing tags optional
@@ -167,6 +169,7 @@
     /<\|tool_call\|>\s*([\s\S]*?)\s*(?:<\|\/tool_call\|>|<\|end\|>|$)/g,
     /<function_call>\s*([\s\S]*?)\s*(?:<\/function_call>|$)/g,
     /<tool_calls?>\s*([\s\S]*?)\s*<\/tool_calls?>/g,
+    /<tool_response>\s*([\s\S]*?)\s*(?:<\/tool_response>|$)/g,   // a call in it counts; a result copied into it names no tool
   ];
 
   /** Calls marked as calls, wherever they sit. */

@@ -31,7 +31,7 @@ function ok(label, cond, detail = '') {
 
 console.log('A call being written is not shown as words:');
 {
-  const calls = ['{"name": "read_file"', '  [{"name"', '<tool_call>{"name"', '<function=read_file>', '```json\n{"name"', '```json', '```tool_code\n[{'];
+  const calls = ['{"name": "read_file"', '  [{"name"', '<tool_call>{"name"', '<tool_response>\n{"name"', '<function=read_file>', '```json\n{"name"', '```json', '```tool_code\n[{'];
   for (const t of calls) ok(`${JSON.stringify(t.slice(0, 18))} is a call`, L.looksLikeCalls(t));
   const words = ['I will read the stylesheet first.', 'Here is what changed:\n\n```js\nconst a = 1;\n```', 'The page `{}` was empty.', ''];
   for (const t of words) ok(`${JSON.stringify(t.slice(0, 18))} is words`, !L.looksLikeCalls(t));
@@ -49,6 +49,8 @@ console.log('\nA call written after words is left out of them:');
   ok('a bare call on its own line goes, with everything after it', bare.call && bare.words === 'Reading the stylesheet now.');
   const tag = W('Next step.\n<tool_call>{"name": "list_dir"');
   ok('a call in tool-call tags goes', tag.call && tag.words === 'Next step.');
+  const resp = W('Fixing it now.\n<tool_response>\n{"name": "patch_file", "arguments": {"path": "a.js"');
+  ok('so does one in the tag a result comes back in', resp.call && resp.words === 'Fixing it now.');
   const code = W('Here is the change:\n\n```js\nconst a = { name: 1 };\n```');
   ok('real code stays, and is no call', !code.call && /```js\nconst a = \{ name: 1 \};\n```/.test(code.words));
   const data = W('The file holds:\n\n```json\n{"version": 2}\n```');
