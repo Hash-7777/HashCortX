@@ -534,7 +534,7 @@
     if (!log || log.changed.length || sentBack >= limit) return null;
     if (/\?\s*$/.test(String(reply || '').trim()) && !wordsToo) return null;   // asking the person something
     const request = requestIn(messages);
-    if (!CHANGE_WORDS.test(request)) return null;
+    if (!CHANGE_WORDS.test(request) || KEEP_FILES.test(request)) return null;   // "do not change any files" names a change and asks for none
     if (codeBlocks(reply)) {
       return {
         kind: 'make',
@@ -544,7 +544,7 @@
           'you changed. If it only asked a question, answer it and change nothing.',
       };
     }
-    if (!wordsToo || KEEP_FILES.test(request)) return null;
+    if (!wordsToo) return null;
     return {
       kind: 'make',
       step: MADE_STEP,

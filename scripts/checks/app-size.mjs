@@ -794,7 +794,9 @@ const LINE_BUDGET = {
   // (js/code/lookup.js).
   // 2487, up one: what a run took out unasked and is still gone sends it back
   // once before it finishes, then is said under the answer (js/code/keep.js).
-  'modes/code/mode.js': 2487,
+  // 2488, up one: a change a smaller model writes as a diff in its reply is
+  // made through patch_file, beside light mode's files (js/code/diffs.js).
+  'modes/code/mode.js': 2488,
 };
 
 console.log('\nFile sizes go down, never up:');

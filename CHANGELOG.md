@@ -219,6 +219,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   HashCoder runs the test itself, through the same permission as any
   command, and the line under the answer says what it showed, as it
   already did for small models.
+- **A fix a model writes as a diff is made.** Asked to fix a failing
+  test, a mid-sized model wrote the fix as a diff in its reply and changed
+  nothing, and wrote it again when sent back. For models below the largest,
+  when the request asks for a change and none has been made, each file in
+  a diff in the reply is now changed through patch_file, its hunks together
+  or not at all, and a file the diff creates is written; it is shown with
+  Keep and Undo like any change, and a diff that does not match the file
+  fails as any patch does. A request that says not to change any files is
+  never read as asking for one (`js/code/diffs.js`).
 
 ### Removed
 

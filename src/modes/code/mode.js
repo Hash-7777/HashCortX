@@ -1945,7 +1945,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         }
         // Light mode: the files in its answer become the calls a larger model makes, and a file not written whole is asked for again, twice at most (js/code/light.js).
         const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path), { known: window.HCCodeLight.knownFiles(sharedState.codeMap?.whole), hints: window.HCCodeLight.pathsIn(HC.code.request), rename: window.HCCodeVerify?.renameOf(window.HCCodeVerify.requestIn(messages)) }) : null;
-        if (lit?.calls.length) turn = { ...turn, content: lit.said, tool_calls: lit.calls };
+        const dif = !lit && sharedState.size !== 'full' && !turn.tool_calls?.length && window.HCCodeVerify.unmadeChange(proof, messages, turn.content || '', 0, 1) ? window.HCCodeDiffs.turnOf(turn.content) : null;   // a change a smaller model wrote as a diff, when the request asks for one and none is made (js/code/diffs.js)
+        if (lit?.calls.length || dif) turn = { ...turn, content: (lit || dif).said, tool_calls: (lit || dif).calls };
         if (lit?.note && sent.light++ < 2) {
           if (lit.calls.length) loopNote = lit.note;
           else { thinkEl?.finish(''); messages.push({ role: 'assistant', content: turn.content }, { role: 'user', content: lit.note, note: true }); appendStep(contentEl, { verb: 'CHECK', object: 'Asked to write a file again, whole', status: '' }); thinkEl = appendThinking(contentEl, { checking: true }); continue; }

@@ -102,6 +102,7 @@
     '/js/code/light.js',
     '/js/code/lookup.js',
     '/js/code/calls.js',
+    '/js/code/diffs.js',
     '/js/code/router.js',
     '/js/code/export.js',
     '/js/code/debug-export.js',
