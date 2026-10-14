@@ -24,8 +24,11 @@
 //     needs of the rest.
 //   · A call that failed is not made again exactly as it was while nothing
 //     has changed since: it would fail the same way. The answer is its
-//     failure, and says so. A command is left to run again, since what it
-//     depends on is not all known here.
+//     failure, and says so. A command that failed, a test that did not pass
+//     among them, counts too: a model ran a failing test three times in a
+//     row and never opened the file it named. Any file written and any other
+//     command count as a change, since a command may change anything, so a
+//     test run again after a fix always runs.
 //   · A read of something the run has not changed since, whose answer the
 //     model is still being shown whole, is answered with a line saying so,
 //     once; asked again, it is read. Whether the earlier answer is still
@@ -162,6 +165,11 @@
     return args && (args.start_line != null || args.end_line != null) ? null : { from: 1, to: Infinity, last: true };
   }
 
+  /** Whether a command's result says it failed: an exit code other than 0, or out of time. */
+  function commandFailed(result) {
+    try { const o = JSON.parse(result); return !!o && typeof o === 'object' && ((typeof o.code === 'number' && o.code !== 0) || o.timedOut === true); } catch { return false; }
+  }
+
   /** The text of a failure, from what the tool gave back. */
   function errorOf(result) {
     try { const o = JSON.parse(result); if (o && o.error != null) return String(o.error); } catch { /* not JSON */ }
@@ -169,6 +177,16 @@
   }
 
   const SAME_FAILURE = 'This exact call failed this way before, and nothing has changed since, so it was not made again: it would fail the same way. Change what it asks, or do something else.';
+  const SAME_COMMAND = 'No file has changed since, so it was not run again: it would fail the same way, and its output is above. Read the file and the line its output points to, change it, then run it again.';
+
+  /** How a failed command is named in that answer. */
+  function commandLine(call, result) {
+    const a = call.arguments || {};
+    const line = [a.command, ...(Array.isArray(a.args) ? a.args : [])].filter((x) => x != null && x !== '').join(' ') || (call.name === 'execute_python' ? 'This code' : call.name);
+    let how = 'failed';
+    try { const o = JSON.parse(result); if (o && o.timedOut === true) how = 'ran out of time'; else if (o && typeof o.code === 'number') how = `failed with exit code ${o.code}`; else if (o && o.error != null) how = `failed: ${String(o.error).slice(0, 200)}`; } catch { /* not JSON */ }
+    return `\`${line}\` ${how} just now.`;
+  }
 
   /** What a read answered again is told, by tool. */
   function unchanged(call, step) {
@@ -216,7 +234,7 @@
         const lack = tool ? missing(call.name, call.arguments, tool) : '';
         if (lack) return { ok: false, result: JSON.stringify({ error: lack }) };
         const k = keyOf(call);
-        if (failed.has(k) && !OPEN_ENDED.has(call.name)) return { ok: false, result: JSON.stringify({ error: `${failed.get(k)} ${SAME_FAILURE}` }), same: true };
+        if (failed.has(k)) return { ok: false, result: JSON.stringify({ error: `${failed.get(k)} ${OPEN_ENDED.has(call.name) ? SAME_COMMAND : SAME_FAILURE}` }), same: true };
         if (!LOCAL_READS.has(call.name) && !WEB_READS.has(call.name)) return null;
         const r = earlier(call);
         if (!r || r.served || typeof shown !== 'function' || !shown(r.id, r.text)) return null;
@@ -227,7 +245,7 @@
         if (!call || !call.name) return;
         step++;
         const a = call.arguments || {};
-        if (OPEN_ENDED.has(call.name)) { forget(null); return; }
+        if (OPEN_ENDED.has(call.name)) { forget(null); if (!ok || commandFailed(result)) failed.set(keyOf(call), commandLine(call, result)); return; }
         if (!ok) { failed.set(keyOf(call), errorOf(result)); return; }
         if (WRITES[call.name]) { forget(WRITES[call.name].map((n) => a[n]).filter(Boolean)); return; }
         if (LOCAL_READS.has(call.name) || WEB_READS.has(call.name)) {

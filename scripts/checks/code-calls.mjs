@@ -95,9 +95,32 @@ console.log('\nThe same failure is not made again:');
   ok('a different reason given does not make it a different call', mem.before({ id: '3', name: 'list_dir', arguments: { path: '/p/missing', reason: 'look again' } }, () => true)?.ok === false);
   mem.after({ id: '4', name: 'write_file', arguments: { path: '/p/missing/x.txt' } }, json({ ok: true }), true);
   ok('after a file changes, it may be made again', mem.before({ ...call, id: '5' }, () => true) === null);
+}
+
+console.log('\nA command that just failed is not run again while nothing has changed:');
+{
+  const test = (id) => ({ id, name: 'shell_run', arguments: { command: 'npm', args: ['test'] } });
   const sh = C.memory();
-  sh.after({ id: 'a', name: 'shell_run', arguments: { command: 'npm', args: ['test'] } }, json({ code: 1 }), false);
-  ok('a command is left to run again', sh.before({ id: 'b', name: 'shell_run', arguments: { command: 'npm', args: ['test'] } }, () => true) === null);
+  sh.after(test('a'), json({ stdout: 'fail 3', stderr: '', code: 1, timedOut: false }), true);
+  const again = sh.before(test('b'), () => true);
+  ok('a test that did not pass, run again at once, is answered with how it failed and what to do instead', again && again.ok === false && /^`npm test` failed with exit code 1 just now\. No file has changed since, so it was not run again: it would fail the same way, and its output is above\. Read the file and the line its output points to, change it, then run it again\.$/.test(JSON.parse(again.result).error), again && again.result);
+  sh.after({ id: 'r', name: 'read_file', arguments: { path: '/p/src/range.js' } }, 'export function range() {}', true);
+  ok('reading a file changes nothing, so it is still not run', !!sh.before(test('c'), () => true));
+  sh.after({ id: 'p', name: 'patch_file', arguments: { path: '/p/src/range.js', search: 'a', replace: 'b' } }, json({ ok: true }), true);
+  ok('after a file is changed, it runs', sh.before(test('d'), () => true) === null);
+  const other = C.memory();
+  other.after(test('a'), json({ code: 1 }), true);
+  other.after({ id: 'i', name: 'shell_run', arguments: { command: 'npm', args: ['install'] } }, json({ code: 0 }), true);
+  ok('after any other command, which may have changed anything, it runs', other.before(test('b'), () => true) === null);
+  const slow = C.memory();
+  slow.after(test('a'), json({ code: null, timedOut: true }), true);
+  ok('one that ran out of time says so', /`npm test` ran out of time just now/.test(slow.before(test('b'), () => true)?.result || ''));
+  const passed = C.memory();
+  passed.after(test('a'), json({ code: 0 }), true);
+  ok('a command that passed is never held back', passed.before(test('b'), () => true) === null);
+  const other2 = C.memory();
+  other2.after(test('a'), json({ code: 1 }), true);
+  ok('a different command is not held back', other2.before({ id: 'b', name: 'shell_run', arguments: { command: 'npm', args: ['test', '--', 'range'] } }, () => true) === null);
 }
 
 console.log('\nA read of what has not changed, still shown, is not made again:');

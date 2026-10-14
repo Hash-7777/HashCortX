@@ -199,6 +199,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   system's own, as a terminal does. Nothing is read from the shell's
   start-up files, and the safety list, the Permission Guard and the sandbox
   apply as before (`commands/shell.rs`).
+- **A failing test is not run again until something changes.** A model
+  ran a failing test again and again and never opened the file it pointed
+  to. A command that just failed, a test that did not pass among them, is
+  not run again exactly as it was while no file has changed and no other
+  command has run: the model is told it would fail the same way, that its
+  output is above, and to read and change the file it points to first. A
+  test run again after a change always runs (`js/code/calls.js`).
 
 ### Removed
 
