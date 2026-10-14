@@ -66,6 +66,22 @@ Every model side by side, the harness, the Agent Swarm and each workspace, priva
 A 30B model on Ollama finishes only when the tests pass, then a 3B model codes in light mode.
 </td>
 </tr>
+<tr>
+<td width="50%" valign="top">
+<a href="https://youtu.be/5DqMOHc4mwI"><img src="docs/assets/videos/every-model-3.0.jpg" alt="Play the film HashCortx 3.0, every model in one workspace, on YouTube: the name HashCortx 3.0 and the line The AI workspace for everything you make" width="100%"></a>
+<br>
+<b><a href="https://youtu.be/5DqMOHc4mwI">Every model, one workspace</a></b> &middot; 1:13
+<br>
+A tour of HashCortx 3.0: ask any model, and compare two side by side as they answer.
+</td>
+<td width="50%" valign="top">
+<a href="https://youtu.be/SikkYufPbD4"><img src="docs/assets/videos/hashnotch.jpg" alt="Play the HashNotch film on YouTube: the name HashNotch above the line Free and open source" width="100%"></a>
+<br>
+<b><a href="https://youtu.be/SikkYufPbD4">HashNotch, the notch made useful</a></b> &middot; 0:52
+<br>
+From the Hash ecosystem: your music, your Mac's vital signs and its notices in the MacBook notch.
+</td>
+</tr>
 </table>
 
 ## Seven workspaces
@@ -171,7 +187,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 10,297 source checks
+npm run check                                     # 10,301 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 223 Rust tests
 ```
 
