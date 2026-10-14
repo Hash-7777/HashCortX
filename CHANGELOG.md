@@ -212,6 +212,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   and never ran. A whole call in that tag is now read as a call, and hidden
   from the reply while it is written; a result copied into it is not
   (`js/tool-text.js`).
+- **A change is tested even when the model only writes the command.**
+  Told to run the project's test after a change, a mid-sized model wrote
+  "npm test" into its reply, twice, and the run ended with the change
+  untested. The second time any model is told and does not run it,
+  HashCoder runs the test itself, through the same permission as any
+  command, and the line under the answer says what it showed, as it
+  already did for small models.
 
 ### Removed
 
