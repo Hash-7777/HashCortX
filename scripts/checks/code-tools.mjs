@@ -477,5 +477,22 @@ console.log('\ngrep_code reads a pattern written as a regular expression:');
   ok('its description says a regular expression works', /regular expression/.test(T.code.TOOL_DEFINITIONS.find((t) => t.name === 'grep_code').parameters.pattern.description));
 }
 
+console.log('\nToday\'s date, and using tools well:');
+{
+  ok('today\'s date is a line of its own, in English words', HC.code.dateLine(new Date(2026, 9, 15)) === '\nToday is Thursday, 15 October 2026.');
+  ok('a date that is not one adds nothing', HC.code.dateLine(new Date('not a date')) === '' && HC.code.dateLine(null) === '');
+  const full = HC.code.SYSTEM_PROMPT;
+  ok('the full instructions no longer send a model to current_datetime before every date', !/current_datetime first/.test(full) && /line that starts "Today is"\. current_datetime only for the time of day/.test(full));
+  ok('they ask for a tool only when its answer changes what comes next, reads together, and a failed call changed', /USING TOOLS WELL:/.test(full) && /only when its answer changes what you do next/.test(full) && /Reads that do not depend on each other go in one turn/.test(full) && /fails the same way if it is made the same way/.test(full));
+  ok('they keep web searches to what the request needs and cannot be known', /Search the web only for what this request needs and you cannot know/.test(full));
+  ok('they say a change, a pass or a search found is only what a tool result shows', /Never say any of these happened unless a tool result above shows it\./.test(full));
+  for (const [size, prompt] of [['small', HC.code.SMALL_MODEL_PROMPT], ['mid', HC.code.MID_MODEL_PROMPT]]) {
+    ok(`a ${size} model is told how to make a folder, that a failed call must change, and never to say it changed what it did not`, /Make a folder with shell_run: command "mkdir", args \["-p", the folder\]/.test(prompt) && /same call fails again|fails again if made the same way/.test(prompt) && /Never say (?:you changed a file|a file was changed)/.test(prompt));
+  }
+  const mode = src('modes', 'code', 'mode.js');
+  ok('the date goes at the end of the instructions, after all that stays the same through the day', /return out \+ \(extra \? '\\n' \+ extra : ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));
+  ok('...in light mode and for the other loop too', /extra, HC\?\.code\?\.dateLine\?\.\(\)\.trim\(\)\]\.filter\(Boolean\)/.test(mode) && /platformLine\?\.\(sharedState\.platform\) \|\| ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
 process.exit(fail ? 1 : 0);

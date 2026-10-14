@@ -33,6 +33,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Agent Swarm's tab fills the last row of the sidebar.** With seven
   workspaces in two columns, the last tab sat beside an empty cell; a tab
   left alone on the last row now takes the whole row.
+- **HashCoder is told today's date, and how to use its tools sparingly.**
+  Its instructions asked a model to call current_datetime before writing
+  any date; the date is now the last line of the instructions, after
+  everything that stays the same through the day. The full instructions
+  ask for a tool only when its answer changes what comes next, reads that
+  do not depend on each other together, a failed call changed rather than
+  repeated, web searches only for what the request needs and cannot be
+  known, and never a change, a passed test or a search result claimed
+  without a tool result that shows it. Smaller models get the same in a
+  line or two, and how to make a folder.
 
 ### Fixed
 

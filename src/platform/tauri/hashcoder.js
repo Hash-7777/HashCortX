@@ -1062,7 +1062,7 @@ TOOL ROUTING:
   /output/. reportlab, python-docx and openpyxl are installed. Do not write the
   file with shell_run or paste the code into the reply — call the tool, then say
   a file exists only for the ones the result reports as saved.
-• Writing a date anywhere → current_datetime first. You do not know what day it is.
+• Today's date is in these instructions, on the line that starts "Today is". current_datetime only for the time of day, or a date in another time zone.
 • A number that ends up in code or in a message → calculate
 • A site should show its subject (the shop's jewellery, the hotel's rooms) → find_photos(subject), and credit each photo in the footer. Only for a generic mock-up → placeholder_images(seed, count). Never invent an image URL: via.placeholder.com and source.unsplash.com no longer serve images.
 
@@ -1108,6 +1108,13 @@ BUILDING A UI:
   visible :hover and :focus states, and a prefers-reduced-motion fallback for animation.
 
 ${HC.code.TOOL_TEXT_RULE}
+
+USING TOOLS WELL:
+• Call a tool only when its answer changes what you do next: not to check a version or that a program exists, and not to read a file or list a folder again when nothing has changed it since. What a file holds after you wrote it is what you wrote.
+• Reads that do not depend on each other go in one turn, together.
+• A call that failed fails the same way if it is made the same way: read the error, then change the call or do something else.
+• Search the web only for what this request needs and you cannot know: a business's details, a current fact, a page's contents. Not for how to write code or design a page.
+• A file is changed only by a write_file or patch_file that succeeds, a test passes only when its result says so, and a search found only what its result shows. Never say any of these happened unless a tool result above shows it.
 
 ${MEMORY_SECTION}REASONING:
 • Complex tasks → keep the plan with update_plan rather than in your reply, and work through it step by step.
@@ -1180,6 +1187,9 @@ How to work:
 
 Rules:
 - Call one tool at a time and wait for its result.
+- If a tool fails, read the error and change the call; the same call fails again.
+- Make a folder with shell_run: command "mkdir", args ["-p", the folder].
+- Never say you changed a file unless patch_file or write_file said ok.
 - Write paths from the project folder: src/app.js.
 - Do not change the tests unless the task asks for it.
 - If the task only asks a question, answer it and change nothing.
@@ -1219,7 +1229,9 @@ Rules:
 - Never ask the person for what the files or the tests can tell you: an error, where something is, a value. Look it up.
 - Write paths from the project folder: src/app.js.
 - A picture file, such as a screenshot or a mockup: view_image, then say what is in it.
-- Rename or move a file with move_file, not a shell command, so it can be undone.
+- Rename or move a file with move_file, not a shell command, so it can be undone. Make a folder with shell_run: command "mkdir", args ["-p", the folder].
+- A call that failed fails again if made the same way: read the error and change the call.
+- Never say a file was changed, or a test passed, unless a tool result above shows it.
 
 ${HC.code.TOOL_TEXT_RULE}`;
 
@@ -1276,6 +1288,18 @@ ${HC.code.TOOL_TEXT_RULE}`;
    * newline, or '' before the boot probe has answered — so a caller can add it
    * to a prompt unconditionally.
    */
+  /**
+   * Today's date, for the end of the instructions, so a model writes it
+   * without a call to current_datetime, which the instructions once asked for
+   * before every date. At the end, so the start of the instructions, which
+   * models and providers reuse from one request to the next, stays the same
+   * all day. English month and day names, whatever the computer's language;
+   * '' for a date that is not one.
+   */
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  HC.code.dateLine = (now = new Date()) => (now && typeof now.getTime === 'function' && !isNaN(now.getTime()) ? `\nToday is ${DAYS[now.getDay()]}, ${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}.` : '');
+
   HC.code.platformLine = function platformLine(info) {
     if (!info || !info.os) return '';
     const name = { macos: 'macOS', windows: 'Windows', linux: 'Linux' }[String(info.os).toLowerCase()]

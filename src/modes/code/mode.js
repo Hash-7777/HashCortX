@@ -150,7 +150,7 @@
     const msgs = (H.buildOllamaMessages && H.buildOllamaMessages()) || [];
     const projectCtx = sharedState.projectRoot ? `\nProject root: ${sharedState.projectRoot}` : '';
     const sysMsgIdx = msgs.findIndex(m => m.role === 'system');
-    const fullSys = (HC?.code?.SYSTEM_PROMPT || '') + projectCtx + (HC?.code?.platformLine?.(sharedState.platform) || '');
+    const fullSys = (HC?.code?.SYSTEM_PROMPT || '') + projectCtx + (HC?.code?.platformLine?.(sharedState.platform) || '') + (HC?.code?.dateLine?.() || '');
     if (sysMsgIdx >= 0) msgs[sysMsgIdx].content = fullSys + '\n\n' + msgs[sysMsgIdx].content;
     else msgs.unshift({ role: 'system', content: fullSys });
     return msgs;
@@ -1828,10 +1828,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       }
 
       // A model in light mode writes whole files in plain text, and is told that, where it runs and the project, not the tool rules (js/code/light.js).
-      if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, window.HCCodeLight.testHint(sharedState.codeMap?.whole), HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra].filter(Boolean).join('\n');
+      if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, window.HCCodeLight.testHint(sharedState.codeMap?.whole), HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra, HC?.code?.dateLine?.().trim()].filter(Boolean).join('\n');
       const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
-      return out + (extra ? '\n' + extra : '');
+      return out + (extra ? '\n' + extra : '') + (HC?.code?.dateLine?.() || '');   // today's date, after all that stays the same through the day (hashcoder.js dateLine)
     }
 
     // The instructions, with the project's notes for the first request to carry (js/code/context.js).
