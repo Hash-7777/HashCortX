@@ -994,7 +994,7 @@
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
 
 `;
-  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces'];
+  const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset'];
   HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {

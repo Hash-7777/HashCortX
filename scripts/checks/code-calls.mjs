@@ -65,17 +65,23 @@ console.log('Another usual name for an argument reaches the tool:');
   ok('a tool with no schema is left alone', json(C.normalize({ src: 'a' }, undefined).args) === '{"src":"a"}');
 }
 
-console.log('\nA call missing what it needs is not made, and shown written right:');
+console.log('\nA call missing what it needs, and giving what the tool does not take, is not made:');
 {
-  const m = C.missing('move_file', { to: '/p/b' }, schema('move_file'));
-  ok('it names what is missing, and what it is', /^move_file was not run: it needs from \(Absolute path of the file as it is now\)\./.test(m), m);
-  ok('it says what the call gave', /This call gave to\./.test(m), m);
+  const m = C.missing('move_file', { to: '/p/b', dest_dir: '/p' }, schema('move_file'));
+  ok('it names what is missing, and what it is', /^move_file was not run: it needs from \(Absolute path of the file as it is now\)/.test(m), m);
+  ok('it names what the tool does not take', /it does not take dest_dir\./.test(m), m);
   ok('it shows the call written right', m.includes('Call it as {"from":"…","to":"…"}'), m);
-  ok('nothing missing, nothing said', C.missing('move_file', { from: '/a', to: '/b' }, schema('move_file')) === '');
-  const refused = C.memory().before({ id: 'm', name: 'move_file', arguments: { to: '/p/b' } }, () => true, schema('move_file'));
+  ok('nothing missing, nothing said', C.missing('move_file', { from: '/a', to: '/b', dest_dir: '/p' }, schema('move_file')) === '');
+  ok('a call that only leaves something out is the tool\'s to answer', C.missing('move_file', { to: '/p/b' }, schema('move_file')) === '');
+  ok('shell_run given a whole command line goes to the tool, which reads it', C.missing('shell_run', { command: 'npm test' }, schema('shell_run')) === '');
+  ok('an empty replace is given, not missing', C.missing('patch_file', { path: '/a', search: 'x', replace: '', note: 1 }, schema('patch_file')) === '');
+  ok('optional arguments are never asked for', C.missing('read_file', { path: '/a', note: 1 }, schema('read_file')) === '');
+  const optional = { write_file: ['append', 'replace_whole', 'reason'], fetch_url: ['offset'], read_file: ['start_line', 'end_line'] };
+  ok('no optional argument is offered as one a tool needs', Object.entries(optional).every(([tool, names]) => names.every((n) => !schema(tool).function.parameters.required.includes(n))),
+    JSON.stringify(Object.fromEntries(Object.keys(optional).map((t) => [t, schema(t).function.parameters.required]))));
+  const refused = C.memory().before({ id: 'm', name: 'move_file', arguments: { to: '/p/b', dest_dir: '/p' } }, () => true, schema('move_file'));
   ok('the run\'s memory refuses it as a failure, given the tool', refused && refused.ok === false && /needs from/.test(JSON.parse(refused.result).error));
-  ok('an empty replace is given, not missing', C.missing('patch_file', { path: '/a', search: 'x', replace: '' }, schema('patch_file')) === '');
-  ok('optional arguments are never asked for', C.missing('read_file', { path: '/a' }, schema('read_file')) === '');
+  ok('...and lets an ordinary write through', C.memory().before({ id: 'w', name: 'write_file', arguments: { path: '/p/a.css', content: 'a{}' } }, () => true, schema('write_file')) === null);
 }
 
 console.log('\nThe same failure is not made again:');
@@ -206,7 +212,7 @@ console.log('\nA real run played through it: a folder asked for, no project open
   ok('the second, identical listing is not made, and says why', /This exact call failed this way before/.test(told[1]), told[1]);
   ok('"src" and "dst" reach move_file, which says the two are the same and how to make a folder', /same path[\s\S]*mkdir/.test(told[2]), told[2]);
   ok('moving the Desktop into the folder is refused without asking', /nothing can be moved into itself/.test(told[3]), told[3]);
-  ok('a call with only "dst" is shown the call written right', /needs from \([^)]*\)\. This call gave to\. Call it as \{"from":"…","to":"…"\}/.test(told[4]), told[4]);
+  ok('a call with only "dst" is answered by move_file with the call written right', /needs from, the path as it is now, and to, the path it should have\. Call it as \{"from": "…", "to": "…"\}/.test(told[4]), told[4]);
   ok('the same call again is not made', /This exact call failed this way before/.test(told[5]), told[5]);
   ok('by then the loop counts the run as going round in circles', stalled >= 2, String(stalled));
 }

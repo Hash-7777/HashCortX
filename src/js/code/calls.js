@@ -16,8 +16,12 @@
 //     and was not given, is moved to it: "src" to "from", "file_path" to
 //     "path", "old_string" to "search". Only from a name the tool does not
 //     take to one it does; a value is never guessed.
-//   · A call without an argument the tool needs is not run. The answer names
-//     what is missing, what it is, and shows the call written right.
+//   · A call without an argument the tool needs, that gives one the tool does
+//     not take, is not run: the answer names what is missing, what it is,
+//     what the tool does not take, and shows the call written right. A call
+//     that only leaves an argument out goes to the tool, which fills some in
+//     itself (shell_run reads a command line given whole) and says what it
+//     needs of the rest.
 //   · A call that failed is not made again exactly as it was while nothing
 //     has changed since: it would fail the same way. The answer is its
 //     failure, and says so. A command is left to run again, since what it
@@ -110,20 +114,22 @@
 
   /**
    * Why the call cannot run, or '': the arguments the tool needs and was not
-   * given, each with what it is, and the call written right.
+   * given, each with what it is, and the call written right, when it also
+   * gives an argument the tool does not take. Without one, a call that leaves
+   * an argument out is the tool's to answer.
    */
   function missing(name, args, tool) {
-    const { props, required } = shapeOf(tool);
+    const { props, names, required } = shapeOf(tool);
     const a = args && typeof args === 'object' ? args : {};
     const lack = required.filter((k) => a[k] === undefined || a[k] === null);
-    if (!lack.length) return '';
+    const unknown = Object.keys(a).filter((k) => !names.includes(k));
+    if (!lack.length || !unknown.length) return '';
     const what = lack.map((k) => {
       const d = props[k] && props[k].description ? String(props[k].description).replace(/^Optional:\s*/, '').replace(/\s+/g, ' ').trim() : '';
       return d ? `${k} (${d.length > 90 ? d.slice(0, 89) + '…' : d})` : k;
     }).join(', ');
-    const given = Object.keys(a).filter((k) => k !== 'reason');
     const example = JSON.stringify(Object.fromEntries(required.map((k) => [k, sample(k, props[k])])));
-    return `${name} was not run: it needs ${what}.${given.length ? ` This call gave ${given.join(', ')}.` : ' This call gave nothing.'} Call it as ${example}, with the real values.`;
+    return `${name} was not run: it needs ${what}, and it does not take ${unknown.join(', ')}. Call it as ${example}, with the real values.`;
   }
 
   // ── What the run has already asked ───────────────────────────────────

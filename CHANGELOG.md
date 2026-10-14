@@ -147,8 +147,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   same failing call again and again. An argument given under another usual
   name, such as `src` for `from` or `file_path` for `path`, now reaches the
   tool under its own name, and the model's own record of the call shows the
-  right one. A call missing what a tool needs is not made: the answer names
-  what is missing and shows the call written right. A call is not made
+  right one. A call that leaves out what a tool needs, and gives an argument
+  the tool does not take, is not made: the answer names both and shows the
+  call written right; one that only leaves something out goes to the tool,
+  which says what it needs. A call is not made
   again exactly as it already failed while nothing has changed since, and
   failing the same way again no longer counts as progress, so a run stuck
   that way is told to change course and then stops. A read of a file, a
