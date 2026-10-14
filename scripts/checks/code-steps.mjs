@@ -55,7 +55,14 @@ ok('a saved conversation is drawn as a finished run reads', /msgs\.querySelector
 ok('changes left from a last session keep their own list', /appendStep\(group, \{\n\s+flat: true,/.test(mode));
 ok('a change row takes the place of the step that made it', /if \(ok && \['write_file', 'patch_file', 'delete_file', 'move_file'\]\.includes\(call\.name\)\) toolEl\?\.remove\(\);/.test(mode));
 ok('the bar says Running, not a second Thinking', !/setStatus\([^)]*Thinking/.test(mode.replace(/async function legacyRun[\s\S]*?\n  \}\n/, '')) && /setStatus\('Running', 'thinking'\);/.test(mode));
-ok('files are named from the project\'s folder, the folder itself by its name', /if \(place\) return shownPath\(place\);/.test(mode) && /return `\$\{root\.split\(\/\[\\\\\/\]\/\)\.pop\(\)\}\/`;/.test(mode));
+{
+  const St = S;
+  const shown = (p) => String(p).replace('/work/app/', '');
+  ok('files are named from the project\'s folder, the folder itself by its name', St.objectOf('read_file', { path: '/work/app/src/a.js' }, shown) === 'src/a.js' && St.objectOf('move_file', { from: '/work/app/a.js', to: '/work/app/b.js' }, shown) === 'a.js → b.js'
+    && /const toolObject = \(name, args\) => window\.HCCodeSteps\.objectOf\(name, args, shownPath\);/.test(mode) && /return `\$\{root\.split\(\/\[\\\\\/\]\/\)\.pop\(\)\}\/`;/.test(mode));
+  ok('each tool is a word, and a new one its own name', St.verbOf('read_file') === 'READ' && St.verbOf('patch_file') === 'EDIT' && St.verbOf('brand_new') === 'BRAND_NEW');
+  ok('a command is shown as it would be typed', St.objectOf('shell_run', { command: 'npm', args: ['test'] }) === 'npm test');
+}
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/steps.js'") > 0 && boot.indexOf("'/js/code/steps.js'") < boot.indexOf("'/modes/boot.js'"));
 

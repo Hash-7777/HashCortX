@@ -10,6 +10,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Send a message while a model is working.** A message sent while a
+  reply was being written was refused in chat, and in HashCoder pressing
+  Enter during a run started a new run, which stopped the one at work and
+  threw its answer away. Now it waits in a queue shown above the box, each
+  message with Edit and remove, and the Up arrow in an empty box takes the
+  newest back. In chat the queue is sent as one message when the reply
+  finishes. HashCoder reads it at the run's next step, after the results it
+  is waiting for, so the run takes it into account without starting again;
+  it is shown in the reply as "You added" where it was read, and the run's
+  checks hold it to the request and what was added. What is still queued
+  when a run ends is sent next. A reply that was stopped or failed hands
+  the queue back to the box instead, and anything being typed in the box is
+  kept (`js/queue.js`).
 - **Where a local model runs is a setting.** Settings, General, "Where local
   models run": Automatic, the default, where Ollama puts as much of a model
   as fits on the graphics chip and the rest in main memory; Graphics chip

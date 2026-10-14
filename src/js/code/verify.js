@@ -501,16 +501,22 @@
   const KEEP_FILES = /\b(?:do not|don't|dont|never|without)\s+(?:change|changing|edit|editing|modify|modifying|touch|touching)\s+(?:any|anything|a file|files|the files|the code)\b|\bjust answer\b|\bonly answer\b/i;
   const TERMINAL_BLOCKS = new Set(['bash', 'sh', 'zsh', 'fish', 'shell', 'console', 'terminal', 'powershell', 'ps1', 'pwsh', 'cmd', 'bat', 'text', 'txt', 'plaintext', 'output', 'log']);
 
-  /** The newest request from the person: the last message from them that is not a note from the app. */
+  /**
+   * The newest request from the person: the last message from them that is
+   * not a note from the app, with what they added while the run worked
+   * (js/queue.js) after it, so the run is held to all of it.
+   */
   function requestIn(messages) {
     const list = Array.isArray(messages) ? messages : [];
+    const added = [];
     for (let i = list.length - 1; i >= 0; i--) {
       const m = list[i];
       if (!m || m.role !== 'user' || typeof m.content !== 'string' || isAppNote(m.content)) continue;
       if (m.opened) continue;   // pictures the agent opened, added by the app
-      return m.content;
+      if (m.added) { added.unshift(m.content); continue; }
+      return [m.content, ...added].join('\n\n');
     }
-    return '';
+    return added.join('\n\n');
   }
 
   /**
@@ -721,7 +727,7 @@
   function searchedSince(messages) {
     const list = Array.isArray(messages) ? messages : [];
     let at = list.length - 1;
-    while (at >= 0 && !(list[at] && list[at].role === 'user' && !list[at].note)) at--;
+    while (at >= 0 && !(list[at] && list[at].role === 'user' && !list[at].note && !list[at].added)) at--;
     return list.slice(Math.max(0, at)).some((m) => m && m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.some((c) => WEB_TOOLS.has(c && (c.name || (c.function && c.function.name)))));
   }
 

@@ -11,7 +11,8 @@
 // said it.
 //
 // Steps are <details>, so opening one works from the keyboard as it is.
-// stepsLine and changesTitle are pure; the rest draws into the panel.
+// verbOf, objectOf, stepsLine and changesTitle are pure; the rest draws into
+// the panel.
 //
 // Loaded before the Coder mode and published as window.HCCodeSteps.
 // Checked by scripts/checks/code-steps.mjs.
@@ -21,6 +22,43 @@
   'use strict';
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  /**
+   * What each tool did, as one short word.
+   *
+   * A run used to read as a list of function names — `read_file`, `grep_code`,
+   * `fs_search_files` — which is the agent's vocabulary, not the user's. The
+   * question being answered while a run scrolls past is "what is it doing",
+   * and a verb answers that where an identifier does not.
+   *
+   * A tool with no entry falls back to its own name, so a new tool appears in
+   * the run immediately rather than waiting for this table to catch up.
+   */
+  const TOOL_VERBS = {
+    read_file: 'READ', write_file: 'WROTE', patch_file: 'EDIT',
+    list_dir: 'LIST', delete_file: 'DELETE', move_file: 'MOVE',
+    fuzzy_find: 'FIND', grep_code: 'GREP', search_files: 'FIND',
+    shell_run: 'SHELL', web_search: 'SEARCH', fetch_url: 'FETCH',
+    search_knowledge: 'KB', execute_python: 'PYTHON',
+    current_datetime: 'TIME', calculate: 'CALC',
+    remember_fact: 'REMEMBER', recall_facts: 'RECALL',
+    placeholder_images: 'IMAGES', find_photos: 'PHOTOS', update_plan: 'PLAN', save_lesson: 'LESSON',
+  };
+  const verbOf = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
+
+  /** The one argument worth showing beside the verb; `shown(path)` writes a place as the step shows it. */
+  function objectOf(name, args, shown = (p) => String(p || '')) {
+    const a = args || {};
+    if (name === 'update_plan') return window.HCCodePlan?.stepLine(a) || '';
+    if (name === 'shell_run') {
+      return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
+    }
+    if (name === 'move_file') return `${shown(a.from)} → ${shown(a.to)}`;
+    if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
+    const place = a.path || a.dir || a.file;
+    if (place) return shown(place);
+    return String(a.query || a.subject || a.url || a.pattern || a.expression || a.key || '');
+  }
 
   /** The line a run's steps fold to when it ends: "12 steps", "3 steps · 1 failed". */
   function stepsLine(count, failed = 0) {
@@ -52,6 +90,21 @@
     head.addEventListener('click', () => head.setAttribute('aria-expanded', String(group.classList.toggle('open'))));
     contentEl.appendChild(group);
     return group.querySelector('.cdr-steps-list');
+  }
+
+  /**
+   * What the person sent while the run worked, where the run read it
+   * (js/queue.js): their words, between two lists of steps, so folding the
+   * steps when the run ends never hides them.
+   */
+  function added(contentEl, text) {
+    if (!contentEl) return null;
+    const el = document.createElement('div');
+    el.className = 'cdr-added';
+    el.innerHTML = '<span class="cdr-added-label">You added</span><span class="cdr-added-text"></span>';
+    el.querySelector('.cdr-added-text').textContent = String(text || '');
+    contentEl.appendChild(el);
+    return el;
   }
 
   /**
@@ -98,5 +151,5 @@
     });
   }
 
-  window.HCCodeSteps = { stepsLine, stepsHeld, changesTitle, listFor, add, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, listFor, add, added, settle };
 })();

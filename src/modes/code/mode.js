@@ -12,42 +12,9 @@
   const $ = id => document.getElementById(id);
 
 
-  /**
-   * What each tool did, as one short word.
-   *
-   * A run used to read as a list of function names — `read_file`, `grep_code`,
-   * `fs_search_files` — which is the agent's vocabulary, not the user's. The
-   * question being answered while a run scrolls past is "what is it doing",
-   * and a verb answers that where an identifier does not.
-   *
-   * A tool with no entry falls back to its own name, so a new tool appears in
-   * the run immediately rather than waiting for this table to catch up.
-   */
-  const TOOL_VERBS = {
-    read_file: 'READ', write_file: 'WROTE', patch_file: 'EDIT',
-    list_dir: 'LIST', delete_file: 'DELETE', move_file: 'MOVE',
-    fuzzy_find: 'FIND', grep_code: 'GREP', search_files: 'FIND',
-    shell_run: 'SHELL', web_search: 'SEARCH', fetch_url: 'FETCH',
-    search_knowledge: 'KB', execute_python: 'PYTHON',
-    current_datetime: 'TIME', calculate: 'CALC',
-    remember_fact: 'REMEMBER', recall_facts: 'RECALL',
-    placeholder_images: 'IMAGES', find_photos: 'PHOTOS', update_plan: 'PLAN', save_lesson: 'LESSON',
-  };
-  const toolVerb = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
-
-  /** The one argument worth showing beside the verb. */
-  function toolObject(name, args) {
-    const a = args || {};
-    if (name === 'update_plan') return window.HCCodePlan?.stepLine(a) || '';
-    if (name === 'shell_run') {
-      return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
-    }
-    if (name === 'move_file') return `${shownPath(a.from)} → ${shownPath(a.to)}`;
-    if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
-    const place = a.path || a.dir || a.file;
-    if (place) return shownPath(place);
-    return String(a.query || a.subject || a.url || a.pattern || a.expression || a.key || '');
-  }
+  // What each tool did, as one short word, and the one argument shown beside it (js/code/steps.js).
+  const toolVerb = (name) => window.HCCodeSteps.verbOf(name);
+  const toolObject = (name, args) => window.HCCodeSteps.objectOf(name, args, shownPath);
 
   /** A path as a step shows it: from the project's folder, and the folder itself by its name. */
   function shownPath(p) {
@@ -274,6 +241,7 @@
     let mounted            = false;
     let setUp              = false;   // wired once: HashCoder is mounted again each time it is opened
     let runAbort           = null;
+    let coderQueue = null, running = false, outcome = {};   // what is sent while a run works, and how the last run ended (js/queue.js)
     let conversationMsgs   = []; // persists across turns — full chat history
     let toolCallCounter    = 0;
     let _lastAgentCommand  = null;   // echo a command once, not once per line
@@ -510,6 +478,7 @@
       }
 
       if (taskInput) {
+        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome });
         taskInput.addEventListener('keydown', e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startRun(); }
         });
@@ -988,11 +957,12 @@
         if (runBtn)  runBtn.style.display = 'none';
         if (stopBtn) stopBtn.style.display = '';
         runAbort = new AbortController(); sharedState.runBegan = Date.now();
-        runSingleTurn(runAbort.signal).catch(() => {}).finally(() => {
+        outcome = {};
+        runSingleTurn(runAbort.signal).catch((e) => { outcome = { stopped: e?.name === 'AbortError', failed: e?.name !== 'AbortError' }; }).finally(() => {
           if (runBtn)  runBtn.style.display = '';
           if (stopBtn) stopBtn.style.display = 'none';
           runAbort = null;
-          setRouterChip('Auto', '');
+          setRouterChip('Auto', ''); coderQueue?.settle();
         });
       });
 
@@ -1222,6 +1192,7 @@
       let reply = null;
       conversationMsgs.forEach((m, i) => {
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
+        if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, m.content); return; }   // sent while the run worked, shown where it was read
         if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
         if (m.content && m.tool_calls?.length && window.HCCodeLive.wordsOf(m.content).words) appendTextToBubble(reply, window.HCCodeLive.wordsOf(m.content).words);   // what it said before the step, without a call it wrote as text
@@ -1917,6 +1888,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         setStatus(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
+        const added = messages === conversationMsgs ? coderQueue?.takeNow() : null;   // what the person sent while it worked, read at this step (js/queue.js)
+        if (added) { messages.push({ role: 'user', content: added.text, added: true }); if (HC?.code) HC.code.request = `${HC.code.request || ''}\n\n${added.text}`; thinkEl?.remove(); window.HCCodeSteps.added(contentEl, added.text); scrollMessages(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Person', `Added ${added.count === 1 ? 'a message' : `${added.count} messages`} while it worked`, 'run'); }
 
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
         const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
@@ -2111,7 +2084,14 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     }
 
     // ── Main send ─────────────────────────────────────────────
+    // A message sent while a run works waits for it: the run reads it at its next step (agentLoop), and what is left is sent when it ends.
     async function startRun() {
+      if (running || runAbort) { coderQueue?.hold(); return; }
+      running = true; outcome = {};
+      try { await beginRun(); } finally { running = false; coderQueue?.settle(); }
+    }
+
+    async function beginRun() {
       const taskInput = $('cdrTaskInput');
       const task = taskInput?.value?.trim();
       if (!task) { taskInput?.focus(); return; }
@@ -2182,6 +2162,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       try {
         await runSingleTurn(signal);
       } catch (e) {
+        outcome = { stopped: e.name === 'AbortError', failed: e.name !== 'AbortError' };
         // A stop or a failure between a tool call and its result leaves a
         // history the providers refuse; close the turn so the next one works.
         window.HCAgentShape.closeInterruptedTurn(conversationMsgs,

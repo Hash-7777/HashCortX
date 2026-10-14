@@ -241,3 +241,42 @@
     font-size: 11px;
   }
 
+
+  /* ========= Messages queued while a model works (js/queue.js) ========= */
+  .hc-queue {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.025);
+  }
+  .hc-queue[hidden] { display: none; }
+  .hc-queue-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 6px;
+    font-size: 11px;
+  }
+  .hc-queue-title { color: var(--text); font-weight: 600; }
+  .hc-queue-when { color: var(--muted); }
+  .hc-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .hc-queue-item {
+    display: flex; align-items: center; gap: 8px;
+    min-width: 0;
+    font-size: 12.5px;
+    color: var(--text-dim);
+  }
+  .hc-queue-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hc-queue-item button {
+    flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 22px; min-width: 22px; padding: 0 7px;
+    font: inherit; font-size: 11px;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+  }
+  .hc-queue-item button:hover { color: var(--text); border-color: var(--line-strong); }
+  .hc-queue-item button:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .hc-queue-drop { padding: 0 4px; }

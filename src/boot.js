@@ -74,6 +74,7 @@
     '/js/diff.js',
     '/js/fences.js',
     '/js/follow.js',
+    '/js/queue.js',
     '/js/wheel.js',
     '/js/prompt-privacy.js',
     '/js/code/ansi.js',

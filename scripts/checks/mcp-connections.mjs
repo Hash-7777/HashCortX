@@ -372,7 +372,9 @@ console.log('\nThe app uses it, and shows what a system says as text:');
     && /const tools = sharedState\.light \? \[\] : \[\.\.\.own, \.\.\.run\.tools\];/.test(coder) && /if \(run\.refusal\) \{ appendTextToBubble\(contentEl, run\.refusal\);[^\n]*return; \}/.test(coder));
   ok('... runs them through the one gate, memory rule included', /def = window\.HCMcp \? window\.HCMcp\.toolFor\(call\.name, own\) : own;/.test(coder) && /def\.fn \? def\.fn\(call\.arguments \|\| \{\}\) : def\.execute\(call\.arguments \|\| \{\}\)/.test(coder));
   ok('... in the run itself only: the second look at its changes is offered no tools at all', (coder.match(/HCMcp\.forRun/g) || []).length === 1 && /V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(coder) && !/runMultiTurn/.test(coder));
-  ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(coder) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(coder));
+  const steps = src('js', 'code', 'steps.js');
+  ok('... and shows each step in words', /TOOL_VERBS\[name\] \|\| window\.HCMcp\?\.stepOf\(name\)\?\.verb/.test(steps) && /if \(\/\^sys_\/\.test\(name\)\) return window\.HCMcp\?\.stepOf\(name\)\?\.object/.test(steps)
+    && /const toolVerb = \(name\) => window\.HCCodeSteps\.verbOf\(name\);/.test(coder) && /const toolObject = \(name, args\) => window\.HCCodeSteps\.objectOf\(name, args, shownPath\);/.test(coder));
   const swarm = src('modes', 'agent-maker', 'mode.js');
   ok('the Swarm offers a run the reading tools its models may all see, and keeps where it read', /runConnected = window\.HCMcp \? await window\.HCMcp\.offerForRun\(teamOf\(runBp\), work\) : null;/.test(swarm)
     && /connectedTools: runConnected\?\.tools/.test(swarm) && /runConnected\?\.has\(call\.name\) \? JSON\.stringify\(await runConnected\.run\(call\.name, call\.arguments\)\)/.test(swarm)

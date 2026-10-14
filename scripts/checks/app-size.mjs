@@ -228,7 +228,9 @@ const LINE_BUDGET = {
   // 6489, up one: the agent's page reader also hands HashCoder the page as it
   // came, so its pictures, logo and contact details can be read
   // (js/page-facts.js).
-  'js/app.js': 6489,
+  // 6490, up one: a message sent while a reply is written waits for it, and
+  // is sent when it finishes (js/queue.js holds the queue and draws it).
+  'js/app.js': 6490,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -796,7 +798,10 @@ const LINE_BUDGET = {
   // once before it finishes, then is said under the answer (js/code/keep.js).
   // 2488, up one: a change a smaller model writes as a diff in its reply is
   // made through patch_file, beside light mode's files (js/code/diffs.js).
-  'modes/code/mode.js': 2488,
+  // 2469, down nineteen: each tool's word and the argument shown beside it
+  // moved to js/code/steps.js, which draws the steps, and a message sent
+  // while a run works is read at its next step (js/queue.js).
+  'modes/code/mode.js': 2469,
 };
 
 console.log('\nFile sizes go down, never up:');

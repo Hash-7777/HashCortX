@@ -2792,6 +2792,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
   sendBtn.addEventListener("click", () => state.streaming ? abort() : send());
+  const chatQueue = HCQueue.forComposer({ input, before: document.querySelector(".composer-wrap .composer"), send: () => send(), outcome: () => ({ stopped: !!state.abort?.signal?.aborted, failed: !!errorSlot?.childElementCount }) });   // sent while a reply is written, a message waits for it (js/queue.js)
   $("newChatBtn")?.addEventListener("click", () => newChat());
 
   // ── Preview button — show full payload that would be sent to the model ──
@@ -4588,7 +4589,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       }
     }
     state.streaming = false;
-    sendBtn.textContent = "Send";
+    sendBtn.textContent = "Send"; chatQueue.settle();
     // Light up HashNotch — "HashCortX finished".
     // Once per chat turn, cloud or local. Coder mode has its own loop and
     // fires its own, at the end of startRun in modes/code/mode.js.
@@ -4729,7 +4730,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       compareMsg.compare.right.error || compareMsg.compare.right.content || "",
     ].join("\n\n");
     state.streaming = false;
-    sendBtn.textContent = "Send";
+    sendBtn.textContent = "Send"; chatQueue.settle();
     setSplitTpsDisplay(compareMsg.compare);
     if (tpsBtn) tpsBtn.classList.remove("streaming");
     render();
@@ -4737,7 +4738,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   }
 
   async function send() {
-    if (state.streaming) return;
+    if (state.streaming) { chatQueue.hold(); return; }
     if (state.compareMode) {
       await sendCompare();
       return;
