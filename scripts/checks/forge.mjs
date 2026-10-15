@@ -818,7 +818,37 @@ console.log('\nOpening the Forge shows the mark at once:');
   check('its fade waits for its picture to be ready',
     /if \(ready && !ready\.done\) continue;/.test(bodyOf('updateReveal')) && /item\.start = Math\.max\(item\.start, now\)/.test(bodyOf('updateReveal')));
   check('the plain image steps aside as the 3D mark arrives, or at once for any other model',
-    /classList\.add\("gone"\)/.test(bodyOf('updateReveal')) && /if \(!plan\._introLogo\) \$\("frgIntroMark"\)\?\.classList\.add\("gone"\)/.test(bodyOf('buildPlan')));
+    /classList\.add\("gone"\)/.test(bodyOf('updateReveal')) && /if \(!plan\._introLogo\) \{ \$\("frgIntroMark"\)\?\.classList\.add\("gone"\); makeEnvironment\(\); \}/.test(bodyOf('buildPlan')));
+}
+
+console.log('\nThe first frame does not wait:');
+{
+  const runtime = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'runtime.js'), 'utf8');
+  const boot = readFileSync(join(here, '..', '..', 'src', 'boot.js'), 'utf8');
+  check('the runtime\'s four files are read together, once, and may be read again after a failure',
+    /loading = loading \|\| Promise\.all\(\[/.test(runtime) && ['three.module.min.js', 'OrbitControls.js', 'TransformControls.js', 'RoomEnvironment.js'].every((f) => runtime.includes(f)) && /\.catch\(\(err\) => \{ loading = null; throw err; \}\)/.test(runtime));
+  check('reading starts when the pointer first reaches the 3D Forge tab, with one listener that removes itself',
+    /e\.target\.closest\('#tabForge'\)/.test(runtime) && /document\.removeEventListener\('pointerover', warm, true\)/.test(runtime));
+  check('the mode takes the runtime from there, loaded before the modes',
+    /await window\.HCForgeRuntime\.load\(\)/.test(bodyOf('startThree')) && boot.indexOf("'/js/forge/runtime.js'") > 0 && boot.indexOf("'/js/forge/runtime.js'") < boot.indexOf("'/modes/boot.js'"));
+  check('the scene starts before the saved projects are read, and waits for neither',
+    (() => { const m = bodyOf('mount'); const a = m.indexOf('const three = initThree()'), b = m.indexOf('await loadForgeProjects()'); return a > 0 && b > a && /await three;/.test(m); })());
+  check('one start at a time, so a second open waits for the first',
+    /threeStarting = threeStarting \|\| startThree\(\)\.finally/.test(src));
+  check('reflections are made after the first frame, at once for a model, and again after the context comes back',
+    !/PMREMGenerator/.test(bodyOf('startThree')) && /requestAnimationFrame\(\(\) => setTimeout\(makeEnvironment, 0\)\)/.test(bodyOf('startThree')) && /environmentMade = false; makeEnvironment\(\);/.test(src) && /new THREE\.PMREMGenerator\(renderer\)/.test(runtime));
+}
+
+console.log('\nThe intro mark floats above the floor:');
+{
+  const y = Number((src.match(/const INTRO_LOGO_Y = FLOOR_Y \+ ([\d.]+) \/ 2 \+ ([\d.]+);/) || []).slice(1).reduce((a, b) => a / 2 + Number(b), 0));
+  const [, h] = src.match(/type: "logo_img",[\s\S]{0,200}?height: ([\d.]+)/) || [];
+  const [, bob] = src.match(/const bob\s+= Math\.sin\(logoBobT\) \* ([\d.]+);/) || [];
+  const [, pulse] = src.match(/const pulse = 1 \+ Math\.sin\(logoBobT \* 1\.3\) \* ([\d.]+);/) || [];
+  const lowest = y - (Number(h) / 2) * (1 + Number(pulse)) - Number(bob);
+  check('its lowest point stays above the floor through the bob and the pulse', Number.isFinite(lowest) && lowest > 0, `lowest ${lowest}`);
+  check('it is placed at that height, and the camera looks at its middle from the same distance',
+    /position: \[0, INTRO_LOGO_Y, 0\]/.test(src) && /camera\.position\.set\(0, INTRO_LOGO_Y \+ 0\.15, 4\.8\);/.test(src) && /controls\.target\.set\(0, INTRO_LOGO_Y, 0\);/.test(src));
 }
 
 console.log('\nThe design prompt asks for a model, not a part count:');

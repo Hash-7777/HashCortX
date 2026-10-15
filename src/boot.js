@@ -220,6 +220,7 @@
     '/js/forge/ask-subject.js',
     '/js/forge/improve.js',
     '/js/forge/capability.js',
+    '/js/forge/runtime.js',
     '/js/forge/panel-html.js',
     '/js/forge/press.js',
     '/js/forge/io/mesh.js',

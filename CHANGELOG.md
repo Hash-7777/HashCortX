@@ -106,6 +106,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge opens faster, with its floor and mark at once.** The floor
+  and the intro mark waited while the saved projects were read and listed,
+  then for the 3D runtime's files one after another, then for reflections
+  the intro does not use. The scene now starts beside the projects, the
+  runtime's files are read together and from the moment the pointer
+  reaches the tab, and the reflections are made after the first frame.
+- **The intro mark floats above 3D Forge's floor.** Half of it hung below
+  the floor, with the grid across it. It sits clear of the floor now, still
+  in the middle of the view.
 - **Files dropped on the app reach it.** A picture, a PDF or any file
   dropped on HashCortx did nothing: the window took every drop for itself,
   and the page never saw one. The window now leaves drops to the page, and

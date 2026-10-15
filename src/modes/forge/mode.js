@@ -782,22 +782,25 @@
     return renderableNodes(activePlan.nodes || []).length > 0;
   }
 
-  async function initThree() {
-    if (initialized) return true;
+  let environmentMade = false;   // reflections, made after the first frame or when a model needs them (js/forge/runtime.js)
+  function makeEnvironment() {
+    if (environmentMade || !renderer || !scene || contextLost) return;
+    environmentMade = true;
+    try { scene.environment = window.HCForgeRuntime.environment(THREE, renderer, window.__forgeRoomEnv); }
+    catch (err) { log("SYSTEM", "Env map unavailable: " + (err.message || err), "warn"); }
+  }
+
+  let threeStarting = null;   // one start at a time: a second mount waits for the first
+  function initThree() { return initialized ? Promise.resolve(true) : (threeStarting = threeStarting || startThree().finally(() => { threeStarting = null; })); }
+
+  async function startThree() {
     const mount = $("frgCanvasMount");
     if (!mount) return false;
 
     setStatus("Loading");
     log("SYSTEM", "Loading Three.js runtime...");
     try {
-      // All four load from disk. They came from a CDN, which meant 3D Forge
-      // did not work at all with the network off — while the README called the
-      // app air-gapped capable — and it contradicted the rule in
-      // ARCHITECTURE.md that libraries are vendored, never fetched at runtime.
-      const threeMod = await import("/js/vendor/three/three.module.min.js");
-      const controlsMod = await import("/js/vendor/three/examples/OrbitControls.js");
-      const transformMod = await import("/js/vendor/three/examples/TransformControls.js");
-      const roomEnvMod = await import("/js/vendor/three/examples/RoomEnvironment.js");
+      const [threeMod, controlsMod, transformMod, roomEnvMod] = await window.HCForgeRuntime.load();   // read together, once (js/forge/runtime.js)
       THREE = threeMod;
       OrbitControls = controlsMod.OrbitControls;
       TransformControls = transformMod.TransformControls;
@@ -838,16 +841,6 @@
     renderer.shadowMap.type = THREE.PCFShadowMap;
     mount.innerHTML = "";
     mount.appendChild(renderer.domElement);
-
-    // PBR environment map — gives MeshStandardMaterial proper reflections + specular
-    try {
-      const pmremGen = new THREE.PMREMGenerator(renderer);
-      pmremGen.compileEquirectangularShader();
-      scene.environment = pmremGen.fromScene(new window.__forgeRoomEnv(), 0.04).texture;
-      pmremGen.dispose();
-    } catch (err) {
-      log("SYSTEM", "Env map unavailable: " + (err.message || err), "warn");
-    }
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -963,6 +956,7 @@
     resize();
     initialized = true;
     startLoop();
+    requestAnimationFrame(() => setTimeout(makeEnvironment, 0));   // after the first frame is drawn (makeEnvironment)
     setStatus("Idle");
     log("SYSTEM", "Forge void is online.");
     return true;
@@ -1006,6 +1000,7 @@
         // texture and buffer it had is gone, so the scene is built again from
         // the plan rather than assumed to have survived.
         renderer.resetState?.();
+        environmentMade = false; makeEnvironment();   // its picture was on the GPU and went with the context
         const plan = activePlan;
         if (plan) buildPlan(plan);
         resize();
@@ -1413,7 +1408,7 @@
     clearScene();
     dropSolid();
     // Anything but the intro mark replaces the plain intro image straight away.
-    if (!plan._introLogo) $("frgIntroMark")?.classList.add("gone");
+    if (!plan._introLogo) { $("frgIntroMark")?.classList.add("gone"); makeEnvironment(); }
     activePlan = normalizePlan(plan);
     const nodes = renderableNodes(activePlan.nodes);
     const revealStart = performance.now();
@@ -1436,8 +1431,8 @@
     syncEditHistoryButtons();
     if (plan._introLogo && camera && controls) {
       // Intimate framing for the intro logo — skip auto-zoom so the brand reads big
-      camera.position.set(0, 0.35, 4.8);
-      controls.target.set(0, 0.2, 0);
+      camera.position.set(0, INTRO_LOGO_Y + 0.15, 4.8);
+      controls.target.set(0, INTRO_LOGO_Y, 0);
       controls.update();
     } else {
       frameModel();
@@ -3364,6 +3359,9 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
    * The built-in plans still exist and are still reachable — Mock builds from
    * them deliberately. What has gone is their power to overrule a real answer.
    */
+  // The mark is 2.6 tall and bobs 0.16 either way, so it floats clear of the
+  // floor; the camera rises with it, keeping it where the plain intro image is.
+  const INTRO_LOGO_Y = FLOOR_Y + 2.6 / 2 + 0.3;
   function hLogoPlan() {
     return {
       name: "HashCortx intro mark",
@@ -3372,7 +3370,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
         // One copy of the mark. A second, tinted and offset by a few
         // hundredths, sat behind it and drew every stroke twice.
         { id: "hcx_main", name: "HashCortx logo", role: "surface", type: "logo_img",
-          position: [0, 0.2, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
+          position: [0, INTRO_LOGO_Y, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
           params: { width: 4.0, height: 2.6, src: "/assets/hashcortx-logo.png" },
           color: "#ffffff", opacity: 0.98 },
       ],
@@ -3667,9 +3665,6 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     // The plain intro image is only for the first mark. A model already open
     // is drawn again at once, and nothing should sit over it.
     if (activePlan) $("frgIntroMark")?.classList.add("gone");
-    await loadForgeProjects();
-    syncModelSelectors();
-    renderForgeProjects();
     // Whatever is loaded, not nothing. Entering Forge a second time used to
     // reset the header to "Void ready · 0 mesh parts" while the model was
     // still in the scene and activePlan still held it — the panel disagreed
@@ -3677,8 +3672,13 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     updatePlanList(activePlan);
     wireEvents();
     syncEditHistoryButtons();
-    const ok = await initThree();
-    if (ok && !activePlan) buildPlan(hLogoPlan());
+    // The scene starts at once and the saved projects are read beside it, so a
+    // large file of them does not keep the floor and the mark off the screen.
+    const three = initThree().then((ok) => { if (ok && !activePlan) buildPlan(hLogoPlan()); return ok; });
+    await loadForgeProjects();
+    syncModelSelectors();
+    renderForgeProjects();
+    await three;
   }
 
   function destroy() {
