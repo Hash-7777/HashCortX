@@ -1850,7 +1850,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!S || !C || !proof || cdrPrefs().prove === false || !root || !S.worthChecking(proof.changed)) return null;
         const files = await S.gather(proof.changed, root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => null);
         if (!files || !files.size) return null;
-        const broken = C.inspect(files).filter((f) => f.level === 'broken' || f.level === 'standard').map((f) => f.what);
+        const counts = (list) => list.filter((f) => f.level === 'broken' || f.level === 'standard'), broken = S.newSince(counts(C.inspect(files)), counts(C.inspect(S.asBefore(files, changes)))).map((f) => f.what);   // only what this run brought in
         proof.siteRead(broken.length);   // said under the answer (js/code/verify.js proofLine)
         cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
         return broken.length && !sent.site ? window.HCCodeVerify.siteNote(broken) : null;
@@ -2122,7 +2122,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const model = coderModel || window._H?.selectedModel?.() || '';
       const info = /^cloud:/.test(model) ? null : await Promise.resolve(window.HCLocalContext?.infoOf(window.HashCortxRuntime?.getHost?.(), model)).catch(() => null);
       const size = HC?.code?.sizeOf?.(info?.billions ?? window.HCCodeLight?.billionsInName(model)) || 'full', light = !!window.HCCodeLight?.applies(size, cdrPrefs().light);   // a size the model app does not report is read from the name
-      const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task) || '');   // a site is held to the bar the Swarm's are
+      const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task, { hasPage: await HC.code.hasPage?.(root) }) || '');   // a new site is held to the bar the Swarm's are; a change to one is not
       const local = !/^cloud:/.test(model);   // output sized to the model (js/agent-context.js); lessons, when switched on, kept for this project (js/code/lessons.js)
       if (HC?.code) { HC.code.memoryOn = cdrPrefs().memory === true; HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
       // A larger model is given a map of the project's code, and a model on this computer a small project whole, made as a conversation begins and kept for it (js/code/codemap.js, js/code/context.js).

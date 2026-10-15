@@ -73,6 +73,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder does what was asked, and no more.** Its instructions now
+  keep a model to the request: no features, sections, files or fixes it
+  did not ask for, no README or notes nobody wanted, and the smaller
+  reading when a request could mean more. It finishes in a few plain
+  sentences saying what changed, where, and what ran, without lists of
+  suggestions or next steps. The standard a new website is held to (its
+  own colours, fonts, motion and footer) is given only when a request
+  builds a site, never for a change to one the project already has. And
+  after a run changes a site, it is sent back only for problems that run
+  made; problems the site already had are left alone.
 - **HashCoder's steps read better, and their times read as people say
   them.** A step's time was written in milliseconds, "50094ms". It now
   reads "340 ms", "4.2 s", "50.1 s" or "1 m 12 s"; a step counts its time

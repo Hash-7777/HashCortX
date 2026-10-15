@@ -1031,6 +1031,16 @@ WORKFLOW (follow this order every time):
 ③ ACT — patch_file for a change to part of a file, so the rest stays exactly as it is; write_file for a new file, or to replace a file whole when that is what was asked (replace_whole: true).
 ④ VERIFY — shell_run tests/build/lint after significant changes when it adds value.
 
+SCOPE — DO WHAT WAS ASKED, NOTHING MORE:
+• Do exactly what the request asks. No extra features, sections, pages, settings, refactors, renames or comments it did not ask for: a bug fix fixes that bug, a colour change changes that colour.
+• Never make a file the request does not need: no README, notes, docs, tests, examples or config unless asked. Change an existing file rather than adding one.
+• Leave everything else as it is: other code, the design, the wording, the formatting, and problems you notice that the request is not about. A real problem you noticed gets one line in your answer at most; do not fix it unasked.
+• When the request could mean more or less, do the smaller reading, or ask one question.
+
+ANSWER:
+• When the work is done, say in a few plain sentences what you changed, in which files, and what you ran with its result. A question gets its answer directly.
+• No headings, no lists of what you built, no "next steps", "suggestions", "possible improvements" or offers to do more. Do not restate the request, open with a preamble, or paste the code you wrote into files.
+
 PATCH RULES (most common failure mode):
 • Copy the search text from the file as read_file showed it, every space and indent, without the line numbers of a numbered read.
 • If patch_file says "not found", it shows the lines most like your search: copy them from there and retry. If it fails twice, say what you found.
@@ -1104,8 +1114,9 @@ BUILDING A UI:
 • Images: when the site should show its subject, call find_photos and credit each photo
   the page shows. Otherwise prefer CSS gradients, icons and inline SVG; placeholder_images
   is generic stock, for a mock-up only. Never write an image URL you have not been given.
-• Always: descriptive alt text, explicit width/height or aspect-ratio to stop layout shift,
-  visible :hover and :focus states, and a prefers-reduced-motion fallback for animation.
+• In what you build or change: descriptive alt text, explicit width/height or aspect-ratio to stop
+  layout shift, visible :hover and :focus states, and a prefers-reduced-motion fallback for animation.
+  Do not go back over parts of a page the request is not about to add them.
 
 ${HC.code.TOOL_TEXT_RULE}
 
@@ -1125,12 +1136,34 @@ ${MEMORY_SECTION}REASONING:
   /**
    * What a site HashCoder builds is held to: the bar the Agent Swarm's sites
    * are held to (js/swarm/web-brief.js BAR), with its own way of writing files
-   * and of finding photographs, or '' when the request is not to build for
-   * the web.
+   * and of finding photographs, or '' when the request is not to build one.
+   * A change to a site the project already has (`hasPage`) gets no bar unless
+   * it asks for a new or rebuilt site: the bar asks for a colour scheme,
+   * fonts, motion and a footer, and a request to fix one button is not a
+   * request for any of them. Without a page, the request has to ask for
+   * something to be made.
    */
-  HC.code.siteBrief = (task) => {
+  HC.code.NEW_SITE = /\b(?:from scratch|start over|redesign|re-?build|new (?:web ?site|site|web ?page|page|landing page|home ?page|portfolio|web ?app|app|game|dashboard|shop|store))\b/i;
+  HC.code.MAKES = /\b(?:build|make|create|design|generate|develop|craft|code|write|set up|start|put together)\b/i;
+  HC.code.buildsSite = (task, { hasPage = false } = {}) => {
+    const W = window.HCSwarmWebBrief, words = String(task || '');
+    if (!W || !W.isWebTask(words)) return false;
+    return hasPage ? HC.code.NEW_SITE.test(words) : HC.code.NEW_SITE.test(words) || HC.code.MAKES.test(words);
+  };
+  /** Whether the open project already has a web page, at its top or in src/ or public/; false when nothing can be read. */
+  HC.code.hasPage = async (root) => {
+    if (!root || typeof HC.code.listQuietly !== 'function') return false;
+    const sep = /\\/.test(root) && !/\//.test(root) ? '\\' : '/', base = String(root).replace(/[\\/]+$/, '');
+    for (const dir of [base, `${base}${sep}src`, `${base}${sep}public`]) {
+      let list = [];
+      try { list = await HC.code.listQuietly(dir); if (typeof list === 'string') list = JSON.parse(list); } catch { continue; }
+      if (Array.isArray(list) && list.some((e) => e && !e.is_dir && /\.html?$/i.test(String(e.name)))) return true;
+    }
+    return false;
+  };
+  HC.code.siteBrief = (task, how = {}) => {
     const W = window.HCSwarmWebBrief;
-    if (!W || !W.BAR || !W.isWebTask(task)) return '';
+    if (!W || !W.BAR || !HC.code.buildsSite(task, how)) return '';
     const b = W.BAR;
     return ['BUILDING THIS SITE. The result is held to this bar:', b.content, b.identity, b.logo, b.firstScreen, b.works, b.motion,
       '- Photographs of what the site is about come from find_photos: use only the addresses it gives and credit each one the page shows where a visitor can read it. Otherwise draw with CSS and inline SVG. Every image has alt text, a fixed aspect ratio and object-fit. Never an address you made up.',
@@ -1192,6 +1225,7 @@ Rules:
 - Never say you changed a file unless patch_file or write_file said ok.
 - Write paths from the project folder: src/app.js.
 - Do not change the tests unless the task asks for it.
+- Do only what the task asks: no extra files, features or changes it did not ask for.
 - If the task only asks a question, answer it and change nothing.
 
 ${HC.code.TOOL_TEXT_RULE}`;
@@ -1223,7 +1257,8 @@ How to work:
 6. Before you finish, read the request again and make sure every thing it asks for is done. Then finish with two or three sentences: what you changed, and what passed.
 
 Rules:
-- Change only what the request asks for, and keep the rest of each file as it is.
+- Change only what the request asks for, and keep the rest of each file as it is. Make no file it does not need, such as a README or notes, and add no feature it did not ask for.
+- Finish in plain sentences, with no list of suggestions, next steps or offers to do more.
 - Do not change the tests unless the request asks for it.
 - If the request only asks a question, answer it from the files and change nothing.
 - Never ask the person for what the files or the tests can tell you: an error, where something is, a value. Look it up.

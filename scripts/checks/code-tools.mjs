@@ -381,10 +381,15 @@ console.log('\nA site HashCoder builds is held to the bar the Swarm\'s are:');
   ok('with photographs from find_photos, credited, and files written with the file tools', /find_photos/.test(site) && /credit each one/.test(site) && /write_file/.test(site) && /patch_file/.test(site));
   ok('and nothing of the Swarm\'s own: no fenced files, no other agents', !/fenced block/.test(site) && !/agent/i.test(site));
   ok('a request that is not for the web gets nothing', box.window.HC.code.siteBrief('rename the helper in utils.py') === '');
+  const H = box.window.HC.code;
+  ok('a change to a site the project already has gets nothing', ['make the navbar css sticky', 'fix the html form so it submits', 'change the website\'s button colour to green', 'add a contact section to the landing page'].every((t) => H.siteBrief(t, { hasPage: true }) === ''));
+  ok('...unless it asks for a new or rebuilt site', /^BUILDING THIS SITE/.test(H.siteBrief('redesign the website for the bakery', { hasPage: true })) && /^BUILDING THIS SITE/.test(H.siteBrief('build a new landing page for the app', { hasPage: true })) && /^BUILDING THIS SITE/.test(H.siteBrief('start over and make the portfolio from scratch', { hasPage: true })));
+  ok('with no page yet, a request to make one gets the bar, a question about one does not', /^BUILDING THIS SITE/.test(H.siteBrief('create a portfolio website for a photographer', { hasPage: false })) && H.siteBrief('why does my css grid overflow?', { hasPage: false }) === '');
+  ok('whether a project has a page is read from its top folder, src and public, quietly', /for \(const dir of \[base, `\$\{base\}\$\{sep\}src`, `\$\{base\}\$\{sep\}public`\]\)/.test(src('platform', 'tauri', 'hashcoder.js')) && /HC\.code\.listQuietly\(dir\)/.test(src('platform', 'tauri', 'hashcoder.js')));
   ok('the Swarm\'s brief is built from the same lines', ['content', 'identity', 'logo', 'firstScreen', 'works', 'motion', 'scriptClasses'].every((k) => W.brief({ task: 'a landing page', siteFiles: [] }).includes(W.BAR[k])));
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder gives it with such a request, never to a small model',
-    /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task\) \|\| ''\);/.test(mode) && /if \(site\) lines\.push\(String\(site\)\);/.test(src('js', 'code', 'context.js'))
+    /const site = size === 'small' \? '' : \(HC\?\.code\?\.siteBrief\?\.\(task, \{ hasPage: await HC\.code\.hasPage\?\.\(root\) \}\) \|\| ''\);/.test(mode) && /if \(site\) lines\.push\(String\(site\)\);/.test(src('js', 'code', 'context.js'))
     && /const context = window\.HCCodeTalk\?\.isSmallTalk\(task\) \? null : window\.HCCodeContext\?\.forRequest\(\{ site, activeFile: root && sharedState\.activeFile, facts:/.test(mode) && /\.\.\.\(context \? \{ context \} : \{\}\), \.\.\.\(site \? \{ site: true \} : \{\}\)/.test(mode));
 }
 
@@ -489,6 +494,10 @@ console.log('\nToday\'s date, and using tools well:');
   for (const [size, prompt] of [['small', HC.code.SMALL_MODEL_PROMPT], ['mid', HC.code.MID_MODEL_PROMPT]]) {
     ok(`a ${size} model is told how to make a folder, that a failed call must change, and never to say it changed what it did not`, /Make a folder with shell_run: command "mkdir", args \["-p", the folder\]/.test(prompt) && /same call fails again|fails again if made the same way/.test(prompt) && /Never say (?:you changed a file|a file was changed)/.test(prompt));
   }
+  ok('they keep a model to what was asked: no unasked features, files or fixes, the smaller reading when unclear', /SCOPE — DO WHAT WAS ASKED, NOTHING MORE:/.test(full) && /No extra features, sections, pages, settings, refactors, renames or comments it did not ask for/.test(full) && /Never make a file the request does not need: no README, notes, docs, tests, examples or config unless asked\./.test(full) && /do not fix it unasked/.test(full) && /do the smaller reading, or ask one question/.test(full));
+  ok('and to a short answer: what changed, where, what ran, with no lists of suggestions or next steps', /ANSWER:/.test(full) && /what you changed, in which files, and what you ran with its result/.test(full) && /No headings, no lists of what you built, no "next steps", "suggestions", "possible improvements" or offers to do more\./.test(full));
+  ok('the checks a UI is held to cover what is built or changed, not the rest of the page', /In what you build or change: descriptive alt text/.test(full) && /Do not go back over parts of a page the request is not about to add them\./.test(full) && !/• Always: descriptive alt text/.test(full));
+  ok('a small and a mid-sized model are told the same in fewer words', /Do only what the task asks: no extra files, features or changes it did not ask for\./.test(HC.code.SMALL_MODEL_PROMPT) && /Make no file it does not need, such as a README or notes, and add no feature it did not ask for\./.test(HC.code.MID_MODEL_PROMPT) && /no list of suggestions, next steps or offers to do more/.test(HC.code.MID_MODEL_PROMPT));
   const mode = src('modes', 'code', 'mode.js');
   ok('the date goes at the end of the instructions, after all that stays the same through the day', /return out \+ \(extra \? '\\n' \+ extra : ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));
   ok('...in light mode and for the other loop too', /extra, HC\?\.code\?\.dateLine\?\.\(\)\.trim\(\)\]\.filter\(Boolean\)/.test(mode) && /platformLine\?\.\(sharedState\.platform\) \|\| ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));

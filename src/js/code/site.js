@@ -8,7 +8,8 @@
 // read by the check the Agent Swarm's work goes through
 // (js/swarm/project-check.js), which needs no model. What will not work, and
 // what falls short of the standard a site is held to, is handed back to the
-// agent once, before it finishes (js/code/verify.js siteNote).
+// agent once, before it finishes (js/code/verify.js siteNote): only what the
+// run brought in, never what the site already had.
 //
 // The files gathered: every page, stylesheet and script in each folder the
 // run changed one in, and the stylesheets and scripts those pages load from
@@ -101,5 +102,33 @@
     return files;
   }
 
-  window.HCCodeSite = { MOST_FILES, MOST_CHARS, worthChecking, loads, resolve, gather };
+  /**
+   * The same files as they stood before the run: a file the run changed holds
+   * what it held, and one the run made is left out. `changes` is
+   * js/code/review.js's `Map(path -> { before, after, unreadable })`; a file
+   * whose earlier text was not kept stays as it is now.
+   */
+  function asBefore(files, changes) {
+    const out = new Map(files);
+    for (const [path, c] of changes || []) {
+      const name = baseOf(String(path)).toLowerCase();
+      if (!c || c.unreadable || !out.has(name)) continue;
+      if (c.before == null) out.delete(name);
+      else out.set(name, { ...out.get(name), content: c.before });
+    }
+    return out;
+  }
+
+  /**
+   * What the run brought in: the findings in `now` that `before` did not
+   * have, by their words. A problem the site already had is the person's to
+   * ask about, not the run's to fix: sent back for it, a model rewrites parts
+   * of a page the request never mentioned.
+   */
+  function newSince(now, before) {
+    const had = new Set((before || []).map((f) => f && f.what));
+    return (now || []).filter((f) => f && !had.has(f.what));
+  }
+
+  window.HCCodeSite = { MOST_FILES, MOST_CHARS, worthChecking, loads, resolve, gather, asBefore, newSince };
 })();

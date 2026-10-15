@@ -50,6 +50,7 @@
     'Rules:',
     '- Paths are from the project folder. A file at its top is written by its name alone, such as index.html; one in a folder with the folder, such as src/app.js. Use the paths the project already has.',
     '- Write only the files that must change or be created, each one in full. Keep everything in them that you were not asked to change exactly as it is.',
+    '- Do only what was asked: no extra files, features or sections.',
     '- Do not change test files unless asked to.',
     '- Do not add comments saying what you changed.',
     '- Answer a question in plain words and write no FILE blocks.',

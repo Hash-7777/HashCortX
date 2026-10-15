@@ -91,6 +91,24 @@ console.log('\nWhat the agent is sent back with:');
   ok('a saved conversation shows it as the step it was', V.noteStep(note.message) === note.step && note.step === 'Sent back with what the site check found');
 }
 
+console.log('\nOnly what the run brought in:');
+{
+  const files = await S.gather(['/p/script.js'], '/p', fake().io);
+  const was = S.asBefore(files, new Map([['/p/script.js', { before: 'console.log(1);\n', after: files.get('script.js').content }], ['/p/elsewhere/other.css', { before: 'a{}', after: 'b{}' }]]));
+  ok('a file the run changed is read as it was before the run', was.get('script.js').content === 'console.log(1);\n' && was.get('script.js').path === '/p/script.js');
+  ok('the files it did not change stay as they are, and a change elsewhere adds nothing', was.get('style.css').content === files.get('style.css').content && was.size === files.size);
+  ok('a file the run made is left out', !S.asBefore(files, new Map([['/p/script.js', { before: null, after: 'x' }]])).has('script.js'));
+  ok('a file whose earlier text was not kept is read as it is now', S.asBefore(files, new Map([['/p/script.js', { before: null, after: null, unreadable: true }]])).get('script.js').content === files.get('script.js').content);
+  const now = [{ what: 'one the site had' }, { what: 'one the run made' }];
+  ok('findings the site already had are left out, the run\'s own kept', S.newSince(now, [{ what: 'one the site had' }]).map((f) => f.what).join() === 'one the run made');
+  ok('with nothing before, all of them are the run\'s', S.newSince(now, []).length === 2 && S.newSince(now, null).length === 2 && S.newSince(null, []).length === 0);
+  const broken = (m) => C.inspect(m).filter((x) => x.level === 'broken');
+  const run = S.newSince(broken(files), broken(was)).map((x) => x.what);
+  ok('a script the run broke the page with is still sent back, and a page problem it did not make is not', run.some((w) => /switches on \.revealed/.test(w)) && !run.some((w) => /outside\.css/.test(w)), run.join(' | '));
+  const same = S.newSince(broken(files), broken(S.asBefore(files, new Map([['/p/index.html', { before: files.get('index.html').content, after: files.get('index.html').content }]]))));
+  ok('a page the run touched that had those problems already sends nothing back', same.length === 0, same.join(' | '));
+}
+
 console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
@@ -99,11 +117,12 @@ console.log('\nHashCoder:');
   ok('keeps what each reading found, for the line under the answer, and sends the agent back once only',
     /proof\.siteRead\(broken\.length\);/.test(mode) && /return broken\.length && !sent\.site \? window\.HCCodeVerify\.siteNote\(broken\) : null;/.test(mode));
   ok('reading the files without asking', /S\.gather\(proof\.changed, root, \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \}\)\.catch\(\(\) => null\)/.test(mode));
-  ok('and sends back what will not work and what falls short of the standard, never what is only unfinished', /C\.inspect\(files\)\.filter\(\(f\) => f\.level === 'broken' \|\| f\.level === 'standard'\)/.test(mode) && /window\.HCCodeVerify\.siteNote\(broken\)/.test(mode));
+  ok('and sends back what will not work and what falls short of the standard, never what is only unfinished', /const counts = \(list\) => list\.filter\(\(f\) => f\.level === 'broken' \|\| f\.level === 'standard'\)/.test(mode) && /window\.HCCodeVerify\.siteNote\(broken\)/.test(mode));
+  ok('...and only what this run brought in, compared with the files as they stood before it', /broken = S\.newSince\(counts\(C\.inspect\(files\)\), counts\(C\.inspect\(S\.asBefore\(files, changes\)\)\)\)\.map\(\(f\) => f\.what\);/.test(mode));
   ok('before a second look, when nothing else sent it back, the files its answer names included', /\|\| \(finalText\.trim\(\) \? \(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\) \|\| window\.HCCodeVerify\.passedNote\(finalText, proof, sharedState\.projectChecks\?\.checks, sent\.passed\)\) \|\| \(await projectLook\(\)\) \|\| [^\n]*?\(await siteLook\(\)\) \|\| \(await factsLook\(\)\) \|\| keptLook\(\) \|\| \(await secondLook\(\)\) : null\);/.test(mode) && /site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0, passed: 0, cut: 0, ahead: 0 \};/.test(mode));
   const boot = src('boot.js');
   ok('it is loaded before the modes', boot.indexOf("'/js/code/site.js'") > 0 && boot.indexOf("'/js/code/site.js'") < boot.indexOf("'/modes/boot.js'") && boot.indexOf("'/js/swarm/project-check.js'") < boot.indexOf("'/modes/boot.js'"));
-  ok('Settings says so under proving changes', /A site it changed is read the way a browser would, and what will not work, or lets the page down, is sent back to be fixed\./.test(src('core', 'settings', 'panel.html')));
+  ok('Settings says so under proving changes', /A site it changed is read the way a browser would, and what the change made that will not work, or lets the page down, is sent back to be fixed\. Problems the site already had are left alone\./.test(src('core', 'settings', 'panel.html')));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/site.js)`);
