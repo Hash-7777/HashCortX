@@ -2792,7 +2792,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
   sendBtn.addEventListener("click", () => state.streaming ? abort() : send());
-  const chatQueue = HCQueue.forComposer({ input, before: document.querySelector(".composer-wrap .composer"), send: () => send(), outcome: () => ({ stopped: !!state.abort?.signal?.aborted, failed: !!errorSlot?.childElementCount }) });   // sent while a reply is written, a message waits for it (js/queue.js)
+  const chatQueue = HCQueue.forComposer({ input, before: document.querySelector(".composer-wrap .composer"), send: () => send(), outcome: () => ({ stopped: !!state.abort?.signal?.aborted, failed: !!errorSlot?.childElementCount }), interrupt: () => abort() });   // sent while a reply is written, a message waits for it (js/queue.js)
   $("newChatBtn")?.addEventListener("click", () => newChat());
 
   // ── Preview button — show full payload that would be sent to the model ──

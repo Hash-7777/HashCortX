@@ -409,7 +409,7 @@ const FinanceMode = (() => {
 
     const input = wrap.querySelector("#finInput");
     const send  = wrap.querySelector("#finSend");
-    finQueue = window.HCQueue ? window.HCQueue.forComposer({ input, before: wrap.querySelector(".fin-composer-box"), when: "Sends when FinanceAI finishes", send: () => submitPrompt(), outcome: () => ({ stopped: !!abortCtrl?.signal?.aborted, failed: !!document.getElementById("finStatusDot")?.classList.contains("error") }) }) : null;
+    finQueue = window.HCQueue ? window.HCQueue.forComposer({ input, before: wrap.querySelector(".fin-composer-box"), when: "Sends when FinanceAI finishes", send: () => submitPrompt(), outcome: () => ({ stopped: !!abortCtrl?.signal?.aborted, failed: !!document.getElementById("finStatusDot")?.classList.contains("error") }), interrupt: () => abortCtrl?.abort() }) : null;
     const fileInput = wrap.querySelector("#finFileInput");
     const attach = wrap.querySelector("#finAttachFile");
     input.addEventListener("keydown", (e) => {

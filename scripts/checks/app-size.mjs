@@ -805,7 +805,9 @@ const LINE_BUDGET = {
   // 2469, down nineteen: each tool's word and the argument shown beside it
   // moved to js/code/steps.js, which draws the steps, and a message sent
   // while a run works is read at its next step (js/queue.js).
-  'modes/code/mode.js': 2469,
+  // 2471, up two: "Send now" stops only the model step under way, and the
+  // run gives that step up for the message and goes on (js/queue.js).
+  'modes/code/mode.js': 2471,
 };
 
 console.log('\nFile sizes go down, never up:');

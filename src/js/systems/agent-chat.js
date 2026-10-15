@@ -222,7 +222,7 @@
     $('sysAgentClose')?.addEventListener('click', () => open(false));
     $('sysAgentClear')?.addEventListener('click', () => { if (!busy) clear(); });
     $('sysAgentStop')?.addEventListener('click', () => { stopped = true; if (deps) deps.stop(); });
-    queue = window.HCQueue ? window.HCQueue.forComposer({ input: $('sysAgentInput'), before: $('sysAgentForm'), when: 'Sends when the agent finishes', send: submit, outcome: () => ({ stopped }) }) : null;
+    queue = window.HCQueue ? window.HCQueue.forComposer({ input: $('sysAgentInput'), before: $('sysAgentForm'), when: 'Sends when the agent finishes', send: submit, outcome: () => ({ stopped }), interrupt: () => deps?.stop() }) : null;
     $('sysAgentForm')?.addEventListener('submit', (e) => { e.preventDefault(); submit(); });
     $('sysAgentInput')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit(); }

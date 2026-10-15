@@ -117,7 +117,7 @@ console.log('\nThe words reach it as they are written:');
   ok('after tools run it is told which step ended last, and after a note from the app that it is checking', /appendThinking\(contentEl, \{ after: window\.HCCodeLive\.afterOf\(turn\.tool_calls, results, toolObject\) \}\)/.test(mode) && /appendThinking\(contentEl, \{ checking: true \}\);\n\s+continue;/.test(mode));
   ok('a second look, which is a model call with nothing else on screen, has the line, and takes it away however it ends', /const wait = appendThinking\(contentEl, \{ checking: true \}\);/.test(mode) && /finally \{ wait\?\.remove\(\); \}/.test(mode));
   ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
-    && /router\.turn\(\{ messages, tools, temperature, signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true, reset: live\?\.reset, most: sharedState\.size !== 'full' && !sharedState\.light \? window\.HCCodeVerify\.STEP_MOST : undefined \}\)/.test(mode));
+    && /router\.turn\(\{ messages, tools, temperature, signal: step\.signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true, reset: live\?\.reset, most: sharedState\.size !== 'full' && !sharedState\.light \? window\.HCCodeVerify\.STEP_MOST : undefined \}\)/.test(mode));
   const routerSrc = src('js', 'code', 'router.js');
   ok('a model asked again starts the line again: the routing calls it before every try, and again before a retry', (routerSrc.match(/request\.reset\(\)/g) || []).length >= 2 && /typeof request\.reset === 'function'/.test(routerSrc));
   const shape = src('js', 'agent-shape.js');

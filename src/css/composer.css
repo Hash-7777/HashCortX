@@ -304,6 +304,32 @@
     border-radius: 999px;
   }
   .hc-queue-when { margin-left: auto; color: var(--muted); }
+  /* "Send now": the queue stops waiting. While it is on its way the card's light and pulse quicken. */
+  .hc-queue-now {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 22px; padding: 0 9px 0 10px;
+    font: inherit; font-family: var(--sans); font-size: 11px;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid rgba(34,211,238,0.35);
+    border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .18s, border-color .18s, opacity .18s;
+  }
+  .hc-queue-now[hidden] { display: none; }
+  .hc-queue-now svg { transition: transform .18s; }
+  .hc-queue-now:hover {
+    background: rgba(34,211,238,0.06);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-color: var(--accent);
+  }
+  .hc-queue-now:hover svg { transform: translateX(2px); }
+  .hc-queue-now:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .hc-queue-now:disabled { cursor: default; opacity: .85; }
+  .hc-queue--now::before { animation-duration: 1.1s; }
+  .hc-queue--now .hc-queue-pulse::after { animation-duration: .7s; }
+  .hc-queue--now .hc-queue-now svg { animation: hcq-go .8s ease-in-out infinite; }
 
   .hc-queue-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
   .hc-queue-item {
@@ -349,8 +375,10 @@
   @keyframes hcq-ping { from { opacity: .7; transform: scale(.6); } to { opacity: 0; transform: scale(1.6); } }
   @keyframes hcq-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   @keyframes hcq-out { to { opacity: 0; transform: translateY(-12px) scale(.98); } }
+  @keyframes hcq-go { 50% { transform: translateX(3px); } }
 
   @media (prefers-reduced-motion: reduce) {
     .hc-queue, .hc-queue::before, .hc-queue-pulse::after, .hc-queue-item--new, .hc-queue--leaving { animation: none; }
     .hc-queue-item:hover, .hc-queue-item:focus-within { transform: none; }
+    .hc-queue--now .hc-queue-now svg { animation: none; }
   }

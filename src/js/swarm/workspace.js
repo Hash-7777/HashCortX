@@ -68,7 +68,7 @@
     $('amkWsMessage')?.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); }
     });
-    queue = window.HCQueue && $('amkWsMessage') ? window.HCQueue.forComposer({ input: $('amkWsMessage'), before: $('amkWsMessage'), when: 'Sends when the agent answers', send: () => send(), outcome: () => asked }) : null;
+    queue = window.HCQueue && $('amkWsMessage') ? window.HCQueue.forComposer({ input: $('amkWsMessage'), before: $('amkWsMessage'), when: 'Sends when the agent answers', send: () => send(), outcome: () => asked, interrupt: () => { if (state.asking && !state.asking.team) state.asking.controller.abort(); } }) : null;
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { e.stopPropagation(); close(); } });
   }
 

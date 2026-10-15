@@ -22,6 +22,16 @@
 // messages are sent as one, in the order they were written, so one reply
 // answers them all. Attachments stay with the box, as they were.
 //
+// "Send now", or Ctrl+Enter (Cmd+Enter on a Mac) while the work goes on,
+// does not wait. What is under way is cut where it does least harm, which
+// is the workspace's to say (`interrupt`): HashCoder drops only the step
+// the model is still writing, and reads the message at once, its finished
+// steps and a command still running left as they are; where a reply is
+// written in one go, it stops where it has got to and is kept as written,
+// and the queue is sent as soon as it has stopped. Stopped this way, the
+// queue is sent, not handed back. 3D Forge has no "Send now": stopping
+// there would throw away the part being made.
+//
 // The queue itself (create) is pure and checked by scripts/checks/queue.mjs;
 // forComposer draws it and wires a box to it. Loaded before the app and every
 // mode, and published as window.HCQueue.
@@ -59,6 +69,7 @@
   /** Several messages as the one they are sent as. */
   const joined = (list) => (list || []).map((m) => m.text).join('\n\n');
 
+  const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(String(navigator.platform || navigator.userAgent || ''));
   const REMOVE_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
 
   /**
@@ -67,10 +78,12 @@
    * (a one-line prompt in a bar, where it hangs below); `when` what it says
    * about when it is sent;
    * `send()` sends what is in the box; `outcome()` says how the work that
-   * just ended went, `{ stopped, failed }`.
+   * just ended went, `{ stopped, failed }`; `interrupt()`, when given, makes
+   * the work under way give way for the queue, and shows "Send now".
    */
-  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}) } = {}) {
+  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null } = {}) {
     const q = create();
+    let urgent = false;   // "Send now" was asked for: the queue goes as soon as the work gives way
     const doc = (input && input.ownerDocument) || (typeof document !== 'undefined' ? document : null);
     let box = null, list = null;
 
@@ -94,8 +107,12 @@
         box.setAttribute('aria-label', 'Queued messages');
         const head = doc.createElement('div');
         head.className = 'hc-queue-head';
-        head.innerHTML = '<span class="hc-queue-pulse" aria-hidden="true"></span><span class="hc-queue-title">Queued</span><span class="hc-queue-count"></span><span class="hc-queue-when"></span>';
+        head.innerHTML = '<span class="hc-queue-pulse" aria-hidden="true"></span><span class="hc-queue-title">Queued</span><span class="hc-queue-count"></span><span class="hc-queue-when"></span><button type="button" class="hc-queue-now" hidden><span class="hc-queue-now-label">Send now</span><svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 8h9M8.5 4.5 12 8l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
         head.querySelector('.hc-queue-when').textContent = when;
+        const now = head.querySelector('.hc-queue-now');
+        now.hidden = typeof interrupt !== 'function';
+        now.title = `Stop waiting and send it now (${MAC ? '\u2318' : 'Ctrl+'}Enter)`;
+        now.addEventListener('click', () => sendNow());
         list = doc.createElement('ol');
         list.className = 'hc-queue-list';
         box.append(head, list);
@@ -112,6 +129,7 @@
       // Sent or taken back whole: the card lifts away, then is hidden.
       if (!items.length) {
         shown = new Set();
+        urgent = false;
         if (box.hidden || leaving) return;
         box.classList.add('hc-queue--leaving');
         leaving = setTimeout(() => { leaving = 0; box.classList.remove('hc-queue--leaving'); if (!q.size) { box.hidden = true; host?.classList.remove('hc-queue-host'); } }, 220);
@@ -119,6 +137,10 @@
       }
       if (leaving) { clearTimeout(leaving); leaving = 0; box.classList.remove('hc-queue--leaving'); }
       box.hidden = false;
+      box.classList.toggle('hc-queue--now', urgent);
+      const now = box.querySelector('.hc-queue-now');
+      now.disabled = urgent;
+      now.querySelector('.hc-queue-now-label').textContent = urgent ? 'Sending\u2026' : 'Send now';
       host?.classList.add('hc-queue-host');   // a host can rise above what the card hangs over while it shows
       box.querySelector('.hc-queue-count').textContent = items.length > 1 ? String(items.length) : '';
       list.textContent = '';
@@ -160,8 +182,23 @@
       draw();
     }
 
+    /** Stop waiting: the work under way gives way, and the queue goes as soon as it has. */
+    function sendNow() {
+      if (!q.size || urgent || typeof interrupt !== 'function') return false;
+      urgent = true;
+      draw();
+      try { interrupt(); } catch { /* the work ends its own way; the queue still goes when it does */ }
+      return true;
+    }
+
     // The Up arrow in an empty box takes the newest queued message back.
     if (input) {
+      // Ctrl+Enter (Cmd+Enter on a Mac) while the work goes on: queued, as Enter does, and sent now.
+      input.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.shiftKey || !(MAC ? e.metaKey : e.ctrlKey) || typeof interrupt !== 'function') return;
+        const had = q.size, empty = !String(input.value || '').trim();
+        setTimeout(() => { if (q.size > had || (empty && q.size)) sendNow(); }, 0);   // after the box's own Enter has queued it
+      });
       input.addEventListener('keydown', (e) => {
         if (e.key !== 'ArrowUp' || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey || input.value || !q.size) return;
         e.preventDefault();
@@ -183,6 +220,7 @@
       /** Every queued message, taken out as one: `{ text, count }`, or null when none. */
       takeNow() {
         if (!q.size) return null;
+        urgent = false;
         const list = q.take();
         draw();
         return { text: joined(list), count: list.length };
@@ -200,7 +238,8 @@
         if (!q.size) return;
         setTimeout(() => {
           if (!q.size) return;
-          const how = (typeof outcome === 'function' ? outcome() : null) || {};
+          const how = urgent ? {} : (typeof outcome === 'function' ? outcome() : null) || {};   // stopped by "Send now": sent, not handed back
+          urgent = false;
           const list = q.take();
           draw();
           const text = joined(list);
@@ -213,6 +252,8 @@
           else if (draft) setBox(draft);
         }, 0);
       },
+      sendNow,
+      get urgent() { return urgent; },
       get size() { return q.size; },
       get items() { return q.items; },
       draw,

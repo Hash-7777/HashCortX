@@ -137,7 +137,7 @@
   // ones the shared rules move it to when it cannot answer, each move said, and
   // the run stays on the one that took over. startRun clears it, so the next
   // run starts again from the model chosen.
-  let routing = null;
+  let routing = null, stepAbort = null;   // stepAbort: the model step under way, which "Send now" stops alone (js/queue.js)
   let routeNotice = () => {};   // set in the panel, where the conversation is
 
   function routerFor(selected) {
@@ -174,7 +174,8 @@
     const selected = modelOverride || window._H?.selectedModel?.() || '';
     if (!selected) throw new Error('No model available. Select a model from the dropdown or add an API key in Settings.');
     const router = routerFor(selected);
-    const result = await router.turn({ messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true, reset: live?.reset, most: sharedState.size !== 'full' && !sharedState.light ? window.HCCodeVerify.STEP_MOST : undefined });   // a smaller model's step is held short (js/code/verify.js STEP_MOST)
+    const step = new AbortController(), give = () => step.abort(); if (signal?.aborted) step.abort(); else signal?.addEventListener('abort', give); stepAbort = step;
+    const result = await router.turn({ messages, tools, temperature, signal: step.signal, onText: live?.text, onThinking: live?.thinking, cache: true, reset: live?.reset, most: sharedState.size !== 'full' && !sharedState.light ? window.HCCodeVerify.STEP_MOST : undefined }).finally(() => { signal?.removeEventListener('abort', give); if (stepAbort === step) stepAbort = null; });   // a smaller model's step is held short (js/code/verify.js STEP_MOST)
     const moved = router.model !== selected;
     setRouterChip(moved ? router.label(router.model) : '', moved ? 'switched' : '');
     return result;
@@ -478,7 +479,7 @@
       }
 
       if (taskInput) {
-        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome });
+        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort() });
         taskInput.addEventListener('keydown', e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startRun(); }
         });
@@ -1901,6 +1902,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         try {
           turn = forced || await callWithRouter(callMessages, tools, temperature, signal, coderModel, thinkEl); forced = null;
         } catch (e) {
+          if (coderQueue?.urgent && !signal?.aborted) { thinkEl?.remove(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Step', 'Gave way to a message sent now', 'run'); continue; }   // "Send now": the step being written is dropped, and the message read at once
           thinkEl?.remove(); thinkEl = null;
           cdrTraceAdd('Error', e?.message || String(e), 'err');
           // Show error inline in the bubble

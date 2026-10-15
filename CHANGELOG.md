@@ -31,7 +31,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   the same way; in Forge the card hangs below the prompt, and in the
   Swarm's workspace the box stays open while an agent answers, the message
   being asked shown in the conversation and put back in the box if the
-  answer fails or is stopped.
+  answer fails or is stopped. "Send now" on the card, or Ctrl+Enter
+  (Cmd+Enter on a Mac) while the work goes on, does not wait: HashCoder
+  drops only the step the model is still writing and reads the message at
+  once, its finished steps and a running command left as they are; chat,
+  Finance, the ERP agent and the Swarm's workspace stop the reply where it
+  has got to, keep it as written, and send the queue. 3D Forge has no
+  "Send now", as stopping would throw away the part being made.
 - **Where a local model runs is a setting.** Settings, General, "Where local
   models run": Automatic, the default, where Ollama puts as much of a model
   as fits on the graphics chip and the rest in main memory; Graphics chip

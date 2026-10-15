@@ -120,6 +120,40 @@ console.log('\nTaking a queued message back:');
   ok('...but not over what the box holds', !again.prevented && input.value === 'second' && c.size === 1);
 }
 
+console.log('\nSend now:');
+{
+  const input = box('');
+  let sent = [], cut = 0;
+  const send = () => { sent.push(input.value); input.value = ''; };
+  const c = Q.forComposer({ input, send, outcome: () => ({ stopped: true }), interrupt: () => { cut++; } });
+  ok('nothing queued, nothing to send now', c.sendNow() === false && cut === 0);
+  input.value = 'use the blue logo'; c.hold();
+  ok('the work under way is asked to give way, once however often it is pressed', c.sendNow() === true && c.sendNow() === false && cut === 1 && c.urgent);
+  c.settle(); flush();
+  ok('stopped for it, the queue is sent, not handed back', sent.length === 1 && sent[0] === 'use the blue logo' && input.value === '' && !c.urgent, JSON.stringify(sent));
+  input.value = 'after a real stop'; c.hold(); c.settle(); flush();
+  ok('a stop the person made still hands it back', sent.length === 1 && input.value === 'after a real stop');
+  const d = Q.forComposer({ input: box(''), interrupt: () => {} });
+  d.add('also the footer'); d.sendNow();
+  ok('a run that reads it at its next step takes it, and the queue is no longer in a hurry', d.takeNow().text === 'also the footer' && !d.urgent);
+  ok('a workspace that gives no way to give way has no Send now', Q.forComposer({ input: box('') }).sendNow() === false);
+  const k = box('');
+  let held = 0;
+  const e = Q.forComposer({ input: k, interrupt: () => { held++; } });
+  k.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') e.hold(); });   // the box's own Enter, as each workspace has
+  k.value = 'right away';
+  k.dispatchEvent({ type: 'keydown', key: 'Enter', ctrlKey: true, metaKey: false, shiftKey: false, preventDefault() {} });
+  flush();
+  ok('Ctrl+Enter while the work goes on queues it and sends it now', e.size === 1 && e.urgent && held === 1);
+  const plain = box('');
+  const f = Q.forComposer({ input: plain, interrupt: () => { held++; } });
+  plain.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') f.hold(); });
+  plain.value = 'in its turn';
+  plain.dispatchEvent({ type: 'keydown', key: 'Enter', ctrlKey: false, metaKey: false, shiftKey: false, preventDefault() {} });
+  flush();
+  ok('...Enter alone only queues it', f.size === 1 && !f.urgent && held === 1);
+}
+
 console.log('\nHashCoder reads it at the next step:');
 {
   const c = Q.forComposer({ input: box(''), when: 'Read at the next step' });
@@ -164,7 +198,15 @@ console.log('\nThe workspaces:');
     && forge.indexOf('frgQueue?.hold()') < forge.indexOf('if (abortCtrl) abortCtrl.abort();'));
   const ws = src('js', 'swarm', 'workspace.js');
   ok('the Agent Swarm: a message sent while an agent answers waits for that answer', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws) && /queue\?\.settle\(\);/.test(ws));
+  ok('Send now: chat stops the reply, kept as written', /interrupt: \(\) => abort\(\) \}\);/.test(app));
+  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\) \}\);/.test(coder)
+    && /const step = new AbortController\(\), give = \(\) => step\.abort\(\); if \(signal\?\.aborted\) step\.abort\(\); else signal\?\.addEventListener\('abort', give\); stepAbort = step;/.test(coder)
+    && /signal: step\.signal,/.test(coder) && /\.finally\(\(\) => \{ signal\?\.removeEventListener\('abort', give\); if \(stepAbort === step\) stepAbort = null; \}\);/.test(coder)
+    && /\} catch \(e\) \{\n\s*if \(coderQueue\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = appendThinking\(contentEl\);[^\n]*continue; \}/.test(coder));
+  ok('...Finance, the ERP agent and the Swarm\'s workspace stop what they are writing', /interrupt: \(\) => abortCtrl\?\.abort\(\) \}\)/.test(fin) && /interrupt: \(\) => deps\?\.stop\(\) \}\)/.test(erp) && /interrupt: \(\) => \{ if \(state\.asking && !state\.asking\.team\) state\.asking\.controller\.abort\(\); \} \}\)/.test(ws));
+  ok('...and 3D Forge has none, as stopping would throw away the part being made', !/interrupt:/.test(forge));
   const css = src('css', 'composer.css');
+  ok('the button shows only where there is one, and quickens the card while it sends', /\.hc-queue-now\[hidden\] \{ display: none; \}/.test(css) && /\.hc-queue--now::before \{ animation-duration: 1\.1s; \}/.test(css) && /\.hc-queue--now \.hc-queue-now svg \{ animation: none; \}/.test(css));
   const frames = [...css.matchAll(/@keyframes (hcq-[\w-]+) \{([^@]*?)\}\s*(?=@keyframes|\n\n|$)/g)];
   ok('the card\'s motion only moves and fades, never a shadow or a filter, so it costs the page next to nothing', frames.length >= 5 && frames.every(([, , body]) => !/(box-shadow|filter|width|height|top|left|background)\s*:/.test(body)), frames.map((f) => f[1]).join());
   ok('...and stops for a person who asks for less motion', /@media \(prefers-reduced-motion: reduce\) \{\s*\.hc-queue, \.hc-queue::before, \.hc-queue-pulse::after, \.hc-queue-item--new, \.hc-queue--leaving \{ animation: none; \}/.test(css));
