@@ -73,6 +73,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge shows models in their colours.** Every part was drawn in one
+  neutral print colour, whatever the object was. The design call now gives
+  each part the colour the real object has there, with parts of one
+  material sharing it exactly, so a model reads as one object in its own
+  colours; a part with no colour keeps the neutral one, the fused solid
+  takes the colour of the part that carries it, and an imported file keeps
+  its own.
 - **HashCoder does what was asked, and no more.** Its instructions now
   keep a model to the request: no features, sections, files or fixes it
   did not ask for, no README or notes nobody wanted, and the smaller

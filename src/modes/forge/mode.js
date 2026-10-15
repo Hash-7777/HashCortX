@@ -1,21 +1,18 @@
 (function () {
   "use strict";
 
-  // A finished model is one object, and it is drawn as one.
-  //
-  // Parts used to be coloured by their role — bone, gold, a warm grey — on top
-  // of whatever colour the design call had chosen for each of them. The result
-  // was that the joins were the loudest thing on screen: a fish read as a beige
-  // body next to a gold fin next to a grey tail, three objects standing
-  // together rather than one animal. Nothing about a model is per-part, and
-  // giving each part its own colour said the opposite.
-  //
-  // So every part is the same material, the way a piece off a 3D printer is one
-  // filament: light neutral, matte, fully opaque, no glow of its own. What
-  // separates one part from the next is the shading across the join, which is
-  // what a person actually reads shape from. The plan's own "color" is ignored
-  // for a real part, and no longer asked for.
+  // A finished model is one object, and it is drawn as one. Parts coloured by
+  // their role made a fish a beige body beside a gold fin beside a grey tail.
+  // Every part is the same matte, opaque material, in the colour the real
+  // object has there: the design call gives it, and parts of one material in
+  // life share it exactly. A part with none, or not a plain hex value, takes
+  // the light neutral of a 3D printer's filament.
   const PRINT_COLOR = 0xd7d2c8;
+  /** A part's own colour, when the plan gives one as #rgb or #rrggbb; otherwise the neutral print colour. */
+  function partColor(node) {
+    const c = typeof node?.color === "string" ? node.color.trim() : "";
+    return new THREE.Color(/^#(?:[0-9a-f]{3}){1,2}$/i.test(c) ? c : PRINT_COLOR);
+  }
 
   const AGENTS = [
     { id: "god",      name: "Design",          role: "one call · designs the whole model", color: "#e7fbf7" },
@@ -1306,7 +1303,7 @@
   }
 
   function addNodeMesh(node, revealStart) {
-    const color = new THREE.Color(PRINT_COLOR);
+    const color = partColor(node);
     const mat = node.type === "logo"
       ? makeLogoMaterial(node)
       : node.type === "logo_img"
@@ -1558,7 +1555,7 @@
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(PRINT_COLOR),
+      color: partColor(renderableNodes(activePlan?.nodes || []).find((n) => !n.op || n.op === "union")),   // one body, in the colour of the part that carries it
       roughness: 0.72,
       metalness: 0.04,
     });
@@ -1769,7 +1766,7 @@
       log("Improve", `Sending the model back to ${modelLabel(model)} with what is measurably wrong`, "run");
       const system = `You are correcting an existing 3D model, not designing a new one.
 Return only JSON: {"remove":["id",...],"replace":[node,...],"add":[node,...]}
-A node has the same shape as the plan you are given: id, name, type, position, rotation, scale, params, mirror.
+A node has the same shape as the plan you are given: id, name, type, color, position, rotation, scale, params, mirror.
 Rules:
 - Every length is in millimetres. A part's real size is its params times its scale. Answer in millimetres too.
   A part you replace keeps its scale unless you give one; a part you add without a "scale" is read as params in millimetres.
@@ -2803,7 +2800,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
         params: { ...serialized, smooth: true },
-        color: color ? `#${color}` : "#c9a96e",
+        color: color ? `#${color}` : undefined,   // a file's own colour, or the neutral print colour
       });
     });
     return nodes;
@@ -3185,6 +3182,7 @@ Schema:
       "name": "part name",
       "type": "mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder",
       "role": "structure|surface|detail",
+      "color": "#8a9aa8",
       "op": "union|subtract|intersect",
       "position": [x,y,z],
       "rotation": [x,y,z],
@@ -3257,8 +3255,10 @@ ${window.HCForgeSubject.subjectRule(brief?.objects)}
   a phone about 150, a chair about 900, a bolt about 40. It should match the geometry you wrote.
   This is what the exported file is measured in, so a wrong number here prints at the wrong size.
 - Name each part for what it is ("body", "dorsal fin", "handle"), so it can be found in the outliner.
-- Do not give parts colours. The model is shown as one printed piece in a single material, and
-  shape is the only thing that describes it. Spend the answer on geometry.
+- COLOUR. Give every part the "color" the real object has there, as "#rrggbb": a mug's glaze, a
+  fish's scales, a lamp's brass. Parts of one material in life share the exact same value; give a
+  part its own colour only where the real object changes colour there, such as an eye, a label or a
+  handle of another material. A part that is a hole ("op": "subtract") needs none.
 - Style target: ${prefs.style}. Detail target: ${prefs.detail}. Output target: ${prefs.output}.
 - For 3D print, keep parts visibly connected and avoid tiny fragile details. For GLB, keep parts
   separate and named with clean pivots.`;
@@ -3314,8 +3314,8 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     const model = modelValue || selectedModelFor("god");
     if (!api?.ollamaChat || !model) throw new Error("no JSON repair model");
     const schema = expected === "array"
-      ? `[{"id":"stable_unique_id","name":"part","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}]`
-      : `{"name":"short model name","sizeMm":150,"nodes":[{"id":"stable_id","name":"part name","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}],"edges":[],"constraints":[]}`;
+      ? `[{"id":"stable_unique_id","name":"part","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","color":"#8a9aa8","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}]`
+      : `{"name":"short model name","sizeMm":150,"nodes":[{"id":"stable_id","name":"part name","type":"mesh|lathe|extrude|capsule|sphere|cone|torus|box|cylinder","role":"structure|surface|detail","color":"#8a9aa8","position":[0,0,0],"rotation":[0,0,0],"scale":[1,1,1],"params":{}}],"edges":[],"constraints":[]}`;
     return await api.ollamaChat(model, [
       {
         role: "system",

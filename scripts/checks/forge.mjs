@@ -226,10 +226,14 @@ console.log('\nThe inspector asks one question at a time:');
   // call had picked for it. So a fish read as a beige body beside a gold fin
   // beside a grey tail: the joins were the loudest thing on screen, and three
   // objects stood where one animal was asked for.
-  check('every part of a model is the same material',
+  check('every part of a model is the same material, never coloured by its role',
     /PRINT_COLOR = 0xd7d2c8/.test(src) && !/ROLE_COLORS/.test(src));
-  check('and the design call cannot colour one of them',
-    !/node\.color \? new THREE\.Color\(node\.color\)/.test(src));
+  check('in the colour the plan gives it, as a plain hex value, or the neutral print colour',
+    /function partColor\(node\) \{/.test(src) && /\^#\(\?:\[0-9a-f\]\{3\}\)\{1,2\}\$\/i\.test\(c\) \? c : PRINT_COLOR/.test(src) && /const color = partColor\(node\);/.test(src));
+  check('the design call is asked for the real colour, shared by parts of one material',
+    /"color": "#8a9aa8"/.test(bodyOf("askModelForPlan")) && /Give every part the "color" the real object has there/.test(bodyOf("askModelForPlan")) && /Parts of one material in life share the exact same value/.test(bodyOf("askModelForPlan")) && !/Do not give parts colours/.test(src));
+  check('the fused solid takes the colour of the part that carries it, and an imported file keeps its own',
+    /color: partColor\(renderableNodes\(activePlan\?\.nodes \|\| \[\]\)\.find\(\(n\) => !n\.op \|\| n\.op === "union"\)\)/.test(src) && /color: color \? `#\$\{color\}` : undefined/.test(src));
   check('it is matte, so no part shines like a different material',
     /roughness: 0\.72/.test(src) && /metalness: 0\.04/.test(src));
   check('a finished part is solid, not slightly see-through',
@@ -877,8 +881,8 @@ console.log('\nThe design prompt asks for a model, not a part count:');
   check('the example sizes are millimetres too', /"width":40/.test(design) && !/"radius":0\.5/.test(design));
   check('the schema offers no audit role while the rules forbid audit markers',
     !/structure\|surface\|detail\|audit/.test(src));
-  check('the repair pass does not ask for colours the design is told not to give',
-    !/"color":"#9b7a46"/.test(bodyOf('repairForgeJson')));
+  check('the repair pass keeps a colour in the shape the design gives it',
+    /"color":"#8a9aa8"/.test(bodyOf('repairForgeJson')) && !/"color":"#9b7a46"/.test(bodyOf('repairForgeJson')));
   // A real run returned a fish standing on its tail. The prompt had never said
   // which way is up, so the model had no reason to lay it down.
   check('the axis convention is stated', /\+Y is up/.test(src));
