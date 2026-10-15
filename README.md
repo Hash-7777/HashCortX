@@ -202,7 +202,7 @@ Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
 npm run check                                     # 10,540 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 223 Rust tests
+cargo test --manifest-path src-tauri/Cargo.toml   # 226 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, served as written.
