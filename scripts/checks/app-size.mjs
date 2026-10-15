@@ -232,7 +232,9 @@ const LINE_BUDGET = {
   // is sent when it finishes (js/queue.js holds the queue and draws it).
   // 6463, down twenty-seven: the word-by-word comparison drawn under a
   // regenerated answer is gone; Regenerate replaces the answer.
-  'js/app.js': 6463,
+  // 6464, up one: what was attached to a message queued while a reply is
+  // written waits with it and goes with it (js/queue.js).
+  'js/app.js': 6464,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -662,7 +664,7 @@ const LINE_BUDGET = {
   // not sent to it. The deciding is js/finance/connected.js; this is the wiring.
   // 2361, up four: a request sent while one is under way waits in the queue
   // and is sent when it ends (js/queue.js).
-  'modes/finance/mode.js': 2361,
+  'modes/finance/mode.js': 2360,
   // 2692, down from 2715 — the first time this file has moved. Deciding which
   // model to try when one will not answer went to src/js/chat/failover.js.
   //

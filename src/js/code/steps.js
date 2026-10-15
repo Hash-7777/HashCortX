@@ -97,11 +97,11 @@
    * (js/queue.js): their words, between two lists of steps, so folding the
    * steps when the run ends never hides them.
    */
-  function added(contentEl, text) {
+  function added(contentEl, text, pictures) {
     if (!contentEl) return null;
     const el = document.createElement('div');
     el.className = 'cdr-added';
-    el.innerHTML = '<span class="cdr-added-label">You added</span><span class="cdr-added-text"></span>';
+    el.innerHTML = `<span class="cdr-added-label">You added</span>${(window.HCCodeAttach && window.HCCodeAttach.picturesHtml(pictures)) || ''}<span class="cdr-added-text"></span>`;   // with the pictures it came with
     el.querySelector('.cdr-added-text').textContent = String(text || '');
     contentEl.appendChild(el);
     return el;

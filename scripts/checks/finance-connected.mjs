@@ -96,8 +96,8 @@ console.log('\nFinance uses it:');
 {
   const mode = src('modes', 'finance', 'mode.js');
   const at = mode.indexOf('window.HCFinanceConnected.prepare(');
-  ok('before a request is built, with the files and the whole conversation', at > 0 && at < mode.indexOf('const hasFiles = filesForPrompt.length > 0;') && /prepare\(\{ text: input\?\.value\?\.trim\(\) \|\| "", files: filesForPrompt, history: chatHistory, modelValue: getModel\(\) \}/.test(mode));
-  ok('what it says instead is shown, and nothing is sent', /if \(prep\.refusal\) \{ send\.disabled = false; hideEmpty\(\); appendMessage\("ai", prep\.refusal\); return; \}/.test(mode));
+  ok('before a request is built, with the files and the whole conversation', at > 0 && at < mode.indexOf('const hasFiles = filesForPrompt.length > 0;') && /prepare\(\{ text: typed, files: filesForPrompt, history: chatHistory, modelValue: getModel\(\) \}/.test(mode));
+  ok('what it says instead is shown, nothing is sent, and the request and its files go back in the box', /if \(prep\.refusal\) \{ send\.disabled = false; putBack\(\); hideEmpty\(\); appendMessage\("ai", prep\.refusal\); return; \}/.test(mode));
   ok('what it read goes with the request as an attachment', /if \(prep\.attachment\) filesForPrompt\.push\(prep\.attachment\);/.test(mode));
   ok('the conversation keeps where each attachment came from, across a restart too', /extracted: !!f\.extracted, \.\.\.\(f\.from \? \{ from: f\.from \} : \{\}\),/.test(mode));
   const boot = src('boot.js');

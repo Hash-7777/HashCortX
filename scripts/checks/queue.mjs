@@ -154,6 +154,59 @@ console.log('\nSend now:');
   ok('...Enter alone only queues it', f.size === 1 && !f.urgent && held === 1);
 }
 
+console.log('\nWhat was attached:');
+{
+  // A box with attachments, as each workspace gives the queue a way to take them out and put them back.
+  const input = box('');
+  let held = [];
+  const att = { take: () => { const out = held; held = []; return out; }, give: (list) => { held.push(...list); }, count: () => held.length };
+  let sent = [];
+  const send = () => { sent.push({ text: input.value, files: held.map((f) => f.name) }); input.value = ''; held = []; };
+  let how = {};
+  const c = Q.forComposer({ input, send, outcome: () => how, attachments: att });
+  held = [{ name: 'shot.png', kind: 'picture', thumb: 'data:image/png;base64,AAAA' }];
+  input.value = 'why is the header red?';
+  ok('waits with its message, out of the box', c.hold() && held.length === 0 && c.items[0].files[0].name === 'shot.png');
+  held = [{ name: 'spec.pdf', kind: 'pdf' }];
+  ok('a picture sent with no words is a message too', c.hold() && c.size === 2 && c.items[1].text === '' && held.length === 0);
+  held = [{ name: 'draft.txt', kind: 'text' }];
+  input.value = 'a draft';
+  c.settle(); flush();
+  ok('goes with it, all of it, and what is attached to the draft stays with the draft', sent.length === 1 && sent[0].text === 'why is the header red?' && JSON.stringify(sent[0].files) === '["shot.png","spec.pdf"]' && input.value === 'a draft' && JSON.stringify(held.map((f) => f.name)) === '["draft.txt"]', JSON.stringify({ sent, held, v: input.value }));
+  held = [{ name: 'a.png', kind: 'picture' }];
+  input.value = 'stopped one'; c.hold();
+  how = { stopped: true };
+  c.settle(); flush();
+  ok('a stop hands it back to the box with the message', input.value === 'stopped one' && held.length === 1 && held[0].name === 'a.png');
+  how = {};
+  held = [];
+  held = [{ name: 'b.png', kind: 'picture' }];
+  input.value = 'edit me'; c.hold();
+  input.key('ArrowUp');
+  ok('taken back to edit, it comes back with what was attached', input.value === 'edit me' && held.length === 1 && c.size === 0);
+  held = [{ name: 'c.png', kind: 'picture' }];
+  input.value = ''; c.hold();
+  held = [{ name: 'd.png', kind: 'picture' }];
+  ok('the Up arrow does not take one back over attachments already in the box', !input.key('ArrowUp').prevented);
+  held = [];
+  const d = Q.forComposer({ input: box(''), attachments: att });
+  d.add('look at these', [{ name: 'x.png', kind: 'picture' }]);
+  d.add('', [{ name: 'y.pdf', kind: 'pdf' }]);
+  const now = d.takeNow();
+  ok('HashCoder takes them with the message at its next step', now.text === 'look at these' && JSON.stringify(now.files.map((f) => f.name)) === '["x.png","y.pdf"]');
+  const stub = box('');
+  const e = Q.forComposer({ input: stub, send: () => {}, attachments: att });
+  held = [{ name: 'z.png', kind: 'picture' }];
+  stub.value = ''; e.hold();
+  e.settle(); flush();
+  ok('a send that did not take it leaves what was attached in the box', held.length === 1 && held[0].name === 'z.png');
+  ok('only a picture the app made is drawn, never an address', /SAFE_THUMB = \/\^data:image\\\/\(\?:png\|jpe\?g\|gif\|webp\);base64,/.test(src('js', 'queue.js')));
+  const coderAttach = src('js', 'code', 'attach.js');
+  ok('HashCoder\'s attachments can be held and put back, and a message added mid-run built as a request is', /function hold\(\) \{/.test(coderAttach) && /function put\(list\) \{/.test(coderAttach) && /function packed\(task, taken\) \{/.test(coderAttach));
+  const fin = src('modes', 'finance', 'mode.js');
+  ok('Finance reads and empties its box before it waits on anything, and puts it back on a refusal', /input\.value = ""; pendingFiles = \[\]; renderFileList\(\);   \/\/ read and emptied/.test(fin) && /if \(prep\.refusal\) \{ send\.disabled = false; putBack\(\);/.test(fin) && /const text  = typed \|\| /.test(fin));
+}
+
 console.log('\nHashCoder reads it at the next step:');
 {
   const c = Q.forComposer({ input: box(''), when: 'Read at the next step' });
@@ -184,9 +237,9 @@ console.log('\nThe workspaces:');
   const coder = src('modes', 'code', 'mode.js');
   ok('HashCoder: a run started while one works queues instead, and starts no second run', /async function startRun\(\) \{\n\s*if \(running \|\| runAbort\) \{ coderQueue\?\.hold\(\); return; \}\n\s*running = true; outcome = \{\};\n\s*try \{ await beginRun\(\); \} finally \{ running = false; coderQueue\?\.settle\(\); \}/.test(coder));
   ok('...the run reads it at the top of each step, the person\'s message kept in the conversation and the request', /const added = messages === conversationMsgs \? coderQueue\?\.takeNow\(\) : null;/.test(coder)
-    && /if \(added\) \{ messages\.push\(\{ role: 'user', content: added\.text, added: true \}\); if \(HC\?\.code\) HC\.code\.request = /.test(coder)
+    && /if \(added\) \{ const A = window\.HCCodeAttach, pack = A \? A\.packed\(added\.text, added\.files\) : \{ content: added\.text, images: \[\], thumbs: \[\] \}; messages\.push\(\{ role: 'user', content: pack\.content, added: true, \.\.\.\(pack\.images\.length \? \{ images: pack\.images, thumbs: pack\.thumbs \} : \{\}\) \}\); if \(HC\?\.code\) HC\.code\.request = /.test(coder)
     && coder.indexOf('const added = messages === conversationMsgs') < coder.indexOf("turn = forced || await callWithRouter("));
-  ok('...shown where it was read, outside the steps that fold, live and when drawn again', /window\.HCCodeSteps\.added\(contentEl, added\.text\); scrollMessages\(\);/.test(coder) && /if \(m\.role === 'user' && m\.added && reply\) \{ window\.HCCodeSteps\.added\(reply, m\.content\); return; \}/.test(coder));
+  ok('...shown where it was read, outside the steps that fold, live and when drawn again', /window\.HCCodeSteps\.added\(contentEl, A \? A\.shownRequest\(pack\.content\) : added\.text, pack\.pictures\); scrollMessages\(\);/.test(coder) && /if \(m\.role === 'user' && m\.added && reply\) \{ window\.HCCodeSteps\.added\(reply, window\.HCCodeAttach \? window\.HCCodeAttach\.shownRequest\(m\.content\) : m\.content, m\.thumbs\); return; \}/.test(coder));
   ok('...a stop or error hands the queue back, for a run and for Regenerate', /outcome = \{ stopped: e\.name === 'AbortError', failed: e\.name !== 'AbortError' \};/.test(coder) && /setRouterChip\('Auto', ''\); coderQueue\?\.settle\(\);/.test(coder));
   const erp = src('js', 'systems', 'agent-chat.js');
   ok('the ERP agent: a message sent while it works waits, and goes when it is no longer busy, or back to the box after Stop', /if \(busy && text\) \{ queue\?\.hold\(\); return; \}/.test(erp) && /else if \(was\) queue\?\.settle\(\);/.test(erp) && /\{ stopped = true; if \(deps\) deps\.stop\(\); \}/.test(erp));
@@ -198,12 +251,12 @@ console.log('\nThe workspaces:');
     && forge.indexOf('frgQueue?.hold()') < forge.indexOf('if (abortCtrl) abortCtrl.abort();'));
   const ws = src('js', 'swarm', 'workspace.js');
   ok('the Agent Swarm: a message sent while an agent answers waits for that answer', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws) && /queue\?\.settle\(\);/.test(ws));
-  ok('Send now: chat stops the reply, kept as written', /interrupt: \(\) => abort\(\) \}\);/.test(app));
-  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\) \}\);/.test(coder)
+  ok('Send now: chat stops the reply, kept as written', /interrupt: \(\) => abort\(\), attachments: chatHeld \}\);/.test(app));
+  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), attachments: /.test(coder)
     && /const step = new AbortController\(\), give = \(\) => step\.abort\(\); if \(signal\?\.aborted\) step\.abort\(\); else signal\?\.addEventListener\('abort', give\); stepAbort = step;/.test(coder)
     && /signal: step\.signal,/.test(coder) && /\.finally\(\(\) => \{ signal\?\.removeEventListener\('abort', give\); if \(stepAbort === step\) stepAbort = null; \}\);/.test(coder)
     && /\} catch \(e\) \{\n\s*if \(coderQueue\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = appendThinking\(contentEl\);[^\n]*continue; \}/.test(coder));
-  ok('...Finance, the ERP agent and the Swarm\'s workspace stop what they are writing', /interrupt: \(\) => abortCtrl\?\.abort\(\) \}\)/.test(fin) && /interrupt: \(\) => deps\?\.stop\(\) \}\)/.test(erp) && /interrupt: \(\) => \{ if \(state\.asking && !state\.asking\.team\) state\.asking\.controller\.abort\(\); \} \}\)/.test(ws));
+  ok('...Finance, the ERP agent and the Swarm\'s workspace stop what they are writing', /interrupt: \(\) => abortCtrl\?\.abort\(\), attachments: \{/.test(fin) && /interrupt: \(\) => deps\?\.stop\(\) \}\)/.test(erp) && /interrupt: \(\) => \{ if \(state\.asking && !state\.asking\.team\) state\.asking\.controller\.abort\(\); \} \}\)/.test(ws));
   ok('...and 3D Forge has none, as stopping would throw away the part being made', !/interrupt:/.test(forge));
   const css = src('css', 'composer.css');
   ok('the button shows only where there is one, and quickens the card while it sends', /\.hc-queue-now\[hidden\] \{ display: none; \}/.test(css) && /\.hc-queue--now::before \{ animation-duration: 1\.1s; \}/.test(css) && /\.hc-queue--now \.hc-queue-now svg \{ animation: none; \}/.test(css));

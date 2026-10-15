@@ -2791,7 +2791,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
   sendBtn.addEventListener("click", () => state.streaming ? abort() : send());
-  const chatQueue = HCQueue.forComposer({ input, before: document.querySelector(".composer-wrap .composer"), send: () => send(), outcome: () => ({ stopped: !!state.abort?.signal?.aborted, failed: !!errorSlot?.childElementCount }), interrupt: () => abort() });   // sent while a reply is written, a message waits for it (js/queue.js)
+  const chatHeld = { take: () => { const out = [...state.pendingImages.map((img) => ({ name: img.name, kind: "picture", thumb: img.dataUrl, img })), ...state.pendingFiles.map((file) => ({ name: file.name, kind: file.kind || "file", file }))]; state.pendingImages = []; state.pendingFiles = []; renderPending(); return out; }, give: (list) => { for (const a of list) { if (a.img) state.pendingImages.push(a.img); else if (a.file) state.pendingFiles.push(a.file); } renderPending(); }, count: () => state.pendingImages.length + state.pendingFiles.length };   // what was attached waits with a queued message, and goes with it (js/queue.js)
+  const chatQueue = HCQueue.forComposer({ input, before: document.querySelector(".composer-wrap .composer"), send: () => send(), outcome: () => ({ stopped: !!state.abort?.signal?.aborted, failed: !!errorSlot?.childElementCount }), interrupt: () => abort(), attachments: chatHeld });   // sent while a reply is written, a message waits for it (js/queue.js)
   $("newChatBtn")?.addEventListener("click", () => newChat());
 
   // ── Preview button — show full payload that would be sent to the model ──

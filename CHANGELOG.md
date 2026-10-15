@@ -38,6 +38,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   Finance, the ERP agent and the Swarm's workspace stop the reply where it
   has got to, keep it as written, and send the queue. 3D Forge has no
   "Send now", as stopping would throw away the part being made.
+  What was attached when a message was queued waits with it, a picture
+  shown by its preview on the message's row, and goes with it: sent with
+  it, read with it at HashCoder's next step, and back in the box with it
+  when it is taken back to edit or the work is stopped. A picture sent
+  with no words is queued too, and anything attached to a draft in the box
+  stays with the draft.
 - **Where a local model runs is a setting.** Settings, General, "Where local
   models run": Automatic, the default, where Ollama puts as much of a model
   as fits on the graphics chip and the rest in main memory; Graphics chip

@@ -354,6 +354,20 @@
   .hc-queue-item--new { animation: hcq-item-in .3s cubic-bezier(.2,.8,.2,1) both; }
   .hc-queue-n { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; color: var(--accent); opacity: .85; }
   .hc-queue-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--sans); }
+  .hc-queue-text--none { color: var(--muted); }
+  /* What was attached to a queued message: a picture's preview, a file's name. */
+  .hc-queue-item:not(.hc-queue-item--plain) { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+  .hc-queue-files { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+  .hc-queue-file {
+    display: inline-block; vertical-align: middle;
+    max-width: 120px; height: 22px; line-height: 20px; padding: 0 7px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+  }
+  .hc-queue-file--pic { display: inline-flex; width: 22px; padding: 0; }
+  .hc-queue-file--pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .hc-queue-item button {
     display: inline-flex; align-items: center; justify-content: center;
     height: 24px; min-width: 24px; padding: 0 8px;

@@ -409,7 +409,7 @@ const FinanceMode = (() => {
 
     const input = wrap.querySelector("#finInput");
     const send  = wrap.querySelector("#finSend");
-    finQueue = window.HCQueue ? window.HCQueue.forComposer({ input, before: wrap.querySelector(".fin-composer-box"), when: "Sends when FinanceAI finishes", send: () => submitPrompt(), outcome: () => ({ stopped: !!abortCtrl?.signal?.aborted, failed: !!document.getElementById("finStatusDot")?.classList.contains("error") }), interrupt: () => abortCtrl?.abort() }) : null;
+    finQueue = window.HCQueue ? window.HCQueue.forComposer({ input, before: wrap.querySelector(".fin-composer-box"), when: "Sends when FinanceAI finishes", send: () => submitPrompt(), outcome: () => ({ stopped: !!abortCtrl?.signal?.aborted, failed: !!document.getElementById("finStatusDot")?.classList.contains("error") }), interrupt: () => abortCtrl?.abort(), attachments: { take: () => { const out = pendingFiles.map((file) => ({ name: file.name, kind: file.kind || "file", file })); pendingFiles = []; renderFileList(); return out; }, give: (list) => { pendingFiles.push(...list.map((a) => a.file).filter(Boolean)); renderFileList(); }, count: () => pendingFiles.length } }) : null;
     const fileInput = wrap.querySelector("#finFileInput");
     const attach = wrap.querySelector("#finAttachFile");
     input.addEventListener("keydown", (e) => {
@@ -1013,13 +1013,15 @@ const FinanceMode = (() => {
   async function submitNow() {
     const input = document.getElementById("finInput");
     const send  = document.getElementById("finSend");
-    const filesForPrompt = pendingFiles.slice();
+    const typed = input?.value?.trim() || "", given = pendingFiles.slice(), filesForPrompt = given.slice();
+    input.value = ""; pendingFiles = []; renderFileList();   // read and emptied before anything is waited on: a draft typed meanwhile, or put back by the queue, is not taken for this request (js/queue.js)
+    const putBack = () => { input.value = [typed, input.value.trim()].filter(Boolean).join("\n\n"); pendingFiles = [...given, ...pendingFiles]; renderFileList(); autosize(input); };
     // A connected system the request names is read first, as an attachment; a conversation holding records a model may not see is not sent to it — js/finance/connected.js.
-    send.disabled = true; const prep = window.HCFinanceConnected ? await window.HCFinanceConnected.prepare({ text: input?.value?.trim() || "", files: filesForPrompt, history: chatHistory, modelValue: getModel() }, { onEvent: (kind, call) => { if (kind === "tool_call") traceAdd("Connected", `Reading ${window.HCMcp?.stepOf(call.name)?.object || call.name}`, "run"); } }) : {};
-    if (prep.refusal) { send.disabled = false; hideEmpty(); appendMessage("ai", prep.refusal); return; }
+    send.disabled = true; const prep = window.HCFinanceConnected ? await window.HCFinanceConnected.prepare({ text: typed, files: filesForPrompt, history: chatHistory, modelValue: getModel() }, { onEvent: (kind, call) => { if (kind === "tool_call") traceAdd("Connected", `Reading ${window.HCMcp?.stepOf(call.name)?.object || call.name}`, "run"); } }) : {};
+    if (prep.refusal) { send.disabled = false; putBack(); hideEmpty(); appendMessage("ai", prep.refusal); return; }
     if (prep.attachment) filesForPrompt.push(prep.attachment);
     const hasFiles = filesForPrompt.length > 0;
-    const text  = input?.value?.trim() || (hasFiles ? DEFAULT_FILE_PROMPT : "");
+    const text  = typed || (hasFiles ? DEFAULT_FILE_PROMPT : "");
     if (!text) return;
     const attachedContext = buildAttachedFilesContext(filesForPrompt);
     const displayText = hasFiles ? `${text}\n\nAttached: ${attachmentNames(filesForPrompt)}` : text;
@@ -1038,9 +1040,6 @@ const FinanceMode = (() => {
       traceAdd("Session", `Created "${s.title}"`, "ok");
     }
 
-    input.value = "";
-    pendingFiles = [];
-    renderFileList();
     autosize(input);
     send.disabled = true;
     hideEmpty();

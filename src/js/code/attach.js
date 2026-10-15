@@ -283,6 +283,12 @@
     files = [];
     render();
     onChange();
+    return packed(task, taken);
+  }
+
+  /** A request built round `task` with the attachments given: what take() hands over. */
+  function packed(task, taken) {
+    taken = (taken || []).filter(Boolean);
     const pictures = taken.filter((f) => f.kind === 'picture' && f.thumb);
     return {
       content: requestContent(task, taken),
@@ -292,6 +298,26 @@
       pictures: pictures.map((f) => ({ thumb: f.thumb, full: f.dataUrl, name: f.name })),
       thumbs: pictures.map((f) => f.thumb),
     };
+  }
+
+  /**
+   * What is attached, taken out of the box whole, to wait with a message
+   * queued while a run works (js/queue.js); put() puts such a list back,
+   * before anything attached since.
+   */
+  function hold() {
+    const out = files;
+    files = [];
+    render();
+    onChange();
+    return out;
+  }
+  function put(list) {
+    const back = (Array.isArray(list) ? list : []).filter((f) => f && f.name && f.kind);
+    if (!back.length) return;
+    files = [...back, ...files].slice(0, MAX_FILES);
+    render();
+    onChange();
   }
 
   /** A picture, full size, over the panel; a click, or Escape, closes it. */
@@ -325,7 +351,7 @@
   window.HCCodeAttach = {
     MAX_FILES, MAX_PICTURES, TEXT_BUDGET, PICTURE_SIDE,
     THUMB_SIDE, THUMB_CHARS, THUMB_STORE_BUDGET, SAFE_PICTURE,
-    kindOf, requestContent, shownRequest, forStorage, canSee, picturesHtml, enlarge, mount, take, add, refresh: () => render(),
+    kindOf, requestContent, shownRequest, forStorage, canSee, picturesHtml, enlarge, mount, take, packed, hold, put, add, refresh: () => render(),
     count: () => files.length,
   };
 })();

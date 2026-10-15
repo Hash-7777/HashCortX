@@ -20,7 +20,11 @@
 // A reply that was stopped, or ended in an error, does not send what is
 // queued: it goes back into the box, to be sent or changed. Several queued
 // messages are sent as one, in the order they were written, so one reply
-// answers them all. Attachments stay with the box, as they were.
+// answers them all. What was attached when a message was sent waits with
+// it, shown on its row, and goes with it: sent with it, read with it at
+// HashCoder's next step, and back in the box with it when it is taken back
+// or the work is stopped; the workspace says how its attachments are taken
+// out of the box and put back (`attachments`).
 //
 // "Send now", or Ctrl+Enter (Cmd+Enter on a Mac) while the work goes on,
 // does not wait. What is under way is cut where it does least harm, which
@@ -45,11 +49,12 @@
     let items = [];
     let seq = 0;
     return {
-      /** Queue a message; '' and spaces alone are not one. Returns its id, or 0. */
-      add(text) {
+      /** Queue a message, with what was attached to it; '' and spaces alone, with nothing attached, are not one. Returns its id, or 0. */
+      add(text, files = []) {
         const t = String(text == null ? '' : text).trim();
-        if (!t) return 0;
-        items.push({ id: ++seq, text: t });
+        const with_ = Array.isArray(files) ? files.filter(Boolean) : [];
+        if (!t && !with_.length) return 0;
+        items.push({ id: ++seq, text: t, files: with_ });
         return seq;
       },
       /** Take one message out, returning it, or null. */
@@ -62,12 +67,16 @@
       get items() { return items.slice(); },
       get size() { return items.length; },
       /** Every message as one, in the order written. */
-      get text() { return items.map((m) => m.text).join('\n\n'); },
+      get text() { return joined(items); },
     };
   }
 
   /** Several messages as the one they are sent as. */
-  const joined = (list) => (list || []).map((m) => m.text).join('\n\n');
+  const joined = (list) => (list || []).map((m) => m.text).filter(Boolean).join('\n\n');
+  /** What was attached to several messages, in the order they were written. */
+  const filesOf = (list) => (list || []).flatMap((m) => m.files || []);
+  /** A preview that may be drawn: a picture the app made itself, never an address. */
+  const SAFE_THUMB = /^data:image\/(?:png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=]+$/;
 
   const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(String(navigator.platform || navigator.userAgent || ''));
   const REMOVE_SVG = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>';
@@ -81,7 +90,11 @@
    * just ended went, `{ stopped, failed }`; `interrupt()`, when given, makes
    * the work under way give way for the queue, and shows "Send now".
    */
-  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null } = {}) {
+  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null, attachments = null } = {}) {
+    // `attachments`: { take() the box's attachments out, give(list) put some in, count() how many it holds }
+    const att = attachments && typeof attachments.take === 'function' && typeof attachments.give === 'function' ? attachments : null;
+    const takeFiles = () => (att ? att.take() || [] : []);
+    const giveFiles = (list) => { if (att && list && list.length) att.give(list); };
     const q = create();
     let urgent = false;   // "Send now" was asked for: the queue goes as soon as the work gives way
     const doc = (input && input.ownerDocument) || (typeof document !== 'undefined' ? document : null);
@@ -154,8 +167,9 @@
         n.textContent = String(i + 1).padStart(2, '0');
         const text = doc.createElement('span');
         text.className = 'hc-queue-text';
-        text.textContent = m.text;
-        text.title = m.text;
+        text.textContent = m.text || (m.files.length === 1 ? 'Attachment' : 'Attachments');
+        text.title = [m.text, ...m.files.map((f) => f.name)].filter(Boolean).join('\n');
+        if (!m.text) text.classList.add('hc-queue-text--none');
         const editBtn = doc.createElement('button');
         editBtn.type = 'button';
         editBtn.className = 'hc-queue-edit';
@@ -167,18 +181,45 @@
         drop.innerHTML = REMOVE_SVG;
         drop.setAttribute('aria-label', 'Remove this message from the queue');
         drop.title = 'Remove';
-        row.append(n, text, editBtn, drop);
+        row.append(n, text);
+        if (m.files.length) row.append(filesStrip(m.files));
+        else row.classList.add('hc-queue-item--plain');
+        row.append(editBtn, drop);
         list.append(row);
       });
       shown = new Set(items.map((m) => m.id));
     }
 
-    /** Take a message back into the box to edit, before what is already there. */
+    /** What a queued message has attached, on its row: a picture's preview, a file's name. */
+    function filesStrip(files) {
+      const strip = doc.createElement('span');
+      strip.className = 'hc-queue-files';
+      for (const f of files.slice(0, 4)) {
+        const chip = doc.createElement('span');
+        chip.className = 'hc-queue-file';
+        chip.title = f.name || '';
+        const thumb = String(f.thumb || '');
+        if (SAFE_THUMB.test(thumb)) {
+          const img = doc.createElement('img');
+          img.src = thumb;
+          img.alt = '';
+          img.draggable = false;
+          chip.append(img);
+          chip.classList.add('hc-queue-file--pic');
+        } else chip.textContent = String(f.name || 'file');
+        strip.append(chip);
+      }
+      if (files.length > 4) { const more = doc.createElement('span'); more.className = 'hc-queue-file'; more.textContent = `+${files.length - 4}`; strip.append(more); }
+      return strip;
+    }
+
+    /** Take a message back into the box to edit, before what is already there, with what was attached to it. */
     function edit(id) {
       const m = q.remove(id);
       if (!m) return;
       const now = input ? input.value.trim() : '';
-      setBox(now ? `${m.text}\n\n${now}` : m.text);
+      setBox([m.text, now].filter(Boolean).join('\n\n'));
+      giveFiles(m.files);
       draw();
     }
 
@@ -200,30 +241,31 @@
         setTimeout(() => { if (q.size > had || (empty && q.size)) sendNow(); }, 0);   // after the box's own Enter has queued it
       });
       input.addEventListener('keydown', (e) => {
-        if (e.key !== 'ArrowUp' || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey || input.value || !q.size) return;
+        if (e.key !== 'ArrowUp' || e.shiftKey || e.altKey || e.metaKey || e.ctrlKey || input.value || !q.size || (att && att.count && att.count() > 0)) return;
         e.preventDefault();
         edit(q.items[q.size - 1].id);
       });
     }
 
     return {
-      /** Queue what is in the box and empty it. Returns whether anything was queued. */
+      /** Queue what is in the box, with what is attached, and empty it. Returns whether anything was queued. */
       hold() {
-        const id = q.add(input ? input.value : '');
-        if (!id) return false;
+        const files = takeFiles();
+        const id = q.add(input ? input.value : '', files);
+        if (!id) { giveFiles(files); return false; }
         setBox('');
         draw();
         return true;
       },
-      /** Queue a message given as text. */
-      add(text) { const id = q.add(text); if (id) draw(); return id; },
-      /** Every queued message, taken out as one: `{ text, count }`, or null when none. */
+      /** Queue a message given as text, and what is attached to it. */
+      add(text, files = []) { const id = q.add(text, files); if (id) draw(); return id; },
+      /** Every queued message, taken out as one: `{ text, count, files }`, or null when none. */
       takeNow() {
         if (!q.size) return null;
         urgent = false;
         const list = q.take();
         draw();
-        return { text: joined(list), count: list.length };
+        return { text: joined(list), count: list.length, files: filesOf(list) };
       },
       /**
        * The work ended. When it was stopped or failed, what is queued goes back
@@ -231,8 +273,10 @@
        * as one message, once what ended has finished saying so, and anything
        * being typed in the box is kept there: `send()` reads the box and empties
        * it before it waits on anything, so the queued text is put in, sent, and
-       * the draft put back. A send that did not take it (no model chosen)
-       * leaves it in the box with the draft after it.
+       * the draft put back. What was attached goes with it, and what is
+       * attached to the draft waits out of the box while it is sent. A send
+       * that did not take it (no model chosen) leaves it in the box with the
+       * draft after it, and everything attached.
        */
       settle() {
         if (!q.size) return;
@@ -242,14 +286,18 @@
           urgent = false;
           const list = q.take();
           draw();
-          const text = joined(list);
+          const text = joined(list), files = filesOf(list);
           const draft = input ? input.value.trim() : '';
-          const both = draft ? `${text}\n\n${draft}` : text;
-          if (how.stopped || how.failed || typeof send !== 'function' || !input) { setBox(both); return; }
+          const both = [text, draft].filter(Boolean).join('\n\n');
+          if (how.stopped || how.failed || typeof send !== 'function' || !input) { setBox(both); giveFiles(files); return; }
+          const drafted = takeFiles();
           input.value = text;
+          giveFiles(files);
           send();
-          if (input.value === text) setBox(both);   // not taken: nothing is lost
-          else if (draft) setBox(draft);
+          const taken = input.value !== text || (!!files.length && !!att && typeof att.count === 'function' && att.count() === 0);
+          if (!taken) setBox(both);   // not taken: nothing is lost, what was attached still in the box
+          else setBox(draft);
+          giveFiles(drafted);
         }, 0);
       },
       sendNow,
@@ -260,5 +308,5 @@
     };
   }
 
-  window.HCQueue = { create, joined, forComposer };
+  window.HCQueue = { create, joined, filesOf, forComposer };
 })();

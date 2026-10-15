@@ -479,7 +479,7 @@
       }
 
       if (taskInput) {
-        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort() });
+        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort(), attachments: window.HCCodeAttach && { take: () => window.HCCodeAttach.hold(), give: (list) => window.HCCodeAttach.put(list), count: () => window.HCCodeAttach.count() } });
         taskInput.addEventListener('keydown', e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startRun(); }
         });
@@ -1193,7 +1193,7 @@
       let reply = null;
       conversationMsgs.forEach((m, i) => {
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
-        if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, m.content); return; }   // sent while the run worked, shown where it was read
+        if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); return; }   // sent while the run worked, shown where it was read
         if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
         if (m.content && m.tool_calls?.length && window.HCCodeLive.wordsOf(m.content).words) appendTextToBubble(reply, window.HCCodeLive.wordsOf(m.content).words);   // what it said before the step, without a call it wrote as text
@@ -1890,7 +1890,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         setStatus(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
         const added = messages === conversationMsgs ? coderQueue?.takeNow() : null;   // what the person sent while it worked, read at this step (js/queue.js)
-        if (added) { messages.push({ role: 'user', content: added.text, added: true }); if (HC?.code) HC.code.request = `${HC.code.request || ''}\n\n${added.text}`; thinkEl?.remove(); window.HCCodeSteps.added(contentEl, added.text); scrollMessages(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Person', `Added ${added.count === 1 ? 'a message' : `${added.count} messages`} while it worked`, 'run'); }
+        if (added) { const A = window.HCCodeAttach, pack = A ? A.packed(added.text, added.files) : { content: added.text, images: [], thumbs: [] }; messages.push({ role: 'user', content: pack.content, added: true, ...(pack.images.length ? { images: pack.images, thumbs: pack.thumbs } : {}) }); if (HC?.code) HC.code.request = `${HC.code.request || ''}\n\n${added.text}`; thinkEl?.remove(); window.HCCodeSteps.added(contentEl, A ? A.shownRequest(pack.content) : added.text, pack.pictures); scrollMessages(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Person', `Added ${added.count === 1 ? 'a message' : `${added.count} messages`} while it worked`, 'run'); }
 
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
         const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
