@@ -120,6 +120,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A tool call that is a model's whole reply is read.** A smaller model
+  that answered with nothing but a tool's name and its arguments, such as
+  `list_dir {"path": "."}`, had its call ignored; the same line after a
+  sentence was read. Both are read now.
 - **3D Forge opens faster, with its floor and mark at once.** The floor
   and the intro mark waited while the saved projects were read and listed,
   then for the 3D runtime's files one after another, then for reflections

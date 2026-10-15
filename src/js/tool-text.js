@@ -468,11 +468,11 @@
 
   /**
    * Calls written as a tool's name and then its arguments as JSON, one a line,
-   * as the last lines of a reply after its words: `shell_run {"command":
-   * "python3", "args": ["-m", "unittest"]}`. A 7B model wrote its fix and
-   * then its test run so, and neither ran. From the first such line to the
-   * end every line is one, blank lines aside, or nothing is read; a line like
-   * it among the words is an example.
+   * as the last lines of a reply, after its words or as the whole of it:
+   * `shell_run {"command": "python3", "args": ["-m", "unittest"]}`. A 7B
+   * model wrote its fix and then its test run so, and neither ran. From the
+   * first such line to the end every line is one, blank lines aside, or
+   * nothing is read; a line like it among the words is an example.
    */
   function namedLines(text, known, required) {
     const LINE = /^\s*`?([\w.-]+)`?\s*:?\s*(\{.*\})\s*`?\s*$/;
@@ -493,7 +493,7 @@
       if (!c || !filled(c, required)) return [];
       out.push(c);
     }
-    return start > 0 ? out : [];
+    return out;
   }
 
   /**

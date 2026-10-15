@@ -176,6 +176,8 @@ console.log('\nA call written as a name and its arguments, or as a command is ty
   // As a 7B model wrote them, ending its answers.
   const named = T.callsIn('The median is wrong for even counts.\n\npatch_file {"path":"stats.py","search":"return ordered[middle]","replace":"return (ordered[middle - 1] + ordered[middle]) / 2"}\n\nshell_run {"args":["-m","unittest"],"command":"python3"}', names, params, must);
   ok('a name and its arguments as JSON, one a line, ending the reply, read in order', named.map((c) => c.name).join() === 'patch_file,shell_run' && named[1].arguments.command === 'python3', JSON.stringify(named));
+  const alone = T.callsIn('list_dir {"path":"."}', [...names, 'list_dir'], { ...params, list_dir: ['path'] }, { ...must, list_dir: ['path'] });
+  ok('...and one that is the whole reply', alone.length === 1 && alone[0].name === 'list_dir' && alone[0].arguments.path === '.', JSON.stringify(alone));
   ok('...not one among the words, which is an example', T.callsIn('Call it like shell_run {"command":"npm"}\nshell_run {"command":"npm"}\nand it runs.', names, params, must).length === 0);
   ok('...nor one missing what its tool must have', T.callsIn('Next:\npatch_file {"path":"a.js"}', names, params, must).length === 0);
   const typed = T.callsIn(`It seems there is a syntax error at line 21. Please run:\n${F}sh\nread_file path:src/basket.js start_line:20 end_line:25\n${F}`, names, params, must);
