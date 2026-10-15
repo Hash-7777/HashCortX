@@ -117,7 +117,13 @@ console.log('\nSmall and mid-sized models write paths from the project folder:')
   ok('only the wording changes: every tool keeps its name, arguments, types and which are required',
     small.every((t) => { const o = byName.get(t.function.name); const a = t.function.parameters, b = o.function.parameters;
       return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(Object.keys(b.properties)) && JSON.stringify(a.required) === JSON.stringify(b.required)
-        && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type) && t.function.description === o.function.description; }));
+        && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type && JSON.stringify(a.properties[k].items) === JSON.stringify(b.properties[k].items)); }));
+  const mid = HC.code.toolsFor('mid', list, 'a site');
+  ok('every tool a smaller model is offered is described in one line of its own', [...small, ...mid].every((t) => t.function.description === HC.code.SHORT_TOOL_WORDS[t.function.name] && !/\n/.test(t.function.description)), [...small, ...mid].filter((t) => t.function.description !== HC.code.SHORT_TOOL_WORDS[t.function.name]).map((t) => t.function.name).join());
+  const longWords = HC.code.shortPlaces(list.filter((t) => HC.code.MID_MODEL_TOOLS.includes(t.function.name)));
+  ok('which brings the tools a mid-sized model reads to under two thirds of their full length', JSON.stringify(mid).length * 3 < JSON.stringify(longWords).length * 2, `${JSON.stringify(mid).length} against ${JSON.stringify(longWords).length}`);
+  ok('the rules a smaller model needs stay in its lines: exact search text, whole files only when meant, a command and its arguments apart',
+    /copied exactly/.test(HC.code.SHORT_TOOL_WORDS.patch_file) && /replace_whole: true/.test(HC.code.SHORT_TOOL_WORDS.write_file) && /the program in command, the rest in args/.test(HC.code.SHORT_TOOL_WORDS.shell_run) && /only the addresses it returns/.test(HC.code.SHORT_TOOL_WORDS.find_photos));
   ok('the tools the app holds are not changed in place', places(list).some(([, d]) => /^Absolute/.test(d)));
   const fetchTool = list.find((t) => t.function.name === 'fetch_url');
   ok('an address is not a path: it is described as it was', !fetchTool || HC.code.shortPlaces([fetchTool])[0].function.parameters.properties.url.description === fetchTool.function.parameters.properties.url.description);

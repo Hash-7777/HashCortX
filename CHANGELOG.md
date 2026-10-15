@@ -84,6 +84,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   between steps unless you chose a time, so a pause does not start the next
   step from nothing. Settings, under Local model, gives the two Ollama
   settings that let more of a model fit, for a Mac and for Windows.
+- **Shorter instructions for local models, and one answer shape for those
+  without tool calling.** Each tool offered to a model under fifteen billion
+  parameters is now described in one line instead of several sentences, so
+  there is less to read before every step. A local model that has no tool
+  calling of its own is held by Ollama to one answer shape, a tool and its
+  arguments or an answer in words, instead of being told its tools in words
+  and searched for calls in its reply.
 - **3D Forge draws only when the view changes.** It drew the whole scene,
   shadows and all, many times a second for as long as it was open, even
   with nothing moving. Now a frame is drawn when something changes it:

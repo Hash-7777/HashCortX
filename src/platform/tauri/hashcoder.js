@@ -1278,7 +1278,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   HC.code.toolsFor = (size, list, site) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     if (!names) return list;
-    return HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site)));
+    return HC.code.inFewWords(HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))));
   };
 
   /**
@@ -1305,7 +1305,50 @@ ${HC.code.TOOL_TEXT_RULE}`;
     return { ...tool, function: { ...tool.function, parameters: { ...tool.function.parameters, properties: next } } };
   });
 
-  /** The instructions for a model of this size. */
+  // ── The tools in few words ─────────────────────────────────
+  //
+  // A tool's full description carries several sentences of rules, and the
+  // tools offered to a mid-sized model came to almost three times its
+  // instructions. A model on this computer reads all of it again whenever
+  // the start of a request has changed, before its first word. Tested on
+  // single-step requests, a mid-sized model chose the right tool with the
+  // right arguments as often from one line each, in half the time. The rules
+  // that matter to it are in its instructions; the app enforces the rest. A
+  // tool's name, arguments, types and which are required do not change.
+
+  /** One line for each tool a smaller model is offered. */
+  HC.code.SHORT_TOOL_WORDS = {
+    read_file: 'Read a file: text, code, data or a PDF. A long file comes back 200 numbered lines at a time; start_line and end_line read a part.',
+    write_file: 'Create a new file, or replace an existing one whole with replace_whole: true. To change part of a file, use patch_file.',
+    patch_file: 'Change part of a file: search is text copied exactly from it, without line numbers; replace is the new text. More changes to the same file go in edits.',
+    update_plan: 'List the steps of a request with three or more changes, then mark each one done.',
+    list_dir: 'List the files and folders in a folder.',
+    delete_file: 'Delete a file.',
+    view_image: 'Look at a picture file, such as a screenshot or a mockup, then say what it shows.',
+    move_file: 'Rename a file or move it to another folder, so it can be undone.',
+    fuzzy_find: 'Find a file by a rough or misspelt name.',
+    grep_code: 'Find where text appears inside files, with line numbers.',
+    shell_run: 'Run a command, such as the tests, a build or git: the program in command, the rest in args.',
+    find_photos: 'Find openly licensed photos of a site\'s subject. Use only the addresses it returns, and credit each photo the page shows.',
+  };
+  /** A few words for each argument; places keep saying where a path starts. */
+  HC.code.SHORT_ARGUMENT_WORDS = {
+    path: 'Project path, such as src/app.js', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
+    cwd: 'Project folder to run in; leave out for the project', start_line: 'Optional: first line', end_line: 'Optional: last line', content: 'The whole file',
+    replace_whole: 'Optional: true to replace an existing file whole', append: 'Optional: true to add to the end', reason: 'Why, in a few words',
+    search: 'Exact text from the file', replace: 'The new text', all: 'Optional: true to change every place', edits: 'Optional: more changes to this file',
+    steps: 'The steps, in order', query: 'A rough file name', pattern: 'Text or a regular expression to find', file_ext: 'Optional: only files with this extension',
+    command: 'The program, such as npm', args: 'Its arguments, such as ["test"]', subject: 'Two to four plain words', count: 'Optional: how many, 1 to 10',
+  };
+  /** The tools with their words cut to the lines above; anything without a line is left as it was. */
+  HC.code.inFewWords = (list) => list.map((tool) => {
+    const f = tool.function || {};
+    const props = (f.parameters && f.parameters.properties) || {};
+    const words = HC.code.SHORT_ARGUMENT_WORDS;
+    const next = Object.fromEntries(Object.entries(props).map(([k, spec]) => [k, words[k] && spec && typeof spec === 'object' ? { ...spec, description: words[k] } : spec]));
+    return { ...tool, function: { ...f, description: HC.code.SHORT_TOOL_WORDS[f.name] || f.description, parameters: { ...f.parameters, properties: next } } };
+  });
+
   /** The instructions for a model of this size; the memory section only while HashCoder may use memory. */
   HC.code.promptFor = (size, memory = false) => (size === 'small' ? HC.code.SMALL_MODEL_PROMPT : size === 'mid' ? HC.code.MID_MODEL_PROMPT : memory ? HC.code.SYSTEM_PROMPT : HC.code.SYSTEM_PROMPT.replace(MEMORY_SECTION, ''));
 

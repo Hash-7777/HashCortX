@@ -169,6 +169,32 @@ console.log('\nA tool call a local model wrote as text is run as one:');
   ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
 }
 
+console.log('\nOtherwise it answers in one shape, held by Ollama:');
+{
+  const tools = [{ type: 'function', function: { name: 'read_file', description: 'Read a file.\nMore.', parameters: { type: 'object', properties: { path: { type: 'string' }, start_line: { type: 'integer' } }, required: ['path'] } } },
+    { type: 'function', function: { name: 'write_file', description: 'Write a file.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } }];
+  const convo = [{ role: 'system', content: 'Be brief.' }, { role: 'user', content: 'Show app.js' }];
+  A.appendAssistantToolCallTurn(convo, '', [{ id: 'c1', name: 'read_file', arguments: { path: 'app.js' } }]);
+  A.appendToolResult(convo, { id: 'c1', name: 'read_file' }, 'const a = 1;');
+  convo.push({ role: 'assistant', content: 'It sets a to 1.' }, { role: 'user', content: 'Now hello.py' });
+  const shaped = A.toolsAsShape(convo, tools);
+  ok('the shape names every tool offered and "none", with arguments and an answer always present', JSON.stringify(shaped.format.properties.tool.enum) === '["read_file","write_file","none"]' && shaped.format.required.join() === 'tool,arguments,answer');
+  ok('the instructions say the shape and list each tool in one line', /^Be brief\./.test(shaped.messages[0].content) && /Answer with JSON only, in this shape/.test(shaped.messages[0].content) && /- read_file\(path: string, start_line\?: integer\): Read a file\.$/m.test(shaped.messages[0].content));
+  ok('an earlier call and an earlier answer are written in the same shape', shaped.messages[2].content === '{"tool":"read_file","arguments":{"path":"app.js"},"answer":""}' && shaped.messages[4].content === '{"tool":"none","arguments":{},"answer":"It sets a to 1."}');
+  ok('a result comes back in the person\'s turn, and no tool turn is left', shaped.messages[3].role === 'user' && shaped.messages[3].content === 'Result of read_file:\nconst a = 1;' && !shaped.messages.some((m) => m.role === 'tool'));
+  ok('with no tools there is no shape to hold it to', A.toolsAsShape(convo, []) === null);
+  const call = A.shapedReply('{"tool": "write_file", "arguments": {"path": "hello.py", "content": "print(1)"}, "answer": ""}', tools);
+  ok('an answer naming a tool is that call', call.content === '' && call.calls.length === 1 && call.calls[0].name === 'write_file' && call.calls[0].arguments.path === 'hello.py');
+  const said = A.shapedReply('{"tool": "none", "arguments": {}, "answer": "404 means not found."}', tools);
+  ok('"none" is an answer in words', said.calls.length === 0 && said.content === '404 means not found.');
+  ok('a tool that was not offered is not run, and text that is not the shape is passed on', A.shapedReply('{"tool": "rm_rf", "arguments": {}, "answer": "done"}', tools).calls.length === 0 && A.shapedReply('plain words', tools).content === 'plain words');
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
+  ok('the agent turn holds a model without tool calling to it, unless its caller wants JSON of its own, and reads the answer back',
+    /const shaped = native \|\| json \? null : HCAgentShape\.toolsAsShape\(messages, tools\)/.test(ollama) && /json: shaped \? shaped\.format : json/.test(ollama) && /shaped \? HCAgentShape\.shapedReply\(reply\.content, tools\) : HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
+  ok('its JSON is not shown as it streams', /onToken: shaped \? undefined : onText/.test(ollama));
+}
+
 console.log('\nA model that cannot take tools is told them in words:');
 {
   const tools = [{ type: 'function', function: { name: 'web_search', description: 'Live web search.\nMore detail.', parameters: { type: 'object', properties: { query: { type: 'string' }, limit: { type: 'integer' } }, required: ['query'] } } }];
@@ -185,7 +211,7 @@ console.log('\nA model that cannot take tools is told them in words:');
   ok('with no tools, the conversation is sent as it is', A.toolsInWords(convo, [])[3].role === 'tool');
   const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
   const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
-  ok('the agent turn does this for a model Ollama says cannot take tools, and sends it no tool list', /HCLocalContext\.can\(info, "tools"\)/.test(ollama) && /HCAgentShape\.toolsInWords\(messages, tools\)/.test(ollama) && /tools: native \? tools : undefined/.test(ollama));
+  ok('the agent turn does this for a model Ollama says cannot take tools when its caller wants JSON of its own, and sends it no tool list', /HCLocalContext\.can\(info, "tools"\)/.test(ollama) && /HCAgentShape\.toolsInWords\(messages, tools\)/.test(ollama) && /tools: native \? tools : undefined/.test(ollama));
 }
 
 console.log('\nEvery system message reaches the providers that take the rules apart:');

@@ -5615,11 +5615,11 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // A model that cannot take tools is told them in words and its calls are read from its answer.
     const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need: need || most });
-    const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
-    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined, keepFor: "15m" }, { signal, onToken: onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST); kept loaded between steps unless the person chose a time
+    const shaped = native || json ? null : HCAgentShape.toolsAsShape(messages, tools), sent = native ? HCAgentShape.forOllama(messages) : shaped ? shaped.messages : HCAgentShape.toolsInWords(messages, tools);   // without tool calling of its own, held by Ollama to one answer shape (js/agent-shape.js)
+    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json: shaped ? shaped.format : json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined, keepFor: "15m" }, { signal, onToken: shaped ? undefined : onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST); kept loaded between steps unless the person chose a time
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
-    const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
+    const { content, calls } = shaped ? HCAgentShape.shapedReply(reply.content, tools) : HCAgentShape.ollamaReply(msg, tools);
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }

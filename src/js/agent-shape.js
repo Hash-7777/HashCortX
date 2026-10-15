@@ -283,15 +283,20 @@
    * altogether, so each result goes back as a message in the person's turn.
    * Its calls are then read from its answer (js/tool-text.js).
    */
+  /** The tools as functions, for instructions written in words. */
+  const toolList = (tools) => (tools || []).map((t) => (t && t.function) || t).filter((f) => f && f.name);
+  /** One line for a tool: its name, its arguments (optional ones marked ?) and the first line of what it does. */
+  const toolLine = (f) => {
+    const props = (f.parameters && f.parameters.properties) || {};
+    const req = new Set((f.parameters && f.parameters.required) || []);
+    const args = Object.entries(props).map(([k, v]) => `${k}${req.has(k) ? '' : '?'}: ${(v && v.type) || 'string'}`).join(', ');
+    return `- ${f.name}(${args}): ${String(f.description || '').split('\n')[0]}`;
+  };
+
   function toolsInWords(messages, tools) {
-    const list = (tools || []).map((t) => (t && t.function) || t).filter((f) => f && f.name);
+    const list = toolList(tools);
     if (!list.length) return forOllama(messages);
-    const line = (f) => {
-      const props = (f.parameters && f.parameters.properties) || {};
-      const req = new Set((f.parameters && f.parameters.required) || []);
-      const args = Object.entries(props).map(([k, v]) => `${k}${req.has(k) ? '' : '?'}: ${(v && v.type) || 'string'}`).join(', ');
-      return `- ${f.name}(${args}): ${String(f.description || '').split('\n')[0]}`;
-    };
+    const line = toolLine;
     const guide = [
       'You can use these tools. To use one, reply with only the call, in exactly this form, and nothing else:',
       '<tool_call>{"name": "tool_name", "arguments": {"argument": "value"}}</tool_call>',
@@ -305,6 +310,78 @@
     if (sys >= 0) out[sys] = { ...out[sys], content: `${out[sys].content}\n\n${guide}` };
     else out.unshift({ role: 'system', content: guide });
     return out;
+  }
+
+  // ── One answer shape, held by Ollama ─────────────────────────────────
+  //
+  // A model with no tool calling of its own, told its tools in words, often
+  // answered that it could not reach the files, or wrote the code into its
+  // reply instead of calling a tool, and took long over it. Ollama can hold a
+  // model to a JSON schema as it writes, so such a model answers in one shape
+  // instead: a tool and its arguments, or "none" and words for the person.
+  // Every answer is then a call or an answer, never prose that has to be
+  // searched for a call, and it is short. Tested on single-step requests, a
+  // coding model without tool calling chose the right tool more often this way
+  // than with its tools in words, and answered several times sooner.
+
+  /** The word for "no tool, an answer". */
+  const NO_TOOL = 'none';
+
+  /** The JSON schema an answer is held to, naming the tools offered. */
+  function answerShape(tools) {
+    return {
+      type: 'object',
+      properties: { tool: { type: 'string', enum: [...toolList(tools).map((f) => f.name), NO_TOOL] }, arguments: { type: 'object' }, answer: { type: 'string' } },
+      required: ['tool', 'arguments', 'answer'],
+    };
+  }
+
+  /**
+   * A conversation for a model that cannot take tools, to be answered in one
+   * shape: `{ messages, format }`, `format` being what Ollama holds the
+   * answer to. Earlier calls and answers are written in the same shape, and
+   * each result goes back in the person's turn, as in toolsInWords. Null when
+   * no tools are offered.
+   */
+  function toolsAsShape(messages, tools) {
+    const list = toolList(tools);
+    if (!list.length) return null;
+    const said = (tool, args, answer) => JSON.stringify({ tool, arguments: args || {}, answer: answer || '' });
+    const guide = [
+      'Answer with JSON only, in this shape: {"tool": a tool\'s name or "none", "arguments": that tool\'s arguments, "answer": your words for the person when tool is "none", otherwise ""}.',
+      'Call one tool at a time: its result comes back in the next message. When the work is done, or no tool is needed, set tool to "none" and answer.',
+      '',
+      'Tools:',
+      ...list.map(toolLine),
+    ].join('\n');
+    const out = [];
+    for (const m of withoutSignatures(messages)) {
+      if (m.role === 'tool') { out.push({ role: 'user', content: `Result of ${m.name || 'the tool'}:\n${markSource(m.content || '')}` }); continue; }
+      if (m.role === 'assistant') {
+        const calls = Array.isArray(m.tool_calls) ? m.tool_calls : [];
+        out.push({ role: 'assistant', content: calls.length ? calls.map((c) => said(c.function && c.function.name, safeJsonParse(c.function && c.function.arguments) || {}, '')).join('\n') : said(NO_TOOL, {}, m.content || '') });
+        continue;
+      }
+      out.push({ role: m.role, content: m.content || '', ...(m.images ? { images: m.images } : {}) });
+    }
+    const sys = out.findIndex((m) => m.role === 'system');
+    if (sys >= 0) out[sys] = { ...out[sys], content: `${out[sys].content}\n\n${guide}` };
+    else out.unshift({ role: 'system', content: guide });
+    return { messages: out, format: answerShape(tools) };
+  }
+
+  /**
+   * An answer in that shape, read: `{ content, calls }`. A known tool is a
+   * call; "none", or a tool that was not offered, is an answer in words.
+   * Text that is not the shape at all is passed on as it is.
+   */
+  function shapedReply(text, tools) {
+    const names = new Set(toolList(tools).map((f) => f.name));
+    const v = safeJsonParse(String(text || '').trim());
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return { content: String(text || ''), calls: [] };
+    const args = v.arguments && typeof v.arguments === 'object' && !Array.isArray(v.arguments) ? v.arguments : {};
+    if (typeof v.tool === 'string' && names.has(v.tool)) return { content: '', calls: [{ id: `call_${Date.now()}_0`, name: v.tool, arguments: args }] };
+    return { content: typeof v.answer === 'string' && v.answer.trim() ? v.answer : String(text || ''), calls: [] };
   }
 
   /**
@@ -672,6 +749,9 @@
     claimsItRan,
     forOllama,
     toolsInWords,
+    toolsAsShape,
+    shapedReply,
+    answerShape,
     toolTurnsInWords,
     ollamaReply,
     FOREIGN_CALL_SIGNATURE,
