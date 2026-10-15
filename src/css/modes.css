@@ -288,6 +288,17 @@
     border-color: rgba(34,211,238,0.32);
   }
 
+  /* "‹ 2/3 ›": the versions of an edited message or a regenerated answer (js/chat/versions.js). */
+  .msg-versions {
+    display: inline-flex; align-items: center; gap: 1px;
+    height: 22px; padding: 0 2px; margin-right: 2px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+  }
+  .msg-action.msg-ver { width: 20px; height: 18px; padding: 0; justify-content: center; }
+  .msg-action.msg-ver:disabled { opacity: .3; cursor: default; background: none; color: var(--text-dim); }
+  .msg-ver-n { min-width: 26px; text-align: center; font-family: var(--mono); font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
   /* Reply banner above the textarea — shows when user is replying to a specific message */
   .reply-banner {
     display: none;

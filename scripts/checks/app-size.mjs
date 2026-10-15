@@ -234,7 +234,9 @@ const LINE_BUDGET = {
   // regenerated answer is gone; Regenerate replaces the answer.
   // 6464, up one: what was attached to a message queued while a reply is
   // written waits with it and goes with it (js/queue.js).
-  'js/app.js': 6464,
+  // 6465, up one: an edited message or a regenerated answer stays in its
+  // chat as a version, the others kept (js/chat/versions.js).
+  'js/app.js': 6465,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -812,7 +814,9 @@ const LINE_BUDGET = {
   // 2471, up two: "Send now" stops only the model step under way, and the
   // run gives that step up for the message and goes on (js/queue.js).
   // 2468, down three: a step's time and its end are drawn by js/code/steps.js.
-  'modes/code/mode.js': 2468,
+  // 2470, up two: a request can be brought back to the box to change and
+  // send again, from an edit beside its copy.
+  'modes/code/mode.js': 2470,
 };
 
 console.log('\nFile sizes go down, never up:');

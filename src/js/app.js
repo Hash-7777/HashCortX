@@ -1078,7 +1078,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Clean transient fields off a deep copy (e.g. base64 kept separately is fine, keep it for re-send)
     const cleanMessages = state.messages
       .filter(m => !(m.role === "assistant" && m === state.messages[state.messages.length - 1] && state.streaming && !m.content))
-      .map(m => ({
+      .map(function clean(m) { return {
         role: m.role,
         content: m.content || "",
         images: m.images ? m.images.slice() : undefined,
@@ -1089,8 +1089,8 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined, thinking: m.thinking || undefined, thoughtMs: m.thoughtMs || undefined,
         _modelContent: m._modelContent || undefined,
         replyTo: m.replyTo || undefined,
-        compare: m.compare ? JSON.parse(JSON.stringify(m.compare)) : undefined,
-      }));
+        compare: m.compare ? JSON.parse(JSON.stringify(m.compare)) : undefined, versions: HCVersions.forStorage(m, clean), version: HCVersions.of(m) ? m.version : undefined,   // the other versions of an edited message or a regenerated answer, each with what followed it (js/chat/versions.js)
+      }; });
     if (!chat) {
       chat = { id: state.currentChatId, createdAt: Date.now(), title: deriveTitle(cleanMessages), messages: cleanMessages, updatedAt: Date.now(), model: modelEl.value, agentId: state.activeAgentId, projectId: state.currentProjectId };
       chatList.unshift(chat);
@@ -4046,6 +4046,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (pinned) foot.classList.add("pinned");
 
       const parts = [];
+      if (HCVersions.of(m)) parts.push(HCVersions.switchHtml(m));   // "‹ 2/3 ›": the versions of an edited message or a regenerated answer (js/chat/versions.js)
       if (m.role === "assistant") {
         const label = m.durationMs ? formatDuration(m.durationMs) : "—";
         parts.push(`<span class="msg-time" title="How long this reply took">
@@ -4054,7 +4055,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         parts.push(`<button class="msg-action" data-action="reply" title="Reply to this message">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>Reply</button>`);
       } else {
-        parts.push(`<button class="msg-action" data-action="edit-msg" title="Edit this message and branch from here">
+        parts.push(`<button class="msg-action" data-action="edit-msg" title="Edit this message; the old version and its replies are kept">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>`);
       }
       parts.push(`<button class="msg-action" data-action="copy-msg" title="Copy this message">
@@ -4120,7 +4121,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     input.style.height = Math.min(input.scrollHeight, 200) + "px";
     editPreview.textContent = (input.value || "(empty message)").replace(/\s+/g, " ").trim().slice(0, 180) || "(empty message)";
     editBanner.classList.add("visible");
-    if (!state.streaming) sendBtn.textContent = "Branch";
+    if (!state.streaming) sendBtn.textContent = "Save edit";
     input.focus();
     render();
   }
@@ -4151,7 +4152,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Delegate Reply/Copy clicks on assistant bubbles. Copy-code is handled
   // separately further down; keep this listener narrow so they don't conflict.
   msgs.addEventListener("click", (e) => {
-    const btn = e.target.closest('[data-action="reply"], [data-action="copy-msg"], [data-action="edit-msg"], [data-action="regenerate"], [data-action="raw-msg"]');
+    const btn = e.target.closest('[data-action="reply"], [data-action="copy-msg"], [data-action="edit-msg"], [data-action="regenerate"], [data-action="raw-msg"], [data-action="ver-prev"], [data-action="ver-next"]');
     if (!btn) return;
     const msgEl = btn.closest(".msg");
     if (!msgEl) return;
@@ -4180,6 +4181,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       setEditingMessage(idx);
       return;
     }
+    if (action === "ver-prev" || action === "ver-next") { if (state.streaming) return; state.messages = HCVersions.show(state.messages, idx, (state.messages[idx]?.version ?? 0) + (action === "ver-next" ? 1 : -1)); clearEditingMessage(); state.replyTo = null; persistCurrentChat(); render(); return; }   // another version, with the conversation that went with it
     if (action === "regenerate") {
       regenerateFromAssistant(idx);
       return;
@@ -4592,13 +4594,13 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const base = state.messages.slice(0, idx).map(cloneMessage);
     const user = lastUserMessage(base);
     if (!user) return;
-    state.currentChatId = uid();
+    const kept = HCVersions.snapshot(state.messages, idx), chatId = state.currentChatId;   // the answer it replaces, and what followed it, kept as a version (js/chat/versions.js)
     state.messages = base;
     state.pendingImages = [];
     state.pendingFiles = [];
     clearReplyTo();
     clearEditingMessage();
-    await runAssistantTurn(normalizeUserMessageText(user), !!(user.images?.length || user.attachments?.length));
+    await runAssistantTurn(normalizeUserMessageText(user), !!(user.images?.length || user.attachments?.length)); if (state.currentChatId === chatId) { state.messages = HCVersions.adopt(state.messages, idx, kept); persistCurrentChat(); render(); }
   }
 
   // ========= Send =========
@@ -4743,8 +4745,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const hadAttachments = state.pendingImages.length > 0 || state.pendingFiles.length > 0;
     if (state.editing) {
       const editedIdx = state.editing.idx;
-      state.currentChatId = uid();
-      state.messages = prepareEditBranch(editedIdx, text);
+      state.messages = HCVersions.branch(state.messages, editedIdx, prepareEditBranch(editedIdx, text)[editedIdx]);   // the same chat: the message as it was, and what followed it, kept as a version (js/chat/versions.js)
       state.pendingImages = [];
       state.pendingFiles = [];
       clearReplyTo();

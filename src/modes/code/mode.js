@@ -895,7 +895,9 @@
         <div class="cdr-user-bubble">${window.HCCodeAttach?.picturesHtml(pictures) || ''}${esc(text)}</div>
         <div class="cdr-msg-actions">
           <button class="cdr-action-btn cdr-act-copy">${svgCopy} copy</button>
+          <button class="cdr-action-btn cdr-act-edit" title="Bring this request back to the box to change and send again; nothing here is removed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> edit</button>
         </div>`;
+      el.querySelector('.cdr-act-edit').addEventListener('click', () => { const box = $('cdrTaskInput'); if (!box) return; box.value = String(text).replace(/\n\nAttached: [^\n]*$/, ''); box.dispatchEvent(new Event('input', { bubbles: true })); box.focus(); box.setSelectionRange(box.value.length, box.value.length); });   // the words only: what was attached is attached again if wanted
       el.querySelector('.cdr-act-copy').addEventListener('click', function () {
         navigator.clipboard.writeText(text).then(() => {
           this.classList.add('flash');

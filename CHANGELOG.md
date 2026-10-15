@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Edit a message, or regenerate an answer, without losing the chat.**
+  Editing a message used to copy the chat up to it into a new chat and go
+  on there, leaving everything after it behind in the old one; Regenerate
+  did the same. Now the chat stays one chat: the edited message, or the new
+  answer, is another version of the one it replaces, and "‹ 2/3 ›" under
+  it moves between the versions, each bringing back the conversation that
+  went with it. Versions are saved with the chat and kept after a restart.
+  In HashCoder, "edit" beside a request brings its words back to the box to
+  change and send again, removing nothing.
 - **Send a message while a model is working.** A message sent while a
   reply was being written was refused in chat, and in HashCoder pressing
   Enter during a run started a new run, which stopped the one at work and
