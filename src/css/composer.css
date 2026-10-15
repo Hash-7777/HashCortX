@@ -264,6 +264,8 @@
     animation: hcq-in .34s cubic-bezier(.2,.8,.2,1) both, hcq-float 5.5s ease-in-out .34s infinite;
   }
   .hc-queue[hidden] { display: none; }
+  /* A workspace that files can be dropped on, while files are held over it (js/drop.js). */
+  .hc-dropping { outline: 2px dashed var(--accent); outline-offset: -8px; transition: outline-color .15s; }
   .hc-queue::before {
     content: "";
     position: absolute; top: 0; left: 0;

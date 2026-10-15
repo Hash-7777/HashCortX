@@ -146,7 +146,7 @@ console.log('\nThe panel and the Coder use it:');
   ok('it loads before the Coder, after the pieces it reads', boot.includes("'/js/code/attach.js'") && boot.indexOf("'/js/code/attach.js'") < boot.indexOf("'/js/app.js'"));
   const app = src('js', 'app.js');
   ok('chat does not take a file dropped or a picture pasted while HashCoder is open',
-    /const files = document\.body\.classList\.contains\("coder-mode"\) \? \[\] :/.test(app) && /const items = document\.body\.classList\.contains\("coder-mode"\) \? \[\] :/.test(app));
+    /const files = BUILTIN_BODY_MODE_CLASSES\.some\(\(c\) => document\.body\.classList\.contains\(c\)\) \? \[\] :/.test(app) && /"coder-mode"/.test(app.slice(app.indexOf('const BUILTIN_BODY_MODE_CLASSES'), app.indexOf('const BUILTIN_BODY_MODE_CLASSES') + 160)) && /const items = document\.body\.classList\.contains\("coder-mode"\) \? \[\] :/.test(app));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/attach.js)`);

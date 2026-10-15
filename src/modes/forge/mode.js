@@ -3534,7 +3534,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
       const file = e.target.files?.[0];
       e.target.value = "";
       if (file) importForgeAsset(file);
-    });
+    }); window.HCDrop?.zone($("forge-mode-wrap"), (files) => importForgeAsset(files[0]), { accept: (f) => /\.(?:stl|obj|3mf|step|stp|glb|gltf)$/i.test(f.name) });   // a model dropped on the studio is imported
     $("frgAutoRouteBtn")?.addEventListener("click", () => {
       traceClock.reset();
       const traceEntries = $("frgTraceEntries");

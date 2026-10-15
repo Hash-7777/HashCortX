@@ -418,7 +418,7 @@ const FinanceMode = (() => {
     input.addEventListener("input", () => autosize(input));
     send.addEventListener("click", submitPrompt);
     attach.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (e) => handleFinanceFiles(e.target.files));
+    fileInput.addEventListener("change", (e) => handleFinanceFiles(e.target.files)); window.HCDrop?.zone(wrap.querySelector(".fin-chat"), handleFinanceFiles);   // and dropped on the conversation
     wrap.querySelector("#finFileList")?.addEventListener("click", (e) => {
       const remove = e.target.closest("[data-remove-file]");
       if (!remove) return;

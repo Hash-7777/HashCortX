@@ -53,6 +53,12 @@
         // data-tauri-drag-region handler never fires on that first click.
         "acceptFirstMouse": true,
 
+        // dragDropEnabled: false — files dropped on the window reach the page.
+        // Left on, the window takes every drop for itself and the page never
+        // sees one, so a picture, a PDF or a file dropped on chat, HashCoder,
+        // Finance or 3D Forge did nothing (js/drop.js).
+        "dragDropEnabled": false,
+
         // Open centered on first launch. The window starts hidden so JS can
         // restore the saved size/position before the first visible paint.
         "center": true,

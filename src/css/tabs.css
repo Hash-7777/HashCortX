@@ -505,45 +505,6 @@
     font-size: 12px;
     color: var(--muted);
   }
-  .diff-box {
-    margin-top: 12px;
-    padding: 10px 12px;
-    border-radius: var(--radius-md);
-    border: 1px solid rgba(34,211,238,0.18);
-    background: rgba(0,0,0,0.22);
-    white-space: normal;
-  }
-  .diff-title {
-    margin-bottom: 8px;
-    font-size: 10px;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--gold);
-  }
-  .diff-text {
-    font-family: var(--mono);
-    font-size: 12px;
-    line-height: 1.7;
-    color: var(--text-dim);
-  }
-  .diff-add,
-  .diff-del {
-    display: inline;
-    padding: 1px 3px;
-    border-radius: var(--radius-xs);
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-  .diff-add {
-    color: #c8f0d8;
-    background: rgba(34,211,238,0.18);
-  }
-  .diff-del {
-    color: #f0b8b5;
-    background: rgba(217,138,133,0.18);
-    text-decoration: line-through;
-  }
-
   .field { display: flex; flex-direction: column; gap: 8px; }
   .field > label {
     font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;

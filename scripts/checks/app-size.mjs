@@ -230,7 +230,9 @@ const LINE_BUDGET = {
   // (js/page-facts.js).
   // 6490, up one: a message sent while a reply is written waits for it, and
   // is sent when it finishes (js/queue.js holds the queue and draws it).
-  'js/app.js': 6490,
+  // 6463, down twenty-seven: the word-by-word comparison drawn under a
+  // regenerated answer is gone; Regenerate replaces the answer.
+  'js/app.js': 6463,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in

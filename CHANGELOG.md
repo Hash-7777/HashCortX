@@ -74,6 +74,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Files dropped on the app reach it.** A picture, a PDF or any file
+  dropped on HashCortx did nothing: the window took every drop for itself,
+  and the page never saw one. The window now leaves drops to the page, and
+  a file goes to the workspace it is dropped on: chat, HashCoder (pictures,
+  PDFs and text), Finance (its statements and documents) and 3D Forge (a
+  model to import). A workspace that takes files is outlined while they are
+  held over it, and a file dropped while another workspace is open no
+  longer lands, out of sight, in chat's next message.
 - **HashCoder no longer takes a model's word that the tests pass.** Asked
   to fix a failing test, a small model on this computer answered "the
   tests are already passing" having run nothing; another finished with
@@ -297,6 +305,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Removed
 
+- **The word-by-word comparison under a regenerated answer.** Regenerate
+  drew the old answer and the new one struck through and marked word by
+  word beneath the new answer, which buried it. Regenerate now replaces the
+  answer, and nothing more.
 - **The Virtual OS workspace.** Its tab, its panel, its chat agent and the
   files behind them are gone, with the checks that covered them. Nothing
   else in the app depended on it; the zip writer it shared stays, for

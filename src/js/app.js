@@ -1089,7 +1089,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         durationMs: m.durationMs || undefined, ranCode: m.ranCode || undefined, thinking: m.thinking || undefined, thoughtMs: m.thoughtMs || undefined,
         _modelContent: m._modelContent || undefined,
         replyTo: m.replyTo || undefined,
-        diffFrom: m.diffFrom || undefined,
         compare: m.compare ? JSON.parse(JSON.stringify(m.compare)) : undefined,
       }));
     if (!chat) {
@@ -2925,7 +2924,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   window.addEventListener("dragover", (e) => e.preventDefault());
   window.addEventListener("drop", (e) => {
     e.preventDefault();
-    const files = document.body.classList.contains("coder-mode") ? [] : Array.from(e.dataTransfer.files);   // HashCoder attaches its own
+    const files = BUILTIN_BODY_MODE_CLASSES.some((c) => document.body.classList.contains(c)) ? [] : Array.from(e.dataTransfer.files);   // chat's only: another workspace open takes its own (js/drop.js), or none
     const imgs = files.filter(f => f.type.startsWith("image/"));
     const docs = files.filter(f => !f.type.startsWith("image/"));
     if (imgs.length) handleImages(imgs);
@@ -3855,24 +3854,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return `Replying to ${whose}:\n${quoted}\n\n${baseText}`;
   }
 
-  function diffWordsHtml(oldText, newText) {
-    const { parts, truncated } = window.HCDiff.diffWords(oldText, newText);
-    if (!parts.length) return "";
-    const html = parts.map((part) => {
-      const word = escapeHtml(part.word);
-      if (part.type === "del") return `<span class="diff-del">${word}</span>`;
-      if (part.type === "add") return `<span class="diff-add">${word}</span>`;
-      return word;
-    });
-    return html.join(" ") + (truncated ? ` <span class="diff-add">…</span>` : "");
-  }
-
-  function diffBlockHtml(oldText, newText, live = false) {
-    const body = diffWordsHtml(oldText, newText);
-    if (!body) return "";
-    return `<div class="diff-box"><div class="diff-title">${live ? "Live regenerate diff" : "Regenerate diff"}</div><div class="diff-text">${body}</div></div>`;
-  }
-
   function cloneMessage(msg) {
     return {
       ...msg,
@@ -3979,9 +3960,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
         raw.hidden = true;
         raw.textContent = displayContent;
         bubble.appendChild(raw);
-      }
-      if (m.role === "assistant" && m.diffFrom && displayContent) {
-        bubble.insertAdjacentHTML("beforeend", diffBlockHtml(m.diffFrom, displayContent, isStreamingPlaceholder));
       }
     } else {
       bubble.insertAdjacentHTML("beforeend", `<div class="typing"><span></span><span></span><span></span></div>`);
@@ -4468,10 +4446,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     return branched;
   }
 
-  async function runAssistantTurn(seedText, hadAttachments, opts = {}) {
+  async function runAssistantTurn(seedText, hadAttachments) {
     ensureChatIdForCurrentMessages();
 
-    const assistant = { role: "assistant", content: "", startedAt: Date.now(), ...(opts.diffFrom ? { diffFrom: opts.diffFrom } : {}) };
+    const assistant = { role: "assistant", content: "", startedAt: Date.now() };
     state.messages.push(assistant);
     state.streaming = true;
     sendBtn.textContent = "Stop";
@@ -4619,7 +4597,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     state.pendingFiles = [];
     clearReplyTo();
     clearEditingMessage();
-    await runAssistantTurn(normalizeUserMessageText(user), !!(user.images?.length || user.attachments?.length), { diffFrom: target.content || "" });
+    await runAssistantTurn(normalizeUserMessageText(user), !!(user.images?.length || user.attachments?.length));
   }
 
   // ========= Send =========
@@ -4945,12 +4923,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const last = msgs.querySelector(".msg.assistant:last-of-type .bubble");
     if (last) {
       last.classList.remove("thinking-bubble");
-      const msg = state.messages[state.messages.length - 1];
-      if (msg?.diffFrom) {
-        last.innerHTML = `<pre style="white-space:pre-wrap;margin:0;background:transparent;border:0;padding:0">${escapeHtml(_pendingBubbleText)}</pre>${diffBlockHtml(msg.diffFrom, _pendingBubbleText, true)}`;
-      } else {
-        last.textContent = _pendingBubbleText;   // raw — no escapeHtml, no regex
-      }
+      last.textContent = _pendingBubbleText;   // raw — no escapeHtml, no regex
       HCFollow.keep(msgs);
     }
   }
