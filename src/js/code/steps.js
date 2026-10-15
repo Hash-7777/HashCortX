@@ -1,9 +1,12 @@
 // ==============================================================
 // The steps of a HashCoder run, as the reply shows them
 //
-// Every tool call and every file change is a step: a short line on a dashed
-// rail while the run works, with a dot that fills when the step is done and
-// turns red when it failed, and whatever the step returned folded under it.
+// Every tool call and every file change is a step: a short line on a rail
+// while the run works, its dot pulsing and its time counting while it runs,
+// then filled, or red when it failed, with what it took and a bar measuring
+// that against the slowest step of its list, and whatever the step returned
+// folded under it. Times read as a person says them: "340 ms", "4.2 s",
+// "1 m 12 s", never "50094ms".
 // When the run ends each list folds to one line, "12 steps", that opens it
 // again; the changes the run made are gathered under the answer, each with
 // Keep and Undo, so folding never hides a question still waiting for the
@@ -11,8 +14,8 @@
 // said it.
 //
 // Steps are <details>, so opening one works from the keyboard as it is.
-// verbOf, objectOf, stepsLine and changesTitle are pure; the rest draws into
-// the panel.
+// verbOf, objectOf, stepsLine, changesTitle and duration are pure; the rest
+// draws into the panel.
 //
 // Loaded before the Coder mode and published as window.HCCodeSteps.
 // Checked by scripts/checks/code-steps.mjs.
@@ -73,6 +76,53 @@
    */
   const stepsHeld = (listed, gathered = 0) => Math.max(0, Number(listed) || 0) + Math.max(0, Number(gathered) || 0);
 
+  /** A time as a person reads it: "340 ms", "4.2 s", "50.1 s", "1 m 12 s", "1 h 04 m"; '' for none. */
+  function duration(ms) {
+    const t = Number(ms);
+    if (ms == null || !Number.isFinite(t) || t < 0) return '';
+    if (t < 1) return '<1 ms';
+    if (t < 999.5) return `${Math.round(t)} ms`;
+    if (t < 59950) return `${(t / 1000).toFixed(1)} s`;
+    const all = Math.round(t / 1000), h = Math.floor(all / 3600), m = Math.floor((all % 3600) / 60), sec = all % 60;
+    return h ? `${h} h ${String(m).padStart(2, '0')} m` : `${m} m ${String(sec).padStart(2, '0')} s`;
+  }
+
+  // A step's time while it runs, counting. One timer serves every step running, and stops when none is.
+  const LIVE = 'cdr-step-live';
+  let ticker = 0;
+  function tick() {
+    const live = [...document.querySelectorAll(`.${LIVE}`)].filter((el) => el.isConnected);
+    if (!live.length) { clearInterval(ticker); ticker = 0; return; }
+    const now = Date.now();
+    for (const el of live) el.textContent = duration(now - Number(el.dataset.since || now));
+  }
+
+  /** What a step shows while it runs: its time so far. */
+  const running = () => `<span class="cdr-step-time ${LIVE}" data-since="${Date.now()}">0 ms</span>`;
+
+  /** The bars of a list's timed steps, each against the slowest of them. */
+  function measure(list) {
+    if (!list) return;
+    const timed = [...list.children].filter((s) => s.classList.contains('cdr-step') && s.dataset.ms != null);
+    const most = Math.max(1, ...timed.map((s) => Number(s.dataset.ms) || 0));
+    for (const s of timed) {
+      const bar = s.querySelector('.cdr-step-bar > i');
+      if (bar) bar.style.transform = `scaleX(${Math.max(0.04, (Number(s.dataset.ms) || 0) / most).toFixed(3)})`;
+    }
+  }
+
+  /** A step that has ended: done or failed, what it took, and its list's bars measured again. A saved step has no time. */
+  function finish(el, ok, ms) {
+    if (!el) return;
+    el.classList.remove('cdr-step--running');
+    el.classList.add(ok ? 'cdr-step--ok' : 'cdr-step--err');
+    const took = duration(ms);
+    if (took) el.dataset.ms = String(Math.max(0, Math.round(Number(ms))));
+    const status = el.querySelector('.cdr-step-result');
+    if (status) status.innerHTML = (took ? '<span class="cdr-step-bar" aria-hidden="true"><i></i></span>' : '') + (!ok ? '<span class="cdr-step-time cdr-step-failed">failed</span>' : '') + (took ? `<span class="cdr-step-time">${esc(took)}</span>` : '');
+    measure(el.parentElement);
+  }
+
   /** The heading over a run's changes. */
   const changesTitle = (count) => `${count === 1 ? '1 change' : `${count} changes`} — keep or undo`;
 
@@ -125,12 +175,15 @@
         </summary>
         <div class="cdr-step-body"></div>`;
     (flat ? contentEl : listFor(contentEl)).appendChild(el);
+    if (!ticker && el.querySelector(`.${LIVE}`)) ticker = setInterval(tick, 100);
     return el;
   }
 
   /** A reply whose run has ended: each list folded to its line, and the changes gathered under it. */
   function settle(contentEl) {
     if (!contentEl) return;
+    // A step still counting when the run ended was stopped with it.
+    contentEl.querySelectorAll(`.${LIVE}`).forEach((t) => { t.classList.remove(LIVE); t.textContent = 'stopped'; });
     const changed = [...contentEl.querySelectorAll('.cdr-steps-list > .cdr-step--change')];
     const gatheredFrom = new Map();
     changed.forEach((c) => gatheredFrom.set(c.parentElement, (gatheredFrom.get(c.parentElement) || 0) + 1));
@@ -151,5 +204,5 @@
     });
   }
 
-  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, listFor, add, added, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, settle };
 })();

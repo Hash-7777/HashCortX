@@ -377,8 +377,10 @@ body.coder-mode #app { display: none; }
 .cdr-step-body pre { margin: 0; padding: 10px 14px; max-height: 320px; overflow: auto; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--cdr-text-dim); white-space: pre-wrap; word-break: break-word; }
 .cdr-step-note { padding: 8px 14px 0; color: var(--warn); font-size: 12px; }
 
-/* ── A run's steps: a short line each on a dashed rail while it works,
-   folded to one line a list when it ends (mode.js settleSteps). ────── */
+/* ── A run's steps: a short line each on a rail while it works, folded to
+   one line a list when it ends (js/code/steps.js). A step's dot pulses and
+   its time counts while it runs; done, the dot fills and a slim bar shows
+   what it took against the slowest step of its list. ────── */
 .cdr-steps-h {
   display: none; align-items: center; gap: 8px; align-self: flex-start;
   appearance: none; border: 0; background: none; padding: 2px 0; cursor: pointer;
@@ -394,18 +396,30 @@ body.coder-mode #app { display: none; }
 .cdr-steps-h:hover { color: var(--cdr-text); }
 .cdr-steps-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .cdr-steps.done:not(.open) .cdr-steps-list { display: none; }
-.cdr-steps-list { display: grid; gap: 1px; margin-left: 4px; padding-left: 14px; border-left: 1px dashed var(--cdr-border-strong); }
+.cdr-steps-list { display: grid; gap: 2px; margin-left: 4px; padding-left: 15px; border-left: 1px solid var(--cdr-border-strong); }
 .cdr-steps.done .cdr-steps-list { margin-top: 6px; }
 .cdr-steps-list > .cdr-step { position: relative; margin: 0; border: 0; border-radius: 0; overflow: visible; }
 .cdr-steps-list > .cdr-step::before {
-  content: ""; position: absolute; left: -18px; top: 7px; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--surface-0); border: 1.5px solid var(--accent);
+  content: ""; position: absolute; left: -20px; top: 9px; width: 9px; height: 9px; border-radius: 50%;
+  background: var(--surface-0); border: 1.5px solid var(--cdr-border-strong);
+  transition: background .2s, border-color .2s;
 }
-.cdr-steps-list > .cdr-step--ok::before { background: var(--accent); }
+.cdr-steps-list > .cdr-step--running::before { border-color: var(--accent-2); animation: cdr-node 1.2s ease-in-out infinite; }
+.cdr-steps-list > .cdr-step--ok::before { background: var(--accent); border-color: var(--accent); }
 .cdr-steps-list > .cdr-step--err::before { background: var(--danger); border-color: var(--danger); }
-.cdr-steps-list .cdr-step-head { grid-template-columns: 52px 1fr auto; gap: 10px; min-height: 22px; padding: 0 6px; border-radius: var(--radius-xs); font-size: 12px; }
-.cdr-steps-list .cdr-step-verb { font-size: 10.5px; }
-.cdr-steps-list .cdr-step-object, .cdr-steps-list .cdr-step-result { font-size: 11.5px; }
+@keyframes cdr-node { 50% { transform: scale(.7); opacity: .55; } }
+@media (prefers-reduced-motion: reduce) { .cdr-steps-list > .cdr-step--running::before { animation: none; } }
+.cdr-steps-list .cdr-step-head { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; min-height: 28px; padding: 0 8px; border-radius: var(--radius-sm); font-size: 12px; transition: background .15s; }
+.cdr-steps-list .cdr-step-verb { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
+.cdr-steps-list .cdr-step-object { font-size: 12px; }
+.cdr-steps-list .cdr-step-result { font-size: 11.5px; }
+.cdr-steps-list > .cdr-step[open] > .cdr-step-head { background: var(--surface-raised); }
+/* What a step took: a bar against the slowest of its list, then the time. */
+.cdr-step-bar { position: relative; width: 44px; height: 3px; border-radius: 2px; background: var(--cdr-border); overflow: hidden; }
+.cdr-step-bar > i { position: absolute; inset: 0; border-radius: inherit; background: var(--accent); opacity: .7; transform: scaleX(0); transform-origin: left center; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.cdr-step--err .cdr-step-bar > i { background: var(--danger); }
+.cdr-step-time { min-width: 50px; text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cdr-step-live { color: var(--accent-2); }
 .cdr-steps-list .cdr-step-body { margin: 2px 0 6px; border: 1px solid var(--cdr-border); border-radius: var(--radius-xs); }
 
 /* The changes a run made, gathered under its answer, each with Keep and Undo. */

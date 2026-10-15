@@ -64,6 +64,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder's steps read better, and their times read as people say
+  them.** A step's time was written in milliseconds, "50094ms". It now
+  reads "340 ms", "4.2 s", "50.1 s" or "1 m 12 s"; a step counts its time
+  while it runs, its dot pulsing, and once done a slim bar beside the time
+  shows what it took against the slowest step of its run, so the slow one
+  stands out. The rail is a solid line, the steps a little roomier, and a
+  step still counting when a run is stopped says so.
 - **Agent Swarm's tab fills the last row of the sidebar.** With seven
   workspaces in two columns, the last tab sat beside an empty cell; a tab
   left alone on the last row now takes the whole row.

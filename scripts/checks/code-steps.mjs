@@ -44,7 +44,7 @@ const css = src('modes', 'code', 'mode.css');
 ok('the marks move, in a way for each thing the model can be doing', /\.cdr-marks i \{[^}]*animation: cdr-wave/.test(css) && /\.cdr-live\[data-phase="writing"\] \.cdr-marks i/.test(css));
 ok('...and stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
 ok('the dot beside the status in the bar stays still', /\.cdr-status-dot\.thinking, \.cdr-status-dot\.run, \.cdr-status-dot\.running \{ background: var\(--accent-2\); \}/.test(css) && !/cdr-pulse/.test(css) && !/cdr-live-dot/.test(live + css));   // the bar's dot never pulses
-ok('a folded list is hidden, and a step in a list is a short line', /\.cdr-steps\.done:not\(\.open\) \.cdr-steps-list \{ display: none; \}/.test(css) && /\.cdr-steps-list \.cdr-step-head \{[^}]*min-height: 22px/.test(css));
+ok('a folded list is hidden, and a step in a list is a short line', /\.cdr-steps\.done:not\(\.open\) \.cdr-steps-list \{ display: none; \}/.test(css) && /\.cdr-steps-list \.cdr-step-head \{[^}]*min-height: 28px/.test(css));
 ok('copy, reply and regen wait for the answer', /\.cdr-msg\.running \.cdr-msg-actions \{ display: none; \}/.test(css));
 
 const mode = src('modes', 'code', 'mode.js');
@@ -65,6 +65,22 @@ ok('the bar says Running, not a second Thinking', !/setStatus\([^)]*Thinking/.te
 }
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/steps.js'") > 0 && boot.indexOf("'/js/code/steps.js'") < boot.indexOf("'/modes/boot.js'"));
+
+console.log('\nWhat a step took:');
+ok('a time reads as a person says it, never in thousands of milliseconds', S.duration(340) === '340 ms' && S.duration(4200) === '4.2 s' && S.duration(50094) === '50.1 s' && S.duration(72000) === '1 m 12 s' && S.duration(3840000) === '1 h 04 m', [340, 4200, 50094, 72000, 3840000].map(S.duration).join(' | '));
+ok('...under a millisecond, and at the edges where it rounds up', S.duration(0.4) === '<1 ms' && S.duration(999.6) === '1.0 s' && S.duration(59960) === '1 m 00 s');
+ok('...and nothing for a step with no time, as a saved one has', S.duration(null) === '' && S.duration(undefined) === '' && S.duration(-5) === '' && S.duration('x') === '');
+ok('a step running counts its time from when it began', /class="cdr-step-time cdr-step-live" data-since="\d+">0 ms</.test(S.running()));
+{
+  const steps = src('js', 'code', 'steps.js');
+  ok('one timer counts every running step, and stops when none is left', /if \(!live\.length\) \{ clearInterval\(ticker\); ticker = 0; return; \}/.test(steps) && /if \(!ticker && el\.querySelector\(`\.\$\{LIVE\}`\)\) ticker = setInterval\(tick, 100\);/.test(steps));
+  ok('a step still counting when its run ends says it was stopped', /contentEl\.querySelectorAll\(`\.\$\{LIVE\}`\)\.forEach\(\(t\) => \{ t\.classList\.remove\(LIVE\); t\.textContent = 'stopped'; \}\);/.test(steps));
+  ok('each bar is measured against the slowest step of its list, moved, not resized', /bar\.style\.transform = `scaleX\(\$\{Math\.max\(0\.04, \(Number\(s\.dataset\.ms\) \|\| 0\) \/ most\)\.toFixed\(3\)\}\)`/.test(steps));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder starts a step counting and ends it through them, and writes times so in its trace too', /status: window\.HCCodeSteps\.running\(\),/.test(mode) && /window\.HCCodeSteps\.finish\(el, ok, ms\);/.test(mode) && /cdrTraceAdd\('Tool', call\.name \+ ' · ' \+ window\.HCCodeSteps\.duration\(ms\)/.test(mode) && !/\$\{ms\}ms|\+ 'ms'/.test(mode));
+  const css = src('modes', 'code', 'mode.css');
+  ok('the running dot pulses by size alone, and stops for a person who asks for less motion', /@keyframes cdr-node \{ 50% \{ transform: scale\(\.7\); opacity: \.55; \} \}/.test(css) && /prefers-reduced-motion: reduce\) \{ \.cdr-steps-list > \.cdr-step--running::before \{ animation: none; \} \}/.test(css));
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/steps.js)`);
 process.exit(fail ? 1 : 0);

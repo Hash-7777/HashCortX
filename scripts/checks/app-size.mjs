@@ -811,7 +811,8 @@ const LINE_BUDGET = {
   // while a run works is read at its next step (js/queue.js).
   // 2471, up two: "Send now" stops only the model step under way, and the
   // run gives that step up for the message and goes on (js/queue.js).
-  'modes/code/mode.js': 2471,
+  // 2468, down three: a step's time and its end are drawn by js/code/steps.js.
+  'modes/code/mode.js': 2468,
 };
 
 console.log('\nFile sizes go down, never up:');

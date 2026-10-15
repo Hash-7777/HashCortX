@@ -80,7 +80,7 @@
   <summary class="cdr-step-head">
     <span class="cdr-step-verb">${esc(toolVerb(name))}</span>
     <span class="cdr-step-object">${esc(toolObject(name, args) || name)}</span>
-    <span class="cdr-step-result">${isErr ? 'failed' : esc(String(ms)) + 'ms'}</span>
+    <span class="cdr-step-result">${isErr ? 'failed' : esc(window.HCCodeSteps.duration(ms))}</span>
   </summary>
   <div class="cdr-step-body">
     ${argsJson !== '{}' ? `<pre>${argsJson}</pre>` : ''}
@@ -992,7 +992,7 @@
       const el = appendStep(contentEl, {
         verb: toolVerb(name),
         object: toolObject(name, args) || name,
-        status: '<span class="cdr-step-running">running…</span>',
+        status: window.HCCodeSteps.running(),   // its time, counting
         statusClass: 'cdr-step--running',
         open: false,
       });
@@ -1002,10 +1002,7 @@
 
     function finalizeToolBlock(el, result, ok, ms) {
       if (!el) return;
-      el.classList.remove('cdr-step--running');
-      el.classList.add(ok ? 'cdr-step--ok' : 'cdr-step--err');
-      const status = el.querySelector('.cdr-step-result');
-      if (status) status.textContent = ok ? (ms == null ? '' : `${ms}ms`) : 'failed';   // no time is kept for a saved step
+      window.HCCodeSteps.finish(el, ok, ms);   // done or failed, what it took, its bar measured (js/code/steps.js); no time is kept for a saved step
       const body = el.querySelector('.cdr-step-body');
       if (body) {
         const text = String(result || '');
@@ -1973,7 +1970,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
             }
             const ms = Math.round(performance.now() - t0);
-            cdrTraceAdd('Tool', call.name + ' · ' + ms + 'ms', ok ? 'ok' : 'err');
+            cdrTraceAdd('Tool', call.name + ' · ' + window.HCCodeSteps.duration(ms), ok ? 'ok' : 'err');
             finalizeToolBlock(toolEl, resultStr, ok, ms);
             if (!ok && /safety list|protected location/.test(resultStr)) HC.guard?.noteBlocked?.();   // a refused place counts toward Auto asking about everything
 
