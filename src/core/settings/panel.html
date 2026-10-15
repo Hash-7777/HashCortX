@@ -56,7 +56,7 @@
       </div>
 
       <div class="field">
-        <label>Free a local model's memory after <span class="field-note">How long a model stays loaded once you stop using it. Shorter frees memory sooner; longer answers your next message without loading it again. A step that takes longer than this, such as a long test run, loads the model again.</span></label>
+        <label>Free a local model's memory after <span class="field-note">How long a model stays loaded once you stop using it. Shorter frees memory sooner; longer answers your next message without loading it again. A step that takes longer than this, such as a long test run, loads the model again. Left to Ollama, a HashCoder run or an agent keeps it 15 minutes between steps.</span></label>
         <select class="control" id="localKeepAlive"></select>
       </div>
 
@@ -202,6 +202,34 @@
               except the Python sandbox, which fetches its runtime the first time you use it.</p>
             <p class="lm-note">A smaller model that fits in memory beats a larger one that
               does not. If replies crawl, drop a size.</p>
+          </div>
+        </li>
+
+        <li class="lm-step">
+          <div class="lm-step-head">
+            <span class="lm-step-num">5</span>
+            <span class="lm-step-title">Make it faster (optional)</span>
+          </div>
+          <div class="lm-step-body">
+            <p>Two Ollama settings let more of a model fit on the graphics chip, where it
+              writes fastest: flash attention, and a smaller form for the memory that holds
+              the conversation. They are Ollama's own settings, so HashCortx cannot switch
+              them on for you. Run these, then quit Ollama and open it again.</p>
+            <p class="lm-note"><b>Mac</b>, in Terminal. They last until the Mac restarts.</p>
+            <div class="lm-cmd lm-cmd-lines">
+              <code id="lmFastMac">launchctl setenv OLLAMA_FLASH_ATTENTION 1
+launchctl setenv OLLAMA_KV_CACHE_TYPE q8_0</code>
+              <button class="lm-copy" type="button" data-lm-copy="lmFastMac">Copy</button>
+            </div>
+            <p class="lm-note"><b>Windows</b>, in Command Prompt or PowerShell. They are kept.</p>
+            <div class="lm-cmd lm-cmd-lines">
+              <code id="lmFastWin">setx OLLAMA_FLASH_ATTENTION 1
+setx OLLAMA_KV_CACHE_TYPE q8_0</code>
+              <button class="lm-copy" type="button" data-lm-copy="lmFastWin">Copy</button>
+            </div>
+            <p class="lm-note">HashCortx also picks the window for each request so the model
+              stays on the graphics chip where it can, and keeps it loaded between the steps
+              of a HashCoder run unless you choose a time under <b>General</b>.</p>
           </div>
         </li>
       </ol>

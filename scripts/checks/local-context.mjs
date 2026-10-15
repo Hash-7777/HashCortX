@@ -29,9 +29,9 @@ function ok(label, cond) {
 const text = (chars) => [{ role: 'system', content: 'x'.repeat(chars) }];
 
 console.log('Room for a request and its answer:');
-ok('a short request gets the smallest step', L.sizeFor(text(1000)).numCtx === 8192);
+ok('a short request gets the smallest step, the window Ollama gives a model by itself', L.sizeFor(text(1000)).numCtx === 4096 && L.STEPS[0] === 4096);
 ok('a request the old fixed 8,192 cut short gets a larger one', L.sizeFor(text(44000), { need: 6000 }).numCtx === 32768);
-ok('the answer it must leave room for counts', L.sizeFor(text(20000), { need: 0 }).numCtx === 8192 && L.sizeFor(text(20000), { need: 6000 }).numCtx === 16384);
+ok('the answer it must leave room for counts', L.sizeFor(text(20000), { need: 0 }).numCtx === 8192 && L.sizeFor(text(20000), { need: 6000 }).numCtx === 16384 && L.sizeFor(text(9000)).numCtx === 8192);
 ok('never past what the model supports', L.sizeFor(text(20000), { need: 6000, max: 8192 }).ok === false && L.sizeFor(text(1000), { max: 4096 }).numCtx === 4096);
 ok('never past the ceiling that keeps memory in check, whatever the model supports', L.sizeFor(text(50000), { max: 262144 }).numCtx === 32768);
 ok('too much to hold is said, not cut', L.sizeFor(text(200000)).ok === false);
@@ -71,13 +71,35 @@ console.log('\nThe window a model is loaded with is kept while it fits:');
   const a = await n(1000);
   const b = await n(40000);
   const c = await n(1000);
-  ok('a short request after a longer one keeps the larger window: no reload', a === 8192 && b === 16384 && c === 16384);
+  ok('a request after a longer one keeps the larger window while it is not measured and at most twice what is needed: no reload', a === 4096 && b === 16384 && (await n(20000)) === 16384);
   const d = await n(80000, { need: 4000 });
   const e = await n(1000);
-  ok('a window more than twice what is needed is not kept: it holds memory the model could use', d === 32768 && e === 8192);
+  ok('a window more than twice what is needed, not measured, is not kept', d === 32768 && e === 4096);
   ok('a caller\'s floor is honoured when it asks for more', (await n(1000, { floor: 16384 })) === 16384);
   L.forget('http://s', 'm');
-  ok('forgotten, a model is sized afresh', (await n(1000)) === 8192);
+  ok('forgotten, a model is sized afresh', (await n(1000)) === 4096);
+}
+
+console.log('\nA window is kept or given up by where it put the model:');
+{
+  const fetchFn = async () => ({ ok: true, json: async () => ({ model_info: { 'x.context_length': 131072 } }) });
+  const n = (model, chars) => L.numCtx('http://g', model, text(chars), { fetchFn });
+  await n('fits', 40000);   // 16,384
+  L.placed('http://g', 'fits', 16384, 1);
+  ok('a window known to hold the whole model on the graphics chip is kept for a short request: no reload', (await n('fits', 1000)) === 16384);
+  await n('spills', 40000);
+  L.placed('http://g', 'spills', 16384, 0.77);
+  ok('a window known to push part of the model into main memory is given up for the smaller one the request needs', (await n('spills', 1000)) === 4096);
+  await n('big', 40000);
+  L.placed('http://g', 'big', 16384, 0.7);
+  ok('...but kept while the request needs all of it', (await n('big', 40000)) === 16384);
+  const ps = (models) => async (url) => ({ ok: /\/api\/ps$/.test(url), json: async () => ({ models }) });
+  const share = await L.measure('http://g', 'qwen:7b', 8192, ps([{ name: 'other', size: 1, size_vram: 1 }, { name: 'qwen:7b', size: 100, size_vram: 85, context_length: 8192 }]));
+  ok('Ollama is asked how much of the model it holds on the graphics chip, at the window it was loaded with', Math.abs(share - 0.85) < 1e-9);
+  ok('a model it does not list, another local app, or a failed answer says nothing', (await L.measure('http://g', 'gone', 8192, ps([]))) === null
+    && (await L.measure('http://g', 'local:1234/m', 8192, ps([]))) === null && (await L.measure('http://g', 'm', 8192, async () => { throw new Error('off'); })) === null);
+  const client = src('js', 'local-client.js');
+  ok('after every answer from Ollama the client measures it, without holding the answer up', /C\.measure\(host, request\.model, request\.numCtx, fetchFn\)\.catch\(\(\) => null\);/.test(client));
 }
 
 console.log('\nEvery local call is sized:');
@@ -96,7 +118,7 @@ console.log('\nEvery local call is sized:');
   // contains or how much of it is remembered.
   ok('the chat asks for the room the request needs, never a larger window of its own',
     !/\bfloor:/.test(app) && !/const numCtx\s*=\s*hasAttachedFileContext/.test(app) && !/streamWithModelValue\(\{[^}]*numCtx/.test(app));
-  ok('files attached to a short request leave it the smallest window', L.sizeFor([{ role: 'user', content: '[ATTACHED FILES - use this content when answering]\nsmall' }]).numCtx === 8192);
+  ok('files attached to a short request leave it the smallest window', L.sizeFor([{ role: 'user', content: '[ATTACHED FILES - use this content when answering]\nsmall' }]).numCtx === 4096);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-context.js)`);

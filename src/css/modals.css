@@ -383,6 +383,8 @@
   .lm-cmd code::-webkit-scrollbar, .lm-endpoint code::-webkit-scrollbar { display: none; }
   /* A row with no command for this computer is hidden: display above would otherwise win over the attribute. */
   .lm-cmd[hidden] { display: none; }
+  /* A box holding one command a line shows them a line each. */
+  .lm-cmd.lm-cmd-lines code { white-space: pre; }
   .lm-copy, .lm-test {
     flex: 0 0 auto;
   }

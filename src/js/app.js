@@ -5616,7 +5616,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need: need || most });
     const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
-    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined }, { signal, onToken: onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST)
+    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined, keepFor: "15m" }, { signal, onToken: onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST); kept loaded between steps unless the person chose a time
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);

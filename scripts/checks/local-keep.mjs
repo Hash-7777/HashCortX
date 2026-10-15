@@ -136,5 +136,16 @@ console.log('\nIt is in the app:');
   ok('and this check is part of npm run check', /npm run check:local-keep/.test(pkg));
 }
 
+console.log('\nSettings says how to make Ollama faster:');
+{
+  const panel = src('core', 'settings', 'panel.html');
+  const pane = panel.slice(panel.indexOf('id="localPane"'), panel.indexOf('end #localPane'));
+  ok('the Local model pane gives the two Ollama settings for a Mac and for Windows, each with a Copy button', /<code id="lmFastMac">launchctl setenv OLLAMA_FLASH_ATTENTION 1\nlaunchctl setenv OLLAMA_KV_CACHE_TYPE q8_0<\/code>/.test(pane)
+    && /<code id="lmFastWin">setx OLLAMA_FLASH_ATTENTION 1\nsetx OLLAMA_KV_CACHE_TYPE q8_0<\/code>/.test(pane) && /data-lm-copy="lmFastMac"/.test(pane) && /data-lm-copy="lmFastWin"/.test(pane));
+  ok('...one command a line, as they are copied', /\.lm-cmd\.lm-cmd-lines code \{ white-space: pre; \}/.test(src('css', 'modals.css')) && (pane.match(/class="lm-cmd lm-cmd-lines"/g) || []).length === 2);
+  ok('...and says plainly they are Ollama\'s to switch on, and when a Mac forgets them', /HashCortx cannot switch\s+them on for you/.test(pane) && /They last until the Mac restarts\./.test(pane));
+  ok('the lifetime setting says what a HashCoder run asks for when it is left to Ollama', /Left to Ollama, a HashCoder run or an agent keeps it 15 minutes between steps\./.test(panel));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-keep.js)`);
 process.exit(fail ? 1 : 0);

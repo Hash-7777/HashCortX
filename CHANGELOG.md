@@ -73,6 +73,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Local models answer sooner.** A model on your computer was given a
+  window of at least 8,192 tokens, and a larger window took memory from the
+  model itself, so on a computer with little memory part of it ran in main
+  memory, where every word is slower; each change of window also loaded it
+  again and read the whole conversation again. Windows now start at 4,096,
+  the app asks Ollama after each answer how much of the model sits on the
+  graphics chip, and a window is kept unless it is known to push the model
+  off it. HashCoder and agents keep a model loaded for fifteen minutes
+  between steps unless you chose a time, so a pause does not start the next
+  step from nothing. Settings, under Local model, gives the two Ollama
+  settings that let more of a model fit, for a Mac and for Windows.
 - **3D Forge draws only when the view changes.** It drew the whole scene,
   shadows and all, many times a second for as long as it was open, even
   with nothing moving. Now a frame is drawn when something changes it:

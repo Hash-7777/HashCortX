@@ -16,12 +16,20 @@
 // words, not cut.
 //
 // THE WINDOW A MODEL IS ALREADY LOADED WITH IS KEPT. Ollama loads a model
-// again whenever a request names a different window, which costs one to three
-// seconds before the first word on this class of machine. So a request that
-// fits the window last sent for that model reuses it, as long as that window
-// is no more than twice what the request needs: a far larger one holds memory
-// the model's own layers could use, and on a small machine that pushes part of
-// the model off the graphics chip and makes every word slower.
+// again whenever a request names a different window, and reads the whole
+// request again, which costs seconds before the first word. So a request that
+// fits the window last sent for that model reuses it.
+//
+// UNLESS THAT WINDOW PUSHED THE MODEL OFF THE GRAPHICS CHIP. A window's memory
+// comes out of what the model's own layers could use, and on a computer with
+// little memory a large one leaves some layers in main memory, where every
+// word is several times slower. After each answer the app asks Ollama how
+// much of the model it holds on the graphics chip at that window (measure).
+// A window known to hold it all is kept whatever the request needs; one known
+// to spill is given up for the smaller one the request needs; one not yet
+// measured is kept while it is no more than twice what is needed. The
+// smallest step is 4,096, the window Ollama gives a model by itself on such a
+// computer.
 //
 // WHAT A MODEL CAN DO is read from the same answer as its window: whether it
 // takes tools, reads pictures, or only turns text into vectors for search.
@@ -31,7 +39,7 @@
 (function () {
   "use strict";
 
-  const STEPS = [8192, 16384, 32768];
+  const STEPS = [4096, 8192, 16384, 32768];
   const CEILING = STEPS[STEPS.length - 1];
   const CHARS_PER_TOKEN = 3.2;   // on the safe side: code and JSON pack tighter than prose
   const REPLY_ROOM = 2048;
@@ -117,16 +125,46 @@
   }
 
   const sent = new Map();   // host|model -> the window last sent for it
+  const onChip = new Map();   // host|model|window -> share of the model on the graphics chip, 0 to 1
+
+  /** Record how much of a model sat on the graphics chip at a window. */
+  function placed(host, model, numCtx, share) {
+    if (Number.isFinite(numCtx) && Number.isFinite(share)) onChip.set(`${host}|${model}|${numCtx}`, Math.max(0, Math.min(1, share)));
+  }
+  /** The share recorded for a window, or undefined when it has not been measured. */
+  const shareAt = (key, w) => onChip.get(`${key}|${w}`);
 
   /**
-   * The window to send: the one the model is loaded with when it holds the
-   * request and is at most twice what is needed, otherwise the smallest step
-   * that holds it. `floor` is a window the caller wants at least.
+   * Ask Ollama how much of a loaded model is on the graphics chip, and keep
+   * it for the window it was loaded at. Resolves to the share, or null when
+   * Ollama does not say (another local app, an older Ollama, no answer).
+   */
+  async function measure(host, model, numCtx, fetchFn = (...a) => fetch(...a)) {
+    if (!host || !model || /^(?:cloud|local):/.test(String(model)) || !Number.isFinite(numCtx)) return null;
+    try {
+      const r = await fetchFn(`${host}/api/ps`);
+      if (!r || !r.ok) return null;
+      const m = ((await r.json()).models || []).find((x) => x && (x.name === model || x.model === model));
+      if (!m || !(m.size > 0) || !Number.isFinite(m.size_vram)) return null;
+      const share = m.size_vram / m.size;
+      placed(host, model, Number(m.context_length) || numCtx, share);
+      return share;
+    } catch { return null; }
+  }
+
+  /**
+   * The window to send. The one the model is loaded with, when it holds the
+   * request and is known to keep the model on the graphics chip, or is not
+   * yet measured and no more than twice what is needed; otherwise the
+   * smallest step that holds the request. `floor` is a window the caller
+   * wants at least.
    */
   function pick(key, size, floor, max) {
     const needed = Math.max(size, Math.min(Number(floor) || 0, max));
     const last = sent.get(key);
-    const chosen = last && last >= needed && last <= needed * 2 && last <= max ? last : needed;
+    const share = last ? shareAt(key, last) : undefined;
+    const keep = !!last && last >= needed && last <= max && (share === undefined ? last <= needed * 2 : share >= 0.999 || needed >= last);
+    const chosen = keep ? last : needed;
     sent.set(key, chosen);
     return chosen;
   }
@@ -146,5 +184,5 @@
   /** Forget what was sent, so a model loaded again elsewhere is sized afresh. */
   const forget = (host, model) => sent.delete(`${host}|${model}`);
 
-  window.HCLocalContext = { tokensOf, sizeFor, infoOf, limitOf, billionsOf, can, embedsOnly, refusalFor, numCtx, forget, STEPS, CEILING };
+  window.HCLocalContext = { tokensOf, sizeFor, infoOf, limitOf, billionsOf, can, embedsOnly, refusalFor, numCtx, forget, placed, measure, STEPS, CEILING };
 })();

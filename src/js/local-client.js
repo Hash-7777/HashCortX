@@ -10,7 +10,11 @@
 //
 // A model is kept loaded for as long as Ollama keeps any model after a
 // request — five minutes unless the person set it otherwise, here in Settings
-// (js/local-keep.js) or on the server — and never for good. Held for good, a model marked to make room for another was kept by the
+// (js/local-keep.js) or on the server — and never for good. A caller working
+// through steps, such as HashCoder or an agent, may ask for longer when the
+// person has not chosen (`keepFor`): Ollama keeps what it has read of a
+// conversation only while the model is loaded, and a pause to read an answer
+// or wait on a test otherwise starts the next step from nothing. Held for good, a model marked to make room for another was kept by the
 // next request to it, and on a computer short of memory the other model
 // waited until it was given up on.
 //
@@ -34,7 +38,7 @@
   "use strict";
 
   /** The body of one request to Ollama's chat. */
-  function body({ model, messages, stream = true, temperature, numCtx, numPredict, json, tools, keepAlive, think }) {
+  function body({ model, messages, stream = true, temperature, numCtx, numPredict, json, tools, keepAlive, keepFor, think }) {
     const options = {};
     if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
     // An answer held to a schema can only end when its JSON closes, and a small
@@ -54,9 +58,10 @@
     const P = typeof window !== "undefined" && window.HCLocalPlace;
     if (P) Object.assign(options, P.options());
     // A time the caller asks for wins; otherwise the one the person chose in
-    // Settings, if they chose one (js/local-keep.js); otherwise Ollama's own.
+    // Settings, if they chose one (js/local-keep.js); otherwise the caller's
+    // preference for work in steps; otherwise Ollama's own.
     const K = typeof window !== "undefined" && window.HCLocalKeep;
-    const kept = keepAlive !== undefined ? keepAlive : (K && K.value()) || undefined;
+    const kept = keepAlive !== undefined ? keepAlive : (K && K.value()) || keepFor || undefined;
     return {
       model,
       messages,
@@ -167,6 +172,9 @@
     // How fast it wrote, kept for the steps that cost more where a model is slow (js/local-speed.js).
     const S = typeof window !== "undefined" && window.HCLocalSpeed;
     if (S && reply.last) S.record(host, request.model, reply.last);
+    // Where the model sat at this window, for the next window chosen (js/local-context.js).
+    const C = typeof window !== "undefined" && window.HCLocalContext;
+    if (C && C.measure) C.measure(host, request.model, request.numCtx, fetchFn).catch(() => null);
     return reply;
   }
 
