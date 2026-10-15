@@ -41,7 +41,8 @@ on your keys and your machine. No backend, no telemetry, no account.
 | | |
 |---|---|
 | **Nothing phones home** | No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address. |
-| **Every model, side by side** | Eleven cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want. |
+| **Every model, side by side** | Twenty-one cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want. |
+| **Your documents, searched on your machine** | A local knowledge base (RAG): your PDFs and notes are indexed and searched on this computer, by meaning and by keyword, with the search model built into the app. [How](#your-documents-a-local-knowledge-base-rag). |
 | **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
 | **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
@@ -112,6 +113,19 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: a run on a local model that added validation to a route, shown as a diff with Keep and Undo, with the passing test run said under the answer" width="100%">
+
+## Your documents: a local knowledge base (RAG)
+
+HashCortx answers from your own files without sending them anywhere to be indexed. Retrieval-augmented generation (RAG) runs entirely on your computer.
+
+- **Add documents by attaching them.** With the knowledge base switched on (in Agents), a PDF or text file attached in chat is split into overlapping passages of about 1,200 characters and stored on this computer, in the app's own storage.
+- **Every passage is indexed twice:** by its keywords, and as a 384-number meaning vector made by `bge-small-en-v1.5` (MIT, BAAI). That search model is compiled into the app and runs in its Rust core through ONNX Runtime: nothing is downloaded and nothing is uploaded to index or search.
+- **Search by meaning and by exact words.** A question is ranked against both indexes and the two rankings are fused (reciprocal rank fusion), so "chief executive" finds a passage about the CEO, and an error code or a rare name is still found exactly. The best few passages are used, not whole documents.
+- **Where it is used.** Chat's agents look things up with a `search_knowledge` tool, and so does HashCoder on larger local and cloud models; both are told to cite the source they used. In chat, `/inject` adds the best passages to a message sent to a local model. The passages become part of the request to the model you chose, so with Ollama they never leave your machine.
+- **Works offline,** on the first launch, with no setup. The Windows build leaves the search model out so it starts on any 64-bit PC, and searches by keyword only.
+- **What else goes in.** Results of the agents' web, Wikipedia and PubMed searches and pages they read are also kept in it, labelled with where they came from.
+
+How it is kept private, and what it is not, is in [SECURITY.md](docs/SECURITY.md#the-knowledge-base).
 
 ## Agent Swarm
 
@@ -187,7 +201,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 10,541 source checks
+npm run check                                     # 10,540 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 223 Rust tests
 ```
 
@@ -207,8 +221,6 @@ Tauri v2 · Rust · vanilla JavaScript with no bundler, served as written.
 **Does my code leave my machine?** Only inside a request to the model you chose. There is no HashCortx server.
 
 **Are my keys encrypted?** No. They sit in the app's own folder, protected by your user account. [Why](docs/SECURITY.md#where-api-keys-live).
-
-**Was it built with AI?** Yes, with AI coding models under human architecture, review and correction. Every product and security decision is the author's.
 
 More in the [Wiki](https://github.com/Hash-7777/HashCortX/wiki/FAQ).
 
