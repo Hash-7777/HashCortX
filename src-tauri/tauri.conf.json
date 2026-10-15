@@ -131,7 +131,8 @@
       //   • Pyodide fetches its runtime from cdn.jsdelivr.net. That host
       //     was in script-src only, so the script tag loaded and the
       //     runtime fetch behind it did not
-      // api.together.xyz was listed with no caller anywhere and is gone.
+      // A host stays here only while a provider in src/js/providers.js calls
+      // it; api.together.xyz is listed for the Together AI provider there.
       //
       // api.sambanova.ai, integrate.api.nvidia.com and api.kimi.com are not
       // here on purpose. Their servers refuse any request from a web page,
