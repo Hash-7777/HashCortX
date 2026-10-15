@@ -27,6 +27,8 @@
 //   bare JSON opening the reply, followed by the result the model guessed
 //   and a call opening the reply whose JSON a file's unescaped text broke
 //   a plan in words with each step a json block holding one whole call
+//   a tool's name and its arguments as JSON, one a line, ending the reply
+//   a tool's name and key:value words, alone in a block or ending the reply
 //   any of these with a closing bracket written once too often
 //
 // and the keys each spells a call with: name, tool, tool_name, action; and
@@ -310,12 +312,21 @@
     return [];
   }
 
+  /** Whether a block of code is, as a whole, one call or more. */
+  function isCallBlock(code) {
+    try { return callsOfValue(jsonValue(withoutStrayClose(String(code || "").trim()))).length > 0; } catch { return false; }
+  }
+
   /** An unmarked call: the whole reply, or a block at its start or end, or its last lines after words. */
   function unmarked(text) {
     const parts = window.HCFences && window.HCFences.splitFences
       ? window.HCFences.splitFences(text).filter((p) => p.type === "code" || String(p.text || "").trim())
       : [{ type: "text", text }];
     // A fence with nothing in it, as a model may leave after its call, holds no call and hides none.
+    // Several blocks that are calls are steps, read in order by stepBlocks, never the last alone: a 7B
+    // model wrote two edits and then the test run, each in its own block, and the run alone was read,
+    // four times, its edits never made.
+    if (parts.filter((p) => p.type === "code" && isCallBlock(p.code)).length > 1) return [];
     const edge = [parts[parts.length - 1], parts[0]].find((p) => p && p.type === "code" && String(p.code || "").trim());
     const loose = String(text).replace(/^\s*(`{3,}|~{3,})[ \t]*\n/, "").replace(/\n[ \t]*(`{3,}|~{3,})\s*$/, "");
     const body = withoutStrayClose((edge ? edge.code : loose).trim());
@@ -452,6 +463,68 @@
     return out;
   }
 
+  /** Whether a call fills every argument its tool must have, when the caller says which (`required`, by tool). */
+  const filled = (c, required) => !required || (Array.isArray(required[c.name]) && required[c.name].every((k) => c.arguments[k] !== undefined && c.arguments[k] !== null && String(c.arguments[k]).trim() !== ""));
+
+  /**
+   * Calls written as a tool's name and then its arguments as JSON, one a line,
+   * as the last lines of a reply after its words: `shell_run {"command":
+   * "python3", "args": ["-m", "unittest"]}`. A 7B model wrote its fix and
+   * then its test run so, and neither ran. From the first such line to the
+   * end every line is one, blank lines aside, or nothing is read; a line like
+   * it among the words is an example.
+   */
+  function namedLines(text, known, required) {
+    const LINE = /^\s*`?([\w.-]+)`?\s*:?\s*(\{.*\})\s*`?\s*$/;
+    const lines = String(text).replace(/\n\s*(`{3,}|~{3,})\s*$/, "").split("\n");
+    let start = lines.length;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].trim() || /^\s*(`{3,}|~{3,})[\w-]*\s*$/.test(lines[i])) continue;
+      const m = LINE.exec(lines[i]);
+      if (!m || !known.has(m[1])) break;
+      start = i;
+    }
+    const out = [];
+    for (const line of lines.slice(start)) {
+      const m = LINE.exec(line);
+      if (!m) continue;
+      let c;
+      try { const v = jsonValue(m[2]); c = v && typeof v === "object" && !Array.isArray(v) ? callOf({ name: m[1], arguments: v }) : null; } catch { return []; }
+      if (!c || !filled(c, required)) return [];
+      out.push(c);
+    }
+    return start > 0 ? out : [];
+  }
+
+  /**
+   * A call written the way a command is typed, a tool's name and then
+   * key:value words, alone in a block or on the reply's last line:
+   * `read_file path:src/basket.js start_line:20 end_line:25`. A 7B model
+   * asked the person to "run" one so. Read only for an offered tool whose
+   * argument names are known (`params`), every key one of them; a value that
+   * is a number is read as one.
+   */
+  function typedCall(text, known, params) {
+    if (!params) return [];
+    const parts = window.HCFences && window.HCFences.splitFences ? window.HCFences.splitFences(String(text)) : [];
+    const last = String(text).trim().split("\n").pop();
+    const lines = [...parts.filter((p) => p.type === "code" && String(p.code || "").trim().split("\n").length === 1).map((p) => String(p.code).trim()), last];
+    for (const line of lines) {
+      const words = line.trim().split(/\s+/);
+      const name = words[0];
+      if (!known.has(name) || words.length < 2 || !Array.isArray(params[name])) continue;
+      const args = {};
+      let ok = true;
+      for (const w of words.slice(1)) {
+        const m = /^([A-Za-z_]\w*)[:=](.+)$/.exec(w);
+        if (!m || !params[name].includes(m[1])) { ok = false; break; }
+        args[m[1]] = /^-?\d+$/.test(m[2]) ? Number(m[2]) : m[2].replace(/^["']|["']$/g, "");
+      }
+      if (ok) return [{ name, arguments: args }];
+    }
+    return [];
+  }
+
   /** Thinking written at the start of a reply, between think tags, is not part of it. */
   const withoutThinking = (text) => String(text || "").replace(/^\s*<think>[\s\S]*?<\/think>\s*/, "");
 
@@ -474,7 +547,11 @@
     const first = opening(t, known);
     if (first.length) return first;
     const fixed = repaired(t, known, params);
-    return fixed.length ? fixed : stepBlocks(t, known, required);
+    if (fixed.length) return fixed;
+    const steps = stepBlocks(t, known, required);
+    if (steps.length) return steps;
+    const named = namedLines(t, known, required);
+    return named.length ? named : typedCall(t, known, params);
   }
 
   window.HCToolText = { callsIn, callOf, parseJson, kwargs, withoutThinking };

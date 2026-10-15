@@ -174,7 +174,7 @@
     const selected = modelOverride || window._H?.selectedModel?.() || '';
     if (!selected) throw new Error('No model available. Select a model from the dropdown or add an API key in Settings.');
     const router = routerFor(selected);
-    const result = await router.turn({ messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true, reset: live?.reset });
+    const result = await router.turn({ messages, tools, temperature, signal, onText: live?.text, onThinking: live?.thinking, cache: true, reset: live?.reset, most: sharedState.size !== 'full' && !sharedState.light ? window.HCCodeVerify.STEP_MOST : undefined });   // a smaller model's step is held short (js/code/verify.js STEP_MOST)
     const moved = router.model !== selected;
     setRouterChip(moved ? router.label(router.model) : '', moved ? 'switched' : '');
     return result;
@@ -1829,7 +1829,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0 };   // how often this run was sent back, for each reason
+      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0, passed: 0, cut: 0, ahead: 0 };   // how often this run was sent back, for each reason
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1915,7 +1915,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           contentEl.appendChild(errDiv);
           scrollMessages();
           throw e;
-        }
+        } if (turn.cutOff && !turn.tool_calls?.length && sharedState.size !== 'full' && !sharedState.light && sent.cut++ < 2) { thinkEl?.finish(''); messages.push({ role: 'user', content: window.HCCodeVerify.cutNote(), note: true }); appendStep(contentEl, { verb: 'CHECK', object: window.HCCodeVerify.CUT_STEP, status: '' }); cdrTraceAdd('Check', window.HCCodeVerify.CUT_STEP, 'warn'); thinkEl = appendThinking(contentEl, { checking: true }); continue; }   // a step stopped at its limit is neither kept nor run
         // Light mode: the files in its answer become the calls a larger model makes, and a file not written whole is asked for again, twice at most (js/code/light.js).
         const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path), { known: window.HCCodeLight.knownFiles(sharedState.codeMap?.whole), hints: window.HCCodeLight.pathsIn(HC.code.request), rename: window.HCCodeVerify?.renameOf(window.HCCodeVerify.requestIn(messages)) }) : null;
         const dif = !lit && sharedState.size !== 'full' && !turn.tool_calls?.length && window.HCCodeVerify.unmadeChange(proof, messages, turn.content || '', 0, 1) ? window.HCCodeDiffs.turnOf(turn.content) : null;   // a change a smaller model wrote as a diff, when the request asks for one and none is made (js/code/diffs.js)
@@ -2039,12 +2039,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light })
-          || (finalText.trim() ? (await namedLook(finalText)) || (cdrPrefs().prove === false ? null : window.HCCodeVerify.claimNote(finalText, messages, sent.claim) || window.HCCodeVerify.saidNote(finalText, proof, sent.said)) || (await projectLook()) || (!sent.example && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || keptLook() || (await secondLook()) : null);
+          || (finalText.trim() ? (await namedLook(finalText)) || (cdrPrefs().prove === false ? null : window.HCCodeVerify.claimNote(finalText, messages, sent.claim) || window.HCCodeVerify.saidNote(finalText, proof, sent.said) || window.HCCodeVerify.passedNote(finalText, proof, sharedState.projectChecks?.checks, sent.passed)) || (await projectLook()) || ((!sent.example || (sent.example < 2 && proof?.examplesStale)) && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1))))) || (await siteLook()) || (await factsLook()) || keptLook() || (await secondLook()) : null);
         if (back) {
-          sent[back.kind]++;
-          if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example' || (back.kind === 'prove' && sent.prove > 1))) forced = { content: '', tool_calls: (back.runs || [back.run]).map((run, i) => ({ id: `ran_${Date.now()}_${i}`, name: 'shell_run', arguments: run })) };   // its word that the test passed is not kept; any model told once to run it, that wrote it into its reply instead, has it run too
+          sent[back.kind]++; if (back.kind === 'example') proof?.exampled();   // run again, once, after a later change
+          if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example' || back.kind === 'passed' || (back.kind === 'prove' && sent.prove > 1))) forced = { content: '', tool_calls: (back.runs || [back.run]).map((run, i) => ({ id: `ran_${Date.now()}_${i}`, name: 'shell_run', arguments: run })) };   // its word that the test passed is not kept; any model told once to run it, that wrote it into its reply instead, has it run too
           else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
-          appendStep(contentEl, { verb: 'CHECK', object: forced ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
+          appendStep(contentEl, { verb: 'CHECK', object: forced && back.kind !== 'passed' ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
           cdrTraceAdd('Check', back.step, 'run');
           thinkEl = appendThinking(contentEl, { checking: true });
           continue;
@@ -2057,7 +2057,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           appendTextToBubble(contentEl, finalText);
         }
         // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
-        const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
+        const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
         sharedState.proven = proven || ''; if (proven) appendTextToBubble(contentEl, `*${proven}*`);
         return finalText;
       }

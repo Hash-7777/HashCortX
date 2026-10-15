@@ -595,7 +595,8 @@
   // wrong shape run; a cloud model is only told so in its prompt.
   // `cache`: the caller sends this conversation again with more on the end, so
   // a provider that is told where its reusable start ends is told (Anthropic).
-  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need, onText, onThinking, cache }, fns, deps) {
+  // `most`: the most tokens one answer may take, honoured by Ollama.
+  function routeOnce({ modelValue, adapter, messages, tools, temperature, signal, json, need, most, onText, onThinking, cache }, fns, deps) {
     const route = adapter || selectAgentAdapter(modelValue, deps);
     const list = typeof tools === 'function' ? tools(route.kind) : (tools || []);
     // Gemini is the one provider whose tool list is shaped differently, and a
@@ -603,7 +604,7 @@
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
     // onText and onThinking hear the answer as it is written, where the client can say (a model on this computer).
-    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
+    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(most ? { most } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
     if (route.kind === 'gemini') return tagged(fns.gemini(base), who);

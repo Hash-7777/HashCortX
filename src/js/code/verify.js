@@ -247,6 +247,7 @@
     let step = 0;
     let lastCodeEdit = -1;
     let lastEdit = -1;
+    let lastExample = -1;
     let site = null;
     const changed = [];
     const checks = [];
@@ -282,6 +283,9 @@
       get checks() { return checks.slice(); },
       /** Whether code was changed in this run at all. */
       get codeChanged() { return lastCodeEdit >= 0; },
+      /** The request's examples were run; a change to code after it makes them worth running again (`examplesStale`). */
+      exampled() { step++; lastExample = step; },
+      get examplesStale() { return lastExample >= 0 && lastCodeEdit > lastExample; },
       /** Checks run after the last change to code, newest last. */
       since() { return checks.filter((c) => c.step > lastCodeEdit); },
     };
@@ -315,7 +319,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(PASSED_SAYS) ? PASSED_STEP : t.includes(AHEAD_SAYS) ? AHEAD_STEP : t.includes(CUT_SAYS) ? CUT_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -429,7 +433,10 @@
   // bin/count.js --lines notes.txt". When the run changed the script such a
   // command runs, that command is run once before the run finishes, so the
   // model sees what it really prints rather than what it expects. A request
-  // that shows the old use and the new one gives two, and each is run.
+  // that shows the old use and the new one gives two, and each is run. A
+  // change to code after they ran has them run once more (the proof log's
+  // examplesStale): a small model shown its function was not exported fixed
+  // that, and finished on the word of examples it had never seen pass.
 
   const EXAMPLE = /(?:^|[\s`'"(])(node|python3?|deno|bun)\s+((?:\.\/)?(?:[\w.-]+\/)*[\w.-]*\w\.(?:m?js|cjs|ts|py))(?![\w.])/g;
 
@@ -463,7 +470,66 @@
       out.push(run);
       if (out.length === 3) break;
     }
+    const call = out.length < 3 && callsOf(request, changed);   // and the function it gives examples for, called on them
+    if (call) out.push(call);
     return out;
+  }
+
+  // A request for a function often gives its examples in words: "slugify(text)
+  // ... "Node.js 24 is out" gives "node-js-24-is-out"". A small model added
+  // the function, left it out of the file's exports, and said it was exported
+  // and handled the examples; nothing had called it. When the request names
+  // a function and gives what it returns for some input, and the run changed
+  // the JavaScript or Python file it is in, the function is called on each
+  // input and what it returns is put beside what the request says. The code
+  // that calls it is fixed; the file, the name and the examples reach it as
+  // arguments, never as code.
+
+  const SIGNATURE = /\b([A-Za-z_$][\w$]*)\(\s*((?:[A-Za-z_$][\w$]*)(?:\s*=\s*[^,()]{1,20})?(?:\s*,\s*[A-Za-z_$][\w$]*(?:\s*=\s*[^,()]{1,20})?)*)?\s*\)/g;
+  const NOT_A_NAME = new Set(['if', 'for', 'while', 'switch', 'return', 'function', 'print', 'console', 'require', 'import', 'e', 'i', 'eg']);
+  const LIT = String.raw`"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|\u201c[^\u201d\n]*\u201d|\[[^\[\]\n]{0,80}\]|-?\d+(?:\.\d+)?|true|false|null|True|False|None`;
+  const GIVES = String.raw`\s*(?:gives|returns|becomes|turns into|should (?:give|return|be)|is|equals|===?|->|\u2192|=>)\s*`;
+  const SOURCE = /(?:^|[\s`'"(])((?:\.\/)?(?:[\w.-]+\/)*[\w.-]*\w\.(?:m?js|cjs|py))(?![\w.])/g;
+  const MOST_EXAMPLES = 4;
+
+  /** A literal as written in a request, as the value it stands for, or undefined. */
+  function valueOf(lit) {
+    const t = String(lit).trim();
+    if (/^\u201c/.test(t)) return t.slice(1, -1);
+    if (/^'/.test(t)) return t.slice(1, -1).replace(/\\(.)/g, '$1');
+    const word = { True: true, False: false, None: null }[t];
+    if (word !== undefined) return word;
+    try { return JSON.parse(t); } catch { return undefined; }
+  }
+
+  // Calls the function on each example; the file, its name and the examples are its arguments.
+  const CALL_JS = "const [file, name, given] = process.argv.slice(1); const show = (v) => v === undefined ? 'undefined' : JSON.stringify(v); import(require('url').pathToFileURL(require('path').resolve(file)).href).then((m) => { const f = typeof m[name] === 'function' ? m[name] : m.default && typeof m.default[name] === 'function' ? m.default[name] : null; if (!f) { console.log(name + ' is not exported from ' + file); process.exitCode = 1; return; } for (const [args, want] of JSON.parse(given)) { let got; try { got = show(f(...args)); } catch (e) { got = 'an error: ' + e.message; } const same = got === show(want); if (!same) process.exitCode = 1; console.log(name + '(' + args.map(show).join(', ') + ') gives ' + got + (same ? '' : ', and the request says ' + show(want))); } }, (e) => { console.log(file + ' could not be loaded: ' + e.message); process.exitCode = 1; });";
+  const CALL_PY = "import sys, os, json, importlib.util as u\nfile, name, given = sys.argv[1:4]\nsys.path.insert(0, os.path.dirname(os.path.abspath(file)))\nspec = u.spec_from_file_location(os.path.splitext(os.path.basename(file))[0], file)\nm = u.module_from_spec(spec)\nspec.loader.exec_module(m)\nf = getattr(m, name, None)\nif not callable(f):\n    print(name + ' is not in ' + file)\n    sys.exit(1)\nbad = 0\nfor args, want in json.loads(given):\n    try:\n        got = f(*args)\n        same = got == want\n        shown = repr(got)\n    except Exception as e:\n        same, shown = False, 'an error: ' + str(e)\n    bad += not same\n    print(name + '(' + ', '.join(map(repr, args)) + ') gives ' + shown + ('' if same else ', and the request says ' + repr(want)))\nsys.exit(1 if bad else 0)";
+
+  /** The run that calls the function a request gives examples for, in a file the run changed, or null: `{ command, args }`. */
+  function callsOf(request, changed) {
+    const text = String(request || '');
+    const done = (changed || []).map((p) => String(p).replace(/^\.\//, ''));
+    let fn = null;
+    for (const m of text.matchAll(SIGNATURE)) if (!NOT_A_NAME.has(m[1]) && !/\.\w*$/.test(text.slice(Math.max(0, m.index - 1), m.index))) { fn = { name: m[1], params: m[2] ? m[2].split(',').length : 0 }; break; }
+    if (!fn) return null;
+    const named = [...text.matchAll(SOURCE)].map((m) => m[1].replace(/^\.\//, ''));
+    const code = done.filter((p) => /\.(?:m?js|cjs|py)$/.test(p));
+    const file = named.length ? named.find((p) => done.includes(p)) || '' : code.length === 1 ? code[0] : '';   // the file it names, or the one the run changed
+    if (!file) return null;
+    const pairs = [];
+    const called = new RegExp(String.raw`\b${fn.name}\(\s*((?:${LIT})(?:\s*,\s*(?:${LIT}))*)\s*\)${GIVES}(${LIT})`, 'g');
+    for (const m of text.matchAll(called)) {
+      const args = [...m[1].matchAll(new RegExp(LIT, 'g'))].map((a) => valueOf(a[0]));
+      pairs.push([args, valueOf(m[2])]);
+    }
+    if (!pairs.length && fn.params === 1) {
+      for (const m of text.matchAll(new RegExp(String.raw`(?:^|[\s:,;(])(${LIT})\s*(?:gives|returns|becomes|turns into|should (?:give|return|become)|->|\u2192|=>)\s*(${LIT})`, 'g'))) pairs.push([[valueOf(m[1])], valueOf(m[2])]);
+    }
+    const kept = pairs.filter(([args, want]) => want !== undefined && args.every((a) => a !== undefined)).slice(0, MOST_EXAMPLES);
+    if (!kept.length) return null;
+    const py = /\.py$/.test(file);
+    return { command: py ? 'python3' : 'node', args: [py ? '-c' : '-e', py ? CALL_PY : CALL_JS, file, fn.name, JSON.stringify(kept)] };
   }
 
   /** The first of them, or null. */
@@ -477,8 +543,8 @@
   function exampleNote(given) {
     const runs = (Array.isArray(given) ? given : [given]).filter(Boolean);
     if (!runs.length) return null;
-    const shown = runs.map((r) => [r.command, ...r.args].join(' '));
-    const how = shown.map((c) => `\`${c}\`${callFor(c)}`).join(', and ');
+    const calls = (r) => r.args[0] === '-e' || r.args[0] === '-c';
+    const how = runs.map((r) => (calls(r) ? `${r.args[3]} on the request's examples` : `\`${[r.command, ...r.args].join(' ')}\`${callFor([r.command, ...r.args].join(' '))}`)).join(', and ');
     return { kind: 'example', step: EXAMPLE_STEP, run: runs[0], runs, message: `${APP_NOTE} the request shows how this is used. Run ${how}, read what ${runs.length > 1 ? 'each prints' : 'it prints'}, and fix the code if it is not what the request asks for. Then finish.` };
   }
 
@@ -581,6 +647,36 @@
       step: UNDONE_STEP,
       message: `${APP_NOTE} ${UNDONE_SAYS}. Do it now with the tools: write_file for a file that is not there yet, patch_file ` +
         'for a change to one that is. Then finish. If it cannot be done here, say why.',
+    };
+  }
+
+  // ── Asked or said, instead of done ────────────────────────────────────
+  //
+  // Asked to fix a failing test, a small model on this computer ran it, read
+  // the code, set out the fix in three steps and finished with "Do you want
+  // me to proceed with these steps?". Another, shown that its file did not
+  // load, finished with "I will fix the export statement and run the test
+  // again", and did neither. When the request asks for a change and an
+  // answer from a small or mid-sized model on this computer ends by asking
+  // leave to go on, or by saying what it will do next, it is sent back to do
+  // it, twice at most: the request is the leave.
+
+  const ASKS_LEAVE = /\b(?:do you want me to|would you like me to|want me to|shall I|should I|may I|can I|is it (?:ok|okay|alright) (?:if I|to)|let me know if (?:you(?:'d)? (?:like|want) me to|I should))\b[^?\n]*\?\s*$/i;
+  const SAYS_NEXT = /(?:^|[.!:\n]\s*)(?:(?:now|next|then|so),?\s+)?(?:I will|I'll|I am going to|I'm going to|let me|let's)\s+(?:now\s+|then\s+|first\s+)?(?:fix|update|change|add|run|edit|correct|make|apply|modify|implement|write|create|remove|rewrite|replace|try|re-?run|export|move|rename)\b[^.!?\n]*[.!]?\s*$/i;
+  const AHEAD_STEP = 'Sent back to do what it asked leave for, or said it would do';
+  const AHEAD_SAYS = 'the request already asks for this';
+
+  /** The note for an answer that asks leave to go on, or says what it will do, instead of doing it; or null. */
+  function aheadCheck(messages, reply, sentBack = 0, limit = 2) {
+    const text = String(reply || '').trim();
+    if (sentBack >= limit || !(ASKS_LEAVE.test(text) || SAYS_NEXT.test(text))) return null;
+    const request = requestIn(messages);
+    if (!CHANGE_WORDS.test(request) || KEEP_FILES.test(request)) return null;
+    return {
+      kind: 'ahead',
+      step: AHEAD_STEP,
+      message: `${APP_NOTE} ${AHEAD_SAYS}, so do not ask leave and do not say what you will do: do it now with the tools, one step at a time, ` +
+        'and only what the request asks. Then say what you did and what the last check printed.',
     };
   }
 
@@ -825,6 +921,91 @@
     return said.none ? 'No file was changed in this run.' : '';
   }
 
+  // ── Tests the answer says pass, when none passed ──────────────────────
+  //
+  // Asked to fix a failing test, a small model on this computer read the test
+  // file and answered "The tests are already passing", having run nothing.
+  // Another, its last run of the tests failing on a "}" its own edit left,
+  // finished with "The tests now pass" and a test run's output that no
+  // command had printed. An answer that says the tests pass, or shows a run
+  // of them passing, where no test passed after the run's last change, is
+  // sent back once: with the run that failed, or, when no test ran, with the
+  // project's test, which the app runs for the model. Only the record decides.
+
+  const SAID_PASS = [
+    /\b(?:tests?|checks?|specs?)\s+(?:(?:now|all|already|also|should|will)\s+)*(?:pass(?:es|ed)?|succeed(?:s|ed)?)\b|\b(?:tests?|checks?|specs?)\s+(?:are|is|were)\s+(?:(?:now|all|already)\s+)*(?:passing|green|successful)\b/i,
+    /\b(?:all|every)\s+(?:the\s+)?(?:tests?|checks?)\s+(?:have\s+|has\s+)?(?:now\s+)?passed\b/i,
+    /\b(?:tests?|checks?)\s+(?:has|have|was|were)\s+(?:now\s+)?(?:been\s+)?(?:run|ran|re-?run|executed)\b[^.\n]{0,20}?\b(?:it|they|all|everything)\s+(?:now\s+)?pass(?:es|ed)?\b/i,
+  ];
+  /** Words before "the tests pass" that make it something to do, not something done: "run it to make sure the tests pass". */
+  const TO_DO = /\b(?:make sure|ensure|check(?: that)?|verify(?: that)?|confirm\b(?: that)?|see (?:if|whether)|so that|until|whether|if)\s+(?:(?:all|the|your|its)\s+)*$/i;
+  /** A run of tests passing, as a block of output shows it: node's "pass 3 … fail 0", "3 passed", unittest's "Ran 3 tests … OK". */
+  const SHOWN_PASS = /\bpass\s+[1-9]\d*\b[\s\S]{0,160}?\bfail\s+0\b|\b[1-9]\d* passed\b(?![^\n]*\b[1-9]\d* failed)|^Ran [1-9]\d* tests?\b[^\n]*\n+\s*OK\b/m;
+  const PASSED_STEP = 'Sent back: it said the tests pass, and none passed';
+  const PASSED_SAYS = 'and no test passed after the last change in this run';
+
+  /** Whether `reply` says the tests pass, in words or with output it shows. */
+  function claimsPassed(reply) {
+    const F = window.HCFences;
+    const parts = F && F.splitFences ? F.splitFences(String(reply || '')) : [{ type: 'text', text: String(reply || '') }];
+    const prose = parts.filter((p) => p.type !== 'code').map((p) => p.text).join('\n');
+    const said = SAID_PASS.some((re) => { const m = re.exec(prose); return !!m && !TO_DO.test(prose.slice(Math.max(0, m.index - 40), m.index)); });
+    return said || parts.some((p) => p.type === 'code' && SHOWN_PASS.test(String(p.code || '')));
+  }
+
+  /** What the record says of an answer claiming the tests pass: null when it does not claim it or a test passed, else `{ failed }`, the last test run that failed, or null when none ran. */
+  function passedClaim(reply, log) {
+    if (!log || !claimsPassed(reply)) return null;
+    const after = log.since();
+    if (after.some((c) => c.pass && c.kind === 'test')) return null;
+    return { failed: after.filter((c) => !c.pass && c.kind === 'test').pop() || null };
+  }
+
+  /** The note sending back an answer that says the tests pass when none passed, or null; with the project's test as a call to make when none ran. */
+  function passedNote(reply, log, checks, sentBack = 0) {
+    if (sentBack) return null;
+    const said = passedClaim(reply, log);
+    if (!said) return null;
+    const test = checks && checks.test;
+    const run = !said.failed && test ? runOf(test) : null;
+    const message = said.failed
+      ? `${APP_NOTE} your answer says the tests pass, ${PASSED_SAYS}: ${line(said.failed)} failed, and its output is above. Never write a result, or output, that no command printed. ` +
+        `Read the failure, fix the cause, and run it again${callFor(said.failed.command)}. If it cannot be made to pass, say what still fails.`
+      : `${APP_NOTE} your answer says the tests pass, ${PASSED_SAYS}: no test ran. Never say a test passed without running it. ` +
+        (test ? `Run \`${test}\`${callFor(test)}, read what it prints, and fix the code if it fails.` : 'Run the tests with shell_run, read what they print, and fix the code if they fail; if they cannot run here, say so.');
+    return { kind: 'passed', step: PASSED_STEP, message, ...(run ? { run } : {}) };
+  }
+
+  /** What the person is told under an answer that still says the tests pass, or '': the line about the last run says the rest. */
+  function passedLine(reply, log) {
+    const said = passedClaim(reply, log);
+    if (!said) return '';
+    if (said.failed) return SHOWN_PASS.test(String(reply || '')) ? 'The test output in the answer was not printed by any command in this run.' : '';
+    return log.codeChanged ? '' : 'No test ran in this run: the answer\'s word that the tests pass is not from a run.';
+  }
+
+  // ── A step that ran on ─────────────────────────────────────────────────
+  //
+  // Told its fix had not made the test pass, a 7B model on this computer
+  // wrote on for five and a half minutes, nearly three thousand words of it,
+  // and none of it reached the screen: a reply is bounded only by the room
+  // left in the model's window, and a small model repeating itself fills it.
+  // A step of a smaller model on this computer is held to STEP_MOST tokens,
+  // which a change made a part at a time never needs. A step stopped there is
+  // not kept or run; the model is told why, and how to go on in parts, twice
+  // at most. Light mode, where a small model writes whole files, is not held.
+
+  const STEP_MOST = 4096;
+  const CUT_STEP = 'Stopped a step that ran on, and asked for a smaller one';
+  const CUT_SAYS = 'without finishing, and was stopped';
+
+  /** The note for a step stopped at `most` tokens. */
+  function cutNote(most = STEP_MOST) {
+    return `${APP_NOTE} your last reply ran past ${most.toLocaleString('en-US')} tokens ${CUT_SAYS}; nothing in it was kept or run. ` +
+      'Do one small step at a time: patch_file with a short search and its replacement; for a long new file, write_file with its first part, ' +
+      'then write_file with append true for each part after it. Do not repeat yourself.';
+  }
+
   // ── Files an answer names that are not there ──────────────────────────
   //
   // Asked where something is, a small model searched once, found nothing,
@@ -875,7 +1056,8 @@
   /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
-   * mid-sized model a change asked for and not begun; then, on such a model
+   * mid-sized model a change asked for and not begun; then, on such a model,
+   * an answer asking leave to go on or saying what it will do; then, on one
    * with proving switched on, an answer saying part of the work is not done;
    * then steps of its own
    * plan left open (`plan`); then, while proving is switched on (`prove`), a
@@ -893,6 +1075,7 @@
     if (!log || (!String(reply || '').trim() && !local)) return null;
     const listed = Array.isArray(asks) && asks.length >= 3;   // a request of several asks is checked ask by ask, in place of as a whole
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
+      || (local ? aheadCheck(messages, reply, sent.ahead || 0) : null)
       || (prove && local ? undoneCheck(messages, reply, sent.undone || 0) : null)
       || planCheck(plan, reply, sent.plan || 0)
       || (prove ? stopCheck(log, checks, reply, sent.prove || 0, light ? 3 : 2) : null)   // a model in light mode is given one more round to fix a failing test
@@ -926,6 +1109,7 @@
 
   window.HCCodeVerify = {
     commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    exampleOf, examplesOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
+    exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
+    aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
   };
 })();

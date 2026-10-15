@@ -68,6 +68,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder no longer takes a model's word that the tests pass.** Asked
+  to fix a failing test, a small model on this computer answered "the
+  tests are already passing" having run nothing; another finished with
+  "the tests now pass" and a test run's output that no command had
+  printed, its last real run having failed. An answer that says the tests
+  pass, or shows a run of them passing, where no test passed after the
+  last change, is now sent back once: with the run that failed, or, when
+  none ran, with the project's test, which HashCoder runs for the model.
+  An answer that still says so is marked under it.
+- **A smaller model's step can no longer run on for minutes.** A step was
+  bounded only by the room left in the model's window, so a small model
+  repeating itself wrote for five and a half minutes, none of it shown.
+  A step of a small or mid-sized model on this computer is now held to
+  4,096 tokens; one stopped there is neither kept nor run, and the model is
+  told to go on a small step at a time, writing a long file in parts. Light
+  mode, where a small model writes whole files, is not held.
+- **A smaller model's edits written as steps are made, not skipped.** A
+  7B model wrote two edits and then the test run, each as a block in its
+  reply; only the last block was read, so the tests ran four times over
+  code that never changed. Several blocks of calls are now read in order,
+  and the first is made. Two more ways small models write a call are read:
+  a tool's name and its arguments as JSON, one a line, ending the answer
+  (`shell_run {"command": "npm", ...}`), and a tool's name with key:value
+  words, alone in a block, the way a command is typed.
+- **A small model that asks leave, or says what it will do, is told to do
+  it.** Asked to fix a failing test, a small model on this computer found
+  the cause and finished with "Do you want me to proceed?"; another
+  finished with "I will fix the export statement and run the test again",
+  and did neither. When the request asks for a change, such an answer is
+  sent back to do it, twice at most.
+- **The examples a request gives for a function are tried.** "slugify(text)
+  ... "Node.js 24 is out" gives "node-js-24-is-out"" was taken on the
+  model's word: a small model left the function out of the file's exports
+  and said it was exported and handled the examples. When the run changed
+  the JavaScript or Python file the function is in, HashCoder now calls it
+  on each example and shows the model what it returns beside what the
+  request says, and again once if the code changes after. The examples
+  reach the call as data, never as code.
 - **Scrolling up while a reply is being written stays where you put it, in
   every workspace.** The chat judged "still at the end" by distance, so a
   small scroll up was pulled back down by the next word, and finishing a

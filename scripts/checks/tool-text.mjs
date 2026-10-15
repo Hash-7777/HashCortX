@@ -159,6 +159,29 @@ console.log('\nA plan whose steps are json blocks of calls:');
   ok('an example with its arguments empty stays an example', T.callsIn(`Like this:\n${block('{"name":"grep_code","arguments":{}}')}\nThat is the format.`, coder, null, must).length === 0);
   ok('a step naming a tool not offered reads nothing', T.callsIn(['Do it.', block('{"name": "delete_files", "arguments": {"path": "a"}}'), 'Done.'].join('\n'), coder, null, { delete_files: ['path'] }).length === 0);
   ok('a code block of the page itself is passed over, not read as a step', T.callsIn(['Here is the page:', `${F}html\n<h1>x</h1>\n${F}`, 'Now save it.', block('{"name": "write_file", "arguments": {"path": "a.html", "content": "<h1>x</h1>"}}'), 'Done.'].join('\n'), coder, null, must).length === 1);
+  // As a 7B model wrote it: two edits, then the test run, the run's block ending the reply.
+  const fixes = { patch_file: ['path', 'search', 'replace'], shell_run: ['command'] };
+  const edits = ['The tests fail because range leaves out its end.', '### Step 1: range', block('{\n  "name": "patch_file",\n  "arguments": {\n    "path": "src/range.js",\n    "search": "n < end",\n    "replace": "n <= end"\n  }\n}'),
+    '### Step 2: sumRange', block('{"name": "patch_file", "arguments": {"path": "src/range.js", "search": "end, step)", "replace": "end + 1, step)"}}'), '### Step 3: Run the tests again', block('{"name": "shell_run", "arguments": {"args": ["test"], "command": "npm"}}')].join('\n');
+  const steps = T.callsIn(edits, ['patch_file', 'shell_run'], null, fixes);
+  ok('steps ending in a call are read in order from the first, not the last block alone', steps.map((c) => c.name).join() === 'patch_file,patch_file,shell_run' && steps[0].arguments.replace === 'n <= end', JSON.stringify(steps.map((c) => c.name)));
+  ok('...and without the arguments each must have, none is read rather than the last', T.callsIn(edits, ['patch_file', 'shell_run']).length === 0);
+}
+
+console.log('\nA call written as a name and its arguments, or as a command is typed:');
+{
+  const names = ['read_file', 'patch_file', 'shell_run'];
+  const params = { read_file: ['path', 'start_line', 'end_line'], patch_file: ['path', 'search', 'replace'], shell_run: ['command', 'args'] };
+  const must = { read_file: ['path'], patch_file: ['path', 'search', 'replace'], shell_run: ['command'] };
+  // As a 7B model wrote them, ending its answers.
+  const named = T.callsIn('The median is wrong for even counts.\n\npatch_file {"path":"stats.py","search":"return ordered[middle]","replace":"return (ordered[middle - 1] + ordered[middle]) / 2"}\n\nshell_run {"args":["-m","unittest"],"command":"python3"}', names, params, must);
+  ok('a name and its arguments as JSON, one a line, ending the reply, read in order', named.map((c) => c.name).join() === 'patch_file,shell_run' && named[1].arguments.command === 'python3', JSON.stringify(named));
+  ok('...not one among the words, which is an example', T.callsIn('Call it like shell_run {"command":"npm"}\nshell_run {"command":"npm"}\nand it runs.', names, params, must).length === 0);
+  ok('...nor one missing what its tool must have', T.callsIn('Next:\npatch_file {"path":"a.js"}', names, params, must).length === 0);
+  const typed = T.callsIn(`It seems there is a syntax error at line 21. Please run:\n${F}sh\nread_file path:src/basket.js start_line:20 end_line:25\n${F}`, names, params, must);
+  ok('a name and key:value words alone in a block, as a command is typed, its numbers as numbers', typed.length === 1 && typed[0].arguments.path === 'src/basket.js' && typed[0].arguments.start_line === 20, JSON.stringify(typed));
+  ok('...only with keys the tool takes', T.callsIn(`Run:\n${F}sh\nread_file path:a.js colour:red\n${F}`, names, params, must).length === 0);
+  ok('...and only when the caller says what they are', T.callsIn(`Run:\n${F}sh\nread_file path:a.js\n${F}`, names).length === 0);
 }
 
 console.log('\nA call written inside the tag a result comes back in:');

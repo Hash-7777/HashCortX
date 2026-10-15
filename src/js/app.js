@@ -5632,16 +5632,16 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // Provider adapters — non-streaming single turn returning
   //   { content: string|null, tool_calls: [{id, name, arguments}]|null }
   // -------------------------------------------------------------------------
-  async function agentTurnOllama({ model, messages, tools, temperature, signal, json, need, onText, onThinking }) {
+  async function agentTurnOllama({ model, messages, tools, temperature, signal, json, need, most, onText, onThinking }) {
     const host = safeHost();
     const info = await HCLocalContext.infoOf(host, model);
     const refused = HCLocalContext.refusalFor(info, model, messages);
     if (refused) throw new Error(refused);
     // A model that cannot take tools is told them in words and its calls are read from its answer.
     const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
-    const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need });
+    const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need: need || most });
     const sent = native ? HCAgentShape.forOllama(messages) : HCAgentShape.toolsInWords(messages, tools);
-    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : undefined }, { signal, onToken: onText, onThinking });
+    const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined }, { signal, onToken: onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST)
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
     const { content, calls } = HCAgentShape.ollamaReply(msg, tools);
