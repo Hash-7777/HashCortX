@@ -95,7 +95,7 @@ console.log('\nLosing the drawing context is survivable:');
   const start = bodyOf('startLoop');
   check('startLoop refuses while the context is gone', /contextLost/.test(start),
     'a visibility change would otherwise resume drawing into a dead context');
-  check('the render loop itself checks too', /!mounted \|\| contextLost/.test(src));
+  check('the render loop itself checks too', /function canDraw\(\) \{ return !!\(renderer && scene && camera && mounted && !contextLost && window\.HCPower\?\.isVisible\(\)\); \}/.test(src) && /ready: canDraw/.test(src));
 }
 
 console.log('\nA run that failed does not report success:');
@@ -820,7 +820,7 @@ console.log('\nOpening the Forge shows the mark at once:');
   check('the 3D mark reuses that image rather than loading it again',
     /new THREE\.Texture\(shown\)/.test(bodyOf('makeImageLogoMaterial')));
   check('its fade waits for its picture to be ready',
-    /if \(ready && !ready\.done\) continue;/.test(bodyOf('updateReveal')) && /item\.start = Math\.max\(item\.start, now\)/.test(bodyOf('updateReveal')));
+    /if \(ready && !ready\.done\) \{ going = true; continue; \}/.test(bodyOf('updateReveal')) && /item\.start = Math\.max\(item\.start, now\)/.test(bodyOf('updateReveal')));
   check('the plain image steps aside as the 3D mark arrives, or at once for any other model',
     /classList\.add\("gone"\)/.test(bodyOf('updateReveal')) && /if \(!plan\._introLogo\) \{ \$\("frgIntroMark"\)\?\.classList\.add\("gone"\); makeEnvironment\(\); \}/.test(bodyOf('buildPlan')));
 }
@@ -841,6 +841,46 @@ console.log('\nThe first frame does not wait:');
     /threeStarting = threeStarting \|\| startThree\(\)\.finally/.test(src));
   check('reflections are made after the first frame, at once for a model, and again after the context comes back',
     !/PMREMGenerator/.test(bodyOf('startThree')) && /requestAnimationFrame\(\(\) => setTimeout\(makeEnvironment, 0\)\)/.test(bodyOf('startThree')) && /environmentMade = false; makeEnvironment\(\);/.test(src) && /new THREE\.PMREMGenerator\(renderer\)/.test(runtime));
+}
+
+console.log('\nFrames are drawn only when something changes:');
+{
+  const vm = await import('node:vm');
+  const runtime = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'runtime.js'), 'utf8');
+  const box = { window: {}, Promise };
+  vm.createContext(box);
+  vm.runInContext(runtime, box, { filename: 'runtime.js' });
+  const R = box.window.HCForgeRuntime;
+  const make = (moving = () => false, ready = () => true) => {
+    const queue = [], drawn = [];
+    const loop = R.onDemand({ step: (now, last) => { drawn.push(last); return moving(drawn.length); }, ready, raf: (f) => { queue.push(f); return queue.length; }, cancel: () => { queue.length = 0; } });
+    const flush = (most = 50) => { let n = 0; while (queue.length && n++ < most) queue.shift()(n); return n; };
+    return { loop, drawn, flush, queue };
+  };
+  { const t = make(); t.loop.want(); const n = t.flush(); check('asked once, it draws the frames it was owed and stops', t.drawn.length === 2 && n === 2 && !t.loop.running && t.drawn.join() === 'false,true', t.drawn.join()); }
+  { const t = make(); t.flush(); check('asked for nothing, it draws nothing', t.drawn.length === 0 && !t.loop.running); }
+  { const t = make((n) => n < 10); t.loop.want(1); t.flush(); check('it goes on while the frame just drawn says something moves, then stops', t.drawn.length === 10 && !t.loop.running, String(t.drawn.length)); }
+  { const t = make(); t.loop.want(); t.loop.want(); t.loop.want(5); check('asking again while it runs starts no second loop', t.queue.length === 1); t.flush(); check('...and the largest request is drawn', t.drawn.length === 5); }
+  { let ok = false; const t = make(() => false, () => ok); t.loop.want(); check('it does not start while drawing is not possible', t.queue.length === 0); ok = true; t.loop.want(); t.flush(); check('...and starts when asked again once it is', t.drawn.length === 2); }
+  { const t = make(() => true); t.loop.want(); t.flush(3); t.loop.stop(); check('stop ends it at once', !t.loop.running && t.queue.length === 0); }
+  {
+    const queue = []; let drawn = 0, most = 0, loop;
+    loop = R.onDemand({ step: () => { drawn++; if (drawn <= 20) loop.want(); return false; }, ready: () => true, raf: (f) => { queue.push(f); return queue.length; }, cancel: () => {} });
+    loop.want(); let n = 0; while (queue.length && n++ < 200) { queue.shift()(n); most = Math.max(most, queue.length); }
+    check('a frame that asks for frames while it is drawn starts no second loop', most === 1 && queue.length === 0 && drawn === 21, `drawn ${drawn}, most waiting ${most}`);
+  }
+  const draw = bodyOf('drawFrame');
+  check('a frame reports movement from the camera settling, a part fading in and the mark floating',
+    /let moving = !!controls\?\.update\(\);/.test(draw) && /moving = updateReveal\(now \|\| performance\.now\(\)\) \|\| moving;/.test(draw) && /moving = moving \|\| logoBobT < BOB_END;/.test(draw) && /return moving;/.test(draw) && /return going;/.test(bodyOf('updateReveal')));
+  check('the mark settles still after one rise and fall, and starts still with reduced motion',
+    /const BOB_END = Math\.PI \* 2, BOB_FADE = 1\.5;/.test(src) && /prefers-reduced-motion: reduce\)"\)\.matches \? BOB_END/.test(draw) && /const k = Math\.min\(1, \(BOB_END - logoBobT\) \/ BOB_FADE\);/.test(draw) && /m\.position\.y = m\.userData\.logoBaseY \+ bob \* k;/.test(draw));
+  check('the parts below the floor are marked on the last frame too, so a drag ends marked right', /if \(\+\+underfloorTick % 8 === 0 \|\| last\) updateUnderfloorHighlights\(\);/.test(draw));
+  check('the camera, the gizmo, a resize, the reflections and every recorded step ask for frames',
+    /controls\.addEventListener\("change", \(\) => startLoop\(\)\)/.test(src) && /transformControls\.addEventListener\("change", \(\) => startLoop\(\)\)/.test(src) && /renderer\.setSize\(w, h, false\);\n    startLoop\(\);/.test(src) && /window\.__forgeRoomEnv\); startLoop\(\); \}/.test(src) && /function log\(label, message, kind, tokens\) \{\n    startLoop\(\);/.test(src));
+  check('and so does anything done in the studio, or a key pressed while it is open',
+    /for \(const type of \["pointerdown", "pointerup", "click", "wheel", "input", "change"\]\) \$\("forge-mode-wrap"\)\?\.addEventListener\(type, \(\) => startLoop\(\), \{ capture: true, passive: true \}\);/.test(src) && /document\.addEventListener\("keydown", \(\) => \{ if \(mounted\) startLoop\(\); \}, true\);/.test(src));
+  check('coming back to the tab draws the view again', /await three; startLoop\(\);/.test(bodyOf('mount')));
+  check('nothing schedules a frame of its own', !/requestAnimationFrame\(animate\)/.test(src) && !/function animate\(/.test(src));
 }
 
 console.log('\nThe intro mark floats above the floor:');

@@ -73,6 +73,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge draws only when the view changes.** It drew the whole scene,
+  shadows and all, many times a second for as long as it was open, even
+  with nothing moving. Now a frame is drawn when something changes it:
+  turning or zooming the view, moving a part, building or editing a model,
+  a part fading in. Left alone, it draws nothing. The intro mark rises and
+  falls once and settles still, and starts still for anyone who asks for
+  less motion.
 - **3D Forge shows models in their colours.** Every part was drawn in one
   neutral print colour, whatever the object was. The design call now gives
   each part the colour the real object has there, with parts of one

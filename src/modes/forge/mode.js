@@ -29,6 +29,7 @@
   ];
 
   let mounted = false;
+  let frames = null;   // the on-demand frame loop (startLoop)
   let initialized = false;
   let THREE = null;
   let OrbitControls = null;
@@ -43,7 +44,6 @@
   let modelGroup = null;
   let activePlan = null;
   let lastAssembleIssues = [];   // what the last assembly found, for the run to judge the design by
-  let raf = 0;
   // True between the GPU taking the context away and giving it back. Nothing
   // may draw in between: the render target no longer exists.
   let contextLost = false;
@@ -364,6 +364,7 @@
   }
 
   function log(label, message, kind, tokens) {
+    startLoop();   // every step the mode records may have changed the view
     const host = $("frgTraceEntries");
     if (!host) return;
     const statusCls = kind || "wait";
@@ -783,7 +784,7 @@
   function makeEnvironment() {
     if (environmentMade || !renderer || !scene || contextLost) return;
     environmentMade = true;
-    try { scene.environment = window.HCForgeRuntime.environment(THREE, renderer, window.__forgeRoomEnv); }
+    try { scene.environment = window.HCForgeRuntime.environment(THREE, renderer, window.__forgeRoomEnv); startLoop(); }
     catch (err) { log("SYSTEM", "Env map unavailable: " + (err.message || err), "warn"); }
   }
 
@@ -851,6 +852,7 @@
       RIGHT: THREE.MOUSE.PAN,
     };
     controls.target.set(0, 0.55, 0);
+    controls.addEventListener("change", () => startLoop());   // a drag, a wheel or a settling camera asks for its frames
 
     transformControls = new TransformControls(camera, renderer.domElement);
     transformControls.setMode(transformMode);
@@ -864,6 +866,7 @@
       if (event.value) beginEdit();
       else commitEdit(`${transformMode === "translate" ? "move" : transformMode}`);
     });
+    transformControls.addEventListener("change", () => startLoop());
     transformControls.addEventListener("objectChange", () => {
       syncSelectedNodeFromMesh();
       renderSelection();
@@ -1021,6 +1024,7 @@
     camera.aspect = w / h;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h, false);
+    startLoop();
   }
 
   // Come back to life when the window does.
@@ -1028,50 +1032,39 @@
     window.HCPower?.onChange(({ visible }) => { if (visible && mounted) startLoop(); });
   } catch {}
 
-  /** Start the render loop if it is not already running. */
-  function startLoop() {
-    // The context check belongs here rather than at each caller — the power
-    // handler restarts the loop whenever the window becomes visible, and that
-    // would otherwise resume drawing into a context that is gone.
-    if (raf || contextLost) return;
-    raf = requestAnimationFrame(animate);
-  }
+  // Frames are drawn on demand (js/forge/runtime.js onDemand): whatever
+  // changes the view asks with startLoop(), and drawing stops once nothing
+  // moves. The context check is in canDraw, so the power handler restarting
+  // the loop cannot draw into a context that is gone.
+  function canDraw() { return !!(renderer && scene && camera && mounted && !contextLost && window.HCPower?.isVisible()); }
+  /** Ask for at least `n` more frames, two by default. */
+  function startLoop(n) { if (!contextLost) (frames = frames || window.HCForgeRuntime.onDemand({ step: drawFrame, ready: canDraw })).want(n); }
+  /** Stop drawing. Safe to call when it is already stopped. */
+  function stopLoop() { frames?.stop(); }
 
-  /** Stop the render loop. Safe to call when it is already stopped. */
-  function stopLoop() {
-    if (raf) cancelAnimationFrame(raf);
-    raf = 0;
-  }
-
-  function animate(now) {
-    // The loop used to re-schedule itself here, unconditionally, and nothing
-    // ever cancelled it — `raf` was assigned and never read. So once Forge had
-    // been opened once, the app woke sixty times a second for the rest of its
-    // life, on every other tab, doing nothing but scheduling itself again.
-    //
-    // Now the chain simply ends when there is nothing to draw, and startLoop()
-    // restarts it. `raf = 0` marks it stopped so a restart cannot double up.
-    if (!renderer || !scene || !camera || !mounted || contextLost || !window.HCPower?.isVisible()) {
-      raf = 0;
-      return;
-    }
-    raf = requestAnimationFrame(animate);
-    controls?.update();
-    if (logoMeshes.length > 0) {
-      logoBobT += 0.006;
+  // The mark rises and falls once, slowly, then settles still; with reduced motion it starts still.
+  const BOB_END = Math.PI * 2, BOB_FADE = 1.5;
+  /** Draw one frame; true while something is still moving. */
+  function drawFrame(now, last) {
+    let moving = !!controls?.update();
+    if (logoMeshes.length > 0 && logoBobT < BOB_END) {
+      logoBobT = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? BOB_END : Math.min(BOB_END, logoBobT + 0.006);
+      const k = Math.min(1, (BOB_END - logoBobT) / BOB_FADE);
       const bob  = Math.sin(logoBobT) * 0.16;
       const sway = Math.sin(logoBobT * 0.55) * 0.05;
       const pulse = 1 + Math.sin(logoBobT * 1.3) * 0.012;
       for (const m of logoMeshes) {
-        m.position.y = m.userData.logoBaseY + bob;
-        m.rotation.y = sway;
-        m.scale.set(pulse, pulse, 1);
+        m.position.y = m.userData.logoBaseY + bob * k;
+        m.rotation.y = sway * k;
+        m.scale.set(1 + (pulse - 1) * k, 1 + (pulse - 1) * k, 1);
       }
+      moving = moving || logoBobT < BOB_END;
     }
     if (selectionBox && selectedMesh) selectionBox.update();
-    updateReveal(now || performance.now());
-    if (++underfloorTick % 8 === 0) updateUnderfloorHighlights();
+    moving = updateReveal(now || performance.now()) || moving;
+    if (++underfloorTick % 8 === 0 || last) updateUnderfloorHighlights();
     renderer.render(scene, camera);
+    return moving;
   }
 
   function clearScene() {
@@ -2860,19 +2853,22 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
   }
 
 
+  /** Fade parts in; true while one is still fading or waiting for its picture. */
   function updateReveal(now) {
+    let going = false;
     for (const item of revealMeshes) {
       const mat = item.mesh.material;
       // A picture still loading is not revealed yet: its clock starts when it
       // is ready, and the plain intro image steps aside as it arrives.
       const ready = mat.userData?.ready;
-      if (ready && !ready.done) continue;
+      if (ready && !ready.done) { going = true; continue; }
       if (ready && !item.readyAt) {
         item.readyAt = true;
         item.start = Math.max(item.start, now);
         $("frgIntroMark")?.classList.add("gone");
       }
       const t = Math.min(1, Math.max(0, (now - item.start) / item.duration));
+      if (t < 1) going = true;
       mat.opacity = item.targetOpacity * easeOut(t);
       // Once it is fully there, stop treating it as glass. Left transparent, a
       // solid model draws its own far side through its near side.
@@ -2881,6 +2877,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
         mat.needsUpdate = true;
       }
     }
+    return going;
   }
 
   function easeOut(t) {
@@ -3380,6 +3377,9 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
   function wireEvents() {
     if (eventsWired) return;
     eventsWired = true;
+    // Anything a person does in the studio, or a shortcut pressed anywhere while it is open, may change the view.
+    for (const type of ["pointerdown", "pointerup", "click", "wheel", "input", "change"]) $("forge-mode-wrap")?.addEventListener(type, () => startLoop(), { capture: true, passive: true });
+    document.addEventListener("keydown", () => { if (mounted) startLoop(); }, true);
     // Inspector tabs.
     document.querySelectorAll("[data-frg-tab]").forEach((tab) => {
       tab.addEventListener("click", () => {
@@ -3678,7 +3678,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     await loadForgeProjects();
     syncModelSelectors();
     renderForgeProjects();
-    await three;
+    await three; startLoop();   // back on the tab, the view is drawn again
   }
 
   function destroy() {
