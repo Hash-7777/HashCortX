@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-## [3.3.0] — 2026-10-18
+## [3.3.0] — 2026-10-19
 
 The focus release. Local models answer sooner: the window fits the graphics
 chip, the model stays loaded between steps, and smaller models read shorter
