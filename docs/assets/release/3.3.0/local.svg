@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 560" width="1280" height="560" role="img" aria-label="Local models, faster. The window fits the graphics chip, the model stays loaded between steps, smaller models read one-line tools, and models without tool calling answer in one shape held by Ollama. Settings gives the two Ollama settings that let more of a model fit.">
+  <defs>
+  <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#8b6d2c"/>
+    <stop offset="0.28" stop-color="#c9a96e"/>
+    <stop offset="0.5" stop-color="#f6e7c1"/>
+    <stop offset="0.72" stop-color="#c9a96e"/>
+    <stop offset="1" stop-color="#8b6d2c"/>
+  </linearGradient>
+  <linearGradient id="rule" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="#c9a96e" stop-opacity="0"/>
+    <stop offset="0.5" stop-color="#c9a96e" stop-opacity="0.85"/>
+    <stop offset="1" stop-color="#c9a96e" stop-opacity="0"/>
+  </linearGradient>
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M32 0H0V32" fill="none" stroke="#c9a96e" stroke-opacity="0.06" stroke-width="1"/>
+  </pattern>
+    <clipPath id="card"><rect width="1280" height="560" rx="18"/></clipPath></defs>
+  <g clip-path="url(#card)">
+  <rect width="1280" height="560" fill="#06070a"/>
+  <rect width="1280" height="560" fill="url(#grid)"/>
+  </g>
+  <g font-family="-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Helvetica,Arial,sans-serif">
+  <text x="64" y="66" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="3" fill="#c9a96e">LOCAL MODELS, FASTER</text>
+  <text x="64" y="106" font-size="30" font-weight="700" fill="#f2efe8" letter-spacing="-0.5">Your model stays on the graphics chip, and reads less.</text>
+  <rect x="64.0" y="150" width="276.0" height="200" rx="12" fill="#c9a96e" fill-opacity="0.09" stroke="#c9a96e" stroke-opacity="0.75"/><text x="86.0" y="190" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#c9a96e">01</text><text x="86.0" y="232" font-size="24" font-weight="650" fill="#f2efe8">Fits the chip</text><text x="86.0" y="268" font-size="15" fill="#9a978f">The window is sized so</text><text x="86.0" y="289" font-size="15" fill="#9a978f">the model stays on the</text><text x="86.0" y="310" font-size="15" fill="#9a978f">graphics chip, measured</text><text x="86.0" y="331" font-size="15" fill="#9a978f">after every answer</text><path d="M342.0 250.0 l10 0" stroke="#c9a96e" stroke-width="1.6"/><path d="M349.0 246.0 l5 4 l-5 4" fill="none" stroke="#c9a96e" stroke-width="1.6"/><rect x="356.0" y="150" width="276.0" height="200" rx="12" fill="#0d1117" fill-opacity="1" stroke="#c9a96e" stroke-opacity="0.3"/><text x="378.0" y="190" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#c9a96e">02</text><text x="378.0" y="232" font-size="24" font-weight="650" fill="#f2efe8">Stays loaded</text><text x="378.0" y="268" font-size="15" fill="#9a978f">Kept loaded between</text><text x="378.0" y="289" font-size="15" fill="#9a978f">the steps of a run, so</text><text x="378.0" y="310" font-size="15" fill="#9a978f">it does not read the</text><text x="378.0" y="331" font-size="15" fill="#9a978f">conversation again</text><path d="M634.0 250.0 l10 0" stroke="#c9a96e" stroke-width="1.6"/><path d="M641.0 246.0 l5 4 l-5 4" fill="none" stroke="#c9a96e" stroke-width="1.6"/><rect x="648.0" y="150" width="276.0" height="200" rx="12" fill="#0d1117" fill-opacity="1" stroke="#c9a96e" stroke-opacity="0.3"/><text x="670.0" y="190" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#c9a96e">03</text><text x="670.0" y="232" font-size="24" font-weight="650" fill="#f2efe8">Reads less</text><text x="670.0" y="268" font-size="15" fill="#9a978f">One line for each tool</text><text x="670.0" y="289" font-size="15" fill="#9a978f">for models under 15B,</text><text x="670.0" y="310" font-size="15" fill="#9a978f">with the rules they</text><text x="670.0" y="331" font-size="15" fill="#9a978f">need kept in it</text><path d="M926.0 250.0 l10 0" stroke="#c9a96e" stroke-width="1.6"/><path d="M933.0 246.0 l5 4 l-5 4" fill="none" stroke="#c9a96e" stroke-width="1.6"/><rect x="940.0" y="150" width="276.0" height="200" rx="12" fill="#0d1117" fill-opacity="1" stroke="#c9a96e" stroke-opacity="0.3"/><text x="962.0" y="190" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="2" fill="#c9a96e">04</text><text x="962.0" y="232" font-size="24" font-weight="650" fill="#f2efe8">One answer shape</text><text x="962.0" y="268" font-size="15" fill="#9a978f">A model without tool</text><text x="962.0" y="289" font-size="15" fill="#9a978f">calling answers with a</text><text x="962.0" y="310" font-size="15" fill="#9a978f">tool or with words,</text><text x="962.0" y="331" font-size="15" fill="#9a978f">held to it by Ollama</text>
+  <rect x="64" y="392" width="1152" height="104" rx="12" fill="#0d1117" stroke="#c9a96e" stroke-opacity="0.25"/>
+  <text x="88" y="428" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" letter-spacing="3" fill="#c9a96e">SETTINGS, LOCAL MODEL</text>
+  <text x="88" y="462" font-size="18" fill="#f2efe8">The two Ollama settings that let more of a model fit, flash attention and a smaller</text>
+  <text x="88" y="486" font-size="18" fill="#f2efe8">form for the conversation's memory, for a Mac and for Windows, ready to copy.</text>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="559" rx="17.5" fill="none" stroke="#c9a96e" stroke-opacity="0.35"/>
+</svg>

@@ -24,7 +24,7 @@ on your keys and your machine. No backend, no telemetry, no account.
 <img alt="macOS Apple Silicon" src="https://img.shields.io/badge/macOS%20Apple%20Silicon-2d333b?style=flat-square&logo=apple&logoColor=c9d1d9">
 <img alt="Windows 10" src="https://img.shields.io/badge/Windows%2010-2d333b?style=flat-square&logo=windows&logoColor=c9d1d9">
 <img alt="Built with Tauri v2" src="https://img.shields.io/badge/Tauri%20v2-2d333b?style=flat-square&logo=tauri&logoColor=c9d1d9">
-<img alt="Version 3.0.0" src="https://img.shields.io/badge/v3.0.0-2d333b?style=flat-square">
+<img alt="Version 3.3.0" src="https://img.shields.io/badge/v3.3.0-2d333b?style=flat-square">
 
 <br>
 
@@ -41,12 +41,12 @@ on your keys and your machine. No backend, no telemetry, no account.
 | | |
 |---|---|
 | **Nothing phones home** | No analytics, no crash reports, no update checks. Every connection is for work you asked for, and [SECURITY.md](docs/SECURITY.md) lists each address. |
-| **Every model, side by side** | Twenty-one cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want. |
+| **Every model, side by side** | Twenty-one cloud providers, Ollama, and any local model app that speaks the common chat format, with your own keys. Fully local whenever you want, with a local model kept on your graphics chip and loaded between steps. |
 | **Your documents, searched on your machine** | A local knowledge base (RAG): your PDFs and notes are indexed and searched on this computer, by meaning and by keyword, with the search model built into the app. [How](#your-documents-a-local-knowledge-base-rag). |
 | **An agent that asks first** | Commands, deletions, web pages and anything outside your project wait for your yes. Every file change is a diff you can keep or undo. |
 | **Readable to the last line** | MIT. Vanilla JavaScript and Rust, no bundler, no minified app code. |
 
-> **Version 3.0.0, the harness release.** HashCoder now proves and checks its own work, fitted to the model it runs on. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0).
+> **Version 3.3.0, the focus release.** Local models answer sooner, HashCoder does what was asked and no more, and a message can be sent while a model works. [What is new](https://github.com/Hash-7777/HashCortX/releases/tag/v3.3.0).
 
 ## See it run
 
@@ -89,10 +89,10 @@ From the Hash ecosystem: your music, your Mac's vital signs and its notices in t
 
 | | |
 |---|---|
-| **Chats** | Every provider in one conversation, with projects, attachments, memory and a local knowledge base |
+| **Chats** | Every provider in one conversation, with projects, attachments, memory, a local knowledge base, a queue for messages sent while a model works, and versions of every edited message and regenerated answer |
 | **HashCoder** | A coding agent on your real project: file tree, diffs, terminal, Undo |
 | **Agent Swarm** | Teams of agents on any mix of models, built on a canvas or designed from your task |
-| **3D Forge** | Describe a part, get a dimensioned solid. STL, OBJ, 3MF and STEP, in millimetres |
+| **3D Forge** | Describe a part, get a dimensioned solid in its own colours. STL, OBJ, 3MF and STEP, in millimetres |
 | **ERP** | Describe your business; its agent builds a working app with records, stages and books, exported as one HTML file |
 | **Finance** | Statements, CSV, PDF and XLSX read into figures, every total and chart worked out by the app |
 | **Sandbox** | Agents that inspect untrusted code for malware, prompt injection and suspicious logic |
@@ -108,7 +108,8 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 **Every run is checked by the app, not by the model's word.** It **reads** the project, its notes for agents and its latest commits; **plans** your request ask by ask; **edits** as diffs you keep or undo, under your permission mode; **proves** the change by running your tests and reading a site the way a browser does; takes a second look at larger changes as a **reviewer**; and **sends itself back** for missed asks, leftovers and unsourced details, until the work is proven. It is fitted to the model: under 5B, **light mode**, where the model writes whole files and HashCortx does the tool work and runs the tests; 5B to 15B, **focused tools** with the steps written out and a plan for longer requests; 15B and up, and cloud models, **the full harness**, with a map of your code, lessons per project and a reviewer for larger changes.
 
 - **Proves its work.** It runs your tests after a change, reads a website the way a browser would before calling it done, and sends itself back for what it left unfinished: a renamed name still written somewhere, files that do not load each other, the example your request gave.
-- **Fits the model.** Cloud models get a map of your code; small local models get a light mode that writes whole files while HashCoder does the tool work.
+- **Fits the model.** Cloud models get a map of your code; smaller local models read one line per tool, and small ones get a light mode that writes whole files while HashCoder does the tool work.
+- **Does what you asked, and no more.** No features, files or fixes you did not ask for, and an answer of a few plain sentences: what changed, where, and what ran.
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 

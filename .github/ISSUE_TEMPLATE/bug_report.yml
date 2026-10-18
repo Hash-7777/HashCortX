@@ -13,7 +13,7 @@ body:
     attributes:
       label: HashCortx version
       description: The badge beside the app's name in its top bar, or the name of the file you downloaded.
-      placeholder: "v3.0.0"
+      placeholder: "v3.3.0"
     validations:
       required: true
 

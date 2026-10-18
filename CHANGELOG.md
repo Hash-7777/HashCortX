@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [3.3.0] — 2026-10-18
+
+The focus release. Local models answer sooner: the window fits the graphics
+chip, the model stays loaded between steps, and smaller models read shorter
+instructions. HashCoder does what was asked and no more, and holds smaller
+models to what they ran and said. A message can be sent while a model works,
+an edit or a regenerated answer becomes a version in its chat, files dropped
+on the app reach it, and 3D Forge opens faster, shows models in colour and
+draws only when the view changes. The Virtual OS workspace is removed.
+
 ### Added
 
 - **Edit a message, or regenerate an answer, without losing the chat.**
@@ -138,6 +148,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A filled button keeps its colour under the pointer.** HashCoder's Run,
+  the permission bar's Allow once and Finance's Analyze lost their fill while
+  the pointer was over them, and their dark label sat on the dark page, so
+  the button about to be pressed could not be read. Each now keeps its fill
+  on hover. A check reads every stylesheet for a button filled under dark
+  text whose hover would empty it (`scripts/checks/filled-hover.mjs`).
 - **A tool call that is a model's whole reply is read.** A smaller model
   that answered with nothing but a tool's name and its arguments, such as
   `list_dir {"path": "."}`, had its call ignored; the same line after a
@@ -401,15 +417,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   read-out were each declared and never read; they are gone. The ERP's old
   record of which side panels were folded, which nothing has read since the
   ERP was rebuilt, is cleared at launch with the Virtual OS's data.
-
-### Fixed
-
-- **A filled button keeps its colour under the pointer.** HashCoder's Run,
-  the permission bar's Allow once and Finance's Analyze lost their fill while
-  the pointer was over them, and their dark label sat on the dark page, so
-  the button about to be pressed could not be read. Each now keeps its fill
-  on hover. A check reads every stylesheet for a button filled under dark
-  text whose hover would empty it (`scripts/checks/filled-hover.mjs`).
 
 ## [3.0.0] — 2026-10-06
 
@@ -3172,7 +3179,8 @@ First public release. macOS Apple Silicon, unsigned, 8.9 MB DMG.
 
 Development history predating the first public release was not kept as a changelog. The repository history begins on 2026-05-16.
 
-[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/Hash-7777/HashCortX/compare/v3.3.0...HEAD
+[3.3.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.3.0
 [3.0.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v3.0.0
 [2.6.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.6.0
 [2.5.0]: https://github.com/Hash-7777/HashCortX/releases/tag/v2.5.0
