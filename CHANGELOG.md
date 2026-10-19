@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Steps a smaller model writes in shell blocks run.** A model on this
+  computer that wrote its tool calls as steps inside `sh` blocks, rather
+  than `json` ones, had none of them run. A block in any language that
+  holds a call is now read as a step.
 - **A folder made with a command counts as a change.** Asked to make a
   folder, HashCoder ran `mkdir`, said so, and was sent back for saying it
   had changed files when it had not, and once for changing no file at all.

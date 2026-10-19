@@ -438,8 +438,9 @@
   }
 
   /**
-   * A plan written out step by step, each step a json block holding one call:
-   * the way a mid-sized model writes when it means to work but describes the
+   * A plan written out step by step, each step a block holding one call,
+   * marked json or under another language's mark (sh, for one): the way a
+   * mid-sized model writes when it means to work but describes the
    * work instead. Read only when the caller says which arguments each tool
    * must have (`required`, by tool), and only blocks whose call names an
    * offered tool and fills every one of them. The blocks are read in order
@@ -452,7 +453,7 @@
     if (!required || !window.HCFences || !window.HCFences.splitFences) return [];
     const out = [];
     for (const part of window.HCFences.splitFences(text)) {
-      if (part.type !== "code" || !/^(json|jsonc|)$/i.test(String(part.lang || ""))) continue;
+      if (part.type !== "code" || !(/^(json|jsonc|)$/i.test(String(part.lang || "")) || /^\s*\{\s*"name"\s*:/.test(String(part.code || "")))) continue;
       let calls;
       try { calls = callsOfValue(jsonValue(withoutStrayClose(part.code))); } catch { break; }
       const c = calls.length === 1 ? calls[0] : null;

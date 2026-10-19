@@ -159,6 +159,9 @@ console.log('\nA plan whose steps are json blocks of calls:');
   ok('an example with its arguments empty stays an example', T.callsIn(`Like this:\n${block('{"name":"grep_code","arguments":{}}')}\nThat is the format.`, coder, null, must).length === 0);
   ok('a step naming a tool not offered reads nothing', T.callsIn(['Do it.', block('{"name": "delete_files", "arguments": {"path": "a"}}'), 'Done.'].join('\n'), coder, null, { delete_files: ['path'] }).length === 0);
   ok('a code block of the page itself is passed over, not read as a step', T.callsIn(['Here is the page:', `${F}html\n<h1>x</h1>\n${F}`, 'Now save it.', block('{"name": "write_file", "arguments": {"path": "a.html", "content": "<h1>x</h1>"}}'), 'Done.'].join('\n'), coder, null, must).length === 1);
+  const shSteps = ['Step 1: the page', `${F}sh\n{"name": "write_file", "arguments": {"path": "index.html", "content": "<h1>Hi</h1>"}}\n${F}`, 'Step 2: the styles', `${F}sh\n{"name": "write_file", "arguments": {"path": "style.css", "content": "h1 { color: teal; }"}}}\n${F}`].join('\n');
+  ok('steps written under another language\'s mark, sh here, are read in order', T.callsIn(shSteps, coder, null, must).map((c) => c.arguments.path).join() === 'index.html,style.css');
+  ok('...while a block of a page or a script that holds no call is still passed over', T.callsIn(['Run it:', `${F}sh\nnpm install\n${F}`, 'Then:', block('{"name": "write_file", "arguments": {"path": "a.txt", "content": "x"}}')].join('\n'), coder, null, must).length === 1);
   // As a 7B model wrote it: two edits, then the test run, the run's block ending the reply.
   const fixes = { patch_file: ['path', 'search', 'replace'], shell_run: ['command'] };
   const edits = ['The tests fail because range leaves out its end.', '### Step 1: range', block('{\n  "name": "patch_file",\n  "arguments": {\n    "path": "src/range.js",\n    "search": "n < end",\n    "replace": "n <= end"\n  }\n}'),
