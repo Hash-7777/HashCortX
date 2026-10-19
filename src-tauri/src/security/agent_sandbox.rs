@@ -11,8 +11,9 @@
 //     mail and message data, the shell's start-up files, and HashCortX's own
 //     data, where the API keys are;
 //   · the places that start a program by themselves cannot be written.
-// Everything else a command could do before, it can still do. Commands a
-// person types in the terminal are not put in the sandbox.
+// Everything else a command could do before, it can still do, except start a
+// program that runs with administrator rights (ps, top): macOS starts none
+// inside a sandbox. Commands a person types in the terminal are not put in it.
 //
 // Without the sandbox tool an agent's command is refused, not run with less.
 //

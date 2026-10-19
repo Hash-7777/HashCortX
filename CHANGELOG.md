@@ -20,6 +20,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder says why `ps` and `top` do not run.** macOS does not start a
+  program that runs with administrator rights inside the sandbox the
+  agent's commands run in, and a model told only "Operation not permitted"
+  tried the next program of the kind. It is now told why, and to answer
+  another way or leave the command to you. docs/SECURITY.md says so too.
 - **HashCoder's code search reads every pattern it is given.** A pattern
   with a one-letter or one-symbol alternative, a class of characters such
   as emoji, or a Unicode class was searched as plain text, so it found

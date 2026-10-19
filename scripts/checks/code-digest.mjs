@@ -72,5 +72,13 @@ console.log('\nHashCoder gives it for the model in use:');
   ok('it is loaded before the mode', src('boot.js').indexOf("'/js/code/digest.js'") > 0);
 }
 
+console.log('\nA program the sandbox would not start:');
+{
+  const r = D.shellResult({ stdout: '', stderr: "sandbox-exec: execvp() of 'top' failed: Operation not permitted\n", code: 71, timedOut: false, truncated: false });
+  ok('the model is told why, and not to try others of its kind', /did not start top: a program that runs with administrator rights, such as ps or top, cannot start there, and others of its kind fail the same way/.test(r.note) && /run in Terminal/.test(r.note), JSON.stringify(r));
+  ok('...beside a note the result already had, and with the output as it was', /^first\. The sandbox/.test(D.shellResult({ stdout: '', stderr: "sandbox-exec: execvp() of '/bin/ps' failed: Operation not permitted", code: 71, note: 'first.' }).note) && r.stderr.startsWith('sandbox-exec') && r.code === 71);
+  ok('any other failure gets no such note', !('note' in D.shellResult({ stdout: '', stderr: 'ls: x: No such file or directory\n', code: 1 })) && D.refusedBySandbox('Operation not permitted') === '');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/digest.js)`);
 process.exit(fail ? 1 : 0);

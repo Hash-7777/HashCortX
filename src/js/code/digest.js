@@ -85,6 +85,8 @@
    */
   function shellResult(result, limit = DEFAULT_LIMIT) {
     if (!result || typeof result !== 'object') return result;
+    const refused = refusedBySandbox(result.stderr);
+    if (refused) result = Object.assign({}, result, { note: [result.note, refused].filter(Boolean).join(' ') });
     const out = String(result.stdout || '');
     const err = String(result.stderr || '');
     const max = Number(limit) > 0 ? Number(limit) : DEFAULT_LIMIT;
@@ -94,5 +96,17 @@
     return Object.assign({}, result, { stdout: digestText(out, outRoom), stderr: digestText(err, errRoom) });
   }
 
-  window.HCCodeDigest = { DEFAULT_LIMIT, MARK, digestText, shellResult };
+  /**
+   * What the model is told when macOS's sandbox would not start a program,
+   * or ''. macOS starts no program that runs with administrator rights, such
+   * as ps and top, inside the sandbox the agent's commands run in
+   * (src-tauri/src/security/agent_sandbox.rs); a model told only "Operation
+   * not permitted" tried the next one of the kind.
+   */
+  function refusedBySandbox(stderr) {
+    const m = /sandbox-exec: execvp\(\) of '([^']+)' failed: Operation not permitted/.exec(String(stderr || ''));
+    return m ? `The sandbox the app runs commands in did not start ${m[1].split('/').pop()}: a program that runs with administrator rights, such as ps or top, cannot start there, and others of its kind fail the same way. Find the answer another way, or give the person the command to run in Terminal.` : '';
+  }
+
+  window.HCCodeDigest = { DEFAULT_LIMIT, MARK, digestText, shellResult, refusedBySandbox };
 })();
