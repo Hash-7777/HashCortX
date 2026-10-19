@@ -35,6 +35,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Two hidden drones stop drawing.** After the launch intro, two of the
+  three background drones are hidden for good, but their rotors kept
+  turning at every frame for as long as the app was open. They are now
+  taken out with the intro, so that drawing stops; nothing on screen
+  changes.
 - **HashCoder says why `ps` and `top` do not run.** macOS does not start a
   program that runs with administrator rights inside the sandbox the
   agent's commands run in, and a model told only "Operation not permitted"

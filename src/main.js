@@ -520,6 +520,12 @@
     // already removes it outright on the failure path.
     setTimeout(() => {
       if (screen) screen.remove();
+      // Two of the three background drones are hidden by low-gpu, which was
+      // switched on above and is never switched off. Hidden is not gone here
+      // either: their rotors are SMIL, which display:none does not stop, so
+      // they turned at every frame for the life of the app with nobody seeing
+      // them. They go with the intro.
+      document.querySelectorAll('.drone-bg .drone-b, .drone-bg .drone-c').forEach((d) => d.remove());
       document.body.classList.remove('transitioning', 'intro-exiting');
       setTimeout(() => document.getElementById('input')?.focus(), 100);
     }, 980);

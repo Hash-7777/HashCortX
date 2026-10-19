@@ -338,6 +338,12 @@ console.log('\nThe launch screen is taken out of the document, not just hidden:'
   check('and not merely made invisible',
     !/screen\.style\.visibility\s*=\s*['"]hidden/.test(exit),
     'hiding it leaves every animation on it running for the life of the app');
+  // The same for the two background drones low-gpu hides for good: their SMIL rotors turn under display:none.
+  const styles = readFileSync(join(here, '..', '..', 'src', 'styles.css'), 'utf8');
+  check('the drones low-gpu hides for good go with the intro, so their rotors stop',
+    /document\.querySelectorAll\('\.drone-bg \.drone-b, \.drone-bg \.drone-c'\)\.forEach\(\(d\) => d\.remove\(\)\);/.test(exit)
+    && /body\.low-gpu \.drone-b,\s*body\.low-gpu \.drone-c \{\s*display: none !important;/.test(styles.replace(/html\.low-gpu \.drone-b,\s*html\.low-gpu \.drone-c,\s*/, ''))
+    && /document\.body\.classList\.add\('low-gpu'\)/.test(main));
   check('the splash clock still stops itself when its element goes',
     /!el\.isConnected\s*\|\|\s*!el\.offsetParent/.test(main),
     'this is the guard that removing the screen makes true');
