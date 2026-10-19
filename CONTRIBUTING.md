@@ -61,8 +61,11 @@ npm run tauri build
   reports any whose mark or label does not sit on the button's own centre line.
   For a change to HashCoder's tools, instructions or loop, run
   `npm run bench:coder -- --model <a local model>` before and after it and
-  compare the two with `--compare`: a change there is kept when more tasks
-  pass, or as many pass for less. A cloud model runs the same way, as
+  compare the two with `--compare`, or `--compare last` for the latest
+  earlier run of the same model: a change there is kept when more tasks
+  pass, or as many pass for less, and the comparison names any cost (steps,
+  tool calls, tokens, minutes) that rose with no more passes. `--place gpu`
+  or `--place cpu` runs a local model on the graphics chip or the processor. A cloud model runs the same way, as
   `--model cloud:<provider>:<model>`, with its key in
   `HASHCORTX_BENCH_KEY_<PROVIDER>` in your terminal; its requests are billed
   as any other. `npm run bench:coder -- --smoke` checks the

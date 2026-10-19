@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The HashCoder benchmark says what a change costs.** Set beside an
+  earlier run, it now shows steps, tool calls and tokens out a run as well
+  as passes, minutes and tokens in, and names any cost that rose while no
+  more tasks passed. `--compare last` finds the latest earlier run of the
+  same model itself, and `--place gpu` or `--place cpu` runs a local model
+  on the graphics chip or the processor and keeps that with the results.
 - **A model changing a file one passage at a time is told to batch.**
   A model that changed one file again and again, one passage per call,
   spent a step on each and could reach the step limit before it finished.

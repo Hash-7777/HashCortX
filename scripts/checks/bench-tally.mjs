@@ -57,6 +57,29 @@ console.log('\nA run that never reached the agent says nothing:');
   ok('and is counted apart in the totals', T.overall([none, ...T.groupRows([row('u', true)])]).notRun === 1);
 }
 
+console.log('\nWhat a run costs, set beside the last one:');
+{
+  const was = [row('a', true, { steps: 10, calls: 12, failedCalls: 1 }), row('b', false, { steps: 8, calls: 9, failedCalls: 0 })];
+  const same = [row('a', true, { steps: 10, calls: 12, failedCalls: 1 }), row('b', false, { steps: 8, calls: 9, failedCalls: 0 })];
+  const dearer = [row('a', true, { steps: 14, calls: 17, failedCalls: 1, tokens: { input: 1500, output: 200 } }), row('b', false, { steps: 11, calls: 13, failedCalls: 0, tokens: { input: 1500, output: 200 } })];
+  const better = [row('a', true, { steps: 14, calls: 17 }), row('b', true, { steps: 11, calls: 13 })];
+  ok('the same cost is no rise', T.costRose(was, same).length === 0);
+  ok('more steps, calls and tokens in for the same passes are named', T.costRose(was, dearer).join() === 'steps,tool calls,tokens in', T.costRose(was, dearer).join());
+  ok('...but not when more runs pass', T.costRose(was, better).length === 0);
+  const lines = T.comparisonLines('m', dearer, was, 'abc1234').join('\n');
+  ok('the comparison shows steps, tool calls and tokens out, and says what costs more', /steps a run 9\.0 then, 12\.5 now/.test(lines) && /tool calls a run 10\.5 then, 15\.0 now, failed 0\.5 then, 0\.5 now/.test(lines) && /tokens out a run 200 then, 200 now/.test(lines) && /costs more now, for no more passes: steps, tool calls, tokens in/.test(lines), lines);
+  const reports = [
+    { file: 'old', report: { started: '2026-10-01T00:00:00Z', place: 'gpu', runs: [row('a', true)] } },
+    { file: 'new', report: { started: '2026-10-02T00:00:00Z', place: 'gpu', runs: [row('a', true)] } },
+    { file: 'cpu', report: { started: '2026-10-03T00:00:00Z', place: 'cpu', runs: [row('a', true)] } },
+    { file: 'none', report: { started: '2026-10-04T00:00:00Z', place: 'gpu', runs: [missed('a')] } },
+  ];
+  ok('the last run of the same model at the same place is the one compared with', T.lastRunOf(reports, 'm', 'gpu').file === 'new' && T.lastRunOf(reports, 'm', 'cpu').file === 'cpu' && T.lastRunOf(reports, 'other', 'gpu') === null && T.lastRunOf(reports, 'm', '') === null);
+  const run = readFileSync(join(here, '..', 'bench', 'coder', 'run.mjs'), 'utf8');
+  ok('the benchmark sets the place in the app and keeps it with the results, and finds the last run itself',
+    /localStorage\.setItem\('hc_local_place', \$\{JSON\.stringify\(opt\.place\)\}\)/.test(run) && /place: opt\.place, minutesPerTask/.test(run) && /lastRunOf\(all, model, opt\.place\)/.test(run) && /'hc_local_place'/.test(readFileSync(join(here, '..', '..', 'src', 'js', 'local-place.js'), 'utf8')));
+}
+
 console.log('\nThe totals:');
 {
   const rows = [row('a', true), row('a', true), row('b', true), row('b', false), row('c', false), row('c', false), missed('d')];

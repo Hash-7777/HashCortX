@@ -5,6 +5,7 @@
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:3b --task js-fix-range
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --runs 2
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --compare <earlier results.json>
+//     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --place cpu --compare last
 //     node scripts/bench/coder/run.mjs --model qwen2.5-coder:7b --src <another copy of src/>
 //     HASHCORTX_BENCH_KEY_ANTHROPIC=... node scripts/bench/coder/run.mjs --model cloud:anthropic:<model>
 //     node scripts/bench/coder/run.mjs --self-test
@@ -77,6 +78,12 @@
 // --src serves another copy of the app's source instead of src/, so a run can
 // measure a fixed version while the working copy changes.
 //
+// --place gpu or cpu sets where a local model runs, as Settings does, and is
+// kept with the results. --compare last sets each model beside its own latest
+// earlier run at the same place: passes, and what a run cost in steps, tool
+// calls, tokens and minutes, with a line naming any cost that rose while no
+// more runs passed (tally.mjs costRose).
+//
 // --smoke runs one task with a scripted stand-in for a model
 // (scripted-model.mjs), whose answers are fixed, and checks the app's side of
 // it: the agent is sent back to make a change it wrote into its reply, the
@@ -93,7 +100,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { startScriptedModel, SCRIPTED_MODEL } from './scripted-model.mjs';
 import { loadProviders, keysFrom, hostsFor, refusal, scrubber } from './cloud.mjs';
-import { repeatedLines, comparisonLines } from './tally.mjs';
+import { repeatedLines, comparisonLines, lastRunOf } from './tally.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repo = path.join(here, '..', '..', '..');
@@ -102,7 +109,7 @@ const resultsDir = path.join(repo, 'node_modules', '.coder-bench');
 const PREFIX = 'hashcortx-coder-bench-';
 
 // ── Options ─────────────────────────────────────────────────────
-const opt = { models: [], tasks: [], runs: 1, keep: false, selfTest: false, smoke: false, minutes: 10, budget: 20, rest: 15, work: null, out: null, compare: null, quiet: false, src: null, ollama: null };
+const opt = { models: [], tasks: [], runs: 1, keep: false, selfTest: false, smoke: false, minutes: 10, budget: 20, rest: 15, work: null, out: null, compare: null, quiet: false, src: null, ollama: null, place: '' };
 {
   const argv = process.argv.slice(2);
   const next = (i) => {
@@ -122,6 +129,7 @@ const opt = { models: [], tasks: [], runs: 1, keep: false, selfTest: false, smok
     else if (a === '--compare') opt.compare = next(i++);
     else if (a === '--src') opt.src = next(i++);
     else if (a === '--ollama') opt.ollama = next(i++);
+    else if (a === '--place') { opt.place = next(i++); if (!['gpu', 'cpu'].includes(opt.place)) usage('--place is gpu or cpu'); }
     else if (a === '--keep') opt.keep = true;
     else if (a === '--quiet') opt.quiet = true;
     else if (a === '--self-test') opt.selfTest = true;
@@ -141,7 +149,7 @@ function usage(why) {
     'node scripts/bench/coder/run.mjs --model <local model, or cloud:<provider>:<model>> [--model ...] [--task <id> ...]\n' +
     '                                 [--runs <times each task is run, 1 to 5>]\n' +
     '                                 [--minutes <per task>] [--budget <minutes in all>] [--rest <seconds between tasks>]\n' +
-    '                                 [--compare <results.json>] [--src <folder>] [--ollama <local url>]\n' +
+    '                                 [--compare <results.json> | last] [--place gpu | cpu] [--src <folder>] [--ollama <local url>]\n' +
     '                                 [--keep] [--work <folder>]\n' +
     'node scripts/bench/coder/run.mjs --self-test\n' +
     'node scripts/bench/coder/run.mjs --smoke');
@@ -497,6 +505,8 @@ const shim = () => `<script>
 try { if (!localStorage.getItem('atelier')) localStorage.setItem('atelier', JSON.stringify({ host: ${JSON.stringify(OLLAMA)} })); } catch {}
 // The tasks write files in their own folder with no one to answer a question, so the benchmark runs in Accept edits (js/code/permissions.js).
 try { localStorage.setItem('hc_coder_permission_mode', 'edits'); } catch {}
+// Where a local model runs, as the person sets it in Settings (js/local-place.js): the graphics chip or the processor. Automatic when not given.
+try { localStorage.setItem('hc_local_place', ${JSON.stringify(opt.place)}); } catch {}
 ${cloudModels.length ? `try { localStorage.setItem('hc_api_bundle_v2', ${JSON.stringify(JSON.stringify(CLOUD.bundle))}); localStorage.setItem('hc_migrated_v2', '1'); } catch {}` : ''}
 (function () {
   const chatAt = ${JSON.stringify(OLLAMA)} + '/api/chat';
@@ -891,9 +901,31 @@ function printTable(model, rows) {
     `${rows.reduce((t, r) => t + r.failedEdits, 0)} failed edits`);
 }
 
-function printComparison(rows, earlierFile) {
+/** Every earlier report in the results folder but `skip`, as `{ file, report }`. */
+function earlierReports(skip) {
+  let names = [];
+  try { names = fs.readdirSync(resultsDir).filter((n) => n.endsWith('.json')); } catch { return []; }
+  return names.map((n) => path.join(resultsDir, n)).filter((f) => path.resolve(f) !== path.resolve(skip || ''))
+    .map((file) => { try { return { file, report: JSON.parse(fs.readFileSync(file, 'utf8')) }; } catch { return null; } }).filter(Boolean);
+}
+
+// `--compare last` sets each model beside its own latest earlier run at the same place.
+function printComparison(rows, earlierFile, written) {
+  if (earlierFile === 'last') {
+    const all = earlierReports(written);
+    for (const model of new Set(rows.map((r) => r.model))) {
+      const found = lastRunOf(all, model, opt.place);
+      if (found) printComparisonWith(rows.filter((r) => r.model === model), found.file, found.report);
+      else console.log(`\nNo earlier run of ${model}${opt.place ? ` on the ${opt.place}` : ''} to compare with.`);
+    }
+    return;
+  }
   let earlier;
   try { earlier = JSON.parse(fs.readFileSync(earlierFile, 'utf8')); } catch (e) { console.log(`\nCould not read ${earlierFile} to compare: ${e.message}`); return; }
+  printComparisonWith(rows, earlierFile, earlier);
+}
+
+function printComparisonWith(rows, earlierFile, earlier) {
   for (const model of new Set(rows.map((r) => r.model))) {
     const now = rows.filter((r) => r.model === model);
     const lines = comparisonLines(model, now, (earlier.runs || []).filter((r) => r.model === model), earlier.commit);
@@ -923,7 +955,7 @@ async function main() {
   const port = server.address().port;
   const started = new Date();
   const state = gitState();
-  console.log(`HashCoder benchmark · ${tasks.length} task${tasks.length === 1 ? '' : 's'} · ${opt.models.join(', ')} · ${state.commit}${state.changedSource ? ' with uncommitted changes to src/' : ''}`);
+  console.log(`HashCoder benchmark · ${tasks.length} task${tasks.length === 1 ? '' : 's'} · ${opt.models.join(', ')}${opt.place ? ` on the ${opt.place === 'gpu' ? 'graphics chip' : 'processor'}` : ''} · ${state.commit}${state.changedSource ? ' with uncommitted changes to src/' : ''}`);
   console.log(`Working in ${ROOT}`);
   const rows = [];
   let n = 0;
@@ -956,12 +988,12 @@ async function main() {
     if (opt.runs > 1) { console.log(`\nHashCoder benchmark · ${model} · each task run ${opt.runs} times`); console.log(repeatedLines(mine).join('\n')); }
     else printTable(model, mine);
   }
-  const report = { started: started.toISOString(), ...state, minutesPerTask: opt.minutes, runsPerTask: opt.runs, models: opt.models, runs: rows };
+  const report = { started: started.toISOString(), ...state, place: opt.place, minutesPerTask: opt.minutes, runsPerTask: opt.runs, models: opt.models, runs: rows };
   fs.mkdirSync(resultsDir, { recursive: true });
   const out = opt.out ? path.resolve(opt.out) : path.join(resultsDir, `results-${started.toISOString().replace(/[:.]/g, '-')}.json`);
   fs.writeFileSync(out, JSON.stringify(report, null, 2));
   console.log(`\nResults: ${out}`);
-  if (opt.compare) printComparison(rows, opt.compare);
+  if (opt.compare) printComparison(rows, opt.compare, out);
   return 0;
 }
 

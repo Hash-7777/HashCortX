@@ -102,8 +102,39 @@ export function comparisonLines(model, nowRows, thenRows, label) {
   if (now.some((r) => tokens(r).cacheRead) || was.some((r) => tokens(r).cacheRead)) out.push(`  tokens from a provider's cache a run ${number(Math.round(mean(was, (r) => tokens(r).cacheRead)))} then, ${number(Math.round(mean(now, (r) => tokens(r).cacheRead)))} now`);
   if (was.every((r) => r.reading != null) && now.every((r) => r.reading != null)) out.push(`  seconds reading requests a run ${mean(was, (r) => r.reading).toFixed(1)} then, ${mean(now, (r) => r.reading).toFixed(1)} now`);
   out.push(`  failed edits a run ${mean(was, (r) => r.failedEdits).toFixed(1)} then, ${mean(now, (r) => r.failedEdits).toFixed(1)} now`);
+  out.push(`  steps a run ${mean(was, (r) => r.steps).toFixed(1)} then, ${mean(now, (r) => r.steps).toFixed(1)} now`);
+  out.push(`  tool calls a run ${mean(was, (r) => r.calls).toFixed(1)} then, ${mean(now, (r) => r.calls).toFixed(1)} now, failed ${mean(was, (r) => r.failedCalls).toFixed(1)} then, ${mean(now, (r) => r.failedCalls).toFixed(1)} now`);
+  out.push(`  tokens out a run ${number(Math.round(mean(was, (r) => tokens(r).output)))} then, ${number(Math.round(mean(now, (r) => tokens(r).output)))} now`);
+  const rose = costRose(was, now);
+  if (rose.length) out.push(`  costs more now, for no more passes: ${rose.join(', ')}`);
   // A task moved when its pass rate did, not when it was run a different number of times.
   const rate = (g) => g.passes / g.ran;
   for (const p of shared) if (rate(p.then) !== rate(p.now)) out.push(`  ${p.task}: ${fraction(p.then)} then, ${fraction(p.now)} now`);
   return out;
+}
+
+/** How much more a measure has to cost a run before it is called a rise, and not noise. */
+export const COST_RISE = 0.1;
+
+/**
+ * What costs more a run now than then, when no more runs pass: steps, tool
+ * calls, failed calls, tokens in and out, minutes. A harness change can keep
+ * every pass and still cost more on every task; this is the line that says so.
+ */
+export function costRose(was, now) {
+  const rate = (list) => (list.length ? list.filter((r) => r.pass).length / list.length : 0);
+  if (!was.length || !now.length || rate(now) > rate(was)) return [];
+  const measures = [['steps', (r) => r.steps], ['tool calls', (r) => r.calls], ['failed calls', (r) => r.failedCalls],
+    ['tokens in', (r) => (r.tokens || {}).input], ['tokens out', (r) => (r.tokens || {}).output], ['minutes', (r) => (r.seconds || 0) / 60]];
+  return measures.filter(([, f]) => { const a = mean(was, f), b = mean(now, f); return b > a * (1 + COST_RISE) && b - a > 0.05; }).map(([name]) => name);
+}
+
+/**
+ * The latest earlier report with runs of `model` at `place` (the local
+ * model's place, '' for automatic), from `[{ file, report }]`, or null.
+ */
+export function lastRunOf(reports, model, place = '') {
+  const fits = (reports || []).filter(({ report }) => report && Array.isArray(report.runs) && (report.place || '') === place
+    && report.runs.some((r) => r.model === model && didRun(r)));
+  return fits.sort((a, b) => String(b.report.started || '').localeCompare(String(a.report.started || '')))[0] || null;
 }
