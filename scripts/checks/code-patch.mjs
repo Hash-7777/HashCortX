@@ -29,6 +29,8 @@ const sandbox = { console, TextDecoder, TextEncoder, atob, btoa, setTimeout };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'code', 'patch.js'), sandbox, { filename: 'patch.js' });
+// The shared line diff, which patch_file reads its changed lines from, loaded as in the app.
+vm.runInContext(src('js', 'diff.js'), sandbox, { filename: 'diff.js' });
 const P = sandbox.HCCodePatch;
 const throws = (fn) => { try { fn(); return null; } catch (e) { return String(e.message); } };
 
@@ -295,6 +297,15 @@ console.log('\npatch_file writes back the whole file:');
   disk.set('/p/multi.js', 'const A = 1;\nconst B = 2;\n');
   const multi = JSON.parse(await code.patchFile('/p/multi.js', 'const A = 1;', 'const A = 5;', '', [{ search: 'const B = 2;', replace: 'const B = 6;' }]));
   ok('patch_file makes several edits in one call', disk.get('/p/multi.js') === 'const A = 5;\nconst B = 6;\n' && multi.edits === 2);
+  ok('...and answers with the changed lines as the file has them now, numbered as a read numbers them', /^\[The changed lines as the file has them now\. The numbers and "\| " are not part of the file\.\]\n1\| const A = 5;\n2\| const B = 6;$/.test(multi.now), multi.now);
+  const D = sandbox.HCDiff;
+  const now = (a, b, o) => P.changedNow(D.diffLines(a, b), o).split('\n').slice(1).join('\n');
+  const ten = Array.from({ length: 10 }, (_, i) => `row ${i + 1}`).join('\n') + '\n';
+  ok('a changed line comes with one line around it', now(ten, ten.replace('row 5\n', 'ROW 5\n')) === '4| row 4\n5| ROW 5\n6| row 6');
+  ok('a line taken out shows the lines that now meet there', now(ten, ten.replace('row 5\n', '')) === '4| row 4\n5| row 6');
+  ok('changes far apart are shown apart, the gap marked', now(ten, ten.replace('row 2\n', 'ROW 2\n').replace('row 9\n', 'ROW 9\n')) === ' 1| row 1\n 2| ROW 2\n 3| row 3\n…\n 8| row 8\n 9| ROW 9\n10| row 10');
+  ok('no more than the most it shows, saying how many more', /\n… and 3 more lines around the changes, not shown$/.test(P.changedNow(D.diffLines(ten, ten.toUpperCase()), { most: 7 })) && P.SHOWN_MOST === 12);
+  ok('nothing changed, nothing shown', P.changedNow(D.diffLines(ten, ten)) === '');
   // Every change given in edits, with or without the top repeated.
   const E = (search, replace, all, more) => { try { return P.editsOf(search, replace, all, more); } catch (e) { return String(e.message); } };
   ok('a change at the top and the rest in edits are all made, in order', JSON.stringify(E('a', 'b', false, [{ search: 'c', replace: 'd' }]).map((x) => x.search + '>' + x.replace)) === '["a>b","c>d"]');

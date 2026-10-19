@@ -338,13 +338,15 @@
       catch (e) { throw new Error(`patch_file failed: "${path}" could not be read (${e?.message || e}). Use write_file to create a new file.`); }
       const P = window.HCCodePatch;
       let next;
-      try { next = P.applyEdits(P.textOf(P.bytesFromBase64(file.base64), path), edits, path); }
+      const before = P.textOf(P.bytesFromBase64(file.base64), path);
+      try { next = P.applyEdits(before, edits, path); }
       catch (e) { throw new Error(`patch_file failed: ${e?.message || e}`); }
       const out = JSON.parse(await HC.code.writeFile(path, next.text, reason || `Patching ${path}`, { edited: true }));
       // Said when a passage was found loosely, so the model can see the change
-      // went where it meant.
+      // went where it meant; and the changed lines as they are now, so it need not read the file again to see them.
       if (edits.length > 1) out.edits = edits.length;
       if (next.notes.length) out.matched = next.notes.join('; ');
+      if (out.ok && window.HCDiff && P.changedNow) out.now = P.changedNow(window.HCDiff.diffLines(before, next.text));
       return JSON.stringify(out);
     },
 
@@ -586,7 +588,7 @@
     },
     {
       name: 'patch_file',
-      description: 'Replace a passage inside an existing file, keeping everything else. Copy the search text from read_file output, without the line numbers of a numbered read. It must appear once in the file: add neighbouring lines when it is not unique, or set all to true to change every place it appears, as in a rename. For several changes to one file, pass the rest in edits: all are made together, or none. When the passage is not found, the answer shows the lines most like it.',
+      description: 'Replace a passage inside an existing file, keeping everything else. Copy the search text from read_file output, without the line numbers of a numbered read. It must appear once in the file: add neighbouring lines when it is not unique, or set all to true to change every place it appears, as in a rename. For several changes to one file, pass the rest in edits: all are made together, or none. When the passage is not found, the answer shows the lines most like it; when it is, the changed lines as they now are, so there is no need to read the file again to check.',
       parameters: {
         path:    'Absolute path to the file to edit',
         search:  'The passage to find, copied from the file',

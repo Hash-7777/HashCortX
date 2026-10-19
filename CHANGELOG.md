@@ -10,6 +10,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A patch answers with what it changed.** HashCoder's `patch_file` said
+  only that it had succeeded, so models read the file again to see the
+  result, a step each time. Its answer now carries the changed lines as the
+  file has them now, numbered, with a line around each change.
 - **A command piped into a filter runs.** A model that wrote a line such as
   `ioreg -l | grep -i gpu | head -20` had it refused, since HashCoder runs
   one program and no shell, and spent a step writing it again. The first

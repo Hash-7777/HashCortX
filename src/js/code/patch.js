@@ -340,6 +340,34 @@
     return { text, notes };
   }
 
+  // ── What an edit left ──────────────────────────────────────────────────
+  //
+  // Told only that a patch succeeded, a model read the file again to see what
+  // it now held, a step each time. So patch_file's answer carries the changed
+  // lines as the file has them now, numbered as read_file numbers them, with
+  // a line around each change, up to SHOWN_MOST lines.
+
+  const SHOWN_MOST = 12;
+
+  /** The changed lines of a file as it is now, from js/diff.js diffLines rows, or '' when nothing changed. */
+  function changedNow(rows, { around = 1, most = SHOWN_MOST } = {}) {
+    const keep = new Set();
+    const last = rows && rows.length ? rows[rows.length - 1] : null;
+    const end = last && last.afterNo && last.text === '' ? last.afterNo : 0;   // the empty piece after a final line break is not a line
+    (rows || []).forEach((r, i) => {
+      if (r.type === 'same') return;
+      for (let k = Math.max(0, i - around); k <= Math.min(rows.length - 1, i + around); k++) if (rows[k].afterNo && rows[k].afterNo !== end) keep.add(rows[k].afterNo);
+    });
+    if (!keep.size) return '';
+    const text = new Map(rows.filter((r) => r.afterNo).map((r) => [r.afterNo, r.text]));
+    const nos = [...keep].sort((a, b) => a - b);
+    const shown = nos.slice(0, most);
+    const width = String(shown[shown.length - 1]).length;
+    const body = shown.map((n, k) => `${k && n !== shown[k - 1] + 1 ? '…\n' : ''}${String(n).padStart(width)}| ${text.get(n)}`).join('\n');
+    const more = nos.length > most ? `\n… and ${nos.length - most} more lines around the changes, not shown` : '';
+    return `[The changed lines as the file has them now. The numbers and "| " are not part of the file.]\n${body}${more}`;
+  }
+
   // ── Reading a file by lines ─────────────────────────────────────────────
 
   /** How long a file is read whole by default, and how much of a longer one is shown. */
@@ -542,5 +570,5 @@
     return !out || out.endsWith('\n') ? out : out + eol;
   }
 
-  window.HCCodePatch = { appended, applyPatch, applyEdits, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
+  window.HCCodePatch = { appended, applyPatch, applyEdits, changedNow, SHOWN_MOST, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();
