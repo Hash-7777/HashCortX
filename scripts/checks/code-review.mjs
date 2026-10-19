@@ -42,6 +42,11 @@ console.log('What a run changed:');
   ok('and how much changed, in lines and files', shown.changed >= 4 && shown.files === 3, `${shown.changed} ${shown.files}`);
   const big = new Map([['/p/big.js', { before: '', after: Array.from({ length: 5000 }, (_, i) => `line ${i}`).join('\n') }]]);
   ok('long changes are cut, saying so', /the rest of the changes are not shown/.test(R.diffText(big, diffLines).text) && R.diffText(big, diffLines).text.length < R.MAX_SHOWN + 100);
+  const page = (n) => Array.from({ length: n }, (_, i) => `row ${i}`).join('\n');
+  const three = new Map([['/p/index.html', { before: null, after: page(1500) }], ['/p/style.css', { before: null, after: page(1500) }], ['/p/script.js', { before: null, after: page(1500) }]]);
+  const cutText = R.diffText(three, diffLines).text;
+  ok('cut changes name every file not shown in full, so the reviewer does not call one missing', /not shown in full: [^)]*\/p\/script\.js/.test(cutText) && !/not shown in full: [^)]*\/p\/index\.html/.test(cutText) && cutText.length <= R.MAX_SHOWN + 1, cutText.slice(-200));
+  ok('...and the reviewer is told a file not shown is not missing', /a file or a change that is not shown is not missing/.test(R.INSTRUCTIONS));
   const unchanged = new Map([['/p/same.js', { before: 'a\n', after: 'a\n' }]]);
   ok('a file written back as it was shows nothing', R.diffText(unchanged, diffLines).text === '');
 }

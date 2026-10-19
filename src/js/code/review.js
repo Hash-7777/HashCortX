@@ -31,7 +31,7 @@
   const INSTRUCTIONS = `You review a change a coding agent made to a project, with a clean slate: you are shown only what the person asked for, the changes, and what was run to check them.
 
 Look for: something the request asks for that the changes do not do; a mistake that would make the code fail or behave wrongly; a change the request did not ask for, above all anything removed or rewritten that it did not ask to change; placeholder or unfinished code; a test or check changed so that it passes, rather than the code fixed.
-Do not ask for changes of style, names or more tests unless the request wants them. Report only what you are sure of from what you are shown.
+Do not ask for changes of style, names or more tests unless the request wants them. Report only what you are sure of from what you are shown: a file or a change that is not shown is not missing.
 
 Answer in one of two ways and nothing else. Either the one line
 LOOKS RIGHT
@@ -61,9 +61,10 @@ PROBLEMS:
    */
   function diffText(changes, diffLines, max = MAX_SHOWN) {
     const parts = [];
+    const paths = [];
     let changed = 0;
     for (const [path, c] of changes || []) {
-      if (c.unreadable) { parts.push(`--- ${path}\n(not shown: not a text file the app keeps a copy of)`); continue; }
+      if (c.unreadable) { parts.push(`--- ${path}\n(not shown: not a text file the app keeps a copy of)`); paths.push(path); continue; }
       const rows = diffLines(c.before || '', c.after || '');
       const near = new Uint8Array(rows.length);
       rows.forEach((r, i) => {
@@ -81,9 +82,19 @@ PROBLEMS:
         lines.push(`${r.type === 'add' ? '+' : r.type === 'del' ? '-' : ' '} ${r.text}`);
       });
       parts.push(lines.join('\n'));
+      paths.push(path);
     }
     let text = parts.join('\n\n');
-    if (text.length > max) text = `${text.slice(0, max)}\n… (the rest of the changes are not shown)`;
+    if (text.length > max) {
+      // Each file whose changes do not all fit is named, so a reviewer told only "the rest is not shown" does not call it missing.
+      const noteFor = (room) => {
+        let end = 0;
+        const cut = paths.filter((p, i) => (end += parts[i].length + (i ? 2 : 0)) > room);
+        return `\n… (the rest of the changes are not shown. These files were changed too, and are not shown in full: ${cut.slice(0, 12).join(', ')}${cut.length > 12 ? `, and ${cut.length - 12} more` : ''})`;
+      };
+      const room = Math.max(0, max - noteFor(max).length);
+      text = `${text.slice(0, room)}${noteFor(room)}`;
+    }
     return { text, changed, files: (changes && changes.size) || 0 };
   }
 

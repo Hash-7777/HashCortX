@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's second look no longer reports files it was not shown as
+  missing.** Changes too long to show the reviewer in full were cut with
+  only "the rest is not shown", and it could report a changed file as
+  missing. The files not shown in full are now named, and the reviewer is
+  told that a file not shown is not missing.
 - **A HashCoder run that fails says why.** A run that ended with an error
   left only "The run ended with an error before this finished" in the
   conversation, so the next message, and an exported conversation, had no
