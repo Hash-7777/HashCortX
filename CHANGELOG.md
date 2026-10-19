@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A HashCoder run that fails says why.** A run that ended with an error
+  left only "The run ended with an error before this finished" in the
+  conversation, so the next message, and an exported conversation, had no
+  reason to go on. What the error said is now kept with it, shortened and
+  with anything shaped like a key taken out.
 - **HashCoder's notes are shown for what they are.** A note asking a model
   what it did at the step limit, and one about files not joined up, were
   shown in a reopened conversation and in its export as "Sent back to run

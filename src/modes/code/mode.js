@@ -2166,8 +2166,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         outcome = { stopped: e.name === 'AbortError', failed: e.name !== 'AbortError' };
         // A stop or a failure between a tool call and its result leaves a
         // history the providers refuse; close the turn so the next one works.
-        window.HCAgentShape.closeInterruptedTurn(conversationMsgs,
-          e.name === 'AbortError' ? 'Stopped by the user before this finished.' : 'The run ended with an error before this finished.');
+        window.HCAgentShape.closeInterruptedTurn(conversationMsgs, window.HCAgentShape.endedBy(e, window.HCCodeDebug?.redact));   // a failure keeps what it said, keys taken out
         saveCoderState();
         if (e.name === 'AbortError') {
           const c = appendAssistantBubble('HashCoder');

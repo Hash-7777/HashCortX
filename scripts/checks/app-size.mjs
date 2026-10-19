@@ -816,7 +816,9 @@ const LINE_BUDGET = {
   // 2468, down three: a step's time and its end are drawn by js/code/steps.js.
   // 2470, up two: a request can be brought back to the box to change and
   // send again, from an edit beside its copy.
-  'modes/code/mode.js': 2470,
+  // 2469, down one: the words that close a stopped or failed run are made
+  // by js/agent-shape.js endedBy.
+  'modes/code/mode.js': 2469,
 };
 
 console.log('\nFile sizes go down, never up:');

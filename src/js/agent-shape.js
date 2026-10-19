@@ -453,6 +453,21 @@
   }
 
   /**
+   * The words that close a turn cut off by `error`: stopped by the person,
+   * or failed, with what the error said. A failed run said only that it had
+   * failed, so the next message, and an exported conversation, never knew
+   * why. What the error said is kept short and passed through `redact`
+   * (js/code/debug-export.js), and left out when there is none to pass it
+   * through, so nothing shaped like a key is saved.
+   */
+  function endedBy(error, redact) {
+    if (error && error.name === 'AbortError') return 'Stopped by the user before this finished.';
+    let why = typeof redact === 'function' ? String(redact(String((error && error.message) || '')).text || '').replace(/\s+/g, ' ').trim() : '';
+    if (why.length > 200) why = `${why.slice(0, 200)}…`;
+    return why ? `The run ended with an error before this finished: ${why}` : 'The run ended with an error before this finished.';
+  }
+
+  /**
    * End a turn that was cut off, so the conversation can carry on.
    *
    * A run stopped or failed between asking for tools and receiving all their
@@ -754,6 +769,7 @@
     answerShape,
     toolTurnsInWords,
     ollamaReply,
+    endedBy,
     FOREIGN_CALL_SIGNATURE,
     safeJsonParse,
     extractPythonFence,

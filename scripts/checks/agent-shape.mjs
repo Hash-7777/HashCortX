@@ -585,7 +585,19 @@ console.log('\nA turn cut off by Stop or an error is closed, not left open:');
   A.closeInterruptedTurn(finished, 'Stopped.');
   ok('a finished conversation is left as it is', finished.length === 3 && finished.at(-1).content === 'All done.');
 
+  // What closes the turn says why, through the export's own redactor.
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'debug-export.js'), 'utf8'), sandbox, { filename: 'debug-export.js' });
+  const redact = sandbox.window.HCCodeDebug.redact;
+  const stop = new Error('Aborted'); stop.name = 'AbortError';
+  ok('a stop says the person stopped it', A.endedBy(stop, redact) === 'Stopped by the user before this finished.');
+  ok('a failure keeps what the error said', A.endedBy(new Error('The provider said: too many requests, try again in a minute.'), redact) === 'The run ended with an error before this finished: The provider said: too many requests, try again in a minute.');
+  const keyed = A.endedBy(new Error(`Refused: Bearer ${'k'.repeat(40)} is not valid`), redact);
+  ok('...with anything shaped like a key taken out', /redacted/.test(keyed) && !/k{40}/.test(keyed), keyed);
+  ok('...kept short', A.endedBy(new Error('x'.repeat(900)), redact).length < 270);
+  ok('...and left out when there is nothing to take keys out with, or nothing was said', A.endedBy(new Error('The provider said no.')) === 'The run ended with an error before this finished.' && A.endedBy(new Error(''), redact) === 'The run ended with an error before this finished.');
+
   const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('...and HashCoder closes a stopped or failed run with it', /closeInterruptedTurn\(conversationMsgs, window\.HCAgentShape\.endedBy\(e, window\.HCCodeDebug\?\.redact\)\)/.test(coder));
   ok('Coder closes the turn whenever a run stops or fails',
     /\} catch \(e\) \{[\s\S]{0,300}closeInterruptedTurn\(conversationMsgs/.test(coder));
 }
