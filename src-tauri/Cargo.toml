@@ -207,6 +207,10 @@ ureq = { version = "3", default-features = false, features = ["native-tls"] }
 # into the app through tauri; naming them here adds no new code to it.
 sha2      = "0.10"
 getrandom = "0.3"
+# grep_code's patterns (src/commands/fs.rs fs_grep): matched in time linear in
+# the line, Unicode classes read. Already built into the app through tauri;
+# naming it here adds no new code to it.
+regex     = "1"
 
 # ==============================================================
 # Platform-specific dependencies

@@ -202,8 +202,8 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 10,586 source checks
-cargo test --manifest-path src-tauri/Cargo.toml   # 226 Rust tests
+npm run check                                     # 10,587 source checks
+cargo test --manifest-path src-tauri/Cargo.toml   # 232 Rust tests
 ```
 
 Tauri v2 · Rust · vanilla JavaScript with no bundler, served as written.

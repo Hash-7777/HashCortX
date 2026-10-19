@@ -691,23 +691,60 @@ const TEXT_EXTS: &[&str] = &[
     "sh","bash","zsh","env","gitignore","lock","vue","svelte","rb","php",
 ];
 
-#[tauri::command]
-pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
-    super::off_main(move || grep_blocking(dir, pattern, file_ext)).await
+/// The words a pattern this search cannot read is refused with. The agent's
+/// grep_code (src/platform/tauri/hashcoder.js) reads them to search the
+/// pattern as plain text instead, and says so.
+pub const NOT_A_PATTERN: &str = "Not a pattern this search reads";
+
+/// What a line is searched for: plain text, or a regular expression. Both
+/// ignore case. A pattern is compiled by the regex crate, which matches in
+/// time linear in the line, so no pattern can make a search run away, and
+/// reads Unicode classes such as `\p{Emoji}` and characters outside the
+/// basic plane as one character each.
+enum Needle {
+    Text(String),
+    Pattern(regex::Regex),
 }
 
-fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>) -> Result<Vec<GrepMatch>, String> {
+impl Needle {
+    fn new(pattern: &str, regex: bool) -> Result<Needle, String> {
+        if !regex {
+            return Ok(Needle::Text(pattern.to_lowercase()));
+        }
+        regex::RegexBuilder::new(pattern)
+            .case_insensitive(true)
+            .size_limit(1 << 20)
+            .dfa_size_limit(1 << 20)
+            .build()
+            .map(Needle::Pattern)
+            .map_err(|_| NOT_A_PATTERN.to_string())
+    }
+
+    fn finds(&self, line: &str) -> bool {
+        match self {
+            Needle::Text(text) => line.to_lowercase().contains(text.as_str()),
+            Needle::Pattern(re) => re.is_match(line),
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>, regex: Option<bool>) -> Result<Vec<GrepMatch>, String> {
+    super::off_main(move || grep_blocking(dir, pattern, file_ext, regex.unwrap_or(false))).await
+}
+
+fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>, regex: bool) -> Result<Vec<GrepMatch>, String> {
     guard_agent_path(&dir)?;
     let root = walk_root(&dir)?;
-    let pat_lower  = pattern.to_lowercase();
+    let needle     = Needle::new(&pattern, regex)?;
     let ext_filter = file_ext.map(|e| e.to_lowercase());
     let mut results = Vec::new();
-    grep_recursive(&root, Path::new(&dir), &pat_lower, &ext_filter, &mut results, 0)?;
+    grep_recursive(&root, Path::new(&dir), &needle, &ext_filter, &mut results, 0)?;
     Ok(results)
 }
 
 fn grep_recursive(
-    root: &Path, dir: &Path, pattern: &str, ext_filter: &Option<String>,
+    root: &Path, dir: &Path, needle: &Needle, ext_filter: &Option<String>,
     results: &mut Vec<GrepMatch>, depth: usize,
 ) -> Result<(), String> {
     if depth > 8 || results.len() >= 300 { return Ok(()); }
@@ -718,7 +755,7 @@ fn grep_recursive(
         if name.starts_with('.') || name == "node_modules" || name == "target" || name == ".git" { continue; }
         if link_escapes_root(root, &entry) { continue; }
         if p.is_dir() {
-            let _ = grep_recursive(root, &p, pattern, ext_filter, results, depth + 1);
+            let _ = grep_recursive(root, &p, needle, ext_filter, results, depth + 1);
         } else {
             let file_ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
             if let Some(ref want) = ext_filter {
@@ -729,7 +766,7 @@ fn grep_recursive(
             if let Ok(content) = fs::read_to_string(&p) {
                 let lines: Vec<&str> = content.lines().collect();
                 for (i, line) in lines.iter().enumerate() {
-                    if !line.to_lowercase().contains(pattern) { continue; }
+                    if !needle.finds(line) { continue; }
                     let ctx_start = i.saturating_sub(2);
                     let ctx_end   = (i + 3).min(lines.len());
                     let context   = lines[ctx_start..ctx_end]
@@ -829,6 +866,7 @@ mod tests {
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),
+            false,
         )
         .unwrap();
         assert_eq!(
@@ -865,6 +903,7 @@ mod tests {
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),
+            false,
         )
         .unwrap();
         assert_eq!(hits.len(), 0, "a search read a file outside the folder it was given");
@@ -891,6 +930,7 @@ mod tests {
             project.to_string_lossy().into_owned(),
             "sentinel".into(),
             Some("txt".into()),
+            false,
         )
         .unwrap();
         // Twice: once at its real path, once through the link. Being reachable
@@ -954,6 +994,53 @@ mod tests {
 // picture, and these run everywhere on purpose: a rule only exercised on macOS
 // is a rule nobody notices rotting on the two platforms CI also builds for.
 #[cfg(test)]
+mod pattern_tests {
+    use super::*;
+
+    fn finds(pattern: &str, line: &str) -> bool {
+        Needle::new(pattern, true).unwrap().finds(line)
+    }
+
+    #[test]
+    fn a_pattern_of_alternatives_finds_each_one_even_a_single_character() {
+        assert!(finds("love|\u{2728}", "Spin now \u{2728}"));
+        assert!(finds("a|b", "b"));
+        assert!(!finds("love|\u{2728}", "Spin now"));
+    }
+
+    #[test]
+    fn a_class_of_pictures_and_a_unicode_class_find_them() {
+        assert!(finds("[\u{1F495}\u{1F3B2}]", "Made with \u{1F495} for date night"));
+        assert!(!finds("[\u{1F495}\u{1F3B2}]", "Made with care"));
+        assert!(finds("\\p{Extended_Pictographic}", "Roll \u{1F3B2}"));
+        assert!(!finds("\\p{Extended_Pictographic}", "Roll the dice"));
+    }
+
+    #[test]
+    fn a_pattern_ignores_case_as_plain_text_does() {
+        assert!(finds("spinWheel|confetti", "function SpinWheel() {}"));
+        assert!(Needle::new("SPINWHEEL", false).unwrap().finds("const spinwheel = 1;"));
+    }
+
+    #[test]
+    fn plain_text_is_read_as_written() {
+        let text = Needle::new("price ($)", false).unwrap();
+        assert!(text.finds("<p>Price ($) per night</p>"));
+        assert!(!text.finds("<p>Price per night</p>"));
+    }
+
+    #[test]
+    fn a_pattern_that_cannot_be_read_or_is_too_large_is_refused_by_name() {
+        for bad in ["(unclosed", "[z-a]", "a{1000}{1000}{1000}"] {
+            match Needle::new(bad, true) {
+                Err(e) => assert_eq!(e, NOT_A_PATTERN, "{bad}"),
+                Ok(_) => panic!("{bad} was read as a pattern"),
+            }
+        }
+    }
+}
+
+#[cfg(test)]
 mod containment_tests {
     use super::*;
 
@@ -976,6 +1063,22 @@ mod containment_tests {
         fs::create_dir_all(&dir).unwrap();
         crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
         (dir, turn)
+    }
+
+    #[test]
+    fn a_search_reads_a_pattern_across_the_folder_and_refuses_one_it_cannot_read() {
+        let (root, _turn) = scratch("pattern");
+        fs::write(root.join("index.html"), "<h1>Plan B</h1>\n<p>Made with \u{1F495}</p>\n").unwrap();
+        fs::write(root.join("app.js"), "const total = 1;\n").unwrap();
+        let dir = root.to_string_lossy().into_owned();
+
+        let hits = grep_blocking(dir.clone(), "\u{1F495}|TOTAL".into(), None, true).unwrap();
+        let lines: Vec<&str> = hits.iter().map(|m| m.line.as_str()).collect();
+        assert_eq!(hits.len(), 2, "{lines:?}");
+        assert!(grep_blocking(dir.clone(), "\u{1F495}|TOTAL".into(), None, false).unwrap().is_empty());
+        assert_eq!(grep_blocking(dir, "(unclosed".into(), None, true).err().as_deref(), Some(NOT_A_PATTERN));
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

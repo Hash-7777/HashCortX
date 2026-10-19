@@ -456,21 +456,21 @@ console.log('\ngrep_code reads a pattern written as a regular expression:');
   vm.createContext(box);
   vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), box, { filename: 'hashcoder.js' });
   const T = box.window.HC;
-  const plan = (p) => { const r = T.code.patternOf(p); return r.regex ? r.pieces.join(' | ') : 'plain'; };
-  ok('plain text stays plain text', plan('useState') === 'plain' && plan('foo.bar') === 'plain' && plan('price ($)') === 'plain');
-  ok('alternatives are searched by the plain text of each', plan('founded|established|since') === 'founded | established | since');
-  ok('a wildcard between words searches both', plan('over.*decade') === 'decade | over' && plan('function\\s+render') === 'function | render');
-  ok('an escaped character is plain text', plan('\\.modal-overlay\\s*\\{') === '.modal-overlay' && plan('fetchUser\\(id\\)') === 'fetchUser(id)');
-  ok('a group of alternatives inside one is read as one', plan('(get|set)User') === 'User');
-  ok('an alternative with nothing plain to search for, or a broken expression, is searched as plain text', plan('a|b') === 'plain' && plan('(unclosed|x') === 'plain');
-  const lines = { '/p/index.html': ['<p class="badge">Over 20 Years of Trusted Care</p>', '<h1>Orchard Crumb</h1>', '<p>Founded in the village</p>'], '/p/style.css': ['.modal-overlay {', '  inset: 0;'] };
+  const looks = T.code.looksLikePattern;
+  ok('plain text stays plain text', !looks('useState') && !looks('foo.bar') && !looks('price ($)') && !looks('.modal-overlay {'));
+  ok('alternatives, wildcards, classes and escapes are patterns, one letter or one picture an alternative too',
+    looks('founded|established') && looks('over.*decade') && looks('function\\s+render') && looks('a|b') && looks('[\u{1F495}\u{1F3B2}]') && looks('\\p{Emoji}'));
+  const lines = { '/p/index.html': ['<p class="badge">Over 20 Years of Trusted Care</p>', '<h1>Orchard Crumb</h1>', '<p>Founded in the village</p>', '<footer>Made with \u{1F495}</footer>'], '/p/style.css': ['.modal-overlay {', '  inset: 0;'] };
   T.guard = { request: async () => true };
   const asked = [];
+  // The search as src-tauri/src/commands/fs.rs makes it: plain text, or with regex a pattern, refused by name when it cannot be read.
   T.invoke = async (cmd, a) => {
     if (cmd !== 'fs_grep') return null;
-    asked.push(a.pattern);
+    asked.push(`${a.regex ? 'pattern' : 'text'}:${a.pattern}`);
+    let re = null;
+    if (a.regex) { try { re = new RegExp(a.pattern, 'iu'); } catch { throw new Error('Not a pattern this search reads'); } }
     const out = [];
-    for (const [path, list] of Object.entries(lines)) list.forEach((line, n) => { if (line.toLowerCase().includes(String(a.pattern).toLowerCase())) out.push({ path, line_no: n + 1, line, context: line }); });
+    for (const [path, list] of Object.entries(lines)) list.forEach((line, n) => { if (re ? re.test(line) : line.toLowerCase().includes(String(a.pattern).toLowerCase())) out.push({ path, line_no: n + 1, line, context: line }); });
     return out;
   };
   const tool = T.code.TOOL_DEFINITIONS.find((t) => t.name === 'grep_code').fn;
@@ -478,13 +478,23 @@ console.log('\ngrep_code reads a pattern written as a regular expression:');
   ok('a pattern of alternatives finds the lines that hold any of them', Array.isArray(found) && found.length === 1 && found[0].line.includes('Over 20 Years'), JSON.stringify(found));
   const across = await tool({ dir: '/p', pattern: 'over.*years|founded' });
   ok('...each once, in the order of the files', Array.isArray(across) && across.map((m) => m.line_no).join() === '1,3', JSON.stringify(across));
+  const picture = await tool({ dir: '/p', pattern: '\u2728|\u{1F495}' });
+  ok('an alternative of one character, a picture here, is searched as a pattern, not as text', Array.isArray(picture) && picture.length === 1 && picture[0].line_no === 4, JSON.stringify(picture));
   const none = await tool({ dir: '/p', pattern: 'established|since' });
   ok('nothing found says it was read as a regular expression', none && none.matches && none.matches.length === 0 && /matches "established\|since", read as a regular expression, case-insensitive/.test(none.note), JSON.stringify(none));
   asked.length = 0;
   const plainOne = await tool({ dir: '/p', pattern: 'Orchard' });
-  ok('plain text is one search, as before', Array.isArray(plainOne) && plainOne.length === 1 && asked.join() === 'Orchard');
+  ok('plain text is one search, as before', Array.isArray(plainOne) && plainOne.length === 1 && asked.join() === 'text:Orchard');
+  asked.length = 0;
+  await tool({ dir: '/p', pattern: 'a|b' });
+  ok('a pattern is one search as text and one as a pattern, made by the search itself', asked.join() === 'text:a|b,pattern:a|b');
   const literal = await tool({ dir: '/p', pattern: '.modal-overlay {' });
   ok('a line holding the pattern as plain text is found', Array.isArray(literal) && literal.length === 1);
+  const unread = await tool({ dir: '/p', pattern: '(unclosed|x' });
+  ok('a pattern the search cannot read is searched as plain text, and an empty answer says so', unread && unread.matches && unread.matches.length === 0 && /contains "\(unclosed\|x", searched as plain text, since it is not a regular expression this search reads/.test(unread.note), JSON.stringify(unread));
+  const rust = src('..', 'src-tauri', 'src', 'commands', 'fs.rs');
+  ok('...the words it is refused with are the ones the search uses', /pub const NOT_A_PATTERN: &str = "Not a pattern this search reads";/.test(rust) && src('platform', 'tauri', 'hashcoder.js').includes("includes('Not a pattern this search reads')"));
+  ok('the search reads the pattern with the regex crate, ignoring case and within a size limit', /regex::RegexBuilder::new\(pattern\)\s*\.case_insensitive\(true\)\s*\.size_limit\(/.test(rust) && /regex: Option<bool>/.test(rust));
   ok('its description says a regular expression works', /regular expression/.test(T.code.TOOL_DEFINITIONS.find((t) => t.name === 'grep_code').parameters.pattern.description));
 }
 

@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's code search reads every pattern it is given.** A pattern
+  with a one-letter or one-symbol alternative, a class of characters such
+  as emoji, or a Unicode class was searched as plain text, so it found
+  nothing and the model could take that as the text being gone. Patterns
+  are now matched by the search itself, ignoring case; one it cannot read
+  is searched as plain text, and the answer says so.
 - **HashCoder's second look no longer reports files it was not shown as
   missing.** Changes too long to show the reviewer in full were cut with
   only "the rest is not shown", and it could report a changed file as

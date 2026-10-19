@@ -352,14 +352,14 @@
       const ok = await HC.guard.request('search', dir, `Grep: ${pattern}`);
       if (!ok) throw await HC.code.refused('search', dir);
       const raw = await HC.invoke('fs_grep', { dir, pattern, fileExt });
-      // A pattern written as a regular expression, as most models write one, is searched by its plain pieces and
-      // matched whole (patternOf); lines holding it as plain text count too. Searched as plain text alone, "a|b" found nothing.
-      const plan = HC.code.patternOf(pattern);
-      if (!plan.regex || !Array.isArray(raw)) return HC.code.linesFound(raw, pattern);
-      const found = new Map(raw.map((m) => [`${m.path}\n${m.line_no}`, m]));
-      for (const list of await Promise.all(plan.pieces.map((piece) => HC.invoke('fs_grep', { dir, pattern: piece, fileExt }).catch(() => [])))) {
-        for (const m of Array.isArray(list) ? list : []) if (plan.regex.test(m.line)) found.set(`${m.path}\n${m.line_no}`, m);
-      }
+      // A pattern written as a regular expression, as most models write one, is matched as one by the search itself
+      // (src-tauri/src/commands/fs.rs Needle), case-insensitive; lines holding it as plain text count too. One it
+      // cannot read is searched as plain text alone, and an answer with nothing found says so.
+      if (!HC.code.looksLikePattern(pattern) || !Array.isArray(raw)) return HC.code.linesFound(raw, pattern);
+      let matched;
+      try { matched = await HC.invoke('fs_grep', { dir, pattern, fileExt, regex: true }); }
+      catch (e) { if (String(e?.message || e).includes('Not a pattern this search reads')) return HC.code.linesFound(raw, pattern, 'unread'); throw e; }
+      const found = new Map([...raw, ...(Array.isArray(matched) ? matched : [])].map((m) => [`${m.path}\n${m.line_no}`, m]));
       const all = [...found.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line_no - b.line_no)).slice(0, 300);
       return HC.code.linesFound(all, pattern, true);
     },
@@ -461,45 +461,16 @@
     if (!Array.isArray(list) || list.length) return list;
     const words = [...new Set((String(pattern || '').match(/[A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,}/g) || []).map((w) => w.toLowerCase()))];
     const next = words.length > 1 ? `a shorter word from it, such as ${words.slice(-2).reverse().map((w) => `"${w}"`).join(' or ')}` : 'a different word';
-    return { matches: [], note: `No line in these files ${regex ? 'matches' : 'contains'} "${pattern}"${regex ? ', read as a regular expression, case-insensitive' : ''}, so nothing is known about it yet. Search ${next}, or list_dir the project, before you answer or change anything.` };
+    const how = regex === true ? ', read as a regular expression, case-insensitive' : regex === 'unread' ? ', searched as plain text, since it is not a regular expression this search reads' : '';
+    return { matches: [], note: `No line in these files ${regex === true ? 'matches' : 'contains'} "${pattern}"${how}, so nothing is known about it yet. Search ${next}, or list_dir the project, before you answer or change anything.` };
   };
 
   /**
-   * How grep_code searches a pattern: `{ regex, pieces }`, `regex` the
-   * pattern as a case-insensitive regular expression when it is written as
-   * one (alternatives, wildcards, classes, anchors, escapes), with `pieces`,
-   * the plain text each alternative must hold, its two longest, for the
-   * plain-text search to find; `{ regex: null }` for plain text, or for a
-   * pattern that is not a valid expression or has an alternative with no
-   * plain text of two characters or more to search for.
+   * Whether grep_code's pattern is written as a regular expression:
+   * alternatives, wildcards, classes, anchors, escapes. Plain text, such as
+   * "foo.bar" or "price ($)", is searched as it is written.
    */
-  HC.code.patternOf = (pattern) => {
-    const p = String(pattern || '');
-    const none = { regex: null, pieces: [] };
-    if (!/\||\.[*+?]|\\[bdswBDSW.()[\]{}|*+?^$]|\[[^\]]+\]|^\^|[^\\]\$$|\(\?:|\{\d/.test(p)) return none;
-    let regex;
-    try { regex = new RegExp(p, 'i'); } catch { return none; }
-    const alts = [];
-    let depth = 0, at = 0;
-    for (let i = 0; i < p.length; i++) {
-      const c = p[i];
-      if (c === '\\') { i++; continue; }
-      if (c === '(' || c === '[') depth++;
-      else if ((c === ')' || c === ']') && depth) depth--;
-      else if (c === '|' && !depth) { alts.push(p.slice(at, i)); at = i + 1; }
-    }
-    alts.push(p.slice(at));
-    const pieces = [];
-    for (const alt of alts) {
-      // An escaped character is plain text: held aside as a private character while the rest is split at what is not.
-      const plain = alt.replace(/\\([.()[\]{}|*+?^$\\/-])/g, (_, c) => String.fromCharCode(0xE000 + c.charCodeAt(0))).replace(/\([^()]*\|[^()]*\)|\\[bdswBDSW]|\[[^\]]*\]|\{\d+(?:,\d*)?\}|\(\?[:=!]/g, '\u0001')
-        .split(/[\u0001.*+?^$()|\\]/).map((x) => x.replace(/[\uE000-\uE07F]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xE000)).trim()).filter((x) => x.length >= 2).sort((a, b) => b.length - a.length);
-      if (!plain.length) return none;
-      // The two longest, so a common word that fills the search's limit cannot hide the lines the other finds.
-      for (const piece of plain.slice(0, 2)) if (!pieces.some((x) => x.toLowerCase() === piece.toLowerCase())) pieces.push(piece);
-    }
-    return { regex, pieces: pieces.slice(0, 10) };
-  };
+  HC.code.looksLikePattern = (pattern) => /\||\.[*+?]|\\[bdswBDSWpP.()[\]{}|*+?^$]|\[[^\]]+\]|^\^|[^\\]\$$|\(\?:|\{\d/.test(String(pattern || ''));
 
   /**
    * A command line as its words, quotes honoured, or null when it needs a

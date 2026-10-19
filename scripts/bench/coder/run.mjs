@@ -417,8 +417,11 @@ const NATIVE = {
     });
     return out.sort((a, b) => a.score - b.score).slice(0, 15);
   },
-  fs_grep: ({ dir, pattern, fileExt }) => {
+  fs_grep: ({ dir, pattern, fileExt, regex }) => {
     const q = String(pattern || '').toLowerCase();
+    // A pattern, as src-tauri/src/commands/fs.rs reads one: case-insensitive, refused by name when it cannot be read.
+    let re = null;
+    if (regex) { try { re = new RegExp(String(pattern || ''), 'iu'); } catch { throw new Error('Not a pattern this search reads'); } }
     const want = fileExt ? String(fileExt).toLowerCase() : null;
     const out = [];
     walk(inProject(dir), 0, (p, e) => {
@@ -429,7 +432,7 @@ const NATIVE = {
       try { lines = fs.readFileSync(p, 'utf8').split(/\r?\n/); } catch { return true; }
       if (lines.length && lines[lines.length - 1] === '') lines.pop();
       lines.forEach((line, i) => {
-        if (out.length >= 300 || !line.toLowerCase().includes(q)) return;
+        if (out.length >= 300 || !(re ? re.test(line) : line.toLowerCase().includes(q))) return;
         const from = Math.max(0, i - 2);
         const context = lines.slice(from, Math.min(lines.length, i + 3))
           .map((l, j) => `${String(from + j + 1).padStart(4)} ${from + j === i ? '▶ ' : '  '}${l}`).join('\n');

@@ -1643,6 +1643,7 @@ dependencies = [
  "hashcortx-cpu-check",
  "keyring",
  "ort",
+ "regex",
  "security-framework 2.11.1",
  "serde",
  "serde_json",
