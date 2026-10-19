@@ -78,6 +78,26 @@
   };
   const base = (p) => String(p || '').split(/[\\/]/).pop().toLowerCase();
 
+  /** Programs that make, move or remove files: cmd's own on Windows, and git's that do. */
+  const MAKERS = new Set(['mkdir', 'touch', 'cp', 'mv', 'rm', 'rmdir', 'ln', 'unzip', 'ditto', 'md', 'copy', 'move', 'del', 'erase', 'rd', 'ren', 'rename', 'xcopy', 'robocopy']);
+  const GIT_MAKERS = new Set(['mv', 'rm', 'init', 'clone']);
+
+  /**
+   * The paths a command makes, moves or removes, or [] for one that does
+   * none of that: `mkdir -p site/css`, `cmd /d /c mkdir data`, `git mv a b`.
+   * Asked to make a folder, a model ran mkdir, and was sent back for having
+   * changed no file, since only the file tools were counted.
+   */
+  function madeBy(command, args) {
+    let words = [String(command || ''), ...(Array.isArray(args) ? args : [])].map(String).filter((w) => w.trim());
+    if (base(words[0]).replace(/\.exe$/, '') === 'cmd') words = words.slice(words.findIndex((w) => /^\/c$/i.test(w)) + 1 || words.length);
+    const prog = base(words[0] || '').replace(/\.exe$/, '');
+    let rest = words.slice(1);
+    if (prog === 'git') { if (!GIT_MAKERS.has(rest[0])) return []; rest = rest.slice(1); }
+    else if (!MAKERS.has(prog)) return [];
+    return rest.filter((w) => !/^-/.test(w) && !/^\/[A-Za-z?]{1,2}$/.test(w));
+  }
+
   /**
    * What kind of check a command is — 'test', 'lint', 'typecheck', 'build',
    * 'format' — or null for a command that checks nothing. `args` is the list
@@ -250,6 +270,7 @@
     let lastExample = -1;
     let site = null;
     const changed = [];
+    const made = [];
     const checks = [];
     return {
       edited(path) {
@@ -267,6 +288,7 @@
       siteAfter() { return site && site.step > lastEdit ? { ...site } : null; },
       ran(command, args, result) {
         step++;
+        if (result && result.code === 0 && !result.timedOut) for (const p of madeBy(command, args)) if (!made.includes(p)) made.push(p);
         const kind = commandKind(command, args);
         if (!kind || !result || typeof result.code !== 'number' || neverRan(result)) return null;
         const entry = {
@@ -280,6 +302,8 @@
         return entry;
       },
       get changed() { return changed.slice(); },
+      /** What commands that succeeded made, moved or removed (madeBy): files, but not code the run wrote. */
+      get made() { return made.slice(); },
       get checks() { return checks.slice(); },
       /** Whether code was changed in this run at all. */
       get codeChanged() { return lastCodeEdit >= 0; },
@@ -603,7 +627,7 @@
    * run has already been sent back for it.
    */
   function unmadeChange(log, messages, reply, sentBack = 0, limit = 1, { wordsToo = false } = {}) {
-    if (!log || log.changed.length || sentBack >= limit) return null;
+    if (!log || log.changed.length || (log.made && log.made.length) || sentBack >= limit) return null;
     if (/\?\s*$/.test(String(reply || '').trim()) && !wordsToo) return null;   // asking the person something
     const request = requestIn(messages);
     if (!CHANGE_WORDS.test(request) || KEEP_FILES.test(request)) return null;   // "do not change any files" names a change and asks for none
@@ -883,7 +907,7 @@
    */
   function saidChanged(reply, log) {
     const prose = proseOf(reply);
-    const changed = new Set((log && log.changed ? log.changed : []).map(baseOf));
+    const changed = new Set([...(log && log.changed ? log.changed : []), ...(log && log.made ? log.made : [])].map(baseOf));
     const none = !changed.size && SAID_CHANGE.some((re) => re.test(prose));
     const files = [];
     for (const re of FILE_CHANGED) {
@@ -1108,7 +1132,7 @@
   }
 
   window.HCCodeVerify = {
-    commandKind, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
+    commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
     exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
     aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
   };

@@ -8,6 +8,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Fixed
+
+- **A folder made with a command counts as a change.** Asked to make a
+  folder, HashCoder ran `mkdir`, said so, and was sent back for saying it
+  had changed files when it had not, and once for changing no file at all.
+  A command that succeeds in making, moving or removing files now counts as
+  a change made.
+
 ## [3.3.0] — 2026-10-19
 
 The focus release. Local models answer sooner: the window fits the graphics

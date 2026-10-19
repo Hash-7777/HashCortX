@@ -455,6 +455,16 @@ console.log('\nA change the answer says it made, when none was made:');
   ok('...naming the files the run did not change', f && /your answer says style\.css was changed, and this run did not change style\.css\./.test(f.message), f && f.message);
   ok('nothing said, nothing sent', V.saidNote('I updated index.html.', one, 0) === null && V.saidNote('Done.', none, 0) === null && V.saidNote(says[1], null, 0) === null);
   ok('a saved conversation shows the note as its step', V.noteStep(n.message) === V.SAID_STEP);
+  const made = V.proofLog(); made.ran('mkdir', ['-p', '/u/Desktop/Plan B'], { code: 0, stdout: '', stderr: '' });
+  ok('a folder a command made is a change made: "I created the folder" is not sent back', made.made.length === 1 && V.saidNote('I have created the folder `Plan B` on your Desktop.', made, 0) === null && V.saidLine('I created the folder.', made) === '');
+  ok('...and a run asked to make one is not sent back to change a file', V.unmadeChange(made, [{ role: 'user', content: 'create a folder on the desktop called Plan B' }], 'Folder created.', 0, 1, { wordsToo: true }) === null);
+  const failedMk = V.proofLog(); failedMk.ran('mkdir', ['/u/x'], { code: 1, stderr: 'File exists' });
+  ok('a command that failed made nothing', failedMk.made.length === 0 && V.saidNote('I created the folder.', failedMk, 0) !== null);
+  ok('the paths a command makes, moves or removes: flags left out, through cmd and git too',
+    JSON.stringify(V.madeBy('mkdir', ['-p', 'site/css'])) === '["site/css"]' && JSON.stringify(V.madeBy('cmd', ['/d', '/c', 'mkdir', 'data'])) === '["data"]'
+    && JSON.stringify(V.madeBy('git', ['mv', 'a.js', 'b.js'])) === '["a.js","b.js"]' && V.madeBy('git', ['status']).length === 0
+    && V.madeBy('ls', ['-la']).length === 0 && JSON.stringify(V.madeBy('/bin/cp', ['a.txt', '/abs/b.txt'])) === '["a.txt","/abs/b.txt"]');
+  ok('a file a command moved, named as changed, is not called unchanged', V.saidChanged('I renamed old.js and moved it: new.js was created.', (() => { const l = V.proofLog(); l.ran('mv', ['old.js', 'new.js'], { code: 0 }); return l; })()).files.length === 0);
   ok('an answer that still says so is told under it, from the record', V.saidLine(says[1], none) === 'No file was changed in this run.' && V.saidLine('I updated index.html and style.css.', one) === 'Not changed in this run: style.css.' && V.saidLine('I updated index.html.', one) === '');
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder asks it after a search said and not made, with Prove changes on, once, and says what is left under the answer',
