@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A model changing a file one passage at a time is told to batch.**
+  A model that changed one file again and again, one passage per call,
+  spent a step on each and could reach the step limit before it finished.
+  At the third such change in a row, `patch_file`'s answer tells it to pass
+  the rest of its changes to that file together, in one call.
 - **A patch answers with what it changed.** HashCoder's `patch_file` said
   only that it had succeeded, so models read the file again to see the
   result, a step each time. Its answer now carries the changed lines as the

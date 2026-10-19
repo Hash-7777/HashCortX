@@ -68,7 +68,7 @@ console.log('\nHashCoder:');
   ok('a larger model keeps its plan with the tool, not written out in a reply held to a few sentences', /Complex tasks → keep the plan with update_plan rather than in your reply/.test(tools) && !/announce the plan/.test(tools));
   ok('to a mid-sized model too, but not a small one', /MID_MODEL_TOOLS = \[\.\.\.HC\.code\.SMALL_MODEL_TOOLS, [^\]]*'update_plan'/.test(tools) && !/SMALL_MODEL_TOOLS = \[[^\]]*update_plan/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
-  ok('clears the plan for each request', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; \}   \/\/ a plan, a checklist and the request's words are for one request/.test(mode));
+  ok('clears the plan for each request', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}   \/\/ a plan, a checklist, the request's words and a row of one-edit patches are for one request/.test(mode));
   ok('reads it back on a copy, never saved', /const told = \[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\[\.\.\.messages, \{ role: 'user', content: told, note: true \}\]/.test(mode));
   ok('and hands it to the finishing checks', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode) && /const sent = \{ make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0, passed: 0, cut: 0, ahead: 0 \};/.test(mode));
   const steps = src('js', 'code', 'steps.js');

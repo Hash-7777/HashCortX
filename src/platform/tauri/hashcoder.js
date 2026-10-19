@@ -186,6 +186,9 @@
     /** The person's words for the request in progress, so an edit can say what it took away that they do not name (js/code/keep.js). */
     request: '',
 
+    /** The file the last one-edit patch_file calls of this request changed, and how many in a row, `{ path, n }`, or null. */
+    patchRow: null,
+
     /** Where save_lesson keeps a lesson, `{ root, local }`, or null while lessons are switched off; set by the Coder panel. */
     lessonsFor: null,
 
@@ -347,6 +350,9 @@
       if (edits.length > 1) out.edits = edits.length;
       if (next.notes.length) out.matched = next.notes.join('; ');
       if (out.ok && window.HCDiff && P.changedNow) out.now = P.changedNow(window.HCDiff.diffLines(before, next.text));
+      // A file changed one passage a call, again and again, cost a step each time (patchRow is set again for each request).
+      const row = HC.code.patchRow = edits.length === 1 && HC.code.patchRow?.path === path ? { path, n: HC.code.patchRow.n + 1 } : { path, n: edits.length === 1 ? 1 : 0 };
+      if (out.ok && row.n === 3) out.hint = `This is the third change to ${String(path).split(/[\\/]/).pop()} in a row made one passage at a time. Pass the rest of the changes to it together, in edits, in one call.`;
       return JSON.stringify(out);
     },
 

@@ -306,6 +306,18 @@ console.log('\npatch_file writes back the whole file:');
   ok('changes far apart are shown apart, the gap marked', now(ten, ten.replace('row 2\n', 'ROW 2\n').replace('row 9\n', 'ROW 9\n')) === ' 1| row 1\n 2| ROW 2\n 3| row 3\n…\n 8| row 8\n 9| ROW 9\n10| row 10');
   ok('no more than the most it shows, saying how many more', /\n… and 3 more lines around the changes, not shown$/.test(P.changedNow(D.diffLines(ten, ten.toUpperCase()), { most: 7 })) && P.SHOWN_MOST === 12);
   ok('nothing changed, nothing shown', P.changedNow(D.diffLines(ten, ten)) === '');
+  // A file changed one passage a call, again and again.
+  disk.set('/p/row.html', '<a>1</a>\n<b>2</b>\n<c>3</c>\n<d>4</d>\n<e>5</e>\n');
+  sandbox.HC.code.patchRow = null;
+  const one = async (s, r, path = '/p/row.html') => JSON.parse(await code.patchFile(path, s, r));
+  const first = await one('<a>1</a>', '<a>A</a>'), second = await one('<b>2</b>', '<b>B</b>'), third = await one('<c>3</c>', '<c>C</c>');
+  ok('the third one-edit patch in a row to a file is told to pass the rest together, in edits', !first.hint && !second.hint && /^This is the third change to row\.html in a row made one passage at a time\. Pass the rest of the changes to it together, in edits, in one call\.$/.test(third.hint), JSON.stringify(third));
+  ok('...once, not on every patch after it', !(await one('<d>4</d>', '<d>D</d>')).hint);
+  disk.set('/p/other.css', 'a {}\n');
+  await one('a {}', 'b {}', '/p/other.css');
+  const many = JSON.parse(await code.patchFile('/p/row.html', '<e>5</e>', '<e>E</e>', '', [{ search: '<a>A</a>', replace: '<a>a</a>' }]));
+  ok('another file, or a patch of several edits, starts the count again', sandbox.HC.code.patchRow.n === 0 && !many.hint && !(await one('<a>a</a>', '<a>1</a>')).hint && !(await one('<b>B</b>', '<b>2</b>')).hint);
+  ok('HashCoder starts the count again for each request', /HC\.code\.request = task; HC\.code\.patchRow = null; \}/.test(src('modes', 'code', 'mode.js')));
   // Every change given in edits, with or without the top repeated.
   const E = (search, replace, all, more) => { try { return P.editsOf(search, replace, all, more); } catch (e) { return String(e.message); } };
   ok('a change at the top and the rest in edits are all made, in order', JSON.stringify(E('a', 'b', false, [{ search: 'c', replace: 'd' }]).map((x) => x.search + '>' + x.replace)) === '["a>b","c>d"]');

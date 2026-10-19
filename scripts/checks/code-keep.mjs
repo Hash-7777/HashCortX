@@ -87,7 +87,7 @@ console.log('\nHashCoder:');
   ok('every write says what it took away, beside the bracket check, with the request\'s words',
     /const removed = window\.HCCodeKeep\?\.note\(path\.split\(\/\[\\\\\/\]\/\)\.pop\(\) \|\| path, before, ends\.text, HC\.code\.request\) \|\| '';/.test(tools) && /\.\.\.\(removed \? \{ removed \} : \{\}\)/.test(tools));
   const mode = src('modes', 'code', 'mode.js');
-  ok('the request\'s words are kept for that request', /HC\.code\.asks = asks; HC\.code\.request = task; \}/.test(mode));
+  ok('the request\'s words are kept for that request', /HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}/.test(mode));
   ok('the second look looks for what was removed without being asked', /above all anything removed or rewritten that it did not ask to change/.test(src('js', 'code', 'review.js')));
   const verify = src('js', 'code', 'verify.js');
   ok('and so do the checks against the request, whole or ask by ask', /Put back anything you removed that it did not ask to remove\./.test(verify) && /put back anything you removed that no ask asked to remove\./.test(verify));
