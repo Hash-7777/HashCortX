@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **HashCoder's notes are shown for what they are.** A note asking a model
+  what it did at the step limit, and one about files not joined up, were
+  shown in a reopened conversation and in its export as "Sent back to run
+  the tests before finishing". Each now shows its own step, and a note the
+  app has no name for is shown as a note from the app.
 - **A run that reaches its step limit says what it did once.** HashCoder's
   account of a run stopped at its step limit was added to the
   conversation twice, so the model read it twice from then on and an

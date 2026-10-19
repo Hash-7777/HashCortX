@@ -20,6 +20,9 @@ vm.createContext(sandbox);
 vm.runInContext(src('js', 'fences.js'), sandbox, { filename: 'fences.js' });
 vm.runInContext(src('js', 'code', 'verify.js'), sandbox, { filename: 'verify.js' });
 const V = sandbox.window.HCCodeVerify;
+// The step-limit note is written in js/agent-policy.js; its label is read here.
+vm.runInContext(src('js', 'agent-policy.js'), sandbox, { filename: 'agent-policy.js' });
+const policyNote = sandbox.window.HCAgentPolicy.wrapUpNote('hard-limit', 1);
 
 let pass = 0;
 let fail = 0;
@@ -248,7 +251,13 @@ console.log('\nThe work checked against the request:');
   const long = V.reviewCheck(log, 'x'.repeat(5000), 'Done.');
   ok('a long request is quoted in part', long && long.message.length < 1800 && long.message.includes('x'.repeat(1200) + '…'));
   ok('the other notes keep their own steps', V.noteStep(`${V.APP_NOTE} you changed a.js and no test has run since.`) === 'Sent back to run the tests before finishing'
-    && V.noteStep(`${V.APP_NOTE} your reply shows code, but no file in the project was changed.`) === 'Sent back to make the change in the files');
+    && V.noteStep(`${V.APP_NOTE} your reply shows code, but no file in the project was changed.`) === 'Sent back to make the change in the files'
+    && V.noteStep(`${V.APP_NOTE} \`npm test\` failed after your last change.`) === 'Sent back to run the tests before finishing');
+  ok('the note asking what a run did at the step limit is shown as that, not as a test to run', V.noteStep(policyNote) === V.WRAP_STEP && V.WRAP_STEP === 'Asked what it did, at the step limit');
+  ok('a note for files not joined up keeps its own step; a note the app does not know is called a note, not a test to run',
+    V.noteStep(`${V.APP_NOTE} the files you changed use each other, and are not joined up:\n- a.js`) === 'Sent back: files that use each other are not joined up'
+    && src('js', 'code', 'wiring.js').includes("step: 'Sent back: files that use each other are not joined up'")
+    && V.noteStep(`${V.APP_NOTE} something new.`) === V.OTHER_STEP);
 }
 
 console.log('\nWhat sends it back, in order:');

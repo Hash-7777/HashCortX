@@ -338,12 +338,16 @@
   const NAMED_SAYS = 'which the project does not have';
   const FACTS_STEP = 'Sent back to confirm the details it wrote';
   const FACTS_SAYS = 'were read for details a visitor would take as fact';
+  /** The step for the account asked for at the step limit (js/agent-policy.js wrapUpNote), for files not joined up (js/code/wiring.js), and for any other note. */
+  const WRAP_STEP = 'Asked what it did, at the step limit';
+  const WIRED_STEP = 'Sent back: files that use each other are not joined up';
+  const OTHER_STEP = 'A note from the app';
   /** The step when the app ran the test itself, for a small model that had not. */
   const RAN_STEP = 'Ran the tests itself, as the change had not been tested';
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(PASSED_SAYS) ? PASSED_STEP : t.includes(AHEAD_SAYS) ? AHEAD_STEP : t.includes(CUT_SAYS) ? CUT_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : PROVE_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(PASSED_SAYS) ? PASSED_STEP : t.includes(AHEAD_SAYS) ? AHEAD_STEP : t.includes(CUT_SAYS) ? CUT_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : /no test has run since|failed after your last change/.test(t) ? PROVE_STEP : t.includes('has used all the steps it is given') ? WRAP_STEP : t.includes('are not joined up') ? WIRED_STEP : OTHER_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -1133,7 +1137,7 @@
 
   window.HCCodeVerify = {
     commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
-    exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
+    exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, WRAP_STEP, OTHER_STEP, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
     aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
   };
 })();
