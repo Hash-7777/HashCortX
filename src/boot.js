@@ -84,6 +84,7 @@
     '/js/code/verify.js',
     '/js/code/context.js',
     '/js/code/digest.js',
+    '/js/code/pipe.js',
     '/js/code/plan.js',
     '/js/code/balance.js',
     '/js/code/review.js',

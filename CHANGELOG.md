@@ -8,6 +8,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Changed
+
+- **A command piped into a filter runs.** A model that wrote a line such as
+  `ioreg -l | grep -i gpu | head -20` had it refused, since HashCoder runs
+  one program and no shell, and spent a step writing it again. The first
+  program now runs, asked about as itself, and the app applies `grep`,
+  `head`, `tail`, `wc`, `sort` or `uniq` to what it printed, and says so.
+  `2>/dev/null` and `2>&1` are read too. Any other shell line is refused
+  as before.
+
 ### Fixed
 
 - **HashCoder's code search reads every pattern it is given.** A pattern

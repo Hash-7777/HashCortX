@@ -239,12 +239,19 @@ console.log('\nWhere a command runs:');
   await HC.code.shellRun('git commit -m "two words"');
   ok('quotes keep a spaced argument whole', JSON.stringify(sent[4].args) === '["commit","-m","two words"]');
   let refused = '';
-  try { await HC.code.shellRun('cat a.txt | grep x', []); } catch (e) { refused = String(e.message); }
-  ok('a line that needs a shell is refused, saying what to do', /not a shell line/.test(refused) && sent.length === 5);
+  try { await HC.code.shellRun('cat a.txt > b.txt', []); } catch (e) { refused = String(e.message); }
+  ok('a line that needs a shell is refused, saying what to do', /not a shell line/.test(refused) && /narrowed with \| grep, head, tail, wc, sort or uniq/.test(refused) && sent.length === 5);
   await HC.code.shellRun('mkdir -p', ['/work/factory eyes']);
   ok('a program written with a flag, its other arguments given apart, is split and the flag goes first', sent[5].command === 'mkdir' && JSON.stringify(sent[5].args) === '["-p","/work/factory eyes"]', JSON.stringify(sent[5]));
   await HC.code.shellRun('/Applications/My Tool/bin/tool', ['--version']);
   ok('...while a program named by a path that holds a space is left whole', sent[6].command === '/Applications/My Tool/bin/tool' && JSON.stringify(sent[6].args) === '["--version"]', JSON.stringify(sent[6]));
+  sent.splice(5);
+  // With js/code/pipe.js loaded, as in the app: a line whose pipes only narrow the output runs its first program.
+  vm.runInContext(src('js', 'code', 'pipe.js'), sandbox, { filename: 'pipe.js' });
+  HC.invoke = async (cmd, args) => { sent.push(args); return { stdout: 'GPU one\ncpu two\ngpu three\n', stderr: 'warning\n', code: 0, timedOut: false, truncated: false }; };
+  const piped = await HC.code.shellRun('ioreg -l 2>/dev/null | grep -i gpu | head -1', []);
+  ok('a line piped into filters runs only its first program, asked about as that program', sent[5].command === 'ioreg' && JSON.stringify(sent[5].args) === '["-l"]' && asked.at(-1) === 'ioreg -l', JSON.stringify(sent[5]));
+  ok('...and the app narrows what it printed, and says so', piped.stdout === 'GPU one\n' && piped.stderr === '' && /applied \| grep -i gpu \| head -1 2>\/dev\/null to its output itself/.test(piped.note), JSON.stringify(piped));
   sent.splice(5);
   ok('a wildcard or a variable needs a shell too', HC.code.splitCommandLine('ls *.js') === null && HC.code.splitCommandLine('echo $HOME') === null);
   ok('on Windows a backslash separates folders', JSON.stringify(HC.code.splitCommandLine('python C:\\proj\\test.py', { windows: true })) === '["python","C:\\\\proj\\\\test.py"]');

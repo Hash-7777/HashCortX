@@ -208,10 +208,16 @@
       const given = Array.isArray(args) && args.length ? args : [];
       const line = String(command || '').trim();
       if (/\s/.test(line) && (!given.length || /^[\w.+-]+\s/.test(line))) {
-        const words = splitCommandLine(line, { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
+        const windows = /^windows$/i.test(String(HC.code.platform?.os || ''));
+        const words = splitCommandLine(line, { windows });
+        // A line whose pipes only narrow the output runs its first program, and the app narrows what it printed (js/code/pipe.js).
+        const pipe = words ? null : window.HCCodePipe?.split(line, { windows });
+        const head = pipe && splitCommandLine(pipe.head, { windows });
+        if (head) return window.HCCodePipe.apply(await HC.code.shellRun(head[0], [...head.slice(1), ...given], cwd, reason), pipe);
         if (!words) {
           throw new Error('shell_run runs one program with its arguments, not a shell line: pipes, redirects, ' +
-            'wildcards and variables are not available. Pass the program as command and each argument in args.');
+            'wildcards and variables are not available. Pass the program as command and each argument in args. ' +
+            'Output can be narrowed with | grep, head, tail, wc, sort or uniq, which the app applies itself.');
         }
         [command, ...args] = [...words, ...given];
       }
