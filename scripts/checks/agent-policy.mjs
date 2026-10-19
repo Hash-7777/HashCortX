@@ -283,7 +283,10 @@ console.log('\nA run that stops before it finishes says what it did:');
   check('HashCoder asks for it as a run stops, with no tools, runs the site and details checks first, and keeps only words',
     /const summary = await policy\.wrapUp\(\{ reason: stop\.reason, changed: proof \? proof\.changed\.length : 0, signal, messages, check: \(\) => proof\?\.changed\.length && cdrPrefs\(\)\.prove !== false && siteLook\(\)\.then\(factsLook\), words: \(r\) => window\.HCCodeLive\.wordsOf\(r\?\.content \|\| ''\)\.words,/.test(mode)
     && /return callWithRouter\([^\n]*, \[\], temperature, signal, coderModel\)\.finally\(\(\) => wait\?\.remove\(\)\);/.test(mode));
-  check('...shows the account, then what the record shows beside it', /if \(summary\) appendTextToBubble\(contentEl, summary\);\s+appendTextToBubble\(contentEl, `\*\$\{\[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)/.test(mode));
+  check('...shows the account, then what the record shows beside it', /const said = \[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)[^\n]*\n\s+if \(summary\) \{ appendTextToBubble\(contentEl, summary\);[^\n]*\n\s+appendTextToBubble\(contentEl, `\*\$\{said\}\*`\); return summary;/.test(mode));
+  check('...keeps that line with the account, so a saved conversation shows it', /if \(account\?\.role === 'assistant' && account\.content === summary\) account\.proven = said;/.test(mode));
+  check('...and the account, already in the conversation, is not added to it a second time', /if \(finalText && !\(conversationMsgs\.at\(-1\)\?\.role === 'assistant' && conversationMsgs\.at\(-1\)\.content === finalText\)\) conversationMsgs\.push\(/.test(mode)
+    && await (async () => { const m = []; const said = await wrapUp({ reason: 'hard-limit', messages: m, ask: async () => ({ content: 'Changed a.js.' }) }); return said === 'Changed a.js.' && m.at(-1).role === 'assistant' && m.at(-1).content === said; })());
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);

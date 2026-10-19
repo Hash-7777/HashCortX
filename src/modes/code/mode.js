@@ -2079,9 +2079,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // user could not tell which — so they could not tell whether replying
       // "continue" would help or repeat the same loop.
       cdrTraceAdd('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
-      if (summary) appendTextToBubble(contentEl, summary);
-      appendTextToBubble(contentEl, `*${[stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ')}*`);   // what the record shows, beside the model's account
-      return summary;
+      const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
+      if (summary) { appendTextToBubble(contentEl, summary); if (account?.role === 'assistant' && account.content === summary) account.proven = said; }   // wrapUp added the account to the conversation; a saved one shows the line under it too
+      appendTextToBubble(contentEl, `*${said}*`); return summary;   // what the record shows, beside the model's account
     }
 
     // ── Main send ─────────────────────────────────────────────
@@ -2205,7 +2205,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       try {
         if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
         const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
-        if (finalText) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });
+        if (finalText && !(conversationMsgs.at(-1)?.role === 'assistant' && conversationMsgs.at(-1).content === finalText)) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });   // an account at the step limit is in it already (js/agent-policy.js wrapUp)
         saveCoderState();
         setStatus('Ready', '');
       } finally {

@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A run that reaches its step limit says what it did once.** HashCoder's
+  account of a run stopped at its step limit was added to the
+  conversation twice, so the model read it twice from then on and an
+  exported conversation showed it twice. It is added once, with the line
+  of what the record shows kept beside it.
 - **Steps a smaller model writes in shell blocks run.** A model on this
   computer that wrote its tool calls as steps inside `sh` blocks, rather
   than `json` ones, had none of them run. A block in any language that
