@@ -17,7 +17,8 @@
 // the last model that answered, dimmed.
 //
 // Nothing here leaves the app: the line is drawn from the request's model
-// name, and the name is never sent anywhere.
+// name, and the name is never sent anywhere. While a model on this computer
+// is answering, the window's decorations rest (js/power.js localModel).
 //
 // `start`, `stop`, `around` and `lineOf` work without a page and are
 // checked by scripts/checks/model-now.mjs; `mount` puts it in the title bar.
@@ -33,7 +34,12 @@
   let namer = null;
   const subs = new Set();
 
-  const emit = () => { for (const fn of subs) { try { fn(); } catch { /* a view that fails never stops a request */ } } };
+  // A model on this computer answering draws on the graphics chip the window does, so the decorations rest meanwhile (js/power.js).
+  const local = () => [...active.values()].some((x) => !/^cloud:/.test(x.model));
+  const emit = () => {
+    try { window.HCPower?.localModel?.(local()); } catch { /* resting is optional */ }
+    for (const fn of subs) { try { fn(); } catch { /* a view that fails never stops a request */ } }
+  };
 
   /** A request to `model` has started. Returns its id, for stop(). */
   function start(model) {

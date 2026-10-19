@@ -282,6 +282,22 @@ console.log('\nUnattended — the decorations rest after a minute, and wake on a
   off();
 }
 
+console.log('\nA model on this computer answering — the decorations rest while it works:');
+{
+  fire(winListeners, 'pointermove');
+  svgCalls.length = 0;
+  power.localModel(true);
+  check('the window is quiet while it answers, though someone touched it just now',
+    power.isQuiet() === true && rootClasses.has('hc-power-quiet') && power.isResting() === false && power.state().answering === true);
+  check('...the ornamental SVG is paused and decorative loops are told to rest, nothing else',
+    svgCalls.includes('pause:a') && !svgCalls.includes('pause:b') && power.shouldAnimate() === false && power.isVisible() === true, svgCalls.join(','));
+  svgCalls.length = 0;
+  power.localModel(true);
+  check('being told again changes nothing', svgCalls.length === 0);
+  power.localModel(false);
+  check('when it stops, they move again', power.isQuiet() === false && !rootClasses.has('hc-power-quiet') && power.shouldAnimate() === true && svgCalls.includes('unpause:a'), svgCalls.join(','));
+}
+
 console.log('\nThe launch screen is one of the things that rests:');
 {
   const base = readFileSync(join(here, '..', '..', 'src', 'css', 'base.css'), 'utf8');

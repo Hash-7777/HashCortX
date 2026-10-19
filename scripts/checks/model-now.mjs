@@ -74,6 +74,25 @@ console.log('What is answering:');
   ok('a listener hears each change until it stops listening', calls === 2);
 }
 
+console.log('\nA model on this computer answering lets the decorations rest:');
+{
+  const told = [];
+  const sandbox = { window: { HCPower: { localModel: (on) => told.push(on) } }, requestAnimationFrame: (fn) => { fn(); return 1; } };
+  vm.createContext(sandbox);
+  vm.runInContext(src('js', 'model-now.js'), sandbox, { filename: 'model-now.js' });
+  const N = sandbox.window.HCModelNow;
+  const cloud = N.start('cloud:openrouter:some-model');
+  ok('a cloud model answering is not one on this computer', told.at(-1) === false);
+  const local = N.start('qwen2.5-coder:7b');
+  ok('a model on this computer answering is said', told.at(-1) === true);
+  N.stop(cloud);
+  ok('...and still while it answers alone', told.at(-1) === true);
+  N.stop(local);
+  ok('...and no longer once it stops', told.at(-1) === false);
+  const quiet = (() => { const sb = { window: {}, requestAnimationFrame: (fn) => { fn(); return 1; } }; vm.createContext(sb); vm.runInContext(src('js', 'model-now.js'), sb); try { sb.window.HCModelNow.stop(sb.window.HCModelNow.start('m')); return true; } catch { return false; } })();
+  ok('without the power module, nothing breaks', quiet);
+}
+
 console.log('\nEvery request passes through it:');
 {
   const app = src('js', 'app.js');

@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **The decorations rest while a model on this computer answers.** The
+  drones and the crest kept moving while a local model worked, drawing on
+  the same graphics chip and memory it needs. They now rest for as long as
+  a model on this computer is answering, as they do after a minute without
+  a touch, and move again when it stops. Nothing that shows progress
+  stops, and a cloud model changes nothing.
 - **The HashCoder benchmark says what a change costs.** Set beside an
   earlier run, it now shows steps, tool calls and tokens out a run as well
   as passes, minutes and tokens in, and names any cost that rose while no

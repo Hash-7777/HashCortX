@@ -92,17 +92,20 @@
   let lastActive = Date.now();
   let resting = false;
   let restTimer = null;
+  // A model on this computer answering. It draws on the same graphics chip
+  // and memory the window's decorations do, so they rest while it works.
+  let answering = false;
 
   // Only where the processor is drawing. On a machine with a GPU the
   // unfocused case never happens, and a window you can see keeps its motion.
   const softwareRenderer = () => !!(window.HCHost && window.HCHost.software);
 
   /**
-   * Visible, and either unattended, or unfocused on a machine paying for every
-   * frame.
+   * Visible, and either unattended, a model on this computer answering, or
+   * unfocused on a machine paying for every frame.
    */
   function isQuiet() {
-    return visible && (resting || (!focused && softwareRenderer()));
+    return visible && (resting || answering || (!focused && softwareRenderer()));
   }
 
   /**
@@ -137,7 +140,7 @@
     !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   function state() {
-    return { visible, focused, reducedMotion: reducedMotion(), quiet: isQuiet(), resting };
+    return { visible, focused, reducedMotion: reducedMotion(), quiet: isQuiet(), resting, answering };
   }
 
   function apply() {
@@ -215,6 +218,12 @@
     isQuiet,
     /** Nothing has touched the window for a minute. */
     isResting: () => resting,
+    /** A model on this computer is answering, or has stopped (js/model-now.js): the decorations rest while it works. */
+    localModel(on) {
+      if (answering === !!on) return;
+      answering = !!on;
+      apply();
+    },
     REST_AFTER_MS,
     /** The decorations that state is allowed to stop. Nothing else. */
     DECORATIVE,
