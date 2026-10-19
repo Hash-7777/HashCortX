@@ -32,8 +32,8 @@ HashCortX/
 │   │   │                            mode.css and panel.html)
 │   │   ├── systems/          3,231  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,463  chain / vote / failover
-│   │   ├── code/             2,470  the HashCoder agent loop
-│   │   ├── finance/          2,357  financial document analysis
+│   │   ├── code/             2,469  the HashCoder agent loop
+│   │   ├── finance/          2,360  financial document analysis
 │   │   └── sandbox/            547  security scanner
 │   │
 │   ├── core/                        pieces taken out of app.js, each with
@@ -79,7 +79,7 @@ HashCortX/
 │   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
 │   │   ├── model-names.js      189  provider, display name, size class
-│   │   ├── model-now.js        135  the model answering now, in the title bar
+│   │   ├── model-now.js        141  the model answering now, in the title bar
 │   │   │                            of every workspace
 │   │   ├── model-speed.js      140  how long each model's answers take and when
 │   │   │                            one ran out of time, so a model is chosen
@@ -115,10 +115,10 @@ HashCortX/
 │   │   │                            a model while the message is written; and
 │   │   │                            what to say when the local model app
 │   │   │                            refuses this app
-│   │   ├── tool-text.js        478  a tool call a model wrote in its words, in
+│   │   ├── tool-text.js        559  a tool call a model wrote in its words, in
 │   │   │                            each of the ways local models write one,
 │   │   │                            its JSON broken by a file's text included
-│   │   ├── agent-shape.js      765  images, tools and tool results per provider,
+│   │   ├── agent-shape.js      781  images, tools and tool results per provider,
 │   │   │                            a model that cannot take tools held by
 │   │   │                            Ollama to one answer shape, or told them in
 │   │   │                            words, carrying on an answer that was
@@ -130,7 +130,7 @@ HashCortX/
 │   │   │                            in steps so each request is the last with
 │   │   │                            more on the end, the project's notes with
 │   │   │                            the first request
-│   │   ├── agent-policy.js     358  what may run together, when to stop, and
+│   │   ├── agent-policy.js     377  what may run together, when to stop, and
 │   │   │                            when the same file is changed too often
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                            cosine, rank fusion
@@ -163,7 +163,7 @@ HashCortX/
 │   │   ├── trace-copy.js        81  a run's trace, selected and copied as text
 │   │   ├── trace-time.js        88  when a trace line was written, as a stopwatch
 │   │   ├── model-plan.js     1,045  a generated 3D model's parts, made trustworthy
-│   │   ├── power.js            251  stops work nobody can see
+│   │   ├── power.js            260  stops work nobody can see
 │   │   ├── retired-storage.js   41  clears what a removed feature saved
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
@@ -172,7 +172,7 @@ HashCortX/
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/             1,236  what a model is told, which to try next
+│   │   ├── chat/             1,350  what a model is told, which to try next
 │   │   │                            (an agent's turns too), the web searches
 │   │   │                            an agent makes, what its code printed,
 │   │   │                            what a model thought before it answered,
@@ -194,7 +194,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             7,167  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             7,453  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the record of what proved a change and what
 │   │   │                            sends it back before finishing, the files
@@ -205,6 +205,7 @@ HashCortX/
 │   │   │                            commits at the start, a small project
 │   │   │                            whole for a model on this computer,
 │   │   │                            a command's output in short for the model,
+│   │   │                            and narrowed by the filters it is piped into,
 │   │   │                            the plan it keeps for a request, whether an
 │   │   │                            edit left brackets or quotes unbalanced, a
 │   │   │                            second look at a larger change, the
@@ -251,7 +252,7 @@ HashCortX/
 │   │   │                            picks a part, the 3D runtime read once,
 │   │   │                            frames drawn only when the view changes,
 │   │   │                            and io/ — STL, OBJ, 3MF and STEP
-│   │   ├── systems/          5,693  ERP: spec, money, domain, the generated books,
+│   │   ├── systems/          5,699  ERP: spec, money, domain, the generated books,
 │   │   │                            a design change as a short list of edits
 │   │   │                            the app makes, how every screen shows a record, the
 │   │   │                            figures its dashboards are worked out from,
@@ -310,7 +311,7 @@ HashCortX/
 │   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,299   filesystem bridge, applies the denylist;
+│   │   │   ├── fs.rs        1,402   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all
 │   │   │   ├── keychain.rs    102   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
@@ -320,7 +321,7 @@ HashCortX/
 │   │   │   ├── notch.rs       201   HashNotch live-activity ping
 │   │   │   └── audit.rs       231   append-only audit log, bounded
 │   │   └── security/
-│   │       ├── agent_sandbox.rs 348 macOS sandbox around the agent's commands
+│   │       ├── agent_sandbox.rs 349 macOS sandbox around the agent's commands
 │   │       ├── denylist.rs  1,069   hardcoded blocked paths and commands
 │   │       ├── navigation.rs   75   the window shows the app and nothing else
 │   │       └── private_dir.rs 146   ~/.hashcortx, readable by its owner only
@@ -337,7 +338,7 @@ HashCortX/
 │   ├── Cargo.toml
 │   └── tauri.conf.json
 │
-├── scripts/checks/                  the automated frontend checks — 197 files,
+├── scripts/checks/                  the automated frontend checks — 198 files,
 │   │                                all loading the real source
 │   ├── syntax.mjs                   every loaded script parses
 │   ├── guard.mjs                    what the Permission Guard refuses,
