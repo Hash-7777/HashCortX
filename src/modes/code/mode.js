@@ -64,65 +64,6 @@
     rootEl.title = path;
   }
 
-  // ── One step, rendered from a finished record ───────────────
-  //
-  // The same shape appendStep() builds live, for tool calls that arrive already
-  // complete through the chat renderer. Two shapes for the same thing is what
-  // made a run read as a pile of unrelated blocks.
-  function toolBlockHtml(rec) {
-    const { name, args, result, ms, ok } = rec;
-    const resultText = String(result || '');
-    const isErr = !ok || resultText.includes('"error"');
-    const argsJson = esc(JSON.stringify(args || {}, null, 2).slice(0, 500));
-    const resultPreview = esc(resultText.slice(0, 2000)) + (resultText.length > 2000 ? '\n…' : '');
-    return `
-<details class="cdr-step ${isErr ? 'cdr-step--err' : 'cdr-step--ok'}"${isErr ? ' open' : ''}>
-  <summary class="cdr-step-head">
-    <span class="cdr-step-verb">${esc(toolVerb(name))}</span>
-    <span class="cdr-step-object">${esc(toolObject(name, args) || name)}</span>
-    <span class="cdr-step-result">${isErr ? 'failed' : esc(window.HCCodeSteps.duration(ms))}</span>
-  </summary>
-  <div class="cdr-step-body">
-    ${argsJson !== '{}' ? `<pre>${argsJson}</pre>` : ''}
-    <pre>${resultPreview}</pre>
-  </div>
-</details>`;
-  }
-
-  function injectAllToolBlocks() {
-    const H = window._H;
-    if (!H) return;
-    const messages = H.state?.messages;
-    if (!messages) return;
-    document.querySelectorAll('#cdrMessages .cdr-msg.assistant').forEach(wrap => {
-      const idx = parseInt(wrap.dataset.idx, 10);
-      if (isNaN(idx)) return;
-      const msg = messages[idx];
-      if (!msg?._toolBlocks?.length) return;
-      const bubble = wrap.querySelector('.bubble');
-      if (!bubble) return;
-      if (bubble.dataset.tbCount === String(msg._toolBlocks.length)) return;
-      bubble.dataset.tbCount = String(msg._toolBlocks.length);
-      bubble.querySelectorAll('.hc-tool-blocks-wrap').forEach(el => el.remove());
-      const wrapper = document.createElement('div');
-      wrapper.className = 'hc-tool-blocks-wrap';
-      wrapper.innerHTML = msg._toolBlocks.map(toolBlockHtml).join('');
-      bubble.insertBefore(wrapper, bubble.firstChild);
-    });
-  }
-
-  // ── Legacy HC_CODE API (kept for hashcoder.js bridge compatibility) ──
-  function buildMessages() {
-    const H = window._H;
-    const msgs = (H.buildOllamaMessages && H.buildOllamaMessages()) || [];
-    const projectCtx = sharedState.projectRoot ? `\nProject root: ${sharedState.projectRoot}` : '';
-    const sysMsgIdx = msgs.findIndex(m => m.role === 'system');
-    const fullSys = (HC?.code?.SYSTEM_PROMPT || '') + projectCtx + (HC?.code?.platformLine?.(sharedState.platform) || '') + (HC?.code?.dateLine?.() || '');
-    if (sysMsgIdx >= 0) msgs[sysMsgIdx].content = fullSys + '\n\n' + msgs[sysMsgIdx].content;
-    else msgs.unshift({ role: 'system', content: fullSys });
-    return msgs;
-  }
-
   /** Show the model any image view_image opened. Shape: agent-shape.js. */
   function attachPendingImages(messages) {
     const shown = HC?.code?.takePendingVision?.() || [];
@@ -179,60 +120,6 @@
     const moved = router.model !== selected;
     setRouterChip(moved ? router.label(router.model) : '', moved ? 'switched' : '');
     return result;
-  }
-
-  // Tier ordering — keep quality high during failover.
-
-  async function legacyRun(assistant, { signal, onStatus }) {
-    const H = window._H;
-    if (!H) throw new Error('_H bridge not ready');
-    assistant._toolBlocks = [];
-    const tools    = buildLegacyTools();
-    const messages = buildMessages();
-    const temperature = H.selectedTemperature ? Math.min(H.selectedTemperature(), 0.4) : 0.2;
-    const MAX_ITER = 8;
-    let iter = 0, finalText = '';
-    while (iter < MAX_ITER) {
-      iter++;
-      onStatus(`Thinking (step ${iter})…`, 'thinking');
-      if (signal?.aborted) break;
-      const turn = await callWithRouter(messages, tools, temperature, signal);
-      if (turn && turn.tool_calls && turn.tool_calls.length) {
-        for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, tools.find((t) => t.function?.name === c.name)).args, sharedState.projectRoot);   // as in the agent loop below
-        H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls);
-        for (const call of turn.tool_calls) {
-          if (signal?.aborted) return;
-          onStatus(`${call.name}…`, 'running');
-          const t0 = performance.now();
-          let resultStr, ok = true;
-          try {
-            const def = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name);
-            if (!def) throw new Error('Unknown tool: ' + call.name);
-            const raw = await def.fn(call.arguments || {});
-            /* Guard against null return (Tauri commands often return null on success) —
-               show {"ok":true} so the model/UI never sees the literal string "null" */
-            if (raw == null) resultStr = '{"ok":true}';
-            else resultStr = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
-          } catch (e) { resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false; }
-          const ms = Math.round(performance.now() - t0);
-          assistant._toolBlocks.push({ name: call.name, args: call.arguments || {}, result: resultStr, ms, ok });
-          const pathArg = call.arguments?.path || call.arguments?.dir;
-          if (pathArg) sharedState.activeFile = pathArg;
-          onStatus(`${call.name} done (${assistant._toolBlocks.length} tool${assistant._toolBlocks.length > 1 ? 's' : ''} used)`, 'done');
-          H.appendToolResult(messages, call, resultStr);
-        }
-        attachPendingImages(messages);
-        continue;
-      }
-      finalText = turn.content || '';
-      assistant.content = finalText;
-      H.updateLastBubble && H.updateLastBubble(finalText);
-      return finalText;
-    }
-    onStatus('Max iterations reached — finalizing', 'warn');
-    assistant.content = finalText || '(Max iterations reached.)';
-    H.updateLastBubble && H.updateLastBubble(assistant.content);
-    return finalText;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -2454,16 +2341,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     destroy:   () => window.CoderMode?.destroy?.(),
   };
 
-  // What app.js reaches in Coder: the one-shot run, the audit log and the
-  // tool blocks drawn after a chat render.
+  // What app.js reaches in Coder: the audit log.
   window.HC_CODE = {
-    run: legacyRun,
     // Opens the modal AND fills it. This used to only add the open class, so
     // callers outside Coder got an empty dialog — the function that actually
     // reads the log sits inside the CoderMode closure, which is why it is
     // reached through CoderMode rather than named directly here.
     showAuditLog: () => CoderMode.showAuditLog(),
-    afterRender: injectAllToolBlocks,
   };
 
 })();

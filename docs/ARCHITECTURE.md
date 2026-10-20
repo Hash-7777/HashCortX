@@ -13,7 +13,7 @@ Roughly **64,000 lines of JavaScript** (plus ~20,000 more in vendored libraries)
 ```
 HashCortX/
 ├── src/                             frontend, served as-is
-│   ├── index.html              635  the shell: the intro screen, the sidebar
+│   ├── index.html              632  the shell: the intro screen, the sidebar
 │   │                                and the chat column. Nothing else.
 │   ├── boot.js                      puts the hidden panels in, then runs
 │   │                                every script in order
@@ -32,7 +32,7 @@ HashCortX/
 │   │   │                            mode.css and panel.html)
 │   │   ├── systems/          3,231  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,463  chain / vote / failover
-│   │   ├── code/             2,469  the HashCoder agent loop
+│   │   ├── code/             2,353  the HashCoder agent loop
 │   │   ├── finance/          2,360  financial document analysis
 │   │   └── sandbox/            547  security scanner
 │   │
@@ -64,7 +64,7 @@ HashCortX/
 │   ├── js/                          app.js, and the pieces taken out of it and
 │   │   │                            out of the modes. Each piece is pure where
 │   │   │                            it can be and has a check file of its own
-│   │   ├── app.js            6,465  core: state, chat, agents, tools, providers
+│   │   ├── app.js            6,434  core: state, chat, agents, tools, providers
 │   │   ├── request-cap.js      139  the cap on cloud AI requests: 30 a minute, 6 at once
 │   │   ├── providers.js        567  each provider's endpoint and auth, plus
 │   │   │                            Moonshot's two hosts and account systems,
@@ -449,7 +449,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 
 `scripts/checks/bridge.mjs` holds that to equality in both directions, because both ways of getting it wrong are silent. It was 38 members with 23 of them unused — and, worse, three names were *called and never exposed*: `memAdd`, `memRecall` and `memAutoExtract`. HashCoder agent's `remember_fact` and `recall_facts` tools call through this object and the system prompt tells the model it has them, but the call sites are written defensively, so the model was told "Memory not available" every time instead of anything failing. That feature had never worked.
 
-`modes/code/mode.js` additionally exposes `window.HC_CODE`, and `render()` calls its `afterRender` hook — that hook is on `HC_CODE`, not on `_H`. It exists because `render()` rebuilds the chat DOM wholesale, which would otherwise destroy the collapsible tool-call blocks HashCoder injects.
+`modes/code/mode.js` additionally exposes `window.HC_CODE`, which the chat uses to open HashCoder's audit log. HashCoder runs in its own workspace with its own message box; the chat never sends to it.
 
 ---
 

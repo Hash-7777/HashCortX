@@ -70,8 +70,8 @@ console.log('\nA path written from the project\'s folder is the project\'s:');
   ok('and nothing else in it, and the call as given is not changed', out.search === 'src/b.js' && out.content === 'x' && args.path === 'src/a.js');
   ok('a call with nothing to write out comes back as it was', P.argsFromRoot({ path: '/work/app/a.js' }, root).path === '/work/app/a.js' && P.argsFromRoot(null, root) === null);
   const writesOut = /for \(const c of turn\.tool_calls\) if \(!window\.HCMcp\?\.systemOf\?\.\(c\.name\)\) c\.arguments = window\.HCCodePaths\.argsFromRoot\(window\.HCCodeCalls\.normalize\(c\.arguments, [^\n]*?\)\.args, sharedState\.projectRoot\);[^\n]*\n\s*H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls\);/g;
-  ok('HashCoder writes out its own tools\' places before they are kept or run, in both places tools run, and never a connected system\'s',
-    (modeSrc.match(writesOut) || []).length === 2 && (modeSrc.match(/H\.appendAssistantToolCallTurn\(/g) || []).length === 2);
+  ok('HashCoder writes out its own tools\' places before they are kept or run, in the one place tools run, and never a connected system\'s',
+    (modeSrc.match(writesOut) || []).length === 1 && (modeSrc.match(/H\.appendAssistantToolCallTurn\(/g) || []).length === 1);
 }
 
 console.log('\nA project file is shown by its place in the project:');

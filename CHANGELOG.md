@@ -92,6 +92,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   A command that succeeds in making, moving or removing files now counts as
   a change made.
 
+### Removed
+
+- **Code that no screen could reach.** The chat kept a second way to run
+  HashCoder, and the text selection toolbar a Fix button, that worked only
+  while HashCoder was open, where the chat box and that toolbar are never
+  shown. Both are gone; HashCoder runs only in its own workspace, as it
+  already did.
+
 ## [3.3.0] — 2026-10-19
 
 The focus release. Local models answer sooner: the window fits the graphics

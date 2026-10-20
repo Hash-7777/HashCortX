@@ -236,7 +236,9 @@ const LINE_BUDGET = {
   // written waits with it and goes with it (js/queue.js).
   // 6465, up one: an edited message or a regenerated answer stays in its
   // chat as a version, the others kept (js/chat/versions.js).
-  'js/app.js': 6465,
+  // 6434, down 31: the chat's HashCoder branch, which no screen could reach,
+  // is gone with the selection toolbar's Fix button and two bridge entries.
+  'js/app.js': 6434,
   // 4246, up from 4220. The repair pass can now fail over to another model
   // instead of the run abandoning a parsed spec and generating a fresh one from
   // nothing, and it states which validation issues it is repairing. Both are in
@@ -820,7 +822,9 @@ const LINE_BUDGET = {
   // send again, from an edit beside its copy.
   // 2469, down one: the words that close a stopped or failed run are made
   // by js/agent-shape.js endedBy.
-  'modes/code/mode.js': 2469,
+  // 2353, down 116: the one-shot run the chat called and the tool blocks it
+  // drew after a chat render went, with the chat's HashCoder branch.
+  'modes/code/mode.js': 2353,
 };
 
 console.log('\nFile sizes go down, never up:');
@@ -847,7 +851,9 @@ for (const [file, budget] of Object.entries(LINE_BUDGET)) {
 // sentence saying why it cannot move, which is the part a reader needs.
 // 618, down from 627: the launch background's style block left the page for
 // base.css — see production-policy.mjs.
-const SHELL_MARKUP_BUDGET = 618;
+// 615, down three: the selection toolbar's Fix button, shown only where the
+// toolbar never appears.
+const SHELL_MARKUP_BUDGET = 615;
 
 console.log('\nThe shell holds no more markup than it did:');
 {

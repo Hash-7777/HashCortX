@@ -3841,10 +3841,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     if (shownChatId !== state.currentChatId) { shownChatId = state.currentChatId; HCFollow.toEnd(msgs); }
     else { HCFollow.keep(msgs); if (!HCFollow.following(msgs)) msgs.scrollTop = readingAt; }
     updateContextIndicator();
-    requestAnimationFrame(() => {
-      window.HCDiagrams?.draw(msgs);
-      window.HC_CODE?.afterRender?.();
-    });
+    requestAnimationFrame(() => window.HCDiagrams?.draw(msgs));
   }
 
   function buildReplyWrappedContent(baseText, replyMeta) {
@@ -4476,19 +4473,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const activeAgent = getActiveAgent();
     const _held = _selectedIsCloud ? (window.HCMcp?.heldFrom(state.messages, modelEl.value) || []) : [];   // records a connected system keeps local (js/mcp/connections.js)
     if (_held.length) { assistant.content = window.HCMcp.heldText(_held); updateLastBubble(assistant.content); }
-
-    // ── Code Mode dispatch — HashCoder agent (Tauri only) ───────────────
-    else if (isCodeMode() && HC.isTauri && window.HC_CODE) {
-      const ctrl = new AbortController();
-      state.abort = ctrl;
-      try {
-        const onStatus = (label) => pulse(label, "HashCoder");
-        const onFinalToken = () => { updateLastBubble(assistant.content); };
-        await HC_CODE.run(assistant, { signal: ctrl.signal, onStatus, onFinalToken });
-      } catch (err) {
-        if (err.name !== "AbortError") showError(err);
-      }
-    }
 
     // ── Agent-mode dispatch ──────────────────────────────────────────────
     // Agent behaviors (system prompt + tools + memory) ONLY fire when an
@@ -6262,7 +6246,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const btnCopy  = document.getElementById("stb-copy");
     const btnQuote = document.getElementById("stb-quote");
     const btnExplain = document.getElementById("stb-explain");
-    const btnFix   = document.getElementById("stb-fix");
     if (!toolbar) return;
 
     function getSelectedText() {
@@ -6287,9 +6270,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       const rect = range.getBoundingClientRect();
       if (!rect.width || !rect.height) { hideToolbar(); return; }
       if (!isInsideBubble(range.commonAncestorContainer)) { hideToolbar(); return; }
-
-      // Show/hide Fix button based on whether we're in code mode
-      if (btnFix) btnFix.style.display = document.body.classList.contains("coder-mode") ? "" : "none";
 
       toolbar.classList.add("visible");
       const tbRect = toolbar.getBoundingClientRect();
@@ -6346,15 +6326,6 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       hideToolbar();
     });
 
-    if (btnFix) btnFix.addEventListener("click", () => {
-      const text = getSelectedText();
-      if (text) {
-        input.value = `Fix or improve this code:\n\n\`\`\`\n${text}\n\`\`\``;
-        input.focus();
-        send();
-      }
-      hideToolbar();
-    });
   })();
 
   // ── Global keyboard shortcuts ─────────────────────────────────
@@ -6413,14 +6384,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     tavilyReady: () => !!(tavilyKeyEl.value || "").trim(),   // a key is set: HashCoder's search says which service it asks about
     runOneTool,
     // The knowledge base, for modes that are not chat. The Coder called the
-    // last two of these, and the three after them, before the bridge had them.
+    // last two of these, and the one after them, before the bridge had them.
     ragSearch: (query) => queryRAGMerged(String(query || "")),
     ragIsOn: () => ragEnabled,
     ragSetOn: (on) => { ragEnabled = !!on; document.getElementById("ragToggle")?.classList.toggle("on", ragEnabled); saveSettings(); },
     ragSize: () => { const all = loadRAG(); return { passages: all.length, sources: new Set(all.map(c => c.source)).size }; },
     estimatePromptTokens,
-    buildOllamaMessages,
-    updateLastBubble,
     // Long-term memory. The three names below are what the Coder agent's
     // remember_fact and recall_facts tools have always called.
     memAdd,

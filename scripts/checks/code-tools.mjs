@@ -523,7 +523,7 @@ console.log('\nToday\'s date, and using tools well:');
   ok('a small and a mid-sized model are told the same in fewer words', /Do only what the task asks: no extra files, features or changes it did not ask for\./.test(HC.code.SMALL_MODEL_PROMPT) && /Make no file it does not need, such as a README or notes, and add no feature it did not ask for\./.test(HC.code.MID_MODEL_PROMPT) && /no list of suggestions, next steps or offers to do more/.test(HC.code.MID_MODEL_PROMPT));
   const mode = src('modes', 'code', 'mode.js');
   ok('the date goes at the end of the instructions, after all that stays the same through the day', /return out \+ \(extra \? '\\n' \+ extra : ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));
-  ok('...in light mode and for the other loop too', /extra, HC\?\.code\?\.dateLine\?\.\(\)\.trim\(\)\]\.filter\(Boolean\)/.test(mode) && /platformLine\?\.\(sharedState\.platform\) \|\| ''\) \+ \(HC\?\.code\?\.dateLine\?\.\(\) \|\| ''\);/.test(mode));
+  ok('...and in light mode too', /extra, HC\?\.code\?\.dateLine\?\.\(\)\.trim\(\)\]\.filter\(Boolean\)/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/hashcoder.js toolList)`);
