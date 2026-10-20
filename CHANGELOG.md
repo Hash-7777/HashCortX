@@ -52,6 +52,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge measures an object without its holes.** Parts that cut a hole
+  were measured as if they were part of the object, so a drain hole through
+  a pot's floor lifted the pot off the floor, and a cut reaching past a rim
+  made the object read taller than it is. Its size, its place on the floor
+  and the size it is described by now come from the parts that add
+  material.
 - **3D Forge says when a hole is in the wrong place.** A part meant to cut
   a hole, written outside the body, was moved until it touched the body,
   which cuts nothing, and the run still said it had been cut away. Such a

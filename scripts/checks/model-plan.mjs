@@ -425,6 +425,12 @@ console.log('\nA part meant to cut a hole is left where the design put it:');
   ok('...and one that does is counted', P.assemble({ nodes: [body, inside] }).stats.subtracted === 1);
 }
 
+console.log('\nA hole through the bottom does not lift the object off the floor:');
+{
+  const floored = P.snapToFloor([box('body', { position: [0, 5, 0], params: { width: 2, height: 2, depth: 2 } }), box('drain', { op: 'subtract', position: [0, 3, 0], params: { width: 0.2, height: 2, depth: 0.2 } })]);
+  ok('the floor is set from the parts that add material', Math.abs(floored.offset - (-4)) < 1e-9, String(floored.offset));
+}
+
 console.log('\nParts that pass the contact test but still show a seam are seated in:');
 {
   // 0.04 apart: inside the 0.06 tolerance, so connectParts calls this model

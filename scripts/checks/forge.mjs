@@ -323,8 +323,9 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /targetSize: U\(\)\?\.WORKING_SPAN/.test(src));
   // Measured after the meshes exist, because normalising works from declared
   // parameters and lands near the span rather than on it.
-  check('the size is measured from the built geometry',
-    /Box3\(\)\.setFromObject\(modelGroup\)/.test(bodyOf('measureRealSize')));
+  check('the size is measured from the built geometry, of the parts that add material',
+    /window\.HCForgeRuntime\.solidBox\(THREE, modelGroup\)/.test(bodyOf('measureRealSize'))
+    && ['modelSizeMm', 'groundBuiltModel', 'describeBuiltModel'].every((f) => /window\.HCForgeRuntime\.solidBox\(THREE, modelGroup\)/.test(bodyOf(f))));
   check('and measured before anything shows a dimension',
     /measureRealSize\(\);[\s\S]{0,200}updatePlanList\(activePlan\)/.test(build),
     'measuring after the badge labels the first model with the previous scale');
@@ -919,6 +920,27 @@ console.log('\nThe 3D context is handed back while 3D Forge is left:');
     /window\.HCForgeRuntime\.away\(renderer\);/.test(bodyOf('destroy')) && /mounted = true; window\.HCForgeRuntime\.back\(renderer\);/.test(bodyOf('mount'))
     && /if \(!window\.HCForgeRuntime\.gaveBack\(renderer\)\) \{ setStatus\("Paused"\); log\("Viewport", "The system took the 3D context back/.test(src)
     && /if \(!window\.HCForgeRuntime\.gaveBack\(renderer\)\) log\("Viewport", "3D context restored", "ok"\);/.test(src));
+}
+
+console.log('\nA part that cuts a hole is not measured as the object:');
+{
+  const vm = await import('node:vm');
+  const runtime = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'runtime.js'), 'utf8');
+  const box = { window: {}, Promise };
+  vm.createContext(box);
+  vm.runInContext(runtime, box, { filename: 'runtime.js' });
+  const R = box.window.HCForgeRuntime;
+  // A stand-in for three's Box3: a box grows by the bounds each child carries.
+  class Box3 { constructor() { this.min = [Infinity, Infinity, Infinity]; this.max = [-Infinity, -Infinity, -Infinity]; }
+    isEmpty() { return this.min[0] > this.max[0]; }
+    expandByObject(o) { for (let k = 0; k < 3; k++) { this.min[k] = Math.min(this.min[k], o.b[k]); this.max[k] = Math.max(this.max[k], o.b[k + 3]); } return this; }
+    setFromObject(g) { for (const c of g.children) this.expandByObject(c); return this; } }
+  const part = (b, op) => ({ b, userData: { node: { op } } });
+  const pot = { children: [part([-55, 0, -55, 55, 110, 55]), part([-6, -15, -6, 6, 15, 6], 'subtract'), part([-52, 8, -52, 52, 118, 52], 'subtract')] };
+  const solid = R.solidBox({ Box3 }, pot);
+  check('a drain hole below the floor and a cut above the rim leave the pot as tall as it is', solid.min[1] === 0 && solid.max[1] === 110);
+  const allCuts = R.solidBox({ Box3 }, { children: [part([0, 0, 0, 1, 1, 1], 'subtract')] });
+  check('...and a group of cuts alone is measured whole', allCuts.max[1] === 1);
 }
 
 console.log('\nThe intro mark floats above the floor:');

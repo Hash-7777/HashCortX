@@ -1583,7 +1583,7 @@
     mmPerUnit = 0;
     if (!units || !THREE || !modelGroup || !modelGroup.children.length) return;
     modelGroup.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(modelGroup);
+    const box = window.HCForgeRuntime.solidBox(THREE, modelGroup);   // what the object is made of: a part cutting a hole is not counted (js/forge/runtime.js)
     if (box.isEmpty()) return;
     const size = box.getSize(new THREE.Vector3());
     const span = Math.max(size.x, size.y, size.z);
@@ -1599,7 +1599,7 @@
     const units = U();
     if (!units || !THREE || !modelGroup || !modelGroup.children.length || !mmPerUnit) return null;
     modelGroup.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(modelGroup);
+    const box = window.HCForgeRuntime.solidBox(THREE, modelGroup);
     if (box.isEmpty()) return null;
     const size = box.getSize(new THREE.Vector3());
     return { size: [size.x, size.y, size.z], text: units.formatSize([size.x, size.y, size.z], mmPerUnit) };
@@ -1676,7 +1676,7 @@
     // written for it, which is a view from below of something too close.
     if (activePlan?._introLogo) return;
     modelGroup.updateMatrixWorld(true);
-    const box = new THREE.Box3().setFromObject(modelGroup);
+    const box = window.HCForgeRuntime.solidBox(THREE, modelGroup);
     if (box.isEmpty() || !Number.isFinite(box.min.y)) return;
     const dy = FLOOR_Y - box.min.y;
     if (!Number.isFinite(dy) || Math.abs(dy) < 1e-4) return;
@@ -1706,7 +1706,7 @@
     const lines = [`The model currently has ${nodes.length} part(s): ${nodes.map((n) => n.name || n.id).join(", ")}.`];
 
     if (THREE && modelGroup && modelGroup.children.length) {
-      const box = new THREE.Box3().setFromObject(modelGroup);
+      const box = window.HCForgeRuntime.solidBox(THREE, modelGroup);
       if (!box.isEmpty()) {
         const size = box.getSize(new THREE.Vector3());
         const k = mmPerUnit > 0 ? mmPerUnit : 1;

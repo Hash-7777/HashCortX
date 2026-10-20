@@ -113,6 +113,22 @@
   /** Whether `renderer`'s context was handed back on purpose and not yet restored: its loss is not news. */
   const gaveBack = (renderer) => !!renderer && given.has(renderer);
 
+  /**
+   * The bounds of what `group` is made of: its parts that add material. A part
+   * that cuts a hole is drawn as an outline and is not the object, but it was
+   * counted as if it were, so a drain hole through a pot's floor lifted the pot
+   * off the floor and a cut reaching above a rim made the object read taller
+   * than it is. When every part cuts, the whole group is measured.
+   */
+  function solidBox(THREE, group) {
+    const box = new THREE.Box3();
+    for (const child of group.children) {
+      const op = child.userData && child.userData.node && child.userData.node.op;
+      if (op !== 'subtract' && op !== 'intersect') box.expandByObject(child);
+    }
+    return box.isEmpty() ? new THREE.Box3().setFromObject(group) : box;
+  }
+
   // The first time the pointer is over the 3D Forge tab, start reading. One
   // listener, removed once it has fired.
   if (typeof document !== 'undefined') {
@@ -124,5 +140,5 @@
     document.addEventListener('pointerover', warm, true);
   }
 
-  window.HCForgeRuntime = { load, environment, onDemand, away, back, gaveBack, AWAY_MS };
+  window.HCForgeRuntime = { load, environment, onDemand, away, back, gaveBack, AWAY_MS, solidBox };
 })();

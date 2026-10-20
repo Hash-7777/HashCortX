@@ -605,7 +605,8 @@
 
   /** Move everything so the lowest point rests on y = 0. */
   function snapToFloor(parts) {
-    const box = boundsOf(parts);
+    const solid = parts.filter((p) => !cuts(p));   // a hole through the bottom does not lift the object off the floor
+    const box = boundsOf(solid.length ? solid : parts);
     if (!box) return { parts, offset: 0 };
     const offset = -box[1];
     if (Math.abs(offset) < 1e-6) return { parts, offset: 0 };
