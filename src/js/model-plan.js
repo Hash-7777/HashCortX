@@ -351,11 +351,15 @@
         repeat: raw.repeat && typeof raw.repeat === "object" && !Array.isArray(raw.repeat) ? raw.repeat : undefined,
         repeatedFrom: typeof raw.repeatedFrom === "string" ? raw.repeatedFrom : undefined,
         // What this part does to the material already there. Nothing said means
-        // adding to it, which is what every plan written before this meant.
-        op: raw.op === "subtract" || raw.op === "intersect" ? raw.op : undefined,
+        // adding to it, which is what every plan written before this meant,
+        // except for a part the design itself names a hole: a model on this
+        // computer named its pen holes and bores and left them unmarked, and
+        // they were built as solid pegs. Saying "union" keeps it solid.
+        op: raw.op === "subtract" || raw.op === "intersect" ? raw.op : raw.op == null && namedCut(raw) ? "subtract" : undefined,
         blend: Number.isFinite(Number(raw.blend)) && Number(raw.blend) > 0 ? Number(raw.blend) : undefined,
       };
 
+      if (part.op === "subtract" && raw.op == null) issues.push({ code: "named-cut", partId: id, detail: "named as a hole and not marked to cut, so it is cut away" });
       if (!halfExtents(part).every(Number.isFinite)) {
         issues.push({ code: "not-a-number", partId: id, detail: "size did not resolve to a number" });
         continue;
@@ -706,6 +710,10 @@
    * solid part is reported instead (findIssues, "cuts-nothing").
    */
   const cuts = (part) => !!part && (part.op === "subtract" || part.op === "intersect");
+
+  /** Whether a part's name or its id says it is a hole: "pen hole 2", "bore", "cable_slot". Not "holder". */
+  const CUT_WORDS = /\b(?:holes?|bores?|cavity|cavities|recess(?:es)?|slots?|cut-?outs?|openings?)\b/i;
+  const namedCut = (raw) => !!raw && CUT_WORDS.test(`${raw.name || ""} ${raw.id || ""}`.replace(/[_-]+/g, " "));
 
   /** The ids that other parts were repeated from. */
   function patternSources(parts) {

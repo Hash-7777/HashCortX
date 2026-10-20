@@ -59,6 +59,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A part 3D Forge's design calls a hole is cut.** A design that named a
+  part "pen hole", "bore" or "slot" but did not mark it to cut had it built
+  as a solid peg. Such a part is now cut away, and the run says so; a part
+  marked to add material stays solid.
 - **Opening 3D Forge no longer reports problems with its own mark.** Every
   time it opened, its trace said a number in the design could not be
   worked out and that the model's size should be set in Properties, both

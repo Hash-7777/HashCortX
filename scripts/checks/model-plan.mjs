@@ -425,6 +425,18 @@ console.log('\nA part meant to cut a hole is left where the design put it:');
   ok('...and one that does is counted', P.assemble({ nodes: [body, inside] }).stats.subtracted === 1);
 }
 
+console.log('\nA part the design names a hole is cut, when it says nothing else:');
+{
+  const read = (extra) => P.normaliseParts([box('body', { params: { width: 4, height: 2, depth: 2 } }), box('x', extra)]);
+  const pen = read({ name: 'pen hole 2' });
+  ok('a part named a hole and left unmarked is read as a cut, and that is said', pen.parts[1].op === 'subtract' && pen.issues.some((i) => i.code === 'named-cut' && i.partId === 'x'));
+  ok('...an id with underscores counts too, and so do a bore, a slot and a cavity',
+    read({ id: 'pen_hole_r1' }).parts[1].op === 'subtract' && ['main bore', 'cable slot', 'cavity'].every((name) => read({ name }).parts[1].op === 'subtract'));
+  ok('a holder, a slotted plate and a hole marked to add material stay solid',
+    read({ name: 'pen holder' }).parts[1].op === undefined && read({ name: 'slotted plate' }).parts[1].op === undefined && read({ name: 'hole', op: 'union' }).parts[1].op === undefined && !read({ name: 'pen holder' }).issues.some((i) => i.code === 'named-cut'));
+  ok('a part already marked to cut is not reported again', !read({ name: 'hole', op: 'subtract' }).issues.some((i) => i.code === 'named-cut'));
+}
+
 console.log('\nA hole through the bottom does not lift the object off the floor:');
 {
   const floored = P.snapToFloor([box('body', { position: [0, 5, 0], params: { width: 2, height: 2, depth: 2 } }), box('drain', { op: 'subtract', position: [0, 3, 0], params: { width: 0.2, height: 2, depth: 0.2 } })]);

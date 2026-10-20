@@ -194,6 +194,7 @@
     "mirror-on-axis": [(n) => `${n} part(s) marked to mirror already sit on the mirror plane, so no copy was made`, "wait"],
     "detached": [(n) => `${n} part(s) sit too far from the body to place — left where the design put it`, "warn"],
     "cuts-nothing": [(n) => `${n} part(s) meant to cut a hole sit outside the body, so they cut nothing`, "warn"],
+    "named-cut": [(n) => `${n} part(s) named as a hole were not marked to cut, and are cut away`, "wait"],
     "flat": [() => "the model is nearly flat in one direction", "warn"],
   };
   const UNREPORTED = new Set(["off-floor", "empty"]);
