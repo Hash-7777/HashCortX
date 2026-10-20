@@ -598,9 +598,18 @@ console.log('\nOne part becomes many, placed exactly:');
     P.expandRepeats([{ ...hub, repeat: { count: 4 } }]).issues.some((i) => i.code === 'repeat-axis'));
   ok('a step of nothing is reported rather than stacking copies',
     P.expandRepeats([{ ...hub, repeat: { count: 4, along: [0, 0, 0] } }]).issues.some((i) => i.code === 'repeat-axis'));
-  ok('a part on the axis it turns about is reported',
-    P.expandRepeats([{ ...box('c', { position: [0, 0.5, 0] }), repeat: { count: 4, about: 'y' } }])
-      .issues.some((i) => i.code === 'repeat-on-axis'));
+  const star = P.expandRepeats([{ ...box('c', { position: [0, 0.5, 0] }), repeat: { count: 4, about: 'y' } }]);
+  ok('a box on the axis it turns about is turned in place, each copy made, and that is reported',
+    star.parts.length === 4 && star.issues.some((i) => i.code === 'repeat-on-axis'));
+  const body = P.expandRepeats([{ id: 'body', name: 'body', type: 'cylinder', position: [0, 0.5, 0], rotation: [0, 0, 0], scale: [1, 1, 1], params: { radius: 1, height: 2 }, repeat: { count: 24, about: 'y' } }]);
+  ok('an upright cylinder repeated about its own axis is kept once, and that is said, with how many copies it would have been',
+    body.parts.length === 1 && body.parts[0].repeat === undefined && body.issues.some((i) => i.code === 'repeat-collapsed' && /every one of 24 copies/.test(i.detail)) && !body.issues.some((i) => i.code === 'repeat-on-axis'));
+  ok('which shapes look the same however far they turn: a sphere always, upright turned shapes about y, a ring about z, nothing tipped',
+    P.identicalWhenTurned({ type: 'sphere', rotation: [1, 0, 0] }, 'x') && ['cylinder', 'cone', 'lathe', 'capsule'].every((type) => P.identicalWhenTurned({ type, rotation: [0, 0, 0] }, 'y'))
+    && P.identicalWhenTurned({ type: 'torus', rotation: [0, 0, 0] }, 'z') && !P.identicalWhenTurned({ type: 'torus', rotation: [0, 0, 0] }, 'y')
+    && !P.identicalWhenTurned({ type: 'cylinder', rotation: [0, 0, 0] }, 'x') && !P.identicalWhenTurned({ type: 'cylinder', rotation: [0.3, 0, 0] }, 'y') && !P.identicalWhenTurned({ type: 'box', rotation: [0, 0, 0] }, 'y'));
+  const ring = P.expandRepeats([{ id: 'tooth', name: 'tooth', type: 'cylinder', position: [3, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1], params: { radius: 0.2, height: 1 }, repeat: { count: 6, about: 'y' } }]);
+  ok('the same cylinder away from the axis still makes every copy', ring.parts.length === 6 && !ring.issues.length);
   ok('a count past the limit is capped, not obeyed',
     P.expandRepeats([{ ...hub, repeat: { count: 5000, about: 'y' } }]).parts.length === P.MAX_REPEAT);
   ok('and the cap is reported',

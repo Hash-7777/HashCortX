@@ -214,12 +214,13 @@ console.log('\nA design that does not hold together is not called finished:');
   const issue = (code, partId = 'p') => ({ code, partId });
   const nodes = (n) => ({ nodes: Array.from({ length: n }, (_, i) => ({ id: `p${i}` })) });
   ok('an outline part with no outline is a fault', PREP.faultsOf([], { ...nodes(2), shapeSubstitutions: ['body: extrude with no outline → box'] }).length === 1);
-  ok('copies stacked on their own axis are a fault', PREP.faultsOf([issue('repeat-on-axis')], nodes(2)).length === 1);
+  ok('copies turned about their own axis are not a fault: asking again only had the model repeat them', PREP.faultsOf([issue('repeat-on-axis')], nodes(2)).length === 0 && PREP.faultsOf([issue('repeat-collapsed')], nodes(2)).length === 0);
+  ok('...and both are said in the run, as notes rather than warnings', PREP.describeIssues([issue('repeat-collapsed')])[0].level === 'wait' && /stacked identical copies in one place, so one copy was kept/.test(PREP.describeIssues([issue('repeat-collapsed')])[0].text) && PREP.describeIssues([issue('repeat-on-axis')])[0].level === 'wait');
   ok('most parts floating free is a fault, a few is not', PREP.faultsOf([issue('detached'), issue('detached'), issue('detached')], nodes(4)).length === 1 && PREP.faultsOf([issue('detached')], nodes(4)).length === 0);
   ok('a cut that removes nothing is a fault, said with where the cut belongs', PREP.faultsOf([issue('cuts-nothing')], nodes(3)).length === 1 && /cuts nothing: put it where the hole goes, passing into the material/.test(PREP.faultsOf([issue('cuts-nothing')], nodes(3))[0]));
   ok('...and it has a line of its own in the run', /meant to cut a hole sit outside the body, so they cut nothing/.test(PREP.describeIssues([issue('cuts-nothing')])[0].text));
   ok('flat alone is not a fault — a coaster is meant to be flat', PREP.faultsOf([issue('flat')], nodes(3)).length === 0);
-  ok('... but is named when something else is wrong too', PREP.faultsOf([issue('flat'), issue('repeat-on-axis')], nodes(3)).length === 2);
+  ok('... but is named when something else is wrong too', PREP.faultsOf([issue('flat'), issue('cuts-nothing')], nodes(3)).length === 2);
   ok('a sound design has none', PREP.faultsOf([], nodes(5)).length === 0 && PREP.faultsOf(undefined, undefined).length === 0);
   const mode = readFileSync(new URL('../../src/modes/forge/mode.js', import.meta.url), 'utf8');
   ok('the run asks once more with the reasons, and never says "complete" over one that still fails',

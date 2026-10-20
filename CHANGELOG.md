@@ -59,6 +59,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge keeps one copy of a part repeated onto itself.** A design that
+  repeated a part such as a mug's body around its own centre made dozens
+  of identical solids in one place, called the design unsound, and asked
+  the model again, which took minutes and gave the same answer. The copies
+  are now reduced to one and the run says so, with no second request. A
+  part that changes as it turns, such as a box making a star, is built as
+  asked.
 - **A part 3D Forge's design calls a hole is cut.** A design that named a
   part "pen hole", "bore" or "slot" but did not mark it to cut had it built
   as a solid peg. Such a part is now cut away, and the run says so; a part

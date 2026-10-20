@@ -190,7 +190,8 @@
     "repeat-count": [(n) => `${n} repeat(s) asked for fewer than two copies, so nothing was repeated`, "warn"],
     "repeat-axis": [(n) => `${n} repeat(s) named no way to repeat, so nothing was repeated`, "warn"],
     "repeat-capped": [(n) => `${n} repeat(s) were made with fewer copies than asked`, "warn"],
-    "repeat-on-axis": [(n) => `${n} repeated part(s) sit on the axis they turn about, so their copies overlap`, "warn"],
+    "repeat-on-axis": [(n) => `${n} repeated part(s) sit on the axis they turn about, so their copies turn in place`, "wait"],
+    "repeat-collapsed": [(n) => `${n} repeat(s) would have stacked identical copies in one place, so one copy was kept`, "wait"],
     "mirror-on-axis": [(n) => `${n} part(s) marked to mirror already sit on the mirror plane, so no copy was made`, "wait"],
     "detached": [(n) => `${n} part(s) sit too far from the body to place — left where the design put it`, "warn"],
     "cuts-nothing": [(n) => `${n} part(s) meant to cut a hole sit outside the body, so they cut nothing`, "warn"],
@@ -220,10 +221,12 @@
   /**
    * What makes a design not worth handing over as finished, in words, or none.
    *
-   * A small model's design can come out as parts with no outline, copies stacked
-   * on one another, or pieces mostly floating free — and the run used to say
+   * A small model's design can come out as parts with no outline, a hole that
+   * cuts nothing, or pieces mostly floating free — and the run used to say
    * "Forge complete" over it. These are asked about once more, with the reasons.
-   * Flat alone is not one of them: a coaster or a sign is meant to be flat.
+   * Flat alone is not one of them: a coaster or a sign is meant to be flat. Nor
+   * are copies turned about their own axis: identical ones are reduced to one
+   * by the assembler, and asking again only had the same model repeat them.
    */
   function faultsOf(issues, plan) {
     const list = Array.isArray(issues) ? issues : [];
@@ -232,7 +235,6 @@
     const faults = [];
     const blank = ((plan && plan.shapeSubstitutions) || []).filter((x) => /with no outline/.test(String(x))).length;
     if (blank) faults.push(`${blank} outline part(s) came with no outline`);
-    if (count('repeat-on-axis')) faults.push('repeated parts sit on the axis they turn about, so the copies overlap');
     if (count('detached') * 2 > parts) faults.push('most parts float free of the body');
     if (count('cuts-nothing')) faults.push('a part meant to cut a hole sits outside the body, so it cuts nothing: put it where the hole goes, passing into the material');
     if (faults.length && count('flat')) faults.push('the whole model is flat in one direction');
