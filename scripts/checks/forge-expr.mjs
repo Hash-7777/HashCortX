@@ -197,5 +197,12 @@ console.log('\nThe agents\' calculate tool reads arithmetic here, never as code:
   ok('the tool uses it, and turns no string into code', /HCForgeExpr\.evaluateWritten\(/.test(tool) && !/Function\(|eval\(/.test(tool));
 }
 
+console.log('\nA part\'s words are not arithmetic:');
+{
+  const out = E.resolvePlan({ nodes: [{ id: 'mark', type: 'logo_img', params: { src: '/assets/mark.png', text: 'H', width: '2 * 3' } }] });
+  ok('a picture\'s address and a logo\'s letters are left as written and raise nothing, while the numbers beside them are worked out',
+    out.issues.length === 0 && out.plan.nodes[0].params.src === '/assets/mark.png' && out.plan.nodes[0].params.text === 'H' && out.plan.nodes[0].params.width === 6, JSON.stringify(out));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/expr.js)\n`);
 process.exit(fail ? 1 : 0);

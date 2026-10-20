@@ -1581,7 +1581,7 @@
   function measureRealSize() {
     const units = U();
     mmPerUnit = 0;
-    if (!units || !THREE || !modelGroup || !modelGroup.children.length) return;
+    if (!units || !THREE || !modelGroup || !modelGroup.children.length || activePlan?._introLogo) return;   // the intro mark is the app's own, not an object to be told to size
     modelGroup.updateMatrixWorld(true);
     const box = window.HCForgeRuntime.solidBox(THREE, modelGroup);   // what the object is made of: a part cutting a hole is not counted (js/forge/runtime.js)
     if (box.isEmpty()) return;

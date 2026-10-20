@@ -283,6 +283,9 @@
    * the object is. A name is a name and is never evaluated — the alternative is
    * an app that treats a part called "body" as something to look up.
    */
+  /** The parameters that hold words rather than numbers. */
+  const TEXT_PARAMS = new Set(["src", "text"]);
+
   function resolvePlan(plan) {
     const issues = [];
     if (!plan || typeof plan !== "object") return { plan, issues };
@@ -320,7 +323,13 @@
       for (const field of ["position", "rotation", "scale"]) {
         if (out[field] !== undefined) out[field] = resolveDeep(out[field], `${where}.${field}`);
       }
-      if (out.params !== undefined) out.params = resolveDeep(out.params, `${where}.params`);
+      // A logo's picture and its letters are words, never numbers: read as arithmetic, the
+      // app's own mark reported a broken expression every time 3D Forge opened.
+      if (out.params && typeof out.params === "object" && !Array.isArray(out.params)) {
+        const params = {};
+        for (const key of Object.keys(out.params)) params[key] = TEXT_PARAMS.has(key) ? out.params[key] : resolveDeep(out.params[key], `${where}.params.${key}`);
+        out.params = params;
+      } else if (out.params !== undefined) out.params = resolveDeep(out.params, `${where}.params`);
       // A repeat carries a count and a step, which are numbers, and an axis,
       // which is a name. Resolving the whole object treated "y" as something to
       // look up and reported every pattern in the plan as a broken expression.

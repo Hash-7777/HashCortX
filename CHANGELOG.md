@@ -52,6 +52,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **Opening 3D Forge no longer reports problems with its own mark.** Every
+  time it opened, its trace said a number in the design could not be
+  worked out and that the model's size should be set in Properties, both
+  about the app's intro mark. The mark's picture is no longer read as
+  arithmetic, and the mark is not measured as an object.
 - **3D Forge measures an object without its holes.** Parts that cut a hole
   were measured as if they were part of the object, so a drain hole through
   a pot's floor lifted the pot off the floor, and a cut reaching past a rim

@@ -323,6 +323,7 @@ console.log('\nA model knows how big it is, and says so in millimetres:');
     /targetSize: U\(\)\?\.WORKING_SPAN/.test(src));
   // Measured after the meshes exist, because normalising works from declared
   // parameters and lands near the span rather than on it.
+  check('the intro mark is not measured, so opening 3D Forge does not ask for its size to be set', /\|\| activePlan\?\._introLogo\) return;/.test(bodyOf('measureRealSize')) && /_introLogo/.test(bodyOf('hLogoPlan') + src));
   check('the size is measured from the built geometry, of the parts that add material',
     /window\.HCForgeRuntime\.solidBox\(THREE, modelGroup\)/.test(bodyOf('measureRealSize'))
     && ['modelSizeMm', 'groundBuiltModel', 'describeBuiltModel'].every((f) => /window\.HCForgeRuntime\.solidBox\(THREE, modelGroup\)/.test(bodyOf(f))));
