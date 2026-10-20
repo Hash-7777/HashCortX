@@ -198,7 +198,7 @@ console.log('\nEverything the assembler finds reaches the trace:');
   const lines = PREP.describeIssues([
     { code: 'coordinate-clamped', partId: 'leg', detail: '1e7 → 4800' },
     { code: 'coordinate-clamped', partId: 'arm', detail: '-9e6 → -4800' },
-    { code: 'repeat-on-axis', partId: 'tooth', detail: 'sits on the axis' },
+    { code: 'repeat-collapsed', partId: 'tooth', detail: 'sits on the axis' },
     { code: 'off-floor', detail: 'lowest point' },
     { code: 'something-new', partId: 'x' },
   ]);
@@ -214,8 +214,8 @@ console.log('\nA design that does not hold together is not called finished:');
   const issue = (code, partId = 'p') => ({ code, partId });
   const nodes = (n) => ({ nodes: Array.from({ length: n }, (_, i) => ({ id: `p${i}` })) });
   ok('an outline part with no outline is a fault', PREP.faultsOf([], { ...nodes(2), shapeSubstitutions: ['body: extrude with no outline → box'] }).length === 1);
-  ok('copies turned about their own axis are not a fault: asking again only had the model repeat them', PREP.faultsOf([issue('repeat-on-axis')], nodes(2)).length === 0 && PREP.faultsOf([issue('repeat-collapsed')], nodes(2)).length === 0);
-  ok('...and both are said in the run, as notes rather than warnings', PREP.describeIssues([issue('repeat-collapsed')])[0].level === 'wait' && /stacked identical copies in one place, so one copy was kept/.test(PREP.describeIssues([issue('repeat-collapsed')])[0].text) && PREP.describeIssues([issue('repeat-on-axis')])[0].level === 'wait');
+  ok('a repeat about a part\'s own axis is not a fault: asking again only had the model repeat it', PREP.faultsOf([issue('repeat-collapsed')], nodes(2)).length === 0);
+  ok('...and it is said in the run, as a note rather than a warning', PREP.describeIssues([issue('repeat-collapsed')])[0].level === 'wait' && /would have put every copy in one place, so one copy was kept/.test(PREP.describeIssues([issue('repeat-collapsed')])[0].text));
   ok('most parts floating free is a fault, a few is not', PREP.faultsOf([issue('detached'), issue('detached'), issue('detached')], nodes(4)).length === 1 && PREP.faultsOf([issue('detached')], nodes(4)).length === 0);
   ok('a cut that removes nothing is a fault, said with where the cut belongs', PREP.faultsOf([issue('cuts-nothing')], nodes(3)).length === 1 && /cuts nothing: put it where the hole goes, passing into the material/.test(PREP.faultsOf([issue('cuts-nothing')], nodes(3))[0]));
   ok('...and it has a line of its own in the run', /meant to cut a hole sit outside the body, so they cut nothing/.test(PREP.describeIssues([issue('cuts-nothing')])[0].text));

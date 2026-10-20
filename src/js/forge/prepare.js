@@ -190,8 +190,7 @@
     "repeat-count": [(n) => `${n} repeat(s) asked for fewer than two copies, so nothing was repeated`, "warn"],
     "repeat-axis": [(n) => `${n} repeat(s) named no way to repeat, so nothing was repeated`, "warn"],
     "repeat-capped": [(n) => `${n} repeat(s) were made with fewer copies than asked`, "warn"],
-    "repeat-on-axis": [(n) => `${n} repeated part(s) sit on the axis they turn about, so their copies turn in place`, "wait"],
-    "repeat-collapsed": [(n) => `${n} repeat(s) would have stacked identical copies in one place, so one copy was kept`, "wait"],
+    "repeat-collapsed": [(n) => `${n} repeat(s) would have put every copy in one place, so one copy was kept`, "wait"],
     "mirror-on-axis": [(n) => `${n} part(s) marked to mirror already sit on the mirror plane, so no copy was made`, "wait"],
     "detached": [(n) => `${n} part(s) sit too far from the body to place — left where the design put it`, "warn"],
     "cuts-nothing": [(n) => `${n} part(s) meant to cut a hole sit outside the body, so they cut nothing`, "warn"],
@@ -225,8 +224,8 @@
    * cuts nothing, or pieces mostly floating free — and the run used to say
    * "Forge complete" over it. These are asked about once more, with the reasons.
    * Flat alone is not one of them: a coaster or a sign is meant to be flat. Nor
-   * are copies turned about their own axis: identical ones are reduced to one
-   * by the assembler, and asking again only had the same model repeat them.
+   * is a repeat about a part's own axis: the assembler keeps one copy, and
+   * asking again only had the same model repeat it.
    */
   function faultsOf(issues, plan) {
     const list = Array.isArray(issues) ? issues : [];

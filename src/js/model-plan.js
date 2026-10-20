@@ -442,21 +442,6 @@
    * between a gear and a fan of blades, and getting it the other way round is
    * visible immediately in both.
    */
-  /**
-   * Whether a part looks the same turned any amount about `axis` through its
-   * own centre: a sphere always; an upright cylinder, cone, lathe or capsule,
-   * which three.js builds around y, about y; a torus, built around z, about z.
-   * Only with no rotation of its own, which would tip that axis away.
-   */
-  function identicalWhenTurned(part, axis) {
-    if (!part) return false;
-    if (part.type === "sphere") return true;
-    const still = (part.rotation || [0, 0, 0]).every((v) => Math.abs(Number(v) || 0) < 1e-9);
-    if (!still) return false;
-    if (axis === "y") return ["cylinder", "cone", "lathe", "capsule"].includes(part.type);
-    return axis === "z" && part.type === "torus";
-  }
-
   function expandRepeats(parts, opts = {}) {
     const limit = Math.max(2, Math.min(MAX_REPEAT, num(opts.maxRepeat, MAX_REPEAT)));
     const unit = designUnit(parts);
@@ -531,17 +516,15 @@
         ? Math.hypot(original.position[1], original.position[2])
         : Math.hypot(original.position[0], original.position[1]);
       if (radial < 1e-6 * unit) {
-        // Turned about its own axis, a part that looks the same however far it
-        // turns makes copies that are all the same part in the same place: a
-        // body a small model "repeated" around its own centre came out as
-        // dozens of identical solids, and asking again only repeated it. One
-        // is kept. A part that does change as it turns, such as a box, makes
-        // a star, which can be meant, and is built and said.
-        if (identicalWhenTurned(original, axis)) {
-          issues.push({ code: "repeat-collapsed", partId: part.id, detail: `every one of ${count} copies would be the same part in the same place, so one is kept` });
-          continue;
-        }
-        issues.push({ code: "repeat-on-axis", partId: part.id, detail: "sits on the axis it turns about, so its copies turn in place" });
+        // A part on the axis it turns about makes every copy in the same
+        // place, each only turned. A small model "repeated" the main body of
+        // its designs this way: a cylinder came out as dozens of identical
+        // solids, a box as a star, and asking again only repeated it. The
+        // design is asked to place a repeated part away from the axis,
+        // touching the body, so a repeat on it is taken for a slip: one copy
+        // is kept, and that is said.
+        issues.push({ code: "repeat-collapsed", partId: part.id, detail: `sits on the axis it turns about, so all ${count} copies would sit in one place; one is kept` });
+        continue;
       }
       for (let i = 1; i < count; i++) {
         const a = step * i;
@@ -1086,7 +1069,6 @@
     findIssues,
     connectParts,
     seatParts,
-    identicalWhenTurned,
     expandRepeats,
     MAX_REPEAT,
     resolveType,
