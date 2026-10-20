@@ -1708,7 +1708,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const policy = window.HCAgentPolicy;
       let iter = 0;
       // A greeting to a small or mid-sized model is answered without the tools and instructions it would read first, and so is a request after it wrote its tools back as its reply (js/code/talk.js).
-      let bare = (sharedState.size === 'small' || sharedState.size === 'mid') && !!window.HCCodeTalk?.onlySmallTalk(messages), echoed = false;
+      let bare = (sharedState.size === 'small' || sharedState.size === 'mid') && !!window.HCCodeTalk?.onlySmallTalk(messages), echoed = false, again = false;
       if (bare) tools = [];
       // Progress tracking, so the loop can tell an agent that is working from
       // one that is going in circles. The old fixed cap could not: it stopped
@@ -1937,6 +1937,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           thinkEl = appendThinking(contentEl, { checking: true });
           continue;
         }
+        if (!finalText.trim() && !again && (again = window.HCCodeVerify.askAgainAfterNote(messages))) { cdrTraceAdd('Check', 'An empty reply to a note: asking once more', 'warn'); thinkEl = appendThinking(contentEl, { checking: true }); continue; }   // js/code/verify.js
         if (!finalText.trim()) {
           cdrTraceAdd('Done', 'Empty response from model', 'warn');
           appendTextToBubble(contentEl, '*No response from model. Try again or check your model settings.*');

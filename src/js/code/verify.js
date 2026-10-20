@@ -1135,9 +1135,27 @@
     return seen || 'Not checked: no test ran after the last change.';
   }
 
+  // ── An empty reply to a note ──────────────────────────────────────────
+  //
+  // Sent back with a note, a model on this computer answered with nothing,
+  // and the run ended with "No response from model" with the note's work
+  // undone. Asked once more, with a line added to the same note (a second
+  // message from the app would break the turn order some providers keep),
+  // it has a plain choice: a tool call, or a sentence saying why not.
+
+  const AGAIN = 'Your reply to this was empty. Do what it asks now with a tool call, or say in one sentence why it cannot be done.';
+
+  /** When the last message is a note from the app, add the line asking again to it and say so; otherwise leave `messages` alone. */
+  function askAgainAfterNote(messages) {
+    const last = Array.isArray(messages) ? messages[messages.length - 1] : null;
+    if (!last || last.role !== 'user' || !isAppNote(last.content) || String(last.content).includes(AGAIN)) return false;
+    last.content = `${last.content}\n\n${AGAIN}`;
+    return true;
+  }
+
   window.HCCodeVerify = {
     commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
     exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, WRAP_STEP, OTHER_STEP, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
-    aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
+    askAgainAfterNote, aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
   };
 })();

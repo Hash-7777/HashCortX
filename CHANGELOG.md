@@ -46,6 +46,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **An empty reply after a note no longer ends a HashCoder run.** A model
+  on this computer, sent back with a note to do something more, sometimes
+  answered with nothing, and the run ended with "No response from model".
+  It is now asked once more, to do it with a tool or say why it cannot.
 - **Two hidden drones stop drawing.** After the launch intro, two of the
   three background drones are hidden for good, but their rotors kept
   turning at every frame for as long as the app was open. They are now

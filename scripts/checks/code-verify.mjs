@@ -234,6 +234,19 @@ console.log('\nA change written into the reply instead of made:');
   ok('a request the person sent with a picture is', V.requestIn([...notes, { role: 'user', content: 'Match this screenshot', images: ['x'] }]) === 'Match this screenshot');
 }
 
+console.log('\nAn empty reply to a note is asked once more:');
+{
+  const note = `${V.APP_NOTE} no file in the project was changed, and the request asks for a change.`;
+  const msgs = [{ role: 'user', content: 'Fix it' }, { role: 'assistant', content: 'Done.' }, { role: 'user', content: note, note: true }];
+  ok('after a note, the same note asks again, for a call or a sentence saying why not', V.askAgainAfterNote(msgs) === true && msgs.length === 3 && msgs[2].content.startsWith(note) && /Your reply to this was empty\. Do what it asks now with a tool call, or say in one sentence why it cannot be done\.$/.test(msgs[2].content));
+  ok('...once: a note already asking again is not asked again', V.askAgainAfterNote(msgs) === false);
+  ok('after the person\'s own message, or a tool result, nothing is changed', V.askAgainAfterNote([{ role: 'user', content: 'Fix it' }]) === false && V.askAgainAfterNote([{ role: 'tool', content: 'x' }]) === false && V.askAgainAfterNote([]) === false);
+  ok('a saved conversation still shows it as the step it was', V.noteStep(msgs[2].content) === V.noteStep(note));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder asks once a run, only when the reply is empty, and goes on',
+    /if \(!finalText\.trim\(\) && !again && \(again = window\.HCCodeVerify\.askAgainAfterNote\(messages\)\)\) \{[^\n]*continue; \}/.test(mode) && /echoed = false, again = false;/.test(mode));
+}
+
 console.log('\nThe work checked against the request:');
 {
   const request = 'In src/limits.js raise MAX_USERS to 100, MAX_UPLOAD_MB to 25 and TIMEOUT_SECONDS to 60.';

@@ -824,7 +824,9 @@ const LINE_BUDGET = {
   // by js/agent-shape.js endedBy.
   // 2353, down 116: the one-shot run the chat called and the tool blocks it
   // drew after a chat render went, with the chat's HashCoder branch.
-  'modes/code/mode.js': 2353,
+  // 2354, up one: an empty reply to a note is asked once more, the one line
+  // that calls js/code/verify.js askAgainAfterNote.
+  'modes/code/mode.js': 2354,
 };
 
 console.log('\nFile sizes go down, never up:');
