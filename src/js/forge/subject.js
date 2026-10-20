@@ -318,7 +318,8 @@
     }
     if (b.lies) lines.push(`- Its longest side runs along ${b.lies.toUpperCase()}. Orient it that way.`);
     if (b.sizeMm) lines.push(`- Its real longest side is about ${Math.round(b.sizeMm)} mm, so "sizeMm" is about that.`);
-    if (b.symmetry) lines.push(`- Its two halves sit either side of ${b.symmetry.toUpperCase()}. Build one side and set "mirror": "${b.symmetry}" on it.`);
+    // Halves either side of the floor-level plane were guessed for objects that stand on the floor, and a part mirrored there went through it.
+    if (b.symmetry && b.symmetry !== 'y') lines.push(`- Its two halves sit either side of ${b.symmetry.toUpperCase()}. Build one side and set "mirror": "${b.symmetry}" on it.`);
     if (b.hollow) lines.push('- It is hollow. Take the inside out with a part that has "op": "subtract"; do not model a thin skin.');
     if (b.cuts && b.cuts.length) lines.push(`- Material to take away, each written as a subtracted part: ${b.cuts.join('; ')}`);
     if (b.repeats && b.repeats.length) lines.push(`- Features that repeat — write ONE part and give it "repeat": ${b.repeats.join('; ')}`);

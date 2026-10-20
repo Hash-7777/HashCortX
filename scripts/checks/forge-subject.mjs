@@ -161,6 +161,12 @@ ok('the word list can still only grant permission', /allowsSeveralSubjects\(prom
 ok('the run passes the count through', /subjectsOf\(activeForgeBrief\)/.test(mode));
 ok('and so does Improve', (mode.match(/subjectsOf\(activeForgeBrief\)/g) || []).length >= 2);
 
+console.log('\nA mirror across the floor plane is not passed on:');
+ok('halves either side of x or z are passed on as a mirror', /set "mirror": "z"/.test(S.briefLines({ subject: 'stand', symmetry: 'z' })));
+ok('...halves either side of y are not: a part mirrored there goes through the floor', !/mirror/.test(S.briefLines({ subject: 'stand', symmetry: 'y' })) && /It is: stand/.test(S.briefLines({ subject: 'stand', symmetry: 'y' })));
+ok('the design call says where a turned and an outline shape start, as the app builds them',
+  /y is measured up from the part's position, so \[0, 0\] is its bottom/.test(mode) && /the outline is drawn around the part's position in x and y and pushed out towards \+z by its depth/.test(mode));
+
 console.log('\nAsking never costs a run:');
 ok('one model gets a deadline', /callWithin\(deadlineOf\(model\)/.test(asker));
 ok('and the deadline is half a minute or less for a cloud model', A.DEADLINE_MS > 0 && A.DEADLINE_MS <= 30000 && A.deadlineOf('cloud:openrouter:some-model') === A.DEADLINE_MS);

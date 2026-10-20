@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge tells a model where its shapes start.** The design request now
+  says that a turned shape's heights are measured up from where the part
+  sits, and that an outline shape is drawn around that point and thickened
+  towards the front, as the app builds them; models placed them as if
+  centred. A guess that an object's halves sit above and below the floor is
+  no longer passed on as an instruction to mirror it, which sent a part
+  through the floor.
 - **3D Forge holds a model on this computer to the shape of a design.** A
   model on this computer is now given the exact form a design must take,
   so every part is a shape the app builds, with the sizes that shape

@@ -3193,8 +3193,8 @@ Schema:
 What each shape needs in "params" (millimetres). A shape missing what it needs cannot be built:
   box: width, height, depth · cylinder: radius, height · cone: radius, height · sphere: radius
   capsule: radius, length · torus: radius, tube
-  lathe: "points" [[r, y], ...] — at least 2, bottom to top, r the distance from the vertical axis, e.g. a vase [[30,0],[55,60],[25,160]]
-  extrude: "points" [[x, y], ...] — at least 3 corners of the outline, and "depth", its thickness
+  lathe: "points" [[r, y], ...] — at least 2, bottom to top, r the distance from the vertical axis, e.g. a vase [[30,0],[55,60],[25,160]]; y is measured up from the part's position, so [0, 0] is its bottom
+  extrude: "points" [[x, y], ...] — at least 3 corners of the outline, and "depth", its thickness; the outline is drawn around the part's position in x and y and pushed out towards +z by its depth
   mesh: {"positions":[x,y,z,...],"indices":[a,b,c,...],"normals":[x,y,z,...],"uvs":[u,v,...],"subdivisions":1,"center":false}
 
 How to build it:
