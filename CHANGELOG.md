@@ -46,6 +46,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A new 3D Forge design no longer replaces the one you had open.** Each
+  Generate saved into the project already open, so the model made before
+  it was overwritten, and the project kept the first prompt's name. Every
+  new design is now saved as a project of its own; Improve and edits still
+  change the one open.
 - **An empty reply after a note no longer ends a HashCoder run.** A model
   on this computer, sent back with a note to do something more, sometimes
   answered with nothing, and the run ended with "No response from model".

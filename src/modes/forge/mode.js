@@ -3045,7 +3045,7 @@ ${JSON.stringify({ name: activePlan?.name, sizeMm: activePlan?.sizeMm, nodes: re
     }
 
     buildPlan(plan);
-    saveCurrentProject(false);
+    activeProjectId = null; saveCurrentProject(false);   // a new design is a new project: saved into the open one, it replaced the model there and kept its name
     const partCount = renderableNodes(plan.nodes).length;
     const dot = $("frgTraceDot");
     // There was a partial-run branch here, reporting which of the three

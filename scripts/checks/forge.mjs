@@ -621,6 +621,8 @@ console.log('\nSaved projects live in a file, and a save that fails says so:');
   // a panel saying "Saved" with nothing on disk.
   check('a write answers whether it happened', /return true;/.test(save) && /return false;/.test(save));
   check('and nothing about the failure is swallowed', !/catch \{\}/.test(save));
+  check('a design run saves a new project, so the one open keeps its model and its name, while Improve and edits save into the open one',
+    /buildPlan\(plan\);\n\s*activeProjectId = null; saveCurrentProject\(false\);/.test(bodyOf('forgeRun')) && !/activeProjectId = null/.test(bodyOf('improveModel')) && /queueProjectSave\(\)/.test(src));
   check('a save only claims success when it had it',
     /const written = await persistForgeProjects\(\)/.test(bodyOf('saveCurrentProject'))
     && /if \(written\)/.test(bodyOf('saveCurrentProject')));
