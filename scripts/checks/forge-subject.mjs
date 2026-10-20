@@ -162,8 +162,9 @@ ok('the run passes the count through', /subjectsOf\(activeForgeBrief\)/.test(mod
 ok('and so does Improve', (mode.match(/subjectsOf\(activeForgeBrief\)/g) || []).length >= 2);
 
 console.log('\nAsking never costs a run:');
-ok('one model gets a deadline', /callWithin\(DEADLINE_MS/.test(asker));
-ok('and the deadline is half a minute or less', A.DEADLINE_MS > 0 && A.DEADLINE_MS <= 30000);
+ok('one model gets a deadline', /callWithin\(deadlineOf\(model\)/.test(asker));
+ok('and the deadline is half a minute or less for a cloud model', A.DEADLINE_MS > 0 && A.DEADLINE_MS <= 30000 && A.deadlineOf('cloud:openrouter:some-model') === A.DEADLINE_MS);
+ok('...while a model on this computer, which may have to load first, is given two minutes', A.LOCAL_DEADLINE_MS === 120000 && A.deadlineOf('qwen2.5-coder:7b') === 120000 && A.deadlineOf('') === 120000);
 ok('at most three models are asked', /i < TRIES/.test(asker) && A.TRIES <= 3);
 ok('a run that cannot reach one still gets a brief', /S\.merge\(answered, prompt\)/.test(asker));
 ok('an aborted run stops asking', /signal\.aborted\) break/.test(asker));

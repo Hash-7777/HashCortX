@@ -12,8 +12,11 @@
 // tier's limit and end a run with nothing on screen. This adds a second call,
 // so it is built to be given up on: a short deadline, at most three models,
 // and on every failure the run carries on with what the request's own words
-// settle. A person waiting for a model never waits longer than half a minute
-// for this, and never loses a run to it.
+// settle. A person waiting for a cloud model never waits longer than half a
+// minute for this, and never loses a run to it. A model on this computer is
+// given two minutes: the first call of a run often has to load it from disk,
+// which alone can take longer than half a minute, and cut off there it was
+// marked as having run out of time and passed over for the design itself.
 //
 // Loaded before the Forge mode and published as window.HCForgeAskSubject.
 // Checked by scripts/checks/forge-subject.mjs.
@@ -22,8 +25,10 @@
 (function () {
   'use strict';
 
-  /** How long one model is given to say what the object is. */
+  /** How long one model is given to say what the object is: a cloud model, and one on this computer, which may first have to load. */
   const DEADLINE_MS = 30000;
+  const LOCAL_DEADLINE_MS = 120000;
+  const deadlineOf = (model) => (/^cloud:/.test(String(model || '')) ? DEADLINE_MS : LOCAL_DEADLINE_MS);
   /** How many models are asked before the run falls back to the words. */
   const TRIES = 3;
 
@@ -53,7 +58,7 @@
     for (let i = 0; model && i < TRIES && answered === null; i++) {
       if (signal && signal.aborted) break;
       try {
-        const text = await ROUTES.callWithin(DEADLINE_MS, signal, `no answer within ${DEADLINE_MS / 1000} s`, (s) => deps.call(model, S.messages(prompt), s));
+        const text = await ROUTES.callWithin(deadlineOf(model), signal, `no answer within ${deadlineOf(model) / 1000} s`, (s) => deps.call(model, S.messages(prompt), s));
         answered = S.readBrief(text);
         if (answered === null) throw new Error('its answer could not be read');
         from = deps.label(model);
@@ -73,5 +78,5 @@
     return brief;
   }
 
-  window.HCForgeAskSubject = { ask, DEADLINE_MS, TRIES };
+  window.HCForgeAskSubject = { ask, DEADLINE_MS, LOCAL_DEADLINE_MS, deadlineOf, TRIES };
 })();

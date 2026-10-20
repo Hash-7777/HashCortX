@@ -46,6 +46,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge waits for a model on this computer to load.** Its first call
+  gave every model half a minute, which a model on this computer can need
+  just to load; cut off there, it was marked as too slow and another model
+  designed the object instead of the one chosen. A model on this computer
+  now has two minutes for that call.
 - **A new 3D Forge design no longer replaces the one you had open.** Each
   Generate saved into the project already open, so the model made before
   it was overwritten, and the project kept the first prompt's name. Every
