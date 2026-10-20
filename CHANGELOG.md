@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge gives its graphics memory back when you leave it.** Once
+  opened, 3D Forge held its 3D view's buffers, textures and shadow map for
+  the rest of the session, memory a model on this computer could use. Half
+  a minute after you leave it, that memory is handed back; when you return,
+  the view is built again. A quick look elsewhere and back changes nothing.
 - **The decorations rest while a model on this computer answers.** The
   drones and the crest kept moving while a local model worked, drawing on
   the same graphics chip and memory it needs. They now rest for as long as

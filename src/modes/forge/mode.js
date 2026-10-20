@@ -989,8 +989,7 @@
       event.preventDefault();
       contextLost = true;
       stopLoop();
-      setStatus("Paused");
-      log("Viewport", "The system took the 3D context back — restoring", "warn");
+      if (!window.HCForgeRuntime.gaveBack(renderer)) { setStatus("Paused"); log("Viewport", "The system took the 3D context back — restoring", "warn"); }   // handed back on leaving is not news
     });
 
     canvas.addEventListener("webglcontextrestored", () => {
@@ -1005,7 +1004,7 @@
         if (plan) buildPlan(plan);
         resize();
         startLoop();
-        log("Viewport", "3D context restored", "ok");
+        if (!window.HCForgeRuntime.gaveBack(renderer)) log("Viewport", "3D context restored", "ok");
         setStatus("Ready");
       } catch (err) {
         log("Viewport", `Could not restore the 3D context: ${err.message || err}`, "err");
@@ -3660,7 +3659,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
   }
 
   async function mount() {
-    mounted = true;
+    mounted = true; window.HCForgeRuntime.back(renderer);   // its 3D context back, if it was handed back while away (js/forge/runtime.js)
     if (!/mac/i.test(navigator.platform || navigator.userAgent || "")) document.querySelectorAll(".frg-help [data-key]").forEach((b) => { b.textContent = b.dataset.key; });   // the help names this computer's keys: Command on a Mac, Ctrl elsewhere
     // The plain intro image is only for the first mark. A model already open
     // is drawn again at once, and nothing should sit over it.
@@ -3682,8 +3681,8 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
   }
 
   function destroy() {
-    mounted = false;
-    if (abortCtrl) abortCtrl.abort();
+    mounted = false; if (abortCtrl) abortCtrl.abort();
+    window.HCForgeRuntime.away(renderer);   // the 3D context is handed back after a while away, freeing its graphics memory
   }
 
   window.ForgeMode = { mount, destroy, buildPlan };

@@ -20,6 +20,13 @@
 // something is still moving: the camera settling, a part fading in, the mark
 // floating.
 //
+// Leaving 3D Forge kept its 3D context, and with it every buffer, texture,
+// shadow map and compiled shader the view had made, for the rest of the
+// session: graphics memory a model on this computer could have used. Half a
+// minute after the mode is left the context is handed back (away); coming
+// back asks for it again (back), and the mode's own restore path builds the
+// view again from the plan. A quick look elsewhere and back costs nothing.
+//
 // Loaded before the modes and published as window.HCForgeRuntime.
 // Checked by scripts/checks/forge.mjs.
 // ==============================================================
@@ -77,6 +84,35 @@
     };
   }
 
+  /** How long 3D Forge may be left before its 3D context is handed back. */
+  const AWAY_MS = 30000;
+  const awayTimers = new WeakMap();
+  const given = new WeakSet();
+
+  /** The mode was left: hand `renderer`'s context back after `ms`, unless it is come back to first. */
+  function away(renderer, ms = AWAY_MS) {
+    if (!renderer || awayTimers.has(renderer) || given.has(renderer)) return;
+    awayTimers.set(renderer, setTimeout(() => {
+      awayTimers.delete(renderer);
+      given.add(renderer);
+      try { renderer.forceContextLoss(); } catch { given.delete(renderer); }
+    }, ms));
+  }
+
+  /** The mode is back: keep the context, or ask for it again if it was handed back. */
+  function back(renderer) {
+    if (!renderer) return;
+    clearTimeout(awayTimers.get(renderer));
+    awayTimers.delete(renderer);
+    if (!given.has(renderer)) return;
+    // Forgotten once the mode's own restore has run, so a later loss the system causes is reported as one.
+    renderer.domElement.addEventListener('webglcontextrestored', () => given.delete(renderer), { once: true });
+    try { renderer.forceContextRestore(); } catch { given.delete(renderer); }
+  }
+
+  /** Whether `renderer`'s context was handed back on purpose and not yet restored: its loss is not news. */
+  const gaveBack = (renderer) => !!renderer && given.has(renderer);
+
   // The first time the pointer is over the 3D Forge tab, start reading. One
   // listener, removed once it has fired.
   if (typeof document !== 'undefined') {
@@ -88,5 +124,5 @@
     document.addEventListener('pointerover', warm, true);
   }
 
-  window.HCForgeRuntime = { load, environment, onDemand };
+  window.HCForgeRuntime = { load, environment, onDemand, away, back, gaveBack, AWAY_MS };
 })();

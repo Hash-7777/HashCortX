@@ -883,6 +883,42 @@ console.log('\nFrames are drawn only when something changes:');
   check('nothing schedules a frame of its own', !/requestAnimationFrame\(animate\)/.test(src) && !/function animate\(/.test(src));
 }
 
+console.log('\nThe 3D context is handed back while 3D Forge is left:');
+{
+  const vm = await import('node:vm');
+  const runtime = readFileSync(join(here, '..', '..', 'src', 'js', 'forge', 'runtime.js'), 'utf8');
+  const timers = new Map(); let seq = 0;
+  const box = { window: {}, Promise, setTimeout: (f, ms) => { timers.set(++seq, { f, ms }); return seq; }, clearTimeout: (id) => timers.delete(id) };
+  vm.createContext(box);
+  vm.runInContext(runtime, box, { filename: 'runtime.js' });
+  const R = box.window.HCForgeRuntime;
+  const fire = () => { for (const [id, t] of [...timers]) { timers.delete(id); t.f(); } };
+  const renderer = () => {
+    const on = {}, calls = [];
+    return { calls, forceContextLoss: () => calls.push('lose'), forceContextRestore: () => { calls.push('restore'); (on.webglcontextrestored || []).forEach((f) => f()); },
+      domElement: { addEventListener: (type, f) => { (on[type] = on[type] || []).push(f); } } };
+  };
+  const r = renderer();
+  R.away(r);
+  check('left, nothing is handed back at once, and the wait is half a minute', r.calls.length === 0 && [...timers.values()][0]?.ms === 30000 && R.AWAY_MS === 30000);
+  R.back(r);
+  check('back within it, the context is kept and nothing waits', r.calls.length === 0 && timers.size === 0 && !R.gaveBack(r));
+  R.away(r); R.away(r);
+  check('left twice, one wait', timers.size === 1);
+  fire();
+  check('after the wait the context is handed back, and its loss is known to be on purpose', r.calls.join() === 'lose' && R.gaveBack(r) === true);
+  R.away(r);
+  check('...and not handed back twice', timers.size === 0);
+  R.back(r);
+  check('back, it is asked for again, and once restored a later loss counts as the system\'s', r.calls.join() === 'lose,restore' && R.gaveBack(r) === false);
+  R.away(null); R.back(null);
+  check('before the view exists, nothing happens', timers.size === 0 && R.gaveBack(null) === false);
+  check('the mode hands it back on leaving and asks for it on return, and says nothing of a loss it caused',
+    /window\.HCForgeRuntime\.away\(renderer\);/.test(bodyOf('destroy')) && /mounted = true; window\.HCForgeRuntime\.back\(renderer\);/.test(bodyOf('mount'))
+    && /if \(!window\.HCForgeRuntime\.gaveBack\(renderer\)\) \{ setStatus\("Paused"\); log\("Viewport", "The system took the 3D context back/.test(src)
+    && /if \(!window\.HCForgeRuntime\.gaveBack\(renderer\)\) log\("Viewport", "3D context restored", "ok"\);/.test(src));
+}
+
 console.log('\nThe intro mark floats above the floor:');
 {
   const y = Number((src.match(/const INTRO_LOGO_Y = FLOOR_Y \+ ([\d.]+) \/ 2 \+ ([\d.]+);/) || []).slice(1).reduce((a, b) => a / 2 + Number(b), 0));

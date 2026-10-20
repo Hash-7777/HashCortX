@@ -539,7 +539,9 @@ const LINE_BUDGET = {
   // js/forge/press.js, and the mode notes where each press began.
   // 3710, down two: a prompt sent while a part is made waits for it (js/queue.js),
   // and the run's try and finally fit on one line.
-  'modes/forge/mode.js': 3710,
+  // 3709, down one: handing the 3D context back while away is
+  // js/forge/runtime.js away/back.
+  'modes/forge/mode.js': 3709,
   // 2928, down from 2980. Whether a swarm's wiring contains a loop, how to
   // open one that does, and where each agent is drawn all moved to
   // src/js/swarm/graph.js. A loop there is not a wrong answer — it is a run
