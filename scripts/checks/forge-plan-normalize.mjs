@@ -279,5 +279,29 @@ console.log('\nArithmetic is worked out before any number is read:');
     JSON.stringify(plain.normalizePlan(plan).nodes[0].position) === '[0,0,0]');
 }
 
+console.log('\nA model on this computer is held to the plan\'s shape:');
+{
+  const S = N.PLAN_SCHEMA;
+  const shapes = S.properties.nodes.items.anyOf;
+  const types = shapes.map((x) => x.properties.type.const);
+  ok('every shape it may write is one the app builds, and none other: no drawn mesh, no logo', types.every((t) => N.SHAPE_NAMES.includes(t)) && !types.includes('mesh') && !types.some((t) => /logo/.test(t)) && types.length === 8, types.join());
+  const needs = Object.fromEntries(shapes.map((x) => [x.properties.type.const, x.properties.params.required.join()]));
+  ok('each shape must carry the sizes it is built from: an outline for an outline shape, at least three corners to extrude',
+    needs.box === 'width,height,depth' && needs.cylinder === 'radius,height' && needs.sphere === 'radius' && needs.torus === 'radius,tube'
+    && needs.extrude === 'points,depth' && needs.lathe === 'points'
+    && shapes.find((x) => x.properties.type.const === 'extrude').properties.params.properties.points.minItems === 3);
+  ok('a repeat is of two copies or more, about an axis or along a step', S.properties.nodes.items.anyOf[0].properties.repeat.anyOf.every((r) => r.properties.count.minimum === 2) && S.properties.nodes.items.anyOf[0].properties.repeat.anyOf.length === 2);
+  ok('a part adds material unless it says otherwise: its op may be left out', shapes.every((x) => !x.required.includes('op')) && shapes.every((x) => x.required.join() === 'id,name,type,position,params'));
+  ok('a plan has a name, a real size and two to twenty-four parts', S.required.join() === 'name,sizeMm,nodes' && S.properties.nodes.minItems === 2 && S.properties.nodes.maxItems === 24);
+  const plan = N.normalizePlan({ name: 'mug', sizeMm: 95, nodes: [
+    { id: 'body', name: 'body', type: 'lathe', position: [0, 0, 0], params: { points: [[38, 0], [40, 95]] } },
+    { id: 'bore', name: 'bore', type: 'cylinder', op: 'subtract', position: [0, 50, 0], params: { radius: 34, height: 100 } },
+  ] });
+  ok('a plan written to it passes the gate whole', plan.nodes.length === 2 && plan.nodes[1].op === 'subtract' && plan.nodes[0].type === 'lathe');
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
+  ok('the design call holds a model on this computer to it, and a cloud model to plain JSON',
+    /onToken, signal, \{ json: String\(model\)\.startsWith\("cloud:"\) \|\| window\.HCForgePlanNormalize\.PLAN_SCHEMA \}\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/plan-normalize.js)`);
 process.exit(fail ? 1 : 0);

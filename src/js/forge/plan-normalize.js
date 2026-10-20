@@ -217,5 +217,57 @@
     };
   }
 
-  window.HCForgePlanNormalize = { normalizePlan, mirrorAxis, vec3, SHAPE_NAMES, MAX_FORGE_NODES };
+  // ── The shape a model on this computer is held to ───────────────────────
+  //
+  // Asked for a plan in words, a model on this computer wrote outline shapes
+  // with no outline, which are built as plain boxes, and repeats of one copy,
+  // which repeat nothing, and every such slip cost a second design call. Ollama
+  // can hold an answer to a JSON schema, so the plan is asked for in this
+  // shape: each part one of the shapes the app builds, with the sizes that
+  // shape needs, numbers written as numbers, a repeat of two copies or more.
+  // A drawn mesh and the logo shapes are left out: a small model cannot write
+  // a mesh, and the logos are the app's own. A cloud model is not held to it.
+
+  const NUM = { type: 'number' };
+  const V3 = { type: 'array', items: NUM, minItems: 3, maxItems: 3 };
+  const PT = { type: 'array', items: NUM, minItems: 2, maxItems: 2 };
+  const outline = (min) => ({ type: 'array', items: PT, minItems: min, maxItems: 32 });
+  const NEEDS = {
+    box: [{ width: NUM, height: NUM, depth: NUM }, ['width', 'height', 'depth']],
+    cylinder: [{ radius: NUM, height: NUM, segments: NUM }, ['radius', 'height']],
+    cone: [{ radius: NUM, height: NUM, segments: NUM }, ['radius', 'height']],
+    sphere: [{ radius: NUM }, ['radius']],
+    capsule: [{ radius: NUM, length: NUM, segments: NUM }, ['radius', 'length']],
+    torus: [{ radius: NUM, tube: NUM }, ['radius', 'tube']],
+    lathe: [{ points: outline(2), segments: NUM }, ['points']],
+    extrude: [{ points: outline(3), depth: NUM }, ['points', 'depth']],
+  };
+  const REPEAT = { anyOf: [
+    { type: 'object', properties: { count: { type: 'integer', minimum: 2, maximum: 64 }, about: { enum: ['x', 'y', 'z'] }, angle: NUM }, required: ['count', 'about'] },
+    { type: 'object', properties: { count: { type: 'integer', minimum: 2, maximum: 64 }, along: V3 }, required: ['count', 'along'] },
+  ] };
+  const PLAN_SCHEMA = {
+    type: 'object',
+    properties: {
+      name: { type: 'string' },
+      sizeMm: NUM,
+      nodes: {
+        type: 'array', minItems: 2, maxItems: 24,
+        items: { anyOf: Object.entries(NEEDS).map(([type, [params, required]]) => ({
+          type: 'object',
+          properties: {
+            id: { type: 'string' }, name: { type: 'string' }, type: { const: type },
+            role: { enum: ['structure', 'surface', 'detail'] }, color: { type: 'string' },
+            op: { enum: ['union', 'subtract', 'intersect'] },
+            position: V3, rotation: V3, params: { type: 'object', properties: params, required },
+            mirror: { enum: ['x', 'y', 'z'] }, repeat: REPEAT, blend: NUM,
+          },
+          required: ['id', 'name', 'type', 'position', 'params'],
+        })) },
+      },
+    },
+    required: ['name', 'sizeMm', 'nodes'],
+  };
+
+  window.HCForgePlanNormalize = { normalizePlan, mirrorAxis, vec3, SHAPE_NAMES, MAX_FORGE_NODES, PLAN_SCHEMA };
 })();

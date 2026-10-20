@@ -226,7 +226,7 @@ console.log('\nA design that does not hold together is not called finished:');
     /for \(let pass = 1; pass <= \(useSample \? 1 : 2\); pass\+\+\)/.test(mode) && /The last design for this did not hold together: \$\{faults\.join/.test(mode)
     && /if \(faults\.length\) log\("Orchestrator", `Finished, but the design does not hold together/.test(mode));
   ok('... and of the two designs, the one with fewer faults is kept', /if \(!best \|\| faults\.length < best\.faults\.length\) best = \{ plan, faults \};/.test(mode));
-  ok('the design is asked for as JSON, which a local model is held to', /\], onToken, signal, \{ json: true \}\);/.test(mode) && /ollamaChat\(model, messages, null, s, \{ json: true \}\)/.test(mode));
+  ok('the design is asked for as JSON, which a local model is held to, in the shape of a design', /\], onToken, signal, \{ json: String\(model\)\.startsWith\("cloud:"\) \|\| window\.HCForgePlanNormalize\.PLAN_SCHEMA \}\);/.test(mode) && /ollamaChat\(model, messages, null, s, \{ json: true \}\)/.test(mode));
   ok('the design call says what each shape needs', /What each shape needs in "params"/.test(mode) && /lathe: "points" \[\[r, y\]/.test(mode));
 }
 

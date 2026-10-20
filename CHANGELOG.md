@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **3D Forge holds a model on this computer to the shape of a design.** A
+  model on this computer is now given the exact form a design must take,
+  so every part is a shape the app builds, with the sizes that shape
+  needs, and a repeat makes at least two copies. Outline shapes written
+  with no outline, and repeats of one, no longer reach the model on
+  screen. A cloud model is not affected.
 - **3D Forge gives its graphics memory back when you leave it.** Once
   opened, 3D Forge held its 3D view's buffers, textures and shadow map for
   the rest of the session, memory a model on this computer could use. Half
