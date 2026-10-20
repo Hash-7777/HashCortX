@@ -4991,7 +4991,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
   // the right endpoint with the stored key, and local ones talk to Ollama
   // directly. It used to live at the bottom of the file inside a swarm
   // implementation nothing could reach.
-  async function ollamaChat(model, given, onToken, signal, { json } = {}) { const messages = json ? given : HCAgentShape.withPrivacyRule(given, HCPromptPrivacy.RULE), kept = (text) => (json ? text : HCPromptPrivacy.withoutQuotes(text, HCAgentShape.appTextOf(messages)));   // json: a local model must answer in JSON; any other answer is told, and kept from, its instructions (js/prompt-privacy.js)
+  async function ollamaChat(model, given, onToken, signal, { json, onThinking } = {}) { const messages = json ? given : HCAgentShape.withPrivacyRule(given, HCPromptPrivacy.RULE), kept = (text) => (json ? text : HCPromptPrivacy.withoutQuotes(text, HCAgentShape.appTextOf(messages)));   // json: a local model must answer in JSON; any other answer is told, and kept from, its instructions (js/prompt-privacy.js)
     if (model && model.startsWith("cloud:")) {
       let full = "";
       await streamWithModelValue({
@@ -5008,7 +5008,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Read through js/local-client.js, which gathers whole lines across chunk
     // boundaries and keeps a thinking model's thinking out of the answer.
     const reply = await HCLocal.chat(host, { model, messages, json, numCtx: await HCLocalContext.numCtx(host, model, messages) }, {
-      signal, onToken: onToken ? (tok, full) => onToken(tok, full) : undefined,
+      signal, onToken: onToken ? (tok, full) => onToken(tok, full) : undefined, onThinking,   // a caller timing the answer is told a thinking model is still at work
     });
     return kept(reply.content);
   }

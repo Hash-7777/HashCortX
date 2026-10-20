@@ -3266,7 +3266,7 @@ Prompt: ${prompt}${about ? `\n\n${about}` : ""}`;
     const text = await api.ollamaChat(model, [
       { role: "system", content: system },
       { role: "user", content: user },
-    ], onToken, signal, { json: String(model).startsWith("cloud:") || window.HCForgePlanNormalize.PLAN_SCHEMA });   // a model on this computer is held to the plan's shape (js/forge/plan-normalize.js)
+    ], onToken, signal, { json: String(model).startsWith("cloud:") || window.HCForgePlanNormalize.PLAN_SCHEMA, onThinking: onToken });   // a model on this computer is held to the plan's shape (js/forge/plan-normalize.js); its thinking counts as work, not silence
     try {
       return parsePlan(text);
     } catch (err) {

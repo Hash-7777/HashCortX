@@ -59,6 +59,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge lets a thinking model finish thinking.** A model on this
+  computer that thinks before it answers was treated as silent while it
+  thought, cut off after three minutes, and replaced by another model.
+  Its thinking now counts as work.
 - **3D Forge keeps one copy of a part repeated onto itself.** A design that
   repeated a part such as a mug's body around its own centre made dozens
   of identical solids in one place, called the design unsound, and asked

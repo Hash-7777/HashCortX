@@ -300,7 +300,7 @@ console.log('\nA model on this computer is held to the plan\'s shape:');
   ok('a plan written to it passes the gate whole', plan.nodes.length === 2 && plan.nodes[1].op === 'subtract' && plan.nodes[0].type === 'lathe');
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'forge', 'mode.js'), 'utf8');
   ok('the design call holds a model on this computer to it, and a cloud model to plain JSON',
-    /onToken, signal, \{ json: String\(model\)\.startsWith\("cloud:"\) \|\| window\.HCForgePlanNormalize\.PLAN_SCHEMA \}\);/.test(mode));
+    /onToken, signal, \{ json: String\(model\)\.startsWith\("cloud:"\) \|\| window\.HCForgePlanNormalize\.PLAN_SCHEMA, onThinking: onToken \}\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/forge/plan-normalize.js)`);
