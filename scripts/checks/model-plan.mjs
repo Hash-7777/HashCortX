@@ -404,6 +404,27 @@ console.log('\nParts that do not reach the body are brought to it:');
     !P.findIssues(chain.parts).some((i) => i.code === 'detached'));
 }
 
+console.log('\nA part meant to cut a hole is left where the design put it:');
+{
+  // A mug: the bore written under the body instead of inside it, as a model on this computer wrote it.
+  const body = box('body', { params: { width: 2, height: 3, depth: 2 } });
+  const below = box('bore', { op: 'subtract', position: [0, -1.6, 0], params: { width: 1.4, height: 0.2, depth: 1.4 } });
+  const moved = P.connectParts([body, below]);
+  ok('a cut near the body is not moved to touch it, which would cut nothing', moved.moves.length === 0);
+  const seated = P.seatParts([body, below]);
+  ok('...nor seated a hair into it', seated.seams.length === 0);
+  const outside = P.findIssues([body, below]);
+  ok('a cut that reaches no solid part is said to cut nothing, not called detached',
+    outside.some((i) => i.code === 'cuts-nothing' && i.partId === 'bore') && !outside.some((i) => i.code === 'detached'));
+  const inside = box('bore', { op: 'subtract', position: [0, 0.6, 0], params: { width: 1.4, height: 2.4, depth: 1.4 } });
+  ok('a cut that passes into the body raises nothing', !P.findIssues([body, inside]).some((i) => i.code === 'cuts-nothing' || i.code === 'detached'));
+  const twoCuts = P.findIssues([body, box('b', { op: 'subtract', position: [5, 0, 0] }), box('c', { op: 'subtract', position: [5.2, 0, 0] })]);
+  ok('two cuts that overlap each other and no solid part both cut nothing', twoCuts.filter((i) => i.code === 'cuts-nothing').map((i) => i.partId).join() === 'b,c', JSON.stringify(twoCuts));
+  const built = P.assemble({ nodes: [body, below] });
+  ok('the assembled model counts only the cuts that remove something', built.stats.subtracted === 0 && built.issues.some((i) => i.code === 'cuts-nothing'));
+  ok('...and one that does is counted', P.assemble({ nodes: [body, inside] }).stats.subtracted === 1);
+}
+
 console.log('\nParts that pass the contact test but still show a seam are seated in:');
 {
   // 0.04 apart: inside the 0.06 tolerance, so connectParts calls this model

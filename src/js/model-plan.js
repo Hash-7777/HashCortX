@@ -697,6 +697,15 @@
     return !!part && (typeof part.repeatedFrom === "string" || family.has(part.id));
   }
 
+  /**
+   * Whether a part takes material away (op subtract or intersect). The
+   * passes that bring a part onto the body leave these where the design put
+   * them: a hole moved until it touches the body cuts nothing, and a person
+   * shown "cut away" over it is told something false. A cut that reaches no
+   * solid part is reported instead (findIssues, "cuts-nothing").
+   */
+  const cuts = (part) => !!part && (part.op === "subtract" || part.op === "intersect");
+
   /** The ids that other parts were repeated from. */
   function patternSources(parts) {
     const out = new Set();
@@ -785,7 +794,7 @@
       // The smallest gap anywhere, so the model grows outwards from its body.
       let best = null;
       for (let i = 0; i < out.length; i++) {
-        if (reached.has(i) || inPattern(out[i], family)) continue;
+        if (reached.has(i) || inPattern(out[i], family) || cuts(out[i])) continue;
         for (const j of reached) {
           const d = closingMove(boxes[i], boxes[j]);
           const dist = lengthOf(d);
@@ -873,7 +882,7 @@
     const order = out.map((_, i) => i).sort((a, b) => volume(boxes[a]) - volume(boxes[b]));
     const moved = new Set();
     for (const i of order) {
-      if (moved.has(i) || inPattern(out[i], family)) continue;
+      if (moved.has(i) || inPattern(out[i], family) || cuts(out[i])) continue;
       let best = null;
       for (let j = 0; j < out.length; j++) {
         if (i === j) continue;
@@ -938,8 +947,13 @@
         reached.add(j); queue.push(j);
       }
     }
+    // A cut is not a piece of the model, so it is never "detached": it either
+    // reaches into a solid part, or it removes nothing and is said to.
+    const into = (a, b) => a[0] < b[3] && b[0] < a[3] && a[1] < b[4] && b[1] < a[4] && a[2] < b[5] && b[2] < a[5];
     parts.forEach((part, i) => {
-      if (!reached.has(i)) issues.push({ code: "detached", partId: part.id, detail: "does not connect to the main body" });
+      if (part.op === "subtract" && !parts.some((other, j) => j !== i && !cuts(other) && into(boxes[i], boxes[j]))) {
+        issues.push({ code: "cuts-nothing", partId: part.id, detail: "sits outside every solid part, so it removes nothing" });
+      } else if (!reached.has(i) && !cuts(part)) issues.push({ code: "detached", partId: part.id, detail: "does not connect to the main body" });
     });
 
     const box = boundsOf(parts);
@@ -992,6 +1006,8 @@
     const floored = opts.ground === false ? { parts: seated.parts, offset: 0 } : snapToFloor(seated.parts);
 
     const parts = floored.parts;
+    const issues = [...(evaluated.issues || []), ...cleaned.issues, ...repeated.issues, ...mirrored.issues, ...findIssues(parts, opts)];
+    const idle = new Set(issues.filter((i) => i.code === "cuts-nothing").map((i) => i.partId));
     return {
       name: String(source.name || "model"),
       // Handed back because it may have been written as arithmetic, and this is
@@ -1000,7 +1016,7 @@
       // dimension the app showed and every file it wrote was the wrong size.
       sizeMm: source.sizeMm,
       parts,
-      issues: [...(evaluated.issues || []), ...cleaned.issues, ...repeated.issues, ...mirrored.issues, ...findIssues(parts, opts)],
+      issues,
       moves: joined.moves,
       seams: seated.seams,
       stats: {
@@ -1009,7 +1025,7 @@
         repeated: repeated.parts.length - cleaned.parts.length,
         mirrored: parts.filter((p) => p.mirroredFrom).length,
         connected: joined.moves.length,
-        subtracted: parts.filter((p) => p.op === "subtract").length,
+        subtracted: parts.filter((p) => p.op === "subtract" && !idle.has(p.id)).length,
         seated: seated.seams.length,
         scaleFactor: scaled.factor,
         floorOffset: floored.offset,

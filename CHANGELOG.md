@@ -46,6 +46,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **3D Forge says when a hole is in the wrong place.** A part meant to cut
+  a hole, written outside the body, was moved until it touched the body,
+  which cuts nothing, and the run still said it had been cut away. Such a
+  part is now left where the design put it and reported, the design is
+  asked for once more with that reason, and only the cuts that remove
+  material are counted.
 - **3D Forge waits for a model on this computer to load.** Its first call
   gave every model half a minute, which a model on this computer can need
   just to load; cut off there, it was marked as too slow and another model

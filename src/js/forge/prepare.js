@@ -193,6 +193,7 @@
     "repeat-on-axis": [(n) => `${n} repeated part(s) sit on the axis they turn about, so their copies overlap`, "warn"],
     "mirror-on-axis": [(n) => `${n} part(s) marked to mirror already sit on the mirror plane, so no copy was made`, "wait"],
     "detached": [(n) => `${n} part(s) sit too far from the body to place — left where the design put it`, "warn"],
+    "cuts-nothing": [(n) => `${n} part(s) meant to cut a hole sit outside the body, so they cut nothing`, "warn"],
     "flat": [() => "the model is nearly flat in one direction", "warn"],
   };
   const UNREPORTED = new Set(["off-floor", "empty"]);
@@ -232,6 +233,7 @@
     if (blank) faults.push(`${blank} outline part(s) came with no outline`);
     if (count('repeat-on-axis')) faults.push('repeated parts sit on the axis they turn about, so the copies overlap');
     if (count('detached') * 2 > parts) faults.push('most parts float free of the body');
+    if (count('cuts-nothing')) faults.push('a part meant to cut a hole sits outside the body, so it cuts nothing: put it where the hole goes, passing into the material');
     if (faults.length && count('flat')) faults.push('the whole model is flat in one direction');
     return faults;
   }
