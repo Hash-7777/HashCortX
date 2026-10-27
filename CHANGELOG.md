@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder remembers what it has read.** When an earlier read is taken
+  out of what the model is shown, to keep a long run short, the line left
+  in its place now says which lines of the file it showed, so the model
+  knows what it has read and reads again only for the exact text before a
+  change.
 - **HashCoder reads a file before it changes it, and what uses it.** An
   existing file is changed, replaced or deleted only once it has been read
   in the conversation, shown whole as it began, or written by the run, and

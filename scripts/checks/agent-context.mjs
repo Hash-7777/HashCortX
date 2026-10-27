@@ -213,7 +213,16 @@ console.log('\nA long task keeps its request:');
   const hide = hiddenCount(msgs.filter((m) => m.role === 'tool').map((m) => m.content.length));
   check('the newest results arrive whole', hide > 0 && results.slice(hide).every((m) => m.content.startsWith('rrrr')) && results.length - hide >= DEFAULTS.keepResults);
   check('older results are hidden, saying what they were', new RegExp(`Earlier result of read_file /p/src/f${hide - 1}\\.js`).test(results[hide - 1].content));
-  check('and how to see them again', /Call the tool again/.test(results[1].content));
+  check('and how to see them again, a read saying what it showed', /hidden to keep the conversation short: it showed all 1 line\. Read it again for the exact text before you change it\.\]$/.test(results[1].content), results[1].content);
+
+  // What a hidden read showed (readShown).
+  const { readShown } = sandbox.window.HCAgentContext;
+  check('a read of a long file says the window of lines it showed', readShown('read_file', '[rooms.py: lines 201-400 of 912. The numbers and "| " are not part of the file.]\n201| x') === 'it showed lines 201-400 of 912');
+  check('a file read whole says how many lines', readShown('read_file', 'a\nb\nc\n') === 'it showed all 3 lines' && readShown('read_file', '[notes.md is empty.]') === 'the file was empty');
+  check('a read that failed, and any other tool, say nothing of it', readShown('read_file', '{"error":"No such file"}') === '' && readShown('grep_code', 'x\ny') === '');
+  const other = hideOldResults([{ role: 'assistant', content: '', tool_calls: [{ id: 'g', function: { name: 'grep_code', arguments: '{"pattern":"rate"}' } }] }, tool('x'.repeat(70000), 'g'),
+    { role: 'assistant', content: '', tool_calls: [{ id: 'h', function: { name: 'grep_code', arguments: '{"pattern":"tax"}' } }] }, tool('y'.repeat(70000), 'h')]);
+  check('a hidden search still says to call it again', /^\[Earlier result of grep_code rate, hidden to keep the conversation short\. Call the tool again if you need it\.\]$/.test(other[1].content), other[1].content);
   const written = out[2].tool_calls[0].function.arguments;
   check('a whole file written long ago is not sent again', !/w{400}/.test(written) && /5,000 characters/.test(written));
   check('its call still reads as JSON, with its path', JSON.parse(written).path === '/p/src/big.js');

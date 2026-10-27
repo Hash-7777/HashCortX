@@ -168,6 +168,22 @@
     return (name || 'a tool') + (target ? ' ' + target : '');
   }
 
+  /**
+   * What a read showed, for the line that stands in for it once hidden: the
+   * window of lines a long file was read in (js/code/patch.js linesWindow),
+   * or every line of one read whole. '' for anything else, or a read that
+   * failed. So a model that can no longer see a read still knows what it
+   * has read, and is not sent back to it for what it already knows.
+   */
+  function readShown(name, content) {
+    if (name !== 'read_file' || typeof content !== 'string' || /^\s*\{\s*"error"/.test(content)) return '';
+    const w = /^\[[^\]\n]*?: lines (\d+)-(\d+) of (\d+)\./.exec(content);
+    if (w) return `it showed lines ${w[1]}-${w[2]} of ${w[3]}`;
+    if (/^\[[^\]\n]* is empty\.\]$/.test(content.trim())) return 'the file was empty';
+    const lines = content.replace(/\n$/, '').split('\n').length;
+    return `it showed all ${lines} line${lines === 1 ? '' : 's'}`;
+  }
+
   /** The call's arguments with every long string replaced by its length. */
   function slimArguments(raw, limit) {
     const isText = typeof raw === 'string';
@@ -208,7 +224,7 @@
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
         for (const c of m.tool_calls) {
           const fn = c && c.function;
-          labels.set(c && c.id, callLabel(fn ? fn.name : c && c.name, fn ? fn.arguments : c && c.arguments));
+          labels.set(c && c.id, { label: callLabel(fn ? fn.name : c && c.name, fn ? fn.arguments : c && c.arguments), name: fn ? fn.name : c && c.name });
         }
         out[i] = Object.assign({}, m, {
           tool_calls: m.tool_calls.map((c) => {
@@ -218,9 +234,12 @@
           }),
         });
       } else if (m.role === 'tool' && typeof m.content === 'string') {
-        const label = labels.get(m.tool_call_id) || callLabel(m.name, null);
+        const call = labels.get(m.tool_call_id) || { label: callLabel(m.name, null), name: m.name };
+        const shown = readShown(call.name, m.content);
         out[i] = Object.assign({}, m, {
-          content: `[Earlier result of ${label}, hidden to keep the conversation short. Call the tool again if you need it.]`,
+          content: shown
+            ? `[Earlier result of ${call.label}, hidden to keep the conversation short: ${shown}. Read it again for the exact text before you change it.]`
+            : `[Earlier result of ${call.label}, hidden to keep the conversation short. Call the tool again if you need it.]`,
         });
       } else if (m.role === 'user' && Array.isArray(m.images) && m.images.length) {
         const rest = Object.assign({}, m);
@@ -302,5 +321,5 @@
     return budgetToolResults(hideOldResults(head.concat(shown), opts), opts);
   }
 
-  window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, withContext, compressHistory };
+  window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, readShown, withContext, compressHistory };
 })();
