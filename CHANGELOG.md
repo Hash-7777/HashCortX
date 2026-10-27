@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder checks its work by code alone.** A run proves a change with
+  the project's tests, a build or a syntax check, and the app reads a site
+  it changed itself. A command that would take a picture of the screen,
+  open or drive a browser, open a file or an app to look at, or start the
+  app or a server to look at it is no longer run, and no permission is
+  asked for it: the model is told how to check by code instead. Every
+  model size is told the same in its instructions.
 - **3D Forge tells a model where its shapes start.** The design request now
   says that a turned shape's heights are measured up from where the part
   sits, and that an outline shape is drawn around that point and thickened

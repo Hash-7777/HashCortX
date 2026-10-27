@@ -224,6 +224,9 @@
         }
         [command, ...args] = [...words, ...given];
       }
+      // A command that would open, serve or take a picture of what was made is not run, and nothing is asked (js/code/by-code.js).
+      const looks = window.HCCodeByCode?.refusal(command, Array.isArray(args) ? args : []);
+      if (looks) throw new Error(looks);
       [command, args] = throughCmd(command, Array.isArray(args) ? args : [], { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
@@ -1014,7 +1017,7 @@ WORKFLOW (follow this order every time):
 ① ORIENT — locate files first. Use fuzzy_find by name, grep_code by content, list_dir to explore. NEVER guess or invent paths.
 ② READ — always read_file before editing. Understand exact current content before changing anything.
 ③ ACT — patch_file for a change to part of a file, so the rest stays exactly as it is; write_file for a new file, or to replace a file whole when that is what was asked (replace_whole: true).
-④ VERIFY — shell_run tests/build/lint after significant changes when it adds value.
+④ VERIFY — shell_run tests/build/lint after significant changes when it adds value. Check by code alone: never open the page or the app, serve it to look at, or take a screenshot.
 
 SCOPE — DO WHAT WAS ASKED, NOTHING MORE:
 • Do exactly what the request asks. No extra features, sections, pages, settings, refactors, renames or comments it did not ask for: a bug fix fixes that bug, a colour change changes that colour.
@@ -1200,7 +1203,7 @@ How to work:
 1. Look: list_dir the project, and grep_code to find where something is.
 2. Read a file with read_file before you change it.
 3. Change it with patch_file: search is text copied exactly from the file, replace is the new text. Use write_file only for a new file.
-4. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error and fix the code.
+4. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error and fix the code. Check by code alone: never open the page or the app, or take a screenshot.
 5. Finish with one or two sentences: what you changed, and what passed.
 
 Rules:
@@ -1238,7 +1241,7 @@ How to work:
 2. Read a file with read_file before you change it. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
 3. Change part of a file with patch_file: search is text copied exactly from the file, without line numbers; replace is the new text. Several changes to one file go in one call, the rest in edits. If the search is not found, copy the lines it shows you and try again.
 4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true. For three or more changes, list them first with update_plan and mark each done.
-5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path].
+5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path]. Never open the page or the app, serve it to look at, or take a screenshot.
 6. Before you finish, read the request again and make sure every thing it asks for is done. Then finish with two or three sentences: what you changed, and what passed.
 
 Rules:
