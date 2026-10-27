@@ -660,7 +660,7 @@ fn fuzzy_recursive(root: &Path, dir: &Path, query: &str, results: &mut Vec<Fuzzy
     for entry in entries.flatten() {
         let p    = entry.path();
         let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-        if name.starts_with('.') || name == "node_modules" || name == "target" || name == ".git" { continue; }
+        if skipped_entry(&name, p.is_dir(), &[]) { continue; }
         if link_escapes_root(root, &entry) { continue; }
         if p.is_dir() {
             let _ = fuzzy_recursive(root, &p, query, results, depth + 1);
@@ -686,9 +686,10 @@ pub struct GrepMatch {
 }
 
 const TEXT_EXTS: &[&str] = &[
-    "js","ts","jsx","tsx","rs","py","go","java","c","cpp","h","hpp",
-    "css","scss","sass","html","json","toml","yaml","yml","md","txt",
-    "sh","bash","zsh","env","gitignore","lock","vue","svelte","rb","php",
+    "js","ts","jsx","tsx","mjs","cjs","mts","cts","rs","py","go","java","kt","kts","swift","cs","scala","dart",
+    "c","cpp","cc","h","hpp","m","mm","lua","ex","exs","erl","rb","php","sql","graphql","gql","proto","prisma",
+    "css","scss","sass","less","html","htm","vue","svelte","astro","ejs","erb","hbs","twig","xml",
+    "json","toml","yaml","yml","ini","cfg","gradle","tf","md","txt","sh","bash","zsh","env","gitignore",
 ];
 
 /// The words a pattern this search cannot read is refused with. The agent's
@@ -729,22 +730,55 @@ impl Needle {
 }
 
 #[tauri::command]
-pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>, regex: Option<bool>) -> Result<Vec<GrepMatch>, String> {
-    super::off_main(move || grep_blocking(dir, pattern, file_ext, regex.unwrap_or(false))).await
+pub async fn fs_grep(dir: String, pattern: String, file_ext: Option<String>, regex: Option<bool>, skip: Option<Vec<String>>) -> Result<Vec<GrepMatch>, String> {
+    guard_agent_path(&dir)?;   // refused at the door, and again where the walk starts
+    super::off_main(move || grep_skipping(dir, pattern, file_ext, regex.unwrap_or(false), skip.unwrap_or_default())).await
 }
 
-fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>, regex: bool) -> Result<Vec<GrepMatch>, String> {
+/// `skip`: folder names left out besides SKIP_DIRS, the plain names a
+/// project's top .gitignore gives, read by the agent's grep_code.
+fn grep_skipping(dir: String, pattern: String, file_ext: Option<String>, regex: bool, skip: Vec<String>) -> Result<Vec<GrepMatch>, String> {
     guard_agent_path(&dir)?;
     let root = walk_root(&dir)?;
     let needle     = Needle::new(&pattern, regex)?;
     let ext_filter = file_ext.map(|e| e.to_lowercase());
+    let skip: Vec<String> = skip.into_iter().map(|s| s.to_lowercase()).filter(|s| !s.is_empty()).collect();
     let mut results = Vec::new();
-    grep_recursive(&root, Path::new(&dir), &needle, &ext_filter, &mut results, 0)?;
+    grep_recursive(&root, Path::new(&dir), &needle, &ext_filter, &skip, &mut results, 0)?;
     Ok(results)
 }
 
+#[cfg(test)]
+fn grep_blocking(dir: String, pattern: String, file_ext: Option<String>, regex: bool) -> Result<Vec<GrepMatch>, String> {
+    grep_skipping(dir, pattern, file_ext, regex, Vec::new())
+}
+
+/// Folders of dependencies and build output: what a search inside the
+/// project leaves out, the same list the project map uses
+/// (src/js/code/codemap.js SKIP). A search started inside one still reads it.
+const SKIP_DIRS: &[&str] = &[
+    "node_modules", "bower_components", "jspm_packages", "vendor", "third_party", "target", "dist",
+    "build", "out", "coverage", "__pycache__", "venv", "site-packages", "pods", "deriveddata", "carthage",
+];
+
+/// Whether a walk leaves this entry out: anything hidden, and a folder of
+/// dependencies or build output or one the project's .gitignore names.
+fn skipped_entry(name: &str, is_dir: bool, skip: &[String]) -> bool {
+    name.starts_with('.') || (is_dir && (SKIP_DIRS.contains(&name) || skip.iter().any(|s| s == name)))
+}
+
+/// A file written by a tool rather than a person, whose lines would drown
+/// the project's own: a lock file, or a minified or bundled script.
+fn generated_file(name: &str) -> bool {
+    name.ends_with(".lock") || name == "package-lock.json" || name == "pnpm-lock.yaml" || name == "npm-shrinkwrap.json"
+        || name.contains(".min.") || name.contains(".bundle.") || name.ends_with(".map")
+}
+
+/// Past this a file is not searched: generated data, not code a person wrote.
+const GREP_FILE_BYTES: u64 = 1_000_000;
+
 fn grep_recursive(
-    root: &Path, dir: &Path, needle: &Needle, ext_filter: &Option<String>,
+    root: &Path, dir: &Path, needle: &Needle, ext_filter: &Option<String>, skip: &[String],
     results: &mut Vec<GrepMatch>, depth: usize,
 ) -> Result<(), String> {
     if depth > 8 || results.len() >= 300 { return Ok(()); }
@@ -752,17 +786,19 @@ fn grep_recursive(
     for entry in entries.flatten() {
         let p    = entry.path();
         let name = p.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
-        if name.starts_with('.') || name == "node_modules" || name == "target" || name == ".git" { continue; }
+        let is_dir = p.is_dir();
+        if skipped_entry(&name, is_dir, skip) { continue; }
         if link_escapes_root(root, &entry) { continue; }
-        if p.is_dir() {
-            let _ = grep_recursive(root, &p, needle, ext_filter, results, depth + 1);
+        if is_dir {
+            let _ = grep_recursive(root, &p, needle, ext_filter, skip, results, depth + 1);
         } else {
             let file_ext = p.extension().unwrap_or_default().to_string_lossy().to_lowercase();
             if let Some(ref want) = ext_filter {
                 if &file_ext != want { continue; }
-            } else if !TEXT_EXTS.contains(&file_ext.as_str()) {
+            } else if !TEXT_EXTS.contains(&file_ext.as_str()) || generated_file(&name) {
                 continue;
             }
+            if entry.metadata().map(|m| m.len() > GREP_FILE_BYTES).unwrap_or(false) { continue; }
             if let Ok(content) = fs::read_to_string(&p) {
                 let lines: Vec<&str> = content.lines().collect();
                 for (i, line) in lines.iter().enumerate() {
@@ -860,7 +896,7 @@ mod tests {
         fs::write(project.join("main.txt"), "ordinary source").unwrap();
         // The link is named like an ordinary folder: nothing about the name
         // itself gives away where it leads.
-        symlink(&secrets, project.join("vendor")).unwrap();
+        symlink(&secrets, project.join("shared")).unwrap();
 
         let hits = grep_blocking(
             project.to_string_lossy().into_owned(),
@@ -897,7 +933,7 @@ mod tests {
         let project = root.join("project");
         fs::create_dir_all(&project).unwrap();
         fs::write(project.join("main.txt"), "ordinary source").unwrap();
-        symlink(&elsewhere, project.join("vendor")).unwrap();
+        symlink(&elsewhere, project.join("shared")).unwrap();
 
         let hits = grep_blocking(
             project.to_string_lossy().into_owned(),
@@ -1063,6 +1099,30 @@ mod containment_tests {
         fs::create_dir_all(&dir).unwrap();
         crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
         (dir, turn)
+    }
+
+    #[test]
+    fn a_search_leaves_out_dependencies_build_output_named_folders_and_generated_files() {
+        let (root, _turn) = scratch("skips");
+        for (dir, file) in [("src", "app.js"), ("node_modules/pkg", "index.js"), ("dist", "app.js"), ("venv/lib", "util.py"),
+            ("Vendor/lib", "x.js"), ("cache", "a.js"), ("src", "app.min.js"), ("src", "yarn.lock")] {
+            fs::create_dir_all(root.join(dir)).unwrap();
+            fs::write(root.join(dir).join(file), "const marker = 1;\n").unwrap();
+        }
+        fs::write(root.join("src").join("big.js"), "const marker = 2;\n".repeat(80_000)).unwrap();
+        let dir = root.to_string_lossy().into_owned();
+
+        let hits = grep_skipping(dir.clone(), "marker".into(), None, false, vec!["Cache".into()]).unwrap();
+        let paths: Vec<String> = hits.iter().map(|m| m.path.replace('\\', "/")).collect();
+        assert_eq!(hits.len(), 1, "{paths:?}");
+        assert!(paths[0].ends_with("src/app.js"), "{paths:?}");
+        // Started inside a skipped folder, the search reads it.
+        let inside = grep_blocking(root.join("node_modules").to_string_lossy().into_owned(), "marker".into(), None, false).unwrap();
+        assert_eq!(inside.len(), 1);
+        // A folder only the .gitignore names is read when it is not passed.
+        assert_eq!(grep_blocking(dir, "marker".into(), None, false).unwrap().len(), 2);
+
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

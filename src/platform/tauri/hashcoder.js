@@ -177,6 +177,9 @@
     /** How much of a command's output the model is given whole; set for the model in use by the Coder panel. */
     outputLimit: 20000,
 
+    /** How many lines and files a search inside the files shows (js/code/search.js); set for the model in use by the Coder panel. */
+    searchLimit: { lines: 100, files: 40 },
+
     /** The plan update_plan keeps for the request in progress (js/code/plan.js); the Coder panel clears it for each request. */
     plan: null,
 
@@ -368,18 +371,35 @@
     async grepCode(dir, pattern, fileExt = null) {
       const ok = await HC.guard.request('search', dir, `Grep: ${pattern}`);
       if (!ok) throw await HC.code.refused('search', dir);
-      const raw = await HC.invoke('fs_grep', { dir, pattern, fileExt });
+      const skip = await HC.code.ignoredFolders();   // what the project's .gitignore names plainly is left out too
+      const raw = await HC.invoke('fs_grep', { dir, pattern, fileExt, skip });
       // A pattern written as a regular expression, as most models write one, is matched as one by the search itself
       // (src-tauri/src/commands/fs.rs Needle), case-insensitive; lines holding it as plain text count too. One it
       // cannot read is searched as plain text alone, and an answer with nothing found says so.
       if (!HC.code.looksLikePattern(pattern) || !Array.isArray(raw)) return HC.code.linesFound(raw, pattern);
       let matched;
-      try { matched = await HC.invoke('fs_grep', { dir, pattern, fileExt, regex: true }); }
+      try { matched = await HC.invoke('fs_grep', { dir, pattern, fileExt, regex: true, skip }); }
       catch (e) { if (String(e?.message || e).includes('Not a pattern this search reads')) return HC.code.linesFound(raw, pattern, 'unread'); throw e; }
       const found = new Map([...raw, ...(Array.isArray(matched) ? matched : [])].map((m) => [`${m.path}\n${m.line_no}`, m]));
       const all = [...found.values()].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : a.line_no - b.line_no)).slice(0, 300);
       return HC.code.linesFound(all, pattern, true);
     },
+  };
+
+  /**
+   * The folder names the open project's top .gitignore gives plainly
+   * (js/code/codemap.js ignoredBy), read once a project and only where the
+   * guard needs no question; none when there is no such file.
+   */
+  let ignoredAt = { root: null, names: [] };
+  HC.code.ignoredFolders = async () => {
+    const root = HC.guard?.projectRoot?.() || '';
+    if (!root || !window.HCCodeMap?.ignoredBy) return [];
+    if (ignoredAt.root === root) return ignoredAt.names;
+    let names = [];
+    try { names = [...window.HCCodeMap.ignoredBy(await HC.code.readQuietly(`${root.replace(/[\\/]+$/, '')}/.gitignore`)).names]; } catch { /* none, or not read without asking */ }
+    ignoredAt = { root, names };
+    return names;
   };
 
   /**
@@ -786,13 +806,14 @@
     },
     {
       name: 'grep_code',
-      description: 'Search inside file contents for a text pattern. Returns matching lines with surrounding context. Use to find where a function, class, variable, or string is defined or used.',
+      description: 'Search inside file contents for a text pattern. Returns the matching lines with their numbers, grouped by file; when there are too many, the files that hold them and how many each, so narrow it with dir, file_ext or a longer pattern. Folders of dependencies and build output, and what the project ignores, are left out unless dir is inside one. Use to find where a function, class, variable, or string is defined or used.',
       parameters: {
         dir:      { type: 'string', description: 'Root directory to search from' },
         pattern:  { type: 'string', description: 'Text to search for, case-insensitive. A regular expression such as "useState|useEffect" or "price.*total" works too.' },
         file_ext: { type: 'string', description: 'Optional: limit to files with this extension, e.g. "js" or "py"' },
       },
-      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null),
+      // The lines in short, grouped by file and sized to the model (js/code/search.js).
+      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => (window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r)),
     },
     {
       name: 'shell_run',

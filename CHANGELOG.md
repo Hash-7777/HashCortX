@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder's searches fit the model.** A search inside the project's
+  files now answers with the files that matched, each named from the
+  project folder, and the matching lines by number, as many as the model
+  in use can hold. When there are more, it names the files that hold them,
+  how many each and where the first is, and says how to narrow the search,
+  so a smaller model is no longer shown a long result cut in the middle.
+  Folders of dependencies and build output, the folders the project's
+  .gitignore names, lock files, minified files and very large files are
+  left out unless the search starts inside one, and more kinds of source
+  file are searched. Finding a file by name leaves out the same folders.
 - **HashCoder checks its work by code alone.** A run proves a change with
   the project's tests, a build or a syntax check, and the app reads a site
   it changed itself. A command that would take a picture of the screen,

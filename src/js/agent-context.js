@@ -55,6 +55,10 @@
     requestStep: 2,
     /** An argument longer than this, in a call whose result is hidden, is not repeated. */
     longArgument: 300,
+    /** A search inside the files shows this many lines; past it, the files and how to narrow it (js/code/search.js). */
+    searchLines: 100,
+    /** ...and names at most this many files. */
+    searchFiles: 40,
   };
 
   // ── Sized to the model ──────────────────────────────────────────────────
@@ -63,12 +67,13 @@
   // computer reads slowly and loses the thread in a long request, so it is
   // shown the newest few results and a command's output in short; a large
   // cloud model is shown the most. `shellOutput` is how much of a command's
-  // output is given before it is shortened (js/code/digest.js).
+  // output is given before it is shortened (js/code/digest.js), and
+  // `searchLines` / `searchFiles` how much of a search (js/code/search.js).
   const TIERS = {
-    small: { toolBudget: 12000, maxResult: 10000, keepResults: 4, hideStep: 4, hideTo: 0.4, shellOutput: 3000 },
-    mid: { toolBudget: 24000, maxResult: 16000, keepResults: 5, hideStep: 5, hideTo: 0.4, shellOutput: 6000 },
-    local: { toolBudget: 40000, maxResult: 30000, keepResults: 8, hideStep: 5, shellOutput: 12000 },
-    cloud: { toolBudget: 60000, maxResult: 60000, keepResults: 10, hideStep: 6, shellOutput: 20000 },
+    small: { toolBudget: 12000, maxResult: 10000, keepResults: 4, hideStep: 4, hideTo: 0.4, shellOutput: 3000, searchLines: 25, searchFiles: 12 },
+    mid: { toolBudget: 24000, maxResult: 16000, keepResults: 5, hideStep: 5, hideTo: 0.4, shellOutput: 6000, searchLines: 40, searchFiles: 20 },
+    local: { toolBudget: 40000, maxResult: 30000, keepResults: 8, hideStep: 5, shellOutput: 12000, searchLines: 60, searchFiles: 30 },
+    cloud: { toolBudget: 60000, maxResult: 60000, keepResults: 10, hideStep: 6, shellOutput: 20000, searchLines: 100, searchFiles: 40 },
   };
 
   /**

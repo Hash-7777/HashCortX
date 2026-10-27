@@ -2012,7 +2012,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const size = HC?.code?.sizeOf?.(info?.billions ?? window.HCCodeLight?.billionsInName(model)) || 'full', light = !!window.HCCodeLight?.applies(size, cdrPrefs().light);   // a size the model app does not report is read from the name
       const site = size === 'small' ? '' : (HC?.code?.siteBrief?.(task, { hasPage: await HC.code.hasPage?.(root) }) || '');   // a new site is held to the bar the Swarm's are; a change to one is not
       const local = !/^cloud:/.test(model);   // output sized to the model (js/agent-context.js); lessons, when switched on, kept for this project (js/code/lessons.js)
-      if (HC?.code) { HC.code.memoryOn = cdrPrefs().memory === true; HC.code.outputLimit = window.HCAgentContext.optionsFor(size, local).shellOutput; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
+      if (HC?.code) { HC.code.memoryOn = cdrPrefs().memory === true; const sized = window.HCAgentContext.optionsFor(size, local); HC.code.outputLimit = sized.shellOutput; HC.code.searchLimit = { lines: sized.searchLines, files: sized.searchFiles }; HC.code.lessonsFor = cdrPrefs().lessons === true && root && size === 'full' ? { root, local } : null; }
       // A larger model is given a map of the project's code, and a model on this computer a small project whole, made as a conversation begins and kept for it (js/code/codemap.js, js/code/context.js).
       const mapped = (size === 'full' ? !!window.HCCodeMap : local || light) && !!root && !!HC?.code?.readQuietly && (!conversationMsgs.length || sharedState.codeMap?.root !== root);
       if (mapped) {

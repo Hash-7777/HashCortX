@@ -161,7 +161,7 @@ console.log('\nWhat a search inside the files tells the model:');
     && /No line in these files contains "calculateTax", so nothing is known about it yet\. Search a shorter word from it, such as "tax" or "calculate", or list_dir the project, before you answer or change anything\./.test(none.note), none.note);
   ok('... or a different word, for a word with no parts', /Search a different word, or list_dir/.test(HC.code.linesFound([], 'tax').note));
   ok('an answer that is not a list is passed on as it is', HC.code.linesFound('error', 'x') === 'error');
-  ok('the tool uses it', /const raw = await HC\.invoke\('fs_grep', \{ dir, pattern, fileExt \}\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(raw, pattern\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(all, pattern, true\);/.test(src('platform', 'tauri', 'hashcoder.js')));
+  ok('the tool uses it', /const raw = await HC\.invoke\('fs_grep', \{ dir, pattern, fileExt, skip \}\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(raw, pattern\);/.test(src('platform', 'tauri', 'hashcoder.js')) && /return HC\.code\.linesFound\(all, pattern, true\);/.test(src('platform', 'tauri', 'hashcoder.js')));
 }
 
 console.log('\nWhich files named in an answer are not there:');

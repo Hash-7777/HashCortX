@@ -302,8 +302,13 @@ function inProject(p) {
 }
 
 const BINARY_EXTS = new Set('png jpg jpeg gif webp ico bmp tiff avif heic pdf doc docx xls xlsx ppt pptx odt ods zip tar gz bz2 xz 7z rar dmg pkg iso deb rpm exe dll so dylib bin class pyc wasm o a mp3 mp4 avi mov mkv wav flac aac ogg opus m4a m4v ttf otf woff woff2 eot db sqlite sqlite3'.split(' '));
-const TEXT_EXTS = new Set('js ts jsx tsx rs py go java c cpp h hpp css scss sass html json toml yaml yml md txt sh bash zsh env gitignore lock vue svelte rb php'.split(' '));
+// As src-tauri/src/commands/fs.rs reads a project: TEXT_EXTS, SKIP_DIRS, skipped_entry, generated_file, GREP_FILE_BYTES.
+const TEXT_EXTS = new Set(('js ts jsx tsx mjs cjs mts cts rs py go java kt kts swift cs scala dart c cpp cc h hpp m mm lua ex exs erl rb php sql graphql gql proto prisma ' +
+  'css scss sass less html htm vue svelte astro ejs erb hbs twig xml json toml yaml yml ini cfg gradle tf md txt sh bash zsh env gitignore').split(' '));
+const SKIP_DIRS = new Set('node_modules bower_components jspm_packages vendor third_party target dist build out coverage __pycache__ venv site-packages pods deriveddata carthage'.split(' '));
 const skipDir = (name) => name.startsWith('.') || name === 'node_modules' || name === 'target';
+const skippedEntry = (name, isDir, skip = []) => name.startsWith('.') || (isDir && (SKIP_DIRS.has(name) || skip.includes(name)));
+const generatedFile = (name) => name.endsWith('.lock') || ['package-lock.json', 'pnpm-lock.yaml', 'npm-shrinkwrap.json'].includes(name) || name.includes('.min.') || name.includes('.bundle.') || name.endsWith('.map');
 
 function walk(dir, depth, visit) {
   if (depth > 8) return;
@@ -425,17 +430,29 @@ const NATIVE = {
     });
     return out.sort((a, b) => a.score - b.score).slice(0, 15);
   },
-  fs_grep: ({ dir, pattern, fileExt, regex }) => {
+  fs_grep: ({ dir, pattern, fileExt, regex, skip }) => {
     const q = String(pattern || '').toLowerCase();
     // A pattern, as src-tauri/src/commands/fs.rs reads one: case-insensitive, refused by name when it cannot be read.
     let re = null;
     if (regex) { try { re = new RegExp(String(pattern || ''), 'iu'); } catch { throw new Error('Not a pattern this search reads'); } }
     const want = fileExt ? String(fileExt).toLowerCase() : null;
+    const skipped = (Array.isArray(skip) ? skip : []).map((s) => String(s).toLowerCase());
     const out = [];
-    walk(inProject(dir), 0, (p, e) => {
-      if (e.isDirectory()) return true;
+    const grepWalk = (d, depth) => {
+      if (depth > 8 || out.length >= 300) return;
+      let entries = [];
+      try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+      for (const e of entries) {
+        const p = path.join(d, e.name), name = e.name.toLowerCase();
+        if (skippedEntry(name, e.isDirectory(), skipped) || !within(p, current.ws)) continue;
+        if (e.isDirectory()) { grepWalk(p, depth + 1); continue; }
+        if (visitFile(p, name) === false) return;
+      }
+    };
+    const visitFile = (p, name) => {
       const ext = path.extname(p).slice(1).toLowerCase();
-      if (want ? ext !== want : !TEXT_EXTS.has(ext)) return true;
+      if (want ? ext !== want : (!TEXT_EXTS.has(ext) || generatedFile(name))) return true;
+      try { if (fs.statSync(p).size > 1000000) return true; } catch { return true; }
       let lines;
       try { lines = fs.readFileSync(p, 'utf8').split(/\r?\n/); } catch { return true; }
       if (lines.length && lines[lines.length - 1] === '') lines.pop();
@@ -447,7 +464,8 @@ const NATIVE = {
         out.push({ path: p, line_no: i + 1, line, context });
       });
       return out.length < 300;
-    });
+    };
+    grepWalk(inProject(dir), 0);
     return out;
   },
   checkpoint_save: ({ path: p }) => {
