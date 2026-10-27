@@ -33,7 +33,7 @@ console.log('\nWhat a request is searched for:');
   ok(`at most ${F.MOST_TERMS}, each once`, t.length <= F.MOST_TERMS && new Set(t.map((x) => x.text.toLowerCase())).size === t.length);
   ok('words that say what to do are not searched for', !F.termsOf('Please change and update this so it should work').some((x) => /please|change|update|should/.test(x.text)));
   ok('a quoted phrase is searched as it is written', plain(F.termsOf('Rename the button "Book a room" to "Reserve"')).some((x) => x.text === 'Book a room'));
-  ok('a path is one name', plain(F.termsOf('fix server/routes/rooms in the api')).some((x) => x.text === 'server/routes/rooms'));
+  ok('a path is one name', plain(F.termsOf('fix server/routes/rooms in the back end')).some((x) => x.text === 'server/routes/rooms'));
   ok('nothing in a request with nothing to search for', F.termsOf('hi').length === 0 && F.termsOf('').length === 0);
 }
 
@@ -72,7 +72,7 @@ console.log('\nBefore a request\'s first step:');
 const toolList = HC.code.toolList();
 const project = {
   'server/rooms.py': 'def get_nightly_rate(room):\n    return room.rate\n',
-  'web/src/booking.js': "import { rate } from './api';\n",
+  'web/src/booking.js': "import { rate } from './rates';\n",
   'server/tests/test_rooms.py': 'def test_rate(): pass\n',
 };
 const depsFor = (over = {}) => {
