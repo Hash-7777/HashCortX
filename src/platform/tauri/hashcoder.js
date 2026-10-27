@@ -402,6 +402,54 @@
     return names;
   };
 
+  // ── Reading the project to find what a request needs (js/code/find.js) ──
+  //
+  // The app's own search and a finding run read only inside the open
+  // project and never put a question to the person: each read is checked
+  // with the guard's test that never asks, and anything else is refused in
+  // words. The native commands still hold their own folder boundary.
+
+  const projectRoot = () => HC.guard?.projectRoot?.() || '';
+  const fromProject = (p) => (window.HCCodePaths ? window.HCCodePaths.fromRoot(String(p == null || p === '' ? '.' : p), projectRoot()) : p);
+
+  /** Files across the project whose names are like `query`, scored as the native search scores them, or []. */
+  HC.code.namesQuietly = async (query) => {
+    const root = projectRoot();
+    if (!root || !(await HC.guard.allowedWithoutAsking('list', root))) return [];
+    return HC.invoke('fs_fuzzy_find', { dir: root, query });
+  };
+
+  /** Lines across the project holding `text` as written, leaving out what the project ignores, or []. */
+  HC.code.linesQuietly = async (text) => {
+    const root = projectRoot();
+    if (!root || !(await HC.guard.allowedWithoutAsking('read', root))) return [];
+    return HC.invoke('fs_grep', { dir: root, pattern: text, fileExt: null, skip: await HC.code.ignoredFolders() });
+  };
+
+  /** Whether a file is there, from the project folder, read without asking. */
+  HC.code.existsQuietly = async (path) => { try { await HC.code.readQuietly(fromProject(path)); return true; } catch { return false; } };
+
+  /** A reading tool's answer for a finding run, as text: read_file, list_dir, grep_code or fuzzy_find, inside the project only. */
+  HC.code.readingQuietly = async (name, args = {}) => {
+    const root = projectRoot(), place = fromProject(name === 'read_file' ? args.path : args.dir || args.path);
+    if (!root || !(await HC.guard.allowedWithoutAsking(name === 'read_file' || name === 'grep_code' ? 'read' : 'list', place))) {
+      return JSON.stringify({ error: `Only the open project's files are read here, never with a question: ${args.path || args.dir || ''}` });
+    }
+    if (name === 'read_file') {
+      const text = await HC.invoke('fs_read_file', { path: place });
+      return window.HCCodePatch ? window.HCCodePatch.linesWindow(text, args.start_line, args.end_line, String(place).split(/[\\/]/).pop()) : text;
+    }
+    if (name === 'list_dir') return (await HC.invoke('fs_list_dir', { path: place })).filter((e) => e && !String(e.name).startsWith('.')).map((e) => `${e.name}${e.is_dir ? '/' : ''}`).join('\n') || '(empty)';
+    if (name === 'fuzzy_find') return JSON.stringify(HC.code.namesFound((await HC.invoke('fs_fuzzy_find', { dir: place, query: args.query })).map((m) => ({ ...m, path: window.HCCodeSearch ? window.HCCodeSearch.place(m.path, root) : m.path })), args.query));
+    if (name === 'grep_code') {
+      const regex = HC.code.looksLikePattern(args.pattern);
+      const found = await HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, regex, skip: await HC.code.ignoredFolders() }).catch((e) => (regex ? HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, skip: [] }) : Promise.reject(e)));
+      const shown = window.HCCodeSearch ? window.HCCodeSearch.shape(HC.code.linesFound(found, args.pattern, regex), { pattern: args.pattern, root, dir: place, limit: HC.code.searchLimit }) : found;
+      return typeof shown === 'string' ? shown : JSON.stringify(shown);
+    }
+    return JSON.stringify({ error: `${name} is not one of the tools that only read.` });
+  };
+
   /**
    * A read of a path where there is no file, with how to find the one meant.
    * A model that guessed a path and was told only that it was not there asked

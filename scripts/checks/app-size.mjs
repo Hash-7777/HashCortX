@@ -826,7 +826,9 @@ const LINE_BUDGET = {
   // drew after a chat render went, with the chat's HashCoder branch.
   // 2354, up one: an empty reply to a note is asked once more, the one line
   // that calls js/code/verify.js askAgainAfterNote.
-  'modes/code/mode.js': 2354,
+  // 2355, up one: the files a request needs, found before its first step,
+  // the one line that calls js/code/find.js before.
+  'modes/code/mode.js': 2355,
 };
 
 console.log('\nFile sizes go down, never up:');

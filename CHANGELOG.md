@@ -10,6 +10,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder finds the files a request needs before it starts.** On a
+  project too large to show whole, a model used to spend its first steps
+  listing and searching, and every result stayed in the run. Now, before
+  the first step, the app searches the project for the names, file names
+  and words the request is written with and names the files that hold
+  them. A model of five billion parameters or more also makes a short
+  search of its own, in a conversation of its own and with tools that only
+  read, and answers with the files and lines that matter, including those
+  that use the code; only that list joins the run. Nothing in it asks for
+  permission, and a file it names that is not there is left out. When the
+  request names a file that is there, the app's search is enough.
 - **HashCoder gives every model an outline of a larger project.** A project
   too large to show whole gave a model under fifteen billion parameters the
   names in its top folder and nothing more. Every model is now given an
