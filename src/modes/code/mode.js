@@ -1848,7 +1848,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + baseName(pathHint) : ''), 'run');
             const t0 = performance.now();
             let resultStr, ok = true;
-            const early = asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name));   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
+            const early = asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name)) || (!window.HCMcp?.systemOf?.(call.name) && await window.HCCodeSeen?.before(call, messages, { root: sharedState.projectRoot, whole: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.whole : '', current: HC.code.readWholeQuietly, uses: HC.code.linesQuietly })) || null;   // and a change to a file not read, changed since, or whose users are not read, is answered without making it (js/code/seen.js)   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
             try {
               const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name), def = window.HCMcp ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
               if (!def) throw new Error('Unknown tool: ' + call.name);

@@ -39,10 +39,11 @@
       const name = path.split(/[\\/]/).pop() || path;
       const ranged = startLine != null || endLine != null;
       const plain = ranged ? null : await HC.invoke('fs_read_file', { path });
-      if (!P || (!ranged && !(P.isLong(plain) || /\n\n\[TRUNCATED/.test(plain)))) return plain ?? HC.invoke('fs_read_file', { path });
+      if (!P || (!ranged && !(P.isLong(plain) || /\n\n\[TRUNCATED/.test(plain)))) { if (P && typeof plain === 'string') window.HCCodeSeen?.stamp(path, plain); return plain ?? HC.invoke('fs_read_file', { path }); }
       let text;
       try { text = P.textOf(P.bytesFromBase64((await HC.invoke('fs_read_base64', { path })).base64), name); }
       catch { return plain ?? HC.invoke('fs_read_file', { path }); }   // not text: the plain read says what it is
+      window.HCCodeSeen?.stamp(path, text);   // what it held when read, to tell a change made since (js/code/seen.js)
       return P.linesWindow(text, startLine, endLine, name);
     },
 
@@ -93,6 +94,7 @@
         throw new Error(`Nothing was changed: ${path.split(/[\\/]/).pop() || path} already holds exactly this text${edited ? ', since what replace puts in is what is there now' : ''}. Make the change the request needs, or, if the file is already as it should be, say so; never say it was changed.`);
       }
       await HC.invoke('fs_write_file', { path, content: ends.text });
+      window.HCCodeSeen?.stamp(path, ends.text);   // what the run wrote is what it has seen (js/code/seen.js)
       await HC.undo.seal(record);
       // The resulting text, kept alongside the previous text so the panel can
       // show a real diff. patch_file has no `content` argument of its own — it
@@ -1084,7 +1086,7 @@
 
 WORKFLOW (follow this order every time):
 ① ORIENT — locate files first. Use fuzzy_find by name, grep_code by content, list_dir to explore. NEVER guess or invent paths.
-② READ — always read_file before editing. Understand exact current content before changing anything.
+② READ — always read_file before editing. Understand exact current content before changing anything. When a change alters what a function takes or a name other files use, read those files too and change them where they need it.
 ③ ACT — patch_file for a change to part of a file, so the rest stays exactly as it is; write_file for a new file, or to replace a file whole when that is what was asked (replace_whole: true).
 ④ VERIFY — shell_run tests/build/lint after significant changes when it adds value. Check by code alone: never open the page or the app, serve it to look at, or take a screenshot.
 
@@ -1307,7 +1309,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
 
 How to work:
 1. Find: list_dir shows a folder, grep_code finds where something is written, fuzzy_find finds a file by a rough name. Never guess a path.
-2. Read a file with read_file before you change it. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
+2. Read a file with read_file before you change it, and the files that use what you change. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
 3. Change part of a file with patch_file: search is text copied exactly from the file, without line numbers; replace is the new text. Several changes to one file go in one call, the rest in edits. If the search is not found, copy the lines it shows you and try again.
 4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true. For three or more changes, list them first with update_plan and mark each done.
 5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path]. Never open the page or the app, serve it to look at, or take a screenshot.

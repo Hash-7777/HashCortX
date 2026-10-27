@@ -10,6 +10,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder reads a file before it changes it, and what uses it.** An
+  existing file is changed, replaced or deleted only once it has been read
+  in the conversation, shown whole as it began, or written by the run, and
+  only if nothing has changed it since; otherwise the model is told to
+  read it first. A change that alters what a function takes, or renames or
+  removes a name, waits until the other files that use it have been read,
+  and the model is told which, with their lines, so it can change them
+  too. A model that will not read them is told twice and then let through,
+  so a run is never held for good.
 - **HashCoder finds the files a request needs before it starts.** On a
   project too large to show whole, a model used to spend its first steps
   listing and searching, and every result stayed in the run. Now, before
