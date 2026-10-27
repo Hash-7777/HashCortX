@@ -400,8 +400,8 @@ HashCortX/
 │   └── bridge.mjs                   window._H exposes what is called, and
 │                                    only what is called
 │
-├── scripts/bench/coder/             the HashCoder benchmark: twenty tasks with
-│                                    hidden checks, run in a sandbox
+├── scripts/bench/coder/             the HashCoder benchmark: twenty-two tasks
+│                                    with hidden checks, run in a sandbox
 │
 ├── .github/workflows/ci.yml         runs both, plus cargo check and test
 │
@@ -495,10 +495,14 @@ This is the seam to respect when adding a mode: **never import across mode files
   compares where a button's contents ended up with the box they had to sit in.
   Like the sweep it needs a real browser, so it is not in CI.
 - **`npm run bench:coder` measures HashCoder on real tasks.** Twenty small
-  projects, each with a task and a hidden check the agent never sees: fix a
-  bug a test exposes, add a feature to a written spec, rename across files,
-  refactor with the tests kept green, edit a settings file, build a page,
-  answer a question without changing anything. It runs the real app in a
+  projects and two large ones, each with a task and a hidden check the agent
+  never sees: fix a bug a test exposes, add a feature to a written spec,
+  rename across files, refactor with the tests kept green, edit a settings
+  file, build a page, answer a question without changing anything, and, in a
+  project of a few hundred files with a server, a web app, dependencies and
+  build output, find where a change belongs and rename a function used
+  across it. A large project is grown from a few files by a script beside
+  the task, so its many files are not kept in the repository. It runs the real app in a
   headless browser with a local model, or a cloud one whose key is set in the
   terminal that starts it, and records what passed, the minutes, steps,
   failed edits, tokens (those a provider served from its cache apart) and the

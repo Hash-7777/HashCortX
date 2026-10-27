@@ -1,0 +1,7 @@
+{
+  "title": "Rename a function used across a large project",
+  "kind": "rename",
+  "grow": "../big-find-discount/grow.mjs",
+  "prompt": "Rename the function stayTotal to totalForStay everywhere the project uses it: the server, the web app and the tests. npm test must still pass.",
+  "check": ["node", ".bench-check/check.js"]
+}

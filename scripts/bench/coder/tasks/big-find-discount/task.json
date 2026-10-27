@@ -1,0 +1,8 @@
+{
+  "title": "Find where a change belongs in a large project",
+  "kind": "feature",
+  "grow": "grow.mjs",
+  "prompt": "Guests who stay 7 nights or more should get 10% off the whole stay. Make the total of a stay include it everywhere a total is shown, and add a test for it. npm test must still pass.",
+  "keep": ["test/pricing.test.js"],
+  "check": ["node", ".bench-check/check.js"]
+}

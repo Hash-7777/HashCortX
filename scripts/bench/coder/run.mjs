@@ -35,7 +35,9 @@
 // outside it and any web address is refused.
 //
 // THE TASKS live in tasks/<id>/: task.json (what the agent is asked, and how
-// the result is judged), project/ (the files the agent is given), check/ (a
+// the result is judged, and, as "grow", a script that adds the many files of
+// a large project to each copy of project/, so they need not be kept here),
+// project/ (the files the agent is given), check/ (a
 // hidden check the agent never sees, run on a copy of what it left) and
 // solution/ (a reference answer, used only by --self-test). A task passes
 // when its hidden check passes, it left alone every file it was told to, a
@@ -830,14 +832,22 @@ function finalAnswer(result) {
   return result.lastBubble || '';
 }
 
+/** A copy of a task's project, grown into a large one when the task says how (task.json "grow"). */
+function copyProject(task, to) {
+  fs.cpSync(path.join(task.dir, 'project'), to, { recursive: true });
+  if (!task.grow) return;
+  const r = spawnSync(process.execPath, [path.resolve(task.dir, task.grow), to], { encoding: 'utf8' });
+  if (r.status !== 0) throw new Error(`${task.id}: growing the project failed: ${(r.stderr || '').trim().slice(0, 200)}`);
+}
+
 // ── Self-test: every check fails on the untouched project and passes on the reference ──
 async function selfTest() {
   let wrong = 0;
   for (const task of tasks) {
     const untouched = fs.mkdtempSync(path.join(ROOT, 'self-'));
-    fs.cpSync(path.join(task.dir, 'project'), untouched, { recursive: true });
+    copyProject(task, untouched);
     const solved = fs.mkdtempSync(path.join(ROOT, 'self-'));
-    fs.cpSync(path.join(task.dir, 'project'), solved, { recursive: true });
+    copyProject(task, solved);
     const answerFile = path.join(task.dir, 'solution', 'answer.txt');
     fs.cpSync(path.join(task.dir, 'solution'), solved, { recursive: true, filter: (p) => p !== answerFile });
     const answer = fs.existsSync(answerFile) ? fs.readFileSync(answerFile, 'utf8') : '';
@@ -871,7 +881,7 @@ async function localModels() {
 async function runTask(port, model, task, n) {
   const ws = path.join(ROOT, 'runs', `r${n}`, 'project');
   fs.mkdirSync(path.dirname(ws), { recursive: true });
-  fs.cpSync(path.join(task.dir, 'project'), ws, { recursive: true });
+  copyProject(task, ws);
   current = { ws: fs.realpathSync(ws), usage: [], audit: [], checkpoints: new Map(), reading: [] };
   job = { model, ws: current.ws, prompt: task.prompt, minutes: task.minutes || opt.minutes };
   const profile = path.join(ROOT, 'runs', `r${n}`, 'browser');
