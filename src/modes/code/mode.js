@@ -1695,7 +1695,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     // The instructions, with the project's notes for the first request to carry (js/code/context.js).
     const systemTurn = () => window.HCCodeContext.systemTurn(sysPrompt(), sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks : null, sharedState.size, window.HCSources?.mark,
       cdrPrefs().lessons === true && sharedState.size === 'full' && window.HCCodeLessons ? window.HCCodeLessons.notes(window.HCCodeLessons.forProject(localStorage, sharedState.projectRoot, { local: sharedState.local })) : '',   // js/code/lessons.js
-      sharedState.codeMap?.root !== sharedState.projectRoot ? '' : sharedState.size === 'full' ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : sharedState.codeMap.whole || '');   // js/code/codemap.js, or a small project whole
+      sharedState.codeMap?.root !== sharedState.projectRoot ? '' : [sharedState.size === 'full' ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : sharedState.codeMap.whole, sharedState.codeMap.outline].filter(Boolean).join('\n\n'));   // js/code/codemap.js, or a small project whole
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.
     const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, window.HCAgentContext.optionsFor(sharedState.size, sharedState.local));
@@ -2018,8 +2018,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (mapped) {
         setStatus('Mapping the project…', 'thinking');
         const quiet = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) };
-        sharedState.codeMap = size === 'full' ? { root, ...(await window.HCCodeMap.forProject(root, quiet).catch(() => ({ ranked: [], read: 0 }))) } : { root, ranked: [], read: 0, whole: await window.HCCodeContext.wholeProject(root, quiet, light ? 'mid' : size).catch(() => '') };
-        cdrTraceAdd('Map', sharedState.codeMap.whole ? 'the whole project, shown' : `${sharedState.codeMap.read} files read, ${sharedState.codeMap.ranked.length} with definitions`, 'ok');
+        sharedState.codeMap = size === 'full' ? { root, ...(await window.HCCodeMap.forProject(root, quiet).catch(() => ({ ranked: [], read: 0 }))) } : { root, ranked: [], read: 0, whole: await window.HCCodeContext.wholeProject(root, quiet, light ? 'mid' : size).catch(() => '') }; if (!sharedState.codeMap.whole) sharedState.codeMap.outline = await window.HCCodeContext.projectOutline(root, quiet, light ? 'small' : size, local).catch(() => '');   // and a project too large to show whole as an outline of its folders, for every size
+        cdrTraceAdd('Map', sharedState.codeMap.whole ? 'the whole project, shown' : `${sharedState.codeMap.read} files read, ${sharedState.codeMap.ranked.length} with definitions${sharedState.codeMap.outline ? ', folders outlined' : ''}`, 'ok');
       }
       if (size !== sharedState.size || local !== sharedState.local || light !== sharedState.light || mapped) {   // a cloud model is never given lessons a model on this computer kept
         sharedState.size = size; sharedState.local = local; sharedState.light = light;

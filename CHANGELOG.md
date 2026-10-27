@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder gives every model an outline of a larger project.** A project
+  too large to show whole gave a model under fifteen billion parameters the
+  names in its top folder and nothing more. Every model is now given an
+  outline of its folders as a conversation begins: each folder under its
+  place, how many files it holds and the first few by name, shallow folders
+  first and sized to the model, with dependencies, build output and what
+  the project's .gitignore names left out. Only names are read for it,
+  never what a file holds.
 - **HashCoder's searches fit the model.** A search inside the project's
   files now answers with the files that matched, each named from the
   project folder, and the matching lines by number, as many as the model

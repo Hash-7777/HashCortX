@@ -216,6 +216,78 @@
     return `${WHOLE_INTRO}\n\n${parts.join('\n\n')}${named}`;
   }
 
+  // ── A larger project, as an outline of its folders ─────────────────────
+  //
+  // A project too large to show whole gave a smaller model the names in its
+  // top folder and nothing more, so on a project with a front end, a back
+  // end and their tests it searched and listed its way down from the top at
+  // every request, and guessed where it could not find. An outline of the
+  // folders costs a few lines: each folder under its place in the project,
+  // how many files it holds and the first few by name, shallow folders first
+  // and cut to the size of the model, with what was left out said. It is
+  // read once a conversation, listing only, never a file's contents, the way
+  // the map is read: inside the project, without asking, leaving out hidden
+  // folders, dependencies and build output and what the top .gitignore names.
+
+  /** Characters of outline, and file names a folder, by model size; `local` for a larger model on this computer. */
+  const OUTLINE = { small: { chars: 1500, names: 4 }, mid: { chars: 3000, names: 6 }, local: { chars: 2500, names: 6 }, full: { chars: 4000, names: 8 } };
+  /** How far the outline is read: folders deep, folders, and milliseconds. */
+  const OUTLINE_LIMITS = { depth: 6, dirs: 300, ms: 2500 };
+  const OUTLINE_INTRO = 'The project\'s folders when this conversation began, each with how many files it holds and the first few by name. ' +
+    'Find code inside them with grep_code, and read only the files the request needs.';
+
+  /**
+   * The outline of the project at `root` for a model of `size`, or '' when
+   * it cannot be listed without asking or holds nothing. `local` sizes a
+   * larger model on this computer below a cloud one.
+   */
+  async function projectOutline(root, { list, read }, size, local = false, now = () => Date.now()) {
+    if (!root) return '';
+    const most = size === 'full' && local ? OUTLINE.local : OUTLINE[size] || OUTLINE.full;
+    const skip = (window.HCCodeMap && window.HCCodeMap.SKIP) || new Set(['node_modules', 'dist', 'build', 'target']);
+    const sep = /\\/.test(root) && !/\//.test(root) ? '\\' : '/';
+    const top = String(root).replace(/[\\/]+$/, '');
+    let ignored = { names: new Set(), paths: new Set() };
+    try { if (window.HCCodeMap && window.HCCodeMap.ignoredBy) ignored = window.HCCodeMap.ignoredBy(await read(top + sep + '.gitignore')); } catch { /* none */ }
+    const started = now();
+    const queue = [{ dir: top, rel: '', depth: 0 }];
+    const folders = [], left = new Set();
+    let unread = 0;
+    while (queue.length) {
+      const { dir, rel, depth } = queue.shift();
+      if (folders.length >= OUTLINE_LIMITS.dirs || now() - started > OUTLINE_LIMITS.ms) { unread += queue.length + 1; break; }
+      let entries;
+      try { entries = await list(dir); if (typeof entries === 'string') entries = JSON.parse(entries); } catch { if (!rel) return ''; continue; }
+      if (!Array.isArray(entries)) { if (!rel) return ''; continue; }
+      const files = [];
+      for (const e of entries.filter((x) => x && typeof x.name === 'string').sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+        const at = rel ? `${rel}/${e.name}` : e.name;
+        if (e.name.startsWith('.')) continue;
+        if (e.is_dir) {
+          if (skip.has(e.name.toLowerCase()) || ignored.names.has(e.name) || ignored.paths.has(at)) { left.add(e.name); continue; }
+          if (depth + 1 <= OUTLINE_LIMITS.depth) queue.push({ dir: dir + sep + e.name, rel: at, depth: depth + 1 }); else unread++;
+          continue;
+        }
+        if (!NOT_SHOWN.test(e.name) && !ignored.names.has(e.name)) files.push(e.name);
+      }
+      if (files.length || !rel) folders.push({ rel, files });
+    }
+    if (!folders.some((f) => f.files.length)) return '';
+    const lines = [];
+    let chars = OUTLINE_INTRO.length, cut = 0;
+    for (const f of folders) {
+      const named = f.files.slice(0, most.names).join(', ') + (f.files.length > most.names ? `, and ${f.files.length - most.names} more` : '');
+      const line = `${f.rel ? `${f.rel}/` : './'} — ${f.files.length} file${f.files.length === 1 ? '' : 's'}${f.files.length ? `: ${named}` : ''}`;
+      if (chars + line.length + 1 > most.chars) { cut++; continue; }
+      chars += line.length + 1;
+      lines.push(line);
+    }
+    const after = [];
+    if (cut + unread) after.push(`${cut + unread} more folder${cut + unread === 1 ? '' : 's'} not shown: list_dir a folder to see it.`);
+    if (left.size) after.push(`Left out as dependencies, build output or ignored by the project: ${[...left].sort().slice(0, 8).join(', ')}${left.size > 8 ? ', and more' : ''}.`);
+    return [OUTLINE_INTRO, ...lines, ...after].join('\n');
+  }
+
   /**
    * The conversation's system turn: `content` the instructions, and, when
    * `known` (what readProject found) holds the project's notes and latest
@@ -232,5 +304,5 @@
     return { role: 'system', content, ...(notes ? { notes } : {}) };
   }
 
-  window.HCCodeContext = { FROM_APP, NOTES_FILES, MOST_COMMITS, WHOLE, forRequest, projectPicture, projectNotes, recentCommits, projectCommits, readProject, wholeProject, systemTurn };
+  window.HCCodeContext = { FROM_APP, NOTES_FILES, MOST_COMMITS, WHOLE, OUTLINE, OUTLINE_LIMITS, forRequest, projectPicture, projectNotes, recentCommits, projectCommits, readProject, wholeProject, projectOutline, systemTurn };
 })();

@@ -105,7 +105,7 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 
 <img src="docs/assets/release/3.0.0/harness.svg" alt="The HashCoder harness: it reads the project, plans ask by ask, edits under your permission mode, proves the change with your tests, takes a second look at larger changes, and sends itself back until the work is proven. Small models get light mode, mid-sized models focused tools, larger and cloud models the full harness." width="100%">
 
-**Every run is checked by the app, not by the model's word.** It **reads** the project, its notes for agents and its latest commits; **plans** your request ask by ask; **edits** as diffs you keep or undo, under your permission mode; **proves** the change by code alone, running your tests and reading a site the way a browser does, never by opening, serving or taking a picture of what it made; takes a second look at larger changes as a **reviewer**; and **sends itself back** for missed asks, leftovers and unsourced details, until the work is proven. It is fitted to the model: under 5B, **light mode**, where the model writes whole files and HashCortx does the tool work and runs the tests; 5B to 15B, **focused tools** with the steps written out and a plan for longer requests; 15B and up, and cloud models, **the full harness**, with a map of your code, lessons per project and a reviewer for larger changes.
+**Every run is checked by the app, not by the model's word.** It **reads** the project, its notes for agents and its latest commits; **plans** your request ask by ask; **edits** as diffs you keep or undo, under your permission mode; **proves** the change by code alone, running your tests and reading a site the way a browser does, never by opening, serving or taking a picture of what it made; takes a second look at larger changes as a **reviewer**; and **sends itself back** for missed asks, leftovers and unsourced details, until the work is proven. Every model is given an outline of a larger project's folders as a conversation begins, so it starts from where things are. It is fitted to the model: under 5B, **light mode**, where the model writes whole files and HashCortx does the tool work and runs the tests; 5B to 15B, **focused tools** with the steps written out and a plan for longer requests; 15B and up, and cloud models, **the full harness**, with a map of your code, lessons per project and a reviewer for larger changes.
 
 - **Proves its work.** It runs your tests after a change, reads a website the way a browser would before calling it done, and sends itself back for what it left unfinished: a renamed name still written somewhere, files that do not load each other, the example your request gave.
 - **Fits the model.** Cloud models get a map of your code; smaller local models read one line per tool, and small ones get a light mode that writes whole files while HashCoder does the tool work.
@@ -202,7 +202,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs on Linux, macOS and Windows:
 
 ```bash
-npm run check                                     # 10,733 source checks
+npm run check                                     # 10,745 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 233 Rust tests
 ```
 

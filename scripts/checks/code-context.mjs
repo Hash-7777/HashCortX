@@ -12,6 +12,8 @@ const target = process.argv[2] || join(here, '..', '..', 'src', 'js', 'code', 'c
 const sandbox = { window: {} };
 vm.createContext(sandbox);
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'context.js' });
+// As in the app, where the project map's lists of folders to leave out are loaded too (js/code/codemap.js).
+vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'codemap.js'), 'utf8'), sandbox, { filename: 'codemap.js' });
 const C = sandbox.window.HCCodeContext;
 
 let pass = 0, fail = 0;
@@ -161,7 +163,33 @@ console.log('\nA small project, whole, for a model on this computer:');
     /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local \|\| light\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
     && /const quiet = \{ list: \(d\) => HC\.code\.listQuietly\(d\), read: \(f\) => HC\.code\.readQuietly\(f\) \};/.test(mode)
     && /\{ root, ranked: \[\], read: 0, whole: await window\.HCCodeContext\.wholeProject\(root, quiet, light \? 'mid' : size\)\.catch\(\(\) => ''\) \}/.test(mode)
-    && /sharedState\.codeMap\?\.root !== sharedState\.projectRoot \? '' : sharedState\.size === 'full' \? window\.HCCodeMap\.notes\(/.test(mode) && /: sharedState\.codeMap\.whole \|\| ''\);/.test(mode));
+    && /sharedState\.codeMap\?\.root !== sharedState\.projectRoot \? '' : \[sharedState\.size === 'full' \? window\.HCCodeMap\.notes\(/.test(mode) && /: sharedState\.codeMap\.whole, sharedState\.codeMap\.outline\]\.filter\(Boolean\)\.join\('\\n\\n'\)\);/.test(mode));
+
+  console.log('\nA larger project, as an outline of its folders:');
+  const big = { 'package.json': '{}', 'README.md': '# Lantern Lane', '.gitignore': 'logs/\nuploads\n*.tmp\n', 'package-lock.json': '{}',
+    'server/app.py': 'x', 'server/db.py': 'x', 'server/routes/rooms.py': 'x', 'server/routes/bookings.py': 'x', 'server/routes/guests.py': 'x',
+    'web/src/main.js': 'x', 'web/src/components/RoomCard.vue': 'x', 'logs/today.txt': 'x', 'uploads/a.png': 'x', 'node_modules/a/index.js': 'x', 'dist/app.js': 'x', '.git/HEAD': 'x' };
+  for (let i = 0; i < 14; i++) big[`server/tests/test_case_${String(i).padStart(2, '0')}.py`] = 'x';
+  const outline = await C.projectOutline('/p', tree(big), 'mid');
+  const rows = outline.split('\n');
+  ok('it is framed as the folders when the conversation began, and says to search and read only what the request needs', rows[0].startsWith("The project's folders when this conversation began") && /read only the files the request needs/.test(rows[0]), rows[0]);
+  ok('each folder under its place, with how many files and the first by name', rows.includes('./ — 2 files: README.md, package.json') && rows.includes('server/ — 2 files: app.py, db.py') && rows.includes('server/routes/ — 3 files: bookings.py, guests.py, rooms.py'), rows.join(' | '));
+  ok('a folder of many files names the first few and counts the rest', rows.includes(`server/tests/ — 14 files: ${Array.from({ length: C.OUTLINE.mid.names }, (_, i) => `test_case_${String(i).padStart(2, '0')}.py`).join(', ')}, and ${14 - C.OUTLINE.mid.names} more`), rows.find((r) => r.startsWith('server/tests')));
+  ok('shallow folders come first', rows.indexOf('server/ — 2 files: app.py, db.py') < rows.findIndex((r) => r.startsWith('server/routes/')) && rows.findIndex((r) => r.startsWith('web/src/')) < rows.findIndex((r) => r.startsWith('web/src/components/')));
+  ok('a folder holding only folders is not a line of its own', !rows.some((r) => r.startsWith('web/ —')));
+  ok('hidden folders, dependencies, build output and what .gitignore names are left out, and said', !/node_modules\/|dist\/|logs\/|uploads\/|\.git\//.test(rows.slice(1, -1).join('\n')) && /Left out as dependencies, build output or ignored by the project: dist, logs, node_modules, uploads\./.test(outline), outline);
+  ok('no lock file and no file contents', !/package-lock|Lantern Lane/.test(outline));
+  const deep = {};
+  for (let d = 0; d < 120; d++) deep[`src/feature_${String(d).padStart(3, '0')}/index.js`] = 'x';
+  const smallOne = await C.projectOutline('/p', tree(deep), 'small'), full = await C.projectOutline('/p', tree(deep), 'full');
+  ok('it is cut to the size of the model, and the folders left out are counted', smallOne.length <= C.OUTLINE.small.chars + 200 && full.length > smallOne.length && /\d+ more folders not shown: list_dir a folder to see it\./.test(smallOne), `${smallOne.length} / ${full.length}`);
+  ok('a larger model on this computer is given less than a cloud one', (await C.projectOutline('/p', tree(deep), 'full', true)).length < full.length);
+  let tick = 0;
+  const slow = await C.projectOutline('/p', tree(deep), 'full', false, () => (tick += 100));
+  ok('it stops reading when it has taken its time, and says how many were not read', /more folders not shown/.test(slow) && slow.split('\n').length < full.split('\n').length, slow.split('\n').slice(-2).join(' | '));
+  ok('nothing when the project cannot be listed, has no files, or there is none', await C.projectOutline('/p', { list: async () => { throw new Error('Not listed without asking'); }, read: async () => '' }, 'mid') === ''
+    && await C.projectOutline('/p', tree({ 'a/b/.keep': 'x' }), 'mid') === '' && await C.projectOutline('', tree(big), 'mid') === '');
+  ok('HashCoder makes it for every size when the project is not shown whole, and gives it beside the map', /if \(!sharedState\.codeMap\.whole\) sharedState\.codeMap\.outline = await window\.HCCodeContext\.projectOutline\(root, quiet, light \? 'small' : size, local\)\.catch\(\(\) => ''\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/context.js)`);
