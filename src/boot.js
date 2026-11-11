@@ -77,6 +77,7 @@
     '/js/queue.js',
     '/js/drop.js',
     '/js/wheel.js',
+    '/js/text-safety.js',
     '/js/prompt-privacy.js',
     '/js/code/ansi.js',
     '/js/code/paths.js',
