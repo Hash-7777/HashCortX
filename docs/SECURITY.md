@@ -56,7 +56,7 @@ Every filesystem and shell call the coding agent wants to make passes through `H
 
 Commands **you** type in the terminal are not held to it. You can change directory wherever you like; it is your shell, and none of it is the agent's reach.
 
-**What a question shows is what will run.** When the command, path or reason in a question holds characters that draw nothing, the question shows them as codes, such as `\u{202E}`, and says so, and so do the steps of a HashCoder run and a message waiting in the queue (`src/js/text-safety.js`).
+**What a question shows is what will run.** A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls after six lines, never with its middle cut; a path keeps its middle cut and shows whole on hover. A command longer than 2,000 characters is refused before any question, and the model is told why. When the command, path or reason in a question holds characters that draw nothing, the question shows them as codes, such as `\u{202E}`, and says so, and so do the steps of a HashCoder run and a message waiting in the queue (`src/js/text-safety.js`).
 
 **What raises a dialog, and what does not:**
 

@@ -1807,6 +1807,11 @@ body.intro-exiting #intro-screen .logo-glow {
   font-size: 12px; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* A command shown whole: it wraps, keeps to six lines, then scrolls (guard.js showDialog). */
+.hc-perm-target.whole {
+  white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip;
+  line-height: 1.45; max-height: calc(6 * 1.45em); overflow-y: auto;
+}
 .hc-perm-reason {
   margin: 4px 0 0;
   font-size: 12px; color: var(--text-dim);

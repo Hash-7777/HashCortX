@@ -167,6 +167,9 @@
   const ASKED_EVERY_TIME = new Set(['erp-change', 'read-secret']);
   const BADGE = { 'erp-read': 'READ RECORDS IN', 'erp-change': 'CHANGE RECORDS IN', 'read-secret': 'READ A FILE OF KEYS' };
   const READS = new Set(['read', 'list', 'search']);
+  // A command is asked about whole, so one too long to read is refused before any question.
+  const MOST_COMMAND = 2000;
+  const tooLong = (action, target) => action === 'shell' && String(target || '').length > MOST_COMMAND;
   const isSecret = (action, target) => READS.has(action) && !!window.HCSecretShapes && window.HCSecretShapes.isSecretFile(target);
 
   function isHardBlocked(action, target) {
@@ -272,7 +275,10 @@
       const shown = T ? T.reveal(String(target || '')) : String(target || '');
       const said = T ? T.reveal(String(reason || '')) : String(reason || '');
       const hid = shown !== String(target || '') || said !== String(reason || '');
-      tgtEl.textContent = shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
+      // A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls: its middle can be the part that matters.
+      const whole = action === 'shell' || ASKED_EVERY_TIME.has(action);
+      if (tgtEl.classList) tgtEl.classList.toggle('whole', whole);
+      tgtEl.textContent = !whole && shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
       rsnEl.textContent = hid ? `${said}${said ? ' ' : ''}This holds hidden characters, shown as codes.` : said;
       _asking = true;
@@ -563,6 +569,9 @@
      * protected. It never shows a question or a notice; whatever would
      * need one is left out by the caller instead.
      */
+    /** Whether a command is too long to be asked about, and is refused before any question. */
+    tooLong,
+
     async allowedWithoutAsking(action, target) {
       if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || isSecret(action, target) || !(await isInProjectRoot(target))) return false;
       auditLog('allow-project-root', action, target);
@@ -576,6 +585,13 @@
         if (_run) _run.blocked();
         auditLog('deny-hard', action, target);
         HC.guard.notify(`Blocked: ${action} on protected path`, 'danger');
+        return false;
+      }
+
+      if (tooLong(action, target)) {
+        if (_run) _run.blocked();
+        auditLog('deny-long', action, String(target).slice(0, 200));
+        HC.guard.notify('Refused: a command longer than 2,000 characters', 'danger');
         return false;
       }
 

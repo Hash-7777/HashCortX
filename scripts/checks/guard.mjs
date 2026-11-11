@@ -797,5 +797,29 @@ console.log('\nA file that usually holds keys:');
   assert('a HashCoder run tells it which model it is sending to', /HC\.guard\?\.beginRun\?\.\(\{ model: \(\) => routing\?\.router\?\.model \|\| coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \}\);/.test(mode));
 }
 
+console.log('\nThe whole command, never a cut middle:');
+{
+  guard.clearSession();
+  guard.endRun();
+  answer = 'deny';
+  const tail = ' && echo the-part-that-matters-sits-here-in-the-middle && ' + 'x'.repeat(150) + ' && ls';
+  const long = `npm run build${tail}`;
+  await guard.request('shell', long, 'Build it');
+  const t = nodes['hc-perm-target'];
+  assert('a command is shown whole, in a block that wraps and scrolls', t.textContent === long && t.classList.contains('whole'), t.textContent.slice(0, 80));
+  const far = `/elsewhere/${'deep/'.repeat(30)}notes.txt`;
+  await guard.request('read', far, 'Reading file');
+  assert('a path keeps its middle cut, and shows whole on hover', t.textContent.includes(' … ') && t.textContent.endsWith('notes.txt') && t.title === far && !t.classList.contains('whole'));
+  const before = dialogsShown;
+  const huge = `node -e "${'a'.repeat(2001)}"`;
+  const refusedLong = await guard.request('shell', huge, 'Run it');
+  assert('a command longer than 2,000 characters is refused before any question', refusedLong === false && dialogsShown === before && guard.tooLong('shell', huge) === true && guard.tooLong('shell', 'npm test') === false);
+  const css = readFileSync(join(dirname(guardPath), '..', '..', 'css', 'modals.css'), 'utf8');
+  const rule = (/\.hc-perm-target\.whole\s*\{([^}]*)\}/.exec(css) || [])[1] || '';
+  assert('...and the block wraps, keeps to six lines, then scrolls', /white-space:\s*pre-wrap/.test(rule) && /overflow-y:\s*auto/.test(rule) && /max-height:\s*calc\(6 \* /.test(rule), rule);
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('the model is told why a long command was refused', /HC\.guard\.tooLong\?\.\(action, target\)/.test(tools) && /longer than 2,000 characters/.test(tools));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);
