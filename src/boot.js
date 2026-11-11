@@ -103,6 +103,7 @@
     '/js/code/steps.js',
     '/js/code/talk.js',
     '/js/code/permissions.js',
+    '/js/code/outward.js',
     '/js/code/permission-bar.js',
     '/js/code/attach.js',
     '/js/code/live.js',
