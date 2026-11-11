@@ -110,6 +110,9 @@ console.log('\nTwo result sets, set side by side per run:');
   ok('and the tasks whose result moved, as fractions', /a: 0\/1 then, 1\/2 now/.test(text) && !/b: /.test(text));
   ok('figures are per run, so two runs and one are comparable', /minutes a run 1\.0 then, 1\.0 now/.test(text) && /tokens in a run 1,000 then, 1,000 now/.test(text));
   ok('the earlier run is named', /^Against abc1234 · m/.test(text));
+  ok('how many tasks passed every run, on each side', /every run passed: 1 then, 1 now, of the 2 tasks in both/.test(text), text);
+  const steadier = T.comparisonLines('m', [row('a', true), row('a', false), row('b', true), row('b', true)], [row('a', true), row('b', true)], '').join('\n');
+  ok('...so a task that passed once and then failed once counts against it, though the passes rose', /every run passed: 2 then, 1 now/.test(steadier) && /passed 2 of 2 runs then, 3 of 4 now/.test(steadier), steadier);
   ok('nothing in common says nothing', T.comparisonLines('m', [row('x', true)], [row('y', true)], '') === null);
   ok('a task that did not run on one side is left out', !T.comparisonLines('m', [row('a', true), row('z', true)], [row('a', true), missed('z')], '').join('\n').includes('z:'));
 }

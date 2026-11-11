@@ -97,6 +97,9 @@ export function comparisonLines(model, nowRows, thenRows, label) {
   const tokens = (r) => (r.tokens || {});
   const out = [`Against ${label || 'the earlier run'} · ${model} · ${shared.length} tasks in both`];
   out.push(`  passed ${passed(was)} of ${was.length} runs then, ${passed(now)} of ${now.length} now`);
+  // Passes can rise while fewer tasks pass every time: the steady count is the one a model can be relied on for.
+  const steady = (which) => shared.filter((p) => p[which].kind === 'steady pass').length;
+  out.push(`  every run passed: ${steady('then')} then, ${steady('now')} now, of the ${shared.length} tasks in both`);
   out.push(`  minutes a run ${mean(was, (r) => (r.seconds || 0) / 60).toFixed(1)} then, ${mean(now, (r) => (r.seconds || 0) / 60).toFixed(1)} now`);
   out.push(`  tokens in a run ${number(Math.round(mean(was, (r) => tokens(r).input)))} then, ${number(Math.round(mean(now, (r) => tokens(r).input)))} now`);
   if (now.some((r) => tokens(r).cacheRead) || was.some((r) => tokens(r).cacheRead)) out.push(`  tokens from a provider's cache a run ${number(Math.round(mean(was, (r) => tokens(r).cacheRead)))} then, ${number(Math.round(mean(now, (r) => tokens(r).cacheRead)))} now`);
