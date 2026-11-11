@@ -2161,7 +2161,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       apis: { tab: stabApis, pane: apisPane, title: "API keys", onShow: renderApisPane },
       memory: { tab: stabMemory, pane: memoryPane, title: "Memory", onShow: renderMemoryPane },
       connected: { tab: $("stab-connected"), pane: $("connectedPane"), title: "Connections", onShow: () => window.HCMcp?.render() },
-      hashcoder: { tab: $("stab-hashcoder"), pane: $("hashcoderPane"), title: "HashCoder" },
+      hashcoder: { tab: $("stab-hashcoder"), pane: $("hashcoderPane"), title: "HashCoder", onShow: () => window.HCPrivateProjectPane?.refresh() },
       about: { tab: stabAbout, pane: aboutPane, title: "About" },
     };
     const activeKey = tabs[which]?.tab && tabs[which]?.pane ? which : "settings";

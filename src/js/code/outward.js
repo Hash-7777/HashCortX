@@ -107,5 +107,29 @@
     return `Address: ${q < 0 ? u : u.slice(0, q + 1) + decoded(u.slice(q + 1))}`;
   }
 
-  window.HCCodeOutward = { FROM_OUTSIDE, PRIVATE_TOOLS, MOST_ADDRESS, facts, judge, sendsOut, refuseAddress, shownAddress };
+  // ── A project the person marked private ──────────────────────────────
+  //
+  // Settings → HashCoder marks the project open as private: every run on it
+  // then counts as holding private material. Kept per project folder, in
+  // this app, never in the project.
+
+  const PRIVATE_KEY = 'hc_private_projects';
+  const storeOf = (s) => { if (s) return s; try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } };
+  const keyOf = (root) => { const r = slash(root); return /^[A-Za-z]:/.test(r) ? r.toLowerCase() : r; };
+  const marked = (s) => { try { const list = JSON.parse((storeOf(s) && storeOf(s).getItem(PRIVATE_KEY)) || '[]'); return Array.isArray(list) ? list : []; } catch { return []; } };
+
+  /** Whether the project at `root` is marked private. */
+  const isPrivate = (root, s) => !!slash(root) && marked(s).includes(keyOf(root));
+
+  /** Mark the project at `root` private, or not. */
+  function setPrivate(root, on, s) {
+    const st = storeOf(s);
+    if (!st || !slash(root)) return;
+    const k = keyOf(root);
+    const list = marked(s).filter((x) => x !== k);
+    if (on) list.push(k);
+    try { st.setItem(PRIVATE_KEY, JSON.stringify(list)); } catch { /* not kept */ }
+  }
+
+  window.HCCodeOutward = { FROM_OUTSIDE, PRIVATE_TOOLS, MOST_ADDRESS, facts, judge, sendsOut, refuseAddress, shownAddress, PRIVATE_KEY, isPrivate, setPrivate };
 })();

@@ -854,7 +854,7 @@ console.log('\nA run that has read from outside and holds private material:');
   guard.endRun();
   const mode = readFileSync(join(dirname(guardPath), '..', '..', 'modes', 'code', 'mode.js'), 'utf8');
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
-  assert('a HashCoder run hands the guard what its conversation holds', /HC\.guard\?\.beginRun\?\.\(\{ model: [^\n]*, facts: \(\) => window\.HCCodeOutward\?\.facts\(conversationMsgs, \{ root: sharedState\.projectRoot, isSecret: window\.HCSecretShapes\?\.isSecretFile \}\) \}\);/.test(mode));
+  assert('a HashCoder run hands the guard what its conversation holds', /HC\.guard\?\.beginRun\?\.\(\{ model: [^\n]*, facts: \(\) => window\.HCCodeOutward\?\.facts\(conversationMsgs, \{ root: sharedState\.projectRoot, isSecret: window\.HCSecretShapes\?\.isSecretFile, privateProject: window\.HCCodeOutward\?\.isPrivate\?\.\(sharedState\.projectRoot\) \}\) \}\);/.test(mode));
   assert('...and the model is told why an address was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools));
 }
 

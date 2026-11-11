@@ -83,6 +83,29 @@ console.log('\nAddresses refused, whatever the run holds:');
   ok('an address that cannot be decoded is shown as it is', O.shownAddress('https://x.example/?q=%E0%A4%A') === 'Address: https://x.example/?q=%E0%A4%A');
 }
 
+console.log('\nA project marked private:');
+{
+  const store = new Map();
+  const box = { getItem: (x) => (store.has(x) ? store.get(x) : null), setItem: (x, v) => store.set(x, String(v)), removeItem: (x) => store.delete(x) };
+  ok('no project is private until marked', O.isPrivate(root, box) === false && O.isPrivate('', box) === false);
+  O.setPrivate(root, true, box);
+  ok('marked, it is, written with either kind of slash or a slash at the end', O.isPrivate(root, box) === true && O.isPrivate(`${root}/`, box) === true && O.isPrivate('/work/other', box) === false);
+  ok('...on Windows, with the letters in either case', (O.setPrivate('C:\\Work\\Shop', true, box), O.isPrivate('c:/work/shop', box)) === true);
+  O.setPrivate(root, false, box);
+  ok('...and unmarked, it is not', O.isPrivate(root, box) === false && O.isPrivate('C:/Work/Shop', box) === true);
+  ok('a store that cannot be read holds none', O.isPrivate(root, { getItem: () => { throw new Error('x'); } }) === false);
+}
+
+console.log('\nWhere it is switched:');
+{
+  const panel = src('core', 'settings', 'panel.html'), app = src('js', 'app.js'), mode = src('modes', 'code', 'mode.js');
+  const pane = (() => { try { return src('core', 'settings', 'private-project.js'); } catch { return ''; } })();
+  ok('Settings, HashCoder has the switch, off to begin with, and says which project it is for', /<input type="checkbox" id="cdrSetPrivate" class="check-box" \/>/.test(panel) && /Treat the open project as private/.test(panel) && /id="cdrSetPrivateWhere"/.test(panel));
+  ok('...set from the project open each time the HashCoder settings are shown', /hashcoder: \{ tab: \$\("stab-hashcoder"\), pane: \$\("hashcoderPane"\), title: "HashCoder", onShow: \(\) => window\.HCPrivateProjectPane\?\.refresh\(\) \}/.test(app) && /HC\?\.guard\?\.projectRoot\?\.\(\)/.test(pane) && /O\(\)\.setPrivate\(root, box\.checked\)/.test(pane));
+  ok('a HashCoder run reads it into what its conversation holds', /facts: \(\) => window\.HCCodeOutward\?\.facts\(conversationMsgs, \{ root: sharedState\.projectRoot, isSecret: window\.HCSecretShapes\?\.isSecretFile, privateProject: window\.HCCodeOutward\?\.isPrivate\?\.\(sharedState\.projectRoot\) \}\)/.test(mode));
+  ok('...loaded with the other settings panes', src('boot.js').indexOf("'/core/settings/private-project.js'") > src('boot.js').indexOf("'/js/code/outward.js'"));
+}
+
 console.log('\nThe module:');
 {
   const boot = src('boot.js');
