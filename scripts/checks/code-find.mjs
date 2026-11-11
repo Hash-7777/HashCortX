@@ -14,7 +14,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
 sandbox.HC = sandbox.window.HC = {};
 vm.createContext(sandbox);
-for (const f of [['js', 'text-safety.js'], ['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
+for (const f of [['js', 'text-safety.js'], ['js', 'secret-shapes.js'], ['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
 vm.runInContext(process.argv[2] ? readFileSync(process.argv[2], 'utf8') : src('js', 'code', 'find.js'), sandbox, { filename: 'find.js' });
 const F = sandbox.window.HCCodeFind;
 const HC = sandbox.window.HC;
@@ -201,6 +201,29 @@ console.log('\nA file holding hidden characters that change what it means:');
   ok('the reading-only finding run shows them as codes too, by the numbers of a numbered read', quiet.includes('\\u{202E}') && !quiet.includes(RLO) && /on lines 2, 3\./.test(quiet) && quietFound.includes('\\u{202E}') && !quietFound.includes(RLO), quiet.split('\n').pop());
   HC.invoke = async (cmd) => (cmd === 'fs_read_file' ? 'plain text\n' : null);
   ok('a file with none of them is given back exactly as it was', await tool('read_file')({ path: `${root}/server/plain.js` }) === 'plain text\n');
+}
+
+console.log('\nA search that reaches files that usually hold keys:');
+{
+  let hits = [];
+  HC.guard = { projectRoot: () => root, request: async () => true, allowedWithoutAsking: async () => true };
+  HC.invoke = async (cmd) => (cmd === 'fs_grep' ? hits : cmd === 'fs_read_file' ? '' : cmd === 'fs_list_dir' ? [] : null);
+  const tool = (n) => HC.code.TOOL_DEFINITIONS.find((t) => t.name === n).fn;
+  hits = [{ path: `${root}/config/credentials.json`, line_no: 3, line: '"token": "invented-value"' }, { path: `${root}/src/app.js`, line_no: 9, line: 'const token = read();' }, { path: `${root}/config/credentials.json`, line_no: 4, line: '"token2": 1' }];
+  const found = await tool('grep_code')({ dir: root, pattern: 'token' });
+  ok('its lines are left out, and the rest shown', typeof found === 'string' && found.includes('src/app.js') && !found.includes('credentials.json') && !found.includes('invented-value'), found);
+  ok('...with a line saying how many files, and that reading one asks', /\[1 file that usually holds keys was left out of this search\. read_file asks the person before reading one\.\]/.test(found), found);
+  hits = [{ path: `${root}/.config/secrets.yaml`, line_no: 1, line: 'token: x' }];
+  const only = await tool('grep_code')({ dir: root, pattern: 'token' });
+  const said = typeof only === 'string' ? only : JSON.stringify(only);
+  ok('when every line was in one, the search says nothing was found, and why', /No line in these files/.test(said) && /1 file that usually holds keys was left out/.test(said) && !said.includes('token: x'), said);
+  hits = [{ path: `${root}/keys/server.pem`, line_no: 2, line: 'x' }, { path: `${root}/src/a.js`, line_no: 1, line: 'x' }];
+  const quiet = await HC.code.readingQuietly('grep_code', { dir: '.', pattern: 'x' });
+  ok('the reading-only finding run leaves them out the same way', !quiet.includes('server.pem') && /1 file that usually holds keys was left out/.test(quiet), quiet);
+  const lines = await HC.code.linesQuietly('x');
+  ok('the app\'s own search across the project never hands one on', Array.isArray(lines) && lines.length === 1 && lines[0].path.endsWith('src/a.js'), JSON.stringify(lines));
+  hits = [{ path: `${root}/src/a.js`, line_no: 1, line: 'x' }];
+  ok('a search with none says nothing of them', !/usually holds? keys/.test(await tool('grep_code')({ dir: root, pattern: 'x' })));
 }
 
 console.log('\nWhere the Coder calls it:');

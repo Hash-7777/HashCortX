@@ -425,7 +425,7 @@
   HC.code.linesQuietly = async (text) => {
     const root = projectRoot();
     if (!root || !(await HC.guard.allowedWithoutAsking('read', root))) return [];
-    return HC.invoke('fs_grep', { dir: root, pattern: text, fileExt: null, skip: await HC.code.ignoredFolders() });
+    return HC.code.withoutSecrets(await HC.invoke('fs_grep', { dir: root, pattern: text, fileExt: null, skip: await HC.code.ignoredFolders() })).list;   // never a file that usually holds keys
   };
 
   /** Whether a file is there, from the project folder, read without asking. */
@@ -454,8 +454,9 @@
     if (name === 'grep_code') {
       const regex = HC.code.looksLikePattern(args.pattern);
       const found = await HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, regex, skip: await HC.code.ignoredFolders() }).catch((e) => (regex ? HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, skip: [] }) : Promise.reject(e)));
-      const shown = window.HCCodeSearch ? window.HCCodeSearch.shape(HC.code.linesFound(found, args.pattern, regex), { pattern: args.pattern, root, dir: place, limit: HC.code.searchLimit }) : found;
-      return HC.code.withCodes(typeof shown === 'string' ? shown : JSON.stringify(shown), true);
+      const lines = HC.code.linesFound(found, args.pattern, regex);
+      const shown = window.HCCodeSearch ? window.HCCodeSearch.shape(lines, { pattern: args.pattern, root, dir: place, limit: HC.code.searchLimit }) : lines;
+      return HC.code.withCodes(HC.code.withLeft(typeof shown === 'string' ? shown : JSON.stringify(shown), lines), true);
     }
     return JSON.stringify({ error: `${name} is not one of the tools that only read.` });
   };
@@ -552,13 +553,26 @@
    * when there are none, that nothing is known yet and what to try. Told only
    * "[]", a small model answered anyway, naming a file and a value it made up.
    */
-  HC.code.linesFound = (list, pattern, regex = false) => {
-    if (!Array.isArray(list) || list.length) return list;
+  HC.code.linesFound = (found, pattern, regex = false) => {
+    const { list, left } = HC.code.withoutSecrets(found);
+    if (!Array.isArray(list) || list.length) { if (left) Object.defineProperty(list, 'secretsLeftOut', { value: left }); return list; }
     const words = [...new Set((String(pattern || '').match(/[A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,}/g) || []).map((w) => w.toLowerCase()))];
     const next = words.length > 1 ? `a shorter word from it, such as ${words.slice(-2).reverse().map((w) => `"${w}"`).join(' or ')}` : 'a different word';
     const how = regex === true ? ', read as a regular expression, case-insensitive' : regex === 'unread' ? ', searched as plain text, since it is not a regular expression this search reads' : '';
-    return { matches: [], note: `No line in these files ${regex === true ? 'matches' : 'contains'} "${pattern}"${how}, so nothing is known about it yet. Search ${next}, or list_dir the project, before you answer or change anything.` };
+    return { matches: [], note: `No line in these files ${regex === true ? 'matches' : 'contains'} "${pattern}"${how}, so nothing is known about it yet. Search ${next}, or list_dir the project, before you answer or change anything.${left ? ` ${HC.code.secretsLeft(left)}` : ''}` };
   };
+
+  /** A search's matches with those in files that usually hold keys taken out (js/secret-shapes.js), and how many such files there were. */
+  HC.code.withoutSecrets = (list) => {
+    const K = window.HCSecretShapes;
+    if (!Array.isArray(list) || !K) return { list, left: 0 };
+    const out = list.filter((m) => !(m && K.isSecretFile(m.path)));
+    return { list: out, left: new Set(list.filter((m) => m && K.isSecretFile(m.path)).map((m) => m.path)).size };
+  };
+  /** What a search says of the files of keys it left out. */
+  HC.code.secretsLeft = (n) => `[${n} file${n === 1 ? ' that usually holds keys was' : 's that usually hold keys were'} left out of this search. read_file asks the person before reading one.]`;
+  /** A search's text with that line under it, when its matches (`lines`, from linesFound) left any out. */
+  HC.code.withLeft = (shown, lines) => (typeof shown === 'string' && lines && lines.secretsLeftOut ? `${shown}\n${HC.code.secretsLeft(lines.secretsLeftOut)}` : shown);
 
   /**
    * Whether grep_code's pattern is written as a regular expression:
@@ -871,7 +885,7 @@
         file_ext: { type: 'string', description: 'Optional: limit to files with this extension, e.g. "js" or "py"' },
       },
       // The lines in short, grouped by file and sized to the model (js/code/search.js).
-      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => HC.code.withCodes(window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r, true)),
+      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => HC.code.withCodes(HC.code.withLeft(window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r, r), true)),
     },
     {
       name: 'shell_run',
