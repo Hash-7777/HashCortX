@@ -101,5 +101,31 @@
     });
   }
 
-  window.HCTextSafety = { HIDDEN, FILE_KINDS, scan, strip, note, reveal, unreveal };
+  /**
+   * A project file's text as a model is shown it: exact, but with the kinds
+   * in FILE_KINDS written as codes, and a line after it saying how many, on
+   * which lines, and that a change may copy the codes. `numbered` takes each
+   * line's number from the text itself (a numbered read, a search's
+   * matches); otherwise lines are counted from 1. Anything that is not text,
+   * or text with none, is given back as it was.
+   */
+  function inFile(text, { numbered = false } = {}) {
+    if (typeof text !== "string") return text;
+    const shown = reveal(text, FILE_KINDS);
+    if (shown === text) return text;
+    const { kinds } = scan(text);
+    const count = FILE_KINDS.reduce((t, k) => t + (kinds[k] || 0), 0);
+    const was = text.split("\n");
+    const at = [];
+    shown.split("\n").forEach((line, i) => {
+      if (line === was[i]) return;
+      const n = numbered ? (/^\s*(\d+)(?:\| |: )/.exec(line) || [])[1] : String(i + 1);
+      if (n && !at.includes(n)) at.push(n);
+    });
+    const first = /\\u\{[0-9A-F]{4,6}\}/.exec(shown)[0];
+    const where = at.length ? `, on line${at.length === 1 ? "" : "s"} ${at.slice(0, 12).join(", ")}${at.length > 12 ? " and more" : ""}` : "";
+    return `${shown}\n[This file holds ${count} hidden character${count === 1 ? "" : "s"} that can change what it says, shown as codes such as ${first}${where}. They are in the file as characters; a change may copy the codes as shown.]`;
+  }
+
+  window.HCTextSafety = { HIDDEN, FILE_KINDS, scan, strip, note, reveal, unreveal, inFile };
 })();

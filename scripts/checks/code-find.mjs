@@ -14,7 +14,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
 sandbox.HC = sandbox.window.HC = {};
 vm.createContext(sandbox);
-for (const f of [['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
+for (const f of [['js', 'text-safety.js'], ['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
 vm.runInContext(process.argv[2] ? readFileSync(process.argv[2], 'utf8') : src('js', 'code', 'find.js'), sandbox, { filename: 'find.js' });
 const F = sandbox.window.HCCodeFind;
 const HC = sandbox.window.HC;
@@ -175,6 +175,32 @@ console.log('\nThe reads it is given, which never ask:');
   ok('anything outside the project is refused in words, and no tool that changes anything runs', /Only the open project's files are read here/.test(outside) && /not one of the tools that only read/.test(changes));
   ok('no question was put to the person for any of it', questions === 0);
   ok('the app\'s searches across the project never ask either', Array.isArray(await HC.code.namesQuietly('rooms')) && Array.isArray(await HC.code.linesQuietly('rate')) && questions === 0 && await HC.code.existsQuietly('server/rooms.py') === true);
+}
+
+console.log('\nA file holding hidden characters that change what it means:');
+{
+  // Built from code points (scripts/checks/text-safety.mjs).
+  const RLO = String.fromCodePoint(0x202E), PDF = String.fromCodePoint(0x202C), ZWSP = String.fromCodePoint(0x200B);
+  const tag = (t) => [...t].map((c) => String.fromCodePoint(0xE0000 + c.codePointAt(0))).join('');
+  const file = `const role = 'user';\nif (role === "admin${RLO} ${PDF}") grant();\nconst note = "ok${tag('hi')}";\nconst gap = "a${ZWSP}b";\n`;
+  HC.guard = { projectRoot: () => root, request: async () => true, allowedWithoutAsking: async () => true };
+  HC.invoke = async (cmd) => {
+    if (cmd === 'fs_read_file') return file;
+    if (cmd === 'fs_grep') return [{ path: `${root}/server/roles.js`, line_no: 2, line: `if (role === "admin${RLO} ${PDF}") grant();` }];
+    if (cmd === 'fs_list_dir') return [];
+    return null;
+  };
+  const tool = (n) => HC.code.TOOL_DEFINITIONS.find((t) => t.name === n).fn;
+  const read = await tool('read_file')({ path: `${root}/server/roles.js` });
+  ok('a read shows them as codes, and nothing else is changed', read.startsWith(file.replace(RLO, '\\u{202E}').replace(PDF, '\\u{202C}').replace(tag('hi'), '\\u{E0068}\\u{E0069}')) && read.includes(ZWSP), read);
+  ok('...with a line saying how many, on which lines, and that a change may copy them', /\[This file holds 4 hidden characters that can change what it says, shown as codes such as \\u\{202E\}, on lines 2, 3\./.test(read) && /a change may copy the codes as shown/.test(read), read.split('\n').pop());
+  const found = await tool('grep_code')({ dir: root, pattern: 'admin' });
+  ok('a search shows them as codes, and names the lines by their numbers', typeof found === 'string' && found.includes('\\u{202E}') && !found.includes(RLO) && /on line 2\./.test(found), found);
+  const quiet = await HC.code.readingQuietly('read_file', { path: 'server/roles.js' });
+  const quietFound = await HC.code.readingQuietly('grep_code', { dir: '.', pattern: 'admin' });
+  ok('the reading-only finding run shows them as codes too, by the numbers of a numbered read', quiet.includes('\\u{202E}') && !quiet.includes(RLO) && /on lines 2, 3\./.test(quiet) && quietFound.includes('\\u{202E}') && !quietFound.includes(RLO), quiet.split('\n').pop());
+  HC.invoke = async (cmd) => (cmd === 'fs_read_file' ? 'plain text\n' : null);
+  ok('a file with none of them is given back exactly as it was', await tool('read_file')({ path: `${root}/server/plain.js` }) === 'plain text\n');
 }
 
 console.log('\nWhere the Coder calls it:');

@@ -413,6 +413,8 @@ console.log('\nA change copied from a file shown with codes for its hidden chara
   let refused = '';
   try { P.applyEdits(file, [{ search: 'if (role === "admin\\u{202E}")', replace: 'x' }], 'roles.js'); } catch (e) { refused = e.message; }
   ok('the passage shown when a change is not found holds the codes, never the characters', refused.includes('\\u{202E}') && !refused.includes(RLO), refused.slice(0, 160));
+  const after = P.changedNow([{ type: 'same', afterNo: 1, text: 'a' }, { type: 'add', afterNo: 2, text: `b${RLO}c` }, { type: 'same', afterNo: 3, text: '' }]);
+  ok('the changed lines a change answers with show the codes, never the characters', after.includes('2| b\\u{202E}c') && !after.includes(RLO), after);
   ok('codes that do not match the file are still not found', /not found|could not find|No passage|found nothing|is not in/i.test(refused) || refused.length > 0, refused.slice(0, 80));
 }
 

@@ -373,7 +373,7 @@
     const nos = [...keep].sort((a, b) => a - b);
     const shown = nos.slice(0, most);
     const width = String(shown[shown.length - 1]).length;
-    const body = shown.map((n, k) => `${k && n !== shown[k - 1] + 1 ? '…\n' : ''}${String(n).padStart(width)}| ${text.get(n)}`).join('\n');
+    const body = shownAsCodes(shown.map((n, k) => `${k && n !== shown[k - 1] + 1 ? '…\n' : ''}${String(n).padStart(width)}| ${text.get(n)}`).join('\n'));
     const more = nos.length > most ? `\n… and ${nos.length - most} more lines around the changes, not shown` : '';
     return `[The changed lines as the file has them now. The numbers and "| " are not part of the file.]\n${body}${more}`;
   }

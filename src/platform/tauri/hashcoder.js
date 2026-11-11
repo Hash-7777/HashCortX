@@ -431,6 +431,14 @@
   /** Whether a file is there, from the project folder, read without asking. */
   HC.code.existsQuietly = async (path) => { try { await HC.code.readQuietly(fromProject(path)); return true; } catch { return false; } };
 
+  /**
+   * A file's text, or a search's matches, as the model is shown them: the
+   * hidden characters that can change what they mean written as codes, with
+   * a line naming where (js/text-safety.js inFile). A numbered read, or a
+   * search, takes the line numbers from its own lines.
+   */
+  HC.code.withCodes = (text, numbered) => (window.HCTextSafety ? window.HCTextSafety.inFile(text, { numbered: numbered ?? /^\[[^\]\n]*: lines \d+-\d+ of \d+\./.test(String(text)) }) : text);
+
   /** A reading tool's answer for a finding run, as text: read_file, list_dir, grep_code or fuzzy_find, inside the project only. */
   HC.code.readingQuietly = async (name, args = {}) => {
     const root = projectRoot(), place = fromProject(name === 'read_file' ? args.path : args.dir || args.path);
@@ -439,7 +447,7 @@
     }
     if (name === 'read_file') {
       const text = await HC.invoke('fs_read_file', { path: place });
-      return window.HCCodePatch ? window.HCCodePatch.linesWindow(text, args.start_line, args.end_line, String(place).split(/[\\/]/).pop()) : text;
+      return HC.code.withCodes(window.HCCodePatch ? window.HCCodePatch.linesWindow(text, args.start_line, args.end_line, String(place).split(/[\\/]/).pop()) : text);
     }
     if (name === 'list_dir') return (await HC.invoke('fs_list_dir', { path: place })).filter((e) => e && !String(e.name).startsWith('.')).map((e) => `${e.name}${e.is_dir ? '/' : ''}`).join('\n') || '(empty)';
     if (name === 'fuzzy_find') return JSON.stringify(HC.code.namesFound((await HC.invoke('fs_fuzzy_find', { dir: place, query: args.query })).map((m) => ({ ...m, path: window.HCCodeSearch ? window.HCCodeSearch.place(m.path, root) : m.path })), args.query));
@@ -447,7 +455,7 @@
       const regex = HC.code.looksLikePattern(args.pattern);
       const found = await HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, regex, skip: await HC.code.ignoredFolders() }).catch((e) => (regex ? HC.invoke('fs_grep', { dir: place, pattern: args.pattern, fileExt: args.file_ext || null, skip: [] }) : Promise.reject(e)));
       const shown = window.HCCodeSearch ? window.HCCodeSearch.shape(HC.code.linesFound(found, args.pattern, regex), { pattern: args.pattern, root, dir: place, limit: HC.code.searchLimit }) : found;
-      return typeof shown === 'string' ? shown : JSON.stringify(shown);
+      return HC.code.withCodes(typeof shown === 'string' ? shown : JSON.stringify(shown), true);
     }
     return JSON.stringify({ error: `${name} is not one of the tools that only read.` });
   };
@@ -640,7 +648,7 @@
         start_line: { type: 'integer', description: 'Optional: the first line to read, counting from 1.' },
         end_line: { type: 'integer', description: 'Optional: the last line to read.' },
       },
-      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null).catch((e) => { throw HC.code.notThere(e); }),
+      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null).then((t) => HC.code.withCodes(t), (e) => { throw HC.code.notThere(e); }),
     },
     {
       name: 'write_file',
@@ -863,7 +871,7 @@
         file_ext: { type: 'string', description: 'Optional: limit to files with this extension, e.g. "js" or "py"' },
       },
       // The lines in short, grouped by file and sized to the model (js/code/search.js).
-      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => (window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r)),
+      fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => HC.code.withCodes(window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r, true)),
     },
     {
       name: 'shell_run',

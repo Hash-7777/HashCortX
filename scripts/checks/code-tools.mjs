@@ -201,7 +201,7 @@ console.log('\nA read of a path with no file:');
   ok('... in the words the native side uses too', /fuzzy_find/.test(HC.code.notThere(new Error('No such file or directory (os error 2)')).message));
   const other = new Error('Permission denied: read /p/a.js');
   ok('any other error is passed on as it is', HC.code.notThere(other) === other);
-  ok('read_file uses it', /HC\.code\.readFile\(p\.path, p\.start_line \?\? null, p\.end_line \?\? null\)\.catch\(\(e\) => \{ throw HC\.code\.notThere\(e\); \}\)/.test(src('platform', 'tauri', 'hashcoder.js')));
+  ok('read_file uses it', /HC\.code\.readFile\(p\.path, p\.start_line \?\? null, p\.end_line \?\? null\)\.then\(\(t\) => HC\.code\.withCodes\(t\), \(e\) => \{ throw HC\.code\.notThere\(e\); \}\)/.test(src('platform', 'tauri', 'hashcoder.js')));
 }
 
 console.log('\nA packed file is not written as text:');
