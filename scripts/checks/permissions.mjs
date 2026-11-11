@@ -329,5 +329,26 @@ console.log('\nIt is wired to nothing it should not reach:');
   ok('this check is part of npm run check', /npm run check:permissions/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nA command that installs a package:');
+{
+  const I = box.window.HCCodePermissions.installOf;
+  const names = (c, a) => { const r = I && I(c, a); return r ? `${r.family}:${r.names.join(',')}${r.npm ? ':npm' : ''}${r.from ? `:from ${r.from}` : ''}` : null; };
+  const cases = [
+    ['npm', ['install', 'left-pad'], 'npm:left-pad:npm'], ['npm', ['i', '-D', 'vitest@2.1.0'], 'npm:vitest@2.1.0:npm'], ['pnpm', ['add', 'zod', 'dayjs'], 'pnpm:zod,dayjs:npm'],
+    ['yarn', ['add', 'lodash'], 'yarn:lodash:npm'], ['bun', ['add', 'hono'], 'bun:hono:npm'], ['/usr/local/bin/npm', ['install', 'chalk'], 'npm:chalk:npm'],
+    ['pip', ['install', 'requests'], 'pip:requests'], ['pip3', ['install', '--upgrade', 'flask==3.0'], 'pip3:flask==3.0'], ['pip', ['install', '-r', 'requirements.txt'], 'pip::from requirements.txt'],
+    ['uv', ['pip', 'install', 'httpx'], 'uv pip:httpx'], ['uv', ['add', 'rich'], 'uv:rich'], ['poetry', ['add', 'pydantic'], 'poetry:pydantic'],
+    ['cargo', ['add', 'serde'], 'cargo:serde'], ['cargo', ['install', 'ripgrep'], 'cargo:ripgrep'], ['gem', ['install', 'rails'], 'gem:rails'],
+    ['go', ['get', 'example.org/mod'], 'go:example.org/mod'], ['brew', ['install', 'jq'], 'brew:jq'], ['winget', ['install', 'Git.Git'], 'winget:Git.Git'],
+    ['choco', ['install', 'nodejs'], 'choco:nodejs'], ['scoop', ['install', 'curl'], 'scoop:curl'], ['npm.cmd', ['install', 'left-pad'], 'npm:left-pad:npm'],
+  ];
+  const wrong = cases.filter(([c, a, want]) => names(c, a) !== want).map(([c, a, want]) => `${c} ${a.join(' ')} -> ${names(c, a)}, wanted ${want}`);
+  ok('each installer is told apart, with the names it would install', wrong.length === 0, wrong.join('; '));
+  const plain = [['npm', ['test']], ['npm', ['run', 'build']], ['npm', ['install']], ['yarn', []], ['pip', ['list']], ['pip', ['show', 'requests']], ['cargo', ['build']], ['go', ['build', './...']], ['brew', ['list']], ['git', ['add', '.']], ['make', ['install']]];
+  const held = plain.filter(([c, a]) => names(c, a) !== null).map(([c, a]) => `${c} ${a.join(' ')}`);
+  ok('...and a command that installs nothing named is not one', held.length === 0, held.join('; '));
+  ok('Auto never lets one through, as it does let a read through', verdict('cat', ['README.md']).auto === true && ['npm install left-pad', 'pip install requests', 'cargo add serde', 'brew install jq'].every((l) => { const [c, ...a] = l.split(' '); return verdict(c, a).auto === false; }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/permissions.js)`);
 process.exit(fail ? 1 : 0);

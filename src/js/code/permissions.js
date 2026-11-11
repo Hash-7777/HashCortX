@@ -418,8 +418,62 @@
     return verdict;
   }
 
+  // ── A command that installs a package ────────────────────────────────
+  //
+  // Installing a package runs its code on this computer, and a model can
+  // name a package that does not exist, or one someone registered under a
+  // name models invent. So an install is a question of its own, asked every
+  // time; this tells one apart and names what it would install.
+
+  /** Flags that take the next word as their value, so it is not a package name. */
+  const VALUE_FLAGS = new Set(['-r', '--requirement', '-c', '--constraint', '-i', '--index-url', '--extra-index-url', '-t', '--target', '--registry', '--prefix', '--root', '--version', '--source', '--scope']);
+  /** After the program, the words that name an install: the program's family, and how many words the verb is. */
+  const INSTALLERS = [
+    [/^(?:npm|pnpm|yarn|bun)$/, ['install', 'add', 'i'], true],
+    [/^pip3?$/, ['install'], false],
+    [/^poetry$/, ['add'], false],
+    [/^cargo$/, ['add', 'install'], false],
+    [/^(?:gem|brew|winget|choco|scoop)$/, ['install'], false],
+    [/^go$/, ['get', 'install'], false],
+  ];
+
+  /**
+   * `{ family, names, npm, from }` for a command that installs packages, or
+   * null: the installer, the names it would install as written (a version
+   * included), whether it is of the npm family (whose install scripts can be
+   * left out), and a requirements file it installs from. An install with no
+   * names and no file (npm install alone) installs what the project already
+   * lists, and is judged as any other command.
+   */
+  function installOf(command, args = []) {
+    const prog = String(command || '').split(/[\\/]/).pop().toLowerCase().replace(/\.(?:exe|cmd|bat|ps1)$/, '');
+    let words = (Array.isArray(args) ? args : []).map(String);
+    let family = prog;
+    if (prog === 'uv') {
+      if (words[0] === 'pip' && words[1] === 'install') { family = 'uv pip'; words = words.slice(2); }
+      else if (words[0] === 'add') { words = words.slice(1); }
+      else return null;
+    } else {
+      const known = INSTALLERS.find(([re]) => re.test(prog));
+      if (!known) return null;
+      const verb = words.findIndex((w) => !w.startsWith('-'));
+      if (verb < 0 || !known[1].includes(words[verb])) return null;
+      words = words.slice(verb + 1);
+    }
+    const names = [];
+    let from = '';
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i];
+      if (VALUE_FLAGS.has(w)) { if ((w === '-r' || w === '--requirement') && words[i + 1]) from = words[i + 1]; i++; continue; }
+      if (w.startsWith('-')) continue;
+      names.push(w);
+    }
+    if (!names.length && !from) return null;
+    return { family, names, npm: /^(?:npm|pnpm|yarn|bun)$/.test(prog), from };
+  }
+
   window.HCCodePermissions = {
     MODES, IDS, KEY, BLOCKS_BEFORE_ASKING_ALL, STREAK_BEFORE_ASKING,
-    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases,
+    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf,
   };
 })();
