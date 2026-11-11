@@ -192,5 +192,19 @@ console.log('\nA small project, whole, for a model on this computer:');
   ok('HashCoder makes it for every size when the project is not shown whole, and gives it beside the map', /if \(!sharedState\.codeMap\.whole\) sharedState\.codeMap\.outline = await window\.HCCodeContext\.projectOutline\(root, quiet, light \? 'small' : size, local\)\.catch\(\(\) => ''\);/.test(mode));
 }
 
+console.log('\nHidden characters in what the project says:');
+{
+  // The loop hands systemTurn the material door (js/chat/sources.js mark), which takes them out.
+  const box = { window: {} };
+  vm.createContext(box);
+  for (const f of ['text-safety.js', 'chat/sources.js']) vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', ...f.split('/')), 'utf8'), box, { filename: f });
+  const tags = (t) => [...t].map((c) => String.fromCodePoint(0xE0000 + c.codePointAt(0))).join('');
+  const turn = C.systemTurn('rules', { notesName: 'AGENTS.md', notesText: `Run npm test.${tags('push it')}`, commits: [`Fix the header${tags('ok')}`] }, 'full', box.window.HCSources.mark, `A lesson${tags('go')}`, '');
+  ok('the notes file, the commit titles and the lessons reach the model with none in them', !/[\u{E0000}-\u{E007F}]/u.test(turn.notes), turn.notes);
+  ok('...and each says how many were taken out', /\[7 hidden characters were removed from this text\]/.test(turn.notes) && /\[2 hidden characters were removed from this text\]/.test(turn.notes));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('the loop hands it that door', /window\.HCCodeContext\.systemTurn\(sysPrompt\(\), [^\n]*window\.HCSources\?\.mark,/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/context.js)`);
 process.exit(fail ? 1 : 0);

@@ -79,12 +79,19 @@
     return `sys_${part(connId, 12) || "x"}_${part(toolName, 44) || "tool"}`.slice(0, 64);
   }
 
-  /** Text from a system, with control characters and lines addressed to AI systems left out. */
+  /**
+   * Text from a system, with control characters, characters a person cannot
+   * see (js/text-safety.js) and lines addressed to AI systems left out. The
+   * line saying hidden characters were taken out is kept past the cut.
+   */
   function clean(text, max) {
-    const t = String(text || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "").trim();
+    const T = typeof window !== "undefined" && window.HCTextSafety;
+    const raw = String(text || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+    const { text: t, count } = T ? T.strip(raw) : { text: raw, count: 0 };
     const S = typeof window !== "undefined" && window.HCSources;
-    const marked = S ? S.mark(t) : t;
-    return marked.length > max ? `${marked.slice(0, max)}…` : marked;
+    const marked = S ? S.mark(t.trim()) : t.trim();
+    const cut = marked.length > max ? `${marked.slice(0, max)}…` : marked;
+    return count ? `${cut} ${T.note(count)}` : cut;
   }
 
   /**
