@@ -99,5 +99,16 @@ console.log('\nWhat is never kept as a lesson:');
   ok('save_lesson tells it whether the run has read from outside', /untrusted: !!HC\.guard\?\.holds\?\.\(\)\?\.untrusted/.test(tools));
 }
 
+console.log('\nA lesson forgotten from its step:');
+{
+  const items = new Map();
+  const st = { getItem: (k) => (items.has(k) ? items.get(k) : null), setItem: (k, v) => items.set(k, String(v)), removeItem: (k) => items.delete(k) };
+  const at = '/work/lantern-lane';
+  L.save(st, at, 'Tests run with npm test.');
+  L.save(st, at, 'The site is built with npm run build.');
+  ok('it is taken out, written as the model wrote it, and the rest kept', L.forget && L.forget(st, at, '  Tests run   with npm test. ') === true && JSON.stringify(L.forProject(st, at, { local: true })) === '["The site is built with npm run build."]');
+  ok('...and a lesson not kept is not found', L.forget(st, at, 'Something never saved.') === false && L.forget(st, '/work/other', 'The site is built with npm run build.') === false);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/lessons.js)`);
 process.exit(fail ? 1 : 0);

@@ -94,10 +94,24 @@
   /** Whether text looks like a key, a secret or holds an email address: never kept, and left out of the project map (js/code/codemap.js). */
   const looksPrivate = (text) => (window.HCSecretShapes ? window.HCSecretShapes.looksLikeKey(String(text)) : true) || EMAIL.test(String(text));   // js/secret-shapes.js; not known is not kept
 
+  /** One lesson about the project at `root` gone, matched as save writes it. Whether there was one. */
+  function forget(storage, root, text) {
+    const key = rootKey(root);
+    const T = window.HCTextSafety;
+    const raw = String(text == null ? '' : text);
+    const line = (T ? T.strip(raw).text : raw).replace(/\s+/g, ' ').trim();
+    const store = read(storage);
+    const list = Array.isArray(store[key]) ? store[key] : [];
+    const kept = list.filter((x) => !(x && x.text === line));
+    if (!key || !line || kept.length === list.length) return false;
+    store[key] = kept;
+    return write(storage, store);
+  }
+
   /** Every lesson, for every project, gone. */
   function forgetAll(storage) {
     try { storage.removeItem(KEY); return true; } catch { return false; }
   }
 
-  window.HCCodeLessons = { KEY, PER_PROJECT, MAX_CHARS, save, forProject, notes, forgetAll, looksPrivate };
+  window.HCCodeLessons = { KEY, PER_PROJECT, MAX_CHARS, save, forProject, notes, forget, forgetAll, looksPrivate };
 })();

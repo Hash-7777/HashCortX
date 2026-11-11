@@ -885,7 +885,7 @@
         statusClass: 'cdr-step--running',
         open: false,
       });
-      if (el) el.dataset.id = String(id);
+      if (el) { el.dataset.id = String(id); if (name === 'save_lesson' && args?.text) el.dataset.lesson = String(args.text); }   // a kept lesson can be forgotten from its step (js/code/steps.js)
       return el;
     }
 

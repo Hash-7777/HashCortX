@@ -31,6 +31,8 @@ ok('the changes are headed with what is asked of the person', S.changesTitle(1) 
 const steps = src('js', 'code', 'steps.js');
 console.log('\nWhat a step is:');
 ok('a step shows the hidden characters in what it names, and in what the person added, as codes (js/text-safety.js)', /const coded = \(t\) => \(window\.HCTextSafety \? window\.HCTextSafety\.reveal\(String\(t \?\? ''\)\) : String\(t \?\? ''\)\);/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}">\$\{esc\(coded\(object\)\)\}</.test(steps) && /\.cdr-added-text'\)\.textContent = coded\(text\);/.test(steps));
+ok('a lesson kept shows a Forget control on its step, which forgets it without opening the step', /if \(ok && el\.dataset && el\.dataset\.lesson\) forgetControl\(el\);/.test(steps) && /window\.HCCodeLessons\.forget\(localStorage, at\.root, el\.dataset\.lesson\)/.test(steps) && /e\.preventDefault\(\); e\.stopPropagation\(\);/.test(steps));
+ok('...the run marking the step with the lesson it saved', /if \(el\) \{ el\.dataset\.id = String\(id\); if \(name === 'save_lesson' && args\?\.text\) el\.dataset\.lesson = String\(args\.text\); \}/.test(src('modes', 'code', 'mode.js')));
 ok('a <details>, so it opens from the keyboard, with its verb, object and result', /document\.createElement\('details'\)/.test(steps) && /cdr-step-verb[\s\S]*cdr-step-object[\s\S]*cdr-step-result/.test(steps));
 ok('its verb and object are written as text, never as markup', /\$\{esc\(verb\)\}/.test(steps) && /\$\{esc\(coded\(object\)\)\}/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}"/.test(steps));
 ok('it joins the list the reply ends with, or starts one', /last\.classList\.contains\('cdr-steps'\) && !last\.classList\.contains\('done'\)/.test(steps));

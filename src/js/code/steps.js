@@ -111,6 +111,26 @@
     }
   }
 
+  /** The control on a kept lesson's step that forgets it (js/code/lessons.js), without opening the step. */
+  function forgetControl(el) {
+    const status = el.querySelector('.cdr-step-result');
+    if (!status || status.querySelector('.cdr-step-forget')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cdr-step-forget';
+    btn.textContent = 'Forget';
+    btn.addEventListener('click', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      const at = window.HC && window.HC.code && window.HC.code.lessonsFor;
+      const gone = !!(at && window.HCCodeLessons && window.HCCodeLessons.forget(localStorage, at.root, el.dataset.lesson));
+      const said = document.createElement('span');
+      said.className = 'cdr-step-time';
+      said.textContent = gone ? 'Forgotten' : 'Not found';
+      btn.replaceWith(said);
+    });
+    status.appendChild(btn);
+  }
+
   /** A step that has ended: done or failed, what it took, and its list's bars measured again. A saved step has no time. */
   function finish(el, ok, ms) {
     if (!el) return;
@@ -120,6 +140,7 @@
     if (took) el.dataset.ms = String(Math.max(0, Math.round(Number(ms))));
     const status = el.querySelector('.cdr-step-result');
     if (status) status.innerHTML = (took ? '<span class="cdr-step-bar" aria-hidden="true"><i></i></span>' : '') + (!ok ? '<span class="cdr-step-time cdr-step-failed">failed</span>' : '') + (took ? `<span class="cdr-step-time">${esc(took)}</span>` : '');
+    if (ok && el.dataset && el.dataset.lesson) forgetControl(el);
     measure(el.parentElement);
   }
 
