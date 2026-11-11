@@ -28,6 +28,7 @@ function ok(label, cond, detail = '') {
 const sandbox = { console, TextDecoder, TextEncoder, atob, btoa, setTimeout };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
+vm.runInContext(src('js', 'text-safety.js'), sandbox, { filename: 'text-safety.js' });
 vm.runInContext(src('js', 'code', 'patch.js'), sandbox, { filename: 'patch.js' });
 // The shared line diff, which patch_file reads its changed lines from, loaded as in the app.
 vm.runInContext(src('js', 'diff.js'), sandbox, { filename: 'diff.js' });
@@ -395,6 +396,24 @@ console.log('\nWhich wrapped files lose the tag:');
   ok('a tag that does not wrap the whole file is the file\'s own text', U('a.js', 'const t = "<script>";\nconst u = "</script>";').note === '' && U('a.css', '/* x */\n<style>a{}</style>').note === '');
   ok('two blocks one after another are left as written', U('a.css', '<style>a{}</style>\n<style>b{}</style>').note === '');
   ok('a plain stylesheet is untouched', U('a.css', 'a { color: red; }\n').text === 'a { color: red; }\n' && U('a.css', 'a{}').note === '');
+}
+
+console.log('\nA change copied from a file shown with codes for its hidden characters:');
+{
+  // Built from code points (scripts/checks/text-safety.mjs); a read shows them as codes (js/text-safety.js reveal).
+  const RLO = String.fromCodePoint(0x202E), PDF = String.fromCodePoint(0x202C), T = sandbox.HCTextSafety;
+  const file = `const role = 'user';\nif (role === "admin${RLO} ${PDF}") grant();\nfinish();\n`;
+  const seen = T.reveal(file, ['direction']);
+  const line = seen.split('\n')[1];
+  const r = P.applyEdits(file, [{ search: line, replace: line.replace('grant()', 'grantAll()') }], 'roles.js');
+  ok('a passage copied with the codes is found in the file, which holds the characters', r.text === file.replace('grant()', 'grantAll()'), JSON.stringify(r));
+  ok('...the characters stay characters, never written out as codes', r.text.includes(RLO) && !r.text.includes('\\u{202E}'));
+  ok('...and the change says how it was found', r.notes.some((n) => /codes of hidden characters/.test(n)), JSON.stringify(r.notes));
+  ok('a passage that matches as written is changed as written, first', P.applyEdits('a \\u{202E} b\n', [{ search: 'a \\u{202E} b', replace: 'c' }], 'x.js').text === 'c\n');
+  let refused = '';
+  try { P.applyEdits(file, [{ search: 'if (role === "admin\\u{202E}")', replace: 'x' }], 'roles.js'); } catch (e) { refused = e.message; }
+  ok('the passage shown when a change is not found holds the codes, never the characters', refused.includes('\\u{202E}') && !refused.includes(RLO), refused.slice(0, 160));
+  ok('codes that do not match the file are still not found', /not found|could not find|No passage|found nothing|is not in/i.test(refused) || refused.length > 0, refused.slice(0, 80));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/patch.js)`);

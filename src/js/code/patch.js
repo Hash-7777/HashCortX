@@ -195,6 +195,13 @@
     };
     let out = unique(content, search, replace, '');
     if (out != null) return { text: out, how: '' };
+    // A passage copied from a read that showed hidden characters as codes
+    // (js/text-safety.js) is looked for, and written, with the characters.
+    const T = typeof window !== 'undefined' && window.HCTextSafety;
+    if (T && T.unreveal(search) !== search) {
+      const found = patchWithStage(content, T.unreveal(search), T.unreveal(replace), name, every);
+      return { text: found.text, how: ['with the codes of hidden characters read as the characters', found.how].filter(Boolean).join(', ') };
+    }
     if (content.includes('\r\n')) {
       const crlf = (s) => s.replace(/\r?\n/g, '\r\n');
       out = unique(content, crlf(search), crlf(replace), ' with its line endings matched');
@@ -262,6 +269,9 @@
     return both / Math.max(x.size, y.size);
   }
 
+  /** A file's lines as a model is shown them: hidden characters that change what they mean written as codes (js/text-safety.js). */
+  const shownAsCodes = (text) => (typeof window !== 'undefined' && window.HCTextSafety ? window.HCTextSafety.reveal(text, window.HCTextSafety.FILE_KINDS) : text);
+
   /**
    * Why the passage was not found, with the passage most like it: the lines
    * of the file, numbered, so the next try can copy them exactly.
@@ -281,13 +291,13 @@
       const from = Math.max(0, best - 2);
       const to = Math.min(have.length, best + want.length + 2);
       const width = String(to).length;
-      const passage = have.slice(from, to).map((l, k) => `${String(from + k + 1).padStart(width)}| ${l}`).join('\n');
+      const passage = shownAsCodes(have.slice(from, to).map((l, k) => `${String(from + k + 1).padStart(width)}| ${l}`).join('\n'));
       return `search string not found in "${name}". The passage most like it is at lines ${best + 1}-${best + want.length}:\n` +
         `${passage}\n\n` +
         'Copy the text exactly as it is there, without the line numbers, and try again.';
     }
     return `search string not found in "${name}".\n` +
-      `File begins with:\n${content.slice(0, 600)}\n\n` +
+      `File begins with:\n${shownAsCodes(content.slice(0, 600))}\n\n` +
       'Re-read the file with read_file, copy the exact text you want to replace ' +
       '(preserving every space and indent), then retry.';
   }

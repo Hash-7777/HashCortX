@@ -87,6 +87,12 @@
     });
   }
 
+  /**
+   * The kinds a project file shows as codes: those that can make it read one
+   * way and mean another. The rest of a file stays exactly as it is.
+   */
+  const FILE_KINDS = ["tag", "selector", "direction"];
+
   /** Each code `reveal` writes turned back into the hidden character it stands for; any other is left as written. */
   function unreveal(text) {
     return asText(text).replace(/\\u\{([0-9A-Fa-f]{4,6})\}/g, (code, digits) => {
@@ -95,5 +101,5 @@
     });
   }
 
-  window.HCTextSafety = { HIDDEN, scan, strip, note, reveal, unreveal };
+  window.HCTextSafety = { HIDDEN, FILE_KINDS, scan, strip, note, reveal, unreveal };
 })();

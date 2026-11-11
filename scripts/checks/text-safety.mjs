@@ -83,6 +83,7 @@ console.log('\nShowing them, and putting them back:');
   ok('a code for a character that is not hidden is left as written', T.unreveal('\\u{0041} and \\u{200C}') === '\\u{0041} and \\u{200C}');
   ok('plain text is shown as it is', T.reveal('plain') === 'plain' && T.unreveal('plain') === 'plain');
   ok('the start of a file keeps its byte-order mark when shown', T.reveal(`${BOM}x`) === `${BOM}x`);
+  ok('a file shows as codes the kinds that can change what it means, and keeps the rest', JSON.stringify(T.FILE_KINDS) === '["tag","selector","direction"]' && T.reveal(`a${ZWSP}${RLO}${SEL}`, T.FILE_KINDS) === `a${ZWSP}\\u{202E}\\u{E0100}`);
 }
 
 console.log('\nThe module:');
