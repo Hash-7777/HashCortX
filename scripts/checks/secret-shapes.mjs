@@ -83,6 +83,28 @@ console.log('\nText shaped like a key:');
   ok('ordinary words are not keys', K.looksLikeKey(plain) === false && K.redact(plain).text === plain && K.redact(plain).count === 0);
 }
 
+console.log('\nKept from a model off this computer:');
+{
+  const k = (a, b) => a + b;
+  const key = k('sk-', 'proj-abc123DEF456ghi789JKL012mno');
+  const msgs = [{ role: 'system', content: `rules ${key}` }, { role: 'user', content: `my ${key}` }, { role: 'tool', tool_call_id: 't1', content: `HOST=x\nTOKEN=${key}\nPORT=3000` }, { role: 'tool', tool_call_id: 't2', content: 'nothing here' }];
+  const r = K.forCloud ? K.forCloud(msgs) : { messages: msgs, count: 0 };
+  const res = r.messages[2].content;
+  ok('a tool result has the key-shaped text replaced, by how long it was', !res.includes('abc123DEF456') && res.includes(`TOKEN=[kept from the model: looked like a key, ${key.length} characters]`) && res.includes('PORT=3000'), res);
+  ok('...and says once that it was, and what to do', res.endsWith('\n[1 value that looked like a key was kept from the model. Leave those lines as they are, or ask the person.]'));
+  ok('the instructions, the person\'s own words and a result with none are left as they were', r.messages[0] === msgs[0] && r.messages[1] === msgs[1] && r.messages[3] === msgs[3] && r.count === 1);
+  ok('the same result comes out the same every time, so a request can still be reused', K.forCloud(msgs).messages[2].content === res);
+  ok('a conversation with none comes back as it was', K.forCloud([msgs[3]]).messages[0] === msgs[3] && K.forCloud([msgs[3]]).count === 0);
+  const store = new Map();
+  const box = { getItem: (x) => (store.has(x) ? store.get(x) : null), setItem: (x, v) => store.set(x, String(v)), removeItem: (x) => store.delete(x) };
+  ok('it is on unless it was switched off', K.keepFromCloud(box) === true);
+  K.setKeepFromCloud(false, box);
+  ok('...switched off, it is off', K.keepFromCloud(box) === false);
+  K.setKeepFromCloud(true, box);
+  ok('...and back on', K.keepFromCloud(box) === true);
+  ok('a store that cannot be read leaves it on', K.keepFromCloud({ getItem: () => { throw new Error('x'); } }) === true);
+}
+
 console.log('\nOne home for the rule:');
 {
   const perms = src('js', 'code', 'permissions.js');
@@ -93,6 +115,10 @@ console.log('\nOne home for the rule:');
   const at = boot.indexOf("'/js/secret-shapes.js'");
   ok('it is loaded before the files that use it', at > 0 && ['permissions.js', 'lessons.js', 'debug-export.js'].every((f) => at < boot.indexOf(`'/js/code/${f}'`)));
   ok('it is part of npm run check', /npm run check:secret-shapes/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
+  const panel = src('core', 'settings', 'panel.html'), pane = (() => { try { return src('core', 'settings', 'cloud-keys.js'); } catch { return ''; } })();
+  ok('Settings has the switch, on to begin with', /<input type="checkbox" id="cdrSetKeepKeys" class="check-box" checked \/>/.test(panel) && /Keep key-shaped text from cloud models/.test(panel));
+  ok('...which reads and writes the setting here', /getElementById\('cdrSetKeepKeys'\)/.test(pane) && /box\.checked = K\(\)\.keepFromCloud\(\)/.test(pane) && /K\(\)\.setKeepFromCloud\(box\.checked\)/.test(pane));
+  ok('...loaded with the other settings panes, after this file', boot.indexOf("'/core/settings/cloud-keys.js'") > at && at > 0);
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/secret-shapes.js)`);

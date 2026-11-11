@@ -696,7 +696,10 @@
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
     // onText and onThinking hear the answer as it is written, where the client can say (a model on this computer).
-    const base = { model: route.model, messages, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(most ? { most } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
+    // A model off this computer is not sent what is shaped like a key in a tool result (js/secret-shapes.js).
+    const K = typeof window !== 'undefined' && window.HCSecretShapes;
+    const sent = route.kind !== 'ollama' && K && K.keepFromCloud() ? K.forCloud(messages).messages : messages;
+    const base = { model: route.model, messages: sent, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(most ? { most } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);
     if (route.kind === 'gemini') return tagged(fns.gemini(base), who);

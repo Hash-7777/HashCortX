@@ -603,5 +603,23 @@ console.log('\nA turn cut off by Stop or an error is closed, not left open:');
     /\} catch \(e\) \{[\s\S]{0,300}closeInterruptedTurn\(conversationMsgs/.test(coder));
 }
 
+console.log('\nKey-shaped text kept from a model off this computer:');
+{
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'secret-shapes.js'), 'utf8'), sandbox, { filename: 'secret-shapes.js' });
+  const k = (a, b) => a + b;
+  const key = k('g' + 'sk_', 'abc123DEF456ghi789JKL012mno345PQR678');   // the prefix split too, so this file carries none
+  const conv = [{ role: 'user', content: 'read it' }, { role: 'tool', tool_call_id: 't', content: `KEY=${key}` }];
+  const go = (adapter) => A.routeModelTurn({ adapter, messages: conv, tools: [] }, { openai: (a) => a.messages, anthropic: (a) => a.messages, gemini: (a) => a.messages, ollama: (a) => a.messages }, {});
+  const cloud = go({ kind: 'openai', provider: 'groq', model: 'm' });
+  ok('a cloud model is sent the result with the key kept out', !JSON.stringify(cloud).includes('abc123DEF456') && /kept from the model: looked like a key/.test(cloud.find((m) => m.role === 'tool').content));
+  ok('...for every cloud shape', ['anthropic', 'gemini'].every((kind) => !JSON.stringify(go({ kind, model: 'm' })).includes('abc123DEF456')));
+  const onThis = go({ kind: 'ollama', model: 'qwen2.5-coder:7b' });
+  ok('a model on this computer is sent it as it is', onThis.find((m) => m.role === 'tool').content === `KEY=${key}`);
+  sandbox.localStorage = { getItem: () => 'off', setItem() {}, removeItem() {} };
+  ok('switched off in Settings, a cloud model is sent it as it is', go({ kind: 'openai', provider: 'groq', model: 'm' }).find((m) => m.role === 'tool').content === `KEY=${key}`);
+  delete sandbox.localStorage;
+  ok('the conversation the caller keeps is never changed', conv[1].content === `KEY=${key}`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

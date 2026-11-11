@@ -510,6 +510,12 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
       </div>
       <div class="field">
         <label class="check-row">
+          <input type="checkbox" id="cdrSetKeepKeys" class="check-box" checked />
+          <span><b>Keep key-shaped text from cloud models</b> <span class="field-note">What a file, a command or a page gives back that looks like a key is replaced before it is sent to a model off this computer. It goes by the shapes providers give their keys: a secret with no known shape is not caught.</span></span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="check-row">
           <input type="checkbox" id="cdrSetLessons" class="check-box" />
           <span><b>Keep lessons about each project</b> <span class="field-note">May save short notes on how a project is built and tested. Kept in HashCortx, never in the project.</span></span>
         </label>
