@@ -727,7 +727,7 @@
       fn: (p) => {
         const at = HC.code.lessonsFor;
         if (!at || !window.HCCodeLessons) return JSON.stringify({ ok: false, error: 'Keeping lessons is switched off in Settings, so nothing was saved.' });
-        const kept = window.HCCodeLessons.save(localStorage, at.root, p.text, { local: at.local, replaces: p.replaces });
+        const kept = window.HCCodeLessons.save(localStorage, at.root, p.text, { local: at.local, replaces: p.replaces, untrusted: !!HC.guard?.holds?.()?.untrusted });   // never from a run that read from outside (js/code/outward.js)
         if (kept.error) throw new Error(kept.error);
         return JSON.stringify(kept);
       },

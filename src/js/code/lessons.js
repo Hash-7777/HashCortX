@@ -51,13 +51,19 @@
    * `local` says whether a model on this computer wrote it; `replaces`, the
    * exact text of an earlier lesson it takes the place of.
    */
-  function save(storage, root, text, { local = false, replaces = '', now = Date.now() } = {}) {
+  function save(storage, root, text, { local = false, replaces = '', now = Date.now(), untrusted = false } = {}) {
     const key = rootKey(root);
-    const line = String(text == null ? '' : text).replace(/\s+/g, ' ').trim();
+    // Characters that draw nothing are taken out (js/text-safety.js): a lesson is read by every later conversation.
+    const T = window.HCTextSafety;
+    const raw = String(text == null ? '' : text);
+    const line = (T ? T.strip(raw).text : raw).replace(/\s+/g, ' ').trim();
     if (!key) return { error: 'No project is open, so there is nothing to keep a lesson about.' };
+    // A run that has read from outside could have been told what to write (js/code/outward.js).
+    if (untrusted) return { error: 'This run has read material from outside the project, so no lesson is kept from it: what it read could have said what to write. Nothing was saved.' };
     if (!line) return { error: 'save_lesson needs text: one short line.' };
     if (line.length > MAX_CHARS) return { error: `A lesson is one short line, at most ${MAX_CHARS} characters. Say it in fewer words.` };
     if (looksPrivate(line)) return { error: 'That looks like a key, a secret or an email address, which is never kept. Nothing was saved.' };
+    if (window.HCSources && window.HCSources.speaksToModel(line)) return { error: 'A lesson that speaks to AI systems is never kept: a lesson says how the project is built or tested. Nothing was saved.' };
     const store = read(storage);
     const list = Array.isArray(store[key]) ? store[key].filter((x) => x && typeof x.text === 'string') : [];
     const old = String(replaces || '').replace(/\s+/g, ' ').trim();

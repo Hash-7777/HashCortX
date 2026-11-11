@@ -851,9 +851,13 @@ console.log('\nA run that has read from outside and holds private material:');
   holds = { untrusted: false, private: false };
   assert('...even with neither', await guard.request('fetch', `https://x.example/?d=${'a'.repeat(2001)}`, 'x') === false && dialogsShown === before);
   assert('...and the reason is there to be told', /longer than 2,000 characters/.test(guard.whyRefused('fetch', `https://x.example/?d=${'a'.repeat(2001)}`)) && guard.whyRefused('fetch', 'https://x.example/a') === '' && /longer than 2,000 characters/.test(guard.whyRefused('shell', 'x'.repeat(2001))));
+  assert('what the run holds can be asked for', guard.holds().untrusted === false && guard.holds().private === false);
+  holds = { untrusted: true, private: false };
+  assert('...and says what its conversation holds now', guard.holds().untrusted === true);
   guard.endRun();
   const mode = readFileSync(join(dirname(guardPath), '..', '..', 'modes', 'code', 'mode.js'), 'utf8');
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('...and with no run, it holds neither', JSON.stringify(guard.holds()) === '{"untrusted":false,"private":false}');
   assert('a HashCoder run hands the guard what its conversation holds', /HC\.guard\?\.beginRun\?\.\(\{ model: [^\n]*, facts: \(\) => window\.HCCodeOutward\?\.facts\(conversationMsgs, \{ root: sharedState\.projectRoot, isSecret: window\.HCSecretShapes\?\.isSecretFile, privateProject: window\.HCCodeOutward\?\.isPrivate\?\.\(sharedState\.projectRoot\) \}\) \}\);/.test(mode));
   assert('...and the model is told why an address was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools));
 }

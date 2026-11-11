@@ -64,8 +64,10 @@
       } catch {}
     }
     function memAdd(key, value) {
-      const k = String(key || "").trim().slice(0, 120);
-      const v = String(value || "").trim().slice(0, 1200);
+      // Characters that draw nothing are taken out (js/text-safety.js): a fact is read by later conversations.
+      const plain = (t) => (window.HCTextSafety ? window.HCTextSafety.strip(String(t || "")).text : String(t || ""));
+      const k = plain(key).trim().slice(0, 120);
+      const v = plain(value).trim().slice(0, 1200);
       if (!k || !v) return { ok: false, error: "key and value are required" };
       const arr = memLoad();
       const projectOnly = deps.currentProject()?.memoryMode === "project";

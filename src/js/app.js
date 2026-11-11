@@ -4564,7 +4564,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       if (tpsVal) tpsVal.textContent = "— t/s";
     }
     // Auto-extract facts from the assistant's final reply (covers "noted, you live in X" etc.)
-    try { if (assistant.content) memAutoExtractFromAssistant(assistant.content); } catch {}
+    try { if (assistant.content && !(assistant.toolsUsed && assistant.toolsUsed.length)) memAutoExtractFromAssistant(assistant.content); } catch {}
     render();
     persistCurrentChat();
     const current = activeChatList().find(c => c.id === state.currentChatId);

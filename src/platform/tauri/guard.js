@@ -587,6 +587,8 @@
     tooLong,
     /** Why an action is refused before any question, or ''. */
     whyRefused,
+    /** What the run's conversation holds now (js/code/outward.js facts): neither, with no run. */
+    holds: () => factsNow() || { untrusted: false, private: false },
 
     async allowedWithoutAsking(action, target) {
       if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || isSecret(action, target) || !(await isInProjectRoot(target))) return false;

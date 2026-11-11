@@ -32,6 +32,7 @@ function store() {
   const sandbox = { window: {}, localStorage, console };
   sandbox.window.localStorage = localStorage;
   vm.createContext(sandbox);
+  vm.runInContext(src('js', 'text-safety.js'), sandbox, { filename: 'text-safety.js' });
   vm.runInContext(src('js', 'memory.js'), sandbox, { filename: 'memory.js' });
   sandbox.HCMemory = sandbox.window.HCMemory;
   vm.runInContext(src('core', 'memory', 'store.js'), sandbox, { filename: 'store.js' });
@@ -84,6 +85,17 @@ console.log('\nHashCoder\'s own switch, off until it is turned on:');
   ok('the run knows the switch, and is not offered the memory tools without it', /HC\.code\.memoryOn = cdrPrefs\(\)\.memory === true;/.test(mode) && /\(HC\.code\.memoryOn \|\| !\/\^\(remember_fact\|recall_facts\)\$\/\.test\(t\.function\.name\)\)/.test(mode));
   ok('the switch is in Settings under HashCoder, off by default, and changing it rewrites the instructions', /id="cdrSetMemory" class="check-box" \/>/.test(src('core', 'settings', 'panel.html')) && /memEl\.checked = prefs\.memory === true;/.test(mode) && /cdrSavePrefs\(\{ memory: memEl\.checked \}\); if \(conversationMsgs\[0\]\?\.role === 'system'\) conversationMsgs\[0\] = systemTurn\(\);/.test(mode));
   ok('this check is part of npm run check', /npm run check:memory-switch/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
+}
+
+console.log('\nWhat is kept as a fact:');
+{
+  const S = store();
+  const tag = String.fromCodePoint(0xE0078), ZWSP = String.fromCodePoint(0x200B);
+  S.memAdd(`home_city${tag}`, `Lis${ZWSP}bon`);
+  const f = S.memLoad().find((x) => x.key.startsWith('home_city'));
+  ok('hidden characters are taken out of a fact before it is kept', !!f && f.key === 'home_city' && f.value === 'Lisbon', JSON.stringify(f));
+  const app = src('js', 'app.js');
+  ok('in chat, nothing is saved from a reply in a turn where a tool ran', /try \{ if \(assistant\.content && !\(assistant\.toolsUsed && assistant\.toolsUsed\.length\)\) memAutoExtractFromAssistant\(assistant\.content\); \} catch \{\}/.test(app));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (long-term memory switches)`);
