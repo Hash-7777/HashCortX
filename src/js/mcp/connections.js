@@ -113,15 +113,17 @@
    * A fresh list of tools, set against what the person switched on. A tool
    * new to the list starts on if it only reads and off if it changes records.
    * A tool described differently from how it was switched on is off again.
+   * A tool whose name or description holds hidden words is off, and stays off.
    */
   function merge(before, listed) {
     return listed.map((raw) => {
       const definition = P().definitionOf(raw);
       const reads = P().onlyReads(raw);
       const prev = (before || []).find((t) => t.name === raw.name);
+      if (P().hidesWords(raw)) return { name: raw.name, raw, definition, reads, on: false, approved: null, changed: false, hidden: true };
       if (!prev) return { name: raw.name, raw, definition, reads, on: reads, approved: reads ? definition : null, changed: false };
       if (prev.approved && prev.approved !== definition) return { name: raw.name, raw, definition, reads, on: false, approved: null, changed: true };
-      return { ...prev, raw, definition, reads };
+      return { ...prev, raw, definition, reads, hidden: false };
     });
   }
 
@@ -135,11 +137,11 @@
     }
   }
 
-  /** Switch a tool on or off. On means: as it is described now. */
+  /** Switch a tool on or off. On means: as it is described now. A tool holding hidden words is never switched on. */
   function setTool(id, name, on) {
     return update(id, (c) => ({
       ...c,
-      tools: (c.tools || []).map((t) => (t.name === name ? { ...t, on: !!on, approved: on ? t.definition : null, changed: false } : t)),
+      tools: (c.tools || []).map((t) => (t.name !== name || (on && t.hidden) ? t : { ...t, on: !!on, approved: on ? t.definition : null, changed: false })),
     }));
   }
 
@@ -482,6 +484,7 @@
     const box = document.createElement("input");
     box.type = "checkbox";
     box.checked = !!t.on;
+    box.disabled = !!t.hidden;
     box.addEventListener("change", () => { setTool(conn.id, t.name, box.checked); render(); });
     const text = el("span", "conn-tool-text");
     const line = el("span", "conn-tool-line");
@@ -493,6 +496,7 @@
     const said = P().clean((t.raw && (t.raw.description || t.raw.title)) || "", 240);
     if (said) text.appendChild(el("span", "conn-tool-desc", said));
     if (t.changed) text.appendChild(el("span", "conn-tool-desc conn-warn", "The system describes this tool differently since you switched it on. Read it again before switching it back on."));
+    if (t.hidden) text.appendChild(el("span", "conn-tool-desc conn-warn", "The system's name or description for this tool holds hidden characters, words no one can see that a model would still read. It stays switched off."));
     row.append(box, text);
     return row;
   }

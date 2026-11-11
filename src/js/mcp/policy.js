@@ -95,6 +95,17 @@
   }
 
   /**
+   * Whether a tool's name, title or description holds words written in the
+   * tag block, which draw nothing and are still read (js/text-safety.js).
+   * Such a tool stays switched off.
+   */
+  function hidesWords(tool) {
+    const T = typeof window !== "undefined" && window.HCTextSafety;
+    const t = tool || {};
+    return !!T && (T.scan(`${t.name || ""}\n${t.title || ""}\n${t.description || ""}`).kinds.tag || 0) > 0;
+  }
+
+  /**
    * The tool as a model is told it, or null when it cannot be offered: its
    * arguments too large to send, or not an object.
    */
@@ -144,5 +155,5 @@
     try { return JSON.stringify(args || {}, null, 2); } catch { return String(args); }
   }
 
-  window.HCMcpPolicy = { onlyReads, wordsOf, definitionOf, stable, exposedName, clean, offerOf, mayReach, textOf, previewOf, MAX_RESULT_CHARS };
+  window.HCMcpPolicy = { onlyReads, wordsOf, definitionOf, stable, exposedName, clean, hidesWords, offerOf, mayReach, textOf, previewOf, MAX_RESULT_CHARS };
 })();
