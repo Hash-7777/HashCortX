@@ -176,5 +176,58 @@ console.log('\nTelling a refusal from silence:');
   ok('an answer that did carry a status is not probed', /err\?\.status \?\? \(/.test(app));
 }
 
+console.log('\nA reply that ends with nothing in it:');
+{
+  const kept = { v: 'gpu' };
+  sandbox.localStorage = { getItem: () => kept.v, setItem: (k, v) => { kept.v = v; }, removeItem: () => { kept.v = ''; } };
+  vm.runInContext(src('js', 'local-place.js'), sandbox, { filename: 'local-place.js' });
+  const sent = [], order = [];
+  const dead = new Set([16384]);   // the chip alone cannot hold the model at this window
+  let loaded = true, looks = 0;
+  const fetchFn = async (url, init) => {
+    order.push(url.replace(/^http:\/\/\w+/, ''));
+    if (url.endsWith('/api/generate')) return { ok: true };
+    if (url.endsWith('/api/ps')) { looks++; const listed = loaded && looks < 3; if (looks >= 3) loaded = false; return { ok: true, json: async () => ({ models: listed ? [{ name: 'm7' }] : [] }) }; }
+    const b = JSON.parse(init.body); sent.push(b); return { ok: true, body: b };
+  };
+  const lineReader = (b) => events(b.options.num_gpu === 999 && dead.has(b.options.num_ctx) ? [] : [...words('fine'), { done: true, eval_count: 1 }]);
+  const wait = async () => {};
+  const ask = (numCtx, more = {}) => C.chat('http://g', { model: 'm7', messages: [{ role: 'user', content: 'hi' }], numCtx }, { fetchFn, lineReader, wait, ...more });
+  const r = await ask(16384);
+  ok('on the graphics chip alone, it is asked once more with Ollama placing the model, and answers', r.content === 'fine' && sent.length === 2 && sent[0].options.num_gpu === 999 && !('num_gpu' in sent[1].options) && sent[1].options.num_ctx === 16384);
+  const second = order.lastIndexOf('/api/chat'), unload = order.indexOf('/api/generate');
+  ok('...only once the model that failed has been let go and is no longer listed', unload > order.indexOf('/api/chat') && unload < second && order.slice(unload, second).filter((u) => u === '/api/ps').length === 3, order.join(' '));
+  sent.length = 0;
+  await ask(32768);
+  ok('...and a later request at that window or above goes to Ollama\'s placing at once', sent.length === 1 && !('num_gpu' in sent[0].options));
+  sent.length = 0;
+  await ask(8192);
+  ok('a smaller window still asks for the chip alone', sent.length === 1 && sent[0].options.num_gpu === 999);
+  ok('it is told which windows', C.ollamaPlacesAt('http://g', 'm7', 16384) === true && C.ollamaPlacesAt('http://g', 'm7', 8192) === false && C.ollamaPlacesAt('http://g', 'other', 16384) === false);
+  const warmed = [];
+  await C.warm('http://g', 'm7', 16384, { fetchFn: async (u, init) => { warmed.push(JSON.parse(init.body)); return { ok: true }; }, now: 5e6 });
+  ok('a warm-up at that window is placed by Ollama too', warmed.length === 1 && !('num_gpu' in warmed[0].options));
+
+  kept.v = '';
+  let err = null;
+  try { await C.chat('http://a', { model: 'm', messages: [], numCtx: 8192 }, { fetchFn: async () => ({ ok: true, body: 'X' }), lineReader: () => events([]) }); } catch (e) { err = e; }
+  ok('placed by Ollama already, it is said as the server running out of memory, not taken for an empty answer', err && err.message === C.STOPPED && /runs out of memory/.test(err.message));
+  kept.v = 'gpu';
+  let tries = 0;
+  try { await C.chat('http://b', { model: 'm', messages: [], numCtx: 8192 }, { wait, fetchFn: async (url) => { if (/\/api\/(?:ps|generate)$/.test(url)) return { ok: true, json: async () => ({ models: [] }) }; tries++; return { ok: true, body: 'X' }; }, lineReader: () => events([]) }); } catch (e) { err = e; }
+  ok('asked once more only once: an empty second reply is said too', tries === 2 && err && err.message === C.STOPPED);
+  tries = 0; err = null;
+  const heard = [];
+  try { await C.chat('http://e', { model: 'm', messages: [], numCtx: 8192 }, { wait, onThinking: (t) => heard.push(t), fetchFn: async (url) => { if (/\/api\/(?:ps|generate)$/.test(url)) return { ok: true, json: async () => ({ models: [] }) }; tries++; return { ok: true, body: 'X' }; }, lineReader: () => events([{ message: { thinking: 'first' } }]) }); } catch (e) { err = e; }
+  ok('a reply that had begun to think is not asked again, so its thinking is not shown twice, and is said', tries === 1 && heard.length === 1 && err && err.message === C.STOPPED);
+  const stop = new AbortController(); stop.abort();
+  tries = 0;
+  const after = await C.chat('http://c', { model: 'm', messages: [], numCtx: 8192 }, { signal: stop.signal, fetchFn: async () => { tries++; return { ok: true, body: 'X' }; }, lineReader: () => events([]) });
+  ok('a reply cut short by a stop is neither asked again nor called a failure', tries === 1 && after.content === '');
+  const thinking = await C.chat('http://d', { model: 'm', messages: [], numCtx: 8192 }, { fetchFn: async () => ({ ok: true, body: 'X' }), lineReader: () => events(words('part')) });
+  ok('a reply with words in it is kept, its closing line or not', thinking.content === 'part');
+  kept.v = '';
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/local-client.js)`);
 process.exit(fail ? 1 : 0);

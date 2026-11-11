@@ -109,6 +109,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Fixed
 
+- **A model on this computer that runs out of memory no longer reads as an
+  empty answer.** With local models set to run on the graphics chip alone, a
+  request needing a larger window than the chip holds made Ollama stop at
+  once with nothing written, and HashCoder ended with "No response from
+  model". Such a request is now made once more with Ollama placing the
+  model, after the model that failed is let go, and that window is
+  remembered for the model for the rest of the session. A reply that still
+  ends with nothing in it says the model ran out of memory.
+
 - **3D Forge lets a thinking model finish thinking.** A model on this
   computer that thinks before it answers was treated as silent while it
   thought, cut off after three minutes, and replaced by another model.

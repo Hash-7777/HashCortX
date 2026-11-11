@@ -28,6 +28,19 @@
 // Ollama decides, is the person's choice in Settings (js/local-place.js), and
 // every request and warm-up carries it.
 //
+// A REPLY THAT ENDS WITH NOTHING IN IT IS A SERVER THAT STOPPED. When a model
+// runs out of memory part-way, Ollama ends the reply at once: no word, and
+// none of the closing line it ends every reply with. That was read as a model
+// with nothing to say, and HashCoder stopped with "No response from model".
+// A model asked to sit on the graphics chip alone runs out of it at a window
+// that holds more than the chip does, so such a request is made once more
+// with Ollama placing the model itself, once the model that failed has been
+// let go (asked straight away, it reached the failed one again and came back
+// empty at once), and the window is remembered for that
+// model: later requests and warm-ups at it or above are placed by Ollama too,
+// and js/local-fit.js says what runs on the processor. Anywhere else the
+// failure is said for what it is.
+//
 // `warm` loads a model ahead of the request that needs it, at the window that
 // request will use, so the first answer does not wait for the load.
 //
@@ -38,7 +51,7 @@
   "use strict";
 
   /** The body of one request to Ollama's chat. */
-  function body({ model, messages, stream = true, temperature, numCtx, numPredict, json, tools, keepAlive, keepFor, think }) {
+  function body({ model, messages, stream = true, temperature, numCtx, numPredict, json, tools, keepAlive, keepFor, think, ollamaPlaces = false }) {
     const options = {};
     if (Number.isFinite(numCtx)) options.num_ctx = numCtx;
     // An answer held to a schema can only end when its JSON closes, and a small
@@ -54,9 +67,9 @@
     const limit = Number.isFinite(numPredict) && numPredict > 0 ? numPredict : room;
     if (limit) options.num_predict = limit;
     if (Number.isFinite(temperature)) options.temperature = temperature;
-    // Where it runs, if the person chose (js/local-place.js); otherwise Ollama decides.
+    // Where it runs, if the person chose (js/local-place.js); otherwise, or when the chip alone cannot hold it, Ollama decides.
     const P = typeof window !== "undefined" && window.HCLocalPlace;
-    if (P) Object.assign(options, P.options());
+    if (P && !ollamaPlaces) Object.assign(options, P.options());
     // A time the caller asks for wins; otherwise the one the person chose in
     // Settings, if they chose one (js/local-keep.js); otherwise the caller's
     // preference for work in steps; otherwise Ollama's own.
@@ -155,20 +168,59 @@
     return now ? now.around(request && request.model, () => ask(host, request, options)) : ask(host, request, options);
   }
 
-  async function ask(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader } = {}) {
+  /** The smallest window at which each model was found not to fit on the graphics chip alone: host|model -> window. */
+  const offChip = new Map();
+  const onChipOnly = () => { const P = typeof window !== "undefined" && window.HCLocalPlace; return !!P && P.value() === "gpu"; };
+  /** Whether Ollama places the model for a request at `numCtx`: the chip alone was asked for and is known not to hold it there. */
+  function ollamaPlacesAt(host, model, numCtx) {
+    const at = offChip.get(`${host}|${model}`);
+    return onChipOnly() && at !== undefined && (!Number.isFinite(numCtx) || numCtx >= at);
+  }
+
+  /** What is said when the model server ended a reply with nothing in it. */
+  const STOPPED = "Ollama ended the reply before writing anything, which it does when the model runs out of memory part-way. " +
+    "Try a smaller model, or close other apps to free memory, and send it again.";
+
+  /**
+   * Let a model that failed go, and wait until Ollama no longer lists it, so
+   * the next request loads it afresh: at most `tries` looks, `gap` ms apart.
+   */
+  async function letGo(host, model, { fetchFn, wait = (ms) => new Promise((r) => setTimeout(r, ms)), tries = 10, gap = 500 } = {}) {
+    await fetchFn(`${host}/api/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, keep_alive: 0 }) }).catch(() => null);
+    for (let i = 0; i < tries; i++) {
+      const listed = await fetchFn(`${host}/api/ps`).then((r) => (r && r.ok && r.json ? r.json() : null), () => null);
+      if (!listed || !(listed.models || []).some((m) => m && (m.model === model || m.name === model))) return true;
+      await wait(gap);
+    }
+    return false;
+  }
+
+  async function ask(host, request, { signal, onToken, onThinking, fetchFn = (...a) => fetch(...a), lineReader, wait } = {}) {
     // A model on another local app is reached its own way (js/local-apps.js).
     const apps = typeof window !== "undefined" && window.HCLocalApps;
     if (apps && apps.isLocalApp(request.model)) return apps.chat(request.model, request, { signal, onToken, onThinking });
+    const ollamaPlaces = !!request.ollamaPlaces || ollamaPlacesAt(host, request.model, request.numCtx);
     const res = await fetchFn(`${host}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body({ ...request, stream: true })),
+      body: JSON.stringify(body({ ...request, ollamaPlaces, stream: true })),
       signal,
     });
     if (!res.ok) throw placed(new Error(`Ollama HTTP ${res.status}: ${String(await res.text()).slice(0, 300)}`));
     const lines = (lineReader || window.HCStreamSSE.jsonLines)(res.body);
     let reply;
     try { reply = await read(lines, { onToken, onThinking }); } catch (err) { throw placed(err); }
+    if (!reply.last && !reply.content && !reply.tool_calls.length && !(signal && signal.aborted)) {
+      // Asked again only when nothing arrived at all: thinking already shown would be shown twice.
+      if (onChipOnly() && !ollamaPlaces && !reply.thinking) {
+        const key = `${host}|${request.model}`;
+        if (Number.isFinite(request.numCtx)) offChip.set(key, Math.min(offChip.get(key) ?? Infinity, request.numCtx));
+        else offChip.set(key, 0);
+        await letGo(host, request.model, { fetchFn, wait });
+        return ask(host, { ...request, ollamaPlaces: true }, { signal, onToken, onThinking, fetchFn, lineReader, wait });
+      }
+      throw new Error(STOPPED);
+    }
     // How fast it wrote, kept for the steps that cost more where a model is slow (js/local-speed.js).
     const S = typeof window !== "undefined" && window.HCLocalSpeed;
     if (S && reply.last) S.record(host, request.model, reply.last);
@@ -198,13 +250,14 @@
   function warm(host, model, numCtx, { fetchFn = (...a) => fetch(...a), now = Date.now() } = {}) {
     if (!host || !model || /^(?:cloud|local):/.test(String(model))) return Promise.resolve(false);
     const P = typeof window !== "undefined" && window.HCLocalPlace;
-    const key = `${host}|${model}|${numCtx}|${P ? P.value() : ""}`;
+    const ollamaPlaces = ollamaPlacesAt(host, model, numCtx);
+    const key = `${host}|${model}|${numCtx}|${P && !ollamaPlaces ? P.value() : ""}`;
     if (warming.has(key) && now - warming.get(key) < 60000) return Promise.resolve(false);
     warming.set(key, now);
     return fetchFn(`${host}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body({ model, messages: [], stream: false, numCtx })),
+      body: JSON.stringify(body({ model, messages: [], stream: false, numCtx, ollamaPlaces })),
     }).then((r) => !!(r && r.ok), () => false);
   }
 
@@ -240,5 +293,5 @@
       .finally(() => { if (timer) clearTimeout(timer); });
   }
 
-  window.HCLocal = { body, thinkTags, read, chat, warm, refusedHint, probe };
+  window.HCLocal = { body, thinkTags, read, chat, warm, refusedHint, probe, ollamaPlacesAt, letGo, STOPPED };
 })();
