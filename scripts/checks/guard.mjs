@@ -34,6 +34,7 @@ let answer = 'allow-once'; // what the fake user clicks
 let openNow = 0, maxOpenAtOnce = 0;
 let answerDelay = 0;
 let sessionHiddenWhenAsked = null;
+let noScriptsShownWhenAsked = false;   // whether Allow without install scripts was offered
 
 function el(id) {
   const listeners = { click: [] };
@@ -62,7 +63,8 @@ function el(id) {
           const respond = () => {
             openNow--;
             sessionHiddenWhenAsked = !!nodes['hc-perm-session'].hidden;
-            const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', deny: 'hc-perm-deny' }[answer];
+            noScriptsShownWhenAsked = !nodes['hc-perm-noscripts'].hidden;
+            const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', 'allow-noscripts': 'hc-perm-noscripts', deny: 'hc-perm-deny' }[answer];
             nodes[btn]._fire('click');
           };
           if (answerDelay) setTimeout(respond, answerDelay);
@@ -78,7 +80,7 @@ function el(id) {
 
 const nodes = {};
 for (const id of ['hc-perm-bar', 'hc-perm-action', 'hc-perm-target', 'hc-perm-reason',
-                  'hc-perm-once', 'hc-perm-session', 'hc-perm-deny', 'hc-guard-banner']) {
+                  'hc-perm-once', 'hc-perm-session', 'hc-perm-noscripts', 'hc-perm-deny', 'hc-guard-banner']) {
   nodes[id] = el(id);
 }
 
@@ -136,9 +138,9 @@ assert('a question always wins over a report',
   'an unanswered request is the only thing that blocks');
 assert('no key dismisses it', !/addEventListener\('key/.test(src),
   'a prompt that Escape closes is a prompt people close without reading');
-assert('only the three buttons are listened to',
+assert('only the answer buttons are listened to',
   [...src.matchAll(/(\w+)\.addEventListener\('click'/g)].every(([, who]) =>
-    ['onceBtn', 'sessBtn', 'denyBtn'].includes(who)),
+    ['onceBtn', 'sessBtn', 'denyBtn', 'bareBtn'].includes(who)),
   'a click anywhere else must not resolve a permission request');
 
 const R = '/Users/x/Desktop/project';
@@ -876,7 +878,26 @@ console.log('\nInstalling a package:');
   guard.endRun();
   guard.setMode('edits');
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
-  assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
+  assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
+}
+
+console.log('\nAn install of the npm family, without its install scripts:');
+{
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  answer = 'allow-noscripts';
+  const npm = { command: 'npm', args: ['install', 'left-pad'], cwd: R, install: true, npm: true };
+  const got = await guard.request('shell', `npm install left-pad (in ${R})`, 'Installing a package runs its code on this computer.', npm);
+  assert('it is offered, and chosen, it says so to the caller', got === 'no-scripts' && noScriptsShownWhenAsked === true && sessionHiddenWhenAsked === true, String(got));
+  answer = 'deny';
+  await guard.request('shell', `pip install requests (in ${R})`, 'x', { command: 'pip', args: ['install', 'requests'], cwd: R, install: true, npm: false });
+  assert('...and not offered for another installer', noScriptsShownWhenAsked === false);
+  await guard.request('shell', `npm test (in ${R})`, 'x', { command: 'npm', args: ['test'], cwd: R });
+  assert('...or for a command that installs nothing', noScriptsShownWhenAsked === false);
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+
+  assert('HashCoder runs it with the install scripts left out', /if \(ok === 'no-scripts'\) args = \[\.\.\.args, '--ignore-scripts'\];/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools));
+  assert('...and the guard makes the button beside Allow once, hidden until offered', /b\.textContent = 'Allow without install scripts';/.test(src) && /b\.hidden = true;/.test(src) && /onceBtn\.parentNode\.insertBefore\(b, onceBtn\)/.test(src));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);

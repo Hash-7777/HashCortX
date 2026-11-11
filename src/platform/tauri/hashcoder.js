@@ -246,8 +246,9 @@
       // checks and into the audit log.
       const shown = cwd ? `${display} (in ${cwd})` : display;
       if (install) reason = await HC.code.installReason(install, reason);
-      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd, ...(install ? { install: true } : {}) });
+      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd, ...(install ? { install: true, npm: install.npm } : {}) });
       if (!ok) throw new Error(`Permission denied: shell ${shown}. ${HC.code.whyNo('shell', shown)}`);
+      if (ok === 'no-scripts') args = [...args, '--ignore-scripts'];   // allowed without its install scripts
       // A check let through without a question runs with the network closed (js/code/permissions.js).
       const offline = HC.guard.takeOffline?.(shown) === true;
 

@@ -255,7 +255,25 @@
     if (rsnEl) rsnEl.textContent = 'You allowed this. It is running now.';
   }
 
-  function showDialog(action, target, reason, { once = false } = {}) {
+  /**
+   * The bar's Allow without install scripts button, made beside Allow once
+   * the first time it is needed: the bar's markup stays the shell's, and this
+   * one answer is the guard's own. Hidden until an npm-family install asks.
+   */
+  function bareButton(onceBtn) {
+    let b = document.getElementById('hc-perm-noscripts');
+    if (!b && document.createElement && onceBtn && onceBtn.parentNode) {
+      b = document.createElement('button');
+      b.id = 'hc-perm-noscripts';
+      b.className = 'hc-perm-btn hc-perm-btn--session';
+      b.textContent = 'Allow without install scripts';
+      b.hidden = true;
+      onceBtn.parentNode.insertBefore(b, onceBtn);
+    }
+    return b || null;
+  }
+
+  function showDialog(action, target, reason, { once = false, noScripts = false } = {}) {
     return new Promise((resolve) => {
       const bar     = document.getElementById('hc-perm-bar');
       const actEl   = document.getElementById('hc-perm-action');
@@ -264,6 +282,7 @@
       const onceBtn = document.getElementById('hc-perm-once');
       const sessBtn = document.getElementById('hc-perm-session');
       const denyBtn = document.getElementById('hc-perm-deny');
+      const bareBtn = bareButton(onceBtn);   // Allow without install scripts, for the npm family's installs
       // No bar in the page is not permission. It is a refusal.
       if (!bar || !actEl || !onceBtn || !sessBtn || !denyBtn) { resolve('deny'); return; }
 
@@ -277,6 +296,7 @@
       // Nothing about a change is kept for the session, so it is not offered,
       // and what it will send is shown whole rather than cut to one line.
       sessBtn.hidden = ASKED_EVERY_TIME.has(action) || once;
+      if (bareBtn) { bareBtn.hidden = !noScripts; bareBtn.style.display = noScripts ? '' : 'none'; }
       sessBtn.style.display = sessBtn.hidden ? 'none' : '';
       if (bar.dataset) bar.dataset.action = action;
       // Long paths lose their middle, not their end: the filename is the part
@@ -305,6 +325,7 @@
         paintBar();
         sessBtn.hidden = false;
         sessBtn.style.display = '';
+        if (bareBtn) { bareBtn.hidden = true; bareBtn.style.display = 'none'; bareBtn.removeEventListener('click', onBare); }
         if (bar.dataset) delete bar.dataset.action;
         onceBtn.removeEventListener('click', onOnce);
         sessBtn.removeEventListener('click', onSession);
@@ -314,10 +335,12 @@
       const onOnce    = () => cleanup('allow-once');
       const onSession = () => cleanup('allow-session');
       const onDeny    = () => cleanup('deny');
+      const onBare    = () => cleanup('allow-noscripts');
       _denyOpen = () => cleanup('stopped');   // answered by Stop, not by the person
       onceBtn.addEventListener('click', onOnce);
       sessBtn.addEventListener('click', onSession);
       denyBtn.addEventListener('click', onDeny);
+      if (bareBtn && noScripts) bareBtn.addEventListener('click', onBare);
     });
   }
 
@@ -661,11 +684,11 @@
           return false;
         }
         if (ASKED_EVERY_TIME.has(action) || once) {
-          const answer = await showDialog(action, target, reason, { once });
-          const allowed = answer === 'allow-once' || answer === 'allow-session';
-          auditLog(allowed ? 'allow-once' : answer === 'stopped' ? 'deny-stopped' : 'deny', action, target);
+          const answer = await showDialog(action, target, reason, { once, noScripts: !!(detail && detail.install && detail.npm) });
+          const allowed = answer === 'allow-once' || answer === 'allow-session' || answer === 'allow-noscripts';
+          auditLog(answer === 'allow-noscripts' ? 'allow-noscripts' : allowed ? 'allow-once' : answer === 'stopped' ? 'deny-stopped' : 'deny', action, target);
           if (allowed && isPathAction(action)) await approvedInRust(action, target);   // this one path, this once
-          return allowed;
+          return answer === 'allow-noscripts' ? 'no-scripts' : allowed;   // the caller leaves the install scripts out
         }
         if (_session.has(key)) {
           const prev = _session.get(key);
