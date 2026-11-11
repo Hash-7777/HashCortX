@@ -1807,6 +1807,8 @@ body.intro-exiting #intro-screen .logo-glow {
   font-size: 12px; color: var(--text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+/* A reason kept on its lines: why it asks, then the address decoded (guard.js showDialog). */
+.hc-perm-reason.whole { white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip; }
 /* A command shown whole: it wraps, keeps to six lines, then scrolls (guard.js showDialog). */
 .hc-perm-target.whole {
   white-space: pre-wrap; overflow-wrap: anywhere; text-overflow: clip;

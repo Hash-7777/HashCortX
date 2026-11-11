@@ -307,7 +307,7 @@ console.log('\nEach guard is what stops its mistake (remove it and the mistake h
         await g.request('shell', `npm test (in ${R})`, 'test', { command: 'npm', args: ['test'], cwd: R });
         const marked = g.takeOffline(`npm test (in ${R})`); g.endRun(); return !marked;
       }],
-    ['Auto applies only inside a run', "if (action === 'shell' && _run && _mode === 'auto' && detail && modes()) {", "if (action === 'shell' && _mode === 'auto' && detail && modes()) {",
+    ['Auto applies only inside a run', "if (!once && action === 'shell' && _run && _mode === 'auto' && detail && modes()) {", "if (!once && action === 'shell' && _mode === 'auto' && detail && modes()) {",
       'a command is let through unasked with no HashCoder run going', async (w) => {
         w.guard.setMode('auto');
         const n = w.state.bars;

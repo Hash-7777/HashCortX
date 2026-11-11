@@ -170,6 +170,17 @@
   // A command is asked about whole, so one too long to read is refused before any question.
   const MOST_COMMAND = 2000;
   const tooLong = (action, target) => action === 'shell' && String(target || '').length > MOST_COMMAND;
+  /**
+   * Why an action is refused before any question, or '': a command too long
+   * to read, or a web address too long or carrying a key in its query
+   * (js/code/outward.js refuseAddress), whatever the run holds.
+   */
+  function whyRefused(action, target) {
+    if (tooLong(action, target)) return 'The command is longer than 2,000 characters, so it was refused before any question: the person is shown a command whole. Write it shorter, or put it in a script file in the project and run that.';
+    const O = window.HCCodeOutward, K = window.HCSecretShapes;
+    if (action === 'fetch' && O) return O.refuseAddress(target, K ? K.looksLikeKey : undefined);
+    return '';
+  }
   const isSecret = (action, target) => READS.has(action) && !!window.HCSecretShapes && window.HCSecretShapes.isSecretFile(target);
 
   function isHardBlocked(action, target) {
@@ -244,7 +255,7 @@
     if (rsnEl) rsnEl.textContent = 'You allowed this. It is running now.';
   }
 
-  function showDialog(action, target, reason) {
+  function showDialog(action, target, reason, { once = false } = {}) {
     return new Promise((resolve) => {
       const bar     = document.getElementById('hc-perm-bar');
       const actEl   = document.getElementById('hc-perm-action');
@@ -265,7 +276,7 @@
       actEl.className   = 'hc-perm-badge ' + action;
       // Nothing about a change is kept for the session, so it is not offered,
       // and what it will send is shown whole rather than cut to one line.
-      sessBtn.hidden = ASKED_EVERY_TIME.has(action);
+      sessBtn.hidden = ASKED_EVERY_TIME.has(action) || once;
       sessBtn.style.display = sessBtn.hidden ? 'none' : '';
       if (bar.dataset) bar.dataset.action = action;
       // Long paths lose their middle, not their end: the filename is the part
@@ -276,8 +287,9 @@
       const said = T ? T.reveal(String(reason || '')) : String(reason || '');
       const hid = shown !== String(target || '') || said !== String(reason || '');
       // A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls: its middle can be the part that matters.
-      const whole = action === 'shell' || ASKED_EVERY_TIME.has(action);
+      const whole = action === 'shell' || ASKED_EVERY_TIME.has(action) || once;
       if (tgtEl.classList) tgtEl.classList.toggle('whole', whole);
+      if (rsnEl.classList) rsnEl.classList.toggle('whole', once);   // its lines kept: the reason, then the address decoded
       tgtEl.textContent = !whole && shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
       rsnEl.textContent = hid ? `${said}${said ? ' ' : ''}This holds hidden characters, shown as codes.` : said;
@@ -384,6 +396,8 @@
   let _mode = null;
   let _run = null;
   let _model = null;   // the run's model, asked for when a question says where a file would go
+  let _facts = null;   // what the run's conversation holds (js/code/outward.js facts), asked for at each request
+  const factsNow = () => { try { return _facts ? _facts() : null; } catch { return null; } };
   let _checks = null;
 
   /** Where what a file holds would go: the model's company, this computer, or the model in use when no run names one. */
@@ -537,8 +551,8 @@
     },
 
     /** A HashCoder run begins or ends: what it has done is counted from here, and the mode applies while it lasts. */
-    beginRun({ model = null } = {}) { _run = modes() ? modes().createRun() : null; _offline.clear(); _model = typeof model === 'function' ? model : null; },
-    endRun() { _run = null; _offline.clear(); _model = null; },
+    beginRun({ model = null, facts = null } = {}) { _run = modes() ? modes().createRun() : null; _offline.clear(); _model = typeof model === 'function' ? model : null; _facts = typeof facts === 'function' ? facts : null; },
+    endRun() { _run = null; _offline.clear(); _model = null; _facts = null; },
 
     /** Whether a command the guard let through unasked must run with the network closed; asked once per approval. */
     takeOffline(target) { return _offline.delete(target); },
@@ -571,6 +585,8 @@
      */
     /** Whether a command is too long to be asked about, and is refused before any question. */
     tooLong,
+    /** Why an action is refused before any question, or ''. */
+    whyRefused,
 
     async allowedWithoutAsking(action, target) {
       if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || isSecret(action, target) || !(await isInProjectRoot(target))) return false;
@@ -588,27 +604,32 @@
         return false;
       }
 
-      if (tooLong(action, target)) {
+      if (whyRefused(action, target)) {
         if (_run) _run.blocked();
         auditLog('deny-long', action, String(target).slice(0, 200));
-        HC.guard.notify('Refused: a command longer than 2,000 characters', 'danger');
+        HC.guard.notify(action === 'fetch' ? 'Refused: a web address too long, or carrying a key' : 'Refused: a command longer than 2,000 characters', 'danger');
         return false;
       }
 
       // A file that usually holds keys is its own question, before anything is free.
       if (isSecret(action, target)) { reason = `This file usually holds keys. ${goesTo()}${reason ? ` (${reason})` : ''}`; action = 'read-secret'; }
 
+      // A run that has read from outside and holds private material asks every time before it sends anything out (js/code/outward.js).
+      const out = window.HCCodeOutward ? window.HCCodeOutward.judge(action, target, factsNow()) : null;
+      const once = !!out;
+      if (once) reason = `${out.why}${action === 'fetch' ? `\n${window.HCCodeOutward.shownAddress(target)}` : ''}${reason ? `\n(${reason})` : ''}`;
+
       // Auto-approve read/list/search/write/patch inside the open project root —
       // the user already chose this folder. "Inside" means where the path really
       // leads, not how it is spelled, so a link out of the project still asks.
-      if (freeInProject(action) && await isInProjectRoot(target)) {
+      if (!once && freeInProject(action) && await isInProjectRoot(target)) {
         auditLog('allow-project-root', action, target);
         if (_run && (action === 'write' || action === 'patch')) _run.wrote(target);
         return true;
       }
 
       // Auto: a command that only reads, or runs the project's own checks (js/code/permissions.js).
-      if (action === 'shell' && _run && _mode === 'auto' && detail && modes()) {
+      if (!once && action === 'shell' && _run && _mode === 'auto' && detail && modes()) {
         const closable = /^mac/i.test(String(HC.code?.platform?.os || ''));   // where a command can be run with the network closed (agent_sandbox.rs)
         const d = await modes().autoDecision({ ...detail, root: _projectRoot, checks: _checks, run: _run, inside: isInProjectRoot, blocked: (p) => isHardBlocked('read', p), offline: closable });
         if (d.auto) {
@@ -637,10 +658,10 @@
           auditLog('deny-stopped', action, target);
           return false;
         }
-        if (ASKED_EVERY_TIME.has(action)) {
-          const once = await showDialog(action, target, reason);
-          const allowed = once === 'allow-once' || once === 'allow-session';
-          auditLog(allowed ? 'allow-once' : once === 'stopped' ? 'deny-stopped' : 'deny', action, target);
+        if (ASKED_EVERY_TIME.has(action) || once) {
+          const answer = await showDialog(action, target, reason, { once });
+          const allowed = answer === 'allow-once' || answer === 'allow-session';
+          auditLog(allowed ? 'allow-once' : answer === 'stopped' ? 'deny-stopped' : 'deny', action, target);
           if (allowed && isPathAction(action)) await approvedInRust(action, target);   // this one path, this once
           return allowed;
         }

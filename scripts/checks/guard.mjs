@@ -794,7 +794,7 @@ console.log('\nA file that usually holds keys:');
   assert('with no run to name a model, it says it goes to the model in use', /would be sent to the model in use/.test(said()), said());
   assert('the app\'s own reading never takes one', await guard.allowedWithoutAsking('read', `${R}/.env`) === false && await guard.allowedWithoutAsking('read', `${R}/id_rsa`) === false && await guard.allowedWithoutAsking('read', `${R}/src/app.js`) === true);
   const mode = readFileSync(join(dirname(guardPath), '..', '..', 'modes', 'code', 'mode.js'), 'utf8');
-  assert('a HashCoder run tells it which model it is sending to', /HC\.guard\?\.beginRun\?\.\(\{ model: \(\) => routing\?\.router\?\.model \|\| coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \}\);/.test(mode));
+  assert('a HashCoder run tells it which model it is sending to', /HC\.guard\?\.beginRun\?\.\(\{ model: \(\) => routing\?\.router\?\.model \|\| coderModel \|\| window\._H\?\.selectedModel\?\.\(\), facts: /.test(mode));
 }
 
 console.log('\nThe whole command, never a cut middle:');
@@ -818,7 +818,44 @@ console.log('\nThe whole command, never a cut middle:');
   const rule = (/\.hc-perm-target\.whole\s*\{([^}]*)\}/.exec(css) || [])[1] || '';
   assert('...and the block wraps, keeps to six lines, then scrolls', /white-space:\s*pre-wrap/.test(rule) && /overflow-y:\s*auto/.test(rule) && /max-height:\s*calc\(6 \* /.test(rule), rule);
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
-  assert('the model is told why a long command was refused', /HC\.guard\.tooLong\?\.\(action, target\)/.test(tools) && /longer than 2,000 characters/.test(tools));
+  assert('the model is told why a long command was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools) && /longer than 2,000 characters/.test(src));
+}
+
+console.log('\nA run that has read from outside and holds private material:');
+{
+  vm.runInContext(readFileSync(join(dirname(guardPath), '..', '..', 'js', 'code', 'outward.js'), 'utf8'), sandbox, { filename: 'outward.js' });
+  const k = (a, b) => a + b;
+  let holds = { untrusted: false, private: false };
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.beginRun({ model: () => 'cloud:openrouter:invented-model', facts: () => holds });
+  answer = 'allow-session';
+  await guard.request('fetch', 'https://rates.example/a', 'Reading a web page');
+  await check('with one of the two, a host allowed for the session is allowed', () => guard.request('fetch', 'https://rates.example/b', 'Reading a web page'), { allowed: true, asked: false });
+  holds = { untrusted: true, private: true };
+  answer = 'deny';
+  await check('with both, an address on that host asks again, every time', () => guard.request('fetch', 'https://rates.example/c?q=caf%C3%A9', 'Reading a web page'), { allowed: false, asked: true });
+  const said = nodes['hc-perm-reason'].textContent;
+  assert('...saying why, with the address and its query decoded on a line of its own', /has read material from outside and holds private material/.test(said) && said.includes('\nAddress: https://rates.example/c?q=café'), said);
+  assert('...showing the address whole', nodes['hc-perm-target'].textContent === 'https://rates.example/c?q=caf%C3%A9' && nodes['hc-perm-target'].classList.contains('whole') && nodes['hc-perm-reason'].classList.contains('whole'));
+  answer = 'allow-session';
+  await check('...a yes is for that once', () => guard.request('fetch', 'https://rates.example/d', 'Reading a web page'), ASKED);
+  await check('...and the next one asks again', () => guard.request('fetch', 'https://rates.example/d', 'Reading a web page'), ASKED);
+  await check('a command that reaches the network asks every time too', () => guard.request('shell', 'curl https://x.example', 'Fetch it', null), ASKED);
+  await check('...as it asks again the next time', () => guard.request('shell', 'curl https://x.example', 'Fetch it', null), ASKED);
+  await check('reading the project stays free with both', () => guard.request('read', `${R}/src/app.js`, 'Reading file'), FREE);
+  const before = dialogsShown;
+  const far = await guard.request('fetch', `https://x.example/?d=${'a'.repeat(2001)}`, 'Reading a web page');
+  const keyed = await guard.request('fetch', `https://x.example/?k=${k('gh' + 'p_', 'abc123DEF456ghi789JKL012mno345PQR')}`, 'Reading a web page');
+  assert('an address too long, or with a key in its query, is refused before any question, whatever the run holds', far === false && keyed === false && dialogsShown === before);
+  holds = { untrusted: false, private: false };
+  assert('...even with neither', await guard.request('fetch', `https://x.example/?d=${'a'.repeat(2001)}`, 'x') === false && dialogsShown === before);
+  assert('...and the reason is there to be told', /longer than 2,000 characters/.test(guard.whyRefused('fetch', `https://x.example/?d=${'a'.repeat(2001)}`)) && guard.whyRefused('fetch', 'https://x.example/a') === '' && /longer than 2,000 characters/.test(guard.whyRefused('shell', 'x'.repeat(2001))));
+  guard.endRun();
+  const mode = readFileSync(join(dirname(guardPath), '..', '..', 'modes', 'code', 'mode.js'), 'utf8');
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('a HashCoder run hands the guard what its conversation holds', /HC\.guard\?\.beginRun\?\.\(\{ model: [^\n]*, facts: \(\) => window\.HCCodeOutward\?\.facts\(conversationMsgs, \{ root: sharedState\.projectRoot, isSecret: window\.HCSecretShapes\?\.isSecretFile \}\) \}\);/.test(mode));
+  assert('...and the model is told why an address was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);

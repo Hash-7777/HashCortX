@@ -514,8 +514,8 @@
    * Why a permission came back no. A model read a bare "Permission denied" as
    * the file system's own and told the person so, when it was their answer.
    */
-  HC.code.whyNo = (action, target) => (HC.guard.tooLong?.(action, target)
-    ? 'The command is longer than 2,000 characters, so it was refused before any question: the person is shown a command whole. Write it shorter, or put it in a script file in the project and run that.'
+  HC.code.whyNo = (action, target) => (HC.guard.whyRefused?.(action, target)
+    ? HC.guard.whyRefused(action, target)
     : HC.guard.isProtected?.(action, target)
     ? 'The app protects this place, and no permission opens it.'
     : 'The person was asked and said no. That was their choice, not a file-system permission: say so, and do not try another way to do it.');
