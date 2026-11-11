@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder's export for debugging says how often a run was sent back.**
+  For each reason a run was sent back before it finished, the export gives
+  how many times, and after how many of those the model changed a file or
+  ran a command. A test the app ran itself, for a small model, is not
+  counted as the model acting. Counts only: no text from the run.
 - **HashCoder remembers what it has read.** When an earlier read is taken
   out of what the model is shown, to keep a long run short, the line left
   in its place now says which lines of the file it showed, so the model

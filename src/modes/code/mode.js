@@ -1716,7 +1716,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const seenReadTargets = new Set();
       // What was changed and what proved it: js/code/verify.js.
       const proof = window.HCCodeVerify?.proofLog();
-      const sent = { make: 0, plan: 0, prove: 0, review: 0, asks: 0, fresh: 0, site: 0, named: 0, undone: 0, facts: 0, light: 0, rename: 0, wiring: 0, example: 0, stall: 0, gone: 0, claim: 0, said: 0, passed: 0, cut: 0, ahead: 0 };   // how often this run was sent back, for each reason
+      const sentBack = sharedState.sentBack = window.HCCodeDebug.sentBack(sharedState), sent = sentBack.sent;   // how often this run was sent back, for each reason, and whether it acted after (js/code/debug-export.js)
       // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
       const changes = new Map();
       const secondLook = async () => {
@@ -1866,7 +1866,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
             // A row is offered only for a change that happened. A refused or
             // failed call has no record of its own, and the row would pick up
             // the file's previous one, so its Undo reversed an earlier change.
-            if (proof && ok) {
+            if (proof && ok) { sentBack.worked(call);   // a change or a command, for the counts kept with the run
               const a = call.arguments || {};
               const touched = { write_file: [a.path], patch_file: [a.path], delete_file: [a.path], move_file: [a.from, a.to] }[call.name];
               if (touched) touched.forEach((p) => { proof.edited(p); window.HCCodeReview?.track(changes, p, HC?.undo?.lastFor?.(p)); });

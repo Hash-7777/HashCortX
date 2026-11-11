@@ -222,5 +222,38 @@ console.log('\nThe export is offered outside the project:');
   ok('the model line and the trace say they are the last run\'s', /- Model of the last run:/.test(src('js', 'code', 'debug-export.js')) && /'## Trace of the last run'/.test(src('js', 'code', 'debug-export.js')));
 }
 
+console.log('\nHow often a run was sent back, and whether it acted after:');
+{
+  const R = D.sentBack ? D.sentBack({ runBegan: 7 }) : null;
+  ok('a record holds a count for every reason the loop has, each at nought', !!R && D.SENT_KINDS.length > 0 && D.SENT_KINDS.every((k) => R.sent[k] === 0) && Object.keys(R.sent).length === D.SENT_KINDS.length);
+  const verify = src('js', 'code', 'verify.js'), mode = src('modes', 'code', 'mode.js');
+  const named = new Set([...verify.matchAll(/kind: '(\w+)'/g), ...mode.matchAll(/\bsent\.(\w+)/g)].map((m) => m[1]));
+  ok('...and every reason the loop and the finishing checks name is among them', !!R && [...named].every((k) => D.SENT_KINDS.includes(k)), [...named].filter((k) => !(D.SENT_KINDS || []).includes(k)).join(', '));
+  const change = (id = 'call_1') => ({ id, name: 'patch_file' });
+  if (R) {
+    R.sent.prove++; R.worked(change());
+    R.sent.plan++; R.sent.review++; R.worked({ id: 'call_2', name: 'shell_run' });
+    R.sent.make++; R.worked({ id: 'call_3', name: 'read_file' });
+    R.sent.passed++; R.worked({ id: 'ran_9_0', name: 'shell_run' });
+    R.sent.cut++;
+  }
+  const f = R ? R.facts() : {};
+  ok('a change after it counts as acted', f.prove && f.prove.times === 1 && f.prove.acted === 1, JSON.stringify(f));
+  ok('...and so does a command, for each reason raised before it', f.plan && f.plan.acted === 1 && f.review && f.review.acted === 1);
+  ok('a read is not acting', f.make && f.make.times === 1 && f.make.acted === 0);
+  ok('a test the app ran itself, for a small model, is not the model acting', f.passed && f.passed.times === 1 && f.passed.acted === 0);
+  ok('a reason raised after the last change, and nothing after it, is not acted on', f.cut && f.cut.times === 1 && f.cut.acted === 0);
+  ok('only the reasons that arose are given, and as counts alone', Object.keys(f).sort().join() === 'cut,make,passed,plan,prove,review' && Object.values(f).every((v) => Object.keys(v).join() === 'times,acted' && Number.isInteger(v.times) && Number.isInteger(v.acted)));
+  const now = D.runFacts({ sharedState: { runBegan: 7, sentBack: R } });
+  ok('the run\'s facts carry them', JSON.stringify(now.sentBack) === JSON.stringify(f));
+  ok('...but not a record left from an earlier run', D.runFacts({ sharedState: { runBegan: 8, sentBack: R } }).sentBack === undefined && D.runFacts({ sharedState: {} }).sentBack === undefined);
+  const text = D.buildDebug({ messages: [], facts: { sentBack: f } });
+  ok('the export says them in the loop\'s order, with how often it acted after', /- Sent back: make 1, acted after 0 · plan 1, acted after 1 · prove 1, acted after 1 · review 1, acted after 1 · passed 1, acted after 0 · cut 1, acted after 0\n/.test(text), text.split('\n').find((l) => l.startsWith('- Sent')) || 'no line');
+  ok('...and a run sent back for nothing has no such line', !/- Sent back:/.test(D.buildDebug({ messages: [], facts: {} })));
+  ok('the loop keeps its counts in the record, on the run', /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode));
+  ok('...and tells it of every call that succeeded', /if \(proof && ok\) \{ sentBack\.worked\(call\);/.test(mode));
+  ok('...and a test the app runs itself has the mark the record leaves out', /id: `ran_\$\{Date\.now\(\)\}_\$\{i\}`/.test(mode) && /id: `ran_\$\{Date\.now\(\)\}_0`/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/debug-export.js)`);
 process.exit(fail ? 1 : 0);

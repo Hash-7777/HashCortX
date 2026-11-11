@@ -190,6 +190,8 @@
       `- Set up for: ${facts.size || 'unknown'}${facts.light ? ', light mode (no tools; files read from its answer)' : ''}${facts.local === true ? ', a model on this computer' : facts.local === false ? ', a cloud model' : ''}${Number.isFinite(facts.temperature) ? `, temperature ${facts.temperature}` : ''}`,
     ];
     if (settings) head.push(`- Settings: ${settings}`);
+    const sent = Object.entries(facts.sentBack || {}).filter(([, v]) => v && v.times > 0);
+    if (sent.length) head.push(`- Sent back: ${sent.map(([k, v]) => `${k} ${v.times}, acted after ${v.acted}`).join(' · ')}`);
     head.push(
       `- Size: ${count(list.length, 'message', 'messages')} · ${count(calls.length, 'tool call', 'tool calls')}${bad ? ` (${bad} failed)` : ''} · ${count(notes, 'note', 'notes')} from the app · ${count(steps.length, 'trace entry', 'trace entries')}`,
       redacted
@@ -217,9 +219,47 @@
     const chosen = (routing && routing.selected) || coderModel || (H.selectedModel && H.selectedModel()) || '';
     const router = routing && routing.router;
     const model = (router && router.model) || chosen;
+    // The counts of this run only: a record left from an earlier one says nothing about it.
+    const sent = sharedState.sentBack && sharedState.sentBack.began === sharedState.runBegan ? sharedState.sentBack.facts() : undefined;
     return {
       model, chosen, label: router && router.label ? router.label(model) : '', size: sharedState.size || '', local: sharedState.local, light: !!sharedState.light,
       temperature: Number.isFinite(temperature) ? temperature : undefined,
+      sentBack: sent,
+    };
+  }
+
+  /** The reasons the HashCoder loop sends a run back before it finishes, each counted (src/modes/code/mode.js). */
+  const SENT_KINDS = ['make', 'plan', 'prove', 'review', 'asks', 'fresh', 'site', 'named', 'undone', 'facts', 'light', 'rename', 'wiring', 'example', 'stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'];
+  /** The calls that change a file or run a command, as js/code/verify.js proofLog records them. */
+  const ACTS = ['write_file', 'patch_file', 'delete_file', 'move_file', 'shell_run'];
+
+  /**
+   * A run's record of how often each reason arose (`sent`, the counts the
+   * loop reads and raises), and how many of those times the model changed a
+   * file or ran a command afterwards. `worked(call)` is told of every call
+   * that succeeded; a test the app ran itself, for a small model, carries an
+   * id beginning `ran_` and is not the model acting. `facts()` is counts
+   * alone, never text: `{ reason: { times, acted } }` for each that arose.
+   * `began` ties the record to its run (sharedState.runBegan).
+   */
+  function sentBack(sharedState = {}) {
+    const sent = {};
+    for (const k of SENT_KINDS) sent[k] = 0;
+    const acted = {};
+    let seen = Object.assign({}, sent);   // the counts at the model's last change or command
+    return {
+      sent,
+      began: sharedState.runBegan,
+      worked(call) {
+        if (!call || !ACTS.includes(call.name) || String(call.id || '').startsWith('ran_')) return;
+        for (const k of Object.keys(sent)) { const rose = (Number(sent[k]) || 0) - (Number(seen[k]) || 0); if (rose > 0) acted[k] = (acted[k] || 0) + rose; }
+        seen = Object.assign({}, sent);
+      },
+      facts() {
+        const out = {};
+        for (const k of Object.keys(sent)) { const n = Number(sent[k]) || 0; if (n > 0) out[k] = { times: n, acted: acted[k] || 0 }; }
+        return out;
+      },
     };
   }
 
@@ -252,5 +292,5 @@
     return h ? `${h}${h.includes('\\') && !h.includes('/') ? '\\' : '/'}Downloads` : '';
   }
 
-  window.HCCodeDebug = { MAX_CHARS, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, exportRun, downloadsOf };
+  window.HCCodeDebug = { MAX_CHARS, redact, fenced, cut, failed, isAppNote, buildDebug, debugFileName, runFacts, SENT_KINDS, sentBack, exportRun, downloadsOf };
 })();
