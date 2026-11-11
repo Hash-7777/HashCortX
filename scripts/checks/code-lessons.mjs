@@ -11,6 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { window: {} };
 vm.createContext(box);
+vm.runInContext(src('js', 'secret-shapes.js'), box, { filename: 'secret-shapes.js' });
 vm.runInContext(process.argv[2] ? readFileSync(process.argv[2], 'utf8') : src('js', 'code', 'lessons.js'), box, { filename: 'lessons.js' });
 vm.runInContext(src('js', 'code', 'context.js'), box, { filename: 'context.js' });
 const L = box.window.HCCodeLessons;

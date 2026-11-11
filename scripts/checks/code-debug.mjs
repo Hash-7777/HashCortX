@@ -29,6 +29,7 @@ function ok(label, cond, detail = '') {
 const box = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, Promise, Error, Date, RegExp };
 vm.createContext(box);
 vm.runInContext(src('js', 'prompt-privacy.js'), box, { filename: 'prompt-privacy.js' });
+vm.runInContext(src('js', 'secret-shapes.js'), box, { filename: 'secret-shapes.js' });
 vm.runInContext(src('js', 'code', 'debug-export.js'), box, { filename: 'debug-export.js' });
 const D = box.window.HCCodeDebug;
 

@@ -20,6 +20,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {}, console };
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'prompt-privacy.js'), sandbox, { filename: 'prompt-privacy.js' });
+vm.runInContext(src('js', 'secret-shapes.js'), sandbox, { filename: 'secret-shapes.js' });
 vm.runInContext(src('js', 'code', 'debug-export.js'), sandbox, { filename: 'debug-export.js' });
 sandbox.window.HCCodeDebug = sandbox.window.HCCodeDebug;
 vm.runInContext(src('js', 'swarm', 'debug-report.js'), sandbox, { filename: 'debug-report.js' });

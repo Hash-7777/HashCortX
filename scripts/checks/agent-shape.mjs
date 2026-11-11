@@ -586,6 +586,7 @@ console.log('\nA turn cut off by Stop or an error is closed, not left open:');
   ok('a finished conversation is left as it is', finished.length === 3 && finished.at(-1).content === 'All done.');
 
   // What closes the turn says why, through the export's own redactor.
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'secret-shapes.js'), 'utf8'), sandbox, { filename: 'secret-shapes.js' });
   vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'debug-export.js'), 'utf8'), sandbox, { filename: 'debug-export.js' });
   const redact = sandbox.window.HCCodeDebug.redact;
   const stop = new Error('Aborted'); stop.name = 'AbortError';

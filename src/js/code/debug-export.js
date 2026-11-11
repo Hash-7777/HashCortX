@@ -43,37 +43,14 @@
   /** The app's own text, in a report: js/prompt-privacy.js, or its kind and length when that did not load. */
   const withheld = (kind, text) => (window.HCPromptPrivacy ? window.HCPromptPrivacy.withheld(kind, text) : `[${kind}: ${String(text == null ? '' : text).length} characters, not included]`);
 
-  // What a key looks like, by the shapes each provider the app offers gives
-  // them (scripts/checks/secret-scan.mjs holds the same list for the commit
-  // hook), and a value written after a name that says it is secret.
-  const SHAPES = [
-    /\bsk-[A-Za-z0-9_-]{8,}/g,
-    /\b[sr]k_(?:live|test)_[A-Za-z0-9]{8,}/g,
-    /\bgsk_[A-Za-z0-9]{8,}/g,
-    /\bAIza[0-9A-Za-z_-]{16,}/g,
-    /\bxai-[A-Za-z0-9_-]{8,}/g,
-    /\bhf_[A-Za-z0-9]{8,}/g,
-    /\bcsk-[A-Za-z0-9_-]{8,}/g,
-    /\bfw_[A-Za-z0-9]{8,}/g,
-    /\bnvapi-[A-Za-z0-9_-]{8,}/g,
-    /\btvly-[A-Za-z0-9_-]{8,}/g,
-    /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{8,}/g,
-    /\bgithub_pat_[A-Za-z0-9_]{12,}/g,
-    /\bAKIA[0-9A-Z]{12,}/g,
-    /\bxox[abprs]-[A-Za-z0-9-]{8,}/g,
-    /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g,
-    /\bBearer\s+[A-Za-z0-9._~+/=-]{20,}/g,
-  ];
-  const NAMED = /((?:api[_-]?key|secret|token|password|passwd|authorization)["']?\s*[:=]\s*["']?)([^\s"',;)}\]]{12,})/gi;
 
-  /** `text` with whatever is shaped like a key replaced, and how many were. */
+  /**
+   * `text` with whatever is shaped like a key replaced, and how many were
+   * (js/secret-shapes.js). When that did not load, nothing is let through.
+   */
   function redact(text) {
-    let count = 0;
-    let out = String(text == null ? '' : text);
-    const mark = () => { count++; return '[redacted: looked like a key]'; };
-    for (const shape of SHAPES) out = out.replace(shape, mark);
-    out = out.replace(NAMED, (all, name) => { count++; return `${name}[redacted: looked like a key]`; });
-    return { text: out, count };
+    const K = window.HCSecretShapes;
+    return K ? K.redact(text) : { text: '[not included: the check for keys did not load]', count: 1 };
   }
 
   const longestRun = (text) => (String(text).match(/`+/g) || []).reduce((n, run) => Math.max(n, run.length), 0);
