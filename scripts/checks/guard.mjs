@@ -862,5 +862,22 @@ console.log('\nA run that has read from outside and holds private material:');
   assert('...and the model is told why an address was refused', /HC\.guard\.whyRefused\?\.\(action, target\)/.test(tools));
 }
 
+console.log('\nInstalling a package:');
+{
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.setMode('auto');
+  guard.setChecks({});
+  guard.beginRun();
+  answer = 'allow-session';
+  const detail = { command: 'npm', args: ['install', 'left-pad'], cwd: R, install: true };
+  await check('an install asks, in Auto too', () => guard.request('shell', `npm install left-pad (in ${R})`, 'Installing a package runs its code on this computer.', detail), ASKED);
+  await check('...and again the next time, a yes never kept for the session', () => guard.request('shell', `npm install left-pad (in ${R})`, 'Installing a package runs its code on this computer.', detail), ASKED);
+  guard.endRun();
+  guard.setMode('edits');
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

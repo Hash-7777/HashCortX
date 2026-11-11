@@ -232,6 +232,8 @@
       // A command that would open, serve or take a picture of what was made is not run, and nothing is asked (js/code/by-code.js).
       const looks = window.HCCodeByCode?.refusal(command, Array.isArray(args) ? args : []);
       if (looks) throw new Error(looks);
+      // An install is told apart before the command is wrapped to run, and is asked about every time with what it installs (js/code/permissions.js).
+      const install = window.HCCodePermissions?.installOf?.(command, args);
       [command, args] = throughCmd(command, Array.isArray(args) ? args : [], { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
@@ -243,7 +245,8 @@
       // the same string — which also puts it in front of the guard's own
       // checks and into the audit log.
       const shown = cwd ? `${display} (in ${cwd})` : display;
-      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd });
+      if (install) reason = await HC.code.installReason(install, reason);
+      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd, ...(install ? { install: true } : {}) });
       if (!ok) throw new Error(`Permission denied: shell ${shown}. ${HC.code.whyNo('shell', shown)}`);
       // A check let through without a question runs with the network closed (js/code/permissions.js).
       const offline = HC.guard.takeOffline?.(shown) === true;
@@ -519,6 +522,16 @@
     : HC.guard.isProtected?.(action, target)
     ? 'The app protects this place, and no permission opens it.'
     : 'The person was asked and said no. That was their choice, not a file-system permission: say so, and do not try another way to do it.');
+
+  /** The manifests a project names its packages in, read without asking when they can be. */
+  const MANIFESTS = ['package.json', 'requirements.txt', 'pyproject.toml', 'Pipfile', 'Cargo.toml', 'Gemfile', 'go.mod'];
+  /** What an install's question says (js/code/permissions.js installLines), with the reason the model gave. */
+  HC.code.installReason = async (install, reason = '') => {
+    const root = String(HC.guard.projectRoot?.() || '').replace(/[\\/]+$/, '');
+    const manifests = root ? (await Promise.all(MANIFESTS.map((f) => HC.code.readQuietly(`${root}/${f}`).catch(() => '')))).filter(Boolean) : [];
+    const said = window.HCCodePermissions.installLines(install, { manifests, request: HC.code.request || '' });
+    return reason ? `${said}\n(${reason})` : said;
+  };
 
   /** A refusal, saying where inside the project a path just outside it most likely meant (meant), or whose no it was. */
   HC.code.refused = async (action, path) => {

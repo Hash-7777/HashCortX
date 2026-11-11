@@ -472,8 +472,31 @@
     return { family, names, npm: /^(?:npm|pnpm|yarn|bun)$/.test(prog), from };
   }
 
+  /** A package's name without its version: @scope/name@1.0 is @scope/name, flask==3.0 is flask. */
+  const baseName = (name) => {
+    const n = String(name || '');
+    if (n.startsWith('@')) { const at = n.indexOf('@', 1); return at > 0 ? n.slice(0, at) : n; }
+    return n.split(/[@=<>~!\[;\s]/)[0];
+  };
+  const escaped = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /**
+   * The lines an install's question says: that installing runs code on this
+   * computer, then each package, whether the project's manifests (`manifests`,
+   * their text) already name it or it is new, and whether the person's words
+   * (`request`) name it or the model chose it.
+   */
+  function installLines(install, { manifests = [], request = '' } = {}) {
+    if (!install) return '';
+    const listed = (n) => manifests.some((t) => new RegExp(`(^|[\\s"'\\[,{])${escaped(n)}(?=[\\s"'=<>~!:\\],@}]|$)`, 'im').test(String(t || '')));
+    const named = (n) => new RegExp(`(^|[^\\w@/.-])${escaped(n)}(?=$|[^\\w-])`, 'i').test(String(request || ''));
+    const lines = install.names.map((raw) => { const n = baseName(raw); return `${n}: ${listed(n) ? 'already in this project' : 'new'}, ${named(n) ? 'you named it' : 'chosen by the model'}`; });
+    if (install.from) lines.push(`the packages listed in ${install.from}`);
+    return ['Installing a package runs its code on this computer.', ...lines].join('\n');
+  }
+
   window.HCCodePermissions = {
     MODES, IDS, KEY, BLOCKS_BEFORE_ASKING_ALL, STREAK_BEFORE_ASKING,
-    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf,
+    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf, installLines,
   };
 })();

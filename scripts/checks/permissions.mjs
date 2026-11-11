@@ -350,5 +350,19 @@ console.log('\nA command that installs a package:');
   ok('Auto never lets one through, as it does let a read through', verdict('cat', ['README.md']).auto === true && ['npm install left-pad', 'pip install requests', 'cargo add serde', 'brew install jq'].every((l) => { const [c, ...a] = l.split(' '); return verdict(c, a).auto === false; }));
 }
 
+console.log('\nWhat an install question says:');
+{
+  const P2 = box.window.HCCodePermissions;
+  const install = P2.installOf('npm', ['install', 'left-pad@1.3.0', 'left-pd', '@scope/charts@2']);
+  const manifests = ['{ "dependencies": { "left-pad": "^1.0.0", "@scope/charts": "2.0.0" } }'];
+  const said = P2.installLines ? P2.installLines(install, { manifests, request: 'Pad the totals with left-pad.' }) : '';
+  ok('it says installing runs code on this computer, first', said.split('\n')[0] === 'Installing a package runs its code on this computer.', said);
+  ok('...and for each package, whether the project has it already, and whose choice it was', said.includes('left-pad: already in this project, you named it') && said.includes('left-pd: new, chosen by the model') && said.includes('@scope/charts: already in this project, chosen by the model'), said);
+  const fromFile = P2.installLines(P2.installOf('pip', ['install', '-r', 'requirements.txt']), { manifests: [], request: '' });
+  ok('an install from a list says which list', fromFile.includes('the packages listed in requirements.txt'), fromFile);
+  const py = P2.installLines(P2.installOf('pip', ['install', 'Flask==3.0']), { manifests: ['flask==2.3\nrequests'], request: 'use flask' });
+  ok('a name is matched without its version, and without case where the installer ignores case', py.includes('Flask: already in this project, you named it'), py);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/permissions.js)`);
 process.exit(fail ? 1 : 0);

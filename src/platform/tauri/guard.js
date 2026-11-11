@@ -618,8 +618,8 @@
 
       // A run that has read from outside and holds private material asks every time before it sends anything out (js/code/outward.js).
       const out = window.HCCodeOutward ? window.HCCodeOutward.judge(action, target, factsNow()) : null;
-      const once = !!out;
-      if (once) reason = `${out.why}${action === 'fetch' ? `\n${window.HCCodeOutward.shownAddress(target)}` : ''}${reason ? `\n(${reason})` : ''}`;
+      const once = !!out || !!(detail && detail.install);   // an install is asked about every time too (js/code/permissions.js installOf)
+      if (out) reason = `${out.why}${action === 'fetch' ? `\n${window.HCCodeOutward.shownAddress(target)}` : ''}${reason ? `\n(${reason})` : ''}`;
 
       // Auto-approve read/list/search/write/patch inside the open project root —
       // the user already chose this folder. "Inside" means where the path really
