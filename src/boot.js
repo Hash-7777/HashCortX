@@ -101,6 +101,7 @@
     '/js/code/keep.js',
     '/js/code/steps.js',
     '/js/code/talk.js',
+    '/js/secret-shapes.js',
     '/js/code/permissions.js',
     '/js/code/permission-bar.js',
     '/js/code/attach.js',

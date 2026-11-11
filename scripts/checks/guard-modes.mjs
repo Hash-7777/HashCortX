@@ -75,6 +75,7 @@ function makeWorld(guardText) {
   sandbox.window = sandbox;
   vm.createContext(sandbox);
   vm.runInContext(guardText, sandbox, { filename: 'guard.js' });
+  vm.runInContext(source('js', 'secret-shapes.js'), sandbox, { filename: 'secret-shapes.js' });
   vm.runInContext(permSrc, sandbox, { filename: 'permissions.js' });
   sandbox.HC.guard.setProjectRoot(R);
   return { state, nodes, sandbox, guard: sandbox.HC.guard, P: sandbox.window.HCCodePermissions };

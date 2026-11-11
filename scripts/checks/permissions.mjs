@@ -33,6 +33,7 @@ function ok(label, cond, detail = '') {
 
 const box = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, RegExp, Error };
 vm.createContext(box);
+vm.runInContext(src('js', 'secret-shapes.js'), box, { filename: 'secret-shapes.js' });
 vm.runInContext(src('js', 'code', 'permissions.js'), box, { filename: 'permissions.js' });
 const P = box.window.HCCodePermissions;
 
@@ -256,6 +257,7 @@ console.log('\nThe menu beside the box:');
   const select = { dataset: {}, value: '', title: '', children: [], getAttribute: (k) => (k === 'aria-label' ? 'What HashCoder may do without asking' : ''), appendChild(o) { this.children.push(o); }, listeners: {}, addEventListener(ev, fn) { this.listeners[ev] = fn; } };
   const b = { window: {}, document: { createElement: () => { const o = { value: '', textContent: '' }; made.push(o); return o; } }, JSON, Math, Number, String, Array, Object, Map, Set, RegExp, Error };
   vm.createContext(b);
+  vm.runInContext(src('js', 'secret-shapes.js'), b);
   vm.runInContext(src('js', 'code', 'permissions.js'), b);
   vm.runInContext(src('js', 'code', 'permission-bar.js'), b);
   const Bar = b.window.HCCodePermissionBar;
@@ -294,6 +296,7 @@ console.log('\nEach guard is what stops its attack (remove it and the attack get
     if (original.split(find).length !== 2) return null;
     const b = { window: {}, JSON, Math, Number, String, Array, Object, Map, Set, RegExp, Error };
     vm.createContext(b);
+    vm.runInContext(src('js', 'secret-shapes.js'), b, { filename: 'secret-shapes.js' });
     vm.runInContext(original.replace(find, replace), b, { filename: 'permissions.mutant.js' });
     return b.window.HCCodePermissions;
   };
@@ -302,7 +305,7 @@ console.log('\nEach guard is what stops its attack (remove it and the attack get
     ['a word that starts with a dash is never taken for a branch name', "/^[A-Za-z0-9._^~][A-Za-z0-9._^~-]{0,79}$/.test(t);", "/^[A-Za-z0-9._^~-]{1,80}$/.test(t);", 'git', ['log', '--exec-path']],
     ['a path that climbs out is refused', "hasDotDot(t)) return null;", "false) return null;", 'cat', ['../outside.txt']],
     ['a home folder is refused', "!t || t.startsWith('~') ||", "!t ||", 'cat', ['~/notes.txt']],
-    ['a file of secrets is refused', "if (SECRET_FILE.test(inside)) return no(", "if (false) return no(", 'cat', ['.env']],
+    ['a file of secrets is refused', "if (secretFile(inside)) return no(", "if (false) return no(", 'cat', ['.env']],
     ['a place outside the project is refused', "if (!inside) return no(", "if (false) return no(", 'cat', ['/etc/passwd']],
     ['a program that is not on the list is refused', "return no(`${name} is not on the list of what runs without asking`);", "judged = { ok: true, places: [] };", 'curl', ['https://example.com']],
     ['a check changed in this run is refused', "if (tainted.checks) return no(", "if (false) return no(", 'npm', ['test'], { tainted: { checks: true } }],

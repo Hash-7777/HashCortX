@@ -192,8 +192,8 @@
   /** Files git reads settings from, and its own folder. */
   const GIT_DEFINING = /(?:^|\/)(?:\.git\/|\.gitattributes$|\.gitmodules$|\.gitconfig$)/;
 
-  /** A file that holds secrets by what it is called: it asks, whatever reads it. */
-  const SECRET_FILE = /(?:^|\/)(?:\.env(?:\.(?!example$|sample$|template$|dist$)[^/]*)?|[^/]*\.(?:pem|key|p12|pfx|keystore|kdbx)|id_(?:rsa|dsa|ecdsa|ed25519)[^/]*|\.netrc|\.pgpass|\.git-credentials|credentials(?:\.json)?|secrets?\.(?:json|ya?ml|toml))$/i;
+  /** A file that holds secrets by what it is called: it asks, whatever reads it (js/secret-shapes.js). Not known is not free. */
+  const secretFile = (p) => (window.HCSecretShapes ? window.HCSecretShapes.isSecretFile(p) : true);
 
   const SPLIT_LONG = (tok) => { const at = tok.indexOf('='); return at < 0 ? [tok, null] : [tok.slice(0, at), tok.slice(at + 1)]; };
 
@@ -353,7 +353,7 @@
     for (const p of judged.places) {
       const inside = insideRoot(p, where, root);
       if (!inside) return no(`${p} is outside the project or climbs out of it`);
-      if (SECRET_FILE.test(inside)) return no(`${p} is a file that holds secrets`);
+      if (secretFile(inside)) return no(`${p} is a file that holds secrets`);
       places.push(inside);
     }
     return { auto: true, why: how, tier, places };
