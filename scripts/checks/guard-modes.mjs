@@ -351,7 +351,7 @@ console.log('\nWhere it is wired:');
   ok('the mode applies only while a run is going', /return _run \? _mode : 'edits'/.test(guardText));
   ok('Auto is judged only inside a run, and only for a command', /action === 'shell' && _run && _mode === 'auto' && detail && modes\(\)/.test(guardText));
   ok('a network can be closed where the sandbox is: macOS', /\/\^mac\/i\.test\(String\(HC\.code\?\.platform\?\.os \|\| ''\)\)/.test(guardText));
-  ok('the run is begun and ended around every request, however it ends', /HC\.guard\?\.beginRun\?\.\(\)/.test(mode) && /HC\.guard\?\.endRun\?\.\(\);\n\s+settleSteps\(contentEl\)/.test(mode));
+  ok('the run is begun and ended around every request, however it ends', /HC\.guard\?\.beginRun\?\.\(\{ model: /.test(mode) && /HC\.guard\?\.endRun\?\.\(\);\n\s+settleSteps\(contentEl\)/.test(mode));
   ok('the project\'s checks are handed over for the run', /HC\.guard\?\.setChecks\?\.\(sharedState\.projectChecks\?\.root === sharedState\.projectRoot \? sharedState\.projectChecks\.checks : null\)/.test(mode));
   ok('a refusal by the native side is counted', /\/safety list\|protected location\/\.test\(resultStr\)\) HC\.guard\?\.noteBlocked/.test(mode));
 }

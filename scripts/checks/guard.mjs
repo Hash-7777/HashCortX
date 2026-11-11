@@ -769,5 +769,33 @@ console.log('\nWhat the question shows, when it holds hidden characters:');
   assert('a question with none says nothing of them', nodes['hc-perm-target'].textContent === 'npm test' && nodes['hc-perm-reason'].textContent === 'Run the tests');
 }
 
+console.log('\nA file that usually holds keys:');
+{
+  for (const f of ['secret-shapes.js', 'providers.js']) vm.runInContext(readFileSync(join(dirname(guardPath), '..', '..', 'js', f), 'utf8'), sandbox, { filename: f });
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  const said = () => nodes['hc-perm-reason'].textContent;
+  guard.beginRun({ model: () => 'cloud:openrouter:invented-model' });
+  answer = 'deny';
+  await check('reading one inside the project asks, though reading the project is free', () => guard.request('read', `${R}/.env`, 'Reading file'), { allowed: false, asked: true });
+  assert('...as a question of its own, saying where what it holds would go', nodes['hc-perm-action'].textContent === 'READ A FILE OF KEYS' && /This file usually holds keys\. What it holds would be sent to OpenRouter\./.test(said()), said());
+  answer = 'allow-session';
+  await check('allowed, it is read', () => guard.request('read', `${R}/config/.env.local`, 'Reading file'), ASKED);
+  await check('...and asked about again the next time, never kept for the session', () => guard.request('read', `${R}/config/.env.local`, 'Reading file'), ASKED);
+  answer = 'deny';
+  await check('a search of one asks too', () => guard.request('search', `${R}/credentials.json`, 'Grep: token'), { allowed: false, asked: true });
+  await check('an example of one stays free', () => guard.request('read', `${R}/.env.example`, 'Reading file'), FREE);
+  await check('an ordinary file stays free', () => guard.request('read', `${R}/src/app.js`, 'Reading file'), FREE);
+  guard.beginRun({ model: () => 'qwen2.5-coder:7b' });
+  await guard.request('read', `${R}/keys/server.pem`, 'Reading file');
+  assert('with a model on this computer, it says what it holds stays here', /would stay on this computer/.test(said()), said());
+  guard.endRun();
+  await guard.request('read', `${R}/.env`, 'Reading file');
+  assert('with no run to name a model, it says it goes to the model in use', /would be sent to the model in use/.test(said()), said());
+  assert('the app\'s own reading never takes one', await guard.allowedWithoutAsking('read', `${R}/.env`) === false && await guard.allowedWithoutAsking('read', `${R}/id_rsa`) === false && await guard.allowedWithoutAsking('read', `${R}/src/app.js`) === true);
+  const mode = readFileSync(join(dirname(guardPath), '..', '..', 'modes', 'code', 'mode.js'), 'utf8');
+  assert('a HashCoder run tells it which model it is sending to', /HC\.guard\?\.beginRun\?\.\(\{ model: \(\) => routing\?\.router\?\.model \|\| coderModel \|\| window\._H\?\.selectedModel\?\.\(\) \}\);/.test(mode));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

@@ -162,8 +162,12 @@
   const isPathAction = (action) => action !== 'shell' && !String(action).startsWith('erp-');
   // A change to a connected system's records is asked about every time, and
   // neither a yes nor a no is remembered: each one names different records.
-  const ASKED_EVERY_TIME = new Set(['erp-change']);
-  const BADGE = { 'erp-read': 'READ RECORDS IN', 'erp-change': 'CHANGE RECORDS IN' };
+  // A file that usually holds keys (js/secret-shapes.js) is read only with a
+  // yes, every time, wherever it is: reading the project is free, this is not.
+  const ASKED_EVERY_TIME = new Set(['erp-change', 'read-secret']);
+  const BADGE = { 'erp-read': 'READ RECORDS IN', 'erp-change': 'CHANGE RECORDS IN', 'read-secret': 'READ A FILE OF KEYS' };
+  const READS = new Set(['read', 'list', 'search']);
+  const isSecret = (action, target) => READS.has(action) && !!window.HCSecretShapes && window.HCSecretShapes.isSecretFile(target);
 
   function isHardBlocked(action, target) {
     if (String(action).startsWith('erp-')) return false;
@@ -373,7 +377,20 @@
   // mode leaves what Rust refuses as it is.
   let _mode = null;
   let _run = null;
+  let _model = null;   // the run's model, asked for when a question says where a file would go
   let _checks = null;
+
+  /** Where what a file holds would go: the model's company, this computer, or the model in use when no run names one. */
+  function goesTo() {
+    let value = '';
+    try { value = _model ? String(_model() || '') : ''; } catch { value = ''; }
+    const cloud = /^cloud:([^:]+):/.exec(value);
+    if (cloud) {
+      const p = window.HCProviders && window.HCProviders.get && window.HCProviders.get(cloud[1]);
+      return `What it holds would be sent to ${(p && p.label) || cloud[1]}.`;
+    }
+    return value ? 'What it holds would stay on this computer: the model runs here.' : 'What it holds would be sent to the model in use.';
+  }
   const _offline = new Set();   // commands let through as a check, to be run with the network closed
   const modes = () => window.HCCodePermissions;
   const modeNow = () => {
@@ -514,8 +531,8 @@
     },
 
     /** A HashCoder run begins or ends: what it has done is counted from here, and the mode applies while it lasts. */
-    beginRun() { _run = modes() ? modes().createRun() : null; _offline.clear(); },
-    endRun() { _run = null; _offline.clear(); },
+    beginRun({ model = null } = {}) { _run = modes() ? modes().createRun() : null; _offline.clear(); _model = typeof model === 'function' ? model : null; },
+    endRun() { _run = null; _offline.clear(); _model = null; },
 
     /** Whether a command the guard let through unasked must run with the network closed; asked once per approval. */
     takeOffline(target) { return _offline.delete(target); },
@@ -547,7 +564,7 @@
      * need one is left out by the caller instead.
      */
     async allowedWithoutAsking(action, target) {
-      if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || !(await isInProjectRoot(target))) return false;
+      if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || isSecret(action, target) || !(await isInProjectRoot(target))) return false;
       auditLog('allow-project-root', action, target);
       return true;
     },
@@ -561,6 +578,9 @@
         HC.guard.notify(`Blocked: ${action} on protected path`, 'danger');
         return false;
       }
+
+      // A file that usually holds keys is its own question, before anything is free.
+      if (isSecret(action, target)) { reason = `This file usually holds keys. ${goesTo()}${reason ? ` (${reason})` : ''}`; action = 'read-secret'; }
 
       // Auto-approve read/list/search/write/patch inside the open project root —
       // the user already chose this folder. "Inside" means where the path really
@@ -605,6 +625,7 @@
           const once = await showDialog(action, target, reason);
           const allowed = once === 'allow-once' || once === 'allow-session';
           auditLog(allowed ? 'allow-once' : once === 'stopped' ? 'deny-stopped' : 'deny', action, target);
+          if (allowed && isPathAction(action)) await approvedInRust(action, target);   // this one path, this once
           return allowed;
         }
         if (_session.has(key)) {
