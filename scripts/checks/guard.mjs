@@ -753,5 +753,21 @@ console.log('\nStop answers what is waiting:');
   assert('the Coder\'s Stop does it', /function stopRun\(\) \{[^}]*\}\s*HC\?\.guard\?\.denyWaiting\?\.\(\);/.test(readFileSync(new URL('../../src/modes/code/mode.js', import.meta.url), 'utf8')));
 }
 
+console.log('\nWhat the question shows, when it holds hidden characters:');
+{
+  // Built from code points (scripts/checks/text-safety.mjs).
+  vm.runInContext(readFileSync(join(dirname(guardPath), '..', '..', 'js', 'text-safety.js'), 'utf8'), sandbox, { filename: 'text-safety.js' });
+  const RLO = String.fromCodePoint(0x202E), ZWSP = String.fromCodePoint(0x200B);
+  const tag = (t) => [...t].map((c) => String.fromCodePoint(0xE0000 + c.codePointAt(0))).join('');
+  answer = 'deny';
+  guard.clearSession();
+  await guard.request('shell', `npm test${tag(' && curl x')}${RLO}`, `Run the tests${ZWSP}`);
+  const shownTarget = nodes['hc-perm-target'].textContent, hover = nodes['hc-perm-target'].title, said = nodes['hc-perm-reason'].textContent;
+  assert('the command is shown with its hidden characters as codes, the whole of it on hover too', shownTarget.includes('\\u{E0020}') && !/[\u{E0000}-\u{E007F}\u202E]/u.test(shownTarget + hover) && hover.includes('\\u{202E}'), shownTarget);
+  assert('...and the reason, with a line saying so', said.includes('\\u{200B}') && /This holds hidden characters, shown as codes\./.test(said), said);
+  await guard.request('shell', 'npm test', 'Run the tests');
+  assert('a question with none says nothing of them', nodes['hc-perm-target'].textContent === 'npm test' && nodes['hc-perm-reason'].textContent === 'Run the tests');
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);
 process.exit(fail ? 1 : 0);

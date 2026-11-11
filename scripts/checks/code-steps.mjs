@@ -30,8 +30,9 @@ ok('the changes are headed with what is asked of the person', S.changesTitle(1) 
 
 const steps = src('js', 'code', 'steps.js');
 console.log('\nWhat a step is:');
+ok('a step shows the hidden characters in what it names, and in what the person added, as codes (js/text-safety.js)', /const coded = \(t\) => \(window\.HCTextSafety \? window\.HCTextSafety\.reveal\(String\(t \?\? ''\)\) : String\(t \?\? ''\)\);/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}">\$\{esc\(coded\(object\)\)\}</.test(steps) && /\.cdr-added-text'\)\.textContent = coded\(text\);/.test(steps));
 ok('a <details>, so it opens from the keyboard, with its verb, object and result', /document\.createElement\('details'\)/.test(steps) && /cdr-step-verb[\s\S]*cdr-step-object[\s\S]*cdr-step-result/.test(steps));
-ok('its verb and object are written as text, never as markup', /\$\{esc\(verb\)\}/.test(steps) && /\$\{esc\(object\)\}/.test(steps) && /title="\$\{esc\(object\)\}"/.test(steps));
+ok('its verb and object are written as text, never as markup', /\$\{esc\(verb\)\}/.test(steps) && /\$\{esc\(coded\(object\)\)\}/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}"/.test(steps));
 ok('it joins the list the reply ends with, or starts one', /last\.classList\.contains\('cdr-steps'\) && !last\.classList\.contains\('done'\)/.test(steps));
 ok('a finished run folds each list to its line, and the heading opens it again', /group\.classList\.add\('done'\)/.test(steps) && /head\.textContent = stepsLine\(/.test(steps) && /group\.classList\.toggle\('open'\)/.test(steps) && /setAttribute\('aria-expanded'/.test(steps));
 ok('the line is the steps left and the changes gathered out of the list', /changed\.forEach\(\(c\) => gatheredFrom\.set\(c\.parentElement/.test(steps) && /stepsLine\(stepsHeld\(steps\.length, gatheredFrom\.get\(group\.querySelector\('\.cdr-steps-list'\)\)\)/.test(steps));

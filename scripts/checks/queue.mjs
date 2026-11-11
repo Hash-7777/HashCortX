@@ -268,5 +268,10 @@ console.log('\nThe workspaces:');
   ok('this check is part of npm run check', /npm run check:queue\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+{
+  const q = readFileSync(join(here, '..', '..', 'src', 'js', 'queue.js'), 'utf8');
+  ok('a waiting message shows its hidden characters as codes (js/text-safety.js)', /text\.textContent = m\.text \? \(window\.HCTextSafety \? window\.HCTextSafety\.reveal\(m\.text\) : m\.text\) :/.test(q));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/queue.js)`);
 process.exit(fail ? 1 : 0);

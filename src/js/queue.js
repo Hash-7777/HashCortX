@@ -167,7 +167,7 @@
         n.textContent = String(i + 1).padStart(2, '0');
         const text = doc.createElement('span');
         text.className = 'hc-queue-text';
-        text.textContent = m.text || (m.files.length === 1 ? 'Attachment' : 'Attachments');
+        text.textContent = m.text ? (window.HCTextSafety ? window.HCTextSafety.reveal(m.text) : m.text) : (m.files.length === 1 ? 'Attachment' : 'Attachments');   // characters that draw nothing shown as codes (js/text-safety.js)
         text.title = [m.text, ...m.files.map((f) => f.name)].filter(Boolean).join('\n');
         if (!m.text) text.classList.add('hc-queue-text--none');
         const editBtn = doc.createElement('button');

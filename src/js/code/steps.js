@@ -152,7 +152,7 @@
     const el = document.createElement('div');
     el.className = 'cdr-added';
     el.innerHTML = `<span class="cdr-added-label">You added</span>${(window.HCCodeAttach && window.HCCodeAttach.picturesHtml(pictures)) || ''}<span class="cdr-added-text"></span>`;   // with the pictures it came with
-    el.querySelector('.cdr-added-text').textContent = String(text || '');
+    el.querySelector('.cdr-added-text').textContent = coded(text);
     contentEl.appendChild(el);
     return el;
   }
@@ -162,6 +162,8 @@
    * `status` is HTML the caller built (a time, or Keep and Undo); `flat`
    * puts the step straight into `contentEl` rather than into a run's list.
    */
+  /** Text a step shows, with characters that draw nothing written as codes (js/text-safety.js). */
+  const coded = (t) => (window.HCTextSafety ? window.HCTextSafety.reveal(String(t ?? '')) : String(t ?? ''));
   function add(contentEl, { verb, object, status, statusClass = '', open = false, flat = false } = {}) {
     if (!contentEl) return null;
     const el = document.createElement('details');
@@ -170,7 +172,7 @@
     el.innerHTML = `
         <summary class="cdr-step-head">
           <span class="cdr-step-verb">${esc(verb)}</span>
-          <span class="cdr-step-object" title="${esc(object)}">${esc(object)}</span>
+          <span class="cdr-step-object" title="${esc(coded(object))}">${esc(coded(object))}</span>
           <span class="cdr-step-result">${status || ''}</span>
         </summary>
         <div class="cdr-step-body"></div>`;

@@ -263,10 +263,14 @@
       if (bar.dataset) bar.dataset.action = action;
       // Long paths lose their middle, not their end: the filename is the part
       // a person recognises.
-      const shown = String(target || '');
+      // Characters that draw nothing are shown as codes, so what is asked about is what will run (js/text-safety.js).
+      const T = window.HCTextSafety;
+      const shown = T ? T.reveal(String(target || '')) : String(target || '');
+      const said = T ? T.reveal(String(reason || '')) : String(reason || '');
+      const hid = shown !== String(target || '') || said !== String(reason || '');
       tgtEl.textContent = shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
-      rsnEl.textContent = reason || '';
+      rsnEl.textContent = hid ? `${said}${said ? ' ' : ''}This holds hidden characters, shown as codes.` : said;
       _asking = true;
       bar.classList.remove('working');
       bar.classList.add('open');
