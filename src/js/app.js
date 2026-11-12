@@ -5679,10 +5679,10 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     for (const m of messages) {
       if (m.role === "system") continue;
       if (m.role === "tool") {
-        anthropicMessages.push({
-          role: "user",
-          content: [{ type: "tool_result", tool_use_id: m.tool_call_id, content: String(m.content) }]
-        });
+        // Every result of one turn goes back in one message, a failure marked (js/agent-shape.js resultBlock).
+        const last = anthropicMessages[anthropicMessages.length - 1], block = HCAgentShape.resultBlock(m);
+        if (last && last.role === "user" && Array.isArray(last.content) && last.content.every((b) => b.type === "tool_result")) last.content.push(block);
+        else anthropicMessages.push({ role: "user", content: [block] });
         continue;
       }
       if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length) {

@@ -677,5 +677,15 @@ console.log('\nThinking another family wrote, and thinking of older requests:');
   ok('HashCoder keeps that with the turn, and drops older requests\' thinking at the roll for a family that only recommends keeping it', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking, from: turn\.thinkingFrom \}\);/.test(mode) && /dropOldThinking: window\.HCModelProfile\?\.of\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| ''\)\?\.carry === 'recommended'/.test(mode));
 }
 
+console.log('\nEvery result of a turn together, a failure marked:');
+{
+  const okBlock = A.resultBlock ? A.resultBlock({ role: 'tool', tool_call_id: 't1', content: 'lines 1-3' }) : null;
+  const bad = A.resultBlock ? A.resultBlock({ role: 'tool', tool_call_id: 't2', content: '{"error":"not there"}' }) : null;
+  ok('a result is a block for its call', JSON.stringify(okBlock) === '{"type":"tool_result","tool_use_id":"t1","content":"lines 1-3"}', JSON.stringify(okBlock));
+  ok('...and one in the app\'s failure shape carries the provider\'s failure mark', !!bad && bad.is_error === true && bad.content === '{"error":"not there"}');
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('the provider that wants them together is sent each turn\'s results in one message', /if \(last && last\.role === "user" && Array\.isArray\(last\.content\) && last\.content\.every\(\(b\) => b\.type === "tool_result"\)\) last\.content\.push\(block\);/.test(app) && /const last = anthropicMessages\[anthropicMessages\.length - 1\], block = HCAgentShape\.resultBlock\(m\);/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

@@ -458,6 +458,12 @@
   }
 
   /** A conversation's tool calls without what only Gemini reads, for every other provider. */
+  /** A tool result as a provider's result block, one in the app's failure shape carrying that provider's failure mark. */
+  function resultBlock(m) {
+    const text = String(m && m.content != null ? m.content : '');
+    return { type: 'tool_result', tool_use_id: m && m.tool_call_id, content: text, ...(/^\s*\{\s*"error"/.test(text) ? { is_error: true } : {}) };
+  }
+
   /** The messages with their kept thinking dropped (all of them, or those before `before`); what it is given is never changed. */
   function withoutThinking(messages, before = Infinity) {
     return (messages || []).map((m, i) => (i < before && m && ('thinking' in m || 'thinkingFrom' in m) ? (({ thinking, thinkingFrom, ...rest }) => rest)(m) : m));
@@ -777,7 +783,7 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value === undefined ? null : value };
   }
 
-  window.HCAgentShape = { thinkingFor, withoutThinking,
+  window.HCAgentShape = { thinkingFor, withoutThinking, resultBlock,
     geminiResponseOf,
     markReusable,
     closeInterruptedTurn,
