@@ -185,6 +185,16 @@ console.log('\nAuto on Windows: the programs there that only read, with their ow
   ok('the guard and the rewind panel say which system it is', /os: HC\.code\?\.platform\?\.os/.test(readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'guard.js'), 'utf8')) && /shellVerdict\(\{ command, args, cwd: sharedState\.projectRoot, root: sharedState\.projectRoot, checks: sharedState\.projectChecks\?\.checks \|\| \{\}, os: sharedState\.platform\?\.os \}\)/.test(readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8')));
 }
 
+console.log('\nPowerShell is started with no profile and nothing to wait for:');
+{
+  const q = (c, a) => JSON.stringify(P.quietPowerShell(c, a));
+  ok('-NoProfile and -NonInteractive go first, for powershell and pwsh, named with or without .exe', q('powershell', ['-Command', 'Get-Process']) === '["-NoProfile","-NonInteractive","-Command","Get-Process"]' && q('pwsh.exe', ['-c', 'Get-Date']) === '["-NoProfile","-NonInteractive","-c","Get-Date"]' && q('PowerShell', ['-File', 'build.ps1']) === '["-NoProfile","-NonInteractive","-File","build.ps1"]');
+  ok('...never twice, whether written in full or short', q('pwsh', ['-NoProfile', '-c', 'x']) === '["-NonInteractive","-NoProfile","-c","x"]' && q('powershell', ['-nop', '-noni', '-Command', 'x']) === '["-nop","-noni","-Command","x"]');
+  ok('...and any other program is left exactly as it was', q('node', ['-e', '1']) === '["-e","1"]' && q('cmd', ['/c', 'dir']) === '["/c","dir"]');
+  const tools = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');
+  ok('...added before anything is asked, so the question shows them', /args = window\.HCCodePermissions\?\.quietPowerShell\?\.\(command, args\) \|\| args;/.test(tools) && tools.indexOf('quietPowerShell?.(command, args)') < tools.indexOf('const looks = window.HCCodeByCode?.refusal('));
+}
+
 console.log('\nWhat the run has done decides when Auto stops:');
 {
   const r = P.createRun();

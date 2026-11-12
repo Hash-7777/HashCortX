@@ -229,6 +229,8 @@
         }
         [command, ...args] = [...words, ...given];
       }
+      // PowerShell runs with no profile and nothing to wait for, and the question shows it (js/code/permissions.js quietPowerShell).
+      args = window.HCCodePermissions?.quietPowerShell?.(command, args) || args;
       // A command that would open, serve or take a picture of what was made is not run, and nothing is asked (js/code/by-code.js).
       const looks = window.HCCodeByCode?.refusal(command, Array.isArray(args) ? args : []);
       if (looks) throw new Error(looks);

@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **PowerShell starts with no profile and nothing to wait for.** The app
+  adds `-NoProfile -NonInteractive` to a PowerShell or pwsh command, and the
+  question shows them. A PowerShell line still always asks. On Windows a
+  large or cloud model is told to list, read and search with the file tools
+  and use PowerShell only for what they cannot do.
 - **Auto on Windows lets through Windows' own programs that only read.**
   `where`, `findstr`, `more`, `fc` and `tree`, with their plain slash flags,
   run without a question inside the project, as `ls` and `grep` do

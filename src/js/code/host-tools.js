@@ -12,7 +12,10 @@
 //   small models, and light mode   nothing: they are given no shell
 //   mid-sized models               "Programs here: git, node, npm, python."
 //   large and cloud models         the same, and which of the ones models
-//                                  most often assume are not here
+//                                  most often assume are not here; on
+//                                  Windows, to list, read and search with
+//                                  the file tools and use PowerShell only
+//                                  for what they cannot do
 //
 // The line is the same for the whole session, so it costs nothing in a
 // cached prompt. line is pure; ask reaches the native side.
@@ -28,13 +31,21 @@
   /** The programs models most often assume are there: the ones said to be missing, when they are. */
   const ASSUMED = ['git', 'node', 'npm', 'python', 'python3', 'pip', 'rg', 'make'];
 
-  /** The line for the model, from the names found (null: not known yet, so nothing said). */
-  function line(found, size) {
-    if (!Array.isArray(found) || size === 'small' || size === 'light') return '';
-    const here = NAMES.filter((n) => found.includes(n));
-    const missing = size === 'mid' ? [] : ASSUMED.filter((n) => !here.includes(n));
-    if (!here.length && !missing.length) return '';
-    return `\n${here.length ? `Programs here: ${here.join(', ')}.` : 'None of the usual programs was found here.'}${missing.length ? ` Not here: ${missing.join(', ')}.` : ''}`;
+  /** Said to a large or cloud model on Windows: list, read and search with the file tools, and PowerShell only for the rest. */
+  const WINDOWS = 'Commands are one program and its arguments. Use the file tools to list, read and search; use PowerShell only for what they cannot do.';
+
+  /** The line for the model, from the names found (null: not known yet, so none named) and, on Windows, how to work there. */
+  function line(found, size, os) {
+    if (size === 'small' || size === 'light') return '';
+    const tell = size !== 'mid' && String(os || '').toLowerCase() === 'windows' ? WINDOWS : '';
+    let programs = '';
+    if (Array.isArray(found)) {
+      const here = NAMES.filter((n) => found.includes(n));
+      const missing = size === 'mid' ? [] : ASSUMED.filter((n) => !here.includes(n));
+      if (here.length || missing.length) programs = `${here.length ? `Programs here: ${here.join(', ')}.` : 'None of the usual programs was found here.'}${missing.length ? ` Not here: ${missing.join(', ')}.` : ''}`;
+    }
+    const said = [programs, tell].filter(Boolean).join(' ');
+    return said ? `\n${said}` : '';
   }
 
   /** Ask once which of NAMES are installed: the names found, or null when it cannot be told. */
@@ -47,5 +58,5 @@
     } catch { return null; }
   }
 
-  window.HCCodeHostTools = { NAMES, ASSUMED, line, ask };
+  window.HCCodeHostTools = { NAMES, ASSUMED, WINDOWS, line, ask };
 })();

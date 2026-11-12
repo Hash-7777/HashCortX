@@ -580,8 +580,24 @@
     return /\bdrop\s+(?:database|table|schema)\b/i.test(line);
   }
 
+  /**
+   * PowerShell started with no profile and nothing to wait for: `-NoProfile`
+   * and `-NonInteractive` go first, unless written already (in full or as
+   * `-nop`, `-noni`). A profile is code of the person's that a run never
+   * needs, and a prompt would wait until the command's time ran out. Every
+   * other program's arguments come back as they were. A PowerShell line is
+   * never free: it asks, whole, as before.
+   */
+  function quietPowerShell(command, args) {
+    const list = Array.isArray(args) ? args.map(String) : [];
+    const name = String(command || '').split(/[\\/]/).pop().toLowerCase().replace(/\.exe$/, '');
+    if (name !== 'powershell' && name !== 'pwsh') return list;
+    const has = (full, short) => list.some((a) => { const w = a.toLowerCase(); return w === full || w === short; });
+    return [...(has('-noprofile', '-nop') ? [] : ['-NoProfile']), ...(has('-noninteractive', '-noni') ? [] : ['-NonInteractive']), ...list];
+  }
+
   window.HCCodePermissions = {
     MODES, IDS, KEY, BLOCKS_BEFORE_ASKING_ALL, STREAK_BEFORE_ASKING,
-    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf, installLines, destroys,
+    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf, installLines, destroys, quietPowerShell,
   };
 })();

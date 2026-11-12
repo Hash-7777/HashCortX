@@ -37,6 +37,8 @@ ok('a large or cloud model: the same, and which of the ones models assume are no
 ok('a small model, or light mode, is told nothing: it is given no shell', T.line(found, 'small') === '' && T.line(found, 'light') === '');
 ok('not known yet, nothing said rather than "nothing here"', T.line(null, 'full') === '' && T.line(undefined, 'mid') === '');
 ok('nothing found: said plainly to a large model', T.line([], 'full') === '\nNone of the usual programs was found here. Not here: git, node, npm, python, python3, pip, rg, make.' && T.line([], 'mid') === '');
+ok('on Windows, a large or cloud model is also told to use the file tools and PowerShell only for what they cannot do; a mid-sized one is not', T.line(found, 'full', 'windows') === T.line(found, 'full') + ' Commands are one program and its arguments. Use the file tools to list, read and search; use PowerShell only for what they cannot do.' && T.line(found, 'mid', 'windows') === T.line(found, 'mid') && T.line(found, 'full', 'macos') === T.line(found, 'full'));
+ok('...even before the programs are known', T.line(null, 'full', 'windows') === '\nCommands are one program and its arguments. Use the file tools to list, read and search; use PowerShell only for what they cannot do.');
 ok('the same programs always give the same line, whatever order they came in', T.line(['git', 'node'], 'full') === T.line(['node', 'git'], 'full'));
 
 console.log('\nWhat is asked:');
@@ -63,7 +65,7 @@ ok('on Windows, the store\'s placeholder for Python is not counted as Python', /
 console.log('\nWhere it is wired:');
 const mode = src('modes', 'code', 'mode.js');
 ok('asked once a session, when the platform is read', /sharedState\.platform = info; if \(HC\.code\) HC\.code\.platform = info; window\.HCCodeHostTools\?\.ask\(\)\.then\(\(f\) => \{ sharedState\.hostTools = f; \}\);/.test(mode));
-ok('said after the platform line, which is left as it is, and never in light mode', /\(HC\?\.code\?\.platformLine\?\.\(sharedState\.platform\) \|\| ''\) \+ \(window\.HCCodeHostTools\?\.line\(sharedState\.hostTools, sharedState\.size\) \|\| ''\)/.test(mode) && !/HCCodeLight\.SYSTEM[^\n]*HCCodeHostTools/.test(mode));
+ok('said after the platform line, which is left as it is, and never in light mode', /\(HC\?\.code\?\.platformLine\?\.\(sharedState\.platform\) \|\| ''\) \+ \(window\.HCCodeHostTools\?\.line\(sharedState\.hostTools, sharedState\.size, sharedState\.platform\?\.os\) \|\| ''\)/.test(mode) && !/HCCodeLight\.SYSTEM[^\n]*HCCodeHostTools/.test(mode));
 ok('the native command is registered, and this file may call it', /which_programs,/.test(readFileSync(join(root, 'src-tauri', 'src', 'lib.rs'), 'utf8')) && /\['js\/code\/host-tools\.js', /.test(readFileSync(join(here, 'native-surface.mjs'), 'utf8')));
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/host-tools.js'") > 0 && boot.indexOf("'/js/code/host-tools.js'") < boot.indexOf("'/modes/boot.js'"));
