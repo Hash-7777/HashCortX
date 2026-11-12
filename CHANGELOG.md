@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder tells a model which programs are installed.** Once a session
+  the app looks, without running anything, for a fixed list of programs (git,
+  node, python, rg, make and others) where a command would find them, and a
+  mid-sized or larger model is told which are here; a larger one also which
+  of the usual ones are not. On Windows the store's placeholder for Python is
+  not counted as Python. Only names are told, never a path.
 - **Frontend checks run on Windows in CI.** Until now only the Rust tests
   ran there. A Windows job now runs the checks whose answers could depend on
   the system (paths, what Auto lets run, patching, the Permission Guard),

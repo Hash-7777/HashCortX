@@ -205,7 +205,7 @@
         // not exist on Windows, and hard-coding it here made every terminal
         // command and this probe fail there.
         HC.invoke('shell_platform')
-          .then(info => { sharedState.platform = info; if (HC.code) HC.code.platform = info; return HC.invoke('shell_run_line', { line: info.homeProbe, cwd: null }); })
+          .then(info => { sharedState.platform = info; if (HC.code) HC.code.platform = info; window.HCCodeHostTools?.ask().then((f) => { sharedState.hostTools = f; }); return HC.invoke('shell_run_line', { line: info.homeProbe, cwd: null }); })   // and, once, which programs are installed (js/code/host-tools.js)
           .then(r => { if (r?.stdout?.trim()) sharedState.homeDir = r.stdout.trim(); })
           .catch(() => {});
       }
@@ -1685,7 +1685,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
       // A model in light mode writes whole files in plain text, and is told that, where it runs and the project, not the tool rules (js/code/light.js).
       if (sharedState.light && window.HCCodeLight) return [window.HCCodeLight.SYSTEM, window.HCCodeLight.testHint(sharedState.codeMap?.whole), HC?.code?.platformLine?.(sharedState.platform), ...lines.filter((l) => !/^(?:\d\.|You are HashCoder|Rules:)/.test(l)), extra, HC?.code?.dateLine?.().trim()].filter(Boolean).join('\n');
-      const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '');
+      const richBase = (HC?.code?.promptFor?.(sharedState.size, cdrPrefs().memory === true) || '') + (HC?.code?.platformLine?.(sharedState.platform) || '') + (window.HCCodeHostTools?.line(sharedState.hostTools, sharedState.size) || '');
       const out = (richBase ? richBase + '\n' : '') + lines.join('\n');
       return out + (extra ? '\n' + extra : '') + (HC?.code?.dateLine?.() || '');   // today's date, after all that stays the same through the day (hashcoder.js dateLine)
     }

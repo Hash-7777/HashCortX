@@ -26,6 +26,7 @@ use commands::{
         fs_move_file, fs_path_inside_root, fs_read_base64, fs_read_file, fs_search_files,
         fs_set_root, fs_write_file,
     },
+    host::which_programs,
     keychain::{keychain_delete, keychain_retrieve_bundle},
     mcp::{mcp_oauth_sign_in, mcp_request, mcp_server_remove, mcp_server_save},
     net::net_fetch_text,
@@ -96,6 +97,8 @@ pub fn run() {
             shell_run_line,
             shell_run_line_stream,
             shell_platform,
+            // Which programs of a fixed list are installed: found as files, nothing run (commands/host.rs).
+            which_programs,
             // Local embeddings — bundled bge-small-en-v1.5, run natively
             embed_texts,
             embed_available,

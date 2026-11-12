@@ -379,7 +379,7 @@ fn with_tool_dirs(current: &str, candidates: &[String], is_dir: &dyn Fn(&str) ->
 
 /// The folders a command looks for programs in, worked out once.
 #[cfg(unix)]
-fn tool_path() -> Option<&'static String> {
+pub(crate) fn tool_path() -> Option<&'static String> {   // also where host.rs looks for programs
     static PATH: OnceLock<Option<String>> = OnceLock::new();
     PATH.get_or_init(|| {
         let current = std::env::var("PATH").unwrap_or_else(|_| SYSTEM_DIRS.join(":"));

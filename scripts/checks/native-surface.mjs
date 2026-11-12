@@ -36,6 +36,7 @@ const ALLOWED = new Map([
   ['core/rag/knowledge-base.js', 'embeds text with the model bundled in the binary. The command takes text and a kind and returns numbers — it reads no file, runs no process, and reaches no network; the CDN import it replaced is why semantic search never ran in any shipped build'],
   ['core/memory/map.js', 'asks whether the bundled embedding model loaded, and turns the facts already on this machine into vectors so they can be placed by meaning. Both commands take text or nothing and return numbers or a boolean — no file, no process, no network — and the text is the memory the user is looking at, which never leaves the app'],
   ['modes/code/mode.js', 'the Coder terminal and file pickers'],
+  ['js/code/host-tools.js', 'asks once a session which programs of a fixed list of names are installed. The native side looks for files on the search path and returns names only, never a path; it runs nothing, reads no file, and ignores any name not on its own list'],
   ['core/settings/local-model.js', 'reads which operating system this is, so step one shows the right install instructions instead of handing a Windows user a curl command; and opens the one download page in the real browser. The command takes no argument, and the URL is a fixed string in index.html that no code writes — no model reaches either'],
 ]);
 

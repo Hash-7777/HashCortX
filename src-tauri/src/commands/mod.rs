@@ -4,6 +4,7 @@ pub mod embed;
 pub mod export;
 pub mod forge_projects;
 pub mod fs;
+pub mod host;
 pub mod keychain;
 pub mod mcp;
 pub mod net;
