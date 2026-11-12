@@ -211,6 +211,38 @@
       return true;
     },
 
+    /**
+     * Put back a change that was undone: what the change wrote (`record.after`)
+     * is written again.
+     *
+     * What the file holds now is saved first, as for any change, so the redone
+     * change can be undone again; that new record is handed back. When the file
+     * is not what the undo left (someone changed it since), `ask(message)` is
+     * asked first, and a no, or no `ask`, throws an error marked `cancelled`,
+     * writes nothing and leaves no copy behind. Like a restore, the write goes
+     * through `fs_write_file` and its denylist, and the click is the permission.
+     * Only an edit or a new file is redone: a deletion writes no text to put back.
+     */
+    async redo(record, { ask } = {}) {
+      if (!record || !record.path || typeof record.after !== 'string') {
+        throw new Error('There is nothing recorded to put back for that change.');
+      }
+      const fresh = await HC.undo.capture(record.path);
+      const asLeft = record.existed ? !!fresh.existed && fresh.content === record.content : !fresh.existed;
+      if (!asLeft) {
+        const name = String(record.path).split(/[\\/]/).pop() || 'This file';
+        const message = `"${name}" has changed since it was undone. Redo puts the agent's change back, and what has changed since is lost. Redo anyway?`;
+        if (!ask || !(await ask(message))) {
+          await HC.undo.drop(fresh);
+          throw Object.assign(new Error(`Not redone: "${name}" has changed since it was undone.`), { cancelled: true });
+        }
+      }
+      await HC.invoke('fs_write_file', { path: record.path, content: record.after });
+      await HC.undo.seal(fresh);
+      fresh.after = record.after;
+      return fresh;
+    },
+
     /** Forget a record — the change was kept, so the copy is dead weight. */
     async drop(record) {
       if (record?.id) {

@@ -372,6 +372,11 @@ body.coder-mode #app { display: none; }
 .cdr-added-bubble { max-width: 74%; padding: 9px 13px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-md); background: var(--surface-2); }
 .cdr-added-text { font-size: 13.5px; line-height: 1.5; color: var(--cdr-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .cdr-added-how { padding-left: 8px; background: var(--surface-0); font-size: 11.5px; color: var(--cdr-text-muted); }
+/* Redo beside an undone change (js/code/rewind.js offerRedo): a quiet word, the change put back on a click. */
+.cdr-step-redo { display: inline-flex; align-items: center; gap: 4px; margin-left: 8px; padding: 0; border: 0; background: none; color: var(--cdr-text-dim); font: 11.5px var(--sans); cursor: pointer; text-decoration: underline; text-decoration-color: var(--cdr-border-strong); text-underline-offset: 3px; }
+.cdr-step-redo:hover:not(:disabled), .cdr-step-redo:focus-visible { color: var(--cdr-text); outline: none; }
+.cdr-step-redo:disabled { opacity: .5; cursor: default; }
+#coder-mode-wrap .cdr-step-redo svg { width: 11px; height: 11px; }
 /* Rewinding (js/code/rewind.js): the request changed in place, what goes said first, nothing gone until it is sent. */
 .cdr-msg.user.is-editing .cdr-user-bubble, .cdr-msg.user.is-editing .cdr-msg-actions { display: none; }
 .cdr-rewind-text { width: 100%; max-width: 560px; min-height: 76px; padding: 10px 14px; border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: var(--surface-2); color: var(--cdr-text); font: 13.5px/1.55 var(--sans); resize: vertical; }

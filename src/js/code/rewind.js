@@ -24,8 +24,10 @@
 // first runs at once. The changes waiting from an earlier session, listed
 // at the end of the panel, stay where they are.
 //
-// commandsAfter, changeCallsAfter, plan, lines and quiet are pure; edit and
-// regenerate draw. Published as window.HCCodeRewind. Checked by
+// An undone change row offers Redo (offerRedo), which puts the change back.
+//
+// commandsAfter, changeCallsAfter, plan, lines and quiet are pure; edit,
+// regenerate and offerRedo draw. Published as window.HCCodeRewind. Checked by
 // scripts/checks/code-rewind.mjs.
 // ==============================================================
 
@@ -117,6 +119,7 @@
 
   const ICON = {
     rewind: '<path d="M2.5 3v10"/><path d="M13.5 4.2 6.4 8l7.1 3.8z"/>',
+    redo: '<path d="m10.5 3.2 2.7 2.7-2.7 2.7"/><path d="M12.8 5.9H6.5a3.6 3.6 0 0 0 0 7.2H9"/>',
     reply: '<path d="M6.2 4 2.6 7.6l3.6 3.6"/><path d="M2.6 7.6h6.6c2.3 0 4.2 1.9 4.2 4.2v.7"/>',
     undo: '<path d="M5.5 3.2 2.8 5.9l2.7 2.7"/><path d="M3.2 5.9h6.3a3.6 3.6 0 0 1 0 7.2H7"/>',
     alert: '<path d="M8 2.2 14.2 13H1.8z"/><path d="M8 6.4v3.1M8 11.3v.1"/>',
@@ -235,5 +238,35 @@
     box.querySelector('.cdr-rewind-go').addEventListener('click', run);
   }
 
-  window.HCCodeRewind = { commandsAfter, changeCallsAfter, plan, lines, quiet, edit, regenerate };
+  /**
+   * An undone change row offers Redo beside "Undone": `redo()` puts the change
+   * back (platform/tauri/undo.js redo), and the row waits for Keep or Undo
+   * again. A no to its question leaves it as it was; a failure says so on the
+   * button.
+   */
+  function offerRedo(el, redo) {
+    if (!el || typeof redo !== 'function' || el.querySelector('.cdr-step-redo')) return null;
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cdr-step-redo';
+    b.setAttribute('aria-label', 'Redo: put this change back');
+    b.innerHTML = `${svg('redo')}<span>Redo</span>`;
+    b.addEventListener('click', async (e) => {
+      e.preventDefault(); e.stopPropagation();   // inside a row that opens on a click: redoing is not looking
+      if (b.disabled) return;
+      b.disabled = true;
+      try {
+        await redo(); el.classList.remove('cdr-step--rejected'); el.classList.add('cdr-step--pending');
+        b.remove();
+      } catch (err) {
+        b.disabled = false;
+        if (!err || !err.cancelled) { b.title = String((err && err.message) || err); b.querySelector('span').textContent = 'Redo failed'; }
+      }
+    });
+    const actions = el.querySelector('.cdr-step-actions');
+    if (actions) actions.after(b); else el.appendChild(b);
+    return b;
+  }
+
+  window.HCCodeRewind = { commandsAfter, changeCallsAfter, plan, lines, quiet, edit, regenerate, offerRedo };
 })();

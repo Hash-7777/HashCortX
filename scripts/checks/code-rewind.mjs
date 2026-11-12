@@ -72,6 +72,8 @@ ok('...then the conversation is cut there, what follows leaves the screen, and i
 ok('the changes waiting from an earlier session stay, and are never counted as this conversation\'s replies', /:not\(\.cdr-change-group\)/.test(rw));
 ok('Undo all and the rewind undo the same way', /async function undoRows\(/.test(view) && /return undoRows\(/.test(view));
 ok('the controls say their word beside their mark', (mode.match(/\$\{svgCopy\} Copy<\/button>/g) || []).length === 2 && /<\/svg> Edit<\/button>/.test(mode) && /\$\{svgReply\} Reply<\/button>/.test(mode) && /\$\{svgRegen\} Regenerate<\/button>/.test(mode));
+ok('an undone change offers Redo, which puts it back and leaves the row waiting for Keep or Undo again; a no or a failure says so on the button', /function offerRedo\(el, redo\)/.test(rw) && /await redo\(\); el\.classList\.remove\('cdr-step--rejected'\); el\.classList\.add\('cdr-step--pending'\);/.test(rw) && /'Redo failed'/.test(rw));
+ok('...wired on a live change row, the record it undoes replaced by the one Redo saved, never for a deletion or a move', /let checkpoint = HC\?\.undo\?\.lastFor\(path\) \|\| null;/.test(mode) && /if \(kind !== 'delete' && kind !== 'moved' && typeof checkpoint\.after === 'string'\) window\.HCCodeRewind\?\.offerRedo\(el, async \(\) => \{ const fresh = await HC\.undo\.redo\(checkpoint, \{ ask: askUndo \}\); checkpoint = fresh; canUndo = HC\.undo\.canRestore\(fresh\);/.test(mode) && /addChangeEntry\(baseName\(to\), to, 'moved', ''\)/.test(mode));
 ok('nothing in it moves', !/\.cdr-rewind[^{]*\{[^}]*(?:animation|transition)/.test(css));
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/rewind.js'") > 0 && boot.indexOf("'/js/code/rewind.js'") < boot.indexOf("'/modes/boot.js'"));

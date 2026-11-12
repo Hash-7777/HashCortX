@@ -228,5 +228,41 @@ console.log('\nA change waiting belongs to the conversation that made it:');
     && /sharedState\.changeIds = \[\]; sharedState\.changesUpTo = 0; clearSessionFiles\(\);/.test(mode) && /sharedState\.changesUpTo = session\.changesUpTo \|\| 0; clearSessionFiles\(\);/.test(mode));
 }
 
+console.log('\nRedo puts an undone change back, and can be undone again:');
+{
+  const undone = { id: 'old-1', path: '/p/main.rs', content: 'original\n', existed: true, unrestorable: null, after: 'changed\n' };
+  const { undo, calls } = load((name) => (name === 'checkpoint_save' ? { id: 'new-2', path: '/p/main.rs', content: 'original\n', existed: true, unrestorable: null } : undefined));
+  const fresh = await undo.redo(undone, { ask: async () => { throw new Error('asked when nothing changed'); } });
+  const names = calls.map((c) => c.name);
+  ok('what the file holds now is saved first, so the redone change can be undone again', names[0] === 'checkpoint_save' && calls[0].args.path === '/p/main.rs');
+  ok('...then what the change wrote is written back, through the same write as any other', calls.some((c) => c.name === 'fs_write_file' && c.args.path === '/p/main.rs' && c.args.content === 'changed\n'));
+  ok('...and the new copy is sealed, so a later Undo can tell if the file changed after it', names.indexOf('checkpoint_seal') > names.indexOf('fs_write_file') && calls.find((c) => c.name === 'checkpoint_seal').args.id === 'new-2');
+  ok('it hands back the new record, which knows what it wrote', fresh.id === 'new-2' && fresh.after === 'changed\n');
+}
+{
+  const created = { id: 'old-3', path: '/p/new.rs', content: null, existed: false, unrestorable: null, after: 'fn main() {}\n' };
+  const { undo, calls } = load((name) => (name === 'checkpoint_save' ? { id: 'new-4', path: '/p/new.rs', content: null, existed: false, unrestorable: null } : undefined));
+  await undo.redo(created, {});
+  ok('a file the change created, removed by Undo, is written again with no question', calls.some((c) => c.name === 'fs_write_file' && c.args.content === 'fn main() {}\n'));
+}
+{
+  const undone = { id: 'old-5', path: '/p/main.rs', content: 'original\n', existed: true, unrestorable: null, after: 'changed\n' };
+  const asked = [];
+  const { undo, calls } = load((name) => (name === 'checkpoint_save' ? { id: 'new-6', path: '/p/main.rs', content: 'someone edited it\n', existed: true, unrestorable: null } : undefined));
+  let err = null;
+  try { await undo.redo(undone, { ask: async (m) => { asked.push(m); return false; } }); } catch (e) { err = e; }
+  ok('a file that changed after the undo is asked about first, saying what would be lost', asked.length === 1 && /has changed since it was undone/.test(asked[0]) && /lost/.test(asked[0]));
+  ok('...and a no writes nothing, says so, and leaves no copy behind', err && err.cancelled === true && !calls.some((c) => c.name === 'fs_write_file') && calls.some((c) => c.name === 'checkpoint_drop' && c.args.id === 'new-6'));
+  const again = load((name) => (name === 'checkpoint_save' ? { id: 'new-7', path: '/p/main.rs', content: 'someone edited it\n', existed: true, unrestorable: null } : undefined));
+  await again.undo.redo(undone, { ask: async () => true });
+  ok('...and a yes writes it', again.calls.some((c) => c.name === 'fs_write_file' && c.args.content === 'changed\n'));
+}
+{
+  const { undo, calls } = load(() => undefined);
+  let err = null;
+  try { await undo.redo({ id: 'x', path: '/p/a.rs', content: 'a', existed: true }, {}); } catch (e) { err = e; }
+  ok('a record that does not know what its change wrote is refused, and nothing is touched', !!err && calls.length === 0);
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/undo.js)`);
 process.exit(fail ? 1 : 0);

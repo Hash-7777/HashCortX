@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **Redo beside an undone change.** It puts back what the change wrote, and
+  the row waits for Keep or Undo again; the copy saved first lets it be
+  undone again. When the file was changed after the undo, it asks first,
+  since what changed would be lost. Edits and new files only: a deletion or
+  a move has no text to put back.
 - **Edit and Regenerate rewind a HashCoder conversation.** Edit opens your
   request to change in place; Regenerate goes back to the request before the
   reply and runs it again as it was sent. Before anything happens they say

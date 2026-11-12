@@ -1546,9 +1546,9 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     function addChangeEntry(name, path, kind, content) {
       // What the file held before this change. Captured by HC.code.undo at the
       // moment of the write, which is the only point where it still exists.
-      const checkpoint = HC?.undo?.lastFor(path) || null;
+      let checkpoint = HC?.undo?.lastFor(path) || null;   // replaced by the one Redo saves (js/code/rewind.js offerRedo)
       if (checkpoint?.id) (sharedState.changeIds = sharedState.changeIds || []).push(checkpoint.id);   // the conversation's own, shown with it when opened again
-      const canUndo = !!HC?.undo?.canRestore(checkpoint);
+      let canUndo = !!HC?.undo?.canRestore(checkpoint);
       const target = activeContentEl || $('cdrMessages')?.querySelector('.cdr-msg.assistant:last-of-type .cdr-msg-content');
       if (!target) return;
 
@@ -1609,7 +1609,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           undoBtn.innerHTML = `${svgReject} Undone`;
           keepBtn.disabled = true;
           terminalLog(`[undo] restored ${path}`, 'cdr-bash-preview');
-          if (checkpoint.existed) addAIFileToExplorer(path, 'write');
+          if (checkpoint.existed) addAIFileToExplorer(path, 'write'); if (kind !== 'delete' && kind !== 'moved' && typeof checkpoint.after === 'string') window.HCCodeRewind?.offerRedo(el, async () => { const fresh = await HC.undo.redo(checkpoint, { ask: askUndo }); checkpoint = fresh; canUndo = HC.undo.canRestore(fresh); undoBtn.innerHTML = `${svgReject} Undo`; undoBtn.disabled = !canUndo; keepBtn.innerHTML = `${svgAccept} Keep`; keepBtn.disabled = false; addAIFileToExplorer(path, 'write'); terminalLog(`[redo] put back ${path}`, 'cdr-bash-preview'); });   // what the change wrote, put back (platform/tauri/undo.js redo)
         } catch (e) {
           // Say so rather than showing "Undone" over a file that did not change.
           undoBtn.disabled = false;
@@ -1751,7 +1751,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         added: (text, pictures, kinds) => { window.HCCodeSteps.added(contentEl, text, pictures, kinds); scrollMessages(); }, receipt: (parts) => window.HCRunView?.receiptIn(contentEl, parts) || null,
         error: (e, kept) => { const errDiv = Object.assign(document.createElement('div'), { className: 'cdr-msg-text', innerHTML: `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}` }); Object.assign(errDiv.style, { color: 'var(--cdr-error)', borderLeft: '2px solid var(--cdr-error)', paddingLeft: '10px', margin: '8px 0' }); contentEl.appendChild(errDiv); scrollMessages(); },
         // A move is two changes: the file leaves one path and arrives at another. Undoing both puts it back.
-        changed: (call, resultStr) => { const a = call.arguments || {}, fp = a.path || '', { from = '', to = '' } = a; if (call.name === 'write_file' || call.name === 'patch_file') { addChangeEntry(baseName(fp), fp, 'write', a.content || a.patch || resultStr); if (fp) addAIFileToExplorer(fp, 'write'); } else if (call.name === 'delete_file') { addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)'); if (fp) addAIFileToExplorer(fp, 'delete'); } else if (call.name === 'move_file') { addChangeEntry(baseName(from), from, 'delete', '(file moved)'); addChangeEntry(baseName(to), to, 'write', ''); if (from) addAIFileToExplorer(from, 'delete'); if (to) addAIFileToExplorer(to, 'write'); } } };
+        changed: (call, resultStr) => { const a = call.arguments || {}, fp = a.path || '', { from = '', to = '' } = a; if (call.name === 'write_file' || call.name === 'patch_file') { addChangeEntry(baseName(fp), fp, 'write', a.content || a.patch || resultStr); if (fp) addAIFileToExplorer(fp, 'write'); } else if (call.name === 'delete_file') { addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)'); if (fp) addAIFileToExplorer(fp, 'delete'); } else if (call.name === 'move_file') { addChangeEntry(baseName(from), from, 'delete', '(file moved)'); addChangeEntry(baseName(to), to, 'moved', ''); if (from) addAIFileToExplorer(from, 'delete'); if (to) addAIFileToExplorer(to, 'write'); } } };
       const H = window._H;
       const temperature = window.HC.code.temperatureFor(sharedState.size, H?.selectedTemperature?.(), routing?.router?.model || coderModel || H?.selectedModel?.());
       activeContentEl = contentEl;
