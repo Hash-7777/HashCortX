@@ -202,13 +202,20 @@ console.log('\nA whole-file rewrite keeps a Windows file\'s line endings:');
   ok('a byte-order mark stays where it was', K('\ufeffa\r\nb\r\n', '\ufeffx\ny\n').text === '\ufeffx\r\ny\r\n');
 }
 
-console.log('\nOnly UTF-8 text is patched:');
+console.log('\nOnly UTF-8 text, or UTF-16 that starts with its mark, is patched:');
 {
   const enc = (s) => new TextEncoder().encode(s);
   ok('ordinary text reads back as it is', P.textOf(enc('const ü = "✓";\n'), 'f') === 'const ü = "✓";\n');
   ok('a byte-order mark is kept, so it is written back', P.textOf(new Uint8Array([0xef, 0xbb, 0xbf, 0x61]), 'f') === '\uFEFFa');
   ok('a file with NUL bytes is refused as not text', /not a text file/.test(throws(() => P.textOf(new Uint8Array([0x25, 0x50, 0x00, 0x01]), 'x.bin'))));
   ok('a file in another encoding is refused', /not UTF-8/.test(throws(() => P.textOf(new Uint8Array([0x63, 0x61, 0x66, 0xe9]), 'latin1.txt'))));
+  // UTF-16 that starts with its mark, as some Windows tools write a file, is read as its text, the mark kept first.
+  const u16 = (text, little) => new Uint8Array([0xFEFF, ...Array.from(text, (c) => c.charCodeAt(0))].flatMap((u) => (little ? [u & 255, u >> 8] : [u >> 8, u & 255])));
+  ok('a UTF-16 file in little-endian order reads as its text, its mark first', P.textOf(u16('a\r\nb', true), 'f') === '\uFEFFa\r\nb');
+  ok('...and one in big-endian order', P.textOf(u16('é✓', false), 'f') === '\uFEFFé✓');
+  ok('bytes that start like UTF-16 but end half a character in are refused as not text', /not a text file/.test(throws(() => P.textOf(new Uint8Array([0xff, 0xfe, 0x61, 0x00, 0x62]), 'x.bin'))));
+  ok('...and so is a lone half of a pair', /not a text file/.test(throws(() => P.textOf(new Uint8Array([0xff, 0xfe, 0x00, 0xd8, 0x61, 0x00]), 'x.bin'))));
+  ok('...and the mark of UTF-32, which starts the same way', /not a text file/.test(throws(() => P.textOf(new Uint8Array([0xff, 0xfe, 0x00, 0x00, 0x61, 0x00, 0x00, 0x00]), 'x.bin'))));
   const b = 'héllo ✓';
   ok('base64 from the native side turns back into the same bytes',
     P.textOf(P.bytesFromBase64(Buffer.from(b).toString('base64')), 'f') === b);
@@ -265,6 +272,10 @@ console.log('\npatch_file writes back the whole file:');
   disk.set('/p/win.txt', 'a\r\nb\r\nc\r\n');
   await code.patchFile('/p/win.txt', 'b\n', 'B\n');
   ok('a Windows file keeps its line endings', writes.at(-1).content === 'a\r\nB\r\nc\r\n');
+
+  disk.set('/p/win16.txt', Buffer.from([0xff, 0xfe, ...Buffer.from('a\r\nb\r\n', 'utf16le')]));
+  await code.patchFile('/p/win16.txt', 'b\n', 'B\n');
+  ok('a UTF-16 file is patched as its text: mark first, line endings kept, for the native write to keep as UTF-16', writes.at(-1).content === '\uFEFFa\r\nB\r\n' && writes.at(-1).encoding === undefined);
 
   disk.set('/p/pid.sh', 'echo PID\n');
   await code.patchFile('/p/pid.sh', 'PID', '$$');

@@ -48,15 +48,32 @@
     return out;
   }
 
+  /** The order of UTF-16 bytes that start with its mark ('utf-16le' or 'utf-16be'), or ''; the mark of UTF-32 starts the same way and is not one. */
+  function utf16Order(bytes) {
+    if (bytes[0] === 0xff && bytes[1] === 0xfe) return bytes[2] === 0 && bytes[3] === 0 ? '' : 'utf-16le';
+    return bytes[0] === 0xfe && bytes[1] === 0xff ? 'utf-16be' : '';
+  }
+
   /**
    * A file's bytes as text, or an error saying why it cannot be patched.
    *
-   * Only UTF-8 text is edited. Anything else would be decoded with its
-   * unreadable characters replaced and written back that way, changing parts
-   * of the file the patch never touched. A byte-order mark is kept, so it is
-   * written back too.
+   * Only UTF-8 text, or UTF-16 text that starts with its mark, is edited.
+   * Anything else would be decoded with its unreadable characters replaced
+   * and written back that way, changing parts of the file the patch never
+   * touched. A byte-order mark is kept as the first character, so it is
+   * written back too; the native write keeps a UTF-16 file UTF-16
+   * (src-tauri/src/commands/fs.rs).
    */
   function textOf(bytes, name) {
+    const order = utf16Order(bytes);
+    if (order) {
+      try {
+        if (bytes.length % 2) throw new Error('half a character');
+        return new TextDecoder(order, { fatal: true, ignoreBOM: true }).decode(bytes);
+      } catch {
+        throw new Error(`"${name}" is not a text file, so it cannot be patched.`);
+      }
+    }
     if (bytes.includes(0)) {
       throw new Error(`"${name}" is not a text file, so it cannot be patched.`);
     }

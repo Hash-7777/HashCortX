@@ -264,5 +264,17 @@ console.log('\nRedo puts an undone change back, and can be undone again:');
   ok('a record that does not know what its change wrote is refused, and nothing is touched', !!err && calls.length === 0);
 }
 
+console.log('\nA UTF-16 file is put back as UTF-16, even where it is no longer there:');
+{
+  const sixteen = { id: 'u16', path: '/p/notes.txt', content: '\uFEFFold\r\n', existed: true, unrestorable: null, encoding: 'utf-16le' };
+  const { undo, calls } = load((name) => (name === 'checkpoint_save' ? { ...sixteen } : undefined));
+  await undo.restore(await undo.capture('/p/notes.txt'));
+  const write = calls.find((c) => c.name === 'fs_write_file');
+  ok('the restore names the encoding the file had', write?.args.encoding === 'utf-16le' && write?.args.content === '\uFEFFold\r\n');
+  const plain = load((name) => (name === 'checkpoint_save' ? { ...RECORD } : undefined));
+  await plain.undo.restore(await plain.undo.capture('/p/main.rs'));
+  ok('...and a UTF-8 one names none, written as it always was', !('encoding' in (plain.calls.find((c) => c.name === 'fs_write_file')?.args || { encoding: 1 })));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/platform/tauri/undo.js)`);
 process.exit(fail ? 1 : 0);

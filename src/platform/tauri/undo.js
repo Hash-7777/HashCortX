@@ -205,7 +205,8 @@
         // The change created this file, so undoing it means removing it again.
         await HC.invoke('fs_delete_file', { path: record.path });
       } else {
-        await HC.invoke('fs_write_file', { path: record.path, content: record.content ?? '' });
+        // A UTF-16 file is written back as UTF-16, even where it is no longer there.
+        await HC.invoke('fs_write_file', { path: record.path, content: record.content ?? '', ...(record.encoding ? { encoding: record.encoding } : {}) });
       }
       await HC.undo.drop(record);
       return true;
