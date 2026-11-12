@@ -519,6 +519,7 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
             <li>An answer from a model on this computer saying part of the work is not done is sent back to do it.</li>
             <li>A site it changed is read the way a browser would, and what the change made that will not work, or lets the page down, is sent back to be fixed. Problems the site already had are left alone.</li>
             <li>An answer that names a file the project does not have is sent back to find it.</li>
+            <li>An answer that states a function or class, written as code, that nothing the run read shows is sent back once to find it, and said under the answer if it still has not. Not for models under 5B.</li>
             <li>The details a page states as fact are checked against what it was told and read.</li>
             <li>After a larger change, a larger model takes a second look at it with a clean slate and fixes what that finds.</li>
           </ul>

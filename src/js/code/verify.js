@@ -361,6 +361,7 @@
   const UNDONE_STEP = 'Sent back to do what it said was not done';
   const UNDONE_SAYS = 'your answer says part of the work is not done';
   const NAMED_STEP = 'Sent back to find the files its answer names';
+  const UNSEEN_STEP = 'Sent back for names not seen in the project';
   const NAMED_SAYS = 'which the project does not have';
   const FACTS_STEP = 'Sent back to confirm the details it wrote';
   const FACTS_SAYS = 'were read for details a visitor would take as fact';
@@ -373,7 +374,7 @@
   /** The step a note from the app stands for. */
   const noteStep = (text) => {
     const t = String(text || '');
-    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(PASSED_SAYS) ? PASSED_STEP : t.includes(AHEAD_SAYS) ? AHEAD_STEP : t.includes(CUT_SAYS) ? CUT_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : /no test has run since|failed after your last change/.test(t) ? PROVE_STEP : t.includes('has used all the steps it is given') ? WRAP_STEP : t.includes('are not joined up') ? WIRED_STEP : OTHER_STEP;
+    return /no file in the project was changed/.test(t) ? MADE_STEP : t.includes(REVIEW_SAYS) ? REVIEW_STEP : t.includes(ASKS_SAYS) ? ASKS_STEP : t.includes(PLAN_SAYS) ? PLAN_STEP : t.includes(FRESH_SAYS) ? FRESH_STEP : t.includes(SITE_SAYS) ? SITE_STEP : t.includes(NAMED_SAYS) ? NAMED_STEP : t.includes(UNSEEN_SAYS) ? UNSEEN_STEP : t.includes(CLAIM_SAYS) ? CLAIM_STEP : t.includes(SAID_SAYS) ? SAID_STEP : t.includes(PASSED_SAYS) ? PASSED_STEP : t.includes(AHEAD_SAYS) ? AHEAD_STEP : t.includes(CUT_SAYS) ? CUT_STEP : t.includes(FACTS_SAYS) ? FACTS_STEP : window.HCCodeKeep && t.includes(window.HCCodeKeep.GONE_SAYS) ? window.HCCodeKeep.GONE_STEP : t.includes(UNDONE_SAYS) ? UNDONE_STEP : t.includes('is still written here') ? RENAME_STEP : t.includes('the request shows how this is used') ? EXAMPLE_STEP : /no test has run since|failed after your last change/.test(t) ? PROVE_STEP : t.includes('has used all the steps it is given') ? WRAP_STEP : t.includes('are not joined up') ? WIRED_STEP : OTHER_STEP;
   };
 
   /** The command line of a shell_run call, as the person would type it. */
@@ -1110,6 +1111,85 @@
     };
   }
 
+  // ── Names an answer states as code that were never seen ───────────────
+  //
+  // An answer explained a fix through a function the project does not have,
+  // named as if it were there. A name the answer writes as code, in
+  // backticks or followed by "(", in a sentence that states rather than
+  // proposes, is looked for in what the run was shown: the project map, the
+  // tool results, the person's words and the run's own calls (what it wrote).
+  // One found in none of them is sent back once; still unseen when the run
+  // finishes, it is said under the answer. Code blocks, plain words, and the
+  // languages' own names are left out, to keep false alarms away. A small
+  // model, and light mode, are not asked: they have no tool to look a name up.
+
+  const UNSEEN_SAYS = 'were not seen in the project';
+  /** No more than this many are named. */
+  const MOST_UNSEEN = 5;
+  /** The languages' own names, never the project's: JavaScript, Python, Rust and Go. */
+  const OWN_NAMES = new Set(('Math JSON Object Array String Number Boolean Promise Date RegExp Map Set WeakMap Error Symbol Intl URL Buffer ' +
+    'console window document globalThis process require module exports fetch setTimeout setInterval clearTimeout parseInt parseFloat ' +
+    'localStorage sessionStorage navigator print len range dict list str int float bool open self super isinstance enumerate zip sorted ' +
+    'os sys re json math typing println format vec Vec Option Result Some None Ok Err Box Rc Arc HashMap fmt make append panic').split(' '));
+  /** Words that propose something rather than say it is there. */
+  const PROPOSED = /\b(?:could|would|should|might|may|consider|suggest|recommend|perhaps|maybe|if you|you can|add(?:ing)? an?|create|new|introduce|write an?|define an?)\b/i;
+  /** A name shaped like code: camelCase, PascalCase with a second word, snake_case, or dotted. */
+  const CODE_SHAPE = /[a-z][A-Z]|_|\.|^[A-Z][a-z]+[A-Z]/;
+  const NAME_IN_TICKS = /`([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)(\(\))?`/g;
+  const NAME_CALLED = /(?<![`\w$.])([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(/g;
+  const escapeRe = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+  /** The names `reply` states as code that nothing the run was shown holds, at most MOST_UNSEEN. `map` is the project map's ranked files (js/code/codemap.js), when there is one. */
+  function unseenNames(reply, messages, map) {
+    const F = window.HCFences;
+    const prose = F && F.splitFences ? F.splitFences(String(reply || '')).filter((p) => p.type !== 'code').map((p) => p.text).join('\n') : String(reply || '');
+    const named = [];
+    for (const sentence of prose.split(/(?<=[.!?])\s+|\n+/)) {
+      if (PROPOSED.test(sentence)) continue;
+      for (const m of sentence.matchAll(NAME_IN_TICKS)) if (m[2] || CODE_SHAPE.test(m[1])) named.push(m[1]);
+      for (const m of sentence.matchAll(NAME_CALLED)) if (CODE_SHAPE.test(m[1])) named.push(m[1]);
+    }
+    const mapped = new Set();
+    for (const f of Array.isArray(map) ? map : []) for (const d of (f && f.symbols) || []) { mapped.add(String(d.name)); mapped.add(String(d.name).split(/::|\./).pop()); }
+    const shown = (Array.isArray(messages) ? messages : []).map((m) => {
+      if (!m) return '';
+      if (m.role === 'tool') return String(m.content || '');
+      if (m.role === 'user') return isAppNote(m.content) ? '' : String(m.content || '');
+      if (m.role === 'assistant' && Array.isArray(m.tool_calls)) return JSON.stringify(m.tool_calls);
+      return '';
+    }).join('\n');
+    const out = [];
+    for (const name of named) {
+      const key = name.split('.').pop();
+      if (out.includes(name) || OWN_NAMES.has(name.split('.')[0]) || key.length < 3 || mapped.has(name) || mapped.has(key)) continue;
+      if (new RegExp(`(^|[^\\w$])${escapeRe(key)}(?![\\w$])`).test(shown)) continue;
+      out.push(name);
+      if (out.length === MOST_UNSEEN) break;
+    }
+    return out;
+  }
+
+  const ticked = (names) => names.map((n) => `\`${n}\``).join(', ');
+
+  /** The note sending an answer back once for names it states that were never seen, or null. */
+  function unseenNote(reply, messages, { size = 'full', light = false, map = null, sentBack = 0 } = {}) {
+    if (sentBack || size === 'small' || light) return null;
+    const names = unseenNames(reply, messages, map);
+    if (!names.length) return null;
+    return {
+      kind: 'unseen',
+      step: UNSEEN_STEP,
+      message: `${APP_NOTE} these names in your answer ${UNSEEN_SAYS}: ${ticked(names)}. Nothing in an answer may be made up: find each with uses_of or grep_code and answer from what the files say, or take it out. If one is new, say that it is new.`,
+    };
+  }
+
+  /** What the person is told under an answer that still names code never seen, or ''. */
+  function unseenLine(reply, messages, { size = 'full', light = false, map = null } = {}) {
+    if (size === 'small' || light) return '';
+    const names = unseenNames(reply, messages, map);
+    return names.length ? `Not seen in the project or in what the run read: ${ticked(names)}.` : '';
+  }
+
   /**
    * What sends the agent back when it tries to finish, or null, in this
    * order: a change written into the reply and not made, or on a small or
@@ -1196,7 +1276,7 @@
     return true;
   }
 
-  window.HCCodeVerify = {
+  window.HCCodeVerify = { unseenNames, unseenNote, unseenLine, MOST_UNSEEN,
     commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofParts, proofLine, isAppNote, APP_NOTE,
     exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, WRAP_STEP, OTHER_STEP, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
     askAgainAfterNote, aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,

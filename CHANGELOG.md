@@ -30,6 +30,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **An answer that names code nobody saw is sent back.** A function or
+  class an answer states as code, in backticks or followed by "(", that is
+  in neither the project map nor anything the run read, the person wrote
+  or the run itself wrote, sends the answer back once to find it or take it
+  out; if it is still there when the run finishes, the receipt names it.
+  Code blocks, plain words, a name only proposed, and the languages' own
+  names are left alone. Small models and light mode are not asked.
 - **HashCoder can ask who uses a name.** A new tool, `uses_of`, answers
   in one call where a function, class or other name is defined, with its
   parameters, and every place in the project that uses it, by file and

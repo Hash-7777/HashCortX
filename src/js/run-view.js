@@ -171,7 +171,7 @@
    * plus, minus, controls }. `p`: marks (askMarks), changes [{ added,
    * removed, state pending|accepted|rejected }], files (the paths the run
    * changed), proof (verify.js proofParts), and the app's lines facts, gone,
-   * outside, claim, said, passed, left, and stopped: why a run that did not finish stopped.
+   * outside, claim, said, passed, unseen (names stated as code never seen), left, and stopped: why a run that did not finish stopped.
    */
   function receipt(p = {}) {
     const rows = [];
@@ -200,7 +200,7 @@
     look('facts', 'Not confirmed', p.facts);
     look('keep', 'Taken out', p.gone);
     look('outside', 'Other sites', p.outside);
-    look('claims', 'Not from a run', [p.claim, p.said, p.passed].filter(Boolean).join(' '));
+    look('claims', 'Not from a run', [p.claim, p.said, p.passed, p.unseen].filter(Boolean).join(' '));
     look('plan', 'Left', p.left);
     return rows;
   }

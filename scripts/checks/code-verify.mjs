@@ -116,6 +116,39 @@ console.log('\nThe project\'s own checks on Windows:');
   ok('HashCoder hands over the system and the programs found when it reads the project\'s checks', /readProjectChecks\(root, io, \{ os: sharedState\.platform\?\.os, found: sharedState\.hostTools \}\)/.test(src('modes', 'code', 'mode.js')));
 }
 
+console.log('\nNames an answer states as code that were never seen:');
+{
+  const run = [
+    { role: 'user', content: 'Why does the booking total come out wrong?' },
+    { role: 'assistant', content: '', tool_calls: [{ id: 'a', name: 'grep_code', arguments: { dir: '.', pattern: 'bookingTotal' } }] },
+    { role: 'tool', tool_call_id: 'a', content: 'grep_code "bookingTotal": 2 lines.\nsrc/booking.js\n  12: export function bookingTotal(nights, rate) {\n  30: return roundCents(sum);' },
+  ];
+  const map = [{ path: 'src/money.js', symbols: [{ name: 'roundCents', kind: 'fn' }, { name: 'Ledger.post', kind: 'fn' }] }];
+  const said = 'The total comes from `bookingTotal()`, which calls `applySeasonalMarkup()` and then `roundCents`. The `TaxTable.lookup` call adds the tax. It uses `Math.round` and `JSON.parse`.';
+  const names = V.unseenNames(said, run, map);
+  ok('a name written as code that no result, no map entry and no request held is unseen', JSON.stringify(names) === JSON.stringify(['applySeasonalMarkup', 'TaxTable.lookup']), JSON.stringify(names));
+  ok('a name a result showed, one in the map, and the language\'s own are not', !names.includes('bookingTotal') && !names.includes('roundCents') && !names.some((n) => /^(Math|JSON)\./.test(n)));
+  const note = V.unseenNote(said, run, { size: 'mid', map });
+  ok('a mid-sized model is sent back once, the names listed, to find each or take it out', note && note.kind === 'unseen' && note.message.startsWith(V.APP_NOTE) && /these names in your answer were not seen in the project: `applySeasonalMarkup`, `TaxTable\.lookup`\./.test(note.message) && /uses_of or grep_code/.test(note.message) && /If one is new, say that it is new\./.test(note.message), note && note.message);
+  ok('a small model is not', V.unseenNote(said, run, { size: 'small', map }) === null);
+  ok('a saved conversation shows it as the step it was', V.noteStep(note.message) === 'Sent back for names not seen in the project');
+  ok('what is still unseen when it finishes is said under the answer', V.unseenLine(said, run, { size: 'full', map }) === 'Not seen in the project or in what the run read: `applySeasonalMarkup`, `TaxTable.lookup`.' && V.unseenLine(said, run, { size: 'small', map }) === '');
+  const back = [...run, { role: 'user', content: note.message }];
+  ok('the app\'s own note naming them does not count as having seen them', JSON.stringify(V.unseenNames(said, back, map)) === JSON.stringify(['applySeasonalMarkup', 'TaxTable.lookup']));
+  const wrote = [...run, { role: 'assistant', content: '', tool_calls: [{ id: 'w', name: 'patch_file', arguments: { path: 'src/booking.js', search: 'x', replace: 'function applySeasonalMarkup(total) {' } }] }];
+  ok('a name the run wrote itself is seen', !V.unseenNames(said, wrote, map).includes('applySeasonalMarkup'));
+  ok('a name the person wrote is seen', !V.unseenNames(said, [{ role: 'user', content: 'Look at TaxTable.lookup please' }, ...run], map).includes('TaxTable.lookup'));
+  ok('a name proposed, not stated, is not taken for one claimed', V.unseenNames('You could add a `formatPrice()` helper. Consider a new `RateCache` class.', run, map).length === 0);
+  ok('a name inside a code block is the code\'s, not a claim', V.unseenNames('Here:\n```js\nconst x = madeUpThing();\n```\nDone.', run, map).length === 0);
+  ok('a plain word in backticks is not a name', V.unseenNames('Run `npm test` and check `index`.', run, map).length === 0);
+  ok('a name followed by ( in plain words counts too', JSON.stringify(V.unseenNames('It is computed in calcGuestFee(nights) for each stay.', run, map)) === JSON.stringify(['calcGuestFee']));
+  ok('light mode, which has no tool to look a name up, is not asked either', V.unseenNote(said, run, { size: 'mid', light: true, map }) === null && V.unseenLine(said, run, { size: 'mid', light: true, map }) === '');
+  const modeSrc = src('modes', 'code', 'mode.js'), loopSrc = src('js', 'agent-loop.js');
+  ok('HashCoder asks it after the other checks of an answer\'s words, once a run, with the map of this project only', /\{ id: 'project', words: true, run: projectLook \}, \{ id: 'unseen', words: true, run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.unseenNote\(reply, messages, \{ size: sharedState\.size, light: !!sharedState\.light, map: sharedState\.codeMap\?\.root === sharedState\.projectRoot \? sharedState\.codeMap\.ranked : null, sentBack: sent\.unseen \}\)\) \}/.test(modeSrc) && /const SENT_KINDS = \[[^\]]*'unseen'/.test(src('js', 'code', 'debug-export.js')));
+  ok('and says what is still unseen under the answer and in the receipt\'s row of what did not come from a run', /const unseen = window\.HCCodeVerify\.unseenLine\?\.\(finalText, messages, \{ size: sharedState\.size, light: !!sharedState\.light, map:/.test(loopSrc) && /passedLine\(finalText, proof\), unseen, window\.HCCodePlan/.test(loopSrc) && /passed: window\.HCCodeVerify\.passedLine\(finalText, proof\), unseen, left:/.test(loopSrc) && /\[p\.claim, p\.said, p\.passed, p\.unseen\]/.test(src('js', 'run-view.js')));
+  ok(`no more than ${V.MOST_UNSEEN} are named`, V.unseenNames(Array.from({ length: 9 }, (_, i) => `It calls \`madeName${i}()\`.`).join(' '), run, map).length === V.MOST_UNSEEN);
+}
+
 console.log('\nWhen the agent is sent back:');
 {
   const passed = { code: 0, stdout: 'ok', stderr: '' };

@@ -206,7 +206,7 @@
   }
 
   /** The reasons the HashCoder loop sends a run back before it finishes, each counted (src/modes/code/mode.js). */
-  const SENT_KINDS = ['make', 'plan', 'prove', 'review', 'asks', 'fresh', 'site', 'named', 'undone', 'facts', 'light', 'rename', 'wiring', 'example', 'stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'];
+  const SENT_KINDS = ['make', 'plan', 'prove', 'review', 'asks', 'fresh', 'site', 'named', 'unseen', 'undone', 'facts', 'light', 'rename', 'wiring', 'example', 'stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'];
   /** The calls that change a file or run a command, as js/code/verify.js proofLog records them. */
   const ACTS = ['write_file', 'patch_file', 'delete_file', 'move_file', 'shell_run'];
 
