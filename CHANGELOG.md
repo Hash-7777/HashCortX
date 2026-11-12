@@ -88,8 +88,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   settles with a dot at its end. Pointing at it says what was happening
   there and lights that phase on the rail. It appears once a run has two
   phases.
-- **A phase's line no longer counts the app's check-ins as work.** Reading
-  said "6 files, 1 other read" for six files and one check-in.
+- **A phase's line no longer counts the app's check-ins as work.** A
+  check-in is a row of its phase, not a read or an edit it did.
 - **HashCoder's sign of work is a small wireframe cube.** It takes the place
   of the mesh of dots beside what the model is doing, and turns at the pace
   of it: slower while its own thinking arrives, quicker while it writes or
