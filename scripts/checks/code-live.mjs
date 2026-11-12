@@ -139,24 +139,22 @@ console.log('\nThe words reach it as they are written:');
   ok('it loads before the Coder', boot.includes("'/js/code/live.js'") && boot.indexOf("'/js/code/live.js'") < boot.indexOf("'/js/app.js'"));
 }
 
-console.log('\nThe mesh:');
+console.log('\nThe cube:');
 {
   const live = src('js', 'code', 'live.js');
   const css = src('modes', 'code', 'mode.css');
-  ok('fifteen dots, hidden from a screen reader, beside a label read out as a status', /const MESH = `<span class="cdr-marks" aria-hidden="true">\$\{'<i><\/i>'\.repeat\(15\)\}<\/span>`/.test(live) && /role="status">\$\{MESH\}/.test(live));
-  ok('five across and three down, on hairlines through their middles that do not move', /\.cdr-marks \{[^}]*grid-template-columns: repeat\(5, 3px\); grid-auto-rows: 3px; gap: 3px;/.test(css)
-    && /\.cdr-marks::before \{[^}]*inset: 1px;[^}]*repeating-linear-gradient\(to right, var\(--accent\) 0 1px, transparent 1px 6px\), repeating-linear-gradient\(to bottom, var\(--accent\) 0 1px, transparent 1px 6px\)/.test(css)
-    && !/\.cdr-marks::before \{[^}]*animation/.test(css));
-  ok('each dot knows its column, its row and its ring from the centre, and the centre is the second accent', /nth-child\(5n\+2\) \{ --c: 1; \}/.test(css) && /nth-child\(5n\) \{ --c: 4; --ring: 2; \}/.test(css) && /nth-child\(n\+11\) \{ --r: 2; \}/.test(css) && /nth-child\(8\) \{ --ring: 0; background: var\(--accent-2\); \}/.test(css));
+  const part = css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'));
+  ok('a wireframe cube of six faces, hidden from a screen reader, beside a label read out as a status', /const CUBE = `<span class="cdr-cube" aria-hidden="true"><span class="cdr-cube-space">\$\{'<i><\/i>'\.repeat\(6\)\}<\/span><\/span>`/.test(live) && /role="status">\$\{CUBE\}/.test(live));
+  ok('its faces are outlines placed in 3D, one of them in the first accent, the rest in the second', /\.cdr-cube-space \{[^}]*transform-style: preserve-3d;/.test(css) && /\.cdr-cube-space i \{[^}]*border: 1\.2px solid var\(--accent-2\);/.test(css) && /\.cdr-cube-space i:nth-child\(5\) \{ transform: rotateX\(90deg\) translateZ\(5px\); border-color: var\(--accent\); \}/.test(css) && [1, 2, 3, 4, 6].every((n) => new RegExp(`\\.cdr-cube-space i:nth-child\\(${n}\\) \\{ transform: `).test(css)));
   ok('the clock, which changes every second, is not read out', /class="cdr-live-time" aria-hidden="true"/.test(live));
-  ok('a movement for each thing it can be doing', ['reasoning', 'reading', 'writing', 'choosing', 'checking'].every((p) => new RegExp(`\\.cdr-live\\[data-phase="${p}"\\]`).test(css)));
-  const frames = [...css.matchAll(/@keyframes (cdr-(?:wave|sweep|gather|ring)) \{((?:[^{}]|\{[^{}]*\})*)\}/g)];
-  ok('a wave, a sweep, a gathering and rings: the keyframes of the mesh', frames.length === 4, frames.map((f) => f[1]).join());
-  ok('which change transform and opacity and nothing else, so the page does no layout or paint for them', frames.every(([, , body]) => [...body.matchAll(/([a-z-]+)\s*:/g)].every((m) => ['opacity', 'transform'].includes(m[1]))));
-  ok('only the dots animate, timed from where each one is', (css.match(/\.cdr-marks i[^{]*\{[^}]*animation/g) || []).length >= 5 && /animation-delay: calc\(\(var\(--c\) \+ var\(--r\)\) \* 0\.12s\)/.test(css) && /animation-delay: calc\(var\(--ring\) \* 0\.16s\)/.test(css) && !/filter:|box-shadow:[^;}]*;[^}]*animation/.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
-  ok('they stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
-  ok('it reports state, so it is not one of the decorations that rest', !/cdr-live|cdr-marks/.test(src('js', 'power.js')) && !/cdr-live|cdr-marks/.test(src('css', 'base.css')));
-  ok('and uses no colour of its own but the theme\'s', !/#[0-9a-f]{3,8}\b|rgba?\(/i.test(css.slice(css.indexOf('.cdr-live {'), css.indexOf('.cdr-live-text {'))));
+  ok('it turns at a pace for each thing it can be doing', ['reasoning', 'reading', 'writing', 'choosing', 'checking'].every((p) => new RegExp(`\\.cdr-live\\[data-phase="${p}"\\] \\.cdr-cube-space \\{ animation-duration: [0-9.]+s; \\}`).test(css)));
+  const frames = [...css.matchAll(/@keyframes (cdr-tumble) \{((?:[^{}]|\{[^{}]*\})*)\}/g)];
+  ok('one turn, which changes transform and nothing else, so the page does no layout or paint for it', frames.length === 1 && frames.every(([, , body]) => [...body.matchAll(/([a-z-]+)\s*:/g)].every((m) => m[1] === 'transform')), frames.map((f) => f[1]).join());
+  ok('only the cube turns: its faces stand still on it, and nothing is blurred, glowing or shadowed', (part.match(/animation:/g) || []).length === 1 && /\.cdr-cube-space \{[^}]*animation: cdr-tumble 6s linear infinite;/.test(part) && !/filter:|box-shadow:|text-shadow:/.test(part));
+  ok('it stands still, at an angle that shows it is a cube, for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-cube-space \{ animation: none; \}/.test(css) && /\.cdr-cube-space \{[^}]*transform: rotateX\(-28deg\) rotateY\(38deg\);/.test(css));
+  ok('the dot mesh it took the place of is gone', !/cdr-marks|MESH/.test(live + css));
+  ok('it reports state, so it is not one of the decorations that rest', !/cdr-live|cdr-cube/.test(src('js', 'power.js')) && !/cdr-live|cdr-cube/.test(src('css', 'base.css')));
+  ok('and uses no colour of its own but the theme\'s', !/#[0-9a-f]{3,8}\b|rgba?\(/i.test(part));
 }
 
 console.log('\nThe line never outlives its run:');

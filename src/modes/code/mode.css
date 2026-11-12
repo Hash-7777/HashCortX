@@ -316,39 +316,30 @@ body.coder-mode #app { display: none; }
 
 /* Working… */
 /* The live line while the model works (js/code/live.js): what it is doing,
-   for how long, and its words as they arrive. A small mesh of dots, five
-   across and three down on faint hairlines, its centre in the second accent,
-   moves the way of what is going on (data-phase) beside the words that say
-   it. Each dot knows its column (--c), row (--r) and ring from the centre
-   (--ring), and a phase times its dots from those. They move by transform
-   and opacity alone, the hairlines stand still, and it reports state, so it
-   does not rest with the decorations. */
+   for how long, and its words as they arrive. A small wireframe cube, six
+   outlined faces placed in 3D, turns at the pace of what is going on
+   (data-phase) beside the words that say it. Only the cube turns, by
+   transform alone, and it reports state, so it does not rest with the
+   decorations. */
 .cdr-live { padding: 4px 0 2px; }
 .cdr-live-status { display: inline-flex; align-items: center; gap: 10px; color: var(--cdr-text-muted); font: 500 12px/1.3 var(--mono); }
-.cdr-marks { position: relative; display: inline-grid; grid-template-columns: repeat(5, 3px); grid-auto-rows: 3px; gap: 3px; flex: none; }
-.cdr-marks::before { content: ""; position: absolute; inset: 1px; opacity: 0.16; pointer-events: none;
-  background: repeating-linear-gradient(to right, var(--accent) 0 1px, transparent 1px 6px), repeating-linear-gradient(to bottom, var(--accent) 0 1px, transparent 1px 6px); }
-.cdr-marks i { --c: 0; --r: 0; --ring: 1; position: relative; display: block; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); opacity: 0.2; transform: scale(0.6);
-  animation: cdr-wave 1.8s ease-in-out infinite; animation-delay: calc((var(--c) + var(--r)) * 0.12s); }
-.cdr-marks i:nth-child(5n+2) { --c: 1; }
-.cdr-marks i:nth-child(5n+3) { --c: 2; }
-.cdr-marks i:nth-child(5n+4) { --c: 3; }
-.cdr-marks i:nth-child(5n) { --c: 4; --ring: 2; }
-.cdr-marks i:nth-child(5n+1) { --ring: 2; }
-.cdr-marks i:nth-child(n+6) { --r: 1; }
-.cdr-marks i:nth-child(n+11) { --r: 2; }
-.cdr-marks i:nth-child(8) { --ring: 0; background: var(--accent-2); }
-.cdr-live[data-phase="reasoning"] .cdr-marks i { animation-duration: 2.6s; animation-delay: calc((var(--c) + var(--r)) * 0.18s); }
-.cdr-live[data-phase="reading"] .cdr-marks i { animation-name: cdr-sweep; animation-duration: 1.2s; animation-delay: calc(var(--c) * 0.1s); }
-.cdr-live[data-phase="writing"] .cdr-marks i { animation-duration: 0.9s; animation-delay: calc((var(--c) + var(--r)) * 0.06s); }
-.cdr-live[data-phase="choosing"] .cdr-marks i { animation-name: cdr-gather; animation-duration: 1.4s; animation-delay: 0s; }
-.cdr-live[data-phase="checking"] .cdr-marks i { animation-name: cdr-ring; animation-duration: 1.3s; animation-delay: calc(var(--ring) * 0.16s); }
+.cdr-cube { display: inline-grid; place-items: center; width: 18px; height: 18px; perspective: 60px; flex: none; }
+.cdr-cube-space { position: relative; width: 10px; height: 10px; transform-style: preserve-3d; transform: rotateX(-28deg) rotateY(38deg); animation: cdr-tumble 6s linear infinite; }
+.cdr-cube-space i { position: absolute; inset: 0; border: 1.2px solid var(--accent-2); }
+.cdr-cube-space i:nth-child(1) { transform: translateZ(5px); }
+.cdr-cube-space i:nth-child(2) { transform: rotateY(180deg) translateZ(5px); }
+.cdr-cube-space i:nth-child(3) { transform: rotateY(90deg) translateZ(5px); }
+.cdr-cube-space i:nth-child(4) { transform: rotateY(-90deg) translateZ(5px); }
+.cdr-cube-space i:nth-child(5) { transform: rotateX(90deg) translateZ(5px); border-color: var(--accent); }
+.cdr-cube-space i:nth-child(6) { transform: rotateX(-90deg) translateZ(5px); }
+.cdr-live[data-phase="reasoning"] .cdr-cube-space { animation-duration: 9s; }
+.cdr-live[data-phase="reading"] .cdr-cube-space { animation-duration: 4.5s; }
+.cdr-live[data-phase="writing"] .cdr-cube-space { animation-duration: 2.8s; }
+.cdr-live[data-phase="choosing"] .cdr-cube-space { animation-duration: 5s; }
+.cdr-live[data-phase="checking"] .cdr-cube-space { animation-duration: 3.4s; }
 .cdr-live-label { color: var(--cdr-text); }
 .cdr-live-time { font-variant-numeric: tabular-nums; }
-@keyframes cdr-wave { 0%, 100% { opacity: 0.2; transform: scale(0.6); } 45% { opacity: 1; transform: translateY(-1px) scale(1.2); } }
-@keyframes cdr-sweep { 0%, 60%, 100% { opacity: 0.15; transform: scale(0.6); } 20% { opacity: 1; transform: scale(1.3); } }
-@keyframes cdr-gather { 0%, 100% { opacity: 0.3; transform: scale(0.7); } 50% { opacity: 1; transform: translate(calc((2 - var(--c)) * 1.5px), calc((1 - var(--r)) * 1.5px)) scale(1.1); } }
-@keyframes cdr-ring { 0%, 55%, 100% { opacity: 0.2; transform: scale(0.6); } 18% { opacity: 1; transform: scale(1.35); } }
+@keyframes cdr-tumble { from { transform: rotateX(-28deg) rotateY(38deg); } to { transform: rotateX(332deg) rotateY(398deg); } }
 .cdr-live-text { margin-top: 6px; }
 /* What the model said before a step, kept in the reply where it said it. */
 .cdr-said { margin: 6px 0; }
@@ -714,7 +705,6 @@ body.coder-mode #app { display: none; }
   .cdr-messages, .cdr-composer { padding-left: 14px; padding-right: 14px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .cdr-status-dot, .cdr-marks i, .cdr-live[data-phase] .cdr-marks i { animation: none; }
-  .cdr-marks i { opacity: 0.55; transform: scale(0.9); }
-  .cdr-marks i:nth-child(8) { opacity: 1; }
+  .cdr-cube-space { animation: none; }
+  .cdr-status-dot { animation: none; }
 }

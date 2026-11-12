@@ -46,10 +46,10 @@ ok('its changes are gathered under the answer, so folding never hides Keep and U
 
 const live = src('js', 'code', 'live.js');
 console.log('\nThe one sign of work:');
-ok('the live line is a small mesh of dots and its label, read out as a status', /class="cdr-live-status" role="status">\$\{MESH\}/.test(live) && /const MESH = `<span class="cdr-marks" aria-hidden="true">/.test(live));
+ok('the live line is a small turning cube and its label, read out as a status', /class="cdr-live-status" role="status">\$\{CUBE\}/.test(live) && /const CUBE = `<span class="cdr-cube" aria-hidden="true">/.test(live));
 const css = src('modes', 'code', 'mode.css');
-ok('the marks move, in a way for each thing the model can be doing', /\.cdr-marks i \{[^}]*animation: cdr-wave/.test(css) && /\.cdr-live\[data-phase="writing"\] \.cdr-marks i/.test(css));
-ok('...and stand still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-marks i, \.cdr-live\[data-phase\] \.cdr-marks i \{ animation: none; \}/.test(css));
+ok('the cube turns, at a pace for each thing the model can be doing', /\.cdr-cube-space \{[^}]*animation: cdr-tumble/.test(css) && /\.cdr-live\[data-phase="writing"\] \.cdr-cube-space/.test(css));
+ok('...and stands still for someone who asked for less motion', /prefers-reduced-motion: reduce\) \{[^}]*\.cdr-cube-space \{ animation: none; \}/.test(css));
 ok('the dot beside the status in the bar stays still', /\.cdr-status-dot\.thinking, \.cdr-status-dot\.run, \.cdr-status-dot\.running \{ background: var\(--accent-2\); \}/.test(css) && !/cdr-pulse/.test(css) && !/cdr-live-dot/.test(live + css));   // the bar's dot never pulses
 ok('a folded list is hidden, and a step in a list is a short line', /\.cdr-steps\.done:not\(\.open\) \.cdr-steps-list \{ display: none; \}/.test(css) && /\.cdr-steps-list \.cdr-step-head \{[^}]*min-height: 28px/.test(css));
 ok('copy, reply and regen wait for the answer', /\.cdr-msg\.running \.cdr-msg-actions \{ display: none; \}/.test(css));

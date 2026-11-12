@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder's sign of work is a small wireframe cube.** It takes the place
+  of the mesh of dots beside what the model is doing, and turns at the pace
+  of it: slower while its own thinking arrives, quicker while it writes or
+  checks. It turns by transform alone and stands still for someone who asks
+  for less motion.
 - **HashCoder can show what a run will do before it starts.** For a
   request of three asks or more, or a project too large to show whole, a
   card at the top of the reply lists your asks, the files the app found,

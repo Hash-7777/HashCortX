@@ -12,18 +12,17 @@
 // words for the person, wherever in the reply it starts: a model that says a
 // sentence and then writes its call as text had the call drawn as one long
 // line of code under the sentence (wordsOf). It is the one sign of work in the panel: a small
-// mesh of dots, five across and three down on faint hairlines, its centre
-// in the second accent, that moves the way of what is going on (a wave
-// crossing it for thinking, slower while the model's own thinking arrives,
-// a light sweeping along for reading, quicker for writing, drawn to the
-// centre for choosing, rings from the centre for checking) beside the words
-// that say it. The clock beside it counts from the moment the request was
-// sent, not from the step, so it says how long the whole request has taken.
+// wireframe cube, six outlined faces in 3D, that turns at the pace of what is
+// going on (slower while the model's own thinking arrives, quicker for
+// writing and checking) beside the words that say it. The clock beside it
+// counts from the moment the request was sent, not from the step, so it says
+// how long the whole request has taken.
 //
 // It reports state, so it is not one of the decorations that rest after a
-// minute without a mouse (js/power.js). It moves by transform and opacity
-// alone, on fifteen dots, and stands still for someone who asked for less
-// motion.
+// minute without a mouse (js/power.js). It turns by transform alone, on six
+// tiny elements: no canvas, no blur, glow or shadow, no script per frame. It
+// stands still, at an angle that shows it is a cube, for someone who asked
+// for less motion.
 //
 // When the turn ends the caller decides what stays: the words the model said
 // before a step stay in the reply as a line of their own, and everything else
@@ -174,8 +173,8 @@
   /** How often, at most, the words of an answer being written are drawn again. */
   const DRAW_EVERY = 90;
 
-  /** The mesh: fifteen dots, five across and three down; the stylesheet places and moves them. */
-  const MESH = `<span class="cdr-marks" aria-hidden="true">${'<i></i>'.repeat(15)}</span>`;
+  /** The cube: six faces; the stylesheet places them in 3D and turns it. */
+  const CUBE = `<span class="cdr-cube" aria-hidden="true"><span class="cdr-cube-space">${'<i></i>'.repeat(6)}</span></span>`;
 
   /**
    * Start the line in `container`. `render(text)` gives the HTML for words,
@@ -187,7 +186,7 @@
     const began = Number.isFinite(since) && since > 0 && since <= Date.now() ? since : Date.now();
     const el = document.createElement('div');
     el.className = 'cdr-live';
-    el.innerHTML = `<div class="cdr-live-status" role="status">${MESH}` +
+    el.innerHTML = `<div class="cdr-live-status" role="status">${CUBE}` +
       `<span class="cdr-live-label"></span><span class="cdr-live-time" aria-hidden="true">${elapsed(Date.now() - began)}</span></div>` +
       '<div class="cdr-live-text cdr-msg-text" hidden></div>';
     container.appendChild(el);
