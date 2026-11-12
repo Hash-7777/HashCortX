@@ -24,6 +24,7 @@ pub struct DirEntry {
     path:     String,
     is_dir:   bool,
     size:     u64,
+    modified: u64,
 }
 
 /// The gate for anything an agent's tools reach.
@@ -564,7 +565,15 @@ pub fn fs_list_dir(path: String) -> Result<Vec<DirEntry>, String> {
         let size    = if is_dir { 0 } else { meta.len() };
         let name    = entry.file_name().to_string_lossy().into_owned();
         let path_s  = entry.path().to_string_lossy().into_owned();
-        out.push(DirEntry { name, path: path_s, is_dir, size });
+        // When it last changed, in milliseconds since 1970, or 0 where the
+        // system cannot say: the project map reads again only what changed.
+        let modified = meta
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        out.push(DirEntry { name, path: path_s, is_dir, size, modified });
     }
     out.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then(a.name.cmp(&b.name)));
     Ok(out)
@@ -1542,6 +1551,18 @@ mod containment_tests {
         fs_write_file(fresh.to_string_lossy().into_owned(), "made\n".into(), None).unwrap();
         assert_eq!(fs::read_to_string(&fresh).unwrap(), "made\n");
         assert!(leftovers(&dir).is_empty(), "left behind: {:?}", leftovers(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_listing_says_when_each_file_last_changed() {
+        let (dir, _turn) = scratch("list-modified");
+        fs::write(dir.join("a.txt"), "a\n").unwrap();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        let listed = fs_list_dir(dir.to_string_lossy().into_owned()).unwrap();
+        let entry = serde_json::to_value(&listed[0]).unwrap();
+        let modified = entry["modified"].as_u64().unwrap_or(0);
+        assert!(modified > now.saturating_sub(120_000) && modified <= now + 120_000, "{entry}");
         let _ = fs::remove_dir_all(&dir);
     }
 

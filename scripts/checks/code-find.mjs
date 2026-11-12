@@ -226,6 +226,12 @@ console.log('\nThe reads it is given, which never ask:');
   ok('a find by name gives paths from the project folder', JSON.parse(name).files[0].path === 'server/rooms.py', name);
   ok('anything outside the project is refused in words, and no tool that changes anything runs', /Only the open project's files are read here/.test(outside) && /not one of the tools that only read/.test(changes));
   ok('no question was put to the person for any of it', questions === 0);
+  const timed = HC.invoke, askedSoFar = questions;
+  HC.invoke = async (cmd, a) => (cmd === 'fs_list_dir' ? [{ name: 'app.py', path: `${root}/app.py`, is_dir: false, size: 40, modified: 1700000000000 }] : timed(cmd, a));
+  const shownToModel = await HC.code.listDir(root), quietly = await HC.code.listQuietly(root);
+  ok('the model\'s listing leaves out when each file last changed, which only the map uses', !('modified' in shownToModel[0]) && shownToModel[0].size === 40 && quietly[0].modified === 1700000000000, JSON.stringify(shownToModel));
+  HC.invoke = timed;
+  questions = askedSoFar;   // list_dir is the model's own tool and asks as it always did
   ok('the app\'s searches across the project never ask either', Array.isArray(await HC.code.namesQuietly('rooms')) && Array.isArray(await HC.code.linesQuietly('rate')) && questions === 0 && await HC.code.existsQuietly('server/rooms.py') === true);
 }
 

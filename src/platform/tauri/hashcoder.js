@@ -128,7 +128,9 @@
     async listDir(path) {
       const ok = await HC.guard.request('list', path, 'Listing directory');
       if (!ok) throw await HC.code.refused('list', path);
-      return HC.invoke('fs_list_dir', { path });
+      // When each file last changed is for the project map (js/code/codemap.js), not for the model.
+      const entries = await HC.invoke('fs_list_dir', { path });
+      return Array.isArray(entries) ? entries.map(({ modified, ...entry }) => entry) : entries;
     },
 
     /** A folder's entries for the app's own reading (js/code/codemap.js), where no question is needed; anywhere else it is left out, unasked. */
