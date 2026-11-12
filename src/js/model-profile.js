@@ -113,5 +113,24 @@
     });
   }
 
-  window.HCModelProfile = { UNKNOWN, ROWS, of };
+  // ── Each model's recommended temperature, by the person's choice ───────
+  //
+  // HashCoder's temperature slider always holds a value, so a family's own
+  // value would never be used. Switched on in Settings → HashCoder, a model
+  // whose maker recommends one is sent it in place of the slider's; off to
+  // begin with, so nothing changes until the person chooses.
+
+  const FAMILY_TEMP_KEY = 'hc_family_temperature';
+  const storeOf = (s) => { if (s) return s; try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } };
+
+  /** Whether each model's recommended temperature is used in place of the slider's. */
+  function familyTemperature(s) {
+    try { const st = storeOf(s); return !!st && st.getItem(FAMILY_TEMP_KEY) === 'on'; } catch { return false; }
+  }
+  /** Switch it on or off. */
+  function setFamilyTemperature(on, s) {
+    try { const st = storeOf(s); if (!st) return; if (on) st.setItem(FAMILY_TEMP_KEY, 'on'); else st.removeItem(FAMILY_TEMP_KEY); } catch { /* left as it was */ }
+  }
+
+  window.HCModelProfile = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature };
 })();

@@ -510,6 +510,12 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
       </div>
       <div class="field">
         <label class="check-row">
+          <input type="checkbox" id="cdrSetFamilyTemp" class="check-box" />
+          <span><b>Use each model's recommended temperature</b> <span class="field-note">A model whose maker recommends a temperature is sent that one in place of the slider's. Every other model follows the slider.</span></span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="check-row">
           <input type="checkbox" id="cdrSetKeepKeys" class="check-box" checked />
           <span><b>Keep key-shaped text from cloud models</b> <span class="field-note">What a file, a command or a page gives back that looks like a key is replaced before it is sent to a model off this computer. It goes by the shapes providers give their keys: a secret with no known shape is not caught.</span></span>
         </label>

@@ -93,6 +93,22 @@ console.log('\nEvery profile is whole:');
   ok('a profile handed out cannot change the table', (() => { const p = of('qwen3:8b', thinkingCaps); p.sampling.temperature = 9; return of('qwen3:8b', thinkingCaps).sampling.temperature === 0.6; })());
 }
 
+console.log('\nEach model\'s recommended temperature, by the person\'s choice:');
+{
+  const store = new Map();
+  const box = { getItem: (x) => (store.has(x) ? store.get(x) : null), setItem: (x, v) => store.set(x, String(v)), removeItem: (x) => store.delete(x) };
+  ok('off until it is switched on', M.familyTemperature(box) === false);
+  M.setFamilyTemperature(true, box);
+  ok('...on, it is on', M.familyTemperature(box) === true);
+  M.setFamilyTemperature(false, box);
+  ok('...and off again', M.familyTemperature(box) === false);
+  ok('a store that cannot be read leaves it off', M.familyTemperature({ getItem: () => { throw new Error('x'); } }) === false);
+  const panel = src('core', 'settings', 'panel.html');
+  const pane = (() => { try { return src('core', 'settings', 'model-temperature.js'); } catch { return ''; } })();
+  ok('Settings, HashCoder has the switch, off to begin with', /<input type="checkbox" id="cdrSetFamilyTemp" class="check-box" \/>/.test(panel) && /Use each model's recommended temperature/.test(panel));
+  ok('...which reads and writes it here, loaded with the other settings panes', /box\.checked = M\(\)\.familyTemperature\(\)/.test(pane) && /M\(\)\.setFamilyTemperature\(box\.checked\)/.test(pane) && src('boot.js').indexOf("'/core/settings/model-temperature.js'") > src('boot.js').indexOf("'/js/model-profile.js'"));
+}
+
 console.log('\nThe module:');
 {
   const boot = src('boot.js');

@@ -1319,7 +1319,9 @@ ${MEMORY_SECTION}REASONING:
     const p = typeof profile === 'string' ? window.HCModelProfile?.of?.(profile) : profile;
     const s = p && p.sampling;
     if (s && s.send === false) return null;
-    if (Number.isFinite(chosen)) return Math.min(Math.max(chosen, 0), ceiling);
+    // With each model's recommended temperature switched on in Settings, a family that has one is not held to the slider.
+    const ownValue = !!s && (s.own || Number.isFinite(s.temperature)) && !!window.HCModelProfile?.familyTemperature?.();
+    if (Number.isFinite(chosen) && !ownValue) return Math.min(Math.max(chosen, 0), ceiling);
     if (s && s.own && HC.code.OWN_SETTINGS) return null;
     if (s && !s.own && Number.isFinite(s.temperature)) return s.temperature;
     return Math.min(0.15, ceiling);

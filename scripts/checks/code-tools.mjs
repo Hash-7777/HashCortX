@@ -146,6 +146,14 @@ console.log('\nThe temperature the agent loop asks for:');
   HC.code.OWN_SETTINGS = true;
   ok('...and then is sent none, so its packaged settings apply', T('full', undefined, P.of('qwen3:8b', { caps: ['thinking'] })) === null && T('full', 0.2, 'qwen3:8b') === 0.2);
   HC.code.OWN_SETTINGS = false;
+  const store = new Map();
+  sandbox.window.localStorage = { getItem: (x) => (store.has(x) ? store.get(x) : null), setItem: (x, v) => store.set(x, String(v)), removeItem: (x) => store.delete(x) };
+  sandbox.localStorage = sandbox.window.localStorage;   // the page's global and window are one object in the app
+  P.setFamilyTemperature(true, sandbox.window.localStorage);
+  ok('with each model\'s recommended temperature switched on, a family that has one is sent it in place of the slider\'s', T('full', 0.3, 'cloud:gemini:gemini-3-pro-preview') === 1 && T('mid', 0.2, P.of('qwen3:8b', { caps: ['thinking'] })) === 0.15);
+  ok('...a model with none still follows the slider, and one that refuses it is still sent none', T('full', 0.3, 'cloud:groq:some-new-model') === 0.3 && T('full', 0.3, 'cloud:openai:gpt-5') === null);
+  P.setFamilyTemperature(false, sandbox.window.localStorage);
+  ok('switched off, the slider wins again', T('full', 0.3, 'cloud:gemini:gemini-3-pro-preview') === 0.3);
   ok('an unknown model, or none named, is held as today', T('full', 0.3, 'cloud:groq:some-new-model') === 0.3 && T('full', 0.3) === 0.3 && T('full', undefined, null) === 0.15);
   const mode = src('modes', 'code', 'mode.js');
   ok('the agent loop asks it, with the size the run was set up for and the model in use', /const temperature = window\.HC\.code\.temperatureFor\(sharedState\.size, H\?\.selectedTemperature\?\.\(\), routing\?\.router\?\.model \|\| coderModel \|\| H\?\.selectedModel\?\.\(\)\);/.test(mode) && !/Math\.min\(H\.selectedTemperature\(\), 0\.35\)/.test(mode));

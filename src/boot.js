@@ -258,6 +258,7 @@
     '/core/settings/model-lists.js',
     '/core/settings/cloud-keys.js',
     '/core/settings/private-project.js',
+    '/core/settings/model-temperature.js',
     // Connected systems over MCP: the rules, the protocol, the connections.
     '/js/mcp/policy.js',
     '/js/mcp/client.js',
