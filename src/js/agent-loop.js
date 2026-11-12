@@ -240,8 +240,10 @@
     ui.trace('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
     const { unconfirmed, outside } = looks.left();
     const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeSite?.outsideLine(outside), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
-    if (summary) { ui.answer(summary); if (account?.role === 'assistant' && account.content === summary) account.proven = said; }   // wrapUp added the account to the conversation; a saved one shows the line under it too
-    ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
+    if (summary) ui.answer(summary);   // its account first
+    const kept = ui.receipt?.({ stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
+    if (summary && account?.role === 'assistant' && account.content === summary) { account.proven = said; if (kept) account.receipt = kept; }   // wrapUp added the account to the conversation; a saved one draws its receipt, or the line, under it too
+    if (!kept) ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
   }
 
   window.HCAgentLoop = { run };

@@ -234,6 +234,14 @@ console.log('\nThe step limit:');
   ok('...with no call left without its result at the end of the conversation', r.messages[r.messages.length - 1].role !== 'tool' && !(r.messages[r.messages.length - 1].tool_calls || []).length);
   ok('...and says why it stopped', r.scr.of('answer').some((e) => /^\*/.test(e[1])) && r.scr.of('trace').some((e) => e[1] === 'Done' && /Stopped: /.test(e[2])));
 }
+{
+  const script = (m, n, tools) => (tools.length ? turnOf(callOf('read_file', { path: `/p/f${n}.js` })) : words('I read the files and changed nothing yet.'));
+  const r = await runWith({ prefs: { prove: false }, script, receipt: true });
+  const given = r.scr.of('receipt')[0], at = r.scr.log.findIndex((e) => e[0] === 'receipt'), said = r.scr.log.findIndex((e) => e[0] === 'answer' && e[1] === 'I read the files and changed nothing yet.');
+  ok('at the step limit, its account first, then the receipt with why it stopped, and no line in italics', !!given && typeof given[1].stopped === 'string' && given[1].stopped.length > 0 && said >= 0 && said < at && !r.scr.of('answer').some((e) => /^\*/.test(e[1])), json(given && given[1]));
+  const account = r.messages.filter((m) => m.role === 'assistant' && m.content === 'I read the files and changed nothing yet.').pop();
+  ok('...kept with the account, so a saved conversation draws it again', !!account && json(account.receipt) === '[{"from":"proof","label":"Not checked"}]' && typeof account.proven === 'string');
+}
 
 console.log('\nWhere it sits:');
 {

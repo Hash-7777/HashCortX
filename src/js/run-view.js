@@ -39,7 +39,8 @@
 //
 // The receipt goes under the answer in place of the line in italics. Each
 // row is written from a record, never from the model's own account, and
-// is shown only when it has something to say: Asked (from the brief),
+// is shown only when it has something to say: Stopped (why a run that did
+// not finish stopped, first), Asked (from the brief),
 // Changed (the files the run changed and the change rows: lines added and
 // taken out, what is kept, undone and still to decide, with Keep all and
 // Undo all), Proven or Not proven, tested, checked (js/code/verify.js
@@ -170,10 +171,11 @@
    * plus, minus, controls }. `p`: marks (askMarks), changes [{ added,
    * removed, state pending|accepted|rejected }], files (the paths the run
    * changed), proof (verify.js proofParts), and the app's lines facts, gone,
-   * outside, claim, said, passed, left.
+   * outside, claim, said, passed, left, and stopped: why a run that did not finish stopped.
    */
   function receipt(p = {}) {
     const rows = [];
+    if (p.stopped) rows.push({ from: 'stop', label: 'Stopped', tone: 'attention', text: String(p.stopped) });   // a run that did not finish says why first
     const marks = Array.isArray(p.marks) ? p.marks : [];
     if (marks.length) {
       const open = marks.filter((m) => m.state !== 'answered');
@@ -208,6 +210,7 @@
 
   /** Each row's mark: a 16-unit grid, drawn on currentColor. */
   const RECEIPT_ICONS = {
+    stop: '<circle cx="8" cy="8" r="5.6"/><path d="M6.3 6.3h3.4v3.4H6.3z"/>',
     asks: '<path d="m2.4 4.4 1.2 1.2 2-2.2M7.8 4.6h5.8M2.4 10.4l1.2 1.2 2-2.2M7.8 10.6h5.8"/>',
     changes: ICONS.changing,
     proof: '<path d="M8 1.9 13 3.8v3.6c0 3-2.1 5.4-5 6.6-2.9-1.2-5-3.6-5-6.6V3.8z"/><path d="m5.8 7.9 1.6 1.6 2.9-3.1"/>',

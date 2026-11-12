@@ -30,6 +30,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A run stopped at its step limit gets the receipt too.** Under its own
+  account of what it did, the first row says why it stopped, then what the
+  records show, in place of the line in italics.
 - **Redo beside an undone change.** It puts back what the change wrote, and
   the row waits for Keep or Undo again; the copy saved first lets it be
   undone again. When the file was changed after the undo, it asks first,
