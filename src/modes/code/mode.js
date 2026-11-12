@@ -366,7 +366,7 @@
       }
 
       if (taskInput) {
-        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort(), attachments: window.HCCodeAttach && { take: () => window.HCCodeAttach.hold(), give: (list) => window.HCCodeAttach.put(list), count: () => window.HCCodeAttach.count() } });
+        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort(), kindOf: (text) => window.HCCodeAdded?.kindOf(text, { request: HC?.code?.request, plan: (HC?.code?.plan?.steps || []).map((s) => s.step), changed: (window.HCRunLedger?.from(conversationMsgs).changed || []).map((c) => c.path) }), attachments: window.HCCodeAttach && { take: () => window.HCCodeAttach.hold(), give: (list) => window.HCCodeAttach.put(list), count: () => window.HCCodeAttach.count() } });
         taskInput.addEventListener('keydown', e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startRun(); }
         });

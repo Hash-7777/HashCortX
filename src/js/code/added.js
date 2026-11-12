@@ -86,5 +86,24 @@
     return 'after';
   }
 
-  window.HCCodeAdded = { KINDS, SAYS, kindOf };
+  /**
+   * The step of the model's plan a correction is about, open again: the step
+   * in work, or with none in work the last one done, set back to todo.
+   * `{ plan, step }` with a new plan; the plan given is not changed. No plan,
+   * no step.
+   */
+  function reopen(plan) {
+    const steps = plan && Array.isArray(plan.steps) ? plan.steps : [];
+    let at = steps.findIndex((s) => s && s.status === 'doing');
+    if (at < 0) for (let i = steps.length - 1; i >= 0; i--) if (steps[i] && steps[i].status === 'done') { at = i; break; }
+    if (at < 0) return { plan: plan || null, step: null };
+    return { plan: Object.assign({}, plan, { steps: steps.map((s, i) => (i === at ? Object.assign({}, s, { status: 'todo' }) : s)) }), step: steps[at].step };
+  }
+
+  /** The app's note after a correction: what it is about, and to check the work against it before going on. */
+  function correctionNote(step) {
+    return `Note from HashCortX, not from the person: the person's message above corrects the work in hand${step ? `, on the step of your plan "${step}", which is open again` : ''}. Check what you have done against it before you go on, and change what does not hold.`;
+  }
+
+  window.HCCodeAdded = { KINDS, SAYS, kindOf, reopen, correctionNote };
 })();

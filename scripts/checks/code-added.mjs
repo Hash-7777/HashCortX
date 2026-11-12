@@ -61,10 +61,25 @@ ok('a word from a file the run changed ties a message to the work', kind('Also u
 ok('a message that asks for nothing is not a new request ("thanks", "looks good")', kind('thanks!') === 'add' && kind('looks good so far') === 'add');
 ok('nothing, or nothing known about the run, is an addition, never dropped', kind('') === 'add' && D.kindOf('Then write a README for the whole repository.', {}) === 'after' && D.kindOf('Also round the total.', null) === 'add');
 
+console.log('\nA correction opens the step in work again:');
+{
+  const plan = { steps: [{ step: 'Change bundleDiscount', status: 'done' }, { step: 'Rename priceFor', status: 'doing' }, { step: 'Add a test', status: 'todo' }] };
+  const r = D.reopen(plan);
+  ok('the step in work is the one it is about, and it is open again', r.step === 'Rename priceFor' && r.plan.steps[1].status === 'todo' && plan.steps[1].status === 'doing', JSON.stringify(r));
+  const done = D.reopen({ steps: [{ step: 'Change bundleDiscount', status: 'done' }, { step: 'Rename priceFor', status: 'done' }, { step: 'Add a test', status: 'todo' }] });
+  ok('...with none in work, the last one done', done.step === 'Rename priceFor' && done.plan.steps[1].status === 'todo');
+  ok('...with no plan, none', D.reopen(null).step === null && D.reopen({ steps: [] }).step === null);
+  const note = D.correctionNote('Rename priceFor');
+  ok('the note after it is from the app, names that step, and asks for the work to be checked against the correction', note.startsWith('Note from HashCortX, not from the person:') && /"Rename priceFor"/.test(note) && /open again/.test(note) && /check what you have done against it/i.test(note), note);
+  ok('...and without a step says the work in hand', /the work in hand/.test(D.correctionNote(null)) && !/open again/.test(D.correctionNote(null)));
+}
+
 console.log('\nWhat it is and is not:');
 ok('three kinds, each with what it means in plain words', JSON.stringify(D.KINDS) === JSON.stringify(['correct', 'add', 'after']) && D.KINDS.every((k) => typeof D.SAYS[k] === 'string' && D.SAYS[k].length > 8));
 ok('the same message and run always give the same kind', kind('Use a map instead.') === kind('Use a map instead.'));
 ok('without the asks module, a message that would be for after stays an addition: it is never held back on a guess it cannot make', bare.HCCodeAdded.kindOf('Then write a README for the whole repository.', facts) === 'add' && bare.HCCodeAdded.kindOf('Stop, wrong file.', facts) === 'correct');
+const mode = src('modes', 'code', 'mode.js');
+ok('HashCoder guesses as a message is queued, from the request, the steps of the plan and the files the run changed', /kindOf: \(text\) => window\.HCCodeAdded\?\.kindOf\(text, \{ request: HC\?\.code\?\.request, plan: \(HC\?\.code\?\.plan\?\.steps \|\| \[\]\)\.map\(\(s\) => s\.step\), changed: \(window\.HCRunLedger\?\.from\(conversationMsgs\)\.changed \|\| \[\]\)\.map\(\(c\) => c\.path\) \}\)/.test(mode));
 const boot = src('boot.js');
 ok('it is loaded after the asks module it reads, before the Coder', boot.indexOf("'/js/code/added.js'") > boot.indexOf("'/js/code/asks.js'") && boot.indexOf("'/js/code/added.js'") < boot.indexOf("'/modes/boot.js'"));
 ok('it is part of npm run check', /npm run check:code-added\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));

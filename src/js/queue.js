@@ -44,18 +44,31 @@
 (function () {
   'use strict';
 
-  /** A queue of messages: `{ add, remove, take, items, size, text }`. */
+  /**
+   * How a message sent while a run works is taken (js/code/added.js): a
+   * correction to the work in hand, more for it, or a request for after it.
+   */
+  const KINDS = ['correct', 'add', 'after'];
+
+  /** A queue of messages: `{ add, setKind, remove, take, items, size, text }`. */
   function create() {
     let items = [];
     let seq = 0;
     return {
-      /** Queue a message, with what was attached to it; '' and spaces alone, with nothing attached, are not one. Returns its id, or 0. */
-      add(text, files = []) {
+      /** Queue a message, with what was attached to it and how it is taken (`kind`, KINDS); '' and spaces alone, with nothing attached, are not one. Returns its id, or 0. */
+      add(text, files = [], kind) {
         const t = String(text == null ? '' : text).trim();
         const with_ = Array.isArray(files) ? files.filter(Boolean) : [];
         if (!t && !with_.length) return 0;
-        items.push({ id: ++seq, text: t, files: with_ });
+        items.push({ id: ++seq, text: t, files: with_, ...(KINDS.includes(kind) ? { kind } : {}) });
         return seq;
+      },
+      /** Change how a queued message is taken. Whether it was there and the kind is one of KINDS. */
+      setKind(id, kind) {
+        const m = items.find((x) => x.id === id);
+        if (!m || !KINDS.includes(kind)) return false;
+        m.kind = kind;
+        return true;
       },
       /** Take one message out, returning it, or null. */
       remove(id) {
@@ -90,7 +103,9 @@
    * just ended went, `{ stopped, failed }`; `interrupt()`, when given, makes
    * the work under way give way for the queue, and shows "Send now".
    */
-  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null, attachments = null } = {}) {
+  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null, attachments = null, kindOf = null } = {}) {
+    // `kindOf(text)`: the workspace's first guess at how a message is taken (KINDS); the person's choice changes it (setKind)
+    const guess = (text) => { try { return typeof kindOf === 'function' ? kindOf(text) : undefined; } catch { return undefined; } };
     // `attachments`: { take() the box's attachments out, give(list) put some in, count() how many it holds }
     const att = attachments && typeof attachments.take === 'function' && typeof attachments.give === 'function' ? attachments : null;
     const takeFiles = () => (att ? att.take() || [] : []);
@@ -251,21 +266,24 @@
       /** Queue what is in the box, with what is attached, and empty it. Returns whether anything was queued. */
       hold() {
         const files = takeFiles();
-        const id = q.add(input ? input.value : '', files);
+        const text = input ? input.value : '';
+        const id = q.add(text, files, guess(text));
         if (!id) { giveFiles(files); return false; }
         setBox('');
         draw();
         return true;
       },
       /** Queue a message given as text, and what is attached to it. */
-      add(text, files = []) { const id = q.add(text, files); if (id) draw(); return id; },
-      /** Every queued message, taken out as one: `{ text, count, files }`, or null when none. */
+      add(text, files = [], kind) { const id = q.add(text, files, kind === undefined ? guess(text) : kind); if (id) draw(); return id; },
+      /** Change how a queued message is taken: the person's choice wins over the guess. */
+      setKind(id, kind) { const done = q.setKind(id, kind); if (done) draw(); return done; },
+      /** Every queued message, taken out as one: `{ text, count, files, kinds }`, `kinds` how each is taken, or null when none. */
       takeNow() {
         if (!q.size) return null;
         urgent = false;
         const list = q.take();
         draw();
-        return { text: joined(list), count: list.length, files: filesOf(list) };
+        return { text: joined(list), count: list.length, files: filesOf(list), kinds: list.map((m) => m.kind || 'add') };
       },
       /**
        * The work ended. When it was stopped or failed, what is queued goes back
@@ -308,5 +326,5 @@
     };
   }
 
-  window.HCQueue = { create, joined, filesOf, forComposer };
+  window.HCQueue = { KINDS, create, joined, filesOf, forComposer };
 })();

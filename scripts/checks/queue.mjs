@@ -215,6 +215,16 @@ console.log('\nHashCoder reads it at the next step:');
   const now = c.takeNow();
   ok('every queued message, as one, with how many', now && now.text === 'also make the header blue\n\nand keep the logo' && now.count === 2 && c.size === 0);
   ok('nothing queued, nothing taken', c.takeNow() === null);
+  const g = Q.forComposer({ input: box('stop, wrong file'), when: 'Read at the next step', kindOf: (t) => (/stop/.test(t) ? 'correct' : 'add') });
+  g.hold();
+  g.add('and keep the logo');
+  ok('each message is given a kind as it is queued, by the workspace\'s guess', JSON.stringify(g.items.map((m) => m.kind)) === '["correct","add"]', JSON.stringify(g.items));
+  ok('...which the person can change', g.setKind(g.items[1].id, 'correct') === true && g.items[1].kind === 'correct' && g.setKind(999, 'add') === false && g.setKind(g.items[0].id, 'nonsense') === false);
+  const k = g.takeNow();
+  ok('taken with the kind of each, in the order written', JSON.stringify(k.kinds) === '["correct","correct"]' && k.count === 2);
+  const plain = Q.forComposer({ input: box('') });
+  plain.add('more please');
+  ok('a workspace that guesses nothing takes a message as more for the work', JSON.stringify(plain.takeNow().kinds) === '["add"]');
   const msgs = [
     { role: 'system', content: 's' },
     { role: 'user', content: 'build a page for the bakery' },
@@ -252,7 +262,7 @@ console.log('\nThe workspaces:');
   const ws = src('js', 'swarm', 'workspace.js');
   ok('the Agent Swarm: a message sent while an agent answers waits for that answer', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws) && /queue\?\.settle\(\);/.test(ws));
   ok('Send now: chat stops the reply, kept as written', /interrupt: \(\) => abort\(\), attachments: chatHeld \}\);/.test(app));
-  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), attachments: /.test(coder)
+  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), kindOf: [^\n]*attachments: /.test(coder)
     && /const step = new AbortController\(\), give = \(\) => step\.abort\(\); if \(signal\?\.aborted\) step\.abort\(\); else signal\?\.addEventListener\('abort', give\); stepAbort = step;/.test(coder)
     && /signal: step\.signal,/.test(coder) && /\.finally\(\(\) => \{ signal\?\.removeEventListener\('abort', give\); if \(stepAbort === step\) stepAbort = null; \}\);/.test(coder)
     && /\} catch \(e\) \{\n\s*if \(queue\(\)\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = ui\.wait\(\);[^\n]*continue; \}/.test(coder) && /queue: \(\) => coderQueue, conversation: \(\) => conversationMsgs/.test(coder));

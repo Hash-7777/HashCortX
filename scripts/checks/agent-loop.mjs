@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'code/asks.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -169,6 +169,21 @@ console.log('\nWhat it adds joins the checklist:');
   ok('a checklist already made grows, its asks first and numbered on', sandbox.HC.code.asks.length === before.length + 1 && before.every((x, i) => sandbox.HC.code.asks[i] === x) && /test for the totals/.test(sandbox.HC.code.asks[before.length]), JSON.stringify(sandbox.HC.code.asks));
   await runWith({ request: three, asks: before, queue: once('x'.repeat(5000)), script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done.')) });
   ok('...and never shrinks: an addition too long to split leaves the checklist as it was', JSON.stringify(sandbox.HC.code.asks) === JSON.stringify(before));
+}
+
+console.log('\nA correction sent while it works:');
+{
+  const said = (text, kinds) => { let asked = 0; return { takeNow: () => (++asked === 2 ? { text, files: [], count: 1, kinds } : null) }; };   // read at the second step, once the model has a plan
+  const plan = () => ({ steps: [{ step: 'Change bundleDiscount', status: 'done' }, { step: 'Rename priceFor', status: 'doing' }] });
+  let r = await runWith({ queue: said('No, not that function.', ['correct']), script: (m, n) => (n === 1 ? (sandbox.HC.code.plan = plan(), turnOf(callOf('read_file', { path: '/p/b.js' }))) : words('Done.')) });
+  const at = r.messages.findIndex((m) => m.added);
+  ok('it is followed by a note from the app naming the step it is about', at > 0 && r.messages[at + 1].note === true && /"Rename priceFor"/.test(r.messages[at + 1].content), JSON.stringify(r.messages.slice(at, at + 2)));
+  ok('...that step is open again', sandbox.HC.code.plan.steps[1].status === 'todo');
+  ok('...and the model reads both at its next step, the correction last of the person\'s words', r.sent[1].msgs.some((m) => m.note && /"Rename priceFor"/.test(m.content)));
+  r = await runWith({ queue: said('Also keep the old export.', ['add']), script: (m, n) => (n === 1 ? (sandbox.HC.code.plan = plan(), turnOf(callOf('read_file', { path: '/p/b.js' }))) : words('Done.')) });
+  ok('more for the work is read as it is, no note, the step left as it was', !r.messages.some((m) => m.note) && sandbox.HC.code.plan.steps[1].status === 'doing');
+  r = await runWith({ queue: said('Undo that.', undefined), script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done.')) });
+  ok('a queue that gives no kinds is read as more for the work', !r.messages.some((m) => m.note));
 }
 
 console.log('\nA step cut off at its limit:');
