@@ -87,6 +87,11 @@ pub struct Checkpoint {
     /// first. `None` on a record saved before this existed.
     #[serde(default)]
     pub after: Option<String>,
+    /// "utf-16le" or "utf-16be" when the file was UTF-16, so a restore writes
+    /// it back that way even where the file is no longer there. `None` for
+    /// UTF-8, and on a record saved before this existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encoding: Option<String>,
 }
 
 fn checkpoint_dir() -> PathBuf {
@@ -139,11 +144,16 @@ fn capture(path: &str) -> (Option<String>, bool, Option<String>) {
         return (None, true, Some("the file is too large to keep a copy of".into()));
     }
     match fs::read(path) {
-        // Only valid UTF-8 is kept. Writing back a lossy conversion of a binary
-        // file would corrupt it, and a corrupted restore is worse than none.
+        // Only valid UTF-8, or UTF-16 that starts with its mark, is kept.
+        // Writing back a lossy conversion of a binary file would corrupt it,
+        // and a corrupted restore is worse than none. checkpoint_save names a
+        // UTF-16 file's encoding, so Undo writes it back the same way.
         Ok(bytes) => match String::from_utf8(bytes) {
             Ok(text) => (Some(text), true, None),
-            Err(_) => (None, true, Some("the file is not text".into())),
+            Err(e) => match crate::commands::fs::utf16_text(e.as_bytes()) {
+                Some(text) => (Some(text), true, None),
+                None => (None, true, Some("the file is not text".into())),
+            },
         },
         Err(e) => (None, true, Some(format!("the file could not be read: {e}"))),
     }
@@ -161,6 +171,10 @@ pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
     crate::security::private_dir::create(&dir).map_err(|e| e.to_string())?;
 
     let (content, existed, unrestorable) = capture(&path);
+    let encoding = content
+        .as_ref()
+        .and_then(|_| crate::commands::fs::utf16_file(std::path::Path::new(&path)))
+        .map(|order| order.name().to_string());
     let record = Checkpoint {
         id: new_id(),
         path,
@@ -169,6 +183,7 @@ pub fn checkpoint_save(path: String) -> Result<Checkpoint, String> {
         unrestorable,
         saved_at: chrono::Local::now().to_rfc3339(),
         after: None,
+        encoding,
     };
 
     let file = record_path(&record.id)?;
@@ -375,6 +390,7 @@ mod tests {
             unrestorable: None,
             saved_at: "2026-08-03T00:00:00+00:00".into(),
             after: None,
+            encoding: None,
         };
         let json = serde_json::to_string(&created).unwrap();
         let back: Checkpoint = serde_json::from_str(&json).unwrap();
@@ -431,6 +447,27 @@ mod tests {
         // Line endings and whitespace must survive: a restore that "tidies" the
         // file is not a restore.
         assert_eq!(content.as_deref(), Some(original));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_utf16_file_is_kept_as_its_text_and_its_encoding() {
+        let (dir, _turn) = scratch("utf16");
+        let file = dir.join("notes.txt");
+        let bytes: Vec<u8> = std::iter::once(0xFEFF_u16).chain("Grüße\r\n".encode_utf16()).flat_map(|u| u.to_le_bytes()).collect();
+        fs::write(&file, &bytes).unwrap();
+        let (content, existed, why) = capture(&file.to_string_lossy());
+        assert!(existed);
+        assert!(why.is_none(), "{why:?}");
+        assert_eq!(content.as_deref(), Some("\u{FEFF}Grüße\r\n"));
+        let record = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        assert_eq!(record.encoding.as_deref(), Some("utf-16le"));
+        let _ = checkpoint_drop(record.id);
+        // A plain text file names none.
+        fs::write(&file, "plain\n").unwrap();
+        let plain = checkpoint_save(file.to_string_lossy().into_owned()).unwrap();
+        assert!(plain.encoding.is_none());
+        let _ = checkpoint_drop(plain.id);
         let _ = fs::remove_dir_all(&dir);
     }
 

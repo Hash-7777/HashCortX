@@ -356,7 +356,7 @@ HashCortX/
 │   │   │   ├── host.rs        153   which programs of a fixed list are here,
 │   │   │   │                        found as files, nothing run, names only
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
-│   │   │   ├── checkpoint.rs  666   what a file held before the agent changed it,
+│   │   │   ├── checkpoint.rs  703   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since
 │   │   │   ├── net.rs         872   resolves a hostname and refuses private ones
 │   │   │   ├── provider.rs    694   SambaNova, NVIDIA and Kimi Code, at six
@@ -368,8 +368,9 @@ HashCortX/
 │   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,586   filesystem bridge, applies the denylist;
-│   │   │   │                        a write replaces a file whole or not at all
+│   │   │   ├── fs.rs        1,773   filesystem bridge, applies the denylist;
+│   │   │   │                        a write replaces a file whole or not at all;
+│   │   │   │                        UTF-16 text stays UTF-16
 │   │   │   ├── keychain.rs    102   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
 │   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge

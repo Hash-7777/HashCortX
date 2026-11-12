@@ -253,19 +253,24 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
         ));
     }
 
-    // Read raw bytes and detect binary by null-byte density
+    // Read raw bytes. UTF-16 text with its mark is decoded as such; anything
+    // else is binary when its null bytes are dense.
     let raw = fs::read(p).map_err(|e| e.to_string())?;
-    let null_count = raw.iter().filter(|&&b| b == 0).count();
-    if raw.len() > 512 && null_count > raw.len() / 50 {
-        let kb = size.div_ceil(1024);
-        return Ok(format!(
-            "[Binary file: \"{name}\" · {kb}KB — contains non-text data (detected {null_count} null bytes). \
-             Use shell_run to inspect: {}]",
-            inspect_hint(&path)
-        ));
-    }
-
-    let content = String::from_utf8_lossy(&raw).into_owned();
+    let content = match utf16_text(&raw) {
+        Some(text) => text,
+        None => {
+            let null_count = raw.iter().filter(|&&b| b == 0).count();
+            if raw.len() > 512 && null_count > raw.len() / 50 {
+                let kb = size.div_ceil(1024);
+                return Ok(format!(
+                    "[Binary file: \"{name}\" · {kb}KB — contains non-text data (detected {null_count} null bytes). \
+                     Use shell_run to inspect: {}]",
+                    inspect_hint(&path)
+                ));
+            }
+            String::from_utf8_lossy(&raw).into_owned()
+        }
+    };
 
     // Truncate large text files — show first 100KB with hint
     const SHOW_CHARS: usize = 100_000;
@@ -285,6 +290,86 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
     }
 
     Ok(content)
+}
+
+/// The byte order of a UTF-16 file, told by the byte-order mark it starts
+/// with. Windows writes text this way in places (PowerShell redirects, some
+/// editors and generated project files), and its bytes are half zeros, so
+/// without this such a file read as binary and could be neither patched nor
+/// put back by Undo. Only a file that starts with the mark is taken for
+/// UTF-16: without one there is no telling it from binary. The mark of
+/// UTF-32 starts the same way and is left alone.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) enum Utf16 {
+    Little,
+    Big,
+}
+
+impl Utf16 {
+    fn of(head: &[u8]) -> Option<Self> {
+        match head {
+            [0xFF, 0xFE, 0, 0, ..] => None,
+            [0xFF, 0xFE, ..] => Some(Self::Little),
+            [0xFE, 0xFF, ..] => Some(Self::Big),
+            _ => None,
+        }
+    }
+
+    fn named(name: &str) -> Option<Self> {
+        match name.to_ascii_lowercase().as_str() {
+            "utf-16le" => Some(Self::Little),
+            "utf-16be" => Some(Self::Big),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Little => "utf-16le",
+            Self::Big => "utf-16be",
+        }
+    }
+
+    /// `text` in this order, with exactly one mark first.
+    fn bytes(self, text: &str) -> Vec<u8> {
+        let body = text.strip_prefix('\u{FEFF}').unwrap_or(text);
+        std::iter::once(0xFEFF_u16)
+            .chain(body.encode_utf16())
+            .flat_map(|u| match self {
+                Self::Little => u.to_le_bytes(),
+                Self::Big => u.to_be_bytes(),
+            })
+            .collect()
+    }
+}
+
+/// A UTF-16 file's text, its mark kept as the first character (as a UTF-8
+/// file's mark is), or None when the bytes are not whole UTF-16 text.
+pub(crate) fn utf16_text(raw: &[u8]) -> Option<String> {
+    let order = Utf16::of(raw)?;
+    if raw.len() % 2 != 0 {
+        return None;
+    }
+    let units: Vec<u16> = raw
+        .chunks_exact(2)
+        .map(|p| match order {
+            Utf16::Little => u16::from_le_bytes([p[0], p[1]]),
+            Utf16::Big => u16::from_be_bytes([p[0], p[1]]),
+        })
+        .collect();
+    String::from_utf16(&units).ok()
+}
+
+/// The order of the UTF-16 file at `path`, or None when there is no such file
+/// or it is not whole UTF-16 text. The whole file is read only when its first
+/// bytes are a UTF-16 mark.
+pub(crate) fn utf16_file(path: &Path) -> Option<Utf16> {
+    use std::io::Read;
+    let mut head = [0u8; 4];
+    let n = fs::File::open(path).and_then(|mut f| f.read(&mut head)).ok()?;
+    let order = Utf16::of(&head[..n])?;
+    let raw = fs::read(path).ok()?;
+    utf16_text(&raw).map(|_| order)
 }
 
 /// Names Windows keeps for devices: a file cannot be written under one, with
@@ -321,8 +406,12 @@ fn windows_name_problem(path: &str) -> Option<String> {
     None
 }
 
+/// `encoding` is "utf-16le" or "utf-16be" for UTF-16, anything else for UTF-8;
+/// left out, a UTF-16 file stays UTF-16 and everything else is written as
+/// UTF-8, as it always was. Undo names it to put back a UTF-16 file that is
+/// no longer there.
 #[tauri::command]
-pub fn fs_write_file(path: String, content: String) -> Result<(), String> {
+pub fn fs_write_file(path: String, content: String, encoding: Option<String>) -> Result<(), String> {
     #[cfg(windows)]
     if let Some(why) = windows_name_problem(&path) {
         return Err(why);
@@ -336,7 +425,15 @@ pub fn fs_write_file(path: String, content: String) -> Result<(), String> {
         }
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    write_whole(Path::new(&path), content.as_bytes()).map_err(|e| e.to_string())
+    let order = match &encoding {
+        Some(name) => Utf16::named(name),
+        None => utf16_file(Path::new(&path)),
+    };
+    match order {
+        Some(order) => write_whole(Path::new(&path), &order.bytes(&content)),
+        None => write_whole(Path::new(&path), content.as_bytes()),
+    }
+    .map_err(|e| e.to_string())
 }
 
 /// Replace a file's contents so that a failure part-way through — the app
@@ -1410,12 +1507,102 @@ mod containment_tests {
         let (dir, _turn) = scratch("write-whole");
         let file = dir.join("notes.txt");
         fs::write(&file, "the old contents, which are longer than the new ones\n").unwrap();
-        fs_write_file(file.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        fs_write_file(file.to_string_lossy().into_owned(), "new\n".into(), None).unwrap();
         assert_eq!(fs::read_to_string(&file).unwrap(), "new\n");
         let fresh = dir.join("fresh.txt");
-        fs_write_file(fresh.to_string_lossy().into_owned(), "made\n".into()).unwrap();
+        fs_write_file(fresh.to_string_lossy().into_owned(), "made\n".into(), None).unwrap();
         assert_eq!(fs::read_to_string(&fresh).unwrap(), "made\n");
         assert!(leftovers(&dir).is_empty(), "left behind: {:?}", leftovers(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// `text` as UTF-16 in the given order, with its byte-order mark first.
+    fn utf16(text: &str, little: bool) -> Vec<u8> {
+        std::iter::once(0xFEFF_u16).chain(text.encode_utf16())
+            .flat_map(|u| if little { u.to_le_bytes() } else { u.to_be_bytes() })
+            .collect()
+    }
+
+    #[test]
+    fn a_utf16_file_is_read_as_its_text_with_its_mark_first() {
+        let (dir, _turn) = scratch("utf16-read");
+        // Long enough that its zero bytes would have marked it as binary.
+        let words = "Grüße, état, 東京\r\n".repeat(60);
+        for (name, little) in [("le.txt", true), ("be.txt", false)] {
+            let file = dir.join(name);
+            fs::write(&file, utf16(&words, little)).unwrap();
+            let read = fs_read_file(file.to_string_lossy().into_owned()).unwrap();
+            assert_eq!(read, format!("\u{FEFF}{words}"), "{name}");
+        }
+        // A short one too, and one with nothing after its mark.
+        let short = dir.join("short.txt");
+        fs::write(&short, utf16("hi\n", true)).unwrap();
+        assert_eq!(fs_read_file(short.to_string_lossy().into_owned()).unwrap(), "\u{FEFF}hi\n");
+        let empty = dir.join("empty.txt");
+        fs::write(&empty, utf16("", true)).unwrap();
+        assert_eq!(fs_read_file(empty.to_string_lossy().into_owned()).unwrap(), "\u{FEFF}");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn bytes_that_only_start_like_utf16_are_not_read_as_it() {
+        // An odd number of bytes after the mark, a lone half of a pair, and
+        // the mark of UTF-32: none is whole UTF-16 text.
+        let odd = [0xFF, 0xFE, b'a', 0, b'b'];
+        let lone = [0xFF, 0xFE, 0x00, 0xD8, b'a', 0];
+        let wide = [0xFF, 0xFE, 0, 0, b'a', 0, 0, 0];
+        for bytes in [&odd[..], &lone[..], &wide[..]] {
+            assert!(utf16_text(bytes).is_none(), "{bytes:?}");
+        }
+        assert!(utf16_text(b"plain text").is_none());
+        assert_eq!(utf16_text(&utf16("ok", false)).as_deref(), Some("\u{FEFF}ok"));
+    }
+
+    #[test]
+    fn a_utf16_file_is_written_back_as_utf16_in_its_own_order() {
+        let (dir, _turn) = scratch("utf16-write");
+        for (name, little) in [("le.txt", true), ("be.txt", false)] {
+            let file = dir.join(name);
+            fs::write(&file, utf16("old\r\n", little)).unwrap();
+            let path = file.to_string_lossy().into_owned();
+            // Text as read, mark first: written with one mark, not two.
+            fs_write_file(path.clone(), "\u{FEFF}new\r\n".into(), None).unwrap();
+            assert_eq!(fs::read(&file).unwrap(), utf16("new\r\n", little), "{name}");
+            // Text without the mark, as a whole rewrite gives it: the mark is put back.
+            fs_write_file(path, "again\n".into(), None).unwrap();
+            assert_eq!(fs::read(&file).unwrap(), utf16("again\n", little), "{name}");
+        }
+        assert!(leftovers(&dir).is_empty(), "left behind: {:?}", leftovers(&dir));
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_that_is_not_utf16_is_written_as_utf8_as_before() {
+        let (dir, _turn) = scratch("utf8-write");
+        let plain = dir.join("plain.txt");
+        fs::write(&plain, "old\n").unwrap();
+        fs_write_file(plain.to_string_lossy().into_owned(), "\u{FEFF}new\n".into(), None).unwrap();
+        assert_eq!(fs::read(&plain).unwrap(), "\u{FEFF}new\n".as_bytes());
+        // A binary file that merely starts with the mark is not taken for UTF-16.
+        let binary = dir.join("data.bin");
+        fs::write(&binary, [0xFF, 0xFE, 0x00, 0x01, 0x80]).unwrap();
+        fs_write_file(binary.to_string_lossy().into_owned(), "text\n".into(), None).unwrap();
+        assert_eq!(fs::read(&binary).unwrap(), b"text\n");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_named_encoding_is_used_even_where_no_file_is_yet() {
+        // How Undo puts back a UTF-16 file it deleted.
+        let (dir, _turn) = scratch("utf16-named");
+        let file = dir.join("gone.txt");
+        fs_write_file(file.to_string_lossy().into_owned(), "\u{FEFF}back\n".into(), Some("utf-16be".into())).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), utf16("back\n", false));
+        // Named, it wins over what the file is now.
+        fs_write_file(file.to_string_lossy().into_owned(), "le\n".into(), Some("utf-16le".into())).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), utf16("le\n", true));
+        fs_write_file(file.to_string_lossy().into_owned(), "eight\n".into(), Some("utf-8".into())).unwrap();
+        assert_eq!(fs::read(&file).unwrap(), b"eight\n");
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -1428,7 +1615,7 @@ mod containment_tests {
         fs::write(&file, "echo old\n").unwrap();
         fs::set_permissions(&file, fs::Permissions::from_mode(0o755)).unwrap();
         let before = fs::metadata(&file).unwrap().ino();
-        fs_write_file(file.to_string_lossy().into_owned(), "echo new\n".into()).unwrap();
+        fs_write_file(file.to_string_lossy().into_owned(), "echo new\n".into(), None).unwrap();
         let after = fs::metadata(&file).unwrap();
         // A new file renamed over the old one, never the old one rewritten.
         assert_ne!(after.ino(), before);
@@ -1445,7 +1632,7 @@ mod containment_tests {
         let link = dir.join("link.txt");
         fs::write(&real, "old\n").unwrap();
         std::os::unix::fs::symlink(&real, &link).unwrap();
-        fs_write_file(link.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        fs_write_file(link.to_string_lossy().into_owned(), "new\n".into(), None).unwrap();
         assert!(fs::symlink_metadata(&link).unwrap().file_type().is_symlink());
         assert_eq!(fs::read_to_string(&real).unwrap(), "new\n");
         assert!(leftovers(&dir).is_empty());
@@ -1462,7 +1649,7 @@ mod containment_tests {
         fs::write(&one, "old\n").unwrap();
         fs::hard_link(&one, &two).unwrap();
         let before = fs::metadata(&one).unwrap().ino();
-        fs_write_file(one.to_string_lossy().into_owned(), "new\n".into()).unwrap();
+        fs_write_file(one.to_string_lossy().into_owned(), "new\n".into(), None).unwrap();
         assert_eq!(fs::metadata(&one).unwrap().ino(), before);
         assert_eq!(fs::read_to_string(&two).unwrap(), "new\n");
         let _ = fs::remove_dir_all(&dir);
@@ -1476,7 +1663,7 @@ mod containment_tests {
         let file = dir.join("config.txt");
         fs::write(&file, "old\n").unwrap();
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o555)).unwrap();
-        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into());
+        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into(), None);
         fs::set_permissions(&dir, fs::Permissions::from_mode(0o755)).unwrap();
         result.unwrap();
         assert_eq!(fs::read_to_string(&file).unwrap(), "new\n");
@@ -1492,7 +1679,7 @@ mod containment_tests {
         let mut perms = fs::metadata(&file).unwrap().permissions();
         perms.set_readonly(true);
         fs::set_permissions(&file, perms.clone()).unwrap();
-        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into());
+        let result = fs_write_file(file.to_string_lossy().into_owned(), "new\n".into(), None);
         #[allow(clippy::permissions_set_readonly_false)]
         perms.set_readonly(false);
         fs::set_permissions(&file, perms).unwrap();
@@ -1553,9 +1740,9 @@ mod windows_path_tests {
     fn a_reserved_name_is_refused_before_anything_is_written() {
         let (dir, _turn) = scratch("win-reserved");
         let target = dir.join("NUL.txt");
-        let err = fs_write_file(target.to_string_lossy().into_owned(), "x".into()).unwrap_err();
+        let err = fs_write_file(target.to_string_lossy().into_owned(), "x".into(), None).unwrap_err();
         assert!(err.contains("keeps for a device"), "{err}");
-        let err = fs_write_file(dir.join("notes.").to_string_lossy().into_owned(), "x".into()).unwrap_err();
+        let err = fs_write_file(dir.join("notes.").to_string_lossy().into_owned(), "x".into(), None).unwrap_err();
         assert!(err.contains("ends in a dot or a space"), "{err}");
         crate::security::root_jail::clear_root();
         let _ = fs::remove_dir_all(&dir);
@@ -1569,7 +1756,7 @@ mod windows_path_tests {
             deep = deep.join("a-folder-name-that-makes-the-path-long");
         }
         let file = deep.join("file.txt");
-        fs_write_file(file.to_string_lossy().into_owned(), "long\n".into()).unwrap();
+        fs_write_file(file.to_string_lossy().into_owned(), "long\n".into(), None).unwrap();
         assert_eq!(fs::read_to_string(&file).unwrap(), "long\n");
         crate::security::root_jail::clear_root();
         let _ = fs::remove_dir_all(&dir);
