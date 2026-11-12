@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'code/asks.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -85,9 +85,9 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true } } = {}) {
+async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [] } = {}) {
   const P = project();
-  sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
+  sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen();
   const messages = [{ role: 'system', content: 'You are a coding agent.' }, { role: 'user', content: request }];
   const sent = [];
@@ -154,6 +154,21 @@ console.log('\nMessages sent while it works:');
   let tries = 0;
   const u = await runWith({ queue: urgent, script: () => (++tries === 1 ? new Error('step stopped for a message sent now') : words('Answered the new message.')) });
   ok('a step stopped for a message sent now is given way, and the run goes on', u.error === null && u.result === 'Answered the new message.' && u.scr.of('error').length === 0 && u.scr.of('trace').some((e) => /Gave way/.test(e[2])));
+}
+
+console.log('\nWhat it adds joins the checklist:');
+{
+  const once = (text) => { let given = false; return { takeNow: () => (given ? null : (given = true, { text, files: [], count: 1 })) }; };
+  const two = 'Fix the totals in /p/a.js and add a rounding step to them.';
+  const a = await runWith({ request: two, asks: [], queue: once('Also show the tax on its own line.'), script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done.')) });
+  ok('a request of two asks and one added: a checklist of three, in the order asked', JSON.stringify(sandbox.HC.code.asks) === JSON.stringify(sandbox.HCCodeAsks.split(`${two}\n\nAlso show the tax on its own line.`)) && sandbox.HC.code.asks.length === 3 && /tax/.test(sandbox.HC.code.asks[2]), JSON.stringify(sandbox.HC.code.asks));
+  const three = 'Fix the totals in /p/a.js. Also change the rounding to two places. And also show the tax on its own line.';
+  const before = sandbox.HCCodeAsks.split(three);
+  ok('(the invented request has three asks to begin with)', before.length === 3, JSON.stringify(before));
+  await runWith({ request: three, asks: before, queue: once('Also add a test for the totals.'), script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done.')) });
+  ok('a checklist already made grows, its asks first and numbered on', sandbox.HC.code.asks.length === before.length + 1 && before.every((x, i) => sandbox.HC.code.asks[i] === x) && /test for the totals/.test(sandbox.HC.code.asks[before.length]), JSON.stringify(sandbox.HC.code.asks));
+  await runWith({ request: three, asks: before, queue: once('x'.repeat(5000)), script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done.')) });
+  ok('...and never shrinks: an addition too long to split leaves the checklist as it was', JSON.stringify(sandbox.HC.code.asks) === JSON.stringify(before));
 }
 
 console.log('\nA step cut off at its limit:');
