@@ -388,7 +388,8 @@ HashCortX/
 │   │                                shape, read by the app as what they are
 │   ├── lib/                         what several checks share: the assets
 │   │                                the page loads, invented runs, invented
-│   │                                provider replies
+│   │                                provider replies, the order of HashCoder's
+│   │                                finishing checks
 │   ├── agent-policy.mjs             what may run in parallel, when to stop
 │   ├── export.mjs                   CSV, PDF text, filenames, markdown
 │   ├── layout.mjs                   the CSS mistakes that clip text

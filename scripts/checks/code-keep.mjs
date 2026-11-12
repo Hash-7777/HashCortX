@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { finishOrder } from './lib/finish-order.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
@@ -116,7 +117,7 @@ console.log('\nWhat a run took out unasked, still gone when it would finish:');
   ok('nothing gone, no note and no line', K.goneNote([]) === null && K.goneNote(null) === null && K.goneLine([]) === '' && K.goneLine(null) === '');
   ok('what is still gone is said under the answer, with how to get it back', /^Taken out without the request naming it: [^.]*#bookingModal[^.]* from index\.html\. Undo the change to put it back\.$/.test(K.goneLine(gone)), K.goneLine(gone));
   const mode = src('modes', 'code', 'mode.js');
-  ok('HashCoder looks after the details check and before a second look, sends the run back once, with Prove changes on', /\(await factsLook\(\)\) \|\| keptLook\(\) \|\| \(await secondLook\(\)\)/.test(mode) && /const keptLook = \(\) => \{ const K = window\.HCCodeKeep; if \(!K \|\| cdrPrefs\(\)\.prove === false\) return null; gone = K\.stillGone\(changes, HC\.code\.request\); return sent\.gone \? null : K\.goneNote\(gone\); \};/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && ['stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'].every((k) => new RegExp(`const SENT_KINDS = \\[[^\\]]*'${k}'`).test(src('js', 'code', 'debug-export.js'))));
+  ok('HashCoder looks after the details check and before a second look, sends the run back once, with Prove changes on', finishOrder(mode).walked && finishOrder(mode).inOrder('facts', 'kept', 'second') && /\{ id: 'kept', words: true, run: keptLook \}/.test(finishOrder(mode).entry('kept')) && /const keptLook = \(\) => \{ const K = window\.HCCodeKeep; if \(!K \|\| cdrPrefs\(\)\.prove === false\) return null; gone = K\.stillGone\(changes, HC\.code\.request\); return sent\.gone \? null : K\.goneNote\(gone\); \};/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && ['stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'].every((k) => new RegExp(`const SENT_KINDS = \\[[^\\]]*'${k}'`).test(src('js', 'code', 'debug-export.js'))));
   ok('...and says what is still gone under the answer', /window\.HCCodeKeep\?\.goneLine\(gone\)/.test(mode));
   const verify = src('js', 'code', 'verify.js');
   ok('a saved conversation shows the note as its step', /t\.includes\(window\.HCCodeKeep\.GONE_SAYS\) \? window\.HCCodeKeep\.GONE_STEP/.test(verify));

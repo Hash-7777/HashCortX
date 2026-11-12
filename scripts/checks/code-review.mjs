@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import vm from 'node:vm';
+import { finishOrder } from './lib/finish-order.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
@@ -84,7 +85,7 @@ console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
   ok('keeps what each changed file held, from the undo records', /window\.HCCodeReview\?\.track\(changes, p, HC\?\.undo\?\.lastFor\?\.\(p\)\)/.test(mode));
-  ok('asks for a second look only when nothing else sent the agent back, the files its answer names and the site check included, and it answered', /\|\| \(finalText\.trim\(\) \? \(await namedLook\(finalText\)\) \|\| \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(finalText, messages, sent\.claim\) \|\| window\.HCCodeVerify\.saidNote\(finalText, proof, sent\.said\) \|\| window\.HCCodeVerify\.passedNote\(finalText, proof, sharedState\.projectChecks\?\.checks, sent\.passed\)\) \|\| \(await projectLook\(\)\) \|\| [^\n]*?\(await siteLook\(\)\) \|\| \(await factsLook\(\)\) \|\| keptLook\(\) \|\| \(await secondLook\(\)\) : null\);/.test(mode));
+  ok('asks for a second look only when nothing else sent the agent back, the files its answer names and the site check included, and it answered', finishOrder(mode).walked && finishOrder(mode).inOrder('sendBack', 'named', 'claim', 'said', 'passed', 'project', 'example', 'site', 'facts', 'kept', 'second') && finishOrder(mode).ids.length === 11 && finishOrder(mode).ids.slice(1).every((id) => /words: true/.test(finishOrder(mode).entry(id))) && !/words/.test(finishOrder(mode).entry('sendBack')) && /\{ id: 'second', words: true, run: secondLook \}/.test(finishOrder(mode).entry('second')));
   ok('of the same model, with no tools and nothing of the conversation', /await callWithRouter\(R\.messages\(\(window\.HCCodeAttach\?\.shownRequest \|\| String\)\(V\.requestIn\(messages\)\), V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(mode));
   ok('a second look that fails holds nothing up, but Stop still stops', /catch \(e\) \{ if \(signal\?\.aborted\) throw e; return null; \}/.test(mode));
   ok('the run shows the step', /verb: 'REVIEW', object: found\.ok \? 'looks right'/.test(mode));
