@@ -171,6 +171,20 @@ console.log('\nWhat must still ask — a check that is not the project\'s, or wa
   ok('a check run from outside the project asks', asks('npm', ['test'], { cwd: '/etc' }) && asks('npm', ['test'], { cwd: '..' }));
 }
 
+console.log('\nAuto on Windows: the programs there that only read, with their own flags:');
+{
+  const WIN = 'C:\\work\\app';
+  const onWin = (command, args) => P.shellVerdict({ command, args, cwd: WIN, root: WIN, checks: {}, tainted: {}, os: 'windows' }).auto === true;
+  ok('where finds a program, and where /r searches a folder of the project', onWin('where', ['node']) && onWin('where.exe', ['/q', 'git']) && onWin('where', ['/r', 'src', '*.js']));
+  ok('findstr searches the project, its plain flags and a quoted string with /c:', onWin('findstr', ['/s', '/n', '/i', 'priceFor', 'src\\*.js']) && onWin('findstr', ['/s', '/c:price for', '*.js']));
+  ok('more, fc and tree read files and folders of the project', onWin('more', ['README.md']) && onWin('fc', ['/n', 'a.txt', 'b.txt']) && onWin('tree', ['/f', '/a', 'src']));
+  ok('...each still asks for a flag that reads a list of files or patterns, or anything it does not know', !onWin('findstr', ['/g:patterns.txt', 'src\\*.js']) && !onWin('findstr', ['/f:files.txt', 'x']) && !onWin('tree', ['/x']) && !onWin('more', ['/z', 'a.txt']));
+  ok('...and for a place outside the project, or a file that holds secrets', !onWin('more', ['C:\\Windows\\win.ini']) && !onWin('findstr', ['/s', 'x', 'D:\\*.txt']) && !onWin('where', ['/r', 'C:\\Users', 'x']) && !onWin('more', ['.env']));
+  ok('dir and type are built into the command prompt, not programs a command can start: they are not on the list', !onWin('dir', ['src']) && !onWin('type', ['a.txt']));
+  ok('the Windows programs are judged as such only on Windows: elsewhere /f is a folder outside the project, and it asks', P.shellVerdict({ command: 'tree', args: ['/f'], cwd: ROOT, root: ROOT, checks: {}, tainted: {} }).auto === false && P.shellVerdict({ command: 'where', args: ['node'], cwd: ROOT, root: ROOT, checks: {}, tainted: {} }).auto === false);
+  ok('the guard and the rewind panel say which system it is', /os: HC\.code\?\.platform\?\.os/.test(readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'guard.js'), 'utf8')) && /shellVerdict\(\{ command, args, cwd: sharedState\.projectRoot, root: sharedState\.projectRoot, checks: sharedState\.projectChecks\?\.checks \|\| \{\}, os: sharedState\.platform\?\.os \}\)/.test(readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8')));
+}
+
 console.log('\nWhat the run has done decides when Auto stops:');
 {
   const r = P.createRun();

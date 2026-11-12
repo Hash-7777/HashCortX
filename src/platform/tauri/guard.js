@@ -656,7 +656,7 @@
       // Auto: a command that only reads, or runs the project's own checks (js/code/permissions.js).
       if (!once && action === 'shell' && _run && _mode === 'auto' && detail && modes()) {
         const closable = /^mac/i.test(String(HC.code?.platform?.os || ''));   // where a command can be run with the network closed (agent_sandbox.rs)
-        const d = await modes().autoDecision({ ...detail, root: _projectRoot, checks: _checks, run: _run, inside: isInProjectRoot, blocked: (p) => isHardBlocked('read', p), offline: closable });
+        const d = await modes().autoDecision({ ...detail, root: _projectRoot, checks: _checks, run: _run, inside: isInProjectRoot, blocked: (p) => isHardBlocked('read', p), offline: closable, os: HC.code?.platform?.os });
         if (d.auto) {
           auditLog('allow-auto', action, `${target} — ${d.why}`);
           _run.ran();

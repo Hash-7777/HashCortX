@@ -845,7 +845,7 @@
 
     /** What a rewind is handed (js/code/rewind.js): this conversation, how to cut it, which commands only read, and how to send or run again. */
     function rewindCtx() {
-      return { messages: () => conversationMsgs, busy: () => !!runAbort || running, cut: (i) => { conversationMsgs.splice(i); saveCoderState(); }, verdict: (command, args) => window.HCCodePermissions?.shellVerdict({ command, args, cwd: sharedState.projectRoot, root: sharedState.projectRoot, checks: sharedState.projectChecks?.checks || {} })?.auto === true,
+      return { messages: () => conversationMsgs, busy: () => !!runAbort || running, cut: (i) => { conversationMsgs.splice(i); saveCoderState(); }, verdict: (command, args) => window.HCCodePermissions?.shellVerdict({ command, args, cwd: sharedState.projectRoot, root: sharedState.projectRoot, checks: sharedState.projectChecks?.checks || {}, os: sharedState.platform?.os })?.auto === true,
         send: (text) => { const box = $('cdrTaskInput'); if (!box) return; box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); startRun(); }, rerun };
     }
 

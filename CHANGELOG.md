@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **Auto on Windows lets through Windows' own programs that only read.**
+  `where`, `findstr`, `more`, `fc` and `tree`, with their plain slash flags,
+  run without a question inside the project, as `ls` and `grep` do
+  elsewhere. A flag that reads a list of files or patterns, or a place
+  outside the project, still asks. They are judged as Windows programs only
+  on Windows.
 - **HashCoder answers common reading commands itself.** When a model
   writes `ls`, `cat`, `head`, `grep -r`, `rg`, `find -name`, `pwd` or
   `which`, or on Windows `dir`, `type`, `findstr`, `where`, `Get-ChildItem`,

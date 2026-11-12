@@ -162,6 +162,46 @@
   READERS.egrep = READERS.grep;
   READERS.fgrep = READERS.grep;
 
+  /**
+   * Windows' own programs that only read, judged on Windows only (elsewhere
+   * `/f` is a folder at the top of the disk). Their flags begin with a slash.
+   * `where` takes program names, not places, except the folder after `/r`;
+   * `findstr` takes its pattern first unless `/c:` gives it. A flag that
+   * reads a list of files or patterns (`findstr /f:` `/g:`) is not here.
+   * `dir` and `type` are not either: they are built into the command prompt,
+   * not programs a command can start (js/code/translate.js answers them).
+   */
+  const WIN_READERS = {
+    where: { flag: /^\/[qtf]$/i, valued: /^\/r$/i, names: true },
+    findstr: { flag: /^\/(?:[sinpblevxmo]|c:[^\n]{1,200})$/i, patternFirst: true },
+    more: { flag: /^\/[cpse]$/i },
+    fc: { flag: /^\/(?:[abcluwn]|lb\d{1,4}|\d{1,4})$/i },
+    tree: { flag: /^\/[fa]$/i },
+  };
+
+  /** A Windows reading program's arguments: `{ ok, places }`, as readerArgs. */
+  function winReaderArgs(name, args) {
+    const spec = WIN_READERS[name];
+    const places = [];
+    let patternPending = !!spec.patternFirst && !args.some((a) => /^\/c:/i.test(String(a)));
+    for (let i = 0; i < args.length; i++) {
+      const t = String(args[i]);
+      if (spec.valued && spec.valued.test(t)) {
+        const value = args[++i];
+        if (value == null) return { ok: false, why: `${name} ${t} needs a folder` };
+        places.push(String(value));
+        continue;
+      }
+      if (t.startsWith('/') && /^\/[A-Za-z0-9]/.test(t)) {
+        if (!spec.flag.test(t)) return { ok: false, why: `${name} ${t} is not a flag that is run without asking` };
+        continue;
+      }
+      if (patternPending) { patternPending = false; continue; }
+      if (!spec.names) places.push(t);
+    }
+    return { ok: true, places };
+  }
+
   /** The expression words `find` may be given: none of them runs a program or writes. */
   const FIND_WORDS = new Set(['-name', '-iname', '-type', '-maxdepth', '-mindepth', '-path', '-ipath', '-not', '!', '-o', '-a', '-print', '-prune', '-size', '-mtime', '-newer', '(', ')']);
   const FIND_VALUED = new Set(['-name', '-iname', '-type', '-maxdepth', '-mindepth', '-path', '-ipath', '-size', '-mtime', '-newer']);
@@ -309,7 +349,7 @@
    * and `places` are the full paths it names, for the guard to ask the native
    * side where they really lead.
    */
-  function shellVerdict({ command, args = [], cwd, root, checks = {}, tainted = {} } = {}) {
+  function shellVerdict({ command, args = [], cwd, root, checks = {}, tainted = {}, os = '' } = {}) {
     const no = (why) => ({ auto: false, why, places: [] });
     const name = String(command || '').trim();
     if (!root) return no('no project is open');
@@ -338,6 +378,9 @@
     } else if (name === 'find') {
       judged = findArgs(args);
       how = 'a search by name';
+    } else if (String(os).toLowerCase() === 'windows' && WIN_READERS[name.toLowerCase().replace(/\.(?:exe|com)$/, '')]) {
+      judged = winReaderArgs(name.toLowerCase().replace(/\.(?:exe|com)$/, ''), args);
+      how = 'a command that only reads';
     } else if (READERS[name]) {
       judged = readerArgs(name, args);
       how = 'a command that only reads';
@@ -402,10 +445,10 @@
    * run that has been told to ask about everything (`run.paused()`) is not
    * asked for a verdict at all.
    */
-  async function autoDecision({ command, args, cwd, root, checks, run, inside, blocked, offline = false } = {}) {
+  async function autoDecision({ command, args, cwd, root, checks, run, inside, blocked, offline = false, os = '' } = {}) {
     const stop = run && run.paused();
     if (stop) return { auto: false, why: stop, paused: true, places: [] };
-    const verdict = shellVerdict({ command, args, cwd, root, checks, tainted: run ? run.tainted : {} });
+    const verdict = shellVerdict({ command, args, cwd, root, checks, tainted: run ? run.tainted : {}, os });
     if (!verdict.auto) return verdict;
     // A project's own check runs the project's code, which may be code the agent has just written, so it is run unasked only where the network can be closed to it.
     if (verdict.tier === 'check' && !offline) return { auto: false, why: 'this system cannot run a check with the network closed', places: [] };
