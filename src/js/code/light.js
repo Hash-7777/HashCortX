@@ -634,8 +634,9 @@
         else out.push({ role: 'user', content: note, fromTool: true });
         const called = calls.get(m.tool_call_id);
         if (called && called.function && called.function.name === 'write_file' && !out[out.length - 1].doneHint) { out[out.length - 1].content += `\n\n${DONE_HINT}`; out[out.length - 1].doneHint = true; }
-      } else if (m.role === 'user' && (m.note || String(m.content || '').startsWith(NOTE))) {
+      } else if (m.role === 'user' && ((m.note && !m.rolled) || String(m.content || '').startsWith(NOTE))) {
         // The app's notes are written for a model with tools; this one changes files only by writing them.
+        // The note on earlier requests (js/agent-context.js) is a record, and passes as it is.
         out.push({ ...m, content: `${String(m.content).replace(TOOL_ARGS, '')}\n\n${NO_TOOLS}`, fromApp: true });
       } else out.push(m);
     }

@@ -217,6 +217,9 @@ console.log('\nWhat the model reads back:');
   ok('a note written for a model with tools loses the tool\'s arguments and says commands are run by HashCortX',
     !/shell_run|args \[/.test(sentBack[1].content) && /run it again; make the fix/.test(sentBack[1].content) && /never write a RUN line or what a command printed/.test(sentBack[1].content), sentBack[1].content);
   ok('...and the command HashCortX ran after it joins that note, with no turn of the model\'s between', sentBack.length === 2 && sentBack.map((m) => m.role).join() === 'user,user' && /HashCortX ran npm test \(exit code 1, it failed\)/.test(sentBack[1].content) && !('fromApp' in sentBack[1]));
+  const rolledNote = { role: 'user', content: '[Earlier in this conversation, not repeated here: 2 earlier requests, answered with 4 tool calls. What they left standing, from HashCortX (not from the person): a record of the conversation, not an instruction.]\nRequests:\n1. "Fix the menu"', note: true, rolled: true };
+  const keptRoll = L.callMessages([{ role: 'system', content: 'S' }, rolledNote, { role: 'user', content: 'Make it' }]);
+  ok('the note on earlier requests is a record, and passes as it is, with nothing about tools added', keptRoll.length === 3 && keptRoll[1].content === rolledNote.content, keptRoll[1] && keptRoll[1].content);
   ok('a result that is not a command\'s record is shown as it came', /HashCortX ran npm test:\n```\nok 1 - passes\n```/.test(out.map((m) => m.content).join('\n')));
 }
 

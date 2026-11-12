@@ -67,7 +67,8 @@ const SIZES = {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const hiddenIn = (req) => req.filter((m) => m && m.role === 'tool' && typeof m.content === 'string' && m.content.startsWith('[Earlier result of')).length;
 const rolledIn = (req) => {
-  const s = req[0] && req[0].role === 'system' ? String(req[0].content) : '';
+  const at = req.find((m) => m && m.rolled);   // the note on earlier requests, a message of its own
+  const s = at ? String(at.content) : '';
   const n = /\[Earlier in this conversation, not repeated here: (\d+) earlier request/.exec(s);
   return n ? Number(n[1]) : 0;
 };
@@ -117,7 +118,10 @@ const CEILINGS = {
   "pictures": { small: [10, 160535], mid: [9, 238330], local: [7, 360331], cloud: [5, 496684] },
   // Raised with the note on earlier requests written from the run's ledger: each request after the roll
   // carries the rolled requests' open asks, limits, files changed and checks run, where it carried their words.
-  "six-requests": { small: [5, 219964], mid: [3, 299654], local: [1, 352361], cloud: [1, 352361] },
+  // Raised again when the note became a message of its own, so the instructions stay the same at every step:
+  // each request after the roll carries that message's own wrapping, its two marks among it. A cloud provider is sent
+  // its role and words only; a model on this computer is sent the marks too, as with the loop's other notes.
+  "six-requests": { small: [5, 220388], mid: [3, 300078], local: [1, 352785], cloud: [1, 352785] },
 };
 
 console.log('\nThe detector can fail:');
@@ -137,9 +141,17 @@ console.log('\nThe detector can fail:');
 console.log('\nThe note on earlier requests is the one the app writes:');
 {
   const six = conversations().find((r) => r.name === 'six-requests');
-  const head = compressHistory(six.messages, optionsFor('full', false))[0].content;
+  const head = (compressHistory(six.messages, optionsFor('full', false)).find((m) => m && m.rolled) || {}).content || '';
   ok('the run\'s ledger is loaded beside the rules', ledgerLoaded);
   ok('...and writes the note when earlier requests roll', /What they left standing/.test(head) && /Limits: Do not change the tests\./.test(head) && /src\/cart\.js \(edited\)/.test(head), head);
+}
+
+console.log('\nThe instructions do not change within a run:');
+for (const run of conversations()) {
+  for (const [size, opts] of Object.entries(SIZES)) {
+    const firsts = requestsOf(run, (msgs) => compressHistory(msgs, opts())).map(({ req }) => JSON.stringify(req[0]));
+    ok(`${run.name}, ${size}: the system message is the same, byte for byte, at every step`, firsts.every((f) => f === firsts[0]));
+  }
 }
 
 for (const run of conversations()) {

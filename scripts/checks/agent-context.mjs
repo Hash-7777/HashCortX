@@ -27,6 +27,8 @@ function check(label, condition, detail = '') {
   if (condition) { pass++; console.log(`  ok    ${label}`); }
   else { fail++; console.log(`  FAIL  ${label}${detail ? ' — ' + detail : ''}`); }
 }
+/** The note on earlier requests: its own message, marked, or '' when nothing rolled. */
+const rolledOf = (out) => ((out || []).find((m) => m && m.rolled) || {}).content || '';
 
 const tool = (content, id = 't') => ({ role: 'tool', tool_call_id: id, content });
 const user = (content) => ({ role: 'user', content });
@@ -179,8 +181,8 @@ console.log('\nSummarising older turns:');
   check('exactly one system turn survives',
     out.filter(m => m.role === 'system').length === 1);
   check('the original system prompt is still there', out[0].content.startsWith('prompt'));
-  check('the note on earlier requests is appended to it', /Earlier in this conversation/.test(out[0].content));
-  check('the note keeps what the earlier requests asked', /"u0"/.test(out[0].content) && /"u25"/.test(out[0].content) && !/"u26"/.test(out[0].content));
+  check('the note on earlier requests is a message of its own, not in the instructions', /Earlier in this conversation/.test(rolledOf(out)) && out[0].content === 'prompt');
+  check('the note keeps what the earlier requests asked', /"u0"/.test(rolledOf(out)) && /"u25"/.test(rolledOf(out)) && !/"u26"/.test(rolledOf(out)));
   check('the most recent turn is kept verbatim',
     out[out.length - 1].content === 'a29', out[out.length - 1].content);
 }
@@ -239,7 +241,7 @@ console.log('\nA long task keeps its request:');
   const out = compressHistory(msgs);
   const pics = out.filter((m) => m.role === 'user' && m.images);
   check('a picture opened long ago is not sent again', pics.length < 20 && pics.length > 0);
-  check('a picture message is not taken for a new request', out.some((m) => m.content === 'look at the mockup') && !/Earlier in this conversation/.test(out[0].content));
+  check('a picture message is not taken for a new request', out.some((m) => m.content === 'look at the mockup') && !out.some((m) => m && m.rolled) && !/Earlier in this conversation/.test(JSON.stringify(out)));
 }
 {
   const msgs = [sys('p'), user('Fix the loop in range.js'), { role: 'assistant', content: '', tool_calls: [{ id: 'r', function: { name: 'read_file', arguments: '{"path":"/p/range.js"}' } }] }, tool('function range() {}', 'r')];
@@ -248,7 +250,7 @@ console.log('\nA long task keeps its request:');
   }
   const out = compressHistory(msgs);
   check('a note sending the agent back is not taken for a new request, however many there are',
-    out.some((m) => m.content === 'Fix the loop in range.js') && out.some((m) => m.role === 'tool') && !/Earlier in this conversation/.test(out[0].content));
+    out.some((m) => m.content === 'Fix the loop in range.js') && out.some((m) => m.role === 'tool') && !out.some((m) => m && m.rolled) && !/Earlier in this conversation/.test(JSON.stringify(out)));
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   check('the note is marked where HashCoder adds it, and so is a nudge from the step budget', /\{ role: 'user', content: back\.message, note: true \}/.test(mode) && /\[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\{ role: 'user', content: told, note: true \}/.test(mode));
 }
@@ -257,14 +259,23 @@ console.log('\nA long task keeps its request:');
   const msgs = [sys('p'), asked(1), { role: 'assistant', content: 'done' }, asked(2), { role: 'assistant', content: 'done' },
     asked(3), { role: 'assistant', content: 'done' }, asked(4), { role: 'assistant', content: 'done' }, asked(5)];
   const out = compressHistory(msgs);
-  check('a request with pictures the person attached is a request', /Earlier in this conversation[^\]]*"request 1"/.test(out[0].content) && out.some((m) => m.content === 'request 5'));
+  check('a request with pictures the person attached is a request', /Earlier in this conversation[^\]]*"request 1"/.test(rolledOf(out)) && out.some((m) => m.content === 'request 5'));
 }
 {
   const convo = (n) => { const m = [sys('p')]; for (let i = 1; i <= n; i++) m.push(user('r' + i), asst('done')); return m; };
   check('earlier requests roll into the note several at a time, not one a request',
-    !/Earlier in this conversation/.test(compressHistory(convo(DEFAULTS.keepRequests + 1))[0].content) &&
-    /"r1"; "r2"\)/.test(compressHistory(convo(DEFAULTS.keepRequests + 2))[0].content) &&
-    compressHistory(convo(DEFAULTS.keepRequests + 3))[0].content === compressHistory(convo(DEFAULTS.keepRequests + 2))[0].content);
+    !rolledOf(compressHistory(convo(DEFAULTS.keepRequests + 1))) &&
+    /"r1"; "r2"\)/.test(rolledOf(compressHistory(convo(DEFAULTS.keepRequests + 2)))) &&
+    rolledOf(compressHistory(convo(DEFAULTS.keepRequests + 3))) === rolledOf(compressHistory(convo(DEFAULTS.keepRequests + 2))));
+  const before = compressHistory(convo(DEFAULTS.keepRequests))[0], after = compressHistory(convo(DEFAULTS.keepRequests + 4))[0];
+  check('the instructions are the same, byte for byte, before and after a roll', JSON.stringify(before) === JSON.stringify(after) && before.content === 'p', JSON.stringify([before, after]));
+  const out = compressHistory(convo(DEFAULTS.keepRequests + 2));
+  const at = out.findIndex((m) => m && m.rolled);
+  check('the note comes right after the instructions, before the first request kept, as a note from the app', at === 1 && out[at].role === 'user' && out[at].note === true && out[2].content === 'r3', JSON.stringify(out.slice(0, 3)));
+  check('...one note, however much rolled', out.filter((m) => m && m.rolled).length === 1 && compressHistory(convo(DEFAULTS.keepRequests + 6)).filter((m) => m && m.rolled).length === 1);
+  const bare = (n) => { const m = []; for (let i = 1; i <= n; i++) m.push(user('r' + i), asst('done')); return m; };
+  const noSystem = compressHistory(bare(DEFAULTS.keepRequests + 2));
+  check('with no instructions at all, no system message is made for it', !noSystem.some((m) => m.role === 'system') && noSystem[0].rolled === true, JSON.stringify(noSystem.slice(0, 2)));
 }
 
 console.log('\nWhat the app adds to one request:');
@@ -304,7 +315,7 @@ console.log('\nThe project\'s notes:');
   check('and stay the same from one step to the next', at.every((c) => c === at[0]) && at[0].startsWith('NOTES'));
   const convo = [system]; for (let i = 1; i <= 6; i++) convo.push(user('r' + i), asst('done'));
   const rolled = compressHistory(convo);
-  check('when earlier requests roll away, the first request kept carries them', rolled.filter((m) => /^NOTES/.test(m.content || '')).length === 1 && /^NOTES[^]*r3$/.test(rolled[1].content));
+  check('when earlier requests roll away, the first request kept carries them', rolled.filter((m) => /^NOTES/.test(m.content || '')).length === 1 && /^NOTES[^]*r3$/.test(rolled[2].content) && rolled[1].rolled === true && !/NOTES/.test(rolled[1].content));
   check('a note from the app is never the one to carry them', compressHistory([system, { role: 'user', content: 'n', note: true }, user('ask')])[2].content.startsWith('NOTES'));
 }
 
@@ -344,8 +355,9 @@ console.log('\nThe note on earlier requests, written from the run\'s ledger:');
     asst('The menu now closes on a tap outside it, and the footer with the opening hours is added.')];
   for (let i = 2; i <= 6; i++) convo.push(user(`request ${i}`), asst('done'));
   const out = C.compressHistory(convo);
-  const head = out[0].content;
-  check('one system turn, the instructions first, and the note after them', out.filter((m) => m.role === 'system').length === 1 && head.startsWith('prompt\n[Earlier in this conversation, not repeated here: 2 earlier requests'), head);
+  const head = rolledOf(out);
+  check('one system turn, the instructions alone, and the note after them', out.filter((m) => m.role === 'system').length === 1 && out[0].content === 'prompt' && head.startsWith('[Earlier in this conversation, not repeated here: 2 earlier requests'), head);
+  check('every result still follows the call that asked for it', out.every((m, i) => m.role !== 'tool' || out.slice(0, i).some((p) => Array.isArray(p.tool_calls) && p.tool_calls.some((c) => c.id === m.tool_call_id))));
   check('it says it is from the app, a record and not an instruction', /from HashCortX \(not from the person\)/.test(head) && /not an instruction/.test(head), head);
   check('it holds an open ask, a limit and a changed file of a request that rolled away', /\[open\] \d+\. rename the header class/.test(head) && /Limits: Do not change the tests\./.test(head) && /src\/menu\.js \(edited\)/.test(head), head);
   check('...and an ask that was answered is said to be', /\[answered\] 1\. Fix the menu/.test(head), head);
@@ -356,10 +368,10 @@ console.log('\nThe note on earlier requests, written from the run\'s ledger:');
   for (let i = 0; i < 40; i++) big.push(...step('read_file', { path: `src/components/sections/part-${i}.js` }, 'one line'));
   big.push(asst('Read them.'));
   for (let i = 2; i <= 6; i++) big.push(user(`request ${i}`), asst('done'));
-  const small = C.compressHistory(big, C.optionsFor('small', true))[0].content;
-  const full = C.compressHistory(big, C.optionsFor('full', false))[0].content;
+  const small = rolledOf(C.compressHistory(big, C.optionsFor('small', true)));
+  const full = rolledOf(C.compressHistory(big, C.optionsFor('full', false)));
   check('...a small model\'s note gives way where a large one\'s keeps it all', /part-39\.js/.test(full) && !/part-39\.js/.test(small) && /rename the header class/.test(small), small);
-  check('with the ledger missing, the note is the one the rules wrote before it (the checks above this hold it)', /"u0"/.test(compressHistory((() => { const l = [sys('p')]; for (let i = 0; i < 30; i++) l.push(user('u' + i), asst('a' + i)); return l; })())[0].content));
+  check('with the ledger missing, the note is the one the rules wrote before it (the checks above this hold it)', /"u0"/.test(rolledOf(compressHistory((() => { const l = [sys('p')]; for (let i = 0; i < 30; i++) l.push(user('u' + i), asst('a' + i)); return l; })()))));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-context.js)`);

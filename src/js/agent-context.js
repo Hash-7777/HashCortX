@@ -281,11 +281,13 @@
    * with all that followed them, older tool results hidden (hideOldResults),
    * and any one result longer than `maxResult` cut.
    *
-   * The note goes on the system message — there is only ever one system
-   * turn, as several providers refuse more — and keeps what the earlier
-   * requests left standing: their asks, open or answered, their limits, the
-   * files changed, the checks run and the plan (js/run-ledger.js), as long
-   * as `noteSize` allows. The newest request is never rolled away.
+   * The note is a message of its own from the app, marked `note` and
+   * `rolled`, just before the first request kept, so the instructions stay
+   * the same, byte for byte, for the whole conversation and the reading of
+   * them can be reused after every roll. It keeps what the earlier requests
+   * left standing: their asks, open or answered, their limits, the files
+   * changed, the checks run and the plan (js/run-ledger.js), as long as
+   * `noteSize` allows. The newest request is never rolled away.
    */
   function compressHistory(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
@@ -326,9 +328,8 @@
     // instructions, and stays in the same place until earlier requests roll.
     const bare = systemMsg && 'notes' in systemMsg ? Object.assign({}, systemMsg) : systemMsg;
     if (bare !== systemMsg) delete bare.notes;
-    const head = bare
-      ? [note ? Object.assign({}, bare, { content: bare.content + '\n' + note }) : bare]
-      : (note ? [{ role: 'system', content: note }] : []);
+    const head = bare ? [bare] : [];
+    const rolled = note ? [{ role: 'user', content: note, note: true, rolled: true }] : [];
     let shown = kept.map(withContext);
     // At a roll, which already changes the start of the request, a family that only recommends kept thinking
     // (js/model-profile.js) has the thinking of every request before the newest dropped; between rolls nothing changes.
@@ -339,7 +340,7 @@
     const notes = systemMsg && typeof systemMsg.notes === 'string' ? systemMsg.notes.trim() : '';
     const first = notes ? shown.findIndex(isRequest) : -1;
     if (first >= 0) shown[first] = Object.assign({}, shown[first], { content: `${notes}\n\n${shown[first].content || ''}` });
-    return budgetToolResults(hideOldResults(head.concat(shown), opts), opts);
+    return budgetToolResults(hideOldResults(head.concat(rolled, shown), opts), opts);
   }
 
   window.HCAgentContext = { DEFAULTS, TIERS, optionsFor, budgetToolResults, hiddenCount, hideOldResults, readShown, withContext, compressHistory };
