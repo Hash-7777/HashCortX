@@ -30,6 +30,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder ranks the files a request needs by how rare its words are.**
+  Before a request's first step on a large project, the files the app's
+  search finds are ranked by the standard rare-word formula: a name few
+  files hold counts for more than a word nearly every file has, more
+  matches count for less each, and a long file's matches for less than a
+  short one's. A match in a file's name, or on the line that defines a
+  name, counts three times, so the file that defines what the request
+  names comes before files that only repeat it.
 - **Settings say how to make work on Windows faster.** Under HashCoder,
   "On Windows: faster installs, builds and tests" explains that Windows'
   built-in virus scanner slows a project's folders of dependencies and

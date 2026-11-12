@@ -202,7 +202,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs: every source check on Linux, the ones that could depend on the system (`npm run check:windows`) on Windows too, and the Rust tests on all three:
 
 ```bash
-npm run check                                     # 11,868 source checks
+npm run check                                     # 11,878 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 248 Rust tests
 ```
 

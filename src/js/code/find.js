@@ -13,8 +13,11 @@
 //
 //   · The app's own search, for every size. The names, file names and
 //     words the request is written with are searched for in the project,
-//     by name and inside the files, and the files ranked by what they hold
-//     of them. No model is asked.
+//     by name and inside the files, and the files ranked by the standard
+//     rare-word formula: a term few files hold counts for more, more
+//     matches for less each, a long file's for less than a short one's,
+//     and a match in a file's name or on a line that defines the term
+//     three times. No model is asked.
 //   · A finding run, for a model of five billion parameters or more. The
 //     same model is given the request, the outline of the project's folders
 //     and what the app's search found, in a conversation of its own, with
@@ -88,43 +91,110 @@
   const slash = (p) => String(p == null ? '' : p).replace(/\\/g, '/');
   const inRoot = (path, root) => (window.HCCodeSearch ? window.HCCodeSearch.place(path, root) : slash(path));
 
+  /** The rare-word formula's two settings: how fast more matches stop counting, and how much a file's length weighs. */
+  const K1 = 1.2, B = 0.75;
+  /** A term in a file's name, or on a line that defines it, counts this many times. */
+  const NAMED = 3;
+  /** How much each kind of term weighs: a name written as code says more about where to look than a plain word. */
+  const WEIGHT = { file: 2, code: 2, word: 1 };
+  /** The native search stops at this many matches (src-tauri/src/commands/fs.rs); a term that reaches it is common. */
+  const SEARCH_MOST = 300;
+
+  /** Whether a line the search found defines `term`, by the map's own reading of the line (js/code/codemap.js). */
+  function defines(m, term) {
+    const D = window.HCCodeMap;
+    if (!D || typeof m.line !== 'string') return false;
+    const lang = D.langOf(String(m.path));
+    if (!lang) return false;
+    const want = String(term).toLowerCase();
+    return D.definitions(m.line, lang).some((d) => String(d.name).split(/::|\./).pop().toLowerCase() === want);
+  }
+
   /**
    * The files the app's search found, ranked: `byName` the matches by file
    * name for each term, `byLine` the lines found inside files for each, as
    * the native search gives them. `[{ path, score, lines, terms }]`.
+   *
+   * Scored by the standard rare-word formula: for each term, how rare it is
+   * in the project (`ln(1 + (N - n + 0.5) / (n + 0.5))`, N files, n of them
+   * holding it) times how often this file holds it, with more matches
+   * counting for less each and a long file's matches for less than a short
+   * one's (`tf / (tf + 1.2 * (0.25 + 0.75 * len / avgLen))`). A match in the
+   * file's name, or on a line that defines the term, counts three times.
+   * `files` is how many files the project has, where known (the outline
+   * says); `sizes` the length of the files, by path from the project
+   * folder, where known: without it length says nothing.
    */
-  function rank(terms, byName, byLine, root, most) {
-    const files = new Map();
+  function rank(terms, byName, byLine, root, most, { files = 0, sizes = null } = {}) {
+    const docs = new Map();
     const at = (path) => {
       const key = inRoot(path, root);
-      if (!files.has(key)) files.set(key, { path: key, score: 0, lines: [], terms: [] });
-      return files.get(key);
+      if (!docs.has(key)) docs.set(key, { path: key, score: 0, lines: [], terms: [], tf: terms.map(() => 0) });
+      return docs.get(key);
     };
+    const note = (f, term) => { if (!f.terms.includes(term.text)) f.terms.push(term.text); };
     terms.forEach((term, i) => {
-      const strong = term.kind !== 'word';
       for (const m of (Array.isArray(byName[i]) ? byName[i] : [])) {
         if (!m || m.path == null || m.score > 2) continue;
         const f = at(m.path);
-        f.score += strong ? 4 : 2;
-        if (!f.terms.includes(term.text)) f.terms.push(term.text);
+        f.tf[i] += NAMED;
+        note(f, term);
       }
-      const seen = new Map();
+      const counted = new Set();
       for (const m of (Array.isArray(byLine[i]) ? byLine[i] : [])) {
         if (!m || m.path == null) continue;
-        const key = inRoot(m.path, root);
-        if (!seen.has(key)) seen.set(key, []);
-        seen.get(key).push(m.line_no);
-      }
-      for (const [key, lines] of seen) {
-        const f = at(key);
-        f.score += (strong ? 3 : 1) + Math.min(lines.length, 5) * (strong ? 0.2 : 0.1);
-        if (!f.terms.includes(term.text)) f.terms.push(term.text);
-        for (const n of lines) if (f.lines.length < 4 && !f.lines.includes(n)) f.lines.push(n);
+        const f = at(m.path);
+        const key = `${f.path}:${m.line_no}`;
+        if (counted.has(key)) continue;
+        counted.add(key);
+        f.tf[i] += defines(m, term.text) ? NAMED : 1;
+        note(f, term);
+        if (f.lines.length < 4 && !f.lines.includes(m.line_no)) f.lines.push(m.line_no);
       }
     });
-    return [...files.values()].filter((f) => f.score > 0)
+    const list = [...docs.values()];
+    const N = Math.max(Number(files) || 0, list.length);
+    const idf = terms.map((_, i) => {
+      let n = list.filter((f) => f.tf[i] > 0).length;
+      if ((Array.isArray(byLine[i]) ? byLine[i] : []).length >= SEARCH_MOST) n = Math.max(n, Math.ceil(N / 2));
+      return Math.log(1 + (N - n + 0.5) / (n + 0.5));
+    });
+    const sizeOf = (f) => { const v = sizes ? (sizes instanceof Map ? sizes.get(f.path) : sizes[f.path]) : 0; return Number(v) > 0 ? Number(v) : 0; };
+    const known = list.map(sizeOf).filter((v) => v > 0);
+    const avg = known.length ? known.reduce((a, b) => a + b, 0) / known.length : 0;
+    for (const f of list) {
+      const len = sizeOf(f), ratio = len && avg ? len / avg : 1;
+      f.score = terms.reduce((sum, term, i) => (f.tf[i] ? sum + (WEIGHT[term.kind] || 1) * idf[i] * f.tf[i] / (f.tf[i] + K1 * (1 - B + B * ratio)) : sum), 0);
+    }
+    return list.filter((f) => f.score > 0)
       .sort((a, b) => b.score - a.score || b.terms.length - a.terms.length || (a.path < b.path ? -1 : 1))
-      .slice(0, most);
+      .slice(0, most)
+      .map(({ path, score, lines, terms: held }) => ({ path, score, lines, terms: held }));
+  }
+
+  /** How many files the project's outline counts (js/code/context.js projectOutline: "folder/ — N files"), or 0. */
+  function filesIn(outline) {
+    let n = 0;
+    for (const m of String(outline == null ? '' : outline).matchAll(/ — (\d+) files?\b/g)) n += Number(m[1]);
+    return n;
+  }
+
+  /** At most this many folders are listed for the sizes of the files found. */
+  const MOST_FOLDERS = 8;
+
+  /** The sizes of the files found, by path from the project folder, from a quiet listing of their folders; {} without one. */
+  async function sizesOf(paths, root, list) {
+    const sizes = {};
+    if (typeof list !== 'function') return sizes;
+    const folders = [...new Set(paths.map((p) => String(p).replace(/[\\/][^\\/]*$/, '')))].slice(0, MOST_FOLDERS);
+    await Promise.all(folders.map(async (dir) => {
+      let entries;
+      try { entries = await list(dir); if (typeof entries === 'string') entries = JSON.parse(entries); } catch { return; }
+      for (const e of Array.isArray(entries) ? entries : []) {
+        if (e && !e.is_dir && e.path && Number(e.size) > 0) sizes[inRoot(e.path, root)] = Number(e.size);
+      }
+    }));
+    return sizes;
   }
 
   /** What the app's search found, as the request carries it, or ''. */
@@ -200,6 +270,8 @@
    *     to show whole;
    *   byName(term), byLine(term) — the native searches by file name and
    *     inside files, from the project folder, never asking;
+   *   list(dir) — a folder's entries, never asking, for the sizes of the
+   *     files found (optional: without it, length says nothing);
    *   ask(messages, tools) — one turn of the model in use;
    *   tools — the tools offered to the run, from which the reading ones are taken;
    *   run(name, args) — a reading tool's result, as text, never asking;
@@ -222,16 +294,18 @@
       Promise.all(terms.map((t) => quiet(deps.byLine, t))),
     ]);
     if (deps.signal && deps.signal.aborted) return null;
-    const ranked = rank(terms, byName, byLine, deps.root, sized.files);
+    const found = [...new Set([...byName, ...byLine].flatMap((r) => (Array.isArray(r) ? r : [])).filter((m) => m && m.path != null && !(m.score > 2)).map((m) => String(m.path)))];
+    const sizes = await sizesOf(found, deps.root, deps.list);
+    const ranked = rank(terms, byName, byLine, deps.root, sized.files, { files: filesIn(deps.outline), sizes });
     const appNote = searchNote(ranked);
-    let found = null;
+    let named = null;
     if (sized.turns && typeof deps.ask === 'function' && !namesAFile(terms, byName)) {
-      found = await findingRun(request.content, deps, appNote, sized).catch((e) => { if (e && e.name === 'AbortError') throw e; return null; });
+      named = await findingRun(request.content, deps, appNote, sized).catch((e) => { if (e && e.name === 'AbortError') throw e; return null; });
     }
-    const note = found && found.length ? foundNote(found) : appNote;
+    const note = named && named.length ? foundNote(named) : appNote;
     if (!note) return null;
     request.context = request.context ? `${request.context}\n${note}` : `${deps.fromApp || ''}\n${note}`.trim();
-    const result = found && found.length ? { by: 'finding', files: found } : { by: 'search', files: ranked };
+    const result = named && named.length ? { by: 'finding', files: named } : { by: 'search', files: ranked };
     if (typeof deps.show === 'function') deps.show(result.by === 'finding' ? 'by a search of the project' : 'by the app\'s search', result.files.length);
     return result;
   }
@@ -269,5 +343,5 @@
     return kept;
   }
 
-  window.HCCodeFind = { SIZED, MOST_TERMS, CALLS_A_TURN, FINDING_TOOLS, FINDING_PROMPT, LAST_TURN, termsOf, rank, searchNote, findingMessages, answerOf, foundNote, before };
+  window.HCCodeFind = { SIZED, MOST_TERMS, CALLS_A_TURN, SEARCH_MOST, FINDING_TOOLS, FINDING_PROMPT, LAST_TURN, termsOf, rank, filesIn, searchNote, findingMessages, answerOf, foundNote, before };
 })();

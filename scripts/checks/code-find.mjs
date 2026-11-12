@@ -14,7 +14,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
 sandbox.HC = sandbox.window.HC = {};
 vm.createContext(sandbox);
-for (const f of [['js', 'text-safety.js'], ['js', 'secret-shapes.js'], ['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
+for (const f of [['js', 'text-safety.js'], ['js', 'secret-shapes.js'], ['js', 'code', 'search.js'], ['js', 'code', 'talk.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['js', 'code', 'codemap.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sandbox, { filename: f.at(-1) });
 vm.runInContext(process.argv[2] ? readFileSync(process.argv[2], 'utf8') : src('js', 'code', 'find.js'), sandbox, { filename: 'find.js' });
 const F = sandbox.window.HCCodeFind;
 const HC = sandbox.window.HC;
@@ -53,6 +53,41 @@ const root = '/work/lantern-lane';
   ok('the note says where it came from, to read before changing, and that it can miss a file', /^Files that may matter for this request, from the app's search of the project/.test(note) && /Read the ones that matter before you change anything; the list is a start and can miss a file\./.test(note));
   ok('each file with what it held and where', note.includes('- server/rooms.py: "rooms.py", "getNightlyRate", "nightly" at lines 12, 80') && note.includes('- web/src/booking.js: "getNightlyRate" at line 41'), note);
   ok('nothing found, no note', F.searchNote([]) === '');
+}
+
+console.log('\nRanking by the rare-word formula, in an invented project:');
+{
+  const R = '/work/harbour-ledger';
+  const terms = [{ text: 'invoiceTotal', kind: 'code' }, { text: 'rounding', kind: 'word' }];
+  const line = (path, line_no, text) => ({ path: `${R}/${path}`, line_no, line: text });
+  // The right file defines the name and says the word once; a long helper file
+  // repeats the name; the word is in nearly every file.
+  const common = Array.from({ length: 8 }, (_, k) => line(`src/part${k}.js`, 3, '// rounding is done elsewhere'));
+  const byLine = [
+    [line('src/billing/invoice.js', 10, 'export function invoiceTotal(lines) {'), line('src/billing/invoice.js', 40, '  return invoiceTotal(rest);'),
+      ...[5, 6, 7, 8, 9].map((n) => line('src/utils/format.js', n, `  total: invoiceTotal, // ${n}`)), line('docs/notes.md', 2, 'invoiceTotal adds the lines')],
+    [line('src/billing/invoice.js', 12, '  // rounding to cents'), ...[20, 21, 22, 23].map((n) => line('src/utils/format.js', n, '  rounding()')), ...common],
+  ];
+  const sizes = { 'src/billing/invoice.js': 3000, 'src/utils/format.js': 40000, 'docs/notes.md': 800 };
+  for (let k = 0; k < 8; k++) sizes[`src/part${k}.js`] = 5000;
+  const ranked = plain(F.rank(terms, [[], []], byLine, R, 5, { files: 40, sizes }));
+  const order = ranked.map((r) => r.path);
+  ok('the file that defines the name comes first, ahead of a long file that repeats it', order[0] === 'src/billing/invoice.js' && order.indexOf('src/utils/format.js') > 0 && order.indexOf('src/utils/format.js') < order.findIndex((p) => /part\d/.test(p)), ranked.map((r) => `${r.path} ${r.score.toFixed(3)}`).join(' | '));
+  ok('a word nearly every file holds adds little: a file with only it comes after one with the rare name', ranked.findIndex((r) => r.path === 'docs/notes.md') < ranked.findIndex((r) => /part\d/.test(r.path)), ranked.map((r) => r.path).join());
+  const one = (text) => [[line('a.js', 1, text)], []];
+  const two = [[line('a.js', 1, 'const x = invoiceTotal(1);'), line('b.js', 4, 'function invoiceTotal(lines) {')], []];
+  const byDef = plain(F.rank([terms[0], terms[1]], [[], []], two, R, 2, { files: 10 }));
+  ok('a line that defines the name counts three times', byDef[0].path === 'b.js' && byDef[0].score > byDef[1].score, JSON.stringify(byDef));
+  const byName = plain(F.rank([{ text: 'invoice', kind: 'code' }], [[{ path: `${R}/src/invoice.js`, score: 1 }]], [[line('src/other.js', 2, 'invoice'), line('src/invoice.js', 9, 'x')]], R, 2, { files: 10 }));
+  ok('a file whose name holds the term counts it three times too', byName[0].path === 'src/invoice.js', JSON.stringify(byName));
+  const same = [[line('long.js', 1, 'invoiceTotal()'), line('short.js', 1, 'invoiceTotal()')], []];
+  const bySize = plain(F.rank(terms, [[], []], same, R, 2, { files: 10, sizes: { 'long.js': 90000, 'short.js': 900 } }));
+  ok('the same matches in a shorter file count for more, when the sizes are known', bySize[0].path === 'short.js' && bySize[0].score > bySize[1].score, JSON.stringify(bySize));
+  const unsized = plain(F.rank(terms, [[], []], same, R, 2, { files: 10 }));
+  ok('...and without them, length says nothing', unsized[0].score === unsized[1].score);
+  const capped = Array.from({ length: F.SEARCH_MOST }, (_, k) => line(`f${k % 3}.js`, k + 1, 'rounding'));
+  const rare = plain(F.rank([{ text: 'rounding', kind: 'word' }, { text: 'ledgerKey', kind: 'code' }], [[], []], [capped, [line('g.js', 1, 'ledgerKey')]], R, 4, { files: 100 }));
+  ok(`a search that reached the native cap of ${F.SEARCH_MOST} matches is a common word, not a rare one`, rare[0].path === 'g.js', JSON.stringify(rare.map((r) => [r.path, r.score])));
 }
 
 console.log('\nWhat a finding run answers:');
@@ -123,6 +158,23 @@ const scripted = (replies, deps) => async (messages, tools) => {
   ok('it is offered only the reading tools, then none for its answer, and told to answer', deps.asked[0].tools.slice().sort().join() === 'fuzzy_find,grep_code,list_dir,read_file' && deps.asked.at(-1).tools.length === 0 && deps.asked.at(-1).last === F.LAST_TURN, JSON.stringify(deps.asked.map((a) => a.tools.length)));
   ok('a file it names that is not there is left out; one it saw or that is there is kept', out.files.map((f) => f.path).join() === 'server/rooms.py,web/src/booking.js,server/tests/test_rooms.py', out.files.map((f) => f.path).join());
   ok('its first message carries the request, the outline and the app\'s search', deps.asked[0].messages === 2);
+}
+{
+  ok('how many files the project has is read from its outline', F.filesIn('The project\'s folders:\n./ — 3 files: a, b, c\nserver/ — 12 files: x\nweb/ — 1 file: y') === 16 && F.filesIn('') === 0 && F.filesIn(undefined) === 0);
+  const messages = [{ role: 'user', content: 'The getNightlyRate rate is wrong' }];
+  const listed = [];
+  const deps = depsFor({ size: 'small', outline: 'The project\'s folders:\n./ — 2 files: a, b\nserver/ — 40 files: x',
+    byName: async () => [],
+    byLine: async (q) => (q === 'getNightlyRate' ? [{ path: `${root}/server/big.py`, line_no: 3, line: 'x = getNightlyRate(r)' }, { path: `${root}/web/small.js`, line_no: 3, line: 'y = getNightlyRate(r)' }] : []),
+    list: async (dir) => { listed.push(dir); return dir.endsWith('/server') ? [{ name: 'big.py', path: `${dir}/big.py`, is_dir: false, size: 80000 }] : [{ name: 'small.js', path: `${dir}/small.js`, is_dir: false, size: 600 }]; },
+  });
+  deps.ask = scripted([], deps);
+  const out = plain(await F.before(messages, deps));
+  ok('the sizes of the files found come from a quiet listing of their folders, each folder once, and rank the shorter first', out && out.files[0].path === 'web/small.js' && listed.length === 2 && new Set(listed).size === 2, JSON.stringify({ out, listed }));
+  const without = depsFor({ size: 'small', byName: deps.byName, byLine: deps.byLine });
+  without.ask = scripted([], without);
+  const plainOut = plain(await F.before([{ role: 'user', content: 'The getNightlyRate rate is wrong' }], without));
+  ok('...and with no way to list, length says nothing', plainOut && plainOut.files[0].score === plainOut.files[1].score, JSON.stringify(plainOut));
 }
 {
   const messages = [{ role: 'user', content: 'In rooms.py, rename get_nightly_rate to nightly_price' }];
@@ -231,7 +283,7 @@ console.log('\nWhere the Coder calls it:');
   const mode = src('modes', 'code', 'mode.js');
   const line = mode.split('\n').find((l) => l.includes('window.HCCodeFind.before(conversationMsgs')) || '';
   ok('before the run\'s first step, with the outline only for this project, and the reads that never ask', /await window\.HCCodeFind\.before\(conversationMsgs, \{/.test(line)
-    && line.includes("outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : ''") && /byName: HC\.code\.namesQuietly, byLine: HC\.code\.linesQuietly, exists: HC\.code\.existsQuietly, run: HC\.code\.readingQuietly/.test(line)
+    && line.includes("outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : ''") && /byName: HC\.code\.namesQuietly, byLine: HC\.code\.linesQuietly, list: HC\.code\.listQuietly, exists: HC\.code\.existsQuietly, run: HC\.code\.readingQuietly/.test(line)
     && mode.indexOf(line) < mode.indexOf('const finalText = await agentLoop(conversationMsgs, tools, contentEl'));
   ok('the finding run is the same model, stopped with the run', /ask: \(m, t\) => callWithRouter\(m, t, HC\.code\.temperatureFor\(sharedState\.size, window\._H\?\.selectedTemperature\?\.\(\), coderModel \|\| window\._H\?\.selectedModel\?\.\(\)\), signal, coderModel\)/.test(line) && /, signal \}\); \}/.test(line));
   ok('it is said as a step and in the trace', /verb: 'FIND', object: `files for this request, \$\{by\}`/.test(line) && /cdrTraceAdd\('Find'/.test(line));
