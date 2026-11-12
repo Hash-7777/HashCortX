@@ -19,6 +19,7 @@ const ok = (label, cond, detail = '') => {
 const sandbox = { window: {}, console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set };
 sandbox.HC = sandbox.window.HC = {};
 vm.createContext(sandbox);
+vm.runInContext(src('js', 'model-profile.js'), sandbox, { filename: 'model-profile.js' });
 vm.runInContext(src('platform', 'tauri', 'hashcoder.js'), sandbox, { filename: 'hashcoder.js' });
 const HC = sandbox.window.HC;
 
@@ -137,8 +138,19 @@ console.log('\nThe temperature the agent loop asks for:');
   ok('it is never below nothing', T('small', -3) === 0);
   ok('without a figure the loop asks for 0.15, or the ceiling when that is lower', T('full', undefined) === 0.15 && T('mid', NaN) === 0.15 && T('small', null) === 0.1);
   ok('a size it does not know is held like a larger model', T('huge', 2) === 0.35 && T(undefined, 2) === 0.35);
+  const P = sandbox.window.HCModelProfile;
+  ok('a model that refuses sampling settings is sent none, whatever the slider says', T('full', 0.3, P.of('cloud:openai:gpt-5')) === null && T('full', undefined, 'cloud:openai:o3-mini') === null);
+  ok('otherwise the slider wins over a family\'s value, inside the ceiling', T('full', 0.3, P.of('cloud:gemini:gemini-3-pro-preview')) === 0.3 && T('small', 0.5, 'qwen3:8b') === 0.1);
+  ok('with no slider value, a family\'s own value', T('full', undefined, 'cloud:gemini:gemini-3-pro-preview') === 1);
+  ok('a model on this computer keeps today\'s value until its own settings are switched on', HC.code.OWN_SETTINGS === false && T('full', undefined, P.of('qwen3:8b', { caps: ['thinking'] })) === 0.15);
+  HC.code.OWN_SETTINGS = true;
+  ok('...and then is sent none, so its packaged settings apply', T('full', undefined, P.of('qwen3:8b', { caps: ['thinking'] })) === null && T('full', 0.2, 'qwen3:8b') === 0.2);
+  HC.code.OWN_SETTINGS = false;
+  ok('an unknown model, or none named, is held as today', T('full', 0.3, 'cloud:groq:some-new-model') === 0.3 && T('full', 0.3) === 0.3 && T('full', undefined, null) === 0.15);
   const mode = src('modes', 'code', 'mode.js');
-  ok('the agent loop asks it, with the size the run was set up for', /const temperature = window\.HC\.code\.temperatureFor\(sharedState\.size, H\?\.selectedTemperature\?\.\(\)\);/.test(mode) && !/Math\.min\(H\.selectedTemperature\(\), 0\.35\)/.test(mode));
+  ok('the agent loop asks it, with the size the run was set up for and the model in use', /const temperature = window\.HC\.code\.temperatureFor\(sharedState\.size, H\?\.selectedTemperature\?\.\(\), routing\?\.router\?\.model \|\| coderModel \|\| H\?\.selectedModel\?\.\(\)\);/.test(mode) && !/Math\.min\(H\.selectedTemperature\(\), 0\.35\)/.test(mode));
+  const app = src('js', 'app.js');
+  ok('a turn told to send none sends no temperature', /\.\.\.\(temperature === null \? \{\} : \{ temperature: typeof temperature === "number" \? temperature : 0\.7 \}\),/.test(app) && /generationConfig: \{ \.\.\.\(temperature === null \? \{\} : \{ temperature: typeof temperature === "number" \? temperature : 0\.7 \}\) \},/.test(app));
 }
 
 console.log('\nWhat a search by file name tells the model:');

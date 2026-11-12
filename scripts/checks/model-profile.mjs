@@ -71,7 +71,7 @@ console.log('\nModels on this computer:');
 console.log('\nCloud families:');
 {
   const c = of('cloud:anthropic:claude-opus-4-1');
-  ok('one provider: its thinking kept as today until decided, results together and failures marked, no sampling sent', c.family === 'claude' && c.carry === 'never' && c.carryField === 'blocks' && c.resultsTogether === true && c.markFailed === true && c.sampling.send === false, json(c));
+  ok('one provider: its thinking kept as today until decided, results together and failures marked; asked no thinking here, it takes its temperature', c.family === 'claude' && c.carry === 'never' && c.carryField === 'blocks' && c.resultsTogether === true && c.markFailed === true && c.sampling.send === true, json(c));
   const r = of('cloud:openai:gpt-5');
   ok('a reasoning model: no sampling, an effort it takes', r.family === 'gpt' && r.thinks === 'always' && r.carry === 'never' && r.sampling.send === false && json(r.effort) === '{"field":"reasoning_effort","levels":["low","medium","high"]}', json(r));
   ok('...and an older series like it', of('cloud:openai:o3-mini').sampling.send === false && of('cloud:openai:o4-mini').thinks === 'always');

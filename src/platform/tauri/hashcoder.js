@@ -1300,9 +1300,29 @@ ${MEMORY_SECTION}REASONING:
    * obeyed. Without a figure, the loop asks for 0.15.
    */
   HC.code.TEMPERATURE_CEILING = { small: 0.1, mid: 0.2, full: 0.35 };
-  HC.code.temperatureFor = (size, chosen) => {
+  /**
+   * A local model's own packaged settings, left to apply by sending it no
+   * temperature (js/model-profile.js sampling.own). Off until a measured
+   * comparison on models already measured shows no loss.
+   */
+  HC.code.OWN_SETTINGS = false;
+
+  /**
+   * The temperature a run sends: none (null) to a model that refuses
+   * sampling settings; otherwise the slider's value inside the size's
+   * ceiling; with no slider value, none for a local model keeping its own
+   * settings, else the family's value, else 0.15. `profile` is a model's
+   * profile or its value (js/model-profile.js); none named is today's.
+   */
+  HC.code.temperatureFor = (size, chosen, profile = null) => {
     const ceiling = HC.code.TEMPERATURE_CEILING[size] ?? HC.code.TEMPERATURE_CEILING.full;
-    return Number.isFinite(chosen) ? Math.min(Math.max(chosen, 0), ceiling) : Math.min(0.15, ceiling);
+    const p = typeof profile === 'string' ? window.HCModelProfile?.of?.(profile) : profile;
+    const s = p && p.sampling;
+    if (s && s.send === false) return null;
+    if (Number.isFinite(chosen)) return Math.min(Math.max(chosen, 0), ceiling);
+    if (s && s.own && HC.code.OWN_SETTINGS) return null;
+    if (s && !s.own && Number.isFinite(s.temperature)) return s.temperature;
+    return Math.min(0.15, ceiling);
   };
 
   /** The tools a small model is offered. */

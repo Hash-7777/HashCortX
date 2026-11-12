@@ -1703,7 +1703,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
       const H = window._H;
-      const temperature = window.HC.code.temperatureFor(sharedState.size, H?.selectedTemperature?.());
+      const temperature = window.HC.code.temperatureFor(sharedState.size, H?.selectedTemperature?.(), routing?.router?.model || coderModel || H?.selectedModel?.());
       activeContentEl = contentEl;
       const policy = window.HCAgentPolicy;
       let iter = 0;
@@ -2070,7 +2070,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (stopBtn) stopBtn.style.display = 'none';
         runAbort = null;
         if (HC?.code?.shellCancelKey === stopKey) HC.code.shellCancelKey = null;
-        sharedState.lastRun = window.HCCodeDebug.runFacts({ routing, coderModel, sharedState, H: window._H, temperature: HC?.code?.temperatureFor?.(sharedState.size, window._H?.selectedTemperature?.()) }); saveCoderState(); setRouterChip('Auto', ''); warnIfSmall();   // the run's facts kept with the conversation, for an export; the model is loaded now, so where it runs can be read
+        sharedState.lastRun = window.HCCodeDebug.runFacts({ routing, coderModel, sharedState, H: window._H, temperature: HC?.code?.temperatureFor?.(sharedState.size, window._H?.selectedTemperature?.(), routing?.router?.model || coderModel || window._H?.selectedModel?.()) }); saveCoderState(); setRouterChip('Auto', ''); warnIfSmall();   // the run's facts kept with the conversation, for an export; the model is loaded now, so where it runs can be read
         // Light up HashNotch. app.js fires this for a chat turn, but Coder
         // has its own loop and never reached that line — so the one kind of run
         // long enough that you would switch away from it was the one that never
@@ -2091,7 +2091,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       HC.guard?.beginRun?.({ model: () => routing?.router?.model || coderModel || window._H?.selectedModel?.(), facts: () => window.HCCodeOutward?.facts(conversationMsgs, { root: sharedState.projectRoot, isSecret: window.HCSecretShapes?.isSecretFile, privateProject: window.HCCodeOutward?.isPrivate?.(sharedState.projectRoot) }) }); HC.guard?.setChecks?.(sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks.checks : null);   // what may run unasked is judged for this run (js/code/permissions.js)
       try {
         if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
-        if (tools.length && window.HCCodeFind) { setStatus('Finding the files this needs…', 'thinking'); await window.HCCodeFind.before(conversationMsgs, { size: sharedState.size, light: sharedState.light, root: sharedState.projectRoot, outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : '', byName: HC.code.namesQuietly, byLine: HC.code.linesQuietly, exists: HC.code.existsQuietly, run: HC.code.readingQuietly, tools, ask: (m, t) => callWithRouter(m, t, HC.code.temperatureFor(sharedState.size, window._H?.selectedTemperature?.()), signal, coderModel), record: { turn: window.HCAgentShape.appendAssistantToolCallTurn, result: window.HCAgentShape.appendToolResult }, fromApp: window.HCCodeContext.FROM_APP, show: (by, n) => { appendStep(contentEl, { verb: 'FIND', object: `files for this request, ${by}`, status: `${n} found` }); cdrTraceAdd('Find', `${n} files, ${by}`, 'ok'); }, signal }); }   // the files a request needs, found before its first step (js/code/find.js)
+        if (tools.length && window.HCCodeFind) { setStatus('Finding the files this needs…', 'thinking'); await window.HCCodeFind.before(conversationMsgs, { size: sharedState.size, light: sharedState.light, root: sharedState.projectRoot, outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : '', byName: HC.code.namesQuietly, byLine: HC.code.linesQuietly, exists: HC.code.existsQuietly, run: HC.code.readingQuietly, tools, ask: (m, t) => callWithRouter(m, t, HC.code.temperatureFor(sharedState.size, window._H?.selectedTemperature?.(), coderModel || window._H?.selectedModel?.()), signal, coderModel), record: { turn: window.HCAgentShape.appendAssistantToolCallTurn, result: window.HCAgentShape.appendToolResult }, fromApp: window.HCCodeContext.FROM_APP, show: (by, n) => { appendStep(contentEl, { verb: 'FIND', object: `files for this request, ${by}`, status: `${n} found` }); cdrTraceAdd('Find', `${n} files, ${by}`, 'ok'); }, signal }); }   // the files a request needs, found before its first step (js/code/find.js)
         const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
         if (finalText && !(conversationMsgs.at(-1)?.role === 'assistant' && conversationMsgs.at(-1).content === finalText)) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });   // an account at the step limit is in it already (js/agent-policy.js wrapUp)
         saveCoderState();

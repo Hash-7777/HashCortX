@@ -5636,7 +5636,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const requestMessages = hasImages ? toOpenAIVision(messages) : textMessages;
     const body = {
       model, messages: requestMessages,
-      temperature: typeof temperature === "number" ? temperature : 0.7,
+      ...(temperature === null ? {} : { temperature: typeof temperature === "number" ? temperature : 0.7 }),   // null: a model that takes no sampling settings is sent none (js/model-profile.js)
       stream: !!onText, ...(onText ? { stream_options: { include_usage: true } } : {}),   // streamed when watched, as HashCoder does
     };
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
@@ -5792,7 +5792,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     }
     const body = fitRequest("gemini", "gemini", model, {
       contents,
-      generationConfig: { temperature: typeof temperature === "number" ? temperature : 0.7 },
+      generationConfig: { ...(temperature === null ? {} : { temperature: typeof temperature === "number" ? temperature : 0.7 }) },
       ...(systemMsg ? { systemInstruction: { parts: [{ text: systemMsg.content }] } } : {}),
       ...(tools.length ? { tools } : {})
     });

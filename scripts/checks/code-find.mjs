@@ -233,7 +233,7 @@ console.log('\nWhere the Coder calls it:');
   ok('before the run\'s first step, with the outline only for this project, and the reads that never ask', /await window\.HCCodeFind\.before\(conversationMsgs, \{/.test(line)
     && line.includes("outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : ''") && /byName: HC\.code\.namesQuietly, byLine: HC\.code\.linesQuietly, exists: HC\.code\.existsQuietly, run: HC\.code\.readingQuietly/.test(line)
     && mode.indexOf(line) < mode.indexOf('const finalText = await agentLoop(conversationMsgs, tools, contentEl'));
-  ok('the finding run is the same model, stopped with the run', /ask: \(m, t\) => callWithRouter\(m, t, HC\.code\.temperatureFor\(sharedState\.size, window\._H\?\.selectedTemperature\?\.\(\)\), signal, coderModel\)/.test(line) && /, signal \}\); \}/.test(line));
+  ok('the finding run is the same model, stopped with the run', /ask: \(m, t\) => callWithRouter\(m, t, HC\.code\.temperatureFor\(sharedState\.size, window\._H\?\.selectedTemperature\?\.\(\), coderModel \|\| window\._H\?\.selectedModel\?\.\(\)\), signal, coderModel\)/.test(line) && /, signal \}\); \}/.test(line));
   ok('it is said as a step and in the trace', /verb: 'FIND', object: `files for this request, \$\{by\}`/.test(line) && /cdrTraceAdd\('Find'/.test(line));
   const tools = src('platform', 'tauri', 'hashcoder.js');
   const reads = tools.slice(tools.indexOf('HC.code.namesQuietly = '), tools.indexOf('HC.code.notThere = '));

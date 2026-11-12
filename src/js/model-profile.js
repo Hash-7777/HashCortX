@@ -48,9 +48,9 @@
     { family: 'glm', where: 'cloud', name: /glm-?(?:4\.[5-9]|[5-9])/i, makers: ['zai'], thinks: 'optional', carry: 'recommended', carryField: 'reasoning_content' },
     // MiniMax's guide, "Text: OpenAI-compatible": its thinking travels in the answer's text or its own field; neither is read here yet, so nothing changes.
     { family: 'minimax', where: 'cloud', name: /minimax/i, thinks: 'always' },
-    // Anthropic's guide, "Extended thinking": thinking takes no sampling settings; results of one turn go back together.
-    // Whether its thinking blocks are carried is DECISION D3: until then, as today.
-    { family: 'claude', where: 'cloud', name: /claude/i, thinks: 'optional', carryField: 'blocks', sampling: NO_SAMPLING, resultsTogether: true, markFailed: true },
+    // Anthropic's guide, "Extended thinking": thinking takes no sampling settings, and none is asked of it here, so its
+    // temperature is sent as today; results of one turn go back together. Carrying its thinking blocks: DECISION D3, as today.
+    { family: 'claude', where: 'cloud', name: /claude/i, thinks: 'optional', carryField: 'blocks', resultsTogether: true, markFailed: true },
     // OpenAI's guide, "Reasoning models": no temperature or top_p; reasoning_effort takes low, medium or high.
     { family: 'gpt', where: 'cloud', name: /^(?:openai\/)?(?:o\d|gpt-5)/i, thinks: 'always', sampling: NO_SAMPLING, effort: { field: 'reasoning_effort', levels: ['low', 'medium', 'high'] } },
     { family: 'gpt', where: 'cloud', name: /gpt|^(?:openai\/)/i, thinks: 'never' },
