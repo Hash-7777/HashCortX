@@ -454,6 +454,17 @@
     return HC.code.withoutSecrets(await HC.invoke('fs_grep', { dir: root, pattern: text, fileExt: null, skip: await HC.code.ignoredFolders() })).list;   // never a file that usually holds keys
   };
 
+  /** uses_of's answer: where a name is defined and every place that uses it, from one search of the project that never asks (js/code/uses.js). */
+  HC.code.usesOf = async (name) => {
+    const U = window.HCCodeUses;
+    if (!U) return 'uses_of is not available here.';
+    if (!U.isName(name)) return U.answer(name, []);
+    const root = projectRoot();
+    if (!root) return 'uses_of needs a project open.';
+    const lines = await HC.code.linesQuietly(String(name).split(/::|\./).pop()).catch(() => []);
+    return U.answer(name, lines, { root, limit: HC.code.searchLimit });
+  };
+
   /** Whether a file is there, from the project folder, read without asking. */
   HC.code.existsQuietly = async (path) => { try { await HC.code.readQuietly(fromProject(path)); return true; } catch { return false; } };
 
@@ -926,6 +937,15 @@
       fn: (p) => HC.code.grepCode(p.dir, p.pattern, p.file_ext || null).then((r) => HC.code.withCodes(HC.code.withLeft(window.HCCodeSearch ? window.HCCodeSearch.shape(r, { pattern: p.pattern, root: HC.guard?.projectRoot?.() || '', dir: p.dir, limit: HC.code.searchLimit }) : r, r), true)),
     },
     {
+      name: 'uses_of',
+      description: 'Where a function, class or other name is defined, with its parameters, and every place in the project that uses it, by file and line, in one call. Use it before changing what a name takes or renaming it, so no place that uses it is missed. Whole names only, never a longer one that starts the same way.',
+      parameters: {
+        name: { type: 'string', description: 'The name as code writes it, such as getNightlyRate, or Rooms.rate for a method' },
+      },
+      // One quiet search of the project and the map's reading of each line (js/code/uses.js).
+      fn: (p) => HC.code.usesOf(p.name).then((text) => HC.code.withCodes(text, true)),
+    },
+    {
       name: 'shell_run',
       description: 'Run a shell command. Use for git, builds, tests, and file inspection. INSTALL RULE: before running npm/pip/cargo install, check if node_modules/venv/target already exists — skip install if it does. Never pipe remote content to a shell (curl … | sh is blocked). Never install packages not listed in the project manifest without asking the user. Environment settings named like a key, token or password are not passed to the command; if one is needed, say so and let the user run it in the terminal. On macOS the command runs in a sandbox that cannot read keys, credentials, keychains or shell start-up files, so git over SSH, gh and cloud command-line tools fail here: hand those to the user to run in the terminal rather than trying to work around it.',
       parameters: {
@@ -1168,6 +1188,7 @@ PATCH RULES (most common failure mode):
 TOOL ROUTING:
 • File name unknown/fuzzy  → fuzzy_find(dir, query)
 • Find code by content     → grep_code(dir, pattern, file_ext?)
+• Who uses a name, and where it is defined → uses_of(name), before changing what it takes or renaming it
 • Three or more separate changes → update_plan first, then again as each is done
 • Targeted edit            → patch_file
 • New file / full rewrite  → write_file
@@ -1385,13 +1406,13 @@ ${HC.code.TOOL_TEXT_RULE}`;
   // the call as text after it.
 
   /** The tools a mid-sized model is offered, a plan among them; find_photos only when it builds a site. */
-  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan'];
+  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan', 'uses_of'];
 
   HC.code.MID_MODEL_PROMPT = `You are HashCoder, a coding agent with the person's project open. You work by calling tools: do the task, do not only describe it.
 
 How to work:
 1. Find: list_dir shows a folder, grep_code finds where something is written, fuzzy_find finds a file by a rough name. Never guess a path.
-2. Read a file with read_file before you change it, and the files that use what you change. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
+2. Read a file with read_file before you change it, and the files that use what you change: uses_of names them. A long file comes back 200 numbered lines at a time: grep_code gives line numbers, then read_file with start_line and end_line.
 3. Change part of a file with patch_file: search is text copied exactly from the file, without line numbers; replace is the new text. Several changes to one file go in one call, the rest in edits. If the search is not found, copy the lines it shows you and try again.
 4. Create a file with write_file. Replace a whole existing file only when that is asked for, with replace_whole: true. For three or more changes, list them first with update_plan and mark each done.
 5. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error, fix the cause and run it again. With no test to run, check a JavaScript file you changed with command "node", args ["--check", its path], or a Python file with command "python3", args ["-m", "py_compile", its path]. Never open the page or the app, serve it to look at, or take a screenshot.
@@ -1469,12 +1490,13 @@ ${HC.code.TOOL_TEXT_RULE}`;
     move_file: 'Rename a file or move it to another folder, so it can be undone.',
     fuzzy_find: 'Find a file by a rough or misspelt name.',
     grep_code: 'Find where text appears inside files, with line numbers.',
+    uses_of: 'Where a name is defined and every place that uses it.',
     shell_run: 'Run a command, such as the tests, a build or git: the program in command, the rest in args.',
     find_photos: 'Find openly licensed photos of a site\'s subject. Use only the addresses it returns, and credit each photo the page shows.',
   };
   /** A few words for each argument; places keep saying where a path starts. */
   HC.code.SHORT_ARGUMENT_WORDS = {
-    path: 'Project path, such as src/app.js', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
+    name: 'A name as code writes it, such as getNightlyRate', path: 'Project path, such as src/app.js', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
     cwd: 'Project folder to run in; leave out for the project', start_line: 'Optional: first line', end_line: 'Optional: last line', content: 'The whole file',
     replace_whole: 'Optional: true to replace an existing file whole', append: 'Optional: true to add to the end', reason: 'Why, in a few words',
     search: 'Exact text from the file', replace: 'The new text', all: 'Optional: true to change every place', edits: 'Optional: more changes to this file',

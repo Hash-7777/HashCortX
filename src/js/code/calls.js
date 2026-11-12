@@ -138,7 +138,7 @@
   // ── What the run has already asked ───────────────────────────────────
 
   /** Reads whose answer depends only on what they ask and on the files. */
-  const LOCAL_READS = new Set(['read_file', 'list_dir', 'grep_code', 'fuzzy_find']);
+  const LOCAL_READS = new Set(['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'uses_of']);
   /** Reads whose answer the project's files do not change. */
   const WEB_READS = new Set(['web_search', 'fetch_url', 'find_photos', 'search_knowledge']);
   /** Calls that change files, and which paths. */

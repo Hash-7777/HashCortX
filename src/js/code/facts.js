@@ -46,7 +46,7 @@
 
   const WRITERS = new Set(['write_file', 'patch_file', 'move_file']);
   /** What a tool returns that the agent did not write: the web, notes, and anything a connected system answers. */
-  const OWN_TOOLS = new Set(['read_file', 'write_file', 'patch_file', 'list_dir', 'delete_file', 'move_file', 'fuzzy_find', 'grep_code', 'search_files',
+  const OWN_TOOLS = new Set(['read_file', 'write_file', 'patch_file', 'list_dir', 'delete_file', 'move_file', 'fuzzy_find', 'grep_code', 'uses_of', 'search_files',
     'shell_run', 'execute_python', 'current_datetime', 'calculate', 'remember_fact', 'update_plan', 'save_lesson', 'placeholder_images', 'find_photos']);
 
   const slash = (p) => String(p == null ? '' : p).replace(/\\/g, '/');

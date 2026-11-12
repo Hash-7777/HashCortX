@@ -105,6 +105,7 @@
     view_image: (o) => (o ? `Looking at ${o}` : 'Looking at the picture'),
     list_dir: (o) => (o ? `Taking in the layout of ${o}` : 'Taking in the layout'),
     grep_code: () => 'Going through the matches',
+    uses_of: () => 'Going through who uses it',
     fuzzy_find: () => 'Going through the matches',
     search_files: () => 'Going through the matches',
     web_search: () => 'Reading the search results',

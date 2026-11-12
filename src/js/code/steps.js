@@ -40,7 +40,7 @@
   const TOOL_VERBS = {
     read_file: 'READ', write_file: 'WROTE', patch_file: 'EDIT',
     list_dir: 'LIST', delete_file: 'DELETE', move_file: 'MOVE',
-    fuzzy_find: 'FIND', grep_code: 'GREP', search_files: 'FIND',
+    fuzzy_find: 'FIND', grep_code: 'GREP', search_files: 'FIND', uses_of: 'FIND',
     shell_run: 'SHELL', web_search: 'SEARCH', fetch_url: 'FETCH',
     search_knowledge: 'KB', execute_python: 'PYTHON',
     current_datetime: 'TIME', calculate: 'CALC',
@@ -57,6 +57,7 @@
       return [a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ').trim();
     }
     if (name === 'move_file') return `${shown(a.from)} → ${shown(a.to)}`;
+    if (name === 'uses_of') return a.name ? `who uses ${a.name}` : '';
     if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
     const place = a.path || a.dir || a.file;
     if (place) return shown(place);

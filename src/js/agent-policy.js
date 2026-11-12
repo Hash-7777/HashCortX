@@ -35,6 +35,7 @@
     list_dir: 'read',
     fuzzy_find: 'read',
     grep_code: 'read',
+    uses_of: 'read',
     web_search: 'read',
     placeholder_images: 'read',
     recall_facts: 'read',

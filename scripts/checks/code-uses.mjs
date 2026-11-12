@@ -71,5 +71,35 @@ console.log('\nWhat it will not answer:');
   ok('names as code writes them are', ['nightly_rate', 'getNightlyRate', '$el', 'Rooms.rate', 'Widget::draw', 'v2'].every((n) => U.isName(n)));
 }
 
+console.log('\nThe uses_of tool in HashCoder:');
+{
+  const sb = { console, JSON, Object, Array, String, Number, Math, Promise, Error, Map, Set, RegExp };
+  sb.window = sb;
+  const asked = [], searched = [];
+  sb.HC = {
+    guard: { projectRoot: () => R, request: async (...a) => { asked.push(a); return true; }, allowedWithoutAsking: async (action, target) => String(target).startsWith(R) },
+    invoke: async (cmd, a) => { if (cmd === 'fs_grep') { searched.push(a); return found; } return null; },
+  };
+  vm.createContext(sb);
+  for (const f of [['js', 'text-safety.js'], ['js', 'secret-shapes.js'], ['js', 'code', 'search.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'], ['js', 'code', 'codemap.js'], ['js', 'code', 'uses.js'], ['platform', 'tauri', 'hashcoder.js']]) vm.runInContext(src(...f), sb, { filename: f.at(-1) });
+  const code = sb.HC.code;
+  const tool = code.TOOL_DEFINITIONS.find((t) => t.name === 'uses_of');
+  ok('it is a tool that takes one name', !!tool && Object.keys(tool.parameters).join() === 'name' && /defined/.test(tool.description) && /every place/.test(tool.description));
+  const said = tool ? await tool.fn({ name: 'Rooms.nightly_rate' }) : '';
+  ok('it answers from one search of the project for the name\'s own part, with no question to the person', /^uses_of "Rooms\.nightly_rate": defined in 1 place, used in 4 places in 3 files\./.test(said) && searched.length === 1 && searched[0].pattern === 'nightly_rate' && searched[0].dir === R && asked.length === 0, JSON.stringify({ said: said.slice(0, 80), searched, asked: asked.length }));
+  sb.HC.guard.projectRoot = () => '';
+  const none = tool ? await tool.fn({ name: 'nightly_rate' }) : '';
+  ok('with no project open it says so and searches nothing', /needs a project open/.test(none) && searched.length === 1, none);
+  sb.HC.guard.projectRoot = () => R;
+  const list = code.toolList();
+  const names = (size) => code.toolsFor(size, list, false).map((t) => t.function.name);
+  ok('offered to mid-sized, large and cloud models, not to small ones', names('mid').includes('uses_of') && names('full').includes('uses_of') && !names('small').includes('uses_of'));
+  const mid = code.toolsFor('mid', list, false).find((t) => t.function.name === 'uses_of');
+  ok('a mid-sized model is told of it in a few words, its name argument too', mid && mid.function.description === 'Where a name is defined and every place that uses it.' && /such as getNightlyRate/.test(mid.function.parameters.properties.name.description), JSON.stringify(mid && mid.function));
+  ok('the run treats it as a read of the project', /uses_of: 'read'/.test(src('js', 'agent-policy.js')) && /LOCAL_READS = new Set\(\[[^\]]*'uses_of'/.test(src('js', 'code', 'calls.js')) && /OWN_TOOLS = new Set\(\[[^\]]*'uses_of'/.test(src('js', 'code', 'facts.js')));
+  ok('and shows it as a Finding step naming who is looked for, with words while it reads the answer', /uses_of: 'FIND'/.test(src('js', 'code', 'steps.js')) && /if \(name === 'uses_of'\) return a\.name \? `who uses \$\{a\.name\}` : '';/.test(src('js', 'code', 'steps.js')) && /uses_of: \(\) => 'Going through who uses it'/.test(src('js', 'code', 'live.js')));
+  ok('the instructions name it where they say to read the files that use what is changed', /uses_of names them/.test(src('platform', 'tauri', 'hashcoder.js')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/uses.js)`);
 process.exit(fail ? 1 : 0);

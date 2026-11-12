@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder can ask who uses a name.** A new tool, `uses_of`, answers
+  in one call where a function, class or other name is defined, with its
+  parameters, and every place in the project that uses it, by file and
+  line, whole names only. It reads inside the open project without asking,
+  is sized like a search, and says how to narrow it past that. Mid-sized,
+  large and cloud models are offered it; small models are not.
 - **The project map reads again only what changed.** When a new
   conversation begins on a project mapped earlier in the session, a file
   with the same size and last-changed time is taken as it was, and only the
