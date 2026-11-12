@@ -555,6 +555,18 @@
     return { text: text.replace(/\n/g, '\r\n'), kept: true };
   }
 
+  /**
+   * `text` with the byte-order mark the file it replaces started with, when
+   * `text` has none. A model writes a whole file without it, so rewriting
+   * one took the mark off, and a tool that reads the file by it (some
+   * Windows ones do) read it differently. Returns `{ text, kept }`.
+   */
+  function keepMark(before, text) {
+    const t = String(text);
+    if (typeof before !== 'string' || !before.startsWith('\uFEFF') || t.startsWith('\uFEFF')) return { text: t, kept: false };
+    return { text: '\uFEFF' + t, kept: true };
+  }
+
   // ── A stylesheet or script written inside the tag a page would use ────
 
   /** The tag a page wraps each kind of file in, by the file's extension. */
@@ -597,5 +609,5 @@
     return !out || out.endsWith('\n') ? out : out + eol;
   }
 
-  window.HCCodePatch = { appended, applyPatch, applyEdits, changedNow, SHOWN_MOST, editsOf, textOf, bytesFromBase64, count, keepLineEndings, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
+  window.HCCodePatch = { appended, applyPatch, applyEdits, changedNow, SHOWN_MOST, editsOf, textOf, bytesFromBase64, count, keepLineEndings, keepMark, linesWindow, isLong, breaks, onlyMarkers, changedShare, wholeRewrite, unwrapped, WHOLE_FROM_LINES, WHOLE_SHARE };
 })();

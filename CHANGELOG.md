@@ -30,6 +30,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A file rewritten whole keeps its byte-order mark.** When HashCoder
+  replaces a file that started with one, the mark is put back at the start,
+  as a file's Windows line endings already were, and the model is told so.
 - **A UTF-16 text file is read and written as UTF-16.** A file that starts
   with a UTF-16 byte-order mark, as some Windows tools write them, is read
   as its text instead of as binary, written back as UTF-16 in its own byte

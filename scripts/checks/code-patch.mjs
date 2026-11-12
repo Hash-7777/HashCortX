@@ -202,6 +202,15 @@ console.log('\nA whole-file rewrite keeps a Windows file\'s line endings:');
   ok('a byte-order mark stays where it was', K('\ufeffa\r\nb\r\n', '\ufeffx\ny\n').text === '\ufeffx\r\ny\r\n');
 }
 
+console.log('\nA whole-file rewrite keeps a file\'s byte-order mark:');
+{
+  const M = P.keepMark;
+  ok('text without the mark over a file that has one gets it back', M('\ufeffold\n', 'new\n').text === '\ufeffnew\n' && M('\ufeffold\n', 'new\n').kept);
+  ok('text that carries it already is left as written', M('\ufeffold\n', '\ufeffnew\n').text === '\ufeffnew\n' && !M('\ufeffold\n', '\ufeffnew\n').kept);
+  ok('a file without one gets none', M('old\n', 'new\n').text === 'new\n' && !M('old\n', 'new\n').kept);
+  ok('a new file is left as written', M(null, 'new\n').text === 'new\n' && !M(null, 'new\n').kept);
+}
+
 console.log('\nOnly UTF-8 text, or UTF-16 that starts with its mark, is patched:');
 {
   const enc = (s) => new TextEncoder().encode(s);
@@ -301,6 +310,13 @@ console.log('\npatch_file writes back the whole file:');
   ok('write_file over a Windows file saves it with CRLF', writes.at(-1).content === 'uno\r\ndos\r\ntres\r\n');
   ok('... reports the bytes it saved', res.bytes === 'uno\r\ndos\r\ntres\r\n'.length);
   ok('... and tells the model the endings were kept', /kept as CRLF/.test(res.lineEndings || ''));
+  disk.set('/p/marked.cs', '\ufeffclass A {}\r\n');
+  const marked = JSON.parse(await code.writeFile('/p/marked.cs', 'class B {}\n'));
+  ok('write_file over a file with a byte-order mark keeps the mark and its endings', writes.at(-1).content === '\ufeffclass B {}\r\n');
+  ok('... and tells the model the mark was kept', /byte-order mark/.test(marked.byteOrderMark || ''));
+  let same = '';
+  try { await code.writeFile('/p/marked.cs', 'class B {}\n'); } catch (e) { same = String(e.message); }
+  ok('... and the same text again, without the mark, is no change', /Nothing was changed/.test(same));
   disk.set('/p/settings.json', '{\n  "port": 3000\n}\n');
   const beforeJson = writes.length;
   let jsonError = '';

@@ -87,9 +87,11 @@
         await HC.undo.drop(record);
         throw new Error(broken);
       }
-      // A file that had Windows line endings keeps them (js/code/patch.js).
-      const ends = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
+      // A file that had Windows line endings keeps them, and one that started with a byte-order mark keeps it (js/code/patch.js).
+      const lines = window.HCCodePatch?.keepLineEndings(record?.existed ? record.content : null, String(content))
         || { text: String(content), kept: false };
+      const mark = window.HCCodePatch?.keepMark?.(before, lines.text) || { text: lines.text, kept: false };
+      const ends = { text: mark.text, kept: lines.kept };
       // A write of what the file already holds changes nothing, and is not counted as a change: a patch whose replace was
       // its search was written, shown with Keep and Undo, and the model said it had updated the file.
       if (before != null && ends.text === before) {
@@ -110,6 +112,7 @@
       const removed = window.HCCodeKeep?.note(path.split(/[\\/]/).pop() || path, before, ends.text, HC.code.request) || '';
       return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
         ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}),
+        ...(mark.kept ? { byteOrderMark: 'the file started with a byte-order mark, so it was kept there.' } : {}),
         ...(bare.note ? { unwrapped: bare.note } : {}),
         ...(check ? { check } : {}), ...(removed ? { removed } : {}) });
     },
