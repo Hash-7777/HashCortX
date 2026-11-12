@@ -260,6 +260,8 @@
    * model's template reads that, including one that drops tool turns.
    */
   const markSource = (text) => (typeof window !== 'undefined' && window.HCSources ? window.HCSources.mark(text) : text);
+  /** Tools whose results come from outside the computer: a page, a web search, a photo search (js/code/outward.js FROM_OUTSIDE). */
+  const FROM_OUTSIDE = new Set(['fetch_url', 'web_search', 'find_photos']);
 
   function toolTurnsInWords(messages) {
     const out = [];
@@ -696,9 +698,12 @@
     // mistake worth failing on. Shaped here so no mode has to remember.
     const shaped = route.kind === 'gemini' ? toGeminiTools(list) : list;
     // onText and onThinking hear the answer as it is written, where the client can say (a model on this computer).
+    // What a page or a search brought in is material, for every model and in the provider's own result field too:
+    // a line in it speaking to the model is left out (js/chat/sources.js). Files and command output stay exact.
+    const outside = Array.isArray(messages) ? messages.map((m) => (m && m.role === 'tool' && FROM_OUTSIDE.has(m.name) && typeof m.content === 'string' ? { ...m, content: markSource(m.content) } : m)) : messages;
     // A model off this computer is not sent what is shaped like a key in a tool result (js/secret-shapes.js).
     const K = typeof window !== 'undefined' && window.HCSecretShapes;
-    const sent = route.kind !== 'ollama' && K && K.keepFromCloud() ? K.forCloud(messages).messages : messages;
+    const sent = route.kind !== 'ollama' && K && K.keepFromCloud() ? K.forCloud(outside).messages : outside;
     const base = { model: route.model, messages: sent, tools: shaped, temperature, signal, ...(json ? { json } : {}), ...(need ? { need } : {}), ...(most ? { most } : {}), ...(onText ? { onText } : {}), ...(onThinking ? { onThinking } : {}), ...(cache ? { cache } : {}) };
     const who = modelValue || (route.provider ? `cloud:${route.provider}:${route.model}` : route.model);
     if (route.kind === 'ollama') return tagged(fns.ollama(base), who);

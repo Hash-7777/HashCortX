@@ -106,6 +106,14 @@ console.log('\nWhere it is switched:');
   ok('...loaded with the other settings panes', src('boot.js').indexOf("'/core/settings/private-project.js'") > src('boot.js').indexOf("'/js/code/outward.js'"));
 }
 
+console.log('\nOne list of tools that bring material from outside:');
+{
+  const shape = src('js', 'agent-shape.js');
+  const there = (/const FROM_OUTSIDE = new Set\(\[([^\]]*)\]\)/.exec(shape) || [])[1] || '';
+  const listed = [...there.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]).sort();
+  ok('the way to a provider guards the same tools as this file counts', JSON.stringify(listed) === JSON.stringify([...O.FROM_OUTSIDE].sort()), `${listed.join(',')} / ${[...O.FROM_OUTSIDE].sort().join(',')}`);
+}
+
 console.log('\nThe module:');
 {
   const boot = src('boot.js');
