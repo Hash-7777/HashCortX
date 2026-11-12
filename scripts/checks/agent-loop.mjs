@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -118,6 +118,16 @@ console.log('\nThe receipt under the answer:');
   ok('...and when it draws a receipt, the same words are not said again in italics, and the receipt is kept for the answer', !r.scr.of('answer').some((a) => /^\*/.test(a[1])) && json(r.state.receipt) === '[{"from":"proof","label":"Not checked"}]' && /^Not checked: no test ran/.test(r.state.proven));
   const plain = await runWith({ script });
   ok('a screen that draws no receipt still says it in italics, as before', plain.scr.of('answer').some((a) => /^\*Not checked: no test ran/.test(a[1])) && plain.state.receipt === null);
+}
+
+console.log('\nA reading command answered by the app:');
+{
+  const r = await runWith({ script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'cat', args: ['/p/b.js'] })) : words('Read it.')) });
+  const result = r.messages.find((m) => m.role === 'tool');
+  ok('a model\'s cat is answered by read_file: the file is read, no command is started', json(r.P.ran) === '[["read","/p/b.js"]]', json(r.P.ran));
+  ok('...and the answer says so, with the file in it', /^Answered by the app's own reading \(read_file\), with no program started; call read_file directly next time\.\nconst b = 2;/.test(result && result.content), result && result.content);
+  const ls = await runWith({ script: (m, n) => (n === 1 ? turnOf(callOf('shell_run', { command: 'npm', args: ['test'] })) : words('Ran it.')) });
+  ok('a command it cannot answer runs as before', json(ls.P.ran) === '[["run","npm"]]', json(ls.P.ran));
 }
 
 console.log('\nThe loop runs with no page:');

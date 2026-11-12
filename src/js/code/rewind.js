@@ -46,6 +46,7 @@
   /** Whether a tool's result says it did what it was asked. */
   const ran = (text) => {
     const t = String(text == null ? '' : text).trim();
+    if (window.HCCodeTranslate?.isAnswer(t)) return false;   // a reading command the app answered itself: no program ran (js/code/translate.js)
     if (!t || /^(?:error\b|refused\b|permission denied|denied\b|blocked\b)/i.test(t)) return false;
     try { const v = JSON.parse(t); return !(v && typeof v === 'object' && v.error); } catch { return true; }
   };

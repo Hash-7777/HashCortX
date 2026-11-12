@@ -54,6 +54,14 @@ console.log('\nEach filter:');
   ok('uniq folds lines repeated one after another, counted with -c', out('menu | grep tart | uniq -c') === '      2 apple tart 12\n' && out('menu | uniq') === printed, out('menu | grep tart | uniq -c'));
 }
 
+console.log('\nPowerShell\'s own filters, as PowerShell writes them:');
+{
+  ok('Select-Object -First and -Last, and select, keep the first or last N lines', out('Get-Process | Select-Object -First 2') === 'Pumpkin Loaf 4\napple tart 12\n' && out('Get-Process | select -Last 1') === 'apple tart 12\n' && out('menu | Select-Object -first 1') === 'Pumpkin Loaf 4\n');
+  ok('Measure-Object -Line, and measure -Line, count the lines', out('Get-Content a.txt | Measure-Object -Line') === 'Lines: 6\n' && out('menu | measure -line') === 'Lines: 6\n');
+  ok('Sort-Object sorts as PowerShell does, without regard to case; -Descending reverses; -Unique drops repeats that differ only in case', out('menu | Sort-Object | Select-Object -First 1').toLowerCase() === 'apple tart 12\n' && out('menu | Sort-Object -Descending | Select-Object -First 1') === 'Pumpkin Loaf 4\n' && out('menu | Sort-Object -Unique | Measure-Object -Line') === 'Lines: 4\n');
+  ok('...anything else they can do is left to a shell', P.split('ps | Select-Object Name') === null && P.split('ps | Select-Object -Property Name -First 2') === null && P.split('ps | Measure-Object -Sum') === null && P.split('ps | Sort-Object CPU') === null);
+}
+
 console.log('\nWhat comes back:');
 {
   const r = run('menu 2>/dev/null | grep plum');

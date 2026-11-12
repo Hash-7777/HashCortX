@@ -108,6 +108,7 @@
     '/js/code/preview.js',
     '/js/code/rewind.js',
     '/js/code/host-tools.js',
+    '/js/code/translate.js',
     '/js/code/talk.js',
     '/js/code/permissions.js',
     '/js/code/outward.js',

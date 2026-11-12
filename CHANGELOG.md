@@ -30,6 +30,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder answers common reading commands itself.** When a model
+  writes `ls`, `cat`, `head`, `grep -r`, `rg`, `find -name`, `pwd` or
+  `which`, or on Windows `dir`, `type`, `findstr`, `where`, `Get-ChildItem`,
+  `Get-Content` or `Select-String`, the app's own listing, reading or search
+  answers it: no program is started, nothing depends on what is installed,
+  and nothing asks inside the project. One flag it does not know, a pipe or
+  a second command, and the command runs as before. The answer says which
+  tool to call next time. PowerShell's `Select-Object -First`/`-Last`,
+  `Measure-Object -Line` and `Sort-Object` join the filters a command's
+  output can be narrowed by.
 - **HashCoder tells a model which programs are installed.** Once a session
   the app looks, without running anything, for a fixed list of programs (git,
   node, python, rg, make and others) where a command would find them, and a

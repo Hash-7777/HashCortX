@@ -5,8 +5,10 @@
 // a pipe or a redirect. Models of every size still write the line they would
 // type, `top -l 1 | head -30`, `ioreg -l | grep -i gpu`, and a refusal cost
 // them a step each time. So a line whose pipes lead only to filters that
-// narrow text (grep, head, tail, wc, sort, uniq) is run as its first program,
-// and the filters are applied here, to what it printed. `2>/dev/null` drops
+// narrow text (grep, head, tail, wc, sort, uniq, and PowerShell's
+// Select-Object -First or -Last, Measure-Object -Line and Sort-Object) is
+// run as its first program, and the filters are applied here, to what it
+// printed. `2>/dev/null` drops
 // what it printed as errors and `2>&1` keeps it with the rest. Anything else
 // a shell would be needed for is still refused, as before.
 //
@@ -124,6 +126,26 @@
         const runs = [];
         for (const l of lines) { if (runs.length && runs[runs.length - 1][0] === l) runs[runs.length - 1][1]++; else runs.push([l, 1]); }
         return runs.map(([l, n]) => (args.length ? `${String(n).padStart(7)} ${l}` : l));
+      };
+    }
+    // PowerShell's own, as PowerShell writes them: the first or last lines, how many, and in order without regard to case.
+    const ps = String(prog).toLowerCase(), opts = args.map((a) => a.toLowerCase());
+    if (ps === 'select-object' || ps === 'select') {
+      if (args.length !== 2 || !['-first', '-last'].includes(opts[0]) || !(count(args[1]) >= 0)) return null;
+      const n = count(args[1]);
+      return (lines) => (opts[0] === '-first' ? lines.slice(0, n) : n ? lines.slice(-n) : []);
+    }
+    if (ps === 'measure-object' || ps === 'measure') {
+      if (args.length !== 1 || opts[0] !== '-line') return null;
+      return (lines) => [`Lines: ${lines.length}`];
+    }
+    if (ps === 'sort-object') {
+      if (!opts.every((o) => o === '-descending' || o === '-unique')) return null;
+      return (lines) => {
+        const key = (l) => l.toLowerCase();
+        const out = [...lines].sort((a, b) => key(a).localeCompare(key(b)) || a.localeCompare(b));
+        if (opts.includes('-descending')) out.reverse();
+        return opts.includes('-unique') ? out.filter((l, i) => !i || key(l) !== key(out[i - 1])) : out;
       };
     }
     return null;

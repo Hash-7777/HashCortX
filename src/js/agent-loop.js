@@ -137,11 +137,13 @@
           const t0 = performance.now();
           let resultStr, ok = true;
           const early = asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name)) || (!window.HCMcp?.systemOf?.(call.name) && await window.HCCodeSeen?.before(call, messages, { root: sharedState.projectRoot, whole: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.whole : '', current: HC.code.readWholeQuietly, uses: HC.code.linesQuietly })) || null;   // and a change to a file not read, changed since, or whose users are not read, is answered without making it (js/code/seen.js)   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
+          const asTool = call.name === 'shell_run' && !early && window.HCCodeTranslate ? window.HCCodeTranslate.toTool(call.arguments?.command, call.arguments?.args, { os: sharedState.platform?.os, here: call.arguments?.cwd || sharedState.projectRoot, programs: sharedState.hostTools }) : null;   // a reading command answered by the app's own tool, no program started (js/code/translate.js)
           try {
-            const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === call.name), def = window.HCMcp ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
-            if (!def) throw new Error('Unknown tool: ' + call.name);
-            const raw = early ? early.result : await (def.fn ? def.fn(call.arguments || {}) : def.execute(call.arguments || {}));
+            const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === (asTool?.tool || call.name)), def = window.HCMcp && !asTool ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
+            if (!def && asTool?.answer == null) throw new Error('Unknown tool: ' + call.name);
+            const raw = early ? early.result : asTool?.answer != null ? asTool.answer : await (def.fn ? def.fn(asTool ? window.HCCodePaths.argsFromRoot(asTool.arguments, call.arguments?.cwd || sharedState.projectRoot) : call.arguments || {}) : def.execute(call.arguments || {}));
             resultStr = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
+            if (asTool) resultStr = window.HCCodeTranslate.said(asTool) + resultStr;   // said to be the app's answer, and which tool to call next time
             if ((!def.fn && raw?.error) || (early && !early.ok)) ok = false;
           } catch (e) {
             resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
@@ -158,7 +160,7 @@
             const a = call.arguments || {};
             const touched = { write_file: [a.path], patch_file: [a.path], delete_file: [a.path], move_file: [a.from, a.to] }[call.name];
             if (touched) touched.forEach((p) => { proof.edited(p); window.HCCodeReview?.track(changes, p, HC?.undo?.lastFor?.(p)); });
-            else if (call.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
+            else if (call.name === 'shell_run' && !asTool) { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
           }
           if (ok && ['write_file', 'patch_file', 'delete_file', 'move_file'].includes(call.name)) toolEl?.remove();   // its change row, with Keep and Undo, says it
           if (ok) ui.changed(call, resultStr);
