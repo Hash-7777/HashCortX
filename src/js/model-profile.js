@@ -132,5 +132,19 @@
     try { const st = storeOf(s); if (!st) return; if (on) st.setItem(FAMILY_TEMP_KEY, 'on'); else st.removeItem(FAMILY_TEMP_KEY); } catch { /* left as it was */ }
   }
 
-  window.HCModelProfile = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature };
+  // ── Thinking on or off, step by step, for a model on this computer ─────
+  //
+  // A thinking model spends most of a short step thinking. For an answer
+  // held to a shape, a step held short, or a step offered no tools (small
+  // talk, light mode), it is told not to; otherwise it decides. Off until a
+  // measured run on a thinking model shows no loss: until then nothing is said.
+
+  /** `false` to tell a model on this computer not to think on this step, or undefined to leave it to decide. */
+  function thinkFor(profile, { json = false, most = 0, tools = 0 } = {}) {
+    if (!published.THINK_PER_STEP || !profile || (profile.thinks !== 'optional' && profile.thinks !== 'always')) return undefined;
+    return json || most > 0 || !tools ? false : undefined;
+  }
+
+  const published = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature, THINK_PER_STEP: false, thinkFor };
+  window.HCModelProfile = published;
 })();

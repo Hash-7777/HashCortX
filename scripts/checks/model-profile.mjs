@@ -109,6 +109,19 @@ console.log('\nEach model\'s recommended temperature, by the person\'s choice:')
   ok('...which reads and writes it here, loaded with the other settings panes', /box\.checked = M\(\)\.familyTemperature\(\)/.test(pane) && /M\(\)\.setFamilyTemperature\(box\.checked\)/.test(pane) && src('boot.js').indexOf("'/core/settings/model-temperature.js'") > src('boot.js').indexOf("'/js/model-profile.js'"));
 }
 
+console.log('\nThinking on or off, step by step, for a model on this computer:');
+{
+  const q = of('qwen3:8b', thinkingCaps), coder = of('qwen2.5-coder:7b');
+  ok('off until it is measured: nothing is said, as today', M.THINK_PER_STEP === false && M.thinkFor(q, { json: true }) === undefined && M.thinkFor(q, { tools: 5 }) === undefined);
+  M.THINK_PER_STEP = true;
+  ok('switched on, no thinking for an answer held to a shape, a step held short, or a step with no tools', M.thinkFor(q, { json: true, tools: 5 }) === false && M.thinkFor(q, { most: 900, tools: 5 }) === false && M.thinkFor(q, { tools: 0 }) === false);
+  ok('...and the model decides for an ordinary step', M.thinkFor(q, { tools: 5 }) === undefined);
+  ok('...and nothing is said to a model that does not think, or one no row knows', M.thinkFor(coder, { json: true }) === undefined && M.thinkFor(of('x'), { json: true }) === undefined);
+  M.THINK_PER_STEP = false;
+  const app = src('js', 'app.js');
+  ok('the local turn asks it, with what the step is', /think: window\.HCModelProfile\?\.thinkFor\?\.\(window\.HCModelProfile\.of\(model, info\), \{ json, most, tools: tools\.length \}\)/.test(app));
+}
+
 console.log('\nThe module:');
 {
   const boot = src('boot.js');
