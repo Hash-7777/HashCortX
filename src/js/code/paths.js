@@ -89,5 +89,27 @@
     return out;
   }
 
-  window.HCCodePaths = { baseName, relativeFromRoot, fromRoot, argsFromRoot };
+  /** Names Windows keeps for devices (src-tauri/src/commands/fs.rs RESERVED_NAMES). */
+  const RESERVED = new Set(['CON', 'PRN', 'AUX', 'NUL', ...[1, 2, 3, 4, 5, 6, 7, 8, 9].flatMap((n) => [`COM${n}`, `LPT${n}`])]);
+
+  /**
+   * Why a path cannot be written as named on Windows, or '': a name Windows
+   * keeps for a device, with or without an ending, or one ending in a dot or
+   * a space, which Windows takes off so the file lands under another name.
+   * Every name in the path is judged, since its folders are made too. The
+   * same words as the Rust side, which has the last word (fs.rs
+   * windows_name_problem); asked here first so nothing is asked about a write
+   * that cannot happen.
+   */
+  function windowsNameProblem(path) {
+    for (const name of String(path || '').split(/[\\/]/)) {
+      if (!name || name === '.' || name === '..' || /^[A-Za-z]:$/.test(name)) continue;
+      if (/[. ]$/.test(name)) return `"${name}" ends in a dot or a space, which Windows takes off, so the file would be written under another name. Choose a name without it.`;
+      const stem = name.split('.')[0].trimEnd().toUpperCase();
+      if (RESERVED.has(stem)) return `"${name}" is a name Windows keeps for a device (${stem}), so no file can be written under it. Choose another name.`;
+    }
+    return '';
+  }
+
+  window.HCCodePaths = { baseName, relativeFromRoot, fromRoot, argsFromRoot, windowsNameProblem };
 })();

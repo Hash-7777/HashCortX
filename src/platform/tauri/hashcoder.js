@@ -50,6 +50,9 @@
     async writeFile(path, content, reason = '', { asked = false, whole = false, edited = false } = {}) {
       /* Reject null/undefined content — prevents the literal string "null"
          from being written to files when the model omits the content arg */
+      // A name Windows cannot write a file under is refused before anything is asked (js/code/paths.js windowsNameProblem).
+      const badName = /^windows$/i.test(String(HC.code.platform?.os || '')) && window.HCCodePaths?.windowsNameProblem?.(path);
+      if (badName) throw new Error(`write_file was not run: ${badName}`);
       if (content == null) {
         throw new Error(
           'write_file: content is required and must be a string. ' +
@@ -313,6 +316,8 @@
       const [a, b] = [from, to].map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, ''));
       if (a === b) throw new Error(`move_file was not run: from and to are the same path, ${from}. To make a folder, use shell_run with command "mkdir" and the folder in args.`);
       if (b.startsWith(a + '/')) throw new Error(`move_file was not run: ${to} is inside ${from}, and nothing can be moved into itself. To make a folder, use shell_run with command "mkdir" and the folder in args.`);
+      const badTo = /^windows$/i.test(String(HC.code.platform?.os || '')) && window.HCCodePaths?.windowsNameProblem?.(to);
+      if (badTo) throw new Error(`move_file was not run: ${badTo}`);
       HC.code.leaveAlone(from); HC.code.leaveAlone(to);
       // Each end is asked about on its own, as the path it actually is.
       //

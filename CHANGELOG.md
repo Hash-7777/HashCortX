@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **On Windows, a file is never written under a name Windows cannot keep.**
+  A name it keeps for a device (`CON`, `NUL`, `COM1` and the like, with or
+  without an ending) or one ending in a dot or a space is refused with the
+  reason, by the page before anything is asked and by the native side as
+  the last word. Paths longer than the old Windows limit and another drive
+  are covered by tests that run on Windows.
 - **PowerShell starts with no profile and nothing to wait for.** The app
   adds `-NoProfile -NonInteractive` to a PowerShell or pwsh command, and the
   question shows them. A PowerShell line still always asks. On Windows a

@@ -98,5 +98,16 @@ console.log('\nThe Coder does not split paths by hand any more:');
   ok('and that one is the home-folder guess', /parts = root\.split\('\/'\)\.filter\(Boolean\);\s*\n\s*if \(parts\[0\] === 'Users'/.test(modeSrc));
 }
 
+console.log('\nNames Windows cannot write a file under:');
+{
+  const why = (p) => P.windowsNameProblem(p);
+  ok('a name Windows keeps for a device, with or without an ending, in any part of the path', ['C:\\p\\CON', 'C:\\p\\nul.txt', 'src/com1.js', 'C:\\p\\LPT9\\a.txt', 'aux .md'].every((p) => /keeps for a device/.test(why(p))));
+  ok('a name ending in a dot or a space, which Windows takes off', ['C:\\p\\notes.', 'src/readme ', 'C:\\p\\dir.\\a.txt'].every((p) => /ends in a dot or a space/.test(why(p))));
+  ok('ordinary names and the drive pass', ['C:\\p\\console.js', 'C:\\p\\src\\Context.tsx', 'src/com10.js', 'lpt.txt', 'C:\\p\\.env.example', './a/../b.txt'].every((p) => why(p) === ''));
+  ok('the same words as the Rust side, which has the last word', (() => { const rust = readFileSync(join(here, '..', '..', 'src-tauri', 'src', 'commands', 'fs.rs'), 'utf8'); return /keeps for a device \(\{stem\}\), so no file can be written under it\. Choose another name\./.test(rust) && /which Windows takes off, so the file would be written under another name\. Choose a name without it\./.test(rust); })());
+  const tools = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'hashcoder.js'), 'utf8');
+  ok('on Windows, a write, a patch and a move refuse such a name before anything is asked', /const badName = \/\^windows\$\/i\.test\(String\(HC\.code\.platform\?\.os \|\| ''\)\) && window\.HCCodePaths\?\.windowsNameProblem\?\.\(path\);\s*if \(badName\) throw new Error\(`write_file was not run: \$\{badName\}`\);/.test(tools) && /window\.HCCodePaths\?\.windowsNameProblem\?\.\(to\);\s*if \(badTo\) throw new Error\(`move_file was not run: \$\{badTo\}`\);/.test(tools));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/paths.js)`);
 process.exit(fail ? 1 : 0);

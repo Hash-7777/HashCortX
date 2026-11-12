@@ -287,8 +287,46 @@ pub fn fs_read_file(path: String) -> Result<String, String> {
     Ok(content)
 }
 
+/// Names Windows keeps for devices: a file cannot be written under one, with
+/// or without an ending (`NUL.txt` is the device too).
+const RESERVED_NAMES: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// Why a path cannot be written as named on Windows, or None: a name Windows
+/// keeps for a device, or a name ending in a dot or a space, which Windows
+/// takes off, so the file would land under another name. Every name in the
+/// path is judged, since the folders are made too. Checked on Windows only:
+/// elsewhere these are ordinary names. The page says the same before it asks
+/// anything (src/js/code/paths.js windowsNameProblem).
+#[cfg_attr(not(windows), allow(dead_code))]
+fn windows_name_problem(path: &str) -> Option<String> {
+    for name in path.split(['/', '\\']) {
+        if name.is_empty() || name == "." || name == ".." || (name.len() == 2 && name.ends_with(':')) {
+            continue;
+        }
+        if name.ends_with('.') || name.ends_with(' ') {
+            return Some(format!(
+                "\"{name}\" ends in a dot or a space, which Windows takes off, so the file would be written under another name. Choose a name without it."
+            ));
+        }
+        let stem = name.split('.').next().unwrap_or("").trim_end().to_uppercase();
+        if RESERVED_NAMES.contains(&stem.as_str()) {
+            return Some(format!(
+                "\"{name}\" is a name Windows keeps for a device ({stem}), so no file can be written under it. Choose another name."
+            ));
+        }
+    }
+    None
+}
+
 #[tauri::command]
 pub fn fs_write_file(path: String, content: String) -> Result<(), String> {
+    #[cfg(windows)]
+    if let Some(why) = windows_name_problem(&path) {
+        return Err(why);
+    }
     guard_agent_path(&path)?;
     if let Some(parent) = Path::new(&path).parent() {
         // Guard the parent dir too — create_dir_all would otherwise bypass denylist
@@ -502,6 +540,10 @@ fn encode_base64(bytes: &[u8]) -> String {
 /// separate action with its own approval, which is the right shape for it.
 #[tauri::command]
 pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
+    #[cfg(windows)]
+    if let Some(why) = windows_name_problem(&to) {
+        return Err(why);
+    }
     guard_agent_path(&from)?;
     guard_agent_path(&to)?;
 
@@ -1457,6 +1499,88 @@ mod containment_tests {
         assert!(result.is_err());
         assert_eq!(fs::read_to_string(&file).unwrap(), "old\n");
         assert!(leftovers(&dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod windows_name_tests {
+    use super::windows_name_problem;
+
+    #[test]
+    fn a_name_windows_keeps_for_a_device_is_named_as_the_reason() {
+        for p in [r"C:\p\CON", r"C:\p\nul.txt", "src/com1.js", r"C:\p\LPT9\a.txt", "aux .md"] {
+            let why = windows_name_problem(p).unwrap_or_default();
+            assert!(why.contains("keeps for a device"), "{p}: {why}");
+        }
+    }
+
+    #[test]
+    fn a_name_ending_in_a_dot_or_a_space_is_named_as_the_reason() {
+        for p in [r"C:\p\notes.", "src/readme ", r"C:\p\dir.\a.txt"] {
+            let why = windows_name_problem(p).unwrap_or_default();
+            assert!(why.contains("ends in a dot or a space"), "{p}: {why}");
+        }
+    }
+
+    #[test]
+    fn ordinary_names_and_the_drive_pass() {
+        for p in [r"C:\p\console.js", r"C:\p\src\Context.tsx", "src/com10.js", "lpt.txt", r"C:\p\.env.example", "./a/../b.txt"] {
+            assert_eq!(windows_name_problem(p), None, "{p}");
+        }
+    }
+}
+
+/// What only Windows can show: a reserved name refused, a long path written
+/// and read, and another drive outside the project.
+#[cfg(all(test, windows))]
+mod windows_path_tests {
+    use super::*;
+
+    fn scratch(name: &str) -> (PathBuf, std::sync::MutexGuard<'static, ()>) {
+        let turn = crate::security::root_jail::test_turn();
+        let dir = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("fs-check-scratch")
+            .join(format!("{name}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
+        (dir, turn)
+    }
+
+    #[test]
+    fn a_reserved_name_is_refused_before_anything_is_written() {
+        let (dir, _turn) = scratch("win-reserved");
+        let target = dir.join("NUL.txt");
+        let err = fs_write_file(target.to_string_lossy().into_owned(), "x".into()).unwrap_err();
+        assert!(err.contains("keeps for a device"), "{err}");
+        let err = fs_write_file(dir.join("notes.").to_string_lossy().into_owned(), "x".into()).unwrap_err();
+        assert!(err.contains("ends in a dot or a space"), "{err}");
+        crate::security::root_jail::clear_root();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_path_longer_than_the_old_limit_is_written_and_read() {
+        let (dir, _turn) = scratch("win-long");
+        let mut deep = dir.clone();
+        while deep.to_string_lossy().len() < 300 {
+            deep = deep.join("a-folder-name-that-makes-the-path-long");
+        }
+        let file = deep.join("file.txt");
+        fs_write_file(file.to_string_lossy().into_owned(), "long\n".into()).unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "long\n");
+        crate::security::root_jail::clear_root();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn another_drive_is_outside_the_project() {
+        let (dir, _turn) = scratch("win-outside");
+        assert!(crate::security::root_jail::check(r"C:\hcx-not-the-project\a.txt").is_err());
+        assert!(crate::security::root_jail::check(&dir.join("inside.txt").to_string_lossy()).is_ok());
+        crate::security::root_jail::clear_root();
         let _ = fs::remove_dir_all(&dir);
     }
 }
