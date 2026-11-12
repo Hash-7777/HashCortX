@@ -32,7 +32,7 @@ HashCortX/
 │   │   │                            mode.css and panel.html)
 │   │   ├── systems/          3,231  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,463  chain / vote / failover
-│   │   ├── code/             2,143  HashCoder: what its agent loop shows, its
+│   │   ├── code/             2,141  HashCoder: what its agent loop shows, its
 │   │   │                            finishing checks, what it hands the loop
 │   │   ├── finance/          2,360  financial document analysis
 │   │   └── sandbox/            547  security scanner
@@ -207,12 +207,12 @@ HashCortX/
 │   │   ├── retired-storage.js   41  clears what a removed feature saved
 │   │   ├── host-profile.js     141  whether this machine can draw, and its OS,
 │   │   │                            known before the first frame
-│   │   ├── stream/             388  reading a streamed answer off the wire —
+│   │   ├── stream/             390  reading a streamed answer off the wire —
 │   │   │                            the one place a response body is read;
 │   │   │                            a failure sent inside a 200 reply, thinking
 │   │   │                            told from the answer, and a free model that
 │   │   │                            never starts left after 45 s
-│   │   ├── chat/             1,350  what a model is told, which to try next
+│   │   ├── chat/             1,358  what a model is told, which to try next
 │   │   │                            (an agent's turns too), the web searches
 │   │   │                            an agent makes, what its code printed,
 │   │   │                            what a model thought before it answered,
@@ -224,7 +224,7 @@ HashCortX/
 │   │   │                            model decides, the app acts, the model answers,
 │   │   │                            and a reply's diagrams, with Mermaid loaded
 │   │   │                            the first time one is shown
-│   │   ├── mcp/              1,244  connected systems over MCP: which of a
+│   │   ├── mcp/              1,266  connected systems over MCP: which of a
 │   │   │                            system's tools only read, each tool pinned
 │   │   │                            to what was switched on, what an agent is
 │   │   │                            told of one switched off, the protocol in
@@ -368,7 +368,7 @@ HashCortX/
 │   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,587   filesystem bridge, applies the denylist;
+│   │   │   ├── fs.rs        1,586   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all
 │   │   │   ├── keychain.rs    102   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
