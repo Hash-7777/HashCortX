@@ -634,10 +634,12 @@ console.log('\nA change Undo cannot take back is asked about:');
   // pick up the file's previous record, and its Undo reverse an earlier change.
   const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   const rows = coder.slice(coder.indexOf('async function runOne(call)'), coder.indexOf('results.set(call, resultStr);'));
-  const gated = [...rows.matchAll(/if \((.*(?:write_file|patch_file|delete_file|move_file).*)\) \{/g)].map((m) => m[1]);
+  // The rows themselves are drawn by the loop's ui.changed, which runOne calls only for a call that succeeded.
+  const drawn = coder.slice(coder.indexOf('changed: (call, resultStr) =>'), coder.indexOf('const H = window._H;', coder.indexOf('changed: (call, resultStr) =>')));
   assert('a change row is added only when the call succeeded',
-    gated.length === 3 && gated.every((c) => /^ok && /.test(c)), gated.join(' | '));
-  assert('a move gets its two rows', /call\.name === 'move_file'\)[\s\S]{0,400}addChangeEntry\(baseName\(from\)[\s\S]{0,120}addChangeEntry\(baseName\(to\)/.test(rows));
+    (rows.match(/ui\.changed\(/g) || []).length === 1 && /\n\s+if \(ok\) ui\.changed\(call, resultStr\);/.test(rows) && !/addChangeEntry/.test(rows)
+    && (coder.match(/ui\.changed\(/g) || []).length === 1 && ['write_file', 'delete_file', 'move_file'].every((n) => drawn.includes(`call.name === '${n}'`)));
+  assert('a move gets its two rows', /call\.name === 'move_file'\)[\s\S]{0,400}addChangeEntry\(baseName\(from\)[\s\S]{0,120}addChangeEntry\(baseName\(to\)/.test(drawn));
 
   sandbox.HC.isTauri = false;
   sandbox.HC.invoke = () => Promise.resolve();

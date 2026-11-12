@@ -1702,6 +1702,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
+      // Everything the loop shows, in one place: the reply's live line, its steps, tool rows, answer and error, the trace, the status, the terminal and the change rows.
+      const ui = { trace: cdrTraceAdd, status: setStatus, terminal: terminalLog, wait: (o) => appendThinking(contentEl, o), step: (s) => appendStep(contentEl, s), tool: (name, args) => appendToolBlock(contentEl, name, args), toolDone: finalizeToolBlock, answer: (text) => appendTextToBubble(contentEl, text),
+        added: (text, pictures) => { window.HCCodeSteps.added(contentEl, text, pictures); scrollMessages(); },
+        error: (e, kept) => { const errDiv = Object.assign(document.createElement('div'), { className: 'cdr-msg-text', innerHTML: `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}` }); Object.assign(errDiv.style, { color: 'var(--cdr-error)', borderLeft: '2px solid var(--cdr-error)', paddingLeft: '10px', margin: '8px 0' }); contentEl.appendChild(errDiv); scrollMessages(); },
+        // A move is two changes: the file leaves one path and arrives at another. Undoing both puts it back.
+        changed: (call, resultStr) => { const a = call.arguments || {}, fp = a.path || '', { from = '', to = '' } = a; if (call.name === 'write_file' || call.name === 'patch_file') { addChangeEntry(baseName(fp), fp, 'write', a.content || a.patch || resultStr); if (fp) addAIFileToExplorer(fp, 'write'); } else if (call.name === 'delete_file') { addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)'); if (fp) addAIFileToExplorer(fp, 'delete'); } else if (call.name === 'move_file') { addChangeEntry(baseName(from), from, 'delete', '(file moved)'); addChangeEntry(baseName(to), to, 'write', ''); if (from) addAIFileToExplorer(from, 'delete'); if (to) addAIFileToExplorer(to, 'write'); } } };
       const H = window._H;
       const temperature = window.HC.code.temperatureFor(sharedState.size, H?.selectedTemperature?.(), routing?.router?.model || coderModel || H?.selectedModel?.());
       activeContentEl = contentEl;
@@ -1722,12 +1728,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const secondLook = async () => {
         const R = window.HCCodeReview, V = window.HCCodeVerify, shown = R && R.diffText(changes, window.HCDiff.diffLines);
         if (!shown || !R.worthReview({ size: sharedState.size, prove: cdrPrefs().prove !== false, files: shown.files, changed: shown.changed, reviewed: sent.fresh })) return null;
-        cdrTraceAdd('Review', 'A second look at the changes', 'run');
-        const wait = appendThinking(contentEl, { checking: true });   // a model call with nothing else on the screen
+        ui.trace('Review', 'A second look at the changes', 'run');
+        const wait = ui.wait({ checking: true });   // a model call with nothing else on the screen
         try {
           const said = await callWithRouter(R.messages((window.HCCodeAttach?.shownRequest || String)(V.requestIn(messages)), V.proofLine(proof), shown.text), [], 0, signal, coderModel);
           const found = R.verdict(said?.content);
-          appendStep(contentEl, { verb: 'REVIEW', object: found.ok ? 'looks right' : `${found.problems.length} to look at`, status: '' });
+          ui.step({ verb: 'REVIEW', object: found.ok ? 'looks right' : `${found.problems.length} to look at`, status: '' });
           return found.ok ? null : V.freshReviewNote(found.problems);
         } catch (e) { if (signal?.aborted) throw e; return null; } finally { wait?.remove(); }   // a second look that fails holds nothing up
       };
@@ -1739,7 +1745,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!files || !files.size) return null;
         const counts = (list) => list.filter((f) => f.level === 'broken' || f.level === 'standard'), broken = S.newSince(counts(C.inspect(files)), counts(C.inspect(S.asBefore(files, changes)))).map((f) => f.what);   // only what this run brought in
         proof.siteRead(broken.length);   // said under the answer (js/code/verify.js proofLine)
-        cdrTraceAdd('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
+        ui.trace('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
         return broken.length && !sent.site ? window.HCCodeVerify.siteNote(broken) : null;
       };
       // The details its pages state as fact, looked for in what the run was told and read, and sent back once (js/code/facts.js); what is left is said under the answer.
@@ -1750,7 +1756,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!F || !proof || cdrPrefs().prove === false || !root) return null;
         const found = F.check({ files: await F.gather(proof.changed, root, (f) => HC.code.readQuietly(f)), messages });
         unconfirmed = found.total ? found : null;
-        if (found.total) cdrTraceAdd('Check', `Details: ${found.unsourced.length} not confirmed, ${found.placeholders.length} unfinished`, 'warn');
+        if (found.total) ui.trace('Check', `Details: ${found.unsourced.length} not confirmed, ${found.placeholders.length} unfinished`, 'warn');
         return found.total && !sent.facts ? window.HCCodeVerify.factsNote(found, root) : null;
       };
       // The project read before it finishes, a small one whole: a name the request changes still written (js/code/verify.js renameOf), and files the run changed not joined up (js/code/wiring.js), each twice at most.
@@ -1759,8 +1765,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
       const edited = new Map(), asked = window.HCCodeCalls.memory(), schemaOf = (name) => (tools || []).find((t) => (t.function ? t.function.name : t.name) === name);   // asked: what this run's calls gave back (js/code/calls.js)
       let lastStop = null, forced = null;   // forced: a turn the app takes for a small model, running the test it was told to (verify.js stopCheck)
-      if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) cdrTraceAdd('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
-      let thinkEl = appendThinking(contentEl);
+      if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) ui.trace('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
+      let thinkEl = ui.wait();
 
       for (;;) {
         const verdict = policy.shouldContinue({
@@ -1773,44 +1779,34 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (!verdict.continue) { const untested = verdict.reason === 'stalled' && !sent.stall++ && cdrPrefs().prove !== false && window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, '', 0, 1); if (!untested) { lastStop = verdict; break; } stalledIterations = 0; if (untested.run) forced = { content: '', tool_calls: [{ id: `ran_${Date.now()}_0`, name: 'shell_run', arguments: untested.run }] }; else messages.push({ role: 'user', content: untested.message, note: true }); }   // a run that stalls after changing code has its test run, or its failure said, once before it stops (js/code/verify.js stopCheck)
         iter++;
 
-        setStatus(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
+        ui.status(`${label ? label + ' · ' : ''}Running`, 'thinking');   // the reply shows what it is doing (js/code/live.js)
         if (signal?.aborted) { thinkEl?.remove(); throw new DOMException('Aborted', 'AbortError'); }   // stopped: the live line goes too
         const added = messages === conversationMsgs ? coderQueue?.takeNow() : null;   // what the person sent while it worked, read at this step (js/queue.js)
-        if (added) { const A = window.HCCodeAttach, pack = A ? A.packed(added.text, added.files) : { content: added.text, images: [], thumbs: [] }; messages.push({ role: 'user', content: pack.content, added: true, ...(pack.images.length ? { images: pack.images, thumbs: pack.thumbs } : {}) }); if (HC?.code) HC.code.request = `${HC.code.request || ''}\n\n${added.text}`; thinkEl?.remove(); window.HCCodeSteps.added(contentEl, A ? A.shownRequest(pack.content) : added.text, pack.pictures); scrollMessages(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Person', `Added ${added.count === 1 ? 'a message' : `${added.count} messages`} while it worked`, 'run'); }
+        if (added) { const A = window.HCCodeAttach, pack = A ? A.packed(added.text, added.files) : { content: added.text, images: [], thumbs: [] }; messages.push({ role: 'user', content: pack.content, added: true, ...(pack.images.length ? { images: pack.images, thumbs: pack.thumbs } : {}) }); if (HC?.code) HC.code.request = `${HC.code.request || ''}\n\n${added.text}`; thinkEl?.remove(); ui.added(A ? A.shownRequest(pack.content) : added.text, pack.pictures); thinkEl = ui.wait(); ui.trace('Person', `Added ${added.count === 1 ? 'a message' : `${added.count} messages`} while it worked`, 'run'); }
 
         // A nudge, and the plan read back while steps are open (js/code/plan.js), go on a COPY: never saved, so the next request starts the same.
         const told = [verdict.nudge, loopNote, window.HCCodePlan?.recite(HC?.code?.plan)].filter(Boolean).join('\n\n'); loopNote = '';
         const baseMsgs = told ? [...messages, { role: 'user', content: told, note: true }] : messages;
         const callMessages = bare ? [{ role: 'system', content: window.HCCodeTalk.SHORT_SYSTEM }, ...compressHistory(baseMsgs).filter((m) => m.role !== 'system')] : sharedState.light ? window.HCCodeLight.callMessages(compressHistory(baseMsgs)) : compressHistory(baseMsgs);
 
-        cdrTraceAdd('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
+        ui.trace('Step', `Iter ${iter}${label ? ' · ' + label : ''} · calling model`, 'run');
         let turn;
         try {
           turn = forced || await callWithRouter(callMessages, tools, temperature, signal, coderModel, thinkEl); forced = null;
         } catch (e) {
-          if (coderQueue?.urgent && !signal?.aborted) { thinkEl?.remove(); thinkEl = appendThinking(contentEl); cdrTraceAdd('Step', 'Gave way to a message sent now', 'run'); continue; }   // "Send now": the step being written is dropped, and the message read at once
+          if (coderQueue?.urgent && !signal?.aborted) { thinkEl?.remove(); thinkEl = ui.wait(); ui.trace('Step', 'Gave way to a message sent now', 'run'); continue; }   // "Send now": the step being written is dropped, and the message read at once
           thinkEl?.remove(); thinkEl = null;
-          cdrTraceAdd('Error', e?.message || String(e), 'err');
-          // Show error inline in the bubble
-          const errDiv = document.createElement('div');
-          errDiv.className = 'cdr-msg-text';
-          errDiv.style.color = 'var(--cdr-error)';
-          errDiv.style.borderLeft = '2px solid var(--cdr-error)';
-          errDiv.style.paddingLeft = '10px';
-          errDiv.style.margin = '8px 0';
-          const kept = signal?.aborted ? '' : window.HCCodeRouter.keptNote(proof ? proof.changed.map(baseName) : []);   // an error after the work was done says the work is there
-          errDiv.innerHTML = `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}`;
-          contentEl.appendChild(errDiv);
-          scrollMessages();
+          ui.trace('Error', e?.message || String(e), 'err');
+          ui.error(e, signal?.aborted ? '' : window.HCCodeRouter.keptNote(proof ? proof.changed.map(baseName) : []));   // shown in the reply; an error after the work was done says the work is there
           throw e;
-        } if (turn.cutOff && !turn.tool_calls?.length && sharedState.size !== 'full' && !sharedState.light && sent.cut++ < 2) { thinkEl?.finish(''); messages.push({ role: 'user', content: window.HCCodeVerify.cutNote(), note: true }); appendStep(contentEl, { verb: 'CHECK', object: window.HCCodeVerify.CUT_STEP, status: '' }); cdrTraceAdd('Check', window.HCCodeVerify.CUT_STEP, 'warn'); thinkEl = appendThinking(contentEl, { checking: true }); continue; }   // a step stopped at its limit is neither kept nor run
+        } if (turn.cutOff && !turn.tool_calls?.length && sharedState.size !== 'full' && !sharedState.light && sent.cut++ < 2) { thinkEl?.finish(''); messages.push({ role: 'user', content: window.HCCodeVerify.cutNote(), note: true }); ui.step({ verb: 'CHECK', object: window.HCCodeVerify.CUT_STEP, status: '' }); ui.trace('Check', window.HCCodeVerify.CUT_STEP, 'warn'); thinkEl = ui.wait({ checking: true }); continue; }   // a step stopped at its limit is neither kept nor run
         // Light mode: the files in its answer become the calls a larger model makes, and a file not written whole is asked for again, twice at most (js/code/light.js).
         const lit = sharedState.light && !turn.tool_calls?.length && turn.content ? await window.HCCodeLight.turnOf(turn.content, (p) => HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path), { known: window.HCCodeLight.knownFiles(sharedState.codeMap?.whole), hints: window.HCCodeLight.pathsIn(HC.code.request), rename: window.HCCodeVerify?.renameOf(window.HCCodeVerify.requestIn(messages)) }) : null;
         const dif = !lit && sharedState.size !== 'full' && !turn.tool_calls?.length && window.HCCodeVerify.unmadeChange(proof, messages, turn.content || '', 0, 1) ? window.HCCodeDiffs.turnOf(turn.content) : null;   // a change a smaller model wrote as a diff, when the request asks for one and none is made (js/code/diffs.js)
         if (lit?.calls.length || dif) turn = { ...turn, content: (lit || dif).said, tool_calls: (lit || dif).calls };
         if (lit?.note && sent.light++ < 2) {
           if (lit.calls.length) loopNote = lit.note;
-          else { thinkEl?.finish(''); messages.push({ role: 'assistant', content: turn.content }, { role: 'user', content: lit.note, note: true }); appendStep(contentEl, { verb: 'CHECK', object: 'Asked to write a file again, whole', status: '' }); thinkEl = appendThinking(contentEl, { checking: true }); continue; }
+          else { thinkEl?.finish(''); messages.push({ role: 'assistant', content: turn.content }, { role: 'user', content: lit.note, note: true }); ui.step({ verb: 'CHECK', object: 'Asked to write a file again, whole', status: '' }); thinkEl = ui.wait({ checking: true }); continue; }
         }
         // What the model said before a step stays in the reply, where it said it;
         // a call written as text does not, and an answer is drawn below instead.
@@ -1840,12 +1836,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               const args = (call.arguments?.args || []).join(' ');
               const cwd = call.arguments?.cwd || sharedState.projectRoot || '';
               const preview = cwd ? `cd ${cwd} && ${cmd} ${args}` : `${cmd} ${args}`;
-              terminalLog('[' + call.name + ' preview] ' + preview, 'cdr-bash-preview');
+              ui.terminal('[' + call.name + ' preview] ' + preview, 'cdr-bash-preview');
             }
 
-            const toolEl = appendToolBlock(contentEl, call.name, call.arguments);
+            const toolEl = ui.tool(call.name, call.arguments);
             const pathHint = call.arguments?.path || call.arguments?.dir || call.arguments?.command || '';
-            cdrTraceAdd('Tool', call.name + (pathHint ? ' · ' + baseName(pathHint) : ''), 'run');
+            ui.trace('Tool', call.name + (pathHint ? ' · ' + baseName(pathHint) : ''), 'run');
             const t0 = performance.now();
             let resultStr, ok = true;
             const early = asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name)) || (!window.HCMcp?.systemOf?.(call.name) && await window.HCCodeSeen?.before(call, messages, { root: sharedState.projectRoot, whole: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.whole : '', current: HC.code.readWholeQuietly, uses: HC.code.linesQuietly })) || null;   // and a change to a file not read, changed since, or whose users are not read, is answered without making it (js/code/seen.js)   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
@@ -1859,8 +1855,8 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
             }
             const ms = Math.round(performance.now() - t0);
-            cdrTraceAdd('Tool', call.name + ' · ' + window.HCCodeSteps.duration(ms), ok ? 'ok' : 'err');
-            finalizeToolBlock(toolEl, resultStr, ok, ms);
+            ui.trace('Tool', call.name + ' · ' + window.HCCodeSteps.duration(ms), ok ? 'ok' : 'err');
+            ui.toolDone(toolEl, resultStr, ok, ms);
             if (!ok && /safety list|protected location/.test(resultStr)) HC.guard?.noteBlocked?.();   // a refused place counts toward Auto asking about everything
 
             // A row is offered only for a change that happened. A refused or
@@ -1873,30 +1869,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
               else if (call.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(resultStr)); } catch {} }
             }
             if (ok && ['write_file', 'patch_file', 'delete_file', 'move_file'].includes(call.name)) toolEl?.remove();   // its change row, with Keep and Undo, says it
-            if (ok && (call.name === 'write_file' || call.name === 'patch_file')) {
-              const fp = call.arguments?.path || '';
-              addChangeEntry(baseName(fp), fp, 'write',
-                call.arguments?.content || call.arguments?.patch || resultStr);
-              if (fp) addAIFileToExplorer(fp, 'write');
-            } else if (ok && call.name === 'delete_file') {
-              const fp = call.arguments?.path || '';
-              addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)');
-              if (fp) addAIFileToExplorer(fp, 'delete');
-            } else if (ok && call.name === 'move_file') {
-              // A move is two changes: the file leaves one path and arrives at
-              // another. Undoing both puts it back.
-              const { from = '', to = '' } = call.arguments || {};
-              addChangeEntry(baseName(from), from, 'delete', '(file moved)');
-              addChangeEntry(baseName(to), to, 'write', '');
-              if (from) addAIFileToExplorer(from, 'delete');
-              if (to) addAIFileToExplorer(to, 'write');
-            }
+            if (ok) ui.changed(call, resultStr);
             results.set(call, resultStr); if (!ok) failures.set(call, resultStr); if (!early) asked.after(call, resultStr, ok);   // only calls really made are remembered
           }
 
           for (const batch of batches) {
             if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-            setStatus(batch.length > 1
+            ui.status(batch.length > 1
               ? `${batch.length} tools…`
               : `${batch[0].name}…`, 'run');
             // A failure inside runOne is already turned into an error result,
@@ -1917,13 +1896,13 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           if (policy.iterationMadeProgress(turn.tool_calls, seenReadTargets, failures)) stalledIterations = 0;   // a call failing the way it failed before is not progress
           else stalledIterations++;
 
-          thinkEl = appendThinking(contentEl, { after: window.HCCodeLive.afterOf(turn.tool_calls, results, toolObject) });
+          thinkEl = ui.wait({ after: window.HCCodeLive.afterOf(turn.tool_calls, results, toolObject) });
           continue;
         }
 
         // Final answer — hide reasoning, show result
         const finalText = turn.content || '';
-        if (!echoed && window.HCCodeTalk?.echoesTools(finalText, tools)) { echoed = bare = true; tools = []; thinkEl = appendThinking(contentEl); cdrTraceAdd('Check', 'The model wrote its tool list back as its reply: asking again without tools', 'warn'); continue; }
+        if (!echoed && window.HCCodeTalk?.echoesTools(finalText, tools)) { echoed = bare = true; tools = []; thinkEl = ui.wait(); ui.trace('Check', 'The model wrote its tool list back as its reply: asking again without tools', 'warn'); continue; }
         // Sent back before finishing, for a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js), for files its answer names that are not there, or with what the site check or a second look found.
         const back = window.HCCodeVerify.sendBack(proof, messages, finalText,
           { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light })
@@ -1932,22 +1911,22 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
           sent[back.kind]++; if (back.kind === 'example') proof?.exampled();   // run again, once, after a later change
           if (back.run && (sharedState.size === 'small' || sharedState.light || back.kind === 'example' || back.kind === 'passed' || (back.kind === 'prove' && sent.prove > 1))) forced = { content: '', tool_calls: (back.runs || [back.run]).map((run, i) => ({ id: `ran_${Date.now()}_${i}`, name: 'shell_run', arguments: run })) };   // its word that the test passed is not kept; any model told once to run it, that wrote it into its reply instead, has it run too
           else messages.push({ role: 'assistant', content: finalText }, { role: 'user', content: back.message, note: true });
-          appendStep(contentEl, { verb: 'CHECK', object: forced && back.kind !== 'passed' ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
-          cdrTraceAdd('Check', back.step, 'run');
-          thinkEl = appendThinking(contentEl, { checking: true });
+          ui.step({ verb: 'CHECK', object: forced && back.kind !== 'passed' ? window.HCCodeVerify.RAN_STEP : back.step, status: '' });
+          ui.trace('Check', back.step, 'run');
+          thinkEl = ui.wait({ checking: true });
           continue;
         }
-        if (!finalText.trim() && !again && (again = window.HCCodeVerify.askAgainAfterNote(messages))) { cdrTraceAdd('Check', 'An empty reply to a note: asking once more', 'warn'); thinkEl = appendThinking(contentEl, { checking: true }); continue; }   // js/code/verify.js
+        if (!finalText.trim() && !again && (again = window.HCCodeVerify.askAgainAfterNote(messages))) { ui.trace('Check', 'An empty reply to a note: asking once more', 'warn'); thinkEl = ui.wait({ checking: true }); continue; }   // js/code/verify.js
         if (!finalText.trim()) {
-          cdrTraceAdd('Done', 'Empty response from model', 'warn');
-          appendTextToBubble(contentEl, '*No response from model. Try again or check your model settings.*');
+          ui.trace('Done', 'Empty response from model', 'warn');
+          ui.answer('*No response from model. Try again or check your model settings.*');
         } else {
-          cdrTraceAdd('Done', (label || 'Agent') + ' · ' + finalText.length + ' chars', 'ok');
-          appendTextToBubble(contentEl, finalText);
+          ui.trace('Done', (label || 'Agent') + ' · ' + finalText.length + ' chars', 'ok');
+          ui.answer(finalText);
         }
         // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
         const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
-        sharedState.proven = proven || ''; if (proven) appendTextToBubble(contentEl, `*${proven}*`);
+        sharedState.proven = proven || ''; if (proven) ui.answer(`*${proven}*`);
         return finalText;
       }
       // The budget ran out while the model was still calling tools. Strip any
@@ -1957,7 +1936,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const stop = lastStop || { reason: 'unknown', message: 'Stopped. Reply to continue.' };
       // At the step limit, or stuck after changing files, the finishing checks run from the record and the model says once, with no tools, what it did and what is left (js/agent-policy.js wrapUp).
       const summary = await policy.wrapUp({ reason: stop.reason, changed: proof ? proof.changed.length : 0, signal, messages, check: () => proof?.changed.length && cdrPrefs().prove !== false && siteLook().then(factsLook), words: (r) => window.HCCodeLive.wordsOf(r?.content || '').words,
-        ask: (asked) => { const wait = appendThinking(contentEl, { checking: true }); cdrTraceAdd('Check', 'Asked for an account of the run at the step limit', 'run'); return callWithRouter(sharedState.light ? window.HCCodeLight.callMessages(compressHistory(asked)) : compressHistory(asked), [], temperature, signal, coderModel).finally(() => wait?.remove()); } });
+        ask: (asked) => { const wait = ui.wait({ checking: true }); ui.trace('Check', 'Asked for an account of the run at the step limit', 'run'); return callWithRouter(sharedState.light ? window.HCCodeLight.callMessages(compressHistory(asked)) : compressHistory(asked), [], temperature, signal, coderModel).finally(() => wait?.remove()); } });
       while (messages.length && messages[messages.length - 1].role === 'tool') messages.pop();
       while (messages.length && messages[messages.length - 1].role === 'assistant' &&
              Array.isArray(messages[messages.length - 1].tool_calls)) messages.pop();
@@ -1966,10 +1945,10 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // out of budget or spent four turns re-reading the same file, and the
       // user could not tell which — so they could not tell whether replying
       // "continue" would help or repeat the same loop.
-      cdrTraceAdd('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
+      ui.trace('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
       const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
-      if (summary) { appendTextToBubble(contentEl, summary); if (account?.role === 'assistant' && account.content === summary) account.proven = said; }   // wrapUp added the account to the conversation; a saved one shows the line under it too
-      appendTextToBubble(contentEl, `*${said}*`); return summary;   // what the record shows, beside the model's account
+      if (summary) { ui.answer(summary); if (account?.role === 'assistant' && account.content === summary) account.proven = said; }   // wrapUp added the account to the conversation; a saved one shows the line under it too
+      ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
     }
 
     // ── Main send ─────────────────────────────────────────────

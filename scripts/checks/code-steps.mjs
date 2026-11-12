@@ -80,7 +80,7 @@ ok('a step running counts its time from when it began', /class="cdr-step-time cd
   ok('a step still counting when its run ends says it was stopped', /contentEl\.querySelectorAll\(`\.\$\{LIVE\}`\)\.forEach\(\(t\) => \{ t\.classList\.remove\(LIVE\); t\.textContent = 'stopped'; \}\);/.test(steps));
   ok('each bar is measured against the slowest step of its list, moved, not resized', /bar\.style\.transform = `scaleX\(\$\{Math\.max\(0\.04, \(Number\(s\.dataset\.ms\) \|\| 0\) \/ most\)\.toFixed\(3\)\}\)`/.test(steps));
   const mode = src('modes', 'code', 'mode.js');
-  ok('HashCoder starts a step counting and ends it through them, and writes times so in its trace too', /status: window\.HCCodeSteps\.running\(\),/.test(mode) && /window\.HCCodeSteps\.finish\(el, ok, ms\);/.test(mode) && /cdrTraceAdd\('Tool', call\.name \+ ' · ' \+ window\.HCCodeSteps\.duration\(ms\)/.test(mode) && !/\$\{ms\}ms|\+ 'ms'/.test(mode));
+  ok('HashCoder starts a step counting and ends it through them, and writes times so in its trace too', /status: window\.HCCodeSteps\.running\(\),/.test(mode) && /window\.HCCodeSteps\.finish\(el, ok, ms\);/.test(mode) && /ui\.trace\('Tool', call\.name \+ ' · ' \+ window\.HCCodeSteps\.duration\(ms\)/.test(mode) && /const ui = \{ trace: cdrTraceAdd,/.test(mode) && !/\$\{ms\}ms|\+ 'ms'/.test(mode));
   const css = src('modes', 'code', 'mode.css');
   ok('the running dot pulses by size alone, and stops for a person who asks for less motion', /@keyframes cdr-node \{ 50% \{ transform: scale\(\.7\); opacity: \.55; \} \}/.test(css) && /prefers-reduced-motion: reduce\) \{ \.cdr-steps-list > \.cdr-step--running::before \{ animation: none; \} \}/.test(css));
 }

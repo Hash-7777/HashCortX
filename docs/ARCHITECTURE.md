@@ -32,7 +32,7 @@ HashCortX/
 │   │   │                            mode.css and panel.html)
 │   │   ├── systems/          3,231  ERP: the system full screen, and its agent
 │   │   ├── agent-maker/      2,463  chain / vote / failover
-│   │   ├── code/             2,355  the HashCoder agent loop
+│   │   ├── code/             2,334  the HashCoder agent loop
 │   │   ├── finance/          2,360  financial document analysis
 │   │   └── sandbox/            547  security scanner
 │   │

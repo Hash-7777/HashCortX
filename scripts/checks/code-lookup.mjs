@@ -79,7 +79,7 @@ console.log('\nLight mode shows the results as words:');
 console.log('\nThe loop:');
 {
   const mode = src('modes', 'code', 'mode.js');
-  ok('the calls are made before the model\'s first turn, for a model with no web tools, not for a greeting', /if \(!bare && \(forced = window\.HCCodeLookup\?\.turnFor\(messages, window\.HCCodeVerify\.requestIn\(messages\), tools\) \|\| null\)\) cdrTraceAdd\(/.test(mode)
+  ok('the calls are made before the model\'s first turn, for a model with no web tools, not for a greeting', /if \(!bare && \(forced = window\.HCCodeLookup\?\.turnFor\(messages, window\.HCCodeVerify\.requestIn\(messages\), tools\) \|\| null\)\) ui\.trace\(/.test(mode)
     && mode.indexOf('window.HCCodeLookup?.turnFor') < mode.indexOf('for (;;) {', mode.indexOf('async function agentLoop')));
   ok('they go through the tools themselves, so the person is asked as for any fetch or search', /turn = forced \|\| await callWithRouter\(/.test(mode));
   const boot = src('boot.js');

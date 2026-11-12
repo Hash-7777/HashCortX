@@ -273,7 +273,7 @@ console.log('\nThe message when no model could answer:');
 console.log('\nThe Coder is wired to it:');
 {
   const modeSrc = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  ok('an error that ends a run says which files it had changed are kept, unless the person stopped it', /const kept = signal\?\.aborted \? '' : window\.HCCodeRouter\.keptNote\(proof \? proof\.changed\.map\(baseName\) : \[\]\);/.test(modeSrc) && /\$\{kept \? `<br><br>\$\{esc\(kept\)\}` : ''\}/.test(modeSrc));
+  ok('an error that ends a run says which files it had changed are kept, unless the person stopped it', /ui\.error\(e, signal\?\.aborted \? '' : window\.HCCodeRouter\.keptNote\(proof \? proof\.changed\.map\(baseName\) : \[\]\)\);/.test(modeSrc) && /error: \(e, kept\) => \{/.test(modeSrc) && /\$\{kept \? `<br><br>\$\{esc\(kept\)\}` : ''\}/.test(modeSrc));
   const mode = src('modes', 'code', 'mode.js');
   ok('the run is routed by the shared routing, with the model chosen first', /window\.HCCodeRouter\.create\(\{/.test(mode) && /failover: window\.HCChatFailover, routes: window\.HCModelRoutes/.test(mode));
   ok('the panel keeps no list of providers or chain of its own', !/ROUTER_FALLBACKS|buildRouterChain|sortChainByQuality|_routerStreaks|withFallbacks/.test(mode));
