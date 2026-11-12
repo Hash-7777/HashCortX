@@ -1,0 +1,117 @@
+// ==============================================================
+// One profile per model family
+//
+// Model families differ in ways a harness has to know. Some think before
+// they answer and refuse the next request unless that thinking comes back
+// with the tool work; some throw it away; some refuse a sampling setting;
+// some want every result of one turn in one message. What each family needs
+// is written here once, as data, so the parts that build a request ask this
+// file instead of each knowing a little.
+//
+// Matching is by provider first, then by the model's name, most specific
+// first. Thinking is sent back only through the model's own maker: a service
+// reselling another maker's model may name the fields its own way. An
+// unknown model gets the app's behaviour as it stands exactly.
+//
+// Each row is confirmed against the maker's guide, named by its title.
+//
+// Pure. Published as window.HCModelProfile. Checked by scripts/checks/model-profile.mjs.
+// ==============================================================
+(function () {
+  'use strict';
+
+  /** Today's behaviour, for a model no row knows. */
+  const UNKNOWN = Object.freeze({
+    family: 'unknown', thinks: 'unknown', carry: 'never', carryField: null,
+    sampling: { send: true, temperature: null, top_p: null, top_k: null, own: false },
+    callsAtOnce: true, resultsTogether: false, markFailed: false, effort: null, strong: false,
+  });
+
+  /** A model on this computer keeps its own packaged settings (read only once own settings are switched on). */
+  const LOCAL_OWN = { send: true, temperature: null, top_p: null, top_k: null, own: true };
+  const NO_SAMPLING = { send: false, temperature: null, top_p: null, top_k: null, own: false };
+
+  /**
+   * The rows, most specific first. `where` is 'cloud', 'local' or 'any';
+   * `makers` are the providers through which thinking is sent back; a row's
+   * `thinks: 'info'` takes it from what the model on this computer says it
+   * can do.
+   */
+  const ROWS = [
+    // DeepSeek's guide, "Thinking Mode": with tools, reasoning_content goes back in every later request; sampling settings are not used.
+    { family: 'deepseek', where: 'cloud', name: /deepseek[-/_.]?(?:reasoner|r1)|deepseek-v3\.[1-9].*think|deepseek-v4/i, makers: ['deepseek'], thinks: 'always', carry: 'required', carryField: 'reasoning_content', sampling: NO_SAMPLING },
+    { family: 'deepseek', where: 'cloud', name: /deepseek/i, thinks: 'never' },
+    // Kimi's guide, "Use the Kimi K2 Thinking Model": send the whole reply back as it came, reasoning_content included.
+    { family: 'kimi', where: 'cloud', name: /kimi.*(?:thinking|k2\.[5-9])/i, makers: ['moonshot'], thinks: 'optional', carry: 'required', carryField: 'reasoning_content' },
+    { family: 'kimi', where: 'cloud', name: /kimi|moonshot/i, thinks: 'never' },
+    // Z.ai's guide, "Thinking Mode": kept thinking is a choice (clear_thinking), and goes back unchanged as reasoning_content.
+    { family: 'glm', where: 'cloud', name: /glm-?(?:4\.[5-9]|[5-9])/i, makers: ['zai'], thinks: 'optional', carry: 'recommended', carryField: 'reasoning_content' },
+    // MiniMax's guide, "Text: OpenAI-compatible": its thinking travels in the answer's text or its own field; neither is read here yet, so nothing changes.
+    { family: 'minimax', where: 'cloud', name: /minimax/i, thinks: 'always' },
+    // Anthropic's guide, "Extended thinking": thinking takes no sampling settings; results of one turn go back together.
+    // Whether its thinking blocks are carried is DECISION D3: until then, as today.
+    { family: 'claude', where: 'cloud', name: /claude/i, thinks: 'optional', carryField: 'blocks', sampling: NO_SAMPLING, resultsTogether: true, markFailed: true },
+    // OpenAI's guide, "Reasoning models": no temperature or top_p; reasoning_effort takes low, medium or high.
+    { family: 'gpt', where: 'cloud', name: /^(?:openai\/)?(?:o\d|gpt-5)/i, thinks: 'always', sampling: NO_SAMPLING, effort: { field: 'reasoning_effort', levels: ['low', 'medium', 'high'] } },
+    { family: 'gpt', where: 'cloud', name: /gpt|^(?:openai\/)/i, thinks: 'never' },
+    // Google's guide, "Gemini 3 Developer Guide": keep temperature at 1.0; thought signatures are already returned (js/agent-shape.js).
+    { family: 'gemini', where: 'cloud', name: /gemini-?3/i, thinks: 'optional', sampling: { send: true, temperature: 1.0, top_p: null, top_k: null, own: false } },
+    { family: 'gemini', where: 'cloud', name: /gemini/i, thinks: 'optional' },
+    { family: 'grok', where: 'cloud', name: /grok/i, thinks: 'unknown' },
+    // Qwen's model cards, "Best Practices": the coding models do not think.
+    { family: 'qwen-coder', where: 'local', name: /qwen[\d.]*-coder/i, thinks: 'never', sampling: LOCAL_OWN },
+    // Qwen3's model card, "Best Practices": thinking mode at 0.6, top_p 0.95, top_k 20; not greedy.
+    { family: 'qwen3', where: 'local', name: /qwen3/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: { send: true, temperature: 0.6, top_p: 0.95, top_k: 20, own: true } },
+    // The families below think only where the model on this computer says it can; their packaged settings are kept.
+    { family: 'gemma', where: 'local', name: /gemma/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+    { family: 'llama', where: 'local', name: /llama/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+    { family: 'phi', where: 'local', name: /phi/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+    { family: 'mistral', where: 'local', name: /mistral|ministral|devstral/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+    { family: 'granite', where: 'local', name: /granite/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+    { family: 'nemotron', where: 'local', name: /nemotron/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
+  ];
+
+  /** `{ provider, id }` of a model value: `cloud:<provider>:<id>`, or a model on this computer. */
+  function parse(value) {
+    const v = String(value || '');
+    const N = typeof window !== 'undefined' && window.HCModelNames;
+    if (v.startsWith('cloud:')) {
+      const p = N && N.parseCloudModel ? N.parseCloudModel(v) : { provider: v.split(':')[1] || '', modelId: v.split(':').slice(2).join(':') };
+      return { cloud: true, provider: p.provider, id: p.modelId };
+    }
+    return { cloud: false, provider: '', id: v };
+  }
+
+  const copy = (p) => JSON.parse(JSON.stringify(p));
+
+  /**
+   * The profile of a model: its family, whether it thinks, whether its
+   * thinking goes back with tool work and in which field, the sampling it
+   * takes, and how its results are sent. `info` is what a model on this
+   * computer says of itself (js/local-context.js infoOf: `caps`).
+   */
+  function of(value, info = null) {
+    const { cloud, provider, id } = parse(value);
+    if (!id) return copy(UNKNOWN);
+    const row = ROWS.find((r) => (r.where === 'any' || (r.where === 'cloud') === cloud) && r.name.test(id));
+    if (!row) return copy(UNKNOWN);
+    const caps = info && Array.isArray(info.caps) ? info.caps : [];
+    const thinks = row.thinks === 'info' ? (caps.includes('thinking') ? 'optional' : 'never') : row.thinks;
+    const byMaker = !row.makers || row.makers.includes(provider);
+    const carry = row.thinks === 'info' ? (thinks === 'never' ? 'never' : row.carryWhenThinks) : byMaker ? (row.carry || 'never') : 'never';
+    return copy({
+      family: row.family,
+      thinks,
+      carry,
+      carryField: carry === 'never' && row.carryField !== 'blocks' ? null : row.carryField || null,
+      sampling: row.sampling || UNKNOWN.sampling,
+      callsAtOnce: true,
+      resultsTogether: !!row.resultsTogether,
+      markFailed: !!row.markFailed,
+      effort: row.effort || null,
+      strong: false,   // which families are strong enough for sub-agents is DECISION D4, needed before WP9
+    });
+  }
+
+  window.HCModelProfile = { UNKNOWN, ROWS, of };
+})();

@@ -154,6 +154,7 @@
     '/js/local-client.js',
     '/js/local-apps.js',
     '/js/tool-text.js',
+    '/js/model-profile.js',
     '/js/agent-shape.js',
     '/js/model-names.js',
     '/js/cloud-model-memory.js',
