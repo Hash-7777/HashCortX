@@ -189,7 +189,7 @@ console.log('\nThe run\'s own facts, kept with its conversation:');
   const text = D.buildDebug({ messages: [{ role: 'user', content: 'Build it', context: 'Note from the app: the checklist' }], trace: [], facts: {} });
   ok('what the app added to a request is marked with it, by its length and not its words', /### 1 · the person\n\nBuild it\n\n\[added by the app to this request: \d+ characters, the app's own, not included\]/.test(text) && !/the checklist/.test(text));
   ok('a request with nothing added shows no fold', !/Added by the app/.test(D.buildDebug({ messages: [{ role: 'user', content: 'Hi' }], facts: {} })));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the facts are taken as each run ends and saved with the conversation', /sharedState\.lastRun = window\.HCCodeDebug\.runFacts\(\{ routing, coderModel, sharedState, H: window\._H, temperature: HC\?\.code\?\.temperatureFor/.test(mode)
     && /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries,/.test(mode));
   ok('a session keeps them, and opening one again brings them back', /run: sharedState\.lastRun \|\| null, trace: cdrTraceEntries\.slice\(-300\),/.test(mode)
@@ -202,7 +202,7 @@ console.log('\nThe run\'s own facts, kept with its conversation:');
 console.log('\nIt is in the panel:');
 {
   const html = src('modes', 'code', 'panel.html');
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('a button in the top bar, with words for what it does', /<button type="button" class="cdr-icon-btn" id="cdrDebugBtn" title="Export this conversation with its trace, for debugging">/.test(html));
   ok('it is wired to the export, with the whole conversation and the trace', /\$\('cdrDebugBtn'\)\?\.addEventListener\('click', exportDebug\)/.test(mode) && /exportDebug = \(\) => window\.HCCodeDebug\.exportRun\(\{ messages: conversationMsgs, trace: cdrTraceEntries,/.test(mode));
   ok('and saves through the same door the other exports use', /save: \(t, m, n\) => downloadBlob\(t, m, n,/.test(mode) && /window\.HC\.save\.file\(filename, content/.test(mode));
@@ -216,7 +216,7 @@ console.log('\nThe export is offered outside the project:');
 {
   ok('in the Downloads folder of a Windows home', D.downloadsOf('C:\\Users\\a') === 'C:\\Users\\a\\Downloads');
   ok('... and of a Mac or Linux one', D.downloadsOf('/Users/a/') === '/Users/a/Downloads' && D.downloadsOf('') === '');
-  const panel = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const panel = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder opens the dialog there', /save: \(t, m, n\) => downloadBlob\(t, m, n, \{ folder: window\.HCCodeDebug\.downloadsOf\(sharedState\.homeDir\) \}\)/.test(panel) && /window\.HC\.save\.file\(filename, content, \{ mime, \.\.\.opts \}\)/.test(panel));
   const save = readFileSync(join(here, '..', '..', 'src', 'platform', 'tauri', 'save.js'), 'utf8');
   ok('... which starts the save dialog in the folder it is given', /defaultPath: folder \? `\$\{folder\}/.test(save));
@@ -227,7 +227,7 @@ console.log('\nHow often a run was sent back, and whether it acted after:');
 {
   const R = D.sentBack ? D.sentBack({ runBegan: 7 }) : null;
   ok('a record holds a count for every reason the loop has, each at nought', !!R && D.SENT_KINDS.length > 0 && D.SENT_KINDS.every((k) => R.sent[k] === 0) && Object.keys(R.sent).length === D.SENT_KINDS.length);
-  const verify = src('js', 'code', 'verify.js'), mode = src('modes', 'code', 'mode.js');
+  const verify = src('js', 'code', 'verify.js'), mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   const named = new Set([...verify.matchAll(/kind: '(\w+)'/g), ...mode.matchAll(/\bsent\.(\w+)/g)].map((m) => m[1]));
   ok('...and every reason the loop and the finishing checks name is among them', !!R && [...named].every((k) => D.SENT_KINDS.includes(k)), [...named].filter((k) => !(D.SENT_KINDS || []).includes(k)).join(', '));
   const change = (id = 'call_1') => ({ id, name: 'patch_file' });

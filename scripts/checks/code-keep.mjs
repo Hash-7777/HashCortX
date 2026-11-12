@@ -87,7 +87,7 @@ console.log('\nHashCoder:');
   const tools = src('platform', 'tauri', 'hashcoder.js');
   ok('every write says what it took away, beside the bracket check, with the request\'s words',
     /const removed = window\.HCCodeKeep\?\.note\(path\.split\(\/\[\\\\\/\]\/\)\.pop\(\) \|\| path, before, ends\.text, HC\.code\.request\) \|\| '';/.test(tools) && /\.\.\.\(removed \? \{ removed \} : \{\}\)/.test(tools));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the request\'s words are kept for that request', /HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}/.test(mode));
   ok('the second look looks for what was removed without being asked', /above all anything removed or rewritten that it did not ask to change/.test(src('js', 'code', 'review.js')));
   const verify = src('js', 'code', 'verify.js');
@@ -116,7 +116,7 @@ console.log('\nWhat a run took out unasked, still gone when it would finish:');
   ok('it says to put each back as it was, with what uses it, or say why it had to go', /Put back each one the request did not ask you to remove, as it was, with what uses it/.test(note.message) && /say why in your answer/.test(note.message));
   ok('nothing gone, no note and no line', K.goneNote([]) === null && K.goneNote(null) === null && K.goneLine([]) === '' && K.goneLine(null) === '');
   ok('what is still gone is said under the answer, with how to get it back', /^Taken out without the request naming it: [^.]*#bookingModal[^.]* from index\.html\. Undo the change to put it back\.$/.test(K.goneLine(gone)), K.goneLine(gone));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder looks after the details check and before a second look, sends the run back once, with Prove changes on', finishOrder(mode).walked && finishOrder(mode).inOrder('facts', 'kept', 'second') && /\{ id: 'kept', words: true, run: keptLook \}/.test(finishOrder(mode).entry('kept')) && /const keptLook = \(\) => \{ const K = window\.HCCodeKeep; if \(!K \|\| cdrPrefs\(\)\.prove === false\) return null; gone = K\.stillGone\(changes, HC\.code\.request\); return sent\.gone \? null : K\.goneNote\(gone\); \};/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && ['stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'].every((k) => new RegExp(`const SENT_KINDS = \\[[^\\]]*'${k}'`).test(src('js', 'code', 'debug-export.js'))));
   ok('...and says what is still gone under the answer', /window\.HCCodeKeep\?\.goneLine\(gone\)/.test(mode));
   const verify = src('js', 'code', 'verify.js');

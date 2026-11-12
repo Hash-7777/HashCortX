@@ -345,7 +345,7 @@ console.log('\nWhere it is wired:');
 {
   const guardText = guardSrc;
   const hash = source('platform', 'tauri', 'hashcoder.js');
-  const mode = source('modes', 'code', 'mode.js');
+  const mode = source('modes', 'code', 'mode.js') + '\n' + source('js', 'agent-loop.js');   // HashCoder: the mode and its loop
   ok('a command is given to the guard as a program, its arguments and its folder, not only as a line', /request\('shell', shown, reason, \{ command, args, cwd, \.\.\.\(install \? \{ install: true, npm: install\.npm \} : \{\}\), \.\.\.\(destroys \? \{ destroys: true \} : \{\}\) \}\)/.test(hash));
   ok('a command let through as a check runs with the network closed, in both ways a command runs', /offline,? onChunk: channel/.test(hash) && /cancelKey: HC\.code\.shellCancelKey, offline \}/.test(hash));
   ok('the mode applies only while a run is going', /return _run \? _mode : 'edits'/.test(guardText));

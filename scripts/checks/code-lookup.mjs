@@ -78,10 +78,10 @@ console.log('\nLight mode shows the results as words:');
 
 console.log('\nThe loop:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the calls are made before the model\'s first turn, for a model with no web tools, not for a greeting', /if \(!bare && \(forced = window\.HCCodeLookup\?\.turnFor\(messages, window\.HCCodeVerify\.requestIn\(messages\), tools\) \|\| null\)\) ui\.trace\(/.test(mode)
     && mode.indexOf('window.HCCodeLookup?.turnFor') < mode.indexOf('for (;;) {', mode.indexOf('async function agentLoop')));
-  ok('they go through the tools themselves, so the person is asked as for any fetch or search', /turn = forced \|\| await callWithRouter\(/.test(mode));
+  ok('they go through the tools themselves, so the person is asked as for any fetch or search', /turn = forced \|\| await call\(/.test(mode) && /call: \(m, t, temp, s, live\) => callWithRouter\(m, t, temp, s, coderModel, live\)/.test(mode));
   const boot = src('boot.js');
   ok('it loads before the Coder', boot.indexOf("'/js/code/lookup.js'") > 0);
   ok('this check is part of npm run check', /npm run check:code-lookup\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));

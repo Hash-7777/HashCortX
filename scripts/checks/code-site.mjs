@@ -112,7 +112,7 @@ console.log('\nOnly what the run brought in:');
 
 console.log('\nHashCoder:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('reads a site each time the run would finish, while proving is switched on, only when the run changed one',
     /if \(!S \|\| !C \|\| !proof \|\| cdrPrefs\(\)\.prove === false \|\| !root \|\| !S\.worthChecking\(proof\.changed\)\) return null;/.test(mode));
   ok('keeps what each reading found, for the line under the answer, and sends the agent back once only',

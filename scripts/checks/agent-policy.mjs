@@ -169,7 +169,7 @@ console.log('\nAn agent that has done its work is told to finish, and is not bla
   check('stopped after its changes, the person is told the changes are there to keep or undo, and nobody is blamed',
     stop.reason === 'stalled' && /made its changes/.test(stop.message) && /Keep and Undo/.test(stop.message) && !/repeating itself/.test(stop.message));
   check('stopped having changed nothing, it says so as before', /repeating itself/.test(shouldContinue({ iteration: 6, stalledIterations: BUDGET.stallLimit }).message));
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('HashCoder says whether files changed and whether the plan is done',
     /changed: proof \? proof\.changed\.length : 0,/.test(mode) && /planDone: !!HC\?\.code\?\.plan && !!window\.HCCodePlan && !window\.HCCodePlan\.openSteps\(HC\.code\.plan\)\.length,/.test(mode));
 }
@@ -251,7 +251,7 @@ console.log('\nThe same file changed again and again:');
   editLoop(other, [edit('/p/a.js'), edit('/p/b.js'), { name: 'read_file', arguments: { path: '/p/a.js' } }], false);
   check('files are counted apart, and reading is not changing', other.get('/p/a.js') === 1 && other.get('/p/b.js') === 1 && other.size === 2);
   check('whole rewrites count too', (() => { const m = new Map(); editLoop(m, [{ name: 'write_file', arguments: { path: '/p/x.py' } }], false); return m.get('/p/x.py') === 1; })());
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('HashCoder counts each turn\'s edits, with whether a check passed in it, and says the note once',
     /loopNote = policy\.editLoop\(edited, turn\.tool_calls, !!proof && proof\.checks\.slice\(checked\)\.some\(\(c\) => c\.pass\)\) \|\| loopNote;/.test(mode)
     && /\[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\('\\n\\n'\); loopNote = '';/.test(mode));
@@ -279,10 +279,10 @@ console.log('\nA run that stops before it finishes says what it did:');
   let asked = 0;
   check('nothing is asked when the person already stopped the run, or the stop needs no account', await wrapUp({ reason: 'hard-limit', messages: [], signal: { aborted: true }, ask: async () => { asked++; } }) === '' && await wrapUp({ reason: 'stalled', changed: 0, messages: [], ask: async () => { asked++; } }) === '' && asked === 0);
   check('an empty account adds nothing', await wrapUp({ reason: 'hard-limit', messages: quiet, ask: async () => ({ content: '   ' }) }) === '' && quiet.length === 0);
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('HashCoder asks for it as a run stops, with no tools, runs the site and details checks first, and keeps only words',
-    /const summary = await policy\.wrapUp\(\{ reason: stop\.reason, changed: proof \? proof\.changed\.length : 0, signal, messages, check: \(\) => proof\?\.changed\.length && cdrPrefs\(\)\.prove !== false && siteLook\(\)\.then\(factsLook\), words: \(r\) => window\.HCCodeLive\.wordsOf\(r\?\.content \|\| ''\)\.words,/.test(mode)
-    && /return callWithRouter\([^\n]*, \[\], temperature, signal, coderModel\)\.finally\(\(\) => wait\?\.remove\(\)\);/.test(mode));
+    /const summary = await policy\.wrapUp\(\{ reason: stop\.reason, changed: proof \? proof\.changed\.length : 0, signal, messages, check: \(\) => proof\?\.changed\.length && cdrPrefs\(\)\.prove !== false && looks\.wrap\(\), words: \(r\) => window\.HCCodeLive\.wordsOf\(r\?\.content \|\| ''\)\.words,/.test(mode)
+    && /wrap: \(\) => siteLook\(\)\.then\(factsLook\)/.test(mode) && /return call\([^\n]*, \[\], temperature, signal\)\.finally\(\(\) => wait\?\.remove\(\)\);/.test(mode) && /call: \(m, t, temp, s, live\) => callWithRouter\(m, t, temp, s, coderModel, live\)/.test(mode));
   check('...shows the account, then what the record shows beside it', /const said = \[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)[^\n]*\n\s+if \(summary\) \{ ui\.answer\(summary\);[^\n]*\n\s+ui\.answer\(`\*\$\{said\}\*`\); return summary;/.test(mode) && /answer: \(text\) => appendTextToBubble\(contentEl, text\)/.test(mode));
   check('...keeps that line with the account, so a saved conversation shows it', /if \(account\?\.role === 'assistant' && account\.content === summary\) account\.proven = said;/.test(mode));
   check('...and the account, already in the conversation, is not added to it a second time', /if \(finalText && !\(conversationMsgs\.at\(-1\)\?\.role === 'assistant' && conversationMsgs\.at\(-1\)\.content === finalText\)\) conversationMsgs\.push\(/.test(mode)

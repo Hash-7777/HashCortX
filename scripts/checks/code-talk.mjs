@@ -77,7 +77,7 @@ console.log('\nA model that writes its tools back:');
 
 console.log('\nWhere it is used:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   const boot = src('boot.js');
   ok('a small or mid-sized model is sent a greeting without tools and with the short instruction', /HCCodeTalk\?\.onlySmallTalk\(messages\)/.test(mode) && /HCCodeTalk\.SHORT_SYSTEM/.test(mode) && /sharedState\.size === 'small' \|\| sharedState\.size === 'mid'/.test(mode));
   ok('a reply that is the tools written back is set aside, once, and asked again without them', /HCCodeTalk\?\.echoesTools\(finalText, tools\)/.test(mode) && /echoed = bare = true/.test(mode));

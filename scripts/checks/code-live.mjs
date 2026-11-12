@@ -103,7 +103,7 @@ console.log('\nHow long a wait reads:');
   ok('seconds', L.elapsed(7400) === '7s');
   ok('minutes and seconds', L.elapsed(65000) === '1m 05s' && L.elapsed(600000) === '10m 00s');
   ok('nothing is not negative', L.elapsed(-5) === '0s' && L.elapsed(undefined) === '0s');
-  const live = src('js', 'code', 'live.js'), mode = src('modes', 'code', 'mode.js');
+  const live = src('js', 'code', 'live.js'), mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the clock counts from when the request was sent, and shows that from its first frame', /began: since = null \} = \{\}\) \{\n    const began = Number\.isFinite\(since\) && since > 0 && since <= Date\.now\(\) \? since : Date\.now\(\);/.test(live)
     && /aria-hidden="true">\$\{elapsed\(Date\.now\(\) - began\)\}<\/span>/.test(live));
   ok('every live line of a request is given that moment, set as the request is sent and as a reply is asked for again', /HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, began: sharedState\.runBegan, \.\.\.now \}\)/.test(mode)
@@ -112,11 +112,11 @@ console.log('\nHow long a wait reads:');
 
 console.log('\nThe words reach it as they are written:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the Coder draws the live line where the dots were', /function appendThinking\(contentEl, now = \{\}\) \{[^\n]*\n\s*return contentEl \? window\.HCCodeLive\.start\(contentEl, \{ render: renderMarkdown, scroll: scrollMessages, began: sharedState\.runBegan, \.\.\.now \}\)/.test(mode));
   ok('after tools run it is told which step ended last, and after a note from the app that it is checking', /ui\.wait\(\{ after: window\.HCCodeLive\.afterOf\(turn\.tool_calls, results, toolObject\) \}\)/.test(mode) && /ui\.wait\(\{ checking: true \}\);\n\s+continue;/.test(mode) && /wait: \(o\) => appendThinking\(contentEl, o\)/.test(mode));
   ok('a second look, which is a model call with nothing else on screen, has the line, and takes it away however it ends', /const wait = ui\.wait\(\{ checking: true \}\);/.test(mode) && /finally \{ wait\?\.remove\(\); \}/.test(mode));
-  ok('and hands it to the model call', /callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\)/.test(mode)
+  ok('and hands it to the model call', /await call\(callMessages, tools, temperature, signal, thinkEl\)/.test(mode) && /call: \(m, t, temp, s, live\) => callWithRouter\(m, t, temp, s, coderModel, live\)/.test(mode)
     && /router\.turn\(\{ messages, tools, temperature, signal: step\.signal, onText: live\?\.text, onThinking: live\?\.thinking, cache: true, reset: live\?\.reset, most: sharedState\.size !== 'full' && !sharedState\.light \? window\.HCCodeVerify\.STEP_MOST : undefined \}\)/.test(mode));
   const routerSrc = src('js', 'code', 'router.js');
   ok('a model asked again starts the line again: the routing calls it before every try, and again before a retry', (routerSrc.match(/request\.reset\(\)/g) || []).length >= 2 && /typeof request\.reset === 'function'/.test(routerSrc));
@@ -161,14 +161,14 @@ console.log('\nThe mesh:');
 
 console.log('\nThe line never outlives its run:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('a run stopped between steps takes the line with it', /if \(signal\?\.aborted\) \{ thinkEl\?\.remove\(\); throw new DOMException\('Aborted', 'AbortError'\); \}/.test(mode));
   ok('and a line off the page stops its clock', /if \(!el\.isConnected\) \{ done = true; clearInterval\(tick\); return; \}/.test(src('js', 'code', 'live.js')));
 }
 
 console.log('\nWhat the model says before a step stays:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('words said with a step are kept in the reply; a call written as text is not',
     /const said = turn\.tool_calls\?\.length && turn\.content \? window\.HCCodeLive\.wordsOf\(turn\.content\)\.words : '';[^\n]*\s*thinkEl\?\.finish\(said\);/.test(mode));
   ok('a larger model is asked to say what it is doing before each step, one on this computer under 15B is not',

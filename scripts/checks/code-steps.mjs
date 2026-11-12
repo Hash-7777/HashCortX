@@ -32,7 +32,7 @@ const steps = src('js', 'code', 'steps.js');
 console.log('\nWhat a step is:');
 ok('a step shows the hidden characters in what it names, and in what the person added, as codes (js/text-safety.js)', /const coded = \(t\) => \(window\.HCTextSafety \? window\.HCTextSafety\.reveal\(String\(t \?\? ''\)\) : String\(t \?\? ''\)\);/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}">\$\{esc\(coded\(object\)\)\}</.test(steps) && /\.cdr-added-text'\)\.textContent = coded\(text\);/.test(steps));
 ok('a lesson kept shows a Forget control on its step, which forgets it without opening the step', /if \(ok && el\.dataset && el\.dataset\.lesson\) forgetControl\(el\);/.test(steps) && /window\.HCCodeLessons\.forget\(localStorage, at\.root, el\.dataset\.lesson\)/.test(steps) && /e\.preventDefault\(\); e\.stopPropagation\(\);/.test(steps));
-ok('...the run marking the step with the lesson it saved', /if \(el\) \{ el\.dataset\.id = String\(id\); if \(name === 'save_lesson' && args\?\.text\) el\.dataset\.lesson = String\(args\.text\); \}/.test(src('modes', 'code', 'mode.js')));
+ok('...the run marking the step with the lesson it saved', /if \(el\) \{ el\.dataset\.id = String\(id\); if \(name === 'save_lesson' && args\?\.text\) el\.dataset\.lesson = String\(args\.text\); \}/.test((src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */));
 ok('a <details>, so it opens from the keyboard, with its verb, object and result', /document\.createElement\('details'\)/.test(steps) && /cdr-step-verb[\s\S]*cdr-step-object[\s\S]*cdr-step-result/.test(steps));
 ok('its verb and object are written as text, never as markup', /\$\{esc\(verb\)\}/.test(steps) && /\$\{esc\(coded\(object\)\)\}/.test(steps) && /title="\$\{esc\(coded\(object\)\)\}"/.test(steps));
 ok('it joins the list the reply ends with, or starts one', /last\.classList\.contains\('cdr-steps'\) && !last\.classList\.contains\('done'\)/.test(steps));
@@ -50,7 +50,7 @@ ok('the dot beside the status in the bar stays still', /\.cdr-status-dot\.thinki
 ok('a folded list is hidden, and a step in a list is a short line', /\.cdr-steps\.done:not\(\.open\) \.cdr-steps-list \{ display: none; \}/.test(css) && /\.cdr-steps-list \.cdr-step-head \{[^}]*min-height: 28px/.test(css));
 ok('copy, reply and regen wait for the answer', /\.cdr-msg\.running \.cdr-msg-actions \{ display: none; \}/.test(css));
 
-const mode = src('modes', 'code', 'mode.js');
+const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
 console.log('\nHashCoder:');
 ok('draws every step through it, and settles a reply when its run ends, however it ends',
   /const el = window\.HCCodeSteps\.add\(contentEl, step\);/.test(mode) && /bubble\?\.classList\.add\('running'\);/.test(mode) && /\} finally \{\n\s+HC\.guard\?\.endRun\?\.\(\);\n\s+settleSteps\(contentEl\);\n\s+bubble\?\.classList\.remove\('running'\);/.test(mode));
@@ -79,7 +79,7 @@ ok('a step running counts its time from when it began', /class="cdr-step-time cd
   ok('one timer counts every running step, and stops when none is left', /if \(!live\.length\) \{ clearInterval\(ticker\); ticker = 0; return; \}/.test(steps) && /if \(!ticker && el\.querySelector\(`\.\$\{LIVE\}`\)\) ticker = setInterval\(tick, 100\);/.test(steps));
   ok('a step still counting when its run ends says it was stopped', /contentEl\.querySelectorAll\(`\.\$\{LIVE\}`\)\.forEach\(\(t\) => \{ t\.classList\.remove\(LIVE\); t\.textContent = 'stopped'; \}\);/.test(steps));
   ok('each bar is measured against the slowest step of its list, moved, not resized', /bar\.style\.transform = `scaleX\(\$\{Math\.max\(0\.04, \(Number\(s\.dataset\.ms\) \|\| 0\) \/ most\)\.toFixed\(3\)\}\)`/.test(steps));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder starts a step counting and ends it through them, and writes times so in its trace too', /status: window\.HCCodeSteps\.running\(\),/.test(mode) && /window\.HCCodeSteps\.finish\(el, ok, ms\);/.test(mode) && /ui\.trace\('Tool', call\.name \+ ' · ' \+ window\.HCCodeSteps\.duration\(ms\)/.test(mode) && /const ui = \{ trace: cdrTraceAdd,/.test(mode) && !/\$\{ms\}ms|\+ 'ms'/.test(mode));
   const css = src('modes', 'code', 'mode.css');
   ok('the running dot pulses by size alone, and stops for a person who asks for less motion', /@keyframes cdr-node \{ 50% \{ transform: scale\(\.7\); opacity: \.55; \} \}/.test(css) && /prefers-reduced-motion: reduce\) \{ \.cdr-steps-list > \.cdr-step--running::before \{ animation: none; \} \}/.test(css));

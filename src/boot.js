@@ -248,6 +248,7 @@
     '/js/run-ledger.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',
+    '/js/agent-loop.js',
 
     '/data/prompts.js',
     '/data/cloud-models.js',

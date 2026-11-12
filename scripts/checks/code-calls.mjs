@@ -242,7 +242,7 @@ console.log('\nA real run played through it: a folder asked for, no project open
 
 console.log('\nThe loop:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('arguments are put right before the call is saved to the conversation', /c\.arguments = window\.HCCodePaths\.argsFromRoot\(window\.HCCodeCalls\.normalize\(c\.arguments, schemaOf\(c\.name\)\)\.args, sharedState\.projectRoot\)/.test(mode)
     && mode.indexOf('window.HCCodeCalls.normalize(') < mode.indexOf('H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls, { thinking: turn.thinking, from: turn.thinkingFrom })', mode.indexOf('async function agentLoop')));
   ok('a repeat is answered from what the model is sent, whole, and a call missing what it needs, never a connected system\'s, is refused', /const early = asked\.before\(call, \(id, text\) => compressHistory\(messages\)\.some\(\(m\) => m\.role === 'tool' && m\.tool_call_id === id && m\.content === text\), window\.HCMcp\?\.systemOf\?\.\(call\.name\) \? null : schemaOf\(call\.name\)\) \|\| /.test(mode));

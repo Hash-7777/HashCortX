@@ -597,7 +597,7 @@ console.log('\nA turn cut off by Stop or an error is closed, not left open:');
   ok('...kept short', A.endedBy(new Error('x'.repeat(900)), redact).length < 270);
   ok('...and left out when there is nothing to take keys out with, or nothing was said', A.endedBy(new Error('The provider said no.')) === 'The run ended with an error before this finished.' && A.endedBy(new Error(''), redact) === 'The run ended with an error before this finished.');
 
-  const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const coder = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('...and HashCoder closes a stopped or failed run with it', /closeInterruptedTurn\(conversationMsgs, window\.HCAgentShape\.endedBy\(e, window\.HCCodeDebug\?\.redact\)\)/.test(coder));
   ok('Coder closes the turn whenever a run stops or fails',
     /\} catch \(e\) \{[\s\S]{0,300}closeInterruptedTurn\(conversationMsgs/.test(coder));
@@ -653,7 +653,7 @@ console.log('\nA model\'s thinking kept with its tool work, and sent back where 
   const thinks = { family: 'qwen3', carry: 'recommended', carryField: 'thinking' }, never = { family: 'qwen-coder', carry: 'never', carryField: null };
   ok('a model on this computer that wants it back keeps it on its tool turn', A.forOllama(msgs, thinks)[0].thinking === 'Read it first.');
   ok('...one that does not is sent none', !('thinking' in A.forOllama(msgs, never)[0]) && !('thinking' in A.forOllama(msgs)[0]));
-  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8'), mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8'), mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('the cloud turn sends it back on its assistant messages and hands back what came', /return \{ role: 'assistant', content: m\.content \?\? null, tool_calls: m\.tool_calls, \.\.\.HCAgentShape\.thinkingFor\(m, `cloud:\$\{provider\}:\$\{model\}`\) \};/.test(app) && /thinking: msg\.reasoning_content \?\? msg\.reasoning \?\? undefined \};/.test(app));
   ok('the local turn sends it only where the model wants it', /HCAgentShape\.forOllama\(messages, window\.HCModelProfile\?\.of\?\.\(model, info\)\)/.test(app));
   ok('HashCoder keeps each turn\'s thinking with its calls', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking, from: turn\.thinkingFrom \}\);/.test(mode));
@@ -673,7 +673,7 @@ console.log('\nThinking another family wrote, and thinking of older requests:');
   let tag = null;
   await A.routeModelTurn({ adapter: { kind: 'openai', provider: 'zai', model: 'glm-4.6' }, messages: [], tools: [] }, { openai: async () => ({ content: 'x', thinking: 'thought' }) }, {}).then((t) => { tag = t; });
   ok('a turn that thought is told which family it came from', tag && tag.thinkingFrom === 'glm', JSON.stringify(tag));
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder keeps that with the turn, and drops older requests\' thinking at the roll for a family that only recommends keeping it', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking, from: turn\.thinkingFrom \}\);/.test(mode) && /dropOldThinking: window\.HCModelProfile\?\.of\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| ''\)\?\.carry === 'recommended'/.test(mode));
 }
 

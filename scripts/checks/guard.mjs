@@ -632,7 +632,7 @@ console.log('\nA change Undo cannot take back is asked about:');
 
   // A refused or failed call has no record of its own; a row for it would
   // pick up the file's previous record, and its Undo reverse an earlier change.
-  const coder = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const coder = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   const rows = coder.slice(coder.indexOf('async function runOne(call)'), coder.indexOf('results.set(call, resultStr);'));
   // The rows themselves are drawn by the loop's ui.changed, which runOne calls only for a call that succeeded.
   const drawn = coder.slice(coder.indexOf('changed: (call, resultStr) =>'), coder.indexOf('const H = window._H;', coder.indexOf('changed: (call, resultStr) =>')));

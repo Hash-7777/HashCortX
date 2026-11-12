@@ -159,7 +159,7 @@ console.log('\nWhat it becomes:');
   ok('...as is every comment when the request renames nothing, and a file that is not code',
     L.plan({ writes: [{ path: 'src/a.js', content: '// Renamed getUsr to getUser\n', guessed: false }], reads: [], said: '', cut: false }, {}).calls[0].arguments.content === '// Renamed getUsr to getUser\n'
     && renamed('NOTES.md', '// Renamed getUsr to getUser\n').calls[0].arguments.content === '// Renamed getUsr to getUser\n');
-  ok('the panel passes the request\'s rename to light mode', /rename: window\.HCCodeVerify\?\.renameOf\(window\.HCCodeVerify\.requestIn\(messages\)\)/.test(src('modes', 'code', 'mode.js')));
+  ok('the panel passes the request\'s rename to light mode', /rename: window\.HCCodeVerify\?\.renameOf\(window\.HCCodeVerify\.requestIn\(messages\)\)/.test((src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */));
   const lines = (n) => Array.from({ length: n }, (_, i) => `line ${i}`).join('\n');
   const current = { 'big.js': lines(100), 'small.js': lines(10), 'same.js': lines(100) };
   const shorter = L.shrunk([{ path: 'big.js', content: lines(40) }, { path: 'small.js', content: lines(2) }, { path: 'same.js', content: lines(90) }, { path: 'new.js', content: lines(1) }], current);
@@ -314,7 +314,7 @@ console.log('\nThe loop reads an answer through it:');
   ok('each file it would write is read as it is now, and the answer becomes calls with ids', read.join() === 'src/a.js' && got.calls.map((c) => c.name).join() === 'write_file,read_file' && got.calls.every((c) => /^light_\d+_\d$/.test(c.id)) && got.said === 'Done.');
   const failing = await L.turnOf(`FILE: c.js\n${T}\nx\n${T}`, async () => { throw new Error('not without asking'); });
   ok('a file that cannot be read without asking is taken as new, not as an error', failing.calls.length === 1 && failing.note === '');
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('a size the model app does not report is read from the name, and the setting decides light mode', /sizeOf\?\.\(info\?\.billions \?\? window\.HCCodeLight\?\.billionsInName\(model\)\) \|\| 'full', light = !!window\.HCCodeLight\?\.applies\(size, cdrPrefs\(\)\.light\);/.test(mode));
   ok('in light mode it is offered no tools and reads its history as plain text', /const tools = sharedState\.light \? \[\] :/.test(mode) && /sharedState\.light \? window\.HCCodeLight\.callMessages\(compressHistory\(baseMsgs\)\)/.test(mode));
   ok('...is told the light instructions, not the tool rules', /if \(sharedState\.light && window\.HCCodeLight\) return \[window\.HCCodeLight\.SYSTEM,/.test(mode));

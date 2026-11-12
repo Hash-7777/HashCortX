@@ -21,7 +21,7 @@ vm.createContext(sandbox);
 vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'paths.js'), 'utf8'),
   sandbox, { filename: 'paths.js' });
 const P = sandbox.window.HCCodePaths;
-const modeSrc = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+const modeSrc = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
 
 let pass = 0;
 let fail = 0;

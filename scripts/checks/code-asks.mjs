@@ -82,7 +82,7 @@ ok('the open steps of its plan, in a line', P.leftLine(plan) === 'Not done from 
 ok('nothing left, nothing said', P.leftLine({ steps: [{ step: 'page', status: 'done' }] }) === '' && P.leftLine(null) === '');
 
 console.log('\nHashCoder:');
-const mode = src('modes', 'code', 'mode.js');
+const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
 ok('splits each request, and sends the list with it', /const asks = window\.HCCodeAsks\?\.split\(task\) \|\| \[\];/.test(mode) && /asks: window\.HCCodeAsks\?\.checklist\(asks\) \}\)/.test(mode));
 ok('keeps them for that request only, as it does the plan', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}/.test(mode));
 ok('gives them to the checks before finishing, and counts how often it sent the run back for them', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && ['review', 'asks'].every((k) => new RegExp(`const SENT_KINDS = \\[[^\\]]*'${k}'`).test(src('js', 'code', 'debug-export.js'))));

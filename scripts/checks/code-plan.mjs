@@ -67,7 +67,7 @@ console.log('\nHashCoder:');
   ok('offers update_plan, keeping what it was given for the panel and the loop', /name: 'update_plan'/.test(tools) && /HC\.code\.plan = plan;/.test(tools));
   ok('a larger model keeps its plan with the tool, not written out in a reply held to a few sentences', /Complex tasks → keep the plan with update_plan rather than in your reply/.test(tools) && !/announce the plan/.test(tools));
   ok('to a mid-sized model too, but not a small one', /MID_MODEL_TOOLS = \[\.\.\.HC\.code\.SMALL_MODEL_TOOLS, [^\]]*'update_plan'/.test(tools) && !/SMALL_MODEL_TOOLS = \[[^\]]*update_plan/.test(tools));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('clears the plan for each request', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}   \/\/ a plan, a checklist, the request's words and a row of one-edit patches are for one request/.test(mode));
   ok('reads it back on a copy, never saved', /const told = \[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\[\.\.\.messages, \{ role: 'user', content: told, note: true \}\]/.test(mode));
   ok('and hands it to the finishing checks', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && /const SENT_KINDS = \[[^\]]*'plan'[^\]]*'asks'/.test(src('js', 'code', 'debug-export.js')));

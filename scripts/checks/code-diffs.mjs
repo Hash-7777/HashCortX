@@ -79,7 +79,7 @@ console.log('\nWhen the loop reads one:');
   ok('not for a question', !V.unmadeChange(V.proofLog(), [{ role: 'user', content: 'What does a.js do? Do not change any files.' }], diff, 0, 1));
   const changed = V.proofLog(); changed.edited('/p/a.js');
   ok('not once the run has changed a file', !V.unmadeChange(changed, asked, diff, 0, 1));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the loop reads it for a smaller model only, when no call was made and light mode read nothing',
     /const dif = !lit && sharedState\.size !== 'full' && !turn\.tool_calls\?\.length && window\.HCCodeVerify\.unmadeChange\(proof, messages, turn\.content \|\| '', 0, 1\) \? window\.HCCodeDiffs\.turnOf\(turn\.content\) : null;/.test(mode));
   ok('its calls take the place of the reply, as light mode\'s do, before they are kept or run', /if \(lit\?\.calls\.length \|\| dif\) turn = \{ \.\.\.turn, content: \(lit \|\| dif\)\.said, tool_calls: \(lit \|\| dif\)\.calls \};/.test(mode)

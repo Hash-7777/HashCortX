@@ -91,7 +91,7 @@ ok('a require finds the project file it names', W.target('src/invite.js', './val
 
 console.log('\nIt is used:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder reads the project before finishing and sends a run back with the gaps in the files it changed', /W\.note\(W\.gaps\(files, proof\.changed\.map\(/.test(mode) && finishOrder(mode).walked && finishOrder(mode).inOrder('passed', 'project') && /\{ id: 'project', words: true, run: projectLook \}/.test(finishOrder(mode).entry('project')));
   const boot = src('boot.js');
   ok('it loads after the reading of definitions it uses', boot.indexOf("'/js/code/wiring.js'") > boot.indexOf("'/js/code/merge.js'") && boot.indexOf("'/js/code/wiring.js'") < boot.indexOf("'/js/app.js'"));

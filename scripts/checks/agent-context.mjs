@@ -145,7 +145,7 @@ console.log('\nSized to the model:');
   }
   check('a small model is never shown more tool output than its budget', worst <= small.toolBudget, `${worst}`);
   check('...and its requests still start the same way at most steps', breaks <= 16, `${breaks} of 40`);
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('HashCoder passes the size of the model in use', /compressHistory\(msgs, \{ \.\.\.window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local, window\.HCModelLimits\?\.forContext\?\.\([^\n]*\)\), dropOldThinking: /.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
 }
 
@@ -251,7 +251,7 @@ console.log('\nA long task keeps its request:');
   const out = compressHistory(msgs);
   check('a note sending the agent back is not taken for a new request, however many there are',
     out.some((m) => m.content === 'Fix the loop in range.js') && out.some((m) => m.role === 'tool') && !out.some((m) => m && m.rolled) && !/Earlier in this conversation/.test(JSON.stringify(out)));
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('the note is marked where HashCoder adds it, and so is a nudge from the step budget', /\{ role: 'user', content: back\.message, note: true \}/.test(mode) && /\[verdict\.nudge, loopNote, window\.HCCodePlan\?\.recite\(HC\?\.code\?\.plan\)\]/.test(mode) && /\{ role: 'user', content: told, note: true \}/.test(mode));
 }
 {
@@ -361,7 +361,7 @@ console.log('\nSized from what the model can take:');
   check('a larger window never shows less than a smaller one', rising);
   const local = optionsFor('full', true, { window: 131072, answer: 8000, charsPerToken: 3 });
   check('a large model on this computer is sized from its window too, never below its tier', local.toolBudget > TIERS.local.toolBudget && local.maxResult >= TIERS.local.maxResult, json([local.toolBudget, local.maxResult]));
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   check('HashCoder sizes what it shows from what the limits know of the model in use, with its instructions and tools counted', /optionsFor\(sharedState\.size, sharedState\.local, window\.HCModelLimits\?\.forContext\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| '', String\(msgs\[0\]\?\.content \|\| ''\)\.length \+ JSON\.stringify\(HC\?\.code\?\.TOOL_DEFINITIONS \|\| ''\)\.length\)\)/.test(mode));
 }
 

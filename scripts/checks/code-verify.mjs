@@ -153,10 +153,10 @@ console.log('\nWhen the agent is sent back:');
   ok('... not after a failure, when the code must change first, nor for a command that needs a shell', refail && !('run' in refail)
     && !('run' in (V.stopCheck((() => { const l = V.proofLog(); l.edited('/p/a.js'); return l; })(), { test: 'npm test -- --grep "a b"' }, 'Done.') || {})));
   ok('a command line as the call\'s arguments, or none when it needs a shell', JSON.stringify(V.runOf('npm test')) === '{"command":"npm","args":["test"]}' && V.runOf('npm test | tee x') === null && V.runOf('') === null);
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder runs it for a small model in place of asking, each command with an id of its own, and does not keep its word that it passed',
     /if \(back\.run && \(sharedState\.size === 'small' \|\| sharedState\.light \|\| back\.kind === 'example' \|\| back\.kind === 'passed' \|\| \(back\.kind === 'prove' && sent\.prove > 1\)\)\) forced = \{ content: '', tool_calls: \(back\.runs \|\| \[back\.run\]\)\.map\(\(run, i\) => \(\{ id: `ran_\$\{Date\.now\(\)\}_\$\{i\}`, name: 'shell_run', arguments: run \}\)\) \};[^\n]*\n\s*else messages\.push\(\{ role: 'assistant', content: finalText \}, \{ role: 'user', content: back\.message, note: true \}\);/.test(mode)
-    && /turn = forced \|\| await callWithRouter\(callMessages, tools, temperature, signal, coderModel, thinkEl\); forced = null;/.test(mode));
+    && /turn = forced \|\| await call\(callMessages, tools, temperature, signal, thinkEl\); forced = null;/.test(mode));
   ok('...and for any model the second time it is told to run the test and does not, the count taken before', mode.indexOf('sent[back.kind]++;') > 0 && mode.indexOf('sent[back.kind]++;') < mode.indexOf("(back.kind === 'prove' && sent.prove > 1)"));
   ok('... through the same tool, and so the same permission, as any command, and the run says so', /object: forced && back\.kind !== 'passed' \? window\.HCCodeVerify\.RAN_STEP : back\.step/.test(mode) && V.RAN_STEP === 'Ran the tests itself, as the change had not been tested');
 }
@@ -206,7 +206,7 @@ console.log('\nFiles an answer names that the project does not have:');
     && /your answer names src\/calculateTax\.js, which the project does not have\. Nothing in an answer may be made up/.test(note.message) && /If it cannot be found, say so\./.test(note.message), note?.message);
   ok('and a saved conversation shows the step it was', V.noteStep(note.message) === 'Sent back to find the files its answer names');
   ok('nothing missing, nothing said', V.namedNote([], root) === null && V.namedNote(null, root) === null);
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder looks for them first when it would finish, once, with proving switched on, and quietly',
     /const namedLook = async \(reply\) => \(cdrPrefs\(\)\.prove === false \|\| sent\.named \? null : window\.HCCodeVerify\.namedNote\(await HC\.code\.notThereOf\(window\.HCCodeVerify\.namedPaths\(reply, sharedState\.projectRoot, proof\?\.changed\)\), sharedState\.projectRoot\)\);/.test(mode)
     && finishOrder(mode).walked && finishOrder(mode).inOrder('named', 'claim', 'said', 'passed', 'project') && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(reply, messages, sent\.claim\)\)/.test(finishOrder(mode).entry('claim')) && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.saidNote\(reply, proof, sent\.said\)\)/.test(finishOrder(mode).entry('said')) && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.passedNote\(reply, proof, sharedState\.projectChecks\?\.checks, sent\.passed\)\)/.test(finishOrder(mode).entry('passed')) && finishOrder(mode).ids.indexOf('project') < finishOrder(mode).ids.indexOf('site') && /\{ id: 'named', words: true, run: namedLook \}/.test(finishOrder(mode).entry('named')));
@@ -247,7 +247,7 @@ console.log('\nAn empty reply to a note is asked once more:');
   ok('...once: a note already asking again is not asked again', V.askAgainAfterNote(msgs) === false);
   ok('after the person\'s own message, or a tool result, nothing is changed', V.askAgainAfterNote([{ role: 'user', content: 'Fix it' }]) === false && V.askAgainAfterNote([{ role: 'tool', content: 'x' }]) === false && V.askAgainAfterNote([]) === false);
   ok('a saved conversation still shows it as the step it was', V.noteStep(msgs[2].content) === V.noteStep(note));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder asks once a run, only when the reply is empty, and goes on',
     /if \(!finalText\.trim\(\) && !again && \(again = window\.HCCodeVerify\.askAgainAfterNote\(messages\)\)\) \{[^\n]*continue; \}/.test(mode) && /echoed = false, again = false;/.test(mode));
 }
@@ -359,7 +359,7 @@ console.log('\nThe Coder uses it:');
 {
   const boot = src('boot.js');
   ok('it loads before the Coder mode', boot.includes("'/js/code/verify.js'") && boot.indexOf("'/js/code/verify.js'") < boot.indexOf("'/js/code/export.js'"));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('the loop records every change and every command', /proof\.edited\(/.test(mode) && /proof\.ran\(/.test(mode));
   ok('the loop asks it before finishing, with the project\'s checks, the switch in Settings, the model\'s size and the request as the person sees it',
     /window\.HCCodeVerify\.sendBack\(proof, messages, reply, \{ checks: sharedState\.projectChecks\?\.checks, prove: cdrPrefs\(\)\.prove !== false, size: sharedState\.size, sent, shown: window\.HCCodeAttach\?\.shownRequest, plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(finishOrder(mode).entry('sendBack')) && finishOrder(mode).ids[0] === 'sendBack' && finishOrder(mode).walked
@@ -392,7 +392,7 @@ console.log('\nA name the request changes, still there:');
   const note = V.renameNote(r, left);
   ok('the note names each place, and is a step of its own', note.kind === 'rename' && /"getUsr" is still written here:\n- src\/report\.js: line 1/.test(note.message) && V.isAppNote(note.message) && V.noteStep(note.message) === V.RENAME_STEP);
   ok('nothing left, no note', V.renameNote(r, []) === null);
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder looks before it finishes, each twice at most, with Prove changes on', /const projectLook = async \(\) => \{ const V = window\.HCCodeVerify, W = window\.HCCodeWiring, root = sharedState\.projectRoot, r = sent\.rename < 2 && V\.renameOf\(V\.requestIn\(messages\)\), wire = sent\.wiring < 2 && W && proof\?\.changed\.length; if \(!root \|\| cdrPrefs\(\)\.prove === false/.test(mode) && countsFromNought(mode, 'rename', 'wiring', 'example', 'stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'));
 }
 
@@ -408,7 +408,7 @@ console.log('\nThe example the request gives, run:');
   ok('a note for several runs them all, in order, and names each', both.runs.length === 2 && both.run === both.runs[0] && /`node bin\/count\.js notes\.txt`[^`]*, and `node bin\/count\.js --lines notes\.txt`/.test(both.message) && /what each prints/.test(both.message) && V.exampleNote([]) === null);
   const n = V.exampleNote({ command: 'node', args: ['bin/count.js', '--lines', 'notes.txt'] });
   ok('the note carries the command to run, says what to look for, and is a step of its own', n.kind === 'example' && n.run.command === 'node' && /`node bin\/count\.js --lines notes\.txt`/.test(n.message) && V.noteStep(n.message) === V.EXAMPLE_STEP && V.exampleNote(null) === null);
-  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  const mode = (readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8') + '\n' + readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder runs it once, and once more after a later change, with Prove changes on, for any model', /run: \(\) => \(!sent\.example \|\| \(sent\.example < 2 && proof\?\.examplesStale\)\) && proof && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.exampleNote\(window\.HCCodeVerify\.examplesOf\(/.test(finishOrder(mode).entry('example')) && /back\.kind === 'example' \|\| back\.kind === 'passed' \|\| \(back\.kind === 'prove' && sent\.prove > 1\)\)\) forced/.test(mode) && /sent\[back\.kind\]\+\+; if \(back\.kind === 'example'\) proof\?\.exampled\(\);/.test(mode) && countsFromNought(mode, 'example', 'stall', 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'));
   ok('a run that stalls after changing code has its test run, or its failure said, once before it stops',
     /if \(!verdict\.continue\) \{ const untested = verdict\.reason === 'stalled' && !sent\.stall\+\+ && cdrPrefs\(\)\.prove !== false && window\.HCCodeVerify\.stopCheck\(proof, sharedState\.projectChecks\?\.checks, '', 0, 1\); if \(!untested\) \{ lastStop = verdict; break; \} stalledIterations = 0; if \(untested\.run\) forced = \{ content: '', tool_calls: \[\{ id: `ran_\$\{Date\.now\(\)\}_0`, name: 'shell_run', arguments: untested\.run \}\] \}; else messages\.push\(\{ role: 'user', content: untested\.message, note: true \}\); \}/.test(mode));
@@ -445,7 +445,7 @@ console.log('\nA search the answer says it made, when none ran:');
   ok('not when a search did run, or the answer claims none', V.claimNote(said[0], searched, 0) === null && V.claimNote('I updated the page.', asked, 0) === null);
   ok('a saved conversation shows the note as its step', V.noteStep(n.message) === 'Sent back: it said it searched, and nothing was searched');
   ok('an answer that still says so is told under it', /^No web search or page read ran in this run/.test(V.claimLine(said[2], asked)) && V.claimLine(said[2], searched) === '' && V.claimLine('Done.', asked) === '');
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder asks it after the files its answer names, with Prove changes on, once, and says what is left under the answer',
     finishOrder(mode).walked && finishOrder(mode).inOrder('named', 'claim', 'said', 'passed', 'project') && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.claimNote\(reply, messages, sent\.claim\)\)/.test(finishOrder(mode).entry('claim')) && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.saidNote\(reply, proof, sent\.said\)\)/.test(finishOrder(mode).entry('said')) && /run: \(reply\) => \(cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.passedNote\(reply, proof, sharedState\.projectChecks\?\.checks, sent\.passed\)\)/.test(finishOrder(mode).entry('passed')) && /window\.HCCodeVerify\.claimLine\(finalText, messages\)/.test(mode) && countsFromNought(mode, 'gone', 'claim', 'said', 'passed', 'cut', 'ahead'));
 }
@@ -493,7 +493,7 @@ console.log('\nA change the answer says it made, when none was made:');
     && V.madeBy('ls', ['-la']).length === 0 && JSON.stringify(V.madeBy('/bin/cp', ['a.txt', '/abs/b.txt'])) === '["a.txt","/abs/b.txt"]');
   ok('a file a command moved, named as changed, is not called unchanged', V.saidChanged('I renamed old.js and moved it: new.js was created.', (() => { const l = V.proofLog(); l.ran('mv', ['old.js', 'new.js'], { code: 0 }); return l; })()).files.length === 0);
   ok('an answer that still says so is told under it, from the record', V.saidLine(says[1], none) === 'No file was changed in this run.' && V.saidLine('I updated index.html and style.css.', one) === 'Not changed in this run: style.css.' && V.saidLine('I updated index.html.', one) === '');
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder asks it after a search said and not made, with Prove changes on, once, and says what is left under the answer',
     finishOrder(mode).walked && finishOrder(mode).inOrder('claim', 'said', 'passed') && /cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.saidNote\(reply, proof, sent\.said\)/.test(finishOrder(mode).entry('said')) && /window\.HCCodeVerify\.saidLine\(finalText, proof\)/.test(mode) && countsFromNought(mode, 'claim', 'said', 'passed', 'cut', 'ahead'));
 }
@@ -522,7 +522,7 @@ console.log('\nTests an answer says pass, when none passed:');
   ok('a test that passed after the last change: the claim is true, nothing said', V.passedNote('The tests pass.', log, { test: 'npm test' }) === null && V.passedLine('The tests pass.', log) === '');
   log.edited('/p/src/basket.js');
   ok('a change after it: the claim is not proven again', !!V.passedNote('The tests pass.', log, { test: 'npm test' }));
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder asks it before finishing, after a change it said and did not make, with Prove changes on, and runs the test for any model that ran none',
     finishOrder(mode).walked && finishOrder(mode).inOrder('said', 'passed') && /cdrPrefs\(\)\.prove === false \? null : window\.HCCodeVerify\.passedNote\(reply, proof, sharedState\.projectChecks\?\.checks, sent\.passed\)/.test(finishOrder(mode).entry('passed'))
     && /back\.kind === 'passed' \|\| \(back\.kind === 'prove'/.test(mode) && /window\.HCCodeVerify\.passedLine\(finalText, proof\)/.test(mode));
@@ -545,7 +545,7 @@ console.log('\nA step that runs on:');
   ok('a smaller model\'s step is held to 4,096 tokens', V.STEP_MOST === 4096);
   const note = V.cutNote();
   ok('one stopped there is told so, from the app, and how to go on in parts', V.isAppNote(note) && /4,096 tokens/.test(note) && /append true/.test(note) && V.noteStep(note) === V.CUT_STEP);
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder asks for the limit for a smaller model, not in light mode, where whole files are written', /most: sharedState\.size !== 'full' && !sharedState\.light \? window\.HCCodeVerify\.STEP_MOST : undefined/.test(mode));
   ok('...and a step stopped there is not kept or run: the model is told, twice at most', /\} if \(turn\.cutOff && !turn\.tool_calls\?\.length && sharedState\.size !== 'full' && !sharedState\.light && sent\.cut\+\+ < 2\) \{ thinkEl\?\.finish\(''\); messages\.push\(\{ role: 'user', content: window\.HCCodeVerify\.cutNote\(\), note: true \}\);[^\n]*continue; \}/.test(mode)
     && mode.indexOf('if (turn.cutOff &&') < mode.indexOf('const lit = sharedState.light'));

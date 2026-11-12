@@ -830,7 +830,9 @@ const LINE_BUDGET = {
   // the one line that calls js/code/find.js before.
   // 2334, down 21: what the agent loop shows goes through one object, the
   // error in the reply and the change rows among it.
-  'modes/code/mode.js': 2334,
+  // 2143, down 191: the loop itself moved to js/agent-loop.js; the mode keeps
+  // what it shows, its finishing checks and what it hands the loop.
+  'modes/code/mode.js': 2143,
 };
 
 console.log('\nFile sizes go down, never up:');

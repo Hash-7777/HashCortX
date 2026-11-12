@@ -234,11 +234,11 @@ console.log('\nThe workspaces:');
   ok('chat: Enter while a reply is written queues the message', /async function send\(\) \{\n\s*if \(state\.streaming\) \{ chatQueue\.hold\(\); return; \}/.test(app));
   ok('...and when a reply ends, the queue is sent or handed back, for one model and two side by side', (app.match(/state\.streaming = false;\n\s*sendBtn\.textContent = "Send"; chatQueue\.settle\(\);/g) || []).length === 2);
   ok('...stopped and failed read from the reply\'s own stop and error', /outcome: \(\) => \(\{ stopped: !!state\.abort\?\.signal\?\.aborted, failed: !!errorSlot\?\.childElementCount \}\)/.test(app));
-  const coder = src('modes', 'code', 'mode.js');
+  const coder = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('HashCoder: a run started while one works queues instead, and starts no second run', /async function startRun\(\) \{\n\s*if \(running \|\| runAbort\) \{ coderQueue\?\.hold\(\); return; \}\n\s*running = true; outcome = \{\};\n\s*try \{ await beginRun\(\); \} finally \{ running = false; coderQueue\?\.settle\(\); \}/.test(coder));
-  ok('...the run reads it at the top of each step, the person\'s message kept in the conversation and the request', /const added = messages === conversationMsgs \? coderQueue\?\.takeNow\(\) : null;/.test(coder)
+  ok('...the run reads it at the top of each step, the person\'s message kept in the conversation and the request', /const added = messages === conversation\(\) \? queue\(\)\?\.takeNow\(\) : null;/.test(coder) && /queue: \(\) => coderQueue, conversation: \(\) => conversationMsgs/.test(coder)
     && /if \(added\) \{ const A = window\.HCCodeAttach, pack = A \? A\.packed\(added\.text, added\.files\) : \{ content: added\.text, images: \[\], thumbs: \[\] \}; messages\.push\(\{ role: 'user', content: pack\.content, added: true, \.\.\.\(pack\.images\.length \? \{ images: pack\.images, thumbs: pack\.thumbs \} : \{\}\) \}\); if \(HC\?\.code\) HC\.code\.request = /.test(coder)
-    && coder.indexOf('const added = messages === conversationMsgs') < coder.indexOf("turn = forced || await callWithRouter("));
+    && coder.indexOf('const added = messages === conversation()') < coder.indexOf("turn = forced || await call("));
   ok('...shown where it was read, outside the steps that fold, live and when drawn again', /ui\.added\(A \? A\.shownRequest\(pack\.content\) : added\.text, pack\.pictures\);/.test(coder) && /added: \(text, pictures\) => \{ window\.HCCodeSteps\.added\(contentEl, text, pictures\); scrollMessages\(\); \}/.test(coder) && /if \(m\.role === 'user' && m\.added && reply\) \{ window\.HCCodeSteps\.added\(reply, window\.HCCodeAttach \? window\.HCCodeAttach\.shownRequest\(m\.content\) : m\.content, m\.thumbs\); return; \}/.test(coder));
   ok('...a stop or error hands the queue back, for a run and for Regenerate', /outcome = \{ stopped: e\.name === 'AbortError', failed: e\.name !== 'AbortError' \};/.test(coder) && /setRouterChip\('Auto', ''\); coderQueue\?\.settle\(\);/.test(coder));
   const erp = src('js', 'systems', 'agent-chat.js');
@@ -255,7 +255,7 @@ console.log('\nThe workspaces:');
   ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), attachments: /.test(coder)
     && /const step = new AbortController\(\), give = \(\) => step\.abort\(\); if \(signal\?\.aborted\) step\.abort\(\); else signal\?\.addEventListener\('abort', give\); stepAbort = step;/.test(coder)
     && /signal: step\.signal,/.test(coder) && /\.finally\(\(\) => \{ signal\?\.removeEventListener\('abort', give\); if \(stepAbort === step\) stepAbort = null; \}\);/.test(coder)
-    && /\} catch \(e\) \{\n\s*if \(coderQueue\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = ui\.wait\(\);[^\n]*continue; \}/.test(coder));
+    && /\} catch \(e\) \{\n\s*if \(queue\(\)\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = ui\.wait\(\);[^\n]*continue; \}/.test(coder) && /queue: \(\) => coderQueue, conversation: \(\) => conversationMsgs/.test(coder));
   ok('...Finance, the ERP agent and the Swarm\'s workspace stop what they are writing', /interrupt: \(\) => abortCtrl\?\.abort\(\), attachments: \{/.test(fin) && /interrupt: \(\) => deps\?\.stop\(\) \}\)/.test(erp) && /interrupt: \(\) => \{ if \(state\.asking && !state\.asking\.team\) state\.asking\.controller\.abort\(\); \} \}\)/.test(ws));
   ok('...and 3D Forge has none, as stopping would throw away the part being made', !/interrupt:/.test(forge));
   const css = src('css', 'composer.css');

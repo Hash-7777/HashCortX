@@ -83,7 +83,7 @@ console.log('\nThe note sending the agent back:');
 
 console.log('\nHashCoder:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('keeps what each changed file held, from the undo records', /window\.HCCodeReview\?\.track\(changes, p, HC\?\.undo\?\.lastFor\?\.\(p\)\)/.test(mode));
   ok('asks for a second look only when nothing else sent the agent back, the files its answer names and the site check included, and it answered', finishOrder(mode).walked && finishOrder(mode).inOrder('sendBack', 'named', 'claim', 'said', 'passed', 'project', 'example', 'site', 'facts', 'kept', 'second') && finishOrder(mode).ids.length === 11 && finishOrder(mode).ids.slice(1).every((id) => /words: true/.test(finishOrder(mode).entry(id))) && !/words/.test(finishOrder(mode).entry('sendBack')) && /\{ id: 'second', words: true, run: secondLook \}/.test(finishOrder(mode).entry('second')));
   ok('of the same model, with no tools and nothing of the conversation', /await callWithRouter\(R\.messages\(\(window\.HCCodeAttach\?\.shownRequest \|\| String\)\(V\.requestIn\(messages\)\), V\.proofLine\(proof\), shown\.text\), \[\], 0, signal, coderModel\)/.test(mode));

@@ -119,7 +119,7 @@ console.log('\nBefore a change is made:');
 
 console.log('\nWhere it is used:');
 {
-  const mode = src('modes', 'code', 'mode.js');
+  const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
   ok('every call the run makes is answered by it, after the app\'s own answers and before it is made, for the project\'s own tools only',
     /\|\| \(!window\.HCMcp\?\.systemOf\?\.\(call\.name\) && await window\.HCCodeSeen\?\.before\(call, messages, \{ root: sharedState\.projectRoot, whole: sharedState\.codeMap\?\.root === sharedState\.projectRoot \? sharedState\.codeMap\.whole : '', current: HC\.code\.readWholeQuietly, uses: HC\.code\.linesQuietly \}\)\) \|\| null;/.test(mode)
     && /const raw = early \? early\.result :/.test(mode) && /if \(!early\) asked\.after\(call, resultStr, ok\);/.test(mode));
