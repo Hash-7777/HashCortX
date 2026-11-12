@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A HashCoder run shows its steps in phases.** Finding, Reading,
+  Changing, Checking and Reviewing are worked out by the app from what each
+  step is, each with its own drawn mark on the rail, one line of what it did
+  ("3 files", "1 command, 1 failed") and its time. A phase that has ended
+  folds its steps away to that line and opens again from it; a change
+  waiting for Keep or Undo stays in view. The phase in work carries a
+  turning mark while the run goes on.
 - **A message sent while HashCoder works is taken for what it is.** A
   correction ("no, not that file") is read at the next step with a note
   that opens again the step of the agent's plan it is about. More for the

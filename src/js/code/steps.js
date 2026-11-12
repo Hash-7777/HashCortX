@@ -141,6 +141,7 @@
     const status = el.querySelector('.cdr-step-result');
     if (status) status.innerHTML = (took ? '<span class="cdr-step-bar" aria-hidden="true"><i></i></span>' : '') + (!ok ? '<span class="cdr-step-time cdr-step-failed">failed</span>' : '') + (took ? `<span class="cdr-step-time">${esc(took)}</span>` : '');
     if (ok && el.dataset && el.dataset.lesson) forgetControl(el);
+    window.HCRunView?.stepDone(el, ok);   // a failure goes into its phase's line
     measure(el.parentElement);
   }
 
@@ -197,7 +198,9 @@
           <span class="cdr-step-result">${status || ''}</span>
         </summary>
         <div class="cdr-step-body"></div>`;
-    (flat ? contentEl : listFor(contentEl)).appendChild(el);
+    const list = flat ? contentEl : listFor(contentEl);
+    list.appendChild(el);
+    if (!flat) window.HCRunView?.place(contentEl, list, el, verb, object);   // it joins the phase in work, or begins the next (js/run-view.js)
     if (!ticker && el.querySelector(`.${LIVE}`)) ticker = setInterval(tick, 100);
     return el;
   }
@@ -224,6 +227,7 @@
   /** A reply whose run has ended: each list folded to its line, and the changes gathered under it. */
   function settle(contentEl) {
     if (!contentEl) return;
+    window.HCRunView?.end(contentEl);   // its last phase closes, and nothing turns
     // A step still counting when the run ended was stopped with it.
     contentEl.querySelectorAll(`.${LIVE}`).forEach((t) => { t.classList.remove(LIVE); t.textContent = 'stopped'; });
     const changed = [...contentEl.querySelectorAll('.cdr-steps-list > .cdr-step--change')];

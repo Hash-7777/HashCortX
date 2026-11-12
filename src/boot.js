@@ -102,6 +102,7 @@
     '/js/code/asks.js',
     '/js/code/added.js',
     '/js/code/keep.js',
+    '/js/run-view.js',
     '/js/code/steps.js',
     '/js/code/talk.js',
     '/js/code/permissions.js',

@@ -410,6 +410,31 @@ body.coder-mode #app { display: none; }
 .cdr-steps-list > .cdr-step--ok::before { background: var(--accent); border-color: var(--accent); }
 .cdr-steps-list > .cdr-step--err::before { background: var(--danger); border-color: var(--danger); }
 @keyframes cdr-node { 50% { transform: scale(.7); opacity: .55; } }
+
+/* Phases on the rail (js/run-view.js): a header where the work changes kind,
+   its drawn mark on the rail, one line of what it did and its time; a phase
+   that has ended folds its steps away to that line. */
+.cdr-phase { position: relative; margin: 8px 0 2px; }
+.cdr-phase:first-child { margin-top: 0; }
+.cdr-phase-badge { position: absolute; left: -27px; top: 3px; z-index: 1; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-0); border: 1px solid var(--cdr-border-strong); color: var(--cdr-text-muted); }
+#coder-mode-wrap .cdr-phase-badge svg { width: 13px; height: 13px; stroke-width: 1.5; }
+.cdr-phase.closed .cdr-phase-badge { color: var(--accent); border-color: var(--accent-line); }
+.cdr-phase.now .cdr-phase-badge { color: var(--accent-2); border-color: var(--accent-2); }
+.cdr-reticle { position: absolute; left: -31px; top: -1px; width: 30px; height: 30px; color: var(--accent-2); pointer-events: none; display: none; }
+.cdr-msg.running .cdr-phase.now .cdr-reticle { display: block; }
+#coder-mode-wrap .cdr-reticle svg { width: 30px; height: 30px; stroke-width: 1.2; }
+.cdr-msg.running .cdr-phase.now .cdr-reticle svg { animation: cdr-lock 4s linear infinite; }
+@keyframes cdr-lock { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .cdr-reticle svg { animation: none; } }
+.cdr-phase-h { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 28px; padding: 0 8px; background: none; border: 0; border-radius: var(--radius-sm); font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.cdr-phase-h:hover { background: var(--surface-raised); }
+.cdr-phase-h:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cdr-phase-name { font: 500 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--cdr-text); }
+.cdr-phase.closed .cdr-phase-name { color: var(--cdr-text-dim); }
+.cdr-phase-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--cdr-text-dim); }
+.cdr-phase-time { font: 11.5px var(--mono); font-variant-numeric: tabular-nums; color: var(--cdr-text-muted); }
+.cdr-phase.now .cdr-phase-time { color: var(--accent-2); }
+.cdr-steps-list > .cdr-step.cdr-step--folded { display: none; }
 @media (prefers-reduced-motion: reduce) { .cdr-steps-list > .cdr-step--running::before { animation: none; } }
 .cdr-steps-list .cdr-step-head { grid-template-columns: 58px minmax(0, 1fr) auto; gap: 12px; min-height: 28px; padding: 0 8px; border-radius: var(--radius-sm); font-size: 12px; transition: background .15s; }
 .cdr-steps-list .cdr-step-verb { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
