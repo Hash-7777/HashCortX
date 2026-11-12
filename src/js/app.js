@@ -5599,7 +5599,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // A model that cannot take tools is told them in words and its calls are read from its answer.
     const native = !tools.length || (HCLocalContext.can(info, "tools") && !HCLocalApps.isLocalApp(model));
     const numCtx = await HCLocalContext.numCtx(host, model, [...messages, { content: JSON.stringify(tools) }], { need: need || most });
-    const shaped = native || json ? null : HCAgentShape.toolsAsShape(messages, tools), sent = native ? HCAgentShape.forOllama(messages) : shaped ? shaped.messages : HCAgentShape.toolsInWords(messages, tools);   // without tool calling of its own, held by Ollama to one answer shape (js/agent-shape.js)
+    const shaped = native || json ? null : HCAgentShape.toolsAsShape(messages, tools), sent = native ? HCAgentShape.forOllama(messages, window.HCModelProfile?.of?.(model, info)) : shaped ? shaped.messages : HCAgentShape.toolsInWords(messages, tools);   // without tool calling of its own, held by Ollama to one answer shape (js/agent-shape.js)
     const reply = await HCLocal.chat(host, { model, messages: sent, tools: native ? tools : undefined, json: shaped ? shaped.format : json, temperature, numCtx, numPredict: json ? Math.max(1024, need || 4096) : most || undefined, keepFor: "15m" }, { signal, onToken: shaped ? undefined : onText, onThinking });   // `most`: a step held short by its caller (js/code/verify.js STEP_MOST); kept loaded between steps unless the person chose a time
     const data = reply.last || {};
     const msg = { role: "assistant", content: reply.content, tool_calls: reply.tool_calls.length ? reply.tool_calls : undefined };
@@ -5617,12 +5617,12 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     const hasImages = messages.some(m => m.images?.length);
     const textMessages = messages.map(m => {
       if (m.role === 'assistant' && Array.isArray(m.tool_calls) && m.tool_calls.length) {
-        return { role: 'assistant', content: m.content ?? null, tool_calls: m.tool_calls };
+        return { role: 'assistant', content: m.content ?? null, tool_calls: m.tool_calls, ...HCAgentShape.thinkingFor(m, `cloud:${provider}:${model}`) };
       }
       if (m.role === 'tool') {
         return { role: 'tool', tool_call_id: m.tool_call_id, name: m.name || '', content: m.content || '' };
       }
-      return { role: m.role, content: m.content || '' };
+      return { role: m.role, content: m.content || '', ...(m.role === 'assistant' ? HCAgentShape.thinkingFor(m, `cloud:${provider}:${model}`) : {}) };
     });
     // Endpoint and auth come from js/providers.js, so this and streamCloudModel
     // read one copy of those facts instead of each carrying their own.
@@ -5667,7 +5667,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
     // Coder mode runs through here, and none of these paths recorded a
     // single token before — so every agent turn was missing from the log.
     { const u = usageFrom(data); if (u) recordUsage(model, u.input, u.output, u.cacheRead, u.cacheWrite); }
-    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason };
+    return { content: msg.content || null, tool_calls: calls && calls.length ? calls : null, raw: msg, finish: data.choices?.[0]?.finish_reason, thinking: msg.reasoning_content ?? msg.reasoning ?? undefined };
   }
 
   async function agentTurnAnthropic({ model, messages, tools, temperature, signal, onText, onThinking, cache }) {

@@ -340,5 +340,14 @@ console.log('\nGemini and Anthropic streams are put back together too:');
   ok('a reply that was not streamed is read as JSON by both', (await S.anthropicReply(whole)).content[0].text === 'hi');
 }
 
+console.log('\nThe thinking a reasoning model streams is kept with its answer:');
+{
+  const ev = (o) => `data: ${JSON.stringify(o)}\n\n`;
+  const kept = await S.openAIMessage(bodyOf([enc.encode(ev({ choices: [{ delta: { reasoning_content: 'Add the ' } }] }) + ev({ choices: [{ delta: { reasoning_content: 'two rates.' } }] }) + ev({ choices: [{ delta: { content: '42' } }] }))]));
+  ok('it is on the message, whole, beside the answer', kept.message.reasoning_content === 'Add the two rates.' && kept.message.content === '42', JSON.stringify(kept.message));
+  const none = await S.openAIMessage(bodyOf([enc.encode(ev({ choices: [{ delta: { content: 'hi' } }] }))]));
+  ok('...and a reply with none carries none', !('reasoning_content' in none.message));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/stream/sse.js, src/js/stream/first-sign.js)`);
 process.exit(fail ? 1 : 0);

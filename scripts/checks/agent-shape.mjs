@@ -166,7 +166,7 @@ console.log('\nA tool call a local model wrote as text is run as one:');
   ok('... while the conversation keeps the words, and an answer is sent as it is', said[1].content === 'I will read src/text.js first.' && out[2].content === 'Added slugify.' && out[0].content === 'Add slugify');
   const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
   const ollama = app.slice(app.indexOf('async function agentTurnOllama'), app.indexOf('async function agentTurnOpenAI'));
-  ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
+  ok('the Ollama client uses both', /HCAgentShape\.forOllama\(messages, window\.HCModelProfile\?\.of\?\.\(model, info\)\)/.test(ollama) && /HCAgentShape\.ollamaReply\(msg, tools\)/.test(ollama));
 }
 
 console.log('\nOtherwise it answers in one shape, held by Ollama:');
@@ -636,6 +636,27 @@ console.log('\nWhat a page or a search brought in, guarded for every model:');
     ok(`${label}: a file and a command's output are sent exactly as they were`, by('d') === said && by('e') === said);
   }
   ok('the conversation the caller keeps is never changed', conv[1].content === said);
+}
+
+console.log('\nA model\'s thinking kept with its tool work, and sent back where its maker asks:');
+{
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'model-profile.js'), 'utf8'), sandbox, { filename: 'model-profile.js' });
+  const msgs = [];
+  A.appendAssistantToolCallTurn(msgs, '', [{ id: 'c1', name: 'read_file', arguments: { path: 'a' } }], { thinking: 'Read it first.' });
+  A.appendAssistantToolCallTurn(msgs, 'x', [{ id: 'c2', name: 'read_file', arguments: {} }]);
+  ok('the turn keeps the thinking it was given, and one given none has none', msgs[0].thinking === 'Read it first.' && !('thinking' in msgs[1]));
+  const ds = 'cloud:deepseek:deepseek-reasoner';
+  ok('a maker that must have it back is sent it, in its field', JSON.stringify(A.thinkingFor(msgs[0], ds)) === '{"reasoning_content":"Read it first."}');
+  ok('...and a turn with none is sent the field empty, as that maker takes', JSON.stringify(A.thinkingFor(msgs[1], ds)) === '{"reasoning_content":""}');
+  ok('a family whose thinking is not carried, and an unknown model, are sent nothing', JSON.stringify(A.thinkingFor(msgs[0], 'cloud:anthropic:claude-opus-4-1')) === '{}' && JSON.stringify(A.thinkingFor(msgs[0], 'cloud:groq:some-new-model')) === '{}' && JSON.stringify(A.thinkingFor(msgs[0], 'cloud:openrouter:deepseek/deepseek-r1')) === '{}');
+  ok('a family that may have it is sent it when there is some, and nothing when there is none', JSON.stringify(A.thinkingFor(msgs[0], 'cloud:zai:glm-4.6')) === '{"reasoning_content":"Read it first."}' && JSON.stringify(A.thinkingFor(msgs[1], 'cloud:zai:glm-4.6')) === '{}');
+  const thinks = { family: 'qwen3', carry: 'recommended', carryField: 'thinking' }, never = { family: 'qwen-coder', carry: 'never', carryField: null };
+  ok('a model on this computer that wants it back keeps it on its tool turn', A.forOllama(msgs, thinks)[0].thinking === 'Read it first.');
+  ok('...one that does not is sent none', !('thinking' in A.forOllama(msgs, never)[0]) && !('thinking' in A.forOllama(msgs)[0]));
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8'), mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('the cloud turn sends it back on its assistant messages and hands back what came', /return \{ role: 'assistant', content: m\.content \?\? null, tool_calls: m\.tool_calls, \.\.\.HCAgentShape\.thinkingFor\(m, `cloud:\$\{provider\}:\$\{model\}`\) \};/.test(app) && /thinking: msg\.reasoning_content \?\? msg\.reasoning \?\? undefined \};/.test(app));
+  ok('the local turn sends it only where the model wants it', /HCAgentShape\.forOllama\(messages, window\.HCModelProfile\?\.of\?\.\(model, info\)\)/.test(app));
+  ok('HashCoder keeps each turn\'s thinking with its calls', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking \}\);/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);

@@ -83,7 +83,7 @@ console.log('\nWhen the loop reads one:');
   ok('the loop reads it for a smaller model only, when no call was made and light mode read nothing',
     /const dif = !lit && sharedState\.size !== 'full' && !turn\.tool_calls\?\.length && window\.HCCodeVerify\.unmadeChange\(proof, messages, turn\.content \|\| '', 0, 1\) \? window\.HCCodeDiffs\.turnOf\(turn\.content\) : null;/.test(mode));
   ok('its calls take the place of the reply, as light mode\'s do, before they are kept or run', /if \(lit\?\.calls\.length \|\| dif\) turn = \{ \.\.\.turn, content: \(lit \|\| dif\)\.said, tool_calls: \(lit \|\| dif\)\.calls \};/.test(mode)
-    && mode.indexOf('const dif = !lit') < mode.indexOf('H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls); // always append'));
+    && mode.indexOf('const dif = !lit') < mode.indexOf('H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls, { thinking: turn.thinking }); // always append'));
   ok('it loads before the Coder', src('boot.js').indexOf("'/js/code/diffs.js'") > 0);
   ok('this check is part of npm run check', /npm run check:code-diffs\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }

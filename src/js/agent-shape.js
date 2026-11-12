@@ -198,10 +198,11 @@
    * and expect to see them again; passing the object through produces a
    * request that is accepted and then misread.
    */
-  function appendAssistantToolCallTurn(messages, content, toolCalls) {
+  function appendAssistantToolCallTurn(messages, content, toolCalls, { thinking } = {}) {
     messages.push({
       role: 'assistant',
       content: content || '',
+      ...(typeof thinking === 'string' && thinking ? { thinking } : {}),   // sent back where the model's maker asks (thinkingFor)
       tool_calls: (toolCalls || []).map((c) => ({
         id: c.id,
         type: 'function',
@@ -248,10 +249,28 @@
    * as a sentence too, and stopped with nothing done. The words stay in the
    * conversation, where the person reads them.
    */
-  function forOllama(messages) {
+  function forOllama(messages, profile = null) {
+    // A model's thinking stays on its tool turn only where the model wants it back (js/model-profile.js).
+    const keep = !!profile && profile.carry !== 'never' && profile.carryField === 'thinking';
+    const bare = (m) => { if (keep || !('thinking' in m)) return m; const out = { ...m }; delete out.thinking; return out; };
     return withoutSignatures(messages).map((m) => (Array.isArray(m.tool_calls) && m.tool_calls.length
-      ? { ...m, content: '', tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) }
-      : m));
+      ? bare({ ...m, content: '', tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) })
+      : bare(m)));
+  }
+
+  /**
+   * The field an assistant message is sent back with, for a model whose
+   * maker wants its thinking with the tool work (js/model-profile.js): the
+   * thinking kept on the message, or, for a maker that must have the field,
+   * the field empty. `{}` for every other model.
+   */
+  function thinkingFor(message, modelValue) {
+    const P = typeof window !== 'undefined' && window.HCModelProfile;
+    const profile = P ? P.of(modelValue) : null;
+    if (!profile || profile.carry === 'never' || profile.carryField !== 'reasoning_content') return {};
+    const text = message && typeof message.thinking === 'string' ? message.thinking : '';
+    if (text) return { reasoning_content: text };
+    return profile.carry === 'required' ? { reasoning_content: '' } : {};
   }
 
   /**
@@ -749,7 +768,7 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value === undefined ? null : value };
   }
 
-  window.HCAgentShape = {
+  window.HCAgentShape = { thinkingFor,
     geminiResponseOf,
     markReusable,
     closeInterruptedTurn,

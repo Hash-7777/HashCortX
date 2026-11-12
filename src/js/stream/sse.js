@@ -184,6 +184,7 @@
    */
   async function openAIMessage(body, { onText, onThinking } = {}) {
     let content = '';
+    let thinking = '';   // kept with the answer, for a maker that wants it back with tool work (js/model-profile.js)
     const calls = [];
     let finish = null;
     let usage = null;
@@ -197,6 +198,7 @@
       if (!choice) continue;
       if (choice.finish_reason) finish = choice.finish_reason;
       const thought = openAIReasoning(evt);
+      if (thought) thinking += thought;
       if (thought && onThinking) onThinking(thought);
       const delta = choice.delta || choice.message || {};
       if (typeof delta.content === 'string' && delta.content) {
@@ -214,7 +216,7 @@
       }
     }
     const whole = calls.filter(Boolean).map((c) => (c.function.arguments ? c : { ...c, function: { ...c.function, arguments: '{}' } }));
-    return { message: { content: content || null, tool_calls: whole }, finish, usage };
+    return { message: { content: content || null, tool_calls: whole, ...(thinking ? { reasoning_content: thinking } : {}) }, finish, usage };
   }
 
   /**
