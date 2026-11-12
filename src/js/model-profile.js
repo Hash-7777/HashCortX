@@ -145,6 +145,22 @@
     return json || most > 0 || !tools ? false : undefined;
   }
 
-  const published = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature, THINK_PER_STEP: false, thinkFor };
+  // ── Effort, by the task ───────────────────────────────────────────────
+
+  /**
+   * The effort a model that takes the setting is asked for: low for small
+   * talk and a helper that only explores, high for a request of five asks or
+   * more or a plan of five steps or more, and null (the provider's own)
+   * otherwise. Null for a model that takes no effort setting.
+   */
+  function effortFor(profile, { smallTalk = false, explore = false, asks = 0, steps = 0 } = {}) {
+    const e = profile && profile.effort;
+    if (!e || !Array.isArray(e.levels)) return null;
+    if ((smallTalk || explore) && e.levels.includes('low')) return 'low';
+    if ((asks >= 5 || steps >= 5) && e.levels.includes('high')) return 'high';
+    return null;
+  }
+
+  const published = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature, THINK_PER_STEP: false, thinkFor, effortFor };
   window.HCModelProfile = published;
 })();

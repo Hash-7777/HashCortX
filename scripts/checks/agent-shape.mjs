@@ -687,5 +687,19 @@ console.log('\nEvery result of a turn together, a failure marked:');
   ok('the provider that wants them together is sent each turn\'s results in one message', /if \(last && last\.role === "user" && Array\.isArray\(last\.content\) && last\.content\.every\(\(b\) => b\.type === "tool_result"\)\) last\.content\.push\(block\);/.test(app) && /const last = anthropicMessages\[anthropicMessages\.length - 1\], block = HCAgentShape\.resultBlock\(m\);/.test(app));
 }
 
+console.log('\nEffort sent where a model takes it:');
+{
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', 'code', 'asks.js'), 'utf8'), sandbox, { filename: 'asks.js' });
+  const many = [{ role: 'user', content: '1. Add a login page.\n2. Add a sign-out link.\n3. Keep the session for a day.\n4. Show the name in the header.\n5. Write tests for all of it.' }];
+  const few = [{ role: 'user', content: 'Fix the header.' }];
+  const b1 = A.withEffort({ model: 'gpt-5' }, 'cloud:openai:gpt-5', many);
+  const b2 = A.withEffort({ model: 'gpt-5' }, 'cloud:openai:gpt-5', few);
+  const b3 = A.withEffort({ model: 'x' }, 'cloud:groq:some-new-model', many);
+  ok('a request of five asks or more is sent the most effort, where the model takes the setting', b1.reasoning_effort === 'high', JSON.stringify(b1));
+  ok('...a smaller one, and a model that does not take it, are sent none', !('reasoning_effort' in b2) && !('reasoning_effort' in b3));
+  const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8');
+  ok('the cloud turn adds it before its request is fitted, so a refusal drops it', /fitRequest\("openai", provider, model, HCAgentShape\.withEffort\(body, `cloud:\$\{provider\}:\$\{model\}`, messages\)\);/.test(app));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);
 process.exit(fail ? 1 : 0);

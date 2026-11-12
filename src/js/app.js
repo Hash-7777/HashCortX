@@ -5640,7 +5640,7 @@ Tools: remember_fact / recall_facts — save the user's target roles, industries
       stream: !!onText, ...(onText ? { stream_options: { include_usage: true } } : {}),   // streamed when watched, as HashCoder does
     };
     if (tools.length) { body.tools = tools; body.tool_choice = "auto"; }
-    fitRequest("openai", provider, model, body);
+    fitRequest("openai", provider, model, HCAgentShape.withEffort(body, `cloud:${provider}:${model}`, messages));   // the effort it takes, by the task (js/model-profile.js), dropped on a refusal
     let r;
     if (provider === "moonshot" && !isKimiCodeKey(key)) {
       ({ res: r } = await fetchMoonshotApi("/chat/completions", key, () => ({

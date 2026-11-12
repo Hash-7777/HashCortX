@@ -122,6 +122,14 @@ console.log('\nThinking on or off, step by step, for a model on this computer:')
   ok('the local turn asks it, with what the step is', /think: window\.HCModelProfile\?\.thinkFor\?\.\(window\.HCModelProfile\.of\(model, info\), \{ json, most, tools: tools\.length \}\)/.test(app));
 }
 
+console.log('\nEffort, by the task:');
+{
+  const r = of('cloud:openai:gpt-5');
+  ok('low for small talk and for a helper that only explores', M.effortFor(r, { smallTalk: true }) === 'low' && M.effortFor(r, { explore: true }) === 'low');
+  ok('high for a request of five asks or more, or a plan of five steps or more', M.effortFor(r, { asks: 5 }) === 'high' && M.effortFor(r, { steps: 6 }) === 'high');
+  ok('the provider\'s own otherwise, and nothing for a model that takes no effort setting', M.effortFor(r, { asks: 2 }) === null && M.effortFor(of('cloud:groq:some-new-model'), { asks: 9 }) === null && M.effortFor(of('cloud:openai:gpt-4o'), { smallTalk: true }) === null);
+}
+
 console.log('\nThe module:');
 {
   const boot = src('boot.js');

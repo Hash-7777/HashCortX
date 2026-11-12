@@ -458,6 +458,23 @@
   }
 
   /** A conversation's tool calls without what only Gemini reads, for every other provider. */
+  /**
+   * The request body with the effort its model is asked for (js/model-profile.js
+   * effortFor), counted from the asks of the newest request (js/code/asks.js).
+   * A model that takes no effort setting, and an ordinary request, are sent none.
+   */
+  function withEffort(body, modelValue, messages) {
+    const P = typeof window !== 'undefined' && window.HCModelProfile;
+    const profile = P ? P.of(modelValue) : null;
+    if (!body || !profile || !profile.effort) return body;
+    const asked = [...(messages || [])].reverse().find((m) => m && m.role === 'user' && !m.opened && !m.note);
+    const S = typeof window !== 'undefined' && window.HCCodeAsks;
+    const asks = asked && S ? S.split(String(asked.content || '')).length : 0;
+    const level = P.effortFor(profile, { asks });
+    if (level) body[profile.effort.field] = level;
+    return body;
+  }
+
   /** A tool result as a provider's result block, one in the app's failure shape carrying that provider's failure mark. */
   function resultBlock(m) {
     const text = String(m && m.content != null ? m.content : '');
@@ -783,7 +800,7 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value === undefined ? null : value };
   }
 
-  window.HCAgentShape = { thinkingFor, withoutThinking, resultBlock,
+  window.HCAgentShape = { thinkingFor, withoutThinking, resultBlock, withEffort,
     geminiResponseOf,
     markReusable,
     closeInterruptedTurn,
