@@ -1787,7 +1787,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const root = sharedState.projectRoot;
       if (root && sharedState.projectChecks?.root !== root && window.HCCodeVerify && HC?.code) {
         const io = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f), whole: (f) => HC.code.readWholeQuietly(f), drop: window.HCCodeLessons?.looksPrivate };   // whole, unasked (js/code/context.js)
-        const checks = await window.HCCodeVerify.readProjectChecks(root, io);
+        const checks = await window.HCCodeVerify.readProjectChecks(root, io, { os: sharedState.platform?.os, found: sharedState.hostTools });   // on Windows, Python as it runs there (js/code/verify.js)
         sharedState.projectChecks = { root, checks, ...(await window.HCCodeContext?.readProject(root, io)) }; sharedState.notesNew = await window.HCCodeNotesSeen?.check(localStorage, root, sharedState.projectChecks.notesName, sharedState.projectChecks.notesText) || null;   // and its top folder and notes, said in the reply when they changed since last time (js/code/notes-seen.js)
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }

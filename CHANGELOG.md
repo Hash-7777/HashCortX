@@ -30,6 +30,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **On Windows, a Python project's test runs with Python as it runs
+  there.** HashCoder names, and runs itself where it does, the project's own
+  environment's Python (`.venv/Scripts/python.exe` or `venv/Scripts/python.exe`)
+  when the project has one, with nothing to activate; otherwise the `py`
+  launcher, or `python` when only that is installed, instead of `python3`,
+  which Windows seldom has. Elsewhere it stays `python3`. A test command
+  named by a path still asks before it runs.
 - **On Windows, a program inside the project starts from the project.** A
   command whose program is named by a path in a folder, such as
   `.venv/Scripts/python.exe`, starts the one in the command's folder, as on

@@ -87,6 +87,35 @@ console.log('\nThe project\'s own checks:');
   ok('the line for the instructions names them', /test: `npm test`/.test(V.checksLine({ test: 'npm test' })) && V.checksLine({}) === '');
 }
 
+console.log('\nThe project\'s own checks on Windows:');
+{
+  const win = { os: 'windows' };
+  ok('Python through the py launcher, where python3 is seldom there', V.projectChecks({ ...win, files: ['stats.py', 'tests'] }).test === 'py -m unittest');
+  ok('...with pytest when the project uses it', V.projectChecks({ ...win, files: ['app.py', 'tests', 'requirements.txt'], requirements: 'pytest==8\n' }).test === 'py -m pytest');
+  ok('...or python, when the launcher is not here and python is', V.projectChecks({ ...win, found: ['git', 'python'], files: ['stats.py', 'tests'] }).test === 'python -m unittest');
+  ok('...and the project\'s own environment\'s Python when it has one, run directly', V.projectChecks({ ...win, venv: '.venv/Scripts/python.exe', files: ['stats.py', 'tests'] }).test === '.venv/Scripts/python.exe -m unittest');
+  ok('elsewhere, as before', V.projectChecks({ os: 'macos', venv: '.venv/Scripts/python.exe', files: ['stats.py', 'tests'] }).test === 'python3 -m unittest');
+  ok('npm stays npm: the native side starts npm.cmd for it', V.projectChecks({ ...win, files: ['package.json'], packageJson: JSON.stringify({ scripts: { test: 'vitest' } }) }).test === 'npm test');
+  ok('the environment\'s Python is a test command, and so is npm.cmd', V.commandKind('.venv/Scripts/python.exe', ['-m', 'pytest']) === 'test' && V.commandKind('npm.cmd', ['test']) === 'test' && V.commandKind('py', ['-m', 'unittest']) === 'test');
+  const log = V.proofLog();
+  log.edited('/p/stats.py');
+  ok('...that the app can run itself as one program and its arguments', /command "\.venv\/Scripts\/python\.exe", args \["-m","unittest"\]/.test(V.stopCheck(log, { test: '.venv/Scripts/python.exe -m unittest' }, 'Done.')?.message || ''));
+  const io = (folders) => ({
+    list: async (d) => folders[d.replace(/\\/g, '/')] || Promise.reject(new Error('no such folder')),
+    read: async () => '',
+  });
+  const tree = {
+    'C:/p': [{ name: '.venv', is_dir: true }, { name: 'tests', is_dir: true }, { name: 'stats.py', is_dir: false }],
+    'C:/p/.venv/Scripts': [{ name: 'activate.bat', is_dir: false }, { name: 'python.exe', is_dir: false }],
+  };
+  ok('a .venv folder holding Scripts/python.exe is found', (await V.readProjectChecks('C:\\p', io(tree), win)).test === '.venv/Scripts/python.exe -m unittest');
+  ok('...and a venv folder too', (await V.readProjectChecks('C:\\p', io({ 'C:/p': [{ name: 'venv', is_dir: true }, { name: 'tests', is_dir: true }, { name: 'a.py' }], 'C:/p/venv/Scripts': [{ name: 'python.exe' }] }), win)).test === 'venv/Scripts/python.exe -m unittest');
+  ok('a folder with no Python in it is not taken for one', (await V.readProjectChecks('C:\\p', io({ ...tree, 'C:/p/.venv/Scripts': [{ name: 'activate.bat' }] }), win)).test === 'py -m unittest');
+  ok('...nor one that cannot be listed', (await V.readProjectChecks('C:\\p', io({ 'C:/p': tree['C:/p'] }), win)).test === 'py -m unittest');
+  ok('...and elsewhere it is not looked for', (await V.readProjectChecks('/p', io({ '/p': tree['C:/p'], '/p/.venv/Scripts': tree['C:/p/.venv/Scripts'] }), { os: 'macos' })).test === 'python3 -m unittest');
+  ok('HashCoder hands over the system and the programs found when it reads the project\'s checks', /readProjectChecks\(root, io, \{ os: sharedState\.platform\?\.os, found: sharedState\.hostTools \}\)/.test(src('modes', 'code', 'mode.js')));
+}
+
 console.log('\nWhen the agent is sent back:');
 {
   const passed = { code: 0, stdout: 'ok', stderr: '' };

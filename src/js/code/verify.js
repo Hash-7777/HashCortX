@@ -76,7 +76,8 @@
     const hit = SCRIPT_KIND.find(([rx]) => rx.test(String(name || '')));
     return hit ? hit[1] : null;
   };
-  const base = (p) => String(p || '').split(/[\\/]/).pop().toLowerCase();
+  // A program's name, without its folder or the ending Windows gives programs (`python.exe`, `npm.cmd`).
+  const base = (p) => String(p || '').split(/[\\/]/).pop().toLowerCase().replace(/\.(?:exe|cmd|bat|com)$/, '');
 
   /** Programs that make, move or remove files: cmd's own on Windows, and git's that do. */
   const MAKERS = new Set(['mkdir', 'touch', 'cp', 'mv', 'rm', 'rmdir', 'ln', 'unzip', 'ditto', 'md', 'copy', 'move', 'del', 'erase', 'rd', 'ren', 'rename', 'xcopy', 'robocopy']);
@@ -175,8 +176,15 @@
    * its root: `{ test, lint, typecheck, build }`, each a command line or
    * absent. `files` is the list of names at the root; the texts are those
    * files' contents where they exist.
+   *
+   * On Windows (`os`), `python3` is seldom there: Python runs through the
+   * `py` launcher, or `python` when the programs found (`found`, from
+   * js/code/host-tools.js) have it and not the launcher, or the project's own
+   * environment's Python (`venv`, which readProjectChecks looks for) when it has
+   * one, started directly, so nothing has to be activated. npm stays `npm`:
+   * the native side starts npm.cmd for it.
    */
-  function projectChecks({ files = [], packageJson = '', makefile = '', pyproject = '', requirements = '' } = {}) {
+  function projectChecks({ files = [], packageJson = '', makefile = '', pyproject = '', requirements = '', os = '', found = null, venv = '' } = {}) {
     const names = new Set(files.map((f) => String(f)));
     const out = {};
     if (packageJson) {
@@ -194,7 +202,9 @@
     const py = [...names].some((n) => /\.py$/.test(n)) || names.has('pyproject.toml') || names.has('setup.py') || names.has('requirements.txt');
     if (py && !out.test && (names.has('tests') || names.has('test') || [...names].some((n) => /^test_.*\.py$|_test\.py$/.test(n)))) {
       const usesPytest = /\bpytest\b/.test(pyproject) || /\bpytest\b/.test(requirements) || names.has('pytest.ini') || names.has('conftest.py');
-      out.test = usesPytest ? 'python3 -m pytest' : 'python3 -m unittest';
+      const windows = String(os).toLowerCase() === 'windows';
+      const python = !windows ? 'python3' : venv || (Array.isArray(found) && !found.includes('py') && found.includes('python') ? 'python' : 'py');
+      out.test = `${python} -m ${usesPytest ? 'pytest' : 'unittest'}`;
     }
     if (names.has('Cargo.toml')) { out.test = out.test || 'cargo test'; out.build = out.build || 'cargo build'; }
     if (names.has('go.mod')) { out.test = out.test || 'go test ./...'; out.build = out.build || 'go build ./...'; }
@@ -210,8 +220,11 @@
    * The project's own checks, read from its root through the two functions
    * given: `list(dir)` answering with its entries, `read(path)` with a file's
    * text. Anything that cannot be read is left out, never guessed at.
+   * `os` and `found` are as projectChecks takes them; on Windows a `.venv` or
+   * `venv` folder at the root whose Scripts folder holds python.exe is the
+   * project's own Python, named with forward slashes so it stays one word.
    */
-  async function readProjectChecks(root, { list, read }) {
+  async function readProjectChecks(root, { list, read }, { os = '', found = null } = {}) {
     const sep = /\\/.test(root) && !/\//.test(root) ? '\\' : '/';
     const at = (name) => String(root).replace(/[\\/]+$/, '') + sep + name;
     let entries = [];
@@ -222,8 +235,21 @@
       if (!files.includes(name)) return '';
       try { const t = await read(at(name)); return typeof t === 'string' ? t : ''; } catch { return ''; }
     };
+    let venv = '';
+    if (String(os).toLowerCase() === 'windows') {
+      for (const name of ['.venv', 'venv']) {
+        const entry = (Array.isArray(entries) ? entries : []).find((e) => e && typeof e === 'object' && e.name === name && e.is_dir !== false);
+        if (!entry) continue;
+        let inside = [];
+        try { inside = await list(at(name) + sep + 'Scripts'); } catch { inside = []; }
+        if ((Array.isArray(inside) ? inside : []).some((e) => String(e && typeof e === 'object' ? e.name : e).toLowerCase() === 'python.exe')) { venv = `${name}/Scripts/python.exe`; break; }
+      }
+    }
     return projectChecks({
       files,
+      os,
+      found,
+      venv,
       packageJson: await text('package.json'),
       makefile: await text('Makefile'),
       pyproject: await text('pyproject.toml'),
