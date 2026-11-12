@@ -272,19 +272,32 @@
     for (const el of contentEl.querySelectorAll('.cdr-step--change.cdr-step--pending')) el.querySelector('.cdr-step-btn.keep')?.click();
   }
 
-  /** Undo every change in the reply still waiting, newest first, one at a time; stop at the first not undone (refused, failed, or answered no). */
-  async function undoAll(contentEl) {
-    for (const el of [...contentEl.querySelectorAll('.cdr-step--change.cdr-step--pending')].reverse()) {
-      const b = el.querySelector('.cdr-step-btn.undo');
-      if (!b || b.disabled) continue;   // this change cannot be undone; the rest still can
+  /**
+   * Undo change rows in the order given, one at a time, each by its own Undo;
+   * stop at the first not undone (refused, failed, or answered no). Returns
+   * { done, undone, stopped }. Undo all and a rewind (js/code/rewind.js) both
+   * undo this way.
+   */
+  async function undoRows(rows) {
+    let undone = 0;
+    for (const el of rows || []) {
+      const b = el && el.querySelector('.cdr-step-btn.undo');
+      if (!b || b.disabled || !el.classList.contains('cdr-step--pending')) continue;   // this change cannot be undone, or is decided; the rest still can be
       await new Promise((done) => {
         const over = () => !el.classList.contains('cdr-step--pending') || !b.disabled;
         const watch = new MutationObserver(() => { if (over()) { watch.disconnect(); done(); } });
         watch.observe(el, { attributes: true, subtree: true, attributeFilter: ['class', 'disabled'] });
         b.click();
       });
-      if (el.classList.contains('cdr-step--pending')) break;
+      if (el.classList.contains('cdr-step--pending')) return { done: false, undone, stopped: el };
+      undone++;
     }
+    return { done: true, undone, stopped: null };
+  }
+
+  /** Undo every change in the reply still waiting, newest first. */
+  function undoAll(contentEl) {
+    return undoRows([...contentEl.querySelectorAll('.cdr-step--change.cdr-step--pending')].reverse());
   }
 
   /** The receipt for a run that just answered: the parts the loop hands over, with the asks and the change rows of this reply. Returns the rows to keep with the answer, or null. */
@@ -484,5 +497,5 @@
     contentEl.hcPhases = null;
   }
 
-  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, note, end, receiptIn, drawReceipt };
+  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, note, end, receiptIn, drawReceipt, undoRows };
 })();

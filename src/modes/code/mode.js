@@ -771,20 +771,21 @@
       return esc(text).replace(/\n/g, '<br>');
     }
 
-    function appendUserMsg(text, pictures) {
+    function appendUserMsg(text, pictures, msg) {
       const msgs = $('cdrMessages');
       if (!msgs) return;
       msgs.querySelector('.cdr-welcome')?.remove();
       const el = document.createElement('div');
       el.className = 'cdr-msg user';
-      const svgCopy = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+      el.hcMsg = msg || null;   // the message it was drawn from, which Edit and Regenerate rewind to (js/code/rewind.js)
+      const svgCopy = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9c0-.8-.6-1.4-1.4-1.4H3.9c-.8 0-1.4.6-1.4 1.4v5.2c0 .8.6 1.4 1.4 1.4h1.6"/></svg>`;
       el.innerHTML = `
         <div class="cdr-user-bubble">${window.HCCodeAttach?.picturesHtml(pictures) || ''}${esc(text)}</div>
         <div class="cdr-msg-actions">
-          <button class="cdr-action-btn cdr-act-copy">${svgCopy} copy</button>
-          <button class="cdr-action-btn cdr-act-edit" title="Bring this request back to the box to change and send again; nothing here is removed"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> edit</button>
+          <button class="cdr-action-btn cdr-act-copy">${svgCopy} Copy</button>
+          <button class="cdr-action-btn cdr-act-edit" title="Change this request and send it again: the conversation goes back to here, its changes undone"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.6 2.9a1.5 1.5 0 0 1 2.1 0l.4.4a1.5 1.5 0 0 1 0 2.1L6 12.5l-3 .7.7-3z"/><path d="M8.5 13.5h5"/></svg> Edit</button>
         </div>`;
-      el.querySelector('.cdr-act-edit').addEventListener('click', () => { const box = $('cdrTaskInput'); if (!box) return; box.value = String(text).replace(/\n\nAttached: [^\n]*$/, ''); box.dispatchEvent(new Event('input', { bubbles: true })); box.focus(); box.setSelectionRange(box.value.length, box.value.length); });   // the words only: what was attached is attached again if wanted
+      el.querySelector('.cdr-act-edit').addEventListener('click', () => { if (window.HCCodeRewind && el.hcMsg && !runAbort) { window.HCCodeRewind.edit(el, rewindCtx()); return; } const box = $('cdrTaskInput'); if (!box) return; box.value = String(text).replace(/\n\nAttached: [^\n]*$/, ''); box.dispatchEvent(new Event('input', { bubbles: true })); box.focus(); box.setSelectionRange(box.value.length, box.value.length); });   // the words only: what was attached is attached again if wanted
       el.querySelector('.cdr-act-copy').addEventListener('click', function () {
         navigator.clipboard.writeText(text).then(() => {
           this.classList.add('flash');
@@ -801,17 +802,17 @@
       const el = document.createElement('div');
       el.className = 'cdr-msg assistant' + (roleLabel && roleLabel !== 'HashCoder' ? ' boss' : '');
 
-      const svgCopy  = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
-      const svgReply = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>`;
-      const svgRegen = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.18"/></svg>`;
+      const svgCopy  = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V3.9c0-.8-.6-1.4-1.4-1.4H3.9c-.8 0-1.4.6-1.4 1.4v5.2c0 .8.6 1.4 1.4 1.4h1.6"/></svg>`;
+      const svgReply = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 4 2.6 7.6l3.6 3.6"/><path d="M2.6 7.6h6.6c2.3 0 4.2 1.9 4.2 4.2v.7"/></svg>`;
+      const svgRegen = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.2 6.6A5.4 5.4 0 0 0 3.3 5.2M2.8 9.4a5.4 5.4 0 0 0 9.9 1.4"/><path d="M3.1 2.6v2.8h2.8M12.9 13.4v-2.8h-2.8"/></svg>`;
 
       el.innerHTML = `
         <div class="cdr-msg-role">${esc(roleLabel || 'HashCoder')}</div>
         <div class="cdr-msg-content"></div>
         <div class="cdr-msg-actions">
-          <button class="cdr-action-btn cdr-act-copy">${svgCopy} copy</button>
-          <button class="cdr-action-btn cdr-act-reply">${svgReply} reply</button>
-          <button class="cdr-action-btn cdr-act-regen">${svgRegen} regen</button>
+          <button class="cdr-action-btn cdr-act-copy">${svgCopy} Copy</button>
+          <button class="cdr-action-btn cdr-act-reply">${svgReply} Reply</button>
+          <button class="cdr-action-btn cdr-act-regen">${svgRegen} Regenerate</button>
         </div>`;
 
       const contentEl = el.querySelector('.cdr-msg-content');
@@ -835,30 +836,27 @@
         ti.setSelectionRange(ti.value.length, ti.value.length);
       });
 
-      el.querySelector('.cdr-act-regen').addEventListener('click', () => {
-        if (runAbort) return;
-        // Remove the last assistant message from history
-        for (let i = conversationMsgs.length - 1; i >= 0; i--) {
-          if (conversationMsgs[i].role === 'assistant') { conversationMsgs.splice(i, 1); break; }
-        }
-        el.remove();
-        const runBtn  = $('cdrRunBtn');
-        const stopBtn = $('cdrStopBtn');
-        if (runBtn)  runBtn.style.display = 'none';
-        if (stopBtn) stopBtn.style.display = '';
-        runAbort = new AbortController(); sharedState.runBegan = Date.now();
-        outcome = {};
-        runSingleTurn(runAbort.signal).catch((e) => { outcome = { stopped: e?.name === 'AbortError', failed: e?.name !== 'AbortError' }; }).finally(() => {
-          if (runBtn)  runBtn.style.display = '';
-          if (stopBtn) stopBtn.style.display = 'none';
-          runAbort = null;
-          setRouterChip('Auto', ''); coderQueue?.settle();
-        });
-      });
+      el.querySelector('.cdr-act-regen').addEventListener('click', () => { if (!runAbort) window.HCCodeRewind?.regenerate(el, rewindCtx()); });   // back to the request before it, its changes undone, then run again (js/code/rewind.js)
 
       msgs.appendChild(el);
       scrollMessages();
       return contentEl;
+    }
+
+    /** What a rewind is handed (js/code/rewind.js): this conversation, how to cut it, which commands only read, and how to send or run again. */
+    function rewindCtx() {
+      return { messages: () => conversationMsgs, busy: () => !!runAbort || running, cut: (i) => { conversationMsgs.splice(i); saveCoderState(); }, verdict: (command, args) => window.HCCodePermissions?.shellVerdict({ command, args, cwd: sharedState.projectRoot, root: sharedState.projectRoot, checks: sharedState.projectChecks?.checks || {} })?.auto === true,
+        send: (text) => { const box = $('cdrTaskInput'); if (!box) return; box.value = text; box.dispatchEvent(new Event('input', { bubbles: true })); startRun(); }, rerun };
+    }
+
+    /** Run a request again as it was sent, pictures and all: Regenerate, once the conversation is back to it. */
+    function rerun(msg) {
+      const task = window.HCCodeAttach ? window.HCCodeAttach.shownRequest(msg.content) : msg.content, runBtn = $('cdrRunBtn'), stopBtn = $('cdrStopBtn');
+      if (HC?.code) { HC.code.firstRequest = task; HC.code.said = ''; HC.code.plan = null; HC.code.asks = window.HCCodeAsks?.split(task) || []; HC.code.request = task; HC.code.patchRow = null; }   // this request's own checklist and words, not the newest one's
+      if (runBtn) runBtn.style.display = 'none';
+      if (stopBtn) stopBtn.style.display = '';
+      runAbort = new AbortController(); sharedState.runBegan = Date.now(); outcome = {};
+      runSingleTurn(runAbort.signal).catch((e) => { outcome = { stopped: e?.name === 'AbortError', failed: e?.name !== 'AbortError' }; }).finally(() => { if (runBtn) runBtn.style.display = ''; if (stopBtn) stopBtn.style.display = 'none'; runAbort = null; setRouterChip('Auto', ''); coderQueue?.settle(); });
     }
 
     /** The live line while the model works: what it is doing, how long, and its words as they arrive (js/code/live.js). */
@@ -1080,7 +1078,7 @@
       conversationMsgs.forEach((m, i) => {
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
         if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs, m.kinds); return; }   // sent while the run worked, shown where it was read
-        if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
+        if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs, m); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
         if (m.content && m.tool_calls?.length && window.HCCodeLive.wordsOf(m.content).words) appendTextToBubble(reply, window.HCCodeLive.wordsOf(m.content).words);   // what it said before the step, without a call it wrote as text
         for (const c of m.tool_calls || []) {
@@ -1819,7 +1817,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
       const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: cdrPrefs().memory !== true ? [] : (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images, thumbs: request.thumbs } : {}),
-        ...(context ? { context } : {}), ...(site ? { site: true } : {}) });
+        ...(context ? { context } : {}), ...(site ? { site: true } : {}) }); const sentEl = [...($('cdrMessages')?.querySelectorAll('.cdr-msg.user') || [])].pop(); if (sentEl) sentEl.hcMsg = conversationMsgs.at(-1);   // the bubble knows its message (js/code/rewind.js)
 
       const runBtn  = $('cdrRunBtn');
       const stopBtn = $('cdrStopBtn');

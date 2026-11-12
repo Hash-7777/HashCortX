@@ -832,7 +832,9 @@ const LINE_BUDGET = {
   // error in the reply and the change rows among it.
   // 2143, down 191: the loop itself moved to js/agent-loop.js; the mode keeps
   // what it shows, its finishing checks and what it hands the loop.
-  'modes/code/mode.js': 2143,
+  // 2141, down 2: Regenerate's own run went to js/code/rewind.js, which
+  // rewinds to the request before the reply; the mode keeps how to run it.
+  'modes/code/mode.js': 2141,
 };
 
 console.log('\nFile sizes go down, never up:');

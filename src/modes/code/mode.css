@@ -372,6 +372,28 @@ body.coder-mode #app { display: none; }
 .cdr-added-bubble { max-width: 74%; padding: 9px 13px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-md); background: var(--surface-2); }
 .cdr-added-text { font-size: 13.5px; line-height: 1.5; color: var(--cdr-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .cdr-added-how { padding-left: 8px; background: var(--surface-0); font-size: 11.5px; color: var(--cdr-text-muted); }
+/* Rewinding (js/code/rewind.js): the request changed in place, what goes said first, nothing gone until it is sent. */
+.cdr-msg.user.is-editing .cdr-user-bubble, .cdr-msg.user.is-editing .cdr-msg-actions { display: none; }
+.cdr-rewind-text { width: 100%; max-width: 560px; min-height: 76px; padding: 10px 14px; border: 1px solid var(--accent-line); border-radius: var(--radius-md); background: var(--surface-2); color: var(--cdr-text); font: 13.5px/1.55 var(--sans); resize: vertical; }
+.cdr-rewind-text:focus { outline: none; border-color: var(--accent-2); }
+.cdr-rewind { width: 100%; max-width: 560px; margin-top: 8px; padding: 12px 14px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm); background: var(--surface-0); text-align: left; }
+.cdr-msg.assistant + .cdr-rewind, .cdr-msg.user + .cdr-rewind { margin: 0 0 0 auto; }
+.cdr-rewind-h { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); }
+#coder-mode-wrap .cdr-rewind svg { width: 14px; height: 14px; }
+.cdr-rewind-p { margin: 0 0 8px; font-size: 12.5px; color: var(--cdr-text-dim); }
+.cdr-rewind-goes { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.cdr-rewind-goes li { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: start; font-size: 12.5px; color: var(--cdr-text); overflow-wrap: anywhere; }
+.cdr-rewind-mark { display: inline-flex; padding-top: 2px; color: var(--cdr-text-muted); }
+.cdr-rewind-goes li.is-attention .cdr-rewind-mark { color: var(--warn); }
+.cdr-rewind-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.cdr-rewind-row button { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs); background: none; color: var(--cdr-text-dim); font: 500 12.5px var(--sans); cursor: pointer; }
+.cdr-rewind-row .cdr-rewind-go { border-color: var(--accent-line); color: var(--cdr-text); background: var(--surface-raised); }
+.cdr-rewind-row button:hover:not(:disabled), .cdr-rewind-row button:focus-visible { color: var(--cdr-text); border-color: var(--cdr-text-muted); outline: none; }
+.cdr-rewind-row button:disabled { opacity: .5; cursor: default; }
+.cdr-rewind-said { margin: 10px 0 0; font-size: 12.5px; color: var(--warn); }
+.cdr-rewind-cut { display: flex; align-items: center; gap: 10px; font: 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); }
+.cdr-rewind-cut::before, .cdr-rewind-cut::after { content: ""; flex: 1; border-top: 1px dashed var(--cdr-border-strong); }
+.cdr-going { opacity: .45; }
 /* The card before a run starts (js/code/preview.js): what it will do, folded to one line at the first change. */
 .cdr-preview { margin: 0 0 14px; padding: 6px 6px 8px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-sm); background: var(--surface-0); }
 .cdr-preview-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 4px 8px; background: none; border: 0; border-radius: var(--radius-xs); font: inherit; color: inherit; cursor: pointer; }

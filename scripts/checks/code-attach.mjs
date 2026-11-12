@@ -138,7 +138,7 @@ console.log('\nThe panel and the Coder use it:');
   const mode = src('modes', 'code', 'mode.js');
   ok('the Coder wires it when the panel mounts', /HCCodeAttach\?\.mount\(\{ panel: \$\('coder-mode-wrap'\)/.test(mode));
   ok('a request takes what is attached, pictures included', /HCCodeAttach\.take\(task\)/.test(mode) && /images: request\.images/.test(mode));
-  ok('the message is drawn with its pictures, and keeps their previews with it', /appendUserMsg\(window\.HCCodeAttach \? window\.HCCodeAttach\.shownRequest\(request\.content\) : task, request\.pictures\)/.test(mode) && /thumbs: request\.thumbs/.test(mode) && /shownRequest\(m\.content\) : m\.content, m\.thumbs\)/.test(mode));
+  ok('the message is drawn with its pictures, and keeps their previews with it', /appendUserMsg\(window\.HCCodeAttach \? window\.HCCodeAttach\.shownRequest\(request\.content\) : task, request\.pictures\)/.test(mode) && /thumbs: request\.thumbs/.test(mode) && /shownRequest\(m\.content\) : m\.content, m\.thumbs, m\)/.test(mode));
   ok('the bubble holds them above the words', /<div class="cdr-user-bubble">\$\{window\.HCCodeAttach\?\.picturesHtml\(pictures\) \|\| ''\}\$\{esc\(text\)\}<\/div>/.test(mode));
   ok('a saved conversation and a saved session leave the pictures out', (mode.match(/HCCodeAttach\.forStorage\(conversationMsgs\)/g) || []).length === 2);
   ok('the conversation shows the names, not the files', (mode.match(/HCCodeAttach\.shownRequest\(/g) || []).length >= 2);

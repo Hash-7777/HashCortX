@@ -30,6 +30,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **Edit and Regenerate rewind a HashCoder conversation.** Edit opens your
+  request to change in place; Regenerate goes back to the request before the
+  reply and runs it again as it was sent. Before anything happens they say
+  what will go: the replies after it, the changes undone newest first, the
+  changes you kept or that could never be saved, which stay, and the
+  commands that cannot be taken back. Nothing goes until you send. If a
+  change is not undone, nothing more is undone or sent, and it says which
+  were. Regenerate used to take away the newest answer wherever it was
+  clicked.
+- **The controls on a message say their word beside their mark:** Copy and
+  Edit on yours; Copy, Reply and Regenerate on replies.
 - **A run signal: one line for a HashCoder run.** Across the top of the
   reply, each phase is a wave of its own shape, as wide as the time it took
   and as tall as how much it did, blending into the next, with marks where
