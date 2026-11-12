@@ -1112,27 +1112,38 @@
   }
 
   /**
-   * One line for the person saying what was proven after the last change, or
-   * '' when no code was changed and no site was read. Worked out from the
-   * record alone.
+   * What was proven after the last change, in parts, worked out from the
+   * record alone: `proof` { kind passed|failed|untested|none, what, sentence }
+   * or null, and `seen` { found, sentence } for a site read after the last
+   * change, or null. The receipt draws each apart (js/run-view.js receipt).
    */
-  function proofLine(log) {
-    if (!log) return '';
+  function proofParts(log) {
+    if (!log) return { proof: null, seen: null };
     // A site read after the last change is said, and so is what that reading cannot tell.
     const site = typeof log.siteAfter === 'function' ? log.siteAfter() : null;
-    const seen = site ? `${site.found ? `Read as a browser would: ${site.found} thing${site.found === 1 ? '' : 's'} still found to fix.` : 'Read as a browser would: nothing found to fix.'} Not seen on screen.` : '';
-    const and = (sentence) => (seen ? `${sentence} ${seen}` : sentence);
-    if (!log.codeChanged) return seen;
+    const seen = site ? { found: site.found, sentence: `${site.found ? `Read as a browser would: ${site.found} thing${site.found === 1 ? '' : 's'} still found to fix.` : 'Read as a browser would: nothing found to fix.'} Not seen on screen.` } : null;
+    if (!log.codeChanged) return { proof: null, seen };
     const after = log.since();
     const lastOf = (kind) => after.filter((c) => c.kind === kind).pop();
     const test = lastOf('test');
+    const said = (kind, what, sentence) => ({ proof: { kind, what, sentence }, seen });
     if (test && test.pass) {
-      return and(`Checked after the last change: ${line(test)} passed${test.scope === 'part' ? ', for part of the project' : ''}.`);
+      const what = `${line(test)} passed${test.scope === 'part' ? ', for part of the project' : ''}`;
+      return said('passed', what, `Checked after the last change: ${what}.`);
     }
-    if (test) return and(`Not proven: ${line(test)} failed after the last change.`);
+    if (test) return said('failed', `${line(test)} failed after the last change`, `Not proven: ${line(test)} failed after the last change.`);
     const other = after.filter((c) => c.pass).pop();
-    if (other) return and(`Not tested: ${line(other)} passed after the last change, but no test ran.`);
-    return seen || 'Not checked: no test ran after the last change.';
+    if (other) return said('untested', `${line(other)} passed after the last change, but no test ran`, `Not tested: ${line(other)} passed after the last change, but no test ran.`);
+    return seen ? { proof: null, seen } : said('none', 'no test ran after the last change', 'Not checked: no test ran after the last change.');   // a reading takes the place of "no test ran"
+  }
+
+  /**
+   * One line for the person saying what was proven after the last change, or
+   * '' when no code was changed and no site was read: the parts, said together.
+   */
+  function proofLine(log) {
+    const p = proofParts(log);
+    return [p.proof && p.proof.sentence, p.seen && p.seen.sentence].filter(Boolean).join(' ');
   }
 
   // ── An empty reply to a note ──────────────────────────────────────────
@@ -1154,7 +1165,7 @@
   }
 
   window.HCCodeVerify = {
-    commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofLine, isAppNote, APP_NOTE,
+    commandKind, madeBy, commandScope, projectChecks, readProjectChecks, checksLine, proofLog, stopCheck, proofParts, proofLine, isAppNote, APP_NOTE,
     exampleOf, examplesOf, callsOf, exampleNote, EXAMPLE_STEP, renameOf, filesOfWhole, leftovers, renameNote, RENAME_STEP, requestIn, codeBlocks, unmadeChange, planCheck, reviewCheck, asksCheck, freshReviewNote, siteNote, factsNote, sendBack, noteStep, WRAP_STEP, OTHER_STEP, runOf, RAN_STEP, namedPaths, namedNote, undoneCheck, claimsSearch, searchedSince, claimNote, claimLine, saidChanged, saidNote, saidLine, SAID_STEP,
     askAgainAfterNote, aheadCheck, AHEAD_STEP, claimsPassed, passedClaim, passedNote, passedLine, PASSED_STEP, STEP_MOST, cutNote, CUT_STEP,
   };

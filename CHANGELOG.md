@@ -30,6 +30,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A receipt under each HashCoder answer, in place of the line in
+  italics.** One row for each thing the app's own records show, and only
+  when there is something to say: how many asks were answered, the files
+  changed with lines added and taken out and what is kept, undone and still
+  to decide, whether a test proved the change after the last edit, a page
+  read, and anything not confirmed, taken out, from other sites, said
+  without a run, or left from the plan. Keep all and Undo all sit on the
+  Changed row; Undo all goes newest first, one change at a time, and stops
+  at the first that is not undone. Saved conversations show the receipt
+  again; answers saved before it keep their line in italics.
+- **Keep and Undo are one paired control.** Once one is chosen, the row
+  says only what was chosen: Kept, or Undone with the file's name struck
+  through. Undo's mark is an arrow turning back.
 - **A phase row no longer shows a coloured ring once clicked.** Reached by
   keyboard, it takes the hover look with a thin neutral line.
 - **A message sent while HashCoder works is taken for what it is.** A

@@ -45,7 +45,7 @@ const json = (x) => JSON.stringify(x);
 const later = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** A stand-in screen: every call written down, a live line and a tool row as handles. */
-function screen() {
+function screen(receipt = false) {
   const log = [];
   const handle = (kind) => ({ finish: (said) => log.push([kind + ':finish', said]), remove: () => log.push([kind + ':remove']) });
   const ui = {
@@ -60,6 +60,7 @@ function screen() {
     added: (text, pictures, kinds) => log.push(['added', text, kinds]),
     error: (e, kept) => log.push(['error', e.message, kept]),
     changed: (call) => log.push(['changed', call.name]),
+    ...(receipt ? { receipt: (parts) => { log.push(['receipt', parts]); return [{ from: 'proof', label: 'Not checked' }]; } } : {}),
   };
   return { ui, log, of: (kind) => log.filter((e) => e[0] === kind) };
 }
@@ -85,10 +86,10 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [] } = {}) {
+async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false } = {}) {
   const P = project();
   sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
-  const scr = screen();
+  const scr = screen(receipt);
   const messages = [{ role: 'system', content: 'You are a coding agent.' }, { role: 'user', content: request }];
   const sent = [];
   let n = 0, ctx = null;
@@ -105,7 +106,18 @@ async function runWith({ script, finish = [], size = 'full', queue = null, signa
   };
   let result, error = null;
   try { result = await loop.run(o); } catch (e) { error = e; }
-  return { result, error, messages, scr, P, sent, ctx, calls: () => n };
+  return { result, error, messages, scr, P, sent, ctx, calls: () => n, state: o.state };
+}
+
+console.log('\nThe receipt under the answer:');
+{
+  const script = (m, n) => (n === 1 ? turnOf(callOf('patch_file', { path: '/p/a.js', patch: 'x' })) : words('Changed the totals.'));
+  const r = await runWith({ script, receipt: true });
+  const given = r.scr.of('receipt')[0];
+  ok('the mode is handed what the record shows, part by part: the proof, the files changed, and each line said under an answer', !!given && given[1].proof?.proof?.kind === 'none' && json(given[1].files) === '["/p/a.js"]' && ['facts', 'gone', 'outside', 'claim', 'said', 'passed', 'left'].every((k) => k in given[1]), json(given && given[1]));
+  ok('...and when it draws a receipt, the same words are not said again in italics, and the receipt is kept for the answer', !r.scr.of('answer').some((a) => /^\*/.test(a[1])) && json(r.state.receipt) === '[{"from":"proof","label":"Not checked"}]' && /^Not checked: no test ran/.test(r.state.proven));
+  const plain = await runWith({ script });
+  ok('a screen that draws no receipt still says it in italics, as before', plain.scr.of('answer').some((a) => /^\*Not checked: no test ran/.test(a[1])) && plain.state.receipt === null);
 }
 
 console.log('\nThe loop runs with no page:');

@@ -217,7 +217,8 @@
       // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
       const { unconfirmed, gone, outside } = looks.left();   // what the details and the kept checks found
       const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeSite?.outsideLine(outside), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
-      sharedState.proven = proven || ''; if (proven) ui.answer(`*${proven}*`);
+      const kept = ui.receipt?.({ proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
+      sharedState.proven = proven || ''; sharedState.receipt = kept; if (proven && !kept) ui.answer(`*${proven}*`);   // the line in italics stays for exports, and for a screen that draws no receipt
       return finalText;
     }
     // The budget ran out while the model was still calling tools. Strip any

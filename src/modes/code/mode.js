@@ -1089,7 +1089,7 @@
           let failed = result == null; try { failed = failed || !!JSON.parse(result).error; } catch { /* a result that is not JSON is output */ }
           finalizeToolBlock(appendToolBlock(reply, fn.name, args || {}), result ?? 'No result was kept.', !failed, null);
         }
-        if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) { appendTextToBubble(reply, m.content); if (m.proven) appendTextToBubble(reply, `*${m.proven}*`); }
+        if (m.content && !m.tool_calls?.length && !V?.isAppNote(conversationMsgs[i + 1]?.content)) { appendTextToBubble(reply, m.content); if (!(m.receipt && window.HCRunView?.drawReceipt(reply, m.receipt)) && m.proven) appendTextToBubble(reply, `*${m.proven}*`); }
       });
       msgs.querySelectorAll('.cdr-msg.assistant .cdr-msg-content').forEach(settleSteps);   // drawn as a finished run reads
     }
@@ -1448,7 +1448,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     // Shared by the rows drawn as the agent works and those of a session opened again.
     const CHANGE_ICONS = {
       svgAccept: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
-      svgReject: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+      svgReject: `<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.2 2.8 5.9l2.7 2.7"/><path d="M3.2 5.9h6.3a3.6 3.6 0 0 1 0 7.2H7"/></svg>`,
       svgView: `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`,
       svgFile: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`,
     };
@@ -1750,7 +1750,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function agentLoop(messages, tools, contentEl, label, signal) {
       // Everything the loop shows, in one place: the reply's live line, its steps, tool rows, answer and error, the trace, the status, the terminal and the change rows.
       const ui = { trace: cdrTraceAdd, status: setStatus, terminal: terminalLog, wait: (o) => appendThinking(contentEl, o), step: (s) => appendStep(contentEl, s), tool: (name, args) => appendToolBlock(contentEl, name, args), toolDone: finalizeToolBlock, answer: (text) => appendTextToBubble(contentEl, text),
-        added: (text, pictures, kinds) => { window.HCCodeSteps.added(contentEl, text, pictures, kinds); scrollMessages(); },
+        added: (text, pictures, kinds) => { window.HCCodeSteps.added(contentEl, text, pictures, kinds); scrollMessages(); }, receipt: (parts) => window.HCRunView?.receiptIn(contentEl, parts) || null,
         error: (e, kept) => { const errDiv = Object.assign(document.createElement('div'), { className: 'cdr-msg-text', innerHTML: `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}` }); Object.assign(errDiv.style, { color: 'var(--cdr-error)', borderLeft: '2px solid var(--cdr-error)', paddingLeft: '10px', margin: '8px 0' }); contentEl.appendChild(errDiv); scrollMessages(); },
         // A move is two changes: the file leaves one path and arrives at another. Undoing both puts it back.
         changed: (call, resultStr) => { const a = call.arguments || {}, fp = a.path || '', { from = '', to = '' } = a; if (call.name === 'write_file' || call.name === 'patch_file') { addChangeEntry(baseName(fp), fp, 'write', a.content || a.patch || resultStr); if (fp) addAIFileToExplorer(fp, 'write'); } else if (call.name === 'delete_file') { addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)'); if (fp) addAIFileToExplorer(fp, 'delete'); } else if (call.name === 'move_file') { addChangeEntry(baseName(from), from, 'delete', '(file moved)'); addChangeEntry(baseName(to), to, 'write', ''); if (from) addAIFileToExplorer(from, 'delete'); if (to) addAIFileToExplorer(to, 'write'); } } };
@@ -1881,7 +1881,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         if (run.refusal) { appendTextToBubble(contentEl, run.refusal); conversationMsgs.push({ role: 'assistant', content: run.refusal }); saveCoderState(); setStatus('Ready', ''); return; }
         if (tools.length && window.HCCodeFind) { setStatus('Finding the files this needs…', 'thinking'); await window.HCCodeFind.before(conversationMsgs, { size: sharedState.size, light: sharedState.light, root: sharedState.projectRoot, outline: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.outline : '', byName: HC.code.namesQuietly, byLine: HC.code.linesQuietly, exists: HC.code.existsQuietly, run: HC.code.readingQuietly, tools, ask: (m, t) => callWithRouter(m, t, HC.code.temperatureFor(sharedState.size, window._H?.selectedTemperature?.(), coderModel || window._H?.selectedModel?.()), signal, coderModel), record: { turn: window.HCAgentShape.appendAssistantToolCallTurn, result: window.HCAgentShape.appendToolResult }, fromApp: window.HCCodeContext.FROM_APP, show: (by, n) => { appendStep(contentEl, { verb: 'FIND', object: `files for this request, ${by}`, status: `${n} found` }); cdrTraceAdd('Find', `${n} files, ${by}`, 'ok'); }, signal }); }   // the files a request needs, found before its first step (js/code/find.js)
         const finalText = await agentLoop(conversationMsgs, tools, contentEl, '', signal);
-        if (finalText && !(conversationMsgs.at(-1)?.role === 'assistant' && conversationMsgs.at(-1).content === finalText)) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}) });   // an account at the step limit is in it already (js/agent-policy.js wrapUp)
+        if (finalText && !(conversationMsgs.at(-1)?.role === 'assistant' && conversationMsgs.at(-1).content === finalText)) conversationMsgs.push({ role: 'assistant', content: finalText, ...(sharedState.proven ? { proven: sharedState.proven } : {}), ...(sharedState.receipt ? { receipt: sharedState.receipt } : {}) });   // an account at the step limit is in it already (js/agent-policy.js wrapUp)
         saveCoderState();
         setStatus('Ready', '');
       } finally {

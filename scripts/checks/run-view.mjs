@@ -6,8 +6,9 @@
 // answered ask (js/run-ledger.js answeredBy), and holds how a
 // HashCoder run's steps are grouped into phases by the app, never by the
 // model: Finding, Reading, Changing, Checking, Reviewing; the one line a
-// phase folds to; the brief, each ask of the request with its state; and
-// where the drawing is wired: only into a reply whose
+// phase folds to; the brief, each ask of the request with its state; the
+// receipt under the answer, each row from a record; and where the drawing
+// is wired: only into a reply whose
 // run is going on, its turning mark only while it runs. The drawing itself
 // is looked at in a browser. Every step here is invented.
 //
@@ -74,6 +75,26 @@ ok('an ask you added counts only the steps after it was read, never an earlier s
 ok('the brief\'s count says how many are answered', V.briefCount(end) === '2 of 4 answered' && V.briefCount(mid) === '0 of 4 answered');
 ok('the same asks and steps always give the same marks', json(V.askMarks(asks, { first, said, steps: run })) === json(V.askMarks(asks, { first, said, steps: run })));
 
+console.log('\nThe receipt:');
+const parts = {
+  marks: end,
+  changes: [{ added: 12, removed: 3, state: 'accepted' }, { added: 2, removed: 2, state: 'rejected' }, { added: 3, removed: 0, state: 'pending' }],
+  files: ['src/pricing/bundle.js', 'src/pricing/index.js', 'src/pricing/legacy.js'],
+  proof: { proof: { kind: 'passed', what: '`npm test` passed' }, seen: { found: 0 } },
+  left: 'Not done from its plan: add a bundle test.',
+};
+const rows = V.receipt(parts);
+ok('a row for each record with something to say, in a fixed order', json(rows.map((r) => r.label)) === '["Asked","Changed","Proven","Page read","Left"]', json(rows.map((r) => r.label)));
+ok('every row names the record it is written from, never the model\'s own account', rows.every((r) => ['asks', 'changes', 'proof', 'site', 'facts', 'keep', 'outside', 'claims', 'plan'].includes(r.from)) && json(rows.map((r) => r.from)) === '["asks","changes","proof","site","plan"]');
+ok('Asked: how many are answered, and the first the app could not confirm', rows[0].text === '2 of 4 answered' && rows[0].soft === '2 not confirmed: “Add a test for it” and 1 more', rows[0].soft);
+ok('Changed: the files the run changed, lines added and taken out, and what is kept, undone and still to decide', rows[1].text === '3 files' && rows[1].plus === 17 && rows[1].minus === 5 && rows[1].soft === '1 kept · 1 undone · 1 to decide' && rows[1].controls === 'decide', json(rows[1]));
+ok('...and with nothing left to decide, no controls', V.receipt({ files: ['a.js'], changes: [{ added: 1, removed: 0, state: 'accepted' }] })[0].controls === '' && V.receipt({ marks: V.askMarks(['add a test for it', 'b c', 'd e'], {}) })[0].soft === '3 not confirmed: “Add a test for it” and 2 more');
+ok('Proven only for a test that passed after the last change; otherwise said as not proven, not tested or not checked', rows[2].tone === 'good' && rows[2].text === '`npm test` passed' && ['failed', 'untested', 'none'].map((k) => V.receipt({ proof: { proof: { kind: k, what: 'x' } } })[0].label).join() === 'Not proven,Not tested,Not checked' && V.receipt({ proof: { proof: { kind: 'failed', what: 'x' } } })[0].tone === 'attention');
+ok('a page read: what was still found, and that it was not seen on screen', rows[3].text === 'nothing found to fix · not seen on screen' && V.receipt({ proof: { proof: null, seen: { found: 2 } } })[0].text === '2 things still found to fix · not seen on screen');
+ok('what was not confirmed, taken out, from other sites, said without a run, or left: each a row to look at, in its own words', V.receipt({ facts: 'A.', gone: 'B.', outside: 'C.', claim: 'D.', said: 'E.', left: 'F.' }).map((r) => `${r.label}:${r.tone}:${r.text}`).join('|') === 'Not confirmed:attention:A.|Taken out:attention:B.|Other sites:attention:C.|Not from a run:attention:D. E.|Left:attention:F.');
+ok('nothing to say, no receipt', json(V.receipt({})) === '[]' && json(V.receipt()) === '[]');
+ok('what is kept with a saved answer has no controls and no count of decisions, which would go stale', json(V.saved(rows).map((r) => [r.controls || '', r.from === 'changes' ? r.soft : 'x'])) === '[["","x"],["",""],["","x"],["","x"],["","x"]]');
+
 console.log('\nWhere it is drawn:');
 const stepsSrc = src('js', 'code', 'steps.js'), view = src('js', 'run-view.js'), css = src('modes', 'code', 'mode.css');
 ok('every step of a list goes to it as it is drawn, and a finished step tells it whether it failed', /window\.HCRunView\?\.place\(contentEl, list, el, verb, object\)/.test(stepsSrc) && /window\.HCRunView\?\.stepDone\(el, ok\)/.test(stepsSrc));
@@ -85,6 +106,12 @@ ok('the brief is drawn only for a request of several asks, at the top of the rep
 ok('...what it said as it finished is kept for it, and each new request starts with its own words and nothing said', /if \(HC\?\.code\) HC\.code\.said = finalText;/.test(src('js', 'agent-loop.js')) && /if \(HC\?\.code\) \{ HC\.code\.firstRequest = task; HC\.code\.said = '';/.test(src('modes', 'code', 'mode.js')));
 ok('...pointing at an ask, or reaching it by keyboard, lights the steps that served it and the phase they are folded in', /cdr-step--served/.test(view) && /cdr-phase--served/.test(view) && /'mouseenter'/.test(view) && /'focus'/.test(view) && /\.cdr-step--served/.test(css));
 ok('...and nothing in it moves', !/\.cdr-brief[^{]*\{[^}]*(?:animation|transition)/.test(css) && !/\.cdr-ask[^{]*\{[^}]*(?:animation|transition)/.test(css));
+ok('the receipt is drawn under the answer from what the loop hands over, kept with the answer, and drawn again when a saved conversation is opened', /const kept = ui\.receipt\?\.\(\{ proof: proof \? window\.HCCodeVerify\.proofParts\(proof\) : null/.test(src('js', 'agent-loop.js')) && /if \(proven && !kept\) ui\.answer/.test(src('js', 'agent-loop.js')) && /receipt: \(parts\) => window\.HCRunView\?\.receiptIn\(contentEl, parts\)/.test(src('modes', 'code', 'mode.js')) && /\.\.\.\(sharedState\.receipt \? \{ receipt: sharedState\.receipt \} : \{\}\)/.test(src('modes', 'code', 'mode.js')) && /m\.receipt && window\.HCRunView\?\.drawReceipt\(reply, m\.receipt\)/.test(src('modes', 'code', 'mode.js')));
+ok('Keep all keeps each change still waiting; Undo all undoes them newest first, one at a time, and stops at the first not undone', /function keepAll\(/.test(view) && /function undoAll\(/.test(view) && /\.cdr-step--change\.cdr-step--pending'\)\]\.reverse\(\)/.test(view) && /if \(el\.classList\.contains\('cdr-step--pending'\)\) break;/.test(view));
+ok('Keep and Undo are one paired control; once one is chosen, only what was chosen is said on the row', /\.cdr-step--accepted \.cdr-step-btn\.undo, \.cdr-step--rejected \.cdr-step-btn\.keep \{ display: none; \}/.test(css) && /\.cdr-step-btn \+ \.cdr-step-btn \{/.test(css));
+ok('...the count is drawn again only when a change row\'s own class changes, so its own redrawing never wakes it again', /if \(seen\.some\(\(m\) => m\.target\.classList && m\.target\.classList\.contains\('cdr-step--change'\)\)\)/.test(view) && /if \(row\.className !== cls\) row\.className = cls;/.test(view));
+ok('...and the changes a finished reply gathers go above it, never below', /contentEl\.insertBefore\(box, contentEl\.querySelector\(':scope > \.cdr-receipt'\)\);/.test(stepsSrc));
+ok('...and nothing in the receipt moves', !/\.cdr-receipt[^{]*\{[^}]*(?:animation|transition)/.test(css));
 const boot = src('boot.js');
 ok('it is loaded after the module it reads and before the steps that call it', boot.indexOf("'/js/run-view.js'") > boot.indexOf("'/js/code/verify.js'") && boot.indexOf("'/js/run-view.js'") < boot.indexOf("'/js/code/steps.js'"));
 ok('it is part of npm run check', /npm run check:run-view\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));

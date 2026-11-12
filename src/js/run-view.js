@@ -37,9 +37,22 @@
 // in view while the reply scrolls, and folds to its count. With fewer than
 // three asks there is no brief: the request is shown whole just above.
 //
+// The receipt goes under the answer in place of the line in italics. Each
+// row is written from a record, never from the model's own account, and
+// is shown only when it has something to say: Asked (from the brief),
+// Changed (the files the run changed and the change rows: lines added and
+// taken out, what is kept, undone and still to decide, with Keep all and
+// Undo all), Proven or Not proven, tested, checked (js/code/verify.js
+// proofParts), Page read, and the app's other lines under an answer: Not
+// confirmed, Taken out, Other sites, Not from a run, Left. Undo all goes
+// newest first, one change at a time, and stops at the first not undone.
+// A saved answer keeps its rows without the controls and the count of
+// decisions, and draws them again when the conversation is opened.
+//
 // Phases and the brief are drawn only in a reply whose run is going on,
 // never in a saved conversation drawn again. phaseOf, line, servedBy,
-// askMarks and briefCount are pure; place, stepDone, brief and end draw.
+// askMarks, briefCount, receipt and saved are pure; place, stepDone, brief,
+// end, receiptIn and drawReceipt draw.
 // Published as window.HCRunView. Checked by scripts/checks/run-view.mjs.
 // ==============================================================
 
@@ -147,6 +160,154 @@
 
   /** "2 of 4 answered". */
   const briefCount = (marks) => `${(marks || []).filter((m) => m.state === 'answered').length} of ${(marks || []).length} answered`;
+
+  // ── The receipt: what the records show, a row only when it has something ──
+
+  const PROOF_LABELS = { passed: 'Proven', failed: 'Not proven', untested: 'Not tested', none: 'Not checked' };
+
+  /**
+   * The receipt's rows: { from, label, tone ''|good|attention, text, soft,
+   * plus, minus, controls }. `p`: marks (askMarks), changes [{ added,
+   * removed, state pending|accepted|rejected }], files (the paths the run
+   * changed), proof (verify.js proofParts), and the app's lines facts, gone,
+   * outside, claim, said, passed, left.
+   */
+  function receipt(p = {}) {
+    const rows = [];
+    const marks = Array.isArray(p.marks) ? p.marks : [];
+    if (marks.length) {
+      const open = marks.filter((m) => m.state !== 'answered');
+      rows.push({ from: 'asks', label: 'Asked', tone: open.length ? '' : 'good', text: briefCount(marks), soft: open.length ? `${open.length} not confirmed: “${open[0].text.charAt(0).toUpperCase()}${open[0].text.slice(1)}”${open.length > 1 ? ` and ${open.length - 1} more` : ''}` : '' });
+    }
+    const ch = Array.isArray(p.changes) ? p.changes : [];
+    const files = new Set((Array.isArray(p.files) ? p.files : []).map(String)).size;
+    if (files || ch.length) {
+      const count = (s) => ch.filter((c) => c.state === s).length;
+      const kept = count('accepted'), undone = count('rejected'), left = count('pending');
+      rows.push({
+        from: 'changes', label: 'Changed', tone: '', text: many(files || ch.length, 'file', 'files'),
+        plus: ch.reduce((n, c) => n + (Number(c.added) || 0), 0), minus: ch.reduce((n, c) => n + (Number(c.removed) || 0), 0),
+        soft: [kept ? `${kept} kept` : '', undone ? `${undone} undone` : '', left ? `${left} to decide` : ''].filter(Boolean).join(' · '),
+        controls: left ? 'decide' : '',
+      });
+    }
+    const pr = p.proof && p.proof.proof, seen = p.proof && p.proof.seen;
+    if (pr && PROOF_LABELS[pr.kind]) rows.push({ from: 'proof', label: PROOF_LABELS[pr.kind], tone: pr.kind === 'passed' ? 'good' : 'attention', text: String(pr.what || '') });
+    if (seen) rows.push({ from: 'site', label: 'Page read', tone: seen.found ? 'attention' : '', text: `${seen.found ? `${many(seen.found, 'thing', 'things')} still found to fix` : 'nothing found to fix'} · not seen on screen` });
+    const look = (from, label, text) => { if (text) rows.push({ from, label, tone: 'attention', text: String(text) }); };
+    look('facts', 'Not confirmed', p.facts);
+    look('keep', 'Taken out', p.gone);
+    look('outside', 'Other sites', p.outside);
+    look('claims', 'Not from a run', [p.claim, p.said, p.passed].filter(Boolean).join(' '));
+    look('plan', 'Left', p.left);
+    return rows;
+  }
+
+  /** The rows kept with a saved answer: no controls, and no count of decisions, which would go stale. */
+  const saved = (rows) => (rows || []).map((r) => Object.assign({}, r, { controls: '' }, r.from === 'changes' ? { soft: '' } : {}));
+
+  /** Each row's mark: a 16-unit grid, drawn on currentColor. */
+  const RECEIPT_ICONS = {
+    asks: '<path d="m2.4 4.4 1.2 1.2 2-2.2M7.8 4.6h5.8M2.4 10.4l1.2 1.2 2-2.2M7.8 10.6h5.8"/>',
+    changes: ICONS.changing,
+    proof: '<path d="M8 1.9 13 3.8v3.6c0 3-2.1 5.4-5 6.6-2.9-1.2-5-3.6-5-6.6V3.8z"/><path d="m5.8 7.9 1.6 1.6 2.9-3.1"/>',
+    site: '<path d="M1.8 8s2.3-4.3 6.2-4.3c1.4 0 2.6.5 3.6 1.2M14.2 8s-2.3 4.3-6.2 4.3c-1.4 0-2.6-.5-3.6-1.2"/><path d="m2.5 13.5 11-11"/>',
+    facts: '<circle cx="8" cy="8" r="5.6"/><path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.6c-.5.2-.7.6-.7 1.1v.3M8 11.2v.2"/>',
+    keep: '<circle cx="8" cy="8" r="5.6"/><path d="M5.4 8h5.2"/>',
+    outside: '<circle cx="8" cy="8" r="5.6"/><path d="M2.4 8h11.2M8 2.4c1.6 1.6 2.3 3.6 2.3 5.6S9.6 12 8 13.6C6.4 12 5.7 10 5.7 8S6.4 4 8 2.4z"/>',
+    claims: '<circle cx="8" cy="8" r="5.6"/><path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.6c-.5.2-.7.6-.7 1.1v.3M8 11.2v.2"/>',
+    plan: '<path d="M3.5 14V2.5"/><path d="M3.5 3h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
+  };
+
+  /** Words with `code` in backticks, drawn as text: nothing in them is read as markup. */
+  function wordsInto(el, text) {
+    el.textContent = '';
+    String(text || '').split(/(`[^`]+`)/).forEach((piece) => {
+      if (!piece) return;
+      if (/^`[^`]+`$/.test(piece)) el.appendChild(Object.assign(document.createElement('code'), { textContent: piece.slice(1, -1) }));
+      else el.appendChild(document.createTextNode(piece));
+    });
+  }
+
+  /** One row's value: its words, lines added and taken out, and its quieter part. */
+  function fillRow(row, r) {
+    const cls = `cdr-receipt-row${r.tone ? ` is-${r.tone}` : ''}`;
+    if (row.className !== cls) row.className = cls;
+    const v = row.querySelector('.cdr-receipt-text');
+    wordsInto(v, r.text);
+    if (r.plus || r.minus) v.insertAdjacentHTML('beforeend', ` <span class="cdr-receipt-soft">·</span> <span class="cdr-plus">+${Number(r.plus) || 0}</span> <span class="cdr-minus">\u2212${Number(r.minus) || 0}</span>`);
+    if (r.soft) { const s = document.createElement('span'); s.className = 'cdr-receipt-soft'; s.textContent = ` · ${r.soft}`; v.appendChild(s); }
+    const ctl = row.querySelector('.cdr-receipt-ctl');
+    if (ctl) ctl.hidden = r.controls !== 'decide';
+  }
+
+  /** Draw rows under the answer in `contentEl`; with `live`, the Changed row has Keep all and Undo all. Returns the box, or null for no rows. */
+  function drawReceipt(contentEl, rows, live = false) {
+    if (!contentEl || !Array.isArray(rows) || !rows.length) return null;
+    const box = document.createElement('section');
+    box.className = 'cdr-receipt';
+    box.setAttribute('aria-label', 'What the app\'s record shows');
+    for (const r of rows) {
+      const row = document.createElement('div');
+      row.dataset.from = r.from;
+      row.innerHTML = `<span class="cdr-receipt-mark" aria-hidden="true"><svg viewBox="0 0 16 16">${RECEIPT_ICONS[r.from] || ''}</svg></span><span class="cdr-receipt-label"></span><span class="cdr-receipt-text"></span>` +
+        (live && r.from === 'changes' ? '<span class="cdr-receipt-ctl"><span class="cdr-step-actions" role="group" aria-label="Every change in this reply"><button type="button" class="cdr-step-btn keep">Keep all</button><button type="button" class="cdr-step-btn undo">Undo all</button></span></span>' : '');
+      row.querySelector('.cdr-receipt-label').textContent = r.label;
+      fillRow(row, r);
+      box.appendChild(row);
+    }
+    contentEl.appendChild(box);
+    return box;
+  }
+
+  /** The change rows in a reply, as the receipt counts them. */
+  const changesIn = (contentEl) => [...contentEl.querySelectorAll('.cdr-step--change')].map((el) => ({
+    added: Number((el.querySelector('.cdr-plus')?.textContent || '').replace(/[^0-9]/g, '')) || 0,
+    removed: Number((el.querySelector('.cdr-minus')?.textContent || '').replace(/[^0-9]/g, '')) || 0,
+    state: el.classList.contains('cdr-step--accepted') ? 'accepted' : el.classList.contains('cdr-step--rejected') ? 'rejected' : 'pending',
+  }));
+
+  /** Keep every change in the reply still waiting. */
+  function keepAll(contentEl) {
+    for (const el of contentEl.querySelectorAll('.cdr-step--change.cdr-step--pending')) el.querySelector('.cdr-step-btn.keep')?.click();
+  }
+
+  /** Undo every change in the reply still waiting, newest first, one at a time; stop at the first not undone (refused, failed, or answered no). */
+  async function undoAll(contentEl) {
+    for (const el of [...contentEl.querySelectorAll('.cdr-step--change.cdr-step--pending')].reverse()) {
+      const b = el.querySelector('.cdr-step-btn.undo');
+      if (!b || b.disabled) continue;   // this change cannot be undone; the rest still can
+      await new Promise((done) => {
+        const over = () => !el.classList.contains('cdr-step--pending') || !b.disabled;
+        const watch = new MutationObserver(() => { if (over()) { watch.disconnect(); done(); } });
+        watch.observe(el, { attributes: true, subtree: true, attributeFilter: ['class', 'disabled'] });
+        b.click();
+      });
+      if (el.classList.contains('cdr-step--pending')) break;
+    }
+  }
+
+  /** The receipt for a run that just answered: the parts the loop hands over, with the asks and the change rows of this reply. Returns the rows to keep with the answer, or null. */
+  function receiptIn(contentEl, parts) {
+    if (!contentEl) return null;
+    const st = contentEl.hcPhases, code = window.HC && window.HC.code;
+    const most = (window.HCCodeAsks && window.HCCodeAsks.MIN_ASKS) || 3;
+    const marks = st && code && Array.isArray(code.asks) && code.asks.length >= most ? askMarks(code.asks, { first: code.firstRequest, said: code.said, steps: st.all, since: st.since || [] }) : [];
+    const rows = receipt(Object.assign({}, parts, { marks, changes: changesIn(contentEl) }));
+    const box = drawReceipt(contentEl, rows, true);
+    if (!box) return null;
+    const row = box.querySelector('[data-from="changes"]');
+    if (row) {
+      const keep = row.querySelector('.cdr-step-btn.keep'), undo = row.querySelector('.cdr-step-btn.undo');
+      keep.addEventListener('click', () => keepAll(contentEl));
+      undo.addEventListener('click', async () => { undo.disabled = keep.disabled = true; try { await undoAll(contentEl); } finally { undo.disabled = keep.disabled = false; } });
+      // A change kept or undone, here or on its own row, is counted again; the changed rows' classes are all that is watched.
+      // Only a change row's own class is read: the receipt's own redrawing never wakes it again.
+      new MutationObserver((seen) => { if (seen.some((m) => m.target.classList && m.target.classList.contains('cdr-step--change'))) fillRow(row, receipt(Object.assign({}, parts, { changes: changesIn(contentEl) })).find((r) => r.from === 'changes') || rows.find((r) => r.from === 'changes')); })
+        .observe(contentEl, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+    return saved(rows);
+  }
 
   // ── Drawing ────────────────────────────────────────────────────────────
 
@@ -291,5 +452,5 @@
     contentEl.hcPhases = null;
   }
 
-  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, place, stepDone, brief, end };
+  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, end, receiptIn, drawReceipt };
 })();

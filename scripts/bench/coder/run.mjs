@@ -1043,7 +1043,7 @@ async function smoke() {
     [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
     [!/no test has run since\. Run `npm test` now/.test(told), 'the agent was not sent back to prove its change'],
     [!/before you finish, check your work against the request/.test(told), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
-    [!/Checked after the last change: npm test passed/.test(row.shown), 'the person was not told what was proven'],
+    [!/Checked after the last change: npm test passed|\bPROVEN\s+npm test passed/i.test(row.shown), 'the person was not told what was proven'],   // in the receipt's Proven row (js/run-view.js), or in italics where no receipt is drawn
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);
   console.log(wrong.length ? `Smoke run FAILED:\n  ${wrong.join('\n  ')}\n\nWhat happened:\n  ${(row.trail || []).join('\n  ')}` : 'Smoke run passed: the agent was sent back to make the change it wrote into its reply, the edit landed with its indentation adjusted, it was sent back to prove it and to check it against the request, and the person was told what was proven.');

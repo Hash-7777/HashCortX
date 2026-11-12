@@ -29,6 +29,7 @@ const V = sandbox.window.HCCodeVerify;
 vm.runInContext(src('js', 'agent-policy.js'), sandbox, { filename: 'agent-policy.js' });
 const policyNote = sandbox.window.HCAgentPolicy.wrapUpNote('hard-limit', 1);
 
+const json = (x) => JSON.stringify(x);
 let pass = 0;
 let fail = 0;
 function ok(label, cond, detail = '') {
@@ -355,6 +356,19 @@ console.log('\nWhat the person is told:');
   ok('a run that timed out did not pass', /^Not proven/.test(V.proofLine(log)));
 }
 
+{
+  const log = V.proofLog(); log.edited('/p/index.html'); log.edited('/p/app.js');
+  ok('in parts, for the receipt: no test ran', json(V.proofParts(log).proof) === json({ kind: 'none', what: 'no test ran after the last change', sentence: 'Not checked: no test ran after the last change.' }) && V.proofParts(log).seen === null, json(V.proofParts(log)));
+  log.ran('npm', ['test'], { code: 1 });
+  ok('...a test that failed', V.proofParts(log).proof.kind === 'failed' && V.proofParts(log).proof.what === '`npm test` failed after the last change');
+  log.ran('npm', ['run', 'lint'], { code: 0 });
+  ok('...only a lint after it', V.proofParts(log).proof.kind === 'failed');
+  log.ran('npm', ['test'], { code: 0 }); log.siteRead(1);
+  const p = V.proofParts(log);
+  ok('...a test that passed and a page read, each apart, and the line is the two said together, word for word', p.proof.kind === 'passed' && p.proof.what === '`npm test` passed' && p.seen.found === 1 && V.proofLine(log) === `${p.proof.sentence} ${p.seen.sentence}`, json(p));
+  ok('...and no record, no parts', json(V.proofParts(null)) === json({ proof: null, seen: null }));
+}
+
 console.log('\nThe Coder uses it:');
 {
   const boot = src('boot.js');
@@ -372,9 +386,9 @@ console.log('\nThe Coder uses it:');
   ok('a saved conversation is drawn with its steps, and each note as the step it stands for',
     /appendToolBlock\(reply, fn\.name/.test(render) && /V\.noteStep\(m\.content\)/.test(render));
   ok('... and a reply the agent was sent back from is not drawn as an answer', /!V\?\.isAppNote\(conversationMsgs\[i \+ 1\]\?\.content\)/.test(render));
-  ok('what was proven is kept with the answer and said again when the conversation is opened, as Settings promises',
-    /sharedState\.proven = proven \|\| '';/.test(mode) && /content: finalText, \.\.\.\(sharedState\.proven \? \{ proven: sharedState\.proven \} : \{\}\)/.test(mode)
-    && /if \(m\.proven\) appendTextToBubble\(reply, `\*\$\{m\.proven\}\*`\);/.test(render) && /What was checked is said under each answer either way/.test(settings));
+  ok('what was proven is kept with the answer and said again when the conversation is opened, as Settings promises: as its receipt, or in italics for an answer saved before receipts',
+    /sharedState\.proven = proven \|\| '';/.test(mode) && /content: finalText, \.\.\.\(sharedState\.proven \? \{ proven: sharedState\.proven \} : \{\}\), \.\.\.\(sharedState\.receipt \? \{ receipt: sharedState\.receipt \} : \{\}\)/.test(mode)
+    && /if \(!\(m\.receipt && window\.HCRunView\?\.drawReceipt\(reply, m\.receipt\)\) && m\.proven\) appendTextToBubble\(reply, `\*\$\{m\.proven\}\*`\);/.test(render) && /What was checked is said under each answer either way/.test(settings));
 }
 
 console.log('\nA name the request changes, still there:');

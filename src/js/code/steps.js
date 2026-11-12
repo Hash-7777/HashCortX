@@ -254,7 +254,7 @@
       box.className = 'cdr-changes';
       box.innerHTML = `<div class="cdr-changes-title">${esc(changesTitle(changed.length))}</div>`;
       changed.forEach((c) => box.appendChild(c));
-      contentEl.appendChild(box);
+      contentEl.insertBefore(box, contentEl.querySelector(':scope > .cdr-receipt'));   // above the receipt, which counts them (js/run-view.js), or last
     }
     contentEl.querySelectorAll('.cdr-steps:not(.done)').forEach((group) => {
       const steps = group.querySelectorAll('.cdr-steps-list > .cdr-step');
