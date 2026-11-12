@@ -57,7 +57,7 @@ function screen() {
     tool: (name) => { log.push(['tool', name]); return handle('tool'); },
     toolDone: (el, result, okay) => log.push(['toolDone', okay]),
     answer: (text) => log.push(['answer', text]),
-    added: (text) => log.push(['added', text]),
+    added: (text, pictures, kinds) => log.push(['added', text, kinds]),
     error: (e, kept) => log.push(['error', e.message, kept]),
     changed: (call) => log.push(['changed', call.name]),
   };
@@ -146,10 +146,11 @@ console.log('\nWhen the model call fails:');
 console.log('\nMessages sent while it works:');
 {
   let given = false;
-  const queue = { takeNow: () => (given ? null : (given = true, { text: 'Also round the tax.', files: [], count: 1 })) };
+  const queue = { takeNow: () => (given ? null : (given = true, { text: 'Also round the tax.', files: [], count: 1, kinds: ['add'] })) };
   const r = await runWith({ queue, script: (m, n) => (n === 1 ? turnOf(callOf('read_file', { path: '/p/b.js' })) : words('Done, the tax too.')) });
   ok('one sent while it works is read at the next step, kept as added', r.messages.some((m) => m.role === 'user' && m.added === true && m.content === 'Also round the tax.') && r.sent[0].msgs.some((m) => m.added));
-  ok('...shown where it was read, and joins the request the run is held to', json(r.scr.of('added')) === json([['added', 'Also round the tax.']]) && /Also round the tax\./.test(sandbox.HC.code.request));
+  ok('...with how it was taken kept on it, for when the conversation is opened again', r.messages.some((m) => m.added && JSON.stringify(m.kinds) === '["add"]'));
+  ok('...shown where it was read, with how it was taken, and joins the request the run is held to', json(r.scr.of('added')) === json([['added', 'Also round the tax.', ['add']]]) && /Also round the tax\./.test(sandbox.HC.code.request));
   const urgent = { urgent: true, takeNow: () => null };
   let tries = 0;
   const u = await runWith({ queue: urgent, script: () => (++tries === 1 ? new Error('step stopped for a message sent now') : words('Answered the new message.')) });

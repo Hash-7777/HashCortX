@@ -164,16 +164,28 @@
     return group.querySelector('.cdr-steps-list');
   }
 
+  /** How a message sent while the run worked was taken (js/queue.js kinds), in plain words; '' when not known. */
+  function takenAs(kinds) {
+    const k = Array.isArray(kinds) ? kinds : [];
+    if (k.includes('correct')) return 'taken as a correction: the step it was about is done again';
+    if (k.includes('after')) return 'sent now';
+    if (k.length) return 'read at its next step, as more for this work';
+    return '';
+  }
+
   /**
    * What the person sent while the run worked, where the run read it
    * (js/queue.js): their words, between two lists of steps, so folding the
    * steps when the run ends never hides them.
    */
-  function added(contentEl, text, pictures) {
+  function added(contentEl, text, pictures, kinds) {
     if (!contentEl) return null;
     const el = document.createElement('div');
     el.className = 'cdr-added';
-    el.innerHTML = `<span class="cdr-added-label">You added</span>${(window.HCCodeAttach && window.HCCodeAttach.picturesHtml(pictures)) || ''}<span class="cdr-added-text"></span>`;   // with the pictures it came with
+    const how = takenAs(kinds);
+    el.innerHTML = `<span class="cdr-added-label"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.3 3h9.4c.7 0 1.3.6 1.3 1.3v5.6c0 .7-.6 1.3-1.3 1.3H8.2L5 13.6v-2.4H3.3c-.7 0-1.3-.6-1.3-1.3V4.3C2 3.6 2.6 3 3.3 3z"/></svg>You · while it worked</span>` +
+      `<div class="cdr-added-bubble">${(window.HCCodeAttach && window.HCCodeAttach.picturesHtml(pictures)) || ''}<span class="cdr-added-text"></span></div>` +   // with the pictures it came with
+      (how ? `<span class="cdr-added-how">${esc(how)}</span>` : '');
     el.querySelector('.cdr-added-text').textContent = coded(text);
     contentEl.appendChild(el);
     return el;
@@ -186,14 +198,17 @@
    */
   /** Text a step shows, with characters that draw nothing written as codes (js/text-safety.js). */
   const coded = (t) => (window.HCTextSafety ? window.HCTextSafety.reveal(String(t ?? '')) : String(t ?? ''));
+  /** The mark of a check-in from the app: a shield with a tick, drawn on currentColor. */
+  const CHECK_MARK = '<svg class="cdr-check-mark" viewBox="0 0 16 16" role="img" aria-label="A check from the app"><path d="M8 1.9 13 3.8v3.6c0 3-2.1 5.4-5 6.6-2.9-1.2-5-3.6-5-6.6V3.8z"/><path d="m5.8 7.9 1.6 1.6 2.9-3.1"/></svg>';
   function add(contentEl, { verb, object, status, statusClass = '', open = false, flat = false } = {}) {
     if (!contentEl) return null;
     const el = document.createElement('details');
     el.className = 'cdr-step' + (statusClass ? ' ' + statusClass : '');
+    if (verb === 'CHECK') el.classList.add('cdr-step--check');   // the app checking in: a row of its own, never a tool step
     el.open = open;
     el.innerHTML = `
         <summary class="cdr-step-head">
-          <span class="cdr-step-verb">${esc(verb)}</span>
+          <span class="cdr-step-verb">${verb === 'CHECK' ? CHECK_MARK : esc(verb)}</span>
           <span class="cdr-step-object" title="${esc(coded(object))}">${esc(coded(object))}</span>
           <span class="cdr-step-result">${status || ''}</span>
         </summary>
@@ -250,5 +265,5 @@
     });
   }
 
-  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, notesChanged, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, takenAs, notesChanged, settle };
 })();

@@ -17,6 +17,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   folds its steps away to that line and opens again from it; a change
   waiting for Keep or Undo stays in view. The phase in work carries a
   turning mark while the run goes on.
+- **What you send while HashCoder works is drawn as yours.** It sits in
+  its own bubble on the right, like your requests, marked as sent while it
+  worked, with how it was taken under it: as a correction, as more for this
+  work, or sent now. Reopened conversations show it the same way. The app's
+  own check-ins are rows of their own with a shield mark, inside the phase
+  they happen in, and no longer start a Reviewing phase.
+- **A phase row no longer shows a coloured ring once clicked.** Reached by
+  keyboard, it takes the hover look with a thin neutral line.
 - **A message sent while HashCoder works is taken for what it is.** A
   correction ("no, not that file") is read at the next step with a note
   that opens again the step of the agent's plan it is about. More for the

@@ -1079,7 +1079,7 @@
       let reply = null;
       conversationMsgs.forEach((m, i) => {
         if (m.role === 'user' && V?.isAppNote(m.content)) { if (reply) appendStep(reply, { verb: 'CHECK', object: V.noteStep(m.content), status: '' }); return; }
-        if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); return; }   // sent while the run worked, shown where it was read
+        if (m.role === 'user' && m.added && reply) { window.HCCodeSteps.added(reply, window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs, m.kinds); return; }   // sent while the run worked, shown where it was read
         if (m.role === 'user' && !m.opened) { appendUserMsg(window.HCCodeAttach ? window.HCCodeAttach.shownRequest(m.content) : m.content, m.thumbs); reply = null; return; }
         if (m.role !== 'assistant' || !(reply = reply || appendAssistantBubble('HashCoder'))) return;
         if (m.content && m.tool_calls?.length && window.HCCodeLive.wordsOf(m.content).words) appendTextToBubble(reply, window.HCCodeLive.wordsOf(m.content).words);   // what it said before the step, without a call it wrote as text
@@ -1750,7 +1750,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
     async function agentLoop(messages, tools, contentEl, label, signal) {
       // Everything the loop shows, in one place: the reply's live line, its steps, tool rows, answer and error, the trace, the status, the terminal and the change rows.
       const ui = { trace: cdrTraceAdd, status: setStatus, terminal: terminalLog, wait: (o) => appendThinking(contentEl, o), step: (s) => appendStep(contentEl, s), tool: (name, args) => appendToolBlock(contentEl, name, args), toolDone: finalizeToolBlock, answer: (text) => appendTextToBubble(contentEl, text),
-        added: (text, pictures) => { window.HCCodeSteps.added(contentEl, text, pictures); scrollMessages(); },
+        added: (text, pictures, kinds) => { window.HCCodeSteps.added(contentEl, text, pictures, kinds); scrollMessages(); },
         error: (e, kept) => { const errDiv = Object.assign(document.createElement('div'), { className: 'cdr-msg-text', innerHTML: `<b>Error</b><br>${esc(e?.message || String(e))}${kept ? `<br><br>${esc(kept)}` : ''}` }); Object.assign(errDiv.style, { color: 'var(--cdr-error)', borderLeft: '2px solid var(--cdr-error)', paddingLeft: '10px', margin: '8px 0' }); contentEl.appendChild(errDiv); scrollMessages(); },
         // A move is two changes: the file leaves one path and arrives at another. Undoing both puts it back.
         changed: (call, resultStr) => { const a = call.arguments || {}, fp = a.path || '', { from = '', to = '' } = a; if (call.name === 'write_file' || call.name === 'patch_file') { addChangeEntry(baseName(fp), fp, 'write', a.content || a.patch || resultStr); if (fp) addAIFileToExplorer(fp, 'write'); } else if (call.name === 'delete_file') { addChangeEntry(baseName(fp), fp, 'delete', '(file deleted)'); if (fp) addAIFileToExplorer(fp, 'delete'); } else if (call.name === 'move_file') { addChangeEntry(baseName(from), from, 'delete', '(file moved)'); addChangeEntry(baseName(to), to, 'write', ''); if (from) addAIFileToExplorer(from, 'delete'); if (to) addAIFileToExplorer(to, 'write'); } } };

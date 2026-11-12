@@ -13,7 +13,8 @@
 //   Changing   writing, editing, deleting or moving a file, or a command
 //              that is not a check
 //   Checking   a command that tests, lints, checks types or builds
-//   Reviewing  the app's own checks before finishing, and a second look
+//   Reviewing  a second look at the changes; the app's own check-ins are
+//              rows of their own in the phase they happen in
 //
 // When the phase changes, a header goes onto the rail before the step: the
 // phase's drawn mark, its name, one line of what it did ("6 files", "2 edits,
@@ -47,7 +48,7 @@
   const FINDS = new Set(['FIND', 'GREP', 'LIST']);
   const READS = new Set(['READ', 'FETCH', 'SEARCH', 'KB', 'PHOTOS', 'RECALL']);
   const CHANGES = new Set(['EDIT', 'WROTE', 'DELETE', 'MOVE', 'IMAGES']);
-  const REVIEWS = new Set(['CHECK', 'REVIEW']);
+  const REVIEWS = new Set(['REVIEW']);   // the app's check-ins (CHECK) are rows of their own in the phase they happen in
   const CHECKS = new Set(['test', 'lint', 'typecheck', 'build']);
 
   /** The phase of a step, or null for one that belongs to none (a plan, a lesson) and stays in the phase it is in. */

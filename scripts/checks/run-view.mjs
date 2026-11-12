@@ -38,7 +38,8 @@ ok('reading a file, a page or a search is Reading', ['READ', 'FETCH', 'SEARCH', 
 ok('a change to a file is Changing', ['EDIT', 'WROTE', 'DELETE', 'MOVE'].every((v) => V.phaseOf(v, 'src/a.js', false) === 'changing'));
 ok('a command that checks the work is Checking', ['npm test', 'npm run lint', 'npx tsc --noEmit', 'npm run build', 'pytest -q', 'cargo test'].every((c) => V.phaseOf('SHELL', c, true) === 'checking'), json(['npm test', 'npm run lint', 'npx tsc --noEmit', 'npm run build', 'pytest -q', 'cargo test'].map((c) => V.phaseOf('SHELL', c, true))));
 ok('...any other command, and one that formats, is Changing', ['mkdir -p site/css', 'git mv a b', 'npx prettier --write .'].every((c) => V.phaseOf('SHELL', c, true) === 'changing'));
-ok('the app\'s own checks and a second look are Reviewing', V.phaseOf('CHECK', 'Sent back to prove it', true) === 'reviewing' && V.phaseOf('REVIEW', 'looks right', true) === 'reviewing');
+ok('a second look is Reviewing', V.phaseOf('REVIEW', 'looks right', true) === 'reviewing');
+ok('a check-in from the app is a row of its own in the phase it happened in, never a phase', V.phaseOf('CHECK', 'Sent back to prove it', true) === null);
 ok('a step that belongs to no phase, a plan or a lesson, stays in the phase it is in', V.phaseOf('PLAN', '3 steps', true) === null && V.phaseOf('LESSON', 'x', true) === null && V.phaseOf('', '', false) === null);
 ok('the same step always gets the same phase', V.phaseOf('SHELL', 'npm test', true) === V.phaseOf('SHELL', 'npm test', true));
 ok('...the phases, in the order a run goes through them, each with a name and a drawn mark', json(V.PHASES) === '["finding","reading","changing","checking","reviewing"]' && V.PHASES.every((p) => V.NAMES[p] && /<path|<circle/.test(V.ICONS[p])));
