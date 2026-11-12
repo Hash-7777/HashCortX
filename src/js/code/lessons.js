@@ -60,7 +60,7 @@
     if (!key) return { error: 'No project is open, so there is nothing to keep a lesson about.' };
     // A run that has read from outside could have been told what to write (js/code/outward.js).
     if (untrusted) return { error: 'This run has read material from outside the project, so no lesson is kept from it: what it read could have said what to write. Nothing was saved.' };
-    if (!line) return { error: 'save_lesson needs text: one short line.' };
+    if (!line) return { error: `save_lesson was not run: it needs text, one short line on how the project is built or tested. Call it as ${JSON.stringify({ text: 'the lesson in one short line' })}.` };
     if (line.length > MAX_CHARS) return { error: `A lesson is one short line, at most ${MAX_CHARS} characters. Say it in fewer words.` };
     if (looksPrivate(line)) return { error: 'That looks like a key, a secret or an email address, which is never kept. Nothing was saved.' };
     if (window.HCSources && window.HCSources.speaksToModel(line)) return { error: 'A lesson that speaks to AI systems is never kept: a lesson says how the project is built or tested. Nothing was saved.' };

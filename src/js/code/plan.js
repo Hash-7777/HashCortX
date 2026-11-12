@@ -45,7 +45,7 @@
       step: String(typeof x === 'string' ? x : (x && (x.step ?? x.title ?? x.text)) || '').replace(/\s+/g, ' ').trim().slice(0, 160),
       status: typeof x === 'string' ? 'todo' : statusOf(x),
     })).filter((x) => x.step);
-    if (!steps.length) return { error: 'update_plan needs steps: a list of { step, status }, the status todo, doing or done.' };
+    if (!steps.length) return { error: `update_plan was not run: it needs steps, a list of { step, status }, each status todo, doing or done. Call it as ${JSON.stringify({ steps: [{ step: 'the first change', status: 'doing' }, { step: 'the next change', status: 'todo' }] })}.` };
     return { steps };
   }
 

@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **When a HashCoder tool says no, it says what to do instead.** Every
+  refusal and error a tool sends back now says what was wrong and what to
+  send instead, and when the call itself was the mistake (an argument
+  missing, a passage found twice) it writes the call out right, with the
+  path and text the model gave. A check drives each of those paths and holds
+  every answer to it.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

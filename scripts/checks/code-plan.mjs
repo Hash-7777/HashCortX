@@ -30,7 +30,7 @@ console.log('A plan from the call:');
   ok('keeps each step, tidied, with its status', plan.steps.length === 3 && plan.steps[1].step === 'Print results as JSON' && plan.steps.map((x) => x.status).join() === 'done,doing,todo');
   ok('reads the other ways a model writes a status', P.fromCall({ steps: [{ step: 'a', status: 'completed' }, { step: 'b', status: 'in progress' }, { step: 'c', done: true }, { step: 'd', status: 'weird' }] }).steps.map((x) => x.status).join() === 'done,doing,done,todo');
   ok('and a step written as a plain sentence', P.fromCall({ steps: ['Write the test'] }).steps[0].status === 'todo');
-  ok('an empty plan is refused, saying what it needs', /steps: a list of \{ step, status \}/.test(P.fromCall({ steps: [] }).error) && !!P.fromCall({}).error && !!P.fromCall({ steps: [{ status: 'todo' }] }).error);
+  ok('an empty plan is refused, saying what it needs', /needs steps, a list of \{ step, status \}/.test(P.fromCall({ steps: [] }).error) && !!P.fromCall({}).error && !!P.fromCall({ steps: [{ status: 'todo' }] }).error);
   ok('a plan is kept short', P.fromCall({ steps: Array.from({ length: 40 }, (_, i) => `step ${i}`) }).steps.length === P.MAX_STEPS);
 }
 

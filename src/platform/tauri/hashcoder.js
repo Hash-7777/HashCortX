@@ -54,10 +54,8 @@
       const badName = /^windows$/i.test(String(HC.code.platform?.os || '')) && window.HCCodePaths?.windowsNameProblem?.(path);
       if (badName) throw new Error(`write_file was not run: ${badName}`);
       if (content == null) {
-        throw new Error(
-          'write_file: content is required and must be a string. ' +
-          'Do not pass null — provide the complete file text.'
-        );
+        const shown = window.HCCodeSearch ? window.HCCodeSearch.place(path, HC.guard?.projectRoot?.() || '') : path;
+        throw new Error(`write_file was not run: content is missing; it is the file's whole text, never null. Call it as ${JSON.stringify({ path: shown, content: 'the whole file' })}.`);
       }
       // A stylesheet or script the agent wrote inside the tag a page would use loses the tag (js/code/patch.js unwrapped); a file patched in place is left as it is.
       const bare = asked && window.HCCodePatch ? window.HCCodePatch.unwrapped(path, String(content)) : { text: content, note: '' };
@@ -363,7 +361,7 @@
 
     async patchFile(path, search, replace, reason = '', more = null, all = false) {
       // The first change at the top and further edits to the same file in `more`, made together: all or none (js/code/patch.js).
-      const edits = window.HCCodePatch.editsOf(search, replace, all, more);
+      const edits = window.HCCodePatch.editsOf(search, replace, all, more, window.HCCodeSearch ? window.HCCodeSearch.place(path, HC.guard?.projectRoot?.() || '') : path);
 
       // The file's real bytes, not what read_file shows the model: that cuts a
       // long file short and describes a binary one, and either would be
@@ -480,7 +478,7 @@
   HC.code.readingQuietly = async (name, args = {}) => {
     const root = projectRoot(), place = fromProject(name === 'read_file' ? args.path : args.dir || args.path);
     if (!root || !(await HC.guard.allowedWithoutAsking(name === 'read_file' || name === 'grep_code' ? 'read' : 'list', place))) {
-      return JSON.stringify({ error: `Only the open project's files are read here, never with a question: ${args.path || args.dir || ''}` });
+      return JSON.stringify({ error: `Only the open project's files are read here, never with a question: ${args.path || args.dir || ''}. Read a path inside the project instead, such as src/app.js.` });
     }
     if (name === 'read_file') {
       const text = await HC.invoke('fs_read_file', { path: place });
@@ -495,7 +493,7 @@
       const shown = window.HCCodeSearch ? window.HCCodeSearch.shape(lines, { pattern: args.pattern, root, dir: place, limit: HC.code.searchLimit }) : lines;
       return HC.code.withCodes(HC.code.withLeft(typeof shown === 'string' ? shown : JSON.stringify(shown), lines), true);
     }
-    return JSON.stringify({ error: `${name} is not one of the tools that only read.` });
+    return JSON.stringify({ error: `${name} is not one of the tools that only read. Use read_file, list_dir, grep_code or fuzzy_find.` });
   };
 
   /**
@@ -697,7 +695,7 @@
    */
   async function viaChatTool(name, args) {
     const run = window._H?.runOneTool;
-    if (!run) return JSON.stringify({ error: `${name} is unavailable — the main app is not loaded.` });
+    if (!run) return JSON.stringify({ error: `${name} is not available in this window, so nothing was done. Carry on without it, and say what could not be done.` });
     const result = await run(name, args || {});
     return typeof result === 'string' ? result : JSON.stringify(result);
   }
@@ -757,7 +755,7 @@
         steps: { type: 'array', description: 'Every step of the plan, in order.', items: { type: 'object', properties: { step: { type: 'string' }, status: { type: 'string', enum: ['todo', 'doing', 'done'] } }, required: ['step', 'status'] } },
       },
       fn: (p) => {
-        const plan = window.HCCodePlan ? window.HCCodePlan.fromCall(p) : { error: 'update_plan is not available in this build.' };
+        const plan = window.HCCodePlan ? window.HCCodePlan.fromCall(p) : { error: 'update_plan is not available in this window, so no plan was kept. Carry on without it, and keep to the steps in your answer.' };
         if (plan.error) throw new Error(plan.error);
         HC.code.plan = plan;
         return window.HCCodePlan.answer(plan);
@@ -773,7 +771,7 @@
       },
       fn: (p) => {
         const at = HC.code.lessonsFor;
-        if (!at || !window.HCCodeLessons) return JSON.stringify({ ok: false, error: 'Keeping lessons is switched off in Settings, so nothing was saved.' });
+        if (!at || !window.HCCodeLessons) return JSON.stringify({ ok: false, error: 'Keeping lessons is switched off in Settings, so nothing was saved. Carry on without it.' });
         const kept = window.HCCodeLessons.save(localStorage, at.root, p.text, { local: at.local, replaces: p.replaces, untrusted: !!HC.guard?.holds?.()?.untrusted });   // never from a run that read from outside (js/code/outward.js)
         if (kept.error) throw new Error(kept.error);
         return JSON.stringify(kept);
@@ -828,9 +826,9 @@
       },
       fn: async (p) => {
         const query = String(p.query || '').trim();
-        if (!query) return JSON.stringify({ error: 'query is required' });
+        if (!query) return JSON.stringify({ error: `search_knowledge was not run: it needs query, the words to look for. Call it as ${JSON.stringify({ query: 'the words to look for' })}.` });
         if (!window._H?.ragSearch) {
-          return JSON.stringify({ error: 'The knowledge base is unavailable — the main app is not loaded.' });
+          return JSON.stringify({ error: 'The knowledge base is not loaded in this window, so nothing was searched. Carry on without it, and say it could not be searched.' });
         }
         // Off and empty are different answers, and both used to look like "no
         // results". A model told "nothing found" will state a convention it
@@ -870,7 +868,7 @@
       },
       fn: async (p) => {
         const url = String(p.url || '').trim();
-        if (!url) return JSON.stringify({ error: 'url is required' });
+        if (!url) return JSON.stringify({ error: `fetch_url was not run: it needs url, the page's whole address. Call it as ${JSON.stringify({ url: 'the page\'s whole address, as a link gives it' })}.` });
         // Chat calls this without asking, and that is defensible there. Here it
         // is not: Coder can read every file in the project, and a URL is chosen
         // by the model, so a fetch is a way for anything just read to leave the
@@ -968,7 +966,7 @@
       },
       fn: async (p) => {
         const P = window.HCSwarmPhotos;
-        if (!P) throw new Error('find_photos is not available in this build.');
+        if (!P) throw new Error('find_photos is not available in this window, so no photo was looked for. Carry on without it: draw the images instead.');
         const draw = 'Draw the imagery with CSS or inline SVG instead, and write no image address.';
         if (!P.allowed()) return JSON.stringify({ photos: [], note: `"Find real photos for websites" is off in Settings, or Local only is on, so no search was made. ${draw}` });
         // The words go to a service the person did not choose, picked by the model, so
@@ -1031,7 +1029,7 @@
       },
       fn: async (p) => {
         const query = String(p.query || '').trim();
-        if (!query) return JSON.stringify({ error: 'query is required' });
+        if (!query) return JSON.stringify({ error: `web_search was not run: it needs query, the words to search for. Call it as ${JSON.stringify({ query: 'the words to search for' })}.` });
 
         // The words are chosen by the model and go to a search service, so the
         // person is asked first, as for a web page, once for each service they
@@ -1101,7 +1099,7 @@
         value: { type: 'string', description: 'The fact itself, in natural language.' },
       },
       // HashCoder uses long-term memory only when its own switch in Settings is on (HC.code.memoryOn, set per run).
-      fn: (p) => { if (!HC.code.memoryOn) return { ok: false, error: MEMORY_OFF }; if (window._H?.memAdd) return window._H.memAdd(p.key, p.value); return { ok: false, error: 'Memory not available' }; },
+      fn: (p) => { if (!HC.code.memoryOn) return { ok: false, error: MEMORY_OFF }; if (window._H?.memAdd) return window._H.memAdd(p.key, p.value); return { ok: false, error: MEMORY_GONE }; },
     },
     {
       name: 'recall_facts',
@@ -1115,7 +1113,7 @@
           const facts = window._H.memRecall(p.query || '', 8);
           return { facts: facts.map(f => ({ key: f.key, value: f.value, saved_at: new Date(f.ts).toISOString() })) };
         }
-        return { ok: false, error: 'Memory not available' };
+        return { ok: false, error: MEMORY_GONE };
       },
     },
   ];
@@ -1128,7 +1126,8 @@
   // Long-term memory is the person's own facts, kept across conversations. HashCoder
   // saves and reads them only when its switch in Settings is on; off, the tools
   // refuse and the instructions do not mention them.
-  const MEMORY_OFF = 'HashCoder does not use long-term memory unless it is switched on in Settings, under HashCoder.';
+  const MEMORY_OFF = 'HashCoder does not use long-term memory unless it is switched on in Settings, under HashCoder. Carry on without it.';
+  const MEMORY_GONE = 'Long-term memory is not loaded in this window, so nothing was kept or looked up. Carry on without it.';
   const MEMORY_SECTION = `MEMORY:
 • remember_fact / recall_facts — save and retrieve user preferences, coding style, project context, and tech stack choices across sessions. Use silently; never recite memory unless asked.
 

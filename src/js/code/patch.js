@@ -71,11 +71,11 @@
         if (bytes.length % 2) throw new Error('half a character');
         return new TextDecoder(order, { fatal: true, ignoreBOM: true }).decode(bytes);
       } catch {
-        throw new Error(`"${name}" is not a text file, so it cannot be patched.`);
+        throw new Error(`"${name}" is not a text file, so it cannot be patched. Leave it as it is, or replace it whole with write_file if the request needs a new one.`);
       }
     }
     if (bytes.includes(0)) {
-      throw new Error(`"${name}" is not a text file, so it cannot be patched.`);
+      throw new Error(`"${name}" is not a text file, so it cannot be patched. Leave it as it is, or replace it whole with write_file if the request needs a new one.`);
     }
     try {
       return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
@@ -207,7 +207,7 @@
       const n = count(text, find);
       if (n === 1) return spliceOnce(text, find, repl);
       if (n > 1 && every) return text.split(find).join(repl);
-      if (n > 1) throw new Error(`search string found ${n} times in "${name}"${how}. Add more surrounding lines to make it unique, or set all to true to change every one of them, as in a rename.`);
+      if (n > 1) throw new Error(`search string found ${n} times in "${name}"${how}. Add more surrounding lines to make it unique, or set all to true to change every one of them, as in a rename. ${once(name)}`);
       return null;
     };
     let out = unique(content, search, replace, '');
@@ -242,7 +242,7 @@
       if (put.filter((l) => l.trim()).every((l) => NUMBERED.test(l))) put = put.map((l) => l.replace(NUMBERED, ''));
       numbers = 'with the line numbers of the read taken off';
       const exact = findLines(have, want, (a, b) => a === b);
-      if (exact.length > 1) throw new Error(`search string found ${exact.length} times in "${name}" ${numbers}. Add more surrounding lines to make it unique.`);
+      if (exact.length > 1) throw new Error(`search string found ${exact.length} times in "${name}" ${numbers}. Add more surrounding lines to make it unique. ${once(name)}`);
       if (exact.length === 1) return { text: back(splice(have, exact[0], want.length, put, trailingNewline)), how: numbers };
     }
     // A small model wrote spaces into what it copied, "getUsr  }" for
@@ -255,7 +255,7 @@
     for (const [how, same, fit] of stages) {
       const found = findLines(have, want, same);
       const said = numbers ? `${how}, ${numbers}` : how;
-      if (found.length > 1) throw new Error(`search string found ${found.length} times in "${name}" ${said}. Add more surrounding lines to make it unique.`);
+      if (found.length > 1) throw new Error(`search string found ${found.length} times in "${name}" ${said}. Add more surrounding lines to make it unique. ${once(name)}`);
       if (found.length === 1) {
         const at = found[0];
         const first = want.findIndex((l) => l.trim());
@@ -319,6 +319,15 @@
       '(preserving every space and indent), then retry.';
   }
 
+  /**
+   * The call written right, for a message that says what was wrong with
+   * one: `Call it as {...}.` with the model's own values where they are
+   * known and a few words for the rest.
+   */
+  const callAs = (args) => `Call it as ${JSON.stringify(args)}.`;
+  /** The call again with a passage that is there once. */
+  const once = (name) => callAs({ path: name, search: 'a longer passage, from a line before it to a line after, that is there once', replace: 'the same passage with the change' });
+
   /** `content` with its one occurrence of `search` replaced by `replace`. */
   function applyPatch(content, search, replace, name) {
     return patchWithStage(content, search, replace, name).text;
@@ -334,14 +343,14 @@
    * it is still refused, since what to put there is not said. Throws the
    * message the model is shown.
    */
-  function editsOf(search, replace, all, more) {
+  function editsOf(search, replace, all, more, name = 'the file') {
     const rest = (Array.isArray(more) ? more : []).filter((e) => e && typeof e === 'object')
       .map((e) => ({ search: e.search, replace: e.replace, all: e.all === true }));
     const top = search != null && search !== '';
     if (top && replace != null) return [{ search: String(search), replace: String(replace), all: all === true }, ...rest];
     if (rest.length && (!top || rest.some((e) => e.search === search))) return rest;
-    if (!top) throw new Error('patch_file: search string is required and must not be empty.');
-    throw new Error('patch_file: replace string is required (use "" to delete).');
+    if (!top) throw new Error(`patch_file was not run: search is missing, the exact lines to find in the file, copied from what read_file showed. ${callAs({ path: name, search: 'the lines as they are', replace: 'what they become' })}`);
+    throw new Error(`patch_file was not run: replace is missing, what the search text becomes ("" to delete it). ${callAs({ path: name, search: String(search).slice(0, 80), replace: 'what it becomes' })}`);
   }
 
   /**
@@ -356,8 +365,9 @@
     let text = content;
     const notes = [];
     edits.forEach((e, i) => {
-      if (!e || typeof e.search !== 'string' || !e.search) throw new Error(`edit ${i + 1} of ${edits.length} has no search text. Nothing was changed.`);
-      if (typeof e.replace !== 'string') throw new Error(`edit ${i + 1} of ${edits.length} has no replace text (use "" to delete). Nothing was changed.`);
+      const each = callAs({ path: name, edits: [{ search: 'the lines as they are', replace: 'what they become' }] });
+      if (!e || typeof e.search !== 'string' || !e.search) throw new Error(`edit ${i + 1} of ${edits.length} has no search text, so nothing was changed. Give every edit the exact lines it changes. ${each}`);
+      if (typeof e.replace !== 'string') throw new Error(`edit ${i + 1} of ${edits.length} has no replace text (use "" to delete), so nothing was changed. Give every edit what its lines become. ${each}`);
       let step;
       try { step = patchWithStage(text, e.search, e.replace, name, e.all === true); }
       catch (err) { throw new Error(edits.length > 1 ? `edit ${i + 1} of ${edits.length}: ${err.message}\nNothing was changed.` : err.message); }
