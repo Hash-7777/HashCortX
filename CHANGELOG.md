@@ -30,6 +30,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A run signal: one line for a HashCoder run.** Across the top of the
+  reply, each phase is a wave of its own shape, as wide as the time it took
+  and as tall as how much it did, blending into the next, with marks where
+  the app checked in, you added a message or a step failed. While the run
+  goes on, only the newest stretch slides after a "now" line; a finished run
+  settles with a dot at its end. Pointing at it says what was happening
+  there and lights that phase on the rail. It appears once a run has two
+  phases.
+- **A phase's line no longer counts the app's check-ins as work.** Reading
+  said "6 files, 1 other read" for six files and one check-in.
 - **HashCoder's sign of work is a small wireframe cube.** It takes the place
   of the mesh of dots beside what the model is doing, and turns at the pace
   of it: slower while its own thinking arrives, quicker while it writes or

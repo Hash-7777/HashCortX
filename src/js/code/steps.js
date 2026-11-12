@@ -189,6 +189,7 @@
     el.querySelector('.cdr-added-text').textContent = coded(text);
     contentEl.appendChild(el);
     window.HCRunView?.brief(contentEl);   // its asks join the brief (js/run-view.js)
+    window.HCRunView?.note(contentEl, 'added', 'You added a message');   // and a mark on the run signal (js/run-signal.js)
     return el;
   }
 

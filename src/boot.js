@@ -103,6 +103,7 @@
     '/js/code/added.js',
     '/js/code/keep.js',
     '/js/run-view.js',
+    '/js/run-signal.js',
     '/js/code/steps.js',
     '/js/code/preview.js',
     '/js/code/talk.js',

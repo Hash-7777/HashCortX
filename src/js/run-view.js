@@ -78,6 +78,8 @@
   const CHANGES = new Set(['EDIT', 'WROTE', 'DELETE', 'MOVE', 'IMAGES']);
   const REVIEWS = new Set(['REVIEW']);   // the app's check-ins (CHECK) are rows of their own in the phase they happen in
   const CHECKS = new Set(['test', 'lint', 'typecheck', 'build']);
+  /** The app's own rows (a check-in, a plan, a lesson): never counted as work, and serving no ask. */
+  const NOT_WORK = new Set(['CHECK', 'PLAN', 'LESSON']);
 
   /** The phase of a step, or null for one that belongs to none (a plan, a lesson) and stays in the phase it is in. */
   function phaseOf(verb, object, changedYet) {
@@ -98,7 +100,7 @@
 
   /** What a phase did, in one line: "6 files", "2 edits, 1 command", "1 command, 1 failed"; '' for nothing yet. */
   function line(phase, steps) {
-    const list = Array.isArray(steps) ? steps : [];
+    const list = (Array.isArray(steps) ? steps : []).filter((s) => s && !NOT_WORK.has(String(s.verb || '').toUpperCase()));   // a check-in is a row of the phase, not work it did
     if (!list.length) return '';
     const failed = list.filter((s) => s && s.failed).length;
     const tail = failed ? `, ${failed} failed` : '';
@@ -120,8 +122,6 @@
 
   /** Words too common to say a step served an ask. */
   const PLAIN = new Set(['with', 'that', 'this', 'from', 'into', 'have', 'will', 'your', 'what', 'when', 'where', 'which', 'also', 'just', 'please', 'make', 'sure', 'each', 'every', 'some', 'more', 'only', 'very', 'should', 'would', 'could', 'want', 'need', 'like', 'them', 'they', 'there', 'then', 'than', 'does', 'done', 'keep', 'about', 'again', 'still', 'other', 'same', 'file', 'files', 'code', 'page', 'change', 'changes', 'work', 'thing', 'things']);
-  /** The app's own rows, which serve no ask. */
-  const NOT_WORK = new Set(['CHECK', 'PLAN', 'LESSON']);
   const stem = (w) => (w.length > 4 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
   const wordsIn = (text) => String(text || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4 && !PLAIN.has(w)).map(stem);
   const flat = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
@@ -334,6 +334,7 @@
   function close(ph) {
     if (!ph || ph.closed) return;
     ph.closed = true;
+    ph.ended = Date.now();
     ph.head.classList.remove('now');
     ph.head.classList.add('closed');
     ph.head.querySelector('.cdr-phase-time').textContent = timeOf(Date.now() - ph.began);
@@ -349,7 +350,7 @@
       `<span class="cdr-reticle">${RETICLE}</span>` +
       `<button type="button" class="cdr-phase-h" aria-expanded="true"><span class="cdr-phase-name">${NAMES[phase]}</span><span class="cdr-phase-line"></span><span class="cdr-phase-time">now</span></button>`;
     list.insertBefore(head, before);
-    const ph = { id, phase, head, steps: [], began: Date.now(), closed: false };
+    const ph = { id, phase, head, steps: [], marks: [], began: Date.now(), ended: 0, closed: false, contentEl: list.closest('.cdr-msg-content') };
     head.querySelector('.cdr-phase-h').addEventListener('click', () => fold(ph, head.classList.contains('open')));
     byId.set(id, ph);
     return ph;
@@ -427,12 +428,16 @@
     if (!st.cur || st.cur.phase !== phase) {
       close(st.cur);
       st.cur = open(list, phase, el);
+      st.cur.contentEl = contentEl;
+      (st.list || (st.list = [])).push(st.cur);
     }
     el.dataset.phase = st.cur.id;
     st.cur.steps.push({ verb: String(verb || '').toUpperCase(), object: String(object || ''), failed: false, el });
+    if (String(verb || '').toUpperCase() === 'CHECK') st.cur.marks.push({ kind: 'checkin', at: st.cur.steps.length - 1, what: String(object || 'The app checked in') });   // a mark on the run signal
     paint(st.cur);
     brief(contentEl);
     window.HCCodePreview?.onStep(contentEl, phase);   // the card before it started: its plan up to date, folded at the first change (js/code/preview.js)
+    signal(contentEl);
     return st.cur.id;
   }
 
@@ -443,6 +448,28 @@
     const step = ph.steps.find((s) => s.el === el);
     if (step) step.failed = !ok;
     paint(ph);
+    const contentEl = ph.contentEl;
+    if (contentEl) signal(contentEl);
+  }
+
+  /** The run signal (js/run-signal.js): each phase as it is now, with its marks and the failed steps in it. */
+  function signal(contentEl) {
+    const st = contentEl && contentEl.hcPhases;
+    if (!st || !st.list || !window.HCRunSignal) return;
+    window.HCRunSignal.draw(contentEl, st.list.map((ph) => {
+      const kept = ph.steps.filter((s) => !s.el || s.el.isConnected);
+      const failed = kept.map((s, i) => (s.failed ? { kind: 'failed', at: i, what: `${s.verb} ${s.object} failed` } : null)).filter(Boolean);
+      const what = line(ph.phase, kept);
+      return { phase: ph.phase, name: NAMES[ph.phase], what: `${NAMES[ph.phase]}${what ? ` · ${what}` : ''}`, ms: (ph.ended || Date.now()) - ph.began, steps: kept.length, marks: [...ph.marks, ...failed], head: ph.head };
+    }), !st.ended);
+  }
+
+  /** Something that is not a step happened in the phase in work, such as a message you added: a mark on the run signal. */
+  function note(contentEl, kind, what) {
+    const st = contentEl && contentEl.hcPhases;
+    if (!st || !st.cur) return;
+    st.cur.marks.push({ kind, at: st.cur.steps.length, what: String(what || '') });
+    signal(contentEl);
   }
 
   /** The run has ended: the brief takes what was said last, its last phase closes, and nothing turns. */
@@ -452,8 +479,10 @@
     brief(contentEl);
     window.HCCodePreview?.onStep(contentEl, 'end');
     close(st.cur);
+    st.ended = true;
+    signal(contentEl);   // settled: no "now", a dot at its end
     contentEl.hcPhases = null;
   }
 
-  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, end, receiptIn, drawReceipt };
+  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, note, end, receiptIn, drawReceipt };
 })();

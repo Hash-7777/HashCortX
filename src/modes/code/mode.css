@@ -396,6 +396,32 @@ body.coder-mode #app { display: none; }
 .cdr-preview-start { height: 28px; padding: 0 16px; border: 1px solid var(--accent-line); border-radius: var(--radius-xs); background: var(--surface-raised); color: var(--cdr-text); font: 500 12.5px var(--sans); cursor: pointer; }
 .cdr-preview-start:hover, .cdr-preview-start:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
 @media (max-width: 560px) { .cdr-preview-sec { grid-template-columns: 1fr; gap: 4px; } }
+/* The run signal (js/run-signal.js): one line for the run, a wave per phase; only the newest stretch slides, while the run goes on. */
+.cdr-signal { margin: 0 0 14px; padding: 8px 12px 6px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); }
+.cdr-signal-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 2px; }
+.cdr-signal-name { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); }
+.cdr-signal-sum { font: 11px var(--mono); font-variant-numeric: tabular-nums; color: var(--cdr-text-muted); }
+.cdr-signal-band { position: relative; height: 62px; cursor: crosshair; }
+#coder-mode-wrap .cdr-signal-band svg { width: auto; height: auto; stroke-width: 1.4; }
+#coder-mode-wrap .cdr-signal-line { position: absolute; left: 0; top: 14px; width: 100%; height: 40px; overflow: visible; }
+#coder-mode-wrap .cdr-signal-line path { stroke: var(--accent); opacity: .62; vector-effect: non-scaling-stroke; }
+.cdr-signal-head { position: absolute; top: 14px; height: 40px; overflow: hidden; }
+#coder-mode-wrap .cdr-signal-head svg { position: absolute; left: 0; top: 0; width: 200%; height: 100%; }
+#coder-mode-wrap .cdr-signal-head path { stroke: var(--accent-2); stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.cdr-msg.running .cdr-signal-head svg { animation: cdr-slide 2.6s linear infinite; }
+@keyframes cdr-slide { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .cdr-signal-head svg { animation: none; } }
+.cdr-signal-now { position: absolute; top: 10px; height: 48px; width: 0; border-left: 1px solid var(--accent-2); }
+.cdr-signal-end { position: absolute; top: 31px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.cdr-signal-tag { position: absolute; top: 0; padding-left: 5px; border-left: 1px solid var(--cdr-border-strong); font: 9px/11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); white-space: nowrap; }
+.cdr-signal-tag.is-now { color: var(--accent-2); }
+.cdr-signal-mark { position: absolute; top: 15px; width: 16px; height: 16px; margin-left: -8px; display: grid; place-items: center; border-radius: 50%; background: var(--surface-0); color: var(--accent-2); }
+#coder-mode-wrap .cdr-signal-mark svg { width: 12px; height: 12px; stroke-width: 1.5; }
+.cdr-signal-mark.is-failed { color: var(--danger); }
+.cdr-signal-hair { position: absolute; top: 12px; height: 44px; width: 0; border-left: 1px dashed var(--cdr-text-dim); opacity: 0; pointer-events: none; }
+.cdr-signal-tip { position: absolute; top: 58px; transform: translateX(-50%); z-index: 3; padding: 3px 8px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs); background: var(--surface-2); font: 11px var(--sans); color: var(--cdr-text); white-space: nowrap; opacity: 0; pointer-events: none; }
+.cdr-signal-band:hover .cdr-signal-hair, .cdr-signal-band:hover .cdr-signal-tip { opacity: 1; }
+.cdr-phase--lit .cdr-phase-h { background: var(--surface-raised); }
 /* The brief (js/run-view.js brief): each ask of the request with its state, in view while the reply scrolls. */
 .cdr-brief { position: sticky; top: 0; z-index: 2; margin: 0 0 14px; padding: 6px 6px 8px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-0); }
 .cdr-brief-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 4px 8px; background: none; border: 0; border-radius: var(--radius-xs); font: inherit; color: inherit; cursor: pointer; }
