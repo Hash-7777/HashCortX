@@ -1815,7 +1815,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // Bootstrap conversation on first message
       if (!conversationMsgs.length) conversationMsgs = [systemTurn()];
       const asks = window.HCCodeAsks?.split(task) || [];   // a request of several asks, as a checklist (js/code/asks.js)
-      const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: cdrPrefs().memory !== true ? [] : (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklist(asks) }) || '';
+      const context = window.HCCodeTalk?.isSmallTalk(task) ? null : window.HCCodeContext?.forRequest({ site, activeFile: root && sharedState.activeFile, facts: cdrPrefs().memory !== true ? [] : (() => { try { return window._H?.memRecall?.(task, 4); } catch { return []; } })(), asks: window.HCCodeAsks?.checklistOf(task) }) || '';
       conversationMsgs.push({ role: 'user', content: request.content, ...(request.images.length ? { images: request.images, thumbs: request.thumbs } : {}),
         ...(context ? { context } : {}), ...(site ? { site: true } : {}) }); const sentEl = [...($('cdrMessages')?.querySelectorAll('.cdr-msg.user') || [])].pop(); if (sentEl) sentEl.hcMsg = conversationMsgs.at(-1);   // the bubble knows its message (js/code/rewind.js)
 

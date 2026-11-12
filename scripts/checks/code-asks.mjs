@@ -14,6 +14,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { window: {} };
 vm.createContext(box);
 vm.runInContext(src('js', 'fences.js'), box, { filename: 'fences.js' });
+vm.runInContext(src('js', 'run-ledger.js'), box, { filename: 'run-ledger.js' });
 vm.runInContext(process.argv[2] ? readFileSync(process.argv[2], 'utf8') : src('js', 'code', 'asks.js'), box, { filename: 'asks.js' });
 for (const f of ['verify.js', 'plan.js', 'context.js']) vm.runInContext(src('js', 'code', f), box, { filename: f });
 const A = box.window.HCCodeAsks, V = box.window.HCCodeVerify, P = box.window.HCCodePlan, C = box.window.HCCodeContext;
@@ -58,7 +59,16 @@ ok(`no more than ${A.MOST_ASKS} asks`, A.split(Array.from({ length: 20 }, (_, i)
 console.log('\nThe checklist, with the request:');
 const asks = ['fix the menu', 'add a footer', 'remove the banner'];
 ok('numbered, in the person\'s words, asking for every one', A.checklist(asks) === "The request has 3 separate asks, in the person's words. Do every one of them:\n1. fix the menu\n2. add a footer\n3. remove the banner");
-ok('none for fewer than three', A.checklist(['a b', 'c d']) === '' && A.checklist(null) === '');
+ok('none for a single item', A.checklist(['a b']) === '' && A.checklist(null) === '' && A.checklist([], ['Do not touch it.']) === '');
+
+console.log('\nThe limits a request sets, with its asks:');
+ok('the request\'s limits, by the ledger\'s own rule', JSON.stringify(A.limitsOf('Fix the menu. Do not touch the tests. Keep the colours as they are.')) === JSON.stringify(['Do not touch the tests.', 'Keep the colours as they are.']), JSON.stringify(A.limitsOf('Fix the menu. Do not touch the tests. Keep the colours as they are.')));
+const items = A.itemsOf('Fix the menu. Do not touch the tests.');
+ok('asks and limits apart, a limit never listed as an ask too', JSON.stringify(items) === JSON.stringify({ asks: ['Fix the menu'], limits: ['Do not touch the tests.'] }), JSON.stringify(items));
+ok('two asks are a checklist now', A.checklistOf('fix the menu, also add a footer') === "The request has 2 separate asks, in the person's words. Do every one of them:\n1. fix the menu\n2. add a footer", A.checklistOf('fix the menu, also add a footer'));
+ok('one ask and one limit too, each said exactly', A.checklistOf('Fix the menu. Do not touch the tests.') === "The request has 1 ask and 1 limit, in the person's words. Do the ask, and keep the limit:\n1. Fix the menu\nLimits:\n- Do not touch the tests.", A.checklistOf('Fix the menu. Do not touch the tests.'));
+ok('three asks and two limits', /^The request has 3 separate asks and 2 limits, in the person's words\. Do every ask, and keep every limit:\n1\. fix the menu\n2\. add a footer\n3\. remove the banner\nLimits:\n- Never change the logo\.\n- Only edit index\.html\.$/.test(A.checklistOf('fix the menu, also add a footer, also remove the banner. Never change the logo. Only edit index.html.')), A.checklistOf('fix the menu, also add a footer, also remove the banner. Never change the logo. Only edit index.html.'));
+ok('a single ask, or nothing, is no checklist', A.checklistOf('fix the bug in app.js') === '' && A.checklistOf('') === '' && A.checklistOf(null) === '');
 const context = C.forRequest({ site: 'SITE BAR', activeFile: '/p/a.js', asks: A.checklist(asks) });
 ok('it goes first in what the app adds to the request, from the app and not the person', context.startsWith(`${C.FROM_APP}\nThe request has 3 separate asks`) && context.indexOf('SITE BAR') > context.indexOf('3. remove the banner'));
 
@@ -69,12 +79,16 @@ ok('the agent is sent back to go through each ask, do what is missing, and say d
   note && note.kind === 'asks' && note.message.startsWith(V.APP_NOTE) && /\n1\. fix the menu\n2\. add a footer\n3\. remove the banner\n/.test(note.message) && /one short line per ask: done, or not done and why/.test(note.message), note && note.message);
 ok('once', V.asksCheck(log(), asks, 'Done.', 1) === null);
 ok('not before any file changed, and not for a reply asking the person something', V.asksCheck(V.proofLog(), asks, 'Done.', 0) === null && V.asksCheck(log(), asks, 'Which footer did you mean?', 0) === null);
-ok('not for fewer than three asks', V.asksCheck(log(), ['a b', 'c d'], 'Done.', 0) === null);
+ok('not for a single item', V.asksCheck(log(), ['a b'], 'Done.', 0) === null && V.asksCheck(log(), [], 'Done.', 0, 1, ['Do not touch it.']) === null);
+const withLimits = V.asksCheck(log(), ['Fix the menu'], 'Done.', 0, 1, ['Do not touch the tests.']);
+ok('an ask and a limit: each restated exactly, and the limit said kept or not', withLimits && /\n1\. Fix the menu\n/.test(withLimits.message) && /Keep to each limit the request set:\n- Do not touch the tests\.\n/.test(withLimits.message) && /and one per limit: kept, or not kept and why/.test(withLimits.message), withLimits && withLimits.message);
 ok('a saved conversation shows it as the step it was', V.noteStep(note.message) === 'Sent back to go through each ask of the request');
 const request = [{ role: 'user', content: 'fix the menu, also add a footer, also remove the banner' }];
 const back = (size, prove, list) => V.sendBack(log(), request, 'Done.', { size, prove, asks: list, sent: {} });
-ok('it takes the place of the check against the whole request for a small model', back('small', true, asks).kind === 'asks' && back('small', true, []).kind === 'review');
-ok('and runs for a larger model too, and not while proving is switched off', back('full', true, asks).kind === 'asks' && back('full', false, asks) === null && back('full', true, []) === null);
+ok('it takes the place of the check against the whole request for a small model', back('small', true, asks).kind === 'asks' && V.sendBack(log(), [{ role: 'user', content: 'fix the bug in app.js' }], 'Done.', { size: 'small', prove: true, asks: [], sent: {} }).kind === 'review');
+const fromRequest = V.sendBack(log(), [{ role: 'user', content: 'Fix the menu. Do not touch the tests.' }], 'Done.', { size: 'full', prove: true, asks: [], sent: {} });
+ok('the asks and limits are read from the request itself when the list is short', fromRequest && fromRequest.kind === 'asks' && /1\. Fix the menu/.test(fromRequest.message) && /- Do not touch the tests\./.test(fromRequest.message), fromRequest && fromRequest.message);
+ok('and runs for a larger model too, and not while proving is switched off', back('full', true, asks).kind === 'asks' && back('full', false, asks) === null && V.sendBack(log(), [{ role: 'user', content: 'fix the bug in app.js' }], 'Done.', { size: 'full', prove: true, asks: [], sent: {} }) === null);
 
 console.log('\nWhat is left, said:');
 const plan = { steps: [{ step: 'page', status: 'done' }, { step: 'styles', status: 'doing' }, { step: 'menu', status: 'todo' }] };
@@ -83,7 +97,7 @@ ok('nothing left, nothing said', P.leftLine({ steps: [{ step: 'page', status: 'd
 
 console.log('\nHashCoder:');
 const mode = (src('modes', 'code', 'mode.js') + '\n' + src('js', 'agent-loop.js'))   /* HashCoder: the mode and its loop */;
-ok('splits each request, and sends the list with it', /const asks = window\.HCCodeAsks\?\.split\(task\) \|\| \[\];/.test(mode) && /asks: window\.HCCodeAsks\?\.checklist\(asks\) \}\)/.test(mode));
+ok('splits each request, and sends the list with it', /const asks = window\.HCCodeAsks\?\.split\(task\) \|\| \[\];/.test(mode) && /asks: window\.HCCodeAsks\?\.checklistOf\(task\) \}\)/.test(mode));
 ok('keeps them for that request only, as it does the plan', /HC\.code\.plan = null; HC\.code\.asks = asks; HC\.code\.request = task; HC\.code\.patchRow = null; \}/.test(mode));
 ok('gives them to the checks before finishing, and counts how often it sent the run back for them', /plan: HC\?\.code\?\.plan, asks: HC\?\.code\?\.asks, light: !!sharedState\.light \}\)/.test(mode) && /const sentBack = sharedState\.sentBack = window\.HCCodeDebug\.sentBack\(sharedState\), sent = sentBack\.sent;/.test(mode) && ['review', 'asks'].every((k) => new RegExp(`const SENT_KINDS = \\[[^\\]]*'${k}'`).test(src('js', 'code', 'debug-export.js'))));
 ok('says what is left of its plan under the answer, and when it stops early',
@@ -91,7 +105,7 @@ ok('says what is left of its plan under the answer, and when it stops early',
   && /\[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\), window\.HCCodeSite\?\.outsideLine\(outside\), window\.HCCodePlan\?\.leftLine\(HC\?\.code\?\.plan\)\]\.filter\(Boolean\)\.join\(' '\)/.test(mode));
 const boot = src('boot.js');
 ok('it is loaded before the modes', boot.indexOf("'/js/code/asks.js'") > 0 && boot.indexOf("'/js/code/asks.js'") < boot.indexOf("'/modes/boot.js'"));
-ok('Settings says so under proving changes', /A request of several asks is gone through ask by ask\./.test(src('core', 'settings', 'panel.html')));
+ok('Settings says so under proving changes', /A request's asks and limits \("do not…", "only…"\), from two of them, are gone through one by one, each named\./.test(src('core', 'settings', 'panel.html')));
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/asks.js)`);
 process.exit(fail ? 1 : 0);

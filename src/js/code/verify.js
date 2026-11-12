@@ -762,20 +762,23 @@
   }
 
   /**
-   * What sends the agent back once to go through a request of several asks
-   * (js/code/asks.js) one by one, or null: only after it changed a file, and
-   * never for a reply that asks the person something. It is told to do what
-   * is missing and then say, for each ask, done or not done and why.
+   * What sends the agent back once to go through a request's asks and
+   * limits (js/code/asks.js) one by one, from two of them together, or null:
+   * only after it changed a file, and never for a reply that asks the person
+   * something. Each is restated exactly. It is told to do what is missing
+   * and then say, for each ask, done or not done and why, and for each
+   * limit, kept or not.
    */
-  function asksCheck(log, asks, reply, sentBack = 0, limit = 1) {
-    const list = Array.isArray(asks) ? asks : [];
-    if (!log || !log.changed.length || list.length < 3 || sentBack >= limit) return null;
+  function asksCheck(log, asks, reply, sentBack = 0, limit = 1, limits = []) {
+    const list = Array.isArray(asks) ? asks : [], held = Array.isArray(limits) ? limits : [];
+    if (!log || !log.changed.length || list.length + held.length < 2 || sentBack >= limit) return null;
     if (/\?\s*$/.test(String(reply || '').trim())) return null;   // asking the person something
     return {
       kind: 'asks',
       step: ASKS_STEP,
       message: `${APP_NOTE} before you finish, ${ASKS_SAYS}:\n${list.map((a, i) => `${i + 1}. ${a}`).join('\n')}\n` +
-        'For each one not done yet, do it now with the tools, and put back anything you removed that no ask asked to remove. Then finish with one short line per ask: done, or not done and why.',
+        (held.length ? `Keep to each limit the request set:\n${held.map((x) => `- ${x}`).join('\n')}\n` : '') +
+        `For each one not done yet, do it now with the tools, and put back anything you removed that no ask asked to remove. Then finish with one short line per ask: done, or not done and why${held.length ? ', and one per limit: kept, or not kept and why' : ''}.`,
     };
   }
 
@@ -1115,7 +1118,7 @@
    * with proving switched on, an answer saying part of the work is not done;
    * then steps of its own
    * plan left open (`plan`); then, while proving is switched on (`prove`), a
-   * change to code nothing proved, and a request of several asks (`asks`)
+   * change to code nothing proved, and a request's asks and limits (`asks`, and its limits read from it)
    * gone through ask by ask, or, on a small or mid-sized model on this
    * computer (`size`), the work checked against the request as a whole. An
    * empty answer from a model on this computer is checked too. `sent` counts,
@@ -1127,13 +1130,16 @@
     const local = size === 'small' || size === 'mid';
     // An empty answer from a model on this computer is checked like any other: a small model ended runs with its change untested that way.
     if (!log || (!String(reply || '').trim() && !local)) return null;
-    const listed = Array.isArray(asks) && asks.length >= 3;   // a request of several asks is checked ask by ask, in place of as a whole
+    // A request's asks and limits, from two of them together, are checked one by one, in place of as a whole (js/code/asks.js).
+    const items = window.HCCodeAsks && window.HCCodeAsks.itemsOf ? window.HCCodeAsks.itemsOf(request) : { asks: [], limits: [] };
+    const each = Array.isArray(asks) && asks.length >= 3 ? asks : items.asks;
+    const listed = each.length + items.limits.length >= 2;
     return unmadeChange(log, messages, reply, sent.make || 0, 1, { wordsToo: local })
       || (local ? aheadCheck(messages, reply, sent.ahead || 0) : null)
       || (prove && local ? undoneCheck(messages, reply, sent.undone || 0) : null)
       || planCheck(plan, reply, sent.plan || 0)
       || (prove ? stopCheck(log, checks, reply, sent.prove || 0, light ? 3 : 2) : null)   // a model in light mode is given one more round to fix a failing test
-      || (prove && listed ? asksCheck(log, asks, reply, sent.asks || 0) : null)
+      || (prove && listed ? asksCheck(log, each, reply, sent.asks || 0, 1, items.limits) : null)
       || (prove && local && !listed ? reviewCheck(log, shown ? shown(request) : request, reply, sent.review || 0) : null);
   }
 

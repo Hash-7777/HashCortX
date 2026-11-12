@@ -253,5 +253,7 @@
     return text;
   }
 
-  window.HCRunLedger = { MOST, from, note, answeredBy };   // answeredBy: also the brief's test (js/run-view.js)
+  const isLimit = (sentence) => LIMIT.test(squash(String(sentence || '')));
+
+  window.HCRunLedger = { MOST, from, note, answeredBy, limitsOf, isLimit };   // answeredBy: also the brief's test (js/run-view.js); limitsOf, isLimit: also the checklist's (js/code/asks.js)
 })();

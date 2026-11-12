@@ -12,9 +12,13 @@
 // in this project") is left out of the list, however many verbs it has as
 // nouns, and the request itself always goes whole.
 //
-// With three asks or more, the list goes with the request
-// (js/code/context.js forRequest), and the agent is sent back once before
-// it finishes to go through it ask by ask (js/code/verify.js asksCheck).
+// The request's limits ("do not touch the tests", "only edit index.html")
+// are read by the ledger's own rule (js/run-ledger.js limitsOf) and kept
+// apart from its asks. From two items up, asks and limits together, the
+// list goes with the request (js/code/context.js forRequest), and the agent
+// is sent back once before it finishes to go through each ask and each
+// limit by name (js/code/verify.js asksCheck). The asks a run keeps for the
+// brief and the plan are still the list of three or more (split).
 //
 // Pure; code blocks are found by js/fences.js. Loaded before the Coder mode
 // and published as window.HCCodeAsks.
@@ -26,6 +30,8 @@
 
   /** Fewer asks than this are one request, not a list. */
   const MIN_ASKS = 3;
+  /** From this many asks and limits together, they go with the request as a checklist. */
+  const MIN_ITEMS = 2;
   /** No more than this many are listed. */
   const MOST_ASKS = 12;
   /** An ask is cut to this many characters. */
@@ -66,9 +72,9 @@
 
   /**
    * The asks in `request`, in the person's words, or [] when there are
-   * fewer than three: a request of one or two parts is its own checklist.
+   * fewer than `least` (three, unless asked otherwise).
    */
-  function split(request) {
+  function split(request, least = MIN_ASKS) {
     let text = String(request == null ? '' : request);
     if (!text.trim() || text.length > LONGEST_REQUEST) return [];
     const F = window.HCFences;   // code is not split into asks (js/fences.js)
@@ -95,17 +101,37 @@
       asks.push(ask.length > LONGEST_ASK ? `${ask.slice(0, LONGEST_ASK - 1)}…` : ask);
       if (asks.length === MOST_ASKS) break;
     }
-    return asks.length >= MIN_ASKS ? asks : [];
+    return asks.length >= least ? asks : [];
+  }
+
+  /** The limits the request sets, in its words, by the ledger's rule (js/run-ledger.js); [] without it. */
+  const limitsOf = (request) => (window.HCRunLedger && window.HCRunLedger.limitsOf ? window.HCRunLedger.limitsOf(request) : []);
+
+  /** `{ asks, limits }`: every ask and every limit of `request`, a limit never listed as an ask too. */
+  function itemsOf(request) {
+    const limits = limitsOf(request);
+    const L = window.HCRunLedger;
+    const asks = split(request, 1).filter((a) => !(L && L.isLimit ? L.isLimit(a) : false));
+    return { asks, limits };
   }
 
   /** The asks as a numbered list: "1. fix the menu". */
   const numbered = (asks) => (asks || []).map((a, i) => `${i + 1}. ${a}`).join('\n');
 
-  /** What goes with the request when it has several asks, or ''. */
-  function checklist(asks) {
-    if (!Array.isArray(asks) || asks.length < MIN_ASKS) return '';
-    return `The request has ${asks.length} separate asks, in the person's words. Do every one of them:\n${numbered(asks)}`;
+  const counted = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+  /** What goes with the request when it has two asks and limits or more, each said exactly, or ''. */
+  function checklist(asks, limits = []) {
+    const a = Array.isArray(asks) ? asks : [], l = Array.isArray(limits) ? limits : [];
+    if (a.length + l.length < MIN_ITEMS) return '';
+    if (!l.length) return `The request has ${a.length} separate asks, in the person's words. Do every one of them:\n${numbered(a)}`;
+    const has = [a.length ? counted(a.length, 'ask', 'separate asks') : '', counted(l.length, 'limit', 'limits')].filter(Boolean).join(' and ');
+    const doing = [a.length ? (a.length === 1 ? 'Do the ask' : 'Do every ask') : '', l.length === 1 ? 'keep the limit' : 'keep every limit'].filter(Boolean).join(', and ');
+    return `The request has ${has}, in the person's words. ${doing.charAt(0).toUpperCase()}${doing.slice(1)}:\n${a.length ? `${numbered(a)}\n` : ''}Limits:\n${l.map((x) => `- ${x}`).join('\n')}`;
   }
 
-  window.HCCodeAsks = { MIN_ASKS, MOST_ASKS, LONGEST_REQUEST, split, numbered, checklist, isAsk: asking };   // isAsk: whether one piece asks for something (js/code/added.js)
+  /** The checklist for a request, from its own words, or ''. */
+  const checklistOf = (request) => { const it = itemsOf(request); return checklist(it.asks, it.limits); };
+
+  window.HCCodeAsks = { MIN_ASKS, MIN_ITEMS, MOST_ASKS, LONGEST_REQUEST, split, limitsOf, itemsOf, numbered, checklist, checklistOf, isAsk: asking };   // isAsk: whether one piece asks for something (js/code/added.js)
 })();

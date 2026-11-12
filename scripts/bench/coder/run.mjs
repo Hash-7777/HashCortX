@@ -1042,7 +1042,8 @@ async function smoke() {
     [row.failedEdits > 0, 'an edit failed'],
     [row.looseEdits < 1, 'the edit written without the file\'s indentation did not land by adjusting it'],
     [!/no test has run since\. Run `npm test` now/.test(told), 'the agent was not sent back to prove its change'],
-    [!/before you finish, check your work against the request/.test(told), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
+    // A request with an ask and a limit is gone through item by item, each named (js/code/verify.js asksCheck); otherwise as a whole.
+    [!/before you finish, (?:check your work against the request|go through the request ask by ask:[\s\S]*- Do not change the tests\.)/.test(told), 'the agent, on a mid-sized model, was not sent back to check its work against the request'],
     [!/Checked after the last change: npm test passed|\bPROVEN\s+npm test passed/i.test(row.shown), 'the person was not told what was proven'],   // in the receipt's Proven row (js/run-view.js), or in italics where no receipt is drawn
     [row.pageErrors.length > 0, `the page threw: ${row.pageErrors.join('; ')}`],
   ].filter(([bad]) => bad).map(([, why]) => why);

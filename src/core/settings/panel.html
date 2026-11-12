@@ -515,7 +515,7 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
           <ul>
             <li>A model under 5B that does not run the tests has them run for it.</li>
             <li>A model on this computer under 15B is also sent back once to check its work against the request.</li>
-            <li>A request of several asks is gone through ask by ask.</li>
+            <li>A request's asks and limits ("do not…", "only…"), from two of them, are gone through one by one, each named.</li>
             <li>An answer from a model on this computer saying part of the work is not done is sent back to do it.</li>
             <li>A site it changed is read the way a browser would, and what the change made that will not work, or lets the page down, is sent back to be fixed. Problems the site already had are left alone.</li>
             <li>An answer that names a file the project does not have is sent back to find it.</li>

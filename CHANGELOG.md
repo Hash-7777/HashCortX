@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A request's limits join its checklist.** What a request rules out or
+  holds to ("do not touch the tests", "only edit index.html") is listed
+  with its asks, from two of them together instead of three asks, and
+  before HashCoder finishes it goes through each ask and each limit by
+  name: done or not, kept or not.
 - **HashCoder ranks the files a request needs by how rare its words are.**
   Before a request's first step on a large project, the files the app's
   search finds are ranked by the standard rare-word formula: a name few
