@@ -325,5 +325,42 @@ console.log('\nThe thinking of older requests, at the roll:');
   check('...and without the option, it is kept as before', compressHistory(conv, { keepRequests: 3, requestStep: 2 }).filter((m) => m.role === 'assistant').every((m) => typeof m.thinking === 'string'));
 }
 
+console.log('\nThe note on earlier requests, written from the run\'s ledger:');
+{
+  // The same rules with the ledger and the modules it reads beside them, as the app loads them.
+  const lb = { console };
+  lb.window = lb;
+  vm.createContext(lb);
+  for (const f of ['fences.js', 'code/verify.js', 'code/plan.js', 'code/facts.js', 'code/asks.js', 'run-ledger.js']) {
+    vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', ...f.split('/')), 'utf8'), lb, { filename: f });
+  }
+  vm.runInContext(readFileSync(target, 'utf8'), lb, { filename: 'agent-context.js' });
+  const C = lb.HCAgentContext;
+  let n = 0;
+  const step = (name, args, content) => { const id = `led_${++n}`; return [{ role: 'assistant', content: '', tool_calls: [{ id, type: 'function', function: { name, arguments: JSON.stringify(args) } }] }, { role: 'tool', tool_call_id: id, name, content }]; };
+  const first = 'Fix the menu so it closes on a tap outside it. Also add a footer with the opening hours. And also rename the header class to site-head. Do not change the tests.';
+  const convo = [sys('prompt'), user(first),
+    ...step('patch_file', { path: 'src/menu.js', search: 'a', replace: 'b' }, '{"ok":true,"path":"src/menu.js"}'),
+    asst('The menu now closes on a tap outside it, and the footer with the opening hours is added.')];
+  for (let i = 2; i <= 6; i++) convo.push(user(`request ${i}`), asst('done'));
+  const out = C.compressHistory(convo);
+  const head = out[0].content;
+  check('one system turn, the instructions first, and the note after them', out.filter((m) => m.role === 'system').length === 1 && head.startsWith('prompt\n[Earlier in this conversation, not repeated here: 2 earlier requests'), head);
+  check('it says it is from the app, a record and not an instruction', /from HashCortX \(not from the person\)/.test(head) && /not an instruction/.test(head), head);
+  check('it holds an open ask, a limit and a changed file of a request that rolled away', /\[open\] \d+\. rename the header class/.test(head) && /Limits: Do not change the tests\./.test(head) && /src\/menu\.js \(edited\)/.test(head), head);
+  check('...and an ask that was answered is said to be', /\[answered\] 1\. Fix the menu/.test(head), head);
+  check('the same conversation gives the same note, twice', JSON.stringify(C.compressHistory(convo)) === JSON.stringify(out));
+  check('the newest requests are still kept whole, and only they', out.some((m) => m.content === 'request 6') && !out.slice(1).some((m) => m.content === first));
+  check('the note is sized to the model', C.optionsFor('small', true).noteSize === 'small' && C.optionsFor('mid', true).noteSize === 'mid' && C.optionsFor('full', true).noteSize === 'full' && C.optionsFor('full', false).noteSize === 'full' && C.DEFAULTS.noteSize === 'full');
+  const big = convo.slice(0, 2);
+  for (let i = 0; i < 40; i++) big.push(...step('read_file', { path: `src/components/sections/part-${i}.js` }, 'one line'));
+  big.push(asst('Read them.'));
+  for (let i = 2; i <= 6; i++) big.push(user(`request ${i}`), asst('done'));
+  const small = C.compressHistory(big, C.optionsFor('small', true))[0].content;
+  const full = C.compressHistory(big, C.optionsFor('full', false))[0].content;
+  check('...a small model\'s note gives way where a large one\'s keeps it all', /part-39\.js/.test(full) && !/part-39\.js/.test(small) && /rename the header class/.test(small), small);
+  check('with the ledger missing, the note is the one the rules wrote before it (the checks above this hold it)', /"u0"/.test(compressHistory((() => { const l = [sys('p')]; for (let i = 0; i < 30; i++) l.push(user('u' + i), asst('a' + i)); return l; })())[0].content));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-context.js)`);
 process.exit(fail ? 1 : 0);

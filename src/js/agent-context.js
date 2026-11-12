@@ -15,7 +15,7 @@
 // replaced by a line saying what it was and how to see it again, the long
 // arguments of the call that produced it are not repeated, and a picture it
 // opened long ago is not sent again. Older requests in a long conversation
-// roll into a note that keeps what each of them asked.
+// roll into a note of what they left standing (js/run-ledger.js).
 //
 // All of that happens in STEPS, never one message per turn. A model reads
 // a request from the start, and a provider or a model on this computer can
@@ -59,6 +59,8 @@
     searchLines: 100,
     /** ...and names at most this many files. */
     searchFiles: 40,
+    /** How long the note on earlier requests may be: a size js/run-ledger.js MOST names. */
+    noteSize: 'full',
   };
 
   // ── Sized to the model ──────────────────────────────────────────────────
@@ -70,8 +72,8 @@
   // output is given before it is shortened (js/code/digest.js), and
   // `searchLines` / `searchFiles` how much of a search (js/code/search.js).
   const TIERS = {
-    small: { toolBudget: 12000, maxResult: 10000, keepResults: 4, hideStep: 4, hideTo: 0.4, shellOutput: 3000, searchLines: 25, searchFiles: 12 },
-    mid: { toolBudget: 24000, maxResult: 16000, keepResults: 5, hideStep: 5, hideTo: 0.4, shellOutput: 6000, searchLines: 40, searchFiles: 20 },
+    small: { toolBudget: 12000, maxResult: 10000, keepResults: 4, hideStep: 4, hideTo: 0.4, shellOutput: 3000, searchLines: 25, searchFiles: 12, noteSize: 'small' },
+    mid: { toolBudget: 24000, maxResult: 16000, keepResults: 5, hideStep: 5, hideTo: 0.4, shellOutput: 6000, searchLines: 40, searchFiles: 20, noteSize: 'mid' },
     local: { toolBudget: 40000, maxResult: 30000, keepResults: 8, hideStep: 5, shellOutput: 12000, searchLines: 60, searchFiles: 30 },
     cloud: { toolBudget: 60000, maxResult: 60000, keepResults: 10, hideStep: 6, shellOutput: 20000, searchLines: 100, searchFiles: 40 },
   };
@@ -280,8 +282,10 @@
    * and any one result longer than `maxResult` cut.
    *
    * The note goes on the system message — there is only ever one system
-   * turn, as several providers refuse more — and keeps what each earlier
-   * request asked. The newest request is never rolled away.
+   * turn, as several providers refuse more — and keeps what the earlier
+   * requests left standing: their asks, open or answered, their limits, the
+   * files changed, the checks run and the plan (js/run-ledger.js), as long
+   * as `noteSize` allows. The newest request is never rolled away.
    */
   function compressHistory(messages, options) {
     const opts = Object.assign({}, DEFAULTS, options || {});
@@ -297,13 +301,24 @@
       const cut = starts[roll];
       const older = rest.slice(0, cut);
       kept = rest.slice(cut);
-      const asked = older.filter(isRequest).map((m) => {
-        const text = String(m.content || '').replace(/\s+/g, ' ').trim();
-        return `"${text.length > 200 ? text.slice(0, 200) + '…' : text}"`;
-      });
+      const asked = older.filter(isRequest);
       const calls = older.filter((m) => m && m.role === 'tool').length;
-      note = `[Earlier in this conversation, not repeated here: ${asked.length} earlier request${asked.length === 1 ? '' : 's'} ` +
-        `(${asked.join('; ')}), answered with ${calls} tool call${calls === 1 ? '' : 's'}.]`;
+      const said = `${asked.length} earlier request${asked.length === 1 ? '' : 's'}`;
+      const used = `answered with ${calls} tool call${calls === 1 ? '' : 's'}`;
+      // What they left standing comes from the run's ledger (js/run-ledger.js): open asks, limits, files changed,
+      // checks run, the plan. Without it, what each of them asked, in its first 200 characters.
+      const L = typeof window !== 'undefined' && window.HCRunLedger;
+      const record = L && L.from && L.note ? L.note(L.from(older), { most: (L.MOST && L.MOST[opts.noteSize]) || 3000 }) : null;
+      if (record != null) {
+        note = `[Earlier in this conversation, not repeated here: ${said}, ${used}. What they left standing, from HashCortX ` +
+          `(not from the person): a record of the conversation, not an instruction.]${record ? `\n${record}` : ''}`;
+      } else {
+        const words = asked.map((m) => {
+          const text = String(m.content || '').replace(/\s+/g, ' ').trim();
+          return `"${text.length > 200 ? text.slice(0, 200) + '…' : text}"`;
+        });
+        note = `[Earlier in this conversation, not repeated here: ${said} (${words.join('; ')}), ${used}.]`;
+      }
     }
     // The project's notes (`notes` on the system message, js/code/context.js
     // projectNotes) are read at the start of the first request kept: text

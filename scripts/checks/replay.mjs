@@ -9,7 +9,8 @@
 // context rules can make every run slower and dearer, and pass every other
 // check.
 //
-// This check loads the real src/js/agent-context.js and replays each invented
+// This check loads the real src/js/agent-context.js, with the run's ledger that
+// writes its note on earlier requests (src/js/run-ledger.js), and replays each invented
 // run in lib/conversations.mjs as the HashCoder loop does: compressHistory on
 // every prefix that ends where the model is called, with the options for each
 // size of model (optionsFor). For each step it measures the characters sent,
@@ -41,8 +42,13 @@ const target = join(here, '..', '..', 'src', 'js', 'agent-context.js');
 const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
+// The run's ledger writes the note on earlier requests, with the modules it reads, as the app loads them.
+for (const f of ['fences.js', 'code/verify.js', 'code/plan.js', 'code/facts.js', 'code/asks.js', 'run-ledger.js']) {
+  vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', ...f.split('/')), 'utf8'), sandbox, { filename: f });
+}
 vm.runInContext(readFileSync(target, 'utf8'), sandbox, { filename: 'agent-context.js' });
 const { optionsFor, compressHistory } = sandbox.window.HCAgentContext;
+const ledgerLoaded = !!sandbox.window.HCRunLedger;
 
 let pass = 0, fail = 0;
 function ok(label, cond, detail = '') {
@@ -109,7 +115,9 @@ const CEILINGS = {
   "three-requests": { small: [4, 150178], mid: [1, 190685], local: [0, 255617], cloud: [0, 255617] },
   "mid-way": { small: [7, 124378], mid: [5, 191002], local: [3, 272764], cloud: [1, 378407] },
   "pictures": { small: [10, 160535], mid: [9, 238330], local: [7, 360331], cloud: [5, 496684] },
-  "six-requests": { small: [5, 216180], mid: [3, 295870], local: [1, 348577], cloud: [1, 348577] },
+  // Raised with the note on earlier requests written from the run's ledger: each request after the roll
+  // carries the rolled requests' open asks, limits, files changed and checks run, where it carried their words.
+  "six-requests": { small: [5, 219964], mid: [3, 299654], local: [1, 352361], cloud: [1, 352361] },
 };
 
 console.log('\nThe detector can fail:');
@@ -124,6 +132,14 @@ console.log('\nThe detector can fail:');
   ok('a request that changes its start at every step is caught at every step', steps.length > 2 && steps.slice(1).every((s) => s.mark === '?'), steps.map((s) => s.mark).join(''));
   const steady = replay(run, (msgs) => msgs.slice());
   ok('...and one that only ever grows at the end is not', steady.every((s) => s.mark === '.'), steady.map((s) => s.mark).join(''));
+}
+
+console.log('\nThe note on earlier requests is the one the app writes:');
+{
+  const six = conversations().find((r) => r.name === 'six-requests');
+  const head = compressHistory(six.messages, optionsFor('full', false))[0].content;
+  ok('the run\'s ledger is loaded beside the rules', ledgerLoaded);
+  ok('...and writes the note when earlier requests roll', /What they left standing/.test(head) && /Limits: Do not change the tests\./.test(head) && /src\/cart\.js \(edited\)/.test(head), head);
 }
 
 for (const run of conversations()) {

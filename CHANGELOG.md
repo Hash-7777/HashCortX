@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A long HashCoder conversation keeps what its earlier requests left
+  standing.** When earlier requests are taken out of what the model is
+  shown, the note in their place lists each one's asks, open or answered,
+  what it said to leave as it is, the files changed, the checks run and
+  whether they passed, and the steps of the model's plan, sized to the
+  model. The note is worked out from the conversation alone, so the same
+  conversation always gives the same note.
 - **HashCoder's export for debugging says how often a run was sent back.**
   For each reason a run was sent back before it finished, the export gives
   how many times, and after how many of those the model changed a file or
