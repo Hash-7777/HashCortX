@@ -80,7 +80,7 @@ HashCortX/
 │   │   │                            with each model's limits
 │   │   ├── cloud-catalogue.js  113  keeping those lists, and what each provider
 │   │   │                            answered last time
-│   │   ├── model-limits.js       287  how long an answer each request asks for, and
+│   │   ├── model-limits.js     287  how long an answer each request asks for, and
 │   │   │                            the limits a provider names when it refuses
 │   │   ├── cloud-model-memory.js 150 the model list a provider gave last time,
 │   │   │                            and when to ask again after it failed
@@ -126,7 +126,7 @@ HashCortX/
 │   │   ├── tool-text.js        559  a tool call a model wrote in its words, in
 │   │   │                            each of the ways local models write one,
 │   │   │                            its JSON broken by a file's text included
-│   │   ├── model-profile.js      166  what each model family needs: whether it
+│   │   ├── model-profile.js    166  what each model family needs: whether it
 │   │   │                            thinks, whether its thinking goes back
 │   │   │                            with tool work, the sampling it takes
 │   │   ├── agent-shape.js      781  images, tools and tool results per provider,
