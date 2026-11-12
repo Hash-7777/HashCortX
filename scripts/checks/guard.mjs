@@ -878,7 +878,7 @@ console.log('\nInstalling a package:');
   guard.endRun();
   guard.setMode('edits');
   const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
-  assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
+  assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n[^\n]*\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
 }
 
 console.log('\nAn install of the npm family, without its install scripts:');
@@ -898,6 +898,24 @@ console.log('\nAn install of the npm family, without its install scripts:');
 
   assert('HashCoder runs it with the install scripts left out', /if \(ok === 'no-scripts'\) args = \[\.\.\.args, '--ignore-scripts'\];/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools));
   assert('...and the guard makes the button beside Allow once, hidden until offered', /b\.textContent = 'Allow without install scripts';/.test(src) && /b\.hidden = true;/.test(src) && /onceBtn\.parentNode\.insertBefore\(b, onceBtn\)/.test(src));
+}
+
+console.log('\nA command that throws work away:');
+{
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.setMode('auto');
+  guard.setChecks({});
+  guard.beginRun();
+  answer = 'allow-session';
+  const detail = { command: 'git', args: ['reset', '--hard'], cwd: R, destroys: true };
+  await check('it asks, in Auto too', () => guard.request('shell', `git reset --hard (in ${R})`, 'Undo cannot put back what this changes.', detail), ASKED);
+  await check('...and again the next time, a yes never kept for the session', () => guard.request('shell', `git reset --hard (in ${R})`, 'Undo cannot put back what this changes.', detail), ASKED);
+  assert('...with no Allow for session offered', sessionHiddenWhenAsked === true);
+  guard.endRun();
+  guard.setMode('edits');
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('HashCoder tells one apart before a command is wrapped to run, and says Undo cannot put it back', /const destroys = window\.HCCodePermissions\?\.destroys\?\.\(command, args\);/.test(tools) && /if \(destroys\) reason = `Undo cannot put back what this changes\.\$\{reason \? ` \(\$\{reason\}\)` : ''\}`;/.test(tools) && /\.\.\.\(destroys \? \{ destroys: true \} : \{\}\)/.test(tools));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (${guardPath.replace(/.*\/HashCortX\//, '')})`);

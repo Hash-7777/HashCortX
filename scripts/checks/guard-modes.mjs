@@ -346,7 +346,7 @@ console.log('\nWhere it is wired:');
   const guardText = guardSrc;
   const hash = source('platform', 'tauri', 'hashcoder.js');
   const mode = source('modes', 'code', 'mode.js');
-  ok('a command is given to the guard as a program, its arguments and its folder, not only as a line', /request\('shell', shown, reason, \{ command, args, cwd, \.\.\.\(install \? \{ install: true, npm: install\.npm \} : \{\}\) \}\)/.test(hash));
+  ok('a command is given to the guard as a program, its arguments and its folder, not only as a line', /request\('shell', shown, reason, \{ command, args, cwd, \.\.\.\(install \? \{ install: true, npm: install\.npm \} : \{\}\), \.\.\.\(destroys \? \{ destroys: true \} : \{\}\) \}\)/.test(hash));
   ok('a command let through as a check runs with the network closed, in both ways a command runs', /offline,? onChunk: channel/.test(hash) && /cancelKey: HC\.code\.shellCancelKey, offline \}/.test(hash));
   ok('the mode applies only while a run is going', /return _run \? _mode : 'edits'/.test(guardText));
   ok('Auto is judged only inside a run, and only for a command', /action === 'shell' && _run && _mode === 'auto' && detail && modes\(\)/.test(guardText));

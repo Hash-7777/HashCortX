@@ -495,8 +495,50 @@
     return ['Installing a package runs its code on this computer.', ...lines].join('\n');
   }
 
+  // ── A command that throws work away ──────────────────────────────────
+  //
+  // Undo puts back a file HashCoder's own tools changed. It cannot put back
+  // what a command throws away: changes git discards, a branch or stash
+  // dropped, history overwritten on a remote, a folder or many files
+  // removed, a database reset. Such a command is asked about every time.
+
+  /**
+   * Whether a command throws away work Undo cannot put back: git's reset
+   * --hard, clean with -f, checkout or restore of files, stash drop or
+   * clear, branch -D, a forced push; rm of a folder or more than five
+   * paths, rmdir, del or rd with /s, Remove-Item -Recurse; find -delete;
+   * truncate; and a database reset or a DROP in an argument.
+   */
+  function destroys(command, args = []) {
+    const prog = String(command || '').split(/[\\/]/).pop().toLowerCase().replace(/\.(?:exe|cmd|bat|ps1)$/, '');
+    const a = (Array.isArray(args) ? args : []).map(String);
+    const flags = a.filter((w) => w.startsWith('-'));
+    const words = a.filter((w) => !w.startsWith('-'));
+    const has = (...f) => f.some((x) => a.includes(x));
+    if (prog === 'git') {
+      const [sub, ...rest] = words;
+      if (sub === 'reset') return has('--hard', '--merge', '--keep');
+      if (sub === 'clean') return flags.some((f) => /^-[a-z]*f/i.test(f) || f === '--force');
+      if (sub === 'checkout') return a.includes('--') || rest.includes('.');   // paths after --, or everything: a branch name alone is not told from a file by its shape
+      if (sub === 'restore') return !has('--staged', '-S') || has('--worktree', '-W');
+      if (sub === 'stash') return rest[0] === 'drop' || rest[0] === 'clear';
+      if (sub === 'branch') return has('-D') || (has('-d', '--delete') && has('-f', '--force'));
+      if (sub === 'push') return flags.some((f) => /^-[a-z]*f/i.test(f) || f.startsWith('--force') || f === '--mirror' || f === '--delete') || rest.some((r) => r.startsWith('+') || r.startsWith(':'));
+      return false;
+    }
+    if (prog === 'rm') return flags.some((f) => /^-[a-z]*r/i.test(f) || f === '--recursive') || words.length > 5;
+    if (prog === 'rmdir' || prog === 'rd') return true;
+    if (prog === 'del' || prog === 'erase') return a.some((w) => /^\/s$/i.test(w)) || words.filter((w) => !w.startsWith('/')).length > 5;
+    if (prog === 'remove-item' || prog === 'ri') return a.some((w) => /^-r(?:ecurse)?$/i.test(w)) || words.length > 5;
+    if (prog === 'find') return a.includes('-delete');
+    if (prog === 'truncate') return true;
+    const line = a.join(' ');
+    if (/\b(?:migrate:?\s*(?:reset|fresh|refresh)|db:(?:drop|reset|schema:load)|db\s+(?:drop|reset)|flush|dropdb)\b/i.test(`${prog} ${line}`)) return true;
+    return /\bdrop\s+(?:database|table|schema)\b/i.test(line);
+  }
+
   window.HCCodePermissions = {
     MODES, IDS, KEY, BLOCKS_BEFORE_ASKING_ALL, STREAK_BEFORE_ASKING,
-    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf, installLines,
+    readMode, writeMode, freeInProject, insideRoot, shellVerdict, autoDecision, createRun, aliases, installOf, installLines, destroys,
   };
 })();

@@ -364,5 +364,22 @@ console.log('\nWhat an install question says:');
   ok('a name is matched without its version, and without case where the installer ignores case', py.includes('Flask: already in this project, you named it'), py);
 }
 
+console.log('\nA command that throws work away:');
+{
+  const D = box.window.HCCodePermissions.destroys;
+  const yes = (l) => { const [c, ...a] = l.split(' '); return !!(D && D(c, a)); };
+  const destroying = ['git reset --hard', 'git reset --hard HEAD~2', 'git clean -fd', 'git clean -xdf', 'git checkout -- src/app.js', 'git checkout .', 'git restore src/app.js', 'git restore .',
+    'git stash drop', 'git stash clear', 'git branch -D old-work', 'git push --force', 'git push -f origin main', 'git push --force-with-lease', 'git push origin +main',
+    'rm -r build', 'rm -rf dist', 'rm a.txt b.txt c.txt d.txt e.txt f.txt', 'rmdir old', 'find . -name *.log -delete', 'truncate -s 0 data.db',
+    'npx prisma migrate reset', 'rails db:drop', 'python manage.py flush', 'psql -c DROP DATABASE shop', 'mysql -e DROP TABLE orders', 'del /s /q build', 'rd /s /q build', 'Remove-Item -Recurse dist'];
+  const missed = destroying.filter((l) => !yes(l));
+  ok('each kind is told apart', missed.length === 0, missed.join('; '));
+  const kept = ['git status', 'git reset', 'git reset --soft HEAD~1', 'git restore --staged src/app.js', 'git checkout main', 'git checkout -b new-work', 'git stash', 'git stash pop', 'git branch -d merged',
+    'git push', 'git push origin main', 'git clean -n', 'rm a.txt', 'rm a.txt b.txt', 'find . -name *.log', 'npm test', 'npx prisma migrate dev', 'psql -c SELECT 1'];
+  const held = kept.filter((l) => yes(l));
+  ok('...and what keeps the work, or touches a few files, is not one', held.length === 0, held.join('; '));
+  ok('Auto never lets one through', ['git reset --hard', 'rm -rf dist', 'git clean -fd'].every((l) => { const [c, ...a] = l.split(' '); return verdict(c, a).auto === false; }));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/permissions.js)`);
 process.exit(fail ? 1 : 0);

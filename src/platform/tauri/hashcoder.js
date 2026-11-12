@@ -234,6 +234,7 @@
       if (looks) throw new Error(looks);
       // An install is told apart before the command is wrapped to run, and is asked about every time with what it installs (js/code/permissions.js).
       const install = window.HCCodePermissions?.installOf?.(command, args);
+      const destroys = window.HCCodePermissions?.destroys?.(command, args);   // work Undo cannot put back
       [command, args] = throughCmd(command, Array.isArray(args) ? args : [], { windows: /^windows$/i.test(String(HC.code.platform?.os || '')) });
       // A command given no folder runs in the open project, as the tool says.
       cwd = cwd || HC.guard.projectRoot?.() || null;
@@ -246,7 +247,8 @@
       // checks and into the audit log.
       const shown = cwd ? `${display} (in ${cwd})` : display;
       if (install) reason = await HC.code.installReason(install, reason);
-      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd, ...(install ? { install: true, npm: install.npm } : {}) });
+      if (destroys) reason = `Undo cannot put back what this changes.${reason ? ` (${reason})` : ''}`;
+      const ok = await HC.guard.request('shell', shown, reason, { command, args, cwd, ...(install ? { install: true, npm: install.npm } : {}), ...(destroys ? { destroys: true } : {}) });
       if (!ok) throw new Error(`Permission denied: shell ${shown}. ${HC.code.whyNo('shell', shown)}`);
       if (ok === 'no-scripts') args = [...args, '--ignore-scripts'];   // allowed without its install scripts
       // A check let through without a question runs with the network closed (js/code/permissions.js).
