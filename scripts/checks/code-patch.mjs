@@ -30,6 +30,7 @@ sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'text-safety.js'), sandbox, { filename: 'text-safety.js' });
 vm.runInContext(src('js', 'code', 'patch.js'), sandbox, { filename: 'patch.js' });
+vm.runInContext(src('js', 'code', 'line-endings.js'), sandbox, { filename: 'line-endings.js' });
 // The shared line diff, which patch_file reads its changed lines from, loaded as in the app.
 vm.runInContext(src('js', 'diff.js'), sandbox, { filename: 'diff.js' });
 const P = sandbox.HCCodePatch;
@@ -370,6 +371,27 @@ console.log('\npatch_file writes back the whole file:');
   ok('a new file is saved as written, with no note', writes.at(-1).content === 'a\nb\n' && !('lineEndings' in plain));
   ok('Undo records the file as each write left it, after the write', sealed.at(-1)?.path === '/p/new.txt' && sealed.at(-1)?.content === 'a\nb\n'
     && sealed.some((x) => x.path === '/p/app.config' && x.content === 'uno\r\ndos\r\ntres\r\n'));
+  // A new file in a project that says it uses CRLF takes them (js/code/line-endings.js), read without asking.
+  HC.guard.projectRoot = () => '/p';
+  HC.guard.allowedWithoutAsking = async () => true;
+  disk.set('/p/.gitattributes', '*.cs text eol=crlf\n');
+  const made = JSON.parse(await code.writeFile('/p/src/New.cs', 'class N\n{\n}\n'));
+  ok('a new file in a project whose .gitattributes says CRLF is written with CRLF, and the model is told why', writes.at(-1).content === 'class N\r\n{\r\n}\r\n' && /CRLF[\s\S]*\.gitattributes/.test(made.lineEndings || ''), JSON.stringify(made));
+  JSON.parse(await code.writeFile('/p/src/notes.md', 'a\nb\n'));
+  ok('...and one it does not name is written as written', writes.at(-1).content === 'a\nb\n');
+  JSON.parse(await code.writeFile('/p/src/Other.cs', 'a\r\nb\n'));
+  ok('...and text that carries a CR is left as the model wrote it', writes.at(-1).content === 'a\r\nb\n');
+  const capture = HC.undo.capture;
+  HC.undo.capture = async (path) => ({ id: 'c2', path, existed: false, content: null, unrestorable: 'the previous contents could not be saved' });
+  JSON.parse(await code.writeFile('/p/src/Unknown.cs', 'a\nb\n'));
+  ok('...and a file Undo could not look at is not taken for a new one', writes.at(-1).content === 'a\nb\n');
+  HC.undo.capture = capture;
+  HC.guard.allowedWithoutAsking = async () => false;
+  JSON.parse(await code.writeFile('/p/src/Third.cs', 'a\nb\n'));
+  ok('...and where the app may not read without asking, nothing is read and nothing changes', writes.at(-1).content === 'a\nb\n');
+  disk.delete('/p/.gitattributes');
+  delete HC.guard.projectRoot;
+  delete HC.guard.allowedWithoutAsking;
   const page = Array.from({ length: 40 }, (_, i) => `<p>line ${i}</p>`).join('\n') + '\n';
   const redone = Array.from({ length: 40 }, (_, i) => `<div>row ${i}</div>`).join('\n') + '\n';
   disk.set('/p/index.html', page);

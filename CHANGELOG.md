@@ -30,6 +30,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A new file takes the line endings the project uses.** When HashCoder
+  creates a file, it writes it with CRLF if the project's `.gitattributes`
+  says so for that file, or else its `.editorconfig`, or else most of the
+  files beside it, and tells the model where that came from. A file marked
+  binary there, text the model wrote with a CR, and a project that says
+  nothing are written as the model wrote them. Only the settings files in
+  the project folder are read, not ones in its folders.
 - **A file rewritten whole keeps its byte-order mark.** When HashCoder
   replaces a file that started with one, the mark is put back at the start,
   as a file's Windows line endings already were, and the model is told so.

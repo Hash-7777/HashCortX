@@ -92,6 +92,13 @@
         || { text: String(content), kept: false };
       const mark = window.HCCodePatch?.keepMark?.(before, lines.text) || { text: lines.text, kept: false };
       const ends = { text: mark.text, kept: lines.kept };
+      // A new file takes the line endings the project uses, read without asking (js/code/line-endings.js).
+      let madeFrom = '';
+      if (record && !record.existed && !record.unrestorable && window.HCCodeLineEndings && ends.text.includes('\n') && !ends.text.includes('\r')) {
+        const at = await window.HCCodeLineEndings.forNewFile(fromProject(path), projectRoot(), { read: (p) => HC.code.readQuietly(p), list: (d) => HC.code.listQuietly(d) });
+        const out = window.HCCodeLineEndings.apply(ends.text, at.eol);
+        if (out.changed) { ends.text = out.text; madeFrom = at.from; }
+      }
       // A write of what the file already holds changes nothing, and is not counted as a change: a patch whose replace was
       // its search was written, shown with Keep and Undo, and the model said it had updated the file.
       if (before != null && ends.text === before) {
@@ -112,6 +119,7 @@
       const removed = window.HCCodeKeep?.note(path.split(/[\\/]/).pop() || path, before, ends.text, HC.code.request) || '';
       return JSON.stringify({ ok: true, path, bytes: new TextEncoder().encode(ends.text).length,
         ...(ends.kept ? { lineEndings: 'kept as CRLF, as the file had them. To change a file\'s line endings on purpose, use shell_run.' } : {}),
+        ...(madeFrom ? { lineEndings: `written with CRLF, which this project uses (from ${madeFrom}).` } : {}),
         ...(mark.kept ? { byteOrderMark: 'the file started with a byte-order mark, so it was kept there.' } : {}),
         ...(bare.note ? { unwrapped: bare.note } : {}),
         ...(check ? { check } : {}), ...(removed ? { removed } : {}) });
