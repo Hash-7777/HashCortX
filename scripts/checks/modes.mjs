@@ -318,6 +318,12 @@ console.log('\nWords that fit any computer, not only a Mac:');
   const settings = read('core/settings/panel.html');
   const app = read('js/app.js');
   check('the connection settings and the local preset say this computer, not this Mac', !/Your Mac|My Mac/.test(settings) && /This computer \(127\.0\.0\.1\)/.test(settings) && /label: "Local \(this computer\)"/.test(app) && !/this Mac\)/.test(app));
+  const windowsHelp = settings.match(/<details class="set-more" id="cdrWindowsSpeed">[\s\S]*?<\/details>/)?.[0] || '';
+  check('HashCoder\'s settings say how to make builds and tests faster on Windows, as the person\'s own choice the app never makes for them',
+    /<summary>On Windows: faster installs, builds and tests<\/summary>/.test(windowsHelp)
+    && /virus scanner/.test(windowsHelp) && /developer drive/.test(windowsHelp) && /Excluding the project folder from the scanner/.test(windowsHelp)
+    && /your choice to make, in Windows' own settings/.test(windowsHelp) && /HashCortX never changes it for you/.test(windowsHelp)
+    && !/Defender|Microsoft/.test(windowsHelp), windowsHelp.slice(0, 120));
   const forgeHelp = read('modes/forge/panel.html').match(/<div class="frg-help">[^\n]*/)?.[0] || '';
   check('Forge\'s help names Ctrl off a Mac', /<b data-key="Ctrl\+Z">&#8984;Z<\/b> undo/.test(forgeHelp) && /<b data-key="Ctrl\+Y">/.test(forgeHelp)
     && /document\.querySelectorAll\("\.frg-help \[data-key\]"\)\.forEach\(\(b\) => \{ b\.textContent = b\.dataset\.key; \}\)/.test(read('modes/forge/mode.js')));

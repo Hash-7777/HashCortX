@@ -480,6 +480,14 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
       <div class="set-sec">How it works</div>
       <div class="field">
         <div class="field-note">The model is chosen in the HashCoder bar. Models smaller than 7B often stop early or skip steps; use 7B or larger for real work.</div>
+        <details class="set-more" id="cdrWindowsSpeed">
+          <summary>On Windows: faster installs, builds and tests</summary>
+          <ul>
+            <li>Windows' built-in virus scanner checks files as they are opened and written. A project's folders of dependencies and builds hold many of them, so installs, builds and tests run slower there.</li>
+            <li>Keeping your projects on a developer drive, a drive Windows sets up for code, lets the scanner check them without holding up each file as it is opened or written. Excluding the project folder from the scanner has them not checked at all.</li>
+            <li>Both protect less, so each is your choice to make, in Windows' own settings. HashCortX never changes it for you.</li>
+          </ul>
+        </details>
       </div>
       <div class="field">
         <label for="cdrSetLight">Light mode <span class="field-note">A small model writes whole files in plain words and HashCortX does the tool work for it: each file still asks before it is written, can be undone, and the tests are run for it.</span></label>

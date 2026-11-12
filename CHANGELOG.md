@@ -30,6 +30,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **Settings say how to make work on Windows faster.** Under HashCoder,
+  "On Windows: faster installs, builds and tests" explains that Windows'
+  built-in virus scanner slows a project's folders of dependencies and
+  builds, and what a developer drive or excluding the project folder would
+  change. Both protect less, so they are left to you, in Windows' own
+  settings; HashCortX never changes them.
 - **On Windows and Linux, a command's question says it cannot be fenced
   in.** Those systems have no sandbox around the agent's commands, as macOS
   does, so the question for a command says so on a line of its own: once it
