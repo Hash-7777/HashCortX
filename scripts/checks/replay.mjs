@@ -86,7 +86,9 @@ function requestsOf(run, compress) {
     if (!m || m.role !== 'assistant') return;
     const note = run.notes && run.notes[out.length];
     const prefix = run.messages.slice(0, i);
-    out.push({ req: compress(note ? [...prefix, { role: 'user', content: note, note: true }] : prefix), noted: !!note });
+    const last = prefix[prefix.length - 1];
+    const first = !!last && last.role === 'user' && !last.added && !last.note && !last.opened;   // the first model call of a request
+    out.push({ req: compress(note ? [...prefix, { role: 'user', content: note, note: true }] : prefix), noted: !!note, first });
   });
   return out;
 }
@@ -95,13 +97,13 @@ function requestsOf(run, compress) {
 function replay(run, compress) {
   const steps = [];
   let prev = null;
-  for (const { req, noted } of requestsOf(run, compress)) {
+  for (const { req, noted, first } of requestsOf(run, compress)) {
     const chars = JSON.stringify(req).length;
     let mark = '.';
     if (prev && !(prev.req.length <= req.length && prev.req.every((m, j) => same(m, req[j])))) {
       mark = hiddenIn(req) > hiddenIn(prev.req) ? 'H' : rolledIn(req) > rolledIn(prev.req) ? 'R' : prev.noted ? 'N' : '?';
     }
-    steps.push({ chars, mark });
+    steps.push({ chars, mark, first });
     prev = { req, noted };
   }
   return steps;
@@ -138,6 +140,11 @@ console.log('\nThe detector can fail:');
   ok('a request that changes its start at every step is caught at every step', steps.length > 2 && steps.slice(1).every((s) => s.mark === '?'), steps.map((s) => s.mark).join(''));
   const steady = replay(run, (msgs) => msgs.slice());
   ok('...and one that only ever grows at the end is not', steady.every((s) => s.mark === '.'), steady.map((s) => s.mark).join(''));
+  // A stand-in that rolls earlier requests away at the sixth step of a forty-step request.
+  const long = conversations()[1];
+  const rolling = (msgs) => (msgs.length > 14 ? [msgs[0], { role: 'user', content: '[Earlier in this conversation, not repeated here: 1 earlier request]', note: true, rolled: true }, ...msgs.slice(1)] : msgs.slice());
+  const midRoll = replay(long, rolling);
+  ok('...and a roll in the middle of a request is told apart from one as a request begins', midRoll.some((s) => s.mark === 'R' && !s.first) && replay(conversations()[5], (msgs) => compressHistory(msgs, optionsFor('full', false))).filter((s) => s.mark === 'R').every((s) => s.first), midRoll.map((s) => s.mark).join(''));
 }
 
 console.log('\nThe note on earlier requests is the one the app writes:');
@@ -166,6 +173,7 @@ for (const run of conversations()) {
     if (process.env.REPLAY_STEPS) steps.forEach((s, i) => console.log(`        ${size} step ${i + 1}: ${s.chars} ${s.mark}`));
     console.log(`        ${size.padEnd(5)} ${marks}`);
     ok(`${size}: every rewrite has a declared reason`, !marks.includes('?'), marks);
+    ok(`${size}: earlier requests roll only as a new request begins, never mid-request`, steps.every((s) => s.mark !== 'R' || s.first), marks);
     const at = CEILINGS[run.name] && CEILINGS[run.name][size];
     if (!at) { ok(`${size}: a ceiling is recorded`, false, `none: measured ${rewrites} rewrites, ${chars} characters`); continue; }
     ok(`${size}: rewrite points at the ceiling`, rewrites === at[0], rewrites > at[0] ? `${rewrites}, ceiling ${at[0]}` : `${rewrites}, ceiling ${at[0]}: lower it to ${rewrites}`);

@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A long HashCoder conversation sets earlier requests aside only as a new
+  one begins.** A message sent while it works stays with the request it was
+  sent to, and never sets earlier requests aside in the middle of one. When
+  a large model's conversation comes near what it can read, earlier requests
+  are set aside at once, all but the one in work.
 - **A HashCoder model with a wide window is shown more of a long run.**
   When a provider's list gives a large model's window, how much tool output
   it is shown whole, and how long one result may be, follow that window, less

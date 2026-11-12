@@ -345,7 +345,7 @@ console.log('\nSized from what the model can take:');
   check('a small or mid model on this computer keeps its tier, whatever its window', json(optionsFor('small', true, { window: 1e6, charsPerToken: 3 })) === json(optionsFor('small', true)) && json(optionsFor('mid', true, { window: 1e6, charsPerToken: 3 })) === json(optionsFor('mid', true)));
   const wide = optionsFor('full', false, { window: 200000, answer: 8000, charsPerToken: 3, fixed: 20000 });
   check('a wide window shows more: its share of what it can read, less the instructions and tools', wide.toolBudget === 325600 && wide.maxResult === 108533, json([wide.toolBudget, wide.maxResult]));
-  check('...and only those two change', json({ ...wide, toolBudget: 0, maxResult: 0 }) === json({ ...optionsFor('full', false), toolBudget: 0, maxResult: 0 }));
+  check('...and only those, and where earlier requests roll whatever the count (below)', json({ ...wide, toolBudget: 0, maxResult: 0, rollAt: 0 }) === json({ ...optionsFor('full', false), toolBudget: 0, maxResult: 0, rollAt: 0 }));
   const narrow = optionsFor('full', false, { window: 8192, answer: 2048, charsPerToken: 3 });
   check('a narrow window never shows less than its tier', narrow.toolBudget === TIERS.cloud.toolBudget && narrow.maxResult === TIERS.cloud.maxResult, json([narrow.toolBudget, narrow.maxResult]));
   const perMinute = optionsFor('full', false, { window: 200000, answer: 8000, perMinuteIn: 12000, charsPerToken: 3 });
@@ -363,6 +363,31 @@ console.log('\nSized from what the model can take:');
   check('a large model on this computer is sized from its window too, never below its tier', local.toolBudget > TIERS.local.toolBudget && local.maxResult >= TIERS.local.maxResult, json([local.toolBudget, local.maxResult]));
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   check('HashCoder sizes what it shows from what the limits know of the model in use, with its instructions and tools counted', /optionsFor\(sharedState\.size, sharedState\.local, window\.HCModelLimits\?\.forContext\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| '', String\(msgs\[0\]\?\.content \|\| ''\)\.length \+ JSON\.stringify\(HC\?\.code\?\.TOOL_DEFINITIONS \|\| ''\)\.length\)\)/.test(mode));
+}
+
+console.log('\nEarlier requests roll at a natural stop:');
+{
+  let k = 0;
+  const callStep = () => { const id = `st_${++k}`; return [{ role: 'assistant', content: '', tool_calls: [{ id, type: 'function', function: { name: 'read_file', arguments: '{"path":"/p/a.js"}' } }] }, tool('line', id)]; };
+  const base = [sys('p')];
+  for (let i = 1; i <= 3; i++) base.push(user('r' + i), ...callStep(), asst('done'));
+  base.push(user('r4'), ...callStep());
+  const added = [...base, { role: 'user', content: 'also the footer', added: true }, ...callStep()];
+  const mid = compressHistory(added);
+  check('a message added while it works does not roll earlier requests away mid-request', !mid.some((m) => m && m.rolled) && mid.some((m) => m.content === 'r1'), JSON.stringify(mid.map((m) => m.content)));
+  const steps = [];
+  for (let i = base.length; i <= added.length; i++) if (!added[i - 1] || added[i - 1].role !== 'assistant') steps.push(compressHistory(added.slice(0, i)));
+  check('...so every step of that request starts the same', steps.every((s) => JSON.stringify(s.slice(0, 6)) === JSON.stringify(steps[0].slice(0, 6))));
+  const next = compressHistory([...added, asst('done'), user('r5')]);
+  check('the next request, after an answer, rolls them', /"r1"/.test(rolledOf(next)) && /"r2"/.test(rolledOf(next)) && next.some((m) => m.content === 'r3'), rolledOf(next));
+  check('...and the added message stays with the request it was added to, never a place to cut', next.some((m) => m.content === 'also the footer') && next.findIndex((m) => m.content === 'r4') < next.findIndex((m) => m.content === 'also the footer'));
+  check('the threshold is set only when the model\'s window is known, and only for a large model', !Number.isFinite(optionsFor('full', false).rollAt) && !Number.isFinite(optionsFor('small', true, { window: 1e6, charsPerToken: 3 }).rollAt)
+    && optionsFor('full', false, { window: 200000, answer: 8000, charsPerToken: 3 }).rollAt === Math.floor(192000 * 0.85 * 3));
+  const near = compressHistory(added, { rollAt: 200 });
+  check('past the threshold, earlier requests roll even mid-request, all but the one in work', /"r1"; "r2"; "r3"/.test(rolledOf(near)) && near.some((m) => m.content === 'r4') && near.some((m) => m.content === 'also the footer'), rolledOf(near));
+  check('...and every result still follows the call that asked for it', near.every((m, i) => m.role !== 'tool' || near.slice(0, i).some((p) => Array.isArray(p.tool_calls) && p.tool_calls.some((c) => c.id === m.tool_call_id))));
+  check('below it, nothing changes', JSON.stringify(compressHistory(added, { rollAt: 1e9 })) === JSON.stringify(mid));
+  check('a conversation of one request is never rolled, however long', !compressHistory([sys('p'), user('only'), ...callStep(), ...callStep()], { rollAt: 10 }).some((m) => m && m.rolled));
 }
 
 console.log('\nThe note on earlier requests, written from the run\'s ledger:');

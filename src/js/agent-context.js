@@ -53,6 +53,8 @@
     keepRequests: 3,
     /** Older requests roll into the note this many at a time. */
     requestStep: 2,
+    /** Characters past which earlier requests roll whatever the count, mid-request too; set from a known window (optionsFor). */
+    rollAt: Infinity,
     /** An argument longer than this, in a call whose result is hidden, is not repeated. */
     longArgument: 300,
     /** A search inside the files shows this many lines; past it, the files and how to narrow it (js/code/search.js). */
@@ -108,7 +110,8 @@
     if (!(usable > 0)) return out;
     const toolBudget = Math.min(Math.max(Math.floor(usable * 0.6 * chars) - pos(l.fixed), out.toolBudget), MOST_SHOWN);
     const maxResult = Math.max(out.maxResult, Math.min(out.maxResult * 2, Math.floor(toolBudget / 3)));
-    return Object.assign(out, { toolBudget, maxResult });
+    // Past eight and a half tenths of what it can read, earlier requests roll without waiting for a stop (compressHistory).
+    return Object.assign(out, { toolBudget, maxResult, rollAt: Math.floor(usable * 0.85 * chars) });
   }
 
   function truncateResult(content, keep) {
@@ -284,6 +287,17 @@
   // attached.
   const isRequest = (m) => !!m && m.role === 'user' && !m.opened && !m.note;
 
+  // Earlier requests roll at a natural stop: a request the person sent after
+  // an answer, or as the conversation began, not one added while the agent
+  // works (`added`, js/queue.js). Only such a request is counted and cut at,
+  // so a message added mid-run stays with the request in work, and requests
+  // roll only when a new one begins, which changes what is sent anyway.
+  const beginsAtStop = (rest, i) => {
+    const m = rest[i], prev = rest[i - 1];
+    if (!isRequest(m) || m.added) return false;
+    return !prev || isRequest(prev) || (prev.role === 'assistant' && !(Array.isArray(prev.tool_calls) && prev.tool_calls.length));
+  };
+
   /**
    * A request as the model reads it: the person's words, then what the app
    * adds for that request alone (`context`: the file open, remembered facts,
@@ -319,10 +333,14 @@
     const systemMsg = messages[0] && messages[0].role === 'system' ? messages[0] : null;
     const rest = systemMsg ? messages.slice(1) : messages.slice();
     const starts = [];
-    rest.forEach((m, i) => { if (isRequest(m)) starts.push(i); });
+    rest.forEach((m, i) => { if (beginsAtStop(rest, i)) starts.push(i); });
     let kept = rest;
     let note = '';
-    const roll = Math.min(inSteps(starts.length, opts.keepRequests, opts.requestStep), Math.max(0, starts.length - 1));
+    // Past `rollAt`, what would be sent with nothing rolled is near what the model can read: every request
+    // but the one in work rolls now, mid-request too.
+    const near = Number.isFinite(opts.rollAt) && starts.length > 1
+      && JSON.stringify(budgetToolResults(hideOldResults(rest.map(withContext), opts), opts)).length > opts.rollAt;
+    const roll = near ? starts.length - 1 : Math.min(inSteps(starts.length, opts.keepRequests, opts.requestStep), Math.max(0, starts.length - 1));
     if (roll) {
       const cut = starts[roll];
       const older = rest.slice(0, cut);
