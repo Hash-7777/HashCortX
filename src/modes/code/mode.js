@@ -1805,7 +1805,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         setStatus('Mapping the project…', 'thinking');
         const quiet = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) };
         sharedState.codeMap = size === 'full' ? { root, ...(await window.HCCodeMap.forProject(root, quiet).catch(() => ({ ranked: [], read: 0 }))) } : { root, ranked: [], read: 0, whole: await window.HCCodeContext.wholeProject(root, quiet, light ? 'mid' : size).catch(() => '') }; if (!sharedState.codeMap.whole) sharedState.codeMap.outline = await window.HCCodeContext.projectOutline(root, quiet, light ? 'small' : size, local).catch(() => '');   // and a project too large to show whole as an outline of its folders, for every size
-        cdrTraceAdd('Map', sharedState.codeMap.whole ? 'the whole project, shown' : `${sharedState.codeMap.read} files read, ${sharedState.codeMap.ranked.length} with definitions${sharedState.codeMap.outline ? ', folders outlined' : ''}`, 'ok');
+        cdrTraceAdd('Map', sharedState.codeMap.whole ? 'the whole project, shown' : `${sharedState.codeMap.read} files read${sharedState.codeMap.unchanged ? `, ${sharedState.codeMap.unchanged} unchanged since last time` : ''}, ${sharedState.codeMap.ranked.length} with definitions${sharedState.codeMap.outline ? ', folders outlined' : ''}`, 'ok');
       }
       if (size !== sharedState.size || local !== sharedState.local || light !== sharedState.light || mapped) {   // a cloud model is never given lessons a model on this computer kept
         sharedState.size = size; sharedState.local = local; sharedState.light = light;

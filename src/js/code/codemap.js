@@ -19,6 +19,12 @@
 // conversation and stays the same from one step to the next, so the start
 // of every request can still be reused.
 //
+// What was read is kept in memory for a few projects, by each file's size
+// and the time it last changed, as the folder listing gives them. On the
+// next conversation a file with the same size and time is not read again;
+// only what changed is. A file whose time the system cannot say, or that
+// could not be read, is always read. Limits are the same either way.
+//
 // Pure but for collect(), which is handed the functions that list and read.
 //
 // Loaded before the Coder mode and published as window.HCCodeMap.
@@ -235,12 +241,16 @@
   /**
    * The project's source files, read: `{ files: [{ path, lang, text }], dirs }`,
    * `path` from the top folder. `list(dir)` answers with a folder's entries
-   * (`{ name, is_dir, size }`) and `read(path)` with a file's text; anything
-   * either cannot answer is left out. Folders are walked nearest first, a
-   * few files are read at a time, and the project's own code is read before
-   * its tests.
+   * (`{ name, is_dir, size, modified }`) and `read(path)` with a file's text;
+   * anything either cannot answer is left out. Folders are walked nearest
+   * first, a few files are read at a time, and the project's own code is
+   * read before its tests. `before` is what was kept from the last time
+   * (`{ rel: { stamp, text } }`, a Map): a file with the same stamp is taken
+   * from it, not read. Also returns `read` and `unchanged`, how many files of
+   * the map were read and how many taken as they were, and `kept`, what to
+   * keep for next time.
    */
-  async function collect(root, { list, read }, limits = {}) {
+  async function collect(root, { list, read }, limits = {}, before = null) {
     const L = Object.assign({}, LIMITS, limits);
     const clock = typeof L.now === 'function' ? L.now : Date.now;
     const until = clock() + L.ms;
@@ -266,23 +276,33 @@
         const at = rel ? `${rel}/${e.name}` : e.name;
         if (e.name.startsWith('.') || SKIP.has(e.name.toLowerCase()) || ignored.names.has(e.name) || ignored.paths.has(at)) continue;
         if (e.is_dir) { if (depth < L.depth) queue.push({ dir: dir + sep + e.name, rel: at, depth: depth + 1 }); }
-        else if (langOf(e.name) && !(Number(e.size) > L.fileBytes)) found.push({ path: dir + sep + e.name, rel: at });
+        else if (langOf(e.name) && !(Number(e.size) > L.fileBytes)) found.push({ path: dir + sep + e.name, rel: at, stamp: Number(e.modified) > 0 ? `${Number(e.size) || 0}:${Number(e.modified)}` : '' });
       }
     }
     const chosen = found.filter((f) => !isTest(f.rel)).concat(found.filter((f) => isTest(f.rel))).slice(0, L.files);
     const files = [];
-    let chars = 0;
+    const kept = new Map();
+    let chars = 0, fresh = 0, unchanged = 0;
+    const was = (f) => { const k = f.stamp && before instanceof Map ? before.get(f.rel) : null; return k && k.stamp === f.stamp ? k : null; };
     for (let i = 0; i < chosen.length && chars < L.chars && clock() < until; i += 8) {
       const batch = chosen.slice(i, i + 8);
-      const texts = await Promise.all(batch.map((f) => Promise.resolve().then(() => read(f.path)).catch(() => null)));
-      batch.forEach((f, k) => {
-        const text = texts[k];
-        if (typeof text !== 'string' || chars >= L.chars || looksMinified(text)) return;
-        chars += text.length;
-        files.push({ path: f.rel, lang: langOf(f.rel), text });
+      const got = await Promise.all(batch.map((f) => {
+        const k = was(f);
+        if (k) return { text: k.text, minified: k.minified, again: true };
+        return Promise.resolve().then(() => read(f.path)).then((text) => ({ text, again: false }), () => null);
+      }));
+      batch.forEach((f, n) => {
+        const g = got[n];
+        if (!g || typeof g.text !== 'string') return;
+        const minified = g.again ? !!g.minified : looksMinified(g.text);
+        if (f.stamp) kept.set(f.rel, { stamp: f.stamp, text: g.text, minified });
+        if (chars >= L.chars || minified) return;
+        chars += g.text.length;
+        if (g.again) unchanged++; else fresh++;
+        files.push({ path: f.rel, lang: langOf(f.rel), text: g.text });
       });
     }
-    return { files, dirs };
+    return { files, dirs, read: fresh, unchanged, kept };
   }
 
   // ── Which files matter most ────────────────────────────────────────────
@@ -369,11 +389,26 @@
     return `${INTRO}\n<code-map>\n${lines.join('\n')}${rest}\n</code-map>`;
   }
 
-  /** The project at `root`, read and ranked: `{ ranked, read }`, `read` the number of files read. */
-  async function forProject(root, io, limits) {
-    const got = await collect(root, io, limits);
-    return { ranked: rank(got.files), read: got.files.length };
+  /** How many projects' files are kept in memory, the most recently mapped. */
+  const MOST_KEPT = 3;
+  /** What was read of each project, by its folder (collect). */
+  const KEPT = new Map();
+  /** `cache` cut to the MOST_KEPT projects mapped last. */
+  function keepWithin(cache) { while (cache.size > MOST_KEPT) cache.delete(cache.keys().next().value); return cache; }
+
+  /**
+   * The project at `root`, read and ranked: `{ ranked, read, unchanged }`,
+   * `read` the files of the map read now and `unchanged` those taken as they
+   * were from the last time.
+   */
+  async function forProject(root, io, limits, cache = KEPT) {
+    const key = String(root).replace(/[\\/]+$/, '');
+    const got = await collect(root, io, limits, cache.get(key) || null);
+    cache.delete(key);
+    cache.set(key, got.kept);
+    keepWithin(cache);
+    return { ranked: rank(got.files), read: got.read, unchanged: got.unchanged };
   }
 
-  window.HCCodeMap = { LANGS, LIMITS, SKIP, BUDGET, INTRO, langOf, definitions, paramNames, label, ignoredBy, collect, rank, notes, forProject };
+  window.HCCodeMap = { LANGS, LIMITS, SKIP, BUDGET, INTRO, MOST_KEPT, keepWithin, langOf, definitions, paramNames, label, ignoredBy, collect, rank, notes, forProject };
 })();

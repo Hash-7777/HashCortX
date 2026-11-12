@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **The project map reads again only what changed.** When a new
+  conversation begins on a project mapped earlier in the session, a file
+  with the same size and last-changed time is taken as it was, and only the
+  others are read. The run's trace says how many were read and how many were
+  unchanged. A model's own folder listing is as it was.
 - **A request's limits join its checklist.** What a request rules out or
   holds to ("do not touch the tests", "only edit index.html") is listed
   with its asks, from two of them together instead of three asks, and

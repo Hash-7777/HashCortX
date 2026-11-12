@@ -294,9 +294,37 @@ console.log('\nA project, read and ranked:');
   ok('says how many files it read, and ranks what they define: the file two others use first', got.read === 5 && got.ranked.map((f) => f.path).slice(0, 2).join() === 'src/app.js,src/util.js', `${got.read} ${got.ranked.map((f) => f.path).join(' ')}`);
 }
 
+console.log('\nOn the next conversation, only what changed is read again:');
+{
+  const files = Object.assign({}, FILES);
+  const times = {};
+  const fp = fakeProject(files);
+  const io = { list: async (dir) => (await fp.io.list(dir)).map((e) => (e.is_dir ? e : { ...e, modified: times[e.path] || 1000 })), read: fp.io.read };
+  const cache = new Map();
+  const first = await M.forProject('/q', { list: async (d) => io.list(d.replace('/q', '/p')).then((es) => es.map((e) => ({ ...e, path: e.path.replace('/p', '/q') }))), read: (f) => io.read(f.replace('/q', '/p')) }, undefined, cache);
+  ok('a project not seen before is read whole', first.read === 5 && first.unchanged === 0, JSON.stringify({ read: first.read, unchanged: first.unchanged }));
+  const at = (root) => ({ list: async (d) => io.list(d.replace(root, '/p')).then((es) => es.map((e) => ({ ...e, path: e.path.replace('/p', root) }))), read: (f) => io.read(f.replace(root, '/p')) });
+  fp.read.length = 0;
+  const again = await M.forProject('/q', at('/q'), undefined, cache);
+  ok('the same files with the same size and time are not read again, and rank the same', again.read === 0 && again.unchanged === 5 && fp.read.filter((r) => /\.(js|py)$/.test(r) && !r.includes('locked')).length === 0 && JSON.stringify(again.ranked) === JSON.stringify(first.ranked), JSON.stringify({ read: again.read, reads: fp.read }));
+  times['/p/src/util.js'] = 2000;
+  files['/p/src/util.js'] = files['/p/src/util.js'].replace(/function (\w+)/, 'function renamedHelper');
+  fp.read.length = 0;
+  const changed = await M.forProject('/q', at('/q'), undefined, cache);
+  ok('a file whose time changed is read again, and the map says what it holds now', changed.read === 1 && fp.read.includes('/p/src/util.js') && JSON.stringify(changed.ranked).includes('renamedHelper'), JSON.stringify({ read: changed.read, reads: fp.read }));
+  const other = await M.forProject('/r', at('/r'), undefined, cache);
+  ok('another project is its own: nothing of one is used for the other', other.read === 5 && other.unchanged === 0);
+  const untimed = new Map();
+  await M.forProject('/p', fakeProject().io, undefined, untimed);
+  const noTime = await M.forProject('/p', fakeProject().io, undefined, untimed);
+  ok('a file whose time the system cannot say is always read', noTime.read === 5 && noTime.unchanged === 0);
+  ok(`no more than ${M.MOST_KEPT} projects are kept`, (() => { const c = new Map(); for (let i = 0; i < M.MOST_KEPT + 2; i++) c.set(`/x${i}`, new Map()); M.keepWithin(c); return c.size === M.MOST_KEPT && !c.has('/x0'); })());
+}
+
 console.log('\nHashCoder:');
 {
   const mode = src('modes', 'code', 'mode.js');
+  ok('the trace says how many files were read and how many were unchanged since last time', /\$\{sharedState\.codeMap\.read\} files read\$\{sharedState\.codeMap\.unchanged \? `, \$\{sharedState\.codeMap\.unchanged\} unchanged since last time` : ''\}/.test(mode));
   ok('makes the map for a larger model only, as a conversation begins or when the project changes',
     /const mapped = \(size === 'full' \? !!window\.HCCodeMap : local \|\| light\) && !!root && !!HC\?\.code\?\.readQuietly && \(!conversationMsgs\.length \|\| sharedState\.codeMap\?\.root !== root\);/.test(mode)
     && /sharedState\.codeMap = size === 'full' \? \{ root, \.\.\.\(await window\.HCCodeMap\.forProject\(root, quiet\)/.test(mode));
