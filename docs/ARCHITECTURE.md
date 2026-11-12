@@ -352,9 +352,11 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs     1,209   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs     1,283   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent,
-│   │   │   │                        programs found where tools are installed
+│   │   │   │                        programs found where tools are installed,
+│   │   │   │                        and on Windows a project's own program by
+│   │   │   │                        its path from the command's folder
 │   │   │   ├── host.rs        153   which programs of a fixed list are here,
 │   │   │   │                        found as files, nothing run, names only
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively

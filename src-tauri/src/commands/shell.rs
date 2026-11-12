@@ -127,6 +127,25 @@ fn batch_file_for(program: &str, search_path: &std::ffi::OsStr) -> Option<std::p
     None
 }
 
+/// The program `program` names inside the folder `dir` the command runs in,
+/// when it is named by a relative path with a folder in it, such as a
+/// project's own `.venv/Scripts/python.exe`. On Windows such a path was read
+/// from the app's own folder, so a program the project holds was never found;
+/// macOS and Linux read it from the command's folder already. None for a bare
+/// name (looked for on the search path), a path with a drive or a root of
+/// its own, one that steps out with `..`, or no folder to read it from.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn program_in_folder(program: &str, dir: Option<&str>) -> Option<std::path::PathBuf> {
+    use std::path::{Component, Path};
+    let dir = dir?;
+    let named = Path::new(program);
+    let parts: Vec<Component> = named.components().collect();
+    if parts.len() < 2 || !parts.iter().all(|c| matches!(c, Component::Normal(_) | Component::CurDir)) {
+        return None;
+    }
+    Some(Path::new(dir).join(named))
+}
+
 /// The command that prints the user's home directory on this platform.
 #[cfg(windows)]
 const HOME_PROBE: &str = "echo %USERPROFILE%";
@@ -192,11 +211,24 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         );
     }
 
+    // An agent's command given no folder runs in the open project.
+    let opened = match (caller.is_agent(), cwd) {
+        (true, None) => {
+            crate::security::root_jail::root().map(|r| r.to_string_lossy().into_owned())
+        }
+        _ => None,
+    };
+
     // `npm` and its kind are batch files on Windows (batch_file_for).
     #[cfg(windows)]
     let batch = batch_file_for(command, &std::env::var_os("PATH").unwrap_or_default());
     #[cfg(windows)]
     let command: &str = batch.as_deref().and_then(|p| p.to_str()).unwrap_or(command);
+    // A program named by a relative path is the one in the command's folder (program_in_folder).
+    #[cfg(windows)]
+    let local = program_in_folder(command, cwd.as_deref().or(opened.as_deref()));
+    #[cfg(windows)]
+    let command: &str = local.as_deref().and_then(|p| p.to_str()).unwrap_or(command);
 
     // An agent's command runs inside the system sandbox where there is one
     // (security/agent_sandbox.rs); a command a person types does not.
@@ -206,13 +238,6 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         Caller::AgentOffline => crate::security::agent_sandbox::command_offline(command)?,
     };
     cmd.args(args);
-    // An agent's command given no folder runs in the open project.
-    let opened = match (caller.is_agent(), cwd) {
-        (true, None) => {
-            crate::security::root_jail::root().map(|r| r.to_string_lossy().into_owned())
-        }
-        _ => None,
-    };
     if let Some(dir) = cwd.as_ref().or(opened.as_ref()) {
         // The working directory decides what every relative path in the command
         // means, so it gets the same gate a file operation gets rather than a
@@ -1147,6 +1172,55 @@ mod tests {
         assert_eq!(batch_file_for("absent", &path), None);
         assert_eq!(batch_file_for("", &path), None);
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// A program named by a path inside a folder, such as a project's own
+    /// virtual environment's Python, is the one in the command's folder.
+    #[test]
+    fn a_program_named_by_a_relative_path_is_the_one_in_the_commands_folder() {
+        let dir = std::path::Path::new("proj");
+        assert_eq!(
+            program_in_folder(".venv/Scripts/python.exe", Some("proj")),
+            Some(dir.join(".venv/Scripts/python.exe"))
+        );
+        assert_eq!(program_in_folder("tools\\run.exe", Some("proj")).is_some(), cfg!(windows), "a backslash is a separator only on Windows");
+        assert_eq!(program_in_folder("python", Some("proj")), None, "a bare name is looked for on the search path");
+        assert_eq!(program_in_folder("../outside/run.exe", Some("proj")), None, "never a step out of the folder");
+        assert_eq!(program_in_folder("bin/../../run.exe", Some("proj")), None);
+        assert_eq!(program_in_folder("/usr/bin/python3", Some("proj")), None, "an absolute path is its own");
+        assert_eq!(program_in_folder(".venv/bin/python", None), None, "no folder, nothing to join");
+        assert_eq!(program_in_folder("", Some("proj")), None);
+        #[cfg(windows)]
+        {
+            assert_eq!(program_in_folder(r"C:\tools\run.exe", Some("proj")), None);
+            assert_eq!(program_in_folder(r"C:tools\run.exe", Some("proj")), None, "a drive's own folder is not this one");
+            assert_eq!(program_in_folder(r"\tools\run.exe", Some("proj")), None);
+        }
+    }
+
+    /// On Windows a program named by a relative path started from the app's
+    /// own folder, not the command's. It now starts from the command's.
+    #[cfg(windows)]
+    #[test]
+    fn on_windows_a_relative_program_path_starts_from_the_commands_folder() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("target")
+            .join("shell-local-program-scratch")
+            .join(format!("run-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("tools")).unwrap();
+        let system = std::env::var("SystemRoot").unwrap_or_else(|_| r"C:\Windows".into());
+        std::fs::copy(std::path::Path::new(&system).join("System32").join("cmd.exe"), dir.join("tools").join("local-cmd.exe")).unwrap();
+        let mut cmd = prepare(
+            "tools/local-cmd.exe",
+            &["/c".into(), "exit".into(), "7".into()],
+            &Some(dir.to_string_lossy().into_owned()),
+            Caller::Person,
+        )
+        .unwrap();
+        let out = cmd.output().expect("the program in the command's folder starts");
+        assert_eq!(out.status.code(), Some(7));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[cfg(target_os = "macos")]

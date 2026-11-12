@@ -30,6 +30,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **On Windows, a program inside the project starts from the project.** A
+  command whose program is named by a path in a folder, such as
+  `.venv/Scripts/python.exe`, starts the one in the command's folder, as on
+  macOS and Linux, instead of being looked for beside the app.
 - **A file another program holds open is said so on Windows.** When
   Windows refuses to replace, move or delete a file because another
   program has it open, HashCoder is told "The file is open in another
