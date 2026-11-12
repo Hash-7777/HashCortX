@@ -144,7 +144,7 @@ console.log('\nSized to the model:');
   check('a small model is never shown more tool output than its budget', worst <= small.toolBudget, `${worst}`);
   check('...and its requests still start the same way at most steps', breaks <= 16, `${breaks} of 40`);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\)\)/.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
+  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, \{ \.\.\.window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\), dropOldThinking: /.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
 }
 
 console.log('\nInputs are not mutated:');
@@ -312,6 +312,18 @@ console.log('\nDegenerate inputs:');
 check('a non-array is not fatal', budgetToolResults(null).length === 0 && compressHistory(null).length === 0);
 check('an empty array is not fatal', budgetToolResults([]).length === 0);
 check('a null message is not fatal', budgetToolResults([null, tool('x')]).length === 2);
+
+console.log('\nThe thinking of older requests, at the roll:');
+{
+  const conv = [sys('rules')];
+  for (let r = 0; r < 6; r++) { conv.push(user(`ask ${r}`), { role: 'assistant', content: `done ${r}`, thinking: `thought ${r}`, thinkingFrom: 'glm' }); }
+  const kept = compressHistory(conv, { dropOldThinking: true, keepRequests: 3, requestStep: 2 });
+  const asst = kept.filter((m) => m.role === 'assistant');
+  check('when older requests roll, the thinking of those kept before the newest is dropped, and the newest keeps its own', asst.length > 0 && asst.slice(0, -1).every((m) => !('thinking' in m)) && asst[asst.length - 1].thinking === 'thought 5', JSON.stringify(asst.map((m) => m.thinking || null)));
+  const few = [sys('rules'), user('ask 0'), { role: 'assistant', content: 'done 0', thinking: 'thought 0' }, user('ask 1')];
+  check('...while nothing rolls, nothing is dropped, so a request still grows only at its end', compressHistory(few, { dropOldThinking: true })[2].thinking === 'thought 0');
+  check('...and without the option, it is kept as before', compressHistory(conv, { keepRequests: 3, requestStep: 2 }).filter((m) => m.role === 'assistant').every((m) => typeof m.thinking === 'string'));
+}
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-context.js)`);
 process.exit(fail ? 1 : 0);

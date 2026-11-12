@@ -198,11 +198,11 @@
    * and expect to see them again; passing the object through produces a
    * request that is accepted and then misread.
    */
-  function appendAssistantToolCallTurn(messages, content, toolCalls, { thinking } = {}) {
+  function appendAssistantToolCallTurn(messages, content, toolCalls, { thinking, from } = {}) {
     messages.push({
       role: 'assistant',
       content: content || '',
-      ...(typeof thinking === 'string' && thinking ? { thinking } : {}),   // sent back where the model's maker asks (thinkingFor)
+      ...(typeof thinking === 'string' && thinking ? { thinking, ...(from ? { thinkingFrom: from } : {}) } : {}),   // sent back where the model's maker asks, to that family only (thinkingFor)
       tool_calls: (toolCalls || []).map((c) => ({
         id: c.id,
         type: 'function',
@@ -252,7 +252,7 @@
   function forOllama(messages, profile = null) {
     // A model's thinking stays on its tool turn only where the model wants it back (js/model-profile.js).
     const keep = !!profile && profile.carry !== 'never' && profile.carryField === 'thinking';
-    const bare = (m) => { if (keep || !('thinking' in m)) return m; const out = { ...m }; delete out.thinking; return out; };
+    const bare = (m) => { if (!('thinking' in m) || (keep && (!m.thinkingFrom || m.thinkingFrom === profile.family))) return m; const out = { ...m }; delete out.thinking; delete out.thinkingFrom; return out; };
     return withoutSignatures(messages).map((m) => (Array.isArray(m.tool_calls) && m.tool_calls.length
       ? bare({ ...m, content: '', tool_calls: m.tool_calls.map((c) => ({ ...c, function: { ...c.function, arguments: safeJsonParse(c.function && c.function.arguments) || {} } })) })
       : bare(m)));
@@ -268,7 +268,8 @@
     const P = typeof window !== 'undefined' && window.HCModelProfile;
     const profile = P ? P.of(modelValue) : null;
     if (!profile || profile.carry === 'never' || profile.carryField !== 'reasoning_content') return {};
-    const text = message && typeof message.thinking === 'string' ? message.thinking : '';
+    const own = message && (!message.thinkingFrom || message.thinkingFrom === profile.family);   // another family's thinking is never sent
+    const text = own && typeof message.thinking === 'string' ? message.thinking : '';
     if (text) return { reasoning_content: text };
     return profile.carry === 'required' ? { reasoning_content: '' } : {};
   }
@@ -457,6 +458,11 @@
   }
 
   /** A conversation's tool calls without what only Gemini reads, for every other provider. */
+  /** The messages with their kept thinking dropped (all of them, or those before `before`); what it is given is never changed. */
+  function withoutThinking(messages, before = Infinity) {
+    return (messages || []).map((m, i) => (i < before && m && ('thinking' in m || 'thinkingFrom' in m) ? (({ thinking, thinkingFrom, ...rest }) => rest)(m) : m));
+  }
+
   function withoutSignatures(messages) {
     return (messages || []).map((m) => (m && Array.isArray(m.tool_calls)
       ? { ...m, tool_calls: m.tool_calls.map(({ thoughtSignature, ...c }) => c) }
@@ -604,6 +610,9 @@
     if (!result || typeof result.then !== 'function') return result;
     return result.then((turn) => {
       if (turn && typeof turn === 'object') turn.cutOff = wasCutOff(turn);
+      // Which family wrote its thinking, so it goes back to that family alone (js/model-profile.js).
+      const P = typeof window !== 'undefined' && window.HCModelProfile;
+      if (turn && typeof turn === 'object' && turn.thinking && P) turn.thinkingFrom = P.of(model).family;
       return turn;
     }, (err) => {
       if (err && typeof err === 'object' && !err.model) err.model = model;
@@ -768,7 +777,7 @@
     return value && typeof value === 'object' && !Array.isArray(value) ? value : { result: value === undefined ? null : value };
   }
 
-  window.HCAgentShape = { thinkingFor,
+  window.HCAgentShape = { thinkingFor, withoutThinking,
     geminiResponseOf,
     markReusable,
     closeInterruptedTurn,

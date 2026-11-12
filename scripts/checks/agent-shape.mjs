@@ -656,7 +656,25 @@ console.log('\nA model\'s thinking kept with its tool work, and sent back where 
   const app = readFileSync(join(here, '..', '..', 'src', 'js', 'app.js'), 'utf8'), mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
   ok('the cloud turn sends it back on its assistant messages and hands back what came', /return \{ role: 'assistant', content: m\.content \?\? null, tool_calls: m\.tool_calls, \.\.\.HCAgentShape\.thinkingFor\(m, `cloud:\$\{provider\}:\$\{model\}`\) \};/.test(app) && /thinking: msg\.reasoning_content \?\? msg\.reasoning \?\? undefined \};/.test(app));
   ok('the local turn sends it only where the model wants it', /HCAgentShape\.forOllama\(messages, window\.HCModelProfile\?\.of\?\.\(model, info\)\)/.test(app));
-  ok('HashCoder keeps each turn\'s thinking with its calls', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking \}\);/.test(mode));
+  ok('HashCoder keeps each turn\'s thinking with its calls', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking, from: turn\.thinkingFrom \}\);/.test(mode));
+}
+
+console.log('\nThinking another family wrote, and thinking of older requests:');
+{
+  const msgs = [];
+  A.appendAssistantToolCallTurn(msgs, '', [{ id: 'c1', name: 'read_file', arguments: {} }], { thinking: 'Mine.', from: 'deepseek' });
+  A.appendAssistantToolCallTurn(msgs, '', [{ id: 'c2', name: 'read_file', arguments: {} }], { thinking: 'Theirs.', from: 'glm' });
+  ok('a turn keeps which family wrote its thinking', msgs[0].thinkingFrom === 'deepseek' && msgs[1].thinkingFrom === 'glm');
+  ok('a model is sent back its own family\'s thinking, never another\'s', JSON.stringify(A.thinkingFor(msgs[0], 'cloud:deepseek:deepseek-reasoner')) === '{"reasoning_content":"Mine."}' && JSON.stringify(A.thinkingFor(msgs[1], 'cloud:deepseek:deepseek-reasoner')) === '{"reasoning_content":""}' && JSON.stringify(A.thinkingFor(msgs[0], 'cloud:zai:glm-4.6')) === '{}');
+  ok('...and a model on this computer the same', !('thinking' in A.forOllama(msgs, { family: 'qwen3', carry: 'recommended', carryField: 'thinking' })[0]));
+  const bare = A.withoutThinking(msgs);
+  ok('withoutThinking drops it, and which family wrote it, leaving the rest, and changes nothing it was given', bare.every((m) => !('thinking' in m) && !('thinkingFrom' in m) && m.tool_calls.length === 1) && msgs[0].thinking === 'Mine.');
+  ok('...or only before a point', A.withoutThinking(msgs, 1)[1].thinking === 'Theirs.' && !('thinking' in A.withoutThinking(msgs, 1)[0]));
+  let tag = null;
+  await A.routeModelTurn({ adapter: { kind: 'openai', provider: 'zai', model: 'glm-4.6' }, messages: [], tools: [] }, { openai: async () => ({ content: 'x', thinking: 'thought' }) }, {}).then((t) => { tag = t; });
+  ok('a turn that thought is told which family it came from', tag && tag.thinkingFrom === 'glm', JSON.stringify(tag));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  ok('HashCoder keeps that with the turn, and drops older requests\' thinking at the roll for a family that only recommends keeping it', /H\.appendAssistantToolCallTurn\(messages, turn\.content, turn\.tool_calls, \{ thinking: turn\.thinking, from: turn\.thinkingFrom \}\);/.test(mode) && /dropOldThinking: window\.HCModelProfile\?\.of\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| ''\)\?\.carry === 'recommended'/.test(mode));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-shape.js)`);

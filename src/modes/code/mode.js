@@ -1698,7 +1698,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       sharedState.codeMap?.root !== sharedState.projectRoot ? '' : [sharedState.size === 'full' ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : sharedState.codeMap.whole, sharedState.codeMap.outline].filter(Boolean).join('\n\n'));   // js/code/codemap.js, or a small project whole
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.
-    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, window.HCAgentContext.optionsFor(sharedState.size, sharedState.local));
+    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, { ...window.HCAgentContext.optionsFor(sharedState.size, sharedState.local), dropOldThinking: window.HCModelProfile?.of?.(routing?.router?.model || coderModel || '')?.carry === 'recommended' });   // js/model-profile.js
 
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {
@@ -1819,7 +1819,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
         if (turn.tool_calls?.length) {
           for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, schemaOf(c.name)).args, sharedState.projectRoot);   // "src" for "from" is read as "from" (js/code/calls.js), and "src/a.js" is the project's, not a connected system's (js/code/paths.js)
-          H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls, { thinking: turn.thinking }); // always append to real history, its thinking kept (js/model-profile.js)
+          H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls, { thinking: turn.thinking, from: turn.thinkingFrom }); // always append to real history, its thinking kept (js/model-profile.js)
 
           // Independent reads run together. A turn that opens six files used to
           // make six sequential round trips through Rust for no reason. Writes

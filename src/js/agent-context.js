@@ -314,7 +314,13 @@
     const head = bare
       ? [note ? Object.assign({}, bare, { content: bare.content + '\n' + note }) : bare]
       : (note ? [{ role: 'system', content: note }] : []);
-    const shown = kept.map(withContext);
+    let shown = kept.map(withContext);
+    // At a roll, which already changes the start of the request, a family that only recommends kept thinking
+    // (js/model-profile.js) has the thinking of every request before the newest dropped; between rolls nothing changes.
+    if (roll && opts.dropOldThinking) {
+      const newest = shown.map(isRequest).lastIndexOf(true);
+      shown = shown.map((m, i) => (i < newest && m && ('thinking' in m || 'thinkingFrom' in m) ? (({ thinking, thinkingFrom, ...rest }) => rest)(m) : m));
+    }
     const notes = systemMsg && typeof systemMsg.notes === 'string' ? systemMsg.notes.trim() : '';
     const first = notes ? shown.findIndex(isRequest) : -1;
     if (first >= 0) shown[first] = Object.assign({}, shown[first], { content: `${notes}\n\n${shown[first].content || ''}` });
