@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder says when a project's notes for agents changed.** When the
+  open project's notes for coding agents are not what HashCoder read the last
+  time it opened the project, notes there for the first time among them, the
+  first reply says so in a line that opens to show them. Only a fingerprint
+  of the notes is kept for each project folder, never the text.
 - **A long HashCoder conversation sets earlier requests aside only as a new
   one begins.** A message sent while it works stays with the request it was
   sent to, and never sets earlier requests aside in the middle of one. When

@@ -202,6 +202,25 @@
     return el;
   }
 
+  /** At most this many characters of a project's notes are shown in the reply; the file holds the rest. */
+  const NOTES_SHOWN = 20000;
+
+  /**
+   * The line saying a project's notes for agents changed since HashCoder last
+   * read them (js/code/notes-seen.js), first in the reply, opening to show the
+   * notes as they are now, written as text with their hidden characters as codes.
+   */
+  function notesChanged(contentEl, seen) {
+    if (!contentEl || !seen || !window.HCCodeNotesSeen) return null;
+    const el = add(contentEl, { verb: 'NOTES', object: window.HCCodeNotesSeen.lineFor(seen.name), status: '', flat: true });
+    const text = String(seen.text || '');
+    const body = text.length > NOTES_SHOWN ? `${text.slice(0, NOTES_SHOWN)}\n[The rest is in ${seen.name || 'the file'}.]` : text;
+    const pre = document.createElement('pre');
+    pre.textContent = coded(body);
+    el.querySelector('.cdr-step-body').appendChild(pre);
+    return el;
+  }
+
   /** A reply whose run has ended: each list folded to its line, and the changes gathered under it. */
   function settle(contentEl) {
     if (!contentEl) return;
@@ -227,5 +246,5 @@
     });
   }
 
-  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, notesChanged, settle };
 })();

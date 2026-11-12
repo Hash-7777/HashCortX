@@ -85,6 +85,7 @@
     '/js/code/patch.js',
     '/js/code/verify.js',
     '/js/code/context.js',
+    '/js/code/notes-seen.js',
     '/js/code/digest.js',
     '/js/code/pipe.js',
     '/js/code/by-code.js',

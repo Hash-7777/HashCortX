@@ -1790,7 +1790,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       if (root && sharedState.projectChecks?.root !== root && window.HCCodeVerify && HC?.code) {
         const io = { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f), whole: (f) => HC.code.readWholeQuietly(f), drop: window.HCCodeLessons?.looksPrivate };   // whole, unasked (js/code/context.js)
         const checks = await window.HCCodeVerify.readProjectChecks(root, io);
-        sharedState.projectChecks = { root, checks, ...(await window.HCCodeContext?.readProject(root, io)) };   // and its top folder and notes
+        sharedState.projectChecks = { root, checks, ...(await window.HCCodeContext?.readProject(root, io)) }; sharedState.notesNew = await window.HCCodeNotesSeen?.check(localStorage, root, sharedState.projectChecks.notesName, sharedState.projectChecks.notesText) || null;   // and its top folder and notes, said in the reply when they changed since last time (js/code/notes-seen.js)
         if (conversationMsgs[0]?.role === 'system') conversationMsgs[0] = systemTurn();
       }
 
@@ -1874,7 +1874,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => (t.function.name !== 'save_lesson' || !!HC.code.lessonsFor) && (HC.code.memoryOn || !/^(remember_fact|recall_facts)$/.test(t.function.name)));
       const tools = sharedState.light ? [] : [...own, ...run.tools];   // light mode: no tools; the app reads files out of the answer (js/code/light.js)
       const contentEl = appendAssistantBubble('HashCoder');
-      const bubble = contentEl?.closest('.cdr-msg');
+      const bubble = contentEl?.closest('.cdr-msg'); window.HCCodeSteps.notesChanged?.(contentEl, sharedState.notesNew); sharedState.notesNew = null;   // first in the reply (js/code/notes-seen.js)
       bubble?.classList.add('running');   // copy, reply and regen wait for the answer
       HC.guard?.beginRun?.({ model: () => routing?.router?.model || coderModel || window._H?.selectedModel?.(), facts: () => window.HCCodeOutward?.facts(conversationMsgs, { root: sharedState.projectRoot, isSecret: window.HCSecretShapes?.isSecretFile, privateProject: window.HCCodeOutward?.isPrivate?.(sharedState.projectRoot) }) }); HC.guard?.setChecks?.(sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks.checks : null);   // what may run unasked is judged for this run (js/code/permissions.js)
       try {
