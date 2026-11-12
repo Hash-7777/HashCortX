@@ -49,7 +49,7 @@
   };
   const OTHER_FIELD = { max_tokens: 'max_completion_tokens', max_completion_tokens: 'max_tokens' };
   /** Parameters a request can do without. Never the model, the messages or the stream itself. */
-  const DROPPABLE = new Set(['temperature', 'top_p', 'stream_options', 'max_tokens', 'max_completion_tokens', 'parallel_tool_calls', 'tool_choice', 'reasoning_effort', 'frequency_penalty', 'presence_penalty']);
+  const DROPPABLE = new Set(['temperature', 'top_p', 'stream_options', 'max_tokens', 'max_completion_tokens', 'parallel_tool_calls', 'tool_choice', 'reasoning_effort', 'top_k', 'min_p', 'reasoning_content', 'frequency_penalty', 'presence_penalty']);
   /** What Anthropic is asked for when neither its list nor a refusal has said. Every current model takes it. */
   const ANTHROPIC_DEFAULT = 8192;
   /** Tokens counted for each image, rather than the length of its encoding. */
@@ -212,6 +212,8 @@
     delete body.max_completion_tokens;
     if (fits && !info.drop.includes(field)) body[field] = max;
     for (const p of info.drop) if (DROPPABLE.has(p) && p !== 'max_tokens' && p !== 'max_completion_tokens') delete body[p];
+    // The thinking sent back is a field of each message, not of the request.
+    if (info.drop.includes('reasoning_content') && Array.isArray(body.messages)) body.messages = body.messages.map((m) => { if (!m || !('reasoning_content' in m)) return m; const out = { ...m }; delete out.reasoning_content; return out; });
     return body;
   }
 
@@ -243,6 +245,11 @@
       /['"`](\w+)['"`] (?:is not supported|is unsupported|are not supported)/gi,
       /property '(\w+)' is unsupported/gi,
       /"loc"\s*:\s*\[\s*"body"\s*,\s*"(\w+)"\s*\][^{}]*Extra inputs are not permitted/gi,
+      // A field inside a message (the thinking a model is sent back), and the other ways a refusal names a field.
+      /messages[.[]\d+\]?\.(\w+)['"`]?\s*:?\s*(?:Extra inputs are not permitted|is not allowed|is not supported|unknown)/gi,
+      /\('(\w+)' was unexpected\)/gi,
+      /Unrecognized request arguments? supplied:\s*(\w+)/gi,
+      /unknown (?:field|parameter|argument)s?[:\s]+[`'"]?(\w+)/gi,
     ]) for (const x of s.matchAll(r)) param(x[1]);
     if (drop.size) got.drop = [...drop];
     return got;

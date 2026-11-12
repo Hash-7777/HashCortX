@@ -131,5 +131,27 @@ console.log('\nLearning from a refusal:');
   ok('a listed limit tighter than a learnt one wins', (() => { const st = memory(); L.remember('cloud:x:y', { out: 1000 }); L.learn('cloud:x:y', E('max_tokens must be less than or equal to 9000'), 0, 0, T0, st); return L.infoOf('cloud:x:y', T0, st).out === 1000; })());
 }
 
+console.log('\nA refusal naming the thinking field, or a sampling setting:');
+{
+  const drops = (t) => (L.readRefusal(t).drop || []).join();
+  ok('the thinking field refused in a message, as each shape of refusal says it', drops('{"error":{"message":"messages.2.reasoning_content: Extra inputs are not permitted"}}') === 'reasoning_content'
+    && drops('Additional properties are not allowed (\'reasoning_content\' was unexpected)') === 'reasoning_content'
+    && drops('Unrecognized request argument supplied: reasoning_content') === 'reasoning_content'
+    && drops('unknown field `reasoning_content`') === 'reasoning_content', [drops('{"error":{"message":"messages.2.reasoning_content: Extra inputs are not permitted"}}'), drops("Additional properties are not allowed ('reasoning_content' was unexpected)"), drops('Unrecognized request argument supplied: reasoning_content'), drops('unknown field `reasoning_content`')].join(' | '));
+  ok('a sampling setting it does not take', drops("Unsupported parameter: 'top_k' is not supported with this model.") === 'top_k' && drops("Unsupported parameter: 'min_p' is not supported with this model.") === 'min_p');
+  ok('a field that is the request itself is never taken as one to leave out', drops('unknown field `messages`') === '' && drops('Unrecognized request argument supplied: model') === '');
+  const store = (() => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; })();
+  const value = 'cloud:groq:invented-thinker';
+  const err = { message: 'groq error 400: messages.1.reasoning_content: Extra inputs are not permitted', body: '' };
+  const first = L.learn(value, err, 100, 0, 1000, store);
+  ok('learnt, the request is sent once more', first.learnt === true && first.retry === true && JSON.stringify(first.limits.drop) === '["reasoning_content"]', JSON.stringify(first));
+  const again = L.learn(value, err, 100, 0, 2000, store);
+  ok('...and never twice for the same reason', again.learnt === false && again.retry === false);
+  const body = { model: 'm', messages: [{ role: 'user', content: 'x' }, { role: 'assistant', content: '', tool_calls: [], reasoning_content: 'thought' }], temperature: 0.2 };
+  L.fitBody('openai', value, body, 3000, store);
+  ok('the request is rebuilt without the field in any message, the rest kept', !('reasoning_content' in body.messages[1]) && body.messages[1].role === 'assistant' && body.temperature === 0.2, JSON.stringify(body));
+  ok('...and what was learnt is kept two weeks', L.LEARNED_FOR_MS === 14 * 24 * 60 * 60 * 1000 && L.infoOf(value, 1000 + L.LEARNED_FOR_MS - 1, store).drop.includes('reasoning_content') && !L.infoOf(value, 1000 + L.LEARNED_FOR_MS + 1, store).drop.includes('reasoning_content'));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model limits)`);
 if (fail) process.exit(1);
