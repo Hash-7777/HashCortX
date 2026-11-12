@@ -10,6 +10,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A message sent while HashCoder works is taken for what it is.** A
+  correction ("no, not that file") is read at the next step with a note
+  that opens again the step of the agent's plan it is about. More for the
+  work in hand is read at the next step, and when the request is checked ask
+  by ask before the run finishes, its asks are checked too. A new request
+  that names nothing the run is working on waits, and is sent when the run
+  ends. "Send now" still sends everything at once.
 - **HashCoder names the scripts from other sites a run added to a site.**
   With Prove changes before finishing on, each script from another site that
   a page or script the run changed now loads, and did not before, is named

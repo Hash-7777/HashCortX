@@ -15,7 +15,10 @@
 //   · where a run takes several steps (HashCoder), the queue is handed to the
 //     model at the next step, after the results it is waiting for, so the
 //     run takes it into account without starting again (takeNow), and what
-//     is still queued when the run finishes is sent as the next request.
+//     is still queued when the run finishes is sent as the next request. A
+//     message taken as a request for after the work in hand (its kind, set by
+//     the workspace's guess or the person's choice) is not handed over: it
+//     waits, and is sent when the run finishes.
 //
 // A reply that was stopped, or ended in an error, does not send what is
 // queued: it goes back into the box, to be sent or changed. Several queued
@@ -77,6 +80,8 @@
       },
       /** Take every message out, oldest first. */
       take() { const out = items; items = []; return out; },
+      /** Take out the messages `fn` picks, oldest first, leaving the rest queued. */
+      takeIf(fn) { const out = items.filter(fn); items = items.filter((m) => !fn(m)); return out; },
       get items() { return items.slice(); },
       get size() { return items.length; },
       /** Every message as one, in the order written. */
@@ -277,12 +282,19 @@
       add(text, files = [], kind) { const id = q.add(text, files, kind === undefined ? guess(text) : kind); if (id) draw(); return id; },
       /** Change how a queued message is taken: the person's choice wins over the guess. */
       setKind(id, kind) { const done = q.setKind(id, kind); if (done) draw(); return done; },
-      /** Every queued message, taken out as one: `{ text, count, files, kinds }`, `kinds` how each is taken, or null when none. */
+      /**
+       * The queued messages for the work in hand, taken out as one:
+       * `{ text, count, files, kinds }`, `kinds` how each is taken, or null
+       * when none. A request for after (kind 'after') is left waiting, to be
+       * sent when the work ends (settle); after "Send now" everything is taken.
+       */
       takeNow() {
         if (!q.size) return null;
+        const all = urgent;
         urgent = false;
-        const list = q.take();
+        const list = all ? q.take() : q.takeIf((m) => m.kind !== 'after');
         draw();
+        if (!list.length) return null;
         return { text: joined(list), count: list.length, files: filesOf(list), kinds: list.map((m) => m.kind || 'add') };
       },
       /**
