@@ -129,14 +129,14 @@ HashCortX/
 │   │   ├── model-profile.js    166  what each model family needs: whether it
 │   │   │                            thinks, whether its thinking goes back
 │   │   │                            with tool work, the sampling it takes
-│   │   ├── agent-shape.js      781  images, tools and tool results per provider,
+│   │   ├── agent-shape.js      840  images, tools and tool results per provider,
 │   │   │                            a model that cannot take tools held by
 │   │   │                            Ollama to one answer shape, or told them in
 │   │   │                            words, carrying on an answer that was
 │   │   │                            cut off, timing every answer, and tool calls
 │   │   │                            or Python runs a model wrote as text, and
 │   │   │                            where a conversation's reusable start ends
-│   │   ├── agent-context.js    325  what the model sees of a long agent run,
+│   │   ├── agent-context.js    331  what the model sees of a long agent run,
 │   │   │                            sized to the model, older output set aside
 │   │   │                            in steps so each request is the last with
 │   │   │                            more on the end, the project's notes with
