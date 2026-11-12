@@ -241,6 +241,13 @@ console.log('\nHashCoder reads it at the next step:');
   s.add('then write a README', [], 'after');
   s.settle(); flush();
   ok('a run that was stopped hands a request for after back to the box, never lost', back.value === 'then write a README' && s.size === 0);
+  const seen = [];
+  const w = Q.forComposer({ input: box('first'), changed: (items) => seen.push(items.map((m) => m.text).join('|')) });
+  w.hold(); w.add('second'); w.takeNow();
+  ok('the workspace is told each time what is waiting changes, so it can keep it', JSON.stringify(seen) === '["first","first|second",""]', JSON.stringify(seen));
+  const mode = src('modes', 'code', 'mode.js');
+  ok('HashCoder keeps the words waiting with its state, and is told to keep them again on each change', /queued: \(coderQueue\?\.items \|\| \[\]\)\.map\(\(m\) => m\.text\)\.filter\(Boolean\)/.test(mode) && /changed: \(\) => saveCoderState\(\)/.test(mode));
+  ok('...and when the app opens again they come back to the box, unless something is being written there', /if \(Array\.isArray\(state\.queued\) && state\.queued\.length\) \{ const box = \$\('cdrTaskInput'\); if \(box && !box\.value\.trim\(\)\) \{ box\.value = state\.queued\.join\('\\n\\n'\);/.test(mode));
   ok('the chooser offers each kind and Now, in plain words', JSON.stringify(Q.CHOICES.map((c) => c[0])) === '["correct","add","after","now"]' && Q.CHOICES.every((c) => c[1].length > 2));
   const qsrc = src('js', 'queue.js');
   ok('...is drawn only in a workspace that guesses, the guess pressed, Now only where the work can give way', /if \(typeof kindOf === 'function'\) \{ row\.classList\.add\('hc-queue-item--kinds'\); row\.append\(chooser\(m\.kind \|\| 'add'\)\); \}/.test(qsrc) && /if \(k === 'now' && typeof interrupt !== 'function'\) continue;/.test(qsrc) && /b\.setAttribute\('aria-pressed', String\(k === kind\)\)/.test(qsrc));
@@ -285,7 +292,7 @@ console.log('\nThe workspaces:');
   const ws = src('js', 'swarm', 'workspace.js');
   ok('the Agent Swarm: a message sent while an agent answers waits for that answer', /if \(raw && state\.asking && !state\.asking\.team\) \{ queue\?\.hold\(\); return; \}/.test(ws) && /queue\?\.settle\(\);/.test(ws));
   ok('Send now: chat stops the reply, kept as written', /interrupt: \(\) => abort\(\), attachments: chatHeld \}\);/.test(app));
-  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), kindOf: [^\n]*attachments: /.test(coder)
+  ok('...HashCoder stops only the model step under way, which the run gives up for the message and goes on', /send: \(\) => startRun\(\), outcome: \(\) => outcome, interrupt: \(\) => stepAbort\?\.abort\(\), [^\n]*attachments: /.test(coder)
     && /const step = new AbortController\(\), give = \(\) => step\.abort\(\); if \(signal\?\.aborted\) step\.abort\(\); else signal\?\.addEventListener\('abort', give\); stepAbort = step;/.test(coder)
     && /signal: step\.signal,/.test(coder) && /\.finally\(\(\) => \{ signal\?\.removeEventListener\('abort', give\); if \(stepAbort === step\) stepAbort = null; \}\);/.test(coder)
     && /\} catch \(e\) \{\n\s*if \(queue\(\)\?\.urgent && !signal\?\.aborted\) \{ thinkEl\?\.remove\(\); thinkEl = ui\.wait\(\);[^\n]*continue; \}/.test(coder) && /queue: \(\) => coderQueue, conversation: \(\) => conversationMsgs/.test(coder));

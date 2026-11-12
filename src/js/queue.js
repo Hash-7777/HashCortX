@@ -110,7 +110,8 @@
    * just ended went, `{ stopped, failed }`; `interrupt()`, when given, makes
    * the work under way give way for the queue, and shows "Send now".
    */
-  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null, attachments = null, kindOf = null } = {}) {
+  function forComposer({ input, before = null, host = null, when = 'Sends when the reply finishes', send = null, outcome = () => ({}), interrupt = null, attachments = null, kindOf = null, changed = null } = {}) {
+    // `changed(items)`: told each time what is waiting changes, so the workspace can keep it
     // `kindOf(text)`: the workspace's first guess at how a message is taken (KINDS); the person's choice changes it (setKind)
     const guess = (text) => { try { return typeof kindOf === 'function' ? kindOf(text) : undefined; } catch { return undefined; } };
     // `attachments`: { take() the box's attachments out, give(list) put some in, count() how many it holds }
@@ -133,6 +134,7 @@
     let leaving = 0;         // the timer of the card lifting away once the queue is sent
 
     function draw() {
+      try { if (typeof changed === 'function') changed(q.items); } catch { /* keeping it is the workspace's; the queue goes on */ }
       if (!doc || !(host || (before && before.parentNode))) return;
       if (!box) {
         box = doc.createElement('div');

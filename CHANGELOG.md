@@ -18,7 +18,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   that names nothing the run is working on waits, and is sent when the run
   ends. Each waiting message shows how it will be taken, Correction, Add to
   this work, After this or Now, and a click changes it. "Send now" still
-  sends everything at once.
+  sends everything at once. Messages still waiting when the app closes come
+  back to the message box when it opens again: their words, not what was
+  attached to them.
 - **HashCoder names the scripts from other sites a run added to a site.**
   With Prove changes before finishing on, each script from another site that
   a page or script the run changed now loads, and did not before, is named

@@ -159,7 +159,7 @@
           homeDir: sharedState.homeDir,
           chatHistory: window.HCCodeAttach ? window.HCCodeAttach.forStorage(conversationMsgs) : conversationMsgs,   // pictures are not kept
           activeFile: sharedState.activeFile, run: sharedState.lastRun || null, trace: cdrTraceEntries,   // the last run's facts and trace, for an export (js/code/debug-export.js)
-          changes: sharedState.changeIds || [],   // the changes this conversation made, shown with it when it is opened again
+          changes: sharedState.changeIds || [], queued: (coderQueue?.items || []).map((m) => m.text).filter(Boolean),   // the changes this conversation made, shown with it when it is opened again; the words of messages still waiting (js/queue.js), not what was attached to them
           ts: Date.now(),
         };
         localStorage.setItem(STATE_KEY, JSON.stringify(state));
@@ -170,7 +170,7 @@
         const raw = localStorage.getItem(STATE_KEY);
         if (!raw) return;
         const state = JSON.parse(raw);
-        if (!state) return;
+        if (!state) return; if (Array.isArray(state.queued) && state.queued.length) { const box = $('cdrTaskInput'); if (box && !box.value.trim()) { box.value = state.queued.join('\n\n'); box.dispatchEvent(new Event('input', { bubbles: true })); } }   // messages still waiting when the app closed come back to the box
         if (state.projectRoot) {
           sharedState.projectRoot = state.projectRoot;
           sharedState.homeDir = state.homeDir || sharedState.homeDir;
@@ -366,7 +366,7 @@
       }
 
       if (taskInput) {
-        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort(), kindOf: (text) => window.HCCodeAdded?.kindOf(text, { request: HC?.code?.request, plan: (HC?.code?.plan?.steps || []).map((s) => s.step), changed: (window.HCRunLedger?.from(conversationMsgs).changed || []).map((c) => c.path) }), attachments: window.HCCodeAttach && { take: () => window.HCCodeAttach.hold(), give: (list) => window.HCCodeAttach.put(list), count: () => window.HCCodeAttach.count() } });
+        coderQueue = window.HCQueue.forComposer({ input: taskInput, before: taskInput.closest('.cdr-input-wrap'), when: 'Read at the next step, or sent when the run finishes', send: () => startRun(), outcome: () => outcome, interrupt: () => stepAbort?.abort(), changed: () => saveCoderState(), kindOf: (text) => window.HCCodeAdded?.kindOf(text, { request: HC?.code?.request, plan: (HC?.code?.plan?.steps || []).map((s) => s.step), changed: (window.HCRunLedger?.from(conversationMsgs).changed || []).map((c) => c.path) }), attachments: window.HCCodeAttach && { take: () => window.HCCodeAttach.hold(), give: (list) => window.HCCodeAttach.put(list), count: () => window.HCCodeAttach.count() } });
         taskInput.addEventListener('keydown', e => {
           if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); startRun(); }
         });
