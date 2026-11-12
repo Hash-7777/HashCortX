@@ -773,6 +773,29 @@ console.log('\nWhat the question shows, when it holds hidden characters:');
   assert('a question with none says nothing of them', nodes['hc-perm-target'].textContent === 'npm test' && nodes['hc-perm-reason'].textContent === 'Run the tests');
 }
 
+console.log('\nWhat the question says where the system cannot fence a command in:');
+{
+  answer = 'deny';
+  const said = () => nodes['hc-perm-reason'].textContent;
+  const on = async (os, action = 'shell', target = 'npm test', reason = 'Run the tests') => {
+    sandbox.HC.code = os ? { platform: { os } } : undefined;
+    guard.clearSession();
+    await guard.request(action, target, reason);
+    return said();
+  };
+  for (const os of ['windows', 'linux']) {
+    const got = await on(os);
+    assert(`on ${os}, a command's question says so plainly, on its own line after its reason`, got === `Run the tests\n${guard.UNFENCED}` && /^This system cannot fence this command in\./.test(guard.UNFENCED), got);
+    assert('...and the reason wraps, so the line is never cut off', nodes['hc-perm-reason'].classList.contains('whole'));
+  }
+  assert('...and with no reason given, it is the reason', (await on('windows', 'shell', 'npm test', '')) === guard.UNFENCED);
+  assert('on macOS, which runs the command in its sandbox, it does not', (await on('macos')) === 'Run the tests' && !nodes['hc-perm-reason'].classList.contains('whole'));
+  assert('nor before the system is known', (await on(null)) === 'Run the tests');
+  assert('nor on a question that is not a command', (await on('windows', 'fetch', 'https://example.com/', 'Reading a page')) === 'Reading a page');
+  sandbox.HC.code = undefined;
+  guard.clearSession();
+}
+
 console.log('\nA file that usually holds keys:');
 {
   for (const f of ['secret-shapes.js', 'providers.js']) vm.runInContext(readFileSync(join(dirname(guardPath), '..', '..', 'js', f), 'utf8'), sandbox, { filename: f });

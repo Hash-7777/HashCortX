@@ -273,6 +273,17 @@
     return b || null;
   }
 
+  /**
+   * Said in a command's question where the system cannot fence the command in.
+   * macOS runs an agent's command inside its sandbox (src-tauri/src/security/
+   * agent_sandbox.rs); Windows and Linux have nothing like it without extra
+   * software, so there the command has the account's whole reach, held back
+   * only by the commands and places the app refuses by name. A person
+   * deciding on a command should know which of the two they are deciding on.
+   */
+  const UNFENCED = 'This system cannot fence this command in. Once it runs, it can reach anything your account can, except what the app refuses by name.';
+  const unfenced = () => { const os = String(HC.code?.platform?.os || '').toLowerCase(); return !!os && os !== 'macos'; };
+
   function showDialog(action, target, reason, { once = false, noScripts = false } = {}) {
     return new Promise((resolve) => {
       const bar     = document.getElementById('hc-perm-bar');
@@ -304,12 +315,15 @@
       // Characters that draw nothing are shown as codes, so what is asked about is what will run (js/text-safety.js).
       const T = window.HCTextSafety;
       const shown = T ? T.reveal(String(target || '')) : String(target || '');
-      const said = T ? T.reveal(String(reason || '')) : String(reason || '');
-      const hid = shown !== String(target || '') || said !== String(reason || '');
+      const given = T ? T.reveal(String(reason || '')) : String(reason || '');
+      const hid = shown !== String(target || '') || given !== String(reason || '');
+      // Where the command cannot be fenced in, that is said on a line of its own, and the reason wraps rather than being cut off.
+      const exposed = action === 'shell' && unfenced();
+      const said = !exposed ? given : given ? `${given}\n${UNFENCED}` : UNFENCED;
       // A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls: its middle can be the part that matters.
       const whole = action === 'shell' || ASKED_EVERY_TIME.has(action) || once;
       if (tgtEl.classList) tgtEl.classList.toggle('whole', whole);
-      if (rsnEl.classList) rsnEl.classList.toggle('whole', once);   // its lines kept: the reason, then the address decoded
+      if (rsnEl.classList) rsnEl.classList.toggle('whole', once || exposed);   // its lines kept: the reason, then the address decoded or what the system cannot fence
       tgtEl.textContent = !whole && shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
       rsnEl.textContent = hid ? `${said}${said ? ' ' : ''}This holds hidden characters, shown as codes.` : said;
@@ -537,6 +551,8 @@
   }
 
   HC.guard = {
+    /** What a command's question says where the system cannot fence it in. */
+    UNFENCED,
     // Set the current project root — all paths inside are auto-approved for safe actions. Resolves to the folder opened, or undefined if it could not be.
     setProjectRoot(path) {
       _projectRoot = path || null;

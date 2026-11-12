@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **On Windows and Linux, a command's question says it cannot be fenced
+  in.** Those systems have no sandbox around the agent's commands, as macOS
+  does, so the question for a command says so on a line of its own: once it
+  runs, it can reach anything your account can, except what the app refuses
+  by name. The reason line wraps rather than being cut off when it does.
 - **On Windows, a Python project's test runs with Python as it runs
   there.** HashCoder names, and runs itself where it does, the project's own
   environment's Python (`.venv/Scripts/python.exe` or `venv/Scripts/python.exe`)
