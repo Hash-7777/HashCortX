@@ -370,9 +370,10 @@ HashCortX/
 │   │   │   ├── mcp/oauth.rs 1,456   signing in to one through the browser: where
 │   │   │   │                        to sign in, PKCE, the answer on a one-time
 │   │   │   │                        address, the tokens kept here and renewed
-│   │   │   ├── fs.rs        1,773   filesystem bridge, applies the denylist;
+│   │   │   ├── fs.rs        1,847   filesystem bridge, applies the denylist;
 │   │   │   │                        a write replaces a file whole or not at all;
-│   │   │   │                        UTF-16 text stays UTF-16
+│   │   │   │                        UTF-16 text stays UTF-16; a file another
+│   │   │   │                        program holds open is said so in words
 │   │   │   ├── keychain.rs    102   one-time migration out of the old Keychain
 │   │   │   ├── export.rs      265   writes a file the user named in a save dialog
 │   │   │   ├── forge_projects.rs 185 saved Forge models, in ~/.hashcortx/forge

@@ -30,6 +30,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **A file another program holds open is said so on Windows.** When
+  Windows refuses to replace, move or delete a file because another
+  program has it open, HashCoder is told "The file is open in another
+  program", with its name and to close it there and try again, instead of
+  a system error code.
 - **A new file takes the line endings the project uses.** When HashCoder
   creates a file, it writes it with CRLF if the project's `.gitattributes`
   says so for that file, or else its `.editorconfig`, or else most of the

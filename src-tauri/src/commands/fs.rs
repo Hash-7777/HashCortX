@@ -372,6 +372,35 @@ pub(crate) fn utf16_file(path: &Path) -> Option<Utf16> {
     utf16_text(&raw).map(|_| order)
 }
 
+/// Windows' codes for a file another program holds open: a sharing violation
+/// and a lock violation. A program such as a spreadsheet or a running build
+/// holds its files that way, and Windows then refuses to replace, move or
+/// delete them, where macOS and Linux let it happen.
+const HELD_OPEN_CODES: [i32; 2] = [32, 33];
+
+/// Whether `code` is Windows saying another program holds the file open.
+/// Judged as a Windows code only on Windows: elsewhere 32 is a broken pipe.
+fn held_open(code: Option<i32>, windows: bool) -> bool {
+    windows && code.is_some_and(|c| HELD_OPEN_CODES.contains(&c))
+}
+
+/// What went wrong with the file at `path`: in plain words when another
+/// program holds it open, so the model and the person know what to do,
+/// rather than a system code; the system's own words otherwise.
+fn io_words_on(e: &std::io::Error, path: &str, windows: bool) -> String {
+    if !held_open(e.raw_os_error(), windows) {
+        return e.to_string();
+    }
+    let name = path.rsplit(['/', '\\']).find(|n| !n.is_empty()).unwrap_or(path);
+    format!(
+        "The file is open in another program: \"{name}\". Windows does not let a file be replaced, moved or deleted while another program holds it. Close it there, then try again."
+    )
+}
+
+fn io_words(e: &std::io::Error, path: &str) -> String {
+    io_words_on(e, path, cfg!(windows))
+}
+
 /// Names Windows keeps for devices: a file cannot be written under one, with
 /// or without an ending (`NUL.txt` is the device too).
 const RESERVED_NAMES: &[&str] = &[
@@ -433,7 +462,7 @@ pub fn fs_write_file(path: String, content: String, encoding: Option<String>) ->
         Some(order) => write_whole(Path::new(&path), &order.bytes(&content)),
         None => write_whole(Path::new(&path), content.as_bytes()),
     }
-    .map_err(|e| e.to_string())
+    .map_err(|e| io_words(&e, &path))
 }
 
 /// Replace a file's contents so that a failure part-way through — the app
@@ -548,7 +577,7 @@ pub fn fs_delete_file(path: String) -> Result<(), String> {
     if p.is_dir() {
         return Err(format!("Cannot delete a directory with fs_delete_file: {path}"));
     }
-    fs::remove_file(p).map_err(|e| e.to_string())
+    fs::remove_file(p).map_err(|e| io_words(&e, &path))
 }
 
 /// The raw bytes of a file, base64-encoded.
@@ -676,12 +705,12 @@ pub fn fs_move_file(from: String, to: String) -> Result<(), String> {
         // external disk is an ordinary thing. Copy and remove is what `mv`
         // falls back to as well.
         Err(_) => {
-            fs::copy(source, target).map_err(|e| format!("Could not move \"{from}\": {e}"))?;
+            fs::copy(source, target).map_err(|e| format!("Could not move \"{from}\": {}", io_words(&e, &from)))?;
             fs::remove_file(source).map_err(|e| {
                 // The copy landed, so leaving it is safer than reporting success
                 // for a move that only half happened.
                 let _ = fs::remove_file(target);
-                format!("Could not remove \"{from}\" after copying it: {e}")
+                format!("Could not remove \"{from}\" after copying it: {}", io_words(&e, &from))
             })
         }
     }
@@ -1592,6 +1621,20 @@ mod containment_tests {
     }
 
     #[test]
+    fn a_file_another_program_holds_is_said_so_in_words_only_on_windows() {
+        // Windows' sharing and lock violations; elsewhere 32 is a broken pipe.
+        assert!(held_open(Some(32), true) && held_open(Some(33), true));
+        assert!(!held_open(Some(32), false) && !held_open(Some(5), true) && !held_open(None, true));
+        let held = std::io::Error::from_raw_os_error(32);
+        let said = io_words_on(&held, r"C:\proj\report.xlsx", true);
+        assert!(said.starts_with("The file is open in another program"), "{said}");
+        assert!(said.contains("\"report.xlsx\"") && said.contains("Close it there"), "{said}");
+        let other = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "denied");
+        assert_eq!(io_words_on(&other, "/p/a.txt", true), "denied");
+        assert_eq!(io_words_on(&held, "/p/a.txt", false), held.to_string());
+    }
+
+    #[test]
     fn a_named_encoding_is_used_even_where_no_file_is_yet() {
         // How Undo puts back a UTF-16 file it deleted.
         let (dir, _turn) = scratch("utf16-named");
@@ -1760,6 +1803,37 @@ mod windows_path_tests {
         assert_eq!(fs::read_to_string(&file).unwrap(), "long\n");
         crate::security::root_jail::clear_root();
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_another_program_holds_open_is_said_so_for_a_write_a_move_and_a_delete() {
+        use std::os::windows::fs::OpenOptionsExt;
+        let (dir, _turn) = scratch("win-held");
+        let file = dir.join("held.txt");
+        fs::write(&file, "old\n").unwrap();
+        let path = file.to_string_lossy().into_owned();
+        // Opened with no sharing, as a program that locks its file does.
+        let hold = fs::OpenOptions::new().read(true).share_mode(0).open(&file).unwrap();
+        let wrote = fs_write_file(path.clone(), "new\n".into(), None).unwrap_err();
+        assert!(wrote.contains("open in another program"), "{wrote}");
+        let moved = fs_move_file(path.clone(), dir.join("moved.txt").to_string_lossy().into_owned()).unwrap_err();
+        assert!(moved.contains("open in another program"), "{moved}");
+        let deleted = fs_delete_file(path.clone()).unwrap_err();
+        assert!(deleted.contains("open in another program"), "{deleted}");
+        assert!(leftovers(&dir).is_empty(), "left behind: {:?}", leftovers(&dir));
+        drop(hold);
+        fs_write_file(path, "new\n".into(), None).unwrap();
+        assert_eq!(fs::read_to_string(&file).unwrap(), "new\n");
+        crate::security::root_jail::clear_root();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Every file in `dir` whose name marks it as a write's temporary file.
+    fn leftovers(dir: &Path) -> Vec<String> {
+        fs::read_dir(dir).unwrap().flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains(".hc-") && n.ends_with(".tmp"))
+            .collect()
     }
 
     #[test]
