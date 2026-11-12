@@ -139,6 +139,25 @@ jobs:
             libdbus-1-dev \
             patchelf
 
+      # ort-sys (the ONNX Runtime the embedding model runs on) puts its
+      # libraries beside the build by linking them into three folders, and
+      # when a link fails it copies instead, without making the folder first.
+      # On a Windows runner links are allowed, so the first folder takes its
+      # link, and the copy into the next folder, not yet made, panics with
+      # "The system cannot find the path specified". The script only runs on
+      # a build with nothing cached, so this appeared only when the cache was
+      # empty. Making those folders first is all it needs. The configuration
+      # that ships on Windows has no embedding model and never runs it.
+      - name: Make the folders ort-sys copies its libraries into (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          foreach ($d in 'debug', 'debug/build') {
+            foreach ($s in 'examples', 'deps') {
+              New-Item -ItemType Directory -Force -Path "src-tauri/target/$d/$s" | Out-Null
+            }
+          }
+
       # Every cargo step on Unix goes through the annotator so a failure is
       # readable from the checks API without admin rights on the repository.
       # See the script's header for why that matters.
