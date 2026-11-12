@@ -153,5 +153,24 @@ console.log('\nA refusal naming the thinking field, or a sampling setting:');
   ok('...and what was learnt is kept two weeks', L.LEARNED_FOR_MS === 14 * 24 * 60 * 60 * 1000 && L.infoOf(value, 1000 + L.LEARNED_FOR_MS - 1, store).drop.includes('reasoning_content') && !L.infoOf(value, 1000 + L.LEARNED_FOR_MS + 1, store).drop.includes('reasoning_content'));
 }
 
+console.log('\nWhat the context rules size a conversation by:');
+{
+  const store = memory();
+  L.forgetListed();
+  ok('a model whose window is not known gives nothing to size by', L.forContext('cloud:groq:unknown-one', 0, T0, store) === null);
+  L.remember('cloud:anthropic:wide', { ctx: 200000, out: 32000 });
+  const wide = L.forContext('cloud:anthropic:wide', 18000, T0, store);
+  ok('its window, the answer kept room for, the characters a token is counted as, and the instructions and tools', JSON.stringify(wide) === JSON.stringify({ window: 200000, answer: 32000, perMinuteIn: undefined, charsPerToken: 3, fixed: 18000 }));
+  ok('...counted as requests are sized here', L.CHARS_PER_TOKEN === 3 && L.estimateTokens(['x'.repeat(300)]) === 100 + 16);
+  L.remember('cloud:openrouter:all-out', { ctx: 128000, out: 128000 });
+  ok('an answer listed as long as the window is kept room for as a quarter of it', L.forContext('cloud:openrouter:all-out', 0, T0, store).answer === 32000);
+  L.remember('cloud:groq:no-out', { ctx: 131072 });
+  ok('an answer the list does not give is kept room for as the usual longest answer', L.forContext('cloud:groq:no-out', 0, T0, store).answer === 8192);
+  store.setItem(L.LEARNED_KEY, JSON.stringify({ 'cloud:groq:no-out': { tpm: 6000, until: T0 + 1e9 }, 'cloud:anthropic:wide': { tpm: 90000, itpm: 30000, until: T0 + 1e9 } }));
+  ok('a per-minute allowance a provider gave is counted, the one for the question first', L.forContext('cloud:groq:no-out', 0, T0, store).perMinuteIn === 6000 && L.forContext('cloud:anthropic:wide', 0, T0, store).perMinuteIn === 30000);
+  ok('...and a smaller window a provider gave beats the list', (store.setItem(L.LEARNED_KEY, JSON.stringify({ 'cloud:anthropic:wide': { ctx: 100000, until: T0 + 1e9 } })), L.forContext('cloud:anthropic:wide', 0, T0, store).window === 100000));
+  L.forgetListed();
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model limits)`);
 if (fail) process.exit(1);

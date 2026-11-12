@@ -146,7 +146,7 @@ console.log('\nSized to the model:');
   check('a small model is never shown more tool output than its budget', worst <= small.toolBudget, `${worst}`);
   check('...and its requests still start the same way at most steps', breaks <= 16, `${breaks} of 40`);
   const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
-  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, \{ \.\.\.window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local\), dropOldThinking: /.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
+  check('HashCoder passes the size of the model in use', /compressHistory\(msgs, \{ \.\.\.window\.HCAgentContext\.optionsFor\(sharedState\.size, sharedState\.local, window\.HCModelLimits\?\.forContext\?\.\([^\n]*\)\), dropOldThinking: /.test(mode) && /const local = !\/\^cloud:\/\.test\(model\);/.test(mode) && /sharedState\.size = size; sharedState\.local = local;/.test(mode));
 }
 
 console.log('\nInputs are not mutated:');
@@ -334,6 +334,35 @@ console.log('\nThe thinking of older requests, at the roll:');
   const few = [sys('rules'), user('ask 0'), { role: 'assistant', content: 'done 0', thinking: 'thought 0' }, user('ask 1')];
   check('...while nothing rolls, nothing is dropped, so a request still grows only at its end', compressHistory(few, { dropOldThinking: true })[2].thinking === 'thought 0');
   check('...and without the option, it is kept as before', compressHistory(conv, { keepRequests: 3, requestStep: 2 }).filter((m) => m.role === 'assistant').every((m) => typeof m.thinking === 'string'));
+}
+
+console.log('\nSized from what the model can take:');
+{
+  const json = (x) => JSON.stringify(x);
+  const kinds = [['small', true], ['mid', true], ['full', true], ['full', false]];
+  check('with no limits, or limits that say nothing, every size gets its tier exactly as before',
+    kinds.every(([s, l]) => [undefined, null, {}, { window: NaN, charsPerToken: 3 }, { window: 0, charsPerToken: 3 }, { window: 200000 }].every((lim) => json(optionsFor(s, l, lim)) === json(optionsFor(s, l)))));
+  check('a small or mid model on this computer keeps its tier, whatever its window', json(optionsFor('small', true, { window: 1e6, charsPerToken: 3 })) === json(optionsFor('small', true)) && json(optionsFor('mid', true, { window: 1e6, charsPerToken: 3 })) === json(optionsFor('mid', true)));
+  const wide = optionsFor('full', false, { window: 200000, answer: 8000, charsPerToken: 3, fixed: 20000 });
+  check('a wide window shows more: its share of what it can read, less the instructions and tools', wide.toolBudget === 325600 && wide.maxResult === 108533, json([wide.toolBudget, wide.maxResult]));
+  check('...and only those two change', json({ ...wide, toolBudget: 0, maxResult: 0 }) === json({ ...optionsFor('full', false), toolBudget: 0, maxResult: 0 }));
+  const narrow = optionsFor('full', false, { window: 8192, answer: 2048, charsPerToken: 3 });
+  check('a narrow window never shows less than its tier', narrow.toolBudget === TIERS.cloud.toolBudget && narrow.maxResult === TIERS.cloud.maxResult, json([narrow.toolBudget, narrow.maxResult]));
+  const perMinute = optionsFor('full', false, { window: 200000, answer: 8000, perMinuteIn: 12000, charsPerToken: 3 });
+  check('a per-minute allowance holds it down to what fits in a minute', perMinute.toolBudget === TIERS.cloud.toolBudget, String(perMinute.toolBudget));
+  const most = optionsFor('full', false, { window: 1e7, answer: 8000, charsPerToken: 3 });
+  check('there is a most it ever shows, and one result is at most twice its tier', most.toolBudget === 600000 && most.maxResult === 2 * TIERS.cloud.maxResult, json([most.toolBudget, most.maxResult]));
+  let rising = true, prev = optionsFor('full', false);
+  for (let w = 4096; w <= 4e6; w *= 1.5) {
+    const now = optionsFor('full', false, { window: Math.floor(w), answer: 8000, charsPerToken: 3, fixed: 15000 });
+    if (now.toolBudget < prev.toolBudget || now.maxResult < prev.maxResult) rising = false;
+    prev = now;
+  }
+  check('a larger window never shows less than a smaller one', rising);
+  const local = optionsFor('full', true, { window: 131072, answer: 8000, charsPerToken: 3 });
+  check('a large model on this computer is sized from its window too, never below its tier', local.toolBudget > TIERS.local.toolBudget && local.maxResult >= TIERS.local.maxResult, json([local.toolBudget, local.maxResult]));
+  const mode = readFileSync(join(here, '..', '..', 'src', 'modes', 'code', 'mode.js'), 'utf8');
+  check('HashCoder sizes what it shows from what the limits know of the model in use, with its instructions and tools counted', /optionsFor\(sharedState\.size, sharedState\.local, window\.HCModelLimits\?\.forContext\?\.\(routing\?\.router\?\.model \|\| coderModel \|\| '', String\(msgs\[0\]\?\.content \|\| ''\)\.length \+ JSON\.stringify\(HC\?\.code\?\.TOOL_DEFINITIONS \|\| ''\)\.length\)\)/.test(mode));
 }
 
 console.log('\nThe note on earlier requests, written from the run\'s ledger:');

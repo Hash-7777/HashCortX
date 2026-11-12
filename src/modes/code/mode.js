@@ -1698,7 +1698,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       sharedState.codeMap?.root !== sharedState.projectRoot ? '' : [sharedState.size === 'full' ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : sharedState.codeMap.whole, sharedState.codeMap.outline].filter(Boolean).join('\n\n'));   // js/code/codemap.js, or a small project whole
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.
-    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, { ...window.HCAgentContext.optionsFor(sharedState.size, sharedState.local), dropOldThinking: window.HCModelProfile?.of?.(routing?.router?.model || coderModel || '')?.carry === 'recommended' });   // js/model-profile.js
+    const compressHistory = (msgs) => window.HCAgentContext.compressHistory(msgs, { ...window.HCAgentContext.optionsFor(sharedState.size, sharedState.local, window.HCModelLimits?.forContext?.(routing?.router?.model || coderModel || '', String(msgs[0]?.content || '').length + JSON.stringify(HC?.code?.TOOL_DEFINITIONS || '').length)), dropOldThinking: window.HCModelProfile?.of?.(routing?.router?.model || coderModel || '')?.carry === 'recommended' });   // sized from js/model-limits.js; js/model-profile.js
 
     // ── Core agent loop — renders inline into a bubble ────────
     async function agentLoop(messages, tools, contentEl, label, signal) {

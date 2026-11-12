@@ -54,6 +54,10 @@
   const ANTHROPIC_DEFAULT = 8192;
   /** Tokens counted for each image, rather than the length of its encoding. */
   const IMAGE_TOKENS = 1600;
+  /** Characters counted as one token, here and wherever a conversation is sized (js/agent-context.js optionsFor). */
+  const CHARS_PER_TOKEN = 3;
+  /** Room kept for an answer when no list or refusal has said how long one may be. */
+  const ANSWER_ROOM = 8192;
 
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : undefined);
   const providerOf = (value) => {
@@ -139,7 +143,21 @@
       if (typeof v === 'object') for (const [k, x] of Object.entries(v)) walk(x, k);
     };
     walk(parts, '');
-    return Math.ceil(chars / 3) + images * IMAGE_TOKENS + 16;
+    return Math.ceil(chars / CHARS_PER_TOKEN) + images * IMAGE_TOKENS + 16;
+  }
+
+  /**
+   * What the context rules size a conversation by (js/agent-context.js
+   * optionsFor), in tokens: the model's window, the room kept for its answer
+   * (never more than a quarter of the window, which some lists give as the
+   * answer's own limit), the per-minute allowance for a question if a
+   * provider has given one, and `fixed`, the characters of the instructions
+   * and tools sent with every request. Null when the window is not known.
+   */
+  function forContext(value, fixed = 0, now = Date.now(), store = defaultStore()) {
+    const info = infoOf(value, now, store);
+    if (!info.ctx) return null;
+    return { window: info.ctx, answer: Math.min(info.out || ANSWER_ROOM, Math.floor(info.ctx / 4)), perMinuteIn: info.itpm || info.tpm, charsPerToken: CHARS_PER_TOKEN, fixed: Math.max(0, Number(fixed) || 0) };
   }
 
   /**
@@ -281,7 +299,7 @@
   }
 
   window.HCModelLimits = {
-    remember, forgetListed, infoOf, estimateTokens, room, canHold, fitBody, readRefusal, learn, forgetLearned,
-    MAX_FIELD, LEARNED_KEY, LEARNED_FOR_MS, ANTHROPIC_DEFAULT,
+    remember, forgetListed, infoOf, estimateTokens, forContext, room, canHold, fitBody, readRefusal, learn, forgetLearned,
+    MAX_FIELD, LEARNED_KEY, LEARNED_FOR_MS, ANTHROPIC_DEFAULT, CHARS_PER_TOKEN,
   };
 })();

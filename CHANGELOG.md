@@ -10,6 +10,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **A HashCoder model with a wide window is shown more of a long run.**
+  When a provider's list gives a large model's window, how much tool output
+  it is shown whole, and how long one result may be, follow that window, less
+  the room kept for its answer and what is sent with every request, and less
+  again where the provider allows fewer tokens a minute. It is never less
+  than before, and a small or mid-sized model is shown what it was.
 - **A long HashCoder conversation keeps what its earlier requests left
   standing.** When earlier requests are taken out of what the model is
   shown, the note in their place lists each one's asks, open or answered,

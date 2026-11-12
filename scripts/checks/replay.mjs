@@ -62,6 +62,8 @@ const SIZES = {
   mid: () => optionsFor('mid', true),
   local: () => optionsFor('full', true),
   cloud: () => optionsFor('full', false),
+  // A cloud model whose window the provider's list gives, sized from it (js/model-limits.js forContext).
+  wide: () => optionsFor('full', false, { window: 200000, answer: 8192, charsPerToken: 3, fixed: 12000 }),
 };
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -108,20 +110,20 @@ function replay(run, compress) {
 // ── The ceilings ─────────────────────────────────────────────────────────
 //
 // Measured from the rules as they stand. Rewrites, then characters sent in
-// the whole run, per size of model. Exact: a run that moves either way fails
+// the whole run, per size of model (wide: added with sizing from a model's known window). Exact: a run that moves either way fails
 // until the figure here is moved with it, in the commit that moved it.
 const CEILINGS = {
-  "short": { small: [0, 12448], mid: [0, 12448], local: [0, 12448], cloud: [0, 12448] },
-  "long": { small: [28, 588900], mid: [21, 799117], local: [13, 1246138], cloud: [8, 1864902] },
-  "three-requests": { small: [4, 150178], mid: [1, 190685], local: [0, 255617], cloud: [0, 255617] },
-  "mid-way": { small: [7, 124378], mid: [5, 191002], local: [3, 272764], cloud: [1, 378407] },
-  "pictures": { small: [10, 160535], mid: [9, 238330], local: [7, 360331], cloud: [5, 496684] },
+  "short": { small: [0, 12448], mid: [0, 12448], local: [0, 12448], cloud: [0, 12448], wide: [0, 12448] },
+  "long": { small: [28, 588900], mid: [21, 799117], local: [13, 1246138], cloud: [8, 1864902], wide: [6, 3331136] },
+  "three-requests": { small: [4, 150178], mid: [1, 190685], local: [0, 255617], cloud: [0, 255617], wide: [0, 255617] },
+  "mid-way": { small: [7, 124378], mid: [5, 191002], local: [3, 272764], cloud: [1, 378407], wide: [0, 595557] },
+  "pictures": { small: [10, 160535], mid: [9, 238330], local: [7, 360331], cloud: [5, 496684], wide: [0, 1501412] },
   // Raised with the note on earlier requests written from the run's ledger: each request after the roll
   // carries the rolled requests' open asks, limits, files changed and checks run, where it carried their words.
   // Raised again when the note became a message of its own, so the instructions stay the same at every step:
   // each request after the roll carries that message's own wrapping, its two marks among it. A cloud provider is sent
   // its role and words only; a model on this computer is sent the marks too, as with the loop's other notes.
-  "six-requests": { small: [5, 220388], mid: [3, 300078], local: [1, 352785], cloud: [1, 352785] },
+  "six-requests": { small: [5, 220388], mid: [3, 300078], local: [1, 352785], cloud: [1, 352785], wide: [1, 352785] },
 };
 
 console.log('\nThe detector can fail:');

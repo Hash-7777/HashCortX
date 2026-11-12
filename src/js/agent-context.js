@@ -78,13 +78,37 @@
     cloud: { toolBudget: 60000, maxResult: 60000, keepResults: 10, hideStep: 6, shellOutput: 20000, searchLines: 100, searchFiles: 40 },
   };
 
+  /** The most characters of tool output ever shown whole, however wide the window. */
+  const MOST_SHOWN = 600000;
+
   /**
    * The options for a model of this size ('small', 'mid' or 'full', as
    * hashcoder.js sizeOf gives it), `local` when it runs on this computer.
+   *
+   * A large model is sized from what it can take when `limits` says
+   * (js/model-limits.js forContext: `window`, `answer` and `perMinuteIn` in
+   * tokens, `charsPerToken`, and `fixed`, the characters of the instructions
+   * and tools): of what it can read in one request, or in a minute where a
+   * provider allows less, six tenths go to tool output, less what is sent
+   * with every request, and one result may take a third of that, up to
+   * twice its tier. Never less than its tier, so a model whose limits are
+   * known never sees less than one whose limits are not. A small or mid
+   * model on this computer keeps its tier: its window is itself chosen from
+   * what it is sent (js/local-context.js).
    */
-  function optionsFor(size, local) {
+  function optionsFor(size, local, limits) {
     const tier = size === 'small' ? TIERS.small : size === 'mid' ? TIERS.mid : local ? TIERS.local : TIERS.cloud;
-    return Object.assign({}, DEFAULTS, tier);
+    const out = Object.assign({}, DEFAULTS, tier);
+    if (size === 'small' || size === 'mid') return out;
+    const l = limits && typeof limits === 'object' ? limits : {};
+    const pos = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0);
+    const window = pos(l.window), chars = pos(l.charsPerToken);
+    if (!window || !chars) return out;
+    const usable = Math.min(window - pos(l.answer), pos(l.perMinuteIn) ? pos(l.perMinuteIn) * 0.8 : Infinity);
+    if (!(usable > 0)) return out;
+    const toolBudget = Math.min(Math.max(Math.floor(usable * 0.6 * chars) - pos(l.fixed), out.toolBudget), MOST_SHOWN);
+    const maxResult = Math.max(out.maxResult, Math.min(out.maxResult * 2, Math.floor(toolBudget / 3)));
+    return Object.assign(out, { toolBudget, maxResult });
   }
 
   function truncateResult(content, keep) {
