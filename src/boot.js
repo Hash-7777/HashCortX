@@ -245,6 +245,7 @@
     '/js/forge/surface.js',
     '/js/forge/printable.js',
     '/js/edit-history.js',
+    '/js/run-ledger.js',
     '/js/agent-context.js',
     '/js/agent-policy.js',
 
