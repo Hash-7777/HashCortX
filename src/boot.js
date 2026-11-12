@@ -98,6 +98,7 @@
     '/js/code/review.js',
     '/js/code/lessons.js',
     '/js/code/codemap.js',
+    '/js/code/uses.js',
     '/js/code/site.js',
     '/js/code/facts.js',
     '/js/code/asks.js',
