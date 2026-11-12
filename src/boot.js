@@ -100,6 +100,7 @@
     '/js/code/site.js',
     '/js/code/facts.js',
     '/js/code/asks.js',
+    '/js/code/added.js',
     '/js/code/keep.js',
     '/js/code/steps.js',
     '/js/code/talk.js',

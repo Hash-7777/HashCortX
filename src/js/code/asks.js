@@ -107,5 +107,5 @@
     return `The request has ${asks.length} separate asks, in the person's words. Do every one of them:\n${numbered(asks)}`;
   }
 
-  window.HCCodeAsks = { MIN_ASKS, MOST_ASKS, LONGEST_REQUEST, split, numbered, checklist };
+  window.HCCodeAsks = { MIN_ASKS, MOST_ASKS, LONGEST_REQUEST, split, numbered, checklist, isAsk: asking };   // isAsk: whether one piece asks for something (js/code/added.js)
 })();
