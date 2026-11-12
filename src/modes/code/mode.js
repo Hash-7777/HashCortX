@@ -1723,12 +1723,12 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
         const files = await S.gather(proof.changed, root, { list: (d) => HC.code.listQuietly(d), read: (f) => HC.code.readQuietly(f) }).catch(() => null);
         if (!files || !files.size) return null;
         const counts = (list) => list.filter((f) => f.level === 'broken' || f.level === 'standard'), broken = S.newSince(counts(C.inspect(files)), counts(C.inspect(S.asBefore(files, changes)))).map((f) => f.what);   // only what this run brought in
-        proof.siteRead(broken.length);   // said under the answer (js/code/verify.js proofLine)
+        proof.siteRead(broken.length); outside = S.brought(files, S.asBefore(files, changes), proof.changed);   // said under the answer (js/code/verify.js proofLine), with scripts from other sites the run added (js/code/site.js)
         ui.trace('Check', broken.length ? `Site: ${broken.length} to fix` : 'Site: nothing found to fix', broken.length ? 'warn' : 'ok');
         return broken.length && !sent.site ? window.HCCodeVerify.siteNote(broken) : null;
       };
       // The details its pages state as fact, looked for in what the run was told and read, and sent back once (js/code/facts.js); what is left is said under the answer.
-      let unconfirmed = null;
+      let unconfirmed = null, outside = null;
       let gone = null; const keptLook = () => { const K = window.HCCodeKeep; if (!K || cdrPrefs().prove === false) return null; gone = K.stillGone(changes, HC.code.request); return sent.gone ? null : K.goneNote(gone); };   // what the run took out unasked and is still gone, sent back once, then said under the answer (js/code/keep.js)
       const factsLook = async () => {
         const F = window.HCCodeFacts, root = sharedState.projectRoot;
@@ -1744,7 +1744,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // The finishing checks, in order: the first with something to say sends the run back. For a change not made, its plan left open, not proven, or not checked against the request (js/code/verify.js); then, for an answer in words, files it names that are not there, a claim it did not check, a site or a second look.
       const finish = [{ id: 'sendBack', run: (reply) => window.HCCodeVerify.sendBack(proof, messages, reply, { checks: sharedState.projectChecks?.checks, prove: cdrPrefs().prove !== false, size: sharedState.size, sent, shown: window.HCCodeAttach?.shownRequest, plan: HC?.code?.plan, asks: HC?.code?.asks, light: !!sharedState.light }) }, { id: 'named', words: true, run: namedLook }, { id: 'claim', words: true, run: (reply) => (cdrPrefs().prove === false ? null : window.HCCodeVerify.claimNote(reply, messages, sent.claim)) }, { id: 'said', words: true, run: (reply) => (cdrPrefs().prove === false ? null : window.HCCodeVerify.saidNote(reply, proof, sent.said)) }, { id: 'passed', words: true, run: (reply) => (cdrPrefs().prove === false ? null : window.HCCodeVerify.passedNote(reply, proof, sharedState.projectChecks?.checks, sent.passed)) }, { id: 'project', words: true, run: projectLook },
         { id: 'example', words: true, run: () => (!sent.example || (sent.example < 2 && proof?.examplesStale)) && proof && cdrPrefs().prove !== false && window.HCCodeVerify.exampleNote(window.HCCodeVerify.examplesOf(window.HCCodeVerify.requestIn(messages), proof.changed.map((p) => String(p).replace(/\\/g, '/').slice(String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, '').length + 1)))) }, { id: 'site', words: true, run: siteLook }, { id: 'facts', words: true, run: factsLook }, { id: 'kept', words: true, run: keptLook }, { id: 'second', words: true, run: secondLook }];
-      return { finish, left: () => ({ unconfirmed, gone }), wrap: () => siteLook().then(factsLook) };
+      return { finish, left: () => ({ unconfirmed, gone, outside }), wrap: () => siteLook().then(factsLook) };
     }
 
     async function agentLoop(messages, tools, contentEl, label, signal) {

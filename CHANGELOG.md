@@ -10,6 +10,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **HashCoder names the scripts from other sites a run added to a site.**
+  With Prove changes before finishing on, each script from another site that
+  a page or script the run changed now loads, and did not before, is named
+  under the answer, since it runs with full access to its page. It is a note;
+  the page is left as the run wrote it.
 - **HashCoder says when a project's notes for agents changed.** When the
   open project's notes for coding agents are not what HashCoder read the last
   time it opened the project, notes there for the first time among them, the

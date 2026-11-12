@@ -213,8 +213,8 @@
         ui.answer(finalText);
       }
       // What was proven, from the record rather than from the reply, and what is left of its plan; kept with the answer, so a saved conversation says it too.
-      const { unconfirmed, gone } = looks.left();   // what the details and the kept checks found
-      const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
+      const { unconfirmed, gone, outside } = looks.left();   // what the details and the kept checks found
+      const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeSite?.outsideLine(outside), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
       sharedState.proven = proven || ''; if (proven) ui.answer(`*${proven}*`);
       return finalText;
     }
@@ -235,8 +235,8 @@
     // user could not tell which — so they could not tell whether replying
     // "continue" would help or repeat the same loop.
     ui.trace('Done', `Stopped: ${stop.reason} after ${iter} steps`, 'warn');
-    const { unconfirmed } = looks.left();
-    const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
+    const { unconfirmed, outside } = looks.left();
+    const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeSite?.outsideLine(outside), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
     if (summary) { ui.answer(summary); if (account?.role === 'assistant' && account.content === summary) account.proven = said; }   // wrapUp added the account to the conversation; a saved one shows the line under it too
     ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
   }

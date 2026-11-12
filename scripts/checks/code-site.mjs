@@ -126,5 +126,30 @@ console.log('\nHashCoder:');
   ok('Settings says so under proving changes', /A site it changed is read the way a browser would, and what the change made that will not work, or lets the page down, is sent back to be fixed\. Problems the site already had are left alone\./.test(src('core', 'settings', 'panel.html')));
 }
 
+console.log('\nScripts from other sites the run added:');
+{
+  const page = (body) => `<!doctype html><html><head><title>Shop</title></head><body>${body}</body></html>`;
+  ok('a page\'s scripts from another site are found, by full or scheme-less address, not its own', JSON.stringify(S.outsideScripts(page('<script src="https://cdn.example.net/lib.js"></script><script src="//assets.example.org/x.js" defer></script><script src="js/app.js"></script><script src="/js/own.js"></script>'), true)) === JSON.stringify(['https://cdn.example.net/lib.js', '//assets.example.org/x.js']));
+  ok('...and a module a page or a script imports from one', JSON.stringify(S.outsideScripts("import { a } from 'https://esm.example.net/a.js';\nimport './local.js';\nconst b = await import(\"https://esm.example.net/b.js\");", false)) === JSON.stringify(['https://esm.example.net/a.js', 'https://esm.example.net/b.js']));
+  ok('a stylesheet or a link to another site is not a script', JSON.stringify(S.outsideScripts(page('<link rel="stylesheet" href="https://fonts.example.net/a.css"><a href="https://example.org/">Visit</a>'), true)) === '[]');
+  const before = new Map([['index.html', { path: '/p/site/index.html', content: page('<script src="https://cdn.example.net/lib.js"></script>') }]]);
+  const now = new Map([
+    ['index.html', { path: '/p/site/index.html', content: page('<script src="https://cdn.example.net/lib.js"></script><script src="https://track.example.org/t.js"></script>') }],
+    ['about.html', { path: '/p/site/about.html', content: page('<script src="https://widgets.example.com/w.js"></script>') }],
+    ['app.js', { path: '/p/site/app.js', content: "import x from 'https://esm.example.net/x.js';" }],
+  ]);
+  const added = S.brought(now, before, ['/p/site/index.html', '/p/site/app.js']);
+  ok('only what the run brought in, in the pages and scripts it changed', JSON.stringify(added) === JSON.stringify([{ url: 'https://track.example.org/t.js', file: 'index.html' }, { url: 'https://esm.example.net/x.js', file: 'app.js' }]), JSON.stringify(added));
+  ok('...nothing when it brought none in', JSON.stringify(S.brought(before, before, ['/p/site/index.html'])) === '[]' && JSON.stringify(S.brought(now, before, [])) === '[]');
+  const line = S.outsideLine(added);
+  ok('said under the answer in plain words, each address as code, never a link', line === 'Scripts from other sites this run added: `https://track.example.org/t.js` in index.html; `https://esm.example.net/x.js` in app.js. Each one runs with full access to its page.', line);
+  ok('...an address that would close its code span, or holds hidden characters, shown so it cannot', !S.outsideLine([{ url: 'https://a.example.net/`x`.js', file: 'i.html' }]).includes('`x`') && S.outsideLine([]) === '' && S.outsideLine(null) === '');
+  const long = S.outsideLine(Array.from({ length: S.MOST_LISTED + 3 }, (_, i) => ({ url: `https://c${i}.example.net/s.js`, file: 'index.html' })));
+  ok('...held to a few, with how many more', (long.match(/example\.net/g) || []).length === S.MOST_LISTED && /and 3 more/.test(long), long);
+  const mode = src('modes', 'code', 'mode.js'), loop = src('js', 'agent-loop.js');
+  ok('the site check keeps what the run added, from the files it gathered and as they stood before', /outside = S\.brought\(files, S\.asBefore\(files, changes\), proof\.changed\);/.test(mode) && /left: \(\) => \(\{ unconfirmed, gone, outside \}\)/.test(mode));
+  ok('...and the line goes under the answer, and under the account when a run stops early', /const \{ unconfirmed, gone, outside \} = looks\.left\(\);/.test(loop) && /window\.HCCodeKeep\?\.goneLine\(gone\), window\.HCCodeSite\?\.outsideLine\(outside\),/.test(loop) && /const \{ unconfirmed, outside \} = looks\.left\(\);/.test(loop) && /window\.HCCodeFacts\?\.leftLine\(unconfirmed\), window\.HCCodeSite\?\.outsideLine\(outside\),/.test(loop));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/site.js)`);
 process.exit(fail ? 1 : 0);

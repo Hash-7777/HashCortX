@@ -16,6 +16,11 @@
 // other folders of the project. Read through the guard's check that never
 // asks (HC.code.readQuietly), within limits on files and characters.
 //
+// Scripts from other sites are said, not refused: what the run's changed
+// pages and scripts now load from another site that they did not before (a
+// <script src> or an import of a full address) is listed under the answer,
+// since each such script runs with full access to its page (outsideLine).
+//
 // Pure but for gather(), which is handed the functions that list and read.
 //
 // Loaded before the Coder mode and published as window.HCCodeSite.
@@ -27,6 +32,8 @@
 
   const WEB = /\.(?:html?|css|m?js)$/i;
   const MOST_FILES = 30;
+  /** At most this many scripts from other sites are named under the answer. */
+  const MOST_LISTED = 5;
   const MOST_CHARS = 1500000;
 
   const sepOf = (p) => (/\\/.test(p) && !/\//.test(p) ? '\\' : '/');
@@ -130,5 +137,51 @@
     return (now || []).filter((f) => f && !had.has(f.what));
   }
 
-  window.HCCodeSite = { MOST_FILES, MOST_CHARS, worthChecking, loads, resolve, gather, asBefore, newSince };
+  // ── Scripts from other sites ─────────────────────────────────────────
+
+  /** A full address, or one with no scheme: a script from another site. */
+  const ELSEWHERE = /^(?:https?:)?\/\//i;
+
+  /** The scripts `text` loads from other sites, as it writes them: a page's <script src>, and any import of a full address. */
+  function outsideScripts(text, isPage) {
+    const t = String(text || '');
+    const out = [];
+    if (isPage) for (const m of t.matchAll(/<script\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/gi)) if (ELSEWHERE.test(m[1].trim())) out.push(m[1].trim());
+    for (const m of t.matchAll(/\bimport\s*(?:[\w*{}\s,]+\s*from\s*|\(\s*)["']([^"']+)["']/g)) if (ELSEWHERE.test(m[1].trim())) out.push(m[1].trim());
+    return [...new Set(out)];
+  }
+
+  /**
+   * What the run brought in: `[{ url, file }]` for each script from another
+   * site that a page or script it changed loads now and did not load in
+   * `before` (asBefore). `files` is what gather() read; `changed` the paths
+   * the run changed.
+   */
+  function brought(files, before, changed) {
+    const names = new Set((Array.isArray(changed) ? changed : []).map((p) => baseOf(String(p)).toLowerCase()));
+    const out = [];
+    for (const [name, f] of files || []) {
+      if (!names.has(name) || !/\.(?:html?|m?js)$/i.test(name)) continue;
+      const page = /\.html?$/i.test(name);
+      const was = before && before.get(name);
+      const had = new Set(outsideScripts(was ? was.content : '', page));
+      for (const url of outsideScripts(f.content, page)) if (!had.has(url)) out.push({ url, file: baseOf(f.path) });
+    }
+    return out;
+  }
+
+  /** The line under the answer naming them, or ''. Each address as code, so it is never a link, its hidden characters as codes. */
+  function outsideLine(list) {
+    if (!Array.isArray(list) || !list.length) return '';
+    const shown = (u) => {
+      const s = String(u).replace(/`/g, '%60');
+      const coded = window.HCTextSafety ? window.HCTextSafety.reveal(s) : s;
+      return `\`${coded.length > 120 ? `${coded.slice(0, 119)}…` : coded}\``;
+    };
+    const named = list.slice(0, MOST_LISTED).map((s) => `${shown(s.url)} in ${s.file}`).join('; ');
+    const more = list.length > MOST_LISTED ? `, and ${list.length - MOST_LISTED} more` : '';
+    return `Scripts from other sites this run added: ${named}${more}. Each one runs with full access to its page.`;
+  }
+
+  window.HCCodeSite = { MOST_FILES, MOST_CHARS, MOST_LISTED, worthChecking, loads, resolve, gather, asBefore, newSince, outsideScripts, brought, outsideLine };
 })();
