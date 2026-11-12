@@ -188,6 +188,7 @@
       (how ? `<span class="cdr-added-how">${esc(how)}</span>` : '');
     el.querySelector('.cdr-added-text').textContent = coded(text);
     contentEl.appendChild(el);
+    window.HCRunView?.brief(contentEl);   // its asks join the brief (js/run-view.js)
     return el;
   }
 

@@ -195,6 +195,7 @@
       // Final answer — hide reasoning, show result
       const finalText = turn.content || '';
       if (!echoed && window.HCCodeTalk?.echoesTools(finalText, tools)) { echoed = bare = true; tools = []; thinkEl = ui.wait(); ui.trace('Check', 'The model wrote its tool list back as its reply: asking again without tools', 'warn'); continue; }
+      if (HC?.code) HC.code.said = finalText;   // what it said as it finished, which the brief reads (js/run-view.js)
       let back = null; for (const f of finish) if ((!f.words || finalText.trim()) && (back = await f.run(finalText))) break;   // the first finishing check with something to say sends it back
       if (back) {
         sent[back.kind]++; if (back.kind === 'example') proof?.exampled();   // run again, once, after a later change

@@ -2,10 +2,12 @@
 // The run view: phases on the rail — checks
 //
 // Loads the real src/js/run-view.js with the real module it reads to tell a
-// check from a command (js/code/verify.js commandKind), and holds how a
+// check from a command (js/code/verify.js commandKind) and to tell an
+// answered ask (js/run-ledger.js answeredBy), and holds how a
 // HashCoder run's steps are grouped into phases by the app, never by the
 // model: Finding, Reading, Changing, Checking, Reviewing; the one line a
-// phase folds to; and where the drawing is wired: only into a reply whose
+// phase folds to; the brief, each ask of the request with its state; and
+// where the drawing is wired: only into a reply whose
 // run is going on, its turning mark only while it runs. The drawing itself
 // is looked at in a browser. Every step here is invented.
 //
@@ -21,7 +23,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const box = { console };
 box.window = box;
 vm.createContext(box);
-for (const f of [['js', 'code', 'verify.js'], ['js', 'run-view.js']]) vm.runInContext(src(...f), box, { filename: f[f.length - 1] });
+for (const f of [['js', 'code', 'verify.js'], ['js', 'run-ledger.js'], ['js', 'run-view.js']]) vm.runInContext(src(...f), box, { filename: f[f.length - 1] });
 const V = box.HCRunView;
 
 let pass = 0, fail = 0;
@@ -54,6 +56,24 @@ ok('Checking: how many commands, and how many failed', V.line('checking', steps(
 ok('Reviewing: how many checks', V.line('reviewing', steps('CHECK', ['x', 'y'])) === '2 checks');
 ok('nothing yet, nothing said', V.line('reading', []) === '');
 
+console.log('\nThe brief:');
+const run = [{ verb: 'GREP', object: 'priceFor' }, { verb: 'READ', object: 'src/pricing/bundle.js' }, { verb: 'EDIT', object: 'src/pricing/bundle.js' }, { verb: 'SHELL', object: 'npm test' }, { verb: 'CHECK', object: 'Checked against the request: 1 ask open' }];
+ok('a step serves an ask when it names a word the ask says: in a path, a name, a command', json(V.servedBy('Fix the discount on bundles so it applies once per order', run)) === '[1,2]' && json(V.servedBy('Rename priceFor to priceOf everywhere', run)) === '[0]' && json(V.servedBy('Add a test for it', run)) === '[3]', json([V.servedBy('Fix the discount on bundles so it applies once per order', run), V.servedBy('Rename priceFor to priceOf everywhere', run), V.servedBy('Add a test for it', run)]));
+ok('...never the app\'s own check-ins, and never words as common as "file" or "change"', json(V.servedBy('Check the request against the rules', run)) === '[]' && json(V.servedBy('Change the file please', [{ verb: 'EDIT', object: 'docs/file-change.md' }])) === '[]');
+const asks = ['Fix the discount on bundles so it applies once per order', 'Add a test for it', 'Rename priceFor to priceOf everywhere', 'Keep the old priceFor export working too'];
+const first = 'Fix the discount on bundles so it applies once per order. Also add a test for it, and rename priceFor to priceOf everywhere.';
+const mid = V.askMarks(asks, { first, said: '', steps: run.slice(0, 3) });
+ok('mid-run: an ask a step served is in work, one none served is open, each with how many steps', json(mid.map((m) => m.state)) === '["working","open","working","working"]' && json(mid.map((m) => m.why)) === '["in work · 2 steps","","in work · 1 step","you added · in work · 1 step"]', json(mid));
+ok('...an ask not in the request it began with is one you added while it worked', json(mid.map((m) => m.added)) === '[false,false,false,true]' && V.askMarks(asks, { steps: [] }).every((m) => !m.added));
+const said = 'Fixed: the discount on bundles applies once per order now. Rename of priceFor to priceOf done everywhere.';
+const end = V.askMarks(asks, { first, said, steps: run.slice(0, 3) });
+ok('an ask is answered only when what it said as it finished says it, by the run record\'s own test, with the files changed for it', json(end.map((m) => m.state)) === '["answered","open","answered","working"]' && end[0].why === 'answered · 1 file' && end[2].why === 'answered', json(end));
+ok('...so an ask too short for that test is never called answered', V.askMarks(['Add a test for it'], { said: 'Added a test for it.' })[0].state !== 'answered');
+ok('...and nothing is answered while nothing was said', V.askMarks(asks, { first, steps: run }).every((m) => m.state !== 'answered'));
+ok('an ask you added counts only the steps after it was read, never an earlier search that named it', V.askMarks(asks, { first, steps: run.slice(0, 3), since: [0, 0, 0, 3] })[3].state === 'open' && json(V.servedBy('Keep the old priceFor export working too', [...run, { verb: 'GREP', object: 'priceFor' }], 5)) === '[5]');
+ok('the brief\'s count says how many are answered', V.briefCount(end) === '2 of 4 answered' && V.briefCount(mid) === '0 of 4 answered');
+ok('the same asks and steps always give the same marks', json(V.askMarks(asks, { first, said, steps: run })) === json(V.askMarks(asks, { first, said, steps: run })));
+
 console.log('\nWhere it is drawn:');
 const stepsSrc = src('js', 'code', 'steps.js'), view = src('js', 'run-view.js'), css = src('modes', 'code', 'mode.css');
 ok('every step of a list goes to it as it is drawn, and a finished step tells it whether it failed', /window\.HCRunView\?\.place\(contentEl, list, el, verb, object\)/.test(stepsSrc) && /window\.HCRunView\?\.stepDone\(el, ok\)/.test(stepsSrc));
@@ -61,6 +81,10 @@ ok('...and a reply that settles ends its phases', /window\.HCRunView\?\.end\(con
 ok('phases are drawn only in a reply whose run is going on, never in a saved one drawn again', /if \(!contentEl \|\| !contentEl\.closest\('\.cdr-msg\.running'\)\) return null;/.test(view));
 ok('a change waiting for Keep or Undo is never folded away', /if \(!s\.classList\.contains\('cdr-step--change'\)\) s\.classList\.toggle\('cdr-step--folded', folded\);/.test(view));
 ok('the turning mark moves only while the run goes on, and not for someone who asks for less motion', /\.cdr-msg\.running \.cdr-phase\.now \.cdr-reticle svg \{ animation: cdr-lock/.test(css) && /@media \(prefers-reduced-motion: reduce\) \{[^}]*\.cdr-reticle svg \{ animation: none; \}/.test(css));
+ok('the brief is drawn only for a request of several asks, at the top of the reply, and drawn again at each step, when you add a message, and when the run ends', /code\.asks\.length < most\) return null;/.test(view) && /contentEl\.insertBefore\(box, contentEl\.firstChild\)/.test(view) && /brief\(contentEl\);\n\s+return st\.cur\.id;/.test(view) && /window\.HCRunView\?\.brief\(contentEl\);/.test(stepsSrc) && /brief\(contentEl\);\n\s+close\(st\.cur\);/.test(view));
+ok('...what it said as it finished is kept for it, and each new request starts with its own words and nothing said', /if \(HC\?\.code\) HC\.code\.said = finalText;/.test(src('js', 'agent-loop.js')) && /if \(HC\?\.code\) \{ HC\.code\.firstRequest = task; HC\.code\.said = '';/.test(src('modes', 'code', 'mode.js')));
+ok('...pointing at an ask, or reaching it by keyboard, lights the steps that served it and the phase they are folded in', /cdr-step--served/.test(view) && /cdr-phase--served/.test(view) && /'mouseenter'/.test(view) && /'focus'/.test(view) && /\.cdr-step--served/.test(css));
+ok('...and nothing in it moves', !/\.cdr-brief[^{]*\{[^}]*(?:animation|transition)/.test(css) && !/\.cdr-ask[^{]*\{[^}]*(?:animation|transition)/.test(css));
 const boot = src('boot.js');
 ok('it is loaded after the module it reads and before the steps that call it', boot.indexOf("'/js/run-view.js'") > boot.indexOf("'/js/code/verify.js'") && boot.indexOf("'/js/run-view.js'") < boot.indexOf("'/js/code/steps.js'"));
 ok('it is part of npm run check', /npm run check:run-view\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));

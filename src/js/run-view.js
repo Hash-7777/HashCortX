@@ -23,9 +23,24 @@
 // waiting for Keep or Undo is never folded away. The phase in work carries a
 // turning mark, which moves only while the run goes on.
 //
-// Phases are drawn only in a reply whose run is going on, never in a saved
-// conversation drawn again. phaseOf and line are pure; place, stepDone and
-// end draw. Published as window.HCRunView. Checked by scripts/checks/run-view.mjs.
+// The brief, at the top of the reply while it works, holds a request of
+// several asks (js/code/asks.js), each with a drawn mark for its state:
+//
+//   open       no step has served it yet
+//   in work    a step names a word it says, in a path, a name or a command,
+//              never words as common as "file" or "change"
+//   answered   what the agent said as it finished says it, by the run
+//              record's own test (js/run-ledger.js answeredBy)
+//
+// and a plus for an ask you added while it worked. Pointing at an ask, or
+// reaching it by keyboard, lights the steps that served it. The brief stays
+// in view while the reply scrolls, and folds to its count. With fewer than
+// three asks there is no brief: the request is shown whole just above.
+//
+// Phases and the brief are drawn only in a reply whose run is going on,
+// never in a saved conversation drawn again. phaseOf, line, servedBy,
+// askMarks and briefCount are pure; place, stepDone, brief and end draw.
+// Published as window.HCRunView. Checked by scripts/checks/run-view.mjs.
 // ==============================================================
 
 (function () {
@@ -88,6 +103,51 @@
     return many(list.length, 'check', 'checks') + tail;
   }
 
+  // ── The brief: the request's asks, each with its state ────────────────
+
+  /** Words too common to say a step served an ask. */
+  const PLAIN = new Set(['with', 'that', 'this', 'from', 'into', 'have', 'will', 'your', 'what', 'when', 'where', 'which', 'also', 'just', 'please', 'make', 'sure', 'each', 'every', 'some', 'more', 'only', 'very', 'should', 'would', 'could', 'want', 'need', 'like', 'them', 'they', 'there', 'then', 'than', 'does', 'done', 'keep', 'about', 'again', 'still', 'other', 'same', 'file', 'files', 'code', 'page', 'change', 'changes', 'work', 'thing', 'things']);
+  /** The app's own rows, which serve no ask. */
+  const NOT_WORK = new Set(['CHECK', 'PLAN', 'LESSON']);
+  const stem = (w) => (w.length > 4 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w);
+  const wordsIn = (text) => String(text || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 4 && !PLAIN.has(w)).map(stem);
+  const flat = (text) => String(text || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+  /** The steps (their indexes in `steps`, from `since` on) that served an ask: each names a word the ask says. */
+  function servedBy(ask, steps, since = 0) {
+    const want = new Set(wordsIn(ask));
+    const out = [];
+    (Array.isArray(steps) ? steps : []).forEach((s, i) => {
+      if (i >= since && s && !NOT_WORK.has(String(s.verb || '').toUpperCase()) && wordsIn(s.object).some((w) => want.has(w))) out.push(i);
+    });
+    return out;
+  }
+
+  /**
+   * Each ask with its state: open, working (a step served it) or answered
+   * (what was said as it finished says it); `added` when it is not in the
+   * request the run began with; `why` in plain words. `since[i]` is the
+   * first step ask i can have been served by: an ask you added counts only
+   * the steps after it was read.
+   */
+  function askMarks(asks, { first = '', said = '', steps = [], since = [] } = {}) {
+    const L = typeof window !== 'undefined' && window.HCRunLedger;
+    const was = flat(first);
+    const all = Array.isArray(steps) ? steps : [];
+    return (Array.isArray(asks) ? asks : []).map((text, i) => {
+      const served = servedBy(text, all, Number(since[i]) || 0);
+      const answered = !!(said && L && typeof L.answeredBy === 'function' && L.answeredBy(text, said));
+      const state = answered ? 'answered' : served.length ? 'working' : 'open';
+      const added = !!was && !was.includes(flat(text));
+      const files = new Set(served.map((j) => all[j]).filter((s) => CHANGES.has(String(s.verb || '').toUpperCase())).map((s) => String(s.object))).size;
+      const how = state === 'answered' ? (files ? `answered · ${many(files, 'file', 'files')}` : 'answered') : state === 'working' ? `in work · ${many(served.length, 'step', 'steps')}` : '';
+      return { n: i + 1, text: String(text), state, added, served, why: [added ? 'you added' : '', how].filter(Boolean).join(' · ') };
+    });
+  }
+
+  /** "2 of 4 answered". */
+  const briefCount = (marks) => `${(marks || []).filter((m) => m.state === 'answered').length} of ${(marks || []).length} answered`;
+
   // ── Drawing ────────────────────────────────────────────────────────────
 
   let seq = 0;
@@ -134,11 +194,72 @@
     return ph;
   }
 
+  /** Each ask's mark: a ring, a half-filled ring, a filled ring with a tick, and a ring with a plus for one you added. */
+  const MARKS = {
+    open: '<circle cx="8" cy="8" r="5.25"/>',
+    added: '<circle cx="8" cy="8" r="5.25"/><path d="M8 5.6v4.8M5.6 8h4.8"/>',
+    working: '<circle cx="8" cy="8" r="5.25"/><path class="cdr-ask-fill" d="M8 2.75a5.25 5.25 0 0 1 0 10.5z"/>',
+    answered: '<circle class="cdr-ask-fill" cx="8" cy="8" r="5.25"/><path class="cdr-ask-cut" d="m5.7 8.1 1.6 1.6 3-3.2"/>',
+  };
+  const SAYS = { open: 'not started', working: 'in work', answered: 'answered' };
+
+  /** Light the steps that served an ask, and the phase heads they are folded under; none for null. */
+  function light(st, served) {
+    const on = new Set((served || []).map((i) => st.all[i] && st.all[i].el).filter(Boolean));
+    const heads = new Set([...on].map((el) => el.dataset && el.dataset.phase).filter(Boolean));
+    for (const s of st.all) if (s.el) s.el.classList.toggle('cdr-step--served', on.has(s.el));
+    for (const ph of byId.values()) ph.head.classList.toggle('cdr-phase--served', heads.has(ph.id));
+  }
+
+  /** Draw the brief at the top of a reply whose run is going on, or bring it up to date. */
+  function brief(contentEl) {
+    const st = contentEl && contentEl.hcPhases;
+    const code = typeof window !== 'undefined' && window.HC && window.HC.code;
+    const most = (window.HCCodeAsks && window.HCCodeAsks.MIN_ASKS) || 3;
+    if (!st || !code || !Array.isArray(code.asks) || code.asks.length < most) return null;
+    st.since = st.since || [];
+    const was = flat(code.firstRequest);
+    code.asks.forEach((a, i) => { if (st.since[i] == null) st.since[i] = was && !was.includes(flat(a)) ? st.all.length : 0; });   // an ask you added counts the steps after it was read
+    const marks = askMarks(code.asks, { first: code.firstRequest, said: code.said, steps: st.all, since: st.since });
+    let box = st.brief;
+    if (!box || !box.isConnected) {
+      box = st.brief = document.createElement('section');
+      box.className = 'cdr-brief';
+      box.setAttribute('aria-label', 'Your request, ask by ask');
+      box.innerHTML = '<button type="button" class="cdr-brief-h" aria-expanded="true"><span class="cdr-brief-name">Your request</span><span class="cdr-brief-count"></span></button><ol class="cdr-asks"></ol>';
+      const h = box.querySelector('.cdr-brief-h');
+      h.addEventListener('click', () => { const folded = box.classList.toggle('folded'); h.setAttribute('aria-expanded', String(!folded)); });
+      contentEl.insertBefore(box, contentEl.firstChild);
+    }
+    box.querySelector('.cdr-brief-count').textContent = briefCount(marks);
+    const list = box.querySelector('.cdr-asks');
+    marks.forEach((m, i) => {
+      let li = list.children[i];
+      if (!li) {
+        li = document.createElement('li');
+        li.innerHTML = '<button type="button" class="cdr-ask-b"><span class="cdr-ask-mark" aria-hidden="true"><svg viewBox="0 0 16 16"></svg></span><span class="cdr-ask-text"></span><span class="cdr-ask-why"></span></button>';
+        const b = li.querySelector('button');
+        const on = () => light(st, li.hcServed), off = () => light(st, null);
+        b.addEventListener('mouseenter', on); b.addEventListener('focus', on);
+        b.addEventListener('mouseleave', off); b.addEventListener('blur', off);
+        list.appendChild(li);
+      }
+      li.hcServed = m.served;
+      li.className = `cdr-ask is-${m.state}${m.added ? ' is-added' : ''}`;
+      li.querySelector('svg').innerHTML = MARKS[m.added && m.state === 'open' ? 'added' : m.state];
+      li.querySelector('.cdr-ask-text').textContent = m.text;
+      li.querySelector('.cdr-ask-why').textContent = m.why;
+      li.querySelector('button').setAttribute('aria-label', `Ask ${m.n}, ${SAYS[m.state]}${m.added ? ', you added it' : ''}: ${m.text}`);
+    });
+    return box;
+  }
+
   /** A step just drawn into `list`: it joins the phase in work, or begins the next. */
   function place(contentEl, list, el, verb, object) {
     if (!contentEl || !contentEl.closest('.cdr-msg.running')) return null;
     if (!list || !el) return null;
-    const st = contentEl.hcPhases || (contentEl.hcPhases = { cur: null, changed: false });
+    const st = contentEl.hcPhases || (contentEl.hcPhases = { cur: null, changed: false, all: [], brief: null });
+    st.all.push({ verb: String(verb || '').toUpperCase(), object: String(object || ''), el });
     const phase = phaseOf(verb, object, st.changed) || (st.cur && st.cur.phase) || 'reading';
     if (phase === 'changing') st.changed = true;
     if (!st.cur || st.cur.phase !== phase) {
@@ -148,6 +269,7 @@
     el.dataset.phase = st.cur.id;
     st.cur.steps.push({ verb: String(verb || '').toUpperCase(), object: String(object || ''), failed: false, el });
     paint(st.cur);
+    brief(contentEl);
     return st.cur.id;
   }
 
@@ -160,13 +282,14 @@
     paint(ph);
   }
 
-  /** The run has ended: its last phase closes, and nothing turns. */
+  /** The run has ended: the brief takes what was said last, its last phase closes, and nothing turns. */
   function end(contentEl) {
     const st = contentEl && contentEl.hcPhases;
     if (!st) return;
+    brief(contentEl);
     close(st.cur);
     contentEl.hcPhases = null;
   }
 
-  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, place, stepDone, end };
+  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, place, stepDone, brief, end };
 })();

@@ -381,6 +381,29 @@ body.coder-mode #app { display: none; }
 .cdr-added-bubble { max-width: 74%; padding: 9px 13px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-md); background: var(--surface-2); }
 .cdr-added-text { font-size: 13.5px; line-height: 1.5; color: var(--cdr-text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .cdr-added-how { padding-left: 8px; background: var(--surface-0); font-size: 11.5px; color: var(--cdr-text-muted); }
+/* The brief (js/run-view.js brief): each ask of the request with its state, in view while the reply scrolls. */
+.cdr-brief { position: sticky; top: 0; z-index: 2; margin: 0 0 14px; padding: 6px 6px 8px; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-0); }
+.cdr-brief-h { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; padding: 4px 8px; background: none; border: 0; border-radius: var(--radius-xs); font: inherit; color: inherit; cursor: pointer; }
+.cdr-brief-h:hover, .cdr-brief-h:focus-visible { background: var(--surface-raised); outline: none; }
+.cdr-brief-name { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--cdr-text-muted); }
+.cdr-brief-count { font: 11.5px var(--mono); font-variant-numeric: tabular-nums; color: var(--cdr-text-muted); }
+.cdr-brief.folded .cdr-asks { display: none; }
+.cdr-asks { list-style: none; margin: 2px 0 0; padding: 0; display: grid; gap: 1px; }
+.cdr-ask-b { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 0 8px; background: none; border: 0; border-radius: var(--radius-xs); font: inherit; font-size: 13px; color: var(--cdr-text); text-align: left; cursor: default; }
+.cdr-ask-b:hover, .cdr-ask-b:focus-visible { background: var(--surface-raised); outline: none; }
+.cdr-ask-mark { display: inline-flex; color: var(--cdr-text-muted); }
+#coder-mode-wrap .cdr-ask-mark svg { width: 15px; height: 15px; stroke-width: 1.4; }
+#coder-mode-wrap .cdr-ask-mark .cdr-ask-fill { fill: currentColor; }
+#coder-mode-wrap .cdr-ask-mark .cdr-ask-cut { stroke: var(--surface-0); stroke-width: 1.6; }
+.cdr-ask.is-working .cdr-ask-mark, .cdr-ask.is-added .cdr-ask-mark { color: var(--accent-2); }
+.cdr-ask.is-answered .cdr-ask-mark { color: var(--accent); }
+.cdr-ask-text { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdr-ask-text::first-letter { text-transform: uppercase; }   /* the person's words, kept as written, begun with a capital on screen */
+.cdr-ask.is-answered .cdr-ask-text { color: var(--cdr-text-dim); }
+.cdr-ask-why { display: block; font: 11px var(--mono); color: var(--cdr-text-muted); white-space: nowrap; }
+/* The steps an ask you point at was served by, and the phase they are folded under. */
+.cdr-steps-list > .cdr-step--served, .cdr-phase--served .cdr-phase-h { background: var(--surface-raised); }
+.cdr-step--served .cdr-step-object { color: var(--cdr-text); }
 /* A check-in from the app: its mark in place of a word, its words plainly, no dot on the rail. */
 .cdr-steps-list > .cdr-step--check::before { display: none; }
 #coder-mode-wrap .cdr-step--check .cdr-check-mark { width: 14px; height: 14px; color: var(--accent-2); }

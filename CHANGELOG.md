@@ -23,6 +23,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   work, or sent now. Reopened conversations show it the same way. The app's
   own check-ins are rows of their own with a shield mark, inside the phase
   they happen in, and no longer start a Reviewing phase.
+- **A HashCoder reply opens with the brief when your request asks for
+  several things.** Each ask is listed with a drawn mark: open, in work once
+  a step names something it says (a file, a name, a command), or answered
+  once the agent's finishing reply says it. An ask you add while it works
+  joins with a plus and counts only the steps after it was read. Pointing at
+  an ask lights the steps that served it. The brief stays in view while the
+  reply scrolls and folds to its count, "2 of 4 answered".
 - **A phase row no longer shows a coloured ring once clicked.** Reached by
   keyboard, it takes the hover look with a thin neutral line.
 - **A message sent while HashCoder works is taken for what it is.** A
