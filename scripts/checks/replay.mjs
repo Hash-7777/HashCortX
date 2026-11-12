@@ -109,6 +109,7 @@ const CEILINGS = {
   "three-requests": { small: [4, 150178], mid: [1, 190685], local: [0, 255617], cloud: [0, 255617] },
   "mid-way": { small: [7, 124378], mid: [5, 191002], local: [3, 272764], cloud: [1, 378407] },
   "pictures": { small: [10, 160535], mid: [9, 238330], local: [7, 360331], cloud: [5, 496684] },
+  "six-requests": { small: [5, 216180], mid: [3, 295870], local: [1, 348577], cloud: [1, 348577] },
 };
 
 console.log('\nThe detector can fail:');

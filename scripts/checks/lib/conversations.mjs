@@ -117,8 +117,27 @@ function pictures() {
   return { name: 'pictures', about: 'a picture with the request and one the agent opened', messages };
 }
 
+function sixRequests() {
+  const messages = [system()];
+  const asks = [
+    'Fix the totals in src/cart.js so they round to two places. Also show the tax on its own line. And also keep the old total for saved carts. Do not change the tests.',
+    'Add a discount code field to src/checkout.js.',
+    'Show the discount in the order summary.',
+    'Make the discount field accept lower case codes.',
+    'Log a warning when a code has run out.',
+    'Explain how the discount is worked out.',
+  ];
+  const files = ['src/cart.js', 'src/checkout.js', 'src/summary.js', 'src/checkout.js', 'src/codes.js', 'src/codes.js'];
+  asks.forEach((text, n) => {
+    messages.push(ask(text));
+    messages.push(...read(files[n], 80), ...patch(files[n], 10 + n), ...run('npm test', `shop: ${6 + n} passed, 0 failed`));
+    messages.push(answer(`Done: ${files[n]} changed and the tests pass.`));
+  });
+  return { name: 'six-requests', about: 'six requests one after another, so the earlier ones roll into the note', messages };
+}
+
 /** Every invented run, built fresh, in a fixed order. */
 export function conversations() {
   ids = 0;
-  return [shortRun(), longRun(), threeRequests(), midway(), pictures()];
+  return [shortRun(), longRun(), threeRequests(), midway(), pictures(), sixRequests()];
 }
