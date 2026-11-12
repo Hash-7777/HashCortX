@@ -49,7 +49,7 @@
     // MiniMax's guide, "Text: OpenAI-compatible": its thinking travels in the answer's text or its own field; neither is read here yet, so nothing changes.
     { family: 'minimax', where: 'cloud', name: /minimax/i, thinks: 'always' },
     // Anthropic's guide, "Extended thinking": thinking takes no sampling settings, and none is asked of it here, so its
-    // temperature is sent as today; results of one turn go back together. Carrying its thinking blocks: DECISION D3, as today.
+    // temperature is sent as today; results of one turn go back together. Its thinking blocks are not sent back (carry stays never).
     { family: 'claude', where: 'cloud', name: /claude/i, thinks: 'optional', carryField: 'blocks', resultsTogether: true, markFailed: true },
     // OpenAI's guide, "Reasoning models": no temperature or top_p; reasoning_effort takes low, medium or high.
     { family: 'gpt', where: 'cloud', name: /^(?:openai\/)?(?:o\d|gpt-5)/i, thinks: 'always', sampling: NO_SAMPLING, effort: { field: 'reasoning_effort', levels: ['low', 'medium', 'high'] } },
@@ -109,7 +109,7 @@
       resultsTogether: !!row.resultsTogether,
       markFailed: !!row.markFailed,
       effort: row.effort || null,
-      strong: false,   // which families are strong enough for sub-agents is DECISION D4, needed before WP9
+      strong: false,   // no family is rated strong enough for sub-agents yet; none is started
     });
   }
 
