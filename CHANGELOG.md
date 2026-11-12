@@ -30,6 +30,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **Frontend checks run on Windows in CI.** Until now only the Rust tests
+  ran there. A Windows job now runs the checks whose answers could depend on
+  the system (paths, what Auto lets run, patching, the Permission Guard),
+  listed as `npm run check:windows`.
 - **A run stopped at its step limit gets the receipt too.** Under its own
   account of what it did, the first row says why it stopped, then what the
   records show, in place of the line in italics.

@@ -199,7 +199,7 @@ npm run tauri dev -- -- --no-default-features     # and to develop
 cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and to test
 ```
 
-Before a pull request, run what CI runs on Linux, macOS and Windows:
+Before a pull request, run what CI runs: every source check on Linux, the ones that could depend on the system (`npm run check:windows`) on Windows too, and the Rust tests on all three:
 
 ```bash
 npm run check                                     # 11,706 source checks

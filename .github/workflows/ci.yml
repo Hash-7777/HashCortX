@@ -63,6 +63,25 @@ jobs:
       - name: Every check the repository has
         run: npm run check
 
+  # The checks whose answers could depend on the system they run on, on
+  # Windows: paths with either separator, what Auto lets run, patching text
+  # with Windows line endings, and the Permission Guard. The job above runs
+  # them on Linux with the rest; until this one existed, no frontend check
+  # ever ran on Windows, only the Rust tests. The list is `check:windows` in
+  # package.json, so a check added there gates a push here at once.
+  javascript-windows:
+    name: Frontend checks — Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: The checks that could depend on the system
+        run: npm run check:windows
+
   rust:
     name: Rust — ${{ matrix.label }}
     runs-on: ${{ matrix.os }}

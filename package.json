@@ -13,6 +13,7 @@
     "check:agent-loop": "node scripts/checks/agent-loop.mjs",
     "check:code-notes-seen": "node scripts/checks/code-notes-seen.mjs",
     "check:code-added": "node scripts/checks/code-added.mjs",
+    "check:windows": "npm run check:code-paths && npm run check:permissions && npm run check:code-patch && npm run check:guard",
     "check:run-view": "node scripts/checks/run-view.mjs",
     "check:run-signal": "node scripts/checks/run-signal.mjs",
     "check:code-preview": "node scripts/checks/code-preview.mjs",

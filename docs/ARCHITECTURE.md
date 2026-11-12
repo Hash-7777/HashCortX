@@ -462,7 +462,8 @@ HashCortX/
 ├── scripts/bench/coder/             the HashCoder benchmark: twenty-two tasks
 │                                    with hidden checks, run in a sandbox
 │
-├── .github/workflows/ci.yml         runs both, plus cargo check and test
+├── .github/workflows/ci.yml         runs both, plus cargo check and test;
+│                                    on Windows, check:windows as well
 │
 ├── docs/
 │   ├── ARCHITECTURE.md              (this file)
