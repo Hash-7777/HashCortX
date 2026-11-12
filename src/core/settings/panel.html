@@ -490,6 +490,14 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
         </select>
       </div>
       <div class="field">
+        <label for="cdrSetPreview">Show me the plan first <span class="field-note">Before a run starts, a card at the top of the reply says what it will do: your asks, the files the app found, its plan once it has one, and what it will ask you before doing. In Manual it waits for Start.</span></label>
+        <select class="control" id="cdrSetPreview">
+          <option value="never">Never</option>
+          <option value="big" selected>Big tasks: three asks or more, or a large project</option>
+          <option value="always">Always</option>
+        </select>
+      </div>
+      <div class="field">
         <label class="check-row">
           <input type="checkbox" id="cdrSetProve" class="check-box" checked />
           <span><b>Prove changes before finishing</b> <span class="field-note">After changing code, HashCoder is sent back to run the project's own tests. What was checked is said under each answer either way.</span></span>

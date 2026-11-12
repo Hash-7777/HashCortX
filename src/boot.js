@@ -104,6 +104,7 @@
     '/js/code/keep.js',
     '/js/run-view.js',
     '/js/code/steps.js',
+    '/js/code/preview.js',
     '/js/code/talk.js',
     '/js/code/permissions.js',
     '/js/code/outward.js',

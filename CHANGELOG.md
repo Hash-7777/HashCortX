@@ -30,6 +30,15 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   joins with a plus and counts only the steps after it was read. Pointing at
   an ask lights the steps that served it. The brief stays in view while the
   reply scrolls and folds to its count, "2 of 4 answered".
+- **HashCoder can show what a run will do before it starts.** For a
+  request of three asks or more, or a project too large to show whole, a
+  card at the top of the reply lists your asks, the files the app found,
+  its plan once it has one, and what it will ask you before doing in the
+  permission mode you chose. In Manual it waits for Start: nothing is
+  changed or run first, a message you add is read at its first step, and
+  Stop ends it. In the other modes it shows the card and carries on. At the
+  first change the card folds to one line. Settings → HashCoder → "Show me
+  the plan first": Never, Big tasks (the default) or Always.
 - **A receipt under each HashCoder answer, in place of the line in
   italics.** One row for each thing the app's own records show, and only
   when there is something to say: how many asks were answered, the files

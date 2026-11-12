@@ -390,7 +390,8 @@
       box.innerHTML = '<button type="button" class="cdr-brief-h" aria-expanded="true"><span class="cdr-brief-name">Your request</span><span class="cdr-brief-count"></span></button><ol class="cdr-asks"></ol>';
       const h = box.querySelector('.cdr-brief-h');
       h.addEventListener('click', () => { const folded = box.classList.toggle('folded'); h.setAttribute('aria-expanded', String(!folded)); });
-      contentEl.insertBefore(box, contentEl.firstChild);
+      const top = contentEl.querySelector(':scope > .cdr-preview');   // under the card shown before it started (js/code/preview.js), or first
+      contentEl.insertBefore(box, top ? top.nextSibling : contentEl.firstChild);
     }
     box.querySelector('.cdr-brief-count').textContent = briefCount(marks);
     const list = box.querySelector('.cdr-asks');
@@ -431,6 +432,7 @@
     st.cur.steps.push({ verb: String(verb || '').toUpperCase(), object: String(object || ''), failed: false, el });
     paint(st.cur);
     brief(contentEl);
+    window.HCCodePreview?.onStep(contentEl, phase);   // the card before it started: its plan up to date, folded at the first change (js/code/preview.js)
     return st.cur.id;
   }
 
@@ -448,6 +450,7 @@
     const st = contentEl && contentEl.hcPhases;
     if (!st) return;
     brief(contentEl);
+    window.HCCodePreview?.onStep(contentEl, 'end');
     close(st.cur);
     contentEl.hcPhases = null;
   }
