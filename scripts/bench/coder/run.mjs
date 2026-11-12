@@ -91,7 +91,10 @@
 // it: the agent is sent back to make a change it wrote into its reply, the
 // edit lands, it is sent back to prove its change and, the stand-in being a
 // mid-sized model, to check it against the request, and the person is told
-// what was proven. It needs no real model and takes seconds.
+// what was proven. It needs no real model and takes seconds. With --out it
+// also writes what the run did, step by step, to that file: its calls, what
+// came back, the notes it was sent and what the person was shown, so a
+// change meant to leave the agent loop as it was can be held to that.
 // ==============================================================
 import { createServer } from 'node:http';
 import { spawn, spawnSync } from 'node:child_process';
@@ -154,7 +157,7 @@ function usage(why) {
     '                                 [--compare <results.json> | last] [--place gpu | cpu] [--src <folder>] [--ollama <local url>]\n' +
     '                                 [--keep] [--work <folder>]\n' +
     'node scripts/bench/coder/run.mjs --self-test\n' +
-    'node scripts/bench/coder/run.mjs --smoke');
+    'node scripts/bench/coder/run.mjs --smoke [--out <file>]');
   process.exit(2);
 }
 
@@ -1030,6 +1033,7 @@ async function smoke() {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const row = await runTask(server.address().port, SCRIPTED_MODEL, tasks[0], 1);
   server.close();
+  if (opt.out) fs.writeFileSync(path.resolve(opt.out), JSON.stringify(row, null, 2));   // what it did, step by step (see the header)
   // What the app told the agent is read from the trail: a step that sends it back is folded into the run's count of steps in what the person sees.
   const told = (row.trail || []).join('\n');
   const wrong = [
