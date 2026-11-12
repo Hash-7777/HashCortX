@@ -384,6 +384,14 @@
   .hc-queue-item button:hover { color: var(--text); border-color: var(--line-strong); }
   .hc-queue-item button:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: 1px; }
   .hc-queue-drop { padding: 0 5px; }
+  /* How a queued message is taken, in a workspace that guesses: one quiet segmented choice. */
+  .hc-queue-item--kinds { grid-template-columns: auto minmax(0, 1fr) auto auto auto; }
+  .hc-queue-item--kinds:not(.hc-queue-item--plain) { grid-template-columns: auto minmax(0, 1fr) auto auto auto auto; }
+  .hc-queue-kind { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); overflow: hidden; }
+  .hc-queue-item .hc-queue-kind button { height: 22px; min-width: 0; padding: 0 8px; border: 0; border-radius: 0; opacity: 1; color: var(--muted); }
+  .hc-queue-item .hc-queue-kind button + button { border-left: 1px solid var(--line-strong); }
+  .hc-queue-item .hc-queue-kind button:hover { color: var(--text); }
+  .hc-queue-item .hc-queue-kind button[aria-pressed="true"] { color: var(--text); background: var(--surface-raised); }
 
   @keyframes hcq-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
   @keyframes hcq-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }

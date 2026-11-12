@@ -52,6 +52,8 @@
    * correction to the work in hand, more for it, or a request for after it.
    */
   const KINDS = ['correct', 'add', 'after'];
+  /** The chooser on a queued message, in a workspace that guesses: each kind, and Now, which sends it at once. */
+  const CHOICES = [['correct', 'Correction'], ['add', 'Add to this work'], ['after', 'After this'], ['now', 'Now']];
 
   /** A queue of messages: `{ add, setKind, remove, take, items, size, text }`. */
   function create() {
@@ -154,6 +156,8 @@
           const row = e.target.closest('.hc-queue-item');
           if (!row) return;
           const id = Number(row.dataset.id);
+          const pick = e.target.closest('.hc-queue-kind button');
+          if (pick) { if (pick.dataset.kind === 'now') sendNow(); else if (q.setKind(id, pick.dataset.kind)) draw(); return; }   // the person's choice wins over the guess
           if (e.target.closest('.hc-queue-drop')) { q.remove(id); draw(); return; }
           if (e.target.closest('.hc-queue-edit')) edit(id);
         });
@@ -204,10 +208,30 @@
         row.append(n, text);
         if (m.files.length) row.append(filesStrip(m.files));
         else row.classList.add('hc-queue-item--plain');
+        if (typeof kindOf === 'function') { row.classList.add('hc-queue-item--kinds'); row.append(chooser(m.kind || 'add')); }
         row.append(editBtn, drop);
         list.append(row);
       });
       shown = new Set(items.map((m) => m.id));
+    }
+
+    /** How a queued message is taken, on its row: the guess pressed, the person's choice changing it. */
+    function chooser(kind) {
+      const group = doc.createElement('span');
+      group.className = 'hc-queue-kind';
+      group.setAttribute('role', 'group');
+      group.setAttribute('aria-label', 'How to take this message');
+      for (const [k, label] of CHOICES) {
+        if (k === 'now' && typeof interrupt !== 'function') continue;
+        const b = doc.createElement('button');
+        b.type = 'button';
+        b.dataset.kind = k;
+        b.textContent = label;
+        if (k !== 'now') b.setAttribute('aria-pressed', String(k === kind));
+        else b.title = 'Send it now, without waiting for the next step';
+        group.append(b);
+      }
+      return group;
     }
 
     /** What a queued message has attached, on its row: a picture's preview, a file's name. */
@@ -338,5 +362,5 @@
     };
   }
 
-  window.HCQueue = { KINDS, create, joined, filesOf, forComposer };
+  window.HCQueue = { KINDS, CHOICES, create, joined, filesOf, forComposer };
 })();
