@@ -74,7 +74,7 @@
         madeProgress: stalledIterations === 0,
         changed: proof ? proof.changed.length : 0,   // an agent that has made its change, or finished its plan, is told to finish
         planDone: !!HC?.code?.plan && !!window.HCCodePlan && !window.HCCodePlan.openSteps(HC.code.plan).length,
-      });
+      }, policy.budgetFor({ size: sharedState.size, openSteps: HC?.code?.plan && window.HCCodePlan ? window.HCCodePlan.openSteps(HC.code.plan).length : 0 }));   // limits by progress (js/agent-policy.js)
       if (!verdict.continue) { const untested = verdict.reason === 'stalled' && !sent.stall++ && cdrPrefs().prove !== false && window.HCCodeVerify.stopCheck(proof, sharedState.projectChecks?.checks, '', 0, 1); if (!untested) { lastStop = verdict; break; } stalledIterations = 0; if (untested.run) forced = { content: '', tool_calls: [{ id: `ran_${Date.now()}_0`, name: 'shell_run', arguments: untested.run }] }; else messages.push({ role: 'user', content: untested.message, note: true }); }   // a run that stalls after changing code has its test run, or its failure said, once before it stops (js/code/verify.js stopCheck)
       iter++;
 

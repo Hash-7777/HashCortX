@@ -291,7 +291,7 @@ console.log('\nThe finishing checks:');
 console.log('\nThe step limit:');
 {
   const r = await runWith({ prefs: { prove: false }, script: (m, n, tools) => (tools.length ? turnOf(callOf('read_file', { path: `/p/f${n}.js` })) : words('I read the files and changed nothing yet.')) });
-  const policy = sandbox.HCAgentPolicy.BUDGET;
+  const policy = sandbox.HCAgentPolicy.budgetFor({ size: 'full', openSteps: 0 });   // a larger model with no plan (js/agent-policy.js budgetFor)
   const withTools = r.sent.filter((s) => s.tools > 0).length, account = r.sent[r.sent.length - 1];
   ok('a run still calling tools stops at the most steps it is given', withTools === policy.hardLimit && r.error === null, String(withTools));
   ok('...then asks once, with no tools, for an account of what it did, and shows it', r.calls() === policy.hardLimit + 1 && account.tools === 0 && r.scr.of('answer').some((e) => e[1] === 'I read the files and changed nothing yet.'));

@@ -121,6 +121,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **The refusals hold in every permission mode.** A check walks Ask,
   Accept edits and Auto, with a yes for the session ready, and holds the
   same refusals and the same every-time questions in each.
+- **A run's step limits follow its progress.** A larger model is asked to
+  finish after 16 steps on a request with no plan, and is given four more
+  for each step of its plan still open, up to 60; small and mid-sized models
+  keep their fixed limits, and going in circles still stops any run first.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

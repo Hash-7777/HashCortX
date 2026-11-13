@@ -289,5 +289,17 @@ console.log('\nA run that stops before it finishes says what it did:');
     && await (async () => { const m = []; const said = await wrapUp({ reason: 'hard-limit', messages: m, ask: async () => ({ content: 'Changed a.js.' }) }); return said === 'Changed a.js.' && m.at(-1).role === 'assistant' && m.at(-1).content === said; })());
 }
 
+console.log('\nLimits by progress:');
+{
+  const policy = sandbox.window.HCAgentPolicy;
+  const B = typeof policy.budgetFor === 'function' ? policy.budgetFor : () => ({});
+  check('a larger model with no plan: a short soft limit, the hard one sixteen past it', JSON.stringify([B({ size: 'full', openSteps: 0 }).softLimit, B({ size: 'full', openSteps: 0 }).hardLimit]) === '[16,32]');
+  check('...four more steps for each step of its plan still open', B({ size: 'full', openSteps: 3 }).softLimit === 28 && B({ size: 'full', openSteps: 3 }).hardLimit === 44);
+  check('...never more than sixty before the hard limit', B({ size: 'full', openSteps: 40 }).softLimit === 60 && B({ size: 'full', openSteps: 40 }).hardLimit === 76);
+  check('a small or mid-sized model keeps the fixed limits', ['small', 'mid'].every((s) => B({ size: s, openSteps: 9 }).softLimit === 24 && B({ size: s, openSteps: 9 }).hardLimit === 40));
+  check('going in circles still stops a run first: the stall limit does not move', B({ size: 'full', openSteps: 10 }).stallLimit === policy.BUDGET.stallLimit);
+  check('the loop asks it at every step, with the plan\'s open steps', /policy\.shouldContinue\(\{[\s\S]{0,600}\}, policy\.budgetFor\(\{ size: sharedState\.size, openSteps: /.test(readFileSync(join(here, '..', '..', 'src', 'js', 'agent-loop.js'), 'utf8')));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/agent-policy.js)`);
 process.exit(fail ? 1 : 0);

@@ -99,6 +99,21 @@
   };
 
   /**
+   * The step limits for one run, by its progress: a larger model's soft limit
+   * is sixteen steps and four more for each step of its plan still open,
+   * between sixteen and sixty, and its hard limit sixteen past that, so a
+   * small request is finished soon and a large one with a plan is given room
+   * as long as the plan is open. A small or mid-sized model keeps the fixed
+   * limits, and going in circles stops any run first, as before.
+   */
+  function budgetFor({ size = 'full', openSteps = 0 } = {}) {
+    if (size === 'small' || size === 'mid') return Object.assign({}, BUDGET);
+    const open = Math.max(0, Math.floor(Number(openSteps) || 0));
+    const softLimit = Math.min(60, Math.max(16, 16 + 4 * open));
+    return Object.assign({}, BUDGET, { softLimit, hardLimit: softLimit + 16 });
+  }
+
+  /**
    * Decide whether the loop runs another iteration.
    *
    * Returns `{ continue, reason, nudge }`. `nudge` is a message to append for
@@ -372,7 +387,7 @@
 
   window.HCAgentPolicy = {
     TOOL_EFFECT, BUDGET, MAX_PARALLEL, RUN_BUDGET,
-    effectOf, planBatches, shouldContinue, iterationMadeProgress, failedResult, EDIT_LOOP, editLoop, wrapUpNote, wrapUp,
+    effectOf, planBatches, budgetFor, shouldContinue, iterationMadeProgress, failedResult, EDIT_LOOP, editLoop, wrapUpNote, wrapUp,
     newRunBudget, runBudgetExceeded, chargeRunBudget,
   };
 })();
