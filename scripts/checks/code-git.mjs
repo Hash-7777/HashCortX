@@ -36,6 +36,7 @@ for (const f of [['js', 'model-profile.js'], ['js', 'secret-shapes.js'], ['js', 
 const G = sandbox.HCCodeGit || { argv: () => ({}) };
 const Perm = sandbox.HCCodePermissions;
 const code = sandbox.HC.code;
+const realShellRun = code.shellRun;   // kept before a section below stands in for it
 const ROOT = '/work/harbour-shop';
 
 console.log('Each call becomes one fixed git line:');
@@ -195,6 +196,38 @@ console.log('\nThe git tools are offered only to a conversation that asks for gi
   ok('words that only look like it are not: a pushed button, a branch of a tree in a story', !G.asked(conv('When the button is pushed, show a tree with a branch')) && G.asked(conv('push this to the repo')));
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder hands its conversation to the choice', /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\), conversationMsgs\)/.test(mode));
+}
+
+console.log('\nOnly what was asked: no git work, workflow file or code-host command nobody asked for:');
+{
+  const no = (c, a) => G.unasked(c, a);
+  ok('git that changes a repository, or reaches another, is refused unasked', [['init'], ['commit', '-m', 'x'], ['push', 'origin', 'main'], ['remote', 'add', 'origin', 'x'], ['-C', 'site', 'init'], ['checkout', '-b', 'feature'], ['branch', 'feature'], ['tag', 'v1'], ['clone', 'x'], ['add', '.']].every((a) => /^git \S+ was not run: the person has not asked for git work/.test(no('git', a) || '')), [['init'], ['branch', 'feature']].map((a) => no('git', a)).join(' | '));
+  ok('...and the code host\'s own command', /^gh repo was not run/.test(no('gh', ['repo', 'create']) || '') && !!no('/usr/local/bin/gh', ['pr', 'create']));
+  ok('git that only reads runs as before', [['status'], ['diff'], ['log', '--oneline'], ['show', 'HEAD'], ['branch'], ['branch', '-a'], ['blame', 'a.js']].every((a) => no('git', a) === null), [['branch', '-a']].map((a) => no('git', a)).join());
+  ok('other programs are not this rule\'s', no('npm', ['test']) === null && no('node', ['--check', 'a.js']) === null);
+  ok('it tells the model what to do instead', /Do only what the request asks\. If a commit, a branch or a repository would help, say so in one line of your answer/.test(no('git', ['init'])));
+  ok('a workflow file for the code host is refused unasked; any other file is not', /is a workflow that runs on the code host, and the person has not asked for one/.test(G.unaskedFile('/work/site/.github/workflows/deploy.yml') || '') && G.unaskedFile('/work/site/index.html') === null && G.unaskedFile('/work/site/docs/workflows/a.md') === null);
+  const conv = (...t) => t.map((x) => ({ role: 'user', content: x }));
+  ok('asking for checks on the code host is told apart', G.askedCI(conv('Add a CI workflow that runs the tests')) && !G.askedCI(conv('Make a page for a bakery')));
+
+  // Through the real tools: the flag the choice of tools sets, then a command and a file.
+  const list = code.toolList();
+  code.toolsFor('full', list, '', conv('Make a simple landing page for a bakery'));
+  ok('a conversation that asked for none is marked so', code.gitAsked === false && code.ciAsked === false);
+  sandbox.HC.guard = { projectRoot: () => ROOT, request: async () => true, isProtected: () => false };
+  let ran = 0; sandbox.HC.invoke = async () => { ran++; return { code: 0, stdout: '', stderr: '' }; };
+  let said = '';
+  try { await realShellRun.call(code, 'git', ['init'], null, 'start a repo'); } catch (e) { said = String(e.message); }
+  ok('shell_run git init is refused before anything is asked or run', ran === 0 && /^git init was not run/.test(said), said);
+  said = '';
+  try { await code.writeFile(`${ROOT}/.github/workflows/deploy.yml`, 'on: push', 'deploy it'); } catch (e) { said = String(e.message); }
+  ok('a workflow file is refused before anything is asked or written', ran === 0 && /is a workflow that runs on the code host/.test(said), said);
+  code.toolsFor('full', list, '', conv('Set up a git repository for this and commit it, with a CI workflow'));
+  ok('once asked, they are the person\'s to have', code.gitAsked === true && code.ciAsked === true);
+  said = '';
+  try { await realShellRun.call(code, 'git', ['init'], null, 'start a repo'); } catch (e) { said = String(e.message); }
+  ok('...and git init goes on to the guard as any command does', !/was not run: the person has not asked/.test(said) && ran >= 1, said);
+  ok('every size of model is told to fit its steps to the request, and to make no repository, commit or push unasked', /Fit the steps to the request/.test(code.SYSTEM_PROMPT) && /No repository, commit, branch, push, pull request, CI workflow, deploy or install the request did not ask for/.test(code.SYSTEM_PROMPT) && /Never make a git repository, commit or push unless the task asks for it\./.test(code.SMALL_MODEL_PROMPT) && /Never make a git repository, a commit, a push, a workflow file or a deploy the request did not ask for\./.test(code.MID_MODEL_PROMPT));
 }
 
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/git.js)`);

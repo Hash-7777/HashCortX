@@ -80,6 +80,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   repository's own style and adds nothing to the message. You are asked
   every time, with the whole commit shown. The git tools are offered only in
   a conversation where you asked for git work.
+- **HashCoder keeps to what you asked.** Every size of model is told to fit
+  its steps to the request: a small page or a one-line fix is a few steps
+  and an answer, with no repository, commit, push, workflow or deploy
+  nobody asked for. The app holds it to that too: in a conversation that
+  did not ask for git work, a git command that changes a repository is
+  refused before anything runs, and so is a workflow file for the code host
+  unless you asked for one.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

@@ -60,7 +60,7 @@ box.HC = {
 };
 vm.createContext(box);
 for (const f of [['js', 'text-safety.js'], ['js', 'secret-shapes.js'], ['js', 'fences.js'], ['js', 'code', 'search.js'], ['js', 'code', 'paths.js'], ['js', 'code', 'patch.js'],
-  ['js', 'code', 'codemap.js'], ['js', 'code', 'uses.js'], ['js', 'code', 'calls.js'], ['js', 'code', 'seen.js'], ['js', 'code', 'plan.js'], ['js', 'code', 'lessons.js'], ['platform', 'tauri', 'hashcoder.js']]) {
+  ['js', 'code', 'codemap.js'], ['js', 'code', 'uses.js'], ['js', 'code', 'calls.js'], ['js', 'code', 'seen.js'], ['js', 'code', 'plan.js'], ['js', 'code', 'lessons.js'], ['js', 'code', 'git.js'], ['platform', 'tauri', 'hashcoder.js']]) {
   vm.runInContext(src(...f), box, { filename: f.at(-1) });
 }
 const code = box.HC.code;
@@ -118,6 +118,8 @@ const cases = [
   ['call', 'read_file given paths where it reads one file a call', () => tool('read_file').fn({ paths: [`${R}/menu.js`, `${R}/notes.txt`] }), ['menu.js']],
   ['call', 'read_file given more than six paths', () => tool('read_file').fn({ paths: ['a1.js', 'a2.js', 'a3.js', 'a4.js', 'a5.js', 'a6.js', 'a7.js'] }), ['a1.js']],
   ['call', 'read_file given a result id where no run is reading', () => tool('read_file').fn({ result: 'call_4', start_line: 3, end_line: 9 }), ['call_4']],
+  ['state', 'git init in a conversation that asked for no git work', () => { code.gitAsked = false; try { return code.shellRun('git', ['init']); } finally { code.gitAsked = undefined; } }, []],
+  ['state', 'a workflow file in a conversation that asked for none', () => { code.ciAsked = false; try { return code.writeFile(`${R}/.github/workflows/ci.yml`, 'on: push'); } finally { code.ciAsked = undefined; } }, []],
   ['state', 'a finding run asking for a tool that writes', () => code.readingQuietly('write_file', { path: 'a.txt' }), []],
   // Switched off, or not there.
   ['off', 'remembering a fact with memory switched off', () => { code.memoryOn = false; return tool('remember_fact').fn({ key: 'k', value: 'v' }); }, []],

@@ -178,5 +178,40 @@
   /** Whether the person has asked for git work anywhere in this conversation. */
   const asked = (messages) => { const t = personsText(messages); return GIT_ASK.test(t) || PR.test(t); };
 
-  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, GIT_ASK, asked };
+  /** Words a person uses when they ask for checks that run on the code host. */
+  const CI_ASK = /\bCI\b|\bworkflows?\b|\bpipelines?\b|\bgithub actions?\b|\bcontinuous integration\b/i;
+  /** Whether the person has asked for such checks anywhere in this conversation. */
+  const askedCI = (messages) => CI_ASK.test(personsText(messages));
+
+  /** git commands that change a repository or reach another one; the rest only read. */
+  const GIT_WRITES = new Set(['init', 'commit', 'push', 'pull', 'fetch', 'remote', 'tag', 'merge', 'rebase', 'cherry-pick', 'revert', 'am', 'apply', 'clone', 'submodule', 'worktree', 'stash', 'switch', 'restore', 'reset', 'clean', 'rm', 'mv', 'add', 'gc', 'config']);
+  /** Of the others, the forms that change something too: a new branch, a checkout that makes or moves one. */
+  const writesBranch = (sub, rest) => (sub === 'branch' && rest.some((a) => !/^-(?:a|r|v|vv|l|-list|-show-current|-all|-remotes|-no-color|-contains|-merged|-no-merged)$/.test(a)))
+    || (sub === 'checkout' && rest.length > 0);
+  const base = (c) => String(c || '').split(/[\\/]/).pop().replace(/\.(?:exe|cmd|bat)$/i, '').toLowerCase();
+
+  /**
+   * Why a command was not run in a conversation where the person has not
+   * asked for git work, or null: a git command that changes a repository or
+   * reaches another, and the code host's own command. git's reading
+   * commands (status, diff, log, show, blame) are left to run as before.
+   */
+  function unasked(command, args) {
+    const name = base(command);
+    const a = (Array.isArray(args) ? args : []).map(String);
+    const say = (what) => `${what} was not run: the person has not asked for git work in this conversation. Do only what the request asks. If a commit, a branch or a repository would help, say so in one line of your answer and leave it to them.`;
+    if (name === 'gh') return say(`gh ${a[0] || ''}`.trim());
+    if (name !== 'git') return null;
+    let i = 0;
+    while (i < a.length && a[i].startsWith('-')) i += (a[i] === '-C' || a[i] === '-c') ? 2 : 1;
+    const sub = a[i] || '';
+    return GIT_WRITES.has(sub) || writesBranch(sub, a.slice(i + 1)) ? say(`git ${sub}`) : null;
+  }
+
+  /** Why a workflow file for the code host was not written in a conversation that did not ask for one, or null. */
+  function unaskedFile(path) {
+    return /(?:^|[\\/])\.github[\\/]workflows[\\/]/.test(String(path || '')) ? `write_file was not run: ${String(path).split(/[\\/]/).slice(-3).join('/')} is a workflow that runs on the code host, and the person has not asked for one. Do only what the request asks; if checks on the code host would help, say so in one line of your answer.` : null;
+  }
+
+  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
 })();

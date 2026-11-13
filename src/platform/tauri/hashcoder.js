@@ -53,6 +53,9 @@
       // A name Windows cannot write a file under is refused before anything is asked (js/code/paths.js windowsNameProblem).
       const badName = /^windows$/i.test(String(HC.code.platform?.os || '')) && window.HCCodePaths?.windowsNameProblem?.(path);
       if (badName) throw new Error(`write_file was not run: ${badName}`);
+      // A workflow for the code host only when the person asked for one (js/code/git.js unaskedFile).
+      const unaskedFile = HC.code.ciAsked === false && window.HCCodeGit?.unaskedFile?.(path);
+      if (unaskedFile) throw new Error(unaskedFile);
       if (content == null) {
         const shown = window.HCCodeSearch ? window.HCCodeSearch.place(path, HC.guard?.projectRoot?.() || '') : path;
         throw new Error(`write_file was not run: content is missing; it is the file's whole text, never null. Call it as ${JSON.stringify({ path: shown, content: 'the whole file' })}.`);
@@ -248,6 +251,9 @@
       // A command that would open, serve or take a picture of what was made is not run, and nothing is asked (js/code/by-code.js).
       const looks = window.HCCodeByCode?.refusal(command, Array.isArray(args) ? args : []);
       if (looks) throw new Error(looks);
+      // git work, and the code host's own command, only in a conversation where the person asked for it (js/code/git.js unasked).
+      const unasked = HC.code.gitAsked === false && window.HCCodeGit?.unasked?.(command, Array.isArray(args) ? args : []);
+      if (unasked) throw new Error(unasked);
       // An install is told apart before the command is wrapped to run, and is asked about every time with what it installs (js/code/permissions.js).
       const install = window.HCCodePermissions?.installOf?.(command, args);
       const destroys = window.HCCodePermissions?.destroys?.(command, args);   // work Undo cannot put back
@@ -1270,6 +1276,7 @@ SCOPE — DO WHAT WAS ASKED, NOTHING MORE:
 • Never make a file the request does not need: no README, notes, docs, tests, examples or config unless asked. Change an existing file rather than adding one.
 • Leave everything else as it is: other code, the design, the wording, the formatting, and problems you notice that the request is not about. A real problem you noticed gets one line in your answer at most; do not fix it unasked.
 • When the request could mean more or less, do the smaller reading, or ask one question.
+• Fit the steps to the request: before each one, ask whether the request needs it. A small page or a one-line fix is a few steps and an answer, not a plan, a test suite or a second pass. No repository, commit, branch, push, pull request, CI workflow, deploy or install the request did not ask for; if one would help, say so in one line.
 
 ANSWER:
 • When the work is done, say in a few plain sentences what you changed, in which files, and what you ran with its result. A question gets its answer directly.
@@ -1486,6 +1493,7 @@ Rules:
 - Write paths from the project folder: src/app.js.
 - Do not change the tests unless the task asks for it.
 - Do only what the task asks: no extra files, features or changes it did not ask for.
+- Never make a git repository, commit or push unless the task asks for it.
 - If the task only asks a question, answer it and change nothing.
 
 ${HC.code.TOOL_TEXT_RULE}`;
@@ -1518,6 +1526,7 @@ How to work:
 
 Rules:
 - Change only what the request asks for, and keep the rest of each file as it is. Make no file it does not need, such as a README or notes, and add no feature it did not ask for.
+- Never make a git repository, a commit, a push, a workflow file or a deploy the request did not ask for.
 - Finish in plain sentences, with no list of suggestions, next steps or offers to do more.
 - Do not change the tests unless the request asks for it.
 - If the request only asks a question, answer it from the files and change nothing.
@@ -1539,6 +1548,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     // The git tools only for a conversation in which the person asked for git work (js/code/git.js asked); kept for the shell's own rule.
     if (conversation) HC.code.gitAsked = window.HCCodeGit?.asked ? window.HCCodeGit.asked(conversation) : true;
+    if (conversation) HC.code.ciAsked = window.HCCodeGit?.askedCI ? window.HCCodeGit.askedCI(conversation) : true;
     if (conversation && !HC.code.gitAsked) list = list.filter((t) => !/^git_/.test(t.function.name));
     if (!names) return list;
     const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withPaths(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))))));
