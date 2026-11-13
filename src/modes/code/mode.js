@@ -1692,7 +1692,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
 
     // The instructions, with the project's notes for the first request to carry (js/code/context.js).
     const systemTurn = () => window.HCCodeContext.systemTurn(sysPrompt(), sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks : null, sharedState.size, window.HCSources?.mark,
-      cdrPrefs().lessons === true && sharedState.size === 'full' && window.HCCodeLessons ? window.HCCodeLessons.notes(window.HCCodeLessons.forProject(localStorage, sharedState.projectRoot, { local: sharedState.local })) : '',   // js/code/lessons.js
+      [cdrPrefs().lessons === true && sharedState.size === 'full' && window.HCCodeLessons ? window.HCCodeLessons.notes(window.HCCodeLessons.forProject(localStorage, sharedState.projectRoot, { local: sharedState.local })) : '', window.HCCodeWorked?.line(localStorage, sharedState.projectRoot, { os: sharedState.platform?.os }) || ''].filter(Boolean).join('\n\n'),   // js/code/lessons.js, and the commands that passed here (js/code/worked.js)
       sharedState.codeMap?.root !== sharedState.projectRoot ? '' : [sharedState.size === 'full' ? window.HCCodeMap.notes(sharedState.codeMap.ranked, { local: sharedState.local, drop: window.HCCodeLessons?.looksPrivate }) : sharedState.codeMap.whole, sharedState.codeMap.outline].filter(Boolean).join('\n\n'));   // js/code/codemap.js, or a small project whole
 
     // What the model is shown of a long run, sized to the model: js/agent-context.js.

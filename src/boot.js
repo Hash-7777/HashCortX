@@ -116,6 +116,7 @@
     '/js/code/talk.js',
     '/js/code/permissions.js',
     '/js/code/command-changes.js',
+    '/js/code/worked.js',
     '/js/code/outward.js',
     '/js/code/permission-bar.js',
     '/js/code/attach.js',
