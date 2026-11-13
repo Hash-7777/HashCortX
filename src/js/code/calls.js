@@ -256,5 +256,32 @@
     };
   }
 
-  window.HCCodeCalls = { ALIASES, normalize, missing, memory, keyOf, SAME_FAILURE };
+  // ── Several files read in one call ────────────────────────────────────
+
+  /** The most files one read_file call may name in paths. */
+  const READS_AT_ONCE = 6;
+
+  /**
+   * The calls with each read_file that names several files in `paths` made
+   * into one read of each, `<id>_1`, `<id>_2` and so on, a path given beside
+   * them first and every file once, a range kept for each. A model that makes
+   * one call a step reads several files in one step, and every part of the
+   * app that knows what was read sees an ordinary read of each file. A read
+   * naming more than READS_AT_ONCE files, or paths that are not a list of
+   * names, is left as it was, for the tool to answer. Only for a model that
+   * was offered paths (js/agent-loop.js); the calls given are not changed.
+   */
+  function spreadReads(calls, most = READS_AT_ONCE) {
+    return (calls || []).map((call) => {
+      const a = call && call.name === 'read_file' && call.arguments;
+      if (!a || !Array.isArray(a.paths)) return [call];
+      const names = [a.path, ...a.paths].filter((p, i) => (i > 0 || p != null) && typeof p === 'string' && p.trim());
+      const files = [...new Set(names.map((p) => p.trim()))];
+      if (!files.length || files.length > most || names.length !== (a.path == null ? a.paths.length : a.paths.length + 1)) return [call];
+      const { paths, path, ...rest } = a;
+      return files.map((p, i) => ({ ...call, id: `${call.id}_${i + 1}`, arguments: { ...rest, path: p } }));
+    }).flat();
+  }
+
+  window.HCCodeCalls = { ALIASES, normalize, missing, memory, keyOf, SAME_FAILURE, READS_AT_ONCE, spreadReads };
 })();

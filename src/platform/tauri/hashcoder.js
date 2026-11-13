@@ -714,7 +714,15 @@
         start_line: { type: 'integer', description: 'Optional: the first line to read, counting from 1.' },
         end_line: { type: 'integer', description: 'Optional: the last line to read.' },
       },
-      fn: (p) => HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null).then((t) => HC.code.withCodes(t), (e) => { throw HC.code.notThere(e); }),
+      fn: (p) => {
+        // paths is offered to a smaller model only, and the loop makes each file its own read (js/code/calls.js spreadReads); what reaches here is told how to ask.
+        if (p.path == null && Array.isArray(p.paths)) {
+          const most = window.HCCodeCalls?.READS_AT_ONCE || 6, given = p.paths.filter((x) => typeof x === 'string' && x.trim());
+          if (given.length > most) throw new Error(`read_file was not run: it reads at most ${most} files at once, and this named ${given.length}. Call it as ${JSON.stringify({ paths: given.slice(0, most) })}, then again for the rest.`);
+          throw new Error(`read_file was not run: this model reads one file a call, given as path. Call it as ${JSON.stringify({ path: given[0] || 'src/app.js' })}, and make one such call for each file, all in the same turn.`);
+        }
+        return HC.code.readFile(p.path, p.start_line ?? null, p.end_line ?? null).then((t) => HC.code.withCodes(t), (e) => { throw HC.code.notThere(e); });
+      },
     },
     {
       name: 'write_file',
@@ -1383,7 +1391,7 @@ ${MEMORY_SECTION}REASONING:
 
 How to work:
 1. Look: list_dir the project, and grep_code to find where something is.
-2. Read a file with read_file before you change it.
+2. Read a file with read_file before you change it. Read several files at once with read_file with paths: ["src/a.js", "src/b.js"].
 3. Change it with patch_file: search is text copied exactly from the file, replace is the new text. Use write_file only for a new file.
 4. Run the project's test with shell_run, the program in command and the rest in args: command "npm", args ["test"]. If it fails, read the error and fix the code. Check by code alone: never open the page or the app, or take a screenshot.
 5. Finish with one or two sentences: what you changed, and what passed.
@@ -1448,9 +1456,21 @@ ${HC.code.TOOL_TEXT_RULE}`;
   HC.code.toolsFor = (size, list, site) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     if (!names) return list;
-    const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site)))));
+    const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withPaths(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))))));
     return size === 'mid' ? HC.code.withExamples(few) : few;
   };
+
+  /**
+   * read_file with paths, several files in one call, and path no longer required, for a smaller
+   * model: one makes one call a step, and the loop makes each file its own read (js/agent-loop.js).
+   */
+  HC.code.withPaths = (list) => list.map((tool) => {
+    const f = tool.function || {}, p = f.parameters;
+    if (f.name !== 'read_file' || !p || !p.properties) return tool;
+    const most = window.HCCodeCalls?.READS_AT_ONCE || 6;
+    const properties = { ...p.properties, paths: { type: 'array', items: { type: 'string' }, description: `Optional: up to ${most === 6 ? 'six' : most} files to read at once, in place of path` } };
+    return { ...tool, function: { ...f, parameters: { ...p, properties, required: (p.required || []).filter((k) => k !== 'path') } } };
+  });
 
   /** Arguments only a larger model is offered: a change and its check in one call is more than a smaller one reliably writes. */
   HC.code.LARGER_ONLY = ['then_run'];
@@ -1499,7 +1519,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
 
   /** One line for each tool a smaller model is offered. */
   HC.code.SHORT_TOOL_WORDS = {
-    read_file: 'Read a file: text, code, data or a PDF. A long file comes back 200 numbered lines at a time; start_line and end_line read a part.',
+    read_file: 'Read a file: text, code, data or a PDF. A long file comes back 200 numbered lines at a time; start_line and end_line read a part. Several files at once: paths.',
     write_file: 'Create a new file, or replace an existing one whole with replace_whole: true. To change part of a file, use patch_file.',
     patch_file: 'Change part of a file: search is text copied exactly from it, without line numbers; replace is the new text. More changes to the same file go in edits.',
     update_plan: 'List the steps of a request with three or more changes, then mark each one done.',
@@ -1515,7 +1535,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   };
   /** A few words for each argument; places keep saying where a path starts. */
   HC.code.SHORT_ARGUMENT_WORDS = {
-    name: 'A name as code writes it, such as getNightlyRate', path: 'Project path, such as src/app.js', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
+    name: 'A name as code writes it, such as getNightlyRate', path: 'Project path, such as src/app.js', paths: 'Optional: up to six project paths, in place of path', dir: 'Project folder to search, or . for all', from: 'Project path of the file now', to: 'Project path it moves to',
     cwd: 'Project folder to run in; leave out for the project', start_line: 'Optional: first line', end_line: 'Optional: last line', content: 'The whole file',
     replace_whole: 'Optional: true to replace an existing file whole', append: 'Optional: true to add to the end', reason: 'Why, in a few words',
     search: 'Exact text from the file', replace: 'The new text', all: 'Optional: true to change every place', edits: 'Optional: more changes to this file',

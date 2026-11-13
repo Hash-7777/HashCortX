@@ -106,6 +106,7 @@
       thinkEl?.finish(said); thinkEl = null;
 
       if (turn.tool_calls?.length) {
+        if (schemaOf('read_file')?.function?.parameters?.properties?.paths) turn.tool_calls = window.HCCodeCalls.spreadReads(turn.tool_calls);   // several files in one read, as one read of each, for a model offered paths (js/code/calls.js)
         for (const c of turn.tool_calls) if (!window.HCMcp?.systemOf?.(c.name)) c.arguments = window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, schemaOf(c.name)).args, sharedState.projectRoot);   // "src" for "from" is read as "from" (js/code/calls.js), and "src/a.js" is the project's, not a connected system's (js/code/paths.js)
         H.appendAssistantToolCallTurn(messages, turn.content, turn.tool_calls, { thinking: turn.thinking, from: turn.thinkingFrom }); // always append to real history, its thinking kept (js/model-profile.js)
 

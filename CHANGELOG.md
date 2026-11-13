@@ -49,6 +49,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   command runs only if it was made, as any command does, with the same
   question, and one result brings back both. A model on your computer under
   15 billion parameters is not offered it.
+- **A smaller model can read several files in one call.** A model on your
+  computer under 15 billion parameters, which makes one call a step, is
+  offered read_file with paths, up to six files at once. Each file is read as
+  its own read, together, so everything that follows what a run has read
+  sees each one. Larger models keep reading several files with several calls
+  in one turn.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

@@ -86,7 +86,7 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false } = {}) {
+async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false } = {}) {
   const P = project();
   sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen(receipt);
@@ -94,7 +94,7 @@ async function runWith({ script, finish = [], size = 'full', queue = null, signa
   const sent = [];
   let n = 0, ctx = null;
   const o = {
-    messages, tools: P.tools.map((t) => ({ type: 'function', function: { name: t.name, ...(offerThen && t.name === 'patch_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' }, then_run: { type: 'object' } } } } : {}) } })), label: '', signal,
+    messages, tools: P.tools.map((t) => ({ type: 'function', function: { name: t.name, ...(offerThen && t.name === 'patch_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, search: { type: 'string' }, replace: { type: 'string' }, then_run: { type: 'object' } } } } : {}), ...(offerPaths && t.name === 'read_file' ? { parameters: { type: 'object', properties: { path: { type: 'string' }, paths: { type: 'array' } } } } : {}) } })), label: '', signal,
     ui: scr.ui, temperature: 0.2,
     state: { size, local: size !== 'full', light: false, projectRoot: '/p', projectChecks: null, codeMap: null },
     prefs: () => prefs,
@@ -159,6 +159,19 @@ console.log('\nA change and its check in one call (then_run):');
 
   const bad = await runWith({ offerThen: true, script: one(change({ then_run: 'npm test' })) });
   ok('then_run written as a line, not { command, args }, runs nothing and says how to write it', json(bad.P.ran) === '[["patch","/p/a.js"]]' && /then_run was not run/.test(JSON.parse(bad.messages.find((m) => m.role === 'tool').content).then_run?.error || '') && /"command": "npm", "args": \["test"\]/.test(JSON.parse(bad.messages.find((m) => m.role === 'tool').content).then_run.error), bad.messages.find((m) => m.role === 'tool').content);
+}
+
+console.log('\nSeveral files read in one call (paths):');
+{
+  const script = (m, n) => (n === 1 ? turnOf(callOf('read_file', { paths: ['/p/a.js', '/p/b.js'] })) : words('Both read.'));
+  const r = await runWith({ offerPaths: true, script });
+  const asked = r.messages.find((m) => m.tool_calls);
+  const answered = r.messages.filter((m) => m.role === 'tool');
+  ok('a model offered paths has each file read as its own read, together', json(r.P.ran.map((e) => e[1]).sort()) === '["/p/a.js","/p/b.js"]', json(r.P.ran));
+  ok('...kept as one read per file, each result after its own call', asked.tool_calls.length === 2 && answered.length === 2 && answered.every((m, i) => m.tool_call_id === asked.tool_calls[i].id) && answered[0].content === 'const a = 1;\n' && answered[1].content === 'const b = 2;\n', json(asked.tool_calls));
+  const plain = await runWith({ script });
+  const kept = plain.messages.find((m) => m.tool_calls).tool_calls;
+  ok('a model not offered it has its call left as it was, for the tool to answer', kept.length === 1 && json(JSON.parse(kept[0].function.arguments).paths) === '["/p/a.js","/p/b.js"]', json(kept));
 }
 
 console.log('\nThe loop runs with no page:');

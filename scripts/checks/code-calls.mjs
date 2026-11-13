@@ -253,5 +253,23 @@ console.log('\nThe loop:');
   ok('this check is part of npm run check', /npm run check:code-calls\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nSeveral files read in one call, for a model that is offered it:');
+{
+  const C = sandbox.HCCodeCalls;
+  ok('at most six files at once', C.READS_AT_ONCE === 6);
+  const calls = [{ id: 'k1', name: 'read_file', arguments: { paths: ['src/a.js', 'src/b.js', 'src/a.js', 'src/c.js'] } }, { id: 'k2', name: 'list_dir', arguments: { path: 'src' } }];
+  const out = typeof C.spreadReads === 'function' ? C.spreadReads(calls) : calls;
+  ok('one read of each file, in the order given, each file once', JSON.stringify(out.map((c) => [c.id, c.name, c.arguments])) === JSON.stringify([['k1_1', 'read_file', { path: 'src/a.js' }], ['k1_2', 'read_file', { path: 'src/b.js' }], ['k1_3', 'read_file', { path: 'src/c.js' }], ['k2', 'list_dir', { path: 'src' }]]), JSON.stringify(out));
+  ok('the calls it was given are not changed', JSON.stringify(calls[0].arguments.paths) === '["src/a.js","src/b.js","src/a.js","src/c.js"]' && out !== calls);
+  const both = typeof C.spreadReads === 'function' ? C.spreadReads([{ id: 'k', name: 'read_file', arguments: { path: 'src/a.js', paths: ['src/b.js', 'src/a.js'] } }]) : [];
+  ok('a path given beside paths is read first, once', JSON.stringify(both.map((c) => c.arguments.path)) === '["src/a.js","src/b.js"]');
+  const ranged = typeof C.spreadReads === 'function' ? C.spreadReads([{ id: 'k', name: 'read_file', arguments: { paths: ['src/a.js', 'src/b.js'], start_line: 10, end_line: 20 } }]) : [];
+  ok('a range is kept for each file', ranged.length === 2 && ranged.every((c) => c.arguments.start_line === 10 && c.arguments.end_line === 20 && !('paths' in c.arguments)));
+  const many = { id: 'k', name: 'read_file', arguments: { paths: ['a', 'b', 'c', 'd', 'e', 'f', 'g'] } };
+  ok('more than six is left as it is, for the tool to answer', typeof C.spreadReads === 'function' && C.spreadReads([many])[0] === many);
+  const junk = [{ id: 'k', name: 'read_file', arguments: { paths: 'src/a.js' } }, { id: 'j', name: 'read_file', arguments: { paths: [3, ''] } }, { id: 'p', name: 'read_file', arguments: { path: 'src/a.js' } }];
+  ok('paths that are not a list of names, and a plain read, are left as they are', typeof C.spreadReads === 'function' && C.spreadReads(junk).every((c, i) => c === junk[i]));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (src/js/code/calls.js)`);
 process.exit(fail ? 1 : 0);

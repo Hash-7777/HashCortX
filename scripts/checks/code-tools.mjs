@@ -88,6 +88,16 @@ console.log('\nA change and its check in one call:');
   ok('the full instructions say when to use it', /A change, then its test +→ patch_file or write_file with then_run/.test(HC.code.SYSTEM_PROMPT) && !/then_run/.test(HC.code.MID_MODEL_PROMPT + HC.code.SMALL_MODEL_PROMPT));
 }
 
+console.log('\nSeveral files read in one call:');
+{
+  const list = HC.code.toolList();
+  const read = (size) => byNameOf(HC.code.toolsFor(size, list, ''), 'read_file').function.parameters;
+  ok('a small or mid-sized model is offered paths on read_file, with path no longer required', ['small', 'mid'].every((s) => read(s).properties.paths?.type === 'array' && read(s).properties.paths.items?.type === 'string' && !read(s).required.includes('path')));
+  ok('...described in its few words, at most six', ['small', 'mid'].every((s) => /six/.test(read(s).properties.paths?.description || '')) && /paths/.test(HC.code.SHORT_TOOL_WORDS.read_file));
+  ok('a larger model is not: it reads several files with several calls in one turn', !('paths' in read('full').properties) && read('full').required.includes('path'));
+  ok('the small instructions say so', /read_file with paths/.test(HC.code.SMALL_MODEL_PROMPT));
+}
+
 console.log('\nA mid-sized local model:');
 {
   const names = HC.code.TOOL_DEFINITIONS.map((t) => t.name);
@@ -130,8 +140,10 @@ console.log('\nSmall and mid-sized models write paths from the project folder:')
   const larger = (keys) => keys.filter((k) => !HC.code.LARGER_ONLY.includes(k));
   ok('only the wording changes: every tool keeps its name, arguments, types and which are required, but the arguments only a larger model is offered',
     JSON.stringify(HC.code.LARGER_ONLY) === '["then_run"]' && small.every((t) => !('then_run' in t.function.parameters.properties)) && small.every((t) => { const o = byName.get(t.function.name); const a = t.function.parameters, b = o.function.parameters;
-      return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(larger(Object.keys(b.properties))) && JSON.stringify(a.required) === JSON.stringify(larger(b.required))
-        && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type && JSON.stringify(a.properties[k].items) === JSON.stringify(b.properties[k].items)); }));
+      // ...and read_file's paths, a smaller model's own, with path then not required.
+      const reads = t.function.name === 'read_file';
+      return JSON.stringify(Object.keys(a.properties).filter((k) => !(reads && k === 'paths'))) === JSON.stringify(larger(Object.keys(b.properties))) && JSON.stringify(a.required) === JSON.stringify(larger(b.required).filter((k) => !(reads && k === 'path')))
+        && Object.keys(a.properties).filter((k) => !(reads && k === 'paths')).every((k) => a.properties[k].type === b.properties[k].type && JSON.stringify(a.properties[k].items) === JSON.stringify(b.properties[k].items)); }));
   const mid = HC.code.toolsFor('mid', list, 'a site');
   // A mid-sized model's patch_file, shell_run and grep_code also end with an example call (scripts/checks/code-tool-examples.mjs).
   const lineOf = (t) => t.function.description.replace(`\n${HC.code.exampleLine(t.function.name)}`, '');
