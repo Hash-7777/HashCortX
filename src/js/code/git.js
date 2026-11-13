@@ -66,7 +66,11 @@
   // repository's own settings can make git start a program, and nothing
   // should run before the person has seen the commit. Then the person is
   // asked, every time, with the whole commit in front of them; only on a yes
-  // are the files added and committed, and only those files.
+  // are the files added and committed, and only those files, by the narrow
+  // native command that builds the two git lines itself and runs them with
+  // the person's own git setup, so the commit is signed as theirs are
+  // (src-tauri/src/commands/git_commit.rs). `add` and `commit` here are the
+  // same lines as shown to the person.
 
   /** The most files one commit names. */
   const COMMIT_MOST = 40;
@@ -133,11 +137,12 @@
       ...(notRun.length ? [`Not changed by this run, committed as they are now: ${notRun.join(', ')}`] : []),
       ...(repo && repo.hooks && repo.hooks.length ? [`This repository's own hooks will run: ${repo.hooks.join(', ')}.`] : []),
       'Each file is committed whole, as it is now, with any change in it this run did not make. Nothing else you have staged is in it.',
+      'It runs with your own git setup, as in your terminal, so it is signed as your other commits are; the repository\'s own hooks run with it, outside the app\'s sandbox.',
       ...warnings,
     ].join('\n');
     const all = [...files.map((f) => f.path), ...notRun];
     return {
-      files, notRun, warnings, reason,
+      files, notRun, warnings, reason, title, body, paths: all,
       shown: `git commit -- ${all.join(' ')}\n\n${title}${body ? `\n\n${body}` : ''}`,
       add: ['add', '--', ...all],
       commit: ['commit', '-m', title, ...(body ? ['-m', body] : []), '--', ...all],

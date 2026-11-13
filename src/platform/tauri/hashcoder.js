@@ -727,8 +727,10 @@
    * A git_commit call: checked from the run's own record of what it changed
    * (js/code/git.js commitPlan) before anything runs, asked about every time
    * with the whole commit shown, then, on a yes only, the files added and
-   * committed, and nothing else, with the network closed. A commit the
-   * repository signs is never made unsigned when signing fails.
+   * committed, and nothing else, by the narrow native command that runs the
+   * two fixed git lines with the person's own git setup, so it is signed as
+   * their commits are (commands/git_commit.rs). A commit the repository
+   * signs is never made unsigned when signing fails.
    */
   HC.code.gitCommit = async (p = {}) => {
     const G = window.HCCodeGit;
@@ -741,11 +743,12 @@
     const shown = `${plan.shown}\n(in ${root})`;
     const ok = await HC.guard.request('shell', shown, plan.reason, { command: 'git', args: plan.commit, cwd: root, commit: true });
     if (!ok) throw new Error(`Permission denied: the commit was not made. ${HC.code.whyNo('shell', shown)}`);
-    const run = (args) => HC.invoke('shell_run', { command: 'git', args, cwd: root, cancelKey: HC.code.shellCancelKey, offline: true });
-    const added = await run(plan.add);
-    if (added && added.code) throw new Error(G.commitFailure(added).words);
-    const made = await run(plan.commit);
-    if (!made || made.code) throw new Error(G.commitFailure(made).words);
+    // The two git lines are built again in Rust from the files, title and body alone, and run with the person's own git setup (commands/git_commit.rs).
+    const files = plan.paths.map((f) => window.HCCodePaths?.relativeFromRoot ? window.HCCodePaths.relativeFromRoot(f, root) : f);
+    const done = await HC.invoke('git_commit_signed', { paths: files, title: plan.title, body: plan.body || null, cancelKey: HC.code.shellCancelKey });
+    const made = done && done.output;
+    if (!made || made.code || made.timedOut || made.stopped) throw new Error(G.commitFailure(made).words);
+    if (done.stage !== 'commit') throw new Error(G.commitFailure(made).words);
     for (const f of plan.files) { const c = changes.get(f.path); if (c) c.before = c.after; }   // committed: the next commit counts from here
     return JSON.stringify({ committed: G.commitId(made.stdout), branch: HC.code.runRepo?.()?.branch || null, files: [...plan.files.map((f) => f.path), ...plan.notRun] });
   };

@@ -148,7 +148,7 @@ console.log('\nA commit, checked from the run\'s own record before anything runs
   ok('nothing changed by the run, and no paths: nothing to commit', /has changed no file yet/.test(G.commitPlan({ title: 'fix: x' }, { ...deps(), changes: new Map() }).error || ''));
   const plainRepo = { isRepo: true, branch: 'main', style: { prefix: 'none', titleMax: 40 } };
   ok('a repository whose titles are sentences takes one', !G.commitPlan({ title: 'Keep the total in pence' }, { ...deps(), repo: plainRepo }).error);
-  ok('what git said is read for why a commit was not made: signing, a hook, nothing to commit', G.commitFailure({ code: 1, stderr: 'error: gpg failed to sign the data' }).kind === 'signing' && /never made unsigned/.test(G.commitFailure({ stderr: 'error: gpg failed to sign the data' }).words) && G.commitFailure({ stderr: 'husky - pre-commit hook exited with code 1' }).kind === 'hook' && G.commitFailure({ stdout: 'nothing to commit, working tree clean' }).kind === 'nothing');
+  ok('what git said is read for why a commit was not made: signing, a hook, nothing to commit', G.commitFailure({ code: 1, stderr: 'error: gpg failed to sign the data' }).kind === 'signing' && /never made unsigned/.test(G.commitFailure({ stderr: 'error: gpg failed to sign the data' }).words) && G.commitFailure({ stderr: 'pre-commit hook exited with code 1' }).kind === 'hook' && G.commitFailure({ stdout: 'nothing to commit, working tree clean' }).kind === 'nothing');
   ok('the commit\'s short id is read from what git said', G.commitId('[cart 1a2b3c4] fix: keep the total in pence\n 1 file changed') === '1a2b3c4' && G.commitId('[main (root-commit) 9f8e7d6] first') === '9f8e7d6' && G.commitId('nothing') === null);
 }
 
@@ -158,7 +158,7 @@ console.log('\nThe commit tool: asked every time, then only those files, with th
   const asked = [], ran = [];
   let answer = true, said = { add: { code: 0, stdout: '' }, commit: { code: 0, stdout: '[cart 1a2b3c4] fix: keep the total in pence\n' } };
   sandbox.HC.guard = { projectRoot: () => ROOT, request: async (action, target, reason, detail) => { asked.push({ action, target, reason, detail }); return answer; } };
-  sandbox.HC.invoke = async (cmd, a) => { ran.push({ cmd, ...a }); return a.args[0] === 'add' ? said.add : said.commit; };
+  sandbox.HC.invoke = async (cmd, a) => { ran.push({ cmd, ...a }); return said.add.code ? { stage: 'add', output: said.add } : { stage: 'commit', output: said.commit }; };
   code.whyNo = () => 'The person said no.';
   const changes = new Map([['src/cart.js', { before: 'a\n', after: 'a\nb\n', unreadable: false }]]);
   code.runChanges = () => changes;
@@ -166,7 +166,8 @@ console.log('\nThe commit tool: asked every time, then only those files, with th
   const tool = code.TOOL_DEFINITIONS.find((t) => t.name === 'git_commit');
   const out = tool ? JSON.parse(await tool.fn({ title: 'fix: keep b' })) : {};
   ok('the person is asked once, as a commit, with the whole commit shown', asked.length === 1 && asked[0].action === 'shell' && asked[0].detail.commit === true && /^git commit -- src\/cart\.js\n\nfix: keep b\n\(in \/work\/harbour-shop\)$/.test(asked[0].target), json(asked));
-  ok('then the file is added and committed, in the project, with the network closed', json(ran.map((r) => [r.cmd, r.args, r.cwd, r.offline])) === json([['shell_run', ['add', '--', 'src/cart.js'], ROOT, true], ['shell_run', ['commit', '-m', 'fix: keep b', '--', 'src/cart.js'], ROOT, true]]), json(ran));
+  ok('then the narrow native command is asked to commit: only the files, the title and the body, never a git line or a folder', json(ran.map((r) => [r.cmd, r.paths, r.title, r.body, 'args' in r, 'cwd' in r])) === json([['git_commit_signed', ['src/cart.js'], 'fix: keep b', null, false, false]]), json(ran));
+  ok('...and the question said it runs with the person\'s own git setup, signed as theirs are, the hooks outside the sandbox', /own git setup, as in your terminal, so it is signed as your other commits are; the repository's own hooks run with it, outside the app's sandbox/.test(asked[0].reason));
   ok('the answer says the commit, its branch and its files', out.committed === '1a2b3c4' && out.branch === 'cart' && json(out.files) === '["src/cart.js"]', json(out));
   ok('...and a next commit counts from it', changes.get('src/cart.js').before === 'a\nb\n');
   changes.set('src/cart.js', { before: 'a\nb\n', after: 'a\nb\nc\n', unreadable: false });
@@ -174,9 +175,14 @@ console.log('\nThe commit tool: asked every time, then only those files, with th
   try { await tool.fn({ title: 'fix: keep c' }); } catch (e) { no = String(e.message); }
   ok('a no runs nothing', ran.length === 0 && /^Permission denied: the commit was not made/.test(no), no);
   answer = true; said = { add: { code: 0 }, commit: { code: 1, stderr: 'error: gpg failed to sign the data\nfatal: failed to write commit object' } };
+  ran.length = 0;
   let unsigned = '';
   try { await tool.fn({ title: 'fix: keep c' }); } catch (e) { unsigned = String(e.message); }
-  ok('a commit that cannot be signed is not made, says so, and is never made unsigned instead', /could not sign it/.test(unsigned) && !ran.some((r) => r.args.includes('--no-gpg-sign')) && changes.get('src/cart.js').before === 'a\nb\n', unsigned);
+  ok('a commit that cannot be signed is not made, says so, and is never made unsigned instead', /could not sign it/.test(unsigned) && !ran.some((r) => json(r).includes('no-gpg-sign')) && changes.get('src/cart.js').before === 'a\nb\n', unsigned);
+  said = { add: { code: 128, stderr: "fatal: pathspec 'src/cart.js' did not match any files" }, commit: { code: 0, stdout: '[cart 9999999] x' } };
+  let notAdded = '';
+  try { await tool.fn({ title: 'fix: keep c' }); } catch (e) { notAdded = String(e.message); }
+  ok('a file git could not add makes no commit, and says what git said', /^The commit was not made\. What git said:\nfatal: pathspec/.test(notAdded) && changes.get('src/cart.js').before === 'a\nb\n', notAdded);
   const guard = src('platform', 'tauri', 'guard.js');
   ok('the guard asks about a commit every time, never for the session, never in Auto', /const once = !!out \|\| !!\(detail && \(detail\.install \|\| detail\.destroys \|\| detail\.commit\)\);/.test(guard));
   const loop = src('js', 'agent-loop.js');

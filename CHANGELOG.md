@@ -80,6 +80,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   repository's own style and adds nothing to the message. You are asked
   every time, with the whole commit shown. The git tools are offered only in
   a conversation where you asked for git work.
+- **A HashCoder commit is signed as yours are.** Once you agree to it, the
+  commit is made by one narrow native command that builds the two git lines
+  itself and runs them with your own git setup, so a repository that signs
+  its commits gets a signed one. Nothing can be added to those lines, and
+  the question says the repository's own hooks run with it.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

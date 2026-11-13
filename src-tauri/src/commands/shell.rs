@@ -72,6 +72,13 @@ pub struct ShellOutput {
     stopped: bool,
 }
 
+impl ShellOutput {
+    /// It did not end well: a code other than 0, the time limit, or a stop.
+    pub(crate) fn failed(&self) -> bool {
+        self.code != 0 || self.timed_out || self.stopped
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct StreamChunk {
     pub kind: String, // "stdout", "stderr", "done"
@@ -236,6 +243,8 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         Caller::Person => Command::new(command),
         Caller::Agent => crate::security::agent_sandbox::command(command)?,
         Caller::AgentOffline => crate::security::agent_sandbox::command_offline(command)?,
+        // A commit the person agreed to, with their own git setup (git_commit.rs).
+        Caller::Signed => Command::new(command),
     };
     cmd.args(args);
     if let Some(dir) = cwd.as_ref().or(opened.as_ref()) {
@@ -258,7 +267,7 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
         // wherever they like; it is their terminal.
         match caller {
             Caller::Person => crate::commands::fs::guard_path(dir),
-            Caller::Agent | Caller::AgentOffline => crate::commands::fs::guard_agent_path(dir),
+            Caller::Agent | Caller::AgentOffline | Caller::Signed => crate::commands::fs::guard_agent_path(dir),
         }
         .map_err(|why| format!("Working directory refused: {why}"))?;
         cmd.current_dir(dir);
@@ -295,12 +304,22 @@ enum Caller {
     /// because it can only read the project or run its own checks: the same,
     /// and the network closed. Refused where it cannot be closed.
     AgentOffline,
+    /// A commit the person agreed to (commands/git_commit.rs): no sandbox, so
+    /// it is signed as their other commits are, but in the open project only
+    /// and without the settings named like a secret, as the agent's are.
+    Signed,
 }
 
 impl Caller {
     fn is_agent(self) -> bool {
-        matches!(self, Caller::Agent | Caller::AgentOffline)
+        matches!(self, Caller::Agent | Caller::AgentOffline | Caller::Signed)
     }
+}
+
+/// One of the two fixed git lines of a commit the person agreed to, in the open
+/// project, with their own git setup and no terminal to ask in (git_commit.rs).
+pub(crate) fn run_signed(args: Vec<String>, cancel_key: Option<String>) -> Result<ShellOutput, String> {
+    run_blocking("git".to_string(), args, None, Some(super::git_commit::TIMEOUT_MS), cancel_key, Caller::Signed)
 }
 
 /// Words that mark an environment setting as a secret, when one of them is a
@@ -662,6 +681,10 @@ fn run_blocking(
     let mut cmd = prepare(&command, &args, &cwd, caller)?;
     if caller.is_agent() {
         without_secrets(&mut cmd);
+    }
+    if caller == Caller::Signed {
+        // No terminal to ask for a password in: a sign-in it would need fails rather than waits.
+        cmd.env("GIT_TERMINAL_PROMPT", "0");
     }
     let timeout = resolve_timeout(timeout_ms);
     let stop = StopFlag::register(cancel_key);

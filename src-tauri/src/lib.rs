@@ -26,6 +26,7 @@ use commands::{
         fs_move_file, fs_path_inside_root, fs_read_base64, fs_read_file, fs_search_files,
         fs_set_root, fs_write_file,
     },
+    git_commit::git_commit_signed,
     host::which_programs,
     keychain::{keychain_delete, keychain_retrieve_bundle},
     mcp::{mcp_oauth_sign_in, mcp_request, mcp_server_remove, mcp_server_save},
@@ -99,6 +100,8 @@ pub fn run() {
             shell_platform,
             // Which programs of a fixed list are installed: found as files, nothing run (commands/host.rs).
             which_programs,
+            // A commit the person agreed to, made with their own git setup so it is signed (commands/git_commit.rs).
+            git_commit_signed,
             // Local embeddings — bundled bge-small-en-v1.5, run natively
             embed_texts,
             embed_available,
