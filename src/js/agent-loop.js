@@ -64,6 +64,52 @@
     let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
     const edited = new Map(), asked = window.HCCodeCalls.memory(), schemaOf = (name) => (tools || []).find((t) => (t.function ? t.function.name : t.name) === name);   // asked: what this run's calls gave back (js/code/calls.js)
     let lastStop = null, forced = null;   // forced: a turn the app takes for a small model, running the test it was told to (verify.js stopCheck)
+
+    // Sub-agents the model starts itself (js/code/delegate.js): offered only to a model rated strong, at full size, switched on, on a big
+    // request in a project too large to show whole. Each runs on this run's model, through the same call and so the app's request cap, with
+    // the same stop. What one changes joins this run's record and change rows; its reading stays in its own conversation.
+    const DG = window.HCCodeDelegate, subAgents = [], map = sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap : null;
+    const delegating = !!DG && !bare && !sharedState.light && DG.offered({ on: DG.switchedOn(), strong: !!HC?.code?.strong, size: sharedState.size, whole: !(map && !map.whole && map.outline), asks: (HC?.code?.asks || []).length,
+      steps: HC?.code?.plan && window.HCCodePlan ? window.HCCodePlan.openSteps(HC.code.plan).length : 0, foundCap: (sharedState.found?.files?.length || 0) >= (window.HCCodeFind?.SIZED?.full?.files || Infinity) });
+    if (!delegating) tools = (tools || []).filter((t) => (t.function ? t.function.name : t.name) !== 'delegate');
+    const writers = DG ? DG.oneAtATime() : null, CHANGING = ['write_file', 'patch_file', 'delete_file', 'move_file'], READING = ['read_file', 'list_dir', 'grep_code', 'fuzzy_find', 'uses_of'];
+    const fromRoot = (p) => { const r = String(sharedState.projectRoot || '').replace(/\\/g, '/').replace(/\/+$/, ''), t = String(p == null ? '' : p).replace(/\\/g, '/').replace(/^\.\//, ''); return r && t.startsWith(`${r}/`) ? t.slice(r.length + 1) : t; };
+    // One call of a sub-agent: a read inside the project only and never with a question; a change or a command as this run makes one, its
+    // question saying which sub-agent asks, and what it changed or ran recorded as this run's.
+    async function childCall(c, convo, title) {
+      const a = c.arguments || {};
+      if (READING.includes(c.name)) { const text = String(c.name === 'uses_of' ? await HC.code.withCodes(await HC.code.usesOf(a.name), true) : await HC.code.readingQuietly(c.name, a)); return { text, ok: !/^\{"error"/.test(text) }; }
+      const early = CHANGING.includes(c.name) ? await window.HCCodeSeen?.before(c, convo, { root: sharedState.projectRoot, whole: map ? map.whole : '', current: HC.code.readWholeQuietly, uses: HC.code.linesQuietly }) : null;   // a change to a file it has not read is answered without making it (js/code/seen.js)
+      if (early) return { text: early.result, ok: !!early.ok };
+      const def = (HC?.code?.TOOL_DEFINITIONS || []).find((t) => t.name === c.name);
+      if (!def || !def.fn) return { text: JSON.stringify({ error: `Unknown tool: ${c.name}` }), ok: false };
+      if (c.name === 'shell_run') ui.terminal(`[sub-agent: ${title}] ${[a.command, ...(Array.isArray(a.args) ? a.args : [])].join(' ')}`, 'cdr-bash-preview');
+      const watch = c.name === 'shell_run' && !!sharedState.projectRoot && !!window.HCCodeCommandChanges && typeof HC?.code?.snapshot === 'function' && window.HCCodeCommandChanges.watches(a, { root: sharedState.projectRoot, os: sharedState.platform?.os });
+      const before = watch ? await HC.code.snapshot().catch(() => null) : null, back = HC.guard?.asking?.(title);
+      let text, ok = true;
+      try { const raw = await def.fn(a); text = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2); } catch (e) { text = JSON.stringify({ error: String(e?.message || e) }); ok = false; } finally { back?.(); }
+      if (before) { const after = await HC.code.snapshot().catch(() => null), d = after ? window.HCCodeCommandChanges.diff(before, after) : null; if (d && d.paths.length) { text = `${text}\n\n${window.HCCodeCommandChanges.note(d)}`; commandChanged.push(...d.paths.filter((p) => !commandChanged.includes(p))); } }
+      if (ok && proof) { const touched = { write_file: [a.path], patch_file: [a.path], delete_file: [a.path], move_file: [a.from, a.to] }[c.name]; if (touched) touched.forEach((p) => { proof.edited(p); window.HCCodeReview?.track(changes, p, HC?.undo?.lastFor?.(p)); }); else if (c.name === 'shell_run') { try { proof.ran(a.command, a.args, JSON.parse(text)); } catch {} } }
+      if (ok && CHANGING.includes(c.name)) ui.changed(c, text);   // its change row, with Keep and Undo
+      return { text, ok };
+    }
+    async function subAgent(args) {
+      const why = DG.problem(args);
+      if (why) return JSON.stringify({ error: why });
+      ui.trace('Sub-agent', `${args.kind === 'do' ? 'Changing' : 'Exploring'}: ${args.title}`, 'run');
+      const go = () => DG.run(args, { tools, signal, now: () => Date.now(), norm: fromRoot,
+        ask: (m, t) => call(m, t, temperature, signal),   // this run's model, through the same router and request cap
+        record: { turn: H.appendAssistantToolCallTurn, result: H.appendToolResult },
+        prepare: (c) => ({ ...c, arguments: window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, schemaOf(c.name)).args, sharedState.projectRoot) }),
+        exec: (c, convo) => childCall(c, convo, args.title),
+        lines: async (p) => { try { return String(await HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path)).split('\n').length; } catch { return null; } },
+        limits: window.HCRunLedger?.limitsOf?.(HC?.code?.request) || [], checks: sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks?.checks || [] : [], rule: HC?.code?.TOOL_TEXT_RULE || '' });
+      const out = await (args.kind === 'do' ? writers(go) : go());   // two that change files never at once
+      subAgents.push({ kind: args.kind, title: args.title, steps: out.steps, stopped: out.stopped, removed: out.removed, changed: out.changed.map((c) => c.path), ran: out.ran.slice() });
+      ui.trace('Sub-agent', `${args.title}: ${out.steps} steps${out.removed ? `, ${out.removed} claim${out.removed === 1 ? '' : 's'} removed` : ''}${out.stopped ? `, stopped at its ${out.stopped === 'time' ? 'time' : 'step'} limit` : ''}`, 'ok');
+      return out.text;
+    }
+    if (HC?.code) HC.code.delegate = delegating ? subAgent : null;   // what the delegate tool calls (platform/tauri/hashcoder.js)
     if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) ui.trace('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
     let thinkEl = ui.wait();
 
@@ -264,7 +310,7 @@
       const unseen = window.HCCodeVerify.unseenLine?.(finalText, messages, { size: sharedState.size, light: !!sharedState.light, map: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.ranked : null }) || '';   // names it states as code that nothing showed it
       window.HCCodeWorked?.record(window.localStorage, sharedState.projectRoot, proof ? proof.checks : [], { os: sharedState.platform?.os });   // the checks that passed, remembered for this project by the app (js/code/worked.js)
       const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeSite?.outsideLine(outside), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), unseen, window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
-      const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
+      const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), subagents: subAgents.slice(), proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
       sharedState.proven = proven || ''; sharedState.receipt = kept; if (proven && !kept) ui.answer(`*${proven}*`);   // the line in italics stays for exports, and for a screen that draws no receipt
       return finalText;
     }
@@ -288,7 +334,7 @@
     const { unconfirmed, outside } = looks.left();
     const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeSite?.outsideLine(outside), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
     if (summary) ui.answer(summary);   // its account first
-    const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
+    const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), subagents: subAgents.slice(), stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
     if (summary && account?.role === 'assistant' && account.content === summary) { account.proven = said; if (kept) account.receipt = kept; }   // wrapUp added the account to the conversation; a saved one draws its receipt, or the line, under it too
     if (!kept) ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
   }

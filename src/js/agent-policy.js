@@ -55,6 +55,9 @@
   /** How many tools may run at once. Beyond this the gain is noise and the
    *  UI cannot show what is happening. */
   const MAX_PARALLEL = 5;
+  /** A sub-agent that only reads runs beside others like a read, this many at most; one that changes files runs alone (js/code/delegate.js). */
+  const SUBAGENTS_AT_ONCE = 3;
+  const exploring = (call) => !!call && call.name === 'delegate' && !!call.arguments && call.arguments.kind === 'explore';
 
   /**
    * Group a turn's tool calls into batches that may run concurrently.
@@ -74,11 +77,12 @@
 
     for (const call of toolCalls || []) {
       if (!call) continue;
-      if (effectOf(call.name) !== 'read') {
+      if (effectOf(call.name) !== 'read' && !exploring(call)) {
         if (current.length) { batches.push(current); current = []; }
         batches.push([call]);
         continue;
       }
+      if (exploring(call) && current.filter(exploring).length >= SUBAGENTS_AT_ONCE) { batches.push(current); current = []; }
       current.push(call);
       if (current.length >= limit) { batches.push(current); current = []; }
     }

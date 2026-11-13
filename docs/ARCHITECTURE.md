@@ -151,7 +151,7 @@ HashCortX/
 │   │   │                            alone: each request's open asks and limits,
 │   │   │                            the files changed, the checks run, the plan;
 │   │   │                            written as a note of a set size
-│   │   ├── agent-policy.js     393  what may run together, when to stop, and
+│   │   ├── agent-policy.js     397  what may run together, when to stop, and
 │   │   │                            when the same file is changed too often
 │   │   ├── run-view.js         530  a run's steps grouped into phases on the
 │   │   │                            rail, Finding to Reviewing, each folding to
@@ -164,9 +164,11 @@ HashCortX/
 │   │   │                            as it did, with marks where the app
 │   │   │                            checked in, you added a message or a step
 │   │   │                            failed
-│   │   ├── agent-loop.js       297  the HashCoder agent loop, from a request
+│   │   ├── agent-loop.js       343  the HashCoder agent loop, from a request
 │   │   │                            to its answer, with no screen of its own:
-│   │   │                            what it shows and needs is handed in
+│   │   │                            what it shows and needs is handed in, and
+│   │   │                            the sub-agents a strong model may start
+│   │   │                            in it, their changes joining its record
 │   │   ├── rag-search.js       119  knowledge-base ranking: keywords,
 │   │   │                            cosine, rank fusion
 │   │   ├── rag-store.js        123  how a document becomes passages —
@@ -236,7 +238,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             11,320  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             11,334  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the line endings a new file takes from
 │   │   │                            the project,
@@ -289,8 +291,8 @@ HashCortX/
 │   │   │                            model may start for part of a big task:
 │   │   │                            what each kind is given, its own
 │   │   │                            conversation and limits, and its report
-│   │   │                            checked by the app (not yet offered in
-│   │   │                            a run)
+│   │   │                            checked by the app (nothing switches it
+│   │   │                            on yet)
 │   │   ├── swarm/            5,085  Agent Swarm: what kind of task it is,
 │   │   │                            how many agents it needs, here or in
 │   │   │                            the cloud, and a team cut to that,
@@ -566,7 +568,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,434-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 12,383 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 12,421 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

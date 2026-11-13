@@ -642,7 +642,8 @@ console.log('\nA change Undo cannot take back is asked about:');
   const drawn = coder.slice(coder.indexOf('changed: (call, resultStr) =>'), coder.indexOf('const H = window._H;', coder.indexOf('changed: (call, resultStr) =>')));
   assert('a change row is added only when the call succeeded',
     (rows.match(/ui\.changed\(/g) || []).length === 1 && /\n\s+if \(ok\) ui\.changed\(call, resultStr\);/.test(rows) && !/addChangeEntry/.test(rows)
-    && (coder.match(/ui\.changed\(/g) || []).length === 1 && ['write_file', 'delete_file', 'move_file'].every((n) => drawn.includes(`call.name === '${n}'`)));
+    && (coder.match(/ui\.changed\(/g) || []).length === 2 && /\n\s+if \(ok && CHANGING\.includes\(c\.name\)\) ui\.changed\(c, text\);/.test(coder.slice(coder.indexOf('async function childCall('), coder.indexOf('async function subAgent(')))   // and a sub-agent's change, only when it succeeded (js/agent-loop.js childCall)
+    && ['write_file', 'delete_file', 'move_file'].every((n) => drawn.includes(`call.name === '${n}'`)));
   assert('a move gets its two rows', /call\.name === 'move_file'\)[\s\S]{0,400}addChangeEntry\(baseName\(from\)[\s\S]{0,120}addChangeEntry\(baseName\(to\)/.test(drawn));
 
   sandbox.HC.isTauri = false;
@@ -775,6 +776,25 @@ console.log('\nWhat the question shows, when it holds hidden characters:');
   assert('...and the reason, with a line saying so', said.includes('\\u{200B}') && /This holds hidden characters, shown as codes\./.test(said), said);
   await guard.request('shell', 'npm test', 'Run the tests');
   assert('a question with none says nothing of them', nodes['hc-perm-target'].textContent === 'npm test' && nodes['hc-perm-reason'].textContent === 'Run the tests');
+}
+
+console.log('\nA question raised by a sub-agent:');
+{
+  answer = 'deny';
+  guard.clearSession();
+  const done = typeof guard.asking === 'function' ? guard.asking('Round the basket total') : () => {};
+  await guard.request('shell', 'npm test', 'Run the tests');
+  assert('says which sub-agent is asking, before its reason', nodes['hc-perm-reason'].textContent === 'Sub-agent: Round the basket total. Run the tests', nodes['hc-perm-reason'].textContent);
+  done();
+  guard.clearSession();
+  await guard.request('shell', 'npm test', 'Run the tests');
+  assert('...and once it is done, the main run\'s questions say nothing of it', nodes['hc-perm-reason'].textContent === 'Run the tests');
+  const back = guard.asking?.('Two\nlines\u0007 here') || (() => {});
+  guard.clearSession();
+  await guard.request('shell', 'npm test', '');
+  assert('a name with line breaks or control characters is said on one plain line, alone when there is no reason', nodes['hc-perm-reason'].textContent === 'Sub-agent: Two lines here', nodes['hc-perm-reason'].textContent);
+  back();
+  guard.clearSession();
 }
 
 console.log('\nWhat the question says where the system cannot fence a command in:');

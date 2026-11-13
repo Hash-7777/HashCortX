@@ -256,6 +256,7 @@ How to work:
    *   tools — what the main model was offered; its kind's are taken from it;
    *   exec(call, messages) — make one call as the app makes it, { text, ok };
    *   record — { turn, result }: how a turn and its results join a conversation;
+   *   prepare(call) — the call with its arguments put right, as the main run's are (optional);
    *   lines(path) — a file's number of lines, or null; norm(path) — a path as the project writes it;
    *   limits, checks, rule — what the app adds to the brief; signal; now() — the time, in ms.
    * Returns { text, report, removed, steps, stopped, changed, ran }.
@@ -271,7 +272,8 @@ How to work:
     const changed = [], ran = [];
     let steps = 0, stopped = null, answer = null;
     const ask = async (withTools) => { if (d.signal && d.signal.aborted) throw aborted(); steps++; const t = await d.ask(convo, withTools ? tools : []); if (d.signal && d.signal.aborted) throw aborted(); return t || {}; };
-    const one = async (call) => {
+    const one = async (asked) => {
+      const call = d.prepare ? d.prepare(asked) : asked;   // its arguments put right first, so the files rule reads them as they will run
       const no = refusal(kind, call, allowed, files, norm);
       if (no) return { text: JSON.stringify({ error: no }), ok: false };
       const out = await Promise.resolve(d.exec(call, convo)).catch((e) => ({ text: JSON.stringify({ error: String((e && e.message) || e) }), ok: false }));
@@ -288,7 +290,7 @@ How to work:
       const turn = await ask(true);
       const calls = Array.isArray(turn.tool_calls) ? turn.tool_calls.filter(Boolean) : [];
       if (!calls.length) { answer = turn.content || ''; break; }
-      d.record.turn(convo, turn.content || '', calls);
+      d.record.turn(convo, turn.content || '', calls, { thinking: turn.thinking, from: turn.thinkingFrom });   // its thinking kept with its calls, as the main run keeps it (js/model-profile.js)
       const runs = calls.slice(0, CALLS_A_TURN);
       const results = kind === 'explore' ? await Promise.all(runs.map(one)) : [];
       if (kind !== 'explore') for (const c of runs) { if (d.signal && d.signal.aborted) throw aborted(); results.push(await one(c)); }
@@ -301,11 +303,23 @@ How to work:
     return { text: handBack({ kind, title: args.title }, res), report: res.report, removed: res.removed, steps, stopped, changed: changed.slice(), ran: ran.slice() };
   }
 
+  // ── The switch ─────────────────────────────────────────────────────────
+  //
+  // Off until a person turns it on in Settings → HashCoder: sub-agents are
+  // not yet proven on real runs.
+
+  const SWITCH_KEY = 'hc_subagents';
+  const storeOf = (s) => { if (s) return s; try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch { return null; } };
+  /** Whether sub-agents are switched on. */
+  function switchedOn(s) { try { const st = storeOf(s); return !!st && st.getItem(SWITCH_KEY) === 'on'; } catch { return false; } }
+  /** Switch them on or off. */
+  function switchOn(on, s) { try { const st = storeOf(s); if (!st) return; if (on) st.setItem(SWITCH_KEY, 'on'); else st.removeItem(SWITCH_KEY); } catch { /* left as it was */ } }
+
   /** Jobs run one at a time, in the order given: a sub-agent that changes files never beside another. */
   function oneAtATime() {
     let tail = Promise.resolve();
     return (fn) => { const job = tail.then(() => fn()); tail = job.catch(() => {}); return job; };
   }
 
-  window.HCCodeDelegate = { KINDS, AT_ONCE, STEPS, MINUTES, REPORT_MOST, CALLS_A_TURN, KIND_TOOLS, OPTIONAL, TOOL, offered, problem, toolsFor, reportForm, briefMessages, read, checked, handBack, run, oneAtATime };
+  window.HCCodeDelegate = { SWITCH_KEY, switchedOn, switchOn, KINDS, AT_ONCE, STEPS, MINUTES, REPORT_MOST, CALLS_A_TURN, KIND_TOOLS, OPTIONAL, TOOL, offered, problem, toolsFor, reportForm, briefMessages, read, checked, handBack, run, oneAtATime };
 })();

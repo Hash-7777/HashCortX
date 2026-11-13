@@ -477,6 +477,7 @@
   let _facts = null;   // what the run's conversation holds (js/code/outward.js facts), asked for at each request
   const factsNow = () => { try { return _facts ? _facts() : null; } catch { return null; } };
   let _checks = null;
+  let _asker = '';   // the sub-agent whose step this is, named in its questions (js/code/delegate.js)
 
   /** Where what a file holds would go: the model's company, this computer, or the model in use when no run names one. */
   function goesTo() {
@@ -669,6 +670,12 @@
     whyRefused,
     /** What the run's conversation holds now (js/code/outward.js facts): neither, with no run. */
     holds: () => factsNow() || { untrusted: false, private: false },
+    /** Name the sub-agent whose questions these are, until the function it returns is called. */
+    asking(title) {
+      const was = _asker;
+      _asker = String(title || '').replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+      return () => { _asker = was; };
+    },
 
     async allowedWithoutAsking(action, target) {
       if (!QUIET_ACTIONS.has(action) || isHardBlocked(action, target) || isSecret(action, target) || !(await isInProjectRoot(target))) return false;
@@ -692,6 +699,9 @@
         HC.guard.notify(action === 'fetch' ? 'Refused: a web address too long, or carrying a key' : 'Refused: a command longer than 2,000 characters', 'danger');
         return false;
       }
+
+      // A question from a sub-agent's step says which one is asking.
+      if (_asker) reason = `Sub-agent: ${_asker}${reason ? `. ${reason}` : ''}`;
 
       // A file that usually holds keys is its own question, before anything is free.
       if (isSecret(action, target)) { reason = `This file usually holds keys. ${goesTo()}${reason ? ` (${reason})` : ''}`; action = 'read-secret'; }

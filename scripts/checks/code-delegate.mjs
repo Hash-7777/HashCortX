@@ -277,6 +277,29 @@ await (async () => {
   }
 })();
 
+console.log('\nThe switch:');
+{
+  const store = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+  const st = store();
+  ok('off until it is turned on', typeof D.switchedOn === 'function' && D.switchedOn(st) === false);
+  D.switchOn?.(true, st);
+  ok('on once turned on, and off again', D.switchedOn?.(st) === true && (D.switchOn(false, st), D.switchedOn(st) === false));
+  ok('a store that throws reads as off and breaks nothing', (() => { const bad = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); }, removeItem() { throw new Error('x'); } }; D.switchOn?.(true, bad); return D.switchedOn?.(bad) === false; })());
+}
+
+console.log('\nIts calls, put right before its rules read them:');
+await (async () => {
+  if (!has('run')) return;
+  const turns = [{ content: '', thinking: 'weighing it', thinkingFrom: 'deepseek', tool_calls: [{ id: 'm1', name: 'move_file', arguments: { src: 'src/cart.js', dest: 'src/other.js' } }] }, { content: 'FOUND: x' }];
+  let i = 0; const kept = [];
+  const record = { turn: (m, content, calls, extra) => { kept.push(extra); m.push({ role: 'assistant', content, tool_calls: calls }); }, result: (m, call, text) => m.push({ role: 'tool', tool_call_id: call.id, content: text }) };
+  const ran = [];
+  await D.run({ kind: 'do', title: 'Round the basket total', brief: 'b', return: 'r', files: ['src/cart.js'] }, { tools: OFFERED, record, ask: async () => turns[i++], norm: (p) => String(p || ''), lines: async () => null, now: () => 0,
+    prepare: (c) => ({ ...c, arguments: { from: c.arguments.src, to: c.arguments.dest } }), exec: async (c) => { ran.push(c.arguments); return { text: 'moved', ok: true }; } });
+  ok('the files rule reads the call as it will run: a move written with other names, to a file it was not given, is refused', ran.length === 0, json(ran));
+  ok('its thinking is kept with its calls, for a model that needs it back', kept[0] && kept[0].thinking === 'weighing it' && kept[0].from === 'deepseek', json(kept));
+})();
+
 console.log('\nTwo that change files, never at once:');
 await (async () => {
   if (!has('oneAtATime')) { ok('oneAtATime() exists', false); return; }

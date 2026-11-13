@@ -42,6 +42,16 @@ check('an UNKNOWN tool is treated as exec, not as a read',
   effectOf('some_new_tool') === 'exec',
   'the safe assumption about something unfamiliar is that it changes things');
 
+console.log('\nBatching — sub-agents (js/code/delegate.js):');
+{
+  const ex = (t) => call('delegate', { kind: 'explore', title: t });
+  const b = planBatches([ex('a'), ex('b'), ex('c'), ex('d'), call('read_file', { path: '/a' })]);
+  check('sub-agents that only read run together, three at most a batch, reads beside them', shape(b) === 'delegate+delegate+delegate | delegate+read_file', shape(b));
+  const d = planBatches([ex('a'), call('delegate', { kind: 'do', title: 'x', files: ['/a'] }), ex('b')]);
+  check('one that changes files runs alone, in its place', shape(d) === 'delegate | delegate | delegate', shape(d));
+  check('a delegate call with no kind is not taken for a read', shape(planBatches([call('read_file'), call('delegate', {}), call('read_file')])) === 'read_file | delegate | read_file');
+}
+
 console.log('\nBatching — reads run together:');
 {
   const b = planBatches([call('read_file', { path: '/a' }), call('read_file', { path: '/b' }),
@@ -283,7 +293,7 @@ console.log('\nA run that stops before it finishes says what it did:');
   check('HashCoder asks for it as a run stops, with no tools, runs the site and details checks first, and keeps only words',
     /const summary = await policy\.wrapUp\(\{ reason: stop\.reason, changed: proof \? proof\.changed\.length : 0, signal, messages, check: \(\) => proof\?\.changed\.length && cdrPrefs\(\)\.prove !== false && looks\.wrap\(\), words: \(r\) => window\.HCCodeLive\.wordsOf\(r\?\.content \|\| ''\)\.words,/.test(mode)
     && /wrap: \(\) => siteLook\(\)\.then\(factsLook\)/.test(mode) && /return call\([^\n]*, \[\], temperature, signal\)\.finally\(\(\) => wait\?\.remove\(\)\);/.test(mode) && /call: \(m, t, temp, s, live\) => callWithRouter\(m, t, temp, s, coderModel, live\)/.test(mode));
-  check('...shows the account, then what the record shows beside it: its receipt, why it stopped first, or the line in italics where no receipt is drawn', /const said = \[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)[^\n]*\n\s+if \(summary\) ui\.answer\(summary\);[^\n]*\n\s+const kept = ui\.receipt\?\.\(\{ commit: commitOffer\(\), commands: commandChanged\.slice\(\), stopped: stop\.message, [^\n]*\n[^\n]*\n\s+if \(!kept\) ui\.answer\(`\*\$\{said\}\*`\); return summary;/.test(mode) && /answer: \(text\) => appendTextToBubble\(contentEl, text\)/.test(mode));
+  check('...shows the account, then what the record shows beside it: its receipt, why it stopped first, or the line in italics where no receipt is drawn', /const said = \[stop\.message, proof && summary \? window\.HCCodeVerify\.proofLine\(proof\) : '', window\.HCCodeFacts\?\.leftLine\(unconfirmed\)[^\n]*\n\s+if \(summary\) ui\.answer\(summary\);[^\n]*\n\s+const kept = ui\.receipt\?\.\(\{ commit: commitOffer\(\), commands: commandChanged\.slice\(\), subagents: subAgents\.slice\(\), stopped: stop\.message, [^\n]*\n[^\n]*\n\s+if \(!kept\) ui\.answer\(`\*\$\{said\}\*`\); return summary;/.test(mode) && /answer: \(text\) => appendTextToBubble\(contentEl, text\)/.test(mode));
   check('...keeps that line, and the receipt, with the account, so a saved conversation shows it', /if \(summary && account\?\.role === 'assistant' && account\.content === summary\) \{ account\.proven = said; if \(kept\) account\.receipt = kept; \}/.test(mode));
   check('...and the account, already in the conversation, is not added to it a second time', /if \(finalText && !\(conversationMsgs\.at\(-1\)\?\.role === 'assistant' && conversationMsgs\.at\(-1\)\.content === finalText\)\) conversationMsgs\.push\(/.test(mode)
     && await (async () => { const m = []; const said = await wrapUp({ reason: 'hard-limit', messages: m, ask: async () => ({ content: 'Changed a.js.' }) }); return said === 'Changed a.js.' && m.at(-1).role === 'assistant' && m.at(-1).content === said; })());

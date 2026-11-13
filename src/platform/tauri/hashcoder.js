@@ -1306,6 +1306,13 @@
         return { ok: false, error: MEMORY_GONE };
       },
     },
+    {
+      // Sub-agents on the same model, for a strong model on a big request in a large project; offered only then, and off unless switched on (js/code/delegate.js, js/agent-loop.js).
+      name: 'delegate',
+      get description() { return window.HCCodeDelegate?.TOOL.description || ''; },
+      get parameters() { return window.HCCodeDelegate?.TOOL.parameters || {}; },
+      fn: (p) => (HC.code.delegate ? HC.code.delegate(p) : JSON.stringify({ error: 'delegate is not offered in this run. Do this part yourself.' })),
+    },
   ];
 
   /**
@@ -1324,7 +1331,7 @@
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   /** Arguments optional for one tool only, where the same name is required for others. */
-  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'], git_push: ['branch', 'remote'], git_pull: ['branch', 'remote'], env_names: ['path'] };
+  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'], git_push: ['branch', 'remote'], git_pull: ['branch', 'remote'], env_names: ['path'], delegate: ['files'] };
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
