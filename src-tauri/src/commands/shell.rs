@@ -356,7 +356,12 @@ impl Caller {
 /// One of the two fixed git lines of a commit the person agreed to, in the open
 /// project, with their own git setup and no terminal to ask in (git_commit.rs).
 pub(crate) fn run_signed(args: Vec<String>, cancel_key: Option<String>) -> Result<ShellOutput, String> {
-    run_blocking("git".to_string(), args, None, Some(super::git_commit::TIMEOUT_MS), cancel_key, Caller::Signed)
+    run_signed_for(args, cancel_key, super::git_commit::TIMEOUT_MS)
+}
+
+/// The same, with its own time limit: a push, pull or fetch the person agreed to (git_remote.rs).
+pub(crate) fn run_signed_for(args: Vec<String>, cancel_key: Option<String>, timeout_ms: u64) -> Result<ShellOutput, String> {
+    run_blocking("git".to_string(), args, None, Some(timeout_ms), cancel_key, Caller::Signed)
 }
 
 /// Words that mark an environment setting as a secret, when one of them is a

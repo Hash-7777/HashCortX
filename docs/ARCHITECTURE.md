@@ -234,7 +234,7 @@ HashCortX/
 │   │   │                            HashCoder and a Swarm run are offered of them,
 │   │   │                            and reading a system's records, which the
 │   │   │                            ERP and Finance share
-│   │   ├── code/             10,734  HashCoder: terminal colour, export, file names,
+│   │   ├── code/             10,832  HashCoder: terminal colour, export, file names,
 │   │   │                            patch_file's text work and numbered reads,
 │   │   │                            the line endings a new file takes from
 │   │   │                            the project,
@@ -356,7 +356,7 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs     1,391   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs     1,396   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent,
 │   │   │   │                        programs found where tools are installed,
 │   │   │   │                        and on Windows a project's own program by
@@ -366,6 +366,9 @@ HashCortX/
 │   │   │   ├── git_commit.rs 436   a commit the person agreed to: two fixed git
 │   │   │   │                        lines, run with their own git setup, so it
 │   │   │   │                        is signed as their commits are
+│   │   │   ├── git_remote.rs 292   a push, pull or fetch the person agreed to:
+│   │   │   │                        one line from a fixed table, their own
+│   │   │   │                        sign-in, no way to force
 │   │   │   ├── embed.rs       376   sentence embeddings, run natively
 │   │   │   ├── checkpoint.rs  703   what a file held before the agent changed it,
 │   │   │   │                        and whether it has changed since
@@ -553,7 +556,7 @@ This is the seam to respect when adding a mode: **never import across mode files
 - `app.js` is still a 6,434-line monolith, down from 8,682. Out so far: the prompt library, the fallback model catalogue, two settings panes, the provider endpoints and model lists, the agent's context and request shapes, and the reading of a streamed answer. What is left is mostly the send pipeline, message rendering and the agent loop, which are tied to the app's shared state rather than being separable pieces, and `scripts/checks/app-size.mjs` holds the ceiling so it cannot drift back.
 - The HashCoder mode is one closure of shared state holding most of its screen code; its separable pieces — terminal colour, export and file names — are out, and what is left needs restructuring rather than moving.
 - The header rework only touched normal chat, and six modes restyle the topbar without having been checked against it.
-- The frontend's automated coverage is `scripts/checks/` — 12,171 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
+- The frontend's automated coverage is `scripts/checks/` — 12,189 checks over retrieval, the Permission Guard, the agent loop, exports, layout, idle power, the native surface, the usage log, element lookups, diffs, undo, knowledge-base chunking, fetch addresses, cloud providers, module imports, markdown safety, agent request shapes, model identifiers, memory, the vector map, names that are called, functions used as values, and each mode's extracted pieces — the Forge plan gate, the generated ERP books, agent scheduling, the Finance charts, HashCoder's terminal, export and patching, and stream reading. They load the real source.
 - **`npm run models` asks each provider what still exists.** The fallback
   catalogue in `src/data/cloud-models.js` is what the picker shows before any
   provider has been asked, and it is a table of other people's decisions.

@@ -88,6 +88,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Reading a repository starts none of its programs.** Every git line the
   agent runs, in every mode, is run with the settings switched off through
   which a repository could have git start a program for it.
+- **HashCoder can make a branch, push and pull, when you ask.** git_branch,
+  git_push and git_pull are offered to the larger models in a conversation
+  about git. Before a push it reads the commits going out and refuses one
+  that adds a key; you are asked every time, with where the code goes, the
+  branch, each commit and the files shown. A narrow native command sends it
+  with your own git sign-in, from a fixed table with no way to force.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

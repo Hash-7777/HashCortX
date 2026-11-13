@@ -162,6 +162,104 @@
   /** The commit's short id from what git said as it made it, or null. */
   const commitId = (stdout) => { const m = /^\[[^\]\n]*?\s([0-9a-f]{7,40})\]/m.exec(String(stdout || '')); return m ? m[1] : null; };
 
+  // ── Sending a branch to the code host, and bringing one back ──────────
+  //
+  // git_push sends the open branch to a remote the repository names, and
+  // git_pull brings that remote's commits in when it can without a merge.
+  // Before the question, the commits that would go out are read (outgoingOf)
+  // and every line they add is looked at for a key; a key refuses the push,
+  // naming the commit, file and line. The question shows where the code goes,
+  // the branch, each commit by title and the files. The line itself is built
+  // in Rust from a fixed table, with no way to force or delete
+  // (src-tauri/src/commands/git_remote.rs).
+
+  /** The git line that reads the commits not yet on a remote, with what each adds. */
+  const outgoingLine = (remote) => ['log', '-p', '--no-ext-diff', '--no-textconv', '--format=%x00%h %s', 'HEAD', '--not', `--remotes=${remote}`];
+
+  /** `[{ id, title, files, added: [{ file, line, text }] }]` from what outgoingLine printed, newest first. */
+  function outgoingOf(text) {
+    const out = [];
+    for (const part of String(text || '').split('\u0000').slice(1)) {
+      const lines = part.split('\n');
+      const head = /^([0-9a-f]{4,40}) ?(.*)$/.exec(lines[0] || '');
+      if (!head) continue;
+      const c = { id: head[1], title: head[2].trim(), files: [], added: [] };
+      let file = null, at = 0;
+      for (const l of lines.slice(1)) {
+        const plus = /^\+\+\+ (?:b\/)?(.+)$/.exec(l);
+        if (plus) { file = plus[1] === '/dev/null' ? null : plus[1]; if (file && !c.files.includes(file)) c.files.push(file); continue; }
+        const minus = /^--- a\/(.+)$/.exec(l);
+        if (minus) { if (!c.files.includes(minus[1])) c.files.push(minus[1]); continue; }
+        const hunk = /^@@ -\d+(?:,\d+)? \+(\d+)/.exec(l);
+        if (hunk) { at = Number(hunk[1]); continue; }
+        if (l.startsWith('+') && file) { c.added.push({ file, line: at, text: l.slice(1) }); at++; continue; }
+        if (!l.startsWith('-') && !l.startsWith('\\')) at++;
+      }
+      out.push(c);
+    }
+    return out;
+  }
+
+  /** The most commits and files a question lists by name. */
+  const LISTED = 20;
+
+  /**
+   * What a git_push or git_pull call sends or brings, checked: `{ verb, remote,
+   * branch, shown, reason }`, or `{ error }` with what to do instead. `deps`:
+   * `repo` (js/code/repo.js), `outgoing` (outgoingOf, for a push),
+   * `looksLikeKey(text)`.
+   */
+  function remotePlan(verb, call, deps = {}) {
+    const a = call && typeof call === 'object' ? call : {};
+    const repo = deps.repo && deps.repo.isRepo ? deps.repo : null;
+    const tool = verb === 'push' ? 'git_push' : 'git_pull';
+    const no = (why, fix) => ({ error: `${tool} was not run: ${why}. ${fix}` });
+    const unknown = Object.keys(a).filter((k) => !['branch', 'remote', 'reason'].includes(k));
+    if (unknown.length) return no(`it does not take ${unknown.join(', ')}`, `Call it as {} for the open branch, or as ${JSON.stringify({ branch: 'cart' })}.`);
+    if (!repo) return no('this folder is not a git repository', 'Say so in your answer; a repository is the person\'s to make.');
+    const branch = a.branch != null ? a.branch : repo.branch;
+    if (!branchLike(branch)) return no(repo.detached && a.branch == null ? 'the repository is on no branch' : 'branch must be a plain branch name', `Call it as ${JSON.stringify({ branch: 'cart' })}.`);
+    const remote = a.remote != null ? a.remote : (repo.upstream && repo.upstream.remote) || 'origin';
+    if (typeof remote !== 'string' || !/^[A-Za-z0-9._-]{1,100}$/.test(remote) || remote.startsWith('-')) return no('remote must be the name of a remote, such as origin', 'Call it as {"remote": "origin"}.');
+    const where = repo.remote ? `${repo.remote.host}/${repo.remote.owner}/${repo.remote.name}` : `the remote ${remote}`;
+    const hooks = (repo.hooks || []).filter((h) => (verb === 'push' ? h === 'pre-push' : h === 'post-merge'));
+    const shared = [`It uses your own git sign-in. Force is never used.`, ...(hooks.length ? [`This repository's own hooks will run: ${hooks.join(', ')}.`] : [])];
+    if (verb === 'pull') {
+      return { verb, remote, branch, shown: `git pull --ff-only ${remote} ${branch}`, reason: [`Brings the commits on ${remote}/${branch}, from ${where}, into ${branch}, only if that needs no merge.`, ...shared].join('\n') };
+    }
+    const outgoing = Array.isArray(deps.outgoing) ? deps.outgoing : [];
+    if (!outgoing.length) return no(`every commit on ${branch} is already on ${remote}, so there is nothing to send`, 'Say so in your answer.');
+    for (const c of outgoing) {
+      const hit = typeof deps.looksLikeKey === 'function' ? c.added.find((x) => deps.looksLikeKey(x.text)) : null;
+      if (hit) return no(`commit ${c.id} adds a line that looks like a key, in ${hit.file}, line ${hit.line}, and a key sent to the code host stays in every copy of it`, 'Tell the person: the commit has to be changed before it is sent, and that is theirs to do.');
+    }
+    const files = [...new Set(outgoing.flatMap((c) => c.files))];
+    const more = (list, n) => (list.length > n ? [`and ${list.length - n} more`] : []);
+    const main = /^(?:main|master)$/.test(branch) ? [`This sends to ${branch}, the branch most people take as the project's own.`] : [];
+    return {
+      verb, remote, branch,
+      shown: `git push ${remote} HEAD:${branch}`,
+      reason: [
+        `This sends your code to ${where}, branch ${branch}.`,
+        ...main,
+        `${outgoing.length === 1 ? 'The commit' : `The ${outgoing.length} commits`} going out:`,
+        ...outgoing.slice(0, LISTED).map((c) => `${c.id} ${c.title}`), ...more(outgoing, LISTED),
+        `Files changed: ${files.slice(0, LISTED).join(', ')}${files.length > LISTED ? `, and ${files.length - LISTED} more` : ''}.`,
+        ...shared,
+      ].join('\n'),
+    };
+  }
+
+  /** What a push or pull that did not go through says, from what git said. */
+  function remoteFailure(verb, result) {
+    const text = `${(result && result.stderr) || ''}\n${(result && result.stdout) || ''}`.trim();
+    const tail = text.split('\n').filter(Boolean).slice(-6).join('\n');
+    if (/non-fast-forward|fetch first|rejected/i.test(text) && verb === 'push') return `Nothing was sent: the remote has commits this branch does not. Call git_pull to bring them in, then git_push again; force is never used.`;
+    if (/not possible to fast-forward|diverging|Not possible to fast-forward/i.test(text)) return 'Nothing was brought in: the branch and the remote have both moved on, and joining them needs a merge, which is the person\'s to make. Say so in your answer.';
+    if (/Authentication failed|could not read Username|Permission denied \(publickey\)|terminal prompts disabled|403|401/i.test(text)) return 'Nothing was sent: the code host did not accept the sign-in. Ask the person to sign in to it once in their own terminal (a git push there), then try again.';
+    return `Nothing was ${verb === 'push' ? 'sent' : 'brought in'}. What git said:\n${tail || '(nothing)'}\nRead it, and say in your answer what the person needs to do.`;
+  }
+
   // ── Only when asked ───────────────────────────────────────────────────
   //
   // A request to make a page or fix a function is not a request to make a
@@ -218,5 +316,5 @@
     return /(?:^|[\\/])\.github[\\/]workflows[\\/]/.test(String(path || '')) ? `write_file was not run: ${String(path).split(/[\\/]/).slice(-3).join('/')} is a workflow that runs on the code host, and the person has not asked for one. Do only what the request asks; if checks on the code host would help, say so in one line of your answer.` : null;
   }
 
-  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
+  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
 })();

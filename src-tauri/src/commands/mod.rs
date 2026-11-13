@@ -4,6 +4,7 @@ pub mod embed;
 pub mod export;
 pub mod forge_projects;
 pub mod git_commit;
+pub mod git_remote;
 pub mod fs;
 pub mod host;
 pub mod keychain;

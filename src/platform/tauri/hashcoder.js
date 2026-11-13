@@ -753,6 +753,44 @@
     return JSON.stringify({ committed: G.commitId(made.stdout), branch: HC.code.runRepo?.()?.branch || null, files: [...plan.files.map((f) => f.path), ...plan.notRun] });
   };
 
+  /** A new branch, made through the guard as any command is. */
+  HC.code.gitBranch = async (p = {}) => {
+    const G = window.HCCodeGit;
+    const name = p && typeof p.name === 'string' ? p.name.trim() : '';
+    if (!G || !/^[A-Za-z0-9._\/-]{1,80}$/.test(name) || name.includes('..') || name.startsWith('-') || name.startsWith('/') || name.endsWith('/')) throw new Error(`git_branch was not run: name must be a plain branch name. Call it as ${JSON.stringify({ name: 'fix/basket-total' })}.`);
+    const r = await HC.code.shellRun('git', ['switch', '-c', name], null, p.reason || `Making the branch ${name}`);
+    return window.HCCodeDigest ? window.HCCodeDigest.shellResult(r, HC.code.outputLimit) : r;
+  };
+
+  /**
+   * A git_push or git_pull call: for a push, the commits not yet on the remote
+   * read first and every line they add looked at for a key (js/code/git.js);
+   * asked about every time with where it goes and what goes shown; then, on a
+   * yes only, the fixed line run by the narrow native command with the
+   * person's own sign-in (commands/git_remote.rs).
+   */
+  HC.code.gitRemote = async (verb, p = {}) => {
+    const G = window.HCCodeGit;
+    if (!G || !G.remotePlan) throw new Error(`git_${verb} is not available in this window, so nothing was sent. Say in your answer what is ready, and leave it to the person.`);
+    const root = HC.guard.projectRoot?.() || null;
+    if (!root) throw new Error(`git_${verb} was not run: no project is open. Open the project first.`);
+    const repo = HC.code.runRepo?.() || null;
+    let outgoing = [];
+    if (verb === 'push') {
+      const remote = p.remote || repo?.upstream?.remote || 'origin';
+      const read = await HC.invoke('shell_run', { command: 'git', args: G.outgoingLine(remote), cwd: root, cancelKey: HC.code.shellCancelKey, offline: true });   // a read the app makes for the question, in the sandbox, with the network closed
+      if (read && read.code) throw new Error(`git_push was not run: the commits going out could not be read. What git said:\n${String(read.stderr || '').split('\n').slice(-4).join('\n')}`);
+      outgoing = G.outgoingOf(read && read.stdout);
+    }
+    const plan = G.remotePlan(verb, p, { repo, outgoing, looksLikeKey: window.HCSecretShapes?.looksLikeKey });
+    if (plan.error) throw new Error(plan.error);
+    const ok = await HC.guard.request('shell', `${plan.shown}\n(in ${root})`, plan.reason, { command: 'git', args: plan.shown.split(' ').slice(1), cwd: root, remote: true });
+    if (!ok) throw new Error(`Permission denied: nothing was ${verb === 'push' ? 'sent' : 'brought in'}. ${HC.code.whyNo('shell', plan.shown)}`);
+    const out = await HC.invoke('git_remote_run', { verb, remote: plan.remote, branch: plan.branch, cancelKey: HC.code.shellCancelKey });
+    if (!out || out.code || out.timedOut || out.stopped) throw new Error(G.remoteFailure(verb, out));
+    return JSON.stringify(verb === 'push' ? { pushed: plan.branch, to: plan.remote, commits: outgoing.length } : { pulled: plan.branch, from: plan.remote });
+  };
+
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
@@ -1058,6 +1096,32 @@
       fn: (p) => HC.code.gitCommit(p),
     },
     {
+      name: 'git_branch',
+      description: 'Make a new branch from where the repository is now and switch to it, for work the person asked to keep apart. The person is asked first.',
+      parameters: {
+        name: { type: 'string', description: 'The branch name, such as fix/basket-total' },
+      },
+      fn: (p) => HC.code.gitBranch(p),
+    },
+    {
+      name: 'git_push',
+      description: 'Send the open branch to the code host, when the person asked for it. The person is asked every time, with where it goes and every commit going out shown. Force is never used.',
+      parameters: {
+        branch: { type: 'string', description: 'Optional: the branch to send to; the open one unless given' },
+        remote: { type: 'string', description: 'Optional: the remote, origin unless the branch is set to push elsewhere' },
+      },
+      fn: (p) => HC.code.gitRemote('push', p),
+    },
+    {
+      name: 'git_pull',
+      description: 'Bring the code host\'s new commits into the open branch, only when that needs no merge. The person is asked every time.',
+      parameters: {
+        branch: { type: 'string', description: 'Optional: the branch to bring in; the open one unless given' },
+        remote: { type: 'string', description: 'Optional: the remote, origin unless the branch is set to pull from elsewhere' },
+      },
+      fn: (p) => HC.code.gitRemote('pull', p),
+    },
+    {
       // Real photographs of the site's subject, by the search the Agent Swarm
       // uses (js/swarm/photos.js), under the same setting.
       name: 'find_photos',
@@ -1236,7 +1300,7 @@
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   /** Arguments optional for one tool only, where the same name is required for others. */
-  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'] };
+  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'], git_push: ['branch', 'remote'], git_pull: ['branch', 'remote'] };
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1306,6 +1370,7 @@ TOOL ROUTING:
 • Explore structure        → list_dir
 • Repository state         → git_status, git_diff, git_log, rather than shell_run git
 • Commit what this run changed, when asked → git_commit (the person is asked; never git commit in shell_run)
+• A branch, a push or a pull, when asked → git_branch, git_push, git_pull (each asked; never force)
 • Build / test / git / inspect binary → shell_run
 • A house convention, policy, or past decision → search_knowledge(query) FIRST,
   and cite the source it gives you. Do not invent a convention. If it reports

@@ -27,6 +27,7 @@ use commands::{
         fs_set_root, fs_write_file,
     },
     git_commit::git_commit_signed,
+    git_remote::git_remote_run,
     host::which_programs,
     keychain::{keychain_delete, keychain_retrieve_bundle},
     mcp::{mcp_oauth_sign_in, mcp_request, mcp_server_remove, mcp_server_save},
@@ -102,6 +103,8 @@ pub fn run() {
             which_programs,
             // A commit the person agreed to, made with their own git setup so it is signed (commands/git_commit.rs).
             git_commit_signed,
+            // A push, pull or fetch the person agreed to, of a remote the project names (commands/git_remote.rs).
+            git_remote_run,
             // Local embeddings — bundled bge-small-en-v1.5, run natively
             embed_texts,
             embed_available,

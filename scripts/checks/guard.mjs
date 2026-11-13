@@ -921,6 +921,21 @@ console.log('\nA commit:');
   guard.setMode('edits');
 }
 
+console.log('\nA push or a pull:');
+{
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.setMode('auto');
+  guard.setChecks({});
+  guard.beginRun();
+  answer = 'allow-session';
+  const detail = { command: 'git', args: ['push', 'origin', 'HEAD:cart'], cwd: R, remote: true };
+  await check('a push asks, in Auto too', () => guard.request('shell', `git push origin HEAD:cart\n(in ${R})`, 'This sends your code to x.', detail), ASKED);
+  await check('...and again the next time, a yes never kept for the session', () => guard.request('shell', `git push origin HEAD:cart\n(in ${R})`, 'This sends your code to x.', detail), ASKED);
+  guard.endRun();
+  guard.setMode('edits');
+}
+
 console.log('\nAn install of the npm family, without its install scripts:');
 {
   guard.clearSession();

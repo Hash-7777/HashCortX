@@ -92,7 +92,8 @@ console.log('\nThe tools, as a model is offered them:');
   const names = (size) => code.toolsFor(size, list, '').map((t) => t.function.name).filter((n) => /^git_/.test(n)).sort().join();
   ok('a small model is offered none: the app does it for it', names('small') === '');
   ok('a mid-sized model: status, diff and commit', names('mid') === 'git_commit,git_diff,git_status', names('mid'));
-  ok('a larger model: all four', names('full') === 'git_commit,git_diff,git_log,git_status', names('full'));
+  ok('a larger model: all of them, a branch, push and pull among them', names('full') === 'git_branch,git_commit,git_diff,git_log,git_pull,git_push,git_status', names('full'));
+  ok('a mid-sized model is never offered a branch, a push or a pull', !/git_branch|git_push|git_pull/.test(names('mid')));
   ok('the full instructions route to them', /Repository state[^\n]*→ git_status, git_diff, git_log/.test(code.SYSTEM_PROMPT));
 }
 
@@ -184,7 +185,7 @@ console.log('\nThe commit tool: asked every time, then only those files, with th
   try { await tool.fn({ title: 'fix: keep c' }); } catch (e) { notAdded = String(e.message); }
   ok('a file git could not add makes no commit, and says what git said', /^The commit was not made\. What git said:\nfatal: pathspec/.test(notAdded) && changes.get('src/cart.js').before === 'a\nb\n', notAdded);
   const guard = src('platform', 'tauri', 'guard.js');
-  ok('the guard asks about a commit every time, never for the session, never in Auto', /const once = !!out \|\| !!\(detail && \(detail\.install \|\| detail\.destroys \|\| detail\.commit\)\);/.test(guard));
+  ok('the guard asks about a commit every time, never for the session, never in Auto', /const once = !!out \|\| !!\(detail && \(detail\.install \|\| detail\.destroys \|\| detail\.commit \|\| detail\.remote\)\);/.test(guard));
   const loop = src('js', 'agent-loop.js');
   ok('the loop hands it the run\'s own record of what changed, and the repository', /HC\.code\.runChanges = \(\) => changes;/.test(loop) && /HC\.code\.runRepo = \(\) =>/.test(loop));
   void D;
@@ -196,12 +197,51 @@ console.log('\nThe git tools are offered only to a conversation that asks for gi
   const conv = (...texts) => [{ role: 'system', content: 'x' }, ...texts.map((t) => ({ role: 'user', content: t }))];
   const names = (size, c) => code.toolsFor(size, list, '', c).map((t) => t.function.name).filter((n) => /^git_/.test(n)).sort().join();
   ok('a request to make a page is offered none, at any size', ['small', 'mid', 'full'].every((s) => names(s, conv('Make a simple landing page for a bakery on the desktop')) === ''));
-  ok('a request about the repository is offered them', names('full', conv('Commit the fix with a good message')) === 'git_commit,git_diff,git_log,git_status' && names('mid', conv('What changed since the last commit?')) === 'git_commit,git_diff,git_status');
-  ok('...and once asked in a conversation, they stay offered', names('full', conv('Look at the git log', 'Now make the button blue')) === 'git_commit,git_diff,git_log,git_status');
+  ok('a request about the repository is offered them', names('full', conv('Commit the fix with a good message')) === 'git_branch,git_commit,git_diff,git_log,git_pull,git_push,git_status' && names('mid', conv('What changed since the last commit?')) === 'git_commit,git_diff,git_status');
+  ok('...and once asked in a conversation, they stay offered', names('full', conv('Look at the git log', 'Now make the button blue')) === 'git_branch,git_commit,git_diff,git_log,git_pull,git_push,git_status');
   ok('a note the app added is not the person asking', names('full', [{ role: 'system', content: 'x' }, { role: 'user', content: 'Make a page' }, { role: 'user', content: 'commit it', note: true }]) === '');
   ok('words that only look like it are not: a pushed button, a branch of a tree in a story', !G.asked(conv('When the button is pushed, show a tree with a branch')) && G.asked(conv('push this to the repo')));
   const mode = src('modes', 'code', 'mode.js');
   ok('HashCoder hands its conversation to the choice', /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\), conversationMsgs\)/.test(mode));
+}
+
+console.log('\nSending a branch to the code host, and bringing one back:');
+{
+  const S = sandbox.HCSecretShapes;
+  const printed = '\u00001a2b3c4 fix(cart): keep the total in pence\n\ndiff --git a/src/cart.js b/src/cart.js\n--- a/src/cart.js\n+++ b/src/cart.js\n@@ -1,2 +1,3 @@\n const a = 1;\n+const pence = 100;\n const b = 2;\n\u00005d6e7f8 feat: add the basket page\n\ndiff --git a/src/basket.html b/src/basket.html\n--- /dev/null\n+++ b/src/basket.html\n@@ -0,0 +1 @@\n+<main></main>\n';
+  const out = G.outgoingOf(printed);
+  ok('the commits not yet on the remote are read with their titles, files and the lines they add', json(out.map((c) => [c.id, c.title, c.files])) === json([['1a2b3c4', 'fix(cart): keep the total in pence', ['src/cart.js']], ['5d6e7f8', 'feat: add the basket page', ['src/basket.html']]]) && json(out[0].added) === json([{ file: 'src/cart.js', line: 2, text: 'const pence = 100;' }]), json(out));
+  ok('...by a line that reads, starts none of the repository\'s programs, and lists only what the remote lacks', json(G.outgoingLine('origin')) === json(['log', '-p', '--no-ext-diff', '--no-textconv', '--format=%x00%h %s', 'HEAD', '--not', '--remotes=origin']));
+  const repo = { isRepo: true, branch: 'cart', upstream: { remote: 'origin', branch: 'cart' }, remote: { host: 'code.example.invalid', owner: 'harbour', name: 'shop' }, hooks: ['pre-push', 'pre-commit'] };
+  const plan = G.remotePlan('push', {}, { repo, outgoing: out, looksLikeKey: S.looksLikeKey });
+  ok('a push: the line, and the question showing where the code goes, the branch, each commit, the files and the hook', plan.shown === 'git push origin HEAD:cart' && /This sends your code to code\.example\.invalid\/harbour\/shop, branch cart\./.test(plan.reason) && /The 2 commits going out:\n1a2b3c4 fix\(cart\)[^\n]*\n5d6e7f8 feat: add the basket page/.test(plan.reason) && /Files changed: src\/cart\.js, src\/basket\.html\./.test(plan.reason) && /hooks will run: pre-push\./.test(plan.reason) && /Force is never used/.test(plan.reason), plan.error || plan.reason);
+  ok('...and to the project\'s main branch it says so', /This sends to main, the branch most people take as the project's own/.test(G.remotePlan('push', { branch: 'main' }, { repo, outgoing: out, looksLikeKey: S.looksLikeKey }).reason || ''));
+  const keyed = [{ id: '9a9a9a9', title: 'fix: pay', files: ['src/pay.js'], added: [{ file: 'src/pay.js', line: 4, text: `const k = "${'s' + 'k_live_'}4eC39HqLyjWDarjtT1zdp7dc";` }] }];
+  ok('a line going out that looks like a key refuses the push, naming the commit, file and line', /^git_push was not run: commit 9a9a9a9 adds a line that looks like a key, in src\/pay\.js, line 4/.test(G.remotePlan('push', {}, { repo, outgoing: keyed, looksLikeKey: S.looksLikeKey }).error || ''));
+  ok('nothing going out: nothing to send', /already on origin, so there is nothing to send/.test(G.remotePlan('push', {}, { repo, outgoing: [] }).error || ''));
+  ok('no branch, another argument, a remote that is not a name, or no repository: refused', [G.remotePlan('push', {}, { repo: { isRepo: true, detached: true, branch: null }, outgoing: out }), G.remotePlan('push', { force: true }, { repo, outgoing: out }), G.remotePlan('push', { remote: '--force' }, { repo, outgoing: out }), G.remotePlan('push', { branch: 'a..b' }, { repo, outgoing: out }), G.remotePlan('push', {}, { repo: null })].every((r) => /^git_push was not run: /.test(r.error || '')));
+  const pull = G.remotePlan('pull', {}, { repo });
+  ok('a pull: only when it needs no merge, and said so', pull.shown === 'git pull --ff-only origin cart' && /only if that needs no merge/.test(pull.reason) && !/pre-push/.test(pull.reason));
+  ok('what git said is read for why: the remote moved on, a sign-in refused, a merge needed', /Call git_pull to bring them in, then git_push again; force is never used/.test(G.remoteFailure('push', { stderr: ' ! [rejected] cart -> cart (fetch first)' })) && /did not accept the sign-in/.test(G.remoteFailure('push', { stderr: 'fatal: Authentication failed for x' })) && /needs a merge, which is the person's to make/.test(G.remoteFailure('pull', { stderr: 'fatal: Not possible to fast-forward, aborting.' })));
+
+  const asked = [], ran = [];
+  let answer = true;
+  sandbox.HC.guard = { projectRoot: () => ROOT, request: async (action, target, reason, detail) => { asked.push({ action, target, reason, detail }); return answer; } };
+  sandbox.HC.invoke = async (cmd, a) => { ran.push({ cmd, ...a }); return cmd === 'shell_run' ? { code: 0, stdout: printed, stderr: '' } : { code: 0, stdout: '', stderr: 'To x\n * [new branch] HEAD -> cart' }; };
+  code.runRepo = () => repo;
+  const push = code.TOOL_DEFINITIONS.find((t) => t.name === 'git_push');
+  const res = push ? JSON.parse(await push.fn({})) : {};
+  ok('the push reads what goes out in the sandbox with the network closed, asks once, then the narrow command sends it', json(ran.map((r) => [r.cmd, r.offline ?? null, r.verb ?? null, r.remote ?? null, r.branch ?? null])) === json([['shell_run', true, null, null, null], ['git_remote_run', null, 'push', 'origin', 'cart']]) && asked.length === 1 && asked[0].detail.remote === true && /^git push origin HEAD:cart\n\(in /.test(asked[0].target), json(ran));
+  ok('...and answers with what was sent', json(res) === json({ pushed: 'cart', to: 'origin', commits: 2 }));
+  answer = false; ran.length = 0; let no = '';
+  try { await push.fn({}); } catch (e) { no = String(e.message); }
+  ok('a no sends nothing', !ran.some((r) => r.cmd === 'git_remote_run') && /^Permission denied: nothing was sent/.test(no), no);
+  answer = true; ran.length = 0;
+  const pulled = JSON.parse(await code.TOOL_DEFINITIONS.find((t) => t.name === 'git_pull').fn({}));
+  ok('a pull reads nothing first, asks once, then the narrow command brings it in', json(ran.map((r) => [r.cmd, r.verb])) === json([['git_remote_run', 'pull']]) && json(pulled) === json({ pulled: 'cart', from: 'origin' }));
+  let bad = '';
+  try { await code.TOOL_DEFINITIONS.find((t) => t.name === 'git_branch').fn({ name: '--orphan' }); } catch (e) { bad = String(e.message); }
+  ok('a branch whose name is not plain is refused with the call written right', /^git_branch was not run: name must be a plain branch name\. Call it as \{"name":"fix\/basket-total"\}\./.test(bad), bad);
 }
 
 console.log('\nOnly what was asked: no git work, workflow file or code-host command nobody asked for:');
