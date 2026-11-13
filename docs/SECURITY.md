@@ -424,6 +424,8 @@ What the app tells a model, its instructions, the notes it adds to a conversatio
 
 HashCoder gives the model the open project's notes for coding agents, its `AGENTS.md` or the other notes file named above, when a conversation begins. When those notes are not what HashCoder read the last time it opened the project, notes that are there for the first time among them, the first reply says so in a line of its own, which opens to show the notes as they are now, written as text with their hidden characters as codes (`src/js/code/notes-seen.js`). What is kept for this is a fingerprint of the notes for each project folder, their SHA-256, in the app's own storage, never the text. The first time a project is opened there is nothing to compare with, and nothing is said. The line says that the notes changed, not what changed in them, and it is a line to read, not a question: the notes are still given to the model.
 
+When the project is a git repository, HashCoder also tells the model what git's own files say of it: the branch, where it is pushed and whether it is in step, the remote by host, owner and name, the names of its hooks and of its checks on the code host, and how its commit titles are written. It is read from those files; no command is run for it, because a repository's own settings can make git start a program. A sign-in written into a remote's address is never kept, and nothing is taken about who made a commit (`src/js/code/repo.js`).
+
 ---
 
 ## HashCoder's lessons about a project

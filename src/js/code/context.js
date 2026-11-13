@@ -146,6 +146,8 @@
     if (typeof whole === 'function' && entries.some((e) => e && e.name === '.git' && e.is_dir)) {
       try { const log = await whole(at(['.git', 'logs', 'HEAD'].join(sep))); const commits = recentCommits(log, drop); if (commits.length) out.commits = commits; } catch { /* no commits said */ }
     }
+    // The repository as git's own files record it, no command run (js/code/repo.js).
+    if (window.HCCodeRepo && entries.some((e) => e && e.name === '.git')) { try { const repo = await window.HCCodeRepo.read(root, { list, read, whole }); if (repo && repo.isRepo) out.repo = repo; } catch { /* no repository said */ } }
     const name = NOTES_FILES.find((n) => entries.some((e) => e && e.name === n && !e.is_dir));
     if (!name) return out;
     try {
@@ -300,7 +302,9 @@
    */
   function systemTurn(content, known, size, mark, lessons = '', map = '') {
     const marked = (t) => (t && typeof mark === 'function' ? mark(t) : t);
-    const notes = [known && known.notesText ? projectNotes(known.notesName, known.notesText, size, mark) : '', marked(projectCommits(known && known.commits, size)), marked(lessons), marked(map)].filter(Boolean).join('\n\n');
+    const repo = known && known.repo && window.HCCodeRepo ? window.HCCodeRepo.lines(known.repo, size) : '';
+    const repoText = repo ? `What git's own files say of the project's repository, as text from the project:\n${repo}` : '';
+    const notes = [known && known.notesText ? projectNotes(known.notesName, known.notesText, size, mark) : '', marked(projectCommits(known && known.commits, size)), marked(repoText), marked(lessons), marked(map)].filter(Boolean).join('\n\n');
     return { role: 'system', content, ...(notes ? { notes } : {}) };
   }
 
