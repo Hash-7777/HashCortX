@@ -96,6 +96,8 @@
     async function subAgent(args, row) {
       const why = DG.problem(args);
       if (why) return JSON.stringify({ error: why });
+      const fit = ML && ML.jobFit && runModel ? ML.jobFit(runModel, { tokens: ML.estimateTokens([DG.briefMessages(args, {}), DG.toolsFor(args.kind, tools)]), window: localWindow }) : { fits: true };
+      if (!fit.fits) return JSON.stringify({ error: `delegate was not run: ${fit.why} Do this part yourself.` });   // a sub-agent this model cannot hold is not started (js/model-limits.js jobFit)
       ui.trace('Sub-agent', `${args.kind === 'do' ? 'Changing' : 'Exploring'}: ${args.title}`, 'run');
       const card = ui.subAgent?.({ kind: args.kind, title: args.title, row, shown: baseName }) || null;   // a card of its own in place of its step (js/run-view.js agentCard)
       const go = () => DG.run(args, { tools, signal, now: () => Date.now(), norm: fromRoot, onStep: (c, refused) => card?.step(c.name, c.arguments, refused),
@@ -113,6 +115,24 @@
       return out.text;
     }
     if (HC?.code) HC.code.delegate = delegating ? subAgent : null;   // what the delegate tool calls (platform/tauri/hashcoder.js)
+
+    // A model that cannot hold the job is not started on it: what is sent at the start (instructions, tools, the conversation),
+    // with room to read files and answer, within its window and its allowance a minute (js/model-limits.js jobFit). A model on
+    // this computer is held to the window it says it has, up to the app's ceiling (js/local-context.js).
+    const ML = window.HCModelLimits, runModel = String(HC?.code?.runModel || '');
+    let localWindow = null;
+    if (ML && ML.jobFit && runModel && !bare) {
+      const LC = window.HCLocalContext;
+      if (!/^cloud:/.test(runModel) && LC) { const info = await Promise.resolve(LC.infoOf(window.HashCortxRuntime?.getHost?.(), runModel)).catch(() => null); localWindow = info && info.max ? Math.min(info.max, LC.CEILING || info.max) : null; }
+      const fit = ML.jobFit(runModel, { tokens: ML.estimateTokens([compressHistory(messages), tools]), window: localWindow });
+      if (!fit.fits) {
+        const said = `${fit.why} Pick a model in the menu that can hold more.`;
+        ui.trace('Check', `Not started: ${fit.why}`, 'warn');
+        ui.answer(said);
+        sharedState.proven = ''; sharedState.receipt = null;
+        return said;   // kept as the reply, so the next request still follows an answer
+      }
+    }
     if (!bare && (forced = window.HCCodeLookup?.turnFor(messages, window.HCCodeVerify.requestIn(messages), tools) || null)) ui.trace('Check', 'Looked up what the request names, for a model given no web tools', 'run');   // an address given or a lookup asked for, on a model with no web tools, is read or searched by the app first (js/code/lookup.js)
     let thinkEl = ui.wait();
 

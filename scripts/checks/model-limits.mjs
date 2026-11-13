@@ -172,5 +172,26 @@ console.log('\nWhat the context rules size a conversation by:');
   L.forgetListed();
 }
 
+console.log('\nWhether a model can hold a whole job, before it starts:');
+{
+  const store = memory();
+  L.forgetListed();
+  const fit = (v, o) => (typeof L.jobFit === 'function' ? L.jobFit(v, o, T0, store) : { fits: 'missing' });
+  ok('a job is what is sent at its start, room to read files, and room to answer', L.JOB_ROOM && L.JOB_ROOM.work === 4096 && L.JOB_ROOM.answer === 1024);
+  L.remember('cloud:groq:narrow', { ctx: 8192 });
+  const narrow = fit('cloud:groq:narrow', { tokens: 6000, name: 'Narrow 8B' });
+  ok('a window too small for the job: not started, and why is said in words with the model\'s name', narrow.fits === false && narrow.by === 'window' && narrow.need === 6000 + 4096 + 1024 && narrow.have === 8192 && /^Narrow 8B can read about 6,100 words at a time, and this job needs about 8,300/.test(narrow.why), JSON.stringify(narrow));
+  ok('...while a job that fits it is started', fit('cloud:groq:narrow', { tokens: 1500 }).fits === true);
+  L.remember('cloud:groq:wide', { ctx: 131072 });
+  L.learn('cloud:groq:wide', E('Request too large for model on tokens per minute (TPM): Limit 6000, Requested 9000'), 9000, 0, T0, store);
+  const minute = fit('cloud:groq:wide', { tokens: 6000, name: 'Wide' });
+  ok('a per-minute allowance one step of the job does not fit: not started, said as the account\'s', minute.fits === false && minute.by === 'minute' && /^Wide's account can send about 4,500 words a minute, and one step of this job needs about/.test(minute.why), JSON.stringify(minute));
+  ok('...a small job within it is started', fit('cloud:groq:wide', { tokens: 500 }).fits === true);
+  ok('a model nothing is known about is given the benefit of the doubt', fit('cloud:somewhere:unknown', { tokens: 900000 }).fits === true);
+  ok('a window handed in, as for a model on this computer, is used in place of a listed one', fit('qwen2.5-coder:7b', { tokens: 3000, window: 4096 }).fits === false && fit('qwen2.5-coder:7b', { tokens: 3000, window: 32768 }).fits === true);
+  ok('...the smaller of the two when both are known', fit('cloud:groq:narrow', { tokens: 4000, window: 131072 }).fits === false && fit('cloud:groq:wide', { tokens: 4000, window: 8192 }).by === 'window');
+  ok('without a name, the model is named from its value', /^m-1 can read/.test(fit('cloud:openai:m-1', { tokens: 9000, window: 8192 }).why));
+}
+
 console.log(`\n${pass} passed, ${fail} failed  (model limits)`);
 if (fail) process.exit(1);

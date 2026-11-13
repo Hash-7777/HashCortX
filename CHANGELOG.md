@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **HashCoder does not start a model on a job it cannot hold.** Before a
+  run, the app checks that the model can take the instructions, its tools
+  and the conversation so far, with room to read files and to answer,
+  within the window its provider lists or, on this computer, the window
+  the model says it has, and within the account's allowance a minute where
+  the provider has said one. A model that cannot is not asked: the reply
+  says why in plain words and asks you to pick one that can hold more. The
+  same check runs before each sub-agent. A model nothing is known about is
+  given the benefit of the doubt.
+
 - **A HashCoder run that ends short offers another try.** When a run
   stops at its limit or gets stuck, or finishes with parts of a request of
   several asks still open, its receipt offers two ways on. Once more with a hint keeps

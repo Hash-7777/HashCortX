@@ -187,6 +187,40 @@
     return r === undefined || r >= Math.max(1, need || 1);
   }
 
+  // ── whether a whole job fits, before it starts ────────────────────
+
+  /** What a job needs beyond what is sent at its start, in tokens: room to read files and their results, and to answer. */
+  const JOB_ROOM = { work: 4096, answer: 1024 };
+  /** Tokens as a person reads them: about three words to four tokens, to the nearest hundred. */
+  const wordsOf = (tokens) => (Math.round((tokens * 0.75) / 100) * 100).toLocaleString('en-US');
+
+  /**
+   * Whether a model can hold a whole job: `tokens` sent at its start (the
+   * instructions, the tools, the conversation), plus room to read files and
+   * to answer, within the model's window and its account's allowance a
+   * minute. `window` is handed in where the app knows it some other way (a
+   * model on this computer); the smaller is used. A model nothing is known
+   * about is given the benefit of the doubt. Returns { fits, by: 'window' |
+   * 'minute' | null, need, have, why }, `why` in words a person can act on.
+   */
+  function jobFit(value, { tokens = 0, window = null, name = '' } = {}, now = Date.now(), store = defaultStore()) {
+    const info = infoOf(value, now, store);
+    const t = Math.max(0, Math.ceil(Number(tokens) || 0));
+    const need = t + JOB_ROOM.work + JOB_ROOM.answer;
+    const said = String(name || '').trim() || String(value || 'This model').replace(/^cloud:[^:]*:/, '');
+    const windows = [num(window), info.ctx].filter(Boolean);
+    const have = windows.length ? Math.min(...windows) : undefined;
+    if (have && need > have) {
+      return { fits: false, by: 'window', need, have, why: `${said} can read about ${wordsOf(have)} words at a time, and this job needs about ${wordsOf(need)}: its instructions and tools, the conversation so far, and room to read files and answer.` };
+    }
+    const step = t + JOB_ROOM.work;
+    const minute = info.itpm ? { have: info.itpm, need: step } : info.tpm ? { have: info.tpm, need: step + JOB_ROOM.answer } : null;
+    if (minute && minute.need > minute.have) {
+      return { fits: false, by: 'minute', need: minute.need, have: minute.have, why: `${said}'s account can send about ${wordsOf(minute.have)} words a minute, and one step of this job needs about ${wordsOf(minute.need)}.` };
+    }
+    return { fits: true, by: null, need, have: have || null, why: '' };
+  }
+
   /**
    * A request body, sized for its model. `shape` is how the body is laid out:
    * 'openai' (every provider speaking the OpenAI API), 'anthropic' or
@@ -299,7 +333,7 @@
   }
 
   window.HCModelLimits = {
-    remember, forgetListed, infoOf, estimateTokens, forContext, room, canHold, fitBody, readRefusal, learn, forgetLearned,
+    remember, forgetListed, infoOf, estimateTokens, forContext, room, canHold, jobFit, JOB_ROOM, fitBody, readRefusal, learn, forgetLearned,
     MAX_FIELD, LEARNED_KEY, LEARNED_FOR_MS, ANTHROPIC_DEFAULT, CHARS_PER_TOKEN,
   };
 })();

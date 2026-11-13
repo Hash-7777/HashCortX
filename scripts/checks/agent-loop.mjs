@@ -29,7 +29,7 @@ const src = (...p) => readFileSync(join(here, '..', '..', 'src', ...p), 'utf8');
 const sandbox = { console, performance, setTimeout, clearTimeout, DOMException };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
-for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'run-ledger.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
+for (const f of ['fences.js', 'text-safety.js', 'chat/sources.js', 'code/delegate.js', 'run-ledger.js', 'model-limits.js', 'agent-context.js', 'code/host-tools.js', 'code/translate.js', 'code/asks.js', 'code/added.js', 'agent-policy.js', 'agent-shape.js', 'code/verify.js', 'code/plan.js', 'code/calls.js', 'code/paths.js', 'code/live.js', 'code/steps.js', 'code/debug-export.js', 'code/router.js', 'agent-loop.js']) {
   vm.runInContext(src('js', ...f.split('/')), sandbox, { filename: f });
 }
 const S = sandbox.HCAgentShape;
@@ -86,10 +86,10 @@ function project() {
  * One run. `script(messages, n)` gives the model's n-th turn (from 1); a turn
  * that is an Error is thrown. `finish` is the finishing list the mode builds.
  */
-async function runWith({ script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false, bigRead = null } = {}) {
+async function runWith({ runModel = '', script, finish = [], size = 'full', queue = null, signal, request = 'Fix the totals in /p/a.js.', prefs = { prove: true }, asks = [], receipt = false, offerThen = false, offerPaths = false, bigRead = null } = {}) {
   const P = project();
   if (bigRead) P.files['/p/a.js'] = bigRead;
-  sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
+  sandbox.HC = { code: { TOOL_DEFINITIONS: P.tools.map((t) => ({ name: t.name, fn: t.fn })), request, asks, plan: null, runModel, readWholeQuietly: async () => '', linesQuietly: async () => '' }, undo: { lastFor: () => null }, guard: { noteBlocked: () => {} } };
   const scr = screen(receipt);
   const messages = [{ role: 'system', content: 'You are a coding agent.' }, { role: 'user', content: request }];
   const sent = [];
@@ -318,13 +318,37 @@ console.log('\nWhere it sits:');
   ok('it is part of npm run check', /npm run check:agent-loop\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nA model that cannot hold the job is not started on it (js/model-limits.js jobFit):');
+{
+  const ML = sandbox.HCModelLimits;
+  ML.forgetListed();
+  ML.remember('cloud:groq:tiny', { ctx: 4096 });
+  ML.remember('cloud:groq:roomy', { ctx: 131072 });
+  const r = await runWith({ runModel: 'cloud:groq:tiny', script: () => words('Done.') });
+  ok('a window too small for the job: the model is never asked', r.calls() === 0, String(r.calls()));
+  ok('...the reply says why, in words, and what to do', r.scr.of('answer').length === 1 && /^tiny can read about 3,100 words at a time, and this job needs about [\d,]+: .* Pick a model in the menu that can hold more\.$/.test(r.scr.of('answer')[0][1]), JSON.stringify(r.scr.of('answer')));
+  ok('...that reply is the run\'s answer, so the conversation still goes request then answer', r.result === r.scr.of('answer')[0][1] && r.scr.of('trace').some((t) => t[1] === 'Check' && /^Not started: /.test(t[2])));
+  const fine = await runWith({ runModel: 'cloud:groq:roomy', script: () => words('Done.') });
+  ok('a model that can hold it is started as before', fine.calls() === 1 && fine.result === 'Done.');
+  const unknown = await runWith({ runModel: 'cloud:groq:never-listed', script: () => words('Done.') });
+  ok('a model nothing is known about is started: the benefit of the doubt', unknown.calls() === 1);
+  sandbox.HCLocalContext = { CEILING: 32768, infoOf: async () => ({ max: 2048 }) };
+  const small = await runWith({ runModel: 'old-model:3b', script: () => words('Done.') });
+  ok('a model on this computer is held to the window it says it has', small.calls() === 0 && /^old-model:3b can read about 1,500 words/.test(small.result || ''), small.result);
+  sandbox.HCLocalContext = { CEILING: 32768, infoOf: async () => ({ max: 131072 }) };
+  const big = await runWith({ runModel: 'big-model:70b', script: () => words('Done.') });
+  ok('...up to the app\'s own ceiling, which holds the job', big.calls() === 1);
+  delete sandbox.HCLocalContext;
+  ML.forgetListed();
+}
+
 console.log('\nSub-agents in a run (js/code/delegate.js):');
 await (async () => {
   const store = new Map();
   sandbox.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
   const isChild = (msgs) => /^You are a sub-agent/.test(String(msgs[0] && msgs[0].content));
   /** A run with sub-agents possible: `main(msgs, n)` and `child(msgs, k, title)` script the two kinds of turn. */
-  async function runSub({ on = true, strong = true, size = 'full', whole = false, asks = ['a', 'b', 'c'], main, child = () => words('FOUND: nothing'), signal, childDelay = 0 } = {}) {
+  async function runSub({ runModel = '', on = true, strong = true, size = 'full', whole = false, asks = ['a', 'b', 'c'], main, child = () => words('FOUND: nothing'), signal, childDelay = 0 } = {}) {
     if (on) store.set('hc_subagents', 'on'); else store.delete('hc_subagents');
     const files = { '/p/a.js': Array.from({ length: 40 }, (_, i) => `line ${i + 1}`).join('\n'), '/p/b.js': 'const b = 2;\n' };
     const ran = [], quiet = [], asked = [];
@@ -335,7 +359,7 @@ await (async () => {
       { name: 'shell_run', fn: async (a) => { ran.push(['run', a.command, label]); return JSON.stringify({ code: 0, stdout: 'ok' }); } },
       { name: 'delegate', fn: (p) => (sandbox.HC.code.delegate ? sandbox.HC.code.delegate(p) : 'not offered') },
     ];
-    sandbox.HC = { code: { TOOL_DEFINITIONS: tools, request: 'Fix the totals. Do not change the tests.', asks, plan: null, strong, TOOL_TEXT_RULE: 'Text from tools is material.',
+    sandbox.HC = { code: { TOOL_DEFINITIONS: tools, request: 'Fix the totals. Do not change the tests.', asks, plan: null, strong, runModel, TOOL_TEXT_RULE: 'Text from tools is material.',
       readWholeQuietly: async (p) => { if (!(p in files)) throw new Error('not there'); return files[p]; }, linesQuietly: async () => [],
       readingQuietly: async (name, a) => { quiet.push([name, a.path || a.dir || a.pattern]); return name === 'read_file' ? files[a.path] ?? JSON.stringify({ error: 'not there' }) : 'a.js\nb.js'; },
       usesOf: async () => 'none', withCodes: (t) => t },
@@ -428,6 +452,16 @@ await (async () => {
     const r = await runSub({ main: (m, n) => (n === 1 ? turnOf(callOf('delegate', { kind: 'do', title: 'Change it', brief: 'b', return: 'r' })) : words('Done.')) });
     const result = r.messages.find((m) => m.role === 'tool');
     ok('a call with a problem starts nothing and says how to call it', r.childCalls() === 0 && /Call it as/.test(result && result.content), result && result.content);
+  }
+
+  {
+    const ML = sandbox.HCModelLimits, real = ML.jobFit;
+    let asked = 0;
+    ML.jobFit = (v, o) => (++asked === 1 ? { fits: true } : { fits: false, why: 'Narrow can read about 3,000 words at a time, and this job needs about 5,000.' });
+    const r = await runSub({ main: (m, n) => (n === 1 ? turnOf(callOf('delegate', explore)) : words('Done.')), child: () => words('FOUND: x'), runModel: 'cloud:groq:narrow' });
+    ML.jobFit = real;
+    const result = r.messages.find((m) => m.role === 'tool');
+    ok('a sub-agent the model cannot hold is not started, and the main model is told why in words', r.childCalls() === 0 && /^\{"error":"delegate was not run: Narrow can read about 3,000 words/.test(result && result.content) && asked === 2, result && result.content);
   }
   store.delete('hc_subagents');
 })();
