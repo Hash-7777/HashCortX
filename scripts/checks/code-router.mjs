@@ -291,7 +291,8 @@ console.log('\nNo code changes the model a person chose, mid-conversation, by ch
 {
   const mode = src('modes', 'code', 'mode.js'), loop = src('js', 'agent-loop.js');
   const sets = [...mode.matchAll(/^.*\bcoderModel = .*$/gm)].map((m) => m[0]);
-  ok('the model is set in two places only: the person picking one, and the picker restored after a restart', sets.length === 2 && /coderModel = modelPicker\.value \|\| null; cdrSavePrefs\(\{ model: coderModel \|\| '' \}\);/.test(sets[0]) && /const wanted = coderModel \|\| cdrPrefs\(\)\.model \|\| null; coderModel = wanted && /.test(sets[1]), sets.join('\n'));
+  const assigned = (mode.replace(/\blet coderModel\s*=\s*null;/, '').match(/\bcoderModel\s*=(?!=)/g) || []).length;   // each assignment after its one declaration, however many share a line
+  ok('the model is set in two places only: the person picking one, and the picker restored after a restart', assigned === 2 && sets.length === 2 && /coderModel = modelPicker\.value \|\| null; cdrSavePrefs\(\{ model: coderModel \|\| '' \}\);/.test(sets[0]) && /const wanted = coderModel \|\| cdrPrefs\(\)\.model \|\| null; coderModel = wanted && /.test(sets[1]), sets.join('\n'));
   ok('the loop never sets it, and reads it again at every call so a pick mid-run is the one used', !/coderModel\s*=(?!=)/.test(loop) && !/\bcoderModel\b/.test(loop));
   ok('a model that took over on a failure is the run\'s alone: the next run starts again from the one chosen', /startRun clears it, so the next\n\s*\/\/ run starts again from the model chosen\./.test(mode));
 }

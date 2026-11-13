@@ -125,6 +125,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   finish after 16 steps on a request with no plan, and is given four more
   for each step of its plan still open, up to 60; small and mid-sized models
   keep their fixed limits, and going in circles still stops any run first.
+- **The model you picked stays yours.** A check holds that only the model
+  picker, and restoring it after a restart, set HashCoder's model; a model
+  that took over on a failure is the run's alone.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy
