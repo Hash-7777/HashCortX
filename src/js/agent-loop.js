@@ -36,6 +36,10 @@
 
   async function run(o) {
     let { tools } = o;
+    // The run's own state: HashCoder's (HC.code) unless the caller hands in its own (`o.scope`), as the chat's agents do. Within a
+    // run, HC is the app with that state in place of HashCoder's, so a run elsewhere never reads HashCoder's request, plan or
+    // checklist, nor writes over them, and finds its tools in its own TOOL_DEFINITIONS; the guard and undo are the app's.
+    const HC = o.scope ? Object.assign(Object.create(window.HC || null), { code: o.scope }) : window.HC;
     const { messages, label, signal, ui, temperature, state: sharedState, prefs: cdrPrefs, call, compress: compressHistory, queue, conversation, opened: attachPendingImages, baseName, toolObject, checks } = o;
     const H = window._H;
     const policy = window.HCAgentPolicy;

@@ -318,6 +318,31 @@ console.log('\nWhere it sits:');
   ok('it is part of npm run check', /npm run check:agent-loop\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
 }
 
+console.log('\nA run with a state of its own, as the chat\'s agents hand in (o.scope):');
+{
+  const coder = { request: 'HashCoder\'s own request', asks: ['a', 'b', 'c'], plan: { steps: [{ text: 'HashCoder step', state: 'todo' }] }, said: 'HashCoder said', TOOL_DEFINITIONS: [{ name: 'web_search', fn: async () => 'HashCoder tool ran' }] };
+  const before = JSON.stringify(coder, (k, v) => (typeof v === 'function' ? 'fn' : v));
+  let blocked = 0;
+  sandbox.HC = { code: coder, guard: { noteBlocked: () => { blocked++; } }, undo: { lastFor: () => null } };
+  const ran = [];
+  const scope = { request: 'Find the opening hours.', asks: [], plan: null, TOOL_DEFINITIONS: [{ name: 'web_search', fn: async (a) => { ran.push(a.query); return 'Opens at nine.'; } }, { name: 'fetch_url', fn: async () => { throw new Error('This address is on the safety list.'); } }] };
+  const scr = screen();
+  const messages = [{ role: 'system', content: 'You are a research agent.' }, { role: 'user', content: 'Find the opening hours.' }];
+  let n = 0;
+  const queue = { takeNow: () => (n === 1 ? { text: 'And on Sundays?', count: 1 } : null) };
+  const result = await loop.run({ scope, messages, tools: ['web_search', 'fetch_url'].map((name) => ({ type: 'function', function: { name, parameters: { type: 'object', properties: {} } } })), label: '', ui: scr.ui, temperature: 0.2,
+    state: { size: 'full', local: false, light: false, projectRoot: null, projectChecks: null, codeMap: null }, prefs: () => ({ prove: false }),
+    call: async () => { n++; return n === 1 ? turnOf(callOf('web_search', { query: 'opening hours' }), callOf('fetch_url', { url: 'https://site.example/' })) : words('It opens at nine.'); },
+    compress: (m) => m, queue: () => queue, conversation: () => messages, opened: () => {}, baseName: (p) => String(p), toolObject: (name) => name,
+    checks: () => ({ finish: [], left: () => ({ unconfirmed: null, gone: null }), wrap: async () => null }) });
+  ok('its tools are found in its own state, not HashCoder\'s', json(ran) === '["opening hours"]' && result === 'It opens at nine.', json({ ran, result }));
+  ok('HashCoder\'s request, checklist, plan, last words and tools are left exactly as they were', JSON.stringify(coder, (k, v) => (typeof v === 'function' ? 'fn' : v)) === before);
+  ok('a message sent while it works joins its own request', /Find the opening hours\.\n\nAnd on Sundays\?/.test(scope.request) && !/Sundays/.test(coder.request), scope.request);
+  ok('what it said as it finished, and its record, are kept in its own state', scope.said === 'It opens at nine.' && typeof scope.runMessages === 'function' && scope.runMessages() === messages && coder.runMessages === undefined);
+  ok('the app\'s guard is still the one told of a refused place', blocked === 1, String(blocked));
+  ok('the global app is the same object after the run', sandbox.HC.code === coder);
+}
+
 console.log('\nA model that cannot hold the job is not started on it (js/model-limits.js jobFit):');
 {
   const ML = sandbox.HCModelLimits;
