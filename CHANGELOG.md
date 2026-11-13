@@ -94,6 +94,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   that adds a key; you are asked every time, with where the code goes, the
   branch, each commit and the files shown. A narrow native command sends it
   with your own git sign-in, from a fixed table with no way to force.
+- **A pull request's description comes from what happened.** After a push,
+  HashCoder is handed a description drafted from the run's own record: what
+  was asked and whether the answer confirmed each part, the files changed,
+  what ran and whether it passed, and what was not checked. A larger model
+  asked for a pull request uses it with the code host's own tool.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

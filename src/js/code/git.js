@@ -260,6 +260,33 @@
     return `Nothing was ${verb === 'push' ? 'sent' : 'brought in'}. What git said:\n${tail || '(nothing)'}\nRead it, and say in your answer what the person needs to do.`;
   }
 
+  /**
+   * A pull request's description drafted from the run's own record
+   * (js/run-ledger.js from): what the newest request asked and which asks
+   * were answered, the files changed, what ran and whether it passed, and
+   * what was not checked. Written from what happened, never from the model's
+   * account of it. '' with nothing to say.
+   */
+  function pullRequestBody(ledger) {
+    const l = ledger && typeof ledger === 'object' ? ledger : {};
+    const req = Array.isArray(l.requests) && l.requests.length ? l.requests[l.requests.length - 1] : null;
+    const changed = Array.isArray(l.changed) ? l.changed : [];
+    const ran = Array.isArray(l.ran) ? l.ran : [];
+    if (!req && !changed.length) return '';
+    const out = [];
+    if (req) {
+      out.push('## What was asked');
+      if (req.asks && req.asks.length) for (const a of req.asks) out.push(`- ${a.text}${a.state === 'answered' ? '' : ' (not confirmed in the answer)'}`);
+      else out.push(`- ${req.text}`);
+    }
+    if (changed.length) out.push('', '## What changed', ...changed.map((c) => `- ${c.path} (${c.how})`));
+    out.push('', '## What was run');
+    if (ran.length) out.push(...ran.map((r) => `- ${r.command}: ${r.passed ? 'passed' : 'failed'}`));
+    else out.push('- Nothing was run.');
+    if (!ran.some((r) => r.passed && r.afterLastChange)) out.push('', '## Not checked', '- No check passed after the last change.');
+    return out.join('\n').trim();
+  }
+
   // ── Only when asked ───────────────────────────────────────────────────
   //
   // A request to make a page or fix a function is not a request to make a
@@ -316,5 +343,5 @@
     return /(?:^|[\\/])\.github[\\/]workflows[\\/]/.test(String(path || '')) ? `write_file was not run: ${String(path).split(/[\\/]/).slice(-3).join('/')} is a workflow that runs on the code host, and the person has not asked for one. Do only what the request asks; if checks on the code host would help, say so in one line of your answer.` : null;
   }
 
-  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
+  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, pullRequestBody, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
 })();

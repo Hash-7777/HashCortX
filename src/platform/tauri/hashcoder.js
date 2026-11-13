@@ -788,7 +788,10 @@
     if (!ok) throw new Error(`Permission denied: nothing was ${verb === 'push' ? 'sent' : 'brought in'}. ${HC.code.whyNo('shell', plan.shown)}`);
     const out = await HC.invoke('git_remote_run', { verb, remote: plan.remote, branch: plan.branch, cancelKey: HC.code.shellCancelKey });
     if (!out || out.code || out.timedOut || out.stopped) throw new Error(G.remoteFailure(verb, out));
-    return JSON.stringify(verb === 'push' ? { pushed: plan.branch, to: plan.remote, commits: outgoing.length } : { pulled: plan.branch, from: plan.remote });
+    // A description for a pull request, drafted from the run's own record, for the code host's tool when one is asked for (js/code/git.js pullRequestBody).
+    const ledger = window.HCRunLedger && HC.code.runMessages ? window.HCRunLedger.from(HC.code.runMessages()) : null;
+    const body = verb === 'push' && ledger ? G.pullRequestBody(ledger) : '';
+    return JSON.stringify(verb === 'push' ? { pushed: plan.branch, to: plan.remote, commits: outgoing.length, ...(body ? { pullRequestBody: body } : {}) } : { pulled: plan.branch, from: plan.remote });
   };
 
   HC.code.TOOL_DEFINITIONS = [
@@ -1371,6 +1374,7 @@ TOOL ROUTING:
 • Repository state         → git_status, git_diff, git_log, rather than shell_run git
 • Commit what this run changed, when asked → git_commit (the person is asked; never git commit in shell_run)
 • A branch, a push or a pull, when asked → git_branch, git_push, git_pull (each asked; never force)
+• A pull request, when asked → git_branch, git_commit, git_push, then the code host's own tool for a new pull request, its body the pullRequestBody git_push gave
 • Build / test / git / inspect binary → shell_run
 • A house convention, policy, or past decision → search_knowledge(query) FIRST,
   and cite the source it gives you. Do not invent a convention. If it reports

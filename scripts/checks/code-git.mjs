@@ -244,6 +244,16 @@ console.log('\nSending a branch to the code host, and bringing one back:');
   ok('a branch whose name is not plain is refused with the call written right', /^git_branch was not run: name must be a plain branch name\. Call it as \{"name":"fix\/basket-total"\}\./.test(bad), bad);
 }
 
+console.log('\nA pull request\'s description, from the run\'s own record:');
+{
+  const ledger = { requests: [{ n: 1, text: 'Keep the total in pence and add a test', asks: [{ n: 1, text: 'Keep the total in pence', state: 'answered' }, { n: 2, text: 'add a test', state: 'open' }], limits: [] }], changed: [{ path: 'src/cart.js', how: 'edited' }], ran: [{ command: 'npm test', kind: 'test', passed: true, afterLastChange: true }] };
+  const body = G.pullRequestBody(ledger);
+  ok('what was asked, each ask and whether the answer confirmed it, the files, and what ran', body === '## What was asked\n- Keep the total in pence\n- add a test (not confirmed in the answer)\n\n## What changed\n- src/cart.js (edited)\n\n## What was run\n- npm test: passed', body);
+  ok('...and when no check passed after the last change, it says so', /## Not checked\n- No check passed after the last change\./.test(G.pullRequestBody({ ...ledger, ran: [{ command: 'npm test', passed: false, afterLastChange: true }] })) && /- Nothing was run\./.test(G.pullRequestBody({ ...ledger, ran: [] })));
+  ok('nothing to say: nothing', G.pullRequestBody({}) === '' && G.pullRequestBody(null) === '');
+  ok('git_push hands it back with what it sent, and the full instructions say to use it', /pullRequestBody: body/.test(src('platform', 'tauri', 'hashcoder.js')) && /its body the pullRequestBody git_push gave/.test(code.SYSTEM_PROMPT) && /HC\.code\.runMessages = \(\) => messages;/.test(src('js', 'agent-loop.js')));
+}
+
 console.log('\nOnly what was asked: no git work, workflow file or code-host command nobody asked for:');
 {
   const no = (c, a) => G.unasked(c, a);
