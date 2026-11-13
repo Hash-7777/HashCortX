@@ -929,12 +929,17 @@ console.log('\nRefusals no permission mode switches off:');
 {
   const was = sandbox.HC.code;
   sandbox.HC.code = Object.assign({}, was || {}, { platform: { os: 'linux' } });
+  // The modes are the permission rules' own (js/code/permissions.js): loaded for this section only.
+  const store = new Map();
+  sandbox.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+  for (const f of ['secret-shapes.js', 'code/permissions.js']) vm.runInContext(readFileSync(join(here, '..', '..', 'src', 'js', ...f.split('/')), 'utf8'), sandbox, { filename: f });
   for (const mode of ['ask', 'edits', 'auto']) {
     guard.clearSession();
     guard.setProjectRoot(R);
-    guard.setMode(mode);
+    assert(`${mode}: the mode is really in force for what follows`, guard.setMode(mode) === true);
     guard.setChecks({ test: 'npm test' });
     guard.beginRun();
+    assert(`${mode}: ...and read back while the run lasts`, guard.mode() === mode, String(guard.mode()));
     answer = 'allow-session';   // a yes for the session is ready if anything asks
     await check(`${mode}: a command that reaches for a key store is refused, never asked`, () => guard.request('shell', `cat /home/sam/.ssh/id_ed25519 (in ${R})`, 'x', { command: 'cat', args: ['/home/sam/.ssh/id_ed25519'], cwd: R }), { allowed: false, asked: false });
     await check(`${mode}: so is a command that would wipe the disk`, () => guard.request('shell', `rm -rf / (in ${R})`, 'x', { command: 'rm', args: ['-rf', '/'], cwd: R }), { allowed: false, asked: false });
@@ -946,9 +951,10 @@ console.log('\nRefusals no permission mode switches off:');
     }
     guard.endRun();
   }
+  guard.setMode('edits');
+  delete sandbox.HCCodePermissions; delete sandbox.HCSecretShapes; delete sandbox.localStorage;
   sandbox.HC.code = was;
   guard.clearSession();
-  guard.setMode('edits');
   answer = 'allow-once';
 }
 
