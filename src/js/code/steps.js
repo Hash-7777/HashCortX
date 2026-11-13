@@ -46,6 +46,7 @@
     current_datetime: 'TIME', calculate: 'CALC',
     remember_fact: 'REMEMBER', recall_facts: 'RECALL',
     placeholder_images: 'IMAGES', find_photos: 'PHOTOS', update_plan: 'PLAN', save_lesson: 'LESSON',
+    delegate: 'SUB-AGENT',
   };
   const verbOf = (name) => TOOL_VERBS[name] || window.HCMcp?.stepOf(name)?.verb || String(name || '').toUpperCase();
 
@@ -58,6 +59,7 @@
     }
     if (name === 'move_file') return `${shown(a.from)} → ${shown(a.to)}`;
     if (name === 'uses_of') return a.name ? `who uses ${a.name}` : '';
+    if (name === 'delegate') return String(a.title || '');
     if (/^sys_/.test(name)) return window.HCMcp?.stepOf(name)?.object || '';   // a connected system's tool
     const place = a.path || a.dir || a.file;
     if (place) return shown(place);
@@ -96,6 +98,12 @@
     if (!live.length) { clearInterval(ticker); ticker = 0; return; }
     const now = Date.now();
     for (const el of live) el.textContent = duration(now - Number(el.dataset.since || now));
+  }
+
+  /** Times in `el` that count while they run, kept counting (also a sub-agent's card, js/run-view.js). */
+  function timeIn(el) {
+    if (!el) return;
+    if (!ticker && el.querySelector(`.${LIVE}`)) ticker = setInterval(tick, 100);
   }
 
   /** What a step shows while it runs: its time so far. */
@@ -219,7 +227,7 @@
     const list = flat ? contentEl : listFor(contentEl);
     list.appendChild(el);
     if (!flat) window.HCRunView?.place(contentEl, list, el, verb, object);   // it joins the phase in work, or begins the next (js/run-view.js)
-    if (!ticker && el.querySelector(`.${LIVE}`)) ticker = setInterval(tick, 100);
+    timeIn(el);
     return el;
   }
 
@@ -268,5 +276,5 @@
     });
   }
 
-  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, finish, measure, listFor, add, added, takenAs, notesChanged, settle };
+  window.HCCodeSteps = { TOOL_VERBS, verbOf, objectOf, stepsLine, stepsHeld, changesTitle, duration, running, timeIn, finish, measure, listFor, add, added, takenAs, notesChanged, settle };
 })();

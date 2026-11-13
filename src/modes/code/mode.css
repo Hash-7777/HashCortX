@@ -494,6 +494,41 @@ body.coder-mode #app { display: none; }
 .cdr-step-body pre { margin: 0; padding: 10px 14px; max-height: 320px; overflow: auto; font-family: var(--mono); font-size: 11.5px; line-height: 1.5; color: var(--cdr-text-dim); white-space: pre-wrap; word-break: break-word; }
 .cdr-step-note { padding: 8px 14px 0; color: var(--warn); font-size: 12px; }
 
+/* Sub-agents (js/run-view.js agentCard): a card each, in the phase in work,
+   side by side while they work at once, under one line when the work was
+   split. Only the cube of one still working turns. */
+.cdr-subagents { display: grid; gap: 6px; margin: 4px 0 6px; }
+.cdr-split { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: center; gap: 10px; min-height: 26px; color: var(--cdr-text-dim); font-size: 12px; }
+.cdr-split-mark { display: inline-flex; color: var(--accent-2); }
+.cdr-agents { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.cdr-agent { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; border: 1px solid var(--cdr-border); border-radius: var(--radius-sm); background: var(--surface-raised); }
+.cdr-agent.working { border-color: var(--accent-line); }
+.cdr-agent-h { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 10px 12px 8px; }
+.cdr-agent-mark { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--cdr-border-strong); border-radius: 50%; color: var(--accent-2); background: var(--surface-0); }
+.cdr-agent.finished .cdr-agent-mark { color: var(--accent); border-color: var(--accent-line); }
+.cdr-agent-title { display: grid; gap: 1px; min-width: 0; }
+.cdr-agent-title b { font-size: 12.5px; font-weight: 600; color: var(--cdr-text); }
+.cdr-agent-title span { overflow: hidden; font-size: 12px; color: var(--cdr-text-dim); text-overflow: ellipsis; white-space: nowrap; }
+.cdr-agent-state { display: inline-flex; align-items: center; gap: 6px; font: 11px var(--mono); color: var(--cdr-text-muted); white-space: nowrap; }
+.cdr-agent.working .cdr-agent-state { color: var(--accent-2); }
+.cdr-agent.finished .cdr-agent-state { color: var(--accent); }
+.cdr-agent-steps { display: grid; gap: 3px; margin: 0; padding: 6px 12px 8px 50px; border-top: 1px solid var(--cdr-border); list-style: none; }
+.cdr-agent-steps:empty { display: none; }
+.cdr-agent-steps li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 20px; font-size: 11.5px; }
+.cdr-agent-verb { font: 9.5px var(--mono); letter-spacing: 0.06em; color: var(--cdr-text-muted); }
+.cdr-agent-obj { overflow: hidden; color: var(--cdr-text-dim); text-overflow: ellipsis; white-space: nowrap; }
+.cdr-agent-steps li.now .cdr-agent-obj { color: var(--cdr-text); }
+.cdr-agent-soft { font: 11px var(--mono); color: var(--cdr-text-muted); white-space: nowrap; }
+.cdr-agent-result { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 8px; padding: 8px 12px 8px 50px; border-top: 1px solid var(--cdr-border); font-size: 12.5px; line-height: 1.5; color: var(--cdr-text); overflow-wrap: anywhere; }
+.cdr-agent-result code { font: 11.5px var(--mono); color: var(--accent-2); }
+.cdr-agent-ok { display: inline-flex; padding-top: 2px; color: var(--accent); }
+.cdr-agent-f { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 7px 12px 9px 50px; border-top: 1px solid var(--cdr-border); font-size: 11.5px; color: var(--cdr-text-muted); }
+.cdr-agent-tag { display: inline-flex; align-items: center; gap: 5px; }
+.cdr-agent-tag.ok { color: var(--accent); }
+.cdr-agent-tag.attention { color: var(--warn); }
+#coder-mode-wrap .cdr-agent-mark svg { width: 14px; height: 14px; stroke-width: 1.4; }
+#coder-mode-wrap .cdr-split svg, #coder-mode-wrap .cdr-agent-state svg, #coder-mode-wrap .cdr-agent-ok svg, #coder-mode-wrap .cdr-agent-tag svg { width: 13px; height: 13px; stroke-width: 1.5; }
+
 /* ── A run's steps: a short line each on a rail while it works, folded to
    one line a list when it ends (js/code/steps.js). A step's dot pulses and
    its time counts while it runs; done, the dot fills and a slim bar shows

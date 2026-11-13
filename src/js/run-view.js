@@ -171,7 +171,8 @@
    * plus, minus, controls }. `p`: marks (askMarks), changes [{ added,
    * removed, state pending|accepted|rejected }], files (the paths the run
    * changed), proof (verify.js proofParts), and the app's lines facts, gone,
-   * outside, claim, said, passed, unseen (names stated as code never seen), left, and stopped: why a run that did not finish stopped.
+   * outside, claim, said, passed, unseen (names stated as code never seen), left, stopped: why a run that did not finish stopped, and
+   * subagents [{ kind, removed }]: what the sub-agents it started did.
    */
   function receipt(p = {}) {
     const rows = [];
@@ -192,6 +193,13 @@
         soft: [kept ? `${kept} kept` : '', undone ? `${undone} undone` : '', left ? `${left} to decide` : ''].filter(Boolean).join(' · '),
         controls: left ? 'decide' : '',
       });
+    }
+    // Sub-agents the model started (js/code/delegate.js): what each kind did, and how many of their claims the app took out.
+    const subs = Array.isArray(p.subagents) ? p.subagents : [];
+    if (subs.length) {
+      const made = subs.filter((a) => a.kind === 'do').length, looked = subs.length - made, removed = subs.reduce((n, a) => n + (Number(a.removed) || 0), 0);
+      rows.push({ from: 'subagents', label: 'Sub-agents', tone: removed ? 'attention' : '', text: [looked ? `${looked} explored` : '', made ? `${made} made ${made === 1 ? 'a change' : 'changes'}` : ''].filter(Boolean).join(', '),
+        soft: removed ? `${many(removed, 'claim', 'claims')} removed by the app` : 'each report checked by the app' });
     }
     const pr = p.proof && p.proof.proof, seen = p.proof && p.proof.seen;
     if (pr && PROOF_LABELS[pr.kind]) rows.push({ from: 'proof', label: PROOF_LABELS[pr.kind], tone: pr.kind === 'passed' ? 'good' : 'attention', text: String(pr.what || '') });
@@ -226,6 +234,7 @@
     plan: '<path d="M3.5 14V2.5"/><path d="M3.5 3h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
     commit: '<circle cx="8" cy="8" r="2.6"/><path d="M1.8 8h3.6M10.6 8h3.6"/>',
     commands: '<path d="m2.6 4.6 3.4 3.4-3.4 3.4M7.8 11.4h5.6"/>',
+    subagents: '<path d="M8 4.6 4.3 11M8 4.6l3.7 6.4M5.6 12h4.8"/><circle cx="8" cy="3.4" r="1.6"/><circle cx="3.6" cy="12.1" r="1.6"/><circle cx="12.4" cy="12.1" r="1.6"/>',
   };
 
   /** Words with `code` in backticks, drawn as text: nothing in them is read as markup. */
@@ -526,5 +535,118 @@
     contentEl.hcPhases = null;
   }
 
-  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, note, end, receiptIn, drawReceipt, undoRows };
+  // ── Sub-agents ─────────────────────────────────────────────────────────
+  //
+  // A sub-agent the model started (js/code/delegate.js) is drawn as a card in
+  // the phase in work, where its step would be: who it is and its title, its
+  // live state, its latest steps, and once it is done what it found and
+  // whether the app took out any of its claims. Several started together sit
+  // side by side under one line saying the work was split. Its reading stays
+  // in its card; only its report reaches the model.
+
+  const AGENT_ICONS = {
+    explore: RECEIPT_ICONS.subagents,
+    do: ICONS.changing,
+    split: '<path d="M8 2.5v3.3M8 5.8c0 2.6-4 2.4-4 5.2v2.5M8 5.8c0 2.6 4 2.4 4 5.2v2.5"/><path d="m2.4 12 1.6 1.6L5.6 12M10.4 12l1.6 1.6 1.6-1.6"/>',
+    done: '<path d="m3.6 8.3 2.8 2.8 6-6.4"/>',
+  };
+  const AGENT_NAMES = { explore: 'Explorer', do: 'Editor' };
+  const CUBE = `<span class="cdr-cube" aria-hidden="true"><span class="cdr-cube-space">${'<i></i>'.repeat(6)}</span></span>`;
+  const svgOf = (p) => `<svg viewBox="0 0 16 16" aria-hidden="true">${p}</svg>`;
+  /** The line over sub-agents started together. */
+  const splitLine = (n) => `Split between ${n} sub-agents: each works on its own and reports back what it found`;
+  /** What a finished card says of itself: its steps, what it read or changed, and how its report came through the app's check. */
+  function agentTags(kind, r) {
+    const tags = [many(r.steps || 0, 'step', 'steps'), kind === 'do' ? many(r.changed || 0, 'file changed', 'files changed') : many(r.reads || 0, 'file read', 'files read')];
+    if (!r.failed) tags.push(r.removed ? `${many(r.removed, 'claim', 'claims')} removed by the app` : 'checked by the app');
+    return tags;
+  }
+
+  /**
+   * A card for one sub-agent, in place of its step `row` (or at the end of
+   * the reply). `info`: { kind, title, row, shown(path) }. Returns { step(name,
+   * args, refused), done({ found, stopped, removed, changed, failed }) }.
+   */
+  function agentCard(contentEl, info) {
+    const doc = contentEl && contentEl.ownerDocument;
+    if (!doc) return null;
+    const i = info || {}, kind = i.kind === 'do' ? 'do' : 'explore', row = i.row && i.row.isConnected ? i.row : null;
+    const count = contentEl.hcAgents || (contentEl.hcAgents = { explore: 0, do: 0 });
+    count[kind]++;
+    const prev = row && row.previousElementSibling;
+    let wrap = prev && prev.classList.contains('cdr-subagents') && prev.dataset.open === '1' ? prev : null;   // started in the same step as the one before it
+    if (!wrap) {
+      wrap = doc.createElement('div');
+      wrap.className = 'cdr-subagents';
+      wrap.dataset.open = '1';
+      wrap.innerHTML = '<div class="cdr-agents"></div>';
+      if (row) row.parentNode.insertBefore(wrap, row); else contentEl.appendChild(wrap);
+    }
+    if (row) row.remove();
+    const card = doc.createElement('article');
+    card.className = 'cdr-agent working';
+    card.dataset.kind = kind;
+    card.innerHTML = `<header class="cdr-agent-h"><span class="cdr-agent-mark">${svgOf(AGENT_ICONS[kind])}</span><span class="cdr-agent-title"><b></b><span></span></span>` +
+      `<span class="cdr-agent-state">${CUBE}<span>working · <span class="cdr-step-time cdr-step-live" data-since="${Date.now()}">0 ms</span></span></span></header>` +
+      `<ol class="cdr-agent-steps"></ol><footer class="cdr-agent-f"><span class="cdr-agent-tag">0 steps</span><span class="cdr-agent-tag">${kind === 'do' ? 'It may change only the files it was given' : 'Its reads stay here; only its finding comes back'}</span></footer>`;
+    card.querySelector('b').textContent = `${AGENT_NAMES[kind]} ${count[kind]}`;
+    const said = card.querySelector('.cdr-agent-title span');
+    said.textContent = said.title = String(i.title || '');
+    wrap.querySelector('.cdr-agents').appendChild(card);
+    const n = wrap.querySelectorAll('.cdr-agent').length;
+    if (n > 1) {
+      let head = wrap.querySelector('.cdr-split');
+      if (!head) { head = doc.createElement('div'); head.className = 'cdr-split'; head.innerHTML = `<span class="cdr-split-mark">${svgOf(AGENT_ICONS.split)}</span><span></span>`; wrap.insertBefore(head, wrap.firstChild); }
+      head.lastChild.textContent = splitLine(n);
+    }
+    if (window.HCCodeSteps && window.HCCodeSteps.timeIn) window.HCCodeSteps.timeIn(card);   // its time counts while it works
+    const began = Date.now(), reads = new Set(), list = card.querySelector('.cdr-agent-steps'), first = card.querySelector('.cdr-agent-tag');
+    let steps = 0;
+    return {
+      step(name, args, refused) {
+        const S = window.HCCodeSteps;
+        steps++;
+        const li = doc.createElement('li');
+        li.innerHTML = '<span class="cdr-agent-verb"></span><span class="cdr-agent-obj"></span><span class="cdr-agent-soft"></span>';
+        li.children[0].textContent = S ? S.verbOf(name) : String(name || '').toUpperCase();
+        li.children[1].textContent = S ? S.objectOf(name, args, i.shown) : '';
+        li.children[2].textContent = refused ? 'refused' : '';
+        for (const was of list.querySelectorAll('li.now')) was.classList.remove('now');
+        li.classList.add('now');
+        list.appendChild(li);
+        while (list.children.length > 3) list.firstElementChild.remove();   // its latest steps
+        if (name === 'read_file' && !refused && args && args.path) reads.add(String(args.path));
+        first.textContent = many(steps, 'step', 'steps');
+      },
+      done(result) {
+        const r = Object.assign({ steps, reads: reads.size }, result || {});
+        card.classList.remove('working');
+        card.classList.add(r.failed ? 'failed' : 'finished');
+        for (const was of list.querySelectorAll('li.now')) was.classList.remove('now');
+        const state = card.querySelector('.cdr-agent-state');
+        state.innerHTML = `${r.failed ? '' : svgOf(AGENT_ICONS.done)}<span></span>`;
+        state.lastChild.textContent = `${r.failed ? 'did not finish' : r.stopped ? 'stopped at its limit' : 'done'} · ${timeOf(Date.now() - began)}`;
+        if (!r.failed) {
+          const out = doc.createElement('div');
+          out.className = 'cdr-agent-result';
+          out.innerHTML = `<span class="cdr-agent-ok">${svgOf(AGENT_ICONS.done)}</span><span></span>`;
+          wordsInto(out.lastChild, r.found || 'Its answer was not in the form asked, so the model is given it as plain text.');
+          card.insertBefore(out, card.querySelector('.cdr-agent-f'));
+        }
+        const foot = card.querySelector('.cdr-agent-f');
+        foot.textContent = '';
+        agentTags(kind, r).forEach((t, k, all) => {
+          const tag = doc.createElement('span');
+          const check = !r.failed && k === all.length - 1;
+          tag.className = `cdr-agent-tag${check ? (r.removed ? ' attention' : ' ok') : ''}`;
+          if (check && !r.removed) tag.innerHTML = svgOf(RECEIPT_ICONS.proof);
+          tag.appendChild(doc.createTextNode(t));
+          foot.appendChild(tag);
+        });
+        if (![...wrap.querySelectorAll('.cdr-agent')].some((c) => c.classList.contains('working'))) wrap.dataset.open = '0';   // a later step's sub-agents begin a row of their own
+      },
+    };
+  }
+
+  window.HCRunView = { PHASES, NAMES, ICONS, phaseOf, line, servedBy, askMarks, briefCount, receipt, saved, place, stepDone, brief, note, end, receiptIn, drawReceipt, undoRows, splitLine, agentTags, agentCard };
 })();

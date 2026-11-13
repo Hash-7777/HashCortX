@@ -93,18 +93,21 @@
       if (ok && CHANGING.includes(c.name)) ui.changed(c, text);   // its change row, with Keep and Undo
       return { text, ok };
     }
-    async function subAgent(args) {
+    async function subAgent(args, row) {
       const why = DG.problem(args);
       if (why) return JSON.stringify({ error: why });
       ui.trace('Sub-agent', `${args.kind === 'do' ? 'Changing' : 'Exploring'}: ${args.title}`, 'run');
-      const go = () => DG.run(args, { tools, signal, now: () => Date.now(), norm: fromRoot,
+      const card = ui.subAgent?.({ kind: args.kind, title: args.title, row, shown: baseName }) || null;   // a card of its own in place of its step (js/run-view.js agentCard)
+      const go = () => DG.run(args, { tools, signal, now: () => Date.now(), norm: fromRoot, onStep: (c, refused) => card?.step(c.name, c.arguments, refused),
         ask: (m, t) => call(m, t, temperature, signal),   // this run's model, through the same router and request cap
         record: { turn: H.appendAssistantToolCallTurn, result: H.appendToolResult },
         prepare: (c) => ({ ...c, arguments: window.HCCodePaths.argsFromRoot(window.HCCodeCalls.normalize(c.arguments, schemaOf(c.name)).args, sharedState.projectRoot) }),
         exec: (c, convo) => childCall(c, convo, args.title),
         lines: async (p) => { try { return String(await HC.code.readWholeQuietly(window.HCCodePaths.argsFromRoot({ path: p }, sharedState.projectRoot).path)).split('\n').length; } catch { return null; } },
         limits: window.HCRunLedger?.limitsOf?.(HC?.code?.request) || [], checks: sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks?.checks || [] : [], rule: HC?.code?.TOOL_TEXT_RULE || '' });
-      const out = await (args.kind === 'do' ? writers(go) : go());   // two that change files never at once
+      let out;
+      try { out = await (args.kind === 'do' ? writers(go) : go()); } catch (e) { card?.done({ failed: true }); throw e; }   // two that change files never at once
+      card?.done({ found: out.report?.form ? out.report.found?.[0] || '' : '', stopped: out.stopped, removed: out.removed, changed: out.changed.length });
       subAgents.push({ kind: args.kind, title: args.title, steps: out.steps, stopped: out.stopped, removed: out.removed, changed: out.changed.map((c) => c.path), ran: out.ran.slice() });
       ui.trace('Sub-agent', `${args.title}: ${out.steps} steps${out.removed ? `, ${out.removed} claim${out.removed === 1 ? '' : 's'} removed` : ''}${out.stopped ? `, stopped at its ${out.stopped === 'time' ? 'time' : 'step'} limit` : ''}`, 'ok');
       return out.text;
@@ -225,7 +228,7 @@
           try {
             const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === (asTool?.tool || call.name)), def = window.HCMcp && !asTool ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
             if (!def && asTool?.answer == null) throw new Error('Unknown tool: ' + call.name);
-            const raw = early ? early.result : asTool?.answer != null ? asTool.answer : await (def.fn ? def.fn(asTool ? window.HCCodePaths.argsFromRoot(asTool.arguments, call.arguments?.cwd || sharedState.projectRoot) : call.arguments || {}) : def.execute(call.arguments || {}));
+            const raw = early ? early.result : asTool?.answer != null ? asTool.answer : call.name === 'delegate' && delegating ? await subAgent(call.arguments || {}, toolEl) : await (def.fn ? def.fn(asTool ? window.HCCodePaths.argsFromRoot(asTool.arguments, call.arguments?.cwd || sharedState.projectRoot) : call.arguments || {}) : def.execute(call.arguments || {}));
             resultStr = typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2);
             if (asTool) resultStr = window.HCCodeTranslate.said(asTool) + resultStr;   // said to be the app's answer, and which tool to call next time
             if ((!def.fn && raw?.error) || (early && !early.ok)) ok = false;

@@ -258,7 +258,8 @@ How to work:
    *   record — { turn, result }: how a turn and its results join a conversation;
    *   prepare(call) — the call with its arguments put right, as the main run's are (optional);
    *   lines(path) — a file's number of lines, or null; norm(path) — a path as the project writes it;
-   *   limits, checks, rule — what the app adds to the brief; signal; now() — the time, in ms.
+   *   limits, checks, rule — what the app adds to the brief; signal; now() — the time, in ms;
+   *   onStep(call, refused) — each call as it is about to run or is refused (optional).
    * Returns { text, report, removed, steps, stopped, changed, ran }.
    */
   async function run(args, deps) {
@@ -275,6 +276,7 @@ How to work:
     const one = async (asked) => {
       const call = d.prepare ? d.prepare(asked) : asked;   // its arguments put right first, so the files rule reads them as they will run
       const no = refusal(kind, call, allowed, files, norm);
+      if (d.onStep) d.onStep(call, !!no);   // its card shows the step, refused or not (js/run-view.js)
       if (no) return { text: JSON.stringify({ error: no }), ok: false };
       const out = await Promise.resolve(d.exec(call, convo)).catch((e) => ({ text: JSON.stringify({ error: String((e && e.message) || e) }), ok: false }));
       const text = typeof out.text === 'string' ? out.text : JSON.stringify(out.text);

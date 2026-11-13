@@ -108,6 +108,21 @@ ok('the brief is drawn only for a request of several asks, at the top of the rep
 ok('...what it said as it finished is kept for it, and each new request starts with its own words and nothing said', /if \(HC\?\.code\) HC\.code\.said = finalText;/.test(src('js', 'agent-loop.js')) && /if \(HC\?\.code\) \{ HC\.code\.firstRequest = task; HC\.code\.said = '';/.test(src('modes', 'code', 'mode.js')));
 ok('...pointing at an ask, or reaching it by keyboard, lights the steps that served it and the phase they are folded in', /cdr-step--served/.test(view) && /cdr-phase--served/.test(view) && /'mouseenter'/.test(view) && /'focus'/.test(view) && /\.cdr-step--served/.test(css));
 ok('...and nothing in it moves', !/\.cdr-brief[^{]*\{[^}]*(?:animation|transition)/.test(css) && !/\.cdr-ask[^{]*\{[^}]*(?:animation|transition)/.test(css));
+{
+  const sub = (list) => V.receipt({ subagents: list }).find((r) => r.from === 'subagents');
+  const two = sub([{ kind: 'explore', removed: 0 }, { kind: 'explore', removed: 0 }]);
+  ok('sub-agents: a row saying how many explored, and that each report was checked by the app', !!two && two.label === 'Sub-agents' && two.text === '2 explored' && two.soft === 'each report checked by the app' && two.tone === '', JSON.stringify(two));
+  const mixed = sub([{ kind: 'explore', removed: 1 }, { kind: 'do', removed: 1 }]);
+  ok('...one that changed files said apart, and claims the app took out said, as something to look at', mixed.text === '1 explored, 1 made a change' && mixed.soft === '2 claims removed by the app' && mixed.tone === 'attention', JSON.stringify(mixed));
+  ok('...with a drawn mark of its own, and one that changed files alone says so', /\n    subagents: '<path d="M8 4\.6 [^']*<circle/.test(src('js', 'run-view.js')) && sub([{ kind: 'do', removed: 0 }]).text === '1 made a change');
+  ok('no sub-agents, no row', !V.receipt({}).some((r) => r.from === 'subagents') && !V.receipt({ subagents: [] }).some((r) => r.from === 'subagents'));
+  ok('the line over sub-agents started together', V.splitLine(2) === 'Split between 2 sub-agents: each works on its own and reports back what it found');
+  ok('a finished card says its steps, what it read or changed, and how the app\'s check came out', JSON.stringify(V.agentTags('explore', { steps: 4, reads: 3, removed: 0 })) === '["4 steps","3 files read","checked by the app"]' && JSON.stringify(V.agentTags('do', { steps: 1, changed: 1, removed: 2 })) === '["1 step","1 file changed","2 claims removed by the app"]');
+  ok('...and one that did not finish claims no check', JSON.stringify(V.agentTags('explore', { steps: 2, reads: 0, failed: true })) === '["2 steps","0 files read"]');
+  const view = src('js', 'run-view.js');
+  ok('a card puts its title and steps in as text, never as markup: a sub-agent\'s words come from a model', /said\.textContent = said\.title = String\(i\.title \|\| ''\)/.test(view) && /li\.children\[1\]\.textContent = /.test(view) && /wordsInto\(out\.lastChild, r\.found/.test(view));
+  ok('...and only a card still working carries the turning cube', /state\.innerHTML = `\$\{r\.failed \? '' : svgOf\(AGENT_ICONS\.done\)\}<span><\/span>`/.test(view));
+}
 ok('the receipt is drawn under the answer from what the loop hands over, kept with the answer, and drawn again when a saved conversation is opened', /const kept = ui\.receipt\?\.\(\{ commit: commitOffer\(\), commands: commandChanged\.slice\(\), subagents: subAgents\.slice\(\), proof: proof \? window\.HCCodeVerify\.proofParts\(proof\) : null/.test(src('js', 'agent-loop.js')) && /if \(proven && !kept\) ui\.answer/.test(src('js', 'agent-loop.js')) && /receipt: \(parts\) => window\.HCRunView\?\.receiptIn\(contentEl, parts\)/.test(src('modes', 'code', 'mode.js')) && /\.\.\.\(sharedState\.receipt \? \{ receipt: sharedState\.receipt \} : \{\}\)/.test(src('modes', 'code', 'mode.js')) && /m\.receipt && window\.HCRunView\?\.drawReceipt\(reply, m\.receipt\)/.test(src('modes', 'code', 'mode.js')));
 {
   const offer = V.receipt({ files: ['src/cart.js'], commit: { title: 'fix: keep the total in pence' } });

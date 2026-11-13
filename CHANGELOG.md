@@ -18,8 +18,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   once, or one that changes only the files it is given. HashCortX checks
   each report before the model reads it: a place that is not in the project
   is taken out, and what it changed and ran comes from the app's own record,
-  not its words. Each change to a file comes with Keep and Undo, and Stop
-  ends it with the run. Strong means the larger models of the main cloud
+  not its words. Each sub-agent has a card of its own in the run, side by
+  side while several work at once, with its latest steps and what it found,
+  and the receipt says what they did and how many claims the app took out.
+  Each change to a file comes with Keep and Undo, and Stop ends it with the
+  run. Strong means the larger models of the main cloud
   services, never their small or fast versions, and any model of 120
   billion parameters or more.
 
