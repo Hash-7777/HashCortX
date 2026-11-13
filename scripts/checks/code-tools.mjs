@@ -39,7 +39,7 @@ console.log('The tool list:');
     ok('an argument given as a schema is kept as it is', JSON.stringify(list.find((t) => t.function.name === withSchema.name).function.parameters.properties[k]) === JSON.stringify(v));
   }
   const optional = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
-  ok('only the git tools have arguments optional for them alone', JSON.stringify(Object.keys(HC.code.OPTIONAL_FOR).sort()) === '["git_diff","git_log"]');
+  ok('only the git tools have arguments optional for them alone', JSON.stringify(Object.keys(HC.code.OPTIONAL_FOR).sort()) === '["git_commit","git_diff","git_log"]');
   ok('every argument is required but the ones optional by name, or for that tool', list.every((t) => {
     const def = HC.code.TOOL_DEFINITIONS.find((d) => d.name === t.function.name);
     return t.function.parameters.required.join() === Object.keys(def.parameters).filter((k) => !optional.includes(k) && !(HC.code.OPTIONAL_FOR[t.function.name] || []).includes(k)).join();
@@ -65,7 +65,7 @@ console.log('\nA small local model:');
   const list = HC.code.toolList();
   ok('the Coder gives it only those tools and those instructions',
     HC.code.toolsFor('small', list, 'a site').map((t) => t.function.name).sort().join() === [...HC.code.SMALL_MODEL_TOOLS].sort().join() && HC.code.promptFor('small') === HC.code.SMALL_MODEL_PROMPT
-    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\)\)/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size, cdrPrefs\(\)\.memory === true\)/.test(mode));
+    && /const own = HC\.code\.toolsFor\(sharedState\.size, buildTools\(\), conversationMsgs\.some\(\(m\) => m\.site\), conversationMsgs\)/.test(mode) && /HC\?\.code\?\.promptFor\?\.\(sharedState\.size, cdrPrefs\(\)\.memory === true\)/.test(mode));
   ok('a cloud model is never treated as small', /\/\^cloud:\/\.test\(model\) \? null/.test(mode) && /const size = HC\?\.code\?\.sizeOf\?\.\(info\?\.billions \?\? window\.HCCodeLight\?\.billionsInName\(model\)\) \|\| 'full', light = /.test(mode));
 }
 

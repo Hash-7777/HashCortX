@@ -657,7 +657,7 @@
 
       // A run that has read from outside and holds private material asks every time before it sends anything out (js/code/outward.js).
       const out = window.HCCodeOutward ? window.HCCodeOutward.judge(action, target, factsNow()) : null;
-      const once = !!out || !!(detail && (detail.install || detail.destroys));   // an install, and a command Undo cannot put back, are asked about every time too (js/code/permissions.js)
+      const once = !!out || !!(detail && (detail.install || detail.destroys || detail.commit));   // an install, a command Undo cannot put back, and a commit are asked about every time too (js/code/permissions.js, js/code/git.js)
       if (out) reason = `${out.why}${action === 'fetch' ? `\n${window.HCCodeOutward.shownAddress(target)}` : ''}${reason ? `\n(${reason})` : ''}`;
 
       // Auto-approve read/list/search/write/patch inside the open project root —

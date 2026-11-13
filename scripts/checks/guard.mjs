@@ -906,6 +906,21 @@ console.log('\nInstalling a package:');
   assert('HashCoder tells an install apart before a command is wrapped to run, and says what it installs', /const install = window\.HCCodePermissions\?\.installOf\?\.\(command, args\);\n[^\n]*\n\s+\[command, args\] = throughCmd\(/.test(tools) && /install \? \{ install: true, npm: install\.npm \} : \{\}/.test(tools) && /await HC\.code\.installReason\(install, reason\)/.test(tools));
 }
 
+console.log('\nA commit:');
+{
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.setMode('auto');
+  guard.setChecks({});
+  guard.beginRun();
+  answer = 'allow-session';
+  const detail = { command: 'git', args: ['commit', '-m', 'fix: x', '--', 'a.js'], cwd: R, commit: true };
+  await check('a commit asks, in Auto too', () => guard.request('shell', `git commit -- a.js\n\nfix: x\n(in ${R})`, 'Commits on branch main:', detail), ASKED);
+  await check('...and again the next time, a yes never kept for the session', () => guard.request('shell', `git commit -- a.js\n\nfix: x\n(in ${R})`, 'Commits on branch main:', detail), ASKED);
+  guard.endRun();
+  guard.setMode('edits');
+}
+
 console.log('\nAn install of the npm family, without its install scripts:');
 {
   guard.clearSession();

@@ -52,6 +52,7 @@
     const sentBack = sharedState.sentBack = window.HCCodeDebug.sentBack(sharedState), sent = sentBack.sent;   // how often this run was sent back, for each reason, and whether it acted after (js/code/debug-export.js)
     // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
     const changes = new Map();
+    if (HC?.code) { HC.code.runChanges = () => changes; HC.code.runRepo = () => (sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks?.repo || null : null); }   // what git_commit commits, and the repository it is in (platform/tauri/hashcoder.js)
     const looks = checks({ proof, sent, changes, messages, signal, ui }), finish = looks.finish;   // the finishing checks, built by the mode from what this run keeps
     let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
     const edited = new Map(), asked = window.HCCodeCalls.memory(), schemaOf = (name) => (tools || []).find((t) => (t.function ? t.function.name : t.name) === name);   // asked: what this run's calls gave back (js/code/calls.js)

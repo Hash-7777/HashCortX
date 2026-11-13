@@ -72,6 +72,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   anything else with what to send instead, and run as any command does,
   with the same question. A mid-sized model is offered status and diff, a
   larger one all three; a small model none.
+- **HashCoder can commit what it changed, when you ask.** git_commit
+  commits only the files the run changed, and nothing else you have staged.
+  It refuses a file that usually holds keys, a line the run added that looks
+  like a key, and a file still holding the marks git leaves where two
+  changes met, all before anything runs. It holds the title to the
+  repository's own style and adds nothing to the message. You are asked
+  every time, with the whole commit shown. The git tools are offered only in
+  a conversation where you asked for git work.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

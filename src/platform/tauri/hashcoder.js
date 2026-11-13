@@ -717,6 +717,33 @@
     return window.HCCodeDigest ? window.HCCodeDigest.shellResult(r, HC.code.outputLimit) : r;
   };
 
+  /**
+   * A git_commit call: checked from the run's own record of what it changed
+   * (js/code/git.js commitPlan) before anything runs, asked about every time
+   * with the whole commit shown, then, on a yes only, the files added and
+   * committed, and nothing else, with the network closed. A commit the
+   * repository signs is never made unsigned when signing fails.
+   */
+  HC.code.gitCommit = async (p = {}) => {
+    const G = window.HCCodeGit;
+    if (!G || !G.commitPlan) throw new Error('git_commit is not available in this window, so nothing was committed. Say in your answer what is ready to commit, and leave it to the person.');
+    const root = HC.guard.projectRoot?.() || null;
+    if (!root) throw new Error('git_commit was not run: no project is open. Open the project first.');
+    const changes = HC.code.runChanges?.() || new Map();
+    const plan = G.commitPlan(p, { changes, repo: HC.code.runRepo?.() || null, diff: window.HCDiff?.diffLines, isSecret: window.HCSecretShapes?.isSecretFile, looksLikeKey: window.HCSecretShapes?.looksLikeKey });
+    if (plan.error) throw new Error(plan.error);
+    const shown = `${plan.shown}\n(in ${root})`;
+    const ok = await HC.guard.request('shell', shown, plan.reason, { command: 'git', args: plan.commit, cwd: root, commit: true });
+    if (!ok) throw new Error(`Permission denied: the commit was not made. ${HC.code.whyNo('shell', shown)}`);
+    const run = (args) => HC.invoke('shell_run', { command: 'git', args, cwd: root, cancelKey: HC.code.shellCancelKey, offline: true });
+    const added = await run(plan.add);
+    if (added && added.code) throw new Error(G.commitFailure(added).words);
+    const made = await run(plan.commit);
+    if (!made || made.code) throw new Error(G.commitFailure(made).words);
+    for (const f of plan.files) { const c = changes.get(f.path); if (c) c.before = c.after; }   // committed: the next commit counts from here
+    return JSON.stringify({ committed: G.commitId(made.stdout), branch: HC.code.runRepo?.()?.branch || null, files: [...plan.files.map((f) => f.path), ...plan.notRun] });
+  };
+
   HC.code.TOOL_DEFINITIONS = [
     {
       name: 'read_file',
@@ -1012,6 +1039,16 @@
       fn: (p) => HC.code.gitRun('git_log', p),
     },
     {
+      name: 'git_commit',
+      description: 'Commit what this run changed: every file it changed unless paths names some, and nothing the person staged or changed alone. The person is asked every time, with the whole commit shown. The title is one line in this repository\'s own style; the rest goes in body. Never commit a key, and never add a line saying who or what wrote it.',
+      parameters: {
+        title: { type: 'string', description: 'One line saying what the commit does, in this repository\'s style' },
+        body: { type: 'string', description: 'Optional: more about the change, after the title' },
+        paths: { type: 'array', items: { type: 'string' }, description: 'Optional: only these files; without it, every file this run changed' },
+      },
+      fn: (p) => HC.code.gitCommit(p),
+    },
+    {
       // Real photographs of the site's subject, by the search the Agent Swarm
       // uses (js/swarm/photos.js), under the same setting.
       name: 'find_photos',
@@ -1190,7 +1227,7 @@
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset', 'then_run', 'result'];
   /** Arguments optional for one tool only, where the same name is required for others. */
-  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'] };
+  HC.code.OPTIONAL_FOR = { git_diff: ['path', 'staged', 'base'], git_log: ['n', 'path'], git_commit: ['body', 'paths'] };
   // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
   HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
@@ -1258,6 +1295,7 @@ TOOL ROUTING:
   cannot be undone at all.
 • Explore structure        → list_dir
 • Repository state         → git_status, git_diff, git_log, rather than shell_run git
+• Commit what this run changed, when asked → git_commit (the person is asked; never git commit in shell_run)
 • Build / test / git / inspect binary → shell_run
 • A house convention, policy, or past decision → search_knowledge(query) FIRST,
   and cite the source it gives you. Do not invent a convention. If it reports
@@ -1466,7 +1504,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
   // the call as text after it.
 
   /** The tools a mid-sized model is offered, a plan among them; find_photos only when it builds a site. */
-  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan', 'uses_of', 'git_status', 'git_diff'];
+  HC.code.MID_MODEL_TOOLS = [...HC.code.SMALL_MODEL_TOOLS, 'view_image', 'find_photos', 'update_plan', 'uses_of', 'git_status', 'git_diff', 'git_commit'];
 
   HC.code.MID_MODEL_PROMPT = `You are HashCoder, a coding agent with the person's project open. You work by calling tools: do the task, do not only describe it.
 
@@ -1497,8 +1535,11 @@ ${HC.code.TOOL_TEXT_RULE}`;
    * shape). A mid-sized model is offered find_photos only when building a
    * site (`site`).
    */
-  HC.code.toolsFor = (size, list, site) => {
+  HC.code.toolsFor = (size, list, site, conversation = null) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
+    // The git tools only for a conversation in which the person asked for git work (js/code/git.js asked); kept for the shell's own rule.
+    if (conversation) HC.code.gitAsked = window.HCCodeGit?.asked ? window.HCCodeGit.asked(conversation) : true;
+    if (conversation && !HC.code.gitAsked) list = list.filter((t) => !/^git_/.test(t.function.name));
     if (!names) return list;
     const few = HC.code.inFewWords(HC.code.shortPlaces(HC.code.withPaths(HC.code.withoutLargerOnly(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))))));
     return size === 'mid' ? HC.code.withExamples(few) : few;
@@ -1576,6 +1617,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
     uses_of: 'Where a name is defined and every place that uses it.',
     git_status: 'The branch and each changed file, read only.',
     git_diff: 'What changed, as a diff; staged: true for what is staged. Read only.',
+    git_commit: 'Commit what this run changed; the person is asked every time. title is one line in the repository\'s style.',
     shell_run: 'Run a command, such as the tests, a build or git: the program in command, the rest in args.',
     find_photos: 'Find openly licensed photos of a site\'s subject. Use only the addresses it returns, and credit each photo the page shows.',
   };
@@ -1586,7 +1628,7 @@ ${HC.code.TOOL_TEXT_RULE}`;
     replace_whole: 'Optional: true to replace an existing file whole', append: 'Optional: true to add to the end', reason: 'Why, in a few words',
     search: 'Exact text from the file', replace: 'The new text', all: 'Optional: true to change every place', edits: 'Optional: more changes to this file',
     steps: 'The steps, in order', query: 'A rough file name', pattern: 'Text or a regular expression to find', file_ext: 'Optional: only files with this extension',
-    command: 'The program, such as npm', args: 'Its arguments, such as ["test"]', subject: 'Two to four plain words', count: 'Optional: how many, 1 to 10',
+    title: 'One line saying what the commit does', body: 'Optional: more about it', command: 'The program, such as npm', args: 'Its arguments, such as ["test"]', subject: 'Two to four plain words', count: 'Optional: how many, 1 to 10',
   };
   /** The tools with their words cut to the lines above; anything without a line is left as it was. */
   HC.code.inFewWords = (list) => list.map((tool) => {

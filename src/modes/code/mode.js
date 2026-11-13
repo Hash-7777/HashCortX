@@ -1869,7 +1869,7 @@ ${conversationMsgs.filter(m => m.role !== 'system').map(m => `
       // A connected system's tools when the request is about one, and nothing sent that it keeps from this model — js/mcp/connections.js.
       const run = window.HCMcp ? await window.HCMcp.forRun(coderModel || window._H?.selectedModel?.() || '', conversationMsgs) : { tools: [], refusal: '' };
       // Once a request in this conversation has built a site, its tools stay offered: a list that changes between requests is read again whole.
-      const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site)).filter((t) => (t.function.name !== 'save_lesson' || !!HC.code.lessonsFor) && (HC.code.memoryOn || !/^(remember_fact|recall_facts)$/.test(t.function.name)));
+      const own = HC.code.toolsFor(sharedState.size, buildTools(), conversationMsgs.some((m) => m.site), conversationMsgs).filter((t) => (t.function.name !== 'save_lesson' || !!HC.code.lessonsFor) && (HC.code.memoryOn || !/^(remember_fact|recall_facts)$/.test(t.function.name)));
       const tools = sharedState.light ? [] : [...own, ...run.tools];   // light mode: no tools; the app reads files out of the answer (js/code/light.js)
       const contentEl = appendAssistantBubble('HashCoder');
       const bubble = contentEl?.closest('.cdr-msg'); window.HCCodeSteps.notesChanged?.(contentEl, sharedState.notesNew); sharedState.notesNew = null;   // first in the reply (js/code/notes-seen.js)

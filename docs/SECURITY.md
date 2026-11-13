@@ -62,6 +62,8 @@ Commands **you** type in the terminal are not held to it. You can change directo
 
 **HashCoder's git tools are commands too.** `git_status`, `git_diff` and `git_log` take a few named arguments and turn them into one fixed git line from a table (`src/js/code/git.js`); an argument the table does not know, or a value that is not plain, is refused before anything runs. The line then goes through the same question, Auto list and sandbox as any command, and each one the table can build is a read Auto lets through. A diff or a log is read without the programs a repository may name for showing changes (`--no-ext-diff`, `--no-textconv`).
 
+**A commit is asked about every time, with the whole commit shown.** `git_commit` commits only the files the run changed, or the ones it names, and nothing else you have staged: the question shows the git line, the title and body, the branch, each file with the lines added and removed, any file the run did not change, and the repository's own hooks that will run, and says each file goes in whole as it is now. Before the question, from the run's own record of each file and with no git command run, it refuses a file whose name usually holds keys, a line the run added that looks like a key, and a file still holding the marks git leaves where two changes met. Only after a yes are the files added and committed, inside the project, with the network closed and, on macOS, in the sandbox. A commit is never made unsigned when the repository signs and signing fails, and nothing is added to the message. The git tools are offered only in a conversation where you asked for git work (`src/js/code/git.js`).
+
 **What raises a dialog, and what does not:**
 
 | | Inside the open project folder | Anywhere else |
