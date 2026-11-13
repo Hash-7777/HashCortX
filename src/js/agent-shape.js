@@ -775,6 +775,11 @@
    * new part from the cache. `messages` are Anthropic's (content as blocks)
    * and are marked in place. Without `cache` nothing is marked, so a one-off
    * request pays nothing to store what nothing will read.
+   *
+   * The marks keep the provider's own five minutes. The steps of a run come
+   * seconds apart, and each read starts the five minutes again; the hour on
+   * offer costs more to store, and pays back only when a person waits
+   * between five minutes and an hour before the next request.
    */
   function markReusable(system, messages, cache) {
     if (!cache) return system;

@@ -87,6 +87,9 @@ console.log('\nA conversation sent again marks where its reusable start ends:');
   const plain = [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }];
   check('and not when it is not asked: a one-off request pays nothing to store', mark('rules', plain, false) === 'rules' && !plain[0].content[0].cache_control);
   check('a message with no blocks is not a failure', Array.isArray(mark('r', [{ role: 'user', content: [] }], true)));
+  check('the marks keep the five minutes: no longer time is asked for, which costs more to store', !('ttl' in system[0].cache_control) && !('ttl' in msgs[2].content[0].cache_control));
+  const sent = ['js/app.js', 'js/agent-shape.js', 'js/providers.js', 'js/stream/sse.js', 'platform/tauri/provider-bridge.js'].map((f) => { try { return readFileSync(join(root, 'src', ...f.split('/')), 'utf8'); } catch { return ''; } }).join('\n');
+  check('no request sets how long a provider keeps saved reading: each keeps its own default', !/prompt_cache_retention|["']ttl["']\s*:|\bttl\s*:\s*["']\d/.test(sent));
 }
 
 console.log('\nNothing is invented when a provider stays silent:');
