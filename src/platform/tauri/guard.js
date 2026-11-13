@@ -274,6 +274,40 @@
   }
 
   /**
+   * The bar's Allow once, no network button, made beside Allow once the
+   * first time it is needed, as the one above is. On macOS a command can run
+   * with the network closed (src-tauri/src/security/agent_sandbox.rs), and a
+   * test or a build seldom needs it: closing it means the command cannot send
+   * anything anywhere, whatever it holds.
+   */
+  function offlineButton(onceBtn) {
+    let b = document.getElementById('hc-perm-offline');
+    if (!b && document.createElement && onceBtn && onceBtn.parentNode) {
+      b = document.createElement('button');
+      b.id = 'hc-perm-offline';
+      b.className = 'hc-perm-btn hc-perm-btn--session';
+      b.textContent = 'Allow once, no network';
+      b.hidden = true;
+      onceBtn.parentNode.insertBefore(b, onceBtn);
+    }
+    return b || null;
+  }
+
+  /** Programs, and git's ways of reaching another computer, that a command needs the network for. */
+  const NETWORK_PROGRAMS = /^(?:curl|wget|ssh|scp|sftp|rsync|ftp|nc|ncat|telnet|ping|dig|nslookup|host|gh|docker|podman|npx|pnpx|bunx|brew|apt|apt-get|winget|choco|scoop)$/i;
+  const NETWORK_GIT = /^(?:push|pull|fetch|clone|ls-remote|submodule|remote)$/;
+  /** Whether a command looks as if it reaches the network (a suggestion in words, never a decision). */
+  function reachesNetwork(command, args = []) {
+    const name = String(command || '').split(/[\\/]/).pop().replace(/\.(?:exe|cmd|bat)$/i, '');
+    if (NETWORK_PROGRAMS.test(name)) return true;
+    const a = (Array.isArray(args) ? args : []).map(String);
+    if (/^git$/i.test(name)) return a.some((x) => NETWORK_GIT.test(x));
+    return a.some((x) => /^https?:\/\//i.test(x)) || (/^(?:npm|pnpm|yarn|bun|pip3?|uv|cargo|go|gem)$/i.test(name) && a.some((x) => /^(?:install|i|add|update|upgrade|publish|download|get|fetch)$/.test(x)));
+  }
+  /** Whether a command's question offers Allow once, no network: only for a command, only where the system can close it, never for an install. */
+  const offersOffline = (action, detail) => action === 'shell' && String(HC.code?.platform?.os || '').toLowerCase() === 'macos' && !!detail && !detail.install && !detail.commit && !detail.remote;
+
+  /**
    * Said in a command's question where the system cannot fence the command in.
    * macOS runs an agent's command inside its sandbox (src-tauri/src/security/
    * agent_sandbox.rs); Windows and Linux have nothing like it without extra
@@ -284,7 +318,7 @@
   const UNFENCED = 'This system cannot fence this command in. Once it runs, it can reach anything your account can, except what the app refuses by name.';
   const unfenced = () => { const os = String(HC.code?.platform?.os || '').toLowerCase(); return !!os && os !== 'macos'; };
 
-  function showDialog(action, target, reason, { once = false, noScripts = false } = {}) {
+  function showDialog(action, target, reason, { once = false, noScripts = false, offline = false, quiet = false } = {}) {
     return new Promise((resolve) => {
       const bar     = document.getElementById('hc-perm-bar');
       const actEl   = document.getElementById('hc-perm-action');
@@ -294,6 +328,7 @@
       const sessBtn = document.getElementById('hc-perm-session');
       const denyBtn = document.getElementById('hc-perm-deny');
       const bareBtn = bareButton(onceBtn);   // Allow without install scripts, for the npm family's installs
+      const offBtn = offlineButton(onceBtn);   // Allow once, no network, for a command where the system can close it
       // No bar in the page is not permission. It is a refusal.
       if (!bar || !actEl || !onceBtn || !sessBtn || !denyBtn) { resolve('deny'); return; }
 
@@ -308,6 +343,7 @@
       // and what it will send is shown whole rather than cut to one line.
       sessBtn.hidden = ASKED_EVERY_TIME.has(action) || once;
       if (bareBtn) { bareBtn.hidden = !noScripts; bareBtn.style.display = noScripts ? '' : 'none'; }
+      if (offBtn) { offBtn.hidden = !offline; offBtn.style.display = offline ? '' : 'none'; }
       sessBtn.style.display = sessBtn.hidden ? 'none' : '';
       if (bar.dataset) bar.dataset.action = action;
       // Long paths lose their middle, not their end: the filename is the part
@@ -319,11 +355,13 @@
       const hid = shown !== String(target || '') || given !== String(reason || '');
       // Where the command cannot be fenced in, that is said on a line of its own, and the reason wraps rather than being cut off.
       const exposed = action === 'shell' && unfenced();
-      const said = !exposed ? given : given ? `${given}\n${UNFENCED}` : UNFENCED;
+      const quietly = offline && quiet ? 'It looks as if it needs no network: Allow once, no network runs it with the network closed.' : '';
+      const said0 = !exposed ? given : given ? `${given}\n${UNFENCED}` : UNFENCED;
+      const said = quietly ? (said0 ? `${said0}\n${quietly}` : quietly) : said0;
       // A command, and anything asked about every time, is shown whole, in a block that wraps and scrolls: its middle can be the part that matters.
       const whole = action === 'shell' || ASKED_EVERY_TIME.has(action) || once;
       if (tgtEl.classList) tgtEl.classList.toggle('whole', whole);
-      if (rsnEl.classList) rsnEl.classList.toggle('whole', once || exposed);   // its lines kept: the reason, then the address decoded or what the system cannot fence
+      if (rsnEl.classList) rsnEl.classList.toggle('whole', once || exposed || !!quietly);   // its lines kept: the reason, then the address decoded or what the system cannot fence
       tgtEl.textContent = !whole && shown.length > 96 ? shown.slice(0, 34) + ' … ' + shown.slice(-58) : shown;
       tgtEl.title = shown;
       rsnEl.textContent = hid ? `${said}${said ? ' ' : ''}This holds hidden characters, shown as codes.` : said;
@@ -340,6 +378,7 @@
         sessBtn.hidden = false;
         sessBtn.style.display = '';
         if (bareBtn) { bareBtn.hidden = true; bareBtn.style.display = 'none'; bareBtn.removeEventListener('click', onBare); }
+        if (offBtn) { offBtn.hidden = true; offBtn.style.display = 'none'; offBtn.removeEventListener('click', onOffline); }
         if (bar.dataset) delete bar.dataset.action;
         onceBtn.removeEventListener('click', onOnce);
         sessBtn.removeEventListener('click', onSession);
@@ -350,11 +389,13 @@
       const onSession = () => cleanup('allow-session');
       const onDeny    = () => cleanup('deny');
       const onBare    = () => cleanup('allow-noscripts');
+      const onOffline = () => cleanup('allow-offline');
       _denyOpen = () => cleanup('stopped');   // answered by Stop, not by the person
       onceBtn.addEventListener('click', onOnce);
       sessBtn.addEventListener('click', onSession);
       denyBtn.addEventListener('click', onDeny);
       if (bareBtn && noScripts) bareBtn.addEventListener('click', onBare);
+      if (offBtn && offline) offBtn.addEventListener('click', onOffline);
     });
   }
 
@@ -700,11 +741,12 @@
           return false;
         }
         if (ASKED_EVERY_TIME.has(action) || once) {
-          const answer = await showDialog(action, target, reason, { once, noScripts: !!(detail && detail.install && detail.npm) });
-          const allowed = answer === 'allow-once' || answer === 'allow-session' || answer === 'allow-noscripts';
-          auditLog(answer === 'allow-noscripts' ? 'allow-noscripts' : allowed ? 'allow-once' : answer === 'stopped' ? 'deny-stopped' : 'deny', action, target);
+          const offline = offersOffline(action, detail);
+          const answer = await showDialog(action, target, reason, { once, noScripts: !!(detail && detail.install && detail.npm), offline, quiet: offline && !reachesNetwork(detail.command, detail.args) });
+          const allowed = answer === 'allow-once' || answer === 'allow-session' || answer === 'allow-noscripts' || answer === 'allow-offline';
+          auditLog(answer === 'allow-noscripts' ? 'allow-noscripts' : answer === 'allow-offline' ? 'allow-offline' : allowed ? 'allow-once' : answer === 'stopped' ? 'deny-stopped' : 'deny', action, target);
           if (allowed && isPathAction(action)) await approvedInRust(action, target);   // this one path, this once
-          return answer === 'allow-noscripts' ? 'no-scripts' : allowed;   // the caller leaves the install scripts out
+          return answer === 'allow-noscripts' ? 'no-scripts' : answer === 'allow-offline' ? 'offline' : allowed;   // the caller leaves the install scripts out, or closes the network
         }
         if (_session.has(key)) {
           const prev = _session.get(key);
@@ -722,7 +764,13 @@
           return true;
         }
 
-        const choice = await showDialog(action, target, reason);
+        const offline = offersOffline(action, detail);
+        const choice = await showDialog(action, target, reason, { offline, quiet: offline && !reachesNetwork(detail.command, detail.args) });
+        if (choice === 'allow-offline') {   // this once, with the network closed; never kept for the session
+          auditLog('allow-offline', action, target);
+          if (_run) _run.answered();
+          return 'offline';
+        }
         // Stopped: no, this once, and not remembered, since the person did not answer.
         if (choice === 'stopped') {
           auditLog('deny-stopped', action, target);

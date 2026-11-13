@@ -35,6 +35,8 @@ let openNow = 0, maxOpenAtOnce = 0;
 let answerDelay = 0;
 let sessionHiddenWhenAsked = null;
 let noScriptsShownWhenAsked = false;   // whether Allow without install scripts was offered
+let offlineShownWhenAsked = false;     // whether Allow once, no network was offered
+let reasonWhenAsked = '';
 
 function el(id) {
   const listeners = { click: [] };
@@ -64,7 +66,9 @@ function el(id) {
             openNow--;
             sessionHiddenWhenAsked = !!nodes['hc-perm-session'].hidden;
             noScriptsShownWhenAsked = !nodes['hc-perm-noscripts'].hidden;
-            const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', 'allow-noscripts': 'hc-perm-noscripts', deny: 'hc-perm-deny' }[answer];
+            offlineShownWhenAsked = !nodes['hc-perm-offline'].hidden;
+            reasonWhenAsked = nodes['hc-perm-reason'].textContent;
+            const btn = { 'allow-once': 'hc-perm-once', 'allow-session': 'hc-perm-session', 'allow-noscripts': 'hc-perm-noscripts', 'allow-offline': 'hc-perm-offline', deny: 'hc-perm-deny' }[answer];
             nodes[btn]._fire('click');
           };
           if (answerDelay) setTimeout(respond, answerDelay);
@@ -80,7 +84,7 @@ function el(id) {
 
 const nodes = {};
 for (const id of ['hc-perm-bar', 'hc-perm-action', 'hc-perm-target', 'hc-perm-reason',
-                  'hc-perm-once', 'hc-perm-session', 'hc-perm-noscripts', 'hc-perm-deny', 'hc-guard-banner']) {
+                  'hc-perm-once', 'hc-perm-session', 'hc-perm-noscripts', 'hc-perm-offline', 'hc-perm-deny', 'hc-guard-banner']) {
   nodes[id] = el(id);
 }
 
@@ -140,7 +144,7 @@ assert('no key dismisses it', !/addEventListener\('key/.test(src),
   'a prompt that Escape closes is a prompt people close without reading');
 assert('only the answer buttons are listened to',
   [...src.matchAll(/(\w+)\.addEventListener\('click'/g)].every(([, who]) =>
-    ['onceBtn', 'sessBtn', 'denyBtn', 'bareBtn'].includes(who)),
+    ['onceBtn', 'sessBtn', 'denyBtn', 'bareBtn', 'offBtn'].includes(who)),
   'a click anywhere else must not resolve a permission request');
 
 const R = '/Users/x/Desktop/project';
@@ -919,6 +923,35 @@ console.log('\nA commit:');
   await check('...and again the next time, a yes never kept for the session', () => guard.request('shell', `git commit -- a.js\n\nfix: x\n(in ${R})`, 'Commits on branch main:', detail), ASKED);
   guard.endRun();
   guard.setMode('edits');
+}
+
+console.log('\nA command with the network closed, on macOS:');
+{
+  const was = sandbox.HC.code;
+  sandbox.HC.code = Object.assign({}, was || {}, { platform: { os: 'macos' } });
+  guard.clearSession();
+  guard.setProjectRoot(R);
+  guard.setMode('edits');
+  answer = 'allow-offline';
+  const detail = { command: 'npm', args: ['test'], cwd: R };
+  const got = await guard.request('shell', `npm test (in ${R})`, 'Run the tests', detail);
+  assert('the question offers Allow once, no network, and that answer comes back as such', got === 'offline' && offlineShownWhenAsked === true, JSON.stringify([got, offlineShownWhenAsked]));
+  assert('...suggested in words for a program that needs no network', /needs no network/.test(reasonWhenAsked), reasonWhenAsked);
+  await check('...and never kept for the session: the next time asks again', () => guard.request('shell', `npm test (in ${R})`, 'Run the tests', detail), { allowed: 'offline', asked: true });
+  answer = 'allow-once';
+  await guard.request('shell', `curl https://example.invalid (in ${R})`, 'Fetch it', { command: 'curl', args: ['https://example.invalid'], cwd: R });
+  assert('a program that reaches the network is offered it, but not told it needs none', offlineShownWhenAsked === true && !/needs no network/.test(reasonWhenAsked));
+  await guard.request('shell', `npm install left-pad (in ${R})`, 'x', { command: 'npm', args: ['install', 'left-pad'], cwd: R, install: true });
+  assert('an install, which needs the network, is not offered it', offlineShownWhenAsked === false);
+  sandbox.HC.code = Object.assign({}, was || {}, { platform: { os: 'windows' } });
+  guard.clearSession();
+  await guard.request('shell', `npm test (in ${R})`, 'Run the tests', detail);
+  assert('where the system cannot close a command\'s network, it is not offered', offlineShownWhenAsked === false);
+  sandbox.HC.code = was;
+  const tools = readFileSync(join(dirname(guardPath), 'hashcoder.js'), 'utf8');
+  assert('HashCoder runs a command answered that way with the network closed', /const offline = HC\.guard\.takeOffline\?\.\(shown\) === true \|\| ok === 'offline';/.test(tools));
+  guard.clearSession();
+  answer = 'allow-once';
 }
 
 console.log('\nA push or a pull:');

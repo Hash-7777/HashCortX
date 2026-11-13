@@ -274,7 +274,7 @@
       if (!ok) throw new Error(`Permission denied: shell ${shown}. ${HC.code.whyNo('shell', shown)}`);
       if (ok === 'no-scripts') args = [...args, '--ignore-scripts'];   // allowed without its install scripts
       // A check let through without a question runs with the network closed (js/code/permissions.js).
-      const offline = HC.guard.takeOffline?.(shown) === true;
+      const offline = HC.guard.takeOffline?.(shown) === true || ok === 'offline';   // and one the person allowed with no network
 
       // Stream when there is somewhere to stream to. A command the agent ran
       // handed back everything at once when it finished, so a two-minute build

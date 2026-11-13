@@ -110,6 +110,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   which are empty, reach the model, so it can write an example settings file
   or say what is missing without seeing a key. It is offered only when the
   conversation is about the project's settings or secrets.
+- **On macOS a command can be allowed with no network.** The question for
+  a command offers "Allow once, no network", and says so when the program
+  does not look as if it needs the network, such as a test or a build; the
+  command then runs with its network closed.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy
