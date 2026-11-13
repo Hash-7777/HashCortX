@@ -485,6 +485,7 @@ body.coder-mode #app { display: none; }
 .cdr-receipt-row.is-good .cdr-receipt-mark { color: var(--accent); }
 .cdr-receipt-row.is-attention .cdr-receipt-mark, .cdr-receipt-row.is-attention .cdr-receipt-label { color: var(--warn); }
 .cdr-receipt-ctl .cdr-step-btn { height: 24px; font-size: 12px; padding: 0 11px; }
+.cdr-receipt-ctl .cdr-commit-title { height: 24px; width: min(320px, 100%); padding: 0 8px; margin-right: 6px; border: 1px solid var(--cdr-border-strong); border-radius: var(--radius-xs); background: transparent; color: var(--cdr-text); font: inherit; font-size: 12px; }
 /* A check-in from the app: its mark in place of a word, its words plainly, no dot on the rail. */
 .cdr-steps-list > .cdr-step--check::before { display: none; }
 #coder-mode-wrap .cdr-step--check .cdr-check-mark { width: 14px; height: 14px; color: var(--accent-2); }

@@ -287,6 +287,25 @@
     return out.join('\n').trim();
   }
 
+  /**
+   * A commit title for a small model's changes, which the person commits
+   * from the receipt and may edit first: the request's first sentence,
+   * without a closing "and commit it", in the repository's style and length.
+   */
+  function draftTitle({ request = '', files = [], style = null } = {}) {
+    let first = String(request || '').split(/(?<=[.!?])\s+|\n/)[0].trim().replace(/[.!?]+$/, '')
+      .replace(/,?\s+(?:and|then)\s+(?:commit|push)\b.*$/i, '').replace(/^please\s+/i, '').trim();
+    const names = (Array.isArray(files) ? files : []).map((f) => String(f).split(/[\\/]/).pop()).filter(Boolean);
+    let t = first ? first.charAt(0).toUpperCase() + first.slice(1) : names.length ? `Change ${names.slice(0, 3).join(', ')}` : 'Change the project';
+    if (style && style.prefix === 'word-colon') {
+      const word = /\b(?:fix|correct|repair|broken|bug|wrong)\b/i.test(first) ? 'fix' : /\b(?:readme|docs?|documentation)\b/i.test(first) ? 'docs' : /\b(?:add|create|make|build|implement|new)\b/i.test(first) ? 'feat' : 'chore';
+      t = `${word}: ${t.charAt(0).toLowerCase()}${t.slice(1)}`;
+    }
+    const most = style && style.titleMax ? Math.max(50, style.titleMax) : 72;
+    if (t.length > most) t = t.slice(0, most).replace(/\s+\S*$/, '');
+    return t;
+  }
+
   // ── Only when asked ───────────────────────────────────────────────────
   //
   // A request to make a page or fix a function is not a request to make a
@@ -343,5 +362,5 @@
     return /(?:^|[\\/])\.github[\\/]workflows[\\/]/.test(String(path || '')) ? `write_file was not run: ${String(path).split(/[\\/]/).slice(-3).join('/')} is a workflow that runs on the code host, and the person has not asked for one. Do only what the request asks; if checks on the code host would help, say so in one line of your answer.` : null;
   }
 
-  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, pullRequestBody, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
+  window.HCCodeGit = { LOG_MOST, LOG_FIRST, ARGS, argv, COMMIT_MOST, BIG_FILE, commitPlan, commitFailure, commitId, outgoingLine, outgoingOf, LISTED, remotePlan, remoteFailure, pullRequestBody, draftTitle, GIT_ASK, asked, CI_ASK, askedCI, GIT_WRITES, unasked, unaskedFile };
 })();

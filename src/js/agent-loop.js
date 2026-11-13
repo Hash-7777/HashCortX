@@ -52,6 +52,12 @@
     const sentBack = sharedState.sentBack = window.HCCodeDebug.sentBack(sharedState), sent = sentBack.sent;   // how often this run was sent back, for each reason, and whether it acted after (js/code/debug-export.js)
     // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
     const changes = new Map();
+    // A small model has no git tools: in a conversation that asked for git work, its receipt offers the commit instead (js/run-view.js).
+    const commitOffer = () => {
+      const repo = HC?.code?.runRepo?.(), made = [...changes].filter(([, c]) => c && c.before !== c.after).map(([p]) => p);
+      if (!(HC?.code?.gitAsked && (sharedState.size === 'small' || sharedState.light) && repo && repo.isRepo && made.length && window.HCCodeGit?.draftTitle)) return null;
+      return { title: window.HCCodeGit.draftTitle({ request: HC.code.firstRequest, files: made, style: repo.style }) };
+    };
     if (HC?.code) { HC.code.runChanges = () => changes; HC.code.runMessages = () => messages; HC.code.runRepo = () => (sharedState.projectChecks?.root === sharedState.projectRoot ? sharedState.projectChecks?.repo || null : null); }   // what git_commit commits, and the repository it is in (platform/tauri/hashcoder.js)
     const looks = checks({ proof, sent, changes, messages, signal, ui }), finish = looks.finish;   // the finishing checks, built by the mode from what this run keeps
     let stalledIterations = 0, loopNote = '';   // loopNote: the same file changed again and again (js/agent-policy.js editLoop)
@@ -248,7 +254,7 @@
       const { unconfirmed, gone, outside } = looks.left();   // what the details and the kept checks found
       const unseen = window.HCCodeVerify.unseenLine?.(finalText, messages, { size: sharedState.size, light: !!sharedState.light, map: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.ranked : null }) || '';   // names it states as code that nothing showed it
       const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeSite?.outsideLine(outside), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), unseen, window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
-      const kept = ui.receipt?.({ proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
+      const kept = ui.receipt?.({ commit: commitOffer(), proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
       sharedState.proven = proven || ''; sharedState.receipt = kept; if (proven && !kept) ui.answer(`*${proven}*`);   // the line in italics stays for exports, and for a screen that draws no receipt
       return finalText;
     }
@@ -272,7 +278,7 @@
     const { unconfirmed, outside } = looks.left();
     const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeSite?.outsideLine(outside), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
     if (summary) ui.answer(summary);   // its account first
-    const kept = ui.receipt?.({ stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
+    const kept = ui.receipt?.({ commit: commitOffer(), stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
     if (summary && account?.role === 'assistant' && account.content === summary) { account.proven = said; if (kept) account.receipt = kept; }   // wrapUp added the account to the conversation; a saved one draws its receipt, or the line, under it too
     if (!kept) ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
   }

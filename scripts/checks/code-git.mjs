@@ -254,6 +254,15 @@ console.log('\nA pull request\'s description, from the run\'s own record:');
   ok('git_push hands it back with what it sent, and the full instructions say to use it', /pullRequestBody: body/.test(src('platform', 'tauri', 'hashcoder.js')) && /its body the pullRequestBody git_push gave/.test(code.SYSTEM_PROMPT) && /HC\.code\.runMessages = \(\) => messages;/.test(src('js', 'agent-loop.js')));
 }
 
+console.log('\nA commit title drafted for a small model\'s changes:');
+{
+  const style = { prefix: 'word-colon', titleMax: 60 };
+  ok('the request\'s first sentence, in the repository\'s style', G.draftTitle({ request: 'Fix the basket total. It shows pence.', files: ['src/cart.js'], style }) === 'fix: fix the basket total' && G.draftTitle({ request: 'Add a contact form to the page', style }) === 'feat: add a contact form to the page');
+  ok('...without a closing "and commit it"', G.draftTitle({ request: 'Make the button blue and commit it', style: { prefix: 'none', titleMax: 50 } }) === 'Make the button blue');
+  ok('...cut at a word to the repository\'s length', G.draftTitle({ request: `Change ${'the colour of every button on every page '.repeat(4)}`, style: { prefix: 'none', titleMax: 50 } }).length <= 50);
+  ok('with no request, the files it changed', G.draftTitle({ files: ['src/a.js', 'src/b.js'] }) === 'Change a.js, b.js');
+}
+
 console.log('\nOnly what was asked: no git work, workflow file or code-host command nobody asked for:');
 {
   const no = (c, a) => G.unasked(c, a);

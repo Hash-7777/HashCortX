@@ -202,11 +202,13 @@
     look('outside', 'Other sites', p.outside);
     look('claims', 'Not from a run', [p.claim, p.said, p.passed, p.unseen].filter(Boolean).join(' '));
     look('plan', 'Left', p.left);
+    // A small model has no git tools: the person commits what it changed from here, with a title drafted in the repository's style (js/code/git.js draftTitle).
+    if (p.commit && typeof p.commit.title === 'string') rows.push({ from: 'commit', label: 'Commit', tone: '', text: 'These changes can be committed.', controls: 'commit', title: p.commit.title });
     return rows;
   }
 
   /** The rows kept with a saved answer: no controls, and no count of decisions, which would go stale. */
-  const saved = (rows) => (rows || []).map((r) => Object.assign({}, r, { controls: '' }, r.from === 'changes' ? { soft: '' } : {}));
+  const saved = (rows) => (rows || []).filter((r) => r.from !== 'commit').map((r) => Object.assign({}, r, { controls: '' }, r.from === 'changes' ? { soft: '' } : {}));   // an offer to commit is for now only
 
   /** Each row's mark: a 16-unit grid, drawn on currentColor. */
   const RECEIPT_ICONS = {
@@ -220,6 +222,7 @@
     outside: '<circle cx="8" cy="8" r="5.6"/><path d="M2.4 8h11.2M8 2.4c1.6 1.6 2.3 3.6 2.3 5.6S9.6 12 8 13.6C6.4 12 5.7 10 5.7 8S6.4 4 8 2.4z"/>',
     claims: '<circle cx="8" cy="8" r="5.6"/><path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.6c-.5.2-.7.6-.7 1.1v.3M8 11.2v.2"/>',
     plan: '<path d="M3.5 14V2.5"/><path d="M3.5 3h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
+    commit: '<circle cx="8" cy="8" r="2.6"/><path d="M1.8 8h3.6M10.6 8h3.6"/>',
   };
 
   /** Words with `code` in backticks, drawn as text: nothing in them is read as markup. */
@@ -241,7 +244,7 @@
     if (r.plus || r.minus) v.insertAdjacentHTML('beforeend', ` <span class="cdr-receipt-soft">·</span> <span class="cdr-plus">+${Number(r.plus) || 0}</span> <span class="cdr-minus">\u2212${Number(r.minus) || 0}</span>`);
     if (r.soft) { const s = document.createElement('span'); s.className = 'cdr-receipt-soft'; s.textContent = ` · ${r.soft}`; v.appendChild(s); }
     const ctl = row.querySelector('.cdr-receipt-ctl');
-    if (ctl) ctl.hidden = r.controls !== 'decide';
+    if (ctl) ctl.hidden = !r.controls;
   }
 
   /** Draw rows under the answer in `contentEl`; with `live`, the Changed row has Keep all and Undo all. Returns the box, or null for no rows. */
@@ -254,7 +257,8 @@
       const row = document.createElement('div');
       row.dataset.from = r.from;
       row.innerHTML = `<span class="cdr-receipt-mark" aria-hidden="true"><svg viewBox="0 0 16 16">${RECEIPT_ICONS[r.from] || ''}</svg></span><span class="cdr-receipt-label"></span><span class="cdr-receipt-text"></span>` +
-        (live && r.from === 'changes' ? '<span class="cdr-receipt-ctl"><span class="cdr-step-actions" role="group" aria-label="Every change in this reply"><button type="button" class="cdr-step-btn keep">Keep all</button><button type="button" class="cdr-step-btn undo">Undo all</button></span></span>' : '');
+        (live && r.from === 'changes' ? '<span class="cdr-receipt-ctl"><span class="cdr-step-actions" role="group" aria-label="Every change in this reply"><button type="button" class="cdr-step-btn keep">Keep all</button><button type="button" class="cdr-step-btn undo">Undo all</button></span></span>' : '') +
+        (live && r.from === 'commit' ? '<span class="cdr-receipt-ctl"><input type="text" class="cdr-commit-title" aria-label="Commit title" maxlength="200"><button type="button" class="cdr-step-btn commit">Commit these changes</button></span>' : '');
       row.querySelector('.cdr-receipt-label').textContent = r.label;
       fillRow(row, r);
       box.appendChild(row);
@@ -321,6 +325,25 @@
       // Only a change row's own class is read: the receipt's own redrawing never wakes it again.
       new MutationObserver((seen) => { if (seen.some((m) => m.target.classList && m.target.classList.contains('cdr-step--change'))) fillRow(row, receipt(Object.assign({}, parts, { changes: changesIn(contentEl) })).find((r) => r.from === 'changes') || rows.find((r) => r.from === 'changes')); })
         .observe(contentEl, { attributes: true, subtree: true, attributeFilter: ['class'] });
+    }
+    const offer = box.querySelector('[data-from="commit"]');
+    if (offer) {
+      const input = offer.querySelector('.cdr-commit-title'), go = offer.querySelector('.cdr-step-btn.commit');
+      input.value = (rows.find((r) => r.from === 'commit') || {}).title || '';
+      go.addEventListener('click', async () => {
+        go.disabled = input.disabled = true;
+        const said = offer.querySelector('.cdr-receipt-text');
+        try {
+          const made = JSON.parse(await window.HC.code.gitCommit({ title: input.value }));   // the same checks and the same question as the tool (platform/tauri/hashcoder.js)
+          offer.className = 'cdr-receipt-row is-good';
+          said.textContent = `Committed${made.committed ? ` ${made.committed}` : ''}${made.branch ? ` on ${made.branch}` : ''}.`;
+          offer.querySelector('.cdr-receipt-ctl').hidden = true;
+        } catch (e) {
+          offer.className = 'cdr-receipt-row is-attention';
+          said.textContent = String((e && e.message) || e).replace(/^git_commit was not run: /, 'Not committed: ');
+          go.disabled = input.disabled = false;
+        }
+      });
     }
     return saved(rows);
   }

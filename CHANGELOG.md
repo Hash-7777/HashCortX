@@ -99,6 +99,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   was asked and whether the answer confirmed each part, the files changed,
   what ran and whether it passed, and what was not checked. A larger model
   asked for a pull request uses it with the code host's own tool.
+- **A small model's changes can be committed from the receipt.** A model on
+  your computer under five billion parameters has no git tools. In a
+  conversation where you asked for git work, the receipt under its answer
+  offers "Commit these changes" with a title drafted from your request in the
+  repository's style, which you can edit; it runs the same commit, with the
+  same question.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy
