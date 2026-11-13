@@ -762,6 +762,9 @@
     return `${name} names ${names.length} setting${names.length === 1 ? '' : 's'}; their values are never shown:\n${names.map((n) => `${n.name}${n.empty ? ' (empty)' : ''}`).join('\n')}`;
   };
 
+  /** A quick record of the open project's files, before and after a command (commands/fs.rs fs_snapshot, js/code/command-changes.js). */
+  HC.code.snapshot = () => HC.invoke('fs_snapshot', { root: HC.guard.projectRoot() });
+
   /** A new branch, made through the guard as any command is. */
   HC.code.gitBranch = async (p = {}) => {
     const G = window.HCCodeGit;

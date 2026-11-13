@@ -202,6 +202,8 @@
     look('outside', 'Other sites', p.outside);
     look('claims', 'Not from a run', [p.claim, p.said, p.passed, p.unseen].filter(Boolean).join(' '));
     look('plan', 'Left', p.left);
+    const byCommands = Array.isArray(p.commands) ? p.commands : [];
+    if (byCommands.length) rows.push({ from: 'commands', label: 'By commands', tone: 'attention', text: `${many(byCommands.length, 'file', 'files')} changed by commands: ${byCommands.slice(0, 5).map((f) => `\`${f}\``).join(', ')}${byCommands.length > 5 ? `, and ${byCommands.length - 5} more` : ''}`, soft: 'no Undo for these' });   // js/code/command-changes.js
     // A small model has no git tools: the person commits what it changed from here, with a title drafted in the repository's style (js/code/git.js draftTitle).
     if (p.commit && typeof p.commit.title === 'string') rows.push({ from: 'commit', label: 'Commit', tone: '', text: 'These changes can be committed.', controls: 'commit', title: p.commit.title });
     return rows;
@@ -223,6 +225,7 @@
     claims: '<circle cx="8" cy="8" r="5.6"/><path d="M6.4 6.4a1.7 1.7 0 1 1 2.3 1.6c-.5.2-.7.6-.7 1.1v.3M8 11.2v.2"/>',
     plan: '<path d="M3.5 14V2.5"/><path d="M3.5 3h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
     commit: '<circle cx="8" cy="8" r="2.6"/><path d="M1.8 8h3.6M10.6 8h3.6"/>',
+    commands: '<path d="m2.6 4.6 3.4 3.4-3.4 3.4M7.8 11.4h5.6"/>',
   };
 
   /** Words with `code` in backticks, drawn as text: nothing in them is read as markup. */

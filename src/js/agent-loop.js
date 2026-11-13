@@ -52,6 +52,7 @@
     const sentBack = sharedState.sentBack = window.HCCodeDebug.sentBack(sharedState), sent = sentBack.sent;   // how often this run was sent back, for each reason, and whether it acted after (js/code/debug-export.js)
     // What each file held before this run and holds now, for a second look at a larger change (js/code/review.js).
     const changes = new Map();
+    const commandChanged = [];   // files commands changed in this run, which have no Undo (js/code/command-changes.js)
     // A small model has no git tools: in a conversation that asked for git work, its receipt offers the commit instead (js/run-view.js).
     const commitOffer = () => {
       const repo = HC?.code?.runRepo?.(), made = [...changes].filter(([, c]) => c && c.before !== c.after).map(([p]) => p);
@@ -172,6 +173,9 @@
           const back = call.name === 'read_file' && call.arguments?.result != null && window.HCAgentContext?.resultLines ? window.HCAgentContext.resultLines(messages, call.arguments.result, call.arguments.start_line, call.arguments.end_line) : null;   // a cut result read back by its id, from the run's own whole record (js/agent-context.js)
           const early = (back && { ok: back.ok, result: back.text }) || asked.before(call, (id, text) => compressHistory(messages).some((m) => m.role === 'tool' && m.tool_call_id === id && m.content === text), window.HCMcp?.systemOf?.(call.name) ? null : schemaOf(call.name)) || (!window.HCMcp?.systemOf?.(call.name) && await window.HCCodeSeen?.before(call, messages, { root: sharedState.projectRoot, whole: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.whole : '', current: HC.code.readWholeQuietly, uses: HC.code.linesQuietly })) || null;   // and a change to a file not read, changed since, or whose users are not read, is answered without making it (js/code/seen.js)   // a call missing what it needs, the same failure again, or a read of what has not changed and is still shown, is answered without making it (js/code/calls.js)
           const asTool = call.name === 'shell_run' && !early && window.HCCodeTranslate ? window.HCCodeTranslate.toTool(call.arguments?.command, call.arguments?.args, { os: sharedState.platform?.os, here: call.arguments?.cwd || sharedState.projectRoot, programs: sharedState.hostTools }) : null;   // a reading command answered by the app's own tool, no program started (js/code/translate.js)
+          // A command that is not a plain read is recorded around: what it changed in the project is said (js/code/command-changes.js).
+          const watch = call.name === 'shell_run' && !early && !asTool && !!sharedState.projectRoot && !!window.HCCodeCommandChanges && typeof HC?.code?.snapshot === 'function' && window.HCCodeCommandChanges.watches(call.arguments, { root: sharedState.projectRoot, os: sharedState.platform?.os });
+          const before = watch ? await HC.code.snapshot().catch(() => null) : null;
           try {
             const own = (HC?.code?.TOOL_DEFINITIONS || []).find(t => t.name === (asTool?.tool || call.name)), def = window.HCMcp && !asTool ? window.HCMcp.toolFor(call.name, own) : own;   // connected tools — js/mcp/connections.js
             if (!def && asTool?.answer == null) throw new Error('Unknown tool: ' + call.name);
@@ -181,6 +185,11 @@
             if ((!def.fn && raw?.error) || (early && !early.ok)) ok = false;
           } catch (e) {
             resultStr = JSON.stringify({ error: String(e?.message || e) }); ok = false;
+          }
+          if (before) {
+            const after = await HC.code.snapshot().catch(() => null);
+            const d = after ? window.HCCodeCommandChanges.diff(before, after) : null;
+            if (d && d.paths.length) { resultStr = `${resultStr}\n\n${window.HCCodeCommandChanges.note(d)}`; commandChanged.push(...d.paths.filter((p) => !commandChanged.includes(p))); }
           }
           const ms = Math.round(performance.now() - t0);
           ui.trace('Tool', call.name + ' · ' + window.HCCodeSteps.duration(ms), ok ? 'ok' : 'err');
@@ -254,7 +263,7 @@
       const { unconfirmed, gone, outside } = looks.left();   // what the details and the kept checks found
       const unseen = window.HCCodeVerify.unseenLine?.(finalText, messages, { size: sharedState.size, light: !!sharedState.light, map: sharedState.codeMap?.root === sharedState.projectRoot ? sharedState.codeMap.ranked : null }) || '';   // names it states as code that nothing showed it
       const proven = [proof && window.HCCodeVerify.proofLine(proof), window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeKeep?.goneLine(gone), window.HCCodeSite?.outsideLine(outside), window.HCCodeVerify.claimLine(finalText, messages), window.HCCodeVerify.saidLine(finalText, proof), window.HCCodeVerify.passedLine(finalText, proof), unseen, window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' ');
-      const kept = ui.receipt?.({ commit: commitOffer(), proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
+      const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), proof: proof ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), gone: window.HCCodeKeep?.goneLine(gone), outside: window.HCCodeSite?.outsideLine(outside), claim: window.HCCodeVerify.claimLine(finalText, messages), said: window.HCCodeVerify.saidLine(finalText, proof), passed: window.HCCodeVerify.passedLine(finalText, proof), unseen, left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // the receipt: each of those a row of its own, with what was asked and changed (js/run-view.js receipt)
       sharedState.proven = proven || ''; sharedState.receipt = kept; if (proven && !kept) ui.answer(`*${proven}*`);   // the line in italics stays for exports, and for a screen that draws no receipt
       return finalText;
     }
@@ -278,7 +287,7 @@
     const { unconfirmed, outside } = looks.left();
     const said = [stop.message, proof && summary ? window.HCCodeVerify.proofLine(proof) : '', window.HCCodeFacts?.leftLine(unconfirmed), window.HCCodeSite?.outsideLine(outside), window.HCCodePlan?.leftLine(HC?.code?.plan)].filter(Boolean).join(' '), account = messages[messages.length - 1];
     if (summary) ui.answer(summary);   // its account first
-    const kept = ui.receipt?.({ commit: commitOffer(), stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
+    const kept = ui.receipt?.({ commit: commitOffer(), commands: commandChanged.slice(), stopped: stop.message, proof: proof && summary ? window.HCCodeVerify.proofParts(proof) : null, files: proof ? proof.changed : [], facts: window.HCCodeFacts?.leftLine(unconfirmed), outside: window.HCCodeSite?.outsideLine(outside), left: window.HCCodePlan?.leftLine(HC?.code?.plan) }) || null;   // then the receipt, why it stopped first (js/run-view.js receipt)
     if (summary && account?.role === 'assistant' && account.content === summary) { account.proven = said; if (kept) account.receipt = kept; }   // wrapUp added the account to the conversation; a saved one draws its receipt, or the line, under it too
     if (!kept) ui.answer(`*${said}*`); return summary;   // what the record shows, beside the model's account
   }

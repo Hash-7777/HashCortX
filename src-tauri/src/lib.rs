@@ -24,7 +24,7 @@ use commands::{
     fs::{
         fs_clear_root, fs_delete_file, fs_fuzzy_find, fs_grant_path, fs_grep, fs_list_dir,
         fs_move_file, fs_path_inside_root, fs_read_base64, fs_read_file, fs_search_files,
-        fs_set_root, fs_write_file,
+        fs_set_root, fs_snapshot, fs_write_file,
     },
     env_names::env_names,
     git_commit::git_commit_signed,
@@ -105,6 +105,8 @@ pub fn run() {
             // A commit the person agreed to, made with their own git setup so it is signed (commands/git_commit.rs).
             // The names a project's environment file sets, never their values (commands/env_names.rs).
             env_names,
+            // A quick record of the project's files, to tell what a command changed (commands/fs.rs).
+            fs_snapshot,
             git_commit_signed,
             // A push, pull or fetch the person agreed to, of a remote the project names (commands/git_remote.rs).
             git_remote_run,

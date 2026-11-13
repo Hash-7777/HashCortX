@@ -944,6 +944,73 @@ fn skipped_entry(name: &str, is_dir: bool, skip: &[String]) -> bool {
     name.starts_with('.') || (is_dir && (SKIP_DIRS.contains(&name) || skip.iter().any(|s| s == name)))
 }
 
+/// The most files a record of the project names, and how deep it looks.
+pub const SNAPSHOT_MOST: usize = 2_000;
+const SNAPSHOT_DEPTH: usize = 12;
+
+#[derive(Serialize)]
+pub struct SnapFile {
+    path: String,
+    size: u64,
+    modified: u64,
+}
+
+/// A quick record of the project's files, by place, size and last-changed time.
+#[derive(Serialize)]
+pub struct Snapshot {
+    files: Vec<SnapFile>,
+    /// More files were there than SNAPSHOT_MOST: the record is of the first ones only.
+    cut: bool,
+}
+
+/// The files under the open project, as the search walks it: hidden entries,
+/// folders of dependencies and build output, and links all left out, so a
+/// record taken before a command and one after tell what the command changed.
+/// Nothing is read but each file's size and time.
+#[tauri::command]
+pub async fn fs_snapshot(root: String) -> Result<Snapshot, String> {
+    guard_agent_path(&root)?;
+    super::off_main(move || snapshot_blocking(&root)).await
+}
+
+fn snapshot_blocking(root: &str) -> Result<Snapshot, String> {
+    let base = walk_root(root)?;
+    let mut files = Vec::new();
+    let mut cut = false;
+    snapshot_walk(&base, &base, 0, &mut files, &mut cut);
+    Ok(Snapshot { files, cut })
+}
+
+fn snapshot_walk(base: &Path, dir: &Path, depth: usize, out: &mut Vec<SnapFile>, cut: &mut bool) {
+    if depth > SNAPSHOT_DEPTH || *cut {
+        return;
+    }
+    let Ok(read) = fs::read_dir(dir) else { return };
+    let mut entries: Vec<_> = read.flatten().collect();
+    entries.sort_by_key(|e| e.file_name());
+    for e in entries {
+        let name = e.file_name().to_string_lossy().into_owned();
+        let Ok(meta) = fs::symlink_metadata(e.path()) else { continue };
+        if meta.file_type().is_symlink() || skipped_entry(&name, meta.is_dir(), &[]) {
+            continue;
+        }
+        if meta.is_dir() {
+            snapshot_walk(base, &e.path(), depth + 1, out, cut);
+            if *cut {
+                return;
+            }
+            continue;
+        }
+        if out.len() >= SNAPSHOT_MOST {
+            *cut = true;
+            return;
+        }
+        let rel = e.path().strip_prefix(base).map(|r| r.to_string_lossy().replace('\\', "/")).unwrap_or(name);
+        let modified = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_millis() as u64).unwrap_or(0);
+        out.push(SnapFile { path: rel, size: meta.len(), modified });
+    }
+}
+
 /// A file written by a tool rather than a person, whose lines would drown
 /// the project's own: a lock file, or a minified or bundled script.
 fn generated_file(name: &str) -> bool {
@@ -1276,6 +1343,27 @@ mod containment_tests {
         fs::create_dir_all(&dir).unwrap();
         crate::security::root_jail::set_root(&dir.to_string_lossy()).unwrap();
         (dir, turn)
+    }
+
+    #[test]
+    fn a_record_of_the_project_tells_what_changed_and_leaves_dependencies_out() {
+        let (dir, _turn) = scratch("snapshot");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("node_modules/pkg")).unwrap();
+        fs::create_dir_all(dir.join(".git")).unwrap();
+        fs::write(dir.join("src/cart.js"), "a").unwrap();
+        fs::write(dir.join("node_modules/pkg/index.js"), "x").unwrap();
+        fs::write(dir.join(".git/HEAD"), "x").unwrap();
+        let before = snapshot_blocking(&dir.to_string_lossy()).unwrap();
+        let names: Vec<&str> = before.files.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(names, vec!["src/cart.js"]);
+        assert!(!before.cut);
+        fs::write(dir.join("src/cart.js"), "abc").unwrap();
+        fs::write(dir.join("src/new.js"), "n").unwrap();
+        let after = snapshot_blocking(&dir.to_string_lossy()).unwrap();
+        let cart = after.files.iter().find(|f| f.path == "src/cart.js").unwrap();
+        assert_eq!(cart.size, 3);
+        assert!(after.files.iter().any(|f| f.path == "src/new.js"));
     }
 
     #[test]

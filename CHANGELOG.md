@@ -114,6 +114,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   a command offers "Allow once, no network", and says so when the program
   does not look as if it needs the network, such as a test or a build; the
   command then runs with its network closed.
+- **What a command changed is shown.** Before and after a command that is
+  not a plain read, HashCoder records the project's files by size and time;
+  each file a command changed, added or removed is told to the model and
+  shown in the receipt as having no Undo.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy
