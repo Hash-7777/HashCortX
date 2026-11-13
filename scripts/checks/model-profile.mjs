@@ -19,6 +19,7 @@ const sandbox = { console };
 sandbox.window = sandbox;
 vm.createContext(sandbox);
 vm.runInContext(src('js', 'model-names.js'), sandbox, { filename: 'model-names.js' });
+vm.runInContext(src('js', 'code', 'light.js'), sandbox, { filename: 'light.js' });   // the size a model's name says (billionsInName)
 vm.runInContext(src('js', 'model-profile.js'), sandbox, { filename: 'model-profile.js' });
 const M = sandbox.HCModelProfile;
 
@@ -82,14 +83,35 @@ console.log('\nCloud families:');
   ok('a family the app names but knows nothing more of', of('cloud:xai:grok-4').family === 'grok' && of('cloud:xai:grok-4').carry === 'never');
 }
 
+console.log('\nStrong enough to start sub-agents (js/code/delegate.js):');
+{
+  const strong = ['cloud:anthropic:claude-opus-4-1', 'cloud:anthropic:claude-sonnet-4-5', 'cloud:anthropic:claude-3-7-sonnet-latest', 'cloud:openrouter:anthropic/claude-sonnet-4.5',
+    'cloud:openai:gpt-5', 'cloud:openai:gpt-5.1', 'cloud:openai:o3', 'cloud:openai:o3-pro', 'cloud:openrouter:openai/gpt-5',
+    'cloud:gemini:gemini-2.5-pro', 'cloud:gemini:gemini-3-pro-preview', 'cloud:openrouter:google/gemini-2.5-pro',
+    'cloud:deepseek:deepseek-chat', 'cloud:deepseek:deepseek-reasoner', 'cloud:openrouter:deepseek/deepseek-chat-v3.1', 'cloud:openrouter:deepseek/deepseek-v3.2-exp', 'cloud:openrouter:deepseek/deepseek-r1-0528',
+    'cloud:moonshot:kimi-k2-thinking', 'cloud:openrouter:moonshotai/kimi-k2',
+    'cloud:groq:openai/gpt-oss-120b', 'cloud:openrouter:meta-llama/llama-3.1-405b-instruct', 'cloud:openrouter:qwen/qwen3-235b-a22b', 'gpt-oss:120b', 'deepseek-v3:671b'];
+  const notStrong = ['cloud:anthropic:claude-haiku-4-5', 'cloud:anthropic:claude-3-5-haiku-latest', 'cloud:openai:gpt-5-mini', 'cloud:openai:gpt-5-nano', 'cloud:openai:o4-mini', 'cloud:openai:gpt-4o',
+    'cloud:gemini:gemini-2.5-flash', 'cloud:gemini:gemini-2.5-flash-lite', 'cloud:groq:deepseek-r1-distill-llama-70b', 'cloud:deepseek:deepseek-coder', 'cloud:moonshot:moonshot-v1-8k',
+    'cloud:openrouter:meta-llama/llama-3.3-70b-instruct', 'cloud:xai:grok-4', 'cloud:zai:glm-4.6', 'llama3.3:70b', 'qwen3:8b', 'deepseek-r1:7b', 'qwen2.5-coder:32b', 'x', ''];
+  const wrong = strong.filter((v) => of(v).strong !== true);
+  ok('rated strong: Claude Opus and Sonnet, GPT-5 and the o models, Gemini Pro, DeepSeek from V3, Kimi, and any model of 120 billion parameters or more', wrong.length === 0, wrong.join(', '));
+  const over = notStrong.filter((v) => of(v).strong !== false);
+  ok('not: the small and fast versions, older families, families not chosen, and models under 120 billion', over.length === 0, over.join(', '));
+  ok('a model on this computer is judged by the size its model app reports, whatever its name', of('house-model:latest', { caps: [], billions: 235 }).strong === true && of('house-model:latest', { caps: [], billions: 32 }).strong === false);
+  ok('the size the model app reports wins over the name', of('gpt-oss:120b', { caps: [], billions: 20 }).strong === false);
+  ok('a family name alone does not rate a model on this computer: only its size does', of('kimi-k2:latest', { caps: [], billions: 32 }).strong === false);
+  ok(`the line is ${M.STRONG_BILLIONS} billion`, M.STRONG_BILLIONS === 120 && of('cloud:openrouter:vendor/house-119b').strong === false && of('cloud:openrouter:vendor/house-120b').strong === true);
+}
+
 console.log('\nEvery profile is whole:');
 {
   const values = ['cloud:deepseek:deepseek-reasoner', 'cloud:moonshot:kimi-k2-thinking', 'cloud:zai:glm-4.6', 'qwen3:8b', 'qwen2.5-coder:7b', 'gemma3:12b', 'cloud:anthropic:claude-opus-4-1', 'cloud:openai:gpt-5', 'cloud:gemini:gemini-3-pro-preview', 'cloud:xai:grok-4', 'x'];
   const shape = (p) => typeof p.family === 'string' && ['always', 'optional', 'never', 'unknown'].includes(p.thinks) && ['required', 'recommended', 'never'].includes(p.carry)
     && (p.carryField === null || ['reasoning_content', 'thinking', 'blocks'].includes(p.carryField)) && typeof p.sampling === 'object' && typeof p.sampling.send === 'boolean' && typeof p.sampling.own === 'boolean'
-    && typeof p.callsAtOnce === 'boolean' && typeof p.resultsTogether === 'boolean' && typeof p.markFailed === 'boolean' && (p.effort === null || Array.isArray(p.effort.levels)) && p.strong === false;
+    && typeof p.callsAtOnce === 'boolean' && typeof p.resultsTogether === 'boolean' && typeof p.markFailed === 'boolean' && (p.effort === null || Array.isArray(p.effort.levels)) && typeof p.strong === 'boolean';
   const bad = values.filter((v) => !shape(of(v)));
-  ok('each has every field, of its kind; none is rated strong until that is decided', bad.length === 0, bad.join(', '));
+  ok('each has every field, of its kind', bad.length === 0, bad.join(', '));
   ok('a profile handed out cannot change the table', (() => { const p = of('qwen3:8b', thinkingCaps); p.sampling.temperature = 9; return of('qwen3:8b', thinkingCaps).sampling.temperature === 0.6; })());
 }
 

@@ -71,6 +71,22 @@
     { family: 'nemotron', where: 'local', name: /nemotron/i, thinks: 'info', carryWhenThinks: 'recommended', carryField: 'thinking', sampling: LOCAL_OWN },
   ];
 
+  // ── Strong enough to start sub-agents ────────────────────────────────
+  //
+  // A sub-agent (js/code/delegate.js) is offered only to a model rated
+  // strong: these families on a cloud service, and any model of 120 billion
+  // parameters or more, by the size its model app reports or, failing that,
+  // its name. The list is a choice, not a measurement, which is why
+  // sub-agents also stay switched off until a person turns them on.
+  const STRONG_BILLIONS = 120;
+  const STRONG = [
+    /claude.*(?:opus|sonnet)/i,                                     // Claude Opus and Sonnet, not Haiku
+    /^(?:openai\/)?(?:gpt-5|o[1-9])(?![\w.-]*(?:mini|nano))/i,      // GPT-5 and the o models, not mini or nano
+    /gemini[\w.-]*-pro\b/i,                                         // Gemini Pro, not Flash
+    /deepseek[-_.]?(?:v(?:[3-9]|\d{2})|r1|reasoner|chat)(?![\w.-]*distill)/i,   // DeepSeek from V3, not a model distilled from it
+    /kimi/i,                                                        // Kimi
+  ];
+
   /** `{ provider, id }` of a model value: `cloud:<provider>:<id>`, or a model on this computer. */
   function parse(value) {
     const v = String(value || '');
@@ -93,13 +109,14 @@
   function of(value, info = null) {
     const { cloud, provider, id } = parse(value);
     if (!id) return copy(UNKNOWN);
+    const rated = (p) => Object.assign(p, { strong: strongOf(cloud, id, info) });
     const row = ROWS.find((r) => (r.where === 'any' || (r.where === 'cloud') === cloud) && r.name.test(id));
-    if (!row) return copy(UNKNOWN);
+    if (!row) return rated(copy(UNKNOWN));
     const caps = info && Array.isArray(info.caps) ? info.caps : [];
     const thinks = row.thinks === 'info' ? (caps.includes('thinking') ? 'optional' : 'never') : row.thinks;
     const byMaker = !row.makers || row.makers.includes(provider);
     const carry = row.thinks === 'info' ? (thinks === 'never' ? 'never' : row.carryWhenThinks) : byMaker ? (row.carry || 'never') : 'never';
-    return copy({
+    return rated(copy({
       family: row.family,
       thinks,
       carry,
@@ -109,8 +126,16 @@
       resultsTogether: !!row.resultsTogether,
       markFailed: !!row.markFailed,
       effort: row.effort || null,
-      strong: false,   // no family is rated strong enough for sub-agents yet; none is started
-    });
+      strong: false,
+    }));
+  }
+
+  /** Whether a model is rated strong: its size, as its model app reports it or its name says, or its family on a cloud service. */
+  function strongOf(cloud, id, info) {
+    const L = typeof window !== 'undefined' && window.HCCodeLight;
+    const billions = info && Number.isFinite(info.billions) ? info.billions : L && L.billionsInName ? L.billionsInName(id) : null;
+    if (billions >= STRONG_BILLIONS) return true;
+    return cloud && STRONG.some((rx) => rx.test(id));
   }
 
   // ── Each model's recommended temperature, by the person's choice ───────
@@ -161,6 +186,6 @@
     return null;
   }
 
-  const published = { UNKNOWN, ROWS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature, THINK_PER_STEP: false, thinkFor, effortFor };
+  const published = { UNKNOWN, ROWS, STRONG, STRONG_BILLIONS, of, FAMILY_TEMP_KEY, familyTemperature, setFamilyTemperature, THINK_PER_STEP: false, thinkFor, effortFor };
   window.HCModelProfile = published;
 })();
