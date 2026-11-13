@@ -8,6 +8,21 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- **HashCoder can hand part of a big task to a sub-agent, if you switch it
+  on.** It is new and not yet proven on real runs, so it is off until you
+  turn it on in Settings → HashCoder. On a big request in a large project, a
+  strong model may start a sub-agent on the same model, in a conversation of
+  its own: one that only reads and reports where things are, several at
+  once, or one that changes only the files it is given. HashCortX checks
+  each report before the model reads it: a place that is not in the project
+  is taken out, and what it changed and ran comes from the app's own record,
+  not its words. Each change to a file comes with Keep and Undo, and Stop
+  ends it with the run. Strong means the larger models of the main cloud
+  services, never their small or fast versions, and any model of 120
+  billion parameters or more.
+
 ### Changed
 
 - **A HashCoder run shows its steps in phases.** Finding, Reading,

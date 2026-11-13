@@ -287,6 +287,17 @@ console.log('\nThe switch:');
   ok('a store that throws reads as off and breaks nothing', (() => { const bad = { getItem() { throw new Error('x'); }, setItem() { throw new Error('x'); }, removeItem() { throw new Error('x'); } }; D.switchOn?.(true, bad); return D.switchedOn?.(bad) === false; })());
 }
 
+console.log('\nThe switch in Settings:');
+{
+  const panel = src('core', 'settings', 'panel.html'), boot = src('boot.js');
+  const pane = (() => { try { return src('core', 'settings', 'sub-agents.js'); } catch { return ''; } })();
+  ok('Settings has the switch, off to begin with', /<input type="checkbox" id="cdrSetSubagents" class="check-box" \/>/.test(panel) && /Let strong models start sub-agents/.test(panel));
+  ok('...saying plainly it is new and not yet proven on real runs', /New, and not yet proven on real runs\./.test(panel));
+  ok('...which reads and writes the setting here', /getElementById\('cdrSetSubagents'\)/.test(pane) && /box\.checked = D\(\)\.switchedOn\(\)/.test(pane) && /D\(\)\.switchOn\(box\.checked\)/.test(pane));
+  ok('...loaded with the other settings panes, after the rules it reads', boot.indexOf("'/core/settings/sub-agents.js'") > boot.indexOf("'/js/code/delegate.js'") && boot.indexOf("'/js/code/delegate.js'") > 0);
+  ok('it is part of npm run check', /npm run check:code-delegate\b/.test(readFileSync(join(here, '..', '..', 'package.json'), 'utf8')));
+}
+
 console.log('\nIts calls, put right before its rules read them:');
 await (async () => {
   if (!has('run')) return;

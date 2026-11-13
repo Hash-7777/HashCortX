@@ -111,6 +111,7 @@ It works on your real files. Every edit is a diff with **Keep** and **Undo**, te
 - **Fits the model.** Cloud models get a map of your code; smaller local models read one line per tool, and small ones get a light mode that writes whole files while HashCoder does the tool work.
 - **Does what you asked, and no more.** No features, files or fixes you did not ask for, and an answer of a few plain sentences: what changed, where, and what ran.
 - **Keeps what you did not ask to change.** An edit that drops a function, a section or a heading is sent back, and what you say to leave alone is left alone.
+- **Hands off part of a big task, if you switch it on.** New, and not yet proven on real runs, so it is off until you turn it on: a strong model can start sub-agents on the same model, one that reads and reports or one that changes only the files it is given, and HashCortX checks each report before the model reads it.
 - **Asks as much as you choose.** Manual asks before every change and is where it starts; Accept edits writes project files freely; Auto adds a fixed list of read, search and check commands.
 
 <img src="docs/assets/screenshots/coder.png" alt="HashCoder: a run on a local model that added validation to a route, shown as a diff with Keep and Undo, with the passing test run said under the answer" width="100%">
@@ -202,7 +203,7 @@ cargo test --manifest-path src-tauri/Cargo.toml --no-default-features     # and 
 Before a pull request, run what CI runs: every source check on Linux, the ones that could depend on the system (`npm run check:windows`) on Windows too, and the Rust tests on all three:
 
 ```bash
-npm run check                                     # 12,421 source checks
+npm run check                                     # 12,428 source checks
 cargo test --manifest-path src-tauri/Cargo.toml   # 267 Rust tests
 ```
 

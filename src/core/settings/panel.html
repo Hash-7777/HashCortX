@@ -545,6 +545,12 @@ setx OLLAMA_KV_CACHE_TYPE q8_0</code>
       </div>
       <div class="field">
         <label class="check-row">
+          <input type="checkbox" id="cdrSetSubagents" class="check-box" />
+          <span><b>Let strong models start sub-agents</b> <span class="field-note">New, and not yet proven on real runs. On a big request in a large project, a strong model may hand a part to a sub-agent on the same model, in a conversation of its own: one that only reads and reports, or one that changes only the files it is given. HashCortX checks each report before the model reads it, and each change to a file comes with Keep and Undo. Strong means the larger models of the main cloud services, never their small or fast versions, and any model of 120 billion parameters or more.</span></span>
+        </label>
+      </div>
+      <div class="field">
+        <label class="check-row">
           <input type="checkbox" id="cdrSetLessons" class="check-box" />
           <span><b>Keep lessons about each project</b> <span class="field-note">May save short notes on how a project is built and tested. Kept in HashCortx, never in the project.</span></span>
         </label>
