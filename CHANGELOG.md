@@ -85,6 +85,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   itself and runs them with your own git setup, so a repository that signs
   its commits gets a signed one. Nothing can be added to those lines, and
   the question says the repository's own hooks run with it.
+- **Reading a repository starts none of its programs.** Every git line the
+  agent runs, in every mode, is run with the settings switched off through
+  which a repository could have git start a program for it.
 - **HashCoder keeps to what you asked.** Every size of model is told to fit
   its steps to the request: a small page or a one-line fix is a few steps
   and an answer, with no repository, commit, push, workflow or deploy

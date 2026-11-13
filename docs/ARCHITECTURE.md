@@ -356,7 +356,7 @@ HashCortX/
 │   │   ├── main.rs                  entry point
 │   │   ├── lib.rs                   plugin registration and builder
 │   │   ├── commands/
-│   │   │   ├── shell.rs     1,306   process execution: denylist, timeout, stop,
+│   │   │   ├── shell.rs     1,391   process execution: denylist, timeout, stop,
 │   │   │   │                        closed stdin, output cap, no secrets for the agent,
 │   │   │   │                        programs found where tools are installed,
 │   │   │   │                        and on Windows a project's own program by

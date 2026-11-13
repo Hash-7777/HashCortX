@@ -292,6 +292,43 @@ fn prepare(command: &str, args: &[String], cwd: &Option<String>, caller: Caller)
     Ok(cmd)
 }
 
+/// The settings git is given for every git line an agent runs: a repository
+/// cannot make git start a program of its choosing for the agent's reading.
+const GIT_QUIET: [&str; 4] = ["-c", "core.fsmonitor=false", "-c", "log.showSignature=false"];
+
+/// The agent's git line with GIT_QUIET before it, and the flags that keep a
+/// diff, log or show to git's own text after the subcommand. Any other line
+/// comes back as it was.
+fn git_quiet(command: &str, args: Vec<String>) -> Vec<String> {
+    let name = std::path::Path::new(command)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    if name != "git" && name != "git.exe" {
+        return args;
+    }
+    let mut at = 0;
+    while at < args.len() && args[at].starts_with('-') {
+        at += if args[at] == "-C" || args[at] == "-c" { 2 } else { 1 };
+    }
+    let mut out: Vec<String> = GIT_QUIET.iter().map(|a| a.to_string()).collect();
+    match args.get(at).map(String::as_str) {
+        Some(sub @ ("diff" | "log" | "show" | "whatchanged")) => {
+            let sub = sub.to_string();
+            out.extend(args[..at].iter().cloned());
+            out.push(sub);
+            for flag in ["--no-ext-diff", "--no-textconv"] {
+                if !args[at + 1..].iter().any(|a| a == flag) {
+                    out.push(flag.to_string());
+                }
+            }
+            out.extend(args[at + 1..].iter().cloned());
+        }
+        _ => out.extend(args),
+    }
+    out
+}
+
 /// Who a command is run for.
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum Caller {
@@ -678,6 +715,7 @@ fn run_blocking(
     cancel_key: Option<String>,
     caller: Caller,
 ) -> Result<ShellOutput, String> {
+    let args = if matches!(caller, Caller::Agent | Caller::AgentOffline) { git_quiet(&command, args) } else { args };
     let mut cmd = prepare(&command, &args, &cwd, caller)?;
     if caller.is_agent() {
         without_secrets(&mut cmd);
@@ -737,6 +775,7 @@ fn run_stream_blocking(
     caller: Caller,
     on_chunk: Channel<StreamChunk>,
 ) -> Result<(), String> {
+    let args = if matches!(caller, Caller::Agent | Caller::AgentOffline) { git_quiet(&command, args) } else { args };
     let mut cmd = prepare(&command, &args, &cwd, caller)?;
     if caller.is_agent() {
         without_secrets(&mut cmd);
@@ -824,6 +863,52 @@ fn run_stream_blocking(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn v(a: &[&str]) -> Vec<String> {
+        a.iter().map(|x| x.to_string()).collect()
+    }
+
+    #[test]
+    fn every_git_line_an_agent_runs_is_kept_from_the_repositorys_programs() {
+        let q = |a: &[&str]| [GIT_QUIET.as_slice(), a].concat().iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        assert_eq!(git_quiet("git", v(&["status", "--porcelain"])), q(&["status", "--porcelain"]));
+        assert_eq!(git_quiet("git", v(&["diff", "--stat"])), q(&["diff", "--no-ext-diff", "--no-textconv", "--stat"]));
+        assert_eq!(git_quiet("/usr/bin/git", v(&["log", "--no-textconv", "-n5"])), q(&["log", "--no-ext-diff", "--no-textconv", "-n5"]));
+        assert_eq!(git_quiet("GIT.EXE", v(&["-C", "site", "show", "HEAD"])), q(&["-C", "site", "show", "--no-ext-diff", "--no-textconv", "HEAD"]));
+        assert_eq!(git_quiet("git", v(&[])), q(&[]));
+        assert_eq!(git_quiet("npm", v(&["test"])), v(&["test"]));
+        assert_eq!(git_quiet("gitk", v(&["log"])), v(&["log"]));
+    }
+
+    /// A repository whose settings name a program for git to start on a status: started without the
+    /// quiet settings, and not with them.
+    #[cfg(unix)]
+    #[test]
+    fn a_repositorys_watcher_program_is_not_started_for_the_agent() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target").join("fs-check-scratch").join(format!("git-quiet-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[String]| std::process::Command::new("git").args(args).current_dir(&dir).output();
+        if !matches!(git(&v(&["init", "-q"])), Ok(ref o) if o.status.success()) {
+            return; // no git here: nothing to try
+        }
+        let marker = dir.join("started");
+        let hook = dir.join("watch.sh");
+        std::fs::write(&hook, format!("#!/bin/sh\ntouch '{}'\n", marker.display())).unwrap();
+        std::fs::set_permissions(&hook, std::fs::Permissions::from_mode(0o755)).unwrap();
+        git(&v(&["config", "core.fsmonitor", &hook.to_string_lossy()])).unwrap();
+        std::fs::write(dir.join("a.txt"), "a\n").unwrap();
+        git(&v(&["status", "--porcelain"])).unwrap();
+        let started_plain = marker.exists();
+        let _ = std::fs::remove_file(&marker);
+        git(&git_quiet("git", v(&["status", "--porcelain"]))).unwrap();
+        let started_quiet = marker.exists();
+        let _ = std::fs::remove_dir_all(&dir);
+        if started_plain {
+            assert!(!started_quiet, "the watcher program was started for a quiet status");
+        }
+    }
 
     #[test]
     fn timeout_is_clamped_into_a_sane_range() {
