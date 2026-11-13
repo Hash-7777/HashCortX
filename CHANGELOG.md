@@ -36,6 +36,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
   missing, a passage found twice) it writes the call out right, with the
   path and text the model gave. A check drives each of those paths and holds
   every answer to it.
+- **Three HashCoder tools show a call written out.** patch_file with a
+  second change in edits, shell_run with the program apart from its
+  arguments, and grep_code with a pattern of two names each end their
+  description with one example call, with invented values. A check holds
+  each to a call its tool takes and the app lets through, and short. A model
+  on your computer under five billion parameters is not sent them: its tools
+  stay one line each.
 - **An answer that names code nobody saw is sent back.** A function or
   class an answer states as code, in backticks or followed by "(", that is
   in neither the project map nor anything the run read, the person wrote

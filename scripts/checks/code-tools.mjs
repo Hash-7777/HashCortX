@@ -120,7 +120,9 @@ console.log('\nSmall and mid-sized models write paths from the project folder:')
       return JSON.stringify(Object.keys(a.properties)) === JSON.stringify(Object.keys(b.properties)) && JSON.stringify(a.required) === JSON.stringify(b.required)
         && Object.keys(a.properties).every((k) => a.properties[k].type === b.properties[k].type && JSON.stringify(a.properties[k].items) === JSON.stringify(b.properties[k].items)); }));
   const mid = HC.code.toolsFor('mid', list, 'a site');
-  ok('every tool a smaller model is offered is described in one line of its own', [...small, ...mid].every((t) => t.function.description === HC.code.SHORT_TOOL_WORDS[t.function.name] && !/\n/.test(t.function.description)), [...small, ...mid].filter((t) => t.function.description !== HC.code.SHORT_TOOL_WORDS[t.function.name]).map((t) => t.function.name).join());
+  // A mid-sized model's patch_file, shell_run and grep_code also end with an example call (scripts/checks/code-tool-examples.mjs).
+  const lineOf = (t) => t.function.description.replace(`\n${HC.code.exampleLine(t.function.name)}`, '');
+  ok('every tool a smaller model is offered is described in one line of its own', [...small, ...mid].every((t) => lineOf(t) === HC.code.SHORT_TOOL_WORDS[t.function.name] && !/\n/.test(lineOf(t))) && small.every((t) => !/\n/.test(t.function.description)), [...small, ...mid].filter((t) => lineOf(t) !== HC.code.SHORT_TOOL_WORDS[t.function.name]).map((t) => t.function.name).join());
   const longWords = HC.code.shortPlaces(list.filter((t) => HC.code.MID_MODEL_TOOLS.includes(t.function.name)));
   ok('which brings the tools a mid-sized model reads to under two thirds of their full length', JSON.stringify(mid).length * 3 < JSON.stringify(longWords).length * 2, `${JSON.stringify(mid).length} against ${JSON.stringify(longWords).length}`);
   ok('the rules a smaller model needs stay in its lines: exact search text, whole files only when meant, a command and its arguments apart',

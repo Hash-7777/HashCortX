@@ -1133,7 +1133,8 @@
 
 `;
   const OPTIONAL_ARGUMENTS = ['reason', 'cwd', 'file_ext', 'start_line', 'end_line', 'edits', 'replace_whole', 'count', 'all', 'replaces', 'append', 'offset'];
-  HC.code.toolList = () => HC.code.TOOL_DEFINITIONS.map(t => ({
+  // The tools as every model is offered them, three with an example call at the end (HC.code.withExamples below).
+  HC.code.toolList = () => HC.code.withExamples(HC.code.TOOL_DEFINITIONS.map(t => ({
     type: 'function',
     function: {
       name: t.name,
@@ -1148,7 +1149,7 @@
         required: Object.keys(t.parameters).filter(k => !OPTIONAL_ARGUMENTS.includes(k)),
       },
     },
-  }));
+  })));
 
   // ── System prompt ───────────────────────────────────────────
 
@@ -1439,7 +1440,8 @@ ${HC.code.TOOL_TEXT_RULE}`;
   HC.code.toolsFor = (size, list, site) => {
     const names = size === 'small' ? HC.code.SMALL_MODEL_TOOLS : size === 'mid' ? HC.code.MID_MODEL_TOOLS : null;
     if (!names) return list;
-    return HC.code.inFewWords(HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))));
+    const few = HC.code.inFewWords(HC.code.shortPlaces(list.filter((t) => names.includes(t.function.name) && (size !== 'mid' || t.function.name !== 'find_photos' || !!site))));
+    return size === 'mid' ? HC.code.withExamples(few) : few;
   };
 
   /**
@@ -1509,6 +1511,35 @@ ${HC.code.TOOL_TEXT_RULE}`;
     const words = HC.code.SHORT_ARGUMENT_WORDS;
     const next = Object.fromEntries(Object.entries(props).map(([k, spec]) => [k, words[k] && spec && typeof spec === 'object' ? { ...spec, description: words[k] } : spec]));
     return { ...tool, function: { ...f, description: HC.code.SHORT_TOOL_WORDS[f.name] || f.description, parameters: { ...f.parameters, properties: next } } };
+  });
+
+  // ── One example call on three tools ────────────────────────
+  //
+  // Three tools take a call whose shape is easy to get wrong: patch_file
+  // with more than one change, shell_run with the program apart from its
+  // arguments, grep_code with a pattern of several names. Each ends its
+  // description with one call written out, with invented values, so the
+  // shape is shown as well as said. Every provider is sent it the same way,
+  // as the description's last line. A small model is not: its tools are
+  // one line each, and its instructions already write out the call it needs
+  // most. Each line stays under EXAMPLE_MOST characters, as
+  // scripts/checks/code-tool-examples.mjs holds.
+
+  /** One call for each of three tools, with invented values, each a call the app lets through. */
+  HC.code.TOOL_EXAMPLES = {
+    patch_file: { path: 'src/cart.js', search: 'const TAX = 0.2;', replace: 'const TAX = 0.25;', edits: [{ search: 'return total;', replace: 'return Math.round(total * 100) / 100;' }], reason: 'New tax rate; round the total' },
+    shell_run: { command: 'git', args: ['log', '-n', '5', '--oneline', '--', 'src/cart.js'], reason: 'Recent changes to the cart' },
+    grep_code: { dir: 'src', pattern: 'addItem|removeItem', file_ext: 'js' },
+  };
+  /** The most characters an example line may add to its tool. */
+  HC.code.EXAMPLE_MOST = 400;
+  /** The line for a tool, or '' for a tool without one. Its paths are written from the project folder, which every tool takes. */
+  HC.code.exampleLine = (name) => (HC.code.TOOL_EXAMPLES[name] ? `Example, with paths from the project folder: ${JSON.stringify(HC.code.TOOL_EXAMPLES[name])}` : '');
+  /** The tools with each example line at the end of its description; the others as they were. */
+  HC.code.withExamples = (list) => list.map((tool) => {
+    const f = tool.function || {};
+    const line = HC.code.exampleLine(f.name);
+    return line && !String(f.description || '').endsWith(line) ? { ...tool, function: { ...f, description: `${f.description}\n${line}` } } : tool;
   });
 
   /** The instructions for a model of this size; the memory section only while HashCoder may use memory. */
